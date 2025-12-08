@@ -462,3 +462,152 @@ func TestCopyScopesIntegration(t *testing.T) {
 	assert.Equal(t, "tenant789", updateResult["__yao_tenant_id"])
 	assert.Nil(t, updateResult["__yao_created_by"]) // Should not be copied
 }
+
+func TestAuthorizedToMap(t *testing.T) {
+	tests := []struct {
+		name     string
+		auth     *AuthorizedInfo
+		expected map[string]interface{}
+	}{
+		{
+			name: "Full AuthorizedInfo",
+			auth: &AuthorizedInfo{
+				Subject:    "user123",
+				ClientID:   "client456",
+				Scope:      "read write",
+				SessionID:  "session789",
+				UserID:     "user123",
+				TeamID:     "team456",
+				TenantID:   "tenant789",
+				RememberMe: true,
+				Constraints: DataConstraints{
+					OwnerOnly:   true,
+					CreatorOnly: false,
+					EditorOnly:  false,
+					TeamOnly:    true,
+					Extra: map[string]interface{}{
+						"department": "engineering",
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"sub":         "user123",
+				"client_id":   "client456",
+				"scope":       "read write",
+				"session_id":  "session789",
+				"user_id":     "user123",
+				"team_id":     "team456",
+				"tenant_id":   "tenant789",
+				"remember_me": true,
+				"constraints": map[string]interface{}{
+					"owner_only": true,
+					"team_only":  true,
+					"extra": map[string]interface{}{
+						"department": "engineering",
+					},
+				},
+			},
+		},
+		{
+			name: "Partial AuthorizedInfo",
+			auth: &AuthorizedInfo{
+				UserID: "user123",
+				TeamID: "team456",
+			},
+			expected: map[string]interface{}{
+				"user_id": "user123",
+				"team_id": "team456",
+			},
+		},
+		{
+			name: "AuthorizedInfo with only constraints",
+			auth: &AuthorizedInfo{
+				UserID: "user123",
+				Constraints: DataConstraints{
+					TeamOnly: true,
+					Extra: map[string]interface{}{
+						"region": "us-west",
+					},
+				},
+			},
+			expected: map[string]interface{}{
+				"user_id": "user123",
+				"constraints": map[string]interface{}{
+					"team_only": true,
+					"extra": map[string]interface{}{
+						"region": "us-west",
+					},
+				},
+			},
+		},
+		{
+			name:     "Nil AuthorizedInfo",
+			auth:     nil,
+			expected: nil,
+		},
+		{
+			name:     "Empty AuthorizedInfo",
+			auth:     &AuthorizedInfo{},
+			expected: map[string]interface{}{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.auth.AuthorizedToMap()
+
+			if tt.expected == nil {
+				assert.Nil(t, result)
+				return
+			}
+
+			assert.NotNil(t, result)
+
+			// Check all expected keys
+			for key, expectedValue := range tt.expected {
+				actualValue, ok := result[key]
+				if !ok {
+					t.Errorf("Key %s not found in result", key)
+					continue
+				}
+
+				// Special handling for nested maps (constraints)
+				if key == "constraints" {
+					expectedConstraints, _ := expectedValue.(map[string]interface{})
+					actualConstraints, ok := actualValue.(map[string]interface{})
+					assert.True(t, ok, "constraints should be map[string]interface{}")
+
+					for cKey, cExpectedValue := range expectedConstraints {
+						cActualValue, ok := actualConstraints[cKey]
+						assert.True(t, ok, "Constraint key %s should exist", cKey)
+
+						// Special handling for nested extra map
+						if cKey == "extra" {
+							expectedExtra, _ := cExpectedValue.(map[string]interface{})
+							actualExtra, ok := cActualValue.(map[string]interface{})
+							assert.True(t, ok, "extra should be map[string]interface{}")
+
+							for eKey, eExpectedValue := range expectedExtra {
+								eActualValue, ok := actualExtra[eKey]
+								assert.True(t, ok, "Extra key %s should exist", eKey)
+								assert.Equal(t, eExpectedValue, eActualValue)
+							}
+						} else {
+							assert.Equal(t, cExpectedValue, cActualValue)
+						}
+					}
+				} else {
+					assert.Equal(t, expectedValue, actualValue)
+				}
+			}
+
+			// Check no unexpected keys (except for empty maps)
+			if len(tt.expected) > 0 {
+				for key := range result {
+					_, ok := tt.expected[key]
+					assert.True(t, ok, "Unexpected key %s in result", key)
+				}
+			}
+		})
+	}
+}

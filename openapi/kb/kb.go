@@ -11,6 +11,15 @@ import (
 func init() {
 	// Register kb process handlers
 	process.RegisterGroup("kb", map[string]process.Handler{
+		// Collection processes
+		"collection.create":         ProcessCreateCollection,
+		"collection.remove":         ProcessRemoveCollection,
+		"collection.get":            ProcessGetCollection,
+		"collection.exists":         ProcessCollectionExists,
+		"collection.list":           ProcessListCollections,
+		"collection.updatemetadata": ProcessUpdateCollectionMetadata,
+
+		// Document processes
 		"documents.addfile": ProcessAddFile,
 		"documents.addtext": ProcessAddText,
 		"documents.addurl":  ProcessAddURL,

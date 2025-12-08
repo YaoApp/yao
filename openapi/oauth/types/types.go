@@ -627,6 +627,64 @@ type AuthorizedInfo struct {
 	Constraints DataConstraints `json:"constraints,omitempty"`
 }
 
+// AuthorizedToMap converts AuthorizedInfo to map[string]interface{}
+// This is useful for passing authorized information to runtime bridges (e.g., V8)
+func (auth *AuthorizedInfo) AuthorizedToMap() map[string]interface{} {
+	if auth == nil {
+		return nil
+	}
+
+	result := make(map[string]interface{})
+
+	if auth.Subject != "" {
+		result["sub"] = auth.Subject
+	}
+	if auth.ClientID != "" {
+		result["client_id"] = auth.ClientID
+	}
+	if auth.Scope != "" {
+		result["scope"] = auth.Scope
+	}
+	if auth.SessionID != "" {
+		result["session_id"] = auth.SessionID
+	}
+	if auth.UserID != "" {
+		result["user_id"] = auth.UserID
+	}
+	if auth.TeamID != "" {
+		result["team_id"] = auth.TeamID
+	}
+	if auth.TenantID != "" {
+		result["tenant_id"] = auth.TenantID
+	}
+	if auth.RememberMe {
+		result["remember_me"] = auth.RememberMe
+	}
+
+	// Add constraints if any are set
+	if auth.Constraints.OwnerOnly || auth.Constraints.CreatorOnly || auth.Constraints.EditorOnly || auth.Constraints.TeamOnly || len(auth.Constraints.Extra) > 0 {
+		constraints := make(map[string]interface{})
+		if auth.Constraints.OwnerOnly {
+			constraints["owner_only"] = true
+		}
+		if auth.Constraints.CreatorOnly {
+			constraints["creator_only"] = true
+		}
+		if auth.Constraints.EditorOnly {
+			constraints["editor_only"] = true
+		}
+		if auth.Constraints.TeamOnly {
+			constraints["team_only"] = true
+		}
+		if len(auth.Constraints.Extra) > 0 {
+			constraints["extra"] = auth.Constraints.Extra
+		}
+		result["constraints"] = constraints
+	}
+
+	return result
+}
+
 // JWTClaims represents JWT-specific claims structure
 type JWTClaims struct {
 	jwt.StandardClaims

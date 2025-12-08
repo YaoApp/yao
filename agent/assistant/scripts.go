@@ -20,6 +20,11 @@ var scriptsMutex sync.Mutex
 
 // Execute execute the script
 func (s *Script) Execute(ctx context.Context, method string, args ...interface{}) (interface{}, error) {
+	return s.ExecuteWithAuthorized(ctx, method, nil, args...)
+}
+
+// ExecuteWithAuthorized execute the script with authorized information
+func (s *Script) ExecuteWithAuthorized(ctx context.Context, method string, authorized map[string]interface{}, args ...interface{}) (interface{}, error) {
 	if s == nil || s.Script == nil {
 		return nil, nil
 	}
@@ -29,6 +34,11 @@ func (s *Script) Execute(ctx context.Context, method string, args ...interface{}
 		return nil, err
 	}
 	defer scriptCtx.Close()
+
+	// Set authorized information if available
+	if authorized != nil {
+		scriptCtx.WithAuthorized(authorized)
+	}
 
 	// Call the method with provided arguments as-is
 	result, err := scriptCtx.CallWith(ctx, method, args...)
@@ -359,8 +369,14 @@ func makeScriptHandler(script *Script) process.Handler {
 		// Get arguments from process
 		args := p.Args
 
-		// Execute the script
-		result, err := script.Execute(p.Context, method, args...)
+		// Convert authorized info to map if available
+		var authorized map[string]interface{}
+		if p.Authorized != nil {
+			authorized = p.Authorized.AuthorizedToMap()
+		}
+
+		// Execute the script with authorized information
+		result, err := script.ExecuteWithAuthorized(p.Context, method, authorized, args...)
 		if err != nil {
 			exception.New(err.Error(), 500).Throw()
 		}
