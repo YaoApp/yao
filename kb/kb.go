@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/kb/api"
 
 	// Register the built-in providers
 	_ "github.com/yaoapp/yao/kb/providers"
@@ -20,6 +21,9 @@ import (
 
 // Instance is the GraphRag instance
 var Instance types.GraphRag = nil
+
+// API is the Knowledge Base API instance
+var API api.API = nil
 
 // KnowledgeBase is the Knowledge Base instance
 type KnowledgeBase struct {
@@ -86,6 +90,10 @@ func Load(appConfig config.Config) (*KnowledgeBase, error) {
 
 	// Set the instance to the global variable
 	Instance = instance
+
+	// Create and set the API instance
+	API = api.NewAPI(graphRag, &config, providers)
+
 	return instance, nil
 }
 
