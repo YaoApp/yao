@@ -18,6 +18,7 @@ type DSL struct {
 	// Global External Settings - model capabilities, tools, etc.
 	// ===============================
 	Models map[string]openai.Capabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
+	KB     *store.KBSetting               `json:"kb,omitempty" yaml:"kb,omitempty"`         // The knowledge base configuration loaded from agent/kb.yml
 
 	// Internal
 	// ===============================

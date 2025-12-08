@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	graphragtypes "github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -93,6 +94,34 @@ type Prompt struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 	Name    string `json:"name,omitempty"`
+}
+
+// KBSetting Knowledge Base configuration for agent (from agent/kb.yml)
+type KBSetting struct {
+	Chat *ChatKBSetting `json:"chat,omitempty" yaml:"chat,omitempty"` // Chat session KB settings
+}
+
+// ChatKBSetting represents KB settings for chat sessions
+type ChatKBSetting struct {
+	EmbeddingProviderID string                                 `json:"embedding_provider_id" yaml:"embedding_provider_id"`             // Embedding provider ID
+	EmbeddingOptionID   string                                 `json:"embedding_option_id" yaml:"embedding_option_id"`                 // Embedding option ID
+	Locale              string                                 `json:"locale,omitempty" yaml:"locale,omitempty"`                       // Locale for content processing
+	Config              *graphragtypes.CreateCollectionOptions `json:"config,omitempty" yaml:"config,omitempty"`                       // Vector index configuration
+	Metadata            map[string]interface{}                 `json:"metadata,omitempty" yaml:"metadata,omitempty"`                   // Collection metadata defaults
+	DocumentDefaults    *DocumentDefaults                      `json:"document_defaults,omitempty" yaml:"document_defaults,omitempty"` // Document processing defaults
+}
+
+// DocumentDefaults represents default settings for document processing
+type DocumentDefaults struct {
+	Chunking   *ProviderOption `json:"chunking,omitempty" yaml:"chunking,omitempty"`     // Chunking provider configuration
+	Extraction *ProviderOption `json:"extraction,omitempty" yaml:"extraction,omitempty"` // Extraction provider configuration
+	Converter  *ProviderOption `json:"converter,omitempty" yaml:"converter,omitempty"`   // Converter provider configuration
+}
+
+// ProviderOption represents a provider and option ID pair
+type ProviderOption struct {
+	ProviderID string `json:"provider_id" yaml:"provider_id"` // Provider ID
+	OptionID   string `json:"option_id" yaml:"option_id"`     // Option ID within the provider
 }
 
 // KnowledgeBase the knowledge base configuration

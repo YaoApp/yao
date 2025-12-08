@@ -23,9 +23,10 @@ var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var search interface{} = nil
 var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
-var defaultConnector string = ""       // default connector
-var globalUses *context.Uses = nil     // global uses configuration from agent.yml
-var globalPrompts []store.Prompt = nil // global prompts from agent/prompts.yml
+var defaultConnector string = ""           // default connector
+var globalUses *context.Uses = nil         // global uses configuration from agent.yml
+var globalPrompts []store.Prompt = nil     // global prompts from agent/prompts.yml
+var globalKBSetting *store.KBSetting = nil // global KB setting from agent/kb.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -159,6 +160,16 @@ func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
 		return nil
 	}
 	return store.Prompts(globalPrompts).Parse(ctx)
+}
+
+// SetGlobalKBSetting set the global KB setting from agent/kb.yml
+func SetGlobalKBSetting(kbSetting *store.KBSetting) {
+	globalKBSetting = kbSetting
+}
+
+// GetGlobalKBSetting returns the global KB setting
+func GetGlobalKBSetting() *store.KBSetting {
+	return globalKBSetting
 }
 
 // SetCache set the cache

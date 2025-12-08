@@ -22,7 +22,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
 	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
 
+	// Validate user permissions
 	var err error
+	err = ast.checkPermissions(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Start stream time
 	streamStartTime := time.Now()
 
 	// Set up interrupt handler if interrupt controller is available
@@ -64,6 +71,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Send ChunkStreamStart only for root stack (agent-level stream start)
 	// Now ctx.Capabilities is set, so output adapters can use it
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
+
+	// Initialize chat, prepare kb collection (optional) etc.
+	// Use async version to not block the main flow
+	ast.InitializeConversationAsync(ctx, opts)
 
 	// Initialize agent trace node
 	agentNode := ast.initAgentTraceNode(ctx, inputMessages)

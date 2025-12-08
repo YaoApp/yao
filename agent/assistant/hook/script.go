@@ -23,6 +23,11 @@ func (s *Script) Execute(ctx *context.Context, method string, args ...interface{
 	}
 	defer scriptCtx.Close()
 
+	// Set authorized information if available
+	if ctx.Authorized != nil {
+		scriptCtx.WithAuthorized(ctx.Authorized.AuthorizedToMap())
+	}
+
 	// The first argument is the context
 	args = append([]interface{}{ctx}, args...)
 

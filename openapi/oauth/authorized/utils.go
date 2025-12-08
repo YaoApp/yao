@@ -8,9 +8,37 @@ import (
 
 // ProcessAuthInfo extracts authorized information from the process
 func ProcessAuthInfo(p *process.Process) *types.AuthorizedInfo {
-	// TODO: Implement this function
-	// Get authorized information from the process context
-	info := &types.AuthorizedInfo{}
+	if p == nil {
+		return nil
+	}
+
+	// Get authorized info from process
+	processAuth := p.GetAuthorized()
+	if processAuth == nil {
+		return nil
+	}
+
+	// Convert process.AuthorizedInfo to types.AuthorizedInfo
+	info := &types.AuthorizedInfo{
+		Subject:    processAuth.Subject,
+		ClientID:   processAuth.ClientID,
+		UserID:     processAuth.UserID,
+		Scope:      processAuth.Scope,
+		TeamID:     processAuth.TeamID,
+		TenantID:   processAuth.TenantID,
+		SessionID:  processAuth.SessionID,
+		RememberMe: processAuth.RememberMe,
+	}
+
+	// Convert constraints
+	info.Constraints = types.DataConstraints{
+		OwnerOnly:   processAuth.Constraints.OwnerOnly,
+		CreatorOnly: processAuth.Constraints.CreatorOnly,
+		EditorOnly:  processAuth.Constraints.EditorOnly,
+		TeamOnly:    processAuth.Constraints.TeamOnly,
+		Extra:       processAuth.Constraints.Extra,
+	}
+
 	return info
 }
 

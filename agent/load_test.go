@@ -59,6 +59,41 @@ func TestLoad(t *testing.T) {
 		assert.NotNil(t, agent.Models)
 		assert.Greater(t, len(agent.Models), 0)
 	})
+
+	t.Run("LoadKBConfig", func(t *testing.T) {
+		// KB configuration should be loaded from agent/kb.yml
+		assert.NotNil(t, agent.KB)
+		assert.NotNil(t, agent.KB.Chat)
+
+		// Verify chat KB settings
+		assert.Equal(t, "__yao.openai", agent.KB.Chat.EmbeddingProviderID)
+		assert.Equal(t, "text-embedding-3-small", agent.KB.Chat.EmbeddingOptionID)
+		assert.Equal(t, "zh-CN", agent.KB.Chat.Locale)
+
+		// Verify config
+		assert.NotNil(t, agent.KB.Chat.Config)
+		assert.Equal(t, "hnsw", agent.KB.Chat.Config.IndexType.String())
+		assert.Equal(t, "cosine", agent.KB.Chat.Config.Distance.String())
+
+		// Verify metadata
+		assert.NotNil(t, agent.KB.Chat.Metadata)
+		assert.Equal(t, "chat_session", agent.KB.Chat.Metadata["category"])
+		assert.Equal(t, true, agent.KB.Chat.Metadata["auto_created"])
+
+		// Verify document defaults
+		assert.NotNil(t, agent.KB.Chat.DocumentDefaults)
+		assert.NotNil(t, agent.KB.Chat.DocumentDefaults.Chunking)
+		assert.Equal(t, "__yao.structured", agent.KB.Chat.DocumentDefaults.Chunking.ProviderID)
+		assert.Equal(t, "standard", agent.KB.Chat.DocumentDefaults.Chunking.OptionID)
+
+		assert.NotNil(t, agent.KB.Chat.DocumentDefaults.Extraction)
+		assert.Equal(t, "__yao.openai", agent.KB.Chat.DocumentDefaults.Extraction.ProviderID)
+		assert.Equal(t, "gpt-4o-mini", agent.KB.Chat.DocumentDefaults.Extraction.OptionID)
+
+		assert.NotNil(t, agent.KB.Chat.DocumentDefaults.Converter)
+		assert.Equal(t, "__yao.utf8", agent.KB.Chat.DocumentDefaults.Converter.ProviderID)
+		assert.Equal(t, "standard-text", agent.KB.Chat.DocumentDefaults.Converter.OptionID)
+	})
 }
 
 func TestGetGlobalPrompts(t *testing.T) {
