@@ -430,12 +430,12 @@ func (ctx *Context) BufferUserInput(messages []Message) {
 
 // BufferAssistantMessage adds an assistant message to the buffer
 // Called by ctx.Send() to buffer messages for batch saving
-func (ctx *Context) BufferAssistantMessage(msgType string, props map[string]interface{}, blockID, threadID string, metadata map[string]interface{}) {
+func (ctx *Context) BufferAssistantMessage(messageID, msgType string, props map[string]interface{}, blockID, threadID string, metadata map[string]interface{}) {
 	if ctx.Buffer == nil {
 		return
 	}
 
-	ctx.Buffer.AddAssistantMessage(msgType, props, blockID, threadID, ctx.AssistantID, metadata)
+	ctx.Buffer.AddAssistantMessage(messageID, msgType, props, blockID, threadID, ctx.AssistantID, metadata)
 }
 
 // BeginStep starts tracking a new execution step

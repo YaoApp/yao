@@ -826,3 +826,518 @@ func TestJsValueEndBlock(t *testing.T) {
 	output := mockWriter.buffer.String()
 	assert.Contains(t, output, "block_end", "Output should contain block_end event")
 }
+
+// TestJsValueSendStream tests the SendStream method on Context
+func TestJsValueSendStream(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Setup mock writer
+	mockWriter := newMockResponseWriter()
+
+	// Use New() to properly initialize messageMetadata
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	// Test SendStream method
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Start a streaming message
+				const msgId = ctx.SendStream({
+					type: "text",
+					props: { content: "Initial content" }
+				});
+				
+				// Verify msgId is returned
+				if (typeof msgId !== 'string' || msgId === '') {
+					throw new Error('SendStream should return a message ID');
+				}
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "SendStream should work correctly")
+
+	// Verify message_start was sent but NOT message_end
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "message_start", "Output should contain message_start event")
+	assert.NotContains(t, output, "message_end", "Output should NOT contain message_end event (streaming)")
+}
+
+// TestJsValueSendStreamWithBlockID tests SendStream with block_id parameter
+func TestJsValueSendStreamWithBlockID(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Generate block ID
+				const blockId = ctx.BlockID();
+				
+				// Start streaming with block_id
+				const msgId = ctx.SendStream({
+					type: "text",
+					props: { content: "Streaming with block" },
+					block_id: blockId
+				});
+				
+				return { success: true, msgId: msgId, blockId: blockId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "SendStream with blockId should succeed")
+
+	// Verify block_start was also sent
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "block_start", "Output should contain block_start event")
+}
+
+// TestJsValueEnd tests the End method on Context
+func TestJsValueEnd(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Start a streaming message
+				const msgId = ctx.SendStream({
+					type: "text",
+					props: { content: "Hello" }
+				});
+				
+				// End the message
+				ctx.End(msgId);
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "End should work correctly")
+
+	// Verify message_end was sent
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "message_end", "Output should contain message_end event after End()")
+}
+
+// TestJsValueEndWithFinalContent tests End with final content parameter
+func TestJsValueEndWithFinalContent(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Start a streaming message
+				const msgId = ctx.SendStream({
+					type: "text",
+					props: { content: "Start" }
+				});
+				
+				// End with final content
+				ctx.End(msgId, " End");
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "End with final content should work correctly")
+
+	// Verify message_end was sent
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "message_end", "Output should contain message_end event")
+}
+
+// TestJsValueStreamingWorkflow tests the complete streaming workflow: SendStream -> Append -> End
+func TestJsValueStreamingWorkflow(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Start a streaming message
+				const msgId = ctx.SendStream({
+					type: "text",
+					props: { content: "# Title\n\n" }
+				});
+				
+				// Append content in chunks (simulating streaming)
+				ctx.Append(msgId, "First paragraph. ");
+				ctx.Append(msgId, "Second sentence. ");
+				ctx.Append(msgId, "Third sentence.\n\n");
+				ctx.Append(msgId, "Second paragraph.");
+				
+				// Finalize the message
+				ctx.End(msgId);
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "Streaming workflow should work correctly")
+
+	// Verify the complete workflow events
+	output := mockWriter.buffer.String()
+	assert.Contains(t, output, "message_start", "Output should contain message_start")
+	assert.Contains(t, output, "message_end", "Output should contain message_end")
+	assert.Contains(t, output, "# Title", "Output should contain initial content")
+	assert.Contains(t, output, "First paragraph", "Output should contain appended content")
+}
+
+// TestJsValueSendStreamStringShorthand tests SendStream with string shorthand
+func TestJsValueSendStreamStringShorthand(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// SendStream with string shorthand
+				const msgId = ctx.SendStream("Hello streaming");
+				
+				if (typeof msgId !== 'string' || msgId === '') {
+					throw new Error('SendStream should return a message ID');
+				}
+				
+				ctx.End(msgId);
+				
+				return { success: true, msgId: msgId };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, true, result["success"], "SendStream with string shorthand should succeed")
+}
+
+// TestJsValueEndErrorHandling tests error handling in End method
+func TestJsValueEndErrorHandling(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	// Test End without arguments
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				ctx.End();
+				return { success: true };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, false, result["success"], "End without arguments should fail")
+	assert.Contains(t, result["error"], "messageId", "Error should mention missing messageId")
+}
+
+// TestJsValueEndWithInvalidMessageID tests End with invalid messageId type
+func TestJsValueEndWithInvalidMessageID(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	// Test End with non-string messageId
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				ctx.End(123);
+				return { success: true };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, false, result["success"], "End with non-string messageId should fail")
+	assert.Contains(t, result["error"], "string", "Error should mention messageId must be string")
+}
+
+// TestJsValueSendStreamErrorHandling tests error handling in SendStream method
+func TestJsValueSendStreamErrorHandling(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	// Test SendStream without arguments
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				ctx.SendStream();
+				return { success: true };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	assert.Equal(t, false, result["success"], "SendStream without arguments should fail")
+	assert.Contains(t, result["error"], "SendStream requires a message argument", "Error should mention missing message")
+}
+
+// TestJsValueMultipleStreams tests handling multiple concurrent streaming messages
+func TestJsValueMultipleStreams(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	mockWriter := newMockResponseWriter()
+
+	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = AcceptWebCUI
+	cxt.Locale = "en"
+	cxt.Writer = mockWriter
+
+	res, err := v8.Call(v8.CallOptions{}, `
+		function test(ctx) {
+			try {
+				// Start multiple streaming messages
+				const msg1 = ctx.SendStream({ type: "text", props: { content: "Stream 1: " } });
+				const msg2 = ctx.SendStream({ type: "text", props: { content: "Stream 2: " } });
+				
+				// Interleave appends
+				ctx.Append(msg1, "A");
+				ctx.Append(msg2, "X");
+				ctx.Append(msg1, "B");
+				ctx.Append(msg2, "Y");
+				ctx.Append(msg1, "C");
+				ctx.Append(msg2, "Z");
+				
+				// End both streams
+				ctx.End(msg1);
+				ctx.End(msg2);
+				
+				return { success: true, msg1: msg1, msg2: msg2 };
+			} catch (error) {
+				return { success: false, error: error.message };
+			}
+		}`, cxt)
+	if err != nil {
+		t.Fatalf("Call failed: %v", err)
+	}
+
+	result, ok := res.(map[string]interface{})
+	if !ok {
+		t.Fatalf("Expected map result, got %T", res)
+	}
+	if !result["success"].(bool) {
+		t.Logf("Error: %v", result["error"])
+	}
+	assert.Equal(t, true, result["success"], "Multiple streams should work correctly")
+	assert.NotEqual(t, result["msg1"], result["msg2"], "Message IDs should be different")
+}
+
+// TestJsValueSendVsSendStream tests the difference between Send and SendStream
+func TestJsValueSendVsSendStream(t *testing.T) {
+
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Test Send - should auto-send message_end
+	t.Run("Send auto-ends", func(t *testing.T) {
+		mockWriter := newMockResponseWriter()
+		cxt := New(context.Background(), nil, "test-chat-id")
+		cxt.AssistantID = "test-assistant-id"
+		cxt.Accept = AcceptWebCUI
+		cxt.Locale = "en"
+		cxt.Writer = mockWriter
+
+		_, err := v8.Call(v8.CallOptions{}, `
+			function test(ctx) {
+				ctx.Send("Complete message");
+				return true;
+			}`, cxt)
+		if err != nil {
+			t.Fatalf("Call failed: %v", err)
+		}
+
+		output := mockWriter.buffer.String()
+		assert.Contains(t, output, "message_start", "Send should emit message_start")
+		assert.Contains(t, output, "message_end", "Send should auto-emit message_end")
+	})
+
+	// Test SendStream - should NOT auto-send message_end
+	t.Run("SendStream requires explicit End", func(t *testing.T) {
+		mockWriter := newMockResponseWriter()
+		cxt := New(context.Background(), nil, "test-chat-id")
+		cxt.AssistantID = "test-assistant-id"
+		cxt.Accept = AcceptWebCUI
+		cxt.Locale = "en"
+		cxt.Writer = mockWriter
+
+		_, err := v8.Call(v8.CallOptions{}, `
+			function test(ctx) {
+				const msgId = ctx.SendStream("Streaming message");
+				// Intentionally NOT calling ctx.End(msgId)
+				return msgId;
+			}`, cxt)
+		if err != nil {
+			t.Fatalf("Call failed: %v", err)
+		}
+
+		output := mockWriter.buffer.String()
+		assert.Contains(t, output, "message_start", "SendStream should emit message_start")
+		assert.NotContains(t, output, "message_end", "SendStream should NOT auto-emit message_end")
+	})
+}

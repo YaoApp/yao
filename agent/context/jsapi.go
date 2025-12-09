@@ -44,10 +44,12 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 	// Set methods
 	jsObject.Set("Send", ctx.sendMethod(v8ctx.Isolate()))
+	jsObject.Set("SendStream", ctx.sendStreamMethod(v8ctx.Isolate()))
 	jsObject.Set("Replace", ctx.replaceMethod(v8ctx.Isolate()))
 	jsObject.Set("Append", ctx.appendMethod(v8ctx.Isolate()))
 	jsObject.Set("Merge", ctx.mergeMethod(v8ctx.Isolate()))
 	jsObject.Set("Set", ctx.setMethod(v8ctx.Isolate()))
+	jsObject.Set("End", ctx.endMethod(v8ctx.Isolate()))
 
 	// Set ID generator methods
 	jsObject.Set("MessageID", ctx.messageIDMethod(v8ctx.Isolate()))
@@ -263,6 +265,103 @@ func (ctx *Context) sendMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
 		}
 		return messageID
+	})
+}
+
+// sendStreamMethod implements ctx.SendStream(message)
+// Usage: const msgId = ctx.SendStream({ type: "text", props: { content: "Initial content" } })
+// Starts a streaming message that can be appended to with ctx.Append()
+// Must be finalized with ctx.End(msgId) or ctx.End(msgId, "final content")
+// Unlike Send(), this does NOT automatically send message_end event
+// Returns: message_id (string)
+func (ctx *Context) sendStreamMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "SendStream requires a message argument")
+		}
+
+		// Parse message argument
+		msg, err := parseMessage(v8ctx, args[0])
+		if err != nil {
+			return bridge.JsException(v8ctx, "invalid message: "+err.Error())
+		}
+
+		// Get optional blockId argument (second argument)
+		if len(args) >= 2 && args[1].IsString() && msg.BlockID == "" {
+			msg.BlockID = args[1].String()
+		}
+
+		// Call ctx.SendStream
+		messageID, err := ctx.SendStream(msg)
+		if err != nil {
+			return bridge.JsException(v8ctx, "SendStream failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
+	})
+}
+
+// endMethod implements ctx.End(messageId, finalContent?)
+// Usage: ctx.End(msgId) or ctx.End(msgId, "final content to append")
+// Finalizes a streaming message started with SendStream()
+// Sends message_end event with the complete accumulated content
+// Returns: message_id (string)
+func (ctx *Context) endMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "End requires a messageId argument")
+		}
+
+		// Get message ID (first argument)
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "messageId must be a string")
+		}
+		messageID := args[0].String()
+
+		// Get optional final content (second argument)
+		var finalContent string
+		if len(args) >= 2 && args[1].IsString() {
+			finalContent = args[1].String()
+		}
+
+		// Call ctx.End
+		var err error
+		if finalContent != "" {
+			err = ctx.End(messageID, finalContent)
+		} else {
+			err = ctx.End(messageID)
+		}
+		if err != nil {
+			return bridge.JsException(v8ctx, "End failed: "+err.Error())
+		}
+
+		// Automatically flush after sending
+		if err := ctx.Flush(); err != nil {
+			return bridge.JsException(v8ctx, "Flush failed: "+err.Error())
+		}
+
+		// Return the message ID
+		returnID, err := v8go.NewValue(iso, messageID)
+		if err != nil {
+			return bridge.JsException(v8ctx, "Failed to create return value: "+err.Error())
+		}
+		return returnID
 	})
 }
 

@@ -165,6 +165,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("AddTextMessage", func(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer.AddAssistantMessage(
+			"M1",
 			"text",
 			map[string]interface{}{"content": "Hello, how can I help?"},
 			"block-1",
@@ -175,6 +176,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 
 		messages := buffer.GetMessages()
 		require.Len(t, messages, 1)
+		assert.Equal(t, "M1", messages[0].MessageID)
 		assert.Equal(t, "assistant", messages[0].Role)
 		assert.Equal(t, "text", messages[0].Type)
 		assert.Equal(t, "block-1", messages[0].BlockID)
@@ -186,6 +188,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("SkipEventMessage", func(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		buffer.AddAssistantMessage(
+			"E1",
 			"event",
 			map[string]interface{}{"event": "message_start"},
 			"", "", "", nil,
@@ -198,6 +201,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("AddRetrievalMessage", func(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		buffer.AddAssistantMessage(
+			"M2",
 			"retrieval",
 			map[string]interface{}{
 				"sources": []map[string]interface{}{
@@ -216,6 +220,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("AddToolCallMessage", func(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 		buffer.AddAssistantMessage(
+			"M3",
 			"tool_call",
 			map[string]interface{}{
 				"name":      "get_weather",
@@ -233,6 +238,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("AddCustomTypeMessage", func(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5", "")
 		buffer.AddAssistantMessage(
+			"M4",
 			"custom_chart",
 			map[string]interface{}{
 				"chart_type": "bar",
@@ -277,7 +283,7 @@ func TestBufferGetMessageCount(t *testing.T) {
 	buffer.AddUserInput("Message 1", "")
 	assert.Equal(t, 1, buffer.GetMessageCount())
 
-	buffer.AddAssistantMessage("text", map[string]interface{}{"content": "Reply"}, "", "", "", nil)
+	buffer.AddAssistantMessage("M1", "text", map[string]interface{}{"content": "Reply"}, "", "", "", nil)
 	assert.Equal(t, 2, buffer.GetMessageCount())
 }
 
@@ -650,6 +656,7 @@ func TestBufferConnectorInMessages(t *testing.T) {
 
 		// Add assistant message - should inherit connector from buffer
 		buffer.AddAssistantMessage(
+			"M1",
 			"text",
 			map[string]interface{}{"content": "Hello"},
 			"block-1", "thread-1", "assistant-1", nil,
@@ -665,6 +672,7 @@ func TestBufferConnectorInMessages(t *testing.T) {
 
 		// First message with openai
 		buffer.AddAssistantMessage(
+			"M1",
 			"text",
 			map[string]interface{}{"content": "Using OpenAI"},
 			"", "", "assistant-1", nil,
@@ -675,6 +683,7 @@ func TestBufferConnectorInMessages(t *testing.T) {
 
 		// Second message with anthropic
 		buffer.AddAssistantMessage(
+			"M2",
 			"text",
 			map[string]interface{}{"content": "Now using Claude"},
 			"", "", "assistant-1", nil,
@@ -707,6 +716,7 @@ func TestBufferConnectorInMessages(t *testing.T) {
 		for i, conn := range connectors {
 			buffer.SetConnector(conn)
 			buffer.AddAssistantMessage(
+				fmt.Sprintf("M%d", i+1),
 				"text",
 				map[string]interface{}{"content": fmt.Sprintf("Message %d", i+1)},
 				"", "", "assistant-1", nil,
@@ -908,8 +918,8 @@ func TestBufferEdgeCases(t *testing.T) {
 			"custom_type_1", "custom_type_2",
 		}
 
-		for _, msgType := range messageTypes {
-			buffer.AddAssistantMessage(msgType, map[string]interface{}{"type": msgType}, "", "", "", nil)
+		for i, msgType := range messageTypes {
+			buffer.AddAssistantMessage(fmt.Sprintf("M%d", i+1), msgType, map[string]interface{}{"type": msgType}, "", "", "", nil)
 		}
 
 		assert.Equal(t, len(messageTypes), buffer.GetMessageCount())
@@ -948,12 +958,12 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 
 		// 2. Create hook
 		buffer.BeginStep(context.StepTypeHookCreate, nil, nil)
-		buffer.AddAssistantMessage("thinking", map[string]interface{}{"content": "Processing your request..."}, "block-1", "", "assistant-main", nil)
+		buffer.AddAssistantMessage("M1", "thinking", map[string]interface{}{"content": "Processing your request..."}, "block-1", "", "assistant-main", nil)
 		buffer.CompleteStep(nil)
 
 		// 3. LLM call with tool
 		buffer.BeginStep(context.StepTypeLLM, map[string]interface{}{"model": "gpt-4"}, nil)
-		buffer.AddAssistantMessage("tool_call", map[string]interface{}{
+		buffer.AddAssistantMessage("M2", "tool_call", map[string]interface{}{
 			"name":      "get_weather",
 			"arguments": `{"location":"San Francisco"}`,
 		}, "block-2", "", "assistant-main", nil)
@@ -961,14 +971,14 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 
 		// 4. Tool execution
 		buffer.BeginStep(context.StepTypeTool, map[string]interface{}{"tool": "get_weather"}, nil)
-		buffer.AddAssistantMessage("tool_result", map[string]interface{}{
+		buffer.AddAssistantMessage("M3", "tool_result", map[string]interface{}{
 			"result": "72°F, Sunny",
 		}, "block-2", "", "assistant-main", nil)
 		buffer.CompleteStep(map[string]interface{}{"result": "72°F, Sunny"})
 
 		// 5. Final LLM response
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
-		buffer.AddAssistantMessage("text", map[string]interface{}{
+		buffer.AddAssistantMessage("M4", "text", map[string]interface{}{
 			"content": "The weather in San Francisco is currently 72°F and sunny.",
 		}, "block-3", "", "assistant-main", nil)
 		buffer.CompleteStep(nil)
@@ -998,7 +1008,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 
 		// 2. LLM starts generating
 		buffer.BeginStep(context.StepTypeLLM, map[string]interface{}{"model": "gpt-4"}, nil)
-		buffer.AddAssistantMessage("text", map[string]interface{}{"content": "Once upon a time..."}, "block-1", "", "assistant-main", nil)
+		buffer.AddAssistantMessage("M1", "text", map[string]interface{}{"content": "Once upon a time..."}, "block-1", "", "assistant-main", nil)
 		// User interrupts here!
 
 		// Get steps for resume
@@ -1028,13 +1038,13 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 		buffer.BeginStep(context.StepTypeDelegate, map[string]interface{}{"delegate_to": "assistant-child"}, childStack)
 
 		// Child assistant messages
-		buffer.AddAssistantMessage("text", map[string]interface{}{"content": "Child assistant responding"}, "block-child", "", "assistant-child", nil)
+		buffer.AddAssistantMessage("M1", "text", map[string]interface{}{"content": "Child assistant responding"}, "block-child", "", "assistant-child", nil)
 		buffer.CompleteStep(map[string]interface{}{"delegate_result": "success"})
 
 		// Return to main assistant
 		buffer.SetAssistantID("assistant-main")
 		buffer.BeginStep(context.StepTypeLLM, nil, mainStack)
-		buffer.AddAssistantMessage("text", map[string]interface{}{"content": "Main assistant continuing"}, "block-main", "", "assistant-main", nil)
+		buffer.AddAssistantMessage("M2", "text", map[string]interface{}{"content": "Main assistant continuing"}, "block-main", "", "assistant-main", nil)
 		buffer.CompleteStep(nil)
 
 		// Verify
@@ -1064,6 +1074,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 				defer wg.Done()
 				threadID := fmt.Sprintf("thread-%d", idx)
 				buffer.AddAssistantMessage(
+					fmt.Sprintf("M%d", idx),
 					"text",
 					map[string]interface{}{"content": fmt.Sprintf("Response from thread %d", idx)},
 					"block-concurrent",
@@ -1113,9 +1124,9 @@ func TestBufferMessageSequence(t *testing.T) {
 		buffer := context.NewChatBuffer("chat-mixed", "req-mixed", "assistant-mixed", "")
 
 		buffer.AddUserInput("Hello", "")
-		buffer.AddAssistantMessage("text", nil, "", "", "", nil)
+		buffer.AddAssistantMessage("M1", "text", nil, "", "", "", nil)
 		buffer.AddUserInput("Follow up", "")
-		buffer.AddAssistantMessage("tool_call", nil, "", "", "", nil)
+		buffer.AddAssistantMessage("M2", "tool_call", nil, "", "", "", nil)
 
 		messages := buffer.GetMessages()
 		assert.Len(t, messages, 4)
@@ -1167,5 +1178,240 @@ func TestBufferMultipleRequests(t *testing.T) {
 
 		assert.Equal(t, "req-1", msg1.RequestID)
 		assert.Equal(t, "req-2", msg2.RequestID)
+	})
+}
+
+// =============================================================================
+// Streaming Message Tests
+// =============================================================================
+
+func TestBufferStreamingMessage(t *testing.T) {
+	t.Run("AddStreamingMessage", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		buffer.AddStreamingMessage(
+			"msg-stream-1",
+			"text",
+			map[string]interface{}{"content": "# Title\n\n"},
+			"block-1",
+			"thread-1",
+			"assistant-1",
+			nil,
+		)
+
+		assert.Equal(t, 1, buffer.GetMessageCount())
+
+		// Verify streaming message is added
+		msg := buffer.GetStreamingMessage("msg-stream-1")
+		assert.NotNil(t, msg)
+		assert.Equal(t, "msg-stream-1", msg.MessageID)
+		assert.Equal(t, "text", msg.Type)
+		assert.Equal(t, "# Title\n\n", msg.Props["content"])
+		assert.True(t, msg.IsStreaming)
+	})
+
+	t.Run("AppendMessageContent", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add streaming message
+		buffer.AddStreamingMessage(
+			"msg-stream-2",
+			"text",
+			map[string]interface{}{"content": "Initial "},
+			"", "", "", nil,
+		)
+
+		// Append content
+		ok := buffer.AppendMessageContent("msg-stream-2", "Line 1\n")
+		assert.True(t, ok)
+
+		ok = buffer.AppendMessageContent("msg-stream-2", "Line 2\n")
+		assert.True(t, ok)
+
+		// Verify accumulated content
+		msg := buffer.GetStreamingMessage("msg-stream-2")
+		assert.NotNil(t, msg)
+		assert.Equal(t, "Initial Line 1\nLine 2\n", msg.Props["content"])
+	})
+
+	t.Run("AppendToNonExistentMessage", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Try to append to non-existent message
+		ok := buffer.AppendMessageContent("non-existent", "content")
+		assert.False(t, ok)
+	})
+
+	t.Run("AppendToCompletedMessage", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add and complete streaming message
+		buffer.AddStreamingMessage(
+			"msg-stream-3",
+			"text",
+			map[string]interface{}{"content": "Initial"},
+			"", "", "", nil,
+		)
+		buffer.CompleteStreamingMessage("msg-stream-3")
+
+		// Try to append to completed message (should fail)
+		ok := buffer.AppendMessageContent("msg-stream-3", " more")
+		assert.False(t, ok)
+	})
+
+	t.Run("CompleteStreamingMessage", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add streaming message
+		buffer.AddStreamingMessage(
+			"msg-stream-4",
+			"text",
+			map[string]interface{}{"content": "Hello "},
+			"", "", "", nil,
+		)
+
+		// Append content
+		buffer.AppendMessageContent("msg-stream-4", "World!")
+
+		// Complete the message
+		content, ok := buffer.CompleteStreamingMessage("msg-stream-4")
+		assert.True(t, ok)
+		assert.Equal(t, "Hello World!", content)
+
+		// Message should no longer be streaming
+		msg := buffer.GetStreamingMessage("msg-stream-4")
+		assert.Nil(t, msg)
+
+		// But should still exist in messages
+		messages := buffer.GetMessages()
+		assert.Equal(t, 1, len(messages))
+		assert.False(t, messages[0].IsStreaming)
+	})
+
+	t.Run("CompleteNonExistentMessage", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		content, ok := buffer.CompleteStreamingMessage("non-existent")
+		assert.False(t, ok)
+		assert.Empty(t, content)
+	})
+
+	t.Run("StreamingMessageWorkflow", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "deepseek")
+
+		// Simulate a typical streaming workflow:
+		// 1. SendStream sends initial content
+		buffer.AddStreamingMessage(
+			"msg-workflow",
+			"text",
+			map[string]interface{}{"content": "# Available Tests\n\n"},
+			"block-main",
+			"",
+			"assistant-1",
+			nil,
+		)
+
+		// 2. Multiple Append calls add content
+		buffer.AppendMessageContent("msg-workflow", "Send one of these keywords:\n\n")
+		buffer.AppendMessageContent("msg-workflow", "- **basic** - Basic tests\n")
+		buffer.AppendMessageContent("msg-workflow", "- **advanced** - Advanced tests\n")
+
+		// 3. End completes the message
+		finalContent, ok := buffer.CompleteStreamingMessage("msg-workflow")
+		assert.True(t, ok)
+
+		expectedContent := "# Available Tests\n\nSend one of these keywords:\n\n- **basic** - Basic tests\n- **advanced** - Advanced tests\n"
+		assert.Equal(t, expectedContent, finalContent)
+
+		// Verify final message state
+		messages := buffer.GetMessages()
+		assert.Equal(t, 1, len(messages))
+		assert.Equal(t, "msg-workflow", messages[0].MessageID)
+		assert.Equal(t, "deepseek", messages[0].Connector) // Connector should be set
+		assert.False(t, messages[0].IsStreaming)
+	})
+
+	t.Run("MixedStreamingAndRegularMessages", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add user input (regular)
+		buffer.AddUserInput("Hello", "user1")
+
+		// Add streaming assistant message
+		buffer.AddStreamingMessage(
+			"msg-stream",
+			"text",
+			map[string]interface{}{"content": "Hi "},
+			"", "", "", nil,
+		)
+		buffer.AppendMessageContent("msg-stream", "there!")
+		buffer.CompleteStreamingMessage("msg-stream")
+
+		// Add regular assistant message
+		buffer.AddAssistantMessage("M3", "text", map[string]interface{}{"content": "How can I help?"}, "", "", "", nil)
+
+		// Verify all messages
+		messages := buffer.GetMessages()
+		assert.Equal(t, 3, len(messages))
+
+		// Check sequence
+		assert.Equal(t, 1, messages[0].Sequence)
+		assert.Equal(t, 2, messages[1].Sequence)
+		assert.Equal(t, 3, messages[2].Sequence)
+
+		// Check content
+		assert.Equal(t, "user", messages[0].Role)
+		assert.Equal(t, "Hi there!", messages[1].Props["content"])
+		assert.Equal(t, "How can I help?", messages[2].Props["content"])
+	})
+
+	t.Run("StreamingMessageWithEmptyInitialContent", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add streaming message with nil props
+		buffer.AddStreamingMessage(
+			"msg-empty",
+			"text",
+			nil,
+			"", "", "", nil,
+		)
+
+		// Append content
+		buffer.AppendMessageContent("msg-empty", "Content")
+
+		// Complete
+		content, ok := buffer.CompleteStreamingMessage("msg-empty")
+		assert.True(t, ok)
+		assert.Equal(t, "Content", content)
+	})
+
+	t.Run("ConcurrentStreamingOperations", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add streaming message
+		buffer.AddStreamingMessage(
+			"msg-concurrent",
+			"text",
+			map[string]interface{}{"content": ""},
+			"", "", "", nil,
+		)
+
+		// Concurrent appends with fixed-length content
+		var wg sync.WaitGroup
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				buffer.AppendMessageContent("msg-concurrent", "x")
+			}()
+		}
+		wg.Wait()
+
+		// Complete
+		content, ok := buffer.CompleteStreamingMessage("msg-concurrent")
+		assert.True(t, ok)
+
+		// Content should have 100 'x' characters
+		assert.Equal(t, 100, len(content))
 	})
 }

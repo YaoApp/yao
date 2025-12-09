@@ -365,6 +365,7 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		}
 
 		s.ctx.Buffer.AddAssistantMessage(
+			s.currentGroupID, // Use the message ID
 			msgType,
 			props,
 			blockID,

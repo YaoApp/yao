@@ -141,34 +141,35 @@ Stores user-visible messages (both user input and assistant responses).
 
 **Table Name:** `agent_message`
 
-| Column         | Type        | Nullable | Index  | Description                               |
-| -------------- | ----------- | -------- | ------ | ----------------------------------------- |
-| `id`           | ID          | No       | PK     | Auto-increment primary key                |
-| `message_id`   | string(64)  | No       | Unique | Unique message identifier                 |
-| `chat_id`      | string(64)  | No       | Yes    | Parent chat ID                            |
-| `request_id`   | string(64)  | Yes      | Yes    | Request ID for grouping                   |
-| `role`         | enum        | No       | Yes    | Role: `user`, `assistant`                 |
-| `type`         | string(50)  | No       | -      | Message type (text, image, loading, etc.) |
-| `props`        | json        | No       | -      | Message properties (content, url, etc.)   |
-| `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
-| `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
-| `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
-| `connector`    | string(200) | Yes      | Yes    | Connector ID used for this message        |
-| `sequence`     | integer     | No       | -      | Message order within chat (in composite)  |
-| `metadata`     | json        | Yes      | -      | Additional metadata                       |
-| `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
-| `updated_at`   | timestamp   | No       | -      | Last update timestamp                     |
+| Column         | Type        | Nullable | Index | Description                                |
+| -------------- | ----------- | -------- | ----- | ------------------------------------------ |
+| `id`           | ID          | No       | PK    | Auto-increment primary key                 |
+| `message_id`   | string(64)  | No       | -     | Message identifier (unique within request) |
+| `chat_id`      | string(64)  | No       | Yes   | Parent chat ID                             |
+| `request_id`   | string(64)  | Yes      | Yes   | Request ID for grouping                    |
+| `role`         | enum        | No       | Yes   | Role: `user`, `assistant`                  |
+| `type`         | string(50)  | No       | -     | Message type (text, image, loading, etc.)  |
+| `props`        | json        | No       | -     | Message properties (content, url, etc.)    |
+| `block_id`     | string(64)  | Yes      | Yes   | Block grouping ID                          |
+| `thread_id`    | string(64)  | Yes      | Yes   | Thread grouping ID                         |
+| `assistant_id` | string(200) | Yes      | Yes   | Assistant ID (join to get name/avatar)     |
+| `connector`    | string(200) | Yes      | Yes   | Connector ID used for this message         |
+| `sequence`     | integer     | No       | -     | Message order within chat (in composite)   |
+| `metadata`     | json        | Yes      | -     | Additional metadata                        |
+| `created_at`   | timestamp   | No       | Yes   | Creation timestamp                         |
+| `updated_at`   | timestamp   | No       | -     | Last update timestamp                      |
 
 **Indexes:**
 
-| Name                | Columns               | Type  |
-| ------------------- | --------------------- | ----- |
-| `idx_msg_chat_seq`  | `chat_id`, `sequence` | index |
-| `idx_msg_request`   | `request_id`          | index |
-| `idx_msg_role`      | `role`                | index |
-| `idx_msg_block`     | `block_id`            | index |
-| `idx_msg_thread`    | `thread_id`           | index |
-| `idx_msg_assistant` | `assistant_id`        | index |
+| Name                      | Columns                    | Type   |
+| ------------------------- | -------------------------- | ------ |
+| `idx_msg_chat_seq`        | `chat_id`, `sequence`      | index  |
+| `idx_msg_request_message` | `request_id`, `message_id` | unique |
+| `idx_msg_request`         | `request_id`               | index  |
+| `idx_msg_role`            | `role`                     | index  |
+| `idx_msg_block`           | `block_id`                 | index  |
+| `idx_msg_thread`          | `thread_id`                | index  |
+| `idx_msg_assistant`       | `assistant_id`             | index  |
 
 **Message Types:**
 

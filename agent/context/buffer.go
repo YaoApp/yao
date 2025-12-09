@@ -50,6 +50,7 @@ type BufferedMessage struct {
 	Sequence    int                    `json:"sequence"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
+	IsStreaming bool                   `json:"-"` // Internal flag: true if message is still streaming (not saved until End)
 }
 
 // BufferedStep represents an execution step waiting to be saved (for Resume)
@@ -160,13 +161,14 @@ func (b *ChatBuffer) AddUserInput(content interface{}, name string) {
 
 // AddAssistantMessage adds an assistant message to the buffer
 // This is called by ctx.Send() to buffer messages for batch saving
-func (b *ChatBuffer) AddAssistantMessage(msgType string, props map[string]interface{}, blockID, threadID, assistantID string, metadata map[string]interface{}) {
+func (b *ChatBuffer) AddAssistantMessage(messageID, msgType string, props map[string]interface{}, blockID, threadID, assistantID string, metadata map[string]interface{}) {
 	// Skip event type messages (transient, not stored)
 	if msgType == "event" {
 		return
 	}
 
 	b.AddMessage(&BufferedMessage{
+		MessageID:   messageID, // Use the same MessageID as sent to client
 		Role:        "assistant",
 		Type:        msgType,
 		Props:       props,
@@ -176,6 +178,93 @@ func (b *ChatBuffer) AddAssistantMessage(msgType string, props map[string]interf
 		Connector:   b.connector, // Use current connector
 		Metadata:    metadata,
 	})
+}
+
+// AddStreamingMessage adds a streaming message to the buffer
+// Streaming messages are not saved until CompleteStreamingMessage is called
+// This is called by ctx.SendStream() to start a streaming message
+func (b *ChatBuffer) AddStreamingMessage(messageID, msgType string, props map[string]interface{}, blockID, threadID, assistantID string, metadata map[string]interface{}) {
+	// Skip event type messages (transient, not stored)
+	if msgType == "event" {
+		return
+	}
+
+	// Deep copy props to avoid mutation issues
+	propsCopy := make(map[string]interface{})
+	for k, v := range props {
+		propsCopy[k] = v
+	}
+
+	b.AddMessage(&BufferedMessage{
+		MessageID:   messageID, // Use provided message ID
+		Role:        "assistant",
+		Type:        msgType,
+		Props:       propsCopy,
+		BlockID:     blockID,
+		ThreadID:    threadID,
+		AssistantID: assistantID,
+		Connector:   b.connector,
+		Metadata:    metadata,
+		IsStreaming: true, // Mark as streaming
+	})
+}
+
+// AppendMessageContent appends content to a streaming message
+// This is called by ctx.Append() to accumulate content
+func (b *ChatBuffer) AppendMessageContent(messageID string, content string) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Find the message by ID
+	for _, msg := range b.messages {
+		if msg.MessageID == messageID && msg.IsStreaming {
+			// Append to existing content
+			if msg.Props == nil {
+				msg.Props = make(map[string]interface{})
+			}
+			if existing, ok := msg.Props["content"].(string); ok {
+				msg.Props["content"] = existing + content
+			} else {
+				msg.Props["content"] = content
+			}
+			return true
+		}
+	}
+	return false
+}
+
+// CompleteStreamingMessage marks a streaming message as complete
+// This is called by ctx.End() to finalize the message
+// Returns the complete content for the message_end event
+func (b *ChatBuffer) CompleteStreamingMessage(messageID string) (string, bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	// Find the message by ID
+	for _, msg := range b.messages {
+		if msg.MessageID == messageID && msg.IsStreaming {
+			msg.IsStreaming = false
+			// Return the accumulated content
+			if content, ok := msg.Props["content"].(string); ok {
+				return content, true
+			}
+			return "", true
+		}
+	}
+	return "", false
+}
+
+// GetStreamingMessage returns a streaming message by ID
+func (b *ChatBuffer) GetStreamingMessage(messageID string) *BufferedMessage {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	for _, msg := range b.messages {
+		if msg.MessageID == messageID && msg.IsStreaming {
+			return msg
+		}
+	}
+	return nil
 }
 
 // GetMessages returns all buffered messages

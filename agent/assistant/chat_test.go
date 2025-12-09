@@ -580,8 +580,9 @@ func TestFlushBuffer(t *testing.T) {
 		require.NoError(t, err)
 
 		// Add some messages to buffer
+		require.NotNil(t, ctx.Buffer, "Buffer should be initialized")
 		ctx.Buffer.AddUserInput("Test question", "")
-		ctx.Buffer.AddAssistantMessage("text", map[string]interface{}{"content": "Test answer"}, "", "", ast.ID, nil)
+		ctx.Buffer.AddAssistantMessage("M1", "text", map[string]interface{}{"content": "Test answer"}, "", "", ast.ID, nil)
 
 		// Add a step
 		ast.BeginStep(ctx, agentcontext.StepTypeLLM, nil)

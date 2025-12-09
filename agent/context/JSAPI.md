@@ -47,6 +47,18 @@ interface Context {
 
 ### Send Messages
 
+The Context provides several methods for sending messages to the client:
+
+| Method                              | Description                 | Auto `message_end` |
+| ----------------------------------- | --------------------------- | ------------------ |
+| `Send(message, blockId?)`           | Send a complete message     | ✅ Yes             |
+| `SendStream(message, blockId?)`     | Start a streaming message   | ❌ No              |
+| `Append(messageId, content, path?)` | Append content to a message | N/A                |
+| `Replace(messageId, message)`       | Replace message content     | N/A                |
+| `Merge(messageId, data, path?)`     | Merge data into message     | N/A                |
+| `Set(messageId, data, path)`        | Set a field in message      | N/A                |
+| `End(messageId, finalContent?)`     | Finalize streaming message  | ✅ Yes             |
+
 #### `ctx.Send(message, blockId?): string`
 
 Sends a message to the client and automatically flushes the output.
@@ -191,6 +203,139 @@ function Next(ctx, payload) {
 - Output is automatically flushed after sending
 - Throws exception on failure
 - Delta operations (Replace, Append, Merge, Set) automatically inherit block_id and thread_id from the original message
+- **For streaming output**, use `ctx.SendStream()` instead (see below)
+
+#### `ctx.SendStream(message, blockId?): string`
+
+Sends a streaming message that can be appended to later. Unlike `Send()`, this does NOT automatically send `message_end` event. Use `ctx.Append()` to add content, then `ctx.End()` to finalize.
+
+**Parameters:**
+
+- `message`: Message object or string
+- `blockId`: String (optional) - Block ID to send this message in
+
+**Returns:**
+
+- `string`: The message ID (for use with `Append` and `End`)
+
+**Examples:**
+
+```javascript
+// Start a streaming message
+const msgId = ctx.SendStream({
+  type: "text",
+  props: { content: "# Title\n\n" },
+});
+
+// Append content in chunks (simulating streaming)
+ctx.Append(msgId, "First paragraph. ");
+ctx.Append(msgId, "Second sentence. ");
+ctx.Append(msgId, "Third sentence.\n\n");
+
+// Finalize the message (sends message_end event)
+ctx.End(msgId);
+```
+
+**String Shorthand:**
+
+```javascript
+// SendStream with string shorthand
+const msgId = ctx.SendStream("Starting analysis...");
+ctx.Append(msgId, " processing...");
+ctx.Append(msgId, " done!");
+ctx.End(msgId);
+// Final content: "Starting analysis... processing... done!"
+```
+
+**With Block ID:**
+
+```javascript
+const blockId = ctx.BlockID();
+const msgId = ctx.SendStream("Step 1: ", blockId);
+ctx.Append(msgId, "Analyzing data...");
+ctx.End(msgId);
+```
+
+**Notes:**
+
+- Returns the message ID immediately for use with `Append` and `End`
+- Sends `message_start` event but NOT `message_end` (unlike `Send`)
+- Must call `ctx.End(msgId)` to finalize the message
+- Content appended via `ctx.Append()` is accumulated for storage
+- Ideal for streaming text output where you control the timing
+
+#### `ctx.End(messageId, finalContent?): string`
+
+Finalizes a streaming message started with `SendStream()`. Sends `message_end` event with the complete accumulated content.
+
+**Parameters:**
+
+- `messageId`: String - The message ID returned by `SendStream()`
+- `finalContent`: String (optional) - Final content to append before ending
+
+**Returns:**
+
+- `string`: The message ID
+
+**Examples:**
+
+```javascript
+// Basic usage
+const msgId = ctx.SendStream("Hello");
+ctx.Append(msgId, " World");
+ctx.End(msgId);
+// Final: "Hello World"
+
+// End with final content
+const msgId2 = ctx.SendStream("Processing");
+ctx.Append(msgId2, "...");
+ctx.End(msgId2, " Complete!");
+// Final: "Processing... Complete!"
+```
+
+**Notes:**
+
+- Must be called after `SendStream()` to send `message_end` event
+- Optional `finalContent` is appended before sending `message_end`
+- The complete accumulated content is included in `message_end.extra.content`
+- Throws exception if `messageId` is not a string
+
+**Send vs SendStream Comparison:**
+
+| Feature               | `Send()`          | `SendStream()`      |
+| --------------------- | ----------------- | ------------------- |
+| `message_start` event | ✅ Auto           | ✅ Auto             |
+| `message_end` event   | ✅ Auto           | ❌ Manual (`End()`) |
+| Use case              | Complete messages | Streaming output    |
+| Content accumulation  | N/A               | Via `Append()`      |
+| Storage               | Immediate         | On `End()`          |
+
+**Streaming Workflow Example:**
+
+```javascript
+function Create(ctx, messages) {
+  // Start streaming output
+  const msgId = ctx.SendStream({
+    type: "text",
+    props: { content: "# Analysis Report\n\n" },
+  });
+
+  // Simulate streaming chunks
+  ctx.Append(msgId, "## Section 1\n");
+  ctx.Append(msgId, "Processing data...\n\n");
+
+  // Do some work
+  const result = analyzeData();
+
+  ctx.Append(msgId, "## Section 2\n");
+  ctx.Append(msgId, `Found ${result.count} items.\n\n`);
+
+  // Finalize with conclusion
+  ctx.End(msgId, "## Conclusion\nAnalysis complete.");
+
+  return { messages };
+}
+```
 
 #### `ctx.Replace(messageId, message): string`
 
