@@ -53,6 +53,7 @@ func TestCreateChat(t *testing.T) {
 		now := time.Now()
 		chat := &types.Chat{
 			AssistantID:   "test_assistant",
+			LastConnector: "openai",
 			Title:         "Full Chat",
 			Mode:          "task",
 			Status:        "active",
@@ -79,6 +80,9 @@ func TestCreateChat(t *testing.T) {
 
 		if retrieved.Title != "Full Chat" {
 			t.Errorf("Expected title 'Full Chat', got '%s'", retrieved.Title)
+		}
+		if retrieved.LastConnector != "openai" {
+			t.Errorf("Expected last_connector 'openai', got '%s'", retrieved.LastConnector)
 		}
 		if retrieved.Mode != "task" {
 			t.Errorf("Expected mode 'task', got '%s'", retrieved.Mode)
@@ -307,6 +311,83 @@ func TestUpdateChat(t *testing.T) {
 
 		if retrieved.Title != "Updated Title" {
 			t.Errorf("Expected title 'Updated Title', got '%s'", retrieved.Title)
+		}
+
+		// Clean up
+		_ = store.DeleteChat(chat.ChatID)
+	})
+
+	t.Run("UpdateLastConnector", func(t *testing.T) {
+		chat := &types.Chat{
+			AssistantID:   "test_assistant",
+			LastConnector: "openai",
+		}
+		err := store.CreateChat(chat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+
+		// Verify initial connector
+		retrieved, err := store.GetChat(chat.ChatID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve chat: %v", err)
+		}
+		if retrieved.LastConnector != "openai" {
+			t.Errorf("Expected last_connector 'openai', got '%s'", retrieved.LastConnector)
+		}
+
+		// Update to different connector (simulating user switching connector)
+		err = store.UpdateChat(chat.ChatID, map[string]interface{}{
+			"last_connector": "anthropic",
+		})
+		if err != nil {
+			t.Fatalf("Failed to update chat: %v", err)
+		}
+
+		// Verify updated connector
+		retrieved, err = store.GetChat(chat.ChatID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve chat: %v", err)
+		}
+		if retrieved.LastConnector != "anthropic" {
+			t.Errorf("Expected last_connector 'anthropic', got '%s'", retrieved.LastConnector)
+		}
+
+		// Clean up
+		_ = store.DeleteChat(chat.ChatID)
+	})
+
+	t.Run("UpdateLastConnectorAndLastMessageAt", func(t *testing.T) {
+		// This simulates what FlushBuffer does
+		chat := &types.Chat{
+			AssistantID:   "test_assistant",
+			LastConnector: "openai",
+		}
+		err := store.CreateChat(chat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+
+		// Update both fields together (like FlushBuffer does)
+		now := time.Now()
+		err = store.UpdateChat(chat.ChatID, map[string]interface{}{
+			"last_message_at": now,
+			"last_connector":  "claude",
+		})
+		if err != nil {
+			t.Fatalf("Failed to update chat: %v", err)
+		}
+
+		retrieved, err := store.GetChat(chat.ChatID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve chat: %v", err)
+		}
+
+		if retrieved.LastConnector != "claude" {
+			t.Errorf("Expected last_connector 'claude', got '%s'", retrieved.LastConnector)
+		}
+		if retrieved.LastMessageAt == nil {
+			t.Error("Expected last_message_at to be set")
 		}
 
 		// Clean up

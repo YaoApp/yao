@@ -208,6 +208,121 @@ func TestSaveMessages(t *testing.T) {
 		}
 	})
 
+	t.Run("SaveMessageWithConnector", func(t *testing.T) {
+		connChat := &types.Chat{
+			AssistantID: "test_assistant",
+		}
+		err := store.CreateChat(connChat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+		defer store.DeleteChat(connChat.ChatID)
+
+		// Save messages with different connectors
+		messages := []*types.Message{
+			{
+				Role:        "user",
+				Type:        "user_input",
+				Props:       map[string]interface{}{"content": "Hello"},
+				Sequence:    1,
+				Connector:   "openai",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "assistant",
+				Type:        "text",
+				Props:       map[string]interface{}{"content": "Hi there!"},
+				Sequence:    2,
+				Connector:   "openai",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "user",
+				Type:        "user_input",
+				Props:       map[string]interface{}{"content": "Switch to Claude"},
+				Sequence:    3,
+				Connector:   "anthropic",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "assistant",
+				Type:        "text",
+				Props:       map[string]interface{}{"content": "Now using Claude!"},
+				Sequence:    4,
+				Connector:   "anthropic",
+				AssistantID: "test_assistant",
+			},
+		}
+
+		err = store.SaveMessages(connChat.ChatID, messages)
+		if err != nil {
+			t.Fatalf("Failed to save messages: %v", err)
+		}
+
+		// Retrieve and verify connectors
+		retrieved, err := store.GetMessages(connChat.ChatID, types.MessageFilter{})
+		if err != nil {
+			t.Fatalf("Failed to get messages: %v", err)
+		}
+
+		if len(retrieved) != 4 {
+			t.Fatalf("Expected 4 messages, got %d", len(retrieved))
+		}
+
+		// Verify each message has correct connector
+		for _, msg := range retrieved {
+			if msg.Sequence <= 2 && msg.Connector != "openai" {
+				t.Errorf("Expected connector 'openai' for sequence %d, got '%s'", msg.Sequence, msg.Connector)
+			}
+			if msg.Sequence > 2 && msg.Connector != "anthropic" {
+				t.Errorf("Expected connector 'anthropic' for sequence %d, got '%s'", msg.Sequence, msg.Connector)
+			}
+		}
+
+		t.Logf("Successfully saved and retrieved messages with different connectors")
+	})
+
+	t.Run("SaveMessageWithEmptyConnector", func(t *testing.T) {
+		emptyConnChat := &types.Chat{
+			AssistantID: "test_assistant",
+		}
+		err := store.CreateChat(emptyConnChat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+		defer store.DeleteChat(emptyConnChat.ChatID)
+
+		// Save message without connector
+		messages := []*types.Message{
+			{
+				Role:     "user",
+				Type:     "text",
+				Props:    map[string]interface{}{"content": "No connector"},
+				Sequence: 1,
+				// Connector is empty
+			},
+		}
+
+		err = store.SaveMessages(emptyConnChat.ChatID, messages)
+		if err != nil {
+			t.Fatalf("Failed to save message: %v", err)
+		}
+
+		retrieved, err := store.GetMessages(emptyConnChat.ChatID, types.MessageFilter{})
+		if err != nil {
+			t.Fatalf("Failed to get messages: %v", err)
+		}
+
+		if len(retrieved) != 1 {
+			t.Fatalf("Expected 1 message, got %d", len(retrieved))
+		}
+
+		// Empty connector should be stored as empty string
+		if retrieved[0].Connector != "" {
+			t.Errorf("Expected empty connector, got '%s'", retrieved[0].Connector)
+		}
+	})
+
 	t.Run("SaveEmptyMessages", func(t *testing.T) {
 		err := store.SaveMessages(chat.ChatID, []*types.Message{})
 		if err != nil {

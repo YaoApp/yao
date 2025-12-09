@@ -91,6 +91,7 @@ Stores chat metadata and session information.
 | `chat_id`         | string(64)  | No       | Unique | Unique chat identifier           |
 | `title`           | string(500) | Yes      | -      | Chat title                       |
 | `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
+| `last_connector`  | string(200) | Yes      | Yes    | Last used connector ID           |
 | `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
 | `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
 | `public`          | boolean     | No       | -      | Whether shared across all teams  |
@@ -129,6 +130,7 @@ These fields are automatically managed by the framework and used for access cont
 | Name                 | Columns           | Type  |
 | -------------------- | ----------------- | ----- |
 | `idx_chat_assistant` | `assistant_id`    | index |
+| `idx_chat_last_conn` | `last_connector`  | index |
 | `idx_chat_status`    | `status`          | index |
 | `idx_chat_share`     | `share`           | index |
 | `idx_chat_last_msg`  | `last_message_at` | index |
@@ -151,6 +153,7 @@ Stores user-visible messages (both user input and assistant responses).
 | `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
 | `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
 | `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
+| `connector`    | string(200) | Yes      | Yes    | Connector ID used for this message        |
 | `sequence`     | integer     | No       | -      | Message order within chat (in composite)  |
 | `metadata`     | json        | Yes      | -      | Additional metadata                       |
 | `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
@@ -809,6 +812,7 @@ type Chat struct {
     ChatID        string                 `json:"chat_id"`
     Title         string                 `json:"title,omitempty"`
     AssistantID   string                 `json:"assistant_id"`
+    LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID
     Mode          string                 `json:"mode"`
     Status        string                 `json:"status"`          // "active" or "archived"
     Public        bool                   `json:"public"`          // Whether shared across all teams
@@ -831,6 +835,7 @@ type Message struct {
     BlockID     string                 `json:"block_id,omitempty"`
     ThreadID    string                 `json:"thread_id,omitempty"`
     AssistantID string                 `json:"assistant_id,omitempty"`
+    Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
     Sequence    int                    `json:"sequence"`
     Metadata    map[string]interface{} `json:"metadata,omitempty"`
     CreatedAt   time.Time              `json:"created_at"`

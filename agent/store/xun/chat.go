@@ -69,6 +69,9 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 	if chat.Title != "" {
 		data["title"] = chat.Title
 	}
+	if chat.LastConnector != "" {
+		data["last_connector"] = chat.LastConnector
+	}
 	if chat.LastMessageAt != nil {
 		data["last_message_at"] = *chat.LastMessageAt
 	}
@@ -330,14 +333,15 @@ func (store *Xun) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
 // rowToChat converts a database row to a Chat struct
 func (store *Xun) rowToChat(data map[string]interface{}) (*types.Chat, error) {
 	chat := &types.Chat{
-		ChatID:      getString(data, "chat_id"),
-		Title:       getString(data, "title"),
-		AssistantID: getString(data, "assistant_id"),
-		Mode:        getString(data, "mode"),
-		Status:      getString(data, "status"),
-		Public:      getBool(data, "public"),
-		Share:       getString(data, "share"),
-		Sort:        getInt(data, "sort"),
+		ChatID:        getString(data, "chat_id"),
+		Title:         getString(data, "title"),
+		AssistantID:   getString(data, "assistant_id"),
+		LastConnector: getString(data, "last_connector"),
+		Mode:          getString(data, "mode"),
+		Status:        getString(data, "status"),
+		Public:        getBool(data, "public"),
+		Share:         getString(data, "share"),
+		Sort:          getInt(data, "sort"),
 	}
 
 	// Handle timestamps

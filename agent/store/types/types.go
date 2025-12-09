@@ -29,6 +29,7 @@ type Chat struct {
 	ChatID        string                 `json:"chat_id"`
 	Title         string                 `json:"title,omitempty"`
 	AssistantID   string                 `json:"assistant_id"`
+	LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID (updated on each message)
 	Mode          string                 `json:"mode"`
 	Status        string                 `json:"status"` // "active" or "archived"
 	Public        bool                   `json:"public"` // Whether shared across all teams
@@ -107,6 +108,7 @@ type Message struct {
 	BlockID     string                 `json:"block_id,omitempty"`
 	ThreadID    string                 `json:"thread_id,omitempty"`
 	AssistantID string                 `json:"assistant_id,omitempty"`
+	Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
 	Sequence    int                    `json:"sequence"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`

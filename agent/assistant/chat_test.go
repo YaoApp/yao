@@ -799,6 +799,34 @@ func TestEnsureChat(t *testing.T) {
 		t.Logf("✓ Chat created with permission fields: user=%s, team=%s, tenant=%s",
 			chat.CreatedBy, chat.TeamID, chat.TenantID)
 	})
+
+	t.Run("SkipHistoryEnabled", func(t *testing.T) {
+		chatID := fmt.Sprintf("test_ensure_skip_%s", uuid.New().String()[:8])
+
+		// Create context
+		ctx := agentcontext.New(context.Background(), nil, chatID)
+
+		// Set up stack with Skip.History = true
+		ctx.Stack = &agentcontext.Stack{
+			ID:          "test_stack",
+			AssistantID: ast.ID,
+			Depth:       0,
+			Options: &agentcontext.Options{
+				Skip: &agentcontext.Skip{
+					History: true,
+				},
+			},
+		}
+
+		// EnsureChat should NOT create chat when Skip.History is true
+		err := ast.EnsureChat(ctx)
+		assert.NoError(t, err)
+
+		// Verify chat was NOT created
+		_, err = chatStore.GetChat(chatID)
+		assert.Error(t, err, "Chat should not be created when Skip.History is true")
+		t.Logf("✓ Chat not created when Skip.History is true")
+	})
 }
 
 func TestConvertBufferedTypes(t *testing.T) {

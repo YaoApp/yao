@@ -18,6 +18,7 @@ type ChatBuffer struct {
 	chatID      string
 	requestID   string
 	assistantID string
+	connector   string // Current connector ID (for data analysis)
 
 	// Message buffer
 	messages    []*BufferedMessage
@@ -45,6 +46,7 @@ type BufferedMessage struct {
 	BlockID     string                 `json:"block_id,omitempty"`
 	ThreadID    string                 `json:"thread_id,omitempty"`
 	AssistantID string                 `json:"assistant_id,omitempty"`
+	Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
 	Sequence    int                    `json:"sequence"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -94,11 +96,12 @@ const (
 )
 
 // NewChatBuffer creates a new chat buffer
-func NewChatBuffer(chatID, requestID, assistantID string) *ChatBuffer {
+func NewChatBuffer(chatID, requestID, assistantID, connector string) *ChatBuffer {
 	return &ChatBuffer{
 		chatID:      chatID,
 		requestID:   requestID,
 		assistantID: assistantID,
+		connector:   connector,
 		messages:    make([]*BufferedMessage, 0),
 		steps:       make([]*BufferedStep, 0),
 	}
@@ -170,6 +173,7 @@ func (b *ChatBuffer) AddAssistantMessage(msgType string, props map[string]interf
 		BlockID:     blockID,
 		ThreadID:    threadID,
 		AssistantID: assistantID,
+		Connector:   b.connector, // Use current connector
 		Metadata:    metadata,
 	})
 }
@@ -340,6 +344,18 @@ func (b *ChatBuffer) SetAssistantID(assistantID string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.assistantID = assistantID
+}
+
+// Connector returns the current connector ID
+func (b *ChatBuffer) Connector() string {
+	return b.connector
+}
+
+// SetConnector updates the connector ID (when user switches connector)
+func (b *ChatBuffer) SetConnector(connector string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.connector = connector
 }
 
 // =============================================================================

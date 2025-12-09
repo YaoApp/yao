@@ -68,6 +68,7 @@ func (store *Xun) SaveMessages(chatID string, messages []*types.Message) error {
 			"block_id":     nil,
 			"thread_id":    nil,
 			"assistant_id": nil,
+			"connector":    nil,
 			"metadata":     nil,
 			"created_at":   now,
 			"updated_at":   now,
@@ -85,6 +86,9 @@ func (store *Xun) SaveMessages(chatID string, messages []*types.Message) error {
 		}
 		if msg.AssistantID != "" {
 			row["assistant_id"] = msg.AssistantID
+		}
+		if msg.Connector != "" {
+			row["connector"] = msg.Connector
 		}
 		if msg.Metadata != nil {
 			metadataJSON, err := jsoniter.MarshalToString(msg.Metadata)
@@ -327,6 +331,7 @@ func (store *Xun) rowToMessage(data map[string]interface{}) (*types.Message, err
 		BlockID:     getString(data, "block_id"),
 		ThreadID:    getString(data, "thread_id"),
 		AssistantID: getString(data, "assistant_id"),
+		Connector:   getString(data, "connector"),
 		Sequence:    getInt(data, "sequence"),
 	}
 

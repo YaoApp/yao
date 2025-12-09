@@ -243,8 +243,14 @@ func (ast *Assistant) InitBuffer(ctx *agentcontext.Context) {
 		requestID = uuid.New().String()
 	}
 
-	ctx.Buffer = agentcontext.NewChatBuffer(ctx.ChatID, requestID, ast.ID)
-	log.Trace("[CHAT] Buffer initialized: chatID=%s, requestID=%s, assistantID=%s", ctx.ChatID, requestID, ast.ID)
+	// Get connector from options
+	connector := ""
+	if ctx.Stack.Options != nil {
+		connector = ctx.Stack.Options.Connector
+	}
+
+	ctx.Buffer = agentcontext.NewChatBuffer(ctx.ChatID, requestID, ast.ID, connector)
+	log.Trace("[CHAT] Buffer initialized: chatID=%s, requestID=%s, assistantID=%s, connector=%s", ctx.ChatID, requestID, ast.ID, connector)
 }
 
 // BufferUserInput adds user input messages to the buffer
@@ -335,13 +341,18 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 		}
 	}
 
-	// 2. Update chat last_message_at
+	// 2. Update chat last_message_at and last_connector
 	if len(messages) > 0 {
 		now := time.Now()
-		if updateErr := chatStore.UpdateChat(ctx.ChatID, map[string]interface{}{
+		updates := map[string]interface{}{
 			"last_message_at": now,
-		}); updateErr != nil {
-			log.Trace("[CHAT] Failed to update last_message_at: %v", updateErr)
+		}
+		// Also update last_connector if available
+		if connector := ctx.Buffer.Connector(); connector != "" {
+			updates["last_connector"] = connector
+		}
+		if updateErr := chatStore.UpdateChat(ctx.ChatID, updates); updateErr != nil {
+			log.Trace("[CHAT] Failed to update chat: %v", updateErr)
 		}
 	}
 
@@ -376,6 +387,7 @@ func (ast *Assistant) convertBufferedMessages(buffered []*agentcontext.BufferedM
 			BlockID:     msg.BlockID,
 			ThreadID:    msg.ThreadID,
 			AssistantID: msg.AssistantID,
+			Connector:   msg.Connector,
 			Sequence:    msg.Sequence,
 			Metadata:    msg.Metadata,
 			CreatedAt:   msg.CreatedAt,
@@ -422,6 +434,11 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 		return nil // No chat ID, skip
 	}
 
+	// Skip if history is disabled
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Skip != nil && ctx.Stack.Options.Skip.History {
+		return nil // Skip.History is true, don't create chat session
+	}
+
 	chatStore := GetChatStore()
 	if chatStore == nil {
 		return nil // No store, skip
@@ -443,6 +460,11 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 		Sort:        0,
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
+	}
+
+	// Set last_connector from options (user selected connector)
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Connector != "" {
+		chat.LastConnector = ctx.Stack.Options.Connector
 	}
 
 	// Set permission fields from authorized info

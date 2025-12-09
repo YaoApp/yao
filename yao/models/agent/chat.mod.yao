@@ -41,6 +41,15 @@
       "index": true
     },
     {
+      "name": "last_connector",
+      "type": "string",
+      "label": "Last Connector",
+      "comment": "Last used connector ID (updated on each message)",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "mode",
       "type": "string",
       "label": "Mode",
@@ -122,4 +131,3 @@
   },
   "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }
-

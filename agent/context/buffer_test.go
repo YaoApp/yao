@@ -17,7 +17,7 @@ import (
 
 func TestBufferNewChatBuffer(t *testing.T) {
 	t.Run("CreateWithAllFields", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-123", "req-456", "assistant-789")
+		buffer := context.NewChatBuffer("chat-123", "req-456", "assistant-789", "")
 
 		assert.NotNil(t, buffer)
 		assert.Equal(t, "chat-123", buffer.ChatID())
@@ -29,7 +29,7 @@ func TestBufferNewChatBuffer(t *testing.T) {
 	})
 
 	t.Run("CreateWithEmptyFields", func(t *testing.T) {
-		buffer := context.NewChatBuffer("", "", "")
+		buffer := context.NewChatBuffer("", "", "", "")
 
 		assert.NotNil(t, buffer)
 		assert.Empty(t, buffer.ChatID())
@@ -44,7 +44,7 @@ func TestBufferNewChatBuffer(t *testing.T) {
 
 func TestBufferAddMessage(t *testing.T) {
 	t.Run("AddSingleMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		msg := &context.BufferedMessage{
 			Role:  "assistant",
@@ -65,7 +65,7 @@ func TestBufferAddMessage(t *testing.T) {
 	})
 
 	t.Run("AddMultipleMessages", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		for i := 0; i < 5; i++ {
 			buffer.AddMessage(&context.BufferedMessage{
@@ -85,14 +85,14 @@ func TestBufferAddMessage(t *testing.T) {
 	})
 
 	t.Run("AddNilMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		buffer.AddMessage(nil)
 
 		assert.Equal(t, 0, buffer.GetMessageCount())
 	})
 
 	t.Run("AddMessageWithExistingID", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4")
+		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 
 		msg := &context.BufferedMessage{
 			MessageID: "custom-id-123",
@@ -107,7 +107,7 @@ func TestBufferAddMessage(t *testing.T) {
 	})
 
 	t.Run("AddMessageWithExistingTimestamp", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5")
+		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5", "")
 
 		customTime := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 		msg := &context.BufferedMessage{
@@ -125,7 +125,7 @@ func TestBufferAddMessage(t *testing.T) {
 
 func TestBufferAddUserInput(t *testing.T) {
 	t.Run("AddStringContent", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer.AddUserInput("What is the weather?", "")
 
 		messages := buffer.GetMessages()
@@ -137,7 +137,7 @@ func TestBufferAddUserInput(t *testing.T) {
 	})
 
 	t.Run("AddUserInputWithName", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		buffer.AddUserInput("Hello", "John")
 
 		messages := buffer.GetMessages()
@@ -146,7 +146,7 @@ func TestBufferAddUserInput(t *testing.T) {
 	})
 
 	t.Run("AddComplexContent", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		complexContent := []map[string]interface{}{
 			{"type": "text", "text": "Look at this image"},
 			{"type": "image_url", "image_url": map[string]string{"url": "https://example.com/image.jpg"}},
@@ -163,7 +163,7 @@ func TestBufferAddUserInput(t *testing.T) {
 
 func TestBufferAddAssistantMessage(t *testing.T) {
 	t.Run("AddTextMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer.AddAssistantMessage(
 			"text",
 			map[string]interface{}{"content": "Hello, how can I help?"},
@@ -184,7 +184,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	})
 
 	t.Run("SkipEventMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		buffer.AddAssistantMessage(
 			"event",
 			map[string]interface{}{"event": "message_start"},
@@ -196,7 +196,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	})
 
 	t.Run("AddRetrievalMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		buffer.AddAssistantMessage(
 			"retrieval",
 			map[string]interface{}{
@@ -214,7 +214,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	})
 
 	t.Run("AddToolCallMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4")
+		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 		buffer.AddAssistantMessage(
 			"tool_call",
 			map[string]interface{}{
@@ -231,7 +231,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 	})
 
 	t.Run("AddCustomTypeMessage", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5")
+		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5", "")
 		buffer.AddAssistantMessage(
 			"custom_chart",
 			map[string]interface{}{
@@ -249,7 +249,7 @@ func TestBufferAddAssistantMessage(t *testing.T) {
 
 func TestBufferGetMessages(t *testing.T) {
 	t.Run("GetMessagesReturnsSliceCopy", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer.AddUserInput("Hello", "")
 
 		messages1 := buffer.GetMessages()
@@ -262,7 +262,7 @@ func TestBufferGetMessages(t *testing.T) {
 	})
 
 	t.Run("GetEmptyMessages", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		messages := buffer.GetMessages()
 
 		assert.NotNil(t, messages)
@@ -271,7 +271,7 @@ func TestBufferGetMessages(t *testing.T) {
 }
 
 func TestBufferGetMessageCount(t *testing.T) {
-	buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+	buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 	assert.Equal(t, 0, buffer.GetMessageCount())
 
 	buffer.AddUserInput("Message 1", "")
@@ -287,7 +287,7 @@ func TestBufferGetMessageCount(t *testing.T) {
 
 func TestBufferBeginStep(t *testing.T) {
 	t.Run("BeginStepWithStack", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		stack := &context.Stack{
 			ID:       "stack-123",
@@ -313,7 +313,7 @@ func TestBufferBeginStep(t *testing.T) {
 	})
 
 	t.Run("BeginStepWithNilStack", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		step := buffer.BeginStep(context.StepTypeInput, nil, nil)
 
@@ -324,7 +324,7 @@ func TestBufferBeginStep(t *testing.T) {
 	})
 
 	t.Run("BeginMultipleSteps", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 
 		step1 := buffer.BeginStep(context.StepTypeInput, nil, nil)
 		step2 := buffer.BeginStep(context.StepTypeHookCreate, nil, nil)
@@ -339,7 +339,7 @@ func TestBufferBeginStep(t *testing.T) {
 	})
 
 	t.Run("BeginStepWithSpaceSnapshot", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4")
+		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 
 		// Set space snapshot before beginning step
 		buffer.SetSpaceSnapshot(map[string]interface{}{
@@ -357,7 +357,7 @@ func TestBufferBeginStep(t *testing.T) {
 
 func TestBufferCompleteStep(t *testing.T) {
 	t.Run("CompleteCurrentStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		buffer.BeginStep(context.StepTypeLLM, map[string]interface{}{"prompt": "Hello"}, nil)
 		buffer.CompleteStep(map[string]interface{}{"response": "Hi there!"})
@@ -370,7 +370,7 @@ func TestBufferCompleteStep(t *testing.T) {
 	})
 
 	t.Run("CompleteWithNoCurrentStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		// Should not panic
 		buffer.CompleteStep(map[string]interface{}{"response": "test"})
@@ -378,7 +378,7 @@ func TestBufferCompleteStep(t *testing.T) {
 	})
 
 	t.Run("CompleteMultipleStepsSequentially", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 
 		buffer.BeginStep(context.StepTypeInput, nil, nil)
 		buffer.CompleteStep(map[string]interface{}{"done": true})
@@ -399,7 +399,7 @@ func TestBufferCompleteStep(t *testing.T) {
 
 func TestBufferFailCurrentStep(t *testing.T) {
 	t.Run("FailWithError", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 		buffer.FailCurrentStep(context.ResumeStatusFailed, fmt.Errorf("API error: rate limit exceeded"))
@@ -411,7 +411,7 @@ func TestBufferFailCurrentStep(t *testing.T) {
 	})
 
 	t.Run("FailWithInterrupted", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 		buffer.FailCurrentStep(context.ResumeStatusInterrupted, nil)
@@ -423,7 +423,7 @@ func TestBufferFailCurrentStep(t *testing.T) {
 	})
 
 	t.Run("FailAlreadyCompletedStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 		buffer.CompleteStep(map[string]interface{}{"done": true})
@@ -437,7 +437,7 @@ func TestBufferFailCurrentStep(t *testing.T) {
 	})
 
 	t.Run("FailWithNoCurrentStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4")
+		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 
 		// Should not panic
 		buffer.FailCurrentStep(context.ResumeStatusFailed, fmt.Errorf("error"))
@@ -446,12 +446,12 @@ func TestBufferFailCurrentStep(t *testing.T) {
 
 func TestBufferGetCurrentStep(t *testing.T) {
 	t.Run("NoCurrentStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		assert.Nil(t, buffer.GetCurrentStep())
 	})
 
 	t.Run("HasCurrentStep", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 
 		current := buffer.GetCurrentStep()
@@ -460,7 +460,7 @@ func TestBufferGetCurrentStep(t *testing.T) {
 	})
 
 	t.Run("CurrentStepClearedAfterComplete", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 		buffer.CompleteStep(nil)
 
@@ -470,7 +470,7 @@ func TestBufferGetCurrentStep(t *testing.T) {
 
 func TestBufferGetStepsForResume(t *testing.T) {
 	t.Run("CompletedSuccessfully", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		buffer.BeginStep(context.StepTypeInput, nil, nil)
 		buffer.CompleteStep(nil)
@@ -483,7 +483,7 @@ func TestBufferGetStepsForResume(t *testing.T) {
 	})
 
 	t.Run("FailedRequest", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		buffer.BeginStep(context.StepTypeInput, nil, nil)
 		buffer.CompleteStep(nil)
@@ -499,7 +499,7 @@ func TestBufferGetStepsForResume(t *testing.T) {
 	})
 
 	t.Run("InterruptedRequest", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 
 		buffer.BeginStep(context.StepTypeInput, nil, nil)
 		buffer.CompleteStep(nil)
@@ -517,7 +517,7 @@ func TestBufferGetStepsForResume(t *testing.T) {
 
 func TestBufferGetAllSteps(t *testing.T) {
 	t.Run("GetStepsReturnsSliceCopy", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer.BeginStep(context.StepTypeLLM, nil, nil)
 
 		steps1 := buffer.GetAllSteps()
@@ -529,7 +529,7 @@ func TestBufferGetAllSteps(t *testing.T) {
 	})
 
 	t.Run("GetEmptySteps", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 		steps := buffer.GetAllSteps()
 
 		assert.NotNil(t, steps)
@@ -543,7 +543,7 @@ func TestBufferGetAllSteps(t *testing.T) {
 
 func TestBufferSpaceSnapshot(t *testing.T) {
 	t.Run("SetAndGetSnapshot", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 
 		snapshot := map[string]interface{}{
 			"user_id":   "user-123",
@@ -560,7 +560,7 @@ func TestBufferSpaceSnapshot(t *testing.T) {
 	})
 
 	t.Run("SnapshotIsCopy", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2")
+		buffer := context.NewChatBuffer("chat-2", "req-2", "assistant-2", "")
 
 		original := map[string]interface{}{"key": "original"}
 		buffer.SetSpaceSnapshot(original)
@@ -574,7 +574,7 @@ func TestBufferSpaceSnapshot(t *testing.T) {
 	})
 
 	t.Run("GetSnapshotReturnsCopy", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3")
+		buffer := context.NewChatBuffer("chat-3", "req-3", "assistant-3", "")
 		buffer.SetSpaceSnapshot(map[string]interface{}{"key": "value"})
 
 		retrieved1 := buffer.GetSpaceSnapshot()
@@ -585,13 +585,13 @@ func TestBufferSpaceSnapshot(t *testing.T) {
 	})
 
 	t.Run("GetNilSnapshot", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4")
+		buffer := context.NewChatBuffer("chat-4", "req-4", "assistant-4", "")
 		snapshot := buffer.GetSpaceSnapshot()
 		assert.Nil(t, snapshot)
 	})
 
 	t.Run("SetNilSnapshot", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5")
+		buffer := context.NewChatBuffer("chat-5", "req-5", "assistant-5", "")
 		buffer.SetSpaceSnapshot(map[string]interface{}{"key": "value"})
 		buffer.SetSpaceSnapshot(nil)
 
@@ -606,7 +606,7 @@ func TestBufferSpaceSnapshot(t *testing.T) {
 
 func TestBufferIdentityMethods(t *testing.T) {
 	t.Run("SetAssistantID", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-original")
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-original", "")
 
 		assert.Equal(t, "assistant-original", buffer.AssistantID())
 
@@ -615,13 +615,110 @@ func TestBufferIdentityMethods(t *testing.T) {
 	})
 
 	t.Run("ChatID", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test")
+		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test", "")
 		assert.Equal(t, "chat-test", buffer.ChatID())
 	})
 
 	t.Run("RequestID", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test")
+		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test", "")
 		assert.Equal(t, "req-test", buffer.RequestID())
+	})
+
+	t.Run("Connector", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test", "openai")
+		assert.Equal(t, "openai", buffer.Connector())
+	})
+
+	t.Run("SetConnector", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+		assert.Equal(t, "openai", buffer.Connector())
+
+		// Simulate user switching connector mid-conversation
+		buffer.SetConnector("anthropic")
+		assert.Equal(t, "anthropic", buffer.Connector())
+	})
+
+	t.Run("EmptyConnector", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-test", "req-test", "assistant-test", "")
+		assert.Equal(t, "", buffer.Connector())
+	})
+}
+
+func TestBufferConnectorInMessages(t *testing.T) {
+	t.Run("MessageInheritsConnector", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Add assistant message - should inherit connector from buffer
+		buffer.AddAssistantMessage(
+			"text",
+			map[string]interface{}{"content": "Hello"},
+			"block-1", "thread-1", "assistant-1", nil,
+		)
+
+		messages := buffer.GetMessages()
+		require.Len(t, messages, 1)
+		assert.Equal(t, "openai", messages[0].Connector)
+	})
+
+	t.Run("MessageConnectorUpdatesWithBuffer", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// First message with openai
+		buffer.AddAssistantMessage(
+			"text",
+			map[string]interface{}{"content": "Using OpenAI"},
+			"", "", "assistant-1", nil,
+		)
+
+		// User switches connector
+		buffer.SetConnector("anthropic")
+
+		// Second message with anthropic
+		buffer.AddAssistantMessage(
+			"text",
+			map[string]interface{}{"content": "Now using Claude"},
+			"", "", "assistant-1", nil,
+		)
+
+		messages := buffer.GetMessages()
+		require.Len(t, messages, 2)
+		assert.Equal(t, "openai", messages[0].Connector, "First message should use openai")
+		assert.Equal(t, "anthropic", messages[1].Connector, "Second message should use anthropic")
+	})
+
+	t.Run("UserInputDoesNotSetConnector", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// User input doesn't have connector (it's set by the system based on which model processes it)
+		buffer.AddUserInput("Hello", "")
+
+		messages := buffer.GetMessages()
+		require.Len(t, messages, 1)
+		// User input messages don't have connector field set by AddUserInput
+		// Connector is only set for assistant messages
+		assert.Equal(t, "", messages[0].Connector)
+	})
+
+	t.Run("MultipleConnectorSwitches", func(t *testing.T) {
+		buffer := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "openai")
+
+		// Simulate a conversation with multiple connector switches
+		connectors := []string{"openai", "anthropic", "openai", "google"}
+		for i, conn := range connectors {
+			buffer.SetConnector(conn)
+			buffer.AddAssistantMessage(
+				"text",
+				map[string]interface{}{"content": fmt.Sprintf("Message %d", i+1)},
+				"", "", "assistant-1", nil,
+			)
+		}
+
+		messages := buffer.GetMessages()
+		require.Len(t, messages, 4)
+
+		for i, msg := range messages {
+			assert.Equal(t, connectors[i], msg.Connector, "Message %d should have connector %s", i+1, connectors[i])
+		}
 	})
 }
 
@@ -630,7 +727,7 @@ func TestBufferIdentityMethods(t *testing.T) {
 // =============================================================================
 
 func TestBufferConcurrentMessageOperations(t *testing.T) {
-	buffer := context.NewChatBuffer("chat-concurrent", "req-concurrent", "assistant-concurrent")
+	buffer := context.NewChatBuffer("chat-concurrent", "req-concurrent", "assistant-concurrent", "")
 
 	var wg sync.WaitGroup
 	numGoroutines := 100
@@ -663,7 +760,7 @@ func TestBufferConcurrentMessageOperations(t *testing.T) {
 }
 
 func TestBufferConcurrentStepOperations(t *testing.T) {
-	buffer := context.NewChatBuffer("chat-concurrent", "req-concurrent", "assistant-concurrent")
+	buffer := context.NewChatBuffer("chat-concurrent", "req-concurrent", "assistant-concurrent", "")
 
 	var wg sync.WaitGroup
 	numGoroutines := 50
@@ -687,7 +784,7 @@ func TestBufferConcurrentStepOperations(t *testing.T) {
 }
 
 func TestBufferConcurrentReadWrite(t *testing.T) {
-	buffer := context.NewChatBuffer("chat-rw", "req-rw", "assistant-rw")
+	buffer := context.NewChatBuffer("chat-rw", "req-rw", "assistant-rw", "")
 
 	var wg sync.WaitGroup
 	done := make(chan bool)
@@ -761,7 +858,7 @@ func TestBufferStepStatusConstants(t *testing.T) {
 
 func TestBufferEdgeCases(t *testing.T) {
 	t.Run("LargeNumberOfMessages", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-large", "req-large", "assistant-large")
+		buffer := context.NewChatBuffer("chat-large", "req-large", "assistant-large", "")
 
 		// Add 10000 messages
 		for i := 0; i < 10000; i++ {
@@ -778,7 +875,7 @@ func TestBufferEdgeCases(t *testing.T) {
 	})
 
 	t.Run("MessageWithEmptyProps", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-empty", "req-empty", "assistant-empty")
+		buffer := context.NewChatBuffer("chat-empty", "req-empty", "assistant-empty", "")
 
 		buffer.AddMessage(&context.BufferedMessage{
 			Role:  "assistant",
@@ -792,7 +889,7 @@ func TestBufferEdgeCases(t *testing.T) {
 	})
 
 	t.Run("StepWithEmptyInput", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-step", "req-step", "assistant-step")
+		buffer := context.NewChatBuffer("chat-step", "req-step", "assistant-step", "")
 
 		step := buffer.BeginStep(context.StepTypeLLM, nil, nil)
 		assert.Nil(t, step.Input)
@@ -803,7 +900,7 @@ func TestBufferEdgeCases(t *testing.T) {
 	})
 
 	t.Run("AllMessageTypes", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-types", "req-types", "assistant-types")
+		buffer := context.NewChatBuffer("chat-types", "req-types", "assistant-types", "")
 
 		messageTypes := []string{
 			"text", "image", "loading", "tool_call", "tool_result",
@@ -819,7 +916,7 @@ func TestBufferEdgeCases(t *testing.T) {
 	})
 
 	t.Run("AllStepTypes", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-step-types", "req-step-types", "assistant-step-types")
+		buffer := context.NewChatBuffer("chat-step-types", "req-step-types", "assistant-step-types", "")
 
 		stepTypes := []string{
 			context.StepTypeInput, context.StepTypeHookCreate, context.StepTypeLLM,
@@ -842,7 +939,7 @@ func TestBufferEdgeCases(t *testing.T) {
 
 func TestBufferCompleteWorkflow(t *testing.T) {
 	t.Run("SuccessfulChatFlow", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-workflow", "req-workflow", "assistant-main")
+		buffer := context.NewChatBuffer("chat-workflow", "req-workflow", "assistant-main", "")
 
 		// 1. User input
 		buffer.AddUserInput("What's the weather in San Francisco?", "John")
@@ -886,7 +983,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 	})
 
 	t.Run("InterruptedChatFlow", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-interrupted", "req-interrupted", "assistant-main")
+		buffer := context.NewChatBuffer("chat-interrupted", "req-interrupted", "assistant-main", "")
 
 		// Set space snapshot
 		buffer.SetSpaceSnapshot(map[string]interface{}{
@@ -917,7 +1014,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 	})
 
 	t.Run("A2ACallWithDelegation", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-a2a", "req-a2a", "assistant-main")
+		buffer := context.NewChatBuffer("chat-a2a", "req-a2a", "assistant-main", "")
 
 		mainStack := &context.Stack{ID: "stack-main", Depth: 0}
 		childStack := &context.Stack{ID: "stack-child", ParentID: "stack-main", Depth: 1}
@@ -953,7 +1050,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 	})
 
 	t.Run("ConcurrentAgentCalls", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-concurrent-a2a", "req-concurrent-a2a", "assistant-main")
+		buffer := context.NewChatBuffer("chat-concurrent-a2a", "req-concurrent-a2a", "assistant-main", "")
 
 		// Main assistant spawns multiple concurrent calls
 		buffer.BeginStep(context.StepTypeInput, nil, nil)
@@ -997,7 +1094,7 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 
 func TestBufferMessageSequence(t *testing.T) {
 	t.Run("SequenceAutoIncrement", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-seq", "req-seq", "assistant-seq")
+		buffer := context.NewChatBuffer("chat-seq", "req-seq", "assistant-seq", "")
 
 		for i := 0; i < 10; i++ {
 			buffer.AddMessage(&context.BufferedMessage{
@@ -1013,7 +1110,7 @@ func TestBufferMessageSequence(t *testing.T) {
 	})
 
 	t.Run("MixedMessageTypes", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-mixed", "req-mixed", "assistant-mixed")
+		buffer := context.NewChatBuffer("chat-mixed", "req-mixed", "assistant-mixed", "")
 
 		buffer.AddUserInput("Hello", "")
 		buffer.AddAssistantMessage("text", nil, "", "", "", nil)
@@ -1034,7 +1131,7 @@ func TestBufferMessageSequence(t *testing.T) {
 
 func TestBufferStepSequence(t *testing.T) {
 	t.Run("SequenceAutoIncrement", func(t *testing.T) {
-		buffer := context.NewChatBuffer("chat-step-seq", "req-step-seq", "assistant-step-seq")
+		buffer := context.NewChatBuffer("chat-step-seq", "req-step-seq", "assistant-step-seq", "")
 
 		for i := 0; i < 5; i++ {
 			buffer.BeginStep(context.StepTypeLLM, nil, nil)
@@ -1055,10 +1152,10 @@ func TestBufferStepSequence(t *testing.T) {
 func TestBufferMultipleRequests(t *testing.T) {
 	t.Run("NewBufferPerRequest", func(t *testing.T) {
 		// Simulate multiple requests with separate buffers
-		buffer1 := context.NewChatBuffer("chat-1", "req-1", "assistant-1")
+		buffer1 := context.NewChatBuffer("chat-1", "req-1", "assistant-1", "")
 		buffer1.AddUserInput("Request 1", "")
 
-		buffer2 := context.NewChatBuffer("chat-1", "req-2", "assistant-1")
+		buffer2 := context.NewChatBuffer("chat-1", "req-2", "assistant-1", "")
 		buffer2.AddUserInput("Request 2", "")
 
 		// Buffers should be independent
