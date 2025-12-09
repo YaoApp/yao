@@ -30,7 +30,7 @@ func TestMCPListResources(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// List resources from echo MCP
-			const result = ctx.MCP.ListResources("echo", "")
+			const result = ctx.mcp.ListResources("echo", "")
 			
 			if (!result || !result.resources) {
 				throw new Error("Expected resources")
@@ -75,7 +75,7 @@ func TestMCPReadResource(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Read info resource
-			const result = ctx.MCP.ReadResource("echo", "echo://info")
+			const result = ctx.mcp.ReadResource("echo", "echo://info")
 			
 			if (!result || !result.contents) {
 				throw new Error("Expected contents")
@@ -118,7 +118,7 @@ func TestMCPListTools(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// List tools from echo MCP
-			const result = ctx.MCP.ListTools("echo", "")
+			const result = ctx.mcp.ListTools("echo", "")
 			
 			if (!result || !result.tools) {
 				throw new Error("Expected tools")
@@ -165,7 +165,7 @@ func TestMCPCallTool(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Call ping tool
-			const result = ctx.MCP.CallTool("echo", "ping", { count: 3, message: "test" })
+			const result = ctx.mcp.CallTool("echo", "ping", { count: 3, message: "test" })
 			
 			if (!result || !result.content) {
 				throw new Error("Expected content")
@@ -213,7 +213,7 @@ func TestMCPCallTools(t *testing.T) {
 				{ name: "status", arguments: { verbose: false } }
 			]
 			
-			const result = ctx.MCP.CallTools("echo", tools)
+			const result = ctx.mcp.CallTools("echo", tools)
 			
 			if (!result || !result.results) {
 				throw new Error("Expected results")
@@ -261,7 +261,7 @@ func TestMCPCallToolsParallel(t *testing.T) {
 				{ name: "status", arguments: { verbose: true } }
 			]
 			
-			const result = ctx.MCP.CallToolsParallel("echo", tools)
+			const result = ctx.mcp.CallToolsParallel("echo", tools)
 			
 			if (!result || !result.results) {
 				throw new Error("Expected results")
@@ -304,7 +304,7 @@ func TestMCPListPrompts(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// List prompts from echo MCP
-			const result = ctx.MCP.ListPrompts("echo", "")
+			const result = ctx.mcp.ListPrompts("echo", "")
 			
 			if (!result || !result.prompts) {
 				throw new Error("Expected prompts")
@@ -349,7 +349,7 @@ func TestMCPGetPrompt(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get test_connection prompt
-			const result = ctx.MCP.GetPrompt("echo", "test_connection", { detailed: "true" })
+			const result = ctx.mcp.GetPrompt("echo", "test_connection", { detailed: "true" })
 			
 			if (!result || !result.messages) {
 				throw new Error("Expected messages")
@@ -392,7 +392,7 @@ func TestMCPListSamples(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// List samples for ping tool
-			const result = ctx.MCP.ListSamples("echo", "tool", "ping")
+			const result = ctx.mcp.ListSamples("echo", "tool", "ping")
 			
 			if (!result || !result.samples) {
 				throw new Error("Expected samples")
@@ -435,7 +435,7 @@ func TestMCPGetSample(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get first sample for ping tool
-			const result = ctx.MCP.GetSample("echo", "tool", "ping", 0)
+			const result = ctx.mcp.GetSample("echo", "tool", "ping", 0)
 			
 			if (!result) {
 				throw new Error("Expected sample")
@@ -480,10 +480,10 @@ func TestMCPJsApiWithTrace(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get trace (property, not method call)
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Call MCP tool - should create trace node
-			const result = ctx.MCP.CallTool("echo", "ping", { count: 5 })
+			const result = ctx.mcp.CallTool("echo", "ping", { count: 5 })
 			
 			// Verify trace and result exist
 			return {

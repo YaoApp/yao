@@ -36,8 +36,8 @@ interface Context {
 
   // Objects
   space: Space; // Shared data space for passing data between requests
-  Trace: Trace; // Trace object for debugging and monitoring
-  MCP: MCP; // MCP object for external tool/resource access
+  trace: Trace; // Trace object for debugging and monitoring
+  mcp: MCP; // MCP object for external tool/resource access
 }
 ```
 
@@ -56,6 +56,10 @@ The Context provides several methods for sending messages to the client:
 | `Merge(message_id, data, path?)`     | Merge data into message     | -                  | -         |
 | `Set(message_id, data, path)`        | Set a field in message      | -                  | -         |
 | `End(message_id, final_content?)`    | Finalize streaming message  | ✅ Yes             | -         |
+| `EndBlock(block_id)`                 | End a message block         | -                  | -         |
+| `MessageID()`                        | Generate unique message ID  | -                  | -         |
+| `BlockID()`                          | Generate unique block ID    | -                  | -         |
+| `ThreadID()`                         | Generate unique thread ID   | -                  | -         |
 
 > **Note:** `Append`, `Replace`, `Merge`, and `Set` only work with messages started via `SendStream()`. Messages sent via `Send()` are immediately finalized and cannot be updated.
 
@@ -899,7 +903,7 @@ function Create(ctx, messages) {
 
   // MCP tool call block
   ctx.Send("Fetching data...", mcp_block);
-  const data = ctx.MCP.CallTool("tool", "method", {});
+  const data = ctx.mcp.CallTool("tool", "method", {});
   ctx.Send(`Found ${data.length} results`, mcp_block);
   ctx.EndBlock(mcp_block);
 
@@ -926,11 +930,40 @@ try {
 
 ## Trace API
 
-The `ctx.Trace` object provides comprehensive tracing capabilities for debugging and monitoring agent execution.
+The `ctx.trace` object provides tracing capabilities for:
+
+1. **User Transparency** - Expose the agent's working and thinking process to users. The frontend will render these trace nodes to show users what the agent is doing.
+2. **Developer Debugging** - Help developers debug agent execution by recording detailed steps and data.
+
+> **Note:** Trace is primarily designed for developers to expose the agent's process to users. The frontend has corresponding UI components to render these trace nodes.
+
+### Properties
+
+- `ctx.trace.id`: String - The unique identifier of the trace
+
+### Methods Summary
+
+| Method                    | Description                     |
+| ------------------------- | ------------------------------- |
+| `Add(input, option)`      | Create a sequential trace node  |
+| `Parallel(inputs)`        | Create parallel trace nodes     |
+| `Info(message)`           | Add info log to current node    |
+| `Debug(message)`          | Add debug log to current node   |
+| `Warn(message)`           | Add warning log to current node |
+| `Error(message)`          | Add error log to current node   |
+| `SetOutput(output)`       | Set output for current node     |
+| `SetMetadata(key, value)` | Set metadata for current node   |
+| `Complete(output?)`       | Mark current node as completed  |
+| `Fail(error)`             | Mark current node as failed     |
+| `MarkComplete()`          | Mark entire trace as complete   |
+| `IsComplete()`            | Check if trace is complete      |
+| `CreateSpace(option)`     | Create a visual space container |
+| `GetSpace(id)`            | Get a trace space by ID         |
+| `Release()`               | Release trace resources         |
 
 ### Node Operations
 
-#### `ctx.Trace.Add(input, options)`
+#### `ctx.trace.Add(input, options)`
 
 Creates a new trace node (sequential step).
 
@@ -943,18 +976,19 @@ Creates a new trace node (sequential step).
 
 ```typescript
 interface TraceNodeOption {
-  label: string; // Display label
-  type: string; // Node type identifier
-  icon: string; // Icon identifier
-  description: string; // Node description
+  label: string; // Display label in UI
+  type?: string; // Node type identifier
+  icon?: string; // Icon identifier
+  description?: string; // Node description
   metadata?: Record<string, any>; // Additional metadata
+  autoCompleteParent?: boolean; // Auto-complete parent node(s) when this node is created (default: true)
 }
 ```
 
 **Example:**
 
 ```javascript
-const search_node = ctx.Trace.Add(
+const search_node = ctx.trace.Add(
   { query: "What is AI?" },
   {
     label: "Search Query",
@@ -965,7 +999,7 @@ const search_node = ctx.Trace.Add(
 );
 ```
 
-#### `ctx.Trace.Parallel(inputs)`
+#### `ctx.trace.Parallel(inputs)`
 
 Creates multiple parallel trace nodes for concurrent operations.
 
@@ -985,7 +1019,7 @@ interface ParallelInput {
 **Example:**
 
 ```javascript
-const parallel_nodes = ctx.Trace.Parallel([
+const parallel_nodes = ctx.trace.Parallel([
   {
     input: { url: "https://api1.com" },
     option: {
@@ -1009,45 +1043,123 @@ const parallel_nodes = ctx.Trace.Parallel([
 
 ### Logging Methods
 
-Add log entries to the current trace node:
+Add log entries to the current trace node. Each method takes a single string message and returns the trace object for chaining.
 
 ```javascript
 // Information logs
-ctx.Trace.Info("Processing started", { step: 1 });
+ctx.trace.Info("Processing started");
 
 // Debug logs
-ctx.Trace.Debug("Variable value", { value: 42 });
+ctx.trace.Debug("Variable value: 42");
 
 // Warning logs
-ctx.Trace.Warn("Deprecated feature used", { feature: "old_api" });
+ctx.trace.Warn("Deprecated feature used");
 
 // Error logs
-ctx.Trace.Error("Operation failed", { error: "timeout" });
+ctx.trace.Error("Operation failed: timeout");
 ```
 
-### Node Status Operations
+### Trace-Level Operations
+
+These methods operate on the current trace node (managed by the trace manager).
+
+#### `ctx.trace.SetOutput(output)`
+
+Sets the output data for the current trace node.
+
+```javascript
+ctx.trace.SetOutput({ result: "success", data: [...] });
+```
+
+#### `ctx.trace.SetMetadata(key, value)`
+
+Sets metadata for the current trace node.
+
+```javascript
+ctx.trace.SetMetadata("duration", 1500);
+ctx.trace.SetMetadata("source", "cache");
+```
+
+#### `ctx.trace.Complete(output?)`
+
+Marks the current trace node as completed (optionally with output).
+
+```javascript
+ctx.trace.Complete({ status: "done" });
+```
+
+#### `ctx.trace.Fail(error)`
+
+Marks the current trace node as failed with an error message.
+
+```javascript
+ctx.trace.Fail("Connection timeout");
+```
+
+### Node Object
+
+The `ctx.trace.Add()` and `ctx.trace.Parallel()` methods return Node objects. Each node has the following properties and methods:
+
+#### Properties
+
+- `id`: String - The unique identifier of the node
+
+#### `node.Add(input, option)`
+
+Creates a child node under this node.
+
+```javascript
+const parent_node = ctx.trace.Add({ step: "process" }, { label: "Process" });
+const child_node = parent_node.Add(
+  { action: "validate" },
+  { label: "Validate Input", type: "validation" }
+);
+```
+
+#### `node.Parallel(inputs)`
+
+Creates multiple parallel child nodes under this node.
+
+```javascript
+const parent_node = ctx.trace.Add({ step: "fetch" }, { label: "Fetch Data" });
+const child_nodes = parent_node.Parallel([
+  { input: { source: "db" }, option: { label: "Database Query" } },
+  { input: { source: "api" }, option: { label: "API Call" } },
+]);
+```
+
+#### `node.Info(message)`, `node.Debug(message)`, `node.Warn(message)`, `node.Error(message)`
+
+Add log entries to the node. All methods return the node for chaining.
+
+```javascript
+const search_node = ctx.trace.Add({ query: "search" }, { label: "Search" });
+search_node
+  .Info("Starting search")
+  .Debug("Query parameters validated")
+  .Warn("Cache miss, fetching from source");
+```
 
 #### `node.SetOutput(output)`
 
-Sets the output data for a node.
+Sets the output data for a node. Returns the node for chaining.
 
 ```javascript
-const search_node = ctx.Trace.Add({ query: "search" }, options);
-search_node.SetOutput({ results: [...] });
+const search_node = ctx.trace.Add({ query: "search" }, { label: "Search" });
+search_node.SetOutput({ results: [...], count: 10 });
 ```
 
 #### `node.SetMetadata(key, value)`
 
-Sets metadata for a node.
+Sets metadata for a node. Returns the node for chaining.
 
 ```javascript
-search_node.SetMetadata("duration", 1500);
-search_node.SetMetadata("cache_hit", true);
+search_node.SetMetadata("duration", 1500).SetMetadata("cache_hit", true);
 ```
 
 #### `node.Complete(output?)`
 
-Marks a node as completed (optionally with output).
+Marks a node as completed (optionally with output). Returns the node for chaining.
 
 ```javascript
 search_node.Complete({ status: "success", data: [...] });
@@ -1055,98 +1167,90 @@ search_node.Complete({ status: "success", data: [...] });
 
 #### `node.Fail(error)`
 
-Marks a node as failed with an error.
+Marks a node as failed with an error message. Returns the node for chaining.
 
 ```javascript
 try {
   // Operation
 } catch (error) {
-  search_node.Fail(error);
+  search_node.Fail(error.message);
 }
 ```
 
-### Query Operations
+### Trace Lifecycle
 
-#### `ctx.Trace.GetRootNode()`
+#### `ctx.trace.IsComplete()`
 
-Returns the root node of the trace tree.
-
-```javascript
-const root_node = ctx.Trace.GetRootNode();
-console.log(root_node.id, root_node.label);
-```
-
-#### `ctx.Trace.GetNode(id)`
-
-Retrieves a specific node by ID.
+Checks if the trace is complete.
 
 ```javascript
-const target_node = ctx.Trace.GetNode("node-123");
-```
-
-#### `ctx.Trace.GetCurrentNodes()`
-
-Returns the current active nodes (may be multiple if in parallel state).
-
-```javascript
-const current_nodes = ctx.Trace.GetCurrentNodes();
-```
-
-### Memory Space Operations
-
-#### `ctx.Trace.CreateSpace(option)`
-
-Creates a memory space for storing key-value data.
-
-```javascript
-const memory_space = ctx.Trace.CreateSpace({
-  label: "Context Memory",
-  type: "context",
-  icon: "database",
-  description: "Stores conversation context",
-});
-```
-
-#### `ctx.Trace.GetSpace(id)`
-
-Retrieves a memory space by ID.
-
-```javascript
-const context_space = ctx.Trace.GetSpace("context");
-```
-
-#### `ctx.Trace.HasSpace(id)`
-
-Checks if a memory space exists.
-
-```javascript
-if (ctx.Trace.HasSpace("context")) {
-  // Space exists
+if (ctx.trace.IsComplete()) {
+  console.log("Trace completed");
 }
 ```
 
-#### `ctx.Trace.DeleteSpace(id)`
+#### `ctx.trace.MarkComplete()`
 
-Deletes a memory space.
+Marks the entire trace as complete.
 
 ```javascript
-ctx.Trace.DeleteSpace("temp_storage");
+ctx.trace.MarkComplete();
 ```
 
-#### `ctx.Trace.ListSpaces()`
+### Trace Space Operations
 
-Lists all memory spaces.
+Trace spaces are visual containers for organizing trace nodes in the frontend UI. They help group related operations together for better presentation to users.
+
+> **Note:** Trace spaces are purely for visual organization and presentation. They do not store data - use `ctx.space` for data storage between hooks.
+
+#### `ctx.trace.CreateSpace(option)`
+
+Creates a visual space container for grouping trace nodes.
+
+**Option Structure:**
+
+```typescript
+interface TraceSpaceOption {
+  label: string; // Display label in UI
+  type?: string; // Space type identifier
+  icon?: string; // Icon identifier
+  description?: string; // Space description
+  ttl?: number; // Time to live in seconds (for display only)
+  metadata?: Record<string, any>; // Additional metadata
+}
+```
+
+**Example:**
 
 ```javascript
-const all_spaces = ctx.Trace.ListSpaces();
-all_spaces.forEach((space) => {
-  console.log(space.id, space.label);
+const visual_space = ctx.trace.CreateSpace({
+  label: "Search Results",
+  type: "search",
+  icon: "search",
+  description: "Knowledge base search operations",
 });
+```
+
+#### `ctx.trace.GetSpace(id)`
+
+Retrieves a trace space by ID.
+
+```javascript
+const search_space = ctx.trace.GetSpace("search-space-id");
 ```
 
 ## Space API
 
 The `ctx.space` object provides a shared data space for passing data between requests and agent calls. This is useful for storing temporary data that needs to be accessed across different hooks or nested agent calls.
+
+### Methods Summary
+
+| Method            | Description                           |
+| ----------------- | ------------------------------------- |
+| `Get(key)`        | Get a value from the space            |
+| `Set(key, value)` | Set a value in the space              |
+| `Delete(key)`     | Delete a key from the space           |
+| `GetDel(key)`     | Get a value and immediately delete it |
 
 ### Methods
 
@@ -1270,103 +1374,182 @@ function Next(ctx, payload) {
 
 ## MCP API
 
-The `ctx.MCP` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
+The `ctx.mcp` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
+
+### Methods Summary
+
+| Method                               | Description                      |
+| ------------------------------------ | -------------------------------- |
+| `ListResources(client, cursor?)`     | List available resources         |
+| `ReadResource(client, uri)`          | Read a specific resource         |
+| `ListTools(client, cursor?)`         | List available tools             |
+| `CallTool(client, name, args?)`      | Call a single tool               |
+| `CallTools(client, tools)`           | Call multiple tools sequentially |
+| `CallToolsParallel(client, tools)`   | Call multiple tools in parallel  |
+| `ListPrompts(client, cursor?)`       | List available prompts           |
+| `GetPrompt(client, name, args?)`     | Get a specific prompt            |
+| `ListSamples(client, type, name)`    | List samples for a tool/resource |
+| `GetSample(client, type, name, idx)` | Get a specific sample by index   |
 
 ### Resource Operations
 
-#### `ctx.MCP.ListResources(client)`
+#### `ctx.mcp.ListResources(client, cursor?)`
 
 Lists available resources from an MCP client.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `cursor`: String (optional) - Pagination cursor
+
 ```javascript
-const fs_resources = ctx.MCP.ListResources("filesystem");
+const resources = ctx.mcp.ListResources("echo", "");
+console.log(resources.resources); // Array of resources
 ```
 
-#### `ctx.MCP.ReadResource(client, uri)`
+#### `ctx.mcp.ReadResource(client, uri)`
 
 Reads a specific resource.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `uri`: String - Resource URI
+
 ```javascript
-const file_content = ctx.MCP.ReadResource(
-  "filesystem",
-  "file:///path/to/file.txt"
-);
+const info = ctx.mcp.ReadResource("echo", "echo://info");
+console.log(info.contents); // Array of content items
 ```
 
 ### Tool Operations
 
-#### `ctx.MCP.ListTools(client)`
+#### `ctx.mcp.ListTools(client, cursor?)`
 
 Lists available tools from an MCP client.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `cursor`: String (optional) - Pagination cursor
+
 ```javascript
-const available_tools = ctx.MCP.ListTools("toolkit");
+const tools = ctx.mcp.ListTools("echo", "");
+console.log(tools.tools); // Array of tools
 ```
 
-#### `ctx.MCP.CallTool(client, name, args)`
+#### `ctx.mcp.CallTool(client, name, arguments?)`
 
 Calls a single tool.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `name`: String - Tool name
+- `arguments`: Object (optional) - Tool arguments
+
 ```javascript
-const calc_result = ctx.MCP.CallTool("calculator", "add", {
-  a: 10,
-  b: 32,
-});
+const result = ctx.mcp.CallTool("echo", "ping", { count: 3 });
+console.log(result.content); // Tool result content
 ```
 
-#### `ctx.MCP.CallTools(client, calls)`
+#### `ctx.mcp.CallTools(client, tools)`
 
 Calls multiple tools sequentially.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `tools`: Array - Array of tool call objects
+
 ```javascript
-const tool_results = ctx.MCP.CallTools("toolkit", [
-  { name: "tool1", args: { param: "value1" } },
-  { name: "tool2", args: { param: "value2" } },
+const results = ctx.mcp.CallTools("echo", [
+  { name: "ping", arguments: { count: 1 } },
+  { name: "status", arguments: { verbose: true } },
 ]);
+console.log(results.results); // Array of results
 ```
 
-#### `ctx.MCP.CallToolsParallel(client, calls)`
+#### `ctx.mcp.CallToolsParallel(client, tools)`
 
 Calls multiple tools in parallel.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `tools`: Array - Array of tool call objects
+
 ```javascript
-const parallel_results = ctx.MCP.CallToolsParallel("toolkit", [
-  { name: "api1", args: { endpoint: "/users" } },
-  { name: "api2", args: { endpoint: "/posts" } },
+const results = ctx.mcp.CallToolsParallel("echo", [
+  { name: "ping", arguments: { count: 1 } },
+  { name: "status", arguments: { verbose: false } },
 ]);
+console.log(results.results); // Array of results (order may vary)
 ```
 
 ### Prompt Operations
 
-#### `ctx.MCP.ListPrompts(client)`
+#### `ctx.mcp.ListPrompts(client, cursor?)`
 
 Lists available prompts from an MCP client.
 
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `cursor`: String (optional) - Pagination cursor
+
 ```javascript
-const available_prompts = ctx.MCP.ListPrompts("prompt_library");
+const prompts = ctx.mcp.ListPrompts("echo", "");
+console.log(prompts.prompts); // Array of prompts
 ```
 
-#### `ctx.MCP.GetPrompt(client, name, args?)`
+#### `ctx.mcp.GetPrompt(client, name, arguments?)`
 
-Retrieves a specific prompt.
+Retrieves a specific prompt with optional arguments.
+
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `name`: String - Prompt name
+- `arguments`: Object (optional) - Prompt arguments
 
 ```javascript
-const review_prompt = ctx.MCP.GetPrompt("prompt_library", "code_review", {
-  language: "javascript",
+const prompt = ctx.mcp.GetPrompt("echo", "test_connection", {
+  detailed: "true",
 });
+console.log(prompt.messages); // Array of prompt messages
 ```
 
 ### Sample Operations
 
-#### `ctx.MCP.CreateSample(client, uri, sample)`
+#### `ctx.mcp.ListSamples(client, type, name)`
 
-Creates a sample for a resource.
+Lists available samples for a tool or resource.
+
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `type`: String - Sample type ("tool" or "resource")
+- `name`: String - Tool or resource name
 
 ```javascript
-ctx.MCP.CreateSample("filesystem", "file:///examples", {
-  name: "example1",
-  content: "Sample content",
-});
+const samples = ctx.mcp.ListSamples("echo", "tool", "ping");
+console.log(samples.samples); // Array of samples
+```
+
+#### `ctx.mcp.GetSample(client, type, name, index)`
+
+Gets a specific sample by index.
+
+**Parameters:**
+
+- `client`: String - MCP client ID
+- `type`: String - Sample type ("tool" or "resource")
+- `name`: String - Tool or resource name
+- `index`: Number - Sample index (0-based)
+
+```javascript
+const sample = ctx.mcp.GetSample("echo", "tool", "ping", 0);
+console.log(sample.name, sample.input); // Sample name and input data
 ```
 
 ## Hooks
@@ -1566,7 +1749,7 @@ function Create(ctx, messages) {
   ctx.space.Set("original_query", messages[0]?.content || "");
 
   // Add trace node
-  ctx.Trace.Add(
+  ctx.trace.Add(
     { messages },
     {
       label: "Create Hook",
@@ -1596,7 +1779,7 @@ function Next(ctx, payload) {
     const original_query = ctx.space.Get("original_query");
 
     // Create trace node for custom processing
-    const process_node = ctx.Trace.Add(
+    const process_node = ctx.trace.Add(
       { completion, tools },
       {
         label: "Custom Processing",
@@ -1606,7 +1789,7 @@ function Next(ctx, payload) {
       }
     );
 
-    ctx.Trace.Info("Starting custom processing", {
+    ctx.trace.Info("Starting custom processing", {
       original_query: original_query,
       tool_count: tools?.length || 0,
     });
@@ -1615,7 +1798,7 @@ function Next(ctx, payload) {
     const msg_id = ctx.SendStream("# Search Results\n\n");
 
     // Call MCP tool for additional data
-    const search_results = ctx.MCP.CallTool("search_engine", "search", {
+    const search_results = ctx.mcp.CallTool("search_engine", "search", {
       query: "latest AI news",
       limit: 5,
     });
@@ -1640,7 +1823,7 @@ function Next(ctx, payload) {
       metadata: { processed: true },
     };
   } catch (error) {
-    ctx.Trace.Error("Processing failed", { error: error.message });
+    ctx.trace.Error("Processing failed", { error: error.message });
     throw error;
   }
 }
@@ -1666,7 +1849,7 @@ All Context methods throw exceptions on failure. Always handle errors appropriat
 try {
   ctx.Send(message);
 } catch (error) {
-  ctx.Trace.Error("Failed to send message", { error: error.message });
+  ctx.trace.Error("Failed to send message", { error: error.message });
   throw error;
 }
 ```

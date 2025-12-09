@@ -45,8 +45,8 @@ func TestStressContextCreationAndRelease(t *testing.T) {
 		_, err := v8.Call(v8.CallOptions{}, `
 			function test(ctx) {
 				// Use trace
-				ctx.Trace.Add({ type: "test" }, { label: "Test" })
-				ctx.Trace.Info("Processing")
+				ctx.trace.Add({ type: "test" }, { label: "Test" })
+				ctx.trace.Info("Processing")
 				
 				// Explicit release
 				ctx.Release()
@@ -120,7 +120,7 @@ func TestStressTraceOperations(t *testing.T) {
 		cxt.Stack = stack
 		_, err := v8.Call(v8.CallOptions{}, fmt.Sprintf(`
 			function test(ctx) {
-				const trace = ctx.Trace
+				const trace = ctx.trace
 				const nodes = []
 				
 				// Create multiple nodes
@@ -202,16 +202,16 @@ func TestStressMCPOperations(t *testing.T) {
 		_, err := v8.Call(v8.CallOptions{}, `
 			function test(ctx) {
 				// List operations
-				const tools = ctx.MCP.ListTools("echo", "")
-				const resources = ctx.MCP.ListResources("echo", "")
-				const prompts = ctx.MCP.ListPrompts("echo", "")
+				const tools = ctx.mcp.ListTools("echo", "")
+				const resources = ctx.mcp.ListResources("echo", "")
+				const prompts = ctx.mcp.ListPrompts("echo", "")
 				
 				// Call operations
-				const result1 = ctx.MCP.CallTool("echo", "ping", { count: 1 })
-				const result2 = ctx.MCP.CallTool("echo", "status", { verbose: false })
+				const result1 = ctx.mcp.CallTool("echo", "ping", { count: 1 })
+				const result2 = ctx.mcp.CallTool("echo", "status", { verbose: false })
 				
 				// Read operations
-				const info = ctx.MCP.ReadResource("echo", "echo://info")
+				const info = ctx.mcp.ReadResource("echo", "echo://info")
 				
 				return {
 					tools: tools.tools.length,
@@ -283,12 +283,12 @@ func TestStressConcurrentContexts(t *testing.T) {
 				_, err := v8.Call(v8.CallOptions{}, `
 					function test(ctx) {
 						// Use trace
-						const node = ctx.Trace.Add({ type: "test" }, { label: "Concurrent Test" })
-						ctx.Trace.Info("Processing concurrent request")
+						const node = ctx.trace.Add({ type: "test" }, { label: "Concurrent Test" })
+						ctx.trace.Info("Processing concurrent request")
 						node.Complete({ result: "success" })
 						
 						// Use MCP
-						const tools = ctx.MCP.ListTools("echo", "")
+						const tools = ctx.mcp.ListTools("echo", "")
 						
 						// Release resources
 						ctx.Release()
@@ -358,7 +358,7 @@ func TestStressNoOpTracePerformance(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		_, err := v8.Call(v8.CallOptions{}, `
 			function test(ctx) {
-				const trace = ctx.Trace // no-op trace
+				const trace = ctx.trace // no-op trace
 				
 				// All operations should be no-ops and fast
 				trace.Info("No-op info")
@@ -434,7 +434,7 @@ func TestStressReleasePatterns(t *testing.T) {
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
 					try {
-						ctx.Trace.Add({ type: "test" }, { label: "Manual Release" })
+						ctx.trace.Add({ type: "test" }, { label: "Manual Release" })
 						return { success: true }
 					} finally {
 						ctx.Release() // Manual release
@@ -472,7 +472,7 @@ func TestStressReleasePatterns(t *testing.T) {
 
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
-					ctx.Trace.Add({ type: "test" }, { label: "GC Release" })
+					ctx.trace.Add({ type: "test" }, { label: "GC Release" })
 					return { success: true }
 					// No manual release - rely on GC
 				}`, cxt)
@@ -514,8 +514,8 @@ func TestStressReleasePatterns(t *testing.T) {
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
 					try {
-						ctx.Trace.Add({ type: "test" }, { label: "Separate Release" })
-						ctx.Trace.Release() // Release trace separately
+						ctx.trace.Add({ type: "test" }, { label: "Separate Release" })
+						ctx.trace.Release() // Release trace separately
 						return { success: true }
 					} finally {
 						ctx.Release() // Release context
@@ -562,7 +562,7 @@ func TestStressLongRunningTrace(t *testing.T) {
 
 	_, err := v8.Call(v8.CallOptions{}, fmt.Sprintf(`
 		function test(ctx) {
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			const allNodes = []
 			
 			// Create many nested nodes
