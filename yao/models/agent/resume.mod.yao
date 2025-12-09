@@ -1,0 +1,170 @@
+{
+  "name": "Resume",
+  "label": "Resume",
+  "description": "Resume table for storing execution state for resume/retry functionality",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_resume", "comment": "Agent resume/recovery table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "resume_id",
+      "type": "string",
+      "label": "Resume ID",
+      "comment": "Unique resume record identifier",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Parent chat ID",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "request_id",
+      "type": "string",
+      "label": "Request ID",
+      "comment": "Request ID",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "assistant_id",
+      "type": "string",
+      "label": "Assistant ID",
+      "comment": "Assistant executing this step",
+      "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "stack_id",
+      "type": "string",
+      "label": "Stack ID",
+      "comment": "Stack node ID for this execution",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "stack_parent_id",
+      "type": "string",
+      "label": "Stack Parent ID",
+      "comment": "Parent stack ID (for A2A calls)",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "stack_depth",
+      "type": "integer",
+      "label": "Stack Depth",
+      "comment": "Call depth (0=root, 1+=nested)",
+      "nullable": false,
+      "default": 0
+    },
+    {
+      "name": "type",
+      "type": "enum",
+      "label": "Type",
+      "comment": "Step type",
+      "option": [
+        "input",
+        "hook_create",
+        "llm",
+        "tool",
+        "hook_next",
+        "delegate"
+      ],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Resume status (only interrupted or failed are stored)",
+      "option": ["interrupted", "failed"],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "input",
+      "type": "json",
+      "label": "Input",
+      "comment": "Step input data",
+      "nullable": true
+    },
+    {
+      "name": "output",
+      "type": "json",
+      "label": "Output",
+      "comment": "Step output data (partial)",
+      "nullable": true
+    },
+    {
+      "name": "space_snapshot",
+      "type": "json",
+      "label": "Space Snapshot",
+      "comment": "Space data snapshot for recovery",
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "type": "text",
+      "label": "Error",
+      "comment": "Error message if failed",
+      "nullable": true
+    },
+    {
+      "name": "sequence",
+      "type": "integer",
+      "label": "Sequence",
+      "comment": "Step order within request",
+      "nullable": false
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "nullable": true
+    }
+  ],
+  "relations": {
+    "chat": {
+      "type": "hasOne",
+      "model": "__yao.agent.chat",
+      "key": "chat_id",
+      "foreign": "chat_id"
+    },
+    "assistant": {
+      "type": "hasOne",
+      "model": "__yao.agent.assistant",
+      "key": "assistant_id",
+      "foreign": "assistant_id"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_resume_request_seq",
+      "columns": ["request_id", "sequence"],
+      "type": "index",
+      "comment": "Index for resume ordering within request"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

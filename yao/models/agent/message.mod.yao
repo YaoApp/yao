@@ -1,0 +1,134 @@
+{
+  "name": "Message",
+  "label": "Message",
+  "description": "Chat message table for storing user-visible messages",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_message", "comment": "Agent chat message table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "message_id",
+      "type": "string",
+      "label": "Message ID",
+      "comment": "Unique message identifier",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Parent chat ID",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "request_id",
+      "type": "string",
+      "label": "Request ID",
+      "comment": "Request ID for grouping",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "role",
+      "type": "enum",
+      "label": "Role",
+      "comment": "Message role",
+      "option": ["user", "assistant"],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "Message type (text, image, loading, tool_call, retrieval, etc.)",
+      "length": 50,
+      "nullable": false
+    },
+    {
+      "name": "props",
+      "type": "json",
+      "label": "Props",
+      "comment": "Message properties (content, url, etc.)",
+      "nullable": false
+    },
+    {
+      "name": "block_id",
+      "type": "string",
+      "label": "Block ID",
+      "comment": "Block grouping ID",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "thread_id",
+      "type": "string",
+      "label": "Thread ID",
+      "comment": "Thread grouping ID for concurrent operations",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "assistant_id",
+      "type": "string",
+      "label": "Assistant ID",
+      "comment": "Assistant ID (join to get name/avatar)",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "sequence",
+      "type": "integer",
+      "label": "Sequence",
+      "comment": "Message order within chat",
+      "nullable": false
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata (tool_call_id, tool_name, etc.)",
+      "nullable": true
+    }
+  ],
+  "relations": {
+    "chat": {
+      "type": "hasOne",
+      "model": "__yao.agent.chat",
+      "key": "chat_id",
+      "foreign": "chat_id"
+    },
+    "assistant": {
+      "type": "hasOne",
+      "model": "__yao.agent.assistant",
+      "key": "assistant_id",
+      "foreign": "assistant_id"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_msg_chat_seq",
+      "columns": ["chat_id", "sequence"],
+      "type": "index",
+      "comment": "Index for message ordering within chat"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}
+

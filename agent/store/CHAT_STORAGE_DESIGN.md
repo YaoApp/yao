@@ -93,7 +93,6 @@ Stores chat metadata and session information.
 | `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
 | `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
 | `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
-| `preset`          | boolean     | No       | -      | Whether this is a preset chat    |
 | `public`          | boolean     | No       | -      | Whether shared across all teams  |
 | `share`           | enum        | No       | Yes    | Sharing scope: `private`, `team` |
 | `sort`            | integer     | No       | -      | Sort order for display           |
@@ -152,7 +151,7 @@ Stores user-visible messages (both user input and assistant responses).
 | `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
 | `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
 | `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
-| `sequence`     | integer     | No       | Yes    | Message order within chat                 |
+| `sequence`     | integer     | No       | -      | Message order within chat (in composite)  |
 | `metadata`     | json        | Yes      | -      | Additional metadata                       |
 | `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
 | `updated_at`   | timestamp   | No       | -      | Last update timestamp                     |
@@ -163,28 +162,34 @@ Stores user-visible messages (both user input and assistant responses).
 | ------------------- | --------------------- | ----- |
 | `idx_msg_chat_seq`  | `chat_id`, `sequence` | index |
 | `idx_msg_request`   | `request_id`          | index |
+| `idx_msg_role`      | `role`                | index |
 | `idx_msg_block`     | `block_id`            | index |
+| `idx_msg_thread`    | `thread_id`           | index |
 | `idx_msg_assistant` | `assistant_id`        | index |
 
-**Message Types (Built-in):**
+**Message Types:**
 
-All built-in types defined in `agent/output/BUILTIN_TYPES.md` are stored. See that document for complete Props structures.
+All message types are stored, including built-in types and custom types. See `agent/output/BUILTIN_TYPES.md` for built-in Props structures.
 
-| Type         | Description                      | Props Example                                                                               | Stored?     |
-| ------------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ----------- |
-| `user_input` | User input (frontend display)    | `{"content": "Hello", "role": "user", "name": "John"}`                                      | ✅ Yes      |
-| `text`       | Text/Markdown content            | `{"content": "Hello **world**!"}`                                                           | ✅ Yes      |
-| `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes      |
-| `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes      |
-| `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes      |
-| `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes      |
-| `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes      |
-| `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes      |
-| `video`      | Video content                    | `{"url": "...", "format": "mp4", "thumbnail": "...", "width": 640, "height": 360}`          | ✅ Yes      |
-| `action`     | System action (CUI only)         | `{"name": "open_panel", "payload": {"panel_id": "user_profile"}}`                           | ✅ Yes      |
-| `event`      | Lifecycle event (CUI only)       | `{"event": "stream_start", "message": "...", "data": {...}}`                                | ⚠️ Optional |
+| Type         | Description                      | Props Example                                                                               | Stored? |
+| ------------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ------- |
+| `user_input` | User input (frontend display)    | `{"content": "Hello", "role": "user", "name": "John"}`                                      | ✅ Yes  |
+| `text`       | Text/Markdown content            | `{"content": "Hello **world**!"}`                                                           | ✅ Yes  |
+| `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes  |
+| `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes  |
+| `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes  |
+| `retrieval`  | KB/Web search results            | `{"query": "...", "sources": [...], "total_results": 10}`                                   | ✅ Yes  |
+| `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes  |
+| `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes  |
+| `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes  |
+| `video`      | Video content                    | `{"url": "...", "format": "mp4", "thumbnail": "...", "width": 640, "height": 360}`          | ✅ Yes  |
+| `action`     | System action (CUI only)         | `{"name": "open_panel", "payload": {"panel_id": "user_profile"}}`                           | ✅ Yes  |
+| `event`      | Lifecycle event (CUI only)       | `{"event": "stream_start", "message": "...", "data": {...}}`                                | ❌ No   |
+| `*` (custom) | Any custom type                  | `{"chartType": "bar", "data": [...], "options": {...}}`                                     | ✅ Yes  |
 
-**Note on `event` type:** Lifecycle events (`stream_start`, `stream_end`, etc.) are typically transient and may not need persistent storage. Consider storing only significant events or skipping entirely based on use case.
+**Note on `event` type:** Lifecycle events (`stream_start`, `stream_end`, etc.) are transient control signals and are NOT stored. They are only used for real-time streaming coordination.
+
+**Note on custom types:** Any type not in the built-in list is stored as-is with its original `type` and `props` structure.
 
 **Tool Call Storage:**
 
@@ -272,32 +277,183 @@ User input with multimodal content (text + images + files) is stored as `user_in
 }
 ```
 
+### Knowledge Base & Web Search Results
+
+Retrieval results from knowledge bases and web searches need to be stored for:
+
+1. **User Feedback** - Users can rate (👍/👎) individual sources
+2. **Quality Analytics** - Track which documents/sources are most useful
+3. **Source Attribution** - Display citations in the UI
+4. **RAG Optimization** - Improve retrieval based on feedback
+
+**Storage Approach:** Store retrieval results as a special message type `retrieval` with structured props.
+
+**Retrieval Message Structure:**
+
+```json
+{
+  "message_id": "msg_retrieval_001",
+  "chat_id": "chat_123",
+  "request_id": "req_abc",
+  "role": "assistant",
+  "type": "retrieval",
+  "props": {
+    "query": "How to configure Yao models?",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "kb",
+        "collection_id": "col_docs",
+        "document_id": "doc_123",
+        "chunk_id": "chunk_456",
+        "title": "Model Configuration Guide",
+        "content": "To configure a model in Yao, create a .mod.yao file...",
+        "score": 0.92,
+        "metadata": {
+          "file_path": "/docs/model.md",
+          "page": 3
+        }
+      },
+      {
+        "id": "src_002",
+        "type": "kb",
+        "collection_id": "col_docs",
+        "document_id": "doc_124",
+        "chunk_id": "chunk_789",
+        "title": "Advanced Model Options",
+        "content": "Models support various options including soft_deletes...",
+        "score": 0.87,
+        "metadata": {
+          "file_path": "/docs/advanced.md",
+          "page": 12
+        }
+      },
+      {
+        "id": "src_003",
+        "type": "web",
+        "url": "https://yaoapps.com/docs/models",
+        "title": "Yao Models Documentation",
+        "content": "Official documentation for Yao model system...",
+        "score": 0.85,
+        "metadata": {
+          "domain": "yaoapps.com",
+          "fetched_at": "2024-01-15T10:30:00Z"
+        }
+      }
+    ],
+    "total_results": 15,
+    "query_time_ms": 120
+  },
+  "block_id": "B1",
+  "assistant_id": "docs_assistant",
+  "sequence": 2
+}
+```
+
+**Source Types:**
+
+| Type   | Description             | Key Fields                                 |
+| ------ | ----------------------- | ------------------------------------------ |
+| `kb`   | Knowledge base document | `collection_id`, `document_id`, `chunk_id` |
+| `web`  | Web search result       | `url`, `domain`                            |
+| `file` | Uploaded file           | `file_id`, `file_path`                     |
+| `api`  | External API result     | `api_name`, `endpoint`                     |
+| `mcp`  | MCP tool result         | `server`, `tool`                           |
+
+**Source Feedback:**
+
+User feedback on retrieval sources is handled by the Knowledge Base module. See [KB Feedback](../../kb/README.md) for details.
+
+**Example: KB Search in Create Hook:**
+
+```typescript
+// In Create hook, search knowledge base and store results
+const results = await ctx.kb.search("col_docs", query, { limit: 5 });
+
+// Send retrieval message (stored automatically)
+ctx.Send({
+  type: "retrieval",
+  props: {
+    query: query,
+    sources: results.documents.map((doc, idx) => ({
+      id: `src_${idx}`,
+      type: "kb",
+      collection_id: "col_docs",
+      document_id: doc.document.metadata.document_id,
+      chunk_id: doc.document.id,
+      title: doc.document.metadata.title || "Untitled",
+      content: doc.document.content,
+      score: doc.score,
+      metadata: doc.document.metadata,
+    })),
+    total_results: results.total,
+    query_time_ms: results.query_time_ms,
+  },
+});
+
+// Also send loading message for user feedback
+ctx.Send({
+  type: "loading",
+  props: { message: `Found ${results.total} relevant documents...` },
+});
+```
+
+**Example: Web Search Results:**
+
+```json
+{
+  "type": "retrieval",
+  "props": {
+    "query": "latest AI news 2024",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "web",
+        "url": "https://example.com/ai-news",
+        "title": "AI Breakthroughs in 2024",
+        "content": "Summary of the article...",
+        "score": 0.95,
+        "metadata": {
+          "domain": "example.com",
+          "published_at": "2024-01-10",
+          "fetched_at": "2024-01-15T10:30:00Z",
+          "snippet": "The year 2024 has seen remarkable..."
+        }
+      }
+    ],
+    "provider": "tavily",
+    "total_results": 10,
+    "query_time_ms": 850
+  }
+}
+```
+
 ### 3. Resume Table
 
 Stores execution state for resume/retry functionality. **Only written when request is interrupted or failed.**
 
 **Table Name:** `agent_resume`
 
-| Column            | Type        | Nullable | Index  | Description                      |
-| ----------------- | ----------- | -------- | ------ | -------------------------------- |
-| `id`              | ID          | No       | PK     | Auto-increment primary key       |
-| `resume_id`       | string(64)  | No       | Unique | Unique resume record identifier  |
-| `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                   |
-| `request_id`      | string(64)  | No       | Yes    | Request ID                       |
-| `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step    |
-| `stack_id`        | string(64)  | No       | Yes    | Stack node ID for this execution |
-| `stack_parent_id` | string(64)  | Yes      | Yes    | Parent stack ID (for A2A calls)  |
-| `stack_depth`     | integer     | No       | -      | Call depth (0=root, 1+=nested)   |
-| `type`            | enum        | No       | Yes    | Step type                        |
-| `status`          | enum        | No       | Yes    | Status: `interrupted`, `failed`  |
-| `input`           | json        | Yes      | -      | Step input data                  |
-| `output`          | json        | Yes      | -      | Step output data (partial)       |
-| `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery |
-| `error`           | text        | Yes      | -      | Error message if failed          |
-| `sequence`        | integer     | No       | Yes    | Step order within request        |
-| `metadata`        | json        | Yes      | -      | Additional metadata              |
-| `created_at`      | timestamp   | No       | Yes    | Creation timestamp               |
-| `updated_at`      | timestamp   | No       | -      | Last update timestamp            |
+| Column            | Type        | Nullable | Index  | Description                              |
+| ----------------- | ----------- | -------- | ------ | ---------------------------------------- |
+| `id`              | ID          | No       | PK     | Auto-increment primary key               |
+| `resume_id`       | string(64)  | No       | Unique | Unique resume record identifier          |
+| `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                           |
+| `request_id`      | string(64)  | No       | Yes    | Request ID                               |
+| `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step            |
+| `stack_id`        | string(64)  | No       | Yes    | Stack node ID for this execution         |
+| `stack_parent_id` | string(64)  | Yes      | Yes    | Parent stack ID (for A2A calls)          |
+| `stack_depth`     | integer     | No       | -      | Call depth (0=root, 1+=nested)           |
+| `type`            | enum        | No       | Yes    | Step type                                |
+| `status`          | enum        | No       | Yes    | Status: `interrupted`, `failed`          |
+| `input`           | json        | Yes      | -      | Step input data                          |
+| `output`          | json        | Yes      | -      | Step output data (partial)               |
+| `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery         |
+| `error`           | text        | Yes      | -      | Error message if failed                  |
+| `sequence`        | integer     | No       | -      | Step order within request (in composite) |
+| `metadata`        | json        | Yes      | -      | Additional metadata                      |
+| `created_at`      | timestamp   | No       | Yes    | Creation timestamp                       |
+| `updated_at`      | timestamp   | No       | -      | Last update timestamp                    |
 
 **Space Snapshot:**
 
@@ -344,6 +500,7 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 | ---------------------- | ------------------------ | ----- |
 | `idx_resume_chat`      | `chat_id`                | index |
 | `idx_resume_request`   | `request_id`, `sequence` | index |
+| `idx_resume_type`      | `type`                   | index |
 | `idx_resume_status`    | `status`                 | index |
 | `idx_resume_stack`     | `stack_id`               | index |
 | `idx_resume_parent`    | `stack_parent_id`        | index |
@@ -351,20 +508,16 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 
 ## Write Strategy
 
-### Two-Write Strategy
+### Single-Write Strategy
 
-All data is buffered in memory during execution and written to database only **twice**:
-
-1. **Write 1 (Entry)**: When `Stream()` starts - save user input message
-2. **Write 2 (Exit)**: When `Stream()` exits - batch save messages (and steps only on error/interrupt)
+All data is buffered in memory during execution and written to database **only once** when `Stream()` exits:
 
 **Note**: Request tracking (status, tokens, duration) is handled by [OpenAPI Request Middleware](../../openapi/request/REQUEST_DESIGN.md).
 
 ```
 Stream() Entry
     │
-    ├── 【Write 1】Save user input
-    │   - User message (role=user)
+    ├── Buffer user input message (role=user)
     │
     ├── Execution (all in memory)
     │   - ctx.Send()    → messageBuffer
@@ -372,10 +525,10 @@ Stream() Entry
     │   - ctx.Replace() → update messageBuffer
     │   - Each step     → stepBuffer
     │
-    └── 【Write 2】Save final state (via defer)
+    └── 【Single Write】Save final state (via defer)
         │
         ├── Always:
-        │   - Batch write all assistant messages
+        │   - Batch write all messages (user input + assistant responses)
         │   - Update token usage in openapi_request (via request_id)
         │
         └── Only on error/interrupt:
@@ -384,59 +537,59 @@ Stream() Entry
 
 ### Write Points
 
-| Event            | Message Table        | Step Table                          | Token Usage |
-| ---------------- | -------------------- | ----------------------------------- | ----------- |
-| Stream entry     | Write 1 (user input) | -                                   | -           |
-| During execution | Buffer in memory     | Buffer in memory                    | -           |
-| **Completed**    | **Batch write all**  | **❌ Skip (no need to resume)**     | ✅ Update   |
-| On interrupt     | Batch write buffered | ✅ Batch write (status=interrupted) | ✅ Update   |
-| On error         | Batch write buffered | ✅ Batch write (status=failed)      | ✅ Update   |
+| Event            | Message Table                          | Step Table                          | Token Usage |
+| ---------------- | -------------------------------------- | ----------------------------------- | ----------- |
+| Stream entry     | Buffer user input                      | -                                   | -           |
+| During execution | Buffer in memory                       | Buffer in memory                    | -           |
+| **Completed**    | **Batch write all (user + assistant)** | **❌ Skip (no need to resume)**     | ✅ Update   |
+| On interrupt     | Batch write all buffered               | ✅ Batch write (status=interrupted) | ✅ Update   |
+| On error         | Batch write all buffered               | ✅ Batch write (status=failed)      | ✅ Update   |
 
 **Why skip Steps on success?**
 
 - Steps are only needed for resume/retry operations
 - If completed successfully, there's nothing to resume
-- Reduces database writes and keeps Step table clean
+- Reduces database writes and keeps Resume table clean
 
-### Why Two Writes?
+### Why Single Write?
 
-| Scenario           | What Happens                        | Data Safe? |
-| ------------------ | ----------------------------------- | ---------- |
-| Normal completion  | `defer` triggers → Write 2 executes | ✅         |
-| User clicks stop   | `defer` triggers → Write 2 executes | ✅         |
-| LLM timeout        | `defer` triggers → Write 2 executes | ✅         |
-| Tool failure       | `defer` triggers → Write 2 executes | ✅         |
-| Network disconnect | `defer` triggers → Write 2 executes | ✅         |
-| Process crash      | Service is down, user must retry    | N/A        |
+| Scenario           | What Happens                      | Data Safe? |
+| ------------------ | --------------------------------- | ---------- |
+| Normal completion  | `defer` triggers → Write executes | ✅         |
+| User clicks stop   | `defer` triggers → Write executes | ✅         |
+| LLM timeout        | `defer` triggers → Write executes | ✅         |
+| Tool failure       | `defer` triggers → Write executes | ✅         |
+| Network disconnect | `defer` triggers → Write executes | ✅         |
+| Process crash      | Service is down, user must retry  | N/A        |
 
 **Note**: Process crash is a catastrophic failure handled at infrastructure level, not application level.
 
 ### Write Count Comparison
 
-For a typical request: user input → hook_create → llm → tool → llm → hook_next → 5 messages
+For a typical request: user input → hook_create → llm → tool → hook_next → 5 messages
 
-| Strategy               | Database Writes | Notes              |
-| ---------------------- | --------------- | ------------------ |
-| Write per operation    | 1 + 5 + 5 = 11  | One write per step |
-| **Two-write strategy** | **2**           | Entry + Exit only  |
+| Strategy                  | Database Writes | Notes                 |
+| ------------------------- | --------------- | --------------------- |
+| Write per operation       | 1 + 5 + 5 = 11  | One write per step    |
+| **Single-write strategy** | **1**           | Exit only (via defer) |
 
 ### Implementation
 
 ````go
 func (ast *Assistant) Stream(ctx, inputMessages, options) {
-    // ========== Write 1: Entry ==========
-    userMsg := createUserMessage(ctx, inputMessages)
-    chatStore.SaveMessages(ctx.ChatID, []*Message{userMsg})
-
     // ========== Memory Buffers ==========
     messageBuffer := NewMessageBuffer()
     stepBuffer := NewStepBuffer()
+
+    // Buffer user input message (not written yet)
+    userMsg := createUserMessage(ctx, inputMessages)
+    messageBuffer.Add(userMsg)
 
     // Track current step for error handling
     var currentStep *Step
 
     defer func() {
-        // ========== Write 2: Exit (always executes) ==========
+        // ========== Single Write: Exit (always executes) ==========
         // Determine final status for incomplete steps
         finalStatus := "completed"
         if ctx.IsInterrupted() {
@@ -451,9 +604,13 @@ func (ast *Assistant) Stream(ctx, inputMessages, options) {
             currentStep.Status = finalStatus
         }
 
-        // Batch write all buffered data
+        // Batch write all buffered messages (user input + assistant responses)
         chatStore.SaveMessages(ctx.ChatID, messageBuffer.GetAll())
-        chatStore.SaveSteps(stepBuffer.GetAll())
+
+        // Only save steps on error/interrupt (not on success)
+        if finalStatus != "completed" {
+            chatStore.SaveResume(stepBuffer.GetAll())
+        }
 
         // Update token usage in OpenAPI request record
         if ctx.RequestID != "" && completionResponse != nil {
@@ -580,7 +737,6 @@ type Chat struct {
     AssistantID   string                 `json:"assistant_id"`
     Mode          string                 `json:"mode"`
     Status        string                 `json:"status"`
-    Preset        bool                   `json:"preset"`
     Public        bool                   `json:"public"`
     Share         string                 `json:"share"` // "private" or "team"
     Sort          int                    `json:"sort"`
@@ -639,6 +795,20 @@ type ChatFilter struct {
     AssistantID string `json:"assistant_id,omitempty"`
     Status      string `json:"status,omitempty"`
     Keywords    string `json:"keywords,omitempty"`
+
+    // Time range filter
+    StartTime   *time.Time `json:"start_time,omitempty"` // Filter chats after this time
+    EndTime     *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
+    TimeField   string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
+
+    // Sorting
+    OrderBy     string `json:"order_by,omitempty"`  // Field to sort by (default: "last_message_at")
+    Order       string `json:"order,omitempty"`     // Sort order: "desc" (default) or "asc"
+
+    // Response format
+    GroupBy     string `json:"group_by,omitempty"`  // "time" for time-based groups, empty for flat list
+
+    // Pagination
     Page        int    `json:"page,omitempty"`
     PageSize    int    `json:"pagesize,omitempty"`
 }
@@ -648,17 +818,28 @@ type MessageFilter struct {
     RequestID string `json:"request_id,omitempty"`
     Role      string `json:"role,omitempty"`
     BlockID   string `json:"block_id,omitempty"`
+    ThreadID  string `json:"thread_id,omitempty"`
+    Type      string `json:"type,omitempty"`
     Limit     int    `json:"limit,omitempty"`
     Offset    int    `json:"offset,omitempty"`
 }
 
-// ChatList paginated response
+// ChatList paginated response with time-based grouping
 type ChatList struct {
-    Data      []*Chat `json:"data"`
-    Page      int     `json:"page"`
-    PageSize  int     `json:"pagesize"`
-    PageCount int     `json:"pagecount"`
-    Total     int     `json:"total"`
+    Data      []*Chat      `json:"data"`
+    Groups    []*ChatGroup `json:"groups,omitempty"` // Time-based groups for UI display
+    Page      int          `json:"page"`
+    PageSize  int          `json:"pagesize"`
+    PageCount int          `json:"pagecount"`
+    Total     int          `json:"total"`
+}
+
+// ChatGroup represents a time-based group of chats
+type ChatGroup struct {
+    Label string   `json:"label"` // "Today", "Yesterday", "This Week", "This Month", "Earlier"
+    Key   string   `json:"key"`   // "today", "yesterday", "this_week", "this_month", "earlier"
+    Chats []*Chat  `json:"chats"` // Chats in this group
+    Count int      `json:"count"` // Number of chats in group
 }
 ```
 
@@ -671,13 +852,12 @@ A typical conversation with various message types stored in `agent_message`:
 ```
 User: "What's the weather in SF? Also show me a chart."
 
-Timeline:
-1. User sends multimodal input
-2. Hook shows loading state
+Timeline (user input → hook_create → llm → tool → hook_next):
+1. User sends input
+2. Create hook shows loading state
 3. LLM thinks and calls tool
-4. Tool returns result
-5. LLM generates text response
-6. Hook sends image chart
+4. Tool executes and returns result
+5. Next hook generates text response and image chart
 ```
 
 **Stored Messages:**
@@ -745,7 +925,7 @@ Timeline:
     "sequence": 4
   },
 
-  // 5. Tool result (role=assistant, type=text, with tool metadata)
+  // 5. Tool result from Next hook (role=assistant, type=text, with tool metadata)
   {
     "message_id": "msg_005",
     "chat_id": "chat_123",
@@ -753,36 +933,20 @@ Timeline:
     "role": "assistant",
     "type": "text",
     "props": {
-      "content": "Weather data retrieved: 18°C, sunny, humidity 65%"
+      "content": "The weather in San Francisco is currently **18°C** and sunny with 65% humidity. Perfect weather for outdoor activities!"
     },
-    "block_id": "B2",
+    "block_id": "B3",
     "metadata": {
       "tool_call_id": "call_weather_001",
-      "tool_name": "get_weather",
-      "is_tool_result": true
+      "tool_name": "get_weather"
     },
     "assistant_id": "weather_assistant",
     "sequence": 5
   },
 
-  // 6. LLM text response (role=assistant, type=text)
+  // 6. Chart image from Next hook (role=assistant, type=image)
   {
     "message_id": "msg_006",
-    "chat_id": "chat_123",
-    "request_id": "req_abc",
-    "role": "assistant",
-    "type": "text",
-    "props": {
-      "content": "The weather in San Francisco is currently **18°C** and sunny with 65% humidity. Perfect weather for outdoor activities!"
-    },
-    "block_id": "B2",
-    "assistant_id": "weather_assistant",
-    "sequence": 6
-  },
-
-  // 7. Chart image from Next hook (role=assistant, type=image)
-  {
-    "message_id": "msg_007",
     "chat_id": "chat_123",
     "request_id": "req_abc",
     "role": "assistant",
@@ -795,7 +959,7 @@ Timeline:
     },
     "block_id": "B3",
     "assistant_id": "weather_assistant",
-    "sequence": 7
+    "sequence": 6
   }
 ]
 ```
@@ -904,12 +1068,53 @@ Multimedia content storage:
 ### 5. Load Chat History
 
 ```go
-// Get chat list
+// Example 1: Flat list (default)
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:   "user123",
     Status:   "active",
+    OrderBy:  "last_message_at",
+    Order:    "desc",
     Page:     1,
     PageSize: 20,
+})
+// Response: chats.Data = [...], chats.Groups = nil
+
+// Example 2: Grouped by time
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:   "user123",
+    GroupBy:  "time", // Enable time-based grouping
+    OrderBy:  "last_message_at",
+    Order:    "desc",
+    Page:     1,
+    PageSize: 20,
+})
+// Response includes time-based groups:
+// chats.Groups = [
+//   { Key: "today", Label: "Today", Chats: [...], Count: 3 },
+//   { Key: "yesterday", Label: "Yesterday", Chats: [...], Count: 5 },
+//   { Key: "this_week", Label: "This Week", Chats: [...], Count: 8 },
+//   { Key: "this_month", Label: "This Month", Chats: [...], Count: 4 },
+//   { Key: "earlier", Label: "Earlier", Chats: [...], Count: 0 },
+// ]
+
+// Example 3: Filter by time range
+startTime := time.Now().AddDate(0, 0, -7) // Last 7 days
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:    "user123",
+    StartTime: &startTime,
+    TimeField: "last_message_at", // Filter by last message time
+    OrderBy:   "last_message_at",
+    Order:     "desc",
+})
+
+// Example 4: Filter specific date range
+start := time.Date(2024, 12, 1, 0, 0, 0, 0, time.Local)
+end := time.Date(2024, 12, 31, 23, 59, 59, 0, time.Local)
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:    "user123",
+    StartTime: &start,
+    EndTime:   &end,
+    TimeField: "created_at", // Filter by creation time
 })
 
 // Get messages for a chat
@@ -1053,6 +1258,99 @@ return {
 // 1. Restore space_snapshot → ctx.space now has "choose_prompt": "query"
 // 2. The delegated agent's Create hook can read: ctx.space.GetDel("choose_prompt")
 ```
+
+## Concurrent Operations Storage
+
+When an Agent makes parallel calls (e.g., multiple MCP tools, multiple sub-agents), messages use `block_id` and `thread_id` for grouping:
+
+```
+Main Agent concurrently calls 3 tasks:
+├── Thread T1: Weather query (MCP)
+├── Thread T2: News search (MCP)
+├── Thread T3: Stock query (MCP)
+└── Wait for all to complete, then summarize
+```
+
+**Stored Messages:**
+
+```json
+[
+  // All concurrent messages share the same block_id, different thread_id
+  // Messages may arrive in any order due to concurrency
+
+  // Thread T1: Weather result
+  {
+    "message_id": "msg_t1_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "Weather in SF: 18°C, sunny" },
+    "block_id": "B1",
+    "thread_id": "T1",
+    "assistant_id": "main_assistant",
+    "sequence": 2
+  },
+
+  // Thread T2: News result
+  {
+    "message_id": "msg_t2_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "Top news: AI breakthrough announced..." },
+    "block_id": "B1",
+    "thread_id": "T2",
+    "assistant_id": "main_assistant",
+    "sequence": 3
+  },
+
+  // Thread T3: Stock result
+  {
+    "message_id": "msg_t3_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "AAPL: $185.50 (+1.2%)" },
+    "block_id": "B1",
+    "thread_id": "T3",
+    "assistant_id": "main_assistant",
+    "sequence": 4
+  },
+
+  // After all threads complete, main agent summarizes (new block)
+  {
+    "message_id": "msg_summary",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": {
+      "content": "Here's your daily briefing: The weather is great at 18°C..."
+    },
+    "block_id": "B2",
+    "thread_id": null,
+    "assistant_id": "main_assistant",
+    "sequence": 5
+  }
+]
+```
+
+**Key Points:**
+
+| Field       | Concurrent Usage                                   |
+| ----------- | -------------------------------------------------- |
+| `block_id`  | Same for all parallel operations (B1)              |
+| `thread_id` | Different for each concurrent task (T1, T2, T3)    |
+| `sequence`  | Reflects actual arrival order (may be interleaved) |
+
+**Frontend Rendering:**
+
+- Group messages by `block_id` for visual blocks
+- Within a block, optionally group by `thread_id` to show parallel results
+- Use `sequence` for chronological display
 
 ## Related Documents
 
