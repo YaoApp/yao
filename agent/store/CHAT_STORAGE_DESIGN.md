@@ -795,6 +795,20 @@ type ChatFilter struct {
     AssistantID string `json:"assistant_id,omitempty"`
     Status      string `json:"status,omitempty"`
     Keywords    string `json:"keywords,omitempty"`
+
+    // Time range filter
+    StartTime   *time.Time `json:"start_time,omitempty"` // Filter chats after this time
+    EndTime     *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
+    TimeField   string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
+
+    // Sorting
+    OrderBy     string `json:"order_by,omitempty"`  // Field to sort by (default: "last_message_at")
+    Order       string `json:"order,omitempty"`     // Sort order: "desc" (default) or "asc"
+
+    // Response format
+    GroupBy     string `json:"group_by,omitempty"`  // "time" for time-based groups, empty for flat list
+
+    // Pagination
     Page        int    `json:"page,omitempty"`
     PageSize    int    `json:"pagesize,omitempty"`
 }
@@ -810,13 +824,22 @@ type MessageFilter struct {
     Offset    int    `json:"offset,omitempty"`
 }
 
-// ChatList paginated response
+// ChatList paginated response with time-based grouping
 type ChatList struct {
-    Data      []*Chat `json:"data"`
-    Page      int     `json:"page"`
-    PageSize  int     `json:"pagesize"`
-    PageCount int     `json:"pagecount"`
-    Total     int     `json:"total"`
+    Data      []*Chat      `json:"data"`
+    Groups    []*ChatGroup `json:"groups,omitempty"` // Time-based groups for UI display
+    Page      int          `json:"page"`
+    PageSize  int          `json:"pagesize"`
+    PageCount int          `json:"pagecount"`
+    Total     int          `json:"total"`
+}
+
+// ChatGroup represents a time-based group of chats
+type ChatGroup struct {
+    Label string   `json:"label"` // "Today", "Yesterday", "This Week", "This Month", "Earlier"
+    Key   string   `json:"key"`   // "today", "yesterday", "this_week", "this_month", "earlier"
+    Chats []*Chat  `json:"chats"` // Chats in this group
+    Count int      `json:"count"` // Number of chats in group
 }
 ```
 
@@ -1045,12 +1068,53 @@ Multimedia content storage:
 ### 5. Load Chat History
 
 ```go
-// Get chat list
+// Example 1: Flat list (default)
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:   "user123",
     Status:   "active",
+    OrderBy:  "last_message_at",
+    Order:    "desc",
     Page:     1,
     PageSize: 20,
+})
+// Response: chats.Data = [...], chats.Groups = nil
+
+// Example 2: Grouped by time
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:   "user123",
+    GroupBy:  "time", // Enable time-based grouping
+    OrderBy:  "last_message_at",
+    Order:    "desc",
+    Page:     1,
+    PageSize: 20,
+})
+// Response includes time-based groups:
+// chats.Groups = [
+//   { Key: "today", Label: "Today", Chats: [...], Count: 3 },
+//   { Key: "yesterday", Label: "Yesterday", Chats: [...], Count: 5 },
+//   { Key: "this_week", Label: "This Week", Chats: [...], Count: 8 },
+//   { Key: "this_month", Label: "This Month", Chats: [...], Count: 4 },
+//   { Key: "earlier", Label: "Earlier", Chats: [...], Count: 0 },
+// ]
+
+// Example 3: Filter by time range
+startTime := time.Now().AddDate(0, 0, -7) // Last 7 days
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:    "user123",
+    StartTime: &startTime,
+    TimeField: "last_message_at", // Filter by last message time
+    OrderBy:   "last_message_at",
+    Order:     "desc",
+})
+
+// Example 4: Filter specific date range
+start := time.Date(2024, 12, 1, 0, 0, 0, 0, time.Local)
+end := time.Date(2024, 12, 31, 23, 59, 59, 0, time.Local)
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:    "user123",
+    StartTime: &start,
+    EndTime:   &end,
+    TimeField: "created_at", // Filter by creation time
 })
 
 // Get messages for a chat
