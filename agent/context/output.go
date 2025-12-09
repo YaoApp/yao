@@ -55,6 +55,13 @@ func (ctx *Context) Send(msg *message.Message) error {
 
 			// Increment chunk count for this message
 			metadata.ChunkCount++
+
+			// Update Buffer content for streaming messages (for storage)
+			if ctx.Buffer != nil && msg.Props != nil {
+				if content, ok := msg.Props["content"].(string); ok {
+					ctx.Buffer.AppendMessageContent(msg.MessageID, content)
+				}
+			}
 		}
 	}
 
@@ -146,6 +153,26 @@ func (ctx *Context) Send(msg *message.Message) error {
 		return err
 	}
 
+	// === Buffer message for batch saving (non-delta, non-event messages only) ===
+	// Delta messages are streaming chunks; only final content should be saved
+	// Event messages are transient lifecycle signals, not stored
+	// Skip if History is disabled in options
+	if !msg.Delta && !isEventMessage && ctx.Buffer != nil && !ctx.shouldSkipHistory() {
+		assistantID := ""
+		if ctx.Stack != nil {
+			assistantID = ctx.Stack.AssistantID
+		}
+		ctx.Buffer.AddAssistantMessage(
+			msg.MessageID, // Use the same MessageID as sent to client
+			msg.Type,
+			msg.Props,
+			msg.BlockID,
+			msg.ThreadID,
+			assistantID,
+			nil, // metadata can be added if needed
+		)
+	}
+
 	// === Auto-send message_end for non-delta messages (complete messages) ===
 	if !msg.Delta && !isEventMessage && msg.MessageID != "" && ctx.messageMetadata != nil {
 		metadata := ctx.messageMetadata.getMessage(msg.MessageID)
@@ -186,6 +213,189 @@ func (ctx *Context) Send(msg *message.Message) error {
 	}
 
 	return nil
+}
+
+// SendStream sends a streaming message that can be appended to later
+// Unlike Send(), this does NOT automatically send message_end event
+// Use ctx.Append() to add content, then ctx.End() to finalize
+// Returns the message ID for use with Append/End
+func (ctx *Context) SendStream(msg *message.Message) (string, error) {
+	out, err := ctx.getOutput()
+	if err != nil {
+		return "", err
+	}
+
+	// Skip lifecycle events for event-type messages
+	isEventMessage := msg.Type == message.TypeEvent
+	if isEventMessage {
+		// Event messages should use Send(), not SendStream()
+		return "", ctx.Send(msg)
+	}
+
+	// === Auto-generate ChunkID ===
+	if msg.ChunkID == "" {
+		if ctx.IDGenerator != nil {
+			msg.ChunkID = ctx.IDGenerator.GenerateChunkID()
+		} else {
+			msg.ChunkID = message.GenerateNanoID()
+		}
+	}
+
+	// === Auto-set ThreadID for non-root Stack ===
+	if msg.ThreadID == "" && ctx.Stack != nil && !ctx.Stack.IsRoot() {
+		msg.ThreadID = ctx.Stack.ID
+	}
+
+	// === Handle BlockID and block_start event ===
+	if msg.BlockID != "" && ctx.messageMetadata != nil {
+		if ctx.messageMetadata.getBlock(msg.BlockID) == nil {
+			blockStartData := message.EventBlockStartData{
+				BlockID:   msg.BlockID,
+				Type:      "mixed",
+				Timestamp: time.Now().UnixMilli(),
+			}
+			blockStartEvent := output.NewEventMessage(message.EventBlockStart, "Block started", blockStartData)
+			if err := ctx.sendRaw(blockStartEvent); err != nil {
+				return "", err
+			}
+			ctx.messageMetadata.setBlock(msg.BlockID, &BlockMetadata{
+				BlockID:      msg.BlockID,
+				Type:         "mixed",
+				StartTime:    time.Now(),
+				MessageCount: 0,
+			})
+		}
+		ctx.messageMetadata.updateBlock(msg.BlockID, func(block *BlockMetadata) {
+			block.MessageCount++
+		})
+	}
+
+	// === Generate MessageID if not provided ===
+	if msg.MessageID == "" {
+		if ctx.IDGenerator != nil {
+			msg.MessageID = ctx.IDGenerator.GenerateMessageID()
+		} else {
+			msg.MessageID = message.GenerateNanoID()
+		}
+	}
+
+	// === Send message_start event ===
+	messageStartData := message.EventMessageStartData{
+		MessageID: msg.MessageID,
+		Type:      msg.Type,
+		Timestamp: time.Now().UnixMilli(),
+		ThreadID:  msg.ThreadID,
+	}
+	messageStartEvent := output.NewEventMessage(message.EventMessageStart, "Message started", messageStartData)
+	if err := ctx.sendRaw(messageStartEvent); err != nil {
+		return "", err
+	}
+
+	// === Record message metadata ===
+	if ctx.messageMetadata != nil {
+		ctx.messageMetadata.setMessage(msg.MessageID, &MessageMetadata{
+			MessageID:  msg.MessageID,
+			BlockID:    msg.BlockID,
+			ThreadID:   msg.ThreadID,
+			Type:       msg.Type,
+			StartTime:  time.Now(),
+			ChunkCount: 1,
+		})
+	}
+
+	// === Actually send the message ===
+	if err := out.Send(msg); err != nil {
+		return "", err
+	}
+
+	// === Buffer streaming message (will be completed by End()) ===
+	if ctx.Buffer != nil && !ctx.shouldSkipHistory() {
+		assistantID := ""
+		if ctx.Stack != nil {
+			assistantID = ctx.Stack.AssistantID
+		}
+		ctx.Buffer.AddStreamingMessage(
+			msg.MessageID,
+			msg.Type,
+			msg.Props,
+			msg.BlockID,
+			msg.ThreadID,
+			assistantID,
+			nil,
+		)
+	}
+
+	// NOTE: No message_end event here - will be sent by End()
+	return msg.MessageID, nil
+}
+
+// End finalizes a streaming message started with SendStream
+// Optionally appends final content before sending message_end event
+// This also saves the complete message to the buffer for storage
+func (ctx *Context) End(messageID string, finalContent ...string) error {
+	if messageID == "" {
+		return nil
+	}
+
+	// Append final content if provided
+	if len(finalContent) > 0 && finalContent[0] != "" {
+		// Create a delta message for the final content
+		deltaMsg := &message.Message{
+			MessageID:   messageID,
+			Type:        message.TypeText,
+			Delta:       true,
+			DeltaAction: message.DeltaAppend,
+			Props: map[string]interface{}{
+				"content": finalContent[0],
+			},
+		}
+		if err := ctx.Send(deltaMsg); err != nil {
+			return err
+		}
+	}
+
+	// Get complete content from buffer
+	var completeContent string
+	if ctx.Buffer != nil {
+		completeContent, _ = ctx.Buffer.CompleteStreamingMessage(messageID)
+	}
+
+	// Get metadata for duration calculation
+	var durationMs int64
+	var threadID string
+	var chunkCount int
+	var msgType string = message.TypeText
+
+	if ctx.messageMetadata != nil {
+		if metadata := ctx.messageMetadata.getMessage(messageID); metadata != nil {
+			durationMs = time.Since(metadata.StartTime).Milliseconds()
+			threadID = metadata.ThreadID
+			chunkCount = metadata.ChunkCount
+			msgType = metadata.Type
+		}
+	}
+
+	// Build message_end event data
+	endData := message.EventMessageEndData{
+		MessageID:  messageID,
+		Type:       msgType,
+		Timestamp:  time.Now().UnixMilli(),
+		ThreadID:   threadID,
+		DurationMs: durationMs,
+		ChunkCount: chunkCount,
+		Status:     "completed",
+	}
+
+	// Add complete content to extra
+	if completeContent != "" {
+		endData.Extra = map[string]interface{}{
+			"content": completeContent,
+		}
+	}
+
+	// Send message_end event
+	messageEndEvent := output.NewEventMessage(message.EventMessageEnd, "Message completed", endData)
+	return ctx.sendRaw(messageEndEvent)
 }
 
 // EndMessage sends a message_end event for a completed message

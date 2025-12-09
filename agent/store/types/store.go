@@ -1,66 +1,108 @@
 package types
 
-// Store defines the conversation storage interface
-// Provides basic operations required for conversation management
-type Store interface {
-	// GetChats retrieves a list of chats
-	// sid: Session ID
-	// filter: Filter conditions
-	// Returns: Grouped chat list and potential error
-	GetChats(sid string, filter ChatFilter, locale ...string) (*ChatGroupResponse, error)
+// ChatStore defines the chat storage interface
+// Provides operations for chat, message, and resume management
+type ChatStore interface {
+	// ==========================================================================
+	// Chat Management
+	// ==========================================================================
 
-	// GetChat retrieves a single chat's information
-	// sid: Session ID
-	// cid: Chat ID
+	// CreateChat creates a new chat session
+	// chat: Chat session to create
+	// Returns: Potential error
+	CreateChat(chat *Chat) error
+
+	// GetChat retrieves a single chat by ID
+	// chatID: Chat ID
 	// Returns: Chat information and potential error
-	GetChat(sid string, cid string, locale ...string) (*ChatInfo, error)
+	GetChat(chatID string) (*Chat, error)
 
-	// GetChatWithFilter retrieves a single chat's information with filter options
-	// sid: Session ID
-	// cid: Chat ID
-	// filter: Filter conditions
-	// Returns: Chat information and potential error
-	GetChatWithFilter(sid string, cid string, filter ChatFilter, locale ...string) (*ChatInfo, error)
-
-	// GetHistory retrieves chat history
-	// sid: Session ID
-	// cid: Chat ID
-	// Returns: History record list and potential error
-	GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error)
-
-	// GetHistoryWithFilter retrieves chat history with filter options
-	// sid: Session ID
-	// cid: Chat ID
-	// filter: Filter conditions
-	// Returns: History record list and potential error
-	GetHistoryWithFilter(sid string, cid string, filter ChatFilter, locale ...string) ([]map[string]interface{}, error)
-
-	// SaveHistory saves chat history
-	// sid: Session ID
-	// messages: Message list
-	// cid: Chat ID
-	// context: Context information
+	// UpdateChat updates chat fields
+	// chatID: Chat ID
+	// updates: Map of fields to update
 	// Returns: Potential error
-	SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error
+	UpdateChat(chatID string, updates map[string]interface{}) error
 
-	// DeleteChat deletes a single chat
-	// sid: Session ID
-	// cid: Chat ID
+	// DeleteChat deletes a chat and its associated messages
+	// chatID: Chat ID
 	// Returns: Potential error
-	DeleteChat(sid string, cid string) error
+	DeleteChat(chatID string) error
 
-	// DeleteAllChats deletes all chats
-	// sid: Session ID
+	// ListChats retrieves a paginated list of chats with optional grouping
+	// filter: Filter conditions including time range, sorting, and grouping
+	// Returns: Paginated chat list (flat or grouped) and potential error
+	ListChats(filter ChatFilter) (*ChatList, error)
+
+	// ==========================================================================
+	// Message Management
+	// ==========================================================================
+
+	// SaveMessages batch saves messages for a chat
+	// This is the primary write method - messages are buffered during execution
+	// and batch-written at the end of a request
+	// chatID: Parent chat ID
+	// messages: Messages to save (includes user input and assistant responses)
 	// Returns: Potential error
-	DeleteAllChats(sid string) error
+	SaveMessages(chatID string, messages []*Message) error
 
-	// UpdateChatTitle updates chat title
-	// sid: Session ID
-	// cid: Chat ID
-	// title: New title
+	// GetMessages retrieves messages for a chat with filtering
+	// chatID: Chat ID
+	// filter: Filter conditions (role, type, block, thread, etc.)
+	// Returns: Message list and potential error
+	GetMessages(chatID string, filter MessageFilter) ([]*Message, error)
+
+	// UpdateMessage updates a single message
+	// messageID: Message ID
+	// updates: Map of fields to update
 	// Returns: Potential error
-	UpdateChatTitle(sid string, cid string, title string) error
+	UpdateMessage(messageID string, updates map[string]interface{}) error
 
+	// DeleteMessages deletes specific messages from a chat
+	// chatID: Chat ID
+	// messageIDs: List of message IDs to delete
+	// Returns: Potential error
+	DeleteMessages(chatID string, messageIDs []string) error
+
+	// ==========================================================================
+	// Resume Management (only called on failure/interrupt)
+	// ==========================================================================
+
+	// SaveResume batch saves resume records
+	// Only called when request is interrupted or failed
+	// records: Resume records to save
+	// Returns: Potential error
+	SaveResume(records []*Resume) error
+
+	// GetResume retrieves all resume records for a chat
+	// chatID: Chat ID
+	// Returns: Resume records and potential error
+	GetResume(chatID string) ([]*Resume, error)
+
+	// GetLastResume retrieves the last (most recent) resume record for a chat
+	// chatID: Chat ID
+	// Returns: Last resume record and potential error
+	GetLastResume(chatID string) (*Resume, error)
+
+	// GetResumeByStackID retrieves resume records for a specific stack
+	// stackID: Stack ID
+	// Returns: Resume records and potential error
+	GetResumeByStackID(stackID string) ([]*Resume, error)
+
+	// GetStackPath returns the stack path from root to the given stack
+	// stackID: Current stack ID
+	// Returns: Stack path [root_stack_id, ..., current_stack_id] and potential error
+	GetStackPath(stackID string) ([]string, error)
+
+	// DeleteResume deletes all resume records for a chat
+	// Called after successful resume to clean up
+	// chatID: Chat ID
+	// Returns: Potential error
+	DeleteResume(chatID string) error
+}
+
+// AssistantStore defines the assistant storage interface
+// Separated from ChatStore for clearer responsibility
+type AssistantStore interface {
 	// SaveAssistant saves assistant information
 	// assistant: Assistant information
 	// Returns: Assistant ID and potential error
@@ -91,7 +133,7 @@ type Store interface {
 
 	// GetAssistant retrieves a single assistant by ID
 	// assistantID: Assistant ID
-	// fields: List of fields to select, empty/nil means default fields (AssistantDefaultFields)
+	// fields: List of fields to select, empty/nil means default fields
 	// locale: Optional locale for i18n translations
 	// Returns: Assistant information and potential error
 	GetAssistant(assistantID string, fields []string, locale ...string) (*AssistantModel, error)
@@ -100,8 +142,21 @@ type Store interface {
 	// filter: Filter conditions
 	// Returns: Number of deleted records and potential error
 	DeleteAssistants(filter AssistantFilter) (int64, error)
+}
 
-	// Close closes the store and releases any resources
-	// Returns: Potential error
-	Close() error
+// Store combines ChatStore and AssistantStore interfaces
+// This is the main interface for the storage layer
+type Store interface {
+	ChatStore
+	AssistantStore
+}
+
+// SpaceStore defines the interface for Space snapshot operations
+// Note: Space itself uses plan.Space interface, this is for persistence
+type SpaceStore interface {
+	// Snapshot returns all key-value pairs in the space
+	Snapshot() map[string]interface{}
+
+	// Restore sets multiple key-value pairs from a snapshot
+	Restore(data map[string]interface{}) error
 }

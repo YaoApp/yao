@@ -14,7 +14,7 @@ import (
 )
 
 // SaveAssistant saves assistant information
-func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) {
+func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	if assistant == nil {
 		return "", fmt.Errorf("assistant cannot be nil")
 	}
@@ -33,15 +33,15 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 	// Generate assistant_id if not provided
 	if assistant.ID == "" {
 		var err error
-		assistant.ID, err = conv.GenerateAssistantID()
+		assistant.ID, err = store.GenerateAssistantID()
 		if err != nil {
 			return "", err
 		}
 	}
 
 	// Check if assistant exists
-	exists, err := conv.query.New().
-		Table(conv.getAssistantTable()).
+	exists, err := store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistant.ID).
 		Exists()
 	if err != nil {
@@ -197,8 +197,8 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 
 	// Update or insert
 	if exists {
-		_, err := conv.query.New().
-			Table(conv.getAssistantTable()).
+		_, err := store.query.New().
+			Table(store.getAssistantTable()).
 			Where("assistant_id", assistant.ID).
 			Update(data)
 		if err != nil {
@@ -207,8 +207,8 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 		return assistant.ID, nil
 	}
 
-	err = conv.query.New().
-		Table(conv.getAssistantTable()).
+	err = store.query.New().
+		Table(store.getAssistantTable()).
 		Insert(data)
 	if err != nil {
 		return "", err
@@ -217,7 +217,7 @@ func (conv *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) 
 }
 
 // UpdateAssistant updates specific fields of an assistant
-func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+func (store *Xun) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
 	if assistantID == "" {
 		return fmt.Errorf("assistant_id is required")
 	}
@@ -226,8 +226,8 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 	}
 
 	// Check if assistant exists
-	exists, err := conv.query.New().
-		Table(conv.getAssistantTable()).
+	exists, err := store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistantID).
 		Exists()
 	if err != nil {
@@ -291,8 +291,8 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 	}
 
 	// Perform update
-	_, err = conv.query.New().
-		Table(conv.getAssistantTable()).
+	_, err = store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistantID).
 		Update(data)
 
@@ -300,10 +300,10 @@ func (conv *Xun) UpdateAssistant(assistantID string, updates map[string]interfac
 }
 
 // DeleteAssistant deletes an assistant by assistant_id
-func (conv *Xun) DeleteAssistant(assistantID string) error {
+func (store *Xun) DeleteAssistant(assistantID string) error {
 	// Check if assistant exists
-	exists, err := conv.query.New().
-		Table(conv.getAssistantTable()).
+	exists, err := store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistantID).
 		Exists()
 	if err != nil {
@@ -314,17 +314,17 @@ func (conv *Xun) DeleteAssistant(assistantID string) error {
 		return fmt.Errorf("assistant %s not found", assistantID)
 	}
 
-	_, err = conv.query.New().
-		Table(conv.getAssistantTable()).
+	_, err = store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistantID).
 		Delete()
 	return err
 }
 
 // GetAssistants retrieves assistants with pagination and filtering
-func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
-	qb := conv.query.New().
-		Table(conv.getAssistantTable())
+func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
+	qb := store.query.New().
+		Table(store.getAssistantTable())
 
 	// Apply tag filter if provided
 	if len(filter.Tags) > 0 {
@@ -450,7 +450,7 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 		}
 
 		// Parse JSON fields
-		conv.parseJSONFields(data, jsonFields)
+		store.parseJSONFields(data, jsonFields)
 
 		// Convert map to types.AssistantModel using existing helper function
 		model, err := types.ToAssistantModel(data)
@@ -461,7 +461,7 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 
 		// Apply i18n translations if locale is provided
 		if len(locale) > 0 && locale[0] != "" && model != nil {
-			conv.translate(model, model.ID, locale[0])
+			store.translate(model, model.ID, locale[0])
 		}
 
 		assistants = append(assistants, model)
@@ -479,9 +479,9 @@ func (conv *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) (
 }
 
 // GetAssistant retrieves a single assistant by ID
-func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
-	qb := conv.query.New().
-		Table(conv.getAssistantTable()).
+func (store *Xun) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
+	qb := store.query.New().
+		Table(store.getAssistantTable()).
 		Where("assistant_id", assistantID)
 
 	// Apply select fields with security validation
@@ -515,7 +515,7 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 
 	// Parse JSON fields
 	jsonFields := []string{"tags", "modes", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "db", "mcp", "placeholder", "locales", "uses"}
-	conv.parseJSONFields(data, jsonFields)
+	store.parseJSONFields(data, jsonFields)
 
 	// Convert map to types.AssistantModel
 	model := &types.AssistantModel{
@@ -661,16 +661,16 @@ func (conv *Xun) GetAssistant(assistantID string, fields []string, locale ...str
 
 	// Apply i18n translation if locale is provided
 	if len(locale) > 0 && locale[0] != "" {
-		conv.translate(model, assistantID, locale[0])
+		store.translate(model, assistantID, locale[0])
 	}
 
 	return model, nil
 }
 
 // DeleteAssistants deletes assistants based on filter conditions
-func (conv *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
-	qb := conv.query.New().
-		Table(conv.getAssistantTable())
+func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
+	qb := store.query.New().
+		Table(store.getAssistantTable())
 
 	// Apply tag filter if provided
 	if len(filter.Tags) > 0 {
@@ -729,8 +729,8 @@ func (conv *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 }
 
 // GetAssistantTags retrieves all unique tags from assistants with filtering
-func (conv *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
-	qb := conv.query.New().Table(conv.getAssistantTable())
+func (store *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
+	qb := store.query.New().Table(store.getAssistantTable())
 
 	// Apply type filter (default to "assistant")
 	typeFilter := "assistant"
@@ -803,7 +803,7 @@ func (conv *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...string
 }
 
 // translate applies i18n translation to assistant model fields
-func (conv *Xun) translate(model *types.AssistantModel, assistantID string, locale string) {
+func (store *Xun) translate(model *types.AssistantModel, assistantID string, locale string) {
 	if model == nil {
 		return
 	}

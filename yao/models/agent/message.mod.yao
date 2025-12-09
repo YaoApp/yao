@@ -18,10 +18,9 @@
       "name": "message_id",
       "type": "string",
       "label": "Message ID",
-      "comment": "Unique message identifier",
+      "comment": "Message identifier (unique within request)",
       "length": 64,
-      "nullable": false,
-      "unique": true
+      "nullable": false
     },
     {
       "name": "chat_id",
@@ -93,6 +92,15 @@
       "index": true
     },
     {
+      "name": "connector",
+      "type": "string",
+      "label": "Connector",
+      "comment": "Connector ID used for this message",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "sequence",
       "type": "integer",
       "label": "Sequence",
@@ -127,8 +135,13 @@
       "columns": ["chat_id", "sequence"],
       "type": "index",
       "comment": "Index for message ordering within chat"
+    },
+    {
+      "name": "idx_msg_request_message",
+      "columns": ["request_id", "message_id"],
+      "type": "unique",
+      "comment": "Unique constraint for message_id within request"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": true }
 }
-

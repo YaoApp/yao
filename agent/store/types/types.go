@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	graphragtypes "github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/xun/dbal/query"
@@ -19,39 +20,153 @@ type Setting struct {
 	Options   map[string]interface{} `json:"optional,omitempty" yaml:"optional,omitempty"`   // The options for the store
 }
 
-// ChatInfo represents the chat information structure
-// Contains basic information and history for a single chat
-type ChatInfo struct {
-	Chat    map[string]interface{}   `json:"chat"`    // Basic chat information
-	History []map[string]interface{} `json:"history"` // Chat history records
+// =============================================================================
+// Chat Types
+// =============================================================================
+
+// Chat represents a chat session
+type Chat struct {
+	ChatID        string                 `json:"chat_id"`
+	Title         string                 `json:"title,omitempty"`
+	AssistantID   string                 `json:"assistant_id"`
+	LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID (updated on each message)
+	Mode          string                 `json:"mode"`
+	Status        string                 `json:"status"` // "active" or "archived"
+	Public        bool                   `json:"public"` // Whether shared across all teams
+	Share         string                 `json:"share"`  // "private" or "team"
+	Sort          int                    `json:"sort"`   // Sort order for display
+	LastMessageAt *time.Time             `json:"last_message_at,omitempty"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+
+	// Permission fields (managed by Yao framework when permission: true)
+	CreatedBy string `json:"__yao_created_by,omitempty"` // User ID who created the record
+	UpdatedBy string `json:"__yao_updated_by,omitempty"` // User ID who last updated
+	TeamID    string `json:"__yao_team_id,omitempty"`    // Team ID for team-level access
+	TenantID  string `json:"__yao_tenant_id,omitempty"`  // Tenant ID for multi-tenancy
 }
 
-// ChatFilter represents the chat filter structure
-// Used for filtering and pagination when retrieving chat lists
+// ChatFilter for listing chats
 type ChatFilter struct {
-	Keywords string `json:"keywords,omitempty"` // Keyword search
-	Page     int    `json:"page,omitempty"`     // Page number, starting from 1
-	PageSize int    `json:"pagesize,omitempty"` // Number of items per page
-	Order    string `json:"order,omitempty"`    // Sort order: desc/asc
-	Silent   *bool  `json:"silent,omitempty"`   // Include silent messages (default: false)
+	UserID      string `json:"user_id,omitempty"`
+	TeamID      string `json:"team_id,omitempty"`
+	AssistantID string `json:"assistant_id,omitempty"`
+	Status      string `json:"status,omitempty"`
+	Keywords    string `json:"keywords,omitempty"`
+
+	// Time range filter
+	StartTime *time.Time `json:"start_time,omitempty"` // Filter chats after this time
+	EndTime   *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
+	TimeField string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
+
+	// Sorting
+	OrderBy string `json:"order_by,omitempty"` // Field to sort by (default: "last_message_at")
+	Order   string `json:"order,omitempty"`    // Sort order: "desc" (default) or "asc"
+
+	// Response format
+	GroupBy string `json:"group_by,omitempty"` // "time" for time-based groups, empty for flat list
+
+	// Pagination
+	Page     int `json:"page,omitempty"`
+	PageSize int `json:"pagesize,omitempty"`
+
+	// Permission filter (not serialized)
+	QueryFilter func(query.Query) `json:"-"` // Custom query function for permission filtering
 }
 
-// ChatGroup represents the chat group structure
-// Groups chats by date
+// ChatList paginated response with time-based grouping
+type ChatList struct {
+	Data      []*Chat      `json:"data"`
+	Groups    []*ChatGroup `json:"groups,omitempty"` // Time-based groups for UI display
+	Page      int          `json:"page"`
+	PageSize  int          `json:"pagesize"`
+	PageCount int          `json:"pagecount"`
+	Total     int          `json:"total"`
+}
+
+// ChatGroup represents a time-based group of chats
 type ChatGroup struct {
-	Label string                   `json:"label"` // Group label (typically a date)
-	Chats []map[string]interface{} `json:"chats"` // List of chats in this group
+	Label string  `json:"label"` // "Today", "Yesterday", "This Week", "This Month", "Earlier"
+	Key   string  `json:"key"`   // "today", "yesterday", "this_week", "this_month", "earlier"
+	Chats []*Chat `json:"chats"` // Chats in this group
+	Count int     `json:"count"` // Number of chats in group
 }
 
-// ChatGroupResponse represents the paginated chat group response
-// Contains paginated chat group information
-type ChatGroupResponse struct {
-	Groups   []ChatGroup `json:"groups"`    // List of chat groups
-	Page     int         `json:"page"`      // Current page number
-	PageSize int         `json:"pagesize"`  // Items per page
-	Total    int64       `json:"total"`     // Total number of records
-	LastPage int         `json:"last_page"` // Last page number
+// =============================================================================
+// Message Types
+// =============================================================================
+
+// Message represents a chat message
+type Message struct {
+	MessageID   string                 `json:"message_id"`
+	ChatID      string                 `json:"chat_id"`
+	RequestID   string                 `json:"request_id,omitempty"`
+	Role        string                 `json:"role"` // "user" or "assistant"
+	Type        string                 `json:"type"` // "text", "image", "loading", "tool_call", "retrieval", etc.
+	Props       map[string]interface{} `json:"props"`
+	BlockID     string                 `json:"block_id,omitempty"`
+	ThreadID    string                 `json:"thread_id,omitempty"`
+	AssistantID string                 `json:"assistant_id,omitempty"`
+	Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
+	Sequence    int                    `json:"sequence"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt   time.Time              `json:"created_at"`
+	UpdatedAt   time.Time              `json:"updated_at"`
 }
+
+// MessageFilter for listing messages
+type MessageFilter struct {
+	RequestID string `json:"request_id,omitempty"`
+	Role      string `json:"role,omitempty"`
+	BlockID   string `json:"block_id,omitempty"`
+	ThreadID  string `json:"thread_id,omitempty"`
+	Type      string `json:"type,omitempty"`
+	Limit     int    `json:"limit,omitempty"`
+	Offset    int    `json:"offset,omitempty"`
+}
+
+// =============================================================================
+// Resume Types (for recovery from interruption/failure)
+// =============================================================================
+
+// Resume represents an execution state for recovery
+// Only stored when request is interrupted or failed
+type Resume struct {
+	ResumeID      string                 `json:"resume_id"`
+	ChatID        string                 `json:"chat_id"`
+	RequestID     string                 `json:"request_id"`
+	AssistantID   string                 `json:"assistant_id"`
+	StackID       string                 `json:"stack_id"`
+	StackParentID string                 `json:"stack_parent_id,omitempty"`
+	StackDepth    int                    `json:"stack_depth"`
+	Type          string                 `json:"type"`   // "input", "hook_create", "llm", "tool", "hook_next", "delegate"
+	Status        string                 `json:"status"` // "failed" or "interrupted"
+	Input         map[string]interface{} `json:"input,omitempty"`
+	Output        map[string]interface{} `json:"output,omitempty"`
+	SpaceSnapshot map[string]interface{} `json:"space_snapshot,omitempty"` // Shared space data for recovery
+	Error         string                 `json:"error,omitempty"`
+	Sequence      int                    `json:"sequence"`
+	Metadata      map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt     time.Time              `json:"created_at"`
+	UpdatedAt     time.Time              `json:"updated_at"`
+}
+
+// ResumeStatus constants
+const (
+	ResumeStatusFailed      = "failed"
+	ResumeStatusInterrupted = "interrupted"
+)
+
+// ResumeType constants
+const (
+	ResumeTypeInput      = "input"
+	ResumeTypeHookCreate = "hook_create"
+	ResumeTypeLLM        = "llm"
+	ResumeTypeTool       = "tool"
+	ResumeTypeHookNext   = "hook_next"
+	ResumeTypeDelegate   = "delegate"
+)
 
 // AssistantFilter represents the assistant filter structure
 // Used for filtering and pagination when retrieving assistant lists

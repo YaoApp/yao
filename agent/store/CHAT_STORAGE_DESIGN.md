@@ -91,6 +91,7 @@ Stores chat metadata and session information.
 | `chat_id`         | string(64)  | No       | Unique | Unique chat identifier           |
 | `title`           | string(500) | Yes      | -      | Chat title                       |
 | `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
+| `last_connector`  | string(200) | Yes      | Yes    | Last used connector ID           |
 | `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
 | `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
 | `public`          | boolean     | No       | -      | Whether shared across all teams  |
@@ -129,6 +130,7 @@ These fields are automatically managed by the framework and used for access cont
 | Name                 | Columns           | Type  |
 | -------------------- | ----------------- | ----- |
 | `idx_chat_assistant` | `assistant_id`    | index |
+| `idx_chat_last_conn` | `last_connector`  | index |
 | `idx_chat_status`    | `status`          | index |
 | `idx_chat_share`     | `share`           | index |
 | `idx_chat_last_msg`  | `last_message_at` | index |
@@ -139,33 +141,35 @@ Stores user-visible messages (both user input and assistant responses).
 
 **Table Name:** `agent_message`
 
-| Column         | Type        | Nullable | Index  | Description                               |
-| -------------- | ----------- | -------- | ------ | ----------------------------------------- |
-| `id`           | ID          | No       | PK     | Auto-increment primary key                |
-| `message_id`   | string(64)  | No       | Unique | Unique message identifier                 |
-| `chat_id`      | string(64)  | No       | Yes    | Parent chat ID                            |
-| `request_id`   | string(64)  | Yes      | Yes    | Request ID for grouping                   |
-| `role`         | enum        | No       | Yes    | Role: `user`, `assistant`                 |
-| `type`         | string(50)  | No       | -      | Message type (text, image, loading, etc.) |
-| `props`        | json        | No       | -      | Message properties (content, url, etc.)   |
-| `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
-| `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
-| `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
-| `sequence`     | integer     | No       | -      | Message order within chat (in composite)  |
-| `metadata`     | json        | Yes      | -      | Additional metadata                       |
-| `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
-| `updated_at`   | timestamp   | No       | -      | Last update timestamp                     |
+| Column         | Type        | Nullable | Index | Description                                |
+| -------------- | ----------- | -------- | ----- | ------------------------------------------ |
+| `id`           | ID          | No       | PK    | Auto-increment primary key                 |
+| `message_id`   | string(64)  | No       | -     | Message identifier (unique within request) |
+| `chat_id`      | string(64)  | No       | Yes   | Parent chat ID                             |
+| `request_id`   | string(64)  | Yes      | Yes   | Request ID for grouping                    |
+| `role`         | enum        | No       | Yes   | Role: `user`, `assistant`                  |
+| `type`         | string(50)  | No       | -     | Message type (text, image, loading, etc.)  |
+| `props`        | json        | No       | -     | Message properties (content, url, etc.)    |
+| `block_id`     | string(64)  | Yes      | Yes   | Block grouping ID                          |
+| `thread_id`    | string(64)  | Yes      | Yes   | Thread grouping ID                         |
+| `assistant_id` | string(200) | Yes      | Yes   | Assistant ID (join to get name/avatar)     |
+| `connector`    | string(200) | Yes      | Yes   | Connector ID used for this message         |
+| `sequence`     | integer     | No       | -     | Message order within chat (in composite)   |
+| `metadata`     | json        | Yes      | -     | Additional metadata                        |
+| `created_at`   | timestamp   | No       | Yes   | Creation timestamp                         |
+| `updated_at`   | timestamp   | No       | -     | Last update timestamp                      |
 
 **Indexes:**
 
-| Name                | Columns               | Type  |
-| ------------------- | --------------------- | ----- |
-| `idx_msg_chat_seq`  | `chat_id`, `sequence` | index |
-| `idx_msg_request`   | `request_id`          | index |
-| `idx_msg_role`      | `role`                | index |
-| `idx_msg_block`     | `block_id`            | index |
-| `idx_msg_thread`    | `thread_id`           | index |
-| `idx_msg_assistant` | `assistant_id`        | index |
+| Name                      | Columns                    | Type   |
+| ------------------------- | -------------------------- | ------ |
+| `idx_msg_chat_seq`        | `chat_id`, `sequence`      | index  |
+| `idx_msg_request_message` | `request_id`, `message_id` | unique |
+| `idx_msg_request`         | `request_id`               | index  |
+| `idx_msg_role`            | `role`                     | index  |
+| `idx_msg_block`           | `block_id`                 | index  |
+| `idx_msg_thread`          | `thread_id`                | index  |
+| `idx_msg_assistant`       | `assistant_id`             | index  |
 
 **Message Types:**
 
@@ -693,27 +697,101 @@ func createResumeRecord(ctx *Context, stepType, status string, input, output int
 
 ```go
 // ChatStore defines the chat storage interface
+// Provides operations for chat, message, and resume management
 type ChatStore interface {
+    // ==========================================================================
     // Chat Management
+    // ==========================================================================
+
+    // CreateChat creates a new chat session
     CreateChat(chat *Chat) error
+
+    // GetChat retrieves a single chat by ID
     GetChat(chatID string) (*Chat, error)
+
+    // UpdateChat updates chat fields
     UpdateChat(chatID string, updates map[string]interface{}) error
+
+    // DeleteChat deletes a chat and its associated messages
     DeleteChat(chatID string) error
+
+    // ListChats retrieves a paginated list of chats with optional grouping
     ListChats(filter ChatFilter) (*ChatList, error)
 
+    // ==========================================================================
     // Message Management
+    // ==========================================================================
+
+    // SaveMessages batch saves messages for a chat
+    // This is the primary write method - messages are buffered during execution
+    // and batch-written at the end of a request
     SaveMessages(chatID string, messages []*Message) error
+
+    // GetMessages retrieves messages for a chat with filtering
     GetMessages(chatID string, filter MessageFilter) ([]*Message, error)
+
+    // UpdateMessage updates a single message
     UpdateMessage(messageID string, updates map[string]interface{}) error
+
+    // DeleteMessages deletes specific messages from a chat
     DeleteMessages(chatID string, messageIDs []string) error
 
+    // ==========================================================================
     // Resume Management (only called on failure/interrupt)
+    // ==========================================================================
+
+    // SaveResume batch saves resume records
+    // Only called when request is interrupted or failed
     SaveResume(records []*Resume) error
+
+    // GetResume retrieves all resume records for a chat
     GetResume(chatID string) ([]*Resume, error)
+
+    // GetLastResume retrieves the last (most recent) resume record for a chat
     GetLastResume(chatID string) (*Resume, error)
+
+    // GetResumeByStackID retrieves resume records for a specific stack
     GetResumeByStackID(stackID string) ([]*Resume, error)
-    GetStackPath(stackID string) ([]string, error) // Returns [root_stack_id, ..., current_stack_id]
-    DeleteResume(chatID string) error              // Clean up after successful resume
+
+    // GetStackPath returns the stack path from root to the given stack
+    // Returns: [root_stack_id, ..., current_stack_id]
+    GetStackPath(stackID string) ([]string, error)
+
+    // DeleteResume deletes all resume records for a chat
+    // Called after successful resume to clean up
+    DeleteResume(chatID string) error
+}
+
+// AssistantStore defines the assistant storage interface
+// Separated from ChatStore for clearer responsibility
+type AssistantStore interface {
+    // SaveAssistant saves assistant information
+    SaveAssistant(assistant *AssistantModel) (string, error)
+
+    // UpdateAssistant updates assistant fields
+    UpdateAssistant(assistantID string, updates map[string]interface{}) error
+
+    // DeleteAssistant deletes an assistant
+    DeleteAssistant(assistantID string) error
+
+    // GetAssistants retrieves a paginated list of assistants with filtering
+    GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error)
+
+    // GetAssistantTags retrieves all unique tags from assistants with filtering
+    GetAssistantTags(filter AssistantFilter, locale ...string) ([]Tag, error)
+
+    // GetAssistant retrieves a single assistant by ID
+    GetAssistant(assistantID string, fields []string, locale ...string) (*AssistantModel, error)
+
+    // DeleteAssistants deletes assistants based on filter conditions
+    DeleteAssistants(filter AssistantFilter) (int64, error)
+}
+
+// Store combines ChatStore and AssistantStore interfaces
+// This is the main interface for the storage layer
+type Store interface {
+    ChatStore
+    AssistantStore
 }
 
 // SpaceStore defines the interface for Space snapshot operations
@@ -725,7 +803,7 @@ type SpaceStore interface {
     // Restore sets multiple key-value pairs from a snapshot
     Restore(data map[string]interface{}) error
 }
-````
+```
 
 ### Data Structures
 
@@ -735,11 +813,12 @@ type Chat struct {
     ChatID        string                 `json:"chat_id"`
     Title         string                 `json:"title,omitempty"`
     AssistantID   string                 `json:"assistant_id"`
+    LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID
     Mode          string                 `json:"mode"`
-    Status        string                 `json:"status"`
-    Public        bool                   `json:"public"`
-    Share         string                 `json:"share"` // "private" or "team"
-    Sort          int                    `json:"sort"`
+    Status        string                 `json:"status"`          // "active" or "archived"
+    Public        bool                   `json:"public"`          // Whether shared across all teams
+    Share         string                 `json:"share"`           // "private" or "team"
+    Sort          int                    `json:"sort"`            // Sort order for display
     LastMessageAt *time.Time             `json:"last_message_at,omitempty"`
     Metadata      map[string]interface{} `json:"metadata,omitempty"`
     CreatedAt     time.Time              `json:"created_at"`
@@ -751,19 +830,21 @@ type Message struct {
     MessageID   string                 `json:"message_id"`
     ChatID      string                 `json:"chat_id"`
     RequestID   string                 `json:"request_id,omitempty"`
-    Role        string                 `json:"role"`
-    Type        string                 `json:"type"`
+    Role        string                 `json:"role"` // "user" or "assistant"
+    Type        string                 `json:"type"` // "text", "image", "loading", "tool_call", "retrieval", etc.
     Props       map[string]interface{} `json:"props"`
     BlockID     string                 `json:"block_id,omitempty"`
     ThreadID    string                 `json:"thread_id,omitempty"`
     AssistantID string                 `json:"assistant_id,omitempty"`
+    Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
     Sequence    int                    `json:"sequence"`
     Metadata    map[string]interface{} `json:"metadata,omitempty"`
     CreatedAt   time.Time              `json:"created_at"`
     UpdatedAt   time.Time              `json:"updated_at"`
 }
 
-// Resume represents an execution state for recovery (only stored on failure/interrupt)
+// Resume represents an execution state for recovery
+// Only stored when request is interrupted or failed
 type Resume struct {
     ResumeID      string                 `json:"resume_id"`
     ChatID        string                 `json:"chat_id"`
@@ -772,7 +853,7 @@ type Resume struct {
     StackID       string                 `json:"stack_id"`
     StackParentID string                 `json:"stack_parent_id,omitempty"`
     StackDepth    int                    `json:"stack_depth"`
-    Type          string                 `json:"type"`
+    Type          string                 `json:"type"`   // "input", "hook_create", "llm", "tool", "hook_next", "delegate"
     Status        string                 `json:"status"` // "failed" or "interrupted"
     Input         map[string]interface{} `json:"input,omitempty"`
     Output        map[string]interface{} `json:"output,omitempty"`
@@ -783,6 +864,22 @@ type Resume struct {
     CreatedAt     time.Time              `json:"created_at"`
     UpdatedAt     time.Time              `json:"updated_at"`
 }
+
+// ResumeStatus constants
+const (
+    ResumeStatusFailed      = "failed"
+    ResumeStatusInterrupted = "interrupted"
+)
+
+// ResumeType constants
+const (
+    ResumeTypeInput      = "input"
+    ResumeTypeHookCreate = "hook_create"
+    ResumeTypeLLM        = "llm"
+    ResumeTypeTool       = "tool"
+    ResumeTypeHookNext   = "hook_next"
+    ResumeTypeDelegate   = "delegate"
+)
 ```
 
 ### Filter Structures
@@ -790,27 +887,34 @@ type Resume struct {
 ```go
 // ChatFilter for listing chats
 type ChatFilter struct {
-    UserID      string `json:"user_id,omitempty"`
-    TeamID      string `json:"team_id,omitempty"`
+    // Permission filters (direct filtering on Yao permission fields)
+    UserID string `json:"user_id,omitempty"` // Filter by __yao_created_by
+    TeamID string `json:"team_id,omitempty"` // Filter by __yao_team_id
+
+    // Business filters
     AssistantID string `json:"assistant_id,omitempty"`
     Status      string `json:"status,omitempty"`
     Keywords    string `json:"keywords,omitempty"`
 
     // Time range filter
-    StartTime   *time.Time `json:"start_time,omitempty"` // Filter chats after this time
-    EndTime     *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
-    TimeField   string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
+    StartTime *time.Time `json:"start_time,omitempty"` // Filter chats after this time
+    EndTime   *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
+    TimeField string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
 
     // Sorting
-    OrderBy     string `json:"order_by,omitempty"`  // Field to sort by (default: "last_message_at")
-    Order       string `json:"order,omitempty"`     // Sort order: "desc" (default) or "asc"
+    OrderBy string `json:"order_by,omitempty"` // Field to sort by (default: "last_message_at")
+    Order   string `json:"order,omitempty"`    // Sort order: "desc" (default) or "asc"
 
     // Response format
-    GroupBy     string `json:"group_by,omitempty"`  // "time" for time-based groups, empty for flat list
+    GroupBy string `json:"group_by,omitempty"` // "time" for time-based groups, empty for flat list
 
     // Pagination
-    Page        int    `json:"page,omitempty"`
-    PageSize    int    `json:"pagesize,omitempty"`
+    Page     int `json:"page,omitempty"`
+    PageSize int `json:"pagesize,omitempty"`
+
+    // Advanced permission filter (not serialized)
+    // Use for complex conditions like: (created_by = user OR team_id = team)
+    QueryFilter func(query.Query) `json:"-"`
 }
 
 // MessageFilter for listing messages
@@ -1068,9 +1172,9 @@ Multimedia content storage:
 ### 5. Load Chat History
 
 ```go
-// Example 1: Flat list (default)
+// Example 1: Filter by user (simple permission check)
 chats, _ := chatStore.ListChats(ChatFilter{
-    UserID:   "user123",
+    UserID:   "user123",  // Filters by __yao_created_by
     Status:   "active",
     OrderBy:  "last_message_at",
     Order:    "desc",
@@ -1079,7 +1183,35 @@ chats, _ := chatStore.ListChats(ChatFilter{
 })
 // Response: chats.Data = [...], chats.Groups = nil
 
-// Example 2: Grouped by time
+// Example 2: Filter by team
+chats, _ := chatStore.ListChats(ChatFilter{
+    TeamID:   "team456",  // Filters by __yao_team_id
+    Status:   "active",
+    Page:     1,
+    PageSize: 20,
+})
+
+// Example 3: Filter by user AND team (both must match)
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:   "user123",
+    TeamID:   "team456",
+    Page:     1,
+    PageSize: 20,
+})
+
+// Example 4: Complex permission filter (user OR team) using QueryFilter
+chats, _ := chatStore.ListChats(ChatFilter{
+    Page:     1,
+    PageSize: 20,
+    QueryFilter: func(qb query.Query) {
+        qb.Where(func(sub query.Query) {
+            sub.Where("__yao_created_by", "user123").
+                OrWhere("__yao_team_id", "team456")
+        })
+    },
+})
+
+// Example 5: Grouped by time
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:   "user123",
     GroupBy:  "time", // Enable time-based grouping
@@ -1097,7 +1229,7 @@ chats, _ := chatStore.ListChats(ChatFilter{
 //   { Key: "earlier", Label: "Earlier", Chats: [...], Count: 0 },
 // ]
 
-// Example 3: Filter by time range
+// Example 6: Filter by time range
 startTime := time.Now().AddDate(0, 0, -7) // Last 7 days
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:    "user123",
@@ -1107,7 +1239,7 @@ chats, _ := chatStore.ListChats(ChatFilter{
     Order:     "desc",
 })
 
-// Example 4: Filter specific date range
+// Example 7: Filter specific date range
 start := time.Date(2024, 12, 1, 0, 0, 0, 0, time.Local)
 end := time.Date(2024, 12, 31, 23, 59, 59, 0, time.Local)
 chats, _ := chatStore.ListChats(ChatFilter{
@@ -1115,6 +1247,17 @@ chats, _ := chatStore.ListChats(ChatFilter{
     StartTime: &start,
     EndTime:   &end,
     TimeField: "created_at", // Filter by creation time
+})
+
+// Example 8: Combine permission with business filters
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:      "user123",
+    TeamID:      "team456",
+    AssistantID: "weather_assistant",
+    Status:      "active",
+    Keywords:    "weather",
+    Page:        1,
+    PageSize:    20,
 })
 
 // Get messages for a chat
@@ -1352,8 +1495,226 @@ Main Agent concurrently calls 3 tasks:
 - Within a block, optionally group by `thread_id` to show parallel results
 - Use `sequence` for chronological display
 
+## HTTP API
+
+The chat storage provides RESTful HTTP APIs for managing chat sessions and messages.
+
+**Base Path:** `/v1/chat`
+
+### Chat Sessions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/sessions` | List chat sessions with pagination and filtering |
+| `GET` | `/sessions/:chat_id` | Get a single chat session |
+| `PUT` | `/sessions/:chat_id` | Update chat session (title, status, metadata) |
+| `DELETE` | `/sessions/:chat_id` | Delete chat session |
+| `GET` | `/sessions/:chat_id/messages` | Get messages for a chat session |
+
+### List Chat Sessions
+
+**Request:**
+
+```
+GET /v1/chat/sessions?page=1&pagesize=20&assistant_id=xxx&status=active&keywords=search&group_by=time
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | int | 1 | Page number |
+| `pagesize` | int | 20 | Items per page (max 100) |
+| `assistant_id` | string | - | Filter by assistant ID |
+| `status` | string | - | Filter by status: `active`, `archived` |
+| `keywords` | string | - | Search in title |
+| `start_time` | RFC3339 | - | Filter chats after this time |
+| `end_time` | RFC3339 | - | Filter chats before this time |
+| `time_field` | string | `last_message_at` | Field for time filter: `created_at` or `last_message_at` |
+| `order_by` | string | `last_message_at` | Sort field |
+| `order` | string | `desc` | Sort order: `asc` or `desc` |
+| `group_by` | string | - | Set to `time` for time-based grouping |
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "chat_id": "chat_123",
+      "title": "Weather Query",
+      "assistant_id": "weather_assistant",
+      "status": "active",
+      "last_message_at": "2024-01-15T10:30:00Z",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "groups": [
+    {
+      "key": "today",
+      "label": "Today",
+      "chats": [...],
+      "count": 3
+    },
+    {
+      "key": "yesterday",
+      "label": "Yesterday",
+      "chats": [...],
+      "count": 5
+    }
+  ],
+  "page": 1,
+  "pagesize": 20,
+  "pagecount": 5,
+  "total": 100
+}
+```
+
+### Get Chat Session
+
+**Request:**
+
+```
+GET /v1/chat/sessions/chat_123
+```
+
+**Response:**
+
+```json
+{
+  "chat_id": "chat_123",
+  "title": "Weather Query",
+  "assistant_id": "weather_assistant",
+  "mode": "chat",
+  "status": "active",
+  "public": false,
+  "share": "private",
+  "last_message_at": "2024-01-15T10:30:00Z",
+  "metadata": {},
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Update Chat Session
+
+**Request:**
+
+```
+PUT /v1/chat/sessions/chat_123
+Content-Type: application/json
+
+{
+  "title": "New Title",
+  "status": "archived",
+  "metadata": {"custom_field": "value"}
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Chat updated successfully",
+  "chat_id": "chat_123"
+}
+```
+
+### Delete Chat Session
+
+**Request:**
+
+```
+DELETE /v1/chat/sessions/chat_123
+```
+
+**Response:**
+
+```json
+{
+  "message": "Chat deleted successfully",
+  "chat_id": "chat_123"
+}
+```
+
+### Get Chat Messages
+
+**Request:**
+
+```
+GET /v1/chat/sessions/chat_123/messages?limit=100&offset=0&role=assistant&type=text
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `request_id` | string | - | Filter by request ID |
+| `role` | string | - | Filter by role: `user`, `assistant` |
+| `block_id` | string | - | Filter by block ID |
+| `thread_id` | string | - | Filter by thread ID |
+| `type` | string | - | Filter by message type |
+| `limit` | int | 100 | Max messages to return (max 1000) |
+| `offset` | int | 0 | Offset for pagination |
+
+**Response:**
+
+```json
+{
+  "chat_id": "chat_123",
+  "messages": [
+    {
+      "message_id": "msg_001",
+      "chat_id": "chat_123",
+      "request_id": "req_abc",
+      "role": "user",
+      "type": "user_input",
+      "props": {
+        "content": "What's the weather?",
+        "role": "user"
+      },
+      "sequence": 1,
+      "created_at": "2024-01-15T10:00:00Z"
+    },
+    {
+      "message_id": "msg_002",
+      "chat_id": "chat_123",
+      "request_id": "req_abc",
+      "role": "assistant",
+      "type": "text",
+      "props": {
+        "content": "The weather in San Francisco is 18°C and sunny."
+      },
+      "block_id": "B1",
+      "assistant_id": "weather_assistant",
+      "sequence": 2,
+      "created_at": "2024-01-15T10:00:05Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+### Permission Filtering
+
+All endpoints respect Yao's permission system:
+
+| Constraint | Behavior |
+|------------|----------|
+| `OwnerOnly` | User can only access their own chats (`__yao_created_by` matches) |
+| `TeamOnly` | User can access own chats OR team-shared chats (`share = "team"`) |
+| No constraints | Full access (for admin users) |
+
+**Permission Fields Used:**
+
+- `__yao_created_by`: User who created the chat
+- `__yao_team_id`: Team ID for team-level access
+- `public`: Whether chat is public to all
+- `share`: Sharing scope (`private` or `team`)
+
 ## Related Documents
 
 - [OpenAPI Request Design](../../openapi/request/REQUEST_DESIGN.md) - Global request tracking, billing, rate limiting
 - [Trace Module](../../trace/README.md) - Detailed execution tracing for debugging
 - [Agent Context](../context/README.md) - Context and message handling
+````

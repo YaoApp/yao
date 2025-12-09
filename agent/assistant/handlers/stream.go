@@ -323,6 +323,58 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		threadID = s.ctx.Stack.ID
 	}
 
+	// Get BlockID from metadata if available
+	var blockID string
+	if s.ctx != nil {
+		if metadata := s.ctx.GetMessageMetadata(s.currentGroupID); metadata != nil {
+			blockID = metadata.BlockID
+		}
+	}
+
+	// Buffer the complete LLM message for storage
+	// Delta chunks are not stored, but we need to save the final complete content
+	// Skip if History is disabled in options
+	shouldSkipHistory := s.ctx.Stack != nil && s.ctx.Stack.Options != nil &&
+		s.ctx.Stack.Options.Skip != nil && s.ctx.Stack.Options.Skip.History
+
+	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory {
+		assistantID := ""
+		if s.ctx.Stack != nil {
+			assistantID = s.ctx.Stack.AssistantID
+		}
+
+		// Build props based on message type
+		var props map[string]interface{}
+		if msgType == message.TypeToolCall {
+			// For tool calls, try to parse the accumulated buffer as JSON
+			var toolCallData interface{}
+			if err := jsoniter.Unmarshal(s.buffer, &toolCallData); err == nil {
+				props = map[string]interface{}{
+					"calls": toolCallData,
+				}
+			} else {
+				props = map[string]interface{}{
+					"content": string(s.buffer),
+				}
+			}
+		} else {
+			// For text/thinking, content is the accumulated text
+			props = map[string]interface{}{
+				"content": string(s.buffer),
+			}
+		}
+
+		s.ctx.Buffer.AddAssistantMessage(
+			s.currentGroupID, // Use the message ID
+			msgType,
+			props,
+			blockID,
+			threadID,
+			assistantID,
+			nil,
+		)
+	}
+
 	// Build EventMessageEndData with complete content
 	endData := message.EventMessageEndData{
 		MessageID:  s.currentGroupID, // Use the message ID

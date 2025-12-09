@@ -387,3 +387,93 @@ func (ctx *Context) getMessageMetadata(messageID string) *MessageMetadata {
 	}
 	return ctx.messageMetadata.getMessage(messageID)
 }
+
+// GetMessageMetadata returns metadata for a message (public version)
+func (ctx *Context) GetMessageMetadata(messageID string) *MessageMetadata {
+	return ctx.getMessageMetadata(messageID)
+}
+
+// =============================================================================
+// Chat Buffer Methods
+// =============================================================================
+
+// InitBuffer initializes the chat buffer for this context
+// Should be called at the start of Stream() to begin buffering messages and steps
+func (ctx *Context) InitBuffer(assistantID, connector string) *ChatBuffer {
+	ctx.Buffer = NewChatBuffer(ctx.ChatID, ctx.RequestID(), assistantID, connector)
+	return ctx.Buffer
+}
+
+// HasBuffer returns true if the buffer is initialized
+func (ctx *Context) HasBuffer() bool {
+	return ctx.Buffer != nil
+}
+
+// BufferUserInput adds user input to the buffer
+// Should be called at the start of Stream() to buffer the user's input message
+func (ctx *Context) BufferUserInput(messages []Message) {
+	if ctx.Buffer == nil {
+		return
+	}
+
+	for _, msg := range messages {
+		if msg.Role == RoleUser {
+			// Get name if available
+			var name string
+			if msg.Name != nil {
+				name = *msg.Name
+			}
+			ctx.Buffer.AddUserInput(msg.Content, name)
+		}
+	}
+}
+
+// BufferAssistantMessage adds an assistant message to the buffer
+// Called by ctx.Send() to buffer messages for batch saving
+func (ctx *Context) BufferAssistantMessage(messageID, msgType string, props map[string]interface{}, blockID, threadID string, metadata map[string]interface{}) {
+	if ctx.Buffer == nil {
+		return
+	}
+
+	ctx.Buffer.AddAssistantMessage(messageID, msgType, props, blockID, threadID, ctx.AssistantID, metadata)
+}
+
+// BeginStep starts tracking a new execution step
+// Returns the step for further updates
+func (ctx *Context) BeginStep(stepType string, input map[string]interface{}) *BufferedStep {
+	if ctx.Buffer == nil {
+		return nil
+	}
+
+	// Update space snapshot before starting step
+	if ctx.Space != nil {
+		ctx.Buffer.SetSpaceSnapshot(ctx.Space.Snapshot())
+	}
+
+	return ctx.Buffer.BeginStep(stepType, input, ctx.Stack)
+}
+
+// CompleteStep marks the current step as completed
+func (ctx *Context) CompleteStep(output map[string]interface{}) {
+	if ctx.Buffer == nil {
+		return
+	}
+	ctx.Buffer.CompleteStep(output)
+}
+
+// FailCurrentStep marks the current step as failed or interrupted
+func (ctx *Context) FailCurrentStep(status string, err error) {
+	if ctx.Buffer == nil {
+		return
+	}
+	ctx.Buffer.FailCurrentStep(status, err)
+}
+
+// shouldSkipHistory checks if history saving should be skipped
+// Returns true if Skip.History is set in the current stack options
+func (ctx *Context) shouldSkipHistory() bool {
+	if ctx.Stack == nil || ctx.Stack.Options == nil || ctx.Stack.Options.Skip == nil {
+		return false
+	}
+	return ctx.Stack.Options.Skip.History
+}

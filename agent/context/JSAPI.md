@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Context JavaScript API provides a comprehensive interface for interacting with the Yao Agent system from JavaScript/TypeScript hooks (Create, Next, Done). The Context object exposes agent state, configuration, messaging capabilities, trace operations, and MCP (Model Context Protocol) integrations.
+The Context JavaScript API provides a comprehensive interface for interacting with the Yao Agent system from JavaScript/TypeScript hooks (Create, Next). The Context object exposes agent state, configuration, messaging capabilities, trace operations, and MCP (Model Context Protocol) integrations.
 
 ## Context Object
 
@@ -17,17 +17,11 @@ interface Context {
   assistant_id: string; // Assistant identifier
 
   // Configuration
-  connector: string; // LLM connector name
-  search?: string; // Search engine configuration
   locale: string; // User locale (e.g., "en", "zh-cn")
   theme: string; // UI theme preference
-  accept: string; // Output format ("openai", "cui", etc.)
+  accept: string; // Output format ("standard", "cui-web", "cui-native", etc.)
   route: string; // Request route path
   referer: string; // Request referer
-
-  // Retry Configuration
-  retry: boolean; // Whether retry is enabled
-  retry_times: number; // Number of retry attempts
 
   // Client Information
   client: {
@@ -37,9 +31,13 @@ interface Context {
   };
 
   // Dynamic Data
-  args?: any[]; // Additional arguments
-  metadata?: Record<string, any>; // Custom metadata
-  authorized?: Record<string, any>; // Authorization data
+  metadata: Record<string, any>; // Custom metadata (empty object if not set)
+  authorized: Record<string, any>; // Authorization data (empty object if not set)
+
+  // Objects
+  space: Space; // Shared data space for passing data between requests
+  Trace: Trace; // Trace object for debugging and monitoring
+  MCP: MCP; // MCP object for external tool/resource access
 }
 ```
 
@@ -47,14 +45,28 @@ interface Context {
 
 ### Send Messages
 
-#### `ctx.Send(message, blockId?): string`
+The Context provides several methods for sending messages to the client:
+
+| Method                               | Description                 | Auto `message_end` | Updatable |
+| ------------------------------------ | --------------------------- | ------------------ | --------- |
+| `Send(message, block_id?)`           | Send a complete message     | ✅ Yes             | ❌ No     |
+| `SendStream(message, block_id?)`     | Start a streaming message   | ❌ No              | ✅ Yes    |
+| `Append(message_id, content, path?)` | Append content to a message | -                  | -         |
+| `Replace(message_id, message)`       | Replace message content     | -                  | -         |
+| `Merge(message_id, data, path?)`     | Merge data into message     | -                  | -         |
+| `Set(message_id, data, path)`        | Set a field in message      | -                  | -         |
+| `End(message_id, final_content?)`    | Finalize streaming message  | ✅ Yes             | -         |
+
+> **Note:** `Append`, `Replace`, `Merge`, and `Set` only work with messages started via `SendStream()`. Messages sent via `Send()` are immediately finalized and cannot be updated.
+
+#### `ctx.Send(message, block_id?): string`
 
 Sends a message to the client and automatically flushes the output.
 
 **Parameters:**
 
 - `message`: Message object or string
-- `blockId`: String (optional) - Block ID to send this message in. If omitted, no block ID is assigned.
+- `block_id`: String (optional) - Block ID to send this message in. If omitted, no block ID is assigned.
 
 **Returns:**
 
@@ -64,11 +76,17 @@ Sends a message to the client and automatically flushes the output.
 
 ```typescript
 interface Message {
+  // Required
   type: string; // Message type: "text", "tool", "image", etc.
-  props: Record<string, any>; // Message properties
-  message_id?: string; // Optional message ID (auto-generated if omitted)
-  block_id?: string; // Optional block ID (auto-generated if omitted, has priority over blockId parameter)
-  thread_id?: string; // Optional thread ID (auto-set from current Stack if omitted)
+
+  // Common fields
+  props?: Record<string, any>; // Message properties (passed to frontend component)
+  message_id?: string; // Message ID (auto-generated if omitted)
+  block_id?: string; // Block ID (NOT auto-generated, has priority over block_id parameter)
+  thread_id?: string; // Thread ID (auto-set from Stack for nested agents)
+
+  // Metadata (optional)
+  metadata?: Record<string, any>; // Custom metadata
 }
 ```
 
@@ -122,27 +140,37 @@ const image_id = ctx.Send({
 **Block Management:**
 
 ```javascript
-// Scenario 1: Simple messages without block grouping (most common)
+// Scenario 1: Simple message (most common)
 function Next(ctx, payload) {
   const { completion } = payload;
 
-  // Each message is independent
-  const loading_id = ctx.Send({
+  // Send a complete message
+  ctx.Send({
+    type: "text",
+    props: { content: completion.content },
+  });
+}
+
+// Scenario 2: Loading indicator before slow operation
+function Next(ctx, payload) {
+  // Start a streaming message for loading
+  const loading_id = ctx.SendStream({
     type: "loading",
-    props: { message: "Thinking..." }
+    props: { message: "Fetching data..." },
   });
 
-  // Process completion...
-  const result = completion.content;
+  // Do slow operation (e.g., external API call)
+  const result = fetchExternalData();
 
   // Replace loading with result
   ctx.Replace(loading_id, {
     type: "text",
-    props: { content: result }
+    props: { content: result },
   });
+  ctx.End(loading_id);
 }
 
-// Scenario 2: Grouping messages in one block (special case)
+// Scenario 3: Grouping messages in one block (special case)
 function Create(ctx, messages) {
   // Generate a block ID for grouping
   const block_id = ctx.BlockID(); // "B1"
@@ -155,7 +183,7 @@ function Create(ctx, messages) {
   // All messages appear in the same card/bubble in the UI
 }
 
-// Scenario 3: LLM response + follow-up card in same block
+// Scenario 4: LLM response + follow-up card in same block
 function Next(ctx, payload) {
   const { completion } = payload;
   const block_id = ctx.BlockID();
@@ -164,7 +192,7 @@ function Next(ctx, payload) {
   ctx.Send({
     type: "text",
     props: { content: completion.content },
-    block_id: block_id
+    block_id: block_id,
   });
 
   // Action card (grouped with LLM response)
@@ -172,9 +200,9 @@ function Next(ctx, payload) {
     type: "card",
     props: {
       title: "Related Actions",
-      actions: [...]
+      actions: ["action1", "action2"],
     },
-    block_id: block_id
+    block_id: block_id,
   });
 }
 ```
@@ -185,100 +213,251 @@ function Next(ctx, payload) {
 - **Block ID** is NOT auto-generated by default (remains empty unless manually specified)
   - Most messages don't need a Block ID (each message is independent)
   - Only specify Block ID in special cases (e.g., grouping LLM output with a follow-up card)
-  - **Block ID priority**: message.block_id > blockId parameter > empty
+  - **Block ID priority**: message.block_id > block_id parameter > empty
 - **Thread ID** is automatically set from Stack for non-root calls (nested agents)
 - Returns the message ID for reference in subsequent operations
 - Output is automatically flushed after sending
 - Throws exception on failure
-- Delta operations (Replace, Append, Merge, Set) automatically inherit block_id and thread_id from the original message
+- `Send()` automatically sends `message_end` event - the message is complete and cannot be updated
+- **For updatable messages**, use `ctx.SendStream()` instead (see below)
 
-#### `ctx.Replace(messageId, message): string`
+#### `ctx.SendStream(message, block_id?): string`
 
-Replaces an existing message with new content. This is useful for updating progress messages or correcting previously sent information.
+Sends a streaming message that can be appended to later. Unlike `Send()`, this does NOT automatically send `message_end` event. Use `ctx.Append()` to add content, then `ctx.End()` to finalize.
 
 **Parameters:**
 
-- `messageId`: String - The ID of the message to replace
-- `message`: Message object or string - The new message content
+- `message`: Message object or string
+- `block_id`: String (optional) - Block ID to send this message in
 
 **Returns:**
 
-- `string`: The message ID (same as the provided messageId)
+- `string`: The message ID (for use with `Append` and `End`)
 
 **Examples:**
 
 ```javascript
-// Send initial message
-const msg_id = ctx.Send("Processing...");
-
-// Later, replace with updated content
-ctx.Replace(msg_id, "Processing complete!");
-
-// Replace with complex message
-ctx.Replace(msg_id, {
+// Start a streaming message
+const msg_id = ctx.SendStream({
   type: "text",
-  props: {
-    content: "Task finished",
-    status: "success",
-  },
+  props: { content: "# Title\n\n" },
 });
 
-// Replace with shorthand text
-ctx.Replace(msg_id, "Updated text content");
+// Append content in chunks (simulating streaming)
+ctx.Append(msg_id, "First paragraph. ");
+ctx.Append(msg_id, "Second sentence. ");
+ctx.Append(msg_id, "Third sentence.\n\n");
+
+// Finalize the message (sends message_end event)
+ctx.End(msg_id);
+```
+
+**String Shorthand:**
+
+```javascript
+// SendStream with string shorthand
+const msg_id = ctx.SendStream("Starting analysis...");
+ctx.Append(msg_id, " processing...");
+ctx.Append(msg_id, " done!");
+ctx.End(msg_id);
+// Final content: "Starting analysis... processing... done!"
+```
+
+**With Block ID:**
+
+```javascript
+const block_id = ctx.BlockID();
+const msg_id = ctx.SendStream("Step 1: ", block_id);
+ctx.Append(msg_id, "Analyzing data...");
+ctx.End(msg_id);
+```
+
+**Notes:**
+
+- Returns the message ID immediately for use with `Append` and `End`
+- Sends `message_start` event but NOT `message_end` (unlike `Send`)
+- Must call `ctx.End(msg_id)` to finalize the message
+- Content appended via `ctx.Append()` is accumulated for storage
+- Ideal for streaming text output where you control the timing
+
+#### `ctx.End(message_id, final_content?): string`
+
+Finalizes a streaming message started with `SendStream()`. Sends `message_end` event with the complete accumulated content.
+
+**Parameters:**
+
+- `message_id`: String - The message ID returned by `SendStream()`
+- `final_content`: String (optional) - Final content to append before ending
+
+**Returns:**
+
+- `string`: The message ID
+
+**Examples:**
+
+```javascript
+// Basic usage
+const msg_id = ctx.SendStream("Hello");
+ctx.Append(msg_id, " World");
+ctx.End(msg_id);
+// Final: "Hello World"
+
+// End with final content
+const msg_id2 = ctx.SendStream("Processing");
+ctx.Append(msg_id2, "...");
+ctx.End(msg_id2, " Complete!");
+// Final: "Processing... Complete!"
+```
+
+**Notes:**
+
+- Must be called after `SendStream()` to send `message_end` event
+- Optional `final_content` is appended before sending `message_end`
+- The complete accumulated content is included in `message_end.extra.content`
+- Throws exception if `message_id` is not a string
+
+**Send vs SendStream Comparison:**
+
+| Feature               | `Send()`          | `SendStream()`      |
+| --------------------- | ----------------- | ------------------- |
+| `message_start` event | ✅ Auto           | ✅ Auto             |
+| `message_end` event   | ✅ Auto           | ❌ Manual (`End()`) |
+| Use case              | Complete messages | Streaming output    |
+| Content accumulation  | N/A               | Via `Append()`      |
+| Storage               | Immediate         | On `End()`          |
+
+**Streaming Workflow Example:**
+
+```javascript
+function Create(ctx, messages) {
+  // Start streaming output
+  const msg_id = ctx.SendStream({
+    type: "text",
+    props: { content: "# Analysis Report\n\n" },
+  });
+
+  // Simulate streaming chunks
+  ctx.Append(msg_id, "## Section 1\n");
+  ctx.Append(msg_id, "Processing data...\n\n");
+
+  // Do some work
+  const result = analyzeData();
+
+  ctx.Append(msg_id, "## Section 2\n");
+  ctx.Append(msg_id, `Found ${result.count} items.\n\n`);
+
+  // Finalize with conclusion
+  ctx.End(msg_id, "## Conclusion\nAnalysis complete.");
+
+  return { messages };
+}
+```
+
+#### `ctx.Replace(message_id, message): string`
+
+Replaces the content of a streaming message. **Only works with messages started via `SendStream()`**.
+
+**Parameters:**
+
+- `message_id`: String - The ID of the streaming message (returned by `SendStream()`)
+- `message`: Message object or string - The new message content
+
+**Returns:**
+
+- `string`: The message ID (same as the provided message_id)
+
+**Examples:**
+
+```javascript
+// Start a streaming message
+const msg_id = ctx.SendStream({
+  type: "loading",
+  props: { message: "Loading..." },
+});
+
+// Replace with new content
+ctx.Replace(msg_id, {
+  type: "text",
+  props: { content: "Data loaded successfully!" },
+});
+
+// Finalize the message
+ctx.End(msg_id);
 ```
 
 **Use Cases:**
 
 ```javascript
-// Progress updates
-const progress_id = ctx.Send("Step 1/3: Starting...");
-// ... do work ...
-ctx.Replace(progress_id, "Step 2/3: Processing...");
-// ... do more work ...
-ctx.Replace(progress_id, "Step 3/3: Finalizing...");
-// ... finish ...
-ctx.Replace(progress_id, "Complete! ✓");
+// Progress updates with replacement
+function Next(ctx, payload) {
+  const msg_id = ctx.SendStream("Step 1/3: Starting...");
 
-// Error correction
-const msg_id = ctx.Send("Found 5 results");
-// Oops, counted wrong
-ctx.Replace(msg_id, "Found 8 results");
+  // ... do work ...
+  ctx.Replace(msg_id, "Step 2/3: Processing...");
+
+  // ... do more work ...
+  ctx.Replace(msg_id, "Step 3/3: Finalizing...");
+
+  // ... finish ...
+  ctx.Replace(msg_id, "Complete! ✓");
+  ctx.End(msg_id);
+}
+
+// Loading to result transition
+function Next(ctx, payload) {
+  const msg_id = ctx.SendStream({
+    type: "loading",
+    props: { message: "Fetching results..." },
+  });
+
+  const results = fetchData();
+
+  ctx.Replace(msg_id, {
+    type: "text",
+    props: { content: `Found ${results.length} results` },
+  });
+  ctx.End(msg_id);
+}
 ```
 
 **Notes:**
 
-- The message must exist (must have been sent previously)
+- **Only works with `SendStream()` messages** - `Send()` messages cannot be replaced
 - Replaces the entire message content, not just specific fields
+- Must call `ctx.End(msg_id)` after all updates to finalize the message
 - Output is automatically flushed after replacing
 - Throws exception on failure
 
-#### `ctx.Append(messageId, content, path?): string`
+#### `ctx.Append(message_id, content, path?): string`
 
-Appends content to an existing message. This is useful for streaming or incrementally building up message content.
+Appends content to a streaming message. **Only works with messages started via `SendStream()`**.
 
 **Parameters:**
 
-- `messageId`: String - The ID of the message to append to
+- `message_id`: String - The ID of the streaming message (returned by `SendStream()`)
 - `content`: Message object or string - The content to append
 - `path`: String (optional) - The delta path to append to (e.g., "props.content", "props.data")
 
 **Returns:**
 
-- `string`: The message ID (same as the provided messageId)
+- `string`: The message ID (same as the provided message_id)
 
 **Examples:**
 
 ```javascript
-// Send initial message
-const msg_id = ctx.Send("Starting");
+// Start a streaming message
+const msg_id = ctx.SendStream("Starting");
 
 // Append more text (default path)
 ctx.Append(msg_id, "... processing");
 ctx.Append(msg_id, "... done!");
-// Result: "Starting... processing... done!"
+
+// Finalize the message
+ctx.End(msg_id);
+// Final content: "Starting... processing... done!"
 
 // Append to specific path
-const data_id = ctx.Send({
+const data_id = ctx.SendStream({
   type: "data",
   props: {
     content: "Item 1\n",
@@ -288,71 +467,78 @@ const data_id = ctx.Send({
 
 ctx.Append(data_id, "Item 2\n", "props.content");
 ctx.Append(data_id, "Item 3\n", "props.content");
-// Result: props.content = "Item 1\nItem 2\nItem 3\n"
-
-// Shorthand text append
-ctx.Append(msg_id, " more text");
+ctx.End(data_id);
+// Final: props.content = "Item 1\nItem 2\nItem 3\n"
 ```
 
 **Use Cases:**
 
 ```javascript
-// Streaming text output
-const stream_id = ctx.Send("");
-ctx.Append(stream_id, "The");
-ctx.Append(stream_id, " quick");
-ctx.Append(stream_id, " brown");
-ctx.Append(stream_id, " fox");
-// Final: "The quick brown fox"
+// Streaming text output (simulating LLM-like output)
+function Create(ctx, messages) {
+  const msg_id = ctx.SendStream("");
 
-// Building a list incrementally
-const list_id = ctx.Send({
-  type: "list",
-  props: { items: [] },
-});
+  ctx.Append(msg_id, "The");
+  ctx.Append(msg_id, " quick");
+  ctx.Append(msg_id, " brown");
+  ctx.Append(msg_id, " fox");
 
-ctx.Append(list_id, { items: ["Item 1"] }, "props.items");
-ctx.Append(list_id, { items: ["Item 2"] }, "props.items");
-ctx.Append(list_id, { items: ["Item 3"] }, "props.items");
+  ctx.End(msg_id);
+  // Final: "The quick brown fox"
+
+  return { messages };
+}
 
 // Progress logs
-const log_id = ctx.Send({
-  type: "log",
-  props: { content: "Starting process\n" },
-});
-ctx.Append(log_id, "Step 1 complete\n", "props.content");
-ctx.Append(log_id, "Step 2 complete\n", "props.content");
-ctx.Append(log_id, "All done!\n", "props.content");
+function Next(ctx, payload) {
+  const log_id = ctx.SendStream({
+    type: "log",
+    props: { content: "Starting process\n" },
+  });
+
+  // Step 1
+  doStep1();
+  ctx.Append(log_id, "Step 1 complete\n", "props.content");
+
+  // Step 2
+  doStep2();
+  ctx.Append(log_id, "Step 2 complete\n", "props.content");
+
+  // Finish
+  ctx.Append(log_id, "All done!\n", "props.content");
+  ctx.End(log_id);
+}
 ```
 
 **Notes:**
 
-- The message must exist (must have been sent previously)
+- **Only works with `SendStream()` messages** - `Send()` messages cannot be appended to
 - Uses delta append operation (adds to existing content, doesn't replace)
-- If `path` is omitted, appends to the default content location
+- If `path` is omitted, appends to the default content location (`props.content`)
+- Must call `ctx.End(msg_id)` after all appends to finalize the message
 - Output is automatically flushed after appending
 - Throws exception on failure
-- BlockID and ThreadID are inherited from the original message
+- block_id and ThreadID are inherited from the original message
 
-#### `ctx.Merge(messageId, data, path?): string`
+#### `ctx.Merge(message_id, data, path?): string`
 
-Merges data into an existing message object. This is useful for updating multiple fields in an object without replacing the entire object.
+Merges data into a streaming message object. **Only works with messages started via `SendStream()`**.
 
 **Parameters:**
 
-- `messageId`: String - The ID of the message to merge into
+- `message_id`: String - The ID of the streaming message (returned by `SendStream()`)
 - `data`: Object - The data to merge (should be an object)
 - `path`: String (optional) - The delta path to merge into (e.g., "props", "props.metadata")
 
 **Returns:**
 
-- `string`: The message ID (same as the provided messageId)
+- `string`: The message ID (same as the provided message_id)
 
 **Examples:**
 
 ```javascript
-// Send initial message with object data
-const msg_id = ctx.Send({
+// Start a streaming message with object data
+const msg_id = ctx.SendStream({
   type: "status",
   props: {
     status: "running",
@@ -368,79 +554,82 @@ ctx.Merge(msg_id, { progress: 50 }, "props");
 ctx.Merge(msg_id, { progress: 100, status: "completed" }, "props");
 // Result: props = { status: "completed", progress: 100, started: true }
 
-// Merge into nested object
-ctx.Merge(
-  msg_id,
-  {
-    metadata: {
-      duration: 1500,
-      items_processed: 42,
-    },
-  },
-  "props"
-);
-// Result: props.metadata is added/merged
+// Finalize the message
+ctx.End(msg_id);
 ```
 
 **Use Cases:**
 
 ```javascript
 // Updating task progress
-const task_id = ctx.Send({
-  type: "task",
-  props: {
-    name: "Data Processing",
-    status: "pending",
-    progress: 0,
-  },
-});
+function Next(ctx, payload) {
+  const task_id = ctx.SendStream({
+    type: "task",
+    props: {
+      name: "Data Processing",
+      status: "pending",
+      progress: 0,
+    },
+  });
 
-ctx.Merge(task_id, { status: "running" }, "props");
-ctx.Merge(task_id, { progress: 25 }, "props");
-ctx.Merge(task_id, { progress: 50 }, "props");
-ctx.Merge(task_id, { progress: 100, status: "completed" }, "props");
+  ctx.Merge(task_id, { status: "running" }, "props");
+  doStep1();
+  ctx.Merge(task_id, { progress: 25 }, "props");
+  doStep2();
+  ctx.Merge(task_id, { progress: 50 }, "props");
+  doStep3();
+  ctx.Merge(task_id, { progress: 100, status: "completed" }, "props");
+
+  ctx.End(task_id);
+}
 
 // Building metadata incrementally
-const data_id = ctx.Send({
-  type: "data",
-  props: { content: "Result data" },
-});
+function Create(ctx, messages) {
+  const data_id = ctx.SendStream({
+    type: "data",
+    props: { content: "Result data" },
+  });
 
-ctx.Merge(data_id, { metadata: { source: "api" } }, "props");
-ctx.Merge(data_id, { metadata: { timestamp: Date.now() } }, "props");
-// metadata fields are merged together
+  ctx.Merge(data_id, { metadata: { source: "api" } }, "props");
+  ctx.Merge(data_id, { metadata: { timestamp: Date.now() } }, "props");
+  // metadata fields are merged together
+
+  ctx.End(data_id);
+  return { messages };
+}
 ```
 
 **Notes:**
 
-- The message must exist (must have been sent previously)
+- **Only works with `SendStream()` messages** - `Send()` messages cannot be merged into
 - Uses delta merge operation (merges objects, doesn't replace)
 - Only works with object data (for merging key-value pairs)
 - Existing fields not in the merge data remain unchanged
 - If `path` is omitted, merges into the default object location
+- Must call `ctx.End(msg_id)` after all merges to finalize the message
 - Output is automatically flushed after merging
 - Throws exception on failure
-- BlockID and ThreadID are inherited from the original message
+- block_id and ThreadID are inherited from the original message
 
-#### `ctx.Set(messageId, data, path): string`
+#### `ctx.Set(message_id, data, path): string`
 
-Sets a new field or value in an existing message. This is useful for adding new fields to a message structure.
+Sets a new field or value in a streaming message. **Only works with messages started via `SendStream()`**.
 
 **Parameters:**
 
-- `messageId`: String - The ID of the message to set the field in
+- `message_id`: String - The ID of the streaming message (returned by `SendStream()`)
 - `data`: Any - The value to set
 - `path`: String (required) - The delta path where to set the value (e.g., "props.newField", "props.metadata.key")
 
 **Returns:**
 
-- `string`: The message ID (same as the provided messageId)
+- `string`: The message ID (same as the provided message_id)
 
 **Examples:**
 
 ```javascript
-// Send initial message
-const msg_id = ctx.Send({
+// Start a streaming message
+const msg_id = ctx.SendStream({
   type: "result",
   props: {
     content: "Initial content",
@@ -455,52 +644,60 @@ ctx.Set(msg_id, "success", "props.status");
 ctx.Set(msg_id, { duration: 1500, cached: true }, "props.metadata");
 // Result: props.metadata = { duration: 1500, cached: true }
 
-// Set array value
-ctx.Set(msg_id, ["tag1", "tag2", "tag3"], "props.tags");
-// Result: props.tags = ["tag1", "tag2", "tag3"]
+// Finalize the message
+ctx.End(msg_id);
 ```
 
 **Use Cases:**
 
 ```javascript
 // Adding computed metadata after initial send
-const result_id = ctx.Send({
-  type: "search_result",
-  props: { results: [...] }
-});
+function Next(ctx, payload) {
+  const result_id = ctx.SendStream({
+    type: "search_result",
+    props: { results: search_results },
+  });
 
-ctx.Set(result_id, results.length, "props.count");
-ctx.Set(result_id, Date.now(), "props.timestamp");
-ctx.Set(result_id, "relevance", "props.sort_by");
+  ctx.Set(result_id, search_results.length, "props.count");
+  ctx.Set(result_id, Date.now(), "props.timestamp");
+  ctx.Set(result_id, "relevance", "props.sort_by");
 
-// Conditionally adding fields
-if (has_error) {
-  ctx.Set(msg_id, error_message, "props.error");
-  ctx.Set(msg_id, "error", "props.status");
+  ctx.End(result_id);
 }
 
-// Building complex nested structures
-const doc_id = ctx.Send({
-  type: "document",
-  props: { title: "My Document" }
-});
+// Conditionally adding fields
+function Create(ctx, messages) {
+  const msg_id = ctx.SendStream({
+    type: "operation",
+    props: { name: "Process Data" },
+  });
 
-ctx.Set(doc_id, { author: "John", date: "2024" }, "props.metadata");
-ctx.Set(doc_id, ["draft", "reviewed"], "props.tags");
-ctx.Set(doc_id, 3, "props.version");
+  try {
+    const result = processData();
+    ctx.Set(msg_id, "success", "props.status");
+    ctx.Set(msg_id, result, "props.data");
+  } catch (e) {
+    ctx.Set(msg_id, e.message, "props.error");
+    ctx.Set(msg_id, "error", "props.status");
+  }
+
+  ctx.End(msg_id);
+  return { messages };
+}
 ```
 
 **Notes:**
 
-- The message must exist (must have been sent previously)
+- **Only works with `SendStream()` messages** - `Send()` messages cannot be modified
 - Uses delta set operation (creates/sets new fields)
 - The `path` parameter is **required** (must specify where to set the value)
 - Creates the path if it doesn't exist
 - Use for adding new fields or completely replacing a field's value
 - For updating existing object fields, consider using `Merge` instead
+- Must call `ctx.End(msg_id)` after all sets to finalize the message
 - Output is automatically flushed after setting
 - Throws exception on failure
-- BlockID and ThreadID are inherited from the original message
+- block_id and ThreadID are inherited from the original message
 
 ### ID Generators
 
@@ -947,6 +1144,130 @@ all_spaces.forEach((space) => {
 });
 ```
 
+## Space API
+
+The `ctx.space` object provides a shared data space for passing data between requests and agent calls. This is useful for storing temporary data that needs to be accessed across different hooks or nested agent calls.
+
+### Methods
+
+#### `ctx.space.Get(key): any`
+
+Gets a value from the space.
+
+**Parameters:**
+
+- `key`: String - The key to retrieve
+
+**Returns:**
+
+- `any`: The value, or `null` if not found
+
+**Example:**
+
+```javascript
+const user_data = ctx.space.Get("user_data");
+if (user_data) {
+  console.log("Found user:", user_data.name);
+}
+```
+
+#### `ctx.space.Set(key, value): void`
+
+Sets a value in the space.
+
+**Parameters:**
+
+- `key`: String - The key to set
+- `value`: Any - The value to store
+
+**Example:**
+
+```javascript
+ctx.space.Set("user_data", { name: "John", id: 123 });
+ctx.space.Set("processing_status", "started");
+```
+
+#### `ctx.space.Delete(key): void`
+
+Deletes a key from the space.
+
+**Parameters:**
+
+- `key`: String - The key to delete
+
+**Example:**
+
+```javascript
+ctx.space.Delete("temp_data");
+```
+
+#### `ctx.space.GetDel(key): any`
+
+Gets a value and immediately deletes it. Convenient for one-time use data.
+
+**Parameters:**
+
+- `key`: String - The key to retrieve and delete
+
+**Returns:**
+
+- `any`: The value, or `null` if not found
+
+**Example:**
+
+```javascript
+// Store file metadata in parent agent
+ctx.space.Set("file_metadata", { name: "report.pdf", size: 1024 });
+
+// In child agent, get and consume the data
+const metadata = ctx.space.GetDel("file_metadata");
+// metadata is now deleted from space
+```
+
+### Use Cases
+
+```javascript
+// Use case 1: Pass data between hooks
+function Create(ctx, messages) {
+  // Store data for later use
+  ctx.space.Set("original_query", messages[0].content);
+  return { messages };
+}
+
+function Next(ctx, payload) {
+  // Retrieve data from Create hook
+  const query = ctx.space.Get("original_query");
+  console.log("Original query was:", query);
+}
+
+// Use case 2: Pass data to nested agent calls
+function Create(ctx, messages) {
+  // Prepare context for child agent
+  ctx.space.Set("parent_context", {
+    user_id: ctx.authorized.user_id,
+    session_start: Date.now(),
+  });
+
+  // Call child agent...
+}
+
+// Use case 3: One-time data consumption
+function Next(ctx, payload) {
+  // Get and delete in one operation
+  const temp_data = ctx.space.GetDel("temp_processing_data");
+  if (temp_data) {
+    // Process and discard
+  }
+}
+```
+
+**Notes:**
+
+- Space is shared across all hooks within the same request
+- Space persists across nested agent calls (A2A)
+- Values can be any JSON-serializable data
+- Use `GetDel` for data that should only be consumed once
+
 ## MCP API
 
 The `ctx.MCP` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
@@ -1048,11 +1369,216 @@ ctx.MCP.CreateSample("filesystem", "file:///examples", {
 });
 ```
 
+## Hooks
+
+The Agent system supports two hooks that can be defined in the assistant's `index.ts` file:
+
+### Create Hook
+
+Called before the LLM call. Use this to preprocess messages, add context, or configure the LLM request.
+
+**Signature:**
+
+```typescript
+function Create(ctx: Context, messages: Message[]): HookCreateResponse | null;
+```
+
+**Parameters:**
+
+- `ctx`: Context object
+- `messages`: Array of input messages (including chat history if enabled)
+
+**Return Value (`HookCreateResponse`):**
+
+```typescript
+interface HookCreateResponse {
+  // Messages to be sent to the assistant (can modify/replace input messages)
+  messages?: Message[];
+
+  // Audio configuration (for models that support audio output)
+  audio?: AudioConfig;
+
+  // Generation parameters (override assistant defaults)
+  temperature?: number;
+  max_tokens?: number;
+  max_completion_tokens?: number;
+
+  // MCP configuration - add/override MCP servers for this request
+  mcp_servers?: MCPServerConfig[];
+
+  // Prompt configuration
+  prompts?: string; // Prompt preset key to use
+  disable_global_prompts?: boolean; // Disable global prompts
+
+  // Tool configuration
+  tools?: ToolConfig[]; // Override tools for this request
+  disable_tools?: boolean; // Disable all tools
+}
+```
+
+**Example:**
+
+```javascript
+function Create(ctx, messages) {
+  // Store data for Next hook
+  ctx.space.Set("user_query", messages[0]?.content);
+
+  // Modify messages
+  const enhanced_messages = messages.map((msg) => ({
+    ...msg,
+    content: msg.content + "\n\nPlease be concise.",
+  }));
+
+  // Return configuration
+  return {
+    messages: enhanced_messages,
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
+}
+```
+
+### Next Hook
+
+Called after the LLM response (and tool calls if any). Use this to post-process the response, send custom messages, or delegate to another agent.
+
+**Signature:**
+
+```typescript
+function Next(ctx: Context, payload: NextHookPayload): NextHookResponse | null;
+```
+
+**Parameters:**
+
+- `ctx`: Context object
+- `payload`: Object containing:
+
+```typescript
+interface NextHookPayload {
+  messages: Message[]; // Messages sent to the assistant
+  completion?: CompletionResponse; // LLM response
+  tools?: ToolCallResponse[]; // Tool call results (if any)
+  error?: string; // Error message if LLM call failed
+}
+
+interface CompletionResponse {
+  content: string; // LLM text response
+  tool_calls?: ToolCall[]; // Tool calls requested by LLM
+  usage?: UsageInfo; // Token usage statistics
+}
+
+interface ToolCallResponse {
+  toolcall_id: string;
+  server: string; // MCP server name
+  tool: string; // Tool name
+  arguments?: any; // Arguments passed to tool
+  result?: any; // Tool execution result
+  error?: string; // Error if tool failed
+}
+```
+
+**Return Value (`NextHookResponse`):**
+
+```typescript
+interface NextHookResponse {
+  // Delegate to another agent (recursive call)
+  delegate?: {
+    agent_id: string; // Target agent ID
+    messages: Message[]; // Messages to send
+  };
+
+  // Custom response data (returned to user)
+  data?: any;
+
+  // Metadata for debugging
+  metadata?: Record<string, any>;
+}
+```
+
+**Example:**
+
+```javascript
+function Next(ctx, payload) {
+  const { messages, completion, tools, error } = payload;
+
+  if (error) {
+    ctx.Send({
+      type: "error",
+      props: { message: error },
+    });
+    return null;
+  }
+
+  // Process tool results
+  if (tools && tools.length > 0) {
+    const results = tools.map((t) => t.result);
+    ctx.Send(`Tool results: ${JSON.stringify(results)}`);
+  }
+
+  // Return custom data
+  return {
+    data: {
+      response: completion?.content,
+      processed: true,
+    },
+    metadata: {
+      tool_count: tools?.length || 0,
+    },
+  };
+}
+```
+
+### Hook Execution Flow
+
+```
+User Input
+    ↓
+[Create Hook] → Preprocess messages, configure LLM
+    ↓
+[LLM Call] → Get completion from language model
+    ↓
+[Tool Calls] → Execute any tool calls (if requested by LLM)
+    ↓
+[Next Hook] → Post-process response, send messages
+    ↓
+Response to User
+```
+
+**Notes:**
+
+- Hooks are optional - if not defined, the agent uses default behavior
+- Return `null` or `undefined` from hooks to use default behavior
+- Hooks can send messages directly via `ctx.Send()`, `ctx.SendStream()`, etc.
+- Use `ctx.space` to pass data between Create and Next hooks
+
 ## Complete Example
 
 Here's a comprehensive example using various Context API features:
 
 ```javascript
+/**
+ * Create Hook - Initialize and prepare for LLM call
+ * @param {Context} ctx - Agent context
+ * @param {Array} messages - Input messages
+ */
+function Create(ctx, messages) {
+  // Store original query in space for later use
+  ctx.space.Set("original_query", messages[0]?.content || "");
+
+  // Add trace node
+  ctx.Trace.Add(
+    { messages },
+    {
+      label: "Create Hook",
+      type: "hook",
+      icon: "play",
+      description: "Preparing messages for LLM",
+    }
+  );
+
+  return { messages };
+}
+
 /**
  * Next Hook - Process LLM response and enhance with tools
  * @param {Context} ctx - Agent context
@@ -1064,8 +1590,10 @@ Here's a comprehensive example using various Context API features:
  */
 function Next(ctx, payload) {
   try {
-    // Destructure payload
     const { messages, completion, tools, error } = payload;
+
+    // Retrieve data from Create hook
+    const original_query = ctx.space.Get("original_query");
 
     // Create trace node for custom processing
     const process_node = ctx.Trace.Add(
@@ -1078,13 +1606,13 @@ function Next(ctx, payload) {
       }
     );
 
-    // Log processing start
     ctx.Trace.Info("Starting custom processing", {
+      original_query: original_query,
       tool_count: tools?.length || 0,
     });
 
-    // Send progress message and capture message ID
-    const progress_id = ctx.Send("Searching for articles...");
+    // Start streaming output
+    const msg_id = ctx.SendStream("# Search Results\n\n");
 
     // Call MCP tool for additional data
     const search_results = ctx.MCP.CallTool("search_engine", "search", {
@@ -1092,31 +1620,23 @@ function Next(ctx, payload) {
       limit: 5,
     });
 
-    // Update trace with results
+    // Stream results as they come
+    ctx.Append(msg_id, `Found ${search_results.length} articles:\n\n`);
+
+    search_results.forEach((result, i) => {
+      ctx.Append(msg_id, `${i + 1}. **${result.title}**\n`);
+      ctx.Append(msg_id, `   ${result.summary}\n\n`);
+    });
+
+    // Finalize the streaming message
+    ctx.End(msg_id, "---\n*Search complete*");
+
+    // Update trace
     process_node.SetMetadata("search_results_count", search_results.length);
+    process_node.Complete({ status: "success" });
 
-    // Update the progress message with results
-    ctx.Replace(
-      progress_id,
-      `Found ${search_results.length} relevant articles.`
-    );
-
-    // Log the message ID for tracking
-    ctx.Trace.Debug("Updated progress message", { message_id: progress_id });
-
-    // Process and format response
-    const enhanced_response = {
-      text: completion.content,
-      sources: search_results,
-      timestamp: Date.now(),
-    };
-
-    // Mark node as complete
-    process_node.Complete(enhanced_response);
-
-    // Return enhanced response
     return {
-      data: enhanced_response,
+      data: { sources: search_results },
       metadata: { processed: true },
     };
   } catch (error) {
@@ -1134,7 +1654,9 @@ function Next(ctx, payload) {
 4. **Logging Levels**: Use appropriate log levels (Debug for development, Info for progress, Error for failures)
 5. **Message IDs**: Let the system auto-generate message IDs unless you need specific tracking
 6. **Parallel Operations**: Use `Trace.Parallel()` for concurrent operations to maintain trace clarity
-7. **Memory Spaces**: Use memory spaces for persistent data across agent calls
+7. **Space Usage**: Use `ctx.space` for passing data between hooks and nested agent calls
+8. **Streaming Messages**: Use `SendStream()` + `Append()` + `End()` for streaming output; use `Send()` for complete messages
+9. **Block Grouping**: Only use Block IDs when you need to group multiple messages together (e.g., LLM output + follow-up card)
 
 ## Error Handling
 
