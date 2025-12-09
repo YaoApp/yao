@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	goumodel "github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
@@ -782,6 +783,224 @@ func TestListChats(t *testing.T) {
 			if chat.Status != "active" {
 				t.Errorf("Expected status 'active', got '%s'", chat.Status)
 			}
+		}
+	})
+}
+
+// TestListChatsByUserAndTeam tests filtering chats by UserID and TeamID
+func TestListChatsByUserAndTeam(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := xun.NewXun(types.Setting{
+		Connector: "default",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create store: %v", err)
+	}
+
+	// Create chats with different user/team combinations
+	// Note: __yao_created_by and __yao_team_id are managed by Yao's permission system
+	// For testing, we'll create chats and then update these fields directly via raw query
+
+	chat1 := &types.Chat{AssistantID: "test_assistant", Title: "User1 Team1 Chat"}
+	chat2 := &types.Chat{AssistantID: "test_assistant", Title: "User1 Team2 Chat"}
+	chat3 := &types.Chat{AssistantID: "test_assistant", Title: "User2 Team1 Chat"}
+	chat4 := &types.Chat{AssistantID: "test_assistant", Title: "User2 Team2 Chat"}
+
+	for _, chat := range []*types.Chat{chat1, chat2, chat3, chat4} {
+		err := store.CreateChat(chat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+	}
+	defer func() {
+		store.DeleteChat(chat1.ChatID)
+		store.DeleteChat(chat2.ChatID)
+		store.DeleteChat(chat3.ChatID)
+		store.DeleteChat(chat4.ChatID)
+	}()
+
+	// Update permission fields directly for testing
+	// In production, these would be set by Yao's permission middleware
+	updatePermissionFields := func(chatID, userID, teamID string) error {
+		// Use Yao model to update permission fields
+		m := goumodel.Select("__yao.agent.chat")
+		if m == nil {
+			return fmt.Errorf("model __yao.agent.chat not found")
+		}
+		_, err := m.UpdateWhere(
+			goumodel.QueryParam{Wheres: []goumodel.QueryWhere{{Column: "chat_id", Value: chatID}}},
+			map[string]interface{}{
+				"__yao_created_by": userID,
+				"__yao_team_id":    teamID,
+			},
+		)
+		return err
+	}
+
+	// Set up permission fields
+	updatePermissionFields(chat1.ChatID, "user1", "team1")
+	updatePermissionFields(chat2.ChatID, "user1", "team2")
+	updatePermissionFields(chat3.ChatID, "user2", "team1")
+	updatePermissionFields(chat4.ChatID, "user2", "team2")
+
+	t.Run("FilterByUserID", func(t *testing.T) {
+		result, err := store.ListChats(types.ChatFilter{
+			UserID:   "user1",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats by user: %v", err)
+		}
+
+		if len(result.Data) != 2 {
+			t.Errorf("Expected 2 chats for user1, got %d", len(result.Data))
+		}
+
+		// Verify all returned chats belong to user1
+		for _, chat := range result.Data {
+			if chat.Title != "User1 Team1 Chat" && chat.Title != "User1 Team2 Chat" {
+				t.Errorf("Unexpected chat title: %s", chat.Title)
+			}
+		}
+	})
+
+	t.Run("FilterByTeamID", func(t *testing.T) {
+		result, err := store.ListChats(types.ChatFilter{
+			TeamID:   "team1",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats by team: %v", err)
+		}
+
+		if len(result.Data) != 2 {
+			t.Errorf("Expected 2 chats for team1, got %d", len(result.Data))
+		}
+
+		// Verify all returned chats belong to team1
+		for _, chat := range result.Data {
+			if chat.Title != "User1 Team1 Chat" && chat.Title != "User2 Team1 Chat" {
+				t.Errorf("Unexpected chat title: %s", chat.Title)
+			}
+		}
+	})
+
+	t.Run("FilterByUserIDAndTeamID", func(t *testing.T) {
+		result, err := store.ListChats(types.ChatFilter{
+			UserID:   "user1",
+			TeamID:   "team1",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats by user and team: %v", err)
+		}
+
+		if len(result.Data) != 1 {
+			t.Errorf("Expected 1 chat for user1+team1, got %d", len(result.Data))
+		}
+
+		if len(result.Data) > 0 && result.Data[0].Title != "User1 Team1 Chat" {
+			t.Errorf("Expected 'User1 Team1 Chat', got '%s'", result.Data[0].Title)
+		}
+	})
+
+	t.Run("FilterByUserIDWithOtherFilters", func(t *testing.T) {
+		// Combine UserID with Status filter
+		result, err := store.ListChats(types.ChatFilter{
+			UserID:   "user1",
+			Status:   "active",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats: %v", err)
+		}
+
+		// All user1's chats should be active (default status)
+		if len(result.Data) != 2 {
+			t.Errorf("Expected 2 active chats for user1, got %d", len(result.Data))
+		}
+	})
+
+	t.Run("FilterByTeamIDWithQueryFilter", func(t *testing.T) {
+		// Combine TeamID with custom QueryFilter
+		result, err := store.ListChats(types.ChatFilter{
+			TeamID:   "team2",
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				// Additional filter: only chats with "User1" in title
+				qb.Where("title", "like", "%User1%")
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats: %v", err)
+		}
+
+		if len(result.Data) != 1 {
+			t.Errorf("Expected 1 chat (User1 in team2), got %d", len(result.Data))
+		}
+
+		if len(result.Data) > 0 && result.Data[0].Title != "User1 Team2 Chat" {
+			t.Errorf("Expected 'User1 Team2 Chat', got '%s'", result.Data[0].Title)
+		}
+	})
+
+	t.Run("FilterByNonExistentUser", func(t *testing.T) {
+		result, err := store.ListChats(types.ChatFilter{
+			UserID:   "nonexistent_user",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats: %v", err)
+		}
+
+		if len(result.Data) != 0 {
+			t.Errorf("Expected 0 chats for nonexistent user, got %d", len(result.Data))
+		}
+	})
+
+	t.Run("FilterByNonExistentTeam", func(t *testing.T) {
+		result, err := store.ListChats(types.ChatFilter{
+			TeamID:   "nonexistent_team",
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats: %v", err)
+		}
+
+		if len(result.Data) != 0 {
+			t.Errorf("Expected 0 chats for nonexistent team, got %d", len(result.Data))
+		}
+	})
+
+	t.Run("QueryFilterForOrCondition", func(t *testing.T) {
+		// Use QueryFilter for complex OR condition:
+		// Get chats where user is user1 OR team is team2
+		result, err := store.ListChats(types.ChatFilter{
+			Page:     1,
+			PageSize: 20,
+			QueryFilter: func(qb query.Query) {
+				qb.Where(func(sub query.Query) {
+					sub.Where("__yao_created_by", "user1").
+						OrWhere("__yao_team_id", "team2")
+				})
+			},
+		})
+		if err != nil {
+			t.Fatalf("Failed to list chats with OR condition: %v", err)
+		}
+
+		// Should return: user1+team1, user1+team2, user2+team2 = 3 chats
+		if len(result.Data) != 3 {
+			t.Errorf("Expected 3 chats (user1 OR team2), got %d", len(result.Data))
 		}
 	})
 }

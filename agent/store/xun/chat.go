@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/store/types"
 )
 
@@ -224,7 +223,15 @@ func (store *Xun) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
 	// Build base query
 	qb := store.newQueryChat().WhereNull("deleted_at")
 
-	// Apply filters
+	// Apply permission filters (UserID and TeamID)
+	if filter.UserID != "" {
+		qb.Where("__yao_created_by", filter.UserID)
+	}
+	if filter.TeamID != "" {
+		qb.Where("__yao_team_id", filter.TeamID)
+	}
+
+	// Apply business filters
 	if filter.AssistantID != "" {
 		qb.Where("assistant_id", filter.AssistantID)
 	}
@@ -243,7 +250,8 @@ func (store *Xun) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
 		qb.Where(filter.TimeField, "<=", *filter.EndTime)
 	}
 
-	// Apply custom query filter (for permission filtering)
+	// Apply custom query filter (for advanced permission filtering)
+	// This allows flexible combinations like: (created_by = user OR team_id = team)
 	if filter.QueryFilter != nil {
 		qb.Where(filter.QueryFilter)
 	}
@@ -438,15 +446,4 @@ func (store *Xun) UpdateChatLastMessageAt(chatID string, timestamp time.Time) er
 		})
 
 	return err
-}
-
-// newQueryChatWithPermission creates a new query builder with permission filtering
-func (store *Xun) newQueryChatWithPermission(filter types.ChatFilter) query.Query {
-	qb := store.newQueryChat().WhereNull("deleted_at")
-
-	if filter.QueryFilter != nil {
-		qb.Where(filter.QueryFilter)
-	}
-
-	return qb
 }

@@ -881,8 +881,11 @@ const (
 ```go
 // ChatFilter for listing chats
 type ChatFilter struct {
-    UserID      string `json:"user_id,omitempty"`
-    TeamID      string `json:"team_id,omitempty"`
+    // Permission filters (direct filtering on Yao permission fields)
+    UserID string `json:"user_id,omitempty"` // Filter by __yao_created_by
+    TeamID string `json:"team_id,omitempty"` // Filter by __yao_team_id
+
+    // Business filters
     AssistantID string `json:"assistant_id,omitempty"`
     Status      string `json:"status,omitempty"`
     Keywords    string `json:"keywords,omitempty"`
@@ -903,8 +906,9 @@ type ChatFilter struct {
     Page     int `json:"page,omitempty"`
     PageSize int `json:"pagesize,omitempty"`
 
-    // Permission filter (not serialized)
-    QueryFilter func(query.Query) `json:"-"` // Custom query function for permission filtering
+    // Advanced permission filter (not serialized)
+    // Use for complex conditions like: (created_by = user OR team_id = team)
+    QueryFilter func(query.Query) `json:"-"`
 }
 
 // MessageFilter for listing messages
@@ -1162,9 +1166,9 @@ Multimedia content storage:
 ### 5. Load Chat History
 
 ```go
-// Example 1: Flat list (default)
+// Example 1: Filter by user (simple permission check)
 chats, _ := chatStore.ListChats(ChatFilter{
-    UserID:   "user123",
+    UserID:   "user123",  // Filters by __yao_created_by
     Status:   "active",
     OrderBy:  "last_message_at",
     Order:    "desc",
@@ -1173,7 +1177,35 @@ chats, _ := chatStore.ListChats(ChatFilter{
 })
 // Response: chats.Data = [...], chats.Groups = nil
 
-// Example 2: Grouped by time
+// Example 2: Filter by team
+chats, _ := chatStore.ListChats(ChatFilter{
+    TeamID:   "team456",  // Filters by __yao_team_id
+    Status:   "active",
+    Page:     1,
+    PageSize: 20,
+})
+
+// Example 3: Filter by user AND team (both must match)
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:   "user123",
+    TeamID:   "team456",
+    Page:     1,
+    PageSize: 20,
+})
+
+// Example 4: Complex permission filter (user OR team) using QueryFilter
+chats, _ := chatStore.ListChats(ChatFilter{
+    Page:     1,
+    PageSize: 20,
+    QueryFilter: func(qb query.Query) {
+        qb.Where(func(sub query.Query) {
+            sub.Where("__yao_created_by", "user123").
+                OrWhere("__yao_team_id", "team456")
+        })
+    },
+})
+
+// Example 5: Grouped by time
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:   "user123",
     GroupBy:  "time", // Enable time-based grouping
@@ -1191,7 +1223,7 @@ chats, _ := chatStore.ListChats(ChatFilter{
 //   { Key: "earlier", Label: "Earlier", Chats: [...], Count: 0 },
 // ]
 
-// Example 3: Filter by time range
+// Example 6: Filter by time range
 startTime := time.Now().AddDate(0, 0, -7) // Last 7 days
 chats, _ := chatStore.ListChats(ChatFilter{
     UserID:    "user123",
@@ -1201,7 +1233,7 @@ chats, _ := chatStore.ListChats(ChatFilter{
     Order:     "desc",
 })
 
-// Example 4: Filter specific date range
+// Example 7: Filter specific date range
 start := time.Date(2024, 12, 1, 0, 0, 0, 0, time.Local)
 end := time.Date(2024, 12, 31, 23, 59, 59, 0, time.Local)
 chats, _ := chatStore.ListChats(ChatFilter{
@@ -1209,6 +1241,17 @@ chats, _ := chatStore.ListChats(ChatFilter{
     StartTime: &start,
     EndTime:   &end,
     TimeField: "created_at", // Filter by creation time
+})
+
+// Example 8: Combine permission with business filters
+chats, _ := chatStore.ListChats(ChatFilter{
+    UserID:      "user123",
+    TeamID:      "team456",
+    AssistantID: "weather_assistant",
+    Status:      "active",
+    Keywords:    "weather",
+    Page:        1,
+    PageSize:    20,
 })
 
 // Get messages for a chat
