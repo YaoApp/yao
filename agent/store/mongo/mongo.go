@@ -10,88 +10,150 @@ func NewMongo() types.Store {
 	return &Mongo{}
 }
 
-// GetChats retrieves a list of chats
-func (m *Mongo) GetChats(sid string, filter types.ChatFilter, locale ...string) (*types.ChatGroupResponse, error) {
-	return &types.ChatGroupResponse{}, nil
-}
+// =============================================================================
+// Chat Management
+// =============================================================================
 
-// GetChat retrieves a single chat's information
-func (m *Mongo) GetChat(sid string, cid string, locale ...string) (*types.ChatInfo, error) {
-	return &types.ChatInfo{}, nil
-}
-
-// GetChatWithFilter retrieves a single chat's information with filter options
-func (m *Mongo) GetChatWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) (*types.ChatInfo, error) {
-	return &types.ChatInfo{}, nil
-}
-
-// GetHistory retrieves chat history
-func (m *Mongo) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
-}
-
-// GetHistoryWithFilter retrieves chat history with filter options
-func (m *Mongo) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
-}
-
-// SaveHistory saves chat history
-func (m *Mongo) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
+// CreateChat creates a new chat session
+func (m *Mongo) CreateChat(chat *types.Chat) error {
+	// TODO: implement
 	return nil
 }
 
-// DeleteChat deletes a single chat
-func (m *Mongo) DeleteChat(sid string, cid string) error {
+// GetChat retrieves a single chat by ID
+func (m *Mongo) GetChat(chatID string) (*types.Chat, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// UpdateChat updates chat fields
+func (m *Mongo) UpdateChat(chatID string, updates map[string]interface{}) error {
+	// TODO: implement
 	return nil
 }
 
-// DeleteAllChats deletes all chats
-func (m *Mongo) DeleteAllChats(sid string) error {
+// DeleteChat deletes a chat and its associated messages
+func (m *Mongo) DeleteChat(chatID string) error {
+	// TODO: implement
 	return nil
 }
 
-// UpdateChatTitle updates chat title
-func (m *Mongo) UpdateChatTitle(sid string, cid string, title string) error {
+// ListChats retrieves a paginated list of chats with optional grouping
+func (m *Mongo) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// =============================================================================
+// Message Management
+// =============================================================================
+
+// SaveMessages batch saves messages for a chat
+func (m *Mongo) SaveMessages(chatID string, messages []*types.Message) error {
+	// TODO: implement
 	return nil
 }
+
+// GetMessages retrieves messages for a chat with filtering
+func (m *Mongo) GetMessages(chatID string, filter types.MessageFilter) ([]*types.Message, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// UpdateMessage updates a single message
+func (m *Mongo) UpdateMessage(messageID string, updates map[string]interface{}) error {
+	// TODO: implement
+	return nil
+}
+
+// DeleteMessages deletes specific messages from a chat
+func (m *Mongo) DeleteMessages(chatID string, messageIDs []string) error {
+	// TODO: implement
+	return nil
+}
+
+// =============================================================================
+// Resume Management (only called on failure/interrupt)
+// =============================================================================
+
+// SaveResume batch saves resume records
+func (m *Mongo) SaveResume(records []*types.Resume) error {
+	// TODO: implement
+	return nil
+}
+
+// GetResume retrieves all resume records for a chat
+func (m *Mongo) GetResume(chatID string) ([]*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetLastResume retrieves the last resume record for a chat
+func (m *Mongo) GetLastResume(chatID string) (*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetResumeByStackID retrieves resume records for a specific stack
+func (m *Mongo) GetResumeByStackID(stackID string) ([]*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetStackPath returns the stack path from root to the given stack
+func (m *Mongo) GetStackPath(stackID string) ([]string, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteResume deletes all resume records for a chat
+func (m *Mongo) DeleteResume(chatID string) error {
+	// TODO: implement
+	return nil
+}
+
+// =============================================================================
+// Assistant Management
+// =============================================================================
 
 // SaveAssistant saves assistant information
 func (m *Mongo) SaveAssistant(assistant *types.AssistantModel) (string, error) {
+	// TODO: implement
 	return assistant.ID, nil
 }
 
 // UpdateAssistant updates specific fields of an assistant
 func (m *Mongo) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+	// TODO: implement
 	return nil
 }
 
 // DeleteAssistant deletes an assistant
 func (m *Mongo) DeleteAssistant(assistantID string) error {
+	// TODO: implement
 	return nil
 }
 
 // GetAssistants retrieves a list of assistants
 func (m *Mongo) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
+	// TODO: implement
 	return &types.AssistantList{}, nil
-}
-
-// GetAssistant retrieves a single assistant by ID
-// fields: Optional list of fields to retrieve. If empty, a default set of fields will be returned.
-func (m *Mongo) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
-	return nil, nil
-}
-
-// DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (m *Mongo) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
-	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants with filtering
 func (m *Mongo) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
+	// TODO: implement
 	return []types.Tag{}, nil
 }
 
-// Close closes the store and releases any resources
-func (m *Mongo) Close() error {
-	return nil
+// GetAssistant retrieves a single assistant by ID
+func (m *Mongo) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteAssistants deletes assistants based on filter conditions
+func (m *Mongo) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
+	// TODO: implement
+	return 0, nil
 }

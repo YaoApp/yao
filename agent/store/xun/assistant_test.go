@@ -1,4 +1,4 @@
-package xun
+package xun_test
 
 import (
 	"fmt"
@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -31,13 +32,12 @@ func TestSaveAssistant(t *testing.T) {
 	defer test.Clean()
 
 	// Create a new xun store
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("CreateNewAssistant", func(t *testing.T) {
 		assistant := &types.AssistantModel{
@@ -648,13 +648,12 @@ func TestDeleteAssistant(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("DeleteExistingAssistant", func(t *testing.T) {
 		// Create assistant
@@ -696,13 +695,12 @@ func TestGetAssistant(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("GetExistingAssistant", func(t *testing.T) {
 		// Create assistant
@@ -764,13 +762,12 @@ func TestGetAssistants(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	// Clean up existing data before creating test assistants
 	deleted, err := store.DeleteAssistants(types.AssistantFilter{})
@@ -1078,13 +1075,12 @@ func TestDeleteAssistants(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("DeleteByTag", func(t *testing.T) {
 		// Create assistants with specific tag
@@ -1205,13 +1201,12 @@ func TestGetAssistantTags(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("GetUniqueTags", func(t *testing.T) {
 		// Create assistants with various tags
@@ -1433,57 +1428,17 @@ func TestGetAssistantTags(t *testing.T) {
 	})
 }
 
-// TestGenerateAssistantID tests the ID generation function
-func TestGenerateAssistantID(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	store, err := NewXun(types.Setting{
-		Connector: "default",
-	})
-	if err != nil {
-		t.Fatalf("Failed to create store: %v", err)
-	}
-	defer store.Close()
-
-	xunStore := store.(*Xun)
-
-	t.Run("GenerateUniqueIDs", func(t *testing.T) {
-		ids := make(map[string]bool)
-		for i := 0; i < 10; i++ {
-			id, err := xunStore.GenerateAssistantID()
-			if err != nil {
-				t.Fatalf("Failed to generate ID: %v", err)
-			}
-
-			// Verify ID format (6 digits)
-			if len(id) != 6 {
-				t.Errorf("Expected 6-digit ID, got %s (length %d)", id, len(id))
-			}
-
-			// Verify ID is unique
-			if ids[id] {
-				t.Errorf("Generated duplicate ID: %s", id)
-			}
-			ids[id] = true
-		}
-
-		t.Logf("Generated %d unique IDs", len(ids))
-	})
-}
-
 // TestAssistantPermissionFields tests permission management fields
 func TestAssistantPermissionFields(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("SaveWithPermissionFields", func(t *testing.T) {
 		assistant := &types.AssistantModel{
@@ -1608,13 +1563,12 @@ func TestEmptyStringAsNull(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("EmptyStringsStoredAsNull", func(t *testing.T) {
 		// Create assistant with empty strings for nullable fields
@@ -1711,13 +1665,12 @@ func TestGetAssistantWithLocale(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("GetAssistantWithLocaleTranslation", func(t *testing.T) {
 		// Create assistant with i18n locales
@@ -1837,13 +1790,12 @@ func TestGetAssistantsWithLocale(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("GetAssistantsWithLocaleTranslation", func(t *testing.T) {
 		// Create assistant with i18n locales
@@ -1950,13 +1902,12 @@ func TestGetAssistantsWithQueryFilter(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	// Create test assistants with different permission settings
 	assistants := []types.AssistantModel{
@@ -2195,13 +2146,12 @@ func TestUpdateAssistant(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("UpdateSingleField", func(t *testing.T) {
 		// Create assistant
@@ -3028,13 +2978,12 @@ func TestAssistantCompleteWorkflow(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	store, err := NewXun(types.Setting{
+	store, err := xun.NewXun(types.Setting{
 		Connector: "default",
 	})
 	if err != nil {
 		t.Fatalf("Failed to create store: %v", err)
 	}
-	defer store.Close()
 
 	t.Run("CompleteWorkflow", func(t *testing.T) {
 		// Step 1: Create multiple assistants

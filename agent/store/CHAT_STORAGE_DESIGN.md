@@ -693,27 +693,101 @@ func createResumeRecord(ctx *Context, stepType, status string, input, output int
 
 ```go
 // ChatStore defines the chat storage interface
+// Provides operations for chat, message, and resume management
 type ChatStore interface {
+    // ==========================================================================
     // Chat Management
+    // ==========================================================================
+
+    // CreateChat creates a new chat session
     CreateChat(chat *Chat) error
+
+    // GetChat retrieves a single chat by ID
     GetChat(chatID string) (*Chat, error)
+
+    // UpdateChat updates chat fields
     UpdateChat(chatID string, updates map[string]interface{}) error
+
+    // DeleteChat deletes a chat and its associated messages
     DeleteChat(chatID string) error
+
+    // ListChats retrieves a paginated list of chats with optional grouping
     ListChats(filter ChatFilter) (*ChatList, error)
 
+    // ==========================================================================
     // Message Management
+    // ==========================================================================
+
+    // SaveMessages batch saves messages for a chat
+    // This is the primary write method - messages are buffered during execution
+    // and batch-written at the end of a request
     SaveMessages(chatID string, messages []*Message) error
+
+    // GetMessages retrieves messages for a chat with filtering
     GetMessages(chatID string, filter MessageFilter) ([]*Message, error)
+
+    // UpdateMessage updates a single message
     UpdateMessage(messageID string, updates map[string]interface{}) error
+
+    // DeleteMessages deletes specific messages from a chat
     DeleteMessages(chatID string, messageIDs []string) error
 
+    // ==========================================================================
     // Resume Management (only called on failure/interrupt)
+    // ==========================================================================
+
+    // SaveResume batch saves resume records
+    // Only called when request is interrupted or failed
     SaveResume(records []*Resume) error
+
+    // GetResume retrieves all resume records for a chat
     GetResume(chatID string) ([]*Resume, error)
+
+    // GetLastResume retrieves the last (most recent) resume record for a chat
     GetLastResume(chatID string) (*Resume, error)
+
+    // GetResumeByStackID retrieves resume records for a specific stack
     GetResumeByStackID(stackID string) ([]*Resume, error)
-    GetStackPath(stackID string) ([]string, error) // Returns [root_stack_id, ..., current_stack_id]
-    DeleteResume(chatID string) error              // Clean up after successful resume
+
+    // GetStackPath returns the stack path from root to the given stack
+    // Returns: [root_stack_id, ..., current_stack_id]
+    GetStackPath(stackID string) ([]string, error)
+
+    // DeleteResume deletes all resume records for a chat
+    // Called after successful resume to clean up
+    DeleteResume(chatID string) error
+}
+
+// AssistantStore defines the assistant storage interface
+// Separated from ChatStore for clearer responsibility
+type AssistantStore interface {
+    // SaveAssistant saves assistant information
+    SaveAssistant(assistant *AssistantModel) (string, error)
+
+    // UpdateAssistant updates assistant fields
+    UpdateAssistant(assistantID string, updates map[string]interface{}) error
+
+    // DeleteAssistant deletes an assistant
+    DeleteAssistant(assistantID string) error
+
+    // GetAssistants retrieves a paginated list of assistants with filtering
+    GetAssistants(filter AssistantFilter, locale ...string) (*AssistantList, error)
+
+    // GetAssistantTags retrieves all unique tags from assistants with filtering
+    GetAssistantTags(filter AssistantFilter, locale ...string) ([]Tag, error)
+
+    // GetAssistant retrieves a single assistant by ID
+    GetAssistant(assistantID string, fields []string, locale ...string) (*AssistantModel, error)
+
+    // DeleteAssistants deletes assistants based on filter conditions
+    DeleteAssistants(filter AssistantFilter) (int64, error)
+}
+
+// Store combines ChatStore and AssistantStore interfaces
+// This is the main interface for the storage layer
+type Store interface {
+    ChatStore
+    AssistantStore
 }
 
 // SpaceStore defines the interface for Space snapshot operations
@@ -725,7 +799,7 @@ type SpaceStore interface {
     // Restore sets multiple key-value pairs from a snapshot
     Restore(data map[string]interface{}) error
 }
-````
+```
 
 ### Data Structures
 
@@ -736,10 +810,10 @@ type Chat struct {
     Title         string                 `json:"title,omitempty"`
     AssistantID   string                 `json:"assistant_id"`
     Mode          string                 `json:"mode"`
-    Status        string                 `json:"status"`
-    Public        bool                   `json:"public"`
-    Share         string                 `json:"share"` // "private" or "team"
-    Sort          int                    `json:"sort"`
+    Status        string                 `json:"status"`          // "active" or "archived"
+    Public        bool                   `json:"public"`          // Whether shared across all teams
+    Share         string                 `json:"share"`           // "private" or "team"
+    Sort          int                    `json:"sort"`            // Sort order for display
     LastMessageAt *time.Time             `json:"last_message_at,omitempty"`
     Metadata      map[string]interface{} `json:"metadata,omitempty"`
     CreatedAt     time.Time              `json:"created_at"`
@@ -751,8 +825,8 @@ type Message struct {
     MessageID   string                 `json:"message_id"`
     ChatID      string                 `json:"chat_id"`
     RequestID   string                 `json:"request_id,omitempty"`
-    Role        string                 `json:"role"`
-    Type        string                 `json:"type"`
+    Role        string                 `json:"role"` // "user" or "assistant"
+    Type        string                 `json:"type"` // "text", "image", "loading", "tool_call", "retrieval", etc.
     Props       map[string]interface{} `json:"props"`
     BlockID     string                 `json:"block_id,omitempty"`
     ThreadID    string                 `json:"thread_id,omitempty"`
@@ -763,7 +837,8 @@ type Message struct {
     UpdatedAt   time.Time              `json:"updated_at"`
 }
 
-// Resume represents an execution state for recovery (only stored on failure/interrupt)
+// Resume represents an execution state for recovery
+// Only stored when request is interrupted or failed
 type Resume struct {
     ResumeID      string                 `json:"resume_id"`
     ChatID        string                 `json:"chat_id"`
@@ -772,7 +847,7 @@ type Resume struct {
     StackID       string                 `json:"stack_id"`
     StackParentID string                 `json:"stack_parent_id,omitempty"`
     StackDepth    int                    `json:"stack_depth"`
-    Type          string                 `json:"type"`
+    Type          string                 `json:"type"`   // "input", "hook_create", "llm", "tool", "hook_next", "delegate"
     Status        string                 `json:"status"` // "failed" or "interrupted"
     Input         map[string]interface{} `json:"input,omitempty"`
     Output        map[string]interface{} `json:"output,omitempty"`
@@ -783,6 +858,22 @@ type Resume struct {
     CreatedAt     time.Time              `json:"created_at"`
     UpdatedAt     time.Time              `json:"updated_at"`
 }
+
+// ResumeStatus constants
+const (
+    ResumeStatusFailed      = "failed"
+    ResumeStatusInterrupted = "interrupted"
+)
+
+// ResumeType constants
+const (
+    ResumeTypeInput      = "input"
+    ResumeTypeHookCreate = "hook_create"
+    ResumeTypeLLM        = "llm"
+    ResumeTypeTool       = "tool"
+    ResumeTypeHookNext   = "hook_next"
+    ResumeTypeDelegate   = "delegate"
+)
 ```
 
 ### Filter Structures
@@ -797,20 +888,23 @@ type ChatFilter struct {
     Keywords    string `json:"keywords,omitempty"`
 
     // Time range filter
-    StartTime   *time.Time `json:"start_time,omitempty"` // Filter chats after this time
-    EndTime     *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
-    TimeField   string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
+    StartTime *time.Time `json:"start_time,omitempty"` // Filter chats after this time
+    EndTime   *time.Time `json:"end_time,omitempty"`   // Filter chats before this time
+    TimeField string     `json:"time_field,omitempty"` // Field for time filter: "created_at" or "last_message_at" (default)
 
     // Sorting
-    OrderBy     string `json:"order_by,omitempty"`  // Field to sort by (default: "last_message_at")
-    Order       string `json:"order,omitempty"`     // Sort order: "desc" (default) or "asc"
+    OrderBy string `json:"order_by,omitempty"` // Field to sort by (default: "last_message_at")
+    Order   string `json:"order,omitempty"`    // Sort order: "desc" (default) or "asc"
 
     // Response format
-    GroupBy     string `json:"group_by,omitempty"`  // "time" for time-based groups, empty for flat list
+    GroupBy string `json:"group_by,omitempty"` // "time" for time-based groups, empty for flat list
 
     // Pagination
-    Page        int    `json:"page,omitempty"`
-    PageSize    int    `json:"pagesize,omitempty"`
+    Page     int `json:"page,omitempty"`
+    PageSize int `json:"pagesize,omitempty"`
+
+    // Permission filter (not serialized)
+    QueryFilter func(query.Query) `json:"-"` // Custom query function for permission filtering
 }
 
 // MessageFilter for listing messages
@@ -1357,3 +1451,4 @@ Main Agent concurrently calls 3 tasks:
 - [OpenAPI Request Design](../../openapi/request/REQUEST_DESIGN.md) - Global request tracking, billing, rate limiting
 - [Trace Module](../../trace/README.md) - Detailed execution tracing for debugging
 - [Agent Context](../context/README.md) - Context and message handling
+````

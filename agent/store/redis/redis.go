@@ -1,4 +1,4 @@
-package store
+package redis
 
 import "github.com/yaoapp/yao/agent/store/types"
 
@@ -10,88 +10,150 @@ func NewRedis() types.Store {
 	return &Redis{}
 }
 
-// GetChats retrieves a list of chats
-func (r *Redis) GetChats(sid string, filter types.ChatFilter, locale ...string) (*types.ChatGroupResponse, error) {
-	return &types.ChatGroupResponse{}, nil
-}
+// =============================================================================
+// Chat Management
+// =============================================================================
 
-// GetChat retrieves a single chat's information
-func (r *Redis) GetChat(sid string, cid string, locale ...string) (*types.ChatInfo, error) {
-	return &types.ChatInfo{}, nil
-}
-
-// GetChatWithFilter retrieves a single chat's information with filter options
-func (r *Redis) GetChatWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) (*types.ChatInfo, error) {
-	return &types.ChatInfo{}, nil
-}
-
-// GetHistory retrieves chat history
-func (r *Redis) GetHistory(sid string, cid string, locale ...string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
-}
-
-// GetHistoryWithFilter retrieves chat history with filter options
-func (r *Redis) GetHistoryWithFilter(sid string, cid string, filter types.ChatFilter, locale ...string) ([]map[string]interface{}, error) {
-	return []map[string]interface{}{}, nil
-}
-
-// SaveHistory saves chat history
-func (r *Redis) SaveHistory(sid string, messages []map[string]interface{}, cid string, context map[string]interface{}) error {
+// CreateChat creates a new chat session
+func (r *Redis) CreateChat(chat *types.Chat) error {
+	// TODO: implement
 	return nil
 }
 
-// DeleteChat deletes a single chat
-func (r *Redis) DeleteChat(sid string, cid string) error {
+// GetChat retrieves a single chat by ID
+func (r *Redis) GetChat(chatID string) (*types.Chat, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// UpdateChat updates chat fields
+func (r *Redis) UpdateChat(chatID string, updates map[string]interface{}) error {
+	// TODO: implement
 	return nil
 }
 
-// DeleteAllChats deletes all chats
-func (r *Redis) DeleteAllChats(sid string) error {
+// DeleteChat deletes a chat and its associated messages
+func (r *Redis) DeleteChat(chatID string) error {
+	// TODO: implement
 	return nil
 }
 
-// UpdateChatTitle updates chat title
-func (r *Redis) UpdateChatTitle(sid string, cid string, title string) error {
+// ListChats retrieves a paginated list of chats with optional grouping
+func (r *Redis) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// =============================================================================
+// Message Management
+// =============================================================================
+
+// SaveMessages batch saves messages for a chat
+func (r *Redis) SaveMessages(chatID string, messages []*types.Message) error {
+	// TODO: implement
 	return nil
 }
+
+// GetMessages retrieves messages for a chat with filtering
+func (r *Redis) GetMessages(chatID string, filter types.MessageFilter) ([]*types.Message, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// UpdateMessage updates a single message
+func (r *Redis) UpdateMessage(messageID string, updates map[string]interface{}) error {
+	// TODO: implement
+	return nil
+}
+
+// DeleteMessages deletes specific messages from a chat
+func (r *Redis) DeleteMessages(chatID string, messageIDs []string) error {
+	// TODO: implement
+	return nil
+}
+
+// =============================================================================
+// Resume Management (only called on failure/interrupt)
+// =============================================================================
+
+// SaveResume batch saves resume records
+func (r *Redis) SaveResume(records []*types.Resume) error {
+	// TODO: implement
+	return nil
+}
+
+// GetResume retrieves all resume records for a chat
+func (r *Redis) GetResume(chatID string) ([]*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetLastResume retrieves the last resume record for a chat
+func (r *Redis) GetLastResume(chatID string) (*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetResumeByStackID retrieves resume records for a specific stack
+func (r *Redis) GetResumeByStackID(stackID string) ([]*types.Resume, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetStackPath returns the stack path from root to the given stack
+func (r *Redis) GetStackPath(stackID string) ([]string, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteResume deletes all resume records for a chat
+func (r *Redis) DeleteResume(chatID string) error {
+	// TODO: implement
+	return nil
+}
+
+// =============================================================================
+// Assistant Management
+// =============================================================================
 
 // SaveAssistant saves assistant information
 func (r *Redis) SaveAssistant(assistant *types.AssistantModel) (string, error) {
+	// TODO: implement
 	return assistant.ID, nil
 }
 
 // UpdateAssistant updates specific fields of an assistant
 func (r *Redis) UpdateAssistant(assistantID string, updates map[string]interface{}) error {
+	// TODO: implement
 	return nil
 }
 
 // DeleteAssistant deletes an assistant
 func (r *Redis) DeleteAssistant(assistantID string) error {
+	// TODO: implement
 	return nil
 }
 
 // GetAssistants retrieves a list of assistants
 func (r *Redis) GetAssistants(filter types.AssistantFilter, locale ...string) (*types.AssistantList, error) {
+	// TODO: implement
 	return &types.AssistantList{}, nil
-}
-
-// GetAssistant retrieves a single assistant by ID
-// fields: Optional list of fields to retrieve. If empty, a default set of fields will be returned.
-func (r *Redis) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
-	return nil, nil
-}
-
-// DeleteAssistants deletes assistants based on filter conditions (not implemented)
-func (r *Redis) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
-	return 0, nil
 }
 
 // GetAssistantTags retrieves all unique tags from assistants with filtering
 func (r *Redis) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
+	// TODO: implement
 	return []types.Tag{}, nil
 }
 
-// Close closes the store and releases any resources
-func (r *Redis) Close() error {
-	return nil
+// GetAssistant retrieves a single assistant by ID
+func (r *Redis) GetAssistant(assistantID string, fields []string, locale ...string) (*types.AssistantModel, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteAssistants deletes assistants based on filter conditions
+func (r *Redis) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
+	// TODO: implement
+	return 0, nil
 }
