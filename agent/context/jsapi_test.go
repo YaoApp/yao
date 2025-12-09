@@ -417,7 +417,7 @@ func TestJsValueTrace(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(cxt) {
 			// Get trace from context (property, not method call)
-			const trace = cxt.Trace
+			const trace = cxt.trace
 			
 			// Verify trace object exists
 			if (!trace) {

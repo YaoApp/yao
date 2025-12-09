@@ -36,8 +36,8 @@ interface Context {
 
   // Objects
   space: Space; // Shared data space for passing data between requests
-  Trace: Trace; // Trace object for debugging and monitoring
-  MCP: MCP; // MCP object for external tool/resource access
+  trace: Trace; // Trace object for debugging and monitoring
+  mcp: MCP; // MCP object for external tool/resource access
 }
 ```
 
@@ -899,7 +899,7 @@ function Create(ctx, messages) {
 
   // MCP tool call block
   ctx.Send("Fetching data...", mcp_block);
-  const data = ctx.MCP.CallTool("tool", "method", {});
+  const data = ctx.mcp.CallTool("tool", "method", {});
   ctx.Send(`Found ${data.length} results`, mcp_block);
   ctx.EndBlock(mcp_block);
 
@@ -926,11 +926,11 @@ try {
 
 ## Trace API
 
-The `ctx.Trace` object provides comprehensive tracing capabilities for debugging and monitoring agent execution.
+The `ctx.trace` object provides comprehensive tracing capabilities for debugging and monitoring agent execution.
 
 ### Node Operations
 
-#### `ctx.Trace.Add(input, options)`
+#### `ctx.trace.Add(input, options)`
 
 Creates a new trace node (sequential step).
 
@@ -954,7 +954,7 @@ interface TraceNodeOption {
 **Example:**
 
 ```javascript
-const search_node = ctx.Trace.Add(
+const search_node = ctx.trace.Add(
   { query: "What is AI?" },
   {
     label: "Search Query",
@@ -965,7 +965,7 @@ const search_node = ctx.Trace.Add(
 );
 ```
 
-#### `ctx.Trace.Parallel(inputs)`
+#### `ctx.trace.Parallel(inputs)`
 
 Creates multiple parallel trace nodes for concurrent operations.
 
@@ -985,7 +985,7 @@ interface ParallelInput {
 **Example:**
 
 ```javascript
-const parallel_nodes = ctx.Trace.Parallel([
+const parallel_nodes = ctx.trace.Parallel([
   {
     input: { url: "https://api1.com" },
     option: {
@@ -1013,16 +1013,16 @@ Add log entries to the current trace node:
 
 ```javascript
 // Information logs
-ctx.Trace.Info("Processing started", { step: 1 });
+ctx.trace.Info("Processing started", { step: 1 });
 
 // Debug logs
-ctx.Trace.Debug("Variable value", { value: 42 });
+ctx.trace.Debug("Variable value", { value: 42 });
 
 // Warning logs
-ctx.Trace.Warn("Deprecated feature used", { feature: "old_api" });
+ctx.trace.Warn("Deprecated feature used", { feature: "old_api" });
 
 // Error logs
-ctx.Trace.Error("Operation failed", { error: "timeout" });
+ctx.trace.Error("Operation failed", { error: "timeout" });
 ```
 
 ### Node Status Operations
@@ -1032,7 +1032,7 @@ ctx.Trace.Error("Operation failed", { error: "timeout" });
 Sets the output data for a node.
 
 ```javascript
-const search_node = ctx.Trace.Add({ query: "search" }, options);
+const search_node = ctx.trace.Add({ query: "search" }, options);
 search_node.SetOutput({ results: [...] });
 ```
 
@@ -1067,39 +1067,39 @@ try {
 
 ### Query Operations
 
-#### `ctx.Trace.GetRootNode()`
+#### `ctx.trace.GetRootNode()`
 
 Returns the root node of the trace tree.
 
 ```javascript
-const root_node = ctx.Trace.GetRootNode();
+const root_node = ctx.trace.GetRootNode();
 console.log(root_node.id, root_node.label);
 ```
 
-#### `ctx.Trace.GetNode(id)`
+#### `ctx.trace.GetNode(id)`
 
 Retrieves a specific node by ID.
 
 ```javascript
-const target_node = ctx.Trace.GetNode("node-123");
+const target_node = ctx.trace.GetNode("node-123");
 ```
 
-#### `ctx.Trace.GetCurrentNodes()`
+#### `ctx.trace.GetCurrentNodes()`
 
 Returns the current active nodes (may be multiple if in parallel state).
 
 ```javascript
-const current_nodes = ctx.Trace.GetCurrentNodes();
+const current_nodes = ctx.trace.GetCurrentNodes();
 ```
 
 ### Memory Space Operations
 
-#### `ctx.Trace.CreateSpace(option)`
+#### `ctx.trace.CreateSpace(option)`
 
 Creates a memory space for storing key-value data.
 
 ```javascript
-const memory_space = ctx.Trace.CreateSpace({
+const memory_space = ctx.trace.CreateSpace({
   label: "Context Memory",
   type: "context",
   icon: "database",
@@ -1107,38 +1107,38 @@ const memory_space = ctx.Trace.CreateSpace({
 });
 ```
 
-#### `ctx.Trace.GetSpace(id)`
+#### `ctx.trace.GetSpace(id)`
 
 Retrieves a memory space by ID.
 
 ```javascript
-const context_space = ctx.Trace.GetSpace("context");
+const context_space = ctx.trace.GetSpace("context");
 ```
 
-#### `ctx.Trace.HasSpace(id)`
+#### `ctx.trace.HasSpace(id)`
 
 Checks if a memory space exists.
 
 ```javascript
-if (ctx.Trace.HasSpace("context")) {
+if (ctx.trace.HasSpace("context")) {
   // Space exists
 }
 ```
 
-#### `ctx.Trace.DeleteSpace(id)`
+#### `ctx.trace.DeleteSpace(id)`
 
 Deletes a memory space.
 
 ```javascript
-ctx.Trace.DeleteSpace("temp_storage");
+ctx.trace.DeleteSpace("temp_storage");
 ```
 
-#### `ctx.Trace.ListSpaces()`
+#### `ctx.trace.ListSpaces()`
 
 Lists all memory spaces.
 
 ```javascript
-const all_spaces = ctx.Trace.ListSpaces();
+const all_spaces = ctx.trace.ListSpaces();
 all_spaces.forEach((space) => {
   console.log(space.id, space.label);
 });
@@ -1270,24 +1270,24 @@ function Next(ctx, payload) {
 
 ## MCP API
 
-The `ctx.MCP` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
+The `ctx.mcp` object provides access to Model Context Protocol operations for interacting with external tools, resources, and prompts.
 
 ### Resource Operations
 
-#### `ctx.MCP.ListResources(client)`
+#### `ctx.mcp.ListResources(client)`
 
 Lists available resources from an MCP client.
 
 ```javascript
-const fs_resources = ctx.MCP.ListResources("filesystem");
+const fs_resources = ctx.mcp.ListResources("filesystem");
 ```
 
-#### `ctx.MCP.ReadResource(client, uri)`
+#### `ctx.mcp.ReadResource(client, uri)`
 
 Reads a specific resource.
 
 ```javascript
-const file_content = ctx.MCP.ReadResource(
+const file_content = ctx.mcp.ReadResource(
   "filesystem",
   "file:///path/to/file.txt"
 );
@@ -1295,42 +1295,42 @@ const file_content = ctx.MCP.ReadResource(
 
 ### Tool Operations
 
-#### `ctx.MCP.ListTools(client)`
+#### `ctx.mcp.ListTools(client)`
 
 Lists available tools from an MCP client.
 
 ```javascript
-const available_tools = ctx.MCP.ListTools("toolkit");
+const available_tools = ctx.mcp.ListTools("toolkit");
 ```
 
-#### `ctx.MCP.CallTool(client, name, args)`
+#### `ctx.mcp.CallTool(client, name, args)`
 
 Calls a single tool.
 
 ```javascript
-const calc_result = ctx.MCP.CallTool("calculator", "add", {
+const calc_result = ctx.mcp.CallTool("calculator", "add", {
   a: 10,
   b: 32,
 });
 ```
 
-#### `ctx.MCP.CallTools(client, calls)`
+#### `ctx.mcp.CallTools(client, calls)`
 
 Calls multiple tools sequentially.
 
 ```javascript
-const tool_results = ctx.MCP.CallTools("toolkit", [
+const tool_results = ctx.mcp.CallTools("toolkit", [
   { name: "tool1", args: { param: "value1" } },
   { name: "tool2", args: { param: "value2" } },
 ]);
 ```
 
-#### `ctx.MCP.CallToolsParallel(client, calls)`
+#### `ctx.mcp.CallToolsParallel(client, calls)`
 
 Calls multiple tools in parallel.
 
 ```javascript
-const parallel_results = ctx.MCP.CallToolsParallel("toolkit", [
+const parallel_results = ctx.mcp.CallToolsParallel("toolkit", [
   { name: "api1", args: { endpoint: "/users" } },
   { name: "api2", args: { endpoint: "/posts" } },
 ]);
@@ -1338,32 +1338,32 @@ const parallel_results = ctx.MCP.CallToolsParallel("toolkit", [
 
 ### Prompt Operations
 
-#### `ctx.MCP.ListPrompts(client)`
+#### `ctx.mcp.ListPrompts(client)`
 
 Lists available prompts from an MCP client.
 
 ```javascript
-const available_prompts = ctx.MCP.ListPrompts("prompt_library");
+const available_prompts = ctx.mcp.ListPrompts("prompt_library");
 ```
 
-#### `ctx.MCP.GetPrompt(client, name, args?)`
+#### `ctx.mcp.GetPrompt(client, name, args?)`
 
 Retrieves a specific prompt.
 
 ```javascript
-const review_prompt = ctx.MCP.GetPrompt("prompt_library", "code_review", {
+const review_prompt = ctx.mcp.GetPrompt("prompt_library", "code_review", {
   language: "javascript",
 });
 ```
 
 ### Sample Operations
 
-#### `ctx.MCP.CreateSample(client, uri, sample)`
+#### `ctx.mcp.CreateSample(client, uri, sample)`
 
 Creates a sample for a resource.
 
 ```javascript
-ctx.MCP.CreateSample("filesystem", "file:///examples", {
+ctx.mcp.CreateSample("filesystem", "file:///examples", {
   name: "example1",
   content: "Sample content",
 });
@@ -1566,7 +1566,7 @@ function Create(ctx, messages) {
   ctx.space.Set("original_query", messages[0]?.content || "");
 
   // Add trace node
-  ctx.Trace.Add(
+  ctx.trace.Add(
     { messages },
     {
       label: "Create Hook",
@@ -1596,7 +1596,7 @@ function Next(ctx, payload) {
     const original_query = ctx.space.Get("original_query");
 
     // Create trace node for custom processing
-    const process_node = ctx.Trace.Add(
+    const process_node = ctx.trace.Add(
       { completion, tools },
       {
         label: "Custom Processing",
@@ -1606,7 +1606,7 @@ function Next(ctx, payload) {
       }
     );
 
-    ctx.Trace.Info("Starting custom processing", {
+    ctx.trace.Info("Starting custom processing", {
       original_query: original_query,
       tool_count: tools?.length || 0,
     });
@@ -1615,7 +1615,7 @@ function Next(ctx, payload) {
     const msg_id = ctx.SendStream("# Search Results\n\n");
 
     // Call MCP tool for additional data
-    const search_results = ctx.MCP.CallTool("search_engine", "search", {
+    const search_results = ctx.mcp.CallTool("search_engine", "search", {
       query: "latest AI news",
       limit: 5,
     });
@@ -1640,7 +1640,7 @@ function Next(ctx, payload) {
       metadata: { processed: true },
     };
   } catch (error) {
-    ctx.Trace.Error("Processing failed", { error: error.message });
+    ctx.trace.Error("Processing failed", { error: error.message });
     throw error;
   }
 }
@@ -1666,7 +1666,7 @@ All Context methods throw exceptions on failure. Always handle errors appropriat
 try {
   ctx.Send(message);
 } catch (error) {
-  ctx.Trace.Error("Failed to send message", { error: error.message });
+  ctx.trace.Error("Failed to send message", { error: error.message });
   throw error;
 }
 ```

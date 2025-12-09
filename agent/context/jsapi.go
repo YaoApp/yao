@@ -59,8 +59,8 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Lifecycle methods
 	jsObject.Set("EndBlock", ctx.endBlockMethod(v8ctx.Isolate()))
 
-	// Set MCP object
-	jsObject.Set("MCP", ctx.newMCPObject(v8ctx.Isolate()))
+	// Set mcp object
+	jsObject.Set("mcp", ctx.newMCPObject(v8ctx.Isolate()))
 
 	// Note: Space object will be set after instance creation (requires v8ctx)
 
@@ -86,11 +86,11 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		return nil, err
 	}
 
-	// Set Trace object (property, not method)
+	// Set trace object (property, not method)
 	// If trace is not initialized, use no-op object
 	traceObj := ctx.createTraceObject(v8ctx)
 	if traceObj != nil {
-		obj.Set("Trace", traceObj)
+		obj.Set("trace", traceObj)
 	}
 
 	// Set complex objects (maps, arrays) after instance creation using bridge

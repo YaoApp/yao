@@ -86,7 +86,7 @@ func TestTraceRelease(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get trace
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Verify trace has Release method
 			if (typeof trace.Release !== 'function') {
@@ -149,7 +149,7 @@ func TestContextReleaseWithTrace(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get trace
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Use trace
 			const node = trace.Add({ type: "test" }, { label: "Test Node" })
@@ -197,7 +197,7 @@ func TestTryFinallyPattern(t *testing.T) {
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Try-finally pattern for explicit resource management
 			try {
@@ -247,7 +247,7 @@ func TestNoOpTraceRelease(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			// Get trace (should be no-op)
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Verify trace has Release method even when it's no-op
 			if (typeof trace.Release !== 'function') {
@@ -300,7 +300,7 @@ func TestTryFinallyPatternWithError(t *testing.T) {
 
 	_, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
-			const trace = ctx.Trace
+			const trace = ctx.trace
 			
 			// Try-finally pattern ensures cleanup even when error occurs
 			try {
