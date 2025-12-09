@@ -151,7 +151,7 @@ Stores user-visible messages (both user input and assistant responses).
 | `block_id`     | string(64)  | Yes      | Yes    | Block grouping ID                         |
 | `thread_id`    | string(64)  | Yes      | Yes    | Thread grouping ID                        |
 | `assistant_id` | string(200) | Yes      | Yes    | Assistant ID (join to get name/avatar)    |
-| `sequence`     | integer     | No       | Yes    | Message order within chat                 |
+| `sequence`     | integer     | No       | -      | Message order within chat (in composite)  |
 | `metadata`     | json        | Yes      | -      | Additional metadata                       |
 | `created_at`   | timestamp   | No       | Yes    | Creation timestamp                        |
 | `updated_at`   | timestamp   | No       | -      | Last update timestamp                     |
@@ -434,26 +434,26 @@ Stores execution state for resume/retry functionality. **Only written when reque
 
 **Table Name:** `agent_resume`
 
-| Column            | Type        | Nullable | Index  | Description                      |
-| ----------------- | ----------- | -------- | ------ | -------------------------------- |
-| `id`              | ID          | No       | PK     | Auto-increment primary key       |
-| `resume_id`       | string(64)  | No       | Unique | Unique resume record identifier  |
-| `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                   |
-| `request_id`      | string(64)  | No       | Yes    | Request ID                       |
-| `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step    |
-| `stack_id`        | string(64)  | No       | Yes    | Stack node ID for this execution |
-| `stack_parent_id` | string(64)  | Yes      | Yes    | Parent stack ID (for A2A calls)  |
-| `stack_depth`     | integer     | No       | -      | Call depth (0=root, 1+=nested)   |
-| `type`            | enum        | No       | Yes    | Step type                        |
-| `status`          | enum        | No       | Yes    | Status: `interrupted`, `failed`  |
-| `input`           | json        | Yes      | -      | Step input data                  |
-| `output`          | json        | Yes      | -      | Step output data (partial)       |
-| `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery |
-| `error`           | text        | Yes      | -      | Error message if failed          |
-| `sequence`        | integer     | No       | Yes    | Step order within request        |
-| `metadata`        | json        | Yes      | -      | Additional metadata              |
-| `created_at`      | timestamp   | No       | Yes    | Creation timestamp               |
-| `updated_at`      | timestamp   | No       | -      | Last update timestamp            |
+| Column            | Type        | Nullable | Index  | Description                              |
+| ----------------- | ----------- | -------- | ------ | ---------------------------------------- |
+| `id`              | ID          | No       | PK     | Auto-increment primary key               |
+| `resume_id`       | string(64)  | No       | Unique | Unique resume record identifier          |
+| `chat_id`         | string(64)  | No       | Yes    | Parent chat ID                           |
+| `request_id`      | string(64)  | No       | Yes    | Request ID                               |
+| `assistant_id`    | string(200) | No       | Yes    | Assistant executing this step            |
+| `stack_id`        | string(64)  | No       | Yes    | Stack node ID for this execution         |
+| `stack_parent_id` | string(64)  | Yes      | Yes    | Parent stack ID (for A2A calls)          |
+| `stack_depth`     | integer     | No       | -      | Call depth (0=root, 1+=nested)           |
+| `type`            | enum        | No       | Yes    | Step type                                |
+| `status`          | enum        | No       | Yes    | Status: `interrupted`, `failed`          |
+| `input`           | json        | Yes      | -      | Step input data                          |
+| `output`          | json        | Yes      | -      | Step output data (partial)               |
+| `space_snapshot`  | json        | Yes      | -      | Space data snapshot for recovery         |
+| `error`           | text        | Yes      | -      | Error message if failed                  |
+| `sequence`        | integer     | No       | -      | Step order within request (in composite) |
+| `metadata`        | json        | Yes      | -      | Additional metadata                      |
+| `created_at`      | timestamp   | No       | Yes    | Creation timestamp                       |
+| `updated_at`      | timestamp   | No       | -      | Last update timestamp                    |
 
 **Space Snapshot:**
 

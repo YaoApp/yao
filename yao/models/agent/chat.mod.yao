@@ -1,53 +1,103 @@
 {
   "name": "Chat",
   "label": "Chat",
-  "description": "Chat table for storing chat metadata and information",
+  "description": "Chat session table for storing chat metadata and session information",
   "tags": ["agent", "system"],
   "builtin": true,
   "readonly": true,
   "sort": 9999,
-  "table": { "name": "agent_chat", "comment": "Agent chat table" },
+  "table": { "name": "agent_chat", "comment": "Agent chat session table" },
   "columns": [
     {
       "name": "id",
       "type": "ID",
-      "label": "Chat ID",
-      "comment": "Unique chat identifier"
+      "label": "ID",
+      "comment": "Auto-increment primary key"
     },
     {
       "name": "chat_id",
       "type": "string",
       "label": "Chat ID",
-      "comment": "Chat identifier",
-      "length": 200,
+      "comment": "Unique chat identifier",
+      "length": 64,
       "nullable": false,
-      "unique": true,
-      "index": true
+      "unique": true
     },
     {
       "name": "title",
       "type": "string",
       "label": "Title",
       "comment": "Chat title",
-      "length": 200,
+      "length": 500,
       "nullable": true
     },
     {
       "name": "assistant_id",
       "type": "string",
       "label": "Assistant ID",
-      "comment": "Assistant identifier",
+      "comment": "Associated assistant ID",
       "length": 200,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "mode",
+      "type": "string",
+      "label": "Mode",
+      "comment": "Chat mode (default: chat)",
+      "length": 50,
+      "nullable": false,
+      "default": "chat"
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Chat status",
+      "option": ["active", "archived"],
+      "default": "active",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "public",
+      "type": "boolean",
+      "label": "Public",
+      "comment": "Whether shared across all teams",
+      "default": false,
+      "nullable": false
+    },
+    {
+      "name": "share",
+      "type": "enum",
+      "label": "Share",
+      "comment": "Sharing scope",
+      "option": ["private", "team"],
+      "default": "private",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort",
+      "comment": "Sort order for display",
+      "default": 9999
+    },
+    {
+      "name": "last_message_at",
+      "type": "datetime",
+      "label": "Last Message At",
+      "comment": "Timestamp of last message",
       "nullable": true,
       "index": true
     },
     {
-      "name": "silent",
-      "type": "boolean",
-      "label": "Silent Mode",
-      "comment": "Whether this is a silent chat",
-      "default": false,
-      "index": true
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "nullable": true
     }
   ],
   "relations": {
@@ -57,20 +107,19 @@
       "key": "assistant_id",
       "foreign": "assistant_id"
     },
-    "history": {
+    "messages": {
       "type": "hasMany",
-      "model": "__yao.agent.history",
+      "model": "__yao.agent.message",
       "key": "chat_id",
-      "foreign": "cid"
+      "foreign": "chat_id"
+    },
+    "resumes": {
+      "type": "hasMany",
+      "model": "__yao.agent.resume",
+      "key": "chat_id",
+      "foreign": "chat_id"
     }
   },
-  "indexes": [
-    {
-      "name": "idx_agent_chat_silent",
-      "columns": ["silent", "created_at"],
-      "type": "index",
-      "comment": "Index for silent mode filtering"
-    }
-  ],
-  "option": { "timestamps": true, "soft_deletes": false, "permission": true }
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
 }
+
