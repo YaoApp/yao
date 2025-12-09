@@ -166,26 +166,29 @@ Stores user-visible messages (both user input and assistant responses).
 | `idx_msg_block`     | `block_id`            | index |
 | `idx_msg_assistant` | `assistant_id`        | index |
 
-**Message Types (Built-in):**
+**Message Types:**
 
-All built-in types defined in `agent/output/BUILTIN_TYPES.md` are stored. See that document for complete Props structures.
+All message types are stored, including built-in types and custom types. See `agent/output/BUILTIN_TYPES.md` for built-in Props structures.
 
-| Type         | Description                      | Props Example                                                                               | Stored?     |
-| ------------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ----------- |
-| `user_input` | User input (frontend display)    | `{"content": "Hello", "role": "user", "name": "John"}`                                      | ✅ Yes      |
-| `text`       | Text/Markdown content            | `{"content": "Hello **world**!"}`                                                           | ✅ Yes      |
-| `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes      |
-| `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes      |
-| `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes      |
-| `retrieval`  | KB/Web search results            | `{"query": "...", "sources": [...], "total_results": 10}`                                   | ✅ Yes      |
-| `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes      |
-| `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes      |
-| `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes      |
-| `video`      | Video content                    | `{"url": "...", "format": "mp4", "thumbnail": "...", "width": 640, "height": 360}`          | ✅ Yes      |
-| `action`     | System action (CUI only)         | `{"name": "open_panel", "payload": {"panel_id": "user_profile"}}`                           | ✅ Yes      |
-| `event`      | Lifecycle event (CUI only)       | `{"event": "stream_start", "message": "...", "data": {...}}`                                | ⚠️ Optional |
+| Type         | Description                      | Props Example                                                                               | Stored? |
+| ------------ | -------------------------------- | ------------------------------------------------------------------------------------------- | ------- |
+| `user_input` | User input (frontend display)    | `{"content": "Hello", "role": "user", "name": "John"}`                                      | ✅ Yes  |
+| `text`       | Text/Markdown content            | `{"content": "Hello **world**!"}`                                                           | ✅ Yes  |
+| `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes  |
+| `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes  |
+| `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes  |
+| `retrieval`  | KB/Web search results            | `{"query": "...", "sources": [...], "total_results": 10}`                                   | ✅ Yes  |
+| `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes  |
+| `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes  |
+| `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes  |
+| `video`      | Video content                    | `{"url": "...", "format": "mp4", "thumbnail": "...", "width": 640, "height": 360}`          | ✅ Yes  |
+| `action`     | System action (CUI only)         | `{"name": "open_panel", "payload": {"panel_id": "user_profile"}}`                           | ✅ Yes  |
+| `event`      | Lifecycle event (CUI only)       | `{"event": "stream_start", "message": "...", "data": {...}}`                                | ❌ No   |
+| `*` (custom) | Any custom type                  | `{"chartType": "bar", "data": [...], "options": {...}}`                                     | ✅ Yes  |
 
-**Note on `event` type:** Lifecycle events (`stream_start`, `stream_end`, etc.) are typically transient and may not need persistent storage. Consider storing only significant events or skipping entirely based on use case.
+**Note on `event` type:** Lifecycle events (`stream_start`, `stream_end`, etc.) are transient control signals and are NOT stored. They are only used for real-time streaming coordination.
+
+**Note on custom types:** Any type not in the built-in list is stored as-is with its original `type` and `props` structure.
 
 **Tool Call Storage:**
 
@@ -823,13 +826,12 @@ A typical conversation with various message types stored in `agent_message`:
 ```
 User: "What's the weather in SF? Also show me a chart."
 
-Timeline:
-1. User sends multimodal input
-2. Hook shows loading state
+Timeline (user input → hook_create → llm → tool → hook_next):
+1. User sends input
+2. Create hook shows loading state
 3. LLM thinks and calls tool
-4. Tool returns result
-5. LLM generates text response
-6. Hook sends image chart
+4. Tool executes and returns result
+5. Next hook generates text response and image chart
 ```
 
 **Stored Messages:**
@@ -897,7 +899,7 @@ Timeline:
     "sequence": 4
   },
 
-  // 5. Tool result (role=assistant, type=text, with tool metadata)
+  // 5. Tool result from Next hook (role=assistant, type=text, with tool metadata)
   {
     "message_id": "msg_005",
     "chat_id": "chat_123",
@@ -905,36 +907,20 @@ Timeline:
     "role": "assistant",
     "type": "text",
     "props": {
-      "content": "Weather data retrieved: 18°C, sunny, humidity 65%"
+      "content": "The weather in San Francisco is currently **18°C** and sunny with 65% humidity. Perfect weather for outdoor activities!"
     },
-    "block_id": "B2",
+    "block_id": "B3",
     "metadata": {
       "tool_call_id": "call_weather_001",
-      "tool_name": "get_weather",
-      "is_tool_result": true
+      "tool_name": "get_weather"
     },
     "assistant_id": "weather_assistant",
     "sequence": 5
   },
 
-  // 6. LLM text response (role=assistant, type=text)
+  // 6. Chart image from Next hook (role=assistant, type=image)
   {
     "message_id": "msg_006",
-    "chat_id": "chat_123",
-    "request_id": "req_abc",
-    "role": "assistant",
-    "type": "text",
-    "props": {
-      "content": "The weather in San Francisco is currently **18°C** and sunny with 65% humidity. Perfect weather for outdoor activities!"
-    },
-    "block_id": "B2",
-    "assistant_id": "weather_assistant",
-    "sequence": 6
-  },
-
-  // 7. Chart image from Next hook (role=assistant, type=image)
-  {
-    "message_id": "msg_007",
     "chat_id": "chat_123",
     "request_id": "req_abc",
     "role": "assistant",
@@ -947,7 +933,7 @@ Timeline:
     },
     "block_id": "B3",
     "assistant_id": "weather_assistant",
-    "sequence": 7
+    "sequence": 6
   }
 ]
 ```
@@ -1205,6 +1191,99 @@ return {
 // 1. Restore space_snapshot → ctx.space now has "choose_prompt": "query"
 // 2. The delegated agent's Create hook can read: ctx.space.GetDel("choose_prompt")
 ```
+
+## Concurrent Operations Storage
+
+When an Agent makes parallel calls (e.g., multiple MCP tools, multiple sub-agents), messages use `block_id` and `thread_id` for grouping:
+
+```
+Main Agent concurrently calls 3 tasks:
+├── Thread T1: Weather query (MCP)
+├── Thread T2: News search (MCP)
+├── Thread T3: Stock query (MCP)
+└── Wait for all to complete, then summarize
+```
+
+**Stored Messages:**
+
+```json
+[
+  // All concurrent messages share the same block_id, different thread_id
+  // Messages may arrive in any order due to concurrency
+
+  // Thread T1: Weather result
+  {
+    "message_id": "msg_t1_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "Weather in SF: 18°C, sunny" },
+    "block_id": "B1",
+    "thread_id": "T1",
+    "assistant_id": "main_assistant",
+    "sequence": 2
+  },
+
+  // Thread T2: News result
+  {
+    "message_id": "msg_t2_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "Top news: AI breakthrough announced..." },
+    "block_id": "B1",
+    "thread_id": "T2",
+    "assistant_id": "main_assistant",
+    "sequence": 3
+  },
+
+  // Thread T3: Stock result
+  {
+    "message_id": "msg_t3_001",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": { "content": "AAPL: $185.50 (+1.2%)" },
+    "block_id": "B1",
+    "thread_id": "T3",
+    "assistant_id": "main_assistant",
+    "sequence": 4
+  },
+
+  // After all threads complete, main agent summarizes (new block)
+  {
+    "message_id": "msg_summary",
+    "chat_id": "chat_123",
+    "request_id": "req_abc",
+    "role": "assistant",
+    "type": "text",
+    "props": {
+      "content": "Here's your daily briefing: The weather is great at 18°C..."
+    },
+    "block_id": "B2",
+    "thread_id": null,
+    "assistant_id": "main_assistant",
+    "sequence": 5
+  }
+]
+```
+
+**Key Points:**
+
+| Field       | Concurrent Usage                                   |
+| ----------- | -------------------------------------------------- |
+| `block_id`  | Same for all parallel operations (B1)              |
+| `thread_id` | Different for each concurrent task (T1, T2, T3)    |
+| `sequence`  | Reflects actual arrival order (may be interleaved) |
+
+**Frontend Rendering:**
+
+- Group messages by `block_id` for visual blocks
+- Within a block, optionally group by `thread_id` to show parallel results
+- Use `sequence` for chronological display
 
 ## Related Documents
 
