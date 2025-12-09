@@ -1489,6 +1489,223 @@ Main Agent concurrently calls 3 tasks:
 - Within a block, optionally group by `thread_id` to show parallel results
 - Use `sequence` for chronological display
 
+## HTTP API
+
+The chat storage provides RESTful HTTP APIs for managing chat sessions and messages.
+
+**Base Path:** `/v1/chat`
+
+### Chat Sessions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/sessions` | List chat sessions with pagination and filtering |
+| `GET` | `/sessions/:chat_id` | Get a single chat session |
+| `PUT` | `/sessions/:chat_id` | Update chat session (title, status, metadata) |
+| `DELETE` | `/sessions/:chat_id` | Delete chat session |
+| `GET` | `/sessions/:chat_id/messages` | Get messages for a chat session |
+
+### List Chat Sessions
+
+**Request:**
+
+```
+GET /v1/chat/sessions?page=1&pagesize=20&assistant_id=xxx&status=active&keywords=search&group_by=time
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | int | 1 | Page number |
+| `pagesize` | int | 20 | Items per page (max 100) |
+| `assistant_id` | string | - | Filter by assistant ID |
+| `status` | string | - | Filter by status: `active`, `archived` |
+| `keywords` | string | - | Search in title |
+| `start_time` | RFC3339 | - | Filter chats after this time |
+| `end_time` | RFC3339 | - | Filter chats before this time |
+| `time_field` | string | `last_message_at` | Field for time filter: `created_at` or `last_message_at` |
+| `order_by` | string | `last_message_at` | Sort field |
+| `order` | string | `desc` | Sort order: `asc` or `desc` |
+| `group_by` | string | - | Set to `time` for time-based grouping |
+
+**Response:**
+
+```json
+{
+  "data": [
+    {
+      "chat_id": "chat_123",
+      "title": "Weather Query",
+      "assistant_id": "weather_assistant",
+      "status": "active",
+      "last_message_at": "2024-01-15T10:30:00Z",
+      "created_at": "2024-01-15T10:00:00Z"
+    }
+  ],
+  "groups": [
+    {
+      "key": "today",
+      "label": "Today",
+      "chats": [...],
+      "count": 3
+    },
+    {
+      "key": "yesterday",
+      "label": "Yesterday",
+      "chats": [...],
+      "count": 5
+    }
+  ],
+  "page": 1,
+  "pagesize": 20,
+  "pagecount": 5,
+  "total": 100
+}
+```
+
+### Get Chat Session
+
+**Request:**
+
+```
+GET /v1/chat/sessions/chat_123
+```
+
+**Response:**
+
+```json
+{
+  "chat_id": "chat_123",
+  "title": "Weather Query",
+  "assistant_id": "weather_assistant",
+  "mode": "chat",
+  "status": "active",
+  "public": false,
+  "share": "private",
+  "last_message_at": "2024-01-15T10:30:00Z",
+  "metadata": {},
+  "created_at": "2024-01-15T10:00:00Z",
+  "updated_at": "2024-01-15T10:30:00Z"
+}
+```
+
+### Update Chat Session
+
+**Request:**
+
+```
+PUT /v1/chat/sessions/chat_123
+Content-Type: application/json
+
+{
+  "title": "New Title",
+  "status": "archived",
+  "metadata": {"custom_field": "value"}
+}
+```
+
+**Response:**
+
+```json
+{
+  "message": "Chat updated successfully",
+  "chat_id": "chat_123"
+}
+```
+
+### Delete Chat Session
+
+**Request:**
+
+```
+DELETE /v1/chat/sessions/chat_123
+```
+
+**Response:**
+
+```json
+{
+  "message": "Chat deleted successfully",
+  "chat_id": "chat_123"
+}
+```
+
+### Get Chat Messages
+
+**Request:**
+
+```
+GET /v1/chat/sessions/chat_123/messages?limit=100&offset=0&role=assistant&type=text
+```
+
+**Query Parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `request_id` | string | - | Filter by request ID |
+| `role` | string | - | Filter by role: `user`, `assistant` |
+| `block_id` | string | - | Filter by block ID |
+| `thread_id` | string | - | Filter by thread ID |
+| `type` | string | - | Filter by message type |
+| `limit` | int | 100 | Max messages to return (max 1000) |
+| `offset` | int | 0 | Offset for pagination |
+
+**Response:**
+
+```json
+{
+  "chat_id": "chat_123",
+  "messages": [
+    {
+      "message_id": "msg_001",
+      "chat_id": "chat_123",
+      "request_id": "req_abc",
+      "role": "user",
+      "type": "user_input",
+      "props": {
+        "content": "What's the weather?",
+        "role": "user"
+      },
+      "sequence": 1,
+      "created_at": "2024-01-15T10:00:00Z"
+    },
+    {
+      "message_id": "msg_002",
+      "chat_id": "chat_123",
+      "request_id": "req_abc",
+      "role": "assistant",
+      "type": "text",
+      "props": {
+        "content": "The weather in San Francisco is 18°C and sunny."
+      },
+      "block_id": "B1",
+      "assistant_id": "weather_assistant",
+      "sequence": 2,
+      "created_at": "2024-01-15T10:00:05Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+### Permission Filtering
+
+All endpoints respect Yao's permission system:
+
+| Constraint | Behavior |
+|------------|----------|
+| `OwnerOnly` | User can only access their own chats (`__yao_created_by` matches) |
+| `TeamOnly` | User can access own chats OR team-shared chats (`share = "team"`) |
+| No constraints | Full access (for admin users) |
+
+**Permission Fields Used:**
+
+- `__yao_created_by`: User who created the chat
+- `__yao_team_id`: Team ID for team-level access
+- `public`: Whether chat is public to all
+- `share`: Sharing scope (`private` or `team`)
+
 ## Related Documents
 
 - [OpenAPI Request Design](../../openapi/request/REQUEST_DESIGN.md) - Global request tracking, billing, rate limiting

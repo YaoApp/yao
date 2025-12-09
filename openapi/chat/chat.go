@@ -12,6 +12,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Protect all endpoints with OAuth
 	group.Use(oauth.Guard)
 
+	// ==========================================================================
+	// Chat Completions (Streaming API)
+	// ==========================================================================
+
 	// List Chat Completions
 	group.GET("/completions", placeholder)
 
@@ -24,7 +28,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Get Chat Completion Details
 	group.GET("/completions/:completion_id", placeholder)
 
-	// Get Chat Messages
+	// Get Chat Messages (by completion)
 	group.GET("/completions/:completion_id/messages", placeholder)
 
 	// Delete Chat Completion
@@ -32,6 +36,28 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Append messages to running completion
 	group.POST("/completions/:context_id/append", GinAppendMessages)
+
+	// ==========================================================================
+	// Chat Sessions (History Management)
+	// ==========================================================================
+
+	// List chat sessions with pagination and filtering
+	// Query params: page, pagesize, assistant_id, status, keywords,
+	//               start_time, end_time, time_field, order_by, order, group_by
+	group.GET("/sessions", ListChats)
+
+	// Get a single chat session by ID
+	group.GET("/sessions/:chat_id", GetChat)
+
+	// Update chat session (title, status, metadata)
+	group.PUT("/sessions/:chat_id", UpdateChat)
+
+	// Delete chat session
+	group.DELETE("/sessions/:chat_id", DeleteChat)
+
+	// Get messages for a chat session
+	// Query params: request_id, role, block_id, thread_id, type, limit, offset
+	group.GET("/sessions/:chat_id/messages", GetMessages)
 
 }
 
