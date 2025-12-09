@@ -915,16 +915,19 @@ function Create(ctx, messages) {
 
 #### `ctx.Release()`
 
-Manually releases Context resources. This is optional as cleanup happens automatically via garbage collection.
+Manually releases Context resources.
 
-**Example:**
+> **Note:** In Hook functions (`Create`, `Next`), you do **NOT** need to call `Release()` - the system handles cleanup automatically. Only call `Release()` when you create a new Context manually (e.g., via `new Context()`).
+
+**Example (only for manually created Context):**
 
 ```javascript
+// Only needed when creating Context manually, NOT in hooks
+const ctx = new Context(options);
 try {
-  // Use context
   ctx.Send("Processing...");
 } finally {
-  ctx.Release(); // Manual cleanup
+  ctx.Release(); // Required for manually created Context
 }
 ```
 
@@ -1196,6 +1199,12 @@ Marks the entire trace as complete.
 ```javascript
 ctx.trace.MarkComplete();
 ```
+
+#### `ctx.trace.Release()`
+
+Releases trace resources.
+
+> **Note:** In Hook functions, you do **NOT** need to call `Release()` - the system handles cleanup automatically. Only call this when you create a Trace manually (e.g., via `new Trace()`).
 
 ### Trace Space Operations
 
@@ -1554,22 +1563,78 @@ console.log(sample.name, sample.input); // Sample name and input data
 
 ## Hooks
 
-The Agent system supports two hooks that can be defined in the assistant's `index.ts` file:
+The Agent system supports two hooks that can be defined in the assistant's `index.ts` file: `Create` and `Next`.
+
+### Agent Execution Lifecycle
+
+```mermaid
+flowchart TD
+    A[User Input] --> B[Load History]
+    B --> C{Create Hook?}
+    C -->|Yes| D[Execute Create Hook]
+    C -->|No| E{Has Prompts/MCP?}
+    D --> E
+    E -->|Yes| F[Build LLM Request]
+    E -->|No| K
+    F --> G[LLM Stream Call]
+    G --> H{Tool Calls?}
+    H -->|Yes| I[Execute Tools]
+    I --> J{Tool Errors?}
+    J -->|Yes, Retry| G
+    J -->|No| K
+    H -->|No| K
+    K{Next Hook?}
+    K -->|Yes| L[Execute Next Hook]
+    K -->|No| M[Return Response]
+    L --> N{Delegate?}
+    N -->|Yes| O[Call Target Agent]
+    O --> M
+    N -->|No| M
+    M --> P[End]
+
+    style D fill:#e1f5fe
+    style L fill:#e1f5fe
+    style G fill:#fff3e0
+    style I fill:#f3e5f5
+```
+
+> **Note:** LLM call is optional. If the assistant has no prompts and no MCP servers configured, the LLM call is skipped. Hooks can be used independently to implement custom logic without LLM involvement.
 
 ### Create Hook
 
-Called before the LLM call. Use this to preprocess messages, add context, or configure the LLM request.
+Called at the beginning of agent execution, before any LLM call. Use this to preprocess messages, add context, configure the request, or implement custom logic.
 
 **Signature:**
 
 ```typescript
-function Create(ctx: Context, messages: Message[]): HookCreateResponse | null;
+function Create(
+  ctx: Context,
+  messages: Message[],
+  options?: Record<string, any>
+): HookCreateResponse | null;
 ```
 
 **Parameters:**
 
 - `ctx`: Context object
 - `messages`: Array of input messages (including chat history if enabled)
+- `options`: Optional call-level options (see below)
+
+**Options Structure:**
+
+```typescript
+interface Options {
+  skip?: {
+    history?: boolean; // Skip loading/saving chat history
+    trace?: boolean; // Skip trace recording
+    output?: boolean; // Skip output to client (for internal A2A calls that only need response data)
+  };
+  connector?: string; // Override LLM connector ID
+  disable_global_prompts?: boolean; // Disable global prompts for this request
+  search?: boolean; // Enable/disable search mode
+  mode?: string; // Agent mode (default: "chat")
+}
+```
 
 **Return Value (`HookCreateResponse`):**
 
@@ -1590,12 +1655,40 @@ interface HookCreateResponse {
   mcp_servers?: MCPServerConfig[];
 
   // Prompt configuration
-  prompts?: string; // Prompt preset key to use
-  disable_global_prompts?: boolean; // Disable global prompts
+  prompt_preset?: string; // Select prompt preset (e.g., "chat.friendly", "task.analysis")
+  disable_global_prompts?: boolean; // Temporarily disable global prompts for this request
 
-  // Tool configuration
-  tools?: ToolConfig[]; // Override tools for this request
-  disable_tools?: boolean; // Disable all tools
+  // Context adjustments - allow hook to modify context fields
+  connector?: string; // Override connector (call-level)
+  locale?: string; // Override locale (session-level)
+  theme?: string; // Override theme (session-level)
+  route?: string; // Override route (session-level)
+  metadata?: Record<string, any>; // Override or merge metadata (session-level)
+
+  // Uses configuration - allow hook to override wrapper configurations
+  uses?: UsesConfig; // Override wrapper configurations for vision, audio, search, and fetch
+  force_uses?: boolean; // Force using Uses tools regardless of model capabilities
+}
+
+// Audio output configuration
+interface AudioConfig {
+  voice: string; // Voice to use (e.g., "alloy", "echo", "fable", "onyx", "nova", "shimmer")
+  format: string; // Audio format (e.g., "wav", "mp3", "flac", "opus", "pcm16")
+}
+
+// MCP server configuration
+interface MCPServerConfig {
+  server_id: string; // MCP server ID (required)
+  tools?: string[]; // Tool name filter (empty = all tools)
+  resources?: string[]; // Resource URI filter (empty = all resources)
+}
+
+// Uses wrapper configuration
+interface UsesConfig {
+  vision?: string; // Vision processing tool. Format: "agent" or "mcp:server_id"
+  audio?: string; // Audio processing tool. Format: "agent" or "mcp:server_id"
+  search?: string; // Search tool. Format: "agent" or "mcp:server_id"
+  fetch?: string; // Fetch/retrieval tool. Format: "agent" or "mcp:server_id"
 }
 ```
 
@@ -1623,18 +1716,23 @@ function Create(ctx, messages) {
 
 ### Next Hook
 
-Called after the LLM response (and tool calls if any). Use this to post-process the response, send custom messages, or delegate to another agent.
+Called after the LLM response and tool calls (if any), or directly after Create Hook if no LLM call is configured. Use this to post-process the response, send custom messages, delegate to another agent, or implement custom response logic.
 
 **Signature:**
 
 ```typescript
-function Next(ctx: Context, payload: NextHookPayload): NextHookResponse | null;
+function Next(
+  ctx: Context,
+  payload: NextHookPayload,
+  options?: Record<string, any>
+): NextHookResponse | null;
 ```
 
 **Parameters:**
 
 - `ctx`: Context object
 - `payload`: Object containing:
+- `options`: Optional call-level options (same structure as Create Hook options)
 
 ```typescript
 interface NextHookPayload {
@@ -1665,174 +1763,277 @@ interface ToolCallResponse {
 ```typescript
 interface NextHookResponse {
   // Delegate to another agent (recursive call)
+  // If provided, the current agent will call the target agent
   delegate?: {
-    agent_id: string; // Target agent ID
-    messages: Message[]; // Messages to send
+    agent_id: string; // Required: target agent ID
+    messages: Message[]; // Messages to send to target agent
+    options?: Record<string, any>; // Optional: call-level options for delegation
   };
 
-  // Custom response data (returned to user)
+  // Custom response data
+  // Will be placed in Response.next field and returned to user
+  // If both delegate and data are null/undefined, standard Response is returned
   data?: any;
 
-  // Metadata for debugging
+  // Metadata for debugging and logging
   metadata?: Record<string, any>;
 }
 ```
 
+**Agent Response Structure:**
+
+The agent's `Stream()` method returns a `Response` object:
+
+```typescript
+interface Response {
+  request_id: string; // Request ID
+  context_id: string; // Context ID
+  trace_id: string; // Trace ID
+  chat_id: string; // Chat ID
+  assistant_id: string; // Assistant ID
+  create?: HookCreateResponse; // Create hook response
+  next?: any; // See below for what this contains
+  completion?: CompletionResponse; // LLM completion response
+}
+```
+
+**Response.next field logic:**
+
+- If `NextHookResponse.data` is provided → `Response.next` = custom data
+- If `NextHookResponse.data` is null/undefined → `Response.next` = entire `NextHookResponse` object
+- If no Next hook defined → `Response.next` = null
+
 **Example:**
 
 ```javascript
+/**
+ * Next Hook - Process LLM response
+ * @param {Context} ctx - Agent context
+ * @param {NextHookPayload} payload - Contains messages, completion, tools, error
+ * @returns {NextHookResponse | null} - Return null for standard response
+ */
 function Next(ctx, payload) {
   const { messages, completion, tools, error } = payload;
 
+  // Handle errors gracefully
   if (error) {
-    ctx.Send({
-      type: "error",
-      props: { message: error },
-    });
-    return null;
+    return {
+      data: {
+        status: "error",
+        message: error,
+        recovery: "Please try again",
+      },
+      metadata: { error_handled: true },
+    };
   }
 
-  // Process tool results
+  // Process tool results if any
   if (tools && tools.length > 0) {
-    const results = tools.map((t) => t.result);
-    ctx.Send(`Tool results: ${JSON.stringify(results)}`);
+    const successful = tools.filter((t) => !t.error);
+    const failed = tools.filter((t) => t.error);
+
+    return {
+      data: {
+        status: "tools_processed",
+        total: tools.length,
+        successful: successful.length,
+        failed: failed.length,
+        results: successful.map((t) => t.result),
+      },
+      metadata: { has_failures: failed.length > 0 },
+    };
   }
 
-  // Return custom data
-  return {
-    data: {
-      response: completion?.content,
-      processed: true,
-    },
-    metadata: {
-      tool_count: tools?.length || 0,
-    },
-  };
+  // Return custom data based on completion
+  if (completion && completion.content) {
+    return {
+      data: {
+        status: "success",
+        response: completion.content,
+        processed: true,
+      },
+      metadata: { source: "next_hook" },
+    };
+  }
+
+  // Return null to use standard response
+  return null;
 }
 ```
 
 ### Hook Execution Flow
 
-```
-User Input
-    ↓
-[Create Hook] → Preprocess messages, configure LLM
-    ↓
-[LLM Call] → Get completion from language model
-    ↓
-[Tool Calls] → Execute any tool calls (if requested by LLM)
-    ↓
-[Next Hook] → Post-process response, send messages
-    ↓
-Response to User
-```
+See the [Agent Execution Lifecycle](#agent-execution-lifecycle) diagram above for a visual representation.
 
-**Notes:**
+**Key Points:**
 
-- Hooks are optional - if not defined, the agent uses default behavior
-- Return `null` or `undefined` from hooks to use default behavior
-- Hooks can send messages directly via `ctx.Send()`, `ctx.SendStream()`, etc.
+- **Hooks are optional** - if not defined, the agent uses default behavior
+- **LLM call is optional** - only executed if the assistant has prompts or MCP servers configured
+- **Return `null` or `undefined`** from hooks to use default behavior
+- **Hooks can send messages directly** via `ctx.Send()`, `ctx.SendStream()`, etc.
+- **Create Hook** runs before LLM call (if any), can modify messages and configure the request
+- **Next Hook** runs after LLM call and tool execution (if any), can post-process or delegate
 - Use `ctx.space` to pass data between Create and Next hooks
 
 ## Complete Example
 
-Here's a comprehensive example using various Context API features:
+Here's a comprehensive example demonstrating Create and Next hooks with various Context API features:
 
 ```javascript
 /**
- * Create Hook - Initialize and prepare for LLM call
- * @param {Context} ctx - Agent context
- * @param {Array} messages - Input messages
+ * Create Hook - Preprocess messages and configure the request
+ *
+ * @param {Context} ctx - Agent context object
+ * @param {Message[]} messages - Input messages (including history if enabled)
+ * @returns {HookCreateResponse | null} - Configuration for LLM call, or null for defaults
  */
 function Create(ctx, messages) {
-  // Store original query in space for later use
-  ctx.space.Set("original_query", messages[0]?.content || "");
+  // Extract user query from the last message
+  const user_query = messages[messages.length - 1]?.content || "";
 
-  // Add trace node
-  ctx.trace.Add(
-    { messages },
+  // Store data in space for use in Next hook
+  ctx.space.Set("original_query", user_query);
+  ctx.space.Set("request_time", Date.now());
+
+  // Add trace node to show processing in UI
+  const create_node = ctx.trace.Add(
+    { query: user_query },
     {
       label: "Create Hook",
-      type: "hook",
+      type: "preprocessing",
       icon: "play",
-      description: "Preparing messages for LLM",
+      description: "Analyzing user request",
     }
   );
 
-  return { messages };
+  // Check if user needs search functionality
+  const needs_search =
+    user_query.toLowerCase().includes("search") ||
+    user_query.toLowerCase().includes("find");
+
+  if (needs_search) {
+    create_node.Info("Search mode enabled");
+
+    // Configure MCP servers for search
+    return {
+      messages: messages,
+      mcp_servers: [{ server_id: "search_engine" }],
+      prompt_preset: "search.assistant",
+      metadata: { mode: "search" },
+    };
+  }
+
+  create_node.Complete({ mode: "standard" });
+
+  // Return modified messages or configuration
+  return {
+    messages: messages,
+    temperature: 0.7,
+    max_tokens: 2000,
+  };
 }
 
 /**
- * Next Hook - Process LLM response and enhance with tools
- * @param {Context} ctx - Agent context
- * @param {Object} payload - Hook payload
- * @param {Array} payload.messages - Messages sent to the assistant
- * @param {Object} payload.completion - Completion response from LLM
- * @param {Array} payload.tools - Tool call results
- * @param {string} payload.error - Error message if failed
+ * Next Hook - Process LLM response and optionally customize output
+ *
+ * @param {Context} ctx - Agent context object
+ * @param {NextHookPayload} payload - Contains messages, completion, tools, error
+ * @returns {NextHookResponse | null} - Custom response, delegation, or null for standard
  */
 function Next(ctx, payload) {
-  try {
-    const { messages, completion, tools, error } = payload;
+  const { messages, completion, tools, error } = payload;
 
-    // Retrieve data from Create hook
-    const original_query = ctx.space.Get("original_query");
+  // Retrieve data from Create hook via space
+  const original_query = ctx.space.Get("original_query");
+  const request_time = ctx.space.Get("request_time");
+  const duration = Date.now() - request_time;
 
-    // Create trace node for custom processing
-    const process_node = ctx.trace.Add(
-      { completion, tools },
-      {
-        label: "Custom Processing",
-        type: "custom",
-        icon: "settings",
-        description: "Enhancing response with external data",
-      }
-    );
+  // Create trace node for Next hook processing
+  const next_node = ctx.trace.Add(
+    { completion_length: completion?.content?.length || 0 },
+    {
+      label: "Next Hook",
+      type: "postprocessing",
+      icon: "check",
+      description: "Processing LLM response",
+    }
+  );
 
-    ctx.trace.Info("Starting custom processing", {
-      original_query: original_query,
-      tool_count: tools?.length || 0,
+  // Handle errors
+  if (error) {
+    next_node.Fail(error);
+    return {
+      data: {
+        status: "error",
+        message: "An error occurred while processing your request",
+        error: error,
+      },
+    };
+  }
+
+  // Process tool call results
+  if (tools && tools.length > 0) {
+    next_node.Info(`Processing ${tools.length} tool results`);
+
+    const successful = tools.filter((t) => !t.error);
+    const results = successful.map((t) => ({
+      tool: t.tool,
+      server: t.server,
+      result: t.result,
+    }));
+
+    // Send streaming message with results
+    const msg_id = ctx.SendStream("## Tool Results\n\n");
+    results.forEach((r, i) => {
+      ctx.Append(msg_id, `**${i + 1}. ${r.tool}**\n`);
+      ctx.Append(msg_id, `${JSON.stringify(r.result, null, 2)}\n\n`);
     });
+    ctx.End(msg_id);
 
-    // Start streaming output
-    const msg_id = ctx.SendStream("# Search Results\n\n");
-
-    // Call MCP tool for additional data
-    const search_results = ctx.mcp.CallTool("search_engine", "search", {
-      query: "latest AI news",
-      limit: 5,
-    });
-
-    // Stream results as they come
-    ctx.Append(msg_id, `Found ${search_results.length} articles:\n\n`);
-
-    search_results.forEach((result, i) => {
-      ctx.Append(msg_id, `${i + 1}. **${result.title}**\n`);
-      ctx.Append(msg_id, `   ${result.summary}\n\n`);
-    });
-
-    // Finalize the streaming message
-    ctx.End(msg_id, "---\n*Search complete*");
-
-    // Update trace
-    process_node.SetMetadata("search_results_count", search_results.length);
-    process_node.Complete({ status: "success" });
+    next_node.SetMetadata("tools_processed", tools.length);
+    next_node.Complete({ status: "tools_processed" });
 
     return {
-      data: { sources: search_results },
-      metadata: { processed: true },
+      data: {
+        status: "success",
+        tool_results: results,
+        duration_ms: duration,
+      },
+      metadata: { processed_by: "next_hook" },
     };
-  } catch (error) {
-    ctx.trace.Error("Processing failed", { error: error.message });
-    throw error;
   }
+
+  // Check if delegation is needed based on completion content
+  if (completion?.content?.toLowerCase().includes("delegate to specialist")) {
+    next_node.Info("Delegating to specialist agent");
+
+    return {
+      delegate: {
+        agent_id: "specialist.agent",
+        messages: [
+          { role: "system", content: "Handle this specialized request" },
+          { role: "user", content: original_query },
+        ],
+        options: { priority: "high" },
+      },
+      metadata: { reason: "specialist_needed" },
+    };
+  }
+
+  // Standard processing - add metadata and return
+  next_node.SetMetadata("duration_ms", duration);
+  next_node.Complete({ status: "success" });
+
+  // Return null to use standard LLM response
+  // Or return custom data to override
+  return null;
 }
 ```
 
 ## Best Practices
 
 1. **Error Handling**: Always wrap Context operations in try-catch blocks
-2. **Resource Cleanup**: Use try-finally pattern for manual cleanup if needed
+2. **Resource Cleanup**: Only call `ctx.Release()` for manually created Context, not in hooks
 3. **Trace Organization**: Create meaningful trace nodes with descriptive labels
 4. **Logging Levels**: Use appropriate log levels (Debug for development, Info for progress, Error for failures)
 5. **Message IDs**: Let the system auto-generate message IDs unless you need specific tracking
@@ -1859,7 +2060,7 @@ try {
 For TypeScript projects, the Context types are automatically inferred. You can also import explicit types:
 
 ```typescript
-import { Context, Message, TraceNodeOption } from "@yaoapps/types";
+import { Context, Message, TraceNodeOption } from "@yao/runtime";
 
 interface NextPayload {
   messages: Message[];
@@ -1868,7 +2069,11 @@ interface NextPayload {
   error?: string;
 }
 
-function Next(ctx: Context, payload: NextPayload): any {
+function Next(
+  ctx: Context,
+  payload: NextHookPayload,
+  options?: Record<string, any>
+): NextHookResponse | null {
   // Your code with full type checking
   const { messages, completion, tools, error } = payload;
   // ...
