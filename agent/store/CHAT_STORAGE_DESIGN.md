@@ -503,20 +503,16 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 
 ## Write Strategy
 
-### Two-Write Strategy
+### Single-Write Strategy
 
-All data is buffered in memory during execution and written to database only **twice**:
-
-1. **Write 1 (Entry)**: When `Stream()` starts - save user input message
-2. **Write 2 (Exit)**: When `Stream()` exits - batch save messages (and steps only on error/interrupt)
+All data is buffered in memory during execution and written to database **only once** when `Stream()` exits:
 
 **Note**: Request tracking (status, tokens, duration) is handled by [OpenAPI Request Middleware](../../openapi/request/REQUEST_DESIGN.md).
 
 ```
 Stream() Entry
     │
-    ├── 【Write 1】Save user input
-    │   - User message (role=user)
+    ├── Buffer user input message (role=user)
     │
     ├── Execution (all in memory)
     │   - ctx.Send()    → messageBuffer
@@ -524,10 +520,10 @@ Stream() Entry
     │   - ctx.Replace() → update messageBuffer
     │   - Each step     → stepBuffer
     │
-    └── 【Write 2】Save final state (via defer)
+    └── 【Single Write】Save final state (via defer)
         │
         ├── Always:
-        │   - Batch write all assistant messages
+        │   - Batch write all messages (user input + assistant responses)
         │   - Update token usage in openapi_request (via request_id)
         │
         └── Only on error/interrupt:
@@ -536,59 +532,59 @@ Stream() Entry
 
 ### Write Points
 
-| Event            | Message Table        | Step Table                          | Token Usage |
-| ---------------- | -------------------- | ----------------------------------- | ----------- |
-| Stream entry     | Write 1 (user input) | -                                   | -           |
-| During execution | Buffer in memory     | Buffer in memory                    | -           |
-| **Completed**    | **Batch write all**  | **❌ Skip (no need to resume)**     | ✅ Update   |
-| On interrupt     | Batch write buffered | ✅ Batch write (status=interrupted) | ✅ Update   |
-| On error         | Batch write buffered | ✅ Batch write (status=failed)      | ✅ Update   |
+| Event            | Message Table                          | Step Table                          | Token Usage |
+| ---------------- | -------------------------------------- | ----------------------------------- | ----------- |
+| Stream entry     | Buffer user input                      | -                                   | -           |
+| During execution | Buffer in memory                       | Buffer in memory                    | -           |
+| **Completed**    | **Batch write all (user + assistant)** | **❌ Skip (no need to resume)**     | ✅ Update   |
+| On interrupt     | Batch write all buffered               | ✅ Batch write (status=interrupted) | ✅ Update   |
+| On error         | Batch write all buffered               | ✅ Batch write (status=failed)      | ✅ Update   |
 
 **Why skip Steps on success?**
 
 - Steps are only needed for resume/retry operations
 - If completed successfully, there's nothing to resume
-- Reduces database writes and keeps Step table clean
+- Reduces database writes and keeps Resume table clean
 
-### Why Two Writes?
+### Why Single Write?
 
-| Scenario           | What Happens                        | Data Safe? |
-| ------------------ | ----------------------------------- | ---------- |
-| Normal completion  | `defer` triggers → Write 2 executes | ✅         |
-| User clicks stop   | `defer` triggers → Write 2 executes | ✅         |
-| LLM timeout        | `defer` triggers → Write 2 executes | ✅         |
-| Tool failure       | `defer` triggers → Write 2 executes | ✅         |
-| Network disconnect | `defer` triggers → Write 2 executes | ✅         |
-| Process crash      | Service is down, user must retry    | N/A        |
+| Scenario           | What Happens                      | Data Safe? |
+| ------------------ | --------------------------------- | ---------- |
+| Normal completion  | `defer` triggers → Write executes | ✅         |
+| User clicks stop   | `defer` triggers → Write executes | ✅         |
+| LLM timeout        | `defer` triggers → Write executes | ✅         |
+| Tool failure       | `defer` triggers → Write executes | ✅         |
+| Network disconnect | `defer` triggers → Write executes | ✅         |
+| Process crash      | Service is down, user must retry  | N/A        |
 
 **Note**: Process crash is a catastrophic failure handled at infrastructure level, not application level.
 
 ### Write Count Comparison
 
-For a typical request: user input → hook_create → llm → tool → llm → hook_next → 5 messages
+For a typical request: user input → hook_create → llm → tool → hook_next → 5 messages
 
-| Strategy               | Database Writes | Notes              |
-| ---------------------- | --------------- | ------------------ |
-| Write per operation    | 1 + 5 + 5 = 11  | One write per step |
-| **Two-write strategy** | **2**           | Entry + Exit only  |
+| Strategy                  | Database Writes | Notes                 |
+| ------------------------- | --------------- | --------------------- |
+| Write per operation       | 1 + 5 + 5 = 11  | One write per step    |
+| **Single-write strategy** | **1**           | Exit only (via defer) |
 
 ### Implementation
 
 ````go
 func (ast *Assistant) Stream(ctx, inputMessages, options) {
-    // ========== Write 1: Entry ==========
-    userMsg := createUserMessage(ctx, inputMessages)
-    chatStore.SaveMessages(ctx.ChatID, []*Message{userMsg})
-
     // ========== Memory Buffers ==========
     messageBuffer := NewMessageBuffer()
     stepBuffer := NewStepBuffer()
+
+    // Buffer user input message (not written yet)
+    userMsg := createUserMessage(ctx, inputMessages)
+    messageBuffer.Add(userMsg)
 
     // Track current step for error handling
     var currentStep *Step
 
     defer func() {
-        // ========== Write 2: Exit (always executes) ==========
+        // ========== Single Write: Exit (always executes) ==========
         // Determine final status for incomplete steps
         finalStatus := "completed"
         if ctx.IsInterrupted() {
@@ -603,9 +599,13 @@ func (ast *Assistant) Stream(ctx, inputMessages, options) {
             currentStep.Status = finalStatus
         }
 
-        // Batch write all buffered data
+        // Batch write all buffered messages (user input + assistant responses)
         chatStore.SaveMessages(ctx.ChatID, messageBuffer.GetAll())
-        chatStore.SaveSteps(stepBuffer.GetAll())
+
+        // Only save steps on error/interrupt (not on success)
+        if finalStatus != "completed" {
+            chatStore.SaveResume(stepBuffer.GetAll())
+        }
 
         // Update token usage in OpenAPI request record
         if ctx.RequestID != "" && completionResponse != nil {
