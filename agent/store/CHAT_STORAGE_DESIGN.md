@@ -177,6 +177,7 @@ All built-in types defined in `agent/output/BUILTIN_TYPES.md` are stored. See th
 | `thinking`   | Reasoning process (o1, DeepSeek) | `{"content": "Let me analyze..."}`                                                          | ✅ Yes      |
 | `loading`    | Loading/processing indicator     | `{"message": "Searching knowledge base..."}`                                                | ✅ Yes      |
 | `tool_call`  | LLM tool/function call           | `{"id": "call_abc123", "name": "get_weather", "arguments": "{\"location\":\"SF\"}"}`        | ✅ Yes      |
+| `retrieval`  | KB/Web search results            | `{"query": "...", "sources": [...], "total_results": 10}`                                   | ✅ Yes      |
 | `error`      | Error message                    | `{"message": "Connection timeout", "code": "TIMEOUT", "details": "..."}`                    | ✅ Yes      |
 | `image`      | Image content                    | `{"url": "...", "alt": "...", "width": 200, "height": 200, "detail": "auto"}`               | ✅ Yes      |
 | `audio`      | Audio content                    | `{"url": "...", "format": "mp3", "duration": 120.5, "transcript": "...", "controls": true}` | ✅ Yes      |
@@ -269,6 +270,157 @@ User input with multimodal content (text + images + files) is stored as `user_in
     "name": "John"
   },
   "sequence": 1
+}
+```
+
+### Knowledge Base & Web Search Results
+
+Retrieval results from knowledge bases and web searches need to be stored for:
+
+1. **User Feedback** - Users can rate (👍/👎) individual sources
+2. **Quality Analytics** - Track which documents/sources are most useful
+3. **Source Attribution** - Display citations in the UI
+4. **RAG Optimization** - Improve retrieval based on feedback
+
+**Storage Approach:** Store retrieval results as a special message type `retrieval` with structured props.
+
+**Retrieval Message Structure:**
+
+```json
+{
+  "message_id": "msg_retrieval_001",
+  "chat_id": "chat_123",
+  "request_id": "req_abc",
+  "role": "assistant",
+  "type": "retrieval",
+  "props": {
+    "query": "How to configure Yao models?",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "kb",
+        "collection_id": "col_docs",
+        "document_id": "doc_123",
+        "chunk_id": "chunk_456",
+        "title": "Model Configuration Guide",
+        "content": "To configure a model in Yao, create a .mod.yao file...",
+        "score": 0.92,
+        "metadata": {
+          "file_path": "/docs/model.md",
+          "page": 3
+        }
+      },
+      {
+        "id": "src_002",
+        "type": "kb",
+        "collection_id": "col_docs",
+        "document_id": "doc_124",
+        "chunk_id": "chunk_789",
+        "title": "Advanced Model Options",
+        "content": "Models support various options including soft_deletes...",
+        "score": 0.87,
+        "metadata": {
+          "file_path": "/docs/advanced.md",
+          "page": 12
+        }
+      },
+      {
+        "id": "src_003",
+        "type": "web",
+        "url": "https://yaoapps.com/docs/models",
+        "title": "Yao Models Documentation",
+        "content": "Official documentation for Yao model system...",
+        "score": 0.85,
+        "metadata": {
+          "domain": "yaoapps.com",
+          "fetched_at": "2024-01-15T10:30:00Z"
+        }
+      }
+    ],
+    "total_results": 15,
+    "query_time_ms": 120
+  },
+  "block_id": "B1",
+  "assistant_id": "docs_assistant",
+  "sequence": 2
+}
+```
+
+**Source Types:**
+
+| Type   | Description             | Key Fields                                 |
+| ------ | ----------------------- | ------------------------------------------ |
+| `kb`   | Knowledge base document | `collection_id`, `document_id`, `chunk_id` |
+| `web`  | Web search result       | `url`, `domain`                            |
+| `file` | Uploaded file           | `file_id`, `file_path`                     |
+| `api`  | External API result     | `api_name`, `endpoint`                     |
+| `mcp`  | MCP tool result         | `server`, `tool`                           |
+
+**Source Feedback:**
+
+User feedback on retrieval sources is handled by the Knowledge Base module. See [KB Feedback](../../kb/README.md) for details.
+
+**Example: KB Search in Create Hook:**
+
+```typescript
+// In Create hook, search knowledge base and store results
+const results = await ctx.kb.search("col_docs", query, { limit: 5 });
+
+// Send retrieval message (stored automatically)
+ctx.Send({
+  type: "retrieval",
+  props: {
+    query: query,
+    sources: results.documents.map((doc, idx) => ({
+      id: `src_${idx}`,
+      type: "kb",
+      collection_id: "col_docs",
+      document_id: doc.document.metadata.document_id,
+      chunk_id: doc.document.id,
+      title: doc.document.metadata.title || "Untitled",
+      content: doc.document.content,
+      score: doc.score,
+      metadata: doc.document.metadata,
+    })),
+    total_results: results.total,
+    query_time_ms: results.query_time_ms,
+  },
+});
+
+// Also send loading message for user feedback
+ctx.Send({
+  type: "loading",
+  props: { message: `Found ${results.total} relevant documents...` },
+});
+```
+
+**Example: Web Search Results:**
+
+```json
+{
+  "type": "retrieval",
+  "props": {
+    "query": "latest AI news 2024",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "web",
+        "url": "https://example.com/ai-news",
+        "title": "AI Breakthroughs in 2024",
+        "content": "Summary of the article...",
+        "score": 0.95,
+        "metadata": {
+          "domain": "example.com",
+          "published_at": "2024-01-10",
+          "fetched_at": "2024-01-15T10:30:00Z",
+          "snippet": "The year 2024 has seen remarkable..."
+        }
+      }
+    ],
+    "provider": "tavily",
+    "total_results": 10,
+    "query_time_ms": 850
+  }
 }
 ```
 

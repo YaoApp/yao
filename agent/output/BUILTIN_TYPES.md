@@ -8,17 +8,18 @@ Defined in `types.go`:
 
 ```go
 const (
-    TypeUserInput = "user_input" // User input message (frontend display only)
-    TypeText      = "text"       // Plain text or Markdown content
-    TypeThinking  = "thinking"   // Reasoning/thinking process
-    TypeLoading   = "loading"    // Loading/processing indicator
-    TypeToolCall  = "tool_call"  // LLM tool/function call
-    TypeError     = "error"      // Error message
-    TypeImage     = "image"      // Image content
-    TypeAudio     = "audio"      // Audio content
-    TypeVideo     = "video"      // Video content
-    TypeAction    = "action"     // System action (silent in standard clients)
-    TypeEvent     = "event"      // Lifecycle event (silent in standard clients)
+    TypeUserInput  = "user_input"  // User input message (frontend display only)
+    TypeText       = "text"        // Plain text or Markdown content
+    TypeThinking   = "thinking"    // Reasoning/thinking process
+    TypeLoading    = "loading"     // Loading/processing indicator
+    TypeToolCall   = "tool_call"   // LLM tool/function call
+    TypeRetrieval  = "retrieval"   // KB/Web search results (for feedback & analytics)
+    TypeError      = "error"       // Error message
+    TypeImage      = "image"       // Image content
+    TypeAudio      = "audio"       // Audio content
+    TypeVideo      = "video"       // Video content
+    TypeAction     = "action"      // System action (silent in standard clients)
+    TypeEvent      = "event"       // Lifecycle event (silent in standard clients)
 )
 ```
 
@@ -281,7 +282,137 @@ msg := output.NewToolCallMessage(
 
 ---
 
-### 6. Error (`error`)
+### 6. Retrieval (`retrieval`)
+
+**Purpose:** Knowledge base and web search results (for feedback, analytics, and source attribution)
+
+**Props Structure:**
+
+```go
+type RetrievalProps struct {
+    Query        string           `json:"query"`                   // Search query
+    Sources      []RetrievalSource `json:"sources"`                // Retrieved sources
+    TotalResults int              `json:"total_results,omitempty"` // Total matching results
+    QueryTimeMs  int64            `json:"query_time_ms,omitempty"` // Query execution time
+    Provider     string           `json:"provider,omitempty"`      // Search provider (e.g., "tavily", "bing")
+}
+
+type RetrievalSource struct {
+    ID           string                 `json:"id"`                      // Unique source ID within this retrieval
+    Type         string                 `json:"type"`                    // Source type: "kb", "web", "file", "api", "mcp"
+    Title        string                 `json:"title,omitempty"`         // Source title
+    Content      string                 `json:"content"`                 // Retrieved content/snippet
+    Score        float64                `json:"score,omitempty"`         // Relevance score
+    URL          string                 `json:"url,omitempty"`           // URL for web sources
+    CollectionID string                 `json:"collection_id,omitempty"` // KB collection ID
+    DocumentID   string                 `json:"document_id,omitempty"`   // KB document ID
+    ChunkID      string                 `json:"chunk_id,omitempty"`      // KB chunk ID
+    Metadata     map[string]interface{} `json:"metadata,omitempty"`      // Additional metadata
+}
+```
+
+**Example (Knowledge Base):**
+
+```json
+{
+  "type": "retrieval",
+  "props": {
+    "query": "How to configure Yao models?",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "kb",
+        "collection_id": "col_docs",
+        "document_id": "doc_123",
+        "chunk_id": "chunk_456",
+        "title": "Model Configuration Guide",
+        "content": "To configure a model in Yao, create a .mod.yao file...",
+        "score": 0.92,
+        "metadata": {
+          "file_path": "/docs/model.md",
+          "page": 3
+        }
+      }
+    ],
+    "total_results": 15,
+    "query_time_ms": 120
+  }
+}
+```
+
+**Example (Web Search):**
+
+```json
+{
+  "type": "retrieval",
+  "props": {
+    "query": "latest AI news 2024",
+    "sources": [
+      {
+        "id": "src_001",
+        "type": "web",
+        "url": "https://example.com/ai-news",
+        "title": "AI Breakthroughs in 2024",
+        "content": "Summary of the article...",
+        "score": 0.95,
+        "metadata": {
+          "domain": "example.com",
+          "published_at": "2024-01-10"
+        }
+      }
+    ],
+    "provider": "tavily",
+    "total_results": 10,
+    "query_time_ms": 850
+  }
+}
+```
+
+**Helper:**
+
+```go
+msg := output.NewRetrievalMessage(
+    "How to configure Yao models?",
+    []output.RetrievalSource{
+        {
+            ID:           "src_001",
+            Type:         "kb",
+            CollectionID: "col_docs",
+            DocumentID:   "doc_123",
+            ChunkID:      "chunk_456",
+            Title:        "Model Configuration Guide",
+            Content:      "To configure a model in Yao...",
+            Score:        0.92,
+        },
+    },
+)
+```
+
+**Source Types:**
+
+| Type   | Description             | Key Fields                                 |
+| ------ | ----------------------- | ------------------------------------------ |
+| `kb`   | Knowledge base document | `collection_id`, `document_id`, `chunk_id` |
+| `web`  | Web search result       | `url`                                      |
+| `file` | Uploaded file           | `file_id`, `file_path`                     |
+| `api`  | External API result     | `api_name`, `endpoint`                     |
+| `mcp`  | MCP tool result         | `server`, `tool`                           |
+
+**Use Cases:**
+
+- **Source Attribution**: Display citations in the chat UI
+- **User Feedback**: Allow users to rate individual sources (👍/👎)
+- **Analytics**: Track which documents/sources are most useful
+- **RAG Optimization**: Improve retrieval based on feedback data
+
+**Adapter Behavior:**
+
+- **CUI**: Renders as expandable source cards with feedback buttons
+- **OpenAI**: Converts to markdown citations or footnotes
+
+---
+
+### 7. Error (`error`)
 
 **Purpose:** Error message
 
@@ -316,7 +447,7 @@ msg := output.NewErrorMessage("Connection timeout", "TIMEOUT")
 
 ---
 
-### 7. Action (`action`)
+### 8. Action (`action`)
 
 **Purpose:** System-level action/command (not displayed to user, only processed by client)
 
@@ -387,7 +518,7 @@ output.Send(ctx, output.NewTextMessage("I've opened the user details panel for y
 
 ---
 
-### 8. Event (`event`)
+### 9. Event (`event`)
 
 **Purpose:** Lifecycle event messages (stream_start, stream_end, connecting, etc.)
 
@@ -479,7 +610,7 @@ output.Send(ctx, output.NewEventMessage("stream_end", "Stream completed", endDat
 
 ---
 
-### 9. Image (`image`)
+### 10. Image (`image`)
 
 **Purpose:** Image content
 
@@ -522,7 +653,7 @@ msg := output.NewImageMessage("https://example.com/avatar.jpg", "User avatar")
 
 ---
 
-### 10. Audio (`audio`)
+### 11. Audio (`audio`)
 
 **Purpose:** Audio content
 
@@ -567,7 +698,7 @@ msg := output.NewAudioMessage("https://example.com/audio.mp3", "mp3")
 
 ---
 
-### 11. Video (`video`)
+### 12. Video (`video`)
 
 **Purpose:** Video content
 
@@ -644,6 +775,7 @@ OpenAI adapter converts built-in types to OpenAI format:
 | `thinking`   | `delta.reasoning_content` | `props.content`               | Reasoning content (o1 models)                                        |
 | `loading`    | `delta.reasoning_content` | `props.message`               | Shows as thinking in OpenAI clients                                  |
 | `tool_call`  | `delta.tool_calls`        | `props.{id, name, arguments}` |                                                                      |
+| `retrieval`  | `delta.content`           | `props.sources`               | Markdown citations/footnotes with source links                       |
 | `error`      | `error`                   | `props.{message, code}`       |                                                                      |
 | `image`      | `delta.content`           | `props.{url, alt}`            | Markdown: `![alt](url)` - displays inline                            |
 | `audio`      | `delta.content`           | `props.url`                   | Markdown link (can't display inline)                                 |
