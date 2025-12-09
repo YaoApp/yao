@@ -57,6 +57,38 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	_, _, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
 
+	// ================================================
+	// Initialize Chat Buffer (for root stack only)
+	// Buffer is flushed in defer block at the end
+	// ================================================
+	ast.InitBuffer(ctx)
+
+	// Track final status for buffer flush
+	var finalStatus = context.StepStatusCompleted
+	var finalError error
+
+	// Defer buffer flush - always executes on exit (success, error, interrupt, panic)
+	defer func() {
+		// Handle panic recovery for status tracking
+		if r := recover(); r != nil {
+			finalStatus = context.ResumeStatusFailed
+			if e, ok := r.(error); ok {
+				finalError = e
+			} else {
+				finalError = fmt.Errorf("panic: %v", r)
+			}
+			log.Error("[AGENT] Panic recovered in Stream: %v", r)
+			// Re-panic after flush to preserve original behavior
+			defer panic(r)
+		}
+
+		// Flush buffer to database
+		ast.FlushBuffer(ctx, finalStatus, finalError)
+	}()
+
+	// Buffer user input messages
+	ast.BufferUserInput(ctx, inputMessages)
+
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, opts)
 
@@ -64,6 +96,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// so that output adapters can use them when converting stream_start event
 	err = ast.initializeCapabilities(ctx, opts)
 	if err != nil {
+		finalStatus = context.ResumeStatusFailed
+		finalError = err
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
@@ -75,6 +109,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Initialize chat, prepare kb collection (optional) etc.
 	// Use async version to not block the main flow
 	ast.InitializeConversationAsync(ctx, opts)
+
+	// Ensure chat session exists
+	ast.EnsureChat(ctx)
 
 	// Initialize agent trace node
 	agentNode := ast.initAgentTraceNode(ctx, inputMessages)
@@ -95,14 +132,26 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Request Create hook ( Optional )
 	var createResponse *context.HookCreateResponse
 	if ast.HookScript != nil {
+		// Begin step tracking for hook_create
+		ast.BeginStep(ctx, context.StepTypeHookCreate, map[string]interface{}{
+			"messages": fullMessages,
+		})
+
 		var err error
 		createResponse, opts, err = ast.HookScript.Create(ctx, fullMessages, opts)
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+
+		// Complete step
+		ast.CompleteStep(ctx, map[string]interface{}{
+			"response": createResponse,
+		})
 
 		// Log the create response
 		ast.traceCreateHook(agentNode, createResponse)
@@ -119,6 +168,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Build the LLM request first
 		completionMessages, completionOptions, err = ast.BuildRequest(ctx, inputMessages, createResponse)
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -128,19 +179,34 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Build content - convert extended types (file, data) to standard LLM types (text, image_url, input_audio)
 		completionMessages, err = ast.BuildContent(ctx, completionMessages, completionOptions, opts)
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
 
+		// Begin step tracking for LLM call
+		ast.BeginStep(ctx, context.StepTypeLLM, map[string]interface{}{
+			"messages": completionMessages,
+		})
+
 		// Execute the LLM streaming call
 		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+
+		// Complete LLM step
+		ast.CompleteStep(ctx, map[string]interface{}{
+			"content":    completionResponse.Content,
+			"tool_calls": completionResponse.ToolCalls,
+		})
 	}
 
 	// ================================================
@@ -154,6 +220,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		currentResponse := completionResponse
 
 		for attempt := 0; attempt < maxToolRetries; attempt++ {
+
+			// Begin step tracking for tool calls
+			ast.BeginStep(ctx, context.StepTypeTool, map[string]interface{}{
+				"tool_calls": currentResponse.ToolCalls,
+				"attempt":    attempt,
+			})
 
 			// Execute all tool calls
 			toolResults, hasErrors := ast.executeToolCalls(ctx, currentResponse.ToolCalls, attempt)
@@ -175,8 +247,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				}
 			}
 
-			// If all successful, break out
+			// If all successful, complete step and break out
 			if !hasErrors {
+				ast.CompleteStep(ctx, map[string]interface{}{
+					"results": toolCallResponses,
+				})
 				log.Trace("[AGENT] All tool calls succeeded (attempt %d)", attempt)
 				break
 			}
@@ -193,6 +268,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// If no retryable errors, don't retry (MCP internal issues)
 			if !hasRetryableErrors {
 				err := fmt.Errorf("tool calls failed with non-retryable errors (MCP internal issues)")
+				finalStatus = context.ResumeStatusFailed
+				finalError = err
 				log.Error("[AGENT] %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -202,19 +279,35 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// If it's the last attempt, return error
 			if attempt == maxToolRetries-1 {
 				err := fmt.Errorf("tool calls failed after %d attempts", maxToolRetries)
+				finalStatus = context.ResumeStatusFailed
+				finalError = err
 				log.Error("[AGENT] %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
 
+			// Complete current step (with partial results)
+			ast.CompleteStep(ctx, map[string]interface{}{
+				"results":    toolCallResponses,
+				"has_errors": true,
+			})
+
 			// Build retry messages with tool call results (including errors)
 			retryMessages := ast.buildToolRetryMessages(currentMessages, currentResponse, toolResults)
+
+			// Begin LLM retry step
+			ast.BeginStep(ctx, context.StepTypeLLM, map[string]interface{}{
+				"messages":      retryMessages,
+				"retry_attempt": attempt + 1,
+			})
 
 			// Retry LLM call (streaming to keep user informed)
 			log.Trace("[AGENT] Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
 			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler, opts)
 			if err != nil {
+				finalStatus = context.ResumeStatusFailed
+				finalError = err
 				log.Error("[AGENT] LLM retry failed: %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -224,11 +317,19 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// If LLM didn't return tool calls, it might have given up
 			if currentResponse.ToolCalls == nil {
 				err := fmt.Errorf("LLM did not return tool calls in retry attempt %d", attempt+1)
+				finalStatus = context.ResumeStatusFailed
+				finalError = err
 				log.Error("[AGENT] %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
+
+			// Complete LLM retry step
+			ast.CompleteStep(ctx, map[string]interface{}{
+				"content":    currentResponse.Content,
+				"tool_calls": currentResponse.ToolCalls,
+			})
 
 			// Update messages for next iteration
 			currentMessages = retryMessages
@@ -245,6 +346,13 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var nextResponse *context.NextHookResponse = nil
 
 	if ast.HookScript != nil {
+		// Begin step tracking for hook_next
+		ast.BeginStep(ctx, context.StepTypeHookNext, map[string]interface{}{
+			"messages":   fullMessages,
+			"completion": completionResponse,
+			"tools":      toolCallResponses,
+		})
+
 		var err error
 		nextResponse, opts, err = ast.HookScript.Next(ctx, &context.NextHookPayload{
 			Messages:   fullMessages,
@@ -252,10 +360,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			Tools:      toolCallResponses,
 		}, opts)
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+
+		// Complete hook_next step
+		ast.CompleteStep(ctx, map[string]interface{}{
+			"response": nextResponse,
+		})
 
 		// Process Next hook response
 		finalResponse, err = ast.processNextResponse(&NextProcessContext{
@@ -268,6 +383,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			CreateResponse:     createResponse,
 		})
 		if err != nil {
+			finalStatus = context.ResumeStatusFailed
+			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err

@@ -80,6 +80,20 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 		data["metadata"] = metadataJSON
 	}
 
+	// Handle permission fields (Yao framework permission: true)
+	if chat.CreatedBy != "" {
+		data["__yao_created_by"] = chat.CreatedBy
+	}
+	if chat.UpdatedBy != "" {
+		data["__yao_updated_by"] = chat.UpdatedBy
+	}
+	if chat.TeamID != "" {
+		data["__yao_team_id"] = chat.TeamID
+	}
+	if chat.TenantID != "" {
+		data["__yao_tenant_id"] = chat.TenantID
+	}
+
 	// Insert
 	return store.newQueryChat().Insert(data)
 }
@@ -348,6 +362,12 @@ func (store *Xun) rowToChat(data map[string]interface{}) (*types.Chat, error) {
 			chat.Metadata = metaMap
 		}
 	}
+
+	// Handle permission fields
+	chat.CreatedBy = getString(data, "__yao_created_by")
+	chat.UpdatedBy = getString(data, "__yao_updated_by")
+	chat.TeamID = getString(data, "__yao_team_id")
+	chat.TenantID = getString(data, "__yao_tenant_id")
 
 	return chat, nil
 }

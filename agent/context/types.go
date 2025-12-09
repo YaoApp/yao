@@ -231,6 +231,9 @@ type Context struct {
 	Writer      Writer               `json:"-"`  // Writer, it will be used to write response data to the client
 	IDGenerator *message.IDGenerator `json:"-"`  // ID generator for this context (chunk, message, block, thread IDs)
 
+	// Chat buffer for batch saving messages and resume steps
+	Buffer *ChatBuffer `json:"-"` // Chat buffer for batch saving at end of Stream()
+
 	// Internal
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations

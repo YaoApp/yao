@@ -146,6 +146,25 @@ func (ctx *Context) Send(msg *message.Message) error {
 		return err
 	}
 
+	// === Buffer message for batch saving (non-delta, non-event messages only) ===
+	// Delta messages are streaming chunks; only final content should be saved
+	// Event messages are transient lifecycle signals, not stored
+	// Skip if History is disabled in options
+	if !msg.Delta && !isEventMessage && ctx.Buffer != nil && !ctx.shouldSkipHistory() {
+		assistantID := ""
+		if ctx.Stack != nil {
+			assistantID = ctx.Stack.AssistantID
+		}
+		ctx.Buffer.AddAssistantMessage(
+			msg.Type,
+			msg.Props,
+			msg.BlockID,
+			msg.ThreadID,
+			assistantID,
+			nil, // metadata can be added if needed
+		)
+	}
+
 	// === Auto-send message_end for non-delta messages (complete messages) ===
 	if !msg.Delta && !isEventMessage && msg.MessageID != "" && ctx.messageMetadata != nil {
 		metadata := ctx.messageMetadata.getMessage(msg.MessageID)

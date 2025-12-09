@@ -38,6 +38,12 @@ type Chat struct {
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt     time.Time              `json:"created_at"`
 	UpdatedAt     time.Time              `json:"updated_at"`
+
+	// Permission fields (managed by Yao framework when permission: true)
+	CreatedBy string `json:"__yao_created_by,omitempty"` // User ID who created the record
+	UpdatedBy string `json:"__yao_updated_by,omitempty"` // User ID who last updated
+	TeamID    string `json:"__yao_team_id,omitempty"`    // Team ID for team-level access
+	TenantID  string `json:"__yao_tenant_id,omitempty"`  // Tenant ID for multi-tenancy
 }
 
 // ChatFilter for listing chats
