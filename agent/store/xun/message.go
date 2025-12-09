@@ -33,4 +33,3 @@ func (store *Xun) DeleteMessages(chatID string, messageIDs []string) error {
 	// TODO: implement
 	return nil
 }
-

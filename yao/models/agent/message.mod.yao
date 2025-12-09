@@ -129,6 +129,5 @@
       "comment": "Index for message ordering within chat"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": true }
 }
-

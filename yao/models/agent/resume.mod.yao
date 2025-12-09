@@ -166,5 +166,5 @@
       "comment": "Index for resume ordering within request"
     }
   ],
-  "option": { "timestamps": true, "soft_deletes": false }
+  "option": { "timestamps": true, "soft_deletes": true }
 }

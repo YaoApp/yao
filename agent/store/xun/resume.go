@@ -46,4 +46,3 @@ func (store *Xun) DeleteResume(chatID string) error {
 	// TODO: implement
 	return nil
 }
-
