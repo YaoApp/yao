@@ -93,7 +93,6 @@ Stores chat metadata and session information.
 | `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
 | `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
 | `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
-| `preset`          | boolean     | No       | -      | Whether this is a preset chat    |
 | `public`          | boolean     | No       | -      | Whether shared across all teams  |
 | `share`           | enum        | No       | Yes    | Sharing scope: `private`, `team` |
 | `sort`            | integer     | No       | -      | Sort order for display           |
@@ -163,7 +162,9 @@ Stores user-visible messages (both user input and assistant responses).
 | ------------------- | --------------------- | ----- |
 | `idx_msg_chat_seq`  | `chat_id`, `sequence` | index |
 | `idx_msg_request`   | `request_id`          | index |
+| `idx_msg_role`      | `role`                | index |
 | `idx_msg_block`     | `block_id`            | index |
+| `idx_msg_thread`    | `thread_id`           | index |
 | `idx_msg_assistant` | `assistant_id`        | index |
 
 **Message Types:**
@@ -499,6 +500,7 @@ If interrupted during delegate, the `space_snapshot` allows restoring `ctx.Space
 | ---------------------- | ------------------------ | ----- |
 | `idx_resume_chat`      | `chat_id`                | index |
 | `idx_resume_request`   | `request_id`, `sequence` | index |
+| `idx_resume_type`      | `type`                   | index |
 | `idx_resume_status`    | `status`                 | index |
 | `idx_resume_stack`     | `stack_id`               | index |
 | `idx_resume_parent`    | `stack_parent_id`        | index |
@@ -735,7 +737,6 @@ type Chat struct {
     AssistantID   string                 `json:"assistant_id"`
     Mode          string                 `json:"mode"`
     Status        string                 `json:"status"`
-    Preset        bool                   `json:"preset"`
     Public        bool                   `json:"public"`
     Share         string                 `json:"share"` // "private" or "team"
     Sort          int                    `json:"sort"`
@@ -803,6 +804,8 @@ type MessageFilter struct {
     RequestID string `json:"request_id,omitempty"`
     Role      string `json:"role,omitempty"`
     BlockID   string `json:"block_id,omitempty"`
+    ThreadID  string `json:"thread_id,omitempty"`
+    Type      string `json:"type,omitempty"`
     Limit     int    `json:"limit,omitempty"`
     Offset    int    `json:"offset,omitempty"`
 }
