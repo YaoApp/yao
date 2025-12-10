@@ -300,9 +300,11 @@ func TestListChatSessions(t *testing.T) {
 		err = json.NewDecoder(resp.Body).Decode(&response)
 		assert.NoError(t, err)
 
-		// Check for groups in response
+		// Check for groups in response (when group_by=time, only groups is returned, not data)
 		_, hasGroups := response["groups"]
+		_, hasData := response["data"]
 		assert.True(t, hasGroups, "Response should contain groups when group_by=time")
+		assert.False(t, hasData, "Response should NOT contain data when group_by=time (to avoid duplication)")
 		t.Logf("Successfully retrieved chat sessions with time grouping")
 	})
 

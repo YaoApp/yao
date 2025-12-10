@@ -1673,6 +1673,11 @@ GET /v1/chat/sessions/chat_123/messages?limit=100&offset=0&role=assistant&type=t
 | `type` | string | - | Filter by message type |
 | `limit` | int | 100 | Max messages to return (max 1000) |
 | `offset` | int | 0 | Offset for pagination |
+| `locale` | string | - | Locale for assistant info (e.g., `zh-cn`, `en-us`). Falls back to `Accept-Language` header |
+
+**Locale Resolution Priority:**
+1. Query parameter `locale`
+2. HTTP header `Accept-Language`
 
 **Response:**
 
@@ -1708,9 +1713,19 @@ GET /v1/chat/sessions/chat_123/messages?limit=100&offset=0&role=assistant&type=t
       "created_at": "2024-01-15T10:00:05Z"
     }
   ],
-  "count": 2
+  "count": 2,
+  "assistants": {
+    "weather_assistant": {
+      "assistant_id": "weather_assistant",
+      "name": "Weather Assistant",
+      "avatar": "https://example.com/weather-avatar.png",
+      "description": "Get weather information for any location"
+    }
+  }
 }
 ```
+
+**Note:** The `assistants` field contains localized assistant information (name, avatar, description) for all unique `assistant_id` values found in the messages. This allows the frontend to display assistant details without additional API calls. The locale is determined by the `locale` query parameter or `Accept-Language` header.
 
 ### Permission Filtering
 
