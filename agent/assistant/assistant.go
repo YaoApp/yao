@@ -349,6 +349,54 @@ func (ast *Assistant) Clone() *Assistant {
 	return clone
 }
 
+// GetInfo returns the basic info of the assistant with optional locale
+func (ast *Assistant) GetInfo(locale ...string) *store.AssistantInfo {
+	if ast == nil {
+		return nil
+	}
+
+	loc := ""
+	if len(locale) > 0 {
+		loc = locale[0]
+	}
+
+	info := &store.AssistantInfo{
+		AssistantID: ast.ID,
+		Avatar:      ast.Avatar,
+	}
+
+	// Apply i18n translation if locale is provided
+	if loc != "" {
+		info.Name = ast.GetName(loc)
+		info.Description = ast.GetDescription(loc)
+	} else {
+		info.Name = ast.Name
+		info.Description = ast.Description
+	}
+
+	return info
+}
+
+// GetInfoByIDs retrieves basic info for multiple assistants by their IDs
+// Returns a map of assistant_id -> AssistantInfo
+func GetInfoByIDs(ids []string, locale ...string) map[string]*store.AssistantInfo {
+	result := make(map[string]*store.AssistantInfo)
+
+	if len(ids) == 0 {
+		return result
+	}
+
+	for _, id := range ids {
+		ast, err := Get(id)
+		if err != nil || ast == nil {
+			continue
+		}
+		result[id] = ast.GetInfo(locale...)
+	}
+
+	return result
+}
+
 // Update updates the assistant properties
 func (ast *Assistant) Update(data map[string]interface{}) error {
 	if ast == nil {

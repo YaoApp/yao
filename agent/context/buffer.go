@@ -19,6 +19,7 @@ type ChatBuffer struct {
 	requestID   string
 	assistantID string
 	connector   string // Current connector ID (for data analysis)
+	mode        string // Current chat mode (chat or task)
 
 	// Message buffer
 	messages    []*BufferedMessage
@@ -47,6 +48,7 @@ type BufferedMessage struct {
 	ThreadID    string                 `json:"thread_id,omitempty"`
 	AssistantID string                 `json:"assistant_id,omitempty"`
 	Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
+	Mode        string                 `json:"mode,omitempty"`      // Chat mode used for this message (chat or task)
 	Sequence    int                    `json:"sequence"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -97,12 +99,13 @@ const (
 )
 
 // NewChatBuffer creates a new chat buffer
-func NewChatBuffer(chatID, requestID, assistantID, connector string) *ChatBuffer {
+func NewChatBuffer(chatID, requestID, assistantID, connector, mode string) *ChatBuffer {
 	return &ChatBuffer{
 		chatID:      chatID,
 		requestID:   requestID,
 		assistantID: assistantID,
 		connector:   connector,
+		mode:        mode,
 		messages:    make([]*BufferedMessage, 0),
 		steps:       make([]*BufferedStep, 0),
 	}
@@ -133,6 +136,11 @@ func (b *ChatBuffer) AddMessage(msg *BufferedMessage) {
 	}
 	if msg.CreatedAt.IsZero() {
 		msg.CreatedAt = time.Now()
+	}
+
+	// Set mode from buffer if not provided
+	if msg.Mode == "" && b.mode != "" {
+		msg.Mode = b.mode
 	}
 
 	// Auto-increment sequence
@@ -445,6 +453,18 @@ func (b *ChatBuffer) SetConnector(connector string) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.connector = connector
+}
+
+// Mode returns the current chat mode
+func (b *ChatBuffer) Mode() string {
+	return b.mode
+}
+
+// SetMode updates the chat mode (when user switches mode)
+func (b *ChatBuffer) SetMode(mode string) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.mode = mode
 }
 
 // =============================================================================

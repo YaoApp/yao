@@ -30,11 +30,11 @@ type Chat struct {
 	Title         string                 `json:"title,omitempty"`
 	AssistantID   string                 `json:"assistant_id"`
 	LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID (updated on each message)
-	Mode          string                 `json:"mode"`
-	Status        string                 `json:"status"` // "active" or "archived"
-	Public        bool                   `json:"public"` // Whether shared across all teams
-	Share         string                 `json:"share"`  // "private" or "team"
-	Sort          int                    `json:"sort"`   // Sort order for display
+	LastMode      string                 `json:"last_mode,omitempty"`      // Last used chat mode (updated on each message)
+	Status        string                 `json:"status"`                   // "active" or "archived"
+	Public        bool                   `json:"public"`                   // Whether shared across all teams
+	Share         string                 `json:"share"`                    // "private" or "team"
+	Sort          int                    `json:"sort"`                     // Sort order for display
 	LastMessageAt *time.Time             `json:"last_message_at,omitempty"`
 	Metadata      map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt     time.Time              `json:"created_at"`
@@ -109,6 +109,7 @@ type Message struct {
 	ThreadID    string                 `json:"thread_id,omitempty"`
 	AssistantID string                 `json:"assistant_id,omitempty"`
 	Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
+	Mode        string                 `json:"mode,omitempty"`      // Chat mode used for this message (chat or task)
 	Sequence    int                    `json:"sequence"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt   time.Time              `json:"created_at"`
@@ -196,6 +197,15 @@ type AssistantList struct {
 	Next      int               `json:"next"`      // Next page number (0 if no next page)
 	Prev      int               `json:"prev"`      // Previous page number (0 if no previous page)
 	Total     int               `json:"total"`     // Total number of items across all pages
+}
+
+// AssistantInfo contains basic assistant information for display
+// Used in chat history to show assistant details with i18n support
+type AssistantInfo struct {
+	AssistantID string `json:"assistant_id"`
+	Name        string `json:"name"`
+	Avatar      string `json:"avatar,omitempty"`
+	Description string `json:"description,omitempty"`
 }
 
 // Tag represents a tag

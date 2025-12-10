@@ -1145,3 +1145,103 @@ func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
 		t.Error("Expected GetSkip to return Trace=false")
 	}
 }
+
+func TestGetMode_FromQuery(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions?mode=task", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	mode := GetMode(c, nil)
+	if mode != "task" {
+		t.Errorf("Expected mode 'task' from query, got '%s'", mode)
+	}
+}
+
+func TestGetMode_FromHeader(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	req.Header.Set("X-Yao-Mode", "chat")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	mode := GetMode(c, nil)
+	if mode != "chat" {
+		t.Errorf("Expected mode 'chat' from header, got '%s'", mode)
+	}
+}
+
+func TestGetMode_FromMetadata(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq := &CompletionRequest{
+		Metadata: map[string]interface{}{
+			"mode": "task",
+		},
+	}
+
+	mode := GetMode(c, completionReq)
+	if mode != "task" {
+		t.Errorf("Expected mode 'task' from metadata, got '%s'", mode)
+	}
+}
+
+func TestGetMode_Priority(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	// Query has highest priority
+	req := httptest.NewRequest("GET", "/chat/completions?mode=query_mode", nil)
+	req.Header.Set("X-Yao-Mode", "header_mode")
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	completionReq := &CompletionRequest{
+		Metadata: map[string]interface{}{
+			"mode": "metadata_mode",
+		},
+	}
+
+	mode := GetMode(c, completionReq)
+	if mode != "query_mode" {
+		t.Errorf("Expected mode 'query_mode' (query has priority), got '%s'", mode)
+	}
+}
+
+func TestGetMode_Empty(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	gin.SetMode(gin.TestMode)
+
+	req := httptest.NewRequest("GET", "/chat/completions", nil)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	mode := GetMode(c, nil)
+	if mode != "" {
+		t.Errorf("Expected empty mode, got '%s'", mode)
+	}
+}

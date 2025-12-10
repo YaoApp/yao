@@ -29,7 +29,6 @@ func TestCreateChat(t *testing.T) {
 		chat := &types.Chat{
 			AssistantID: "test_assistant",
 			Title:       "Test Chat",
-			Mode:        "chat",
 			Status:      "active",
 			Share:       "private",
 		}
@@ -55,7 +54,7 @@ func TestCreateChat(t *testing.T) {
 			AssistantID:   "test_assistant",
 			LastConnector: "openai",
 			Title:         "Full Chat",
-			Mode:          "task",
+			LastMode:      "task",
 			Status:        "active",
 			Public:        true,
 			Share:         "team",
@@ -84,8 +83,8 @@ func TestCreateChat(t *testing.T) {
 		if retrieved.LastConnector != "openai" {
 			t.Errorf("Expected last_connector 'openai', got '%s'", retrieved.LastConnector)
 		}
-		if retrieved.Mode != "task" {
-			t.Errorf("Expected mode 'task', got '%s'", retrieved.Mode)
+		if retrieved.LastMode != "task" {
+			t.Errorf("Expected last_mode 'task', got '%s'", retrieved.LastMode)
 		}
 		if !retrieved.Public {
 			t.Error("Expected public to be true")
@@ -183,8 +182,9 @@ func TestCreateChat(t *testing.T) {
 			t.Fatalf("Failed to retrieve chat: %v", err)
 		}
 
-		if retrieved.Mode != "chat" {
-			t.Errorf("Expected default mode 'chat', got '%s'", retrieved.Mode)
+		// last_mode is nullable, so it should be empty by default
+		if retrieved.LastMode != "" {
+			t.Errorf("Expected default last_mode to be empty, got '%s'", retrieved.LastMode)
 		}
 		if retrieved.Status != "active" {
 			t.Errorf("Expected default status 'active', got '%s'", retrieved.Status)
@@ -1103,7 +1103,6 @@ func TestChatCompleteWorkflow(t *testing.T) {
 		chat := &types.Chat{
 			AssistantID: "workflow_assistant",
 			Title:       "Workflow Test Chat",
-			Mode:        "chat",
 			Status:      "active",
 		}
 
