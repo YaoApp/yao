@@ -92,7 +92,7 @@ Stores chat metadata and session information.
 | `title`           | string(500) | Yes      | -      | Chat title                       |
 | `assistant_id`    | string(200) | No       | Yes    | Associated assistant ID          |
 | `last_connector`  | string(200) | Yes      | Yes    | Last used connector ID           |
-| `mode`            | string(50)  | No       | -      | Chat mode (default: "chat")      |
+| `last_mode`       | string(50)  | Yes      | -      | Last used chat mode (chat/task)  |
 | `status`          | enum        | No       | Yes    | Status: `active`, `archived`     |
 | `public`          | boolean     | No       | -      | Whether shared across all teams  |
 | `share`           | enum        | No       | Yes    | Sharing scope: `private`, `team` |
@@ -141,23 +141,24 @@ Stores user-visible messages (both user input and assistant responses).
 
 **Table Name:** `agent_message`
 
-| Column         | Type        | Nullable | Index | Description                                |
-| -------------- | ----------- | -------- | ----- | ------------------------------------------ |
-| `id`           | ID          | No       | PK    | Auto-increment primary key                 |
-| `message_id`   | string(64)  | No       | -     | Message identifier (unique within request) |
-| `chat_id`      | string(64)  | No       | Yes   | Parent chat ID                             |
-| `request_id`   | string(64)  | Yes      | Yes   | Request ID for grouping                    |
-| `role`         | enum        | No       | Yes   | Role: `user`, `assistant`                  |
-| `type`         | string(50)  | No       | -     | Message type (text, image, loading, etc.)  |
-| `props`        | json        | No       | -     | Message properties (content, url, etc.)    |
-| `block_id`     | string(64)  | Yes      | Yes   | Block grouping ID                          |
-| `thread_id`    | string(64)  | Yes      | Yes   | Thread grouping ID                         |
-| `assistant_id` | string(200) | Yes      | Yes   | Assistant ID (join to get name/avatar)     |
-| `connector`    | string(200) | Yes      | Yes   | Connector ID used for this message         |
-| `sequence`     | integer     | No       | -     | Message order within chat (in composite)   |
-| `metadata`     | json        | Yes      | -     | Additional metadata                        |
-| `created_at`   | timestamp   | No       | Yes   | Creation timestamp                         |
-| `updated_at`   | timestamp   | No       | -     | Last update timestamp                      |
+| Column         | Type        | Nullable | Index | Description                                 |
+| -------------- | ----------- | -------- | ----- | ------------------------------------------- |
+| `id`           | ID          | No       | PK    | Auto-increment primary key                  |
+| `message_id`   | string(64)  | No       | -     | Message identifier (unique within request)  |
+| `chat_id`      | string(64)  | No       | Yes   | Parent chat ID                              |
+| `request_id`   | string(64)  | Yes      | Yes   | Request ID for grouping                     |
+| `role`         | enum        | No       | Yes   | Role: `user`, `assistant`                   |
+| `type`         | string(50)  | No       | -     | Message type (text, image, loading, etc.)   |
+| `props`        | json        | No       | -     | Message properties (content, url, etc.)     |
+| `block_id`     | string(64)  | Yes      | Yes   | Block grouping ID                           |
+| `thread_id`    | string(64)  | Yes      | Yes   | Thread grouping ID                          |
+| `assistant_id` | string(200) | Yes      | Yes   | Assistant ID (join to get name/avatar)      |
+| `connector`    | string(200) | Yes      | Yes   | Connector ID used for this message          |
+| `mode`         | string(50)  | Yes      | -     | Chat mode used for this message (chat/task) |
+| `sequence`     | integer     | No       | -     | Message order within chat (in composite)    |
+| `metadata`     | json        | Yes      | -     | Additional metadata                         |
+| `created_at`   | timestamp   | No       | Yes   | Creation timestamp                          |
+| `updated_at`   | timestamp   | No       | -     | Last update timestamp                       |
 
 **Indexes:**
 
@@ -170,6 +171,20 @@ Stores user-visible messages (both user input and assistant responses).
 | `idx_msg_block`           | `block_id`                 | index  |
 | `idx_msg_thread`          | `thread_id`                | index  |
 | `idx_msg_assistant`       | `assistant_id`             | index  |
+
+**Message Ordering:**
+
+Messages are ordered by `created_at` first, then by `sequence` within the same timestamp. This ensures correct chronological order when there are multiple requests with overlapping sequence numbers:
+
+```sql
+ORDER BY created_at ASC, sequence ASC
+```
+
+**Why this ordering?**
+
+- `sequence` is assigned per-request, so different requests may have the same sequence numbers
+- `created_at` groups messages by request time, ensuring messages from earlier requests appear first
+- Within the same request (same `created_at`), `sequence` preserves the internal ordering
 
 **Message Types:**
 
@@ -813,8 +828,8 @@ type Chat struct {
     ChatID        string                 `json:"chat_id"`
     Title         string                 `json:"title,omitempty"`
     AssistantID   string                 `json:"assistant_id"`
-    LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID
-    Mode          string                 `json:"mode"`
+    LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID (updated on each message)
+    LastMode      string                 `json:"last_mode,omitempty"`      // Last used chat mode (updated on each message)
     Status        string                 `json:"status"`          // "active" or "archived"
     Public        bool                   `json:"public"`          // Whether shared across all teams
     Share         string                 `json:"share"`           // "private" or "team"
@@ -837,6 +852,7 @@ type Message struct {
     ThreadID    string                 `json:"thread_id,omitempty"`
     AssistantID string                 `json:"assistant_id,omitempty"`
     Connector   string                 `json:"connector,omitempty"` // Connector ID used for this message
+    Mode        string                 `json:"mode,omitempty"`      // Chat mode used for this message (chat or task)
     Sequence    int                    `json:"sequence"`
     Metadata    map[string]interface{} `json:"metadata,omitempty"`
     CreatedAt   time.Time              `json:"created_at"`
@@ -1585,7 +1601,8 @@ GET /v1/chat/sessions/chat_123
   "chat_id": "chat_123",
   "title": "Weather Query",
   "assistant_id": "weather_assistant",
-  "mode": "chat",
+  "last_connector": "deepseek.v3",
+  "last_mode": "chat",
   "status": "active",
   "public": false,
   "share": "private",

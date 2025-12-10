@@ -101,6 +101,14 @@
       "index": true
     },
     {
+      "name": "mode",
+      "type": "string",
+      "label": "Mode",
+      "comment": "Chat mode used for this message (chat or task)",
+      "length": 50,
+      "nullable": true
+    },
+    {
       "name": "sequence",
       "type": "integer",
       "label": "Sequence",

@@ -571,7 +571,6 @@ func TestFlushBuffer(t *testing.T) {
 		err := chatStore.CreateChat(&storetypes.Chat{
 			ChatID:      chatID,
 			AssistantID: ast.ID,
-			Mode:        "chat",
 			Status:      "active",
 			Share:       "private",
 			CreatedAt:   time.Now(),
@@ -620,7 +619,6 @@ func TestFlushBuffer(t *testing.T) {
 		err := chatStore.CreateChat(&storetypes.Chat{
 			ChatID:      chatID,
 			AssistantID: ast.ID,
-			Mode:        "chat",
 			Status:      "active",
 			Share:       "private",
 			CreatedAt:   time.Now(),
@@ -670,7 +668,6 @@ func TestFlushBuffer(t *testing.T) {
 		err := chatStore.CreateChat(&storetypes.Chat{
 			ChatID:      chatID,
 			AssistantID: ast.ID,
-			Mode:        "chat",
 			Status:      "active",
 			Share:       "private",
 			CreatedAt:   time.Now(),
@@ -695,6 +692,71 @@ func TestFlushBuffer(t *testing.T) {
 		chatStore.DeleteResume(chatID)
 		chatStore.DeleteChat(chatID)
 		t.Logf("✓ Buffer flushed on interrupt: resume records saved with interrupted status")
+	})
+
+	t.Run("FlushWithModeAndConnector", func(t *testing.T) {
+		chatID := fmt.Sprintf("test_flush_mode_%s", uuid.New().String()[:8])
+		ctx := agentcontext.New(context.Background(), nil, chatID)
+		ctx.Space = plan.NewMemorySharedSpace()
+
+		// Enter stack with connector and mode options
+		opts := &agentcontext.Options{
+			Connector: "deepseek.v3",
+			Mode:      "task",
+		}
+		_, _, done := agentcontext.EnterStack(ctx, ast.ID, opts)
+		defer done()
+		ast.InitBuffer(ctx)
+
+		// Verify buffer has correct connector and mode
+		require.NotNil(t, ctx.Buffer, "Buffer should be initialized")
+		assert.Equal(t, "deepseek.v3", ctx.Buffer.Connector(), "Buffer should have connector set")
+		assert.Equal(t, "task", ctx.Buffer.Mode(), "Buffer should have mode set")
+
+		// Ensure chat exists
+		err := chatStore.CreateChat(&storetypes.Chat{
+			ChatID:      chatID,
+			AssistantID: ast.ID,
+			Status:      "active",
+			Share:       "private",
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+		})
+		require.NoError(t, err)
+
+		// Add some messages to buffer
+		ctx.Buffer.AddUserInput("Test question for mode", "")
+		ctx.Buffer.AddAssistantMessage("M1", "text", map[string]interface{}{"content": "Test answer with mode"}, "", "", ast.ID, nil)
+
+		// Flush buffer
+		ast.FlushBuffer(ctx, agentcontext.StepStatusCompleted, nil)
+
+		// Verify messages were saved with connector and mode
+		messages, err := chatStore.GetMessages(chatID, storetypes.MessageFilter{})
+		assert.NoError(t, err)
+		assert.Len(t, messages, 2, "Should have 2 messages saved")
+
+		// Assistant message should have connector and mode
+		var assistantMsg *storetypes.Message
+		for _, msg := range messages {
+			if msg.Role == "assistant" {
+				assistantMsg = msg
+				break
+			}
+		}
+		require.NotNil(t, assistantMsg, "Should find assistant message")
+		assert.Equal(t, "deepseek.v3", assistantMsg.Connector, "Message should have connector")
+		assert.Equal(t, "task", assistantMsg.Mode, "Message should have mode")
+
+		// Verify chat was updated with last_connector and last_mode
+		chat, err := chatStore.GetChat(chatID)
+		assert.NoError(t, err)
+		assert.Equal(t, "deepseek.v3", chat.LastConnector, "Chat should have last_connector updated")
+		assert.Equal(t, "task", chat.LastMode, "Chat should have last_mode updated")
+
+		// Cleanup
+		chatStore.DeleteChat(chatID)
+		t.Logf("✓ Buffer flushed with mode and connector: connector=%s, mode=%s", chat.LastConnector, chat.LastMode)
 	})
 }
 
@@ -741,7 +803,6 @@ func TestEnsureChat(t *testing.T) {
 			ChatID:      chatID,
 			AssistantID: ast.ID,
 			Title:       "Existing Chat",
-			Mode:        "chat",
 			Status:      "active",
 			Share:       "private",
 			CreatedAt:   time.Now(),

@@ -282,6 +282,84 @@ func TestSaveMessages(t *testing.T) {
 		t.Logf("Successfully saved and retrieved messages with different connectors")
 	})
 
+	t.Run("SaveMessageWithMode", func(t *testing.T) {
+		modeChat := &types.Chat{
+			AssistantID: "test_assistant",
+		}
+		err := store.CreateChat(modeChat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+		defer store.DeleteChat(modeChat.ChatID)
+
+		// Save messages with different modes
+		messages := []*types.Message{
+			{
+				Role:        "user",
+				Type:        "user_input",
+				Props:       map[string]interface{}{"content": "Hello in chat mode"},
+				Sequence:    1,
+				Mode:        "chat",
+				Connector:   "deepseek.v3",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "assistant",
+				Type:        "text",
+				Props:       map[string]interface{}{"content": "Hi there in chat mode!"},
+				Sequence:    2,
+				Mode:        "chat",
+				Connector:   "deepseek.v3",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "user",
+				Type:        "user_input",
+				Props:       map[string]interface{}{"content": "Now run a task"},
+				Sequence:    3,
+				Mode:        "task",
+				Connector:   "deepseek.v3",
+				AssistantID: "test_assistant",
+			},
+			{
+				Role:        "assistant",
+				Type:        "text",
+				Props:       map[string]interface{}{"content": "Running task!"},
+				Sequence:    4,
+				Mode:        "task",
+				Connector:   "deepseek.v3",
+				AssistantID: "test_assistant",
+			},
+		}
+
+		err = store.SaveMessages(modeChat.ChatID, messages)
+		if err != nil {
+			t.Fatalf("Failed to save messages: %v", err)
+		}
+
+		// Retrieve and verify modes
+		retrieved, err := store.GetMessages(modeChat.ChatID, types.MessageFilter{})
+		if err != nil {
+			t.Fatalf("Failed to get messages: %v", err)
+		}
+
+		if len(retrieved) != 4 {
+			t.Fatalf("Expected 4 messages, got %d", len(retrieved))
+		}
+
+		// Verify each message has correct mode
+		for _, msg := range retrieved {
+			if msg.Sequence <= 2 && msg.Mode != "chat" {
+				t.Errorf("Expected mode 'chat' for sequence %d, got '%s'", msg.Sequence, msg.Mode)
+			}
+			if msg.Sequence > 2 && msg.Mode != "task" {
+				t.Errorf("Expected mode 'task' for sequence %d, got '%s'", msg.Sequence, msg.Mode)
+			}
+		}
+
+		t.Logf("Successfully saved and retrieved messages with different modes")
+	})
+
 	t.Run("SaveMessageWithEmptyConnector", func(t *testing.T) {
 		emptyConnChat := &types.Chat{
 			AssistantID: "test_assistant",
@@ -532,6 +610,127 @@ func TestGetMessages(t *testing.T) {
 		if len(retrieved) != 0 {
 			t.Errorf("Expected 0 messages from non-existent chat, got %d", len(retrieved))
 		}
+	})
+
+	t.Run("OrderByCreatedAtThenSequence", func(t *testing.T) {
+		// This test verifies that messages are ordered by created_at first, then by sequence
+		// This is important when there are multiple request_ids with overlapping sequence numbers
+		orderChat := &types.Chat{
+			AssistantID: "test_assistant",
+		}
+		err := store.CreateChat(orderChat)
+		if err != nil {
+			t.Fatalf("Failed to create chat: %v", err)
+		}
+		defer store.DeleteChat(orderChat.ChatID)
+
+		// Simulate two separate requests with overlapping sequence numbers
+		// SaveMessages uses time.Now() for created_at, so we need to call it twice
+		// with a small delay to ensure different timestamps
+
+		// Request 1: sequences 1, 2
+		req1Messages := []*types.Message{
+			{
+				Role:      "user",
+				Type:      "user_input",
+				Props:     map[string]interface{}{"content": "Request 1 - Message 1"},
+				Sequence:  1,
+				RequestID: "order_req_001",
+			},
+			{
+				Role:      "assistant",
+				Type:      "text",
+				Props:     map[string]interface{}{"content": "Request 1 - Response 1"},
+				Sequence:  2,
+				RequestID: "order_req_001",
+			},
+		}
+
+		err = store.SaveMessages(orderChat.ChatID, req1Messages)
+		if err != nil {
+			t.Fatalf("Failed to save request 1 messages: %v", err)
+		}
+
+		// Delay to ensure different created_at timestamps
+		// Database timestamp precision may only be to second level
+		time.Sleep(1100 * time.Millisecond)
+
+		// Request 2: sequences 1, 2 (same as request 1, but later created_at)
+		req2Messages := []*types.Message{
+			{
+				Role:      "user",
+				Type:      "user_input",
+				Props:     map[string]interface{}{"content": "Request 2 - Message 1"},
+				Sequence:  1, // Same sequence as req1, but later created_at
+				RequestID: "order_req_002",
+			},
+			{
+				Role:      "assistant",
+				Type:      "text",
+				Props:     map[string]interface{}{"content": "Request 2 - Response 1"},
+				Sequence:  2, // Same sequence as req1, but later created_at
+				RequestID: "order_req_002",
+			},
+		}
+
+		err = store.SaveMessages(orderChat.ChatID, req2Messages)
+		if err != nil {
+			t.Fatalf("Failed to save request 2 messages: %v", err)
+		}
+
+		// Retrieve messages
+		retrieved, err := store.GetMessages(orderChat.ChatID, types.MessageFilter{})
+		if err != nil {
+			t.Fatalf("Failed to get messages: %v", err)
+		}
+
+		if len(retrieved) != 4 {
+			t.Fatalf("Expected 4 messages, got %d", len(retrieved))
+		}
+
+		// Verify order: should be chronological by created_at, then by sequence
+		// Messages from req_001 should come before req_002
+		expectedOrder := []struct {
+			requestID string
+			sequence  int
+			content   string
+		}{
+			{"order_req_001", 1, "Request 1 - Message 1"},
+			{"order_req_001", 2, "Request 1 - Response 1"},
+			{"order_req_002", 1, "Request 2 - Message 1"},
+			{"order_req_002", 2, "Request 2 - Response 1"},
+		}
+
+		for i, expected := range expectedOrder {
+			msg := retrieved[i]
+			if msg.RequestID != expected.requestID {
+				t.Errorf("Message %d: expected RequestID '%s', got '%s'", i, expected.requestID, msg.RequestID)
+			}
+			if msg.Sequence != expected.sequence {
+				t.Errorf("Message %d: expected Sequence %d, got %d", i, expected.sequence, msg.Sequence)
+			}
+			content, _ := msg.Props["content"].(string)
+			if content != expected.content {
+				t.Errorf("Message %d: expected content '%s', got '%s'", i, expected.content, content)
+			}
+		}
+
+		// Additional verification: ensure created_at is non-decreasing
+		for i := 1; i < len(retrieved); i++ {
+			if retrieved[i].CreatedAt.Before(retrieved[i-1].CreatedAt) {
+				t.Errorf("Message %d created_at (%v) is before message %d created_at (%v)",
+					i, retrieved[i].CreatedAt, i-1, retrieved[i-1].CreatedAt)
+			}
+			// If same created_at, sequence should be increasing
+			if retrieved[i].CreatedAt.Equal(retrieved[i-1].CreatedAt) {
+				if retrieved[i].Sequence < retrieved[i-1].Sequence {
+					t.Errorf("Messages with same created_at: message %d sequence (%d) < message %d sequence (%d)",
+						i, retrieved[i].Sequence, i-1, retrieved[i-1].Sequence)
+				}
+			}
+		}
+
+		t.Logf("Successfully verified message ordering: created_at first, then sequence")
 	})
 }
 

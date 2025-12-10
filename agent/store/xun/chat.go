@@ -42,9 +42,6 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 	}
 
 	// Set defaults
-	if chat.Mode == "" {
-		chat.Mode = "chat"
-	}
 	if chat.Status == "" {
 		chat.Status = "active"
 	}
@@ -56,7 +53,6 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 	data := map[string]interface{}{
 		"chat_id":      chat.ChatID,
 		"assistant_id": chat.AssistantID,
-		"mode":         chat.Mode,
 		"status":       chat.Status,
 		"public":       chat.Public,
 		"share":        chat.Share,
@@ -65,12 +61,20 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 		"updated_at":   time.Now(),
 	}
 
+	// Handle last_mode (nullable)
+	if chat.LastMode != "" {
+		data["last_mode"] = chat.LastMode
+	}
+
 	// Handle nullable fields
 	if chat.Title != "" {
 		data["title"] = chat.Title
 	}
 	if chat.LastConnector != "" {
 		data["last_connector"] = chat.LastConnector
+	}
+	if chat.LastMode != "" {
+		data["last_mode"] = chat.LastMode
 	}
 	if chat.LastMessageAt != nil {
 		data["last_message_at"] = *chat.LastMessageAt
@@ -337,7 +341,7 @@ func (store *Xun) rowToChat(data map[string]interface{}) (*types.Chat, error) {
 		Title:         getString(data, "title"),
 		AssistantID:   getString(data, "assistant_id"),
 		LastConnector: getString(data, "last_connector"),
-		Mode:          getString(data, "mode"),
+		LastMode:      getString(data, "last_mode"),
 		Status:        getString(data, "status"),
 		Public:        getBool(data, "public"),
 		Share:         getString(data, "share"),

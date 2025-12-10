@@ -243,14 +243,16 @@ func (ast *Assistant) InitBuffer(ctx *agentcontext.Context) {
 		requestID = uuid.New().String()
 	}
 
-	// Get connector from options
+	// Get connector and mode from options
 	connector := ""
+	mode := ""
 	if ctx.Stack.Options != nil {
 		connector = ctx.Stack.Options.Connector
+		mode = ctx.Stack.Options.Mode
 	}
 
-	ctx.Buffer = agentcontext.NewChatBuffer(ctx.ChatID, requestID, ast.ID, connector)
-	log.Trace("[CHAT] Buffer initialized: chatID=%s, requestID=%s, assistantID=%s, connector=%s", ctx.ChatID, requestID, ast.ID, connector)
+	ctx.Buffer = agentcontext.NewChatBuffer(ctx.ChatID, requestID, ast.ID, connector, mode)
+	log.Trace("[CHAT] Buffer initialized: chatID=%s, requestID=%s, assistantID=%s, connector=%s, mode=%s", ctx.ChatID, requestID, ast.ID, connector, mode)
 }
 
 // BufferUserInput adds user input messages to the buffer
@@ -341,7 +343,7 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 		}
 	}
 
-	// 2. Update chat last_message_at and last_connector
+	// 2. Update chat last_message_at, last_connector, and last_mode
 	if len(messages) > 0 {
 		now := time.Now()
 		updates := map[string]interface{}{
@@ -350,6 +352,10 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 		// Also update last_connector if available
 		if connector := ctx.Buffer.Connector(); connector != "" {
 			updates["last_connector"] = connector
+		}
+		// Also update last_mode if available
+		if mode := ctx.Buffer.Mode(); mode != "" {
+			updates["last_mode"] = mode
 		}
 		if updateErr := chatStore.UpdateChat(ctx.ChatID, updates); updateErr != nil {
 			log.Trace("[CHAT] Failed to update chat: %v", updateErr)
@@ -388,6 +394,7 @@ func (ast *Assistant) convertBufferedMessages(buffered []*agentcontext.BufferedM
 			ThreadID:    msg.ThreadID,
 			AssistantID: msg.AssistantID,
 			Connector:   msg.Connector,
+			Mode:        msg.Mode,
 			Sequence:    msg.Sequence,
 			Metadata:    msg.Metadata,
 			CreatedAt:   msg.CreatedAt,
@@ -454,7 +461,6 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 	chat := &storetypes.Chat{
 		ChatID:      ctx.ChatID,
 		AssistantID: ast.ID,
-		Mode:        "chat",
 		Status:      "active",
 		Share:       "private",
 		Sort:        0,
@@ -481,6 +487,15 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 // GetChatStore returns the chat store instance
 // Returns nil if storage is not configured
 func GetChatStore() storetypes.ChatStore {
+	if storage == nil {
+		return nil
+	}
+	return storage
+}
+
+// GetStore returns the full store instance (implements both ChatStore and AssistantStore)
+// Returns nil if storage is not configured
+func GetStore() storetypes.Store {
 	if storage == nil {
 		return nil
 	}

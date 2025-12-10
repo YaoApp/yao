@@ -363,11 +363,57 @@ func GetMessages(c *gin.Context) {
 		return
 	}
 
+	// Get locale from query parameter or Accept-Language header
+	locale := getLocale(c)
+
+	// Collect unique assistant IDs from messages and fetch their info
+	assistantIDs := collectAssistantIDs(messages)
+	assistants := assistant.GetInfoByIDs(assistantIDs, locale)
+
 	response.RespondWithSuccess(c, response.StatusOK, gin.H{
-		"chat_id":  chatID,
-		"messages": messages,
-		"count":    len(messages),
+		"chat_id":    chatID,
+		"messages":   messages,
+		"count":      len(messages),
+		"assistants": assistants,
 	})
+}
+
+// getLocale extracts locale from request
+// Priority: 1. Query param "locale", 2. Accept-Language header
+func getLocale(c *gin.Context) string {
+	// Priority 1: Query parameter
+	if locale := c.Query("locale"); locale != "" {
+		return strings.ToLower(locale)
+	}
+
+	// Priority 2: Header Accept-Language
+	if acceptLang := c.GetHeader("Accept-Language"); acceptLang != "" {
+		// Parse Accept-Language header (e.g., "en-US,en;q=0.9,zh;q=0.8")
+		// Take the first language
+		parts := strings.Split(acceptLang, ",")
+		if len(parts) > 0 {
+			// Remove quality value if present
+			lang := strings.Split(parts[0], ";")[0]
+			return strings.ToLower(strings.TrimSpace(lang))
+		}
+	}
+
+	return ""
+}
+
+// collectAssistantIDs extracts unique assistant IDs from messages
+func collectAssistantIDs(messages []*storetypes.Message) []string {
+	seen := make(map[string]bool)
+	var ids []string
+
+	for _, msg := range messages {
+		if msg.AssistantID != "" && !seen[msg.AssistantID] {
+			seen[msg.AssistantID] = true
+			ids = append(ids, msg.AssistantID)
+		}
+	}
+
+	return ids
 }
 
 // =============================================================================

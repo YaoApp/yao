@@ -50,13 +50,12 @@
       "index": true
     },
     {
-      "name": "mode",
+      "name": "last_mode",
       "type": "string",
-      "label": "Mode",
-      "comment": "Chat mode (default: chat)",
+      "label": "Last Mode",
+      "comment": "Last used chat mode (updated on each message)",
       "length": 50,
-      "nullable": false,
-      "default": "chat"
+      "nullable": true
     },
     {
       "name": "status",

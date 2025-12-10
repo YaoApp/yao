@@ -399,8 +399,8 @@ func (ctx *Context) GetMessageMetadata(messageID string) *MessageMetadata {
 
 // InitBuffer initializes the chat buffer for this context
 // Should be called at the start of Stream() to begin buffering messages and steps
-func (ctx *Context) InitBuffer(assistantID, connector string) *ChatBuffer {
-	ctx.Buffer = NewChatBuffer(ctx.ChatID, ctx.RequestID(), assistantID, connector)
+func (ctx *Context) InitBuffer(assistantID, connector, mode string) *ChatBuffer {
+	ctx.Buffer = NewChatBuffer(ctx.ChatID, ctx.RequestID(), assistantID, connector, mode)
 	return ctx.Buffer
 }
 

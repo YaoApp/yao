@@ -67,6 +67,7 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 	opts := &Options{
 		Context: c.Request.Context(),
 		Skip:    GetSkip(c, completionReq),
+		Mode:    GetMode(c, completionReq),
 	}
 
 	// Try to extract custom connector from model field
@@ -372,6 +373,33 @@ func GetRoute(c *gin.Context, req *CompletionRequest) string {
 	// Priority 3: From CompletionRequest
 	if req != nil && req.Route != "" {
 		return req.Route
+	}
+
+	return ""
+}
+
+// GetMode extracts mode from request with priority:
+// 1. Query parameter "mode"
+// 2. Header "X-Yao-Mode"
+// 3. CompletionRequest metadata "mode" (from payload)
+func GetMode(c *gin.Context, req *CompletionRequest) string {
+	// Priority 1: Query parameter
+	if mode := c.Query("mode"); mode != "" {
+		return mode
+	}
+
+	// Priority 2: Header
+	if mode := c.GetHeader("X-Yao-Mode"); mode != "" {
+		return mode
+	}
+
+	// Priority 3: From CompletionRequest metadata
+	if req != nil && req.Metadata != nil {
+		if mode, ok := req.Metadata["mode"]; ok {
+			if modeStr, ok := mode.(string); ok && modeStr != "" {
+				return modeStr
+			}
+		}
 	}
 
 	return ""

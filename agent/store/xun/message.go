@@ -69,6 +69,7 @@ func (store *Xun) SaveMessages(chatID string, messages []*types.Message) error {
 			"thread_id":    nil,
 			"assistant_id": nil,
 			"connector":    nil,
+			"mode":         nil,
 			"metadata":     nil,
 			"created_at":   now,
 			"updated_at":   now,
@@ -89,6 +90,9 @@ func (store *Xun) SaveMessages(chatID string, messages []*types.Message) error {
 		}
 		if msg.Connector != "" {
 			row["connector"] = msg.Connector
+		}
+		if msg.Mode != "" {
+			row["mode"] = msg.Mode
 		}
 		if msg.Metadata != nil {
 			metadataJSON, err := jsoniter.MarshalToString(msg.Metadata)
@@ -147,8 +151,8 @@ func (store *Xun) GetMessages(chatID string, filter types.MessageFilter) ([]*typ
 		qb.Limit(1000000).Offset(filter.Offset)
 	}
 
-	// Order by sequence
-	qb.OrderBy("sequence", "asc")
+	// Order by created_at first, then by sequence within the same request
+	qb.OrderBy("created_at", "asc").OrderBy("sequence", "asc")
 
 	rows, err := qb.Get()
 	if err != nil {
@@ -332,6 +336,7 @@ func (store *Xun) rowToMessage(data map[string]interface{}) (*types.Message, err
 		ThreadID:    getString(data, "thread_id"),
 		AssistantID: getString(data, "assistant_id"),
 		Connector:   getString(data, "connector"),
+		Mode:        getString(data, "mode"),
 		Sequence:    getInt(data, "sequence"),
 	}
 
