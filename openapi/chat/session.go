@@ -49,15 +49,24 @@ func ListChats(c *gin.Context) {
 		return
 	}
 
-	// Return result
-	response.RespondWithSuccess(c, response.StatusOK, gin.H{
-		"data":      result.Data,
-		"groups":    result.Groups,
+	// Build response based on grouping mode
+	// When group_by is set, data should be nil to avoid duplication
+	resp := gin.H{
 		"page":      result.Page,
 		"pagesize":  result.PageSize,
 		"pagecount": result.PageCount,
 		"total":     result.Total,
-	})
+	}
+
+	if len(result.Groups) > 0 {
+		// Grouped response: only include groups
+		resp["groups"] = result.Groups
+	} else {
+		// Flat response: only include data
+		resp["data"] = result.Data
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, resp)
 }
 
 // GetChat retrieves a single chat session by ID
