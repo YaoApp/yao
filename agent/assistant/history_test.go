@@ -414,7 +414,8 @@ func TestHistoryLoading(t *testing.T) {
 			chatStore.DeleteChat(chatID)
 		}()
 
-		// Add various message types
+		// Add various message types (only user/assistant roles allowed by DB constraint)
+		// loadHistory filters by role (user/assistant only) and converts based on type
 		err = chatStore.SaveMessages(chatID, []*storetypes.Message{
 			{
 				MessageID:   fmt.Sprintf("filter_1_%s", reqID),
@@ -425,7 +426,7 @@ func TestHistoryLoading(t *testing.T) {
 				Props:       map[string]interface{}{"content": "User message"},
 				Sequence:    1,
 				AssistantID: ast.ID,
-				CreatedAt:   time.Now().Add(-4 * time.Minute),
+				CreatedAt:   time.Now().Add(-3 * time.Minute),
 			},
 			{
 				MessageID:   fmt.Sprintf("filter_2_%s", reqID),
@@ -436,7 +437,7 @@ func TestHistoryLoading(t *testing.T) {
 				Props:       map[string]interface{}{"text": "Loading..."},
 				Sequence:    2,
 				AssistantID: ast.ID,
-				CreatedAt:   time.Now().Add(-3 * time.Minute),
+				CreatedAt:   time.Now().Add(-2 * time.Minute),
 			},
 			{
 				MessageID:   fmt.Sprintf("filter_3_%s", reqID),
@@ -446,17 +447,6 @@ func TestHistoryLoading(t *testing.T) {
 				Type:        "text",
 				Props:       map[string]interface{}{"text": "Assistant response"},
 				Sequence:    3,
-				AssistantID: ast.ID,
-				CreatedAt:   time.Now().Add(-2 * time.Minute),
-			},
-			{
-				MessageID:   fmt.Sprintf("filter_4_%s", reqID),
-				ChatID:      chatID,
-				RequestID:   fmt.Sprintf("req_filter_%s", reqID),
-				Role:        "system",
-				Type:        "event",
-				Props:       map[string]interface{}{"event": "stream_end"},
-				Sequence:    4,
 				AssistantID: ast.ID,
 				CreatedAt:   time.Now().Add(-1 * time.Minute),
 			},
@@ -471,17 +461,19 @@ func TestHistoryLoading(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
-		// User and assistant roles are included, system is filtered out
-		// Note: loading type messages with role=assistant are included (role-based filtering)
-		// Only system role messages are filtered out
+		// User and assistant roles are included
+		// loading type messages with role=assistant are included (role-based filtering)
+		// History contains: 1 user + 2 assistant (loading + text) = 3 messages
+		// Plus 1 new input = 4 total
 		assert.GreaterOrEqual(t, len(result.FullMessages), 3) // At least 1 user + 1 assistant from history + 1 new
 
-		// Verify no system role messages
+		// Verify only user and assistant roles
 		for _, msg := range result.FullMessages {
-			assert.NotEqual(t, "system", string(msg.Role))
+			assert.True(t, msg.Role == agentcontext.RoleUser || msg.Role == agentcontext.RoleAssistant,
+				"Expected user or assistant role, got: %s", msg.Role)
 		}
 
-		t.Log("✓ System role messages filtered out")
+		t.Log("✓ Only user and assistant roles included in history")
 	})
 
 	t.Run("ContentExtraction", func(t *testing.T) {

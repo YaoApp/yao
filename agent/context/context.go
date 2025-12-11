@@ -6,9 +6,7 @@ import (
 	"sync"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/plan"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -41,46 +39,6 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID string
 	}
 
 	return ctx
-}
-
-// NewWithPayload create a new context and unmarshal from payload
-func NewWithPayload(parent context.Context, authorized *types.AuthorizedInfo, chatID, payload string) *Context {
-	ctx := New(parent, authorized, chatID)
-
-	if payload != "" {
-		err := jsoniter.Unmarshal([]byte(payload), ctx)
-		if err != nil {
-			log.Error("%s", err.Error())
-		}
-	}
-
-	return ctx
-}
-
-// NewWithCancel create a new context with cancel
-func NewWithCancel(parent context.Context, authorized *types.AuthorizedInfo, chatID string) (*Context, context.CancelFunc) {
-	ctx := New(parent, authorized, chatID)
-	return WithCancel(ctx)
-}
-
-// NewWithTimeout create a new context with timeout
-func NewWithTimeout(parent context.Context, authorized *types.AuthorizedInfo, chatID string, timeout time.Duration) (*Context, context.CancelFunc) {
-	ctx := New(parent, authorized, chatID)
-	return WithTimeout(ctx, timeout)
-}
-
-// WithCancel create a new context
-func WithCancel(parent *Context) (*Context, context.CancelFunc) {
-	new, cancel := context.WithCancel(parent.Context)
-	parent.Context = new
-	return parent, cancel
-}
-
-// WithTimeout create a new context
-func WithTimeout(parent *Context, timeout time.Duration) (*Context, context.CancelFunc) {
-	new, cancel := context.WithTimeout(parent.Context, timeout)
-	parent.Context = new
-	return parent, cancel
 }
 
 // Release the context and clean up all resources including stacks and trace
@@ -353,21 +311,6 @@ func (ctx *Context) TraceID() string {
 		return ctx.Stack.TraceID
 	}
 	return ""
-}
-
-// recordMessageMetadata records metadata for a sent message
-// Used to inherit BlockID and ThreadID in subsequent delta operations
-func (ctx *Context) recordMessageMetadata(msg *message.Message) {
-	if msg.MessageID == "" || ctx.messageMetadata == nil {
-		return
-	}
-
-	ctx.messageMetadata.setMessage(msg.MessageID, &MessageMetadata{
-		MessageID: msg.MessageID,
-		BlockID:   msg.BlockID,
-		ThreadID:  msg.ThreadID,
-		Type:      msg.Type,
-	})
 }
 
 // getMessageMetadata retrieves metadata for a message by ID

@@ -41,10 +41,15 @@ const (
 type LogLevel int
 
 const (
+	// LogLevelTrace represents the most verbose logging level for detailed tracing
 	LogLevelTrace LogLevel = iota
+	// LogLevelDebug represents debug level logging for development diagnostics
 	LogLevelDebug
+	// LogLevelInfo represents informational messages for normal operation
 	LogLevelInfo
+	// LogLevelWarn represents warning messages for potentially harmful situations
 	LogLevelWarn
+	// LogLevelError represents error messages for serious problems
 	LogLevelError
 )
 
