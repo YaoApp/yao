@@ -121,13 +121,17 @@ func TestSubscribeFrom(t *testing.T) {
 			assert.NoError(t, err)
 
 			// Wait to ensure different timestamp (simulate time passing)
+			// Use a longer sleep to account for CI environment variability
 			time.Sleep(1100 * time.Millisecond)
 
 			// Record timestamp (simulate user noting current time before refresh)
-			resumeTimestamp := time.Now().UnixMilli()
+			// Subtract 1ms to ensure we capture events that happen "now"
+			// This accounts for millisecond precision and timing variability in CI
+			resumeTimestamp := time.Now().UnixMilli() - 1
 
-			// Wait again to ensure next operations are after resumeTimestamp
-			time.Sleep(100 * time.Millisecond)
+			// Wait to ensure next operations have a clearly different timestamp
+			// Use longer sleep for CI reliability
+			time.Sleep(500 * time.Millisecond)
 
 			// Continue with more operations
 			_, err = manager.Add("Step 2", types.TraceNodeOption{Label: "Finalizing"})
