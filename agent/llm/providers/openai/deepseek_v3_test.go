@@ -6,7 +6,6 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/connector/openai"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -368,35 +367,33 @@ func TestDeepSeekV3NoReasoningEffort(t *testing.T) {
 
 // newDeepSeekV3TestContext creates a real Context for testing DeepSeek V3 provider
 func newDeepSeekV3TestContext(chatID, connectorID string) *context.Context {
-	return &context.Context{
-		Context:     gocontext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: "test-assistant",
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "DeepSeekV3ProviderTest/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptStandard,
-		Route:    "/api/test",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-			Constraints: types.DataConstraints{
-				TeamOnly: true,
-				Extra: map[string]interface{}{
-					"test": "deepseek-v3-provider",
-				},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
+		Constraints: types.DataConstraints{
+			TeamOnly: true,
+			Extra: map[string]interface{}{
+				"test": "deepseek-v3-provider",
 			},
 		},
 	}
+
+	ctx := context.New(gocontext.Background(), authorized, chatID)
+	ctx.AssistantID = "test-assistant"
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "DeepSeekV3ProviderTest/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptStandard
+	ctx.Route = "/api/test"
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }

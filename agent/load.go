@@ -195,6 +195,9 @@ func initAssistant() error {
 	// Set Storage
 	assistant.SetStorage(agentDSL.Store)
 
+	// Set Store Setting (MaxSize, TTL, etc.)
+	assistant.SetStoreSetting(&agentDSL.StoreSetting)
+
 	// Set global Uses configuration
 	if agentDSL.Uses != nil {
 		globalUses := &context.Uses{

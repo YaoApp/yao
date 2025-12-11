@@ -4,7 +4,6 @@ import (
 	stdContext "context"
 	"testing"
 
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
@@ -14,44 +13,42 @@ import (
 // newTestContext creates a Context for testing with commonly used fields pre-populated.
 // You can override any fields after creation as needed for specific test scenarios.
 func newTestContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Route:    "",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:    "test-user",
-			ClientID:   "test-client-id",
-			Scope:      "openid profile email",
-			SessionID:  "test-session-id",
-			UserID:     "test-user-123",
-			TeamID:     "test-team-456",
-			TenantID:   "test-tenant-789",
-			RememberMe: true,
-			Constraints: types.DataConstraints{
-				OwnerOnly:   false,
-				CreatorOnly: false,
-				EditorOnly:  false,
-				TeamOnly:    true,
-				Extra: map[string]interface{}{
-					"department": "engineering",
-					"region":     "us-west",
-					"project":    "yao",
-				},
+	authorized := &types.AuthorizedInfo{
+		Subject:    "test-user",
+		ClientID:   "test-client-id",
+		Scope:      "openid profile email",
+		SessionID:  "test-session-id",
+		UserID:     "test-user-123",
+		TeamID:     "test-team-456",
+		TenantID:   "test-tenant-789",
+		RememberMe: true,
+		Constraints: types.DataConstraints{
+			OwnerOnly:   false,
+			CreatorOnly: false,
+			EditorOnly:  false,
+			TeamOnly:    true,
+			Extra: map[string]interface{}{
+				"department": "engineering",
+				"region":     "us-west",
+				"project":    "yao",
 			},
 		},
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }
 
 // TestCreate test the create hook

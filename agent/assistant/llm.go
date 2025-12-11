@@ -1,9 +1,6 @@
 package assistant
 
 import (
-	"fmt"
-
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -20,12 +17,6 @@ func (ast *Assistant) executeLLMStream(
 	streamHandler message.StreamFunc,
 	opts *context.Options,
 ) (*context.CompletionResponse, error) {
-
-	// === Debug LLM Stream Start ===
-	fmt.Println(">>> executeLLMStream: STARTING")
-	fmt.Printf(">>> Messages count: %d\n", len(completionMessages))
-	fmt.Printf(">>> Tools count: %d\n", len(completionOptions.Tools))
-	// === End Debug ===
 
 	// Get connector object (capabilities were already set above, before stream_start)
 	conn, capabilities, err := ast.GetConnector(ctx, opts)
@@ -45,6 +36,9 @@ func (ast *Assistant) executeLLMStream(
 	// Trace Add LLM request
 	ast.traceLLMRequest(ctx, conn.ID(), completionMessages, completionOptions)
 
+	// Log LLM call start
+	ctx.Logger.LLMStart(conn.ID(), "", len(completionMessages))
+
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
 	if err != nil {
@@ -54,25 +48,9 @@ func (ast *Assistant) executeLLMStream(
 	}
 
 	// Call the LLM Completion Stream (streamHandler was set earlier)
-	log.Trace("[AGENT] Calling LLM Stream: assistant=%s", ast.ID)
-
-	// === Debug LLM Stream Call ===
-	fmt.Println(">>> executeLLMStream: CALLING llmInstance.Stream()")
-	// === End Debug ===
-
 	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
 
-	// === Debug LLM Stream Return ===
-	fmt.Println(">>> executeLLMStream: llmInstance.Stream() RETURNED")
-	fmt.Printf(">>> err: %v\n", err)
-	if completionResponse != nil {
-		fmt.Printf(">>> ToolCalls: %d\n", len(completionResponse.ToolCalls))
-	}
-	// === End Debug ===
-
-	log.Trace("[AGENT] LLM Stream returned: assistant=%s, err=%v", ast.ID, err)
 	if err != nil {
-		log.Trace("[AGENT] Calling sendStreamEndOnError")
 		// Mark LLM Request as failed in trace
 		ast.traceLLMFail(ctx, err)
 		return nil, err
@@ -111,6 +89,9 @@ func (ast *Assistant) executeLLMForToolRetry(
 	// Trace Add LLM retry request
 	ast.traceLLMRetryRequest(ctx, conn.ID(), completionMessages, completionOptions)
 
+	// Log LLM call start (retry)
+	ctx.Logger.LLMStart(conn.ID(), "", len(completionMessages))
+
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
 	if err != nil {
@@ -120,9 +101,7 @@ func (ast *Assistant) executeLLMForToolRetry(
 	}
 
 	// Call the LLM Completion Stream (still streaming for tool retry)
-	log.Trace("[AGENT] Calling LLM Stream for tool retry: assistant=%s", ast.ID)
 	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
-	log.Trace("[AGENT] LLM tool retry stream returned: assistant=%s, err=%v", ast.ID, err)
 	if err != nil {
 		// Mark LLM Retry Request as failed in trace
 		ast.traceLLMFail(ctx, err)

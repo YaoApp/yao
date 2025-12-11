@@ -1,9 +1,10 @@
-package context
+package context_test
 
 import (
 	"testing"
 
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -23,15 +24,15 @@ func TestGetChatIDByMessages_NewConversation(t *testing.T) {
 
 	cache := getTestCache(t)
 
-	messages := []Message{
+	messages := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "Hello, how are you?",
 		},
 	}
 
 	// First request - should generate new chat ID
-	chatID1, err := GetChatIDByMessages(cache, messages)
+	chatID1, err := context.GetChatIDByMessages(cache, messages)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -42,7 +43,7 @@ func TestGetChatIDByMessages_NewConversation(t *testing.T) {
 
 	// Second request with same single user message - should generate DIFFERENT chat ID
 	// (single user message always generates new chat ID to avoid false matches)
-	chatID2, err := GetChatIDByMessages(cache, messages)
+	chatID2, err := context.GetChatIDByMessages(cache, messages)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -65,10 +66,10 @@ func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
 
 	// Scenario: User conversation with incrementally added messages
 	// Request 1: [user1]
-	messages1 := []Message{
-		{Role: RoleUser, Content: "First message"},
+	messages1 := []context.Message{
+		{Role: context.RoleUser, Content: "First message"},
 	}
-	chatID1, err := GetChatIDByMessages(cache, messages1)
+	chatID1, err := context.GetChatIDByMessages(cache, messages1)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -76,11 +77,11 @@ func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
 	// Request 2: [user1, user2]
 	// For 2 messages, matches last 1 message
 	// Should match chatID1 because last message is cached
-	messages2 := []Message{
-		{Role: RoleUser, Content: "First message"},
-		{Role: RoleUser, Content: "Second message"},
+	messages2 := []context.Message{
+		{Role: context.RoleUser, Content: "First message"},
+		{Role: context.RoleUser, Content: "Second message"},
 	}
-	chatID2, err := GetChatIDByMessages(cache, messages2)
+	chatID2, err := context.GetChatIDByMessages(cache, messages2)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -92,12 +93,12 @@ func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
 	// Request 3: [user1, user2, user3]
 	// For 3+ messages, matches last 2 messages
 	// Should match chatID2 because last 2 messages are cached
-	messages3 := []Message{
-		{Role: RoleUser, Content: "First message"},
-		{Role: RoleUser, Content: "Second message"},
-		{Role: RoleUser, Content: "Third message"},
+	messages3 := []context.Message{
+		{Role: context.RoleUser, Content: "First message"},
+		{Role: context.RoleUser, Content: "Second message"},
+		{Role: context.RoleUser, Content: "Third message"},
 	}
-	chatID3, err := GetChatIDByMessages(cache, messages3)
+	chatID3, err := context.GetChatIDByMessages(cache, messages3)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -108,13 +109,13 @@ func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
 
 	// Request 4: [user1, user2, user3, user4]
 	// Should match chatID3 because last 2 messages are cached
-	messages4 := []Message{
-		{Role: RoleUser, Content: "First message"},
-		{Role: RoleUser, Content: "Second message"},
-		{Role: RoleUser, Content: "Third message"},
-		{Role: RoleUser, Content: "Fourth message"},
+	messages4 := []context.Message{
+		{Role: context.RoleUser, Content: "First message"},
+		{Role: context.RoleUser, Content: "Second message"},
+		{Role: context.RoleUser, Content: "Third message"},
+		{Role: context.RoleUser, Content: "Fourth message"},
 	}
-	chatID4, err := GetChatIDByMessages(cache, messages4)
+	chatID4, err := context.GetChatIDByMessages(cache, messages4)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -136,32 +137,32 @@ func TestGetChatIDByMessages_DifferentConversations(t *testing.T) {
 	cache := getTestCache(t)
 
 	// First conversation
-	messages1 := []Message{
+	messages1 := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "Hello",
 		},
 	}
 
-	chatID1, err := GetChatIDByMessages(cache, messages1)
+	chatID1, err := context.GetChatIDByMessages(cache, messages1)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
 
-	err = CacheChatID(cache, messages1, chatID1)
+	err = context.CacheChatID(cache, messages1, chatID1)
 	if err != nil {
 		t.Fatalf("Failed to cache chat ID: %v", err)
 	}
 
 	// Different conversation
-	messages2 := []Message{
+	messages2 := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "Goodbye",
 		},
 	}
 
-	chatID2, err := GetChatIDByMessages(cache, messages2)
+	chatID2, err := context.GetChatIDByMessages(cache, messages2)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -178,37 +179,37 @@ func TestGetChatIDByMessages_MultiModalContent(t *testing.T) {
 	cache := getTestCache(t)
 
 	// First request with multimodal content
-	messages1 := []Message{
+	messages1 := []context.Message{
 		{
-			Role: RoleUser,
-			Content: []ContentPart{
+			Role: context.RoleUser,
+			Content: []context.ContentPart{
 				{
-					Type: ContentText,
+					Type: context.ContentText,
 					Text: "What's in this image?",
 				},
 				{
-					Type: ContentImageURL,
-					ImageURL: &ImageURL{
+					Type: context.ContentImageURL,
+					ImageURL: &context.ImageURL{
 						URL:    "https://example.com/image.jpg",
-						Detail: DetailHigh,
+						Detail: context.DetailHigh,
 					},
 				},
 			},
 		},
 	}
 
-	chatID1, err := GetChatIDByMessages(cache, messages1)
+	chatID1, err := context.GetChatIDByMessages(cache, messages1)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
 
 	// Second request - add another message to continue conversation
-	messages2 := append(messages1, Message{
-		Role:    RoleUser,
+	messages2 := append(messages1, context.Message{
+		Role:    context.RoleUser,
 		Content: "Tell me more details",
 	})
 
-	chatID2, err := GetChatIDByMessages(cache, messages2)
+	chatID2, err := context.GetChatIDByMessages(cache, messages2)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -226,32 +227,32 @@ func TestGetChatIDByMessages_WithToolCalls(t *testing.T) {
 	cache := getTestCache(t)
 
 	// First request with user message
-	messages1 := []Message{
+	messages1 := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "What's the weather in Tokyo?",
 		},
 	}
 
-	chatID1, err := GetChatIDByMessages(cache, messages1)
+	chatID1, err := context.GetChatIDByMessages(cache, messages1)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
 
 	// Second request - add assistant response and another user message
-	messages2 := []Message{
+	messages2 := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "What's the weather in Tokyo?",
 		},
 		{
-			Role:    RoleAssistant,
+			Role:    context.RoleAssistant,
 			Content: nil,
-			ToolCalls: []ToolCall{
+			ToolCalls: []context.ToolCall{
 				{
 					ID:   "call_123",
-					Type: ToolTypeFunction,
-					Function: Function{
+					Type: context.ToolTypeFunction,
+					Function: context.Function{
 						Name:      "get_weather",
 						Arguments: `{"location":"Tokyo"}`,
 					},
@@ -259,12 +260,12 @@ func TestGetChatIDByMessages_WithToolCalls(t *testing.T) {
 			},
 		},
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "How about tomorrow?",
 		},
 	}
 
-	chatID2, err := GetChatIDByMessages(cache, messages2)
+	chatID2, err := context.GetChatIDByMessages(cache, messages2)
 	if err != nil {
 		t.Fatalf("Failed to get chat ID: %v", err)
 	}
@@ -281,7 +282,7 @@ func TestCacheChatID_EmptyMessages(t *testing.T) {
 
 	cache := getTestCache(t)
 
-	err := CacheChatID(cache, []Message{}, "chat_123")
+	err := context.CacheChatID(cache, []context.Message{}, "chat_123")
 	if err == nil {
 		t.Error("Expected error for empty messages")
 	}
@@ -293,14 +294,14 @@ func TestCacheChatID_EmptyChatID(t *testing.T) {
 
 	cache := getTestCache(t)
 
-	messages := []Message{
+	messages := []context.Message{
 		{
-			Role:    RoleUser,
+			Role:    context.RoleUser,
 			Content: "Hello",
 		},
 	}
 
-	err := CacheChatID(cache, messages, "")
+	err := context.CacheChatID(cache, messages, "")
 	if err == nil {
 		t.Error("Expected error for empty chat ID")
 	}
@@ -312,53 +313,14 @@ func TestGetChatIDByMessages_EmptyMessages(t *testing.T) {
 
 	cache := getTestCache(t)
 
-	_, err := GetChatIDByMessages(cache, []Message{})
+	_, err := context.GetChatIDByMessages(cache, []context.Message{})
 	if err == nil {
 		t.Error("Expected error for empty messages")
 	}
 }
 
-func TestHashMessage_Consistency(t *testing.T) {
-	msg := Message{
-		Role:    RoleUser,
-		Content: "Test message",
-	}
-
-	hash1, err := hashMessage(msg)
-	if err != nil {
-		t.Fatalf("Failed to hash message: %v", err)
-	}
-
-	hash2, err := hashMessage(msg)
-	if err != nil {
-		t.Fatalf("Failed to hash message: %v", err)
-	}
-
-	if hash1 != hash2 {
-		t.Errorf("Expected consistent hashes, got %s and %s", hash1, hash2)
-	}
-}
-
-func TestGetKey(t *testing.T) {
-	hash := "abc123"
-	key := getKey(hash)
-
-	expectedPrefix := chatCachePrefix
-	if len(key) <= len(expectedPrefix) {
-		t.Errorf("Expected key to have prefix, got %s", key)
-	}
-
-	if key[:len(expectedPrefix)] != expectedPrefix {
-		t.Errorf("Expected key to start with %s, got %s", expectedPrefix, key)
-	}
-
-	if key != chatCachePrefix+hash {
-		t.Errorf("Expected key %s, got %s", chatCachePrefix+hash, key)
-	}
-}
-
 func TestGenChatID(t *testing.T) {
-	id1 := GenChatID()
+	id1 := context.GenChatID()
 
 	if id1 == "" {
 		t.Error("Expected non-empty chat ID")

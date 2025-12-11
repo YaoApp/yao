@@ -6,7 +6,6 @@ import (
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/connector/openai"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/config"
@@ -335,35 +334,33 @@ func TestTemperatureNoTemperatureProvided(t *testing.T) {
 
 // newTemperatureTestContext creates a real Context for testing temperature handling
 func newTemperatureTestContext(chatID, connectorID string) *context.Context {
-	return &context.Context{
-		Context:     gocontext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: "test-assistant",
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TemperatureTest/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptStandard,
-		Route:    "/api/test",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-			Constraints: types.DataConstraints{
-				TeamOnly: true,
-				Extra: map[string]interface{}{
-					"test": "temperature",
-				},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
+		Constraints: types.DataConstraints{
+			TeamOnly: true,
+			Extra: map[string]interface{}{
+				"test": "temperature",
 			},
 		},
 	}
+
+	ctx := context.New(gocontext.Background(), authorized, chatID)
+	ctx.AssistantID = "test-assistant"
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TemperatureTest/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptStandard
+	ctx.Route = "/api/test"
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }

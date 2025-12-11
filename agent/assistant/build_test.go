@@ -4,7 +4,6 @@ import (
 	stdContext "context"
 	"testing"
 
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
@@ -13,33 +12,31 @@ import (
 
 // newTestContext creates a Context for testing with commonly used fields pre-populated
 func newTestContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer: context.RefererAPI,
-		Accept:  context.AcceptWebCUI,
-		Route:   "/test/route",
-		Metadata: map[string]interface{}{
-			"test": "context_metadata",
-		},
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client-id",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-		},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client-id",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = "/test/route"
+	ctx.Metadata = map[string]interface{}{
+		"test": "context_metadata",
+	}
+	return ctx
 }
 
 // TestBuildRequest tests the BuildRequest function

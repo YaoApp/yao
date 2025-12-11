@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -15,35 +14,36 @@ import (
 )
 
 // newTestContextWithInterrupt creates a Context with interrupt controller for testing
-func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
-	ctx := &context.Context{
-		Context:     stdContext.Background(),
-		ID:          fmt.Sprintf("test_ctx_%d", time.Now().UnixNano()),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:     context.RefererAPI,
-		Accept:      context.AcceptWebCUI,
-		Route:       "/test/route",
-		IDGenerator: message.NewIDGenerator(), // Initialize context-scoped ID generator
-		Metadata: map[string]interface{}{
-			"test": "interrupt_test",
-		},
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client-id",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-		},
+// Returns the context and a cancel function that should be called before Release()
+func newTestContextWithInterrupt(chatID, assistantID string) (*context.Context, stdContext.CancelFunc) {
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client-id",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
+	}
+
+	// Use cancellable context to properly stop goroutines on timeout
+	parentCtx, cancel := stdContext.WithCancel(stdContext.Background())
+
+	ctx := context.New(parentCtx, authorized, chatID)
+	ctx.ID = fmt.Sprintf("test_ctx_%d", time.Now().UnixNano())
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = "/test/route"
+	ctx.IDGenerator = message.NewIDGenerator() // Initialize context-scoped ID generator
+	ctx.Metadata = map[string]interface{}{
+		"test": "interrupt_test",
 	}
 
 	// Initialize interrupt controller
@@ -57,7 +57,7 @@ func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
 	// Start interrupt listener
 	ctx.Interrupt.Start(ctx.ID)
 
-	return ctx
+	return ctx, cancel
 }
 
 // TestAgentInterruptGraceful tests graceful interrupt during agent stream
@@ -73,8 +73,12 @@ func TestAgentInterruptGraceful(t *testing.T) {
 
 	t.Run("GracefulInterruptDuringStream", func(t *testing.T) {
 		// Create context with interrupt support
-		ctx := newTestContextWithInterrupt("chat-interrupt-graceful", "tests.interrupt")
-		defer ctx.Release()
+		ctx, cancel := newTestContextWithInterrupt("chat-interrupt-graceful", "tests.interrupt")
+		defer func() {
+			cancel()                           // Cancel context first to stop goroutines
+			time.Sleep(100 * time.Millisecond) // Wait for goroutines to exit
+			ctx.Release()
+		}()
 
 		// Track handler invocations
 		handlerInvoked := false
@@ -129,6 +133,8 @@ func TestAgentInterruptGraceful(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Log("Stream timeout (expected for real LLM calls)")
+			cancel()     // Cancel to stop the stream goroutine
+			<-streamDone // Wait for goroutine to exit
 		}
 
 		// Verify handler was invoked if signal was sent
@@ -157,8 +163,12 @@ func TestAgentInterruptForce(t *testing.T) {
 
 	t.Run("ForceInterruptDuringStream", func(t *testing.T) {
 		// Create context with interrupt support
-		ctx := newTestContextWithInterrupt("chat-interrupt-force", "tests.interrupt")
-		defer ctx.Release()
+		ctx, cancel := newTestContextWithInterrupt("chat-interrupt-force", "tests.interrupt")
+		defer func() {
+			cancel()                           // Cancel context first to stop goroutines
+			time.Sleep(100 * time.Millisecond) // Wait for goroutines to exit
+			ctx.Release()
+		}()
 
 		// Track handler invocations
 		handlerInvoked := false
@@ -218,6 +228,8 @@ func TestAgentInterruptForce(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Log("Stream timeout")
+			cancel()     // Cancel to stop the stream goroutine
+			<-streamDone // Wait for goroutine to exit
 		}
 
 		// Verify interrupt behavior
@@ -244,8 +256,12 @@ func TestAgentMultipleInterrupts(t *testing.T) {
 
 	t.Run("MultipleGracefulInterrupts", func(t *testing.T) {
 		// Create context with interrupt support
-		ctx := newTestContextWithInterrupt("chat-interrupt-multiple", "tests.interrupt")
-		defer ctx.Release()
+		ctx, cancel := newTestContextWithInterrupt("chat-interrupt-multiple", "tests.interrupt")
+		defer func() {
+			cancel()                           // Cancel context first to stop goroutines
+			time.Sleep(100 * time.Millisecond) // Wait for goroutines to exit
+			ctx.Release()
+		}()
 
 		handlerCallCount := 0
 		ctx.Interrupt.SetHandler(func(c *context.Context, signal *context.InterruptSignal) error {
@@ -296,6 +312,8 @@ func TestAgentMultipleInterrupts(t *testing.T) {
 			}
 		case <-time.After(10 * time.Second):
 			t.Log("Stream timeout")
+			cancel()     // Cancel to stop the stream goroutine
+			<-streamDone // Wait for goroutine to exit
 		}
 
 		// Check if interrupts were received
@@ -313,8 +331,11 @@ func TestAgentMultipleInterrupts(t *testing.T) {
 func TestAgentInterruptWithoutStream(t *testing.T) {
 	t.Run("InterruptBeforeStream", func(t *testing.T) {
 		// Create context with interrupt support
-		ctx := newTestContextWithInterrupt("chat-interrupt-before", "test-assistant")
-		defer ctx.Release()
+		ctx, cancel := newTestContextWithInterrupt("chat-interrupt-before", "test-assistant")
+		defer func() {
+			cancel()
+			ctx.Release()
+		}()
 
 		// Send interrupt before starting stream
 		signal := &context.InterruptSignal{
@@ -350,7 +371,7 @@ func TestAgentInterruptWithoutStream(t *testing.T) {
 // TestAgentInterruptContextCleanup tests cleanup after interrupt
 func TestAgentInterruptContextCleanup(t *testing.T) {
 	t.Run("CleanupAfterInterrupt", func(t *testing.T) {
-		ctx := newTestContextWithInterrupt("chat-interrupt-cleanup", "test-assistant")
+		ctx, cancel := newTestContextWithInterrupt("chat-interrupt-cleanup", "test-assistant")
 
 		// Send interrupt
 		signal := &context.InterruptSignal{
@@ -362,7 +383,8 @@ func TestAgentInterruptContextCleanup(t *testing.T) {
 
 		time.Sleep(100 * time.Millisecond)
 
-		// Release context
+		// Cancel and release context
+		cancel()
 		ctx.Release()
 
 		// Try to send interrupt to released context

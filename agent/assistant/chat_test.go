@@ -103,14 +103,10 @@ func TestPrepareKBCollection(t *testing.T) {
 		teamID := fmt.Sprintf("test_team_%s", timestamp)
 		userID := fmt.Sprintf("test_user_%s", timestamp)
 
-		ctx := &agentcontext.Context{
-			Context: context.Background(),
-			ChatID:  "test_chat_prepare_001",
-			Authorized: &oauthtypes.AuthorizedInfo{
-				TeamID: teamID,
-				UserID: userID,
-			},
-		}
+		ctx := agentcontext.New(context.Background(), &oauthtypes.AuthorizedInfo{
+			TeamID: teamID,
+			UserID: userID,
+		}, "test_chat_prepare_001")
 
 		opts := &agentcontext.Options{}
 
@@ -132,14 +128,10 @@ func TestPrepareKBCollection(t *testing.T) {
 		teamID := fmt.Sprintf("idem_team_%s", timestamp)
 		userID := fmt.Sprintf("idem_user_%s", timestamp)
 
-		ctx := &agentcontext.Context{
-			Context: context.Background(),
-			ChatID:  "test_chat_idempotent",
-			Authorized: &oauthtypes.AuthorizedInfo{
-				TeamID: teamID,
-				UserID: userID,
-			},
-		}
+		ctx := agentcontext.New(context.Background(), &oauthtypes.AuthorizedInfo{
+			TeamID: teamID,
+			UserID: userID,
+		}, "test_chat_idempotent")
 
 		opts := &agentcontext.Options{}
 
@@ -163,11 +155,7 @@ func TestPrepareKBCollection(t *testing.T) {
 	})
 
 	t.Run("HandleMissingAuthorizedInfo", func(t *testing.T) {
-		ctx := &agentcontext.Context{
-			Context:    context.Background(),
-			ChatID:     "test_chat_no_auth",
-			Authorized: nil, // Missing authorized info
-		}
+		ctx := agentcontext.New(context.Background(), nil, "test_chat_no_auth") // Missing authorized info
 
 		opts := &agentcontext.Options{}
 
@@ -183,14 +171,10 @@ func TestPrepareKBCollection(t *testing.T) {
 		teamID := fmt.Sprintf("concurrent_team_%s", timestamp)
 		userID := fmt.Sprintf("concurrent_user_%s", timestamp)
 
-		ctx := &agentcontext.Context{
-			Context: context.Background(),
-			ChatID:  "test_chat_concurrent",
-			Authorized: &oauthtypes.AuthorizedInfo{
-				TeamID: teamID,
-				UserID: userID,
-			},
-		}
+		ctx := agentcontext.New(context.Background(), &oauthtypes.AuthorizedInfo{
+			TeamID: teamID,
+			UserID: userID,
+		}, "test_chat_concurrent")
 
 		opts := &agentcontext.Options{}
 
@@ -253,14 +237,10 @@ func TestInitializeConversation(t *testing.T) {
 		teamID := fmt.Sprintf("init_team_%s", timestamp)
 		userID := fmt.Sprintf("init_user_%s", timestamp)
 
-		ctx := &agentcontext.Context{
-			Context: context.Background(),
-			ChatID:  "test_init_chat_001",
-			Authorized: &oauthtypes.AuthorizedInfo{
-				TeamID: teamID,
-				UserID: userID,
-			},
-		}
+		ctx := agentcontext.New(context.Background(), &oauthtypes.AuthorizedInfo{
+			TeamID: teamID,
+			UserID: userID,
+		}, "test_init_chat_001")
 
 		opts := &agentcontext.Options{}
 
@@ -282,14 +262,10 @@ func TestInitializeConversation(t *testing.T) {
 	})
 
 	t.Run("SkipHistoryFlag", func(t *testing.T) {
-		ctx := &agentcontext.Context{
-			Context: context.Background(),
-			ChatID:  "test_skip_history",
-			Authorized: &oauthtypes.AuthorizedInfo{
-				TeamID: "skip_team",
-				UserID: "skip_user",
-			},
-		}
+		ctx := agentcontext.New(context.Background(), &oauthtypes.AuthorizedInfo{
+			TeamID: "skip_team",
+			UserID: "skip_user",
+		}, "test_skip_history")
 
 		opts := &agentcontext.Options{
 			Skip: &agentcontext.Skip{

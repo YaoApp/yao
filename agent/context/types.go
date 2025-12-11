@@ -230,6 +230,7 @@ type Context struct {
 	Stacks      map[string]*Stack    `json:"-"`  // Stacks, all stacks in this request (for trace logging)
 	Writer      Writer               `json:"-"`  // Writer, it will be used to write response data to the client
 	IDGenerator *message.IDGenerator `json:"-"`  // ID generator for this context (chunk, message, block, thread IDs)
+	Logger      *RequestLogger       `json:"-"`  // Request-scoped async logger
 
 	// Chat buffer for batch saving messages and resume steps
 	Buffer *ChatBuffer `json:"-"` // Chat buffer for batch saving at end of Stream()

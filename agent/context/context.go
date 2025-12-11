@@ -27,14 +27,17 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID string
 		parent = context.Background()
 	}
 
+	contextID := generateContextID()
+
 	ctx := &Context{
 		Context:         parent,
-		ID:              generateContextID(), // Generate unique ID for the context
-		Authorized:      authorized,          // Set authorized info
+		ID:              contextID,  // Generate unique ID for the context
+		Authorized:      authorized, // Set authorized info
 		Space:           plan.NewMemorySharedSpace(),
 		ChatID:          chatID,
-		IDGenerator:     message.NewIDGenerator(),  // Initialize ID generator for this context
-		messageMetadata: newMessageMetadataStore(), // Initialize message metadata store
+		IDGenerator:     message.NewIDGenerator(),                // Initialize ID generator for this context
+		messageMetadata: newMessageMetadataStore(),               // Initialize message metadata store
+		Logger:          NewRequestLogger("", chatID, contextID), // Initialize logger (assistantID set later)
 	}
 
 	return ctx
@@ -82,7 +85,9 @@ func WithTimeout(parent *Context, timeout time.Duration) (*Context, context.Canc
 
 // Release the context and clean up all resources including stacks and trace
 func (ctx *Context) Release() {
-	log.Trace("[RELEASE] Context cleanup started: contextID=%s, assistantID=%s", ctx.ID, ctx.AssistantID)
+	if ctx.Logger != nil {
+		ctx.Logger.Release()
+	}
 
 	// Unregister from global registry
 	if ctx.ID != "" {
@@ -91,61 +96,44 @@ func (ctx *Context) Release() {
 
 	// Stop interrupt controller
 	if ctx.Interrupt != nil {
-		log.Trace("[RELEASE] Stopping interrupt controller")
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Interrupt controller")
+		}
 		ctx.Interrupt.Stop()
 		ctx.Interrupt = nil
 	}
 
 	// Complete and release trace if exists
 	if ctx.trace != nil && ctx.Stack != nil && ctx.Stack.TraceID != "" {
-		log.Trace("[RELEASE] Releasing trace: traceID=%s", ctx.Stack.TraceID)
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Trace: " + ctx.Stack.TraceID)
+		}
 
 		// Check if context is cancelled - if so, mark as cancelled instead of complete
 		if ctx.Context != nil && ctx.Context.Err() != nil {
-			log.Trace("[RELEASE] Context cancelled, marking trace as cancelled: err=%v", ctx.Context.Err())
-
-			// Mark trace as cancelled (saves to disk and broadcasts to subscribers)
-			log.Trace("[RELEASE] Calling trace.MarkCancelled: traceID=%s", ctx.Stack.TraceID)
-			if err := trace.MarkCancelled(ctx.Stack.TraceID, ctx.Context.Err().Error()); err != nil {
-				log.Trace("[RELEASE] Failed to mark trace as cancelled: %v", err)
-			} else {
-				log.Trace("[RELEASE] Successfully marked trace as cancelled")
-			}
-
-			// Release trace from registry
-			// Subscribers will be notified via channel close and will cleanup automatically
-			log.Trace("[RELEASE] Calling trace.Release: traceID=%s", ctx.Stack.TraceID)
-			if err := trace.Release(ctx.Stack.TraceID); err != nil {
-				log.Trace("[RELEASE] Failed to release trace from registry: %v", err)
-			} else {
-				log.Trace("[RELEASE] Successfully released trace from registry")
-			}
+			trace.MarkCancelled(ctx.Stack.TraceID, ctx.Context.Err().Error())
+			trace.Release(ctx.Stack.TraceID)
 		} else {
-			// Normal case: mark complete then release
-			if err := ctx.trace.MarkComplete(); err != nil {
-				log.Trace("[RELEASE] Failed to mark trace complete: %v", err)
-			}
-
-			if err := trace.Release(ctx.Stack.TraceID); err != nil {
-				log.Trace("[RELEASE] Failed to release trace: %v", err)
-			}
+			ctx.trace.MarkComplete()
+			trace.Release(ctx.Stack.TraceID)
 		}
-
 		ctx.trace = nil
-	} else {
-		log.Trace("[RELEASE] No trace to release (trace=%v, stack=%v)", ctx.trace != nil, ctx.Stack != nil)
 	}
 
 	// Clear space
 	if ctx.Space != nil {
-		log.Trace("[RELEASE] Clearing space")
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Space")
+		}
 		ctx.Space.Clear()
 		ctx.Space = nil
 	}
 
 	// Clear stacks
 	if ctx.Stacks != nil {
-		log.Trace("[RELEASE] Clearing %d stacks", len(ctx.Stacks))
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup(fmt.Sprintf("Stacks (%d)", len(ctx.Stacks)))
+		}
 		for k := range ctx.Stacks {
 			delete(ctx.Stacks, k)
 		}
@@ -158,8 +146,11 @@ func (ctx *Context) Release() {
 	// Clear writer reference
 	ctx.Writer = nil
 
-	log.Trace("[RELEASE] Context cleanup completed: contextID=%s", ctx.ID)
-	ctx = nil
+	// Close logger (MUST be last)
+	if ctx.Logger != nil {
+		ctx.Logger.Close()
+		ctx.Logger = nil
+	}
 }
 
 // Send sends data to the context's writer

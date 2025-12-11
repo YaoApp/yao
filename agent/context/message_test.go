@@ -1,8 +1,10 @@
-package context
+package context_test
 
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/yaoapp/yao/agent/context"
 )
 
 func TestMessage_UnmarshalJSON_StringContent(t *testing.T) {
@@ -11,14 +13,14 @@ func TestMessage_UnmarshalJSON_StringContent(t *testing.T) {
 		"content": "Hello, world!"
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	if msg.Role != RoleUser {
-		t.Errorf("Expected role %s, got %s", RoleUser, msg.Role)
+	if msg.Role != context.RoleUser {
+		t.Errorf("Expected role %s, got %s", context.RoleUser, msg.Role)
 	}
 
 	content, ok := msg.GetContentAsString()
@@ -49,14 +51,14 @@ func TestMessage_UnmarshalJSON_ArrayContent(t *testing.T) {
 		]
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	if msg.Role != RoleUser {
-		t.Errorf("Expected role %s, got %s", RoleUser, msg.Role)
+	if msg.Role != context.RoleUser {
+		t.Errorf("Expected role %s, got %s", context.RoleUser, msg.Role)
 	}
 
 	parts, ok := msg.GetContentAsParts()
@@ -69,16 +71,16 @@ func TestMessage_UnmarshalJSON_ArrayContent(t *testing.T) {
 	}
 
 	// Check first part (text)
-	if parts[0].Type != ContentText {
-		t.Errorf("Expected type %s, got %s", ContentText, parts[0].Type)
+	if parts[0].Type != context.ContentText {
+		t.Errorf("Expected type %s, got %s", context.ContentText, parts[0].Type)
 	}
 	if parts[0].Text != "What's in this image?" {
 		t.Errorf("Expected text 'What's in this image?', got '%s'", parts[0].Text)
 	}
 
 	// Check second part (image)
-	if parts[1].Type != ContentImageURL {
-		t.Errorf("Expected type %s, got %s", ContentImageURL, parts[1].Type)
+	if parts[1].Type != context.ContentImageURL {
+		t.Errorf("Expected type %s, got %s", context.ContentImageURL, parts[1].Type)
 	}
 	if parts[1].ImageURL == nil {
 		t.Fatal("Expected ImageURL to be non-nil")
@@ -86,8 +88,8 @@ func TestMessage_UnmarshalJSON_ArrayContent(t *testing.T) {
 	if parts[1].ImageURL.URL != "https://example.com/image.jpg" {
 		t.Errorf("Expected URL 'https://example.com/image.jpg', got '%s'", parts[1].ImageURL.URL)
 	}
-	if parts[1].ImageURL.Detail != DetailHigh {
-		t.Errorf("Expected detail %s, got %s", DetailHigh, parts[1].ImageURL.Detail)
+	if parts[1].ImageURL.Detail != context.DetailHigh {
+		t.Errorf("Expected detail %s, got %s", context.DetailHigh, parts[1].ImageURL.Detail)
 	}
 }
 
@@ -107,14 +109,14 @@ func TestMessage_UnmarshalJSON_NullContent(t *testing.T) {
 		]
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	if msg.Role != RoleAssistant {
-		t.Errorf("Expected role %s, got %s", RoleAssistant, msg.Role)
+	if msg.Role != context.RoleAssistant {
+		t.Errorf("Expected role %s, got %s", context.RoleAssistant, msg.Role)
 	}
 
 	if msg.Content != nil {
@@ -142,7 +144,7 @@ func TestMessage_UnmarshalJSON_WithRefusal(t *testing.T) {
 		"refusal": "I cannot help with that request."
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
@@ -179,7 +181,7 @@ func TestMessage_UnmarshalJSON_AudioContent(t *testing.T) {
 		]
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
@@ -195,8 +197,8 @@ func TestMessage_UnmarshalJSON_AudioContent(t *testing.T) {
 	}
 
 	// Check audio part
-	if parts[1].Type != ContentInputAudio {
-		t.Errorf("Expected type %s, got %s", ContentInputAudio, parts[1].Type)
+	if parts[1].Type != context.ContentInputAudio {
+		t.Errorf("Expected type %s, got %s", context.ContentInputAudio, parts[1].Type)
 	}
 	if parts[1].InputAudio == nil {
 		t.Fatal("Expected InputAudio to be non-nil")
@@ -210,7 +212,7 @@ func TestMessage_UnmarshalJSON_AudioContent(t *testing.T) {
 }
 
 func TestMessage_MarshalJSON_StringContent(t *testing.T) {
-	msg := NewTextMessage(RoleUser, "Hello, AI!")
+	msg := context.NewTextMessage(context.RoleUser, "Hello, AI!")
 
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -223,8 +225,8 @@ func TestMessage_MarshalJSON_StringContent(t *testing.T) {
 		t.Fatalf("Failed to unmarshal result: %v", err)
 	}
 
-	if result["role"] != string(RoleUser) {
-		t.Errorf("Expected role %s, got %v", RoleUser, result["role"])
+	if result["role"] != string(context.RoleUser) {
+		t.Errorf("Expected role %s, got %v", context.RoleUser, result["role"])
 	}
 
 	if result["content"] != "Hello, AI!" {
@@ -233,21 +235,21 @@ func TestMessage_MarshalJSON_StringContent(t *testing.T) {
 }
 
 func TestMessage_MarshalJSON_ArrayContent(t *testing.T) {
-	parts := []ContentPart{
+	parts := []context.ContentPart{
 		{
-			Type: ContentText,
+			Type: context.ContentText,
 			Text: "Describe this image",
 		},
 		{
-			Type: ContentImageURL,
-			ImageURL: &ImageURL{
+			Type: context.ContentImageURL,
+			ImageURL: &context.ImageURL{
 				URL:    "https://example.com/test.jpg",
-				Detail: DetailLow,
+				Detail: context.DetailLow,
 			},
 		},
 	}
 
-	msg := NewMultipartMessage(RoleUser, parts)
+	msg := context.NewMultipartMessage(context.RoleUser, parts)
 
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -255,7 +257,7 @@ func TestMessage_MarshalJSON_ArrayContent(t *testing.T) {
 	}
 
 	// Unmarshal back to verify
-	var result Message
+	var result context.Message
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
@@ -272,14 +274,14 @@ func TestMessage_MarshalJSON_ArrayContent(t *testing.T) {
 }
 
 func TestMessage_MarshalJSON_WithToolCalls(t *testing.T) {
-	msg := &Message{
-		Role:    RoleAssistant,
+	msg := &context.Message{
+		Role:    context.RoleAssistant,
 		Content: nil,
-		ToolCalls: []ToolCall{
+		ToolCalls: []context.ToolCall{
 			{
 				ID:   "call_abc123",
-				Type: ToolTypeFunction,
-				Function: Function{
+				Type: context.ToolTypeFunction,
+				Function: context.Function{
 					Name:      "get_weather",
 					Arguments: `{"location":"San Francisco"}`,
 				},
@@ -293,7 +295,7 @@ func TestMessage_MarshalJSON_WithToolCalls(t *testing.T) {
 	}
 
 	// Unmarshal back to verify
-	var result Message
+	var result context.Message
 	err = json.Unmarshal(data, &result)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal result: %v", err)
@@ -320,14 +322,14 @@ func TestMessage_ToolMessage(t *testing.T) {
 		"content": "The weather in San Francisco is sunny, 72°F"
 	}`
 
-	var msg Message
+	var msg context.Message
 	err := json.Unmarshal([]byte(jsonData), &msg)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal: %v", err)
 	}
 
-	if msg.Role != RoleTool {
-		t.Errorf("Expected role %s, got %s", RoleTool, msg.Role)
+	if msg.Role != context.RoleTool {
+		t.Errorf("Expected role %s, got %s", context.RoleTool, msg.Role)
 	}
 
 	if msg.ToolCallID == nil {
@@ -349,10 +351,10 @@ func TestMessage_ToolMessage(t *testing.T) {
 }
 
 func TestNewTextMessage(t *testing.T) {
-	msg := NewTextMessage(RoleSystem, "You are a helpful assistant.")
+	msg := context.NewTextMessage(context.RoleSystem, "You are a helpful assistant.")
 
-	if msg.Role != RoleSystem {
-		t.Errorf("Expected role %s, got %s", RoleSystem, msg.Role)
+	if msg.Role != context.RoleSystem {
+		t.Errorf("Expected role %s, got %s", context.RoleSystem, msg.Role)
 	}
 
 	content, ok := msg.GetContentAsString()
@@ -366,14 +368,14 @@ func TestNewTextMessage(t *testing.T) {
 }
 
 func TestNewMultipartMessage(t *testing.T) {
-	parts := []ContentPart{
-		{Type: ContentText, Text: "Hello"},
+	parts := []context.ContentPart{
+		{Type: context.ContentText, Text: "Hello"},
 	}
 
-	msg := NewMultipartMessage(RoleUser, parts)
+	msg := context.NewMultipartMessage(context.RoleUser, parts)
 
-	if msg.Role != RoleUser {
-		t.Errorf("Expected role %s, got %s", RoleUser, msg.Role)
+	if msg.Role != context.RoleUser {
+		t.Errorf("Expected role %s, got %s", context.RoleUser, msg.Role)
 	}
 
 	resultParts, ok := msg.GetContentAsParts()
