@@ -1,4 +1,4 @@
-package context
+package context_test
 
 import (
 	stdContext "context"
@@ -6,48 +6,41 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaoapp/gou/plan"
-	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // newTestContextWithInterrupt creates a Context with interrupt controller for testing
-func newTestContextWithInterrupt(chatID, assistantID string) *Context {
-	ctx := &Context{
-		Context:     stdContext.Background(),
-		ID:          fmt.Sprintf("test_ctx_%d", time.Now().UnixNano()),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:     RefererAPI,
-		Accept:      AcceptWebCUI,
-		Route:       "/test/route",
-		IDGenerator: message.NewIDGenerator(), // Initialize context-scoped ID generator
-		Metadata: map[string]interface{}{
-			"test": "context_metadata",
-		},
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client-id",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-		},
+func newTestContextWithInterrupt(chatID, assistantID string) *context.Context {
+	ctx := context.New(stdContext.Background(), &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client-id",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
+	}, chatID)
+
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = "/test/route"
+	ctx.Metadata = map[string]interface{}{
+		"test": "context_metadata",
 	}
 
 	// Initialize interrupt controller
-	ctx.Interrupt = NewInterruptController()
+	ctx.Interrupt = context.NewInterruptController()
 
 	// Register context globally
-	if err := Register(ctx); err != nil {
+	if err := context.Register(ctx); err != nil {
 		panic(fmt.Sprintf("Failed to register context: %v", err))
 	}
 
@@ -65,16 +58,16 @@ func TestInterruptBasic(t *testing.T) {
 
 	t.Run("SendGracefulInterrupt", func(t *testing.T) {
 		// Create a graceful interrupt signal
-		signal := &InterruptSignal{
-			Type: InterruptGraceful,
-			Messages: []Message{
-				{Role: RoleUser, Content: "This is a graceful interrupt"},
+		signal := &context.InterruptSignal{
+			Type: context.InterruptGraceful,
+			Messages: []context.Message{
+				{Role: context.RoleUser, Content: "This is a graceful interrupt"},
 			},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
 		// Send interrupt signal
-		err := SendInterrupt(ctx.ID, signal)
+		err := context.SendInterrupt(ctx.ID, signal)
 		if err != nil {
 			t.Fatalf("Failed to send interrupt signal: %v", err)
 		}
@@ -88,7 +81,7 @@ func TestInterruptBasic(t *testing.T) {
 			t.Fatal("Expected interrupt signal to be received, got nil")
 		}
 
-		if receivedSignal.Type != InterruptGraceful {
+		if receivedSignal.Type != context.InterruptGraceful {
 			t.Errorf("Expected interrupt type 'graceful', got: %s", receivedSignal.Type)
 		}
 
@@ -108,16 +101,16 @@ func TestInterruptBasic(t *testing.T) {
 		ctx.Interrupt.Clear()
 
 		// Create a force interrupt signal
-		signal := &InterruptSignal{
-			Type: InterruptForce,
-			Messages: []Message{
-				{Role: RoleUser, Content: "This is a force interrupt"},
+		signal := &context.InterruptSignal{
+			Type: context.InterruptForce,
+			Messages: []context.Message{
+				{Role: context.RoleUser, Content: "This is a force interrupt"},
 			},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
 		// Send interrupt signal
-		err := SendInterrupt(ctx.ID, signal)
+		err := context.SendInterrupt(ctx.ID, signal)
 		if err != nil {
 			t.Fatalf("Failed to send interrupt signal: %v", err)
 		}
@@ -131,7 +124,7 @@ func TestInterruptBasic(t *testing.T) {
 			t.Fatal("Expected interrupt signal to be received, got nil")
 		}
 
-		if receivedSignal.Type != InterruptForce {
+		if receivedSignal.Type != context.InterruptForce {
 			t.Errorf("Expected interrupt type 'force', got: %s", receivedSignal.Type)
 		}
 
@@ -144,15 +137,15 @@ func TestInterruptBasic(t *testing.T) {
 
 		// Send multiple interrupt signals
 		for i := 0; i < 3; i++ {
-			signal := &InterruptSignal{
-				Type: InterruptGraceful,
-				Messages: []Message{
-					{Role: RoleUser, Content: fmt.Sprintf("Message %d", i+1)},
+			signal := &context.InterruptSignal{
+				Type: context.InterruptGraceful,
+				Messages: []context.Message{
+					{Role: context.RoleUser, Content: fmt.Sprintf("Message %d", i+1)},
 				},
 				Timestamp: time.Now().UnixMilli(),
 			}
 
-			err := SendInterrupt(ctx.ID, signal)
+			err := context.SendInterrupt(ctx.ID, signal)
 			if err != nil {
 				t.Fatalf("Failed to send interrupt signal %d: %v", i+1, err)
 			}
@@ -198,10 +191,10 @@ func TestInterruptHandler(t *testing.T) {
 	t.Run("HandlerInvocation", func(t *testing.T) {
 		// Track if handler was called
 		handlerCalled := false
-		var receivedSignal *InterruptSignal
+		var receivedSignal *context.InterruptSignal
 
 		// Set up handler
-		ctx.Interrupt.SetHandler(func(c *Context, signal *InterruptSignal) error {
+		ctx.Interrupt.SetHandler(func(c *context.Context, signal *context.InterruptSignal) error {
 			handlerCalled = true
 			receivedSignal = signal
 			t.Logf("Handler called with signal type: %s, messages: %d", signal.Type, len(signal.Messages))
@@ -209,15 +202,15 @@ func TestInterruptHandler(t *testing.T) {
 		})
 
 		// Send interrupt signal
-		signal := &InterruptSignal{
-			Type: InterruptGraceful,
-			Messages: []Message{
-				{Role: RoleUser, Content: "Test handler invocation"},
+		signal := &context.InterruptSignal{
+			Type: context.InterruptGraceful,
+			Messages: []context.Message{
+				{Role: context.RoleUser, Content: "Test handler invocation"},
 			},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
-		err := SendInterrupt(ctx.ID, signal)
+		err := context.SendInterrupt(ctx.ID, signal)
 		if err != nil {
 			t.Fatalf("Failed to send interrupt signal: %v", err)
 		}
@@ -234,7 +227,7 @@ func TestInterruptHandler(t *testing.T) {
 			t.Fatal("Expected signal in handler, got nil")
 		}
 
-		if receivedSignal.Type != InterruptGraceful {
+		if receivedSignal.Type != context.InterruptGraceful {
 			t.Errorf("Expected graceful interrupt in handler, got: %s", receivedSignal.Type)
 		}
 
@@ -252,21 +245,21 @@ func TestInterruptHandler(t *testing.T) {
 
 		// Set up handler that returns error
 		handlerCalled := false
-		ctx2.Interrupt.SetHandler(func(c *Context, signal *InterruptSignal) error {
+		ctx2.Interrupt.SetHandler(func(c *context.Context, signal *context.InterruptSignal) error {
 			handlerCalled = true
 			return fmt.Errorf("test error from handler")
 		})
 
 		// Send interrupt signal
-		signal := &InterruptSignal{
-			Type: InterruptForce,
-			Messages: []Message{
-				{Role: RoleUser, Content: "Test error handling"},
+		signal := &context.InterruptSignal{
+			Type: context.InterruptForce,
+			Messages: []context.Message{
+				{Role: context.RoleUser, Content: "Test error handling"},
 			},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
-		err := SendInterrupt(ctx2.ID, signal)
+		err := context.SendInterrupt(ctx2.ID, signal)
 		if err != nil {
 			t.Fatalf("Failed to send interrupt signal: %v", err)
 		}
@@ -289,7 +282,7 @@ func TestInterruptContextLifecycle(t *testing.T) {
 		ctx := newTestContextWithInterrupt("chat-test-lifecycle", "test-assistant")
 
 		// Verify context can be retrieved
-		retrievedCtx, err := Get(ctx.ID)
+		retrievedCtx, err := context.Get(ctx.ID)
 		if err != nil {
 			t.Fatalf("Failed to retrieve context: %v", err)
 		}
@@ -301,7 +294,7 @@ func TestInterruptContextLifecycle(t *testing.T) {
 		ctx.Release()
 
 		// After release, context should be removed
-		_, err = Get(ctx.ID)
+		_, err = context.Get(ctx.ID)
 		if err == nil {
 			t.Error("Expected error when retrieving released context")
 		}
@@ -310,13 +303,13 @@ func TestInterruptContextLifecycle(t *testing.T) {
 	})
 
 	t.Run("SendToNonExistentContext", func(t *testing.T) {
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "test"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "test"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
-		err := SendInterrupt("non-existent-id", signal)
+		err := context.SendInterrupt("non-existent-id", signal)
 		if err == nil {
 			t.Error("Expected error when sending to non-existent context")
 		}
@@ -332,12 +325,12 @@ func TestInterruptCheckMethods(t *testing.T) {
 
 	t.Run("PeekDoesNotRemove", func(t *testing.T) {
 		// Send signal
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "peek test"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "peek test"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
-		SendInterrupt(ctx.ID, signal)
+		context.SendInterrupt(ctx.ID, signal)
 		time.Sleep(100 * time.Millisecond)
 
 		// Peek should return signal but not remove it
@@ -362,12 +355,12 @@ func TestInterruptCheckMethods(t *testing.T) {
 		ctx.Interrupt.Clear()
 
 		// Send signal
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "check test"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "check test"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
-		SendInterrupt(ctx.ID, signal)
+		context.SendInterrupt(ctx.ID, signal)
 		time.Sleep(100 * time.Millisecond)
 
 		// Check should return and remove signal
@@ -398,17 +391,17 @@ func TestInterruptCheckMethods(t *testing.T) {
 		}
 
 		for i, msg := range messages {
-			signal := &InterruptSignal{
-				Type: InterruptGraceful,
-				Messages: []Message{
-					{Role: RoleUser, Content: msg},
+			signal := &context.InterruptSignal{
+				Type: context.InterruptGraceful,
+				Messages: []context.Message{
+					{Role: context.RoleUser, Content: msg},
 				},
 				Timestamp: time.Now().UnixMilli(),
 				Metadata: map[string]interface{}{
 					"sequence": i + 1,
 				},
 			}
-			err := SendInterrupt(ctx.ID, signal)
+			err := context.SendInterrupt(ctx.ID, signal)
 			if err != nil {
 				t.Fatalf("Failed to send signal %d: %v", i+1, err)
 			}
@@ -461,12 +454,12 @@ func TestInterruptCheckMethods(t *testing.T) {
 		ctx.Interrupt.Clear()
 
 		// Send single signal
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "single signal"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "single signal"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
-		SendInterrupt(ctx.ID, signal)
+		context.SendInterrupt(ctx.ID, signal)
 		time.Sleep(100 * time.Millisecond)
 
 		// CheckWithMerge with single signal should return it without merge metadata
@@ -523,12 +516,12 @@ func TestInterruptContext(t *testing.T) {
 
 		// Send force interrupt with empty messages (pure cancellation)
 		// This is the pattern for stopping streaming without appending messages
-		signal := &InterruptSignal{
-			Type:      InterruptForce,
-			Messages:  []Message{}, // Empty messages = pure cancellation
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptForce,
+			Messages:  []context.Message{}, // Empty messages = pure cancellation
 			Timestamp: time.Now().UnixMilli(),
 		}
-		err := SendInterrupt(ctx.ID, signal)
+		err := context.SendInterrupt(ctx.ID, signal)
 		if err != nil {
 			t.Fatalf("Failed to send interrupt: %v", err)
 		}
@@ -557,12 +550,12 @@ func TestInterruptContext(t *testing.T) {
 		interruptCtx := ctx2.Interrupt.Context()
 
 		// Send graceful interrupt
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "graceful"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "graceful"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
-		SendInterrupt(ctx2.ID, signal)
+		context.SendInterrupt(ctx2.ID, signal)
 		time.Sleep(100 * time.Millisecond)
 
 		// Context should NOT be cancelled for graceful interrupt
@@ -588,9 +581,9 @@ func TestInterruptSendSignalDirectly(t *testing.T) {
 	defer ctx.Release()
 
 	t.Run("SendSignalSuccess", func(t *testing.T) {
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "direct send"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "direct send"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
@@ -615,10 +608,10 @@ func TestInterruptSendSignalDirectly(t *testing.T) {
 	})
 
 	t.Run("SendSignalToNilController", func(t *testing.T) {
-		var nilController *InterruptController
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "test"}},
+		var nilController *context.InterruptController
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "test"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
 
@@ -632,23 +625,23 @@ func TestInterruptSendSignalDirectly(t *testing.T) {
 
 	t.Run("SendSignalTimeout", func(t *testing.T) {
 		// Create controller but don't start listener
-		testCtrl := NewInterruptController()
+		testCtrl := context.NewInterruptController()
 		// Don't call Start(), so channel won't be read
 
 		// Fill the buffer (capacity is 10)
 		for i := 0; i < 10; i++ {
-			signal := &InterruptSignal{
-				Type:      InterruptGraceful,
-				Messages:  []Message{{Role: RoleUser, Content: fmt.Sprintf("msg %d", i)}},
+			signal := &context.InterruptSignal{
+				Type:      context.InterruptGraceful,
+				Messages:  []context.Message{{Role: context.RoleUser, Content: fmt.Sprintf("msg %d", i)}},
 				Timestamp: time.Now().UnixMilli(),
 			}
 			testCtrl.SendSignal(signal)
 		}
 
 		// This should timeout since buffer is full and no listener
-		signal := &InterruptSignal{
-			Type:      InterruptGraceful,
-			Messages:  []Message{{Role: RoleUser, Content: "overflow"}},
+		signal := &context.InterruptSignal{
+			Type:      context.InterruptGraceful,
+			Messages:  []context.Message{{Role: context.RoleUser, Content: "overflow"}},
 			Timestamp: time.Now().UnixMilli(),
 		}
 

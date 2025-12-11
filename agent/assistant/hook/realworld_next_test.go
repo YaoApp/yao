@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
@@ -14,32 +13,30 @@ import (
 
 // newRealWorldNextContext creates a Context for real world Next Hook testing
 func newRealWorldNextContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "RealWorldTest/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Route:    "",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "realworld-test-user",
-			ClientID:  "realworld-test-client",
-			Scope:     "openid profile",
-			SessionID: "realworld-test-session",
-			UserID:    "realworld-user-123",
-			TeamID:    "realworld-team-456",
-			TenantID:  "realworld-tenant-789",
-		},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "realworld-test-user",
+		ClientID:  "realworld-test-client",
+		Scope:     "openid profile",
+		SessionID: "realworld-test-session",
+		UserID:    "realworld-user-123",
+		TeamID:    "realworld-team-456",
+		TenantID:  "realworld-tenant-789",
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "RealWorldTest/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }
 
 // TestRealWorldNextStandard tests standard response (nil return)

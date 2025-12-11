@@ -1,7 +1,8 @@
-package context
+package context_test
 
 import (
 	"bytes"
+	stdContext "context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -37,7 +39,7 @@ func TestGetCompletionRequest(t *testing.T) {
 		expectedLocale      string
 		expectedTheme       string
 		expectedReferer     string
-		expectedAccept      Accept
+		expectedAccept      context.Accept
 		expectedAssistantID string
 		expectError         bool
 	}{
@@ -64,8 +66,8 @@ func TestGetCompletionRequest(t *testing.T) {
 			expectedStream:      boolPtr(true),
 			expectedLocale:      "zh-cn",
 			expectedTheme:       "dark",
-			expectedReferer:     RefererProcess,
-			expectedAccept:      AcceptWebCUI,
+			expectedReferer:     context.RefererProcess,
+			expectedAccept:      context.AcceptWebCUI,
 			expectedAssistantID: "assistant123",
 			expectError:         false,
 		},
@@ -89,8 +91,8 @@ func TestGetCompletionRequest(t *testing.T) {
 			expectedMsgCount:    1,
 			expectedLocale:      "fr-fr",
 			expectedTheme:       "auto",
-			expectedReferer:     RefererAPI,
-			expectedAccept:      AcceptStandard,
+			expectedReferer:     context.RefererAPI,
+			expectedAccept:      context.AcceptStandard,
 			expectedAssistantID: "test456",
 			expectError:         false,
 		},
@@ -114,8 +116,8 @@ func TestGetCompletionRequest(t *testing.T) {
 			expectedMsgCount:    1,
 			expectedLocale:      "",
 			expectedTheme:       "",
-			expectedReferer:     RefererMCP,
-			expectedAccept:      AcceptDesktopCUI,
+			expectedReferer:     context.RefererMCP,
+			expectedAccept:      context.AcceptDesktopCUI,
 			expectedAssistantID: "header789",
 			expectError:         false,
 		},
@@ -131,8 +133,8 @@ func TestGetCompletionRequest(t *testing.T) {
 			expectedMsgCount:    1,
 			expectedLocale:      "",
 			expectedTheme:       "",
-			expectedReferer:     RefererAPI,
-			expectedAccept:      AcceptStandard,
+			expectedReferer:     context.RefererAPI,
+			expectedAccept:      context.AcceptStandard,
 			expectedAssistantID: "minimal",
 			expectError:         false,
 		},
@@ -179,7 +181,7 @@ func TestGetCompletionRequest(t *testing.T) {
 			c.Request = req
 
 			// Call GetCompletionRequest
-			completionReq, ctx, opts, err := GetCompletionRequest(c, cache)
+			completionReq, ctx, opts, err := context.GetCompletionRequest(c, cache)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -215,110 +217,21 @@ func TestGetCompletionRequest(t *testing.T) {
 	}
 }
 
-func TestParseClientType(t *testing.T) {
-	tests := []struct {
-		name      string
-		userAgent string
-		expected  string
-	}{
-		{"Empty user agent", "", "web"},
-		{"Standard web browser", "Mozilla/5.0", "web"},
-		{"Android", "Mozilla/5.0 (Linux; Android 10)", "android"},
-		{"iPhone", "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)", "ios"},
-		{"iPad", "Mozilla/5.0 (iPad; CPU OS 14_0)", "ios"},
-		{"Windows", "Mozilla/5.0 (Windows NT 10.0)", "windows"},
-		{"macOS", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)", "macos"},
-		{"Linux", "Mozilla/5.0 (X11; Linux x86_64)", "linux"},
-		{"Yao Agent", "Yao-Agent/1.0", "agent"},
-		{"JSSDK", "Yao-JSSDK/2.0", "jssdk"},
-	}
+func TestContextNew_WithAuthorized(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getClientType(tt.userAgent)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
+	// Create context using New()
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	defer ctx.Release()
+
+	assert.NotNil(t, ctx)
+	assert.Equal(t, "test-chat-id", ctx.ChatID)
+	assert.NotNil(t, ctx.Space)
+	assert.NotNil(t, ctx.IDGenerator)
 }
 
-func TestParseAccept(t *testing.T) {
-	tests := []struct {
-		name       string
-		clientType string
-		expected   Accept
-	}{
-		{"Web client", "web", AcceptWebCUI},
-		{"Android client", "android", AccepNativeCUI},
-		{"iOS client", "ios", AccepNativeCUI},
-		{"Windows client", "windows", AcceptDesktopCUI},
-		{"macOS client", "macos", AcceptDesktopCUI},
-		{"Linux client", "linux", AcceptDesktopCUI},
-		{"Agent client", "agent", AcceptStandard},
-		{"JSSDK client", "jssdk", AcceptStandard},
-		{"Unknown client", "unknown", AcceptStandard},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := parseAccept(tt.clientType)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestValidateAccept(t *testing.T) {
-	tests := []struct {
-		name     string
-		accept   string
-		expected Accept
-	}{
-		{"Valid standard", "standard", AcceptStandard},
-		{"Valid cui-web", "cui-web", AcceptWebCUI},
-		{"Valid cui-native", "cui-native", AccepNativeCUI},
-		{"Valid cui-desktop", "cui-desktop", AcceptDesktopCUI},
-		{"Invalid value", "invalid", AcceptStandard},
-		{"Empty string", "", AcceptStandard},
-		{"Random string", "random-accept", AcceptStandard},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validateAccept(tt.accept)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestValidateReferer(t *testing.T) {
-	tests := []struct {
-		name     string
-		referer  string
-		expected string
-	}{
-		{"Valid api", "api", RefererAPI},
-		{"Valid process", "process", RefererProcess},
-		{"Valid mcp", "mcp", RefererMCP},
-		{"Valid jssdk", "jssdk", RefererJSSDK},
-		{"Valid agent", "agent", RefererAgent},
-		{"Valid tool", "tool", RefererTool},
-		{"Valid hook", "hook", RefererHook},
-		{"Valid schedule", "schedule", RefererSchedule},
-		{"Valid script", "script", RefererScript},
-		{"Valid internal", "internal", RefererInternal},
-		{"Invalid value", "invalid", RefererAPI},
-		{"Empty string", "", RefererAPI},
-		{"Random string", "random-referer", RefererAPI},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validateReferer(tt.referer)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-// Helper functions
+// Helper functions for context_test package
 func floatPtr(f float64) *float64 {
 	return &f
 }

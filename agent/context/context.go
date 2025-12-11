@@ -6,9 +6,7 @@ import (
 	"sync"
 	"time"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/plan"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -27,62 +25,27 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID string
 		parent = context.Background()
 	}
 
+	contextID := generateContextID()
+
 	ctx := &Context{
 		Context:         parent,
-		ID:              generateContextID(), // Generate unique ID for the context
-		Authorized:      authorized,          // Set authorized info
+		ID:              contextID,  // Generate unique ID for the context
+		Authorized:      authorized, // Set authorized info
 		Space:           plan.NewMemorySharedSpace(),
 		ChatID:          chatID,
-		IDGenerator:     message.NewIDGenerator(),  // Initialize ID generator for this context
-		messageMetadata: newMessageMetadataStore(), // Initialize message metadata store
+		IDGenerator:     message.NewIDGenerator(),                // Initialize ID generator for this context
+		messageMetadata: newMessageMetadataStore(),               // Initialize message metadata store
+		Logger:          NewRequestLogger("", chatID, contextID), // Initialize logger (assistantID set later)
 	}
 
 	return ctx
-}
-
-// NewWithPayload create a new context and unmarshal from payload
-func NewWithPayload(parent context.Context, authorized *types.AuthorizedInfo, chatID, payload string) *Context {
-	ctx := New(parent, authorized, chatID)
-
-	if payload != "" {
-		err := jsoniter.Unmarshal([]byte(payload), ctx)
-		if err != nil {
-			log.Error("%s", err.Error())
-		}
-	}
-
-	return ctx
-}
-
-// NewWithCancel create a new context with cancel
-func NewWithCancel(parent context.Context, authorized *types.AuthorizedInfo, chatID string) (*Context, context.CancelFunc) {
-	ctx := New(parent, authorized, chatID)
-	return WithCancel(ctx)
-}
-
-// NewWithTimeout create a new context with timeout
-func NewWithTimeout(parent context.Context, authorized *types.AuthorizedInfo, chatID string, timeout time.Duration) (*Context, context.CancelFunc) {
-	ctx := New(parent, authorized, chatID)
-	return WithTimeout(ctx, timeout)
-}
-
-// WithCancel create a new context
-func WithCancel(parent *Context) (*Context, context.CancelFunc) {
-	new, cancel := context.WithCancel(parent.Context)
-	parent.Context = new
-	return parent, cancel
-}
-
-// WithTimeout create a new context
-func WithTimeout(parent *Context, timeout time.Duration) (*Context, context.CancelFunc) {
-	new, cancel := context.WithTimeout(parent.Context, timeout)
-	parent.Context = new
-	return parent, cancel
 }
 
 // Release the context and clean up all resources including stacks and trace
 func (ctx *Context) Release() {
-	log.Trace("[RELEASE] Context cleanup started: contextID=%s, assistantID=%s", ctx.ID, ctx.AssistantID)
+	if ctx.Logger != nil {
+		ctx.Logger.Release()
+	}
 
 	// Unregister from global registry
 	if ctx.ID != "" {
@@ -91,61 +54,44 @@ func (ctx *Context) Release() {
 
 	// Stop interrupt controller
 	if ctx.Interrupt != nil {
-		log.Trace("[RELEASE] Stopping interrupt controller")
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Interrupt controller")
+		}
 		ctx.Interrupt.Stop()
 		ctx.Interrupt = nil
 	}
 
 	// Complete and release trace if exists
 	if ctx.trace != nil && ctx.Stack != nil && ctx.Stack.TraceID != "" {
-		log.Trace("[RELEASE] Releasing trace: traceID=%s", ctx.Stack.TraceID)
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Trace: " + ctx.Stack.TraceID)
+		}
 
 		// Check if context is cancelled - if so, mark as cancelled instead of complete
 		if ctx.Context != nil && ctx.Context.Err() != nil {
-			log.Trace("[RELEASE] Context cancelled, marking trace as cancelled: err=%v", ctx.Context.Err())
-
-			// Mark trace as cancelled (saves to disk and broadcasts to subscribers)
-			log.Trace("[RELEASE] Calling trace.MarkCancelled: traceID=%s", ctx.Stack.TraceID)
-			if err := trace.MarkCancelled(ctx.Stack.TraceID, ctx.Context.Err().Error()); err != nil {
-				log.Trace("[RELEASE] Failed to mark trace as cancelled: %v", err)
-			} else {
-				log.Trace("[RELEASE] Successfully marked trace as cancelled")
-			}
-
-			// Release trace from registry
-			// Subscribers will be notified via channel close and will cleanup automatically
-			log.Trace("[RELEASE] Calling trace.Release: traceID=%s", ctx.Stack.TraceID)
-			if err := trace.Release(ctx.Stack.TraceID); err != nil {
-				log.Trace("[RELEASE] Failed to release trace from registry: %v", err)
-			} else {
-				log.Trace("[RELEASE] Successfully released trace from registry")
-			}
+			trace.MarkCancelled(ctx.Stack.TraceID, ctx.Context.Err().Error())
+			trace.Release(ctx.Stack.TraceID)
 		} else {
-			// Normal case: mark complete then release
-			if err := ctx.trace.MarkComplete(); err != nil {
-				log.Trace("[RELEASE] Failed to mark trace complete: %v", err)
-			}
-
-			if err := trace.Release(ctx.Stack.TraceID); err != nil {
-				log.Trace("[RELEASE] Failed to release trace: %v", err)
-			}
+			ctx.trace.MarkComplete()
+			trace.Release(ctx.Stack.TraceID)
 		}
-
 		ctx.trace = nil
-	} else {
-		log.Trace("[RELEASE] No trace to release (trace=%v, stack=%v)", ctx.trace != nil, ctx.Stack != nil)
 	}
 
 	// Clear space
 	if ctx.Space != nil {
-		log.Trace("[RELEASE] Clearing space")
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup("Space")
+		}
 		ctx.Space.Clear()
 		ctx.Space = nil
 	}
 
 	// Clear stacks
 	if ctx.Stacks != nil {
-		log.Trace("[RELEASE] Clearing %d stacks", len(ctx.Stacks))
+		if ctx.Logger != nil {
+			ctx.Logger.Cleanup(fmt.Sprintf("Stacks (%d)", len(ctx.Stacks)))
+		}
 		for k := range ctx.Stacks {
 			delete(ctx.Stacks, k)
 		}
@@ -158,8 +104,11 @@ func (ctx *Context) Release() {
 	// Clear writer reference
 	ctx.Writer = nil
 
-	log.Trace("[RELEASE] Context cleanup completed: contextID=%s", ctx.ID)
-	ctx = nil
+	// Close logger (MUST be last)
+	if ctx.Logger != nil {
+		ctx.Logger.Close()
+		ctx.Logger = nil
+	}
 }
 
 // Send sends data to the context's writer
@@ -362,21 +311,6 @@ func (ctx *Context) TraceID() string {
 		return ctx.Stack.TraceID
 	}
 	return ""
-}
-
-// recordMessageMetadata records metadata for a sent message
-// Used to inherit BlockID and ThreadID in subsequent delta operations
-func (ctx *Context) recordMessageMetadata(msg *message.Message) {
-	if msg.MessageID == "" || ctx.messageMetadata == nil {
-		return
-	}
-
-	ctx.messageMetadata.setMessage(msg.MessageID, &MessageMetadata{
-		MessageID: msg.MessageID,
-		BlockID:   msg.BlockID,
-		ThreadID:  msg.ThreadID,
-		Type:      msg.Type,
-	})
 }
 
 // getMessageMetadata retrieves metadata for a message by ID

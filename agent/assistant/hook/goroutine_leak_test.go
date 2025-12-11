@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
@@ -294,34 +293,32 @@ func truncate(s string, max int) string {
 }
 
 func newLeakTestContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "LeakTestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Route:    "",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:  "leak-test-user",
-			ClientID: "leak-test-client",
-			UserID:   "leak-user-123",
-			TeamID:   "leak-team-456",
-			TenantID: "leak-tenant-789",
-			Constraints: types.DataConstraints{
-				TeamOnly: true,
-				Extra: map[string]interface{}{
-					"department": "testing",
-				},
+	authorized := &types.AuthorizedInfo{
+		Subject:  "leak-test-user",
+		ClientID: "leak-test-client",
+		UserID:   "leak-user-123",
+		TeamID:   "leak-team-456",
+		TenantID: "leak-tenant-789",
+		Constraints: types.DataConstraints{
+			TeamOnly: true,
+			Extra: map[string]interface{}{
+				"department": "testing",
 			},
 		},
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "LeakTestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }

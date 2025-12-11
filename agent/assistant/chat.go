@@ -7,38 +7,15 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yaoapp/kun/log"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/kb"
 	kbapi "github.com/yaoapp/yao/kb/api"
-	"github.com/yaoapp/yao/trace/types"
 )
 
 // kbCollectionCreating tracks collections currently being created to avoid duplicate creation
 var kbCollectionCreating sync.Map
-
-// WithHistory merges the input messages with chat history and traces it
-// This method can be overridden or extended to implement actual history loading
-func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontext.Message, agentNode types.Node, options ...*agentcontext.Options) ([]agentcontext.Message, error) {
-
-	// TODO: Implement actual history loading logic here
-	// For now, just simulate a check and return the input messages as is
-
-	// Simulate error check (this is where actual history loading would happen)
-	// if some_condition {
-	//     ast.traceAgentFail(agentNode, err)
-	//     return nil, err
-	// }
-
-	fullMessages := input
-
-	// Log the chat history
-	ast.traceAgentHistory(ctx, agentNode, fullMessages)
-
-	return fullMessages, nil
-}
 
 // InitializeConversation prepares KB collection for the conversation (synchronous)
 func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options ...*agentcontext.Options) error {
@@ -57,7 +34,7 @@ func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options 
 
 	// Check if authorized info is available
 	if ctx.Authorized == nil {
-		fmt.Printf(">>> Warning: no authorized info, skipping KB collection preparation\n")
+		ctx.Logger.Warn("no authorized info, skipping KB collection preparation")
 		return nil
 	}
 
@@ -65,7 +42,7 @@ func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options 
 	err := ast.prepareKBCollection(ctx, opts)
 	if err != nil {
 		// Log but don't fail the chat
-		fmt.Printf(">>> Warning: failed to prepare KB collection: %v\n", err)
+		ctx.Logger.Warn("failed to prepare KB collection: %v", err)
 	}
 
 	return nil
@@ -98,7 +75,7 @@ func (ast *Assistant) prepareKBCollection(ctx *agentcontext.Context, opts *agent
 	chatKB := kbSetting.Chat
 
 	// Debug: log locale information
-	fmt.Printf(">>> prepareKBCollection: locale=%s\n", ctx.Locale)
+	ctx.Logger.Debug("prepareKBCollection: locale=%s", ctx.Locale)
 
 	// Get KB collection ID for this chat session
 	// Same team + user always produces the same ID (idempotent)
@@ -106,7 +83,7 @@ func (ast *Assistant) prepareKBCollection(ctx *agentcontext.Context, opts *agent
 
 	// Check if this collection is currently being created by another goroutine
 	if _, isCreating := kbCollectionCreating.LoadOrStore(collectionID, true); isCreating {
-		fmt.Printf(">>> KB collection %s is already being created, skipping\n", collectionID)
+		ctx.Logger.Debug("KB collection %s is already being created, skipping", collectionID)
 		return nil
 	}
 	// Ensure cleanup even if panic occurs
@@ -116,10 +93,10 @@ func (ast *Assistant) prepareKBCollection(ctx *agentcontext.Context, opts *agent
 	existsResult, err := kb.API.CollectionExists(ctx.Context, collectionID)
 	if err != nil {
 		// If check fails, log and continue to create (let create handle conflicts)
-		fmt.Printf(">>> Warning: failed to check collection existence: %v, will attempt to create\n", err)
+		ctx.Logger.Warn("failed to check collection existence: %v, will attempt to create", err)
 	} else if existsResult != nil && existsResult.Exists {
 		// Collection exists, no need to create
-		fmt.Printf(">>> KB collection already exists: %s\n", collectionID)
+		ctx.Logger.Debug("KB collection already exists: %s", collectionID)
 		return nil
 	}
 
@@ -139,7 +116,7 @@ func (ast *Assistant) prepareKBCollection(ctx *agentcontext.Context, opts *agent
 		return fmt.Errorf("failed to create KB collection: %w", err)
 	}
 
-	fmt.Printf(">>> Created KB collection: %s for team=%s, user=%s\n",
+	ctx.Logger.Info("Created KB collection: %s for team=%s, user=%s",
 		collectionID, ctx.Authorized.TeamID, ctx.Authorized.UserID)
 
 	_ = opts
@@ -209,8 +186,6 @@ func mergeChatMetadata(defaultMetadata map[string]interface{}, ctx *agentcontext
 		metadata["description"] = i18n.T(locale, "kb.chat.description")
 	}
 
-	fmt.Printf(">>> mergeChatMetadata: locale=%s, name=%v, description=%v\n", locale, metadata["name"], metadata["description"]) // Debug log
-
 	return metadata
 }
 
@@ -233,7 +208,7 @@ func (ast *Assistant) InitBuffer(ctx *agentcontext.Context) {
 
 	// Skip if History is disabled in options
 	if ctx.Stack.Options != nil && ctx.Stack.Options.Skip != nil && ctx.Stack.Options.Skip.History {
-		log.Trace("[CHAT] Buffer skipped: Skip.History is true")
+		ctx.Logger.Debug("Buffer skipped: Skip.History is true")
 		return
 	}
 
@@ -252,7 +227,7 @@ func (ast *Assistant) InitBuffer(ctx *agentcontext.Context) {
 	}
 
 	ctx.Buffer = agentcontext.NewChatBuffer(ctx.ChatID, requestID, ast.ID, connector, mode)
-	log.Trace("[CHAT] Buffer initialized: chatID=%s, requestID=%s, assistantID=%s, connector=%s, mode=%s", ctx.ChatID, requestID, ast.ID, connector, mode)
+	ctx.Logger.Debug("Buffer initialized: chatID=%s, requestID=%s, assistantID=%s", ctx.ChatID, requestID, ast.ID)
 }
 
 // BufferUserInput adds user input messages to the buffer
@@ -324,7 +299,7 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 	// Get chat store
 	chatStore := GetChatStore()
 	if chatStore == nil {
-		log.Error("[CHAT] Chat store not available, cannot flush buffer")
+		ctx.Logger.Error("Chat store not available, cannot flush buffer")
 		return
 	}
 
@@ -337,9 +312,9 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 	messages := ast.convertBufferedMessages(ctx.Buffer.GetMessages())
 	if len(messages) > 0 {
 		if saveErr := chatStore.SaveMessages(ctx.ChatID, messages); saveErr != nil {
-			log.Error("[CHAT] Failed to save messages: %v", saveErr)
+			ctx.Logger.Error("Failed to save messages: %v", saveErr)
 		} else {
-			log.Trace("[CHAT] Saved %d messages for chat=%s", len(messages), ctx.ChatID)
+			ctx.Logger.Debug("Saved %d messages for chat=%s", len(messages), ctx.ChatID)
 		}
 	}
 
@@ -358,7 +333,7 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 			updates["last_mode"] = mode
 		}
 		if updateErr := chatStore.UpdateChat(ctx.ChatID, updates); updateErr != nil {
-			log.Trace("[CHAT] Failed to update chat: %v", updateErr)
+			ctx.Logger.Debug("Failed to update chat: %v", updateErr)
 		}
 	}
 
@@ -367,9 +342,9 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 		steps := ast.convertBufferedSteps(ctx.Buffer.GetStepsForResume(finalStatus))
 		if len(steps) > 0 {
 			if saveErr := chatStore.SaveResume(steps); saveErr != nil {
-				log.Error("[CHAT] Failed to save resume steps: %v", saveErr)
+				ctx.Logger.Error("Failed to save resume steps: %v", saveErr)
 			} else {
-				log.Trace("[CHAT] Saved %d resume steps for chat=%s (status=%s)", len(steps), ctx.ChatID, finalStatus)
+				ctx.Logger.Debug("Saved %d resume steps for chat=%s (status=%s)", len(steps), ctx.ChatID, finalStatus)
 			}
 		}
 	}

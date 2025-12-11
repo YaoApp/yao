@@ -1,42 +1,42 @@
-package context
+package context_test
 
 import (
 	"bytes"
-	"context"
+	stdContext "context"
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
-	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
 
-// mockResponseWriter is a mock implementation of http.ResponseWriter for testing
-type mockResponseWriter struct {
+// testMockResponseWriter is a mock implementation of http.ResponseWriter for testing
+type testMockResponseWriter struct {
 	headers http.Header
 	buffer  *bytes.Buffer
 	status  int
 }
 
-func newMockResponseWriter() *mockResponseWriter {
-	return &mockResponseWriter{
+func newTestMockResponseWriter() *testMockResponseWriter {
+	return &testMockResponseWriter{
 		headers: make(http.Header),
 		buffer:  &bytes.Buffer{},
 		status:  http.StatusOK,
 	}
 }
 
-func (m *mockResponseWriter) Header() http.Header {
+func (m *testMockResponseWriter) Header() http.Header {
 	return m.headers
 }
 
-func (m *mockResponseWriter) Write(b []byte) (int, error) {
+func (m *testMockResponseWriter) Write(b []byte) (int, error) {
 	return m.buffer.Write(b)
 }
 
-func (m *mockResponseWriter) WriteHeader(statusCode int) {
+func (m *testMockResponseWriter) WriteHeader(statusCode int) {
 	m.status = statusCode
 }
 
@@ -46,15 +46,11 @@ func TestJsValueSend(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	// Test sending string shorthand
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -116,15 +112,11 @@ func TestJsValueSendDeltaUpdates(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -171,15 +163,11 @@ func TestJsValueSendMultipleTypes(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -254,15 +242,11 @@ func TestJsValueSendErrorHandling(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	// Test invalid argument - no arguments
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -293,18 +277,15 @@ func TestJsValueSendWithCUIAccept(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	acceptTypes := []string{"cui-web", "cui-native", "cui-desktop"}
+	acceptTypes := []context.Accept{context.AcceptWebCUI, context.AccepNativeCUI, context.AcceptDesktopCUI}
 
 	for _, acceptType := range acceptTypes {
-		t.Run(acceptType, func(t *testing.T) {
-			cxt := &Context{
-				ChatID:      "test-chat-id",
-				AssistantID: "test-assistant-id",
-				Context:     context.Background(),
-				Accept:      Accept(acceptType),
-				Locale:      "en",
-				Writer:      newMockResponseWriter(),
-			}
+		t.Run(string(acceptType), func(t *testing.T) {
+			cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+			cxt.AssistantID = "test-assistant-id"
+			cxt.Accept = acceptType
+			cxt.Locale = "en"
+			cxt.Writer = newTestMockResponseWriter()
 
 			res, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
@@ -326,7 +307,7 @@ func TestJsValueSendWithCUIAccept(t *testing.T) {
 			if !ok {
 				t.Fatalf("Expected map result, got %T", res)
 			}
-			assert.Equal(t, true, result["success"], "Send with "+acceptType+" should succeed")
+			assert.Equal(t, true, result["success"], "Send with "+string(acceptType)+" should succeed")
 		})
 	}
 }
@@ -338,15 +319,11 @@ func TestJsValueSendChainedCalls(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -379,15 +356,11 @@ func TestJsValueIDGenerators(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -456,15 +429,11 @@ func TestJsValueSendWithBlockID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -513,15 +482,11 @@ func TestJsValueReplace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -560,15 +525,11 @@ func TestJsValueAppend(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -610,15 +571,11 @@ func TestJsValueMerge(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -668,15 +625,11 @@ func TestJsValueSet(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -726,15 +679,11 @@ func TestJsValueBlockIDInheritance(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     context.Background(),
-		Accept:      "standard",
-		Locale:      "en",
-		Writer:      newMockResponseWriter(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Accept = context.AcceptStandard
+	cxt.Locale = "en"
+	cxt.Writer = newTestMockResponseWriter()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -781,12 +730,12 @@ func TestJsValueEndBlock(t *testing.T) {
 	defer test.Clean()
 
 	// Setup mock writer
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
 	// Use New() to properly initialize messageMetadata
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -834,12 +783,12 @@ func TestJsValueSendStream(t *testing.T) {
 	defer test.Clean()
 
 	// Setup mock writer
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
 	// Use New() to properly initialize messageMetadata
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -888,11 +837,11 @@ func TestJsValueSendStreamWithBlockID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -935,11 +884,11 @@ func TestJsValueEnd(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -984,11 +933,11 @@ func TestJsValueEndWithFinalContent(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1033,11 +982,11 @@ func TestJsValueStreamingWorkflow(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1091,11 +1040,11 @@ func TestJsValueSendStreamStringShorthand(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1133,11 +1082,11 @@ func TestJsValueEndErrorHandling(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1169,11 +1118,11 @@ func TestJsValueEndWithInvalidMessageID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1205,11 +1154,11 @@ func TestJsValueSendStreamErrorHandling(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1241,11 +1190,11 @@ func TestJsValueMultipleStreams(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	mockWriter := newMockResponseWriter()
+	mockWriter := newTestMockResponseWriter()
 
-	cxt := New(context.Background(), nil, "test-chat-id")
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 	cxt.AssistantID = "test-assistant-id"
-	cxt.Accept = AcceptWebCUI
+	cxt.Accept = context.AcceptWebCUI
 	cxt.Locale = "en"
 	cxt.Writer = mockWriter
 
@@ -1296,10 +1245,10 @@ func TestJsValueSendVsSendStream(t *testing.T) {
 
 	// Test Send - should auto-send message_end
 	t.Run("Send auto-ends", func(t *testing.T) {
-		mockWriter := newMockResponseWriter()
-		cxt := New(context.Background(), nil, "test-chat-id")
+		mockWriter := newTestMockResponseWriter()
+		cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 		cxt.AssistantID = "test-assistant-id"
-		cxt.Accept = AcceptWebCUI
+		cxt.Accept = context.AcceptWebCUI
 		cxt.Locale = "en"
 		cxt.Writer = mockWriter
 
@@ -1319,10 +1268,10 @@ func TestJsValueSendVsSendStream(t *testing.T) {
 
 	// Test SendStream - should NOT auto-send message_end
 	t.Run("SendStream requires explicit End", func(t *testing.T) {
-		mockWriter := newMockResponseWriter()
-		cxt := New(context.Background(), nil, "test-chat-id")
+		mockWriter := newTestMockResponseWriter()
+		cxt := context.New(stdContext.Background(), nil, "test-chat-id")
 		cxt.AssistantID = "test-assistant-id"
-		cxt.Accept = AcceptWebCUI
+		cxt.Accept = context.AcceptWebCUI
 		cxt.Locale = "en"
 		cxt.Writer = mockWriter
 

@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/connector/openai"
-	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -19,8 +18,9 @@ import (
 // handler is optional, if not provided, a default handler will be used
 func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (interface{}, error) {
 
-	log.Trace("[AGENT] Stream started: assistant=%s, contextID=%s", ast.ID, ctx.ID)
-	defer log.Trace("[AGENT] Stream ended: assistant=%s, contextID=%s", ast.ID, ctx.ID)
+	// Update logger with assistant ID and start logging
+	ctx.Logger.SetAssistantID(ast.ID)
+	ctx.Logger.Start()
 
 	// Validate user permissions
 	var err error
@@ -44,6 +44,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Initialize
 	// ================================================
+	ctx.Logger.Phase("Initialize")
 
 	// Get or create options
 	var opts *context.Options
@@ -77,17 +78,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			} else {
 				finalError = fmt.Errorf("panic: %v", r)
 			}
-			log.Error("[AGENT] Panic recovered in Stream: %v", r)
+			ctx.Logger.Error("Panic recovered in Stream: %v", r)
 			// Re-panic after flush to preserve original behavior
 			defer panic(r)
 		}
 
 		// Flush buffer to database
 		ast.FlushBuffer(ctx, finalStatus, finalError)
-	}()
 
-	// Buffer user input messages
-	ast.BufferUserInput(ctx, inputMessages)
+		// Log end of request
+		ctx.Logger.End(finalStatus == context.StepStatusCompleted, finalError)
+	}()
 
 	// Determine stream handler
 	streamHandler := ast.getStreamHandler(ctx, opts)
@@ -110,6 +111,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Use async version to not block the main flow
 	ast.InitializeConversationAsync(ctx, opts)
 
+	ctx.Logger.PhaseComplete("Initialize")
+
 	// Ensure chat session exists
 	ast.EnsureChat(ctx)
 
@@ -119,12 +122,18 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Get Full Messages with chat history
 	// ================================================
-	fullMessages, err := ast.WithHistory(ctx, inputMessages, agentNode)
+	ctx.Logger.Phase("History")
+	historyResult, err := ast.WithHistory(ctx, inputMessages, agentNode)
 	if err != nil {
 		ast.traceAgentFail(agentNode, err)
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
+	fullMessages := historyResult.FullMessages
+
+	// Buffer user input messages (use cleaned input without overlap)
+	ast.BufferUserInput(ctx, historyResult.InputMessages)
+	ctx.Logger.PhaseComplete("History")
 
 	// ================================================
 	//  Execute Create Hook
@@ -132,6 +141,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Request Create hook ( Optional )
 	var createResponse *context.HookCreateResponse
 	if ast.HookScript != nil {
+		ctx.Logger.HookStart("Create")
 		// Begin step tracking for hook_create
 		ast.BeginStep(ctx, context.StepTypeHookCreate, map[string]interface{}{
 			"messages": fullMessages,
@@ -155,6 +165,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		// Log the create response
 		ast.traceCreateHook(agentNode, createResponse)
+		ctx.Logger.HookComplete("Create")
 	}
 
 	// ================================================
@@ -165,8 +176,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var completionMessages []context.Message
 	var completionOptions *context.CompletionOptions
 	if ast.Prompts != nil || ast.MCP != nil {
-		// Build the LLM request first
-		completionMessages, completionOptions, err = ast.BuildRequest(ctx, inputMessages, createResponse)
+		ctx.Logger.Phase("LLM")
+
+		// Build the LLM request first (use fullMessages which includes history)
+		completionMessages, completionOptions, err = ast.BuildRequest(ctx, fullMessages, createResponse)
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
@@ -207,6 +220,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			"content":    completionResponse.Content,
 			"tool_calls": completionResponse.ToolCalls,
 		})
+
+		hasToolCalls := completionResponse != nil && completionResponse.ToolCalls != nil && len(completionResponse.ToolCalls) > 0
+		tokens := 0
+		if completionResponse != nil && completionResponse.Usage != nil {
+			tokens = completionResponse.Usage.TotalTokens
+		}
+		ctx.Logger.LLMComplete(tokens, hasToolCalls)
+		ctx.Logger.PhaseComplete("LLM")
 	}
 
 	// ================================================
@@ -252,7 +273,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				ast.CompleteStep(ctx, map[string]interface{}{
 					"results": toolCallResponses,
 				})
-				log.Trace("[AGENT] All tool calls succeeded (attempt %d)", attempt)
+				ctx.Logger.Debug("All tool calls succeeded (attempt %d)", attempt)
 				break
 			}
 
@@ -270,7 +291,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				err := fmt.Errorf("tool calls failed with non-retryable errors (MCP internal issues)")
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
-				log.Error("[AGENT] %v", err)
+				ctx.Logger.Error("Tool calls failed: %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
@@ -281,7 +302,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				err := fmt.Errorf("tool calls failed after %d attempts", maxToolRetries)
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
-				log.Error("[AGENT] %v", err)
+				ctx.Logger.Error("Tool calls failed: %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
@@ -303,12 +324,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			})
 
 			// Retry LLM call (streaming to keep user informed)
-			log.Trace("[AGENT] Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
+			ctx.Logger.Debug("Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
 			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler, opts)
 			if err != nil {
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
-				log.Error("[AGENT] LLM retry failed: %v", err)
+				ctx.Logger.Error("LLM retry failed: %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
@@ -319,7 +340,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				err := fmt.Errorf("LLM did not return tool calls in retry attempt %d", attempt+1)
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
-				log.Error("[AGENT] %v", err)
+				ctx.Logger.Error("LLM did not return tool calls: %v", err)
 				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
@@ -529,7 +550,7 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler message.S
 
 	// Check if context is cancelled - if so, skip handler call to avoid blocking
 	if ctx.Context != nil && ctx.Context.Err() != nil {
-		log.Trace("[AGENT] Context cancelled, skipping sendAgentStreamEnd handler call")
+		ctx.Logger.Debug("Context cancelled, skipping sendAgentStreamEnd handler call")
 		return
 	}
 
@@ -569,10 +590,10 @@ func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.Inte
 	case context.InterruptForce:
 		// Force interrupt: context is already cancelled in handleSignal
 		// LLM streaming will detect ctx.Interrupt.Context().Done() and stop
-		log.Trace("[AGENT] Force interrupt: stopping current operations immediately")
+		ctx.Logger.Debug("Force interrupt: stopping current operations immediately")
 
 	case context.InterruptGraceful:
-		log.Trace("[AGENT] Graceful interrupt: will process after current step completes")
+		ctx.Logger.Debug("Graceful interrupt: will process after current step completes")
 		// Graceful interrupt: let current operation complete
 		// The signal is stored in current/pending, can be checked at checkpoints
 	}

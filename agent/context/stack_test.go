@@ -1,10 +1,11 @@
-package context
+package context_test
 
 import (
+	stdContext "context"
 	"testing"
 	"time"
 
-	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -15,10 +16,10 @@ func TestNewStack(t *testing.T) {
 
 	traceID := "12345678"
 	assistantID := "test-assistant"
-	referer := RefererAPI
-	opts := &Options{}
+	referer := context.RefererAPI
+	opts := &context.Options{}
 
-	stack := NewStack(traceID, assistantID, referer, opts)
+	stack := context.NewStack(traceID, assistantID, referer, opts)
 
 	if stack == nil {
 		t.Fatal("Expected stack to be created, got nil")
@@ -48,8 +49,8 @@ func TestNewStack(t *testing.T) {
 		t.Error("Expected stack to be root")
 	}
 
-	if stack.Status != StackStatusRunning {
-		t.Errorf("Expected Status '%s', got '%s'", StackStatusRunning, stack.Status)
+	if stack.Status != context.StackStatusRunning {
+		t.Errorf("Expected Status '%s', got '%s'", context.StackStatusRunning, stack.Status)
 	}
 }
 
@@ -58,7 +59,7 @@ func TestNewStack_GenerateTraceID(t *testing.T) {
 	defer test.Clean()
 
 	// Empty traceID should generate a UUID
-	stack := NewStack("", "test-assistant", RefererAPI, &Options{})
+	stack := context.NewStack("", "test-assistant", context.RefererAPI, &context.Options{})
 
 	if stack.TraceID == "" {
 		t.Error("Expected TraceID to be generated, got empty string")
@@ -75,10 +76,10 @@ func TestNewChildStack(t *testing.T) {
 	defer test.Clean()
 
 	// Create parent stack
-	parentStack := NewStack("12345678", "parent-assistant", RefererAPI, &Options{})
+	parentStack := context.NewStack("12345678", "parent-assistant", context.RefererAPI, &context.Options{})
 
 	// Create child stack
-	childStack := parentStack.NewChildStack("child-assistant", RefererAgent, &Options{})
+	childStack := parentStack.NewChildStack("child-assistant", context.RefererAgent, &context.Options{})
 
 	if childStack == nil {
 		t.Fatal("Expected child stack to be created, got nil")
@@ -122,15 +123,15 @@ func TestStackComplete(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	stack := NewStack("12345678", "test-assistant", RefererAPI, &Options{})
+	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
 
 	// Wait a bit to have measurable duration
 	time.Sleep(10 * time.Millisecond)
 
 	stack.Complete()
 
-	if stack.Status != StackStatusCompleted {
-		t.Errorf("Expected Status '%s', got '%s'", StackStatusCompleted, stack.Status)
+	if stack.Status != context.StackStatusCompleted {
+		t.Errorf("Expected Status '%s', got '%s'", context.StackStatusCompleted, stack.Status)
 	}
 
 	if stack.CompletedAt == nil {
@@ -158,14 +159,14 @@ func TestStackFail(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	stack := NewStack("12345678", "test-assistant", RefererAPI, &Options{})
+	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
 
 	testError := "test error message"
 	stack.Fail(nil)
 	stack.Error = testError
 
-	if stack.Status != StackStatusFailed {
-		t.Errorf("Expected Status '%s', got '%s'", StackStatusFailed, stack.Status)
+	if stack.Status != context.StackStatusFailed {
+		t.Errorf("Expected Status '%s', got '%s'", context.StackStatusFailed, stack.Status)
 	}
 
 	if stack.Error != testError {
@@ -181,12 +182,12 @@ func TestStackTimeout(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	stack := NewStack("12345678", "test-assistant", RefererAPI, &Options{})
+	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
 
 	stack.Timeout()
 
-	if stack.Status != StackStatusTimeout {
-		t.Errorf("Expected Status '%s', got '%s'", StackStatusTimeout, stack.Status)
+	if stack.Status != context.StackStatusTimeout {
+		t.Errorf("Expected Status '%s', got '%s'", context.StackStatusTimeout, stack.Status)
 	}
 
 	if !stack.IsCompleted() {
@@ -198,12 +199,10 @@ func TestEnterStack_RootCreation(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
-	stack, traceID, done := EnterStack(ctx, "test-assistant", &Options{})
+	stack, traceID, done := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	defer done()
 
 	if stack == nil {
@@ -244,13 +243,11 @@ func TestEnterStack_ChildCreation(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
 	// Create parent
-	parentStack, parentTraceID, parentDone := EnterStack(ctx, "parent-assistant", &Options{})
+	parentStack, parentTraceID, parentDone := context.EnterStack(ctx, "parent-assistant", &context.Options{})
 	defer parentDone()
 
 	if parentStack == nil {
@@ -258,7 +255,7 @@ func TestEnterStack_ChildCreation(t *testing.T) {
 	}
 
 	// Create child
-	childStack, childTraceID, childDone := EnterStack(ctx, "child-assistant", &Options{})
+	childStack, childTraceID, childDone := context.EnterStack(ctx, "child-assistant", &context.Options{})
 	defer childDone()
 
 	if childStack == nil {
@@ -290,16 +287,14 @@ func TestEnterStack_DoneCallback(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
 	// Create parent
-	parentStack, _, parentDone := EnterStack(ctx, "parent-assistant", &Options{})
+	parentStack, _, parentDone := context.EnterStack(ctx, "parent-assistant", &context.Options{})
 
 	// Create child
-	childStack, _, childDone := EnterStack(ctx, "child-assistant", &Options{})
+	childStack, _, childDone := context.EnterStack(ctx, "child-assistant", &context.Options{})
 
 	// Child should be current
 	if ctx.Stack != childStack {
@@ -332,19 +327,17 @@ func TestContextGetAllStacks(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
 	// Create multiple stacks
-	_, _, done1 := EnterStack(ctx, "assistant1", &Options{})
+	_, _, done1 := context.EnterStack(ctx, "assistant1", &context.Options{})
 	defer done1()
 
-	_, _, done2 := EnterStack(ctx, "assistant2", &Options{})
+	_, _, done2 := context.EnterStack(ctx, "assistant2", &context.Options{})
 	defer done2()
 
-	_, _, done3 := EnterStack(ctx, "assistant3", &Options{})
+	_, _, done3 := context.EnterStack(ctx, "assistant3", &context.Options{})
 	defer done3()
 
 	// Get all stacks
@@ -359,12 +352,10 @@ func TestContextGetStackByID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
-	stack, _, done := EnterStack(ctx, "test-assistant", &Options{})
+	stack, _, done := context.EnterStack(ctx, "test-assistant", &context.Options{})
 	defer done()
 
 	// Get stack by ID
@@ -389,16 +380,14 @@ func TestContextGetStacksByTraceID(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
 	// Create parent and child (same trace ID)
-	_, traceID, done1 := EnterStack(ctx, "parent-assistant", &Options{})
+	_, traceID, done1 := context.EnterStack(ctx, "parent-assistant", &context.Options{})
 	defer done1()
 
-	_, _, done2 := EnterStack(ctx, "child-assistant", &Options{})
+	_, _, done2 := context.EnterStack(ctx, "child-assistant", &context.Options{})
 	defer done2()
 
 	// Get stacks by trace ID
@@ -420,17 +409,15 @@ func TestContextGetRootStack(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &Context{
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.Referer = context.RefererAPI
 
 	// Create parent
-	parentStack, _, done1 := EnterStack(ctx, "parent-assistant", &Options{})
+	parentStack, _, done1 := context.EnterStack(ctx, "parent-assistant", &context.Options{})
 	defer done1()
 
 	// Create child
-	_, _, done2 := EnterStack(ctx, "child-assistant", &Options{})
+	_, _, done2 := context.EnterStack(ctx, "child-assistant", &context.Options{})
 	defer done2()
 
 	// Get root stack
@@ -453,7 +440,7 @@ func TestStackClone(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	original := NewStack("12345678", "test-assistant", RefererAPI, &Options{})
+	original := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
 	original.Complete()
 
 	clone := original.Clone()

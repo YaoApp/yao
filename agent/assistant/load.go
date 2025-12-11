@@ -21,6 +21,7 @@ import (
 // loaded the loaded assistant
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
+var storeSetting *store.Setting = nil // store setting from agent.yml
 var search interface{} = nil
 var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
 var defaultConnector string = ""           // default connector
@@ -151,6 +152,16 @@ func SetGlobalUses(uses *context.Uses) {
 // SetGlobalPrompts set the global prompts from agent/prompts.yml
 func SetGlobalPrompts(prompts []store.Prompt) {
 	globalPrompts = prompts
+}
+
+// SetStoreSetting set the store setting from agent.yml
+func SetStoreSetting(setting *store.Setting) {
+	storeSetting = setting
+}
+
+// GetStoreSetting returns the store setting
+func GetStoreSetting() *store.Setting {
+	return storeSetting
 }
 
 // GetGlobalPrompts returns the global prompts with variables parsed

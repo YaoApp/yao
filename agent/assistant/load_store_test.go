@@ -176,31 +176,30 @@ func TestLoadStoreWithoutSource(t *testing.T) {
 
 // newStoreTestContext creates a Context for testing with commonly used fields pre-populated.
 func newStoreTestContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Route:    "",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client-id",
-			Scope:     "openid profile email",
-			SessionID: "test-session-id",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-		},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client-id",
+		Scope:     "openid profile email",
+		SessionID: "test-session-id",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }
 
 // TestLoadStoreWithSourceExecuteHook tests that Source-based script is properly compiled and can execute

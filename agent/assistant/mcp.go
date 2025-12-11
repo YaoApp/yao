@@ -9,7 +9,6 @@ import (
 	gouJson "github.com/yaoapp/gou/json"
 	"github.com/yaoapp/gou/mcp"
 	mcpTypes "github.com/yaoapp/gou/mcp/types"
-	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	storeTypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/trace/types"
@@ -109,21 +108,21 @@ func (ast *Assistant) buildMCPTools(ctx *agentContext.Context, createResponse *a
 	// Process each MCP server in order
 	for _, serverConfig := range servers {
 		if len(allTools) >= MaxMCPTools {
-			log.Warn("[Assistant MCP] Reached maximum tool limit (%d), skipping remaining servers", MaxMCPTools)
+			ctx.Logger.Warn("Reached maximum tool limit (%d), skipping remaining servers", MaxMCPTools)
 			break
 		}
 
 		// Get MCP client
 		client, err := mcp.Select(serverConfig.ServerID)
 		if err != nil {
-			log.Warn("[Assistant MCP] Failed to select MCP client '%s': %v", serverConfig.ServerID, err)
+			ctx.Logger.Warn("Failed to select MCP client '%s': %v", serverConfig.ServerID, err)
 			continue
 		}
 
 		// Get tools list (filter by serverConfig.Tools if specified)
 		toolsResponse, err := client.ListTools(mcpCtx, "")
 		if err != nil {
-			log.Warn("[Assistant MCP] Failed to list tools for '%s': %v", serverConfig.ServerID, err)
+			ctx.Logger.Warn("Failed to list tools for '%s': %v", serverConfig.ServerID, err)
 			continue
 		}
 
@@ -204,7 +203,7 @@ func (ast *Assistant) buildMCPTools(ctx *agentContext.Context, createResponse *a
 			}
 		}
 
-		log.Trace("[Assistant MCP] Loaded %d tools from server '%s'", len(toolsResponse.Tools), serverConfig.ServerID)
+		ctx.Logger.Debug("Loaded %d tools from server '%s'", len(toolsResponse.Tools), serverConfig.ServerID)
 	}
 
 	samplesPrompt := ""
@@ -212,7 +211,7 @@ func (ast *Assistant) buildMCPTools(ctx *agentContext.Context, createResponse *a
 		samplesPrompt = samplesBuilder.String()
 	}
 
-	log.Trace("[Assistant MCP] Total MCP tools loaded: %d", len(allTools))
+	ctx.Logger.Debug("Total MCP tools loaded: %d", len(allTools))
 	return allTools, samplesPrompt, nil
 }
 
@@ -226,32 +225,20 @@ func (ast *Assistant) executeToolCalls(ctx *agentContext.Context, toolCalls []ag
 		return nil, false
 	}
 
-	// === Debug ===
-	fmt.Printf(">>> executeToolCalls: START (attempt %d, toolCalls count: %d)\n", attempt, len(toolCalls))
-	// === End Debug ===
-
-	log.Trace("[Assistant MCP] Executing %d tool calls (attempt %d)", len(toolCalls), attempt)
+	ctx.Logger.Debug("Executing %d tool calls (attempt %d)", len(toolCalls), attempt)
 
 	// Single tool call
 	if len(toolCalls) == 1 {
-		fmt.Println(">>> executeToolCalls: Calling executeSingleToolCall")
-		results, hasErrors := ast.executeSingleToolCall(ctx, toolCalls[0])
-		fmt.Printf(">>> executeToolCalls: executeSingleToolCall RETURNED (hasErrors: %v)\n", hasErrors)
-		return results, hasErrors
+		return ast.executeSingleToolCall(ctx, toolCalls[0])
 	}
 
 	// Multiple tool calls - try parallel first
-	fmt.Println(">>> executeToolCalls: Calling executeMultipleToolCallsParallel")
-	results, hasErrors := ast.executeMultipleToolCallsParallel(ctx, toolCalls)
-	fmt.Printf(">>> executeToolCalls: executeMultipleToolCallsParallel RETURNED (hasErrors: %v)\n", hasErrors)
-	return results, hasErrors
+	return ast.executeMultipleToolCallsParallel(ctx, toolCalls)
 }
 
 // executeSingleToolCall executes a single tool call with trace logging
 func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall agentContext.ToolCall) ([]ToolCallResult, bool) {
-	// === Debug ===
-	fmt.Printf(">>> executeSingleToolCall: START (tool: %s)\n", toolCall.Function.Name)
-	// === End Debug ===
+	ctx.Logger.ToolStart(toolCall.Function.Name)
 
 	trace, _ := ctx.Trace()
 
@@ -267,12 +254,12 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 	}
 
 	// Parse tool name
-	fmt.Println(">>> executeSingleToolCall: Parsing tool name")
 	serverID, toolName, ok := ParseMCPToolName(toolCall.Function.Name)
 	if !ok {
 		result.Error = fmt.Errorf("invalid MCP tool name format: %s", toolCall.Function.Name)
 		result.Content = result.Error.Error()
-		log.Error("[Assistant MCP] %v", result.Error)
+		ctx.Logger.Error("Invalid MCP tool name format: %s", toolCall.Function.Name)
+		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
 		return []ToolCallResult{result}, true
 	}
 
@@ -282,7 +269,8 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		result.Error = fmt.Errorf("failed to select MCP client '%s': %w", serverID, err)
 		result.Content = result.Error.Error()
 		result.IsRetryableError = false // MCP client selection error is not retryable
-		log.Error("[Assistant MCP] %v", result.Error)
+		ctx.Logger.Error("Failed to select MCP client '%s': %v", serverID, err)
+		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
 		return []ToolCallResult{result}, true
 	}
 
@@ -330,7 +318,7 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 			result.Error = fmt.Errorf("failed to parse arguments: %w", err)
 			result.Content = result.Error.Error()
 			result.IsRetryableError = true // Argument parsing error is retryable by LLM
-			log.Error("[Assistant MCP] %v", result.Error)
+			ctx.Logger.Error("Failed to parse arguments: %v", err)
 			if toolNode != nil {
 				toolNode.Fail(result.Error)
 			}
@@ -344,7 +332,7 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 			result.Error = fmt.Errorf("arguments must be an object, got %T", parsed)
 			result.Content = result.Error.Error()
 			result.IsRetryableError = true // Type error is retryable by LLM
-			log.Error("[Assistant MCP] %v", result.Error)
+			ctx.Logger.Error("Arguments must be an object, got %T", parsed)
 			if toolNode != nil {
 				toolNode.Fail(result.Error)
 			}
@@ -353,42 +341,34 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 
 		// Validate arguments against tool schema if available
 		if toolSchema != nil {
-			fmt.Println(">>> executeSingleToolCall: Validating arguments against schema")
 			if err := gouJson.Validate(args, toolSchema); err != nil {
-				fmt.Printf(">>> executeSingleToolCall: Validation FAILED: %v\n", err)
 				result.Error = fmt.Errorf("argument validation failed: %w", err)
 				result.Content = result.Error.Error()
 				result.IsRetryableError = true // Validation error is retryable by LLM
-				log.Error("[Assistant MCP] %v", result.Error)
+				ctx.Logger.Error("Argument validation failed: %v", err)
 				if toolNode != nil {
-					fmt.Println(">>> executeSingleToolCall: Failing toolNode due to validation error")
 					toolNode.Fail(result.Error)
-					fmt.Println(">>> executeSingleToolCall: toolNode.Fail() finished")
 				}
-				fmt.Println(">>> executeSingleToolCall: RETURNING with validation error")
 				return []ToolCallResult{result}, true
 			}
-			fmt.Println(">>> executeSingleToolCall: Validation PASSED")
 		}
 	}
 
 	// Call the tool with agent context as extra argument
-	log.Trace("[Assistant MCP] Calling tool: %s (server: %s)", toolName, serverID)
-	fmt.Printf(">>> executeSingleToolCall: CALLING client.CallTool (tool: %s, server: %s)\n", toolName, serverID)
+	ctx.Logger.Debug("Calling tool: %s (server: %s)", toolName, serverID)
 
 	// Pass agent context as extra argument (only used for Process transport)
 	callResult, err := client.CallTool(mcpCtx, toolName, args, ctx)
-	fmt.Printf(">>> executeSingleToolCall: client.CallTool RETURNED (err: %v)\n", err)
 	if err != nil {
 		result.Error = fmt.Errorf("tool call failed: %w", err)
 		result.Content = result.Error.Error()
 		// Check if error is retryable (parameter/validation errors)
 		result.IsRetryableError = isRetryableToolError(err)
-		log.Error("[Assistant MCP] Tool call failed: %v (retryable: %v)", err, result.IsRetryableError)
+		ctx.Logger.Error("Tool call failed: %v (retryable: %v)", err, result.IsRetryableError)
+		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
 		if toolNode != nil {
 			toolNode.Fail(result.Error)
 		}
-		fmt.Println(">>> executeSingleToolCall: RETURNING with error")
 		return []ToolCallResult{result}, true
 	}
 
@@ -404,7 +384,8 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		result.Error = fmt.Errorf("failed to serialize result: %w", err)
 		result.Content = result.Error.Error()
 		result.IsRetryableError = false
-		log.Error("[Assistant MCP] %v", result.Error)
+		ctx.Logger.Error("Failed to serialize result: %v", err)
+		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
 		if toolNode != nil {
 			toolNode.Fail(result.Error)
 		}
@@ -412,17 +393,14 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 	}
 
 	result.Content = string(contentBytes)
-	log.Trace("[Assistant MCP] Tool call succeeded: %s", toolName)
+	ctx.Logger.ToolComplete(toolName, true)
 
 	if toolNode != nil {
-		fmt.Println(">>> executeSingleToolCall: Completing toolNode")
 		toolNode.Complete(map[string]any{
 			"result": callResult,
 		})
-		fmt.Println(">>> executeSingleToolCall: toolNode.Complete() finished")
 	}
 
-	fmt.Println(">>> executeSingleToolCall: RETURNING success")
 	return []ToolCallResult{result}, false
 }
 
@@ -441,7 +419,7 @@ func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context
 	for _, tc := range toolCalls {
 		serverID, _, ok := ParseMCPToolName(tc.Function.Name)
 		if !ok {
-			log.Warn("[Assistant MCP] Invalid tool name format: %s", tc.Function.Name)
+			ctx.Logger.Warn("Invalid tool name format: %s", tc.Function.Name)
 			continue
 		}
 		serverGroups[serverID] = append(serverGroups[serverID], tc)
@@ -454,7 +432,7 @@ func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context
 	for serverID, calls := range serverGroups {
 		client, err := mcp.Select(serverID)
 		if err != nil {
-			log.Error("[Assistant MCP] Failed to select MCP client '%s': %v", serverID, err)
+			ctx.Logger.Error("Failed to select MCP client '%s': %v", serverID, err)
 			// Add error results for all calls to this server
 			for _, tc := range calls {
 				results = append(results, ToolCallResult{
@@ -475,7 +453,7 @@ func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context
 
 		// If parallel execution failed with retryable error, try sequential
 		if serverHasErrors && ast.shouldRetrySequential(serverResults) {
-			log.Warn("[Assistant MCP] Parallel execution had parameter errors for server '%s', retrying sequentially", serverID)
+			ctx.Logger.Warn("Parallel execution had parameter errors for server '%s', retrying sequentially", serverID)
 			serverResults, serverHasErrors = ast.executeServerToolsSequentialWithTrace(
 				mcpCtx, ctx, trace, client, serverID, calls,
 			)
@@ -575,7 +553,7 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 		var args map[string]interface{}
 		if tc.Function.Arguments != "" {
 			if err := jsoniter.UnmarshalFromString(tc.Function.Arguments, &args); err != nil {
-				log.Error("[Assistant MCP] Failed to parse arguments for %s: %v", toolName, err)
+				ctx.Logger.Error("Failed to parse arguments for %s: %v", toolName, err)
 				continue
 			}
 		}
@@ -606,25 +584,20 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	// Create parallel trace nodes
 	var toolNodes []types.Node
 	if trace != nil && len(parallelInputs) > 0 {
-		fmt.Printf(">>> executeServerToolsParallelWithTrace: Creating %d parallel trace nodes\n", len(parallelInputs))
 		var err error
 		toolNodes, err = trace.Parallel(parallelInputs)
 		if err != nil {
-			fmt.Printf(">>> executeServerToolsParallelWithTrace: trace.Parallel() FAILED: %v\n", err)
-		} else {
-			fmt.Printf(">>> executeServerToolsParallelWithTrace: Created %d trace nodes\n", len(toolNodes))
+			ctx.Logger.Debug("trace.Parallel() failed: %v", err)
 		}
-	} else {
-		fmt.Printf(">>> executeServerToolsParallelWithTrace: NOT creating trace nodes (trace: %v, inputs: %d)\n", trace != nil, len(parallelInputs))
 	}
 
 	// Call tools in parallel with agent context as extra argument
-	log.Trace("[Assistant MCP] Calling %d tools in parallel on server '%s'", len(mcpCalls), serverID)
+	ctx.Logger.Debug("Calling %d tools in parallel on server '%s'", len(mcpCalls), serverID)
 
 	// Pass agent context as extra argument (only used for Process transport)
 	mcpResponse, err := client.CallToolsParallel(mcpCtx, mcpCalls, ctx)
 	if err != nil {
-		log.Error("[Assistant MCP] Parallel call failed: %v", err)
+		ctx.Logger.Error("Parallel call failed: %v", err)
 		// Mark all trace nodes as failed
 		for _, node := range toolNodes {
 			if node != nil {
@@ -669,20 +642,16 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 				result.Error = fmt.Errorf("tool call error: %s", result.Content)
 				result.IsRetryableError = isRetryableToolError(result.Error)
 				hasErrors = true
-				log.Error("[Assistant MCP] Tool call failed: %s - %s (retryable: %v)", toolName, result.Content, result.IsRetryableError)
+				ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolName, result.Content, result.IsRetryableError)
 				if toolNode != nil {
 					toolNode.Fail(result.Error)
 				}
 			} else {
 				// Success
 				if toolNode != nil {
-					fmt.Printf(">>> executeServerToolsParallelWithTrace: Completing toolNode %d\n", i)
 					toolNode.Complete(map[string]any{
 						"result": mcpResult.Content,
 					})
-					fmt.Printf(">>> executeServerToolsParallelWithTrace: toolNode %d completed\n", i)
-				} else {
-					fmt.Printf(">>> executeServerToolsParallelWithTrace: toolNode %d is nil!\n", i)
 				}
 			}
 		}
@@ -698,7 +667,7 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 	results := make([]ToolCallResult, 0, len(toolCalls))
 	hasErrors := false
 
-	log.Trace("[Assistant MCP] Calling %d tools sequentially on server '%s'", len(toolCalls), serverID)
+	ctx.Logger.Debug("Calling %d tools sequentially on server '%s'", len(toolCalls), serverID)
 
 	for _, tc := range toolCalls {
 		_, toolName, ok := ParseMCPToolName(tc.Function.Name)
@@ -805,7 +774,7 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 		}
 
 		// Call single tool with agent context as extra argument
-		log.Trace("[Assistant MCP] Calling tool: %s", toolName)
+		ctx.Logger.Debug("Calling tool: %s", toolName)
 		mcpResult, err := client.CallTool(mcpCtx, toolName, args, ctx)
 
 		result := ToolCallResult{
@@ -818,7 +787,7 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 			result.Content = fmt.Sprintf("Tool call failed: %v", err)
 			result.IsRetryableError = isRetryableToolError(err)
 			hasErrors = true
-			log.Error("[Assistant MCP] Tool call failed: %s - %v (retryable: %v)", toolName, err, result.IsRetryableError)
+			ctx.Logger.Error("Tool call failed: %s - %v (retryable: %v)", toolName, err, result.IsRetryableError)
 			if toolNode != nil {
 				toolNode.Fail(err)
 			}

@@ -26,29 +26,34 @@ func containsString(content interface{}, substr string) bool {
 
 // newPromptTestContext creates a context suitable for prompt testing with Create Hook
 func newPromptTestContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:   "test-user",
-			ClientID:  "test-client-id",
-			UserID:    "test-user-123",
-			TeamID:    "test-team-456",
-			TenantID:  "test-tenant-789",
-			SessionID: "test-session-id",
-		},
+	authorized := &types.AuthorizedInfo{
+		Subject:   "test-user",
+		ClientID:  "test-client-id",
+		UserID:    "test-user-123",
+		TeamID:    "test-team-456",
+		TenantID:  "test-tenant-789",
+		SessionID: "test-session-id",
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
+}
+
+// newMinimalTestContext creates a minimal context for testing
+// Use this when you only need specific fields set
+func newMinimalTestContext() *context.Context {
+	return context.New(stdContext.Background(), nil, "test-chat")
 }
 
 func TestBuildSystemPromptsIntegration(t *testing.T) {
@@ -60,17 +65,16 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("tests.fullfields")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Locale: "zh-cn",
-			Authorized: &types.AuthorizedInfo{
-				UserID: "test-user-123",
-				TeamID: "test-team-456",
-			},
-			Metadata: map[string]interface{}{
-				"CUSTOM_VAR": "custom-value",
-				"INT_VAR":    42,
-				"BOOL_VAR":   true,
-			},
+		ctx := newMinimalTestContext()
+		ctx.Locale = "zh-cn"
+		ctx.Authorized = &types.AuthorizedInfo{
+			UserID: "test-user-123",
+			TeamID: "test-team-456",
+		}
+		ctx.Metadata = map[string]interface{}{
+			"CUSTOM_VAR": "custom-value",
+			"INT_VAR":    42,
+			"BOOL_VAR":   true,
 		}
 
 		// Build request to test the full flow
@@ -102,9 +106,8 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ast.DisableGlobalPrompts)
 
-		ctx := &context.Context{
-			Locale: "en-us",
-		}
+		ctx := newMinimalTestContext()
+		ctx.Locale = "en-us"
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Hello"},
@@ -128,20 +131,19 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Metadata: map[string]interface{}{
-				"STRING_VAL": "hello",
-				"INT_VAL":    123,
-				"INT64_VAL":  int64(456),
-				"FLOAT_VAL":  3.14,
-				"BOOL_TRUE":  true,
-				"BOOL_FALSE": false,
-				"UINT_VAL":   uint(789),
-				"NIL_VAL":    nil,
-				"EMPTY_VAL":  "",
-				"ZERO_INT":   0,
-				"ZERO_FLOAT": 0.0,
-			},
+		ctx := newMinimalTestContext()
+		ctx.Metadata = map[string]interface{}{
+			"STRING_VAL": "hello",
+			"INT_VAL":    123,
+			"INT64_VAL":  int64(456),
+			"FLOAT_VAL":  3.14,
+			"BOOL_TRUE":  true,
+			"BOOL_FALSE": false,
+			"UINT_VAL":   uint(789),
+			"NIL_VAL":    nil,
+			"EMPTY_VAL":  "",
+			"ZERO_INT":   0,
+			"ZERO_FLOAT": 0.0,
 		}
 
 		messages := []context.Message{
@@ -157,17 +159,16 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Authorized: &types.AuthorizedInfo{
-				UserID:   "user-123",
-				Subject:  "user@example.com", // PII - should not be exposed
-				TeamID:   "team-456",
-				TenantID: "tenant-789",
-			},
-			Client: context.Client{
-				Type: "web",
-				IP:   "192.168.1.1", // Should not be exposed
-			},
+		ctx := newMinimalTestContext()
+		ctx.Authorized = &types.AuthorizedInfo{
+			UserID:   "user-123",
+			Subject:  "user@example.com", // PII - should not be exposed
+			TeamID:   "team-456",
+			TenantID: "tenant-789",
+		}
+		ctx.Client = context.Client{
+			Type: "web",
+			IP:   "192.168.1.1", // Should not be exposed
 		}
 
 		messages := []context.Message{
@@ -196,14 +197,13 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Authorized: &types.AuthorizedInfo{
-				UserID: "user-abc",
-				TeamID: "team-xyz",
-			},
-			Metadata: map[string]interface{}{
-				"MY_VAR": "my-value",
-			},
+		ctx := newMinimalTestContext()
+		ctx.Authorized = &types.AuthorizedInfo{
+			UserID: "user-abc",
+			TeamID: "team-xyz",
+		}
+		ctx.Metadata = map[string]interface{}{
+			"MY_VAR": "my-value",
 		}
 
 		messages := []context.Message{
@@ -237,7 +237,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{}
+		ctx := newMinimalTestContext()
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Test system variables"},
@@ -289,7 +289,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{}
+		ctx := newMinimalTestContext()
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Test env variables"},
@@ -337,13 +337,12 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Authorized: &types.AuthorizedInfo{
-				UserID: "all-vars-user",
-			},
-			Metadata: map[string]interface{}{
-				"CUSTOM_KEY": "custom-value-123",
-			},
+		ctx := newMinimalTestContext()
+		ctx.Authorized = &types.AuthorizedInfo{
+			UserID: "all-vars-user",
+		}
+		ctx.Metadata = map[string]interface{}{
+			"CUSTOM_KEY": "custom-value-123",
 		}
 
 		messages := []context.Message{
@@ -391,7 +390,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		require.NotNil(t, ast.PromptPresets)
 		require.Contains(t, ast.PromptPresets, "chat.friendly")
 
-		ctx := &context.Context{}
+		ctx := newMinimalTestContext()
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Test preset from hook"},
@@ -423,10 +422,9 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("tests.fullfields")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Metadata: map[string]interface{}{
-				"__prompt_preset": "chat.professional",
-			},
+		ctx := newMinimalTestContext()
+		ctx.Metadata = map[string]interface{}{
+			"__prompt_preset": "chat.professional",
 		}
 
 		messages := []context.Message{
@@ -454,10 +452,9 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("tests.fullfields")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Metadata: map[string]interface{}{
-				"__prompt_preset": "chat.professional", // Lower priority
-			},
+		ctx := newMinimalTestContext()
+		ctx.Metadata = map[string]interface{}{
+			"__prompt_preset": "chat.professional", // Lower priority
 		}
 
 		messages := []context.Message{
@@ -486,10 +483,9 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("tests.fullfields")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Metadata: map[string]interface{}{
-				"__prompt_preset": "non.existent.preset",
-			},
+		ctx := newMinimalTestContext()
+		ctx.Metadata = map[string]interface{}{
+			"__prompt_preset": "non.existent.preset",
 		}
 
 		messages := []context.Message{
@@ -522,7 +518,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.False(t, ast.DisableGlobalPrompts)
 
-		ctx := &context.Context{}
+		ctx := newMinimalTestContext()
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Test disable from hook"},
@@ -556,10 +552,9 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		ast, err := assistant.Get("yaobots")
 		require.NoError(t, err)
 
-		ctx := &context.Context{
-			Metadata: map[string]interface{}{
-				"__disable_global_prompts": true,
-			},
+		ctx := newMinimalTestContext()
+		ctx.Metadata = map[string]interface{}{
+			"__disable_global_prompts": true,
 		}
 
 		messages := []context.Message{
@@ -589,7 +584,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, ast.DisableGlobalPrompts)
 
-		ctx := &context.Context{}
+		ctx := newMinimalTestContext()
 
 		messages := []context.Message{
 			{Role: context.RoleUser, Content: "Test enable override"},

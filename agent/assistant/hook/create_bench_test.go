@@ -4,7 +4,6 @@ import (
 	stdContext "context"
 	"testing"
 
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/testutils"
@@ -296,34 +295,32 @@ func getBusinessScenarios() []struct {
 
 // newBenchContext creates a minimal context for benchmarking
 func newBenchContext(chatID, assistantID string) *context.Context {
-	return &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      chatID,
-		AssistantID: assistantID,
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "BenchAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:  context.RefererAPI,
-		Accept:   context.AcceptWebCUI,
-		Route:    "",
-		Metadata: make(map[string]interface{}),
-		Authorized: &types.AuthorizedInfo{
-			Subject:  "bench-user",
-			ClientID: "bench-client",
-			UserID:   "bench-user-123",
-			TeamID:   "bench-team-456",
-			TenantID: "bench-tenant-789",
-			Constraints: types.DataConstraints{
-				TeamOnly: true,
-				Extra: map[string]interface{}{
-					"department": "engineering",
-				},
+	authorized := &types.AuthorizedInfo{
+		Subject:  "bench-user",
+		ClientID: "bench-client",
+		UserID:   "bench-user-123",
+		TeamID:   "bench-team-456",
+		TenantID: "bench-tenant-789",
+		Constraints: types.DataConstraints{
+			TeamOnly: true,
+			Extra: map[string]interface{}{
+				"department": "engineering",
 			},
 		},
 	}
+
+	ctx := context.New(stdContext.Background(), authorized, chatID)
+	ctx.AssistantID = assistantID
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = context.Client{
+		Type:      "web",
+		UserAgent: "BenchAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = context.RefererAPI
+	ctx.Accept = context.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	return ctx
 }
