@@ -642,62 +642,204 @@ function Create(ctx, messages, options) {
 
 ## Configuration
 
-### Assistant Configuration
+Configuration follows a three-layer hierarchy (later overrides earlier):
+
+1. **System Built-in Defaults** - Hardcoded sensible defaults
+2. **Global Configuration** - `agent/agent.yml` + `agent/search.yao`
+3. **Assistant Configuration** - `assistants/<assistant-id>/package.yao`
+
+### Uses Configuration
+
+Processing tools are configured in `agent/agent.yml` under `uses`:
 
 ```yaml
-# assistants/my-assistant.yml
-assistant_id: my-assistant
-connector: openai
+# agent/agent.yml
+uses:
+  default: "yaobots"
+  title: "workers.system.title"
+  vision: "workers.system.vision"
+  fetch: "workers.system.fetch"
 
-search:
-  web_search: true
-  knowledge: true
-  database: true
+  # Search processing tools
+  keyword: "builtin" # Keyword extraction. "builtin", "model:gpt-4o-mini", "agent:xxx", "mcp:xxx"
+  dsl: "builtin" # QueryDSL generation. "builtin", "model:gpt-4o", "agent:xxx", "mcp:xxx"
+  rerank: "builtin" # Result reranking. "builtin", "model:cohere-rerank-v3", "agent:xxx", "mcp:xxx"
+  # Note: embedding & entity follow KB collection config
+```
 
-  web:
-    provider: tavily # "tavily", "serper", "mcp:server-id"
-    max_results: 5
+Tool format: `"builtin"`, `"model:<model-id>"`, `"agent:<assistant-id>"`, `"mcp:<server-id>"`
 
-  kb:
-    collections: [docs, faq]
-    threshold: 0.7
-    graph: true
+### System Built-in Defaults
 
-  db:
-    models: [product, order] # Use assistant's db.models if not specified
-    max_results: 20
+These are the hardcoded defaults when no configuration is provided:
 
-  rerank:
-    type: score # "score", "model", "agent", "mcp"
+```go
+// search/config/defaults.go
+var SystemDefaults = Config{
+    // Query processing options
+    Query: QueryConfig{
+        Keyword: KeywordConfig{
+            MaxKeywords: 10,
+            Language:    "auto",
+        },
+        DSL: DSLConfig{
+            Strict: false,
+        },
+        // Note: Entity & Embedding config follow KB collection settings
+    },
 
-  citation:
-    format: "#ref:{id}"
-    auto_inject_prompt: true
+    // Rerank options
+    Rerank: RerankConfig{
+        TopN: 10,
+    },
 
-# Knowledge base collections
-kb:
-  collections: [docs, faq]
+    // Citation
+    Citation: CitationConfig{
+        Format:           "#ref:{id}",
+        AutoInjectPrompt: true,
+    },
 
-# Database models (also supports assistant-specific models in models/ directory)
-db:
-  models: [product, order, customer]
+    // Source weights
+    Weights: WeightsConfig{
+        User: 1.0,
+        Hook: 0.8,
+        Auto: 0.6,
+    },
+
+    // Behavior options
+    Options: OptionsConfig{
+        SkipThreshold: 5,
+    },
+}
 ```
 
 ### Global Configuration
 
-```yaml
-# config/search.yml
-search:
-  web:
-    provider: tavily
-    api_key_env: TAVILY_API_KEY
+`agent/search.yao` - Override system defaults for all assistants:
 
-  rerank:
-    type: score
+```jsonc
+{
+  // Web search settings
+  "web": {
+    "provider": "tavily", // "tavily", "serper", "mcp:server-id"
+    "api_key_env": "TAVILY_API_KEY",
+    "max_results": 10
+  },
 
-  citation:
-    format: "#ref:{id}"
-    auto_inject_prompt: true
+  // Knowledge base search settings
+  "kb": {
+    "threshold": 0.7, // Similarity threshold
+    "graph": false // Enable GraphRAG association
+  },
+
+  // Database search settings
+  "db": {
+    "max_results": 20
+  },
+
+  // Query processing options
+  "query": {
+    "keyword": {
+      "max_keywords": 10,
+      "language": "auto" // "auto", "en", "zh", etc.
+    },
+    "dsl": {
+      "strict": false // Strict mode: fail if DSL generation fails
+    }
+    // Note: entity & embedding follow KB collection config
+  },
+
+  // Rerank options
+  "rerank": {
+    "top_n": 10 // Return top N results after reranking
+  },
+
+  // Citation format for LLM references
+  "citation": {
+    "format": "#ref:{id}",
+    "auto_inject_prompt": true // Auto-inject citation instructions to system prompt
+  },
+
+  // Source weighting for result merging
+  "weights": {
+    "user": 1.0, // User-provided DataContent (highest priority)
+    "hook": 0.8, // Hook ctx.search.*() results
+    "auto": 0.6 // Auto search results
+  },
+
+  // Search behavior options
+  "options": {
+    "skip_threshold": 5 // Skip auto search if user provides >= N results
+  }
+}
+```
+
+### Assistant Configuration
+
+`assistants/<assistant-id>/package.yao` - Override for specific assistant:
+
+```jsonc
+{
+  "name": "My Assistant",
+  "connector": "openai",
+
+  // Search configuration (overrides agent/search.yao)
+  "search": {
+    "web": true, // Enable web search
+    "kb": true, // Enable knowledge base search
+    "db": true, // Enable database search
+
+    // Overrides global web settings
+    "web": {
+      "provider": "tavily",
+      "max_results": 5
+    },
+
+    // Overrides global kb settings
+    "kb": {
+      "collections": ["docs", "faq"], // Specific collections to search
+      "threshold": 0.7,
+      "graph": true
+    },
+
+    // Overrides global db settings
+    "db": {
+      "models": ["product", "order"], // Uses db.models if not set
+      "max_results": 20
+    },
+
+    // Overrides global query processing options
+    "query": {
+      "keyword": {
+        "max_keywords": 5
+      },
+      "dsl": {
+        "strict": true
+      }
+    },
+
+    // Overrides global rerank options
+    "rerank": {
+      "top_n": 5
+    },
+
+    // Overrides global citation settings
+    "citation": {
+      "format": "#ref:{id}",
+      "auto_inject_prompt": true
+    }
+  },
+
+  // Knowledge base collections available to this assistant
+  "kb": {
+    "collections": ["docs", "faq"]
+  },
+
+  // Database models available to this assistant
+  "db": {
+    "models": ["product", "order", "customer"]
+  }
+}
 ```
 
 ## Execution Flow
@@ -794,11 +936,51 @@ Request → Trace Start → Query Process → Search → Rerank → Citations �
 
 ### Query Processing
 
-| Type | Process                                               |
-| ---- | ----------------------------------------------------- |
-| Web  | Extract keywords → Build query                        |
-| KB   | Get collection's embedding model → Generate embedding |
-| DB   | Parse query → Build QueryDSL → Execute on models      |
+| Type | Process                                               | Tool Config          |
+| ---- | ----------------------------------------------------- | -------------------- |
+| Web  | Extract keywords → Build query                        | `uses.keyword`       |
+| KB   | Get collection's embedding model → Generate embedding | KB collection config |
+| DB   | Parse query → Build QueryDSL → Execute on models      | `uses.dsl`           |
+
+#### Processing Methods
+
+Configure via `uses.*` in `agent/agent.yml`:
+
+| Format                 | Description                               | Use Case                        |
+| ---------------------- | ----------------------------------------- | ------------------------------- |
+| `builtin`              | Rule-based, template-driven (no LLM call) | Fast, low cost, simple queries  |
+| `model:<model-id>`     | LLM-based extraction/generation           | Complex queries, better quality |
+| `agent:<assistant-id>` | Delegate to another assistant             | Custom logic, domain-specific   |
+| `mcp:<server-id>`      | Call MCP server tool                      | External services integration   |
+
+#### Keyword Extraction (Web Search)
+
+Configure via `uses.keyword`:
+
+```
+"I want to find the best wireless headphones under $100"
+    ↓ builtin: simple tokenization + stopword removal
+    ↓ model: LLM extracts ["wireless headphones", "under $100", "best"]
+→ Keywords: ["wireless headphones", "under $100", "best"]
+```
+
+#### KB Search (Entity & Embedding)
+
+Entity extraction and embedding generation follow KB collection's own configuration:
+
+- Each KB collection has its own embedding model
+- Entity types are defined per collection (for GraphRAG)
+
+#### QueryDSL Generation (Database)
+
+Configure via `uses.dsl`:
+
+```
+"Products cheaper than $100 from Apple"
+    ↓ builtin: template matching against model schema
+    ↓ model: LLM generates DSL from NL + schema
+→ QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
+```
 
 ## Providers
 
@@ -830,12 +1012,14 @@ Integrates with Yao's Model/QueryDSL system:
 
 ### Reranking
 
-| Type  | Notes                                    |
-| ----- | ---------------------------------------- |
-| score | Simple score sorting (default)           |
-| model | Cohere, BGE, Jina rerankers              |
-| agent | Delegate to another assistant for rerank |
-| mcp   | Call MCP server rerank tool              |
+Configure via `uses.rerank` in `agent/agent.yml`:
+
+| Value                    | Notes                                    |
+| ------------------------ | ---------------------------------------- |
+| `builtin`                | Simple score sorting (default)           |
+| `model:cohere-rerank-v3` | Cohere, BGE, Jina rerankers              |
+| `agent:rerank-assistant` | Delegate to another assistant for rerank |
+| `mcp:rerank-server`      | Call MCP server rerank tool              |
 
 ## Error Handling
 
@@ -851,13 +1035,16 @@ if (result.error) {
 
 ## Configuration Priority
 
-1. **Request-level**: `Options.Search` in Stream() call (highest)
+Configuration is merged with later layers overriding earlier ones:
+
+1. **System Built-in** - Hardcoded defaults (lowest priority)
+2. **Global-level** - `agent/search.yao`
+3. **Assistant-level** - `assistants/<assistant-id>/package.yao`
+4. **Hook-level** - Options in `ctx.search.*()` calls
+5. **Request-level** - `Options.Search` in Stream() call (highest priority)
    - `true`: Force enable auto search
    - `false`: Force disable auto search
    - `nil`: Follow assistant config
-2. **Hook-level**: Options in `ctx.search.*()` calls
-3. **Assistant-level**: `search` config in assistant.yml
-4. **Global-level**: `config/search.yml` defaults
 
 ## DB Search Details
 
@@ -963,6 +1150,98 @@ The Search module will:
 1. Extract query from text: "products under $100"
 2. For `model:product` → Generate QueryDSL: `{ "wheres": [{ "field": "price", "op": "<", "value": 100 }] }`
 3. For `kb_collection:product-docs` → Vector search with query embedding
+
+### Source Priority & Weighting
+
+User-provided data sources have higher priority than auto-search results.
+
+**Priority Levels:**
+
+| Source           | Priority    | Weight | Description                      |
+| ---------------- | ----------- | ------ | -------------------------------- |
+| User DataContent | 1 (highest) | 1.0    | Explicitly referenced in message |
+| Hook Search      | 2           | 0.8    | Called in Create/Next hook       |
+| Auto Search      | 3 (lowest)  | 0.6    | Triggered by assistant config    |
+
+**Behavior Rules:**
+
+1. **User data sufficient**: If user provides enough data (e.g., ≥ 5 results), skip auto search
+2. **Merge & Rerank**: When multiple sources, merge all results and rerank with weights
+3. **Deduplication**: Same record from different sources → keep highest priority version
+
+**Rerank with Weights:**
+
+```go
+// Final score calculation
+finalScore = baseScore * sourceWeight * rerankScore
+
+// Example:
+// User data:  baseScore=0.8 * weight=1.0 = 0.80
+// Auto search: baseScore=0.9 * weight=0.6 = 0.54
+// User data wins even with lower base score
+```
+
+**Configuration:**
+
+Global defaults (`agent/search.yao`):
+
+```jsonc
+{
+  "weights": {
+    "user": 1.0, // User-provided DataContent
+    "hook": 0.8, // Hook ctx.search.*() results
+    "auto": 0.6 // Auto search results
+  },
+  "options": {
+    "skip_threshold": 5 // Skip auto search if user provides >= N results
+  }
+}
+```
+
+Assistant-level override (`assistants/<assistant-id>/package.yao`):
+
+```jsonc
+{
+  "search": {
+    "weights": {
+      "user": 1.0,
+      "hook": 0.9, // Higher weight for hook results
+      "auto": 0.5 // Lower weight for auto results
+    },
+    "options": {
+      "skip_threshold": 10 // Need more user results to skip auto search
+    }
+  }
+}
+```
+
+**System Auto-Processing:**
+
+The priority and weighting logic is handled automatically by the system:
+
+```
+Stream()
+  │
+  ├── 1. Parse user message for DataContent sources
+  │   └── If found → Mark as priority=1, weight=1.0
+  │
+  ├── 2. Create Hook (optional)
+  │   └── If hook calls ctx.search.*() → Mark as priority=2, weight=0.8
+  │
+  ├── 3. Auto Search Decision
+  │   ├── Count user-provided results
+  │   ├── IF user_results >= skip_auto_if_user_results → SKIP auto search
+  │   └── ELSE → Execute auto search with priority=3, weight=0.6
+  │
+  ├── 4. Merge & Rerank (automatic)
+  │   ├── Collect all results with their weights
+  │   ├── Deduplicate (keep highest priority)
+  │   └── Calculate finalScore = baseScore * weight
+  │
+  └── 5. Inject to LLM context
+```
+
+Users don't need to handle weights in hooks - the system manages this automatically.
 
 ### Processing Flow in content.Vision()
 
