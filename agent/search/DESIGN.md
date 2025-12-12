@@ -633,8 +633,8 @@ function Create(ctx, messages, options) {
 Configuration follows a three-layer hierarchy (later overrides earlier):
 
 1. **System Built-in Defaults** - Hardcoded sensible defaults
-2. **Global Configuration** - `agent/agent.yml` + `agent/search.yao`
-3. **Assistant Configuration** - `assistants/<assistant-id>/package.yao`
+2. **Global Configuration** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+3. **Assistant Configuration** - `assistants/<assistant-id>/package.yao` (uses + search options)
 
 ### Uses Configuration
 
@@ -768,6 +768,13 @@ var SystemDefaults = Config{
 {
   "name": "My Assistant",
   "connector": "openai",
+
+  // Overrides global uses (agent/agent.yml)
+  "uses": {
+    "keyword": "workers.nlp.keyword", // Use LLM for keyword extraction
+    "query": "workers.nlp.query", // Use LLM for QueryDSL generation
+    "rerank": "mcp:rerank-server" // Use MCP for reranking
+  },
 
   // Search configuration (overrides agent/search.yao)
   "search": {
