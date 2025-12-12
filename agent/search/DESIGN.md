@@ -18,7 +18,7 @@ The module follows the **Handler + Registry** pattern consistent with the `conte
 - **Citation System**: Auto-generate citation IDs (`#ref:xxx`) for LLM reference
 - **Real-time Output**: Stream search progress to client
 - **Trace Integration**: Report search operations to user for transparency
-- **Reranking**: Score, Model, Agent, or MCP-based result reranking
+- **Reranking**: Builtin, Agent, or MCP-based result reranking
 - **Graceful Degradation**: Search errors don't block agent flow
 
 ## Quick Start
@@ -133,8 +133,7 @@ agent/search/
 ├── citation.go            # Citation ID generation and tracking
 ├── rerank/                # Result reranking
 │   ├── interfaces.go      # Reranker interface
-│   ├── score.go           # Score-based reranking (default)
-│   ├── model.go           # Model-based reranking (Cohere, etc.)
+│   ├── builtin.go         # Built-in score-based reranking (default)
 │   ├── agent.go           # Agent-based reranking (delegate to another assistant)
 │   └── mcp.go             # MCP-based reranking (call MCP server tool)
 ├── query/                 # Query processing
@@ -225,18 +224,13 @@ const (
 )
 ```
 
-### RerankerType
+### Note on Reranker
 
-```go
-type RerankerType string
+Reranker type is determined by `uses.rerank` in `agent/agent.yml`:
 
-const (
-    RerankerTypeScore RerankerType = "score" // Simple score-based sorting (default)
-    RerankerTypeModel RerankerType = "model" // Model-based reranking (Cohere, BGE, etc.)
-    RerankerTypeAgent RerankerType = "agent" // Agent-based reranking (delegate to assistant)
-    RerankerTypeMCP   RerankerType = "mcp"   // MCP-based reranking (call MCP server tool)
-)
-```
+- `"builtin"` - Simple score-based sorting
+- `"<assistant-id>"` - Delegate to an assistant (Agent)
+- `"mcp:<server-id>"` - Call MCP server tool
 
 ### Request
 
@@ -284,12 +278,9 @@ type QueryOrder struct {
 
 ```go
 // RerankOptions controls result reranking
+// Reranker type is determined by uses.rerank in agent/agent.yml
 type RerankOptions struct {
-    Type  string `json:"type,omitempty"`  // "score", "model", "agent", "mcp"
-    Model string `json:"model,omitempty"` // Model ID (for type="model")
-    Agent string `json:"agent,omitempty"` // Agent ID (for type="agent")
-    MCP   string `json:"mcp,omitempty"`   // MCP server ID (for type="mcp")
-    TopK  int    `json:"top_k,omitempty"` // Return top K after reranking
+    TopN int `json:"top_n,omitempty"` // Return top N after reranking
 }
 ```
 
@@ -496,11 +487,8 @@ interface QueryOrder {
 }
 
 interface RerankOptions {
-  type?: string; // "score", "model", "agent", "mcp"
-  model?: string; // Model ID (for type="model")
-  agent?: string; // Agent ID (for type="agent")
-  mcp?: string; // MCP server ID (for type="mcp")
-  topK?: number; // Return top K
+  topN?: number; // Return top N after reranking
+  // Note: Reranker type is determined by uses.rerank in agent/agent.yml
 }
 ```
 
