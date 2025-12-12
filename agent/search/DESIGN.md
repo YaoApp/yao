@@ -676,19 +676,18 @@ These are the hardcoded defaults when no configuration is provided:
 ```go
 // search/config/defaults.go
 var SystemDefaults = Config{
-    // Query processing options
-    Query: QueryConfig{
-        Keyword: KeywordConfig{
-            MaxKeywords: 10,
-            Language:    "auto",
-        },
-        DSL: DSLConfig{
-            Strict: false,
-        },
-        // Note: Entity & Embedding config follow KB collection settings
+    // Keyword extraction options (uses.keyword)
+    Keyword: KeywordConfig{
+        MaxKeywords: 10,
+        Language:    "auto",
     },
 
-    // Rerank options
+    // QueryDSL generation options (uses.query)
+    Query: QueryConfig{
+        Strict: false,
+    },
+
+    // Rerank options (uses.rerank)
     Rerank: RerankConfig{
         TopN: 10,
     },
@@ -737,19 +736,18 @@ var SystemDefaults = Config{
     "max_results": 20
   },
 
-  // Query processing options
-  "query": {
-    "keyword": {
-      "max_keywords": 10,
-      "language": "auto" // "auto", "en", "zh", etc.
-    },
-    "dsl": {
-      "strict": false // Strict mode: fail if DSL generation fails
-    }
-    // Note: entity & embedding follow KB collection config
+  // Keyword extraction options (uses.keyword)
+  "keyword": {
+    "max_keywords": 10,
+    "language": "auto" // "auto", "en", "zh", etc.
   },
 
-  // Rerank options
+  // QueryDSL generation options (uses.query)
+  "query": {
+    "strict": false // Strict mode: fail if generation fails
+  },
+
+  // Rerank options (uses.rerank)
   "rerank": {
     "top_n": 10 // Return top N results after reranking
   },
@@ -808,14 +806,14 @@ var SystemDefaults = Config{
       "max_results": 20
     },
 
-    // Overrides global query processing options
+    // Overrides global keyword options
+    "keyword": {
+      "max_keywords": 5
+    },
+
+    // Overrides global query options
     "query": {
-      "keyword": {
-        "max_keywords": 5
-      },
-      "dsl": {
-        "strict": true
-      }
+      "strict": true
     },
 
     // Overrides global rerank options
