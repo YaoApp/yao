@@ -919,14 +919,84 @@ Generate Yao QueryDSL:
 }
 ```
 
+## Content Module Integration
+
+User messages may contain `type="data"` ContentParts with data source references. The `content` module processes these before LLM call.
+
+### DataSource Types (from `context/types.go`)
+
+```go
+const (
+    DataSourceModel        DataSourceType = "model"         // DB model query
+    DataSourceKBCollection DataSourceType = "kb_collection" // KB collection search
+    DataSourceKBDocument   DataSourceType = "kb_document"   // KB document retrieval
+    DataSourceTable        DataSourceType = "table"         // Direct table query
+    DataSourceAPI          DataSourceType = "api"           // External API
+    DataSourceMCPResource  DataSourceType = "mcp_resource"  // MCP resource
+)
+```
+
+### Message with Data Reference
+
+```json
+{
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "Show me products under $100" },
+    {
+      "type": "data",
+      "data": {
+        "sources": [
+          {
+            "type": "model",
+            "name": "product",
+            "filters": { "price": { "<": 100 } }
+          },
+          { "type": "kb_collection", "name": "product-docs" }
+        ]
+      }
+    }
+  ]
+}
+```
+
+### Processing Flow in content.Vision()
+
+```
+content.Vision()
+  ├── type="text" → Pass through
+  ├── type="image_url" → Image processing
+  ├── type="file" → File processing
+  └── type="data" → processDataContent()
+      ├── DataSourceModel → Query via model.Find() → Format as text
+      ├── DataSourceKBCollection → search.KB() → Format as text
+      ├── DataSourceKBDocument → Retrieve document → Format as text
+      └── DataSourceMCPResource → MCP resource read → Format as text
+```
+
+### Implementation Location
+
+The `processDataContent()` function in `content/content.go` should:
+
+1. **For `model` type**: Call search module's DB handler or direct model query
+2. **For `kb_collection` type**: Call search module's KB handler
+3. **For `kb_document` type**: Retrieve specific document from KB
+4. **For `mcp_resource` type**: Read MCP resource
+
+This allows the search module to be reused for both:
+
+- **Auto Search**: Triggered by `Options.Search = true`
+- **Data ContentPart**: User explicitly references data sources in message
+
 ## Related Files
 
 - `agent/context/jsapi.go` - JSAPI base implementation
+- `agent/context/types.go` - DataSource, DataContent types
 - `agent/context/types_llm.go` - Uses configuration (Search field)
 - `agent/assistant/types.go` - SearchOption definition
 - `agent/store/types/types.go` - KnowledgeBase, Database config
 - `agent/output/message/types.go` - Output message types
-- `agent/content/` - Content module (similar Handler + Registry pattern)
+- `agent/content/content.go` - Content processing (Vision function)
 - `model/model.go` - Yao Model loading (global, system, assistant models)
 
 ## See Also
