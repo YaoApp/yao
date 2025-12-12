@@ -157,9 +157,11 @@ agent/search/
 │
 ├── handlers/              # Search handler implementations
 │   ├── web/               # Web search
-│   │   ├── handler.go     # Web search handler
-│   │   ├── tavily.go      # Tavily provider
-│   │   └── serper.go      # Serper provider
+│   │   ├── handler.go     # Web search handler (mode dispatch)
+│   │   ├── tavily.go      # Tavily provider (builtin)
+│   │   ├── serper.go      # Serper provider (builtin)
+│   │   ├── agent.go       # Agent mode (AI Search)
+│   │   └── mcp.go         # MCP mode (external service)
 │   │
 │   ├── kb/                # Knowledge base search
 │   │   ├── handler.go     # KB search handler
@@ -242,18 +244,26 @@ type Searcher struct {
     citation  *CitationGenerator
 }
 
+// Uses contains the uses.* configuration for search
+type Uses struct {
+    Web      string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    Keyword  string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    QueryDSL string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    Rerank   string // "builtin", "<assistant-id>", "mcp:<server-id>"
+}
+
 // New creates a new Searcher instance
 // cfg: merged config from agent/load.go + assistant config
-// usesRerank: reranker type from uses.rerank
-func New(cfg *types.Config, usesRerank string) *Searcher {
+// uses: uses.* configuration from agent.yml + assistant config
+func New(cfg *types.Config, uses *Uses) *Searcher {
     return &Searcher{
         config: cfg,
         handlers: map[types.SearchType]interfaces.Handler{
-            types.SearchTypeWeb: web.NewHandler(cfg.Web),
-            types.SearchTypeKB:  kb.NewHandler(cfg.KB),
-            types.SearchTypeDB:  db.NewHandler(cfg.DB),
+            types.SearchTypeWeb: web.NewHandler(uses.Web, cfg.Web),
+            types.SearchTypeKB:  kb.NewHandler(cfg.KB),  // KB always builtin
+            types.SearchTypeDB:  db.NewHandler(uses.QueryDSL, cfg.DB),
         },
-        reranker: rerank.NewReranker(usesRerank),
+        reranker: rerank.NewReranker(uses.Rerank),
         citation: NewCitationGenerator(),
     }
 }
@@ -671,8 +681,10 @@ type Config struct {
 }
 
 // WebConfig for web search settings
+// Note: uses.web determines the mode (builtin/agent/mcp)
+// Provider is only used when uses.web = "builtin"
 type WebConfig struct {
-    Provider   string `json:"provider,omitempty"`    // "tavily", "serper", "mcp:server-id"
+    Provider   string `json:"provider,omitempty"`    // "tavily" or "serper" (for builtin mode)
     APIKeyEnv  string `json:"api_key_env,omitempty"` // Environment variable for API key
     MaxResults int    `json:"max_results,omitempty"` // Max results (default: 10)
 }
@@ -1085,14 +1097,49 @@ uses:
   vision: "workers.system.vision"
   fetch: "workers.system.fetch"
 
-  # Search processing tools
+  # Search processing tools (NLP)
   keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:nlp-server"
   querydsl: "builtin" # "builtin", "workers.nlp.querydsl", "mcp:querydsl-server"
   rerank: "builtin" # "builtin", "workers.rerank", "mcp:rerank-server"
+
+  # Search handlers
+  web: "builtin" # "builtin", "workers.search.web", "mcp:search-server"
+  # Note: kb & db always use builtin (access internal data)
   # Note: embedding & entity follow KB collection config
 ```
 
 Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server-id>"` (MCP)
+
+**Web Search Modes:**
+
+| Mode      | Example                | Description                                                                |
+| --------- | ---------------------- | -------------------------------------------------------------------------- |
+| `builtin` | `"builtin"`            | Use built-in providers (Tavily, Serper)                                    |
+| Agent     | `"workers.search.web"` | AI-powered search: understand intent → optimize query → search → summarize |
+| MCP       | `"mcp:search-server"`  | External search service via MCP protocol                                   |
+
+**Why Agent for Web Search (AI Search)?**
+
+When `uses.web` is set to an assistant ID, the search flow becomes:
+
+```
+User Query: "What's the best laptop for programming in 2024?"
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Agent (workers.search.web)                                 │
+│  1. Understand intent: laptop recommendations for coding    │
+│  2. Generate optimized queries:                             │
+│     - "best programming laptop 2024 review"                 │
+│     - "developer laptop comparison 2024"                    │
+│  3. Execute multiple searches                               │
+│  4. Analyze & deduplicate results                           │
+│  5. Return structured, relevant results                     │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+High-quality, intent-aware search results
+```
 
 ### System Built-in Defaults (`defaults/defaults.go`)
 
@@ -1613,48 +1660,146 @@ All handler implementations are in `search/handlers/` directory.
 
 ### Web Search (`handlers/web/`)
 
+Web search supports three modes via `uses.web`:
+
+| Mode    | Value                  | Description                                 |
+| ------- | ---------------------- | ------------------------------------------- |
+| Builtin | `"builtin"`            | Direct API calls to Tavily/Serper           |
+| Agent   | `"workers.search.web"` | AI-powered search with intent understanding |
+| MCP     | `"mcp:search-server"`  | External search service                     |
+
 ```go
 // handlers/web/handler.go
 package web
 
 import (
+    "strings"
+
     "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/interfaces"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
 // Handler implements web search
 type Handler struct {
-    provider Provider
-    config   *types.WebConfig
-}
-
-// Provider interface for web search providers
-type Provider interface {
-    Search(ctx *context.Context, query string, opts *SearchOptions) ([]*types.ResultItem, error)
+    usesWeb string           // "builtin", "<assistant-id>", "mcp:<server-id>"
+    config  *types.WebConfig
 }
 
 // NewHandler creates a new web search handler
-func NewHandler(cfg *types.WebConfig) *Handler {
-    var provider Provider
-    switch cfg.Provider {
-    case "tavily":
-        provider = NewTavilyProvider(cfg)
-    case "serper":
-        provider = NewSerperProvider(cfg)
+func NewHandler(usesWeb string, cfg *types.WebConfig) *Handler {
+    return &Handler{usesWeb: usesWeb, config: cfg}
+}
+
+// Search executes web search based on uses.web mode
+func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    switch {
+    case h.usesWeb == "builtin" || h.usesWeb == "":
+        return h.builtinSearch(ctx, req)
+    case strings.HasPrefix(h.usesWeb, "mcp:"):
+        return h.mcpSearch(ctx, req)
     default:
-        // MCP provider
-        provider = NewMCPProvider(cfg)
+        // Agent mode: delegate to assistant for AI-powered search
+        return h.agentSearch(ctx, req)
     }
-    return &Handler{provider: provider, config: cfg}
+}
+
+// builtinSearch uses Tavily/Serper directly
+func (h *Handler) builtinSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    var provider Provider
+    switch h.config.Provider {
+    case "tavily":
+        provider = NewTavilyProvider(h.config)
+    case "serper":
+        provider = NewSerperProvider(h.config)
+    }
+    return provider.Search(ctx, req)
+}
+
+// agentSearch delegates to an assistant for AI-powered search
+func (h *Handler) agentSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    // 1. Call assistant with search request
+    // 2. Assistant understands intent, generates optimized queries
+    // 3. Assistant executes searches (may call builtin internally)
+    // 4. Assistant analyzes and returns structured results
+    return nil, nil
+}
+
+// mcpSearch calls external MCP server
+func (h *Handler) mcpSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    serverID := strings.TrimPrefix(h.usesWeb, "mcp:")
+    // Call MCP server's search tool
+    return nil, nil
 }
 ```
 
-| Provider | File         | Notes                           |
-| -------- | ------------ | ------------------------------- |
-| Tavily   | `tavily.go`  | Recommended for AI applications |
-| Serper   | `serper.go`  | Google search API               |
-| MCP      | (via config) | Any MCP server with search tool |
+**Built-in Providers (when `uses.web = "builtin"`):**
+
+| Provider | File        | Notes                           |
+| -------- | ----------- | ------------------------------- |
+| Tavily   | `tavily.go` | Recommended for AI applications |
+| Serper   | `serper.go` | Google search API               |
+
+**Agent Mode (AI Search):**
+
+When `uses.web` is set to an assistant ID (e.g., `"workers.search.web"`), the assistant can:
+
+1. **Understand user intent** - Parse complex queries, identify what user really wants
+2. **Generate multiple queries** - Create optimized search terms for better coverage
+3. **Multi-source search** - Search multiple providers or sources
+4. **Result analysis** - Deduplicate, rank, and summarize results
+5. **Context-aware** - Use conversation context to improve search relevance
+
+```
+User Query: "What's the best laptop for programming in 2024?"
+    │
+    ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Agent (workers.search.web)                                 │
+│  1. Understand intent: laptop recommendations for coding    │
+│  2. Generate optimized queries:                             │
+│     - "best programming laptop 2024 review"                 │
+│     - "developer laptop comparison 2024"                    │
+│  3. Execute multiple searches via builtin providers         │
+│  4. Analyze & deduplicate results                           │
+│  5. Return structured, relevant results                     │
+└─────────────────────────────────────────────────────────────┘
+    │
+    ▼
+High-quality, intent-aware search results
+```
+
+**Example AI Search Assistant:**
+
+```typescript
+// assistants/workers/search/web/src/index.ts
+function Create(ctx, messages, options) {
+  const userQuery = messages[messages.length - 1].content;
+
+  // 1. Analyze intent (this assistant has access to LLM)
+  const intent = analyzeIntent(ctx, userQuery);
+
+  // 2. Generate optimized queries
+  const queries = generateQueries(intent);
+
+  // 3. Execute searches using builtin provider
+  const allResults = [];
+  for (const q of queries) {
+    const result = ctx.search.Web(q, {
+      provider: "tavily", // Use builtin provider
+      limit: 5,
+    });
+    allResults.push(...result.items);
+  }
+
+  // 4. Merge, deduplicate, and rank results
+  const merged = mergeAndRank(allResults, intent);
+
+  return {
+    type: "search_result",
+    items: merged,
+  };
+}
+```
 
 ### Knowledge Base (`handlers/kb/`)
 
