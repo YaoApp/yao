@@ -63,9 +63,9 @@ function Create(ctx, messages, options) {
 ```mermaid
 flowchart TD
     A[Stream Start] --> B{Uses.Search?}
-    B -->|"disabled"| C[Skip Search]
-    B -->|"builtin"/assistant/mcp| D{Hook Handled?}
-    D -->|Yes: uses.search="disabled"| C
+    B -->|disabled| C[Skip Search]
+    B -->|builtin/agent/mcp| D{Hook Handled?}
+    D -->|"Yes (uses.search=disabled)"| C
     D -->|No| E[Auto Search]
 
     E --> F{Check Assistant Config}
