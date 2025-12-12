@@ -246,10 +246,10 @@ type Searcher struct {
 
 // Uses contains the uses.* configuration for search
 type Uses struct {
-    Web      string // "builtin", "<assistant-id>", "mcp:<server-id>"
-    Keyword  string // "builtin", "<assistant-id>", "mcp:<server-id>"
-    QueryDSL string // "builtin", "<assistant-id>", "mcp:<server-id>"
-    Rerank   string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    Web      string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    Keyword  string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    QueryDSL string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    Rerank   string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 }
 
 // New creates a new Searcher instance
@@ -750,7 +750,7 @@ Reranker type is determined by `uses.rerank` in `agent/agent.yml`:
 
 - `"builtin"` - Simple score-based sorting
 - `"<assistant-id>"` - Delegate to an assistant (Agent)
-- `"mcp:<server-id>"` - Call MCP server tool
+- `"mcp:<server>.<tool>"` - Call MCP tool (e.g., `"mcp:my-server.rerank"`)
 
 ## Citation System
 
@@ -1098,25 +1098,25 @@ uses:
   fetch: "workers.system.fetch"
 
   # Search processing tools (NLP)
-  keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:nlp-server"
-  querydsl: "builtin" # "builtin", "workers.nlp.querydsl", "mcp:querydsl-server"
-  rerank: "builtin" # "builtin", "workers.rerank", "mcp:rerank-server"
+  keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:my-server.extract_keywords"
+  querydsl: "builtin" # "builtin", "workers.nlp.querydsl", "mcp:my-server.generate_dsl"
+  rerank: "builtin" # "builtin", "workers.rerank", "mcp:my-server.rerank"
 
   # Search handlers
-  web: "builtin" # "builtin", "workers.search.web", "mcp:search-server"
+  web: "builtin" # "builtin", "workers.search.web", "mcp:my-server.web_search"
   # Note: kb & db always use builtin (access internal data)
   # Note: embedding & entity follow KB collection config
 ```
 
-Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server-id>"` (MCP)
+Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server>.<tool>"` (MCP Tool)
 
 **Web Search Modes:**
 
-| Mode      | Example                | Description                                                                |
-| --------- | ---------------------- | -------------------------------------------------------------------------- |
-| `builtin` | `"builtin"`            | Use built-in providers (Tavily, Serper)                                    |
-| Agent     | `"workers.search.web"` | AI-powered search: understand intent → optimize query → search → summarize |
-| MCP       | `"mcp:search-server"`  | External search service via MCP protocol                                   |
+| Mode      | Example                      | Description                                                                |
+| --------- | ---------------------------- | -------------------------------------------------------------------------- |
+| `builtin` | `"builtin"`                  | Use built-in providers (Tavily, Serper)                                    |
+| Agent     | `"workers.search.web"`       | AI-powered search: understand intent → optimize query → search → summarize |
+| MCP       | `"mcp:my-server.web_search"` | External search tool via MCP protocol                                      |
 
 **Why Agent for Web Search (AI Search)?**
 
@@ -1303,7 +1303,7 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 {
   // Web search settings
   "web": {
-    "provider": "tavily", // "tavily", "serper", "mcp:server-id"
+    "provider": "tavily", // "tavily", "serper" (builtin providers only)
     "api_key_env": "TAVILY_API_KEY",
     "max_results": 10
   },
@@ -1368,7 +1368,7 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
   "uses": {
     "keyword": "workers.nlp.keyword", // Use LLM for keyword extraction
     "querydsl": "workers.nlp.querydsl", // Use LLM for QueryDSL generation
-    "rerank": "mcp:rerank-server" // Use MCP for reranking
+    "rerank": "mcp:my-server.rerank" // Use MCP tool for reranking
   },
 
   // Search configuration (overrides agent/search.yao)
@@ -1534,11 +1534,11 @@ Request → Trace Start → Query Process → Search → Rerank → Citations �
 
 Configure via `uses.*` in `agent/agent.yml`:
 
-| Format            | Description                               | Use Case                       |
-| ----------------- | ----------------------------------------- | ------------------------------ |
-| `builtin`         | Rule-based, template-driven (no LLM call) | Fast, low cost, simple queries |
-| `<assistant-id>`  | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
-| `mcp:<server-id>` | Call MCP server tool                      | External services integration  |
+| Format                | Description                               | Use Case                       |
+| --------------------- | ----------------------------------------- | ------------------------------ |
+| `builtin`             | Rule-based, template-driven (no LLM call) | Fast, low cost, simple queries |
+| `<assistant-id>`      | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
+| `mcp:<server>.<tool>` | Call MCP tool                             | External services integration  |
 
 #### Keyword Extraction (`nlp/keyword.go`)
 
@@ -1557,7 +1557,7 @@ import (
 
 // KeywordExtractor extracts keywords from user query
 type KeywordExtractor struct {
-    usesKeyword string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    usesKeyword string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     config      *types.KeywordConfig
 }
 
@@ -1625,7 +1625,7 @@ import (
 
 // QueryDSLGenerator generates QueryDSL from natural language
 type QueryDSLGenerator struct {
-    usesQueryDSL string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    usesQueryDSL string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     config       *types.QueryDSLConfig
 }
 
@@ -1662,11 +1662,11 @@ All handler implementations are in `search/handlers/` directory.
 
 Web search supports three modes via `uses.web`:
 
-| Mode    | Value                  | Description                                 |
-| ------- | ---------------------- | ------------------------------------------- |
-| Builtin | `"builtin"`            | Direct API calls to Tavily/Serper           |
-| Agent   | `"workers.search.web"` | AI-powered search with intent understanding |
-| MCP     | `"mcp:search-server"`  | External search service                     |
+| Mode    | Value                        | Description                                 |
+| ------- | ---------------------------- | ------------------------------------------- |
+| Builtin | `"builtin"`                  | Direct API calls to Tavily/Serper           |
+| Agent   | `"workers.search.web"`       | AI-powered search with intent understanding |
+| MCP     | `"mcp:my-server.web_search"` | External search tool via MCP                |
 
 ```go
 // handlers/web/handler.go
@@ -1681,7 +1681,7 @@ import (
 
 // Handler implements web search
 type Handler struct {
-    usesWeb string           // "builtin", "<assistant-id>", "mcp:<server-id>"
+    usesWeb string           // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     config  *types.WebConfig
 }
 
@@ -1724,10 +1724,16 @@ func (h *Handler) agentSearch(ctx *context.Context, req *types.Request) (*types.
     return nil, nil
 }
 
-// mcpSearch calls external MCP server
+// mcpSearch calls external MCP tool
 func (h *Handler) mcpSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    serverID := strings.TrimPrefix(h.usesWeb, "mcp:")
-    // Call MCP server's search tool
+    // Parse "mcp:server.tool"
+    mcpRef := strings.TrimPrefix(h.usesWeb, "mcp:")
+    parts := strings.SplitN(mcpRef, ".", 2)
+    if len(parts) != 2 {
+        return nil, fmt.Errorf("invalid MCP format, expected 'mcp:server.tool', got '%s'", h.usesWeb)
+    }
+    serverID, toolName := parts[0], parts[1]
+    // Call MCP tool
     return nil, nil
 }
 ```
@@ -1903,8 +1909,14 @@ func NewReranker(usesRerank string) interfaces.Reranker {
     case usesRerank == "builtin" || usesRerank == "":
         return NewBuiltinReranker()
     case strings.HasPrefix(usesRerank, "mcp:"):
-        serverID := strings.TrimPrefix(usesRerank, "mcp:")
-        return NewMCPReranker(serverID)
+        // Parse "mcp:server.tool"
+        mcpRef := strings.TrimPrefix(usesRerank, "mcp:")
+        parts := strings.SplitN(mcpRef, ".", 2)
+        if len(parts) != 2 {
+            // Invalid format, fallback to builtin
+            return NewBuiltinReranker()
+        }
+        return NewMCPReranker(parts[0], parts[1]) // serverID, toolName
     default:
         // Assume it's an assistant ID
         return NewAgentReranker(usesRerank)
@@ -1917,15 +1929,15 @@ func NewReranker(usesRerank string) interfaces.Reranker {
 | `rerank.go`  | Factory and common logic         |
 | `builtin.go` | Simple score sorting (default)   |
 | `agent.go`   | Delegate to an assistant (Agent) |
-| `mcp.go`     | Call MCP server rerank tool      |
+| `mcp.go`     | Call MCP tool for reranking      |
 
 Configure via `uses.rerank` in `agent/agent.yml`:
 
-| Value               | Notes                            |
-| ------------------- | -------------------------------- |
-| `builtin`           | Simple score sorting (default)   |
-| `workers.rerank`    | Delegate to an assistant (Agent) |
-| `mcp:rerank-server` | Call MCP server rerank tool      |
+| Value                  | Notes                            |
+| ---------------------- | -------------------------------- |
+| `builtin`              | Simple score sorting (default)   |
+| `workers.rerank`       | Delegate to an assistant (Agent) |
+| `mcp:my-server.rerank` | Call MCP tool for reranking      |
 
 ## Error Handling
 
