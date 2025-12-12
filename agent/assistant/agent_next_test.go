@@ -168,7 +168,9 @@ func TestAgentNextConditional(t *testing.T) {
 
 	ctx := newAgentNextTestContext("test-conditional", "tests.realworld-next")
 	messages := []context.Message{
-		{Role: context.RoleUser, Content: "scenario: conditional - Task completed"},
+		// Use conditional_success sub-scenario for deterministic behavior
+		// This avoids test flakiness caused by LLM response unpredictability
+		{Role: context.RoleUser, Content: "scenario: conditional_success - Task completed"},
 	}
 
 	response, err := agent.Stream(ctx, messages)

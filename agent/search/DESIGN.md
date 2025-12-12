@@ -123,98 +123,361 @@ sequenceDiagram
 ```
 agent/search/
 ├── DESIGN.md              # This document
-├── interfaces.go          # Core interfaces (Handler, Searcher)
-├── types.go               # Type definitions (Request, Result, Citation, etc.)
-├── registry.go            # Handler registry
-├── search.go              # Main search logic and utilities
+├── search.go              # Main Searcher implementation and public API
+├── registry.go            # Handler registry (manages web/kb/db handlers)
 ├── jsapi.go               # JavaScript API bindings for hooks
 ├── trace.go               # Trace node creation and management
 ├── output.go              # Real-time output/streaming to client
 ├── citation.go            # Citation ID generation and tracking
-├── rerank/                # Result reranking
-│   ├── interfaces.go      # Reranker interface
+├── reference.go           # Reference building and LLM context formatting
+│
+├── types/                 # Type definitions (no dependencies on other search packages)
+│   ├── types.go           # Core types (SearchType, Request, Result, ResultItem, etc.)
+│   ├── config.go          # Configuration types (Config, CitationConfig, WeightsConfig, etc.)
+│   ├── reference.go       # Reference type for unified context protocol
+│   └── graph.go           # Graph-related types (GraphNode)
+│
+├── interfaces/            # Interface definitions (depends only on types/)
+│   ├── handler.go         # Handler interface
+│   ├── searcher.go        # Searcher interface (public API)
+│   ├── reranker.go        # Reranker interface
+│   └── nlp.go             # NLP interfaces (KeywordExtractor, QueryDSLGenerator)
+│
+├── rerank/                # Result reranking implementations
+│   ├── rerank.go          # Reranker factory and common logic
 │   ├── builtin.go         # Built-in score-based reranking (default)
 │   ├── agent.go           # Agent-based reranking (delegate to another assistant)
 │   └── mcp.go             # MCP-based reranking (call MCP server tool)
-├── query/                 # Query processing
-│   ├── interfaces.go      # Query processor interface
+│
+├── nlp/                   # Natural language processing for search
+│   ├── nlp.go             # NLP factory and common logic
 │   ├── keyword.go         # Keyword extraction for web search
-│   ├── embedding.go       # Embedding generation for KB search
-│   └── dsl.go             # Query DSL generation for DB search
-├── web/                   # Web search implementations
-│   ├── handler.go         # Web search handler
-│   └── providers/         # Provider implementations
-│       ├── tavily.go
-│       └── serper.go
-├── kb/                    # Knowledge base search
-│   ├── handler.go         # KB search handler
-│   ├── vector.go          # Vector similarity search
-│   └── graph.go           # Graph-based association (GraphRAG)
-└── db/                    # Database search (Yao Model/QueryDSL)
-    ├── handler.go         # DB search handler
-    ├── query.go           # QueryDSL builder
-    └── schema.go          # Model schema introspection
+│   └── querydsl.go        # QueryDSL generation for DB search
+│   # Note: Embedding follows KB collection config, not in this package
+│
+├── handlers/              # Search handler implementations
+│   ├── web/               # Web search
+│   │   ├── handler.go     # Web search handler
+│   │   ├── tavily.go      # Tavily provider
+│   │   └── serper.go      # Serper provider
+│   │
+│   ├── kb/                # Knowledge base search
+│   │   ├── handler.go     # KB search handler
+│   │   ├── vector.go      # Vector similarity search
+│   │   └── graph.go       # Graph-based association (GraphRAG)
+│   │
+│   └── db/                # Database search (Yao Model/QueryDSL)
+│       ├── handler.go     # DB search handler
+│       ├── query.go       # QueryDSL builder
+│       └── schema.go      # Model schema introspection
+│
+└── config/                # Configuration loading and defaults
+    ├── defaults.go        # System built-in defaults
+    └── loader.go          # Config loading and merging logic
+```
+
+### Dependency Graph
+
+```
+                    ┌─────────────┐
+                    │   types/    │  ← No internal dependencies
+                    └──────┬──────┘
+                           │
+                    ┌──────▼──────┐
+                    │ interfaces/ │  ← Depends only on types/
+                    └──────┬──────┘
+                           │
+         ┌─────────────────┼─────────────────┐
+         │                 │                 │
+   ┌─────▼─────┐    ┌──────▼──────┐   ┌──────▼──────┐
+   │  rerank/  │    │    nlp/     │   │  config/    │
+   └─────┬─────┘    └──────┬──────┘   └──────┬──────┘
+         │                 │                 │
+         └────────┬────────┴────────┬────────┘
+                  │                 │
+           ┌──────▼──────┐   ┌──────▼──────┐
+           │  handlers/  │   │  (root pkg) │
+           │  web/kb/db  │   │  search.go  │
+           └──────┬──────┘   │  registry   │
+                  │          │  jsapi, etc │
+                  └────┬─────┴─────────────┘
+                       │
+                 ┌─────▼─────┐
+                 │  External │
+                 │  Packages │
+                 └───────────┘
+```
+
+### Package Import Rules
+
+1. **`types/`** - Zero internal dependencies, only stdlib and external packages
+2. **`interfaces/`** - Imports only `types/`
+3. **`rerank/`**, **`nlp/`**, **`config/`** - Import `types/` and `interfaces/`
+4. **`handlers/*`** - Import `types/`, `interfaces/`, and may use `nlp/` for NL processing
+5. **Root package** - Imports all sub-packages, provides public API
+
+### Main Searcher Implementation (`search.go`)
+
+```go
+package search
+
+import (
+    "sync"
+
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/config"
+    "github.com/yaoapp/yao/agent/search/handlers/db"
+    "github.com/yaoapp/yao/agent/search/handlers/kb"
+    "github.com/yaoapp/yao/agent/search/handlers/web"
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/rerank"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// Searcher is the main search implementation
+type Searcher struct {
+    config    *config.Loader
+    handlers  map[types.SearchType]interfaces.Handler
+    reranker  interfaces.Reranker
+    citation  *CitationGenerator
+}
+
+// New creates a new Searcher instance
+func New(assistantID string, usesRerank string) (*Searcher, error) {
+    loader := config.NewLoader()
+    if err := loader.LoadGlobal("agent/search.yao"); err != nil {
+        return nil, err
+    }
+    if assistantID != "" {
+        if err := loader.LoadAssistant(assistantID); err != nil {
+            return nil, err
+        }
+    }
+
+    cfg := loader.Merge()
+
+    return &Searcher{
+        config: loader,
+        handlers: map[types.SearchType]interfaces.Handler{
+            types.SearchTypeWeb: web.NewHandler(cfg.Web),
+            types.SearchTypeKB:  kb.NewHandler(cfg.KB),
+            types.SearchTypeDB:  db.NewHandler(cfg.DB),
+        },
+        reranker: rerank.NewReranker(usesRerank),
+        citation: NewCitationGenerator(),
+    }, nil
+}
+
+// Search executes a single search request
+func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    handler, ok := s.handlers[req.Type]
+    if !ok {
+        return &types.Result{Error: "unsupported search type"}, nil
+    }
+
+    // Execute search
+    result, err := handler.Search(ctx, req)
+    if err != nil {
+        return &types.Result{Error: err.Error()}, nil
+    }
+
+    // Assign weights based on source
+    for _, item := range result.Items {
+        item.Weight = s.config.GetWeight(req.Source)
+    }
+
+    // Rerank if requested
+    if req.Rerank != nil {
+        result.Items, _ = s.reranker.Rerank(ctx, req.Query, result.Items, req.Rerank)
+    }
+
+    // Generate citation IDs
+    for _, item := range result.Items {
+        item.CitationID = s.citation.Next()
+    }
+
+    return result, nil
+}
+
+// SearchMultiple executes multiple searches in parallel
+func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    results := make([]*types.Result, len(reqs))
+    var wg sync.WaitGroup
+    var mu sync.Mutex
+
+    for i, req := range reqs {
+        wg.Add(1)
+        go func(idx int, r *types.Request) {
+            defer wg.Done()
+            result, _ := s.Search(ctx, r)
+            mu.Lock()
+            results[idx] = result
+            mu.Unlock()
+        }(i, req)
+    }
+
+    wg.Wait()
+    return results, nil
+}
+
+// BuildReferences converts search results to unified Reference format
+func (s *Searcher) BuildReferences(results []*types.Result) []*types.Reference {
+    var refs []*types.Reference
+    for _, result := range results {
+        for _, item := range result.Items {
+            refs = append(refs, &types.Reference{
+                ID:      item.CitationID,
+                Type:    item.Type,
+                Source:  item.Source,
+                Weight:  item.Weight,
+                Score:   item.Score,
+                Title:   item.Title,
+                Content: item.Content,
+                URL:     item.URL,
+            })
+        }
+    }
+    return refs
+}
+```
+
+### Registry (`registry.go`)
+
+```go
+package search
+
+import (
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// Registry manages search handlers
+type Registry struct {
+    handlers map[types.SearchType]interfaces.Handler
+}
+
+// NewRegistry creates a new handler registry
+func NewRegistry() *Registry {
+    return &Registry{
+        handlers: make(map[types.SearchType]interfaces.Handler),
+    }
+}
+
+// Register registers a handler for a search type
+func (r *Registry) Register(handler interfaces.Handler) {
+    r.handlers[handler.Type()] = handler
+}
+
+// Get returns the handler for a search type
+func (r *Registry) Get(t types.SearchType) (interfaces.Handler, bool) {
+    h, ok := r.handlers[t]
+    return h, ok
+}
 ```
 
 ## Core Interfaces
 
-### Handler Interface
+All interfaces are defined in `search/interfaces/` package to prevent circular dependencies.
+
+### Handler Interface (`interfaces/handler.go`)
 
 ```go
+package interfaces
+
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
 // Handler defines the interface for search implementations
 type Handler interface {
     // Type returns the search type this handler supports
-    Type() SearchType
+    Type() types.SearchType
 
     // CanHandle checks if this handler can process the given request
-    CanHandle(ctx *context.Context, req *Request) bool
+    CanHandle(ctx *context.Context, req *types.Request) bool
 
     // Search executes the search and returns results
-    Search(ctx *context.Context, req *Request) (*Result, error)
+    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
 }
 ```
 
-### Searcher Interface (Public API)
+### Searcher Interface (`interfaces/searcher.go`)
 
 ```go
+package interfaces
+
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
 // Searcher is the main interface exposed to external callers
 type Searcher interface {
     // Search executes a single search request
-    Search(ctx *context.Context, req *Request) (*Result, error)
+    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
 
     // SearchMultiple executes multiple searches (potentially in parallel)
-    SearchMultiple(ctx *context.Context, reqs []*Request) ([]*Result, error)
+    SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+
+    // BuildReferences converts search results to unified Reference format for LLM
+    BuildReferences(results []*types.Result) []*types.Reference
 }
 ```
 
-### QueryProcessor Interface
+### NLP Interfaces (`interfaces/nlp.go`)
 
 ```go
-// QueryProcessor prepares queries for different search types
-type QueryProcessor interface {
-    // ExtractKeywords extracts search keywords from user message (for web search)
-    ExtractKeywords(ctx *context.Context, content string) ([]string, error)
+package interfaces
 
-    // Embed generates vector embedding for query (for KB search)
-    Embed(ctx *context.Context, content string, collection string) ([]float32, error)
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// KeywordExtractor extracts keywords for web search
+type KeywordExtractor interface {
+    // Extract extracts search keywords from user message
+    Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 }
+
+// QueryDSLGenerator generates QueryDSL for DB search
+type QueryDSLGenerator interface {
+    // Generate converts natural language to QueryDSL
+    Generate(ctx *context.Context, query string, schemas []*types.ModelSchema) (*types.QueryDSL, error)
+}
+
+// Note: Embedding is handled by KB collection's own config (embedding provider + model),
+// not defined here. See KB handler for details.
 ```
 
-### Reranker Interface
+### Reranker Interface (`interfaces/reranker.go`)
 
 ```go
+package interfaces
+
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
 // Reranker reorders search results by relevance
 type Reranker interface {
     // Rerank reorders results based on query relevance
-    Rerank(ctx *context.Context, query string, items []*ResultItem) ([]*ResultItem, error)
+    Rerank(ctx *context.Context, query string, items []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error)
 }
 ```
 
 ## Types
 
-### SearchType
+All types are defined in `search/types/` package to prevent circular dependencies.
+
+### Core Types (`types/types.go`)
 
 ```go
+package types
+
+// SearchType represents the type of search
 type SearchType string
 
 const (
@@ -222,24 +485,23 @@ const (
     SearchTypeKB  SearchType = "kb"  // Knowledge base vector search
     SearchTypeDB  SearchType = "db"  // Database search (Yao Model/QueryDSL)
 )
-```
 
-### Note on Reranker
+// SourceType represents where the search result came from
+type SourceType string
 
-Reranker type is determined by `uses.rerank` in `agent/agent.yml`:
+const (
+    SourceUser SourceType = "user" // User-provided DataContent (highest priority)
+    SourceHook SourceType = "hook" // Hook ctx.search.*() results
+    SourceAuto SourceType = "auto" // Auto search results (lowest priority)
+)
 
-- `"builtin"` - Simple score-based sorting
-- `"<assistant-id>"` - Delegate to an assistant (Agent)
-- `"mcp:<server-id>"` - Call MCP server tool
-
-### Request
-
-```go
+// Request represents a search request
 type Request struct {
     // Common fields
     Query   string     `json:"query"`           // Search query (natural language)
     Type    SearchType `json:"type"`            // Search type: "web", "kb", or "db"
     Limit   int        `json:"limit,omitempty"` // Max results (default: 10)
+    Source  SourceType `json:"source"`          // Source of this request (user/hook/auto)
 
     // Web search specific
     Sites     []string `json:"sites,omitempty"`      // Restrict to specific sites
@@ -251,10 +513,10 @@ type Request struct {
     Graph       bool     `json:"graph,omitempty"`       // Enable graph association
 
     // Database search specific
-    Models  []string               `json:"models,omitempty"`  // Model IDs (e.g., "user", "agents.mybot.product")
-    Wheres  []QueryWhere           `json:"wheres,omitempty"`  // Pre-defined filters (optional)
-    Orders  []QueryOrder           `json:"orders,omitempty"`  // Sort orders (optional)
-    Select  []string               `json:"select,omitempty"`  // Fields to return (optional)
+    Models []string      `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
+    Wheres []QueryWhere  `json:"wheres,omitempty"` // Pre-defined filters (optional)
+    Orders []QueryOrder  `json:"orders,omitempty"` // Sort orders (optional)
+    Select []string      `json:"select,omitempty"` // Fields to return (optional)
 
     // Reranking
     Rerank *RerankOptions `json:"rerank,omitempty"`
@@ -262,60 +524,52 @@ type Request struct {
 
 // QueryWhere represents a filter condition for DB search
 type QueryWhere struct {
-    Field string      `json:"field"`          // Field name
-    Op    string      `json:"op,omitempty"`   // Operator: "=", "like", ">", "<", "in", etc. (default: "=")
-    Value interface{} `json:"value"`          // Filter value
+    Field string      `json:"field"`        // Field name
+    Op    string      `json:"op,omitempty"` // Operator: "=", "like", ">", "<", "in", etc. (default: "=")
+    Value interface{} `json:"value"`        // Filter value
 }
 
 // QueryOrder represents a sort order for DB search
 type QueryOrder struct {
-    Field string `json:"field"`          // Field name
+    Field string `json:"field"`           // Field name
     Order string `json:"order,omitempty"` // "asc" or "desc" (default: "desc")
 }
-```
 
-### RerankOptions
-
-```go
 // RerankOptions controls result reranking
 // Reranker type is determined by uses.rerank in agent/agent.yml
 type RerankOptions struct {
     TopN int `json:"top_n,omitempty"` // Return top N after reranking
 }
-```
 
-### Result
-
-```go
+// Result represents the search result
 type Result struct {
-    Type     SearchType    `json:"type"`              // Search type
-    Query    string        `json:"query"`             // Original query
-    Items    []*ResultItem `json:"items"`             // Result items
-    Total    int           `json:"total"`             // Total matches
-    Duration int64         `json:"duration_ms"`       // Search duration in ms
-    Error    string        `json:"error,omitempty"`   // Error message if failed
+    Type     SearchType    `json:"type"`            // Search type
+    Query    string        `json:"query"`           // Original query
+    Source   SourceType    `json:"source"`          // Source of this result
+    Items    []*ResultItem `json:"items"`           // Result items
+    Total    int           `json:"total"`           // Total matches
+    Duration int64         `json:"duration_ms"`     // Search duration in ms
+    Error    string        `json:"error,omitempty"` // Error message if failed
 
     // Graph associations (KB only, if enabled)
     GraphNodes []*GraphNode `json:"graph_nodes,omitempty"`
 }
-```
 
-### ResultItem
-
-```go
+// ResultItem represents a single search result item
 type ResultItem struct {
     // Citation
-    CitationID string `json:"citation_id"` // Unique ID for LLM reference: "#ref:xxx"
+    CitationID string `json:"citation_id"` // Unique ID for LLM reference: "ref_001"
 
     // Weighting
-    Source string  `json:"source"`           // Source type: "user", "hook", "auto"
-    Weight float64 `json:"weight"`           // Source weight (from config)
-    Score  float64 `json:"score,omitempty"`  // Relevance score (0-1)
+    Source SourceType `json:"source"`          // Source type: "user", "hook", "auto"
+    Weight float64    `json:"weight"`          // Source weight (from config)
+    Score  float64    `json:"score,omitempty"` // Relevance score (0-1)
 
     // Common fields
-    Title   string `json:"title,omitempty"` // Title/headline
-    Content string `json:"content"`         // Main content/snippet
-    URL     string `json:"url,omitempty"`   // Source URL
+    Type    SearchType `json:"type"`            // Search type for this item
+    Title   string     `json:"title,omitempty"` // Title/headline
+    Content string     `json:"content"`         // Main content/snippet
+    URL     string     `json:"url,omitempty"`   // Source URL
 
     // KB specific
     DocumentID string `json:"document_id,omitempty"` // Source document ID
@@ -325,12 +579,50 @@ type ResultItem struct {
     Model    string                 `json:"model,omitempty"`     // Model ID
     RecordID interface{}            `json:"record_id,omitempty"` // Record primary key
     Data     map[string]interface{} `json:"data,omitempty"`      // Full record data
+
+    // Metadata
+    Metadata map[string]interface{} `json:"metadata,omitempty"` // Additional metadata
+}
+
+// ProcessedQuery represents a processed query ready for execution
+type ProcessedQuery struct {
+    Type     SearchType `json:"type"`
+    Keywords []string   `json:"keywords,omitempty"`  // For web search
+    Vector   []float32  `json:"vector,omitempty"`    // For KB search
+    DSL      *QueryDSL  `json:"dsl,omitempty"`       // For DB search
+}
+
+// QueryDSL represents a Yao QueryDSL for database search
+type QueryDSL struct {
+    Model  string       `json:"model"`            // Target model
+    Select []string     `json:"select,omitempty"` // Fields to return
+    Wheres []QueryWhere `json:"wheres,omitempty"` // Filter conditions
+    Orders []QueryOrder `json:"orders,omitempty"` // Sort orders
+    Limit  int          `json:"limit,omitempty"`  // Max results
+}
+
+// ModelSchema represents a Yao Model schema for DSL generation
+type ModelSchema struct {
+    ID          string        `json:"id"`          // Model ID
+    Name        string        `json:"name"`        // Model name
+    Description string        `json:"description"` // Model description
+    Fields      []FieldSchema `json:"fields"`      // Field definitions
+}
+
+// FieldSchema represents a field in the model schema
+type FieldSchema struct {
+    Name        string `json:"name"`        // Field name
+    Type        string `json:"type"`        // Field type
+    Description string `json:"description"` // Field description
+    Searchable  bool   `json:"searchable"`  // Whether field is searchable
 }
 ```
 
-### GraphNode
+### Graph Types (`types/graph.go`)
 
 ```go
+package types
+
 // GraphNode represents a related entity from knowledge graph
 type GraphNode struct {
     ID          string                 `json:"id"`
@@ -343,11 +635,156 @@ type GraphNode struct {
 }
 ```
 
+### Reference Types (`types/reference.go`)
+
+```go
+package types
+
+// Reference is the unified structure for all data sources
+// Used to build LLM context from search results
+type Reference struct {
+    ID      string                 `json:"id"`      // Unique citation ID: "ref_001", "ref_002"
+    Type    SearchType             `json:"type"`    // Data type: "web", "kb", "db"
+    Source  SourceType             `json:"source"`  // Origin: "user", "hook", "auto"
+    Weight  float64                `json:"weight"`  // Relevance weight (1.0=highest, 0.6=lowest)
+    Score   float64                `json:"score"`   // Relevance score (0-1)
+    Title   string                 `json:"title"`   // Optional title
+    Content string                 `json:"content"` // Main content
+    URL     string                 `json:"url"`     // Optional URL
+    Meta    map[string]interface{} `json:"meta"`    // Additional metadata
+}
+
+// ReferenceContext holds the formatted references for LLM input
+type ReferenceContext struct {
+    References []*Reference `json:"references"`      // All references
+    XML        string       `json:"xml"`             // Formatted <references> XML
+    Prompt     string       `json:"prompt"`          // Citation instruction prompt
+}
+```
+
+### Configuration Types (`types/config.go`)
+
+```go
+package types
+
+// Config represents the complete search configuration
+type Config struct {
+    Web      *WebConfig      `json:"web,omitempty"`
+    KB       *KBConfig       `json:"kb,omitempty"`
+    DB       *DBConfig       `json:"db,omitempty"`
+    Keyword  *KeywordConfig  `json:"keyword,omitempty"`
+    QueryDSL *QueryDSLConfig `json:"querydsl,omitempty"`
+    Rerank   *RerankConfig   `json:"rerank,omitempty"`
+    Citation *CitationConfig `json:"citation,omitempty"`
+    Weights  *WeightsConfig  `json:"weights,omitempty"`
+    Options  *OptionsConfig  `json:"options,omitempty"`
+}
+
+// WebConfig for web search settings
+type WebConfig struct {
+    Provider   string `json:"provider,omitempty"`    // "tavily", "serper", "mcp:server-id"
+    APIKeyEnv  string `json:"api_key_env,omitempty"` // Environment variable for API key
+    MaxResults int    `json:"max_results,omitempty"` // Max results (default: 10)
+}
+
+// KBConfig for knowledge base search settings
+type KBConfig struct {
+    Collections []string `json:"collections,omitempty"` // Default collections
+    Threshold   float64  `json:"threshold,omitempty"`   // Similarity threshold (default: 0.7)
+    Graph       bool     `json:"graph,omitempty"`       // Enable GraphRAG (default: false)
+}
+
+// DBConfig for database search settings
+type DBConfig struct {
+    Models     []string `json:"models,omitempty"`      // Default models
+    MaxResults int      `json:"max_results,omitempty"` // Max results (default: 20)
+}
+
+// KeywordConfig for keyword extraction
+type KeywordConfig struct {
+    MaxKeywords int    `json:"max_keywords,omitempty"` // Max keywords (default: 10)
+    Language    string `json:"language,omitempty"`     // "auto", "en", "zh", etc.
+}
+
+// KeywordOptions for keyword extraction (runtime options)
+type KeywordOptions struct {
+    MaxKeywords int    `json:"max_keywords,omitempty"`
+    Language    string `json:"language,omitempty"`
+}
+
+// QueryDSLConfig for QueryDSL generation from natural language
+type QueryDSLConfig struct {
+    Strict bool `json:"strict,omitempty"` // Fail if generation fails (default: false)
+}
+
+// RerankConfig for reranking
+type RerankConfig struct {
+    TopN int `json:"top_n,omitempty"` // Return top N (default: 10)
+}
+
+// CitationConfig for citation format
+type CitationConfig struct {
+    Format           string `json:"format,omitempty"`             // Default: "#ref:{id}"
+    AutoInjectPrompt bool   `json:"auto_inject_prompt,omitempty"` // Auto-inject prompt (default: true)
+    CustomPrompt     string `json:"custom_prompt,omitempty"`      // Custom prompt template
+}
+
+// WeightsConfig for source weighting
+type WeightsConfig struct {
+    User float64 `json:"user,omitempty"` // User-provided (default: 1.0)
+    Hook float64 `json:"hook,omitempty"` // Hook results (default: 0.8)
+    Auto float64 `json:"auto,omitempty"` // Auto search (default: 0.6)
+}
+
+// OptionsConfig for search behavior
+type OptionsConfig struct {
+    SkipThreshold int `json:"skip_threshold,omitempty"` // Skip auto search if user provides >= N results
+}
+```
+
+### Note on Reranker
+
+Reranker type is determined by `uses.rerank` in `agent/agent.yml`:
+
+- `"builtin"` - Simple score-based sorting
+- `"<assistant-id>"` - Delegate to an assistant (Agent)
+- `"mcp:<server-id>"` - Call MCP server tool
+
 ## Citation System
 
-Each search result has a unique `CitationID` for LLM reference.
+Each search result has a unique `CitationID` for LLM reference. Citation logic is implemented in `search/citation.go`.
 
-### Citation Config
+### Citation ID Generation
+
+Citation IDs are generated sequentially: `ref_001`, `ref_002`, etc.
+
+```go
+// citation.go
+package search
+
+import (
+    "fmt"
+    "sync/atomic"
+)
+
+// CitationGenerator generates unique citation IDs
+type CitationGenerator struct {
+    counter uint64
+}
+
+// NewCitationGenerator creates a new citation generator
+func NewCitationGenerator() *CitationGenerator {
+    return &CitationGenerator{}
+}
+
+// Next generates the next citation ID
+func (g *CitationGenerator) Next() string {
+    n := atomic.AddUint64(&g.counter, 1)
+    return fmt.Sprintf("ref_%03d", n)
+}
+```
+
+### Citation Config (in `types/config.go`)
 
 ```go
 type CitationConfig struct {
@@ -362,12 +799,18 @@ type CitationConfig struct {
 When `AutoInjectPrompt` is enabled (default), the system prompt includes:
 
 ```
-When citing search results, use #ref:{id} format inline.
-Example: "According to studies #ref:a1b2, this is significant."
+You have access to reference data in <references> tags. Each <ref> has:
+- id: Citation identifier
+- type: Data type (web/kb/db)
+- weight: Relevance weight (1.0=highest priority, 0.6=lowest)
+- source: Origin (user=user-provided, hook=assistant-searched, auto=auto-searched)
 
-Available references:
-- #ref:a1b2 - Title of source 1
-- #ref:c3d4 - Title of source 2
+Prioritize higher-weight references when answering.
+
+When citing a reference, use this exact HTML format:
+<a class="ref" data-ref-id="{id}" data-ref-type="{type}" href="#ref:{id}">[{id}]</a>
+
+Example: According to the product data<a class="ref" data-ref-id="ref_001" data-ref-type="db" href="#ref:ref_001">[ref_001]</a>, the price is $999.
 ```
 
 ### Custom Prompt in Config
@@ -398,7 +841,7 @@ search (type: "search")
     ├── embedding (kb only)
     ├── vector_search (kb only)
     ├── graph_search (kb, if enabled)
-    ├── dsl_build (db only)
+    ├── querydsl_build (db only)
     ├── db_query (db only)
     └── rerank (if enabled)
 ```
@@ -654,53 +1097,131 @@ uses:
 
   # Search processing tools
   keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:nlp-server"
-  query: "builtin" # "builtin", "workers.nlp.query", "mcp:query-server"
+  querydsl: "builtin" # "builtin", "workers.nlp.querydsl", "mcp:querydsl-server"
   rerank: "builtin" # "builtin", "workers.rerank", "mcp:rerank-server"
   # Note: embedding & entity follow KB collection config
 ```
 
 Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server-id>"` (MCP)
 
-### System Built-in Defaults
+### System Built-in Defaults (`config/defaults.go`)
 
 These are the hardcoded defaults when no configuration is provided:
 
 ```go
-// search/config/defaults.go
-var SystemDefaults = Config{
+package config
+
+import "github.com/yaoapp/yao/agent/search/types"
+
+// SystemDefaults provides hardcoded default values
+var SystemDefaults = &types.Config{
+    // Web search defaults
+    Web: &types.WebConfig{
+        Provider:   "tavily",
+        MaxResults: 10,
+    },
+
+    // KB search defaults
+    KB: &types.KBConfig{
+        Threshold: 0.7,
+        Graph:     false,
+    },
+
+    // DB search defaults
+    DB: &types.DBConfig{
+        MaxResults: 20,
+    },
+
     // Keyword extraction options (uses.keyword)
-    Keyword: KeywordConfig{
+    Keyword: &types.KeywordConfig{
         MaxKeywords: 10,
         Language:    "auto",
     },
 
-    // QueryDSL generation options (uses.query)
-    Query: QueryConfig{
+    // QueryDSL generation options (uses.querydsl)
+    QueryDSL: &types.QueryDSLConfig{
         Strict: false,
     },
 
     // Rerank options (uses.rerank)
-    Rerank: RerankConfig{
+    Rerank: &types.RerankConfig{
         TopN: 10,
     },
 
     // Citation
-    Citation: CitationConfig{
+    Citation: &types.CitationConfig{
         Format:           "#ref:{id}",
         AutoInjectPrompt: true,
     },
 
     // Source weights
-    Weights: WeightsConfig{
+    Weights: &types.WeightsConfig{
         User: 1.0,
         Hook: 0.8,
         Auto: 0.6,
     },
 
     // Behavior options
-    Options: OptionsConfig{
+    Options: &types.OptionsConfig{
         SkipThreshold: 5,
     },
+}
+```
+
+### Config Loader (`config/loader.go`)
+
+```go
+package config
+
+import (
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// Loader loads and merges configuration from multiple sources
+type Loader struct {
+    globalConfig    *types.Config // From agent/search.yao
+    assistantConfig *types.Config // From assistants/<id>/package.yao
+}
+
+// NewLoader creates a new config loader
+func NewLoader() *Loader {
+    return &Loader{}
+}
+
+// LoadGlobal loads global configuration from agent/search.yao
+func (l *Loader) LoadGlobal(path string) error {
+    // Implementation
+    return nil
+}
+
+// LoadAssistant loads assistant-specific configuration
+func (l *Loader) LoadAssistant(assistantID string) error {
+    // Implementation
+    return nil
+}
+
+// Merge returns the merged configuration with priority:
+// SystemDefaults < GlobalConfig < AssistantConfig
+func (l *Loader) Merge() *types.Config {
+    result := *SystemDefaults
+    // Merge globalConfig
+    // Merge assistantConfig
+    return &result
+}
+
+// GetWeight returns the weight for a source type
+func (l *Loader) GetWeight(source types.SourceType) float64 {
+    cfg := l.Merge()
+    switch source {
+    case types.SourceUser:
+        return cfg.Weights.User
+    case types.SourceHook:
+        return cfg.Weights.Hook
+    case types.SourceAuto:
+        return cfg.Weights.Auto
+    default:
+        return 0.6
+    }
 }
 ```
 
@@ -734,8 +1255,8 @@ var SystemDefaults = Config{
     "language": "auto" // "auto", "en", "zh", etc.
   },
 
-  // QueryDSL generation options (uses.query)
-  "query": {
+  // QueryDSL generation options (uses.querydsl)
+  "querydsl": {
     "strict": false // Strict mode: fail if generation fails
   },
 
@@ -776,7 +1297,7 @@ var SystemDefaults = Config{
   // Overrides global uses (agent/agent.yml)
   "uses": {
     "keyword": "workers.nlp.keyword", // Use LLM for keyword extraction
-    "query": "workers.nlp.query", // Use LLM for QueryDSL generation
+    "querydsl": "workers.nlp.querydsl", // Use LLM for QueryDSL generation
     "rerank": "mcp:rerank-server" // Use MCP for reranking
   },
 
@@ -810,8 +1331,8 @@ var SystemDefaults = Config{
       "max_keywords": 5
     },
 
-    // Overrides global query options
-    "query": {
+    // Overrides global querydsl options
+    "querydsl": {
       "strict": true
     },
 
@@ -937,7 +1458,7 @@ Request → Trace Start → Query Process → Search → Rerank → Citations �
 | ---- | ----------------------------------------------------- | -------------------- |
 | Web  | Extract keywords → Build query                        | `uses.keyword`       |
 | KB   | Get collection's embedding model → Generate embedding | KB collection config |
-| DB   | Parse query → Build QueryDSL → Execute on models      | `uses.query`         |
+| DB   | Parse query → Build QueryDSL → Execute on models      | `uses.querydsl`      |
 
 #### Processing Methods
 
@@ -949,9 +1470,44 @@ Configure via `uses.*` in `agent/agent.yml`:
 | `<assistant-id>`  | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
 | `mcp:<server-id>` | Call MCP server tool                      | External services integration  |
 
-#### Keyword Extraction (Web Search)
+#### Keyword Extraction (`nlp/keyword.go`)
 
 Configure via `uses.keyword`:
+
+```go
+// nlp/keyword.go
+package nlp
+
+import (
+    "strings"
+
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// KeywordExtractor extracts keywords from user query
+type KeywordExtractor struct {
+    usesKeyword string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    config      *types.KeywordConfig
+}
+
+// NewKeywordExtractor creates a keyword extractor
+func NewKeywordExtractor(usesKeyword string, cfg *types.KeywordConfig) *KeywordExtractor {
+    return &KeywordExtractor{usesKeyword: usesKeyword, config: cfg}
+}
+
+// Extract extracts keywords from content
+func (e *KeywordExtractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+    switch {
+    case e.usesKeyword == "builtin" || e.usesKeyword == "":
+        return e.builtinExtract(content, opts)
+    case strings.HasPrefix(e.usesKeyword, "mcp:"):
+        return e.mcpExtract(ctx, content, opts)
+    default:
+        return e.agentExtract(ctx, content, opts)
+    }
+}
+```
 
 ```
 "I want to find the best wireless headphones under $100"
@@ -960,16 +1516,66 @@ Configure via `uses.keyword`:
 → Keywords: ["wireless headphones", "under $100", "best"]
 ```
 
-#### KB Search (Entity & Embedding)
+#### Embedding (KB Collection Config)
 
-Entity extraction and embedding generation follow KB collection's own configuration:
+Embedding is **not** part of the `nlp/` package. It follows KB collection's own configuration:
 
-- Each KB collection has its own embedding model
-- Entity types are defined per collection (for GraphRAG)
+- Each KB collection defines its own embedding provider and model
+- The KB handler (`handlers/kb/`) calls the collection's embedding API directly
+- Entity types for GraphRAG are also defined per collection
 
-#### QueryDSL Generation (Database)
+```go
+// handlers/kb/handler.go
+func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    // 1. Get collection config (embedding provider, model)
+    collection := h.getCollection(req.Collections[0])
 
-Configure via `uses.query`:
+    // 2. Generate embedding using collection's config
+    vector, err := collection.Embed(ctx, req.Query)
+
+    // 3. Vector search
+    // ...
+}
+```
+
+#### QueryDSL Generation (`nlp/querydsl.go`)
+
+Configure via `uses.querydsl`:
+
+```go
+// nlp/querydsl.go
+package nlp
+
+import (
+    "strings"
+
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// QueryDSLGenerator generates QueryDSL from natural language
+type QueryDSLGenerator struct {
+    usesQueryDSL string // "builtin", "<assistant-id>", "mcp:<server-id>"
+    config       *types.QueryDSLConfig
+}
+
+// NewQueryDSLGenerator creates a QueryDSL generator
+func NewQueryDSLGenerator(usesQueryDSL string, cfg *types.QueryDSLConfig) *QueryDSLGenerator {
+    return &QueryDSLGenerator{usesQueryDSL: usesQueryDSL, config: cfg}
+}
+
+// Generate converts natural language to QueryDSL
+func (g *QueryDSLGenerator) Generate(ctx *context.Context, query string, schemas []*types.ModelSchema) (*types.QueryDSL, error) {
+    switch {
+    case g.usesQueryDSL == "builtin" || g.usesQueryDSL == "":
+        return g.builtinGenerate(query, schemas)
+    case strings.HasPrefix(g.usesQueryDSL, "mcp:"):
+        return g.mcpGenerate(ctx, query, schemas)
+    default:
+        return g.agentGenerate(ctx, query, schemas)
+    }
+}
+```
 
 ```
 "Products cheaper than $100 from Apple"
@@ -978,24 +1584,130 @@ Configure via `uses.query`:
 → QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
 ```
 
-## Providers
+## Handlers & Providers
 
-### Web Search
+All handler implementations are in `search/handlers/` directory.
 
-| Provider | Type     | Notes                           |
-| -------- | -------- | ------------------------------- |
-| Tavily   | Built-in | Recommended for AI applications |
-| Serper   | Built-in | Google search API               |
-| MCP      | External | Any MCP server with search tool |
+### Web Search (`handlers/web/`)
 
-### Knowledge Base
+```go
+// handlers/web/handler.go
+package web
 
-Integrates with Yao's GraphRAG system:
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/types"
+)
 
-- Vector search with collection-specific embedding models
-- Graph-based association (optional)
+// Handler implements web search
+type Handler struct {
+    provider Provider
+    config   *types.WebConfig
+}
 
-### Database Search
+// Provider interface for web search providers
+type Provider interface {
+    Search(ctx *context.Context, query string, opts *SearchOptions) ([]*types.ResultItem, error)
+}
+
+// NewHandler creates a new web search handler
+func NewHandler(cfg *types.WebConfig) *Handler {
+    var provider Provider
+    switch cfg.Provider {
+    case "tavily":
+        provider = NewTavilyProvider(cfg)
+    case "serper":
+        provider = NewSerperProvider(cfg)
+    default:
+        // MCP provider
+        provider = NewMCPProvider(cfg)
+    }
+    return &Handler{provider: provider, config: cfg}
+}
+```
+
+| Provider | File         | Notes                           |
+| -------- | ------------ | ------------------------------- |
+| Tavily   | `tavily.go`  | Recommended for AI applications |
+| Serper   | `serper.go`  | Google search API               |
+| MCP      | (via config) | Any MCP server with search tool |
+
+### Knowledge Base (`handlers/kb/`)
+
+```go
+// handlers/kb/handler.go
+package kb
+
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// Handler implements KB search
+type Handler struct {
+    config *types.KBConfig
+}
+
+// NewHandler creates a new KB search handler
+func NewHandler(cfg *types.KBConfig) *Handler {
+    return &Handler{config: cfg}
+}
+
+// Search executes vector search and optional graph association
+func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    // 1. Generate embedding via query processor
+    // 2. Vector search in collections
+    // 3. Optional: Graph association (if req.Graph)
+    // 4. Return results
+    return nil, nil
+}
+```
+
+| File         | Description                        |
+| ------------ | ---------------------------------- |
+| `handler.go` | Main KB handler implementation     |
+| `vector.go`  | Vector similarity search           |
+| `graph.go`   | Graph-based association (GraphRAG) |
+
+### Database Search (`handlers/db/`)
+
+```go
+// handlers/db/handler.go
+package db
+
+import (
+    "github.com/yaoapp/yao/agent/context"
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// Handler implements DB search
+type Handler struct {
+    config *types.DBConfig
+}
+
+// NewHandler creates a new DB search handler
+func NewHandler(cfg *types.DBConfig) *Handler {
+    return &Handler{config: cfg}
+}
+
+// Search converts NL to QueryDSL and executes
+func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
+    // 1. Get model schemas
+    // 2. Generate QueryDSL via query processor
+    // 3. Execute queries on models
+    // 4. Return results
+    return nil, nil
+}
+```
+
+| File         | Description                    |
+| ------------ | ------------------------------ |
+| `handler.go` | Main DB handler implementation |
+| `query.go`   | QueryDSL builder utilities     |
+| `schema.go`  | Model schema introspection     |
 
 Integrates with Yao's Model/QueryDSL system:
 
@@ -1006,7 +1718,38 @@ Integrates with Yao's Model/QueryDSL system:
   - Assistant-specific models (`assistants/{id}/models/*.mod.yao` → `agents.{id}.*`)
 - Permission-aware queries (respects `__yao_*` permission fields)
 
-### Reranking
+### Reranking (`rerank/`)
+
+```go
+// rerank/rerank.go
+package rerank
+
+import (
+    "github.com/yaoapp/yao/agent/search/interfaces"
+    "github.com/yaoapp/yao/agent/search/types"
+)
+
+// NewReranker creates a reranker based on uses.rerank config
+func NewReranker(usesRerank string) interfaces.Reranker {
+    switch {
+    case usesRerank == "builtin" || usesRerank == "":
+        return NewBuiltinReranker()
+    case strings.HasPrefix(usesRerank, "mcp:"):
+        serverID := strings.TrimPrefix(usesRerank, "mcp:")
+        return NewMCPReranker(serverID)
+    default:
+        // Assume it's an assistant ID
+        return NewAgentReranker(usesRerank)
+    }
+}
+```
+
+| File         | Description                      |
+| ------------ | -------------------------------- |
+| `rerank.go`  | Factory and common logic         |
+| `builtin.go` | Simple score sorting (default)   |
+| `agent.go`   | Delegate to an assistant (Agent) |
+| `mcp.go`     | Call MCP server rerank tool      |
 
 Configure via `uses.rerank` in `agent/agent.yml`:
 
@@ -1405,6 +2148,17 @@ This allows the search module to be reused for both:
 - **Data ContentPart**: User explicitly references data sources in message
 
 ## Related Files
+
+### Internal Dependencies
+
+- `agent/search/types/` - All type definitions (no circular dependencies)
+- `agent/search/interfaces/` - All interface definitions
+- `agent/search/config/` - Configuration loading and defaults
+- `agent/search/handlers/` - Handler implementations (web, kb, db)
+- `agent/search/rerank/` - Reranker implementations
+- `agent/search/nlp/` - NLP implementations (keyword, querydsl)
+
+### External Dependencies
 
 - `agent/context/jsapi.go` - JSAPI base implementation
 - `agent/context/types.go` - DataSource, DataContent types
