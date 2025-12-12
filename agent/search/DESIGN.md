@@ -1235,13 +1235,49 @@ URL: https://news.example.com/apple-iphone-15
 
 ```
 You have access to reference data in <references> tags. Each <ref> has:
-- id: Citation identifier (use #ref:{id} to cite)
+- id: Citation identifier
 - type: Data type (web/kb/db)
 - weight: Relevance weight (1.0=highest priority, 0.6=lowest)
 - source: Origin (user=user-provided, hook=assistant-searched, auto=auto-searched)
 
-Prioritize higher-weight references when answering. Cite using: #ref:{id}
+Prioritize higher-weight references when answering.
+
+When citing a reference, use this exact HTML format:
+<a class="ref" data-ref-id="{id}" data-ref-type="{type}" href="#ref:{id}">[{id}]</a>
+
+Example: According to the product data<a class="ref" data-ref-id="ref_001" data-ref-type="db" href="#ref:ref_001">[ref_001]</a>, the price is $999.
 ```
+
+**Citation Output Format:**
+
+LLM outputs citations as HTML links that can be parsed and rendered by frontend:
+
+```html
+<!-- LLM output example -->
+The iPhone 15 Pro<a
+  class="ref"
+  data-ref-id="ref_001"
+  data-ref-type="db"
+  href="#ref:ref_001"
+  >[ref_001]</a
+>
+features the A17 Pro chip<a
+  class="ref"
+  data-ref-id="ref_002"
+  data-ref-type="kb"
+  href="#ref:ref_002"
+  >[ref_002]</a
+>.
+```
+
+**Citation Link Attributes:**
+
+| Attribute       | Description             | Example                 |
+| --------------- | ----------------------- | ----------------------- |
+| `class`         | Fixed class for styling | `"ref"`                 |
+| `data-ref-id`   | Reference ID            | `"ref_001"`             |
+| `data-ref-type` | Data type               | `"db"`, `"kb"`, `"web"` |
+| `href`          | Anchor link             | `"#ref:ref_001"`        |
 
 **Conversion Examples:**
 
