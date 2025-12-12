@@ -307,11 +307,15 @@ type ResultItem struct {
     // Citation
     CitationID string `json:"citation_id"` // Unique ID for LLM reference: "#ref:xxx"
 
+    // Weighting
+    Source string  `json:"source"`           // Source type: "user", "hook", "auto"
+    Weight float64 `json:"weight"`           // Source weight (from config)
+    Score  float64 `json:"score,omitempty"`  // Relevance score (0-1)
+
     // Common fields
-    Title   string  `json:"title,omitempty"`  // Title/headline
-    Content string  `json:"content"`          // Main content/snippet
-    URL     string  `json:"url,omitempty"`    // Source URL
-    Score   float64 `json:"score,omitempty"`  // Relevance score (0-1)
+    Title   string `json:"title,omitempty"` // Title/headline
+    Content string `json:"content"`         // Main content/snippet
+    URL     string `json:"url,omitempty"`   // Source URL
 
     // KB specific
     DocumentID string `json:"document_id,omitempty"` // Source document ID
@@ -1142,35 +1146,153 @@ The Search module will:
 2. For `model:product` → Generate QueryDSL: `{ "wheres": [{ "field": "price", "op": "<", "value": 100 }] }`
 3. For `kb_collection:product-docs` → Vector search with query embedding
 
-### Source Priority & Weighting
+### Source Weighting & LLM Context
 
-User-provided data sources have higher priority than auto-search results.
+Search results carry `source` and `weight` fields, which are used to build weighted context for LLM.
 
-**Priority Levels:**
+**Source Types:**
 
-| Source           | Priority    | Weight | Description                      |
-| ---------------- | ----------- | ------ | -------------------------------- |
-| User DataContent | 1 (highest) | 1.0    | Explicitly referenced in message |
-| Hook Search      | 2           | 0.8    | Called in Create/Next hook       |
-| Auto Search      | 3 (lowest)  | 0.6    | Triggered by assistant config    |
+| Source | Weight | Description                      |
+| ------ | ------ | -------------------------------- |
+| `user` | 1.0    | Explicitly referenced in message |
+| `hook` | 0.8    | Called in Create/Next hook       |
+| `auto` | 0.6    | Triggered by assistant config    |
+
+**ResultItem with Weight:**
+
+```go
+type ResultItem struct {
+    CitationID string  `json:"citation_id"` // "#ref:xxx"
+    Source     string  `json:"source"`      // "user", "hook", "auto"
+    Weight     float64 `json:"weight"`      // 1.0, 0.8, 0.6
+    Score      float64 `json:"score"`       // Relevance score
+    // ... other fields
+}
+```
+
+### Unified Context Protocol
+
+All data sources (Content module, Hook, Auto-Search) produce the same `Reference` structure. The final LLM input uses a unified `<references>` format.
+
+**Reference (Internal Structure):**
+
+```go
+// Reference is the unified structure for all data sources
+type Reference struct {
+    ID      string  `json:"id"`      // Unique citation ID: "ref_001", "ref_002"
+    Type    string  `json:"type"`    // "web", "kb", "db"
+    Source  string  `json:"source"`  // "user", "hook", "auto"
+    Weight  float64 `json:"weight"`  // 1.0, 0.8, 0.6
+    Score   float64 `json:"score"`   // Relevance score (0-1)
+    Title   string  `json:"title"`   // Optional title
+    Content string  `json:"content"` // Main content
+    URL     string  `json:"url"`     // Optional URL
+    Meta    map[string]interface{} `json:"meta"` // Additional metadata
+}
+```
+
+**Data Flow:**
+
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│ Content Module  │    │   Hook Search   │    │   Auto Search   │
+│ (db:xxx kb:xxx) │    │ ctx.search.*()  │    │ (assistant cfg) │
+└────────┬────────┘    └────────┬────────┘    └────────┬────────┘
+         │                      │                      │
+         │ source="user"        │ source="hook"        │ source="auto"
+         │ weight=1.0           │ weight=0.8           │ weight=0.6
+         │                      │                      │
+         └──────────────────────┼──────────────────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │     []Reference       │
+                    │  (Unified Structure)  │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │  Merge & Deduplicate  │
+                    │  Rerank by score*wt   │
+                    └───────────┬───────────┘
+                                │
+                                ▼
+                    ┌─────────────────────────────┐
+                    │  Build <references> XML     │
+                    └───────────┬─────────────────┘
+                                │
+                                ▼
+                    ┌───────────────────────┐
+                    │      LLM Input        │
+                    └───────────────────────┘
+```
+
+**LLM References Format:**
+
+```xml
+<references>
+<ref id="ref_001" type="db" weight="1.0" source="user">
+Product: iPhone 15 Pro
+Price: $999
+Category: Electronics
+</ref>
+<ref id="ref_002" type="kb" weight="0.8" source="hook">
+The iPhone 15 Pro features the A17 Pro chip with improved performance...
+URL: https://example.com/iphone-review
+</ref>
+<ref id="ref_003" type="web" weight="0.6" source="auto">
+Apple announced the iPhone 15 series in September 2023...
+URL: https://news.example.com/apple-iphone-15
+</ref>
+</references>
+```
+
+**LLM System Prompt (auto-injected):**
+
+```
+You have access to reference data in <references> tags. Each <ref> has:
+- id: Citation identifier (use #ref:{id} to cite)
+- type: Data type (web/kb/db)
+- weight: Relevance weight (1.0=highest priority, 0.6=lowest)
+- source: Origin (user=user-provided, hook=assistant-searched, auto=auto-searched)
+
+Prioritize higher-weight references when answering. Cite using: #ref:{id}
+```
+
+**Conversion Examples:**
+
+| Module  | Input                              | Output Reference                               |
+| ------- | ---------------------------------- | ---------------------------------------------- |
+| Content | `db:product` (user message)        | `{source:"user", weight:1.0, type:"db", ...}`  |
+| Content | `kb:docs` (user message)           | `{source:"user", weight:1.0, type:"kb", ...}`  |
+| Hook    | `ctx.search.Web(query)`            | `{source:"hook", weight:0.8, type:"web", ...}` |
+| Hook    | `ctx.search.KB(query)`             | `{source:"hook", weight:0.8, type:"kb", ...}`  |
+| Hook    | `ctx.search.DB(query)`             | `{source:"hook", weight:0.8, type:"db", ...}`  |
+| Auto    | Assistant config `search.web=true` | `{source:"auto", weight:0.6, type:"web", ...}` |
+| Auto    | Assistant config `search.kb=true`  | `{source:"auto", weight:0.6, type:"kb", ...}`  |
+
+### Processing Flow
+
+```
+Stream()
+  │
+  ├── 1. Collect search results from all sources
+  │   ├── User DataContent → source="user", weight=1.0
+  │   ├── Hook ctx.search.*() → source="hook", weight=0.8
+  │   └── Auto search → source="auto", weight=0.6
+  │
+  ├── 2. Merge, deduplicate, rerank by (score * weight)
+  │
+  ├── 3. Build <references><ref>...</ref></references> format
+  │
+  └── 4. Inject references into messages for LLM
+```
 
 **Behavior Rules:**
 
-1. **User data sufficient**: If user provides enough data (e.g., ≥ 5 results), skip auto search
-2. **Merge & Rerank**: When multiple sources, merge all results and rerank with weights
-3. **Deduplication**: Same record from different sources → keep highest priority version
-
-**Rerank with Weights:**
-
-```go
-// Final score calculation
-finalScore = baseScore * sourceWeight * rerankScore
-
-// Example:
-// User data:  baseScore=0.8 * weight=1.0 = 0.80
-// Auto search: baseScore=0.9 * weight=0.6 = 0.54
-// User data wins even with lower base score
-```
+1. **User data sufficient**: If user provides enough data (≥ skip_threshold), skip auto search
+2. **Deduplication**: Same record from different sources → keep highest weight version
+3. **Final ranking**: Sort by `score * weight` after reranking
 
 **Configuration:**
 
@@ -1208,13 +1330,13 @@ Assistant-level override (`assistants/<assistant-id>/package.yao`):
 
 **System Auto-Processing:**
 
-The priority and weighting logic is handled automatically by the system:
+The weighting and context building is handled automatically by the system:
 
 ```
 Stream()
   │
   ├── 1. Parse user message for DataContent sources
-  │   └── If found → Mark as priority=1, weight=1.0
+  │   └── If found → Mark as source="user", weight=1.0
   │
   ├── 2. Create Hook (optional)
   │   └── If hook calls ctx.search.*() → Mark as priority=2, weight=0.8
