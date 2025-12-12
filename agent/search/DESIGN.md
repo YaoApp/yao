@@ -40,6 +40,7 @@ function Create(ctx, messages, options) {
 
   return {
     messages: [{ role: "system", content: formatContext(web, kb, db) }],
+    uses: { search: "disabled" }, // Disable auto search since hook handled it
   };
 }
 ```
@@ -61,10 +62,10 @@ function Create(ctx, messages, options) {
 
 ```mermaid
 flowchart TD
-    A[Stream Start] --> B{Options.Search?}
-    B -->|false| C[Skip Search]
-    B -->|true/nil| D{Hook Handled?}
-    D -->|Yes| C
+    A[Stream Start] --> B{Uses.Search?}
+    B -->|"disabled"| C[Skip Search]
+    B -->|"builtin"/assistant/mcp| D{Hook Handled?}
+    D -->|Yes: uses.search="disabled"| C
     D -->|No| E[Auto Search]
 
     E --> F{Check Assistant Config}
@@ -105,7 +106,7 @@ sequenceDiagram
         CreateHook-->>Stream: response (may include search results)
     end
 
-    alt Options.Search != false AND not handled by Hook
+    alt Uses.Search != "disabled" AND not handled by Hook
         Stream->>Search: AutoSearch(ctx, messages)
         Search->>Search: Web/KB/DB in parallel
         Search->>Search: Rerank & Citations
@@ -244,8 +245,10 @@ type Searcher struct {
     citation  *CitationGenerator
 }
 
-// Uses contains the uses.* configuration for search
-type Uses struct {
+// SearchUses contains the search-specific uses configuration
+// These are extracted from context.Uses and search config
+type SearchUses struct {
+    Search   string // "builtin", "disabled", "<assistant-id>", "mcp:<server>.<tool>"
     Web      string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     Keyword  string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     QueryDSL string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
@@ -254,8 +257,8 @@ type Uses struct {
 
 // New creates a new Searcher instance
 // cfg: merged config from agent/load.go + assistant config
-// uses: uses.* configuration from agent.yml + assistant config
-func New(cfg *types.Config, uses *Uses) *Searcher {
+// uses: merged uses configuration (global → assistant → hook)
+func New(cfg *types.Config, uses *SearchUses) *Searcher {
     return &Searcher{
         config: cfg,
         handlers: map[types.SearchType]interfaces.Handler{
@@ -962,10 +965,11 @@ function Create(ctx, messages, options) {
           content: formatSearchContext(result),
         },
       ],
+      uses: { search: "disabled" }, // Disable auto search
     };
   }
 
-  return { messages: [] };
+  return { messages: [] }; // Let auto search handle it
 }
 ```
 
@@ -990,10 +994,11 @@ function Create(ctx, messages, options) {
           content: formatKBContext(result),
         },
       ],
+      uses: { search: "disabled" }, // Disable auto search
     };
   }
 
-  return { messages: [] };
+  return { messages: [] }; // Let auto search handle it
 }
 ```
 
@@ -1018,10 +1023,11 @@ function Create(ctx, messages, options) {
           content: formatDBContext(result),
         },
       ],
+      uses: { search: "disabled" }, // Disable auto search
     };
   }
 
-  return { messages: [] };
+  return { messages: [] }; // Let auto search handle it
 }
 ```
 
@@ -1048,6 +1054,7 @@ function Create(ctx, messages, options) {
         content: context,
       },
     ],
+    uses: { search: "disabled" }, // Disable auto search
   };
 }
 ```
@@ -1071,8 +1078,8 @@ function Create(ctx, messages, options) {
         content: `Use [N] to cite. References:\n${refs}`,
       },
     ],
-    // Override citation config
-    citation: { autoInjectPrompt: false },
+    uses: { search: "disabled" }, // Disable auto search
+    citation: { autoInjectPrompt: false }, // Override citation config
   };
 }
 ```
@@ -1366,6 +1373,8 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 
   // Overrides global uses (agent/agent.yml)
   "uses": {
+    "search": "builtin", // "builtin", "disabled", "<assistant-id>", "mcp:<server>.<tool>"
+    "web": "builtin", // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     "keyword": "workers.nlp.keyword", // Use LLM for keyword extraction
     "querydsl": "workers.nlp.querydsl", // Use LLM for QueryDSL generation
     "rerank": "mcp:my-server.rerank" // Use MCP tool for reranking
@@ -1373,10 +1382,6 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 
   // Search configuration (overrides agent/search.yao)
   "search": {
-    "web": true, // Enable web search
-    "kb": true, // Enable knowledge base search
-    "db": true, // Enable database search
-
     // Overrides global web settings
     "web": {
       "provider": "tavily",
@@ -1447,9 +1452,9 @@ Stream(ctx, messages, options)
   │   └── Can call ctx.search.* and return search results
   │
   ├── 3. Auto Search Decision
-  │   ├── IF Options.Search == false → SKIP
-  │   ├── IF Create Hook returned search context → SKIP
-  │   └── ELSE → Execute Auto Search
+  │   ├── IF Uses.Search == "disabled" → SKIP
+  │   ├── IF Create Hook returned uses.search="disabled" → SKIP
+  │   └── ELSE → Execute Auto Search (based on Uses.Search mode)
   │       ├── Read assistant's search config
   │       ├── Execute web/kb/db in parallel
   │       ├── Send search_start/search_result/search_complete to output
@@ -1464,26 +1469,36 @@ Stream(ctx, messages, options)
   └── 6. Output (response may contain #ref:xxx citations)
 ```
 
-### Control Options
+### Control via Uses.Search
 
-| Options.Search | Assistant Config  | Behavior                  |
-| -------------- | ----------------- | ------------------------- |
-| `true`         | any               | Force enable auto search  |
-| `false`        | any               | Force disable auto search |
-| `nil`          | has search config | Enable auto search        |
-| `nil`          | no search config  | Disable auto search       |
+Search is controlled via the `Uses` mechanism, following the merge hierarchy:
+
+```
+Global (agent/agent.yml) → Assistant (package.yao) → CreateHook (return uses) → Request (options.uses)
+```
+
+| Uses.Search             | Behavior                             |
+| ----------------------- | ------------------------------------ |
+| `"builtin"`             | Use builtin auto search              |
+| `"disabled"`            | Disable auto search                  |
+| `"<assistant-id>"`      | Delegate to an assistant (AI Search) |
+| `"mcp:<server>.<tool>"` | Use MCP tool for search              |
+| `undefined`             | Follow upper layer config (default)  |
 
 **Go:**
 
 ```go
-// Force enable
-options := &context.Options{Search: boolPtr(true)}
+// Use builtin auto search
+uses := &context.Uses{Search: "builtin"}
 
-// Force disable
-options := &context.Options{Search: boolPtr(false)}
+// Disable auto search
+uses := &context.Uses{Search: "disabled"}
+
+// Delegate to AI Search assistant
+uses := &context.Uses{Search: "workers.search.ai"}
 
 // Follow assistant config (default)
-options := &context.Options{Search: nil}
+uses := &context.Uses{Search: ""} // or nil
 ```
 
 **API Request:**
@@ -1491,13 +1506,21 @@ options := &context.Options{Search: nil}
 ```json
 {
   "messages": [...],
-  "search": true
+  "uses": {
+    "search": "builtin"
+  }
 }
 ```
 
 ### Hook-Controlled Search
 
-When you need custom search logic, handle it in Create Hook:
+Search is controlled via the `Uses` mechanism, same as Vision/Audio. The merge hierarchy is:
+
+```
+Global (agent/agent.yml) → Assistant (package.yao) → CreateHook (return uses)
+```
+
+When you need custom search logic, handle it in Create Hook and return `uses.search` to control auto search:
 
 ```typescript
 function Create(ctx, messages, options) {
@@ -1508,13 +1531,50 @@ function Create(ctx, messages, options) {
     const result = ctx.search.Web(query, { limit: 5 });
     return {
       messages: [{ role: "system", content: formatContext(result) }],
-      // Returning messages signals: skip auto search
+      uses: { search: "disabled" }, // Disable auto search (hook handled it)
     };
   }
 
+  // Let auto search handle it (follow assistant config)
   return { messages: [] };
 }
 ```
+
+**Uses.Search Values:**
+
+| Value                   | Behavior                             |
+| ----------------------- | ------------------------------------ |
+| `"builtin"`             | Use builtin auto search              |
+| `"disabled"`            | Disable auto search                  |
+| `"<assistant-id>"`      | Delegate to an assistant (AI Search) |
+| `"mcp:<server>.<tool>"` | Use MCP tool for search              |
+| `undefined`             | Follow upper layer config (default)  |
+
+**Uses Merge Hierarchy:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. Global Config (agent/agent.yml)                         │
+│     uses:                                                   │
+│       search: "builtin"                                     │
+└─────────────────────────────────────────────────────────────┘
+                           ↓ merge
+┌─────────────────────────────────────────────────────────────┐
+│  2. Assistant Config (assistants/<id>/package.yao)          │
+│     uses:                                                   │
+│       search: "workers.search.web"  # Override to AI Search │
+└─────────────────────────────────────────────────────────────┘
+                           ↓ merge
+┌─────────────────────────────────────────────────────────────┐
+│  3. CreateHook Return                                       │
+│     return {                                                │
+│       uses: { search: "disabled" }  # Hook handled it       │
+│     }                                                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+> **Note**: The `Uses` struct in `context/types_llm.go` already has a `Search` field.
+> The value `"disabled"` is a special value to disable auto search when hook handles it.
 
 ## Search Flow
 
@@ -1859,12 +1919,13 @@ import (
 
 // Handler implements DB search
 type Handler struct {
-    config *types.DBConfig
+    usesQueryDSL string         // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    config       *types.DBConfig
 }
 
 // NewHandler creates a new DB search handler
-func NewHandler(cfg *types.DBConfig) *Handler {
-    return &Handler{config: cfg}
+func NewHandler(usesQueryDSL string, cfg *types.DBConfig) *Handler {
+    return &Handler{usesQueryDSL: usesQueryDSL, config: cfg}
 }
 
 // Search converts NL to QueryDSL and executes
@@ -1956,13 +2017,14 @@ if (result.error) {
 Configuration is merged with later layers overriding earlier ones:
 
 1. **System Built-in** - Hardcoded defaults (lowest priority)
-2. **Global-level** - `agent/search.yao`
-3. **Assistant-level** - `assistants/<assistant-id>/package.yao`
-4. **Hook-level** - Options in `ctx.search.*()` calls
-5. **Request-level** - `Options.Search` in Stream() call (highest priority)
-   - `true`: Force enable auto search
-   - `false`: Force disable auto search
-   - `nil`: Follow assistant config
+2. **Global-level** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+3. **Assistant-level** - `assistants/<assistant-id>/package.yao` (uses + search)
+4. **Hook-level** - CreateHook return `uses.search` value
+5. **Request-level** - `options.uses.search` in Stream() call (highest priority)
+   - `"builtin"`: Use builtin auto search
+   - `"disabled"`: Disable auto search
+   - `"<assistant-id>"`: Delegate to AI Search assistant
+   - `"mcp:<server>.<tool>"`: Use MCP tool for search
 
 ## DB Search Details
 
@@ -2324,7 +2386,7 @@ The `processDataContent()` function in `content/content.go` should:
 
 This allows the search module to be reused for both:
 
-- **Auto Search**: Triggered by `Options.Search = true`
+- **Auto Search**: Triggered when `Uses.Search != "disabled"`
 - **Data ContentPart**: User explicitly references data sources in message
 
 ## Related Files
