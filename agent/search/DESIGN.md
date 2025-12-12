@@ -661,13 +661,13 @@ uses:
   fetch: "workers.system.fetch"
 
   # Search processing tools
-  keyword: "builtin" # Keyword extraction. "builtin", "model:gpt-4o-mini", "agent:xxx", "mcp:xxx"
-  dsl: "builtin" # QueryDSL generation. "builtin", "model:gpt-4o", "agent:xxx", "mcp:xxx"
-  rerank: "builtin" # Result reranking. "builtin", "model:cohere-rerank-v3", "agent:xxx", "mcp:xxx"
+  keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:nlp-server"
+  dsl: "builtin" # "builtin", "workers.nlp.dsl", "mcp:query-server"
+  rerank: "builtin" # "builtin", "workers.rerank", "mcp:rerank-server"
   # Note: embedding & entity follow KB collection config
 ```
 
-Tool format: `"builtin"`, `"model:<model-id>"`, `"agent:<assistant-id>"`, `"mcp:<server-id>"`
+Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server-id>"` (MCP)
 
 ### System Built-in Defaults
 
@@ -946,12 +946,11 @@ Request → Trace Start → Query Process → Search → Rerank → Citations �
 
 Configure via `uses.*` in `agent/agent.yml`:
 
-| Format                 | Description                               | Use Case                        |
-| ---------------------- | ----------------------------------------- | ------------------------------- |
-| `builtin`              | Rule-based, template-driven (no LLM call) | Fast, low cost, simple queries  |
-| `model:<model-id>`     | LLM-based extraction/generation           | Complex queries, better quality |
-| `agent:<assistant-id>` | Delegate to another assistant             | Custom logic, domain-specific   |
-| `mcp:<server-id>`      | Call MCP server tool                      | External services integration   |
+| Format            | Description                               | Use Case                       |
+| ----------------- | ----------------------------------------- | ------------------------------ |
+| `builtin`         | Rule-based, template-driven (no LLM call) | Fast, low cost, simple queries |
+| `<assistant-id>`  | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
+| `mcp:<server-id>` | Call MCP server tool                      | External services integration  |
 
 #### Keyword Extraction (Web Search)
 
@@ -960,7 +959,7 @@ Configure via `uses.keyword`:
 ```
 "I want to find the best wireless headphones under $100"
     ↓ builtin: simple tokenization + stopword removal
-    ↓ model: LLM extracts ["wireless headphones", "under $100", "best"]
+    ↓ agent: LLM extracts ["wireless headphones", "under $100", "best"]
 → Keywords: ["wireless headphones", "under $100", "best"]
 ```
 
@@ -978,7 +977,7 @@ Configure via `uses.dsl`:
 ```
 "Products cheaper than $100 from Apple"
     ↓ builtin: template matching against model schema
-    ↓ model: LLM generates DSL from NL + schema
+    ↓ agent: LLM generates DSL from NL + schema
 → QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
 ```
 
@@ -1014,12 +1013,11 @@ Integrates with Yao's Model/QueryDSL system:
 
 Configure via `uses.rerank` in `agent/agent.yml`:
 
-| Value                    | Notes                                    |
-| ------------------------ | ---------------------------------------- |
-| `builtin`                | Simple score sorting (default)           |
-| `model:cohere-rerank-v3` | Cohere, BGE, Jina rerankers              |
-| `agent:rerank-assistant` | Delegate to another assistant for rerank |
-| `mcp:rerank-server`      | Call MCP server rerank tool              |
+| Value               | Notes                            |
+| ------------------- | -------------------------------- |
+| `builtin`           | Simple score sorting (default)   |
+| `workers.rerank`    | Delegate to an assistant (Agent) |
+| `mcp:rerank-server` | Call MCP server rerank tool      |
 
 ## Error Handling
 
