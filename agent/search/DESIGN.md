@@ -662,7 +662,7 @@ uses:
 
   # Search processing tools
   keyword: "builtin" # "builtin", "workers.nlp.keyword", "mcp:nlp-server"
-  dsl: "builtin" # "builtin", "workers.nlp.dsl", "mcp:query-server"
+  query: "builtin" # "builtin", "workers.nlp.query", "mcp:query-server"
   rerank: "builtin" # "builtin", "workers.rerank", "mcp:rerank-server"
   # Note: embedding & entity follow KB collection config
 ```
@@ -940,7 +940,7 @@ Request → Trace Start → Query Process → Search → Rerank → Citations �
 | ---- | ----------------------------------------------------- | -------------------- |
 | Web  | Extract keywords → Build query                        | `uses.keyword`       |
 | KB   | Get collection's embedding model → Generate embedding | KB collection config |
-| DB   | Parse query → Build QueryDSL → Execute on models      | `uses.dsl`           |
+| DB   | Parse query → Build QueryDSL → Execute on models      | `uses.query`         |
 
 #### Processing Methods
 
@@ -972,7 +972,7 @@ Entity extraction and embedding generation follow KB collection's own configurat
 
 #### QueryDSL Generation (Database)
 
-Configure via `uses.dsl`:
+Configure via `uses.query`:
 
 ```
 "Products cheaper than $100 from Apple"
