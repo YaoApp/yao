@@ -1193,38 +1193,22 @@ type Reference struct {
 
 **Data Flow:**
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ Content Module  │    │   Hook Search   │    │   Auto Search   │
-│ (db:xxx kb:xxx) │    │ ctx.search.*()  │    │ (assistant cfg) │
-└────────┬────────┘    └────────┬────────┘    └────────┬────────┘
-         │                      │                      │
-         │ source="user"        │ source="hook"        │ source="auto"
-         │ weight=1.0           │ weight=0.8           │ weight=0.6
-         │                      │                      │
-         └──────────────────────┼──────────────────────┘
-                                │
-                                ▼
-                    ┌───────────────────────┐
-                    │     []Reference       │
-                    │  (Unified Structure)  │
-                    └───────────┬───────────┘
-                                │
-                                ▼
-                    ┌───────────────────────┐
-                    │  Merge & Deduplicate  │
-                    │  Rerank by score*wt   │
-                    └───────────┬───────────┘
-                                │
-                                ▼
-                    ┌─────────────────────────────┐
-                    │  Build <references> XML     │
-                    └───────────┬─────────────────┘
-                                │
-                                ▼
-                    ┌───────────────────────┐
-                    │      LLM Input        │
-                    └───────────────────────┘
+```mermaid
+flowchart TD
+    subgraph Sources ["Data Sources"]
+        CM["Content Module<br/>(db:xxx kb:xxx)"]
+        HS["Hook Search<br/>ctx.search.*()"]
+        AS["Auto Search<br/>(assistant config)"]
+    end
+
+    CM -->|"source=user<br/>weight=1.0"| REF
+    HS -->|"source=hook<br/>weight=0.8"| REF
+    AS -->|"source=auto<br/>weight=0.6"| REF
+
+    REF["[]Reference<br/>(Unified Structure)"]
+    REF --> MERGE["Merge & Deduplicate<br/>Rerank by score × weight"]
+    MERGE --> BUILD["Build &lt;references&gt; XML"]
+    BUILD --> LLM["LLM Input"]
 ```
 
 **LLM References Format:**
