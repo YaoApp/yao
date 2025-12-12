@@ -171,9 +171,8 @@ agent/search/
 │       ├── query.go       # QueryDSL builder
 │       └── schema.go      # Model schema introspection
 │
-└── config/                # Configuration loading and defaults
-    ├── defaults.go        # System built-in defaults
-    └── loader.go          # Config loading and merging logic
+└── defaults/              # Default configuration values
+    └── defaults.go        # System built-in defaults (used by agent/load.go)
 ```
 
 ### Dependency Graph
@@ -190,7 +189,7 @@ agent/search/
          ┌─────────────────┼─────────────────┐
          │                 │                 │
    ┌─────▼─────┐    ┌──────▼──────┐   ┌──────▼──────┐
-   │  rerank/  │    │    nlp/     │   │  config/    │
+   │  rerank/  │    │    nlp/     │   │  defaults/  │
    └─────┬─────┘    └──────┬──────┘   └──────┬──────┘
          │                 │                 │
          └────────┬────────┴────────┬────────┘
@@ -212,11 +211,13 @@ agent/search/
 
 1. **`types/`** - Zero internal dependencies, only stdlib and external packages
 2. **`interfaces/`** - Imports only `types/`
-3. **`rerank/`**, **`nlp/`**, **`config/`** - Import `types/` and `interfaces/`
+3. **`rerank/`**, **`nlp/`**, **`defaults/`** - Import `types/` and `interfaces/`
 4. **`handlers/*`** - Import `types/`, `interfaces/`, and may use `nlp/` for NL processing
 5. **Root package** - Imports all sub-packages, provides public API
 
 ### Main Searcher Implementation (`search.go`)
+
+Configuration is loaded by `agent/load.go` (global) and `agent/assistant/load.go` (assistant-level), following the existing pattern. The Search package directly uses the loaded configuration.
 
 ```go
 package search
@@ -225,7 +226,6 @@ import (
     "sync"
 
     "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/config"
     "github.com/yaoapp/yao/agent/search/handlers/db"
     "github.com/yaoapp/yao/agent/search/handlers/kb"
     "github.com/yaoapp/yao/agent/search/handlers/web"
@@ -236,28 +236,18 @@ import (
 
 // Searcher is the main search implementation
 type Searcher struct {
-    config    *config.Loader
+    config    *types.Config           // Merged config (global + assistant)
     handlers  map[types.SearchType]interfaces.Handler
     reranker  interfaces.Reranker
     citation  *CitationGenerator
 }
 
 // New creates a new Searcher instance
-func New(assistantID string, usesRerank string) (*Searcher, error) {
-    loader := config.NewLoader()
-    if err := loader.LoadGlobal("agent/search.yao"); err != nil {
-        return nil, err
-    }
-    if assistantID != "" {
-        if err := loader.LoadAssistant(assistantID); err != nil {
-            return nil, err
-        }
-    }
-
-    cfg := loader.Merge()
-
+// cfg: merged config from agent/load.go + assistant config
+// usesRerank: reranker type from uses.rerank
+func New(cfg *types.Config, usesRerank string) *Searcher {
     return &Searcher{
-        config: loader,
+        config: cfg,
         handlers: map[types.SearchType]interfaces.Handler{
             types.SearchTypeWeb: web.NewHandler(cfg.Web),
             types.SearchTypeKB:  kb.NewHandler(cfg.KB),
@@ -265,7 +255,7 @@ func New(assistantID string, usesRerank string) (*Searcher, error) {
         },
         reranker: rerank.NewReranker(usesRerank),
         citation: NewCitationGenerator(),
-    }, nil
+    }
 }
 
 // Search executes a single search request
@@ -1104,16 +1094,17 @@ uses:
 
 Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server-id>"` (MCP)
 
-### System Built-in Defaults (`config/defaults.go`)
+### System Built-in Defaults (`defaults/defaults.go`)
 
-These are the hardcoded defaults when no configuration is provided:
+These are the hardcoded defaults, used by `agent/load.go` when loading configuration:
 
 ```go
-package config
+package defaults
 
 import "github.com/yaoapp/yao/agent/search/types"
 
 // SystemDefaults provides hardcoded default values
+// Used by agent/load.go for merging with agent/search.yao
 var SystemDefaults = &types.Config{
     // Web search defaults
     Web: &types.WebConfig{
@@ -1166,52 +1157,19 @@ var SystemDefaults = &types.Config{
         SkipThreshold: 5,
     },
 }
-```
-
-### Config Loader (`config/loader.go`)
-
-```go
-package config
-
-import (
-    "github.com/yaoapp/yao/agent/search/types"
-)
-
-// Loader loads and merges configuration from multiple sources
-type Loader struct {
-    globalConfig    *types.Config // From agent/search.yao
-    assistantConfig *types.Config // From assistants/<id>/package.yao
-}
-
-// NewLoader creates a new config loader
-func NewLoader() *Loader {
-    return &Loader{}
-}
-
-// LoadGlobal loads global configuration from agent/search.yao
-func (l *Loader) LoadGlobal(path string) error {
-    // Implementation
-    return nil
-}
-
-// LoadAssistant loads assistant-specific configuration
-func (l *Loader) LoadAssistant(assistantID string) error {
-    // Implementation
-    return nil
-}
-
-// Merge returns the merged configuration with priority:
-// SystemDefaults < GlobalConfig < AssistantConfig
-func (l *Loader) Merge() *types.Config {
-    result := *SystemDefaults
-    // Merge globalConfig
-    // Merge assistantConfig
-    return &result
-}
 
 // GetWeight returns the weight for a source type
-func (l *Loader) GetWeight(source types.SourceType) float64 {
-    cfg := l.Merge()
+func GetWeight(cfg *types.Config, source types.SourceType) float64 {
+    if cfg == nil || cfg.Weights == nil {
+        switch source {
+        case types.SourceUser:
+            return 1.0
+        case types.SourceHook:
+            return 0.8
+        default:
+            return 0.6
+        }
+    }
     switch source {
     case types.SourceUser:
         return cfg.Weights.User
@@ -1222,6 +1180,71 @@ func (l *Loader) GetWeight(source types.SourceType) float64 {
     default:
         return 0.6
     }
+}
+```
+
+### Configuration Loading (in `agent/load.go`)
+
+Configuration loading follows the existing pattern in `agent/load.go`:
+
+```go
+// agent/load.go
+
+import (
+    searchDefaults "github.com/yaoapp/yao/agent/search/defaults"
+    searchTypes "github.com/yaoapp/yao/agent/search/types"
+)
+
+var searchConfig *searchTypes.Config
+
+// initSearchConfig initialize the search configuration from agent/search.yao
+func initSearchConfig() error {
+    // Start with system defaults
+    searchConfig = searchDefaults.SystemDefaults
+
+    path := filepath.Join("agent", "search.yao")
+    if exists, _ := application.App.Exists(path); !exists {
+        return nil // Use defaults
+    }
+
+    // Read and merge with defaults
+    bytes, err := application.App.Read(path)
+    if err != nil {
+        return err
+    }
+
+    var cfg searchTypes.Config
+    err = application.Parse("search.yao", bytes, &cfg)
+    if err != nil {
+        return err
+    }
+
+    // Merge: defaults < global config
+    searchConfig = mergeSearchConfig(searchDefaults.SystemDefaults, &cfg)
+    return nil
+}
+
+// GetSearchConfig returns the global search configuration
+func GetSearchConfig() *searchTypes.Config {
+    return searchConfig
+}
+```
+
+### Assistant-level Config Merge (in `agent/assistant/load.go`)
+
+Assistant-specific search config is merged in `assistant/load.go`:
+
+```go
+// agent/assistant/load.go
+
+// GetMergedSearchConfig returns merged search config for this assistant
+func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
+    globalCfg := agent.GetSearchConfig()
+    if ast.Search == nil {
+        return globalCfg
+    }
+    // Merge: global < assistant
+    return mergeSearchConfig(globalCfg, ast.Search.ToConfig())
 }
 ```
 
@@ -2153,7 +2176,7 @@ This allows the search module to be reused for both:
 
 - `agent/search/types/` - All type definitions (no circular dependencies)
 - `agent/search/interfaces/` - All interface definitions
-- `agent/search/config/` - Configuration loading and defaults
+- `agent/search/defaults/` - System default configuration values
 - `agent/search/handlers/` - Handler implementations (web, kb, db)
 - `agent/search/rerank/` - Reranker implementations
 - `agent/search/nlp/` - NLP implementations (keyword, querydsl)
