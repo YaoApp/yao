@@ -5,6 +5,7 @@ import (
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search"
+	"github.com/yaoapp/yao/agent/search/nlp/keyword"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -73,7 +74,8 @@ func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResp
 
 // executeAutoSearch executes auto search based on configuration
 // Returns ReferenceContext with results and formatted context
-func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) *searchTypes.ReferenceContext {
+// opts is optional, used to check Skip.Keyword
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts ...*context.Options) *searchTypes.ReferenceContext {
 	ctx.Logger.Phase("Search")
 	defer ctx.Logger.PhaseComplete("Search")
 
@@ -101,6 +103,30 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	if query == "" {
 		ctx.Logger.Info("No query found in messages, skipping auto search")
 		return nil
+	}
+
+	// Check if keyword extraction should be skipped
+	skipKeyword := false
+	if len(opts) > 0 && opts[0] != nil && opts[0].Skip != nil {
+		skipKeyword = opts[0].Skip.Keyword
+	}
+
+	// Extract keywords for web search if:
+	// 1. uses.keyword is configured (not empty)
+	// 2. Skip.Keyword is not true
+	// 3. Web search is enabled
+	webSearchEnabled := searchConfig != nil && searchConfig.Web != nil
+	if webSearchEnabled && !skipKeyword && searchUses.Keyword != "" {
+		extractor := keyword.NewExtractor(searchUses.Keyword, searchConfig.Keyword)
+		keywords, err := extractor.Extract(ctx, query, nil)
+		if err != nil {
+			ctx.Logger.Warn("Keyword extraction failed, using original query: %v", err)
+		} else if len(keywords) > 0 {
+			// Use extracted keywords as the search query for web search
+			optimizedQuery := strings.Join(keywords, " ")
+			ctx.Logger.Info("Extracted keywords for web search: %s -> %s", truncateString(query, 30), optimizedQuery)
+			query = optimizedQuery
+		}
 	}
 
 	// Build search requests based on configuration

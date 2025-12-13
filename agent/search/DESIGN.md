@@ -1559,6 +1559,7 @@ Stream(ctx, messages, options)
   │   ├── IF Create Hook returned uses.search="disabled" → SKIP
   │   └── ELSE → Execute Auto Search (executeAutoSearch)
   │       ├── Read assistant's search config (GetMergedSearchConfig)
+  │       ├── Extract keywords (if uses.keyword && !Skip.Keyword)
   │       ├── Build search requests (buildSearchRequests)
   │       ├── Execute web/kb/db in parallel (searcher.All)
   │       ├── Build reference context (BuildReferenceContext)
@@ -1586,7 +1587,8 @@ Stream(ctx, messages, options)
 func (ast *Assistant) shouldAutoSearch(ctx *context.Context, createResponse *context.HookCreateResponse) bool
 
 // executeAutoSearch executes auto search based on configuration
-func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) *searchTypes.ReferenceContext
+// opts is optional, used to check Skip.Keyword for keyword extraction
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts ...*context.Options) *searchTypes.ReferenceContext
 
 // injectSearchContext injects search results into messages
 func (ast *Assistant) injectSearchContext(messages []context.Message, refCtx *searchTypes.ReferenceContext) []context.Message
@@ -1598,17 +1600,48 @@ func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResp
 func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Config) []*searchTypes.Request
 ```
 
+**Keyword Extraction in executeAutoSearch:**
+
+When `uses.keyword` is configured and `opts.Skip.Keyword` is not true, keyword extraction is performed before web search:
+
+```go
+// Extract keywords for web search if:
+// 1. uses.keyword is configured (not empty)
+// 2. Skip.Keyword is not true
+// 3. Web search is enabled
+if webSearchEnabled && !skipKeyword && searchUses.Keyword != "" {
+    extractor := keyword.NewExtractor(searchUses.Keyword, searchConfig.Keyword)
+    keywords, err := extractor.Extract(ctx, query, nil)
+    if err == nil && len(keywords) > 0 {
+        query = strings.Join(keywords, " ")
+    }
+}
+```
+
 **Integration in agent.go:**
 
 ```go
 // In Stream(), after BuildContent:
 if ast.shouldAutoSearch(ctx, createResponse) {
-    refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse)
+    refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
     if refCtx != nil && len(refCtx.References) > 0 {
         completionMessages = ast.injectSearchContext(completionMessages, refCtx)
     }
 }
 ```
+
+**Skip.Keyword Option (`context.Options.Skip`):**
+
+```go
+type Skip struct {
+    History bool `json:"history"` // Skip saving chat history
+    Trace   bool `json:"trace"`   // Skip trace logging
+    Output  bool `json:"output"`  // Skip output to client
+    Keyword bool `json:"keyword"` // Skip keyword extraction for web search
+}
+```
+
+Use `Skip.Keyword = true` when you want to use the raw query directly without keyword extraction.
 
 ### Control via Uses.Search
 
