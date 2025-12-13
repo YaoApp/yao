@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/store/types"
 )
 
@@ -183,6 +184,7 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		"placeholder":       assistant.Placeholder,
 		"locales":           assistant.Locales,
 		"uses":              assistant.Uses,
+		"search":            assistant.Search,
 	}
 
 	for field, value := range jsonFields {
@@ -241,7 +243,7 @@ func (store *Xun) UpdateAssistant(assistantID string, updates map[string]interfa
 	data := make(map[string]interface{})
 
 	// List of fields that need JSON marshaling
-	jsonFields := []string{"options", "tags", "modes", "prompts", "prompt_presets", "connector_options", "kb", "db", "mcp", "workflow", "placeholder", "locales", "uses"}
+	jsonFields := []string{"options", "tags", "modes", "prompts", "prompt_presets", "connector_options", "kb", "db", "mcp", "workflow", "placeholder", "locales", "uses", "search"}
 	jsonFieldSet := make(map[string]bool)
 	for _, field := range jsonFields {
 		jsonFieldSet[field] = true
@@ -441,7 +443,7 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 
 	// Convert rows to types.AssistantModel slice
 	assistants := make([]*types.AssistantModel, 0, len(rows))
-	jsonFields := []string{"tags", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "mcp", "placeholder", "locales", "uses"}
+	jsonFields := []string{"tags", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "mcp", "placeholder", "locales", "uses", "search"}
 
 	for _, row := range rows {
 		data := row.ToMap()
@@ -514,7 +516,7 @@ func (store *Xun) GetAssistant(assistantID string, fields []string, locale ...st
 	}
 
 	// Parse JSON fields
-	jsonFields := []string{"tags", "modes", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "db", "mcp", "placeholder", "locales", "uses"}
+	jsonFields := []string{"tags", "modes", "options", "prompts", "prompt_presets", "connector_options", "workflow", "kb", "db", "mcp", "placeholder", "locales", "uses", "search"}
 	store.parseJSONFields(data, jsonFields)
 
 	// Convert map to types.AssistantModel
@@ -655,6 +657,16 @@ func (store *Xun) GetAssistant(assistantID string, fields []string, locale ...st
 			var u context.Uses
 			if err := jsoniter.Unmarshal(raw, &u); err == nil {
 				model.Uses = &u
+			}
+		}
+	}
+
+	if search, has := data["search"]; has && search != nil {
+		raw, err := jsoniter.Marshal(search)
+		if err == nil {
+			var s searchTypes.Config
+			if err := jsoniter.Unmarshal(raw, &s); err == nil {
+				model.Search = &s
 			}
 		}
 	}

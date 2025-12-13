@@ -41,6 +41,7 @@ xgen/v1.0/*
 *-unit-test
 docker/build/test
 db
+!agent/search/handlers/db
 *.sh
 data/bindata.go.bak
 share/const.go.bak
@@ -49,3 +50,4 @@ share/const.goe
 openapi/*.md
 coverage.html
 agent/assistant/hook/*.test.md
+agent/search/TODO.md

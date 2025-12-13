@@ -21,12 +21,6 @@ type API interface {
 	GetPlaceholder(locale string) *store.Placeholder
 }
 
-// SearchOption the search option
-type SearchOption struct {
-	WebSearch *bool `json:"web_search,omitempty" yaml:"web_search,omitempty"` // Whether to search the web
-	Knowledge *bool `json:"knowledge,omitempty" yaml:"knowledge,omitempty"`   // Whether to search the knowledge
-}
-
 // Script the script scripts except hook script
 type Script struct {
 	*v8.Script
@@ -35,16 +29,13 @@ type Script struct {
 // Assistant the assistant
 type Assistant struct {
 	store.AssistantModel
-	Search     *SearchOption      `json:"search,omitempty" yaml:"search,omitempty"` // Whether this assistant supports search
-	HookScript *hook.Script       `json:"-" yaml:"-"`                               // Hook Script (index.ts)
-	Scripts    map[string]*Script `json:"-" yaml:"-"`                               // Other scripts
+	HookScript *hook.Script       `json:"-" yaml:"-"` // Hook Script (index.ts)
+	Scripts    map[string]*Script `json:"-" yaml:"-"` // Other scripts
 
 	// Internal
 	// ===============================
 	openai *api.OpenAI // OpenAI API
-	search bool        // Whether this assistant supports search
 	vision bool        // Whether this assistant supports vision
-	// toolCalls    bool        // Whether this assistant supports tool_calls
 }
 
 // MCPTool represents a simplified MCP tool for building LLM requests

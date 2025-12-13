@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -932,4 +933,247 @@ function Create(ctx: any, messages: any[]): any {
 		require.NotNil(t, res.DisableGlobalPrompts)
 		assert.False(t, *res.DisableGlobalPrompts)
 	})
+}
+
+// TestLoadStoreWithSearchConfig tests loading assistant with search configuration from database
+func TestLoadStoreWithSearchConfig(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	assistantID := "test.store-with-search"
+	now := time.Now().UnixNano()
+
+	ast := &assistant.Assistant{
+		AssistantModel: store.AssistantModel{
+			ID:        assistantID,
+			Name:      "Test With Search Config",
+			Type:      "assistant",
+			Connector: "gpt-4o",
+			Uses: &context.Uses{
+				Vision:   "agent",
+				Audio:    "mcp:audio-server",
+				Fetch:    "agent",
+				Web:      "builtin",
+				Keyword:  "builtin",
+				QueryDSL: "builtin",
+				Rerank:   "builtin",
+			},
+			Search: &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider:   "tavily",
+					MaxResults: 15,
+				},
+				KB: &searchTypes.KBConfig{
+					Collections: []string{"docs", "faq"},
+					Threshold:   0.8,
+					Graph:       true,
+				},
+				DB: &searchTypes.DBConfig{
+					Models:     []string{"user", "product"},
+					MaxResults: 50,
+				},
+				Keyword: &searchTypes.KeywordConfig{
+					MaxKeywords: 8,
+					Language:    "auto",
+				},
+				QueryDSL: &searchTypes.QueryDSLConfig{
+					Strict: true,
+				},
+				Rerank: &searchTypes.RerankConfig{
+					TopN: 5,
+				},
+				Citation: &searchTypes.CitationConfig{
+					Format:           "#cite:{id}",
+					AutoInjectPrompt: false,
+					CustomPrompt:     "Please cite sources.",
+				},
+				Weights: &searchTypes.WeightsConfig{
+					User: 1.0,
+					Hook: 0.85,
+					Auto: 0.65,
+				},
+				Options: &searchTypes.OptionsConfig{
+					SkipThreshold: 3,
+				},
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	err := ast.Save()
+	require.NoError(t, err)
+
+	defer func() {
+		storage := assistant.GetStorage()
+		if storage != nil {
+			storage.DeleteAssistant(assistantID)
+		}
+		assistant.GetCache().Clear()
+	}()
+
+	assistant.GetCache().Clear()
+
+	loaded, err := assistant.Get(assistantID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+
+	// Verify Uses
+	require.NotNil(t, loaded.Uses)
+	assert.Equal(t, "agent", loaded.Uses.Vision)
+	assert.Equal(t, "mcp:audio-server", loaded.Uses.Audio)
+	assert.Equal(t, "agent", loaded.Uses.Fetch)
+	assert.Equal(t, "builtin", loaded.Uses.Web)
+	assert.Equal(t, "builtin", loaded.Uses.Keyword)
+	assert.Equal(t, "builtin", loaded.Uses.QueryDSL)
+	assert.Equal(t, "builtin", loaded.Uses.Rerank)
+
+	// Verify Search config
+	require.NotNil(t, loaded.Search)
+
+	// Web config
+	require.NotNil(t, loaded.Search.Web)
+	assert.Equal(t, "tavily", loaded.Search.Web.Provider)
+	assert.Equal(t, 15, loaded.Search.Web.MaxResults)
+
+	// KB config
+	require.NotNil(t, loaded.Search.KB)
+	assert.Equal(t, []string{"docs", "faq"}, loaded.Search.KB.Collections)
+	assert.Equal(t, 0.8, loaded.Search.KB.Threshold)
+	assert.True(t, loaded.Search.KB.Graph)
+
+	// DB config
+	require.NotNil(t, loaded.Search.DB)
+	assert.Equal(t, []string{"user", "product"}, loaded.Search.DB.Models)
+	assert.Equal(t, 50, loaded.Search.DB.MaxResults)
+
+	// Keyword config
+	require.NotNil(t, loaded.Search.Keyword)
+	assert.Equal(t, 8, loaded.Search.Keyword.MaxKeywords)
+	assert.Equal(t, "auto", loaded.Search.Keyword.Language)
+
+	// QueryDSL config
+	require.NotNil(t, loaded.Search.QueryDSL)
+	assert.True(t, loaded.Search.QueryDSL.Strict)
+
+	// Rerank config
+	require.NotNil(t, loaded.Search.Rerank)
+	assert.Equal(t, 5, loaded.Search.Rerank.TopN)
+
+	// Citation config
+	require.NotNil(t, loaded.Search.Citation)
+	assert.Equal(t, "#cite:{id}", loaded.Search.Citation.Format)
+	assert.False(t, loaded.Search.Citation.AutoInjectPrompt)
+	assert.Equal(t, "Please cite sources.", loaded.Search.Citation.CustomPrompt)
+
+	// Weights config
+	require.NotNil(t, loaded.Search.Weights)
+	assert.Equal(t, 1.0, loaded.Search.Weights.User)
+	assert.Equal(t, 0.85, loaded.Search.Weights.Hook)
+	assert.Equal(t, 0.65, loaded.Search.Weights.Auto)
+
+	// Options config
+	require.NotNil(t, loaded.Search.Options)
+	assert.Equal(t, 3, loaded.Search.Options.SkipThreshold)
+}
+
+// TestLoadStoreWithPartialSearchConfig tests loading assistant with partial search configuration
+func TestLoadStoreWithPartialSearchConfig(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	assistantID := "test.store-partial-search"
+	now := time.Now().UnixNano()
+
+	ast := &assistant.Assistant{
+		AssistantModel: store.AssistantModel{
+			ID:        assistantID,
+			Name:      "Test Partial Search Config",
+			Type:      "assistant",
+			Connector: "gpt-4o",
+			Search: &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider: "serper",
+				},
+				// Only web config, others are nil
+			},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	err := ast.Save()
+	require.NoError(t, err)
+
+	defer func() {
+		storage := assistant.GetStorage()
+		if storage != nil {
+			storage.DeleteAssistant(assistantID)
+		}
+		assistant.GetCache().Clear()
+	}()
+
+	assistant.GetCache().Clear()
+
+	loaded, err := assistant.Get(assistantID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+
+	// Verify Search config
+	require.NotNil(t, loaded.Search)
+
+	// Web config should be set
+	require.NotNil(t, loaded.Search.Web)
+	assert.Equal(t, "serper", loaded.Search.Web.Provider)
+
+	// Other configs should be nil
+	assert.Nil(t, loaded.Search.KB)
+	assert.Nil(t, loaded.Search.DB)
+	assert.Nil(t, loaded.Search.Keyword)
+	assert.Nil(t, loaded.Search.QueryDSL)
+	assert.Nil(t, loaded.Search.Rerank)
+	assert.Nil(t, loaded.Search.Citation)
+	assert.Nil(t, loaded.Search.Weights)
+	assert.Nil(t, loaded.Search.Options)
+}
+
+// TestLoadStoreWithoutSearchConfig tests loading assistant without search configuration
+func TestLoadStoreWithoutSearchConfig(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	assistantID := "test.store-no-search"
+	now := time.Now().UnixNano()
+
+	ast := &assistant.Assistant{
+		AssistantModel: store.AssistantModel{
+			ID:        assistantID,
+			Name:      "Test No Search Config",
+			Type:      "assistant",
+			Connector: "gpt-4o",
+			// No Search config
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+
+	err := ast.Save()
+	require.NoError(t, err)
+
+	defer func() {
+		storage := assistant.GetStorage()
+		if storage != nil {
+			storage.DeleteAssistant(assistantID)
+		}
+		assistant.GetCache().Clear()
+	}()
+
+	assistant.GetCache().Clear()
+
+	loaded, err := assistant.Get(assistantID)
+	require.NoError(t, err)
+	require.NotNil(t, loaded)
+
+	// Search config should be nil
+	assert.Nil(t, loaded.Search)
 }

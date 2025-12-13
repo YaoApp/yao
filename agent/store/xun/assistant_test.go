@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/config"
@@ -449,6 +450,198 @@ func TestSaveAssistant(t *testing.T) {
 
 		if retrieved.Uses.Fetch != "" {
 			t.Errorf("Expected fetch to be empty, got '%s'", retrieved.Uses.Fetch)
+		}
+	})
+
+	t.Run("SearchConfiguration", func(t *testing.T) {
+		// Test assistant with Search configuration
+		assistant := &types.AssistantModel{
+			Name:      "Search Config Test Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			Search: &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider:   "tavily",
+					MaxResults: 15,
+				},
+				KB: &searchTypes.KBConfig{
+					Collections: []string{"docs", "faq"},
+					Threshold:   0.8,
+					Graph:       true,
+				},
+				DB: &searchTypes.DBConfig{
+					Models:     []string{"user", "product"},
+					MaxResults: 50,
+				},
+				Citation: &searchTypes.CitationConfig{
+					Format:           "#ref:{id}",
+					AutoInjectPrompt: true,
+				},
+				Weights: &searchTypes.WeightsConfig{
+					User: 1.0,
+					Hook: 0.9,
+					Auto: 0.7,
+				},
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with search config: %v", err)
+		}
+
+		// Retrieve and verify search configuration - search is NOT in default fields
+		retrieved, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Search == nil {
+			t.Fatal("Expected search to be set")
+		}
+
+		// Verify Web config
+		if retrieved.Search.Web == nil {
+			t.Fatal("Expected search.web to be set")
+		}
+		if retrieved.Search.Web.Provider != "tavily" {
+			t.Errorf("Expected web provider 'tavily', got '%s'", retrieved.Search.Web.Provider)
+		}
+		if retrieved.Search.Web.MaxResults != 15 {
+			t.Errorf("Expected web max_results 15, got %d", retrieved.Search.Web.MaxResults)
+		}
+
+		// Verify KB config
+		if retrieved.Search.KB == nil {
+			t.Fatal("Expected search.kb to be set")
+		}
+		if len(retrieved.Search.KB.Collections) != 2 {
+			t.Errorf("Expected 2 KB collections, got %d", len(retrieved.Search.KB.Collections))
+		}
+		if retrieved.Search.KB.Collections[0] != "docs" {
+			t.Errorf("Expected first collection 'docs', got '%s'", retrieved.Search.KB.Collections[0])
+		}
+		if retrieved.Search.KB.Threshold != 0.8 {
+			t.Errorf("Expected KB threshold 0.8, got %f", retrieved.Search.KB.Threshold)
+		}
+		if !retrieved.Search.KB.Graph {
+			t.Error("Expected KB graph to be true")
+		}
+
+		// Verify DB config
+		if retrieved.Search.DB == nil {
+			t.Fatal("Expected search.db to be set")
+		}
+		if len(retrieved.Search.DB.Models) != 2 {
+			t.Errorf("Expected 2 DB models, got %d", len(retrieved.Search.DB.Models))
+		}
+		if retrieved.Search.DB.MaxResults != 50 {
+			t.Errorf("Expected DB max_results 50, got %d", retrieved.Search.DB.MaxResults)
+		}
+
+		// Verify Citation config
+		if retrieved.Search.Citation == nil {
+			t.Fatal("Expected search.citation to be set")
+		}
+		if retrieved.Search.Citation.Format != "#ref:{id}" {
+			t.Errorf("Expected citation format '#ref:{id}', got '%s'", retrieved.Search.Citation.Format)
+		}
+		if !retrieved.Search.Citation.AutoInjectPrompt {
+			t.Error("Expected citation auto_inject_prompt to be true")
+		}
+
+		// Verify Weights config
+		if retrieved.Search.Weights == nil {
+			t.Fatal("Expected search.weights to be set")
+		}
+		if retrieved.Search.Weights.User != 1.0 {
+			t.Errorf("Expected weights.user 1.0, got %f", retrieved.Search.Weights.User)
+		}
+		if retrieved.Search.Weights.Hook != 0.9 {
+			t.Errorf("Expected weights.hook 0.9, got %f", retrieved.Search.Weights.Hook)
+		}
+		if retrieved.Search.Weights.Auto != 0.7 {
+			t.Errorf("Expected weights.auto 0.7, got %f", retrieved.Search.Weights.Auto)
+		}
+
+		t.Logf("Successfully saved and retrieved assistant with search configuration")
+	})
+
+	t.Run("NilSearchConfiguration", func(t *testing.T) {
+		// Test assistant without Search configuration
+		assistant := &types.AssistantModel{
+			Name:      "No Search Config Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant without search: %v", err)
+		}
+
+		// Retrieve and verify search is nil - request all fields to check search
+		retrieved, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Search != nil {
+			t.Errorf("Expected search to be nil, got %+v", retrieved.Search)
+		}
+	})
+
+	t.Run("PartialSearchConfiguration", func(t *testing.T) {
+		// Test assistant with partial Search configuration
+		assistant := &types.AssistantModel{
+			Name:      "Partial Search Config Assistant",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			Search: &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider: "serper",
+				},
+				// KB, DB, Citation, Weights not set
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with partial search: %v", err)
+		}
+
+		// Retrieve and verify - request all fields for search
+		retrieved, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Search == nil {
+			t.Fatal("Expected search to be set")
+		}
+
+		if retrieved.Search.Web == nil {
+			t.Fatal("Expected search.web to be set")
+		}
+		if retrieved.Search.Web.Provider != "serper" {
+			t.Errorf("Expected web provider 'serper', got '%s'", retrieved.Search.Web.Provider)
+		}
+
+		// Other fields should be nil
+		if retrieved.Search.KB != nil {
+			t.Errorf("Expected search.kb to be nil, got %+v", retrieved.Search.KB)
+		}
+		if retrieved.Search.DB != nil {
+			t.Errorf("Expected search.db to be nil, got %+v", retrieved.Search.DB)
+		}
+		if retrieved.Search.Citation != nil {
+			t.Errorf("Expected search.citation to be nil, got %+v", retrieved.Search.Citation)
+		}
+		if retrieved.Search.Weights != nil {
+			t.Errorf("Expected search.weights to be nil, got %+v", retrieved.Search.Weights)
 		}
 	})
 
@@ -2722,6 +2915,128 @@ func TestUpdateAssistant(t *testing.T) {
 
 		if retrieved3.Uses != nil {
 			t.Errorf("Expected uses to be nil, got %+v", retrieved3.Uses)
+		}
+	})
+
+	t.Run("UpdateSearch", func(t *testing.T) {
+		// Create assistant without search
+		assistant := &types.AssistantModel{
+			Name:      "Search Update Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to create assistant: %v", err)
+		}
+
+		// Update with search configuration
+		updates := map[string]interface{}{
+			"search": &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider:   "tavily",
+					MaxResults: 20,
+				},
+				KB: &searchTypes.KBConfig{
+					Collections: []string{"knowledge"},
+					Threshold:   0.75,
+				},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates)
+		if err != nil {
+			t.Fatalf("Failed to update search: %v", err)
+		}
+
+		// Verify updates - search is NOT in default fields
+		retrieved, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved.Search == nil {
+			t.Fatal("Expected search to be set")
+		}
+
+		if retrieved.Search.Web == nil {
+			t.Fatal("Expected search.web to be set")
+		}
+		if retrieved.Search.Web.Provider != "tavily" {
+			t.Errorf("Expected web provider 'tavily', got '%s'", retrieved.Search.Web.Provider)
+		}
+		if retrieved.Search.Web.MaxResults != 20 {
+			t.Errorf("Expected web max_results 20, got %d", retrieved.Search.Web.MaxResults)
+		}
+
+		if retrieved.Search.KB == nil {
+			t.Fatal("Expected search.kb to be set")
+		}
+		if len(retrieved.Search.KB.Collections) != 1 {
+			t.Errorf("Expected 1 KB collection, got %d", len(retrieved.Search.KB.Collections))
+		}
+		if retrieved.Search.KB.Threshold != 0.75 {
+			t.Errorf("Expected KB threshold 0.75, got %f", retrieved.Search.KB.Threshold)
+		}
+
+		// Update to change search configuration
+		updates2 := map[string]interface{}{
+			"search": &searchTypes.Config{
+				Web: &searchTypes.WebConfig{
+					Provider:   "serper",
+					MaxResults: 30,
+				},
+				Citation: &searchTypes.CitationConfig{
+					Format:           "#cite:{id}",
+					AutoInjectPrompt: false,
+				},
+			},
+		}
+
+		err = store.UpdateAssistant(id, updates2)
+		if err != nil {
+			t.Fatalf("Failed to update search again: %v", err)
+		}
+
+		// Verify second update - search is NOT in default fields
+		retrieved2, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved2.Search.Web.Provider != "serper" {
+			t.Errorf("Expected web provider 'serper', got '%s'", retrieved2.Search.Web.Provider)
+		}
+		if retrieved2.Search.Web.MaxResults != 30 {
+			t.Errorf("Expected web max_results 30, got %d", retrieved2.Search.Web.MaxResults)
+		}
+		if retrieved2.Search.Citation == nil {
+			t.Fatal("Expected search.citation to be set")
+		}
+		if retrieved2.Search.Citation.Format != "#cite:{id}" {
+			t.Errorf("Expected citation format '#cite:{id}', got '%s'", retrieved2.Search.Citation.Format)
+		}
+
+		// Update to remove search (set to nil)
+		updates3 := map[string]interface{}{
+			"search": nil,
+		}
+
+		err = store.UpdateAssistant(id, updates3)
+		if err != nil {
+			t.Fatalf("Failed to set search to nil: %v", err)
+		}
+
+		// Verify search is nil - search is NOT in default fields
+		retrieved3, err := store.GetAssistant(id, types.AssistantFullFields)
+		if err != nil {
+			t.Fatalf("Failed to retrieve assistant: %v", err)
+		}
+
+		if retrieved3.Search != nil {
+			t.Errorf("Expected search to be nil, got %+v", retrieved3.Search)
 		}
 	})
 

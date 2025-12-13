@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/agent/content"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	sui "github.com/yaoapp/yao/sui/core"
 )
@@ -115,6 +116,8 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"automated":              ast.Automated,
 		"placeholder":            ast.Placeholder,
 		"locales":                ast.Locales,
+		"uses":                   ast.Uses,
+		"search":                 ast.Search,
 		"created_at":             store.ToMySQLTime(ast.CreatedAt),
 		"updated_at":             store.ToMySQLTime(ast.UpdatedAt),
 	}
@@ -183,7 +186,6 @@ func (ast *Assistant) Clone() *Assistant {
 			CreatedAt:            ast.CreatedAt,
 			UpdatedAt:            ast.UpdatedAt,
 		},
-		Search:     ast.Search,
 		HookScript: ast.HookScript,
 		openai:     ast.openai,
 	}
@@ -342,6 +344,86 @@ func (ast *Assistant) Clone() *Assistant {
 			clone.Locales[k] = i18n.I18n{
 				Locale:   v.Locale,
 				Messages: messages,
+			}
+		}
+	}
+
+	// Deep copy uses
+	if ast.Uses != nil {
+		clone.Uses = &agentContext.Uses{
+			Vision:   ast.Uses.Vision,
+			Audio:    ast.Uses.Audio,
+			Search:   ast.Uses.Search,
+			Fetch:    ast.Uses.Fetch,
+			Web:      ast.Uses.Web,
+			Keyword:  ast.Uses.Keyword,
+			QueryDSL: ast.Uses.QueryDSL,
+			Rerank:   ast.Uses.Rerank,
+		}
+	}
+
+	// Deep copy search config
+	if ast.Search != nil {
+		clone.Search = &searchTypes.Config{}
+		if ast.Search.Web != nil {
+			clone.Search.Web = &searchTypes.WebConfig{
+				Provider:   ast.Search.Web.Provider,
+				APIKeyEnv:  ast.Search.Web.APIKeyEnv,
+				MaxResults: ast.Search.Web.MaxResults,
+			}
+		}
+		if ast.Search.KB != nil {
+			clone.Search.KB = &searchTypes.KBConfig{
+				Threshold: ast.Search.KB.Threshold,
+				Graph:     ast.Search.KB.Graph,
+			}
+			if ast.Search.KB.Collections != nil {
+				clone.Search.KB.Collections = make([]string, len(ast.Search.KB.Collections))
+				copy(clone.Search.KB.Collections, ast.Search.KB.Collections)
+			}
+		}
+		if ast.Search.DB != nil {
+			clone.Search.DB = &searchTypes.DBConfig{
+				MaxResults: ast.Search.DB.MaxResults,
+			}
+			if ast.Search.DB.Models != nil {
+				clone.Search.DB.Models = make([]string, len(ast.Search.DB.Models))
+				copy(clone.Search.DB.Models, ast.Search.DB.Models)
+			}
+		}
+		if ast.Search.Keyword != nil {
+			clone.Search.Keyword = &searchTypes.KeywordConfig{
+				MaxKeywords: ast.Search.Keyword.MaxKeywords,
+				Language:    ast.Search.Keyword.Language,
+			}
+		}
+		if ast.Search.QueryDSL != nil {
+			clone.Search.QueryDSL = &searchTypes.QueryDSLConfig{
+				Strict: ast.Search.QueryDSL.Strict,
+			}
+		}
+		if ast.Search.Rerank != nil {
+			clone.Search.Rerank = &searchTypes.RerankConfig{
+				TopN: ast.Search.Rerank.TopN,
+			}
+		}
+		if ast.Search.Citation != nil {
+			clone.Search.Citation = &searchTypes.CitationConfig{
+				Format:           ast.Search.Citation.Format,
+				AutoInjectPrompt: ast.Search.Citation.AutoInjectPrompt,
+				CustomPrompt:     ast.Search.Citation.CustomPrompt,
+			}
+		}
+		if ast.Search.Weights != nil {
+			clone.Search.Weights = &searchTypes.WeightsConfig{
+				User: ast.Search.Weights.User,
+				Hook: ast.Search.Weights.Hook,
+				Auto: ast.Search.Weights.Auto,
+			}
+		}
+		if ast.Search.Options != nil {
+			clone.Search.Options = &searchTypes.OptionsConfig{
+				SkipThreshold: ast.Search.Options.SkipThreshold,
 			}
 		}
 	}
@@ -512,5 +594,29 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 		ast.Workflow = workflow
 	}
 
+	// Uses
+	if v, has := data["uses"]; has {
+		uses, err := store.ToUses(v)
+		if err != nil {
+			return err
+		}
+		ast.Uses = uses
+	}
+
+	// Search
+	if v, has := data["search"]; has {
+		search, err := store.ToSearchConfig(v)
+		if err != nil {
+			return err
+		}
+		ast.Search = search
+	}
+
 	return ast.Validate()
+}
+
+// GetMergedSearchConfig returns the search config for this assistant
+// Note: The config is already merged with global config during loading (loadMap)
+func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
+	return ast.Search
 }

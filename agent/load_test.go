@@ -94,6 +94,49 @@ func TestLoad(t *testing.T) {
 		assert.Equal(t, "__yao.utf8", agent.KB.Chat.DocumentDefaults.Converter.ProviderID)
 		assert.Equal(t, "standard-text", agent.KB.Chat.DocumentDefaults.Converter.OptionID)
 	})
+
+	t.Run("LoadSearchConfig", func(t *testing.T) {
+		// Search configuration should be loaded from agent/search.yml
+		assert.NotNil(t, agent.Search)
+
+		// Verify web config
+		assert.NotNil(t, agent.Search.Web)
+		assert.Equal(t, "tavily", agent.Search.Web.Provider)
+		assert.Equal(t, 10, agent.Search.Web.MaxResults)
+
+		// Verify KB config
+		assert.NotNil(t, agent.Search.KB)
+		assert.Equal(t, 0.7, agent.Search.KB.Threshold)
+		assert.False(t, agent.Search.KB.Graph)
+
+		// Verify DB config
+		assert.NotNil(t, agent.Search.DB)
+		assert.Equal(t, 20, agent.Search.DB.MaxResults)
+
+		// Verify keyword config
+		assert.NotNil(t, agent.Search.Keyword)
+		assert.Equal(t, 10, agent.Search.Keyword.MaxKeywords)
+		assert.Equal(t, "auto", agent.Search.Keyword.Language)
+
+		// Verify rerank config
+		assert.NotNil(t, agent.Search.Rerank)
+		assert.Equal(t, 10, agent.Search.Rerank.TopN)
+
+		// Verify citation config
+		assert.NotNil(t, agent.Search.Citation)
+		assert.Equal(t, "#ref:{id}", agent.Search.Citation.Format)
+		assert.True(t, agent.Search.Citation.AutoInjectPrompt)
+
+		// Verify weights config
+		assert.NotNil(t, agent.Search.Weights)
+		assert.Equal(t, 1.0, agent.Search.Weights.User)
+		assert.Equal(t, 0.8, agent.Search.Weights.Hook)
+		assert.Equal(t, 0.6, agent.Search.Weights.Auto)
+
+		// Verify options config
+		assert.NotNil(t, agent.Search.Options)
+		assert.Equal(t, 5, agent.Search.Options.SkipThreshold)
+	})
 }
 
 func TestGetGlobalPrompts(t *testing.T) {

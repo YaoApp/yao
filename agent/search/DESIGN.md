@@ -1089,7 +1089,7 @@ function Create(ctx, messages, options) {
 Configuration follows a three-layer hierarchy (later overrides earlier):
 
 1. **System Built-in Defaults** - Hardcoded sensible defaults
-2. **Global Configuration** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+2. **Global Configuration** - `agent/agent.yml` (uses) + `agent/search.yml` (search options)
 3. **Assistant Configuration** - `assistants/<assistant-id>/package.yao` (uses + search options)
 
 ### Uses Configuration
@@ -1158,7 +1158,7 @@ package defaults
 import "github.com/yaoapp/yao/agent/search/types"
 
 // SystemDefaults provides hardcoded default values
-// Used by agent/load.go for merging with agent/search.yao
+// Used by agent/load.go for merging with agent/search.yml
 var SystemDefaults = &types.Config{
     // Web search defaults
     Web: &types.WebConfig{
@@ -1251,12 +1251,12 @@ import (
 
 var searchConfig *searchTypes.Config
 
-// initSearchConfig initialize the search configuration from agent/search.yao
+// initSearchConfig initialize the search configuration from agent/search.yml
 func initSearchConfig() error {
     // Start with system defaults
     searchConfig = searchDefaults.SystemDefaults
 
-    path := filepath.Join("agent", "search.yao")
+    path := filepath.Join("agent", "search.yml")
     if exists, _ := application.App.Exists(path); !exists {
         return nil // Use defaults
     }
@@ -1268,7 +1268,7 @@ func initSearchConfig() error {
     }
 
     var cfg searchTypes.Config
-    err = application.Parse("search.yao", bytes, &cfg)
+    err = application.Parse("search.yml", bytes, &cfg)
     if err != nil {
         return err
     }
@@ -1304,62 +1304,54 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 
 ### Global Configuration
 
-`agent/search.yao` - Override system defaults for all assistants:
+`agent/search.yml` - Override system defaults for all assistants:
 
-```jsonc
-{
-  // Web search settings
-  "web": {
-    "provider": "tavily", // "tavily", "serper" (builtin providers only)
-    "api_key_env": "TAVILY_API_KEY",
-    "max_results": 10
-  },
+```yaml
+# Global Search Configuration
+# These settings apply to all assistants unless overridden by assistant-specific configurations.
 
-  // Knowledge base search settings
-  "kb": {
-    "threshold": 0.7, // Similarity threshold
-    "graph": false // Enable GraphRAG association
-  },
+# Web search settings
+web:
+  provider: "tavily" # "tavily", "serper" (builtin providers only)
+  api_key_env: "TAVILY_API_KEY"
+  max_results: 10
 
-  // Database search settings
-  "db": {
-    "max_results": 20
-  },
+# Knowledge base search settings
+kb:
+  threshold: 0.7 # Similarity threshold
+  graph: false # Enable GraphRAG association
 
-  // Keyword extraction options (uses.keyword)
-  "keyword": {
-    "max_keywords": 10,
-    "language": "auto" // "auto", "en", "zh", etc.
-  },
+# Database search settings
+db:
+  max_results: 20
 
-  // QueryDSL generation options (uses.querydsl)
-  "querydsl": {
-    "strict": false // Strict mode: fail if generation fails
-  },
+# Keyword extraction options (uses.keyword)
+keyword:
+  max_keywords: 10
+  language: "auto" # "auto", "en", "zh", etc.
 
-  // Rerank options (uses.rerank)
-  "rerank": {
-    "top_n": 10 // Return top N results after reranking
-  },
+# QueryDSL generation options (uses.querydsl)
+querydsl:
+  strict: false # Strict mode: fail if generation fails
 
-  // Citation format for LLM references
-  "citation": {
-    "format": "#ref:{id}",
-    "auto_inject_prompt": true // Auto-inject citation instructions to system prompt
-  },
+# Rerank options (uses.rerank)
+rerank:
+  top_n: 10 # Return top N results after reranking
 
-  // Source weighting for result merging
-  "weights": {
-    "user": 1.0, // User-provided DataContent (highest priority)
-    "hook": 0.8, // Hook ctx.search.*() results
-    "auto": 0.6 // Auto search results
-  },
+# Citation format for LLM references
+citation:
+  format: "#ref:{id}"
+  auto_inject_prompt: true # Auto-inject citation instructions to system prompt
 
-  // Search behavior options
-  "options": {
-    "skip_threshold": 5 // Skip auto search if user provides >= N results
-  }
-}
+# Source weighting for result merging
+weights:
+  user: 1.0 # User-provided DataContent (highest priority)
+  hook: 0.8 # Hook ctx.search.*() results
+  auto: 0.6 # Auto search results
+
+# Search behavior options
+options:
+  skip_threshold: 5 # Skip auto search if user provides >= N results
 ```
 
 ### Assistant Configuration
@@ -1380,7 +1372,7 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
     "rerank": "mcp:my-server.rerank" // Use MCP tool for reranking
   },
 
-  // Search configuration (overrides agent/search.yao)
+  // Search configuration (overrides agent/search.yml)
   "search": {
     // Overrides global web settings
     "web": {
@@ -2017,7 +2009,7 @@ if (result.error) {
 Configuration is merged with later layers overriding earlier ones:
 
 1. **System Built-in** - Hardcoded defaults (lowest priority)
-2. **Global-level** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+2. **Global-level** - `agent/agent.yml` (uses) + `agent/search.yml` (search options)
 3. **Assistant-level** - `assistants/<assistant-id>/package.yao` (uses + search)
 4. **Hook-level** - CreateHook return `uses.search` value
 5. **Request-level** - `options.uses.search` in Stream() call (highest priority)
@@ -2301,19 +2293,15 @@ Stream()
 
 **Configuration:**
 
-Global defaults (`agent/search.yao`):
+Global defaults (`agent/search.yml`):
 
-```jsonc
-{
-  "weights": {
-    "user": 1.0, // User-provided DataContent
-    "hook": 0.8, // Hook ctx.search.*() results
-    "auto": 0.6 // Auto search results
-  },
-  "options": {
-    "skip_threshold": 5 // Skip auto search if user provides >= N results
-  }
-}
+```yaml
+weights:
+  user: 1.0 # User-provided DataContent
+  hook: 0.8 # Hook ctx.search.*() results
+  auto: 0.6 # Auto search results
+options:
+  skip_threshold: 5 # Skip auto search if user provides >= N results
 ```
 
 Assistant-level override (`assistants/<assistant-id>/package.yao`):

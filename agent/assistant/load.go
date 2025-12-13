@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/openai"
 	"gopkg.in/yaml.v3"
@@ -22,12 +23,12 @@ import (
 var loaded = NewCache(200) // 200 is the default capacity
 var storage store.Store = nil
 var storeSetting *store.Setting = nil // store setting from agent.yml
-var search interface{} = nil
 var modelCapabilities map[string]gouOpenAI.Capabilities = map[string]gouOpenAI.Capabilities{}
-var defaultConnector string = ""           // default connector
-var globalUses *context.Uses = nil         // global uses configuration from agent.yml
-var globalPrompts []store.Prompt = nil     // global prompts from agent/prompts.yml
-var globalKBSetting *store.KBSetting = nil // global KB setting from agent/kb.yml
+var defaultConnector string = ""                 // default connector
+var globalUses *context.Uses = nil               // global uses configuration from agent.yml
+var globalPrompts []store.Prompt = nil           // global prompts from agent/prompts.yml
+var globalKBSetting *store.KBSetting = nil       // global KB setting from agent/kb.yml
+var globalSearchConfig *searchTypes.Config = nil // global search config from agent/search.yml
 
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
@@ -181,6 +182,16 @@ func SetGlobalKBSetting(kbSetting *store.KBSetting) {
 // GetGlobalKBSetting returns the global KB setting
 func GetGlobalKBSetting() *store.KBSetting {
 	return globalKBSetting
+}
+
+// SetGlobalSearchConfig set the global search config from agent/search.yml
+func SetGlobalSearchConfig(config *searchTypes.Config) {
+	globalSearchConfig = config
+}
+
+// GetGlobalSearchConfig returns the global search config
+func GetGlobalSearchConfig() *searchTypes.Config {
+	return globalSearchConfig
 }
 
 // SetCache set the cache
@@ -585,19 +596,24 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 	}
 
-	// Search options
+	// Search configuration (from package.yao search block)
+	// This contains search options like web.max_results, kb.threshold, citation.format, etc.
+	// Merge hierarchy: global config < assistant config
 	if v, ok := data["search"].(map[string]interface{}); ok {
-		assistant.Search = &SearchOption{}
+		var assistantSearch searchTypes.Config
 		raw, err := jsoniter.Marshal(v)
 		if err != nil {
 			return nil, err
 		}
-
-		// Unmarshal the raw data
-		err = jsoniter.Unmarshal(raw, assistant.Search)
+		err = jsoniter.Unmarshal(raw, &assistantSearch)
 		if err != nil {
 			return nil, err
 		}
+		// Merge with global search config
+		assistant.Search = mergeSearchConfig(globalSearchConfig, &assistantSearch)
+	} else if globalSearchConfig != nil {
+		// No assistant-specific config, use global
+		assistant.Search = globalSearchConfig
 	}
 
 	// prompts
@@ -681,12 +697,14 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// uses (wrapper configurations for vision, audio, etc.)
+	// Merge hierarchy: global uses < assistant uses
 	if uses, has := data["uses"]; has {
+		var assistantUses *context.Uses
 		switch v := uses.(type) {
 		case *context.Uses:
-			assistant.Uses = v
+			assistantUses = v
 		case context.Uses:
-			assistant.Uses = &v
+			assistantUses = &v
 		default:
 			raw, err := jsoniter.Marshal(v)
 			if err != nil {
@@ -697,8 +715,13 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 			if err != nil {
 				return nil, err
 			}
-			assistant.Uses = &usesConfig
+			assistantUses = &usesConfig
 		}
+		// Merge with global uses
+		assistant.Uses = mergeUses(globalUses, assistantUses)
+	} else if globalUses != nil {
+		// No assistant-specific uses, use global
+		assistant.Uses = globalUses
 	}
 
 	// Load scripts (hook script and other scripts)
@@ -760,4 +783,205 @@ func (ast *Assistant) initialize() error {
 	}
 
 	return nil
+}
+
+// mergeUses merges two Uses configs (base < override)
+func mergeUses(base, override *context.Uses) *context.Uses {
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := *base // Copy base
+
+	// Override with non-empty values
+	if override.Vision != "" {
+		result.Vision = override.Vision
+	}
+	if override.Audio != "" {
+		result.Audio = override.Audio
+	}
+	if override.Search != "" {
+		result.Search = override.Search
+	}
+	if override.Fetch != "" {
+		result.Fetch = override.Fetch
+	}
+	if override.Web != "" {
+		result.Web = override.Web
+	}
+	if override.Keyword != "" {
+		result.Keyword = override.Keyword
+	}
+	if override.QueryDSL != "" {
+		result.QueryDSL = override.QueryDSL
+	}
+	if override.Rerank != "" {
+		result.Rerank = override.Rerank
+	}
+
+	return &result
+}
+
+// mergeSearchConfig merges two search configs (base < override)
+func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := *base // Copy base
+
+	// Merge Web config
+	if override.Web != nil {
+		if result.Web == nil {
+			result.Web = override.Web
+		} else {
+			merged := *result.Web
+			if override.Web.Provider != "" {
+				merged.Provider = override.Web.Provider
+			}
+			if override.Web.APIKeyEnv != "" {
+				merged.APIKeyEnv = override.Web.APIKeyEnv
+			}
+			if override.Web.MaxResults > 0 {
+				merged.MaxResults = override.Web.MaxResults
+			}
+			result.Web = &merged
+		}
+	}
+
+	// Merge KB config
+	if override.KB != nil {
+		if result.KB == nil {
+			result.KB = override.KB
+		} else {
+			merged := *result.KB
+			if len(override.KB.Collections) > 0 {
+				merged.Collections = override.KB.Collections
+			}
+			if override.KB.Threshold > 0 {
+				merged.Threshold = override.KB.Threshold
+			}
+			if override.KB.Graph {
+				merged.Graph = override.KB.Graph
+			}
+			result.KB = &merged
+		}
+	}
+
+	// Merge DB config
+	if override.DB != nil {
+		if result.DB == nil {
+			result.DB = override.DB
+		} else {
+			merged := *result.DB
+			if len(override.DB.Models) > 0 {
+				merged.Models = override.DB.Models
+			}
+			if override.DB.MaxResults > 0 {
+				merged.MaxResults = override.DB.MaxResults
+			}
+			result.DB = &merged
+		}
+	}
+
+	// Merge Keyword config
+	if override.Keyword != nil {
+		if result.Keyword == nil {
+			result.Keyword = override.Keyword
+		} else {
+			merged := *result.Keyword
+			if override.Keyword.MaxKeywords > 0 {
+				merged.MaxKeywords = override.Keyword.MaxKeywords
+			}
+			if override.Keyword.Language != "" {
+				merged.Language = override.Keyword.Language
+			}
+			result.Keyword = &merged
+		}
+	}
+
+	// Merge QueryDSL config
+	if override.QueryDSL != nil {
+		if result.QueryDSL == nil {
+			result.QueryDSL = override.QueryDSL
+		} else {
+			merged := *result.QueryDSL
+			if override.QueryDSL.Strict {
+				merged.Strict = override.QueryDSL.Strict
+			}
+			result.QueryDSL = &merged
+		}
+	}
+
+	// Merge Rerank config
+	if override.Rerank != nil {
+		if result.Rerank == nil {
+			result.Rerank = override.Rerank
+		} else {
+			merged := *result.Rerank
+			if override.Rerank.TopN > 0 {
+				merged.TopN = override.Rerank.TopN
+			}
+			result.Rerank = &merged
+		}
+	}
+
+	// Merge Citation config
+	if override.Citation != nil {
+		if result.Citation == nil {
+			result.Citation = override.Citation
+		} else {
+			merged := *result.Citation
+			if override.Citation.Format != "" {
+				merged.Format = override.Citation.Format
+			}
+			// AutoInjectPrompt is a bool, so we check if it's explicitly set
+			// by checking if the whole Citation block was provided
+			merged.AutoInjectPrompt = override.Citation.AutoInjectPrompt
+			if override.Citation.CustomPrompt != "" {
+				merged.CustomPrompt = override.Citation.CustomPrompt
+			}
+			result.Citation = &merged
+		}
+	}
+
+	// Merge Weights config
+	if override.Weights != nil {
+		if result.Weights == nil {
+			result.Weights = override.Weights
+		} else {
+			merged := *result.Weights
+			if override.Weights.User > 0 {
+				merged.User = override.Weights.User
+			}
+			if override.Weights.Hook > 0 {
+				merged.Hook = override.Weights.Hook
+			}
+			if override.Weights.Auto > 0 {
+				merged.Auto = override.Weights.Auto
+			}
+			result.Weights = &merged
+		}
+	}
+
+	// Merge Options config
+	if override.Options != nil {
+		if result.Options == nil {
+			result.Options = override.Options
+		} else {
+			merged := *result.Options
+			if override.Options.SkipThreshold > 0 {
+				merged.SkipThreshold = override.Options.SkipThreshold
+			}
+			result.Options = &merged
+		}
+	}
+
+	return &result
 }
