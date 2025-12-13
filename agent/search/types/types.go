@@ -1,8 +1,13 @@
 package types
 
+import (
+	"github.com/yaoapp/gou/query/gou"
+)
+
 // SearchType represents the type of search
 type SearchType string
 
+// SearchType constants
 const (
 	SearchTypeWeb SearchType = "web" // Web/Internet search
 	SearchTypeKB  SearchType = "kb"  // Knowledge base vector search
@@ -12,6 +17,7 @@ const (
 // SourceType represents where the search result came from
 type SourceType string
 
+// SourceType constants
 const (
 	SourceUser SourceType = "user" // User-provided DataContent (highest priority)
 	SourceHook SourceType = "hook" // Hook ctx.search.*() results
@@ -36,26 +42,13 @@ type Request struct {
 	Graph       bool     `json:"graph,omitempty"`       // Enable graph association
 
 	// Database search specific
-	Models []string     `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
-	Wheres []QueryWhere `json:"wheres,omitempty"` // Pre-defined filters (optional)
-	Orders []QueryOrder `json:"orders,omitempty"` // Sort orders (optional)
-	Select []string     `json:"select,omitempty"` // Fields to return (optional)
+	Models []string    `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
+	Wheres []gou.Where `json:"wheres,omitempty"` // Pre-defined filters (optional), uses GOU QueryDSL Where
+	Orders gou.Orders  `json:"orders,omitempty"` // Sort orders (optional), uses GOU QueryDSL Orders
+	Select []string    `json:"select,omitempty"` // Fields to return (optional)
 
 	// Reranking
 	Rerank *RerankOptions `json:"rerank,omitempty"`
-}
-
-// QueryWhere represents a filter condition for DB search
-type QueryWhere struct {
-	Field string      `json:"field"`        // Field name
-	Op    string      `json:"op,omitempty"` // Operator: "=", "like", ">", "<", "in", etc. (default: "=")
-	Value interface{} `json:"value"`        // Filter value
-}
-
-// QueryOrder represents a sort order for DB search
-type QueryOrder struct {
-	Field string `json:"field"`           // Field name
-	Order string `json:"order,omitempty"` // "asc" or "desc" (default: "desc")
 }
 
 // RerankOptions controls result reranking
@@ -109,33 +102,13 @@ type ResultItem struct {
 
 // ProcessedQuery represents a processed query ready for execution
 type ProcessedQuery struct {
-	Type     SearchType `json:"type"`
-	Keywords []string   `json:"keywords,omitempty"` // For web search
-	Vector   []float32  `json:"vector,omitempty"`   // For KB search
-	DSL      *QueryDSL  `json:"dsl,omitempty"`      // For DB search
+	Type     SearchType    `json:"type"`
+	Keywords []string      `json:"keywords,omitempty"` // For web search
+	Vector   []float32     `json:"vector,omitempty"`   // For KB search
+	DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
 }
 
-// QueryDSL represents a Yao QueryDSL for database search
-type QueryDSL struct {
-	Model  string       `json:"model"`            // Target model
-	Select []string     `json:"select,omitempty"` // Fields to return
-	Wheres []QueryWhere `json:"wheres,omitempty"` // Filter conditions
-	Orders []QueryOrder `json:"orders,omitempty"` // Sort orders
-	Limit  int          `json:"limit,omitempty"`  // Max results
-}
-
-// ModelSchema represents a Yao Model schema for DSL generation
-type ModelSchema struct {
-	ID          string        `json:"id"`          // Model ID
-	Name        string        `json:"name"`        // Model name
-	Description string        `json:"description"` // Model description
-	Fields      []FieldSchema `json:"fields"`      // Field definitions
-}
-
-// FieldSchema represents a field in the model schema
-type FieldSchema struct {
-	Name        string `json:"name"`        // Field name
-	Type        string `json:"type"`        // Field type
-	Description string `json:"description"` // Field description
-	Searchable  bool   `json:"searchable"`  // Whether field is searchable
-}
+// Note: For QueryDSL and Model types, use GOU types directly:
+// - github.com/yaoapp/gou/query/gou.QueryDSL
+// - github.com/yaoapp/gou/model.Model
+// - github.com/yaoapp/gou/model.Column

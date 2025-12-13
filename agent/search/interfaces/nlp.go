@@ -1,6 +1,8 @@
 package interfaces
 
 import (
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/query/gou"
 	"github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -13,7 +15,7 @@ type KeywordExtractor interface {
 // QueryDSLGenerator generates QueryDSL for DB search
 type QueryDSLGenerator interface {
 	// Generate converts natural language to QueryDSL
-	Generate(query string, schemas []*types.ModelSchema) (*types.QueryDSL, error)
+	Generate(query string, models []*model.Model) (*gou.QueryDSL, error)
 }
 
 // Note: Embedding is handled by KB collection's own config (embedding provider + model),
