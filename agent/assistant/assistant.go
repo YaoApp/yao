@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/agent/caller"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/search"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	sui "github.com/yaoapp/yao/sui/core"
@@ -23,6 +24,9 @@ func init() {
 		// Return a wrapper that implements AgentCaller interface
 		return &agentCallerWrapper{ast: ast}, nil
 	}
+
+	// Initialize Search JSAPI factory
+	search.SetJSAPIFactory()
 }
 
 // agentCallerWrapper wraps Assistant to implement AgentCaller interface

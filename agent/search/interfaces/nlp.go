@@ -3,13 +3,15 @@ package interfaces
 import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query/gou"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/types"
 )
 
 // KeywordExtractor extracts keywords for web search
 type KeywordExtractor interface {
 	// Extract extracts search keywords from user message
-	Extract(content string, opts *types.KeywordOptions) ([]string, error)
+	// ctx is required for Agent and MCP modes, can be nil for builtin mode
+	Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 }
 
 // QueryDSLGenerator generates QueryDSL for DB search

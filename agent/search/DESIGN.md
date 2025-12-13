@@ -151,9 +151,16 @@ agent/search/
 │   └── mcp.go             # MCP-based reranking (call MCP server tool)
 │
 ├── nlp/                   # Natural language processing for search
-│   ├── nlp.go             # NLP factory and common logic
-│   ├── keyword.go         # Keyword extraction for web search
-│   └── querydsl.go        # QueryDSL generation for DB search
+│   ├── keyword/           # Keyword extraction (Handler + Registry pattern)
+│   │   ├── extractor.go   # Main extractor (mode dispatch)
+│   │   ├── builtin.go     # Builtin frequency-based extraction
+│   │   ├── agent.go       # Agent mode (LLM-powered)
+│   │   └── mcp.go         # MCP mode (external service)
+│   └── querydsl/          # QueryDSL generation for DB search
+│       ├── generator.go   # Main generator (mode dispatch)
+│       ├── builtin.go     # Builtin template-based generation
+│       ├── agent.go       # Agent mode (LLM-powered)
+│       └── mcp.go         # MCP mode (external service)
 │   # Note: Embedding follows KB collection config, not in this package
 │
 ├── handlers/              # Search handler implementations
@@ -859,6 +866,32 @@ const (
 ## JSAPI Integration
 
 The Search module is exposed via `ctx.search` object in hook scripts.
+
+### Architecture
+
+To avoid circular dependency between `context` and `search` packages:
+
+```
+agent/context/jsapi_search.go     agent/search/jsapi.go
+┌─────────────────────────┐       ┌─────────────────────────┐
+│  SearchAPI interface    │◄──────│  JSAPI struct           │
+│  SearchAPIFactory var   │       │  (implements SearchAPI) │
+│  ctx.Search() method    │       │  SetJSAPIFactory()      │
+└─────────────────────────┘       └─────────────────────────┘
+           ▲                                  │
+           │                                  │
+           └──────────────────────────────────┘
+                    Factory registration
+                    (in assistant/init)
+```
+
+**Key Files:**
+
+| File                          | Description                    |
+| ----------------------------- | ------------------------------ |
+| `context/jsapi_search.go`     | SearchAPI interface definition |
+| `search/jsapi.go`             | JSAPI implementation           |
+| `assistant/assistant.go:init` | Factory registration           |
 
 ### API Methods
 
@@ -1582,50 +1615,64 @@ Configure via `uses.*` in `agent/agent.yml`:
 | `<assistant-id>`      | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
 | `mcp:<server>.<tool>` | Call MCP tool                             | External services integration  |
 
-#### Keyword Extraction (`nlp/keyword.go`)
+#### Keyword Extraction (`nlp/keyword/`)
 
-Configure via `uses.keyword`:
+Configure via `uses.keyword`. The keyword extraction module follows the Handler + Registry pattern with three modes:
+
+| Mode    | Value                        | Description                                   |
+| ------- | ---------------------------- | --------------------------------------------- |
+| Builtin | `"builtin"`                  | Frequency-based extraction (no external deps) |
+| Agent   | `"workers.nlp.keyword"`      | LLM-powered semantic extraction               |
+| MCP     | `"mcp:nlp.extract_keywords"` | External service via MCP                      |
+
+**Directory Structure:**
+
+```
+nlp/keyword/
+├── extractor.go   # Main entry point (mode dispatch)
+├── builtin.go     # Builtin: frequency-based, stopword filtering
+├── agent.go       # Agent: delegate to LLM assistant
+└── mcp.go         # MCP: call external tool
+```
+
+**Usage:**
 
 ```go
-// nlp/keyword.go
-package nlp
+// nlp/keyword/extractor.go
+package keyword
 
-import (
-    "strings"
-
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/types"
-)
-
-// KeywordExtractor extracts keywords from user query
-type KeywordExtractor struct {
-    usesKeyword string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+// Extractor extracts keywords from text
+type Extractor struct {
+    usesKeyword string              // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     config      *types.KeywordConfig
 }
 
-// NewKeywordExtractor creates a keyword extractor
-func NewKeywordExtractor(usesKeyword string, cfg *types.KeywordConfig) *KeywordExtractor {
-    return &KeywordExtractor{usesKeyword: usesKeyword, config: cfg}
-}
+// NewExtractor creates a new keyword extractor
+func NewExtractor(usesKeyword string, cfg *types.KeywordConfig) *Extractor
 
-// Extract extracts keywords from content
-func (e *KeywordExtractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
-    switch {
-    case e.usesKeyword == "builtin" || e.usesKeyword == "":
-        return e.builtinExtract(content, opts)
-    case strings.HasPrefix(e.usesKeyword, "mcp:"):
-        return e.mcpExtract(ctx, content, opts)
-    default:
-        return e.agentExtract(ctx, content, opts)
-    }
-}
+// Extract extracts keywords based on configured mode
+func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 ```
+
+**Builtin Implementation:**
+
+The builtin extractor uses simple frequency-based extraction with no external dependencies:
+
+- Tokenization (handles English and Chinese)
+- Stop word filtering (common English and Chinese stop words)
+- Frequency counting and ranking
+- Returns top N keywords by frequency
+
+> **Note**: For production use cases requiring high accuracy (semantic understanding, phrase extraction), use Agent or MCP mode.
+
+**Example:**
 
 ```
 "I want to find the best wireless headphones under $100"
-    ↓ builtin: simple tokenization + stopword removal
-    ↓ agent: LLM extracts ["wireless headphones", "under $100", "best"]
-→ Keywords: ["wireless headphones", "under $100", "best"]
+    ↓ builtin: tokenization + stopword removal + frequency ranking
+      → ["wireless", "headphones", "find", "best"]
+    ↓ agent: LLM semantic extraction
+      → ["wireless headphones", "under $100", "best"]
 ```
 
 #### Embedding (KB Collection Config)
@@ -1650,51 +1697,54 @@ func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Resul
 }
 ```
 
-#### QueryDSL Generation (`nlp/querydsl.go`)
+#### QueryDSL Generation (`nlp/querydsl/`)
 
-Configure via `uses.querydsl`:
+Configure via `uses.querydsl`. The QueryDSL generation module follows the same pattern as keyword extraction:
+
+| Mode    | Value                         | Description                                 |
+| ------- | ----------------------------- | ------------------------------------------- |
+| Builtin | `"builtin"`                   | Template-based generation from model schema |
+| Agent   | `"workers.nlp.querydsl"`      | LLM-powered semantic query generation       |
+| MCP     | `"mcp:nlp.generate_querydsl"` | External service via MCP                    |
+
+**Directory Structure:**
+
+```
+nlp/querydsl/
+├── generator.go   # Main entry point (mode dispatch)
+├── builtin.go     # Builtin: template-based generation
+├── agent.go       # Agent: delegate to LLM assistant
+└── mcp.go         # MCP: call external tool
+```
+
+**Usage:**
 
 ```go
-// nlp/querydsl.go
-package nlp
+// nlp/querydsl/generator.go
+package querydsl
 
-import (
-    "strings"
-
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/types"
-)
-
-// QueryDSLGenerator generates QueryDSL from natural language
-type QueryDSLGenerator struct {
-    usesQueryDSL string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+// Generator generates QueryDSL from natural language
+type Generator struct {
+    usesQueryDSL string
     config       *types.QueryDSLConfig
 }
 
-// NewQueryDSLGenerator creates a QueryDSL generator
-func NewQueryDSLGenerator(usesQueryDSL string, cfg *types.QueryDSLConfig) *QueryDSLGenerator {
-    return &QueryDSLGenerator{usesQueryDSL: usesQueryDSL, config: cfg}
-}
+// NewGenerator creates a new QueryDSL generator
+func NewGenerator(usesQueryDSL string, cfg *types.QueryDSLConfig) *Generator
 
 // Generate converts natural language to QueryDSL
 // Uses GOU types directly: model.Model and gou.QueryDSL
-func (g *QueryDSLGenerator) Generate(query string, models []*model.Model) (*gou.QueryDSL, error) {
-    switch {
-    case g.usesQueryDSL == "builtin" || g.usesQueryDSL == "":
-        return g.builtinGenerate(query, models)
-    case strings.HasPrefix(g.usesQueryDSL, "mcp:"):
-        return g.mcpGenerate(query, models)
-    default:
-        return g.agentGenerate(query, models)
-    }
-}
+func (g *Generator) Generate(query string, models []*model.Model) (*gou.QueryDSL, error)
 ```
+
+**Example:**
 
 ```
 "Products cheaper than $100 from Apple"
     ↓ builtin: template matching against model schema
+      → QueryDSL with simple keyword matching
     ↓ agent: LLM generates DSL from NL + schema
-→ QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
+      → QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
 ```
 
 ## Handlers & Providers
