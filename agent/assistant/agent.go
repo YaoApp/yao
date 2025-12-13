@@ -199,6 +199,16 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			return nil, err
 		}
 
+		// ================================================
+		// Execute Auto Search (if enabled)
+		// ================================================
+		if ast.shouldAutoSearch(ctx, createResponse) {
+			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse)
+			if refCtx != nil && len(refCtx.References) > 0 {
+				completionMessages = ast.injectSearchContext(completionMessages, refCtx)
+			}
+		}
+
 		// Begin step tracking for LLM call
 		ast.BeginStep(ctx, context.StepTypeLLM, map[string]interface{}{
 			"messages": completionMessages,

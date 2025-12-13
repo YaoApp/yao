@@ -1552,22 +1552,62 @@ Stream(ctx, messages, options)
   ├── 2. Create Hook (optional)
   │   └── Can call ctx.search.* and return search results
   │
-  ├── 3. Auto Search Decision
+  ├── 3. BuildRequest + BuildContent
+  │
+  ├── 4. Auto Search Decision (shouldAutoSearch)
   │   ├── IF Uses.Search == "disabled" → SKIP
   │   ├── IF Create Hook returned uses.search="disabled" → SKIP
-  │   └── ELSE → Execute Auto Search (based on Uses.Search mode)
-  │       ├── Read assistant's search config
-  │       ├── Execute web/kb/db in parallel
-  │       ├── Send search_start/search_result/search_complete to output
-  │       ├── Rerank results
-  │       ├── Generate citation IDs
-  │       └── Inject search context + citation prompt to messages
+  │   └── ELSE → Execute Auto Search (executeAutoSearch)
+  │       ├── Read assistant's search config (GetMergedSearchConfig)
+  │       ├── Build search requests (buildSearchRequests)
+  │       ├── Execute web/kb/db in parallel (searcher.All)
+  │       ├── Build reference context (BuildReferenceContext)
+  │       └── Inject search context to messages (injectSearchContext)
   │
-  ├── 4. LLM Call (with search context if any)
+  ├── 5. LLM Call (with search context if any)
   │
-  ├── 5. Next Hook (optional)
+  ├── 6. Next Hook (optional)
   │
-  └── 6. Output (response may contain #ref:xxx citations)
+  └── 7. Output (response may contain #ref:xxx citations)
+```
+
+**Implementation Files:**
+
+| File                  | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `assistant/search.go` | Core integration logic (shouldAutoSearch, etc.) |
+| `assistant/agent.go`  | Stream() integration point (after BuildContent) |
+| `search/reference.go` | BuildReferenceContext, FormatReferencesXML      |
+
+**Key Functions (`assistant/search.go`):**
+
+```go
+// shouldAutoSearch determines if auto search should be executed
+func (ast *Assistant) shouldAutoSearch(ctx *context.Context, createResponse *context.HookCreateResponse) bool
+
+// executeAutoSearch executes auto search based on configuration
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse) *searchTypes.ReferenceContext
+
+// injectSearchContext injects search results into messages
+func (ast *Assistant) injectSearchContext(messages []context.Message, refCtx *searchTypes.ReferenceContext) []context.Message
+
+// getMergedSearchUses returns the merged uses configuration for search
+func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResponse) *context.Uses
+
+// buildSearchRequests builds search requests based on assistant configuration
+func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Config) []*searchTypes.Request
+```
+
+**Integration in agent.go:**
+
+```go
+// In Stream(), after BuildContent:
+if ast.shouldAutoSearch(ctx, createResponse) {
+    refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse)
+    if refCtx != nil && len(refCtx.References) > 0 {
+        completionMessages = ast.injectSearchContext(completionMessages, refCtx)
+    }
+}
 ```
 
 ### Control via Uses.Search
