@@ -17,9 +17,10 @@ type Config struct {
 // Note: uses.web determines the mode (builtin/agent/mcp)
 // Provider is only used when uses.web = "builtin"
 type WebConfig struct {
-	Provider   string `json:"provider,omitempty" yaml:"provider,omitempty"`       // "tavily" or "serper" (for builtin mode)
+	Provider   string `json:"provider,omitempty" yaml:"provider,omitempty"`       // "tavily", "serper", or "serpapi" (for builtin mode)
 	APIKeyEnv  string `json:"api_key_env,omitempty" yaml:"api_key_env,omitempty"` // Environment variable for API key
 	MaxResults int    `json:"max_results,omitempty" yaml:"max_results,omitempty"` // Max results (default: 10)
+	Engine     string `json:"engine,omitempty" yaml:"engine,omitempty"`           // Search engine for SerpAPI: "google", "bing", "baidu", "yandex", etc. (default: "google")
 }
 
 // KBConfig for knowledge base search settings

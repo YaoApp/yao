@@ -160,7 +160,8 @@ agent/search/
 │   ├── web/               # Web search
 │   │   ├── handler.go     # Web search handler (mode dispatch)
 │   │   ├── tavily.go      # Tavily provider (builtin)
-│   │   ├── serper.go      # Serper provider (builtin)
+│   │   ├── serper.go      # Serper provider (serper.dev, builtin)
+│   │   ├── serpapi.go     # SerpAPI provider (serpapi.com, multi-engine, builtin)
 │   │   ├── agent.go       # Agent mode (AI Search)
 │   │   └── mcp.go         # MCP mode (external service)
 │   │
@@ -663,9 +664,10 @@ type Config struct {
 // Note: uses.web determines the mode (builtin/agent/mcp)
 // Provider is only used when uses.web = "builtin"
 type WebConfig struct {
-    Provider   string `json:"provider,omitempty"`    // "tavily" or "serper" (for builtin mode)
+    Provider   string `json:"provider,omitempty"`    // "tavily", "serper", or "serpapi" (for builtin mode)
     APIKeyEnv  string `json:"api_key_env,omitempty"` // Environment variable for API key
     MaxResults int    `json:"max_results,omitempty"` // Max results (default: 10)
+    Engine     string `json:"engine,omitempty"`      // Search engine for SerpAPI: "google", "bing", "baidu", etc. (default: "google")
 }
 
 // KBConfig for knowledge base search settings
@@ -1299,9 +1301,10 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 
 # Web search settings
 web:
-  provider: "tavily" # "tavily", "serper" (builtin providers only)
+  provider: "tavily" # "tavily", "serper", or "serpapi" (builtin providers only)
   api_key_env: "TAVILY_API_KEY"
   max_results: 10
+  # engine: "google"  # For SerpAPI only: "google", "bing", "baidu", "yandex", etc.
 
 # Knowledge base search settings
 kb:
@@ -1743,16 +1746,21 @@ func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Resul
     }
 }
 
-// builtinSearch uses Tavily/Serper directly
+// builtinSearch uses Tavily/Serper/SerpAPI directly
 func (h *Handler) builtinSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    var provider Provider
     switch h.config.Provider {
     case "tavily":
-        provider = NewTavilyProvider(h.config)
+        return NewTavilyProvider(h.config).Search(req)
     case "serper":
-        provider = NewSerperProvider(h.config)
+        // Serper (serper.dev) - POST request with X-API-KEY header
+        return NewSerperProvider(h.config).Search(req)
+    case "serpapi":
+        // SerpAPI (serpapi.com) - GET request with api_key parameter
+        // Supports multiple engines: google, bing, baidu, yandex, etc.
+        return NewSerpAPIProvider(h.config).Search(req)
+    default:
+        return nil, fmt.Errorf("unknown provider: %s", h.config.Provider)
     }
-    return provider.Search(ctx, req)
 }
 
 // agentSearch delegates to an assistant for AI-powered search
@@ -1780,10 +1788,40 @@ func (h *Handler) mcpSearch(ctx *context.Context, req *types.Request) (*types.Re
 
 **Built-in Providers (when `uses.web = "builtin"`):**
 
-| Provider | File        | Notes                           |
-| -------- | ----------- | ------------------------------- |
-| Tavily   | `tavily.go` | Recommended for AI applications |
-| Serper   | `serper.go` | Google search API               |
+| Provider | File         | Notes                                           |
+| -------- | ------------ | ----------------------------------------------- |
+| Tavily   | `tavily.go`  | Recommended for AI applications                 |
+| Serper   | `serper.go`  | Google search via serper.dev (POST + X-API-KEY) |
+| SerpAPI  | `serpapi.go` | Multi-engine search via serpapi.com (GET + URL) |
+
+**SerpAPI Engine Support:**
+
+SerpAPI supports multiple search engines via the `engine` config:
+
+| Engine       | Description                  |
+| ------------ | ---------------------------- |
+| `google`     | Google Search (default)      |
+| `bing`       | Bing Search                  |
+| `baidu`      | Baidu (百度)                 |
+| `yandex`     | Yandex Search                |
+| `yahoo`      | Yahoo Search                 |
+| `duckduckgo` | DuckDuckGo Search            |
+| `naver`      | Naver Search (Korean)        |
+| `ecosia`     | Ecosia Search (eco-friendly) |
+| `seznam`     | Seznam Search (Czech)        |
+
+See [SerpAPI Documentation](https://serpapi.com/search-api) for the full list of supported engines.
+
+Configuration example:
+
+```yaml
+# agent/search.yml
+web:
+  provider: "serpapi"
+  api_key_env: "SERPAPI_API_KEY"
+  engine: "bing" # Use Bing instead of Google
+  max_results: 10
+```
 
 **Agent Mode (AI Search):**
 
