@@ -892,26 +892,44 @@ The Search module is exposed via `ctx.search` object in hook scripts.
 To avoid circular dependency between `context` and `search` packages:
 
 ```
-agent/context/jsapi_search.go     agent/search/jsapi.go
-┌─────────────────────────┐       ┌─────────────────────────┐
-│  SearchAPI interface    │◄──────│  JSAPI struct           │
-│  SearchAPIFactory var   │       │  (implements SearchAPI) │
-│  ctx.Search() method    │       │  SetJSAPIFactory()      │
-└─────────────────────────┘       └─────────────────────────┘
-           ▲                                  │
-           │                                  │
-           └──────────────────────────────────┘
+agent/context/jsapi_search.go          agent/search/jsapi.go
+┌─────────────────────────────┐        ┌─────────────────────────┐
+│  SearchAPI interface        │◄───────│  JSAPI struct           │
+│  SearchAPIFactory var       │        │  (implements SearchAPI) │
+│  V8 binding methods:        │        │  NewJSAPI()             │
+│    newSearchObject()        │        │  Web/KB/DB()            │
+│    searchWebMethod()        │        │  All/Any/Race()         │
+│    searchKBMethod()         │        │  buildRequest()         │
+│    searchDBMethod()         │        │  parseRequests()        │
+│    searchAllMethod()        │        │  ConfigGetter type      │
+│    searchAnyMethod()        │        │  SetJSAPIFactory()      │
+│    searchRaceMethod()       │        └─────────────────────────┘
+└─────────────────────────────┘                    │
+           ▲                                       │
+           │                                       │
+           └───────────────────────────────────────┘
                     Factory registration
-                    (in assistant/init)
+                    (with ConfigGetter in assistant/init)
+
+agent/context/jsapi.go
+┌─────────────────────────────┐
+│  NewObject()                │
+│    jsObject.Set("search",   │
+│      ctx.newSearchObject()) │
+└─────────────────────────────┘
 ```
 
 **Key Files:**
 
-| File                          | Description                    |
-| ----------------------------- | ------------------------------ |
-| `context/jsapi_search.go`     | SearchAPI interface definition |
-| `search/jsapi.go`             | JSAPI implementation           |
-| `assistant/assistant.go:init` | Factory registration           |
+| File                             | Description                                                      |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `context/jsapi_search.go`        | SearchAPI interface + V8 binding methods                         |
+| `context/jsapi_search_test.go`   | Integration tests (real V8 calls via test assistant)             |
+| `context/jsapi.go`               | Mount search object to ctx                                       |
+| `search/jsapi.go`                | JSAPI implementation (calls Searcher) + ConfigGetter             |
+| `search/jsapi_test.go`           | Black-box unit tests                                             |
+| `assistant/assistant.go:init`    | Factory registration via SetJSAPIFactory(ConfigGetter)           |
+| `assistants/tests/search-jsapi/` | Test assistant for JSAPI integration tests (Create hook, no LLM) |
 
 ### API Methods
 

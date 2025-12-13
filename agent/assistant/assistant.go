@@ -25,8 +25,25 @@ func init() {
 		return &agentCallerWrapper{ast: ast}, nil
 	}
 
-	// Initialize Search JSAPI factory
-	search.SetJSAPIFactory()
+	// Initialize Search JSAPI factory with config getter
+	search.SetJSAPIFactory(func(assistantID string) (*searchTypes.Config, *search.Uses) {
+		ast, err := Get(assistantID)
+		if err != nil || ast == nil {
+			return nil, nil
+		}
+		// Convert assistant.Uses to search.Uses
+		var uses *search.Uses
+		if ast.Uses != nil {
+			uses = &search.Uses{
+				Search:   ast.Uses.Search,
+				Web:      ast.Uses.Web,
+				Keyword:  ast.Uses.Keyword,
+				QueryDSL: ast.Uses.QueryDSL,
+				Rerank:   ast.Uses.Rerank,
+			}
+		}
+		return ast.Search, uses
+	})
 }
 
 // agentCallerWrapper wraps Assistant to implement AgentCaller interface
