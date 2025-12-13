@@ -6,7 +6,7 @@ import (
 )
 
 // JSAPI implements context.SearchAPI interface
-// Provides ctx.search.Web(), ctx.search.KB(), ctx.search.DB(), ctx.search.Parallel()
+// Provides ctx.search.Web(), ctx.search.KB(), ctx.search.DB(), ctx.search.All(), ctx.search.Any(), ctx.search.Race()
 type JSAPI struct {
 	ctx    *context.Context
 	config *types.Config
@@ -79,15 +79,53 @@ func (api *JSAPI) DB(query string, opts map[string]interface{}) interface{} {
 	}
 }
 
-// Parallel executes multiple searches in parallel
+// All executes all searches and waits for all to complete (like Promise.all)
 // Each request should have:
 //   - type: string - "web", "kb", or "db"
 //   - query: string - search query
 //   - ... other type-specific options
-func (api *JSAPI) Parallel(requests []interface{}) []interface{} {
-	// TODO: Implement parallel search
+func (api *JSAPI) All(requests []interface{}) []interface{} {
+	// TODO: Implement All search
 	// 1. Parse requests into []Request
-	// 2. Call SearchMultiple
+	// 2. Call Searcher.All()
+	// 3. Return []Result
+	results := make([]interface{}, len(requests))
+	for i := range requests {
+		results[i] = &types.Result{
+			Error: "not implemented",
+		}
+	}
+	return results
+}
+
+// Any returns as soon as any search succeeds with results (like Promise.any)
+// Each request should have:
+//   - type: string - "web", "kb", or "db"
+//   - query: string - search query
+//   - ... other type-specific options
+func (api *JSAPI) Any(requests []interface{}) []interface{} {
+	// TODO: Implement Any search
+	// 1. Parse requests into []Request
+	// 2. Call Searcher.Any()
+	// 3. Return []Result
+	results := make([]interface{}, len(requests))
+	for i := range requests {
+		results[i] = &types.Result{
+			Error: "not implemented",
+		}
+	}
+	return results
+}
+
+// Race returns as soon as any search completes (like Promise.race)
+// Each request should have:
+//   - type: string - "web", "kb", or "db"
+//   - query: string - search query
+//   - ... other type-specific options
+func (api *JSAPI) Race(requests []interface{}) []interface{} {
+	// TODO: Implement Race search
+	// 1. Parse requests into []Request
+	// 2. Call Searcher.Race()
 	// 3. Return []Result
 	results := make([]interface{}, len(requests))
 	for i := range requests {

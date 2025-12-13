@@ -313,25 +313,33 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
     return result, nil
 }
 
-// SearchMultiple executes multiple searches in parallel
-func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
-    results := make([]*types.Result, len(reqs))
-    var wg sync.WaitGroup
-    var mu sync.Mutex
+// ParallelMode defines how parallel search should behave (inspired by JavaScript Promise)
+type ParallelMode string
 
-    for i, req := range reqs {
-        wg.Add(1)
-        go func(idx int, r *types.Request) {
-            defer wg.Done()
-            result, _ := s.Search(ctx, r)
-            mu.Lock()
-            results[idx] = result
-            mu.Unlock()
-        }(i, req)
-    }
+// ParallelMode constants (similar to Promise.all, Promise.any, Promise.race)
+const (
+    // ModeAll waits for all searches to complete, returns all results (like Promise.all)
+    ModeAll ParallelMode = "all"
+    // ModeAny returns as soon as any search succeeds (has results), others continue but are discarded (like Promise.any)
+    ModeAny ParallelMode = "any"
+    // ModeRace returns as soon as any search completes (success or empty), others continue but are discarded (like Promise.race)
+    ModeRace ParallelMode = "race"
+)
 
-    wg.Wait()
-    return results, nil
+// ParallelOptions configures parallel search behavior
+// All executes all searches and waits for all to complete (like Promise.all)
+func (s *Searcher) All(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelAll(ctx, reqs)
+}
+
+// Any returns as soon as any search succeeds with results (like Promise.any)
+func (s *Searcher) Any(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelAny(ctx, reqs)
+}
+
+// Race returns as soon as any search completes (like Promise.race)
+func (s *Searcher) Race(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelRace(ctx, reqs)
 }
 
 // BuildReferences converts search results to unified Reference format
@@ -424,17 +432,26 @@ import (
 // Searcher is the main interface exposed to external callers
 type Searcher interface {
     // Search executes a single search request
-    Search(req *types.Request) (*types.Result, error)
+    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
 
-    // SearchMultiple executes multiple searches (potentially in parallel)
-    SearchMultiple(reqs []*types.Request) ([]*types.Result, error)
+    // Parallel search methods - inspired by JavaScript Promise
+    // All waits for all searches to complete (like Promise.all)
+    All(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    // Any returns when any search succeeds with results (like Promise.any)
+    Any(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    // Race returns when any search completes (like Promise.race)
+    Race(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
 
     // BuildReferences converts search results to unified Reference format for LLM
     BuildReferences(results []*types.Result) []*types.Reference
 }
 ```
 
-> **Note**: The actual `Searcher` struct in `search.go` has `Search(ctx, req)` and `SearchMultiple(ctx, reqs)` signatures that include context for reranking support. The interface is kept minimal for flexibility.
+> **Note**: Parallel search methods follow JavaScript Promise naming:
+>
+> - `All()`: Wait for all searches to complete (like `Promise.all`)
+> - `Any()`: Return when any search succeeds with results (like `Promise.any`)
+> - `Race()`: Return when any search completes (like `Promise.race`)
 
 ### NLP Interfaces (`interfaces/nlp.go`)
 
@@ -901,17 +918,15 @@ agent/context/jsapi_search.go     agent/search/jsapi.go
 ```typescript
 // In hook scripts (index.ts)
 
-// Web search
+// Single search methods
 ctx.search.Web(query: string, options?: WebOptions): Result
-
-// Knowledge base search
 ctx.search.KB(query: string, options?: KBOptions): Result
-
-// Database search (Yao Model/QueryDSL)
 ctx.search.DB(query: string, options?: DBOptions): Result
 
-// Parallel search (multiple types)
-ctx.search.Parallel(requests: Request[]): Result[]
+// Parallel search methods - inspired by JavaScript Promise
+ctx.search.All(requests: Request[]): Result[]   // Like Promise.all - wait for all
+ctx.search.Any(requests: Request[]): Result[]   // Like Promise.any - first success
+ctx.search.Race(requests: Request[]): Result[]  // Like Promise.race - first complete
 ```
 
 ### Options Types
@@ -1056,14 +1071,14 @@ function Create(ctx, messages, options) {
 }
 ```
 
-#### Example 4: Parallel Web + KB + DB Search
+#### Example 4: Parallel Search with ctx.search.All()
 
 ```typescript
 function Create(ctx, messages, options) {
   const query = messages[messages.length - 1].content;
 
-  // Execute web, KB, and DB search in parallel
-  const [webResult, kbResult, dbResult] = ctx.search.Parallel([
+  // Execute web, KB, and DB search in parallel (wait for all) - like Promise.all
+  const [webResult, kbResult, dbResult] = ctx.search.All([
     { type: "web", query: query, limit: 5 },
     { type: "kb", query: query, collections: ["docs"], limit: 10 },
     { type: "db", query: query, models: ["product"], limit: 10 },
@@ -1081,6 +1096,56 @@ function Create(ctx, messages, options) {
     ],
     uses: { search: "disabled" }, // Disable auto search
   };
+}
+```
+
+#### Example 4b: Parallel Search with ctx.search.Any()
+
+```typescript
+function Create(ctx, messages, options) {
+  const query = messages[messages.length - 1].content;
+
+  // Return as soon as any search succeeds (has results) - like Promise.any
+  const results = ctx.search.Any([
+    { type: "web", query: query, limit: 5 },
+    { type: "kb", query: query, collections: ["docs"], limit: 10 },
+  ]);
+
+  // Use the first successful result
+  const successResult = results.find((r) => r && r.items?.length > 0);
+  if (successResult) {
+    return {
+      messages: [{ role: "system", content: formatContext(successResult) }],
+      uses: { search: "disabled" },
+    };
+  }
+
+  return { messages: [] };
+}
+```
+
+#### Example 4c: Parallel Search with ctx.search.Race()
+
+```typescript
+function Create(ctx, messages, options) {
+  const query = messages[messages.length - 1].content;
+
+  // Return as soon as any search completes (success or not) - like Promise.race
+  const results = ctx.search.Race([
+    { type: "web", query: query, limit: 5 },
+    { type: "kb", query: query, collections: ["docs"], limit: 10 },
+  ]);
+
+  // Use the first completed result
+  const firstResult = results.find((r) => r != null);
+  if (firstResult && firstResult.items?.length > 0) {
+    return {
+      messages: [{ role: "system", content: formatContext(firstResult) }],
+      uses: { search: "disabled" },
+    };
+  }
+
+  return { messages: [] };
 }
 ```
 

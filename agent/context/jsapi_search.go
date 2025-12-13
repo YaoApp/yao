@@ -16,9 +16,13 @@ type SearchAPI interface {
 	// Returns *types.Result or error information
 	DB(query string, opts map[string]interface{}) interface{}
 
-	// Parallel executes multiple searches in parallel
-	// Returns []*types.Result
-	Parallel(requests []interface{}) []interface{}
+	// Parallel search methods - inspired by JavaScript Promise
+	// All waits for all searches to complete (like Promise.all)
+	All(requests []interface{}) []interface{}
+	// Any returns when any search succeeds with results (like Promise.any)
+	Any(requests []interface{}) []interface{}
+	// Race returns when any search completes (like Promise.race)
+	Race(requests []interface{}) []interface{}
 }
 
 // SearchAPIFactory is a function type that creates a SearchAPI for a context

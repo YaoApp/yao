@@ -84,8 +84,32 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
 	return result, nil
 }
 
-// SearchMultiple executes multiple searches in parallel
-func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+// All executes all searches and waits for all to complete (like Promise.all)
+func (s *Searcher) All(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+	if len(reqs) == 0 {
+		return []*types.Result{}, nil
+	}
+	return s.parallelAll(ctx, reqs)
+}
+
+// Any returns as soon as any search succeeds with results (like Promise.any)
+func (s *Searcher) Any(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+	if len(reqs) == 0 {
+		return []*types.Result{}, nil
+	}
+	return s.parallelAny(ctx, reqs)
+}
+
+// Race returns as soon as any search completes (like Promise.race)
+func (s *Searcher) Race(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+	if len(reqs) == 0 {
+		return []*types.Result{}, nil
+	}
+	return s.parallelRace(ctx, reqs)
+}
+
+// parallelAll executes all searches and waits for all to complete (like Promise.all)
+func (s *Searcher) parallelAll(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
 	results := make([]*types.Result, len(reqs))
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -102,6 +126,103 @@ func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) (
 	}
 
 	wg.Wait()
+	return results, nil
+}
+
+// parallelAny returns as soon as any search succeeds (has results) (like Promise.any)
+// Other searches continue in background but results are discarded
+func (s *Searcher) parallelAny(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+	results := make([]*types.Result, len(reqs))
+	resultChan := make(chan struct {
+		idx    int
+		result *types.Result
+	}, len(reqs))
+
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+
+	for i, req := range reqs {
+		wg.Add(1)
+		go func(idx int, r *types.Request) {
+			defer wg.Done()
+			result, _ := s.Search(ctx, r)
+			select {
+			case resultChan <- struct {
+				idx    int
+				result *types.Result
+			}{idx, result}:
+			case <-done:
+				// Already found a successful result, discard this one
+			}
+		}(i, req)
+	}
+
+	// Close channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Collect results until we find one with items (success)
+	var mu sync.Mutex
+	for res := range resultChan {
+		mu.Lock()
+		results[res.idx] = res.result
+		// Check if this result has items (success = has results and no error)
+		if res.result != nil && len(res.result.Items) > 0 && res.result.Error == "" {
+			mu.Unlock()
+			close(done) // Signal other goroutines to stop sending
+			return results, nil
+		}
+		mu.Unlock()
+	}
+
+	// No successful result found, return all results
+	return results, nil
+}
+
+// parallelRace returns as soon as any search completes (like Promise.race)
+// Returns immediately when first result arrives, regardless of success/failure
+func (s *Searcher) parallelRace(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+	results := make([]*types.Result, len(reqs))
+	resultChan := make(chan struct {
+		idx    int
+		result *types.Result
+	}, len(reqs))
+
+	var wg sync.WaitGroup
+	done := make(chan struct{})
+
+	for i, req := range reqs {
+		wg.Add(1)
+		go func(idx int, r *types.Request) {
+			defer wg.Done()
+			result, _ := s.Search(ctx, r)
+			select {
+			case resultChan <- struct {
+				idx    int
+				result *types.Result
+			}{idx, result}:
+			case <-done:
+				// Already got first result, discard this one
+			}
+		}(i, req)
+	}
+
+	// Close channel when all goroutines complete
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// Return immediately when first result arrives
+	if res, ok := <-resultChan; ok {
+		results[res.idx] = res.result
+		close(done) // Signal other goroutines to stop sending
+		return results, nil
+	}
+
+	// No results (shouldn't happen with valid requests)
 	return results, nil
 }
 
