@@ -124,11 +124,10 @@ sequenceDiagram
 ```
 agent/search/
 ├── DESIGN.md              # This document
+├── TODO.md                # Implementation plan and progress
 ├── search.go              # Main Searcher implementation and public API
 ├── registry.go            # Handler registry (manages web/kb/db handlers)
-├── jsapi.go               # JavaScript API bindings for hooks
-├── trace.go               # Trace node creation and management
-├── output.go              # Real-time output/streaming to client
+├── jsapi.go               # JavaScript API bindings for hooks (skeleton)
 ├── citation.go            # Citation ID generation and tracking
 ├── reference.go           # Reference building and LLM context formatting
 │
@@ -144,19 +143,19 @@ agent/search/
 │   ├── reranker.go        # Reranker interface
 │   └── nlp.go             # NLP interfaces (KeywordExtractor, QueryDSLGenerator)
 │
-├── rerank/                # Result reranking implementations
-│   ├── rerank.go          # Reranker factory and common logic
-│   ├── builtin.go         # Built-in score-based reranking (default)
-│   ├── agent.go           # Agent-based reranking (delegate to another assistant)
-│   └── mcp.go             # MCP-based reranking (call MCP server tool)
+├── rerank/                # Result reranking implementations (Handler + Registry pattern) ✅
+│   ├── reranker.go        # Main entry point (mode dispatch)
+│   ├── builtin.go         # Builtin: weighted score sorting
+│   ├── agent.go           # Agent mode (delegate to LLM assistant)
+│   └── mcp.go             # MCP mode (external service)
 │
 ├── nlp/                   # Natural language processing for search
-│   ├── keyword/           # Keyword extraction (Handler + Registry pattern)
+│   ├── keyword/           # Keyword extraction (Handler + Registry pattern) ✅
 │   │   ├── extractor.go   # Main extractor (mode dispatch)
 │   │   ├── builtin.go     # Builtin frequency-based extraction
 │   │   ├── agent.go       # Agent mode (LLM-powered)
 │   │   └── mcp.go         # MCP mode (external service)
-│   └── querydsl/          # QueryDSL generation for DB search
+│   └── querydsl/          # QueryDSL generation for DB search (待实现)
 │       ├── generator.go   # Main generator (mode dispatch)
 │       ├── builtin.go     # Builtin template-based generation
 │       ├── agent.go       # Agent mode (LLM-powered)
@@ -164,7 +163,7 @@ agent/search/
 │   # Note: Embedding follows KB collection config, not in this package
 │
 ├── handlers/              # Search handler implementations
-│   ├── web/               # Web search
+│   ├── web/               # Web search ✅
 │   │   ├── handler.go     # Web search handler (mode dispatch)
 │   │   ├── tavily.go      # Tavily provider (builtin)
 │   │   ├── serper.go      # Serper provider (serper.dev, builtin)
@@ -172,18 +171,22 @@ agent/search/
 │   │   ├── agent.go       # Agent mode (AI Search)
 │   │   └── mcp.go         # MCP mode (external service)
 │   │
-│   ├── kb/                # Knowledge base search
+│   ├── kb/                # Knowledge base search (骨架)
 │   │   ├── handler.go     # KB search handler
-│   │   ├── vector.go      # Vector similarity search
-│   │   └── graph.go       # Graph-based association (GraphRAG)
+│   │   ├── vector.go      # Vector similarity search (待实现)
+│   │   └── graph.go       # Graph-based association (待实现)
 │   │
-│   └── db/                # Database search (Yao Model/QueryDSL)
+│   └── db/                # Database search (骨架)
 │       ├── handler.go     # DB search handler
-│       ├── query.go       # QueryDSL builder
-│       └── schema.go      # Model schema introspection
+│       ├── query.go       # QueryDSL builder (待实现)
+│       └── schema.go      # Model schema introspection (待实现)
 │
 └── defaults/              # Default configuration values
     └── defaults.go        # System built-in defaults (used by agent/load.go)
+
+# 待实现文件:
+# - trace.go              # Trace node creation and management
+# - output.go             # Real-time output/streaming to client
 ```
 
 ### Dependency Graph
@@ -249,13 +252,13 @@ import (
 type Searcher struct {
     config    *types.Config           // Merged config (global + assistant)
     handlers  map[types.SearchType]interfaces.Handler
-    reranker  interfaces.Reranker
+    reranker  *rerank.Reranker        // Uses rerank package directly
     citation  *CitationGenerator
 }
 
-// SearchUses contains the search-specific uses configuration
+// Uses contains the search-specific uses configuration
 // These are extracted from context.Uses and search config
-type SearchUses struct {
+type Uses struct {
     Search   string // "builtin", "disabled", "<assistant-id>", "mcp:<server>.<tool>"
     Web      string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     Keyword  string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
@@ -266,7 +269,7 @@ type SearchUses struct {
 // New creates a new Searcher instance
 // cfg: merged config from agent/load.go + assistant config
 // uses: merged uses configuration (global → assistant → hook)
-func New(cfg *types.Config, uses *SearchUses) *Searcher {
+func New(cfg *types.Config, uses *Uses) *Searcher {
     return &Searcher{
         config: cfg,
         handlers: map[types.SearchType]interfaces.Handler{
@@ -274,7 +277,7 @@ func New(cfg *types.Config, uses *SearchUses) *Searcher {
             types.SearchTypeKB:  kb.NewHandler(cfg.KB),  // KB always builtin
             types.SearchTypeDB:  db.NewHandler(uses.QueryDSL, cfg.DB),
         },
-        reranker: rerank.NewReranker(uses.Rerank),
+        reranker: rerank.NewReranker(uses.Rerank, cfg.Rerank),
         citation: NewCitationGenerator(),
     }
 }
@@ -286,8 +289,8 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
         return &types.Result{Error: "unsupported search type"}, nil
     }
 
-    // Execute search
-    result, err := handler.Search(ctx, req)
+    // Execute search (handler doesn't need ctx)
+    result, err := handler.Search(req)
     if err != nil {
         return &types.Result{Error: err.Error()}, nil
     }
@@ -297,8 +300,8 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
         item.Weight = s.config.GetWeight(req.Source)
     }
 
-    // Rerank if requested
-    if req.Rerank != nil {
+    // Rerank if requested (reranker needs ctx for Agent/MCP modes)
+    if req.Rerank != nil && s.reranker != nil {
         result.Items, _ = s.reranker.Rerank(ctx, req.Query, result.Items, req.Rerank)
     }
 
@@ -396,7 +399,6 @@ All interfaces are defined in `search/interfaces/` package to prevent circular d
 package interfaces
 
 import (
-    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -405,11 +407,8 @@ type Handler interface {
     // Type returns the search type this handler supports
     Type() types.SearchType
 
-    // CanHandle checks if this handler can process the given request
-    CanHandle(ctx *context.Context, req *types.Request) bool
-
     // Search executes the search and returns results
-    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
+    Search(req *types.Request) (*types.Result, error)
 }
 ```
 
@@ -419,22 +418,23 @@ type Handler interface {
 package interfaces
 
 import (
-    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
 // Searcher is the main interface exposed to external callers
 type Searcher interface {
     // Search executes a single search request
-    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
+    Search(req *types.Request) (*types.Result, error)
 
     // SearchMultiple executes multiple searches (potentially in parallel)
-    SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    SearchMultiple(reqs []*types.Request) ([]*types.Result, error)
 
     // BuildReferences converts search results to unified Reference format for LLM
     BuildReferences(results []*types.Result) []*types.Reference
 }
 ```
+
+> **Note**: The actual `Searcher` struct in `search.go` has `Search(ctx, req)` and `SearchMultiple(ctx, reqs)` signatures that include context for reranking support. The interface is kept minimal for flexibility.
 
 ### NLP Interfaces (`interfaces/nlp.go`)
 
@@ -442,6 +442,8 @@ type Searcher interface {
 package interfaces
 
 import (
+    "github.com/yaoapp/gou/model"
+    "github.com/yaoapp/gou/query/gou"
     "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
@@ -449,6 +451,7 @@ import (
 // KeywordExtractor extracts keywords for web search
 type KeywordExtractor interface {
     // Extract extracts search keywords from user message
+    // ctx is required for Agent and MCP modes, can be nil for builtin mode
     Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 }
 
@@ -1768,7 +1771,7 @@ package web
 import (
     "strings"
 
-    "github.com/yaoapp/yao/agent/context"
+    agentContext "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1779,61 +1782,28 @@ type Handler struct {
 }
 
 // NewHandler creates a new web search handler
-func NewHandler(usesWeb string, cfg *types.WebConfig) *Handler {
-    return &Handler{usesWeb: usesWeb, config: cfg}
-}
+func NewHandler(usesWeb string, cfg *types.WebConfig) *Handler
 
-// Search executes web search based on uses.web mode
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    switch {
-    case h.usesWeb == "builtin" || h.usesWeb == "":
-        return h.builtinSearch(ctx, req)
-    case strings.HasPrefix(h.usesWeb, "mcp:"):
-        return h.mcpSearch(ctx, req)
-    default:
-        // Agent mode: delegate to assistant for AI-powered search
-        return h.agentSearch(ctx, req)
-    }
-}
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
-// builtinSearch uses Tavily/Serper/SerpAPI directly
-func (h *Handler) builtinSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    switch h.config.Provider {
-    case "tavily":
-        return NewTavilyProvider(h.config).Search(req)
-    case "serper":
-        // Serper (serper.dev) - POST request with X-API-KEY header
-        return NewSerperProvider(h.config).Search(req)
-    case "serpapi":
-        // SerpAPI (serpapi.com) - GET request with api_key parameter
-        // Supports multiple engines: google, bing, baidu, yandex, etc.
-        return NewSerpAPIProvider(h.config).Search(req)
-    default:
-        return nil, fmt.Errorf("unknown provider: %s", h.config.Provider)
-    }
-}
+// Search implements interfaces.Handler (without context)
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 
-// agentSearch delegates to an assistant for AI-powered search
-func (h *Handler) agentSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Call assistant with search request
-    // 2. Assistant understands intent, generates optimized queries
-    // 3. Assistant executes searches (may call builtin internally)
-    // 4. Assistant analyzes and returns structured results
-    return nil, nil
-}
+// SearchWithContext executes web search with context (for Agent/MCP modes)
+func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Request) (*types.Result, error)
+```
 
-// mcpSearch calls external MCP tool
-func (h *Handler) mcpSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // Parse "mcp:server.tool"
-    mcpRef := strings.TrimPrefix(h.usesWeb, "mcp:")
-    parts := strings.SplitN(mcpRef, ".", 2)
-    if len(parts) != 2 {
-        return nil, fmt.Errorf("invalid MCP format, expected 'mcp:server.tool', got '%s'", h.usesWeb)
-    }
-    serverID, toolName := parts[0], parts[1]
-    // Call MCP tool
-    return nil, nil
-}
+**Directory Structure:**
+
+```
+handlers/web/
+├── handler.go     # Main entry point (mode dispatch)
+├── tavily.go      # Tavily provider (builtin)
+├── serper.go      # Serper provider (serper.dev)
+├── serpapi.go     # SerpAPI provider (serpapi.com, multi-engine)
+├── agent.go       # Agent mode (AI Search)
+└── mcp.go         # MCP mode (external service)
 ```
 
 **Built-in Providers (when `uses.web = "builtin"`):**
@@ -1942,8 +1912,6 @@ function Create(ctx, messages, options) {
 package kb
 
 import (
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/interfaces"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1953,18 +1921,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new KB search handler
-func NewHandler(cfg *types.KBConfig) *Handler {
-    return &Handler{config: cfg}
-}
+func NewHandler(cfg *types.KBConfig) *Handler
+
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
 // Search executes vector search and optional graph association
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Generate embedding via query processor
-    // 2. Vector search in collections
-    // 3. Optional: Graph association (if req.Graph)
-    // 4. Return results
-    return nil, nil
-}
+// TODO: Implement actual search logic
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 ```
 
 | File         | Description                        |
@@ -1980,8 +1944,6 @@ func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Resul
 package db
 
 import (
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/interfaces"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1992,18 +1954,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new DB search handler
-func NewHandler(usesQueryDSL string, cfg *types.DBConfig) *Handler {
-    return &Handler{usesQueryDSL: usesQueryDSL, config: cfg}
-}
+func NewHandler(usesQueryDSL string, cfg *types.DBConfig) *Handler
+
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
 // Search converts NL to QueryDSL and executes
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Get model schemas
-    // 2. Generate QueryDSL via query processor
-    // 3. Execute queries on models
-    // 4. Return results
-    return nil, nil
-}
+// TODO: Implement actual search logic
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 ```
 
 | File         | Description                    |
@@ -2023,42 +1981,71 @@ Integrates with Yao's Model/QueryDSL system:
 
 ### Reranking (`rerank/`)
 
+The rerank module follows the Handler + Registry pattern, consistent with `keyword/` and `web/`.
+
 ```go
-// rerank/rerank.go
+// rerank/reranker.go
 package rerank
 
 import (
-    "github.com/yaoapp/yao/agent/search/interfaces"
+    "strings"
+
+    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
-// NewReranker creates a reranker based on uses.rerank config
-func NewReranker(usesRerank string) interfaces.Reranker {
-    switch {
-    case usesRerank == "builtin" || usesRerank == "":
-        return NewBuiltinReranker()
-    case strings.HasPrefix(usesRerank, "mcp:"):
-        // Parse "mcp:server.tool"
-        mcpRef := strings.TrimPrefix(usesRerank, "mcp:")
-        parts := strings.SplitN(mcpRef, ".", 2)
-        if len(parts) != 2 {
-            // Invalid format, fallback to builtin
-            return NewBuiltinReranker()
-        }
-        return NewMCPReranker(parts[0], parts[1]) // serverID, toolName
-    default:
-        // Assume it's an assistant ID
-        return NewAgentReranker(usesRerank)
-    }
+// Reranker reorders search results by relevance
+// Mode is determined by uses.rerank configuration
+type Reranker struct {
+    usesRerank string             // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    config     *types.RerankConfig
 }
+
+// NewReranker creates a new reranker
+func NewReranker(usesRerank string, cfg *types.RerankConfig) *Reranker
+
+// Rerank reorders results based on configured mode
+func (r *Reranker) Rerank(ctx *context.Context, query string, items []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error)
 ```
 
-| File         | Description                      |
-| ------------ | -------------------------------- |
-| `rerank.go`  | Factory and common logic         |
-| `builtin.go` | Simple score sorting (default)   |
-| `agent.go`   | Delegate to an assistant (Agent) |
-| `mcp.go`     | Call MCP tool for reranking      |
+**Directory Structure:**
+
+```
+rerank/
+├── reranker.go        # Main entry point (mode dispatch)
+├── builtin.go         # Builtin: weighted score sorting (score * weight)
+├── agent.go           # Agent mode (delegate to LLM assistant)
+└── mcp.go             # MCP mode (external service)
+```
+
+**Builtin Implementation:**
+
+The builtin reranker uses weighted score sorting:
+
+- Calculate `weightedScore = score * weight`
+- Sort items by weighted score descending
+- Return top N items
+
+> **Note**: For production use cases requiring semantic understanding, use Agent or MCP mode.
+
+**Agent Response Format:**
+
+The agent should return reordered items in one of these formats:
+
+```json
+// Format 1: Order list (recommended)
+{ "order": ["ref_003", "ref_001", "ref_002"] }
+
+// Format 2: Items list with citation_id
+{ "items": [{ "citation_id": "ref_003" }, { "citation_id": "ref_001" }] }
+```
+
+| File          | Description                              |
+| ------------- | ---------------------------------------- |
+| `reranker.go` | Main entry point and mode dispatch       |
+| `builtin.go`  | Weighted score sorting (score \* weight) |
+| `agent.go`    | Delegate to LLM assistant for reranking  |
+| `mcp.go`      | Call external MCP tool for reranking     |
 
 Configure via `uses.rerank` in `agent/agent.yml`:
 

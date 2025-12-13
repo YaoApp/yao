@@ -3,10 +3,12 @@ package search
 import (
 	"sync"
 
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/handlers/db"
 	"github.com/yaoapp/yao/agent/search/handlers/kb"
 	"github.com/yaoapp/yao/agent/search/handlers/web"
 	"github.com/yaoapp/yao/agent/search/interfaces"
+	"github.com/yaoapp/yao/agent/search/rerank"
 	"github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -14,7 +16,7 @@ import (
 type Searcher struct {
 	config   *types.Config // Merged config (global + assistant)
 	handlers map[types.SearchType]interfaces.Handler
-	reranker interfaces.Reranker
+	reranker *rerank.Reranker
 	citation *CitationGenerator
 }
 
@@ -46,13 +48,13 @@ func New(cfg *types.Config, uses *Uses) *Searcher {
 			types.SearchTypeKB:  kb.NewHandler(cfg.KB),
 			types.SearchTypeDB:  db.NewHandler(uses.QueryDSL, cfg.DB),
 		},
-		reranker: newBuiltinReranker(), // TODO: use uses.Rerank to select reranker
+		reranker: rerank.NewReranker(uses.Rerank, cfg.Rerank),
 		citation: NewCitationGenerator(),
 	}
 }
 
 // Search executes a single search request
-func (s *Searcher) Search(req *types.Request) (*types.Result, error) {
+func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
 	handler, ok := s.handlers[req.Type]
 	if !ok {
 		return &types.Result{Error: "unsupported search type"}, nil
@@ -71,7 +73,7 @@ func (s *Searcher) Search(req *types.Request) (*types.Result, error) {
 
 	// Rerank if requested
 	if req.Rerank != nil && s.reranker != nil {
-		result.Items, _ = s.reranker.Rerank(req.Query, result.Items, req.Rerank)
+		result.Items, _ = s.reranker.Rerank(ctx, req.Query, result.Items, req.Rerank)
 	}
 
 	// Generate citation IDs
@@ -83,7 +85,7 @@ func (s *Searcher) Search(req *types.Request) (*types.Result, error) {
 }
 
 // SearchMultiple executes multiple searches in parallel
-func (s *Searcher) SearchMultiple(reqs []*types.Request) ([]*types.Result, error) {
+func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
 	results := make([]*types.Result, len(reqs))
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -92,7 +94,7 @@ func (s *Searcher) SearchMultiple(reqs []*types.Request) ([]*types.Result, error
 		wg.Add(1)
 		go func(idx int, r *types.Request) {
 			defer wg.Done()
-			result, _ := s.Search(r)
+			result, _ := s.Search(ctx, r)
 			mu.Lock()
 			results[idx] = result
 			mu.Unlock()
@@ -106,20 +108,4 @@ func (s *Searcher) SearchMultiple(reqs []*types.Request) ([]*types.Result, error
 // BuildReferences converts search results to unified Reference format
 func (s *Searcher) BuildReferences(results []*types.Result) []*types.Reference {
 	return BuildReferences(results)
-}
-
-// builtinReranker is a simple score-based reranker
-type builtinReranker struct{}
-
-func newBuiltinReranker() *builtinReranker {
-	return &builtinReranker{}
-}
-
-func (r *builtinReranker) Rerank(query string, items []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error) {
-	// Simple implementation: sort by score (already sorted in most cases)
-	// TODO: Implement proper reranking logic
-	if opts != nil && opts.TopN > 0 && opts.TopN < len(items) {
-		return items[:opts.TopN], nil
-	}
-	return items, nil
 }
