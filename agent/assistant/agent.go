@@ -199,6 +199,16 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			return nil, err
 		}
 
+		// ================================================
+		// Execute Auto Search (if enabled)
+		// ================================================
+		if ast.shouldAutoSearch(ctx, createResponse) {
+			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
+			if refCtx != nil && len(refCtx.References) > 0 {
+				completionMessages = ast.injectSearchContext(completionMessages, refCtx)
+			}
+		}
+
 		// Begin step tracking for LLM call
 		ast.BeginStep(ctx, context.StepTypeLLM, map[string]interface{}{
 			"messages": completionMessages,
@@ -367,6 +377,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var nextResponse *context.NextHookResponse = nil
 
 	if ast.HookScript != nil {
+		ctx.Logger.HookStart("Next")
+
 		// Begin step tracking for hook_next
 		ast.BeginStep(ctx, context.StepTypeHookNext, map[string]interface{}{
 			"messages":   fullMessages,
@@ -392,6 +404,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		ast.CompleteStep(ctx, map[string]interface{}{
 			"response": nextResponse,
 		})
+
+		ctx.Logger.HookComplete("Next")
 
 		// Process Next hook response
 		finalResponse, err = ast.processNextResponse(&NextProcessContext{

@@ -10,8 +10,14 @@ import (
 type Uses struct {
 	Vision string `json:"vision,omitempty"` // Vision processing tool. Format: "agent" or "mcp:server_id"
 	Audio  string `json:"audio,omitempty"`  // Audio processing tool. Format: "agent" or "mcp:server_id"
-	Search string `json:"search,omitempty"` // Search tool. Format: "agent" or "mcp:server_id"
+	Search string `json:"search,omitempty"` // Search tool. Format: "builtin", "disabled", "<assistant-id>", "mcp:<server>.<tool>"
 	Fetch  string `json:"fetch,omitempty"`  // Fetch/retrieval tool. Format: "agent" or "mcp:server_id"
+
+	// Search-related processing tools (NLP)
+	Web      string `json:"web,omitempty"`      // Web search handler: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	Keyword  string `json:"keyword,omitempty"`  // Keyword extraction: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	QueryDSL string `json:"querydsl,omitempty"` // QueryDSL generation: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	Rerank   string `json:"rerank,omitempty"`   // Result reranking: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 }
 
 // VisionFormat specifies the vision input format

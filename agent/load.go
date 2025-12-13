@@ -10,6 +10,8 @@ import (
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchDefaults "github.com/yaoapp/yao/agent/search/defaults"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	storeMongo "github.com/yaoapp/yao/agent/store/mongo"
 	storeRedis "github.com/yaoapp/yao/agent/store/redis"
 	store "github.com/yaoapp/yao/agent/store/types"
@@ -88,6 +90,12 @@ func Load(cfg config.Config) error {
 
 	// Initialize KB Configuration
 	err = initKBConfig()
+	if err != nil {
+		return err
+	}
+
+	// Initialize Search Configuration
+	err = initSearchConfig()
 	if err != nil {
 		return err
 	}
@@ -222,6 +230,10 @@ func initAssistant() error {
 		assistant.SetGlobalKBSetting(agentDSL.KB)
 	}
 
+	if agentDSL.Search != nil {
+		assistant.SetGlobalSearchConfig(agentDSL.Search)
+	}
+
 	// Load Built-in Assistants
 	err := assistant.LoadBuiltIn()
 	if err != nil {
@@ -259,6 +271,177 @@ func initKBConfig() error {
 
 	agentDSL.KB = &kbSetting
 	return nil
+}
+
+// initSearchConfig initialize the search configuration from agent/search.yml
+func initSearchConfig() error {
+	// Start with system defaults
+	agentDSL.Search = searchDefaults.SystemDefaults
+
+	path := filepath.Join("agent", "search.yml")
+	if exists, _ := application.App.Exists(path); !exists {
+		return nil // Search config is optional, use defaults
+	}
+
+	// Read the search configuration
+	bytes, err := application.App.Read(path)
+	if err != nil {
+		return err
+	}
+
+	var searchConfig searchTypes.Config
+	err = application.Parse("search.yml", bytes, &searchConfig)
+	if err != nil {
+		return err
+	}
+
+	// Merge with defaults
+	agentDSL.Search = mergeSearchConfig(searchDefaults.SystemDefaults, &searchConfig)
+	return nil
+}
+
+// mergeSearchConfig merges two search configs (base < override)
+func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
+	if base == nil {
+		return override
+	}
+	if override == nil {
+		return base
+	}
+
+	result := *base // Copy base
+
+	// Merge Web config
+	if override.Web != nil {
+		if result.Web == nil {
+			result.Web = override.Web
+		} else {
+			if override.Web.Provider != "" {
+				result.Web.Provider = override.Web.Provider
+			}
+			if override.Web.APIKeyEnv != "" {
+				result.Web.APIKeyEnv = override.Web.APIKeyEnv
+			}
+			if override.Web.MaxResults > 0 {
+				result.Web.MaxResults = override.Web.MaxResults
+			}
+		}
+	}
+
+	// Merge KB config
+	if override.KB != nil {
+		if result.KB == nil {
+			result.KB = override.KB
+		} else {
+			if len(override.KB.Collections) > 0 {
+				result.KB.Collections = override.KB.Collections
+			}
+			if override.KB.Threshold > 0 {
+				result.KB.Threshold = override.KB.Threshold
+			}
+			if override.KB.Graph {
+				result.KB.Graph = override.KB.Graph
+			}
+		}
+	}
+
+	// Merge DB config
+	if override.DB != nil {
+		if result.DB == nil {
+			result.DB = override.DB
+		} else {
+			if len(override.DB.Models) > 0 {
+				result.DB.Models = override.DB.Models
+			}
+			if override.DB.MaxResults > 0 {
+				result.DB.MaxResults = override.DB.MaxResults
+			}
+		}
+	}
+
+	// Merge Keyword config
+	if override.Keyword != nil {
+		if result.Keyword == nil {
+			result.Keyword = override.Keyword
+		} else {
+			if override.Keyword.MaxKeywords > 0 {
+				result.Keyword.MaxKeywords = override.Keyword.MaxKeywords
+			}
+			if override.Keyword.Language != "" {
+				result.Keyword.Language = override.Keyword.Language
+			}
+		}
+	}
+
+	// Merge QueryDSL config
+	if override.QueryDSL != nil {
+		result.QueryDSL = override.QueryDSL
+	}
+
+	// Merge Rerank config
+	if override.Rerank != nil {
+		if result.Rerank == nil {
+			result.Rerank = override.Rerank
+		} else {
+			if override.Rerank.TopN > 0 {
+				result.Rerank.TopN = override.Rerank.TopN
+			}
+		}
+	}
+
+	// Merge Citation config
+	if override.Citation != nil {
+		if result.Citation == nil {
+			result.Citation = override.Citation
+		} else {
+			if override.Citation.Format != "" {
+				result.Citation.Format = override.Citation.Format
+			}
+			// AutoInjectPrompt is a bool, need to check if explicitly set
+			result.Citation.AutoInjectPrompt = override.Citation.AutoInjectPrompt
+			if override.Citation.CustomPrompt != "" {
+				result.Citation.CustomPrompt = override.Citation.CustomPrompt
+			}
+		}
+	}
+
+	// Merge Weights config
+	if override.Weights != nil {
+		if result.Weights == nil {
+			result.Weights = override.Weights
+		} else {
+			if override.Weights.User > 0 {
+				result.Weights.User = override.Weights.User
+			}
+			if override.Weights.Hook > 0 {
+				result.Weights.Hook = override.Weights.Hook
+			}
+			if override.Weights.Auto > 0 {
+				result.Weights.Auto = override.Weights.Auto
+			}
+		}
+	}
+
+	// Merge Options config
+	if override.Options != nil {
+		if result.Options == nil {
+			result.Options = override.Options
+		} else {
+			if override.Options.SkipThreshold > 0 {
+				result.Options.SkipThreshold = override.Options.SkipThreshold
+			}
+		}
+	}
+
+	return &result
+}
+
+// GetSearchConfig returns the global search configuration
+func GetSearchConfig() *searchTypes.Config {
+	if agentDSL == nil {
+		return searchDefaults.SystemDefaults
+	}
+	return agentDSL.Search
 }
 
 // defaultAssistant get the default assistant

@@ -532,40 +532,10 @@ func (ast *Assistant) applyCreateResponseOptions(options *context.CompletionOpti
 
 // getUses get the Uses configuration with priority: assistant.Uses > global settings
 // Note: createResponse.Uses (applied in applyCreateResponseOptions) has even higher priority
-// Final priority order: createResponse.Uses > assistant.Uses > global settings
+// getUses returns the Uses config for this assistant
+// Note: The config is already merged with global config during loading (loadMap)
 func (ast *Assistant) getUses() *context.Uses {
-	// Priority 1: Assistant-specific Uses configuration
-	if ast.Uses != nil {
-		// Create a merged Uses by starting with global, then override with assistant-specific
-		merged := &context.Uses{}
-
-		// Start with global settings
-		if globalUses != nil {
-			merged.Vision = globalUses.Vision
-			merged.Audio = globalUses.Audio
-			merged.Search = globalUses.Search
-			merged.Fetch = globalUses.Fetch
-		}
-
-		// Override with assistant-specific settings (only if not empty)
-		if ast.Uses.Vision != "" {
-			merged.Vision = ast.Uses.Vision
-		}
-		if ast.Uses.Audio != "" {
-			merged.Audio = ast.Uses.Audio
-		}
-		if ast.Uses.Search != "" {
-			merged.Search = ast.Uses.Search
-		}
-		if ast.Uses.Fetch != "" {
-			merged.Fetch = ast.Uses.Fetch
-		}
-
-		return merged
-	}
-
-	// Priority 2: Global settings only
-	return globalUses
+	return ast.Uses
 }
 
 // applyMCPTools adds MCP tools to completion options and returns samples prompt

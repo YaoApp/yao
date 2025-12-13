@@ -62,6 +62,9 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Set mcp object
 	jsObject.Set("mcp", ctx.newMCPObject(v8ctx.Isolate()))
 
+	// Set search object
+	jsObject.Set("search", ctx.newSearchObject(v8ctx.Isolate()))
+
 	// Note: Space object will be set after instance creation (requires v8ctx)
 
 	// Create instance

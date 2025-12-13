@@ -195,6 +195,7 @@ type Skip struct {
 	History bool `json:"history"` // Skip saving chat history (for internal calls like title/prompt generation)
 	Trace   bool `json:"trace"`   // Skip trace logging
 	Output  bool `json:"output"`  // Skip output to client (for internal A2A calls that only need response data)
+	Keyword bool `json:"keyword"` // Skip keyword extraction for web search (use raw query directly)
 }
 
 // MessageMetadata stores metadata for sent messages

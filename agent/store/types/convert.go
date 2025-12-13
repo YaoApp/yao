@@ -9,7 +9,9 @@ import (
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 )
 
 // ToKnowledgeBase converts various types to KnowledgeBase
@@ -614,5 +616,61 @@ func ToPromptPresets(v interface{}) (map[string][]Prompt, error) {
 			return nil, fmt.Errorf("prompt_presets format error: %s", err.Error())
 		}
 		return result, nil
+	}
+}
+
+// ToUses converts various types to context.Uses
+func ToUses(v interface{}) (*context.Uses, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch uses := v.(type) {
+	case *context.Uses:
+		return uses, nil
+
+	case context.Uses:
+		return &uses, nil
+
+	default:
+		raw, err := jsoniter.Marshal(uses)
+		if err != nil {
+			return nil, fmt.Errorf("uses format error: %s", err.Error())
+		}
+
+		var result context.Uses
+		err = jsoniter.Unmarshal(raw, &result)
+		if err != nil {
+			return nil, fmt.Errorf("uses format error: %s", err.Error())
+		}
+		return &result, nil
+	}
+}
+
+// ToSearchConfig converts various types to searchTypes.Config
+func ToSearchConfig(v interface{}) (*searchTypes.Config, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch cfg := v.(type) {
+	case *searchTypes.Config:
+		return cfg, nil
+
+	case searchTypes.Config:
+		return &cfg, nil
+
+	default:
+		raw, err := jsoniter.Marshal(cfg)
+		if err != nil {
+			return nil, fmt.Errorf("search config format error: %s", err.Error())
+		}
+
+		var result searchTypes.Config
+		err = jsoniter.Unmarshal(raw, &result)
+		if err != nil {
+			return nil, fmt.Errorf("search config format error: %s", err.Error())
+		}
+		return &result, nil
 	}
 }

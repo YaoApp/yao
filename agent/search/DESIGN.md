@@ -124,11 +124,10 @@ sequenceDiagram
 ```
 agent/search/
 ├── DESIGN.md              # This document
+├── TODO.md                # Implementation plan and progress
 ├── search.go              # Main Searcher implementation and public API
 ├── registry.go            # Handler registry (manages web/kb/db handlers)
-├── jsapi.go               # JavaScript API bindings for hooks
-├── trace.go               # Trace node creation and management
-├── output.go              # Real-time output/streaming to client
+├── jsapi.go               # JavaScript API bindings for hooks (skeleton)
 ├── citation.go            # Citation ID generation and tracking
 ├── reference.go           # Reference building and LLM context formatting
 │
@@ -144,38 +143,50 @@ agent/search/
 │   ├── reranker.go        # Reranker interface
 │   └── nlp.go             # NLP interfaces (KeywordExtractor, QueryDSLGenerator)
 │
-├── rerank/                # Result reranking implementations
-│   ├── rerank.go          # Reranker factory and common logic
-│   ├── builtin.go         # Built-in score-based reranking (default)
-│   ├── agent.go           # Agent-based reranking (delegate to another assistant)
-│   └── mcp.go             # MCP-based reranking (call MCP server tool)
+├── rerank/                # Result reranking implementations (Handler + Registry pattern) ✅
+│   ├── reranker.go        # Main entry point (mode dispatch)
+│   ├── builtin.go         # Builtin: weighted score sorting
+│   ├── agent.go           # Agent mode (delegate to LLM assistant)
+│   └── mcp.go             # MCP mode (external service)
 │
 ├── nlp/                   # Natural language processing for search
-│   ├── nlp.go             # NLP factory and common logic
-│   ├── keyword.go         # Keyword extraction for web search
-│   └── querydsl.go        # QueryDSL generation for DB search
+│   ├── keyword/           # Keyword extraction (Handler + Registry pattern) ✅
+│   │   ├── extractor.go   # Main extractor (mode dispatch)
+│   │   ├── builtin.go     # Builtin frequency-based extraction
+│   │   ├── agent.go       # Agent mode (LLM-powered)
+│   │   └── mcp.go         # MCP mode (external service)
+│   └── querydsl/          # QueryDSL generation for DB search (待实现)
+│       ├── generator.go   # Main generator (mode dispatch)
+│       ├── builtin.go     # Builtin template-based generation
+│       ├── agent.go       # Agent mode (LLM-powered)
+│       └── mcp.go         # MCP mode (external service)
 │   # Note: Embedding follows KB collection config, not in this package
 │
 ├── handlers/              # Search handler implementations
-│   ├── web/               # Web search
+│   ├── web/               # Web search ✅
 │   │   ├── handler.go     # Web search handler (mode dispatch)
 │   │   ├── tavily.go      # Tavily provider (builtin)
-│   │   ├── serper.go      # Serper provider (builtin)
+│   │   ├── serper.go      # Serper provider (serper.dev, builtin)
+│   │   ├── serpapi.go     # SerpAPI provider (serpapi.com, multi-engine, builtin)
 │   │   ├── agent.go       # Agent mode (AI Search)
 │   │   └── mcp.go         # MCP mode (external service)
 │   │
-│   ├── kb/                # Knowledge base search
+│   ├── kb/                # Knowledge base search (骨架)
 │   │   ├── handler.go     # KB search handler
-│   │   ├── vector.go      # Vector similarity search
-│   │   └── graph.go       # Graph-based association (GraphRAG)
+│   │   ├── vector.go      # Vector similarity search (待实现)
+│   │   └── graph.go       # Graph-based association (待实现)
 │   │
-│   └── db/                # Database search (Yao Model/QueryDSL)
+│   └── db/                # Database search (骨架)
 │       ├── handler.go     # DB search handler
-│       ├── query.go       # QueryDSL builder
-│       └── schema.go      # Model schema introspection
+│       ├── query.go       # QueryDSL builder (待实现)
+│       └── schema.go      # Model schema introspection (待实现)
 │
 └── defaults/              # Default configuration values
     └── defaults.go        # System built-in defaults (used by agent/load.go)
+
+# 待实现文件:
+# - trace.go              # Trace node creation and management
+# - output.go             # Real-time output/streaming to client
 ```
 
 ### Dependency Graph
@@ -241,13 +252,13 @@ import (
 type Searcher struct {
     config    *types.Config           // Merged config (global + assistant)
     handlers  map[types.SearchType]interfaces.Handler
-    reranker  interfaces.Reranker
+    reranker  *rerank.Reranker        // Uses rerank package directly
     citation  *CitationGenerator
 }
 
-// SearchUses contains the search-specific uses configuration
+// Uses contains the search-specific uses configuration
 // These are extracted from context.Uses and search config
-type SearchUses struct {
+type Uses struct {
     Search   string // "builtin", "disabled", "<assistant-id>", "mcp:<server>.<tool>"
     Web      string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     Keyword  string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
@@ -258,7 +269,7 @@ type SearchUses struct {
 // New creates a new Searcher instance
 // cfg: merged config from agent/load.go + assistant config
 // uses: merged uses configuration (global → assistant → hook)
-func New(cfg *types.Config, uses *SearchUses) *Searcher {
+func New(cfg *types.Config, uses *Uses) *Searcher {
     return &Searcher{
         config: cfg,
         handlers: map[types.SearchType]interfaces.Handler{
@@ -266,7 +277,7 @@ func New(cfg *types.Config, uses *SearchUses) *Searcher {
             types.SearchTypeKB:  kb.NewHandler(cfg.KB),  // KB always builtin
             types.SearchTypeDB:  db.NewHandler(uses.QueryDSL, cfg.DB),
         },
-        reranker: rerank.NewReranker(uses.Rerank),
+        reranker: rerank.NewReranker(uses.Rerank, cfg.Rerank),
         citation: NewCitationGenerator(),
     }
 }
@@ -278,8 +289,8 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
         return &types.Result{Error: "unsupported search type"}, nil
     }
 
-    // Execute search
-    result, err := handler.Search(ctx, req)
+    // Execute search (handler doesn't need ctx)
+    result, err := handler.Search(req)
     if err != nil {
         return &types.Result{Error: err.Error()}, nil
     }
@@ -289,8 +300,8 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
         item.Weight = s.config.GetWeight(req.Source)
     }
 
-    // Rerank if requested
-    if req.Rerank != nil {
+    // Rerank if requested (reranker needs ctx for Agent/MCP modes)
+    if req.Rerank != nil && s.reranker != nil {
         result.Items, _ = s.reranker.Rerank(ctx, req.Query, result.Items, req.Rerank)
     }
 
@@ -302,25 +313,33 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
     return result, nil
 }
 
-// SearchMultiple executes multiple searches in parallel
-func (s *Searcher) SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
-    results := make([]*types.Result, len(reqs))
-    var wg sync.WaitGroup
-    var mu sync.Mutex
+// ParallelMode defines how parallel search should behave (inspired by JavaScript Promise)
+type ParallelMode string
 
-    for i, req := range reqs {
-        wg.Add(1)
-        go func(idx int, r *types.Request) {
-            defer wg.Done()
-            result, _ := s.Search(ctx, r)
-            mu.Lock()
-            results[idx] = result
-            mu.Unlock()
-        }(i, req)
-    }
+// ParallelMode constants (similar to Promise.all, Promise.any, Promise.race)
+const (
+    // ModeAll waits for all searches to complete, returns all results (like Promise.all)
+    ModeAll ParallelMode = "all"
+    // ModeAny returns as soon as any search succeeds (has results), others continue but are discarded (like Promise.any)
+    ModeAny ParallelMode = "any"
+    // ModeRace returns as soon as any search completes (success or empty), others continue but are discarded (like Promise.race)
+    ModeRace ParallelMode = "race"
+)
 
-    wg.Wait()
-    return results, nil
+// ParallelOptions configures parallel search behavior
+// All executes all searches and waits for all to complete (like Promise.all)
+func (s *Searcher) All(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelAll(ctx, reqs)
+}
+
+// Any returns as soon as any search succeeds with results (like Promise.any)
+func (s *Searcher) Any(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelAny(ctx, reqs)
+}
+
+// Race returns as soon as any search completes (like Promise.race)
+func (s *Searcher) Race(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
+    return s.parallelRace(ctx, reqs)
 }
 
 // BuildReferences converts search results to unified Reference format
@@ -388,7 +407,6 @@ All interfaces are defined in `search/interfaces/` package to prevent circular d
 package interfaces
 
 import (
-    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -397,11 +415,8 @@ type Handler interface {
     // Type returns the search type this handler supports
     Type() types.SearchType
 
-    // CanHandle checks if this handler can process the given request
-    CanHandle(ctx *context.Context, req *types.Request) bool
-
     // Search executes the search and returns results
-    Search(ctx *context.Context, req *types.Request) (*types.Result, error)
+    Search(req *types.Request) (*types.Result, error)
 }
 ```
 
@@ -411,7 +426,6 @@ type Handler interface {
 package interfaces
 
 import (
-    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -420,13 +434,24 @@ type Searcher interface {
     // Search executes a single search request
     Search(ctx *context.Context, req *types.Request) (*types.Result, error)
 
-    // SearchMultiple executes multiple searches (potentially in parallel)
-    SearchMultiple(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    // Parallel search methods - inspired by JavaScript Promise
+    // All waits for all searches to complete (like Promise.all)
+    All(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    // Any returns when any search succeeds with results (like Promise.any)
+    Any(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
+    // Race returns when any search completes (like Promise.race)
+    Race(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error)
 
     // BuildReferences converts search results to unified Reference format for LLM
     BuildReferences(results []*types.Result) []*types.Reference
 }
 ```
+
+> **Note**: Parallel search methods follow JavaScript Promise naming:
+>
+> - `All()`: Wait for all searches to complete (like `Promise.all`)
+> - `Any()`: Return when any search succeeds with results (like `Promise.any`)
+> - `Race()`: Return when any search completes (like `Promise.race`)
 
 ### NLP Interfaces (`interfaces/nlp.go`)
 
@@ -434,6 +459,8 @@ type Searcher interface {
 package interfaces
 
 import (
+    "github.com/yaoapp/gou/model"
+    "github.com/yaoapp/gou/query/gou"
     "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
@@ -441,13 +468,15 @@ import (
 // KeywordExtractor extracts keywords for web search
 type KeywordExtractor interface {
     // Extract extracts search keywords from user message
+    // ctx is required for Agent and MCP modes, can be nil for builtin mode
     Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 }
 
 // QueryDSLGenerator generates QueryDSL for DB search
 type QueryDSLGenerator interface {
     // Generate converts natural language to QueryDSL
-    Generate(ctx *context.Context, query string, schemas []*types.ModelSchema) (*types.QueryDSL, error)
+    // Uses GOU types directly: model.Model and gou.QueryDSL
+    Generate(query string, models []*model.Model) (*gou.QueryDSL, error)
 }
 
 // Note: Embedding is handled by KB collection's own config (embedding provider + model),
@@ -479,6 +508,10 @@ All types are defined in `search/types/` package to prevent circular dependencie
 
 ```go
 package types
+
+import (
+    "github.com/yaoapp/gou/query/gou"
+)
 
 // SearchType represents the type of search
 type SearchType string
@@ -516,26 +549,15 @@ type Request struct {
     Graph       bool     `json:"graph,omitempty"`       // Enable graph association
 
     // Database search specific
-    Models []string      `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
-    Wheres []QueryWhere  `json:"wheres,omitempty"` // Pre-defined filters (optional)
-    Orders []QueryOrder  `json:"orders,omitempty"` // Sort orders (optional)
-    Select []string      `json:"select,omitempty"` // Fields to return (optional)
+    // Uses GOU QueryDSL types directly for compatibility with Yao's query system
+    // See: github.com/yaoapp/gou/query/gou/types.go
+    Models []string    `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
+    Wheres []gou.Where `json:"wheres,omitempty"` // Pre-defined filters (optional), uses GOU QueryDSL Where
+    Orders gou.Orders  `json:"orders,omitempty"` // Sort orders (optional), uses GOU QueryDSL Orders
+    Select []string    `json:"select,omitempty"` // Fields to return (optional)
 
     // Reranking
     Rerank *RerankOptions `json:"rerank,omitempty"`
-}
-
-// QueryWhere represents a filter condition for DB search
-type QueryWhere struct {
-    Field string      `json:"field"`        // Field name
-    Op    string      `json:"op,omitempty"` // Operator: "=", "like", ">", "<", "in", etc. (default: "=")
-    Value interface{} `json:"value"`        // Filter value
-}
-
-// QueryOrder represents a sort order for DB search
-type QueryOrder struct {
-    Field string `json:"field"`           // Field name
-    Order string `json:"order,omitempty"` // "asc" or "desc" (default: "desc")
 }
 
 // RerankOptions controls result reranking
@@ -589,37 +611,19 @@ type ResultItem struct {
 
 // ProcessedQuery represents a processed query ready for execution
 type ProcessedQuery struct {
-    Type     SearchType `json:"type"`
-    Keywords []string   `json:"keywords,omitempty"`  // For web search
-    Vector   []float32  `json:"vector,omitempty"`    // For KB search
-    DSL      *QueryDSL  `json:"dsl,omitempty"`       // For DB search
+    Type     SearchType    `json:"type"`
+    Keywords []string      `json:"keywords,omitempty"` // For web search
+    Vector   []float32     `json:"vector,omitempty"`   // For KB search
+    DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
 }
 
-// QueryDSL represents a Yao QueryDSL for database search
-type QueryDSL struct {
-    Model  string       `json:"model"`            // Target model
-    Select []string     `json:"select,omitempty"` // Fields to return
-    Wheres []QueryWhere `json:"wheres,omitempty"` // Filter conditions
-    Orders []QueryOrder `json:"orders,omitempty"` // Sort orders
-    Limit  int          `json:"limit,omitempty"`  // Max results
-}
-
-// ModelSchema represents a Yao Model schema for DSL generation
-type ModelSchema struct {
-    ID          string        `json:"id"`          // Model ID
-    Name        string        `json:"name"`        // Model name
-    Description string        `json:"description"` // Model description
-    Fields      []FieldSchema `json:"fields"`      // Field definitions
-}
-
-// FieldSchema represents a field in the model schema
-type FieldSchema struct {
-    Name        string `json:"name"`        // Field name
-    Type        string `json:"type"`        // Field type
-    Description string `json:"description"` // Field description
-    Searchable  bool   `json:"searchable"`  // Whether field is searchable
-}
+// Note: For QueryDSL and Model types, use GOU types directly:
+// - github.com/yaoapp/gou/query/gou.QueryDSL
+// - github.com/yaoapp/gou/model.Model
+// - github.com/yaoapp/gou/model.Column
 ```
+
+> **Note**: `Wheres` and `Orders` use GOU QueryDSL types directly (`gou.Where` and `gou.Orders`) for full compatibility with Yao's query system. See `github.com/yaoapp/gou/query/gou/types.go` for the complete type definitions.
 
 ### Graph Types (`types/graph.go`)
 
@@ -687,9 +691,10 @@ type Config struct {
 // Note: uses.web determines the mode (builtin/agent/mcp)
 // Provider is only used when uses.web = "builtin"
 type WebConfig struct {
-    Provider   string `json:"provider,omitempty"`    // "tavily" or "serper" (for builtin mode)
+    Provider   string `json:"provider,omitempty"`    // "tavily", "serper", or "serpapi" (for builtin mode)
     APIKeyEnv  string `json:"api_key_env,omitempty"` // Environment variable for API key
     MaxResults int    `json:"max_results,omitempty"` // Max results (default: 10)
+    Engine     string `json:"engine,omitempty"`      // Search engine for SerpAPI: "google", "bing", "baidu", etc. (default: "google")
 }
 
 // KBConfig for knowledge base search settings
@@ -882,22 +887,64 @@ const (
 
 The Search module is exposed via `ctx.search` object in hook scripts.
 
+### Architecture
+
+To avoid circular dependency between `context` and `search` packages:
+
+```
+agent/context/jsapi_search.go          agent/search/jsapi.go
+┌─────────────────────────────┐        ┌─────────────────────────┐
+│  SearchAPI interface        │◄───────│  JSAPI struct           │
+│  SearchAPIFactory var       │        │  (implements SearchAPI) │
+│  V8 binding methods:        │        │  NewJSAPI()             │
+│    newSearchObject()        │        │  Web/KB/DB()            │
+│    searchWebMethod()        │        │  All/Any/Race()         │
+│    searchKBMethod()         │        │  buildRequest()         │
+│    searchDBMethod()         │        │  parseRequests()        │
+│    searchAllMethod()        │        │  ConfigGetter type      │
+│    searchAnyMethod()        │        │  SetJSAPIFactory()      │
+│    searchRaceMethod()       │        └─────────────────────────┘
+└─────────────────────────────┘                    │
+           ▲                                       │
+           │                                       │
+           └───────────────────────────────────────┘
+                    Factory registration
+                    (with ConfigGetter in assistant/init)
+
+agent/context/jsapi.go
+┌─────────────────────────────┐
+│  NewObject()                │
+│    jsObject.Set("search",   │
+│      ctx.newSearchObject()) │
+└─────────────────────────────┘
+```
+
+**Key Files:**
+
+| File                             | Description                                                      |
+| -------------------------------- | ---------------------------------------------------------------- |
+| `context/jsapi_search.go`        | SearchAPI interface + V8 binding methods                         |
+| `context/jsapi_search_test.go`   | Integration tests (real V8 calls via test assistant)             |
+| `context/jsapi.go`               | Mount search object to ctx                                       |
+| `search/jsapi.go`                | JSAPI implementation (calls Searcher) + ConfigGetter             |
+| `search/jsapi_test.go`           | Black-box unit tests                                             |
+| `assistant/assistant.go:init`    | Factory registration via SetJSAPIFactory(ConfigGetter)           |
+| `assistants/tests/search-jsapi/` | Test assistant for JSAPI integration tests (Create hook, no LLM) |
+
 ### API Methods
 
 ```typescript
 // In hook scripts (index.ts)
 
-// Web search
+// Single search methods
 ctx.search.Web(query: string, options?: WebOptions): Result
-
-// Knowledge base search
 ctx.search.KB(query: string, options?: KBOptions): Result
-
-// Database search (Yao Model/QueryDSL)
 ctx.search.DB(query: string, options?: DBOptions): Result
 
-// Parallel search (multiple types)
-ctx.search.Parallel(requests: Request[]): Result[]
+// Parallel search methods - inspired by JavaScript Promise
+ctx.search.All(requests: Request[]): Result[]   // Like Promise.all - wait for all
+ctx.search.Any(requests: Request[]): Result[]   // Like Promise.any - first success
+ctx.search.Race(requests: Request[]): Result[]  // Like Promise.race - first complete
 ```
 
 ### Options Types
@@ -920,22 +967,33 @@ interface KBOptions {
 
 interface DBOptions {
   models?: string[]; // Model IDs (default: use assistant's db.models)
-  wheres?: QueryWhere[]; // Pre-defined filters
-  orders?: QueryOrder[]; // Sort orders
+  wheres?: Where[]; // Pre-defined filters, uses GOU QueryDSL Where format
+  orders?: Order[]; // Sort orders, uses GOU QueryDSL Order format
   select?: string[]; // Fields to return
   limit?: number; // Max results (default: 10)
   rerank?: RerankOptions;
 }
 
-interface QueryWhere {
-  field: string;
-  op?: string; // "=", "like", ">", "<", "in", etc.
-  value: any;
+// GOU QueryDSL Where condition
+// See: github.com/yaoapp/gou/query/gou/types.go
+interface Where {
+  field: Expression; // Field expression
+  value?: any; // Match value
+  op: string; // Operator: "=", "like", ">", "<", ">=", "<=", "in", "is null", etc.
+  or?: boolean; // true for OR condition, default AND
+  wheres?: Where[]; // Nested conditions for grouping
 }
 
-interface QueryOrder {
-  field: string;
-  order?: string; // "asc" or "desc"
+// GOU QueryDSL Order
+interface Order {
+  field: Expression; // Field expression
+  sort?: string; // "asc" or "desc"
+}
+
+// GOU Expression (simplified)
+interface Expression {
+  field?: string; // Field name
+  table?: string; // Table name (optional)
 }
 
 interface RerankOptions {
@@ -1031,14 +1089,14 @@ function Create(ctx, messages, options) {
 }
 ```
 
-#### Example 4: Parallel Web + KB + DB Search
+#### Example 4: Parallel Search with ctx.search.All()
 
 ```typescript
 function Create(ctx, messages, options) {
   const query = messages[messages.length - 1].content;
 
-  // Execute web, KB, and DB search in parallel
-  const [webResult, kbResult, dbResult] = ctx.search.Parallel([
+  // Execute web, KB, and DB search in parallel (wait for all) - like Promise.all
+  const [webResult, kbResult, dbResult] = ctx.search.All([
     { type: "web", query: query, limit: 5 },
     { type: "kb", query: query, collections: ["docs"], limit: 10 },
     { type: "db", query: query, models: ["product"], limit: 10 },
@@ -1056,6 +1114,56 @@ function Create(ctx, messages, options) {
     ],
     uses: { search: "disabled" }, // Disable auto search
   };
+}
+```
+
+#### Example 4b: Parallel Search with ctx.search.Any()
+
+```typescript
+function Create(ctx, messages, options) {
+  const query = messages[messages.length - 1].content;
+
+  // Return as soon as any search succeeds (has results) - like Promise.any
+  const results = ctx.search.Any([
+    { type: "web", query: query, limit: 5 },
+    { type: "kb", query: query, collections: ["docs"], limit: 10 },
+  ]);
+
+  // Use the first successful result
+  const successResult = results.find((r) => r && r.items?.length > 0);
+  if (successResult) {
+    return {
+      messages: [{ role: "system", content: formatContext(successResult) }],
+      uses: { search: "disabled" },
+    };
+  }
+
+  return { messages: [] };
+}
+```
+
+#### Example 4c: Parallel Search with ctx.search.Race()
+
+```typescript
+function Create(ctx, messages, options) {
+  const query = messages[messages.length - 1].content;
+
+  // Return as soon as any search completes (success or not) - like Promise.race
+  const results = ctx.search.Race([
+    { type: "web", query: query, limit: 5 },
+    { type: "kb", query: query, collections: ["docs"], limit: 10 },
+  ]);
+
+  // Use the first completed result
+  const firstResult = results.find((r) => r != null);
+  if (firstResult && firstResult.items?.length > 0) {
+    return {
+      messages: [{ role: "system", content: formatContext(firstResult) }],
+      uses: { search: "disabled" },
+    };
+  }
+
+  return { messages: [] };
 }
 ```
 
@@ -1089,7 +1197,7 @@ function Create(ctx, messages, options) {
 Configuration follows a three-layer hierarchy (later overrides earlier):
 
 1. **System Built-in Defaults** - Hardcoded sensible defaults
-2. **Global Configuration** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+2. **Global Configuration** - `agent/agent.yml` (uses) + `agent/search.yml` (search options)
 3. **Assistant Configuration** - `assistants/<assistant-id>/package.yao` (uses + search options)
 
 ### Uses Configuration
@@ -1121,7 +1229,7 @@ Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server>.<tool>"` (M
 
 | Mode      | Example                      | Description                                                                |
 | --------- | ---------------------------- | -------------------------------------------------------------------------- |
-| `builtin` | `"builtin"`                  | Use built-in providers (Tavily, Serper)                                    |
+| `builtin` | `"builtin"`                  | Use built-in providers (Tavily, Serper, SerpAPI)                           |
 | Agent     | `"workers.search.web"`       | AI-powered search: understand intent → optimize query → search → summarize |
 | MCP       | `"mcp:my-server.web_search"` | External search tool via MCP protocol                                      |
 
@@ -1158,7 +1266,7 @@ package defaults
 import "github.com/yaoapp/yao/agent/search/types"
 
 // SystemDefaults provides hardcoded default values
-// Used by agent/load.go for merging with agent/search.yao
+// Used by agent/load.go for merging with agent/search.yml
 var SystemDefaults = &types.Config{
     // Web search defaults
     Web: &types.WebConfig{
@@ -1251,12 +1359,12 @@ import (
 
 var searchConfig *searchTypes.Config
 
-// initSearchConfig initialize the search configuration from agent/search.yao
+// initSearchConfig initialize the search configuration from agent/search.yml
 func initSearchConfig() error {
     // Start with system defaults
     searchConfig = searchDefaults.SystemDefaults
 
-    path := filepath.Join("agent", "search.yao")
+    path := filepath.Join("agent", "search.yml")
     if exists, _ := application.App.Exists(path); !exists {
         return nil // Use defaults
     }
@@ -1268,7 +1376,7 @@ func initSearchConfig() error {
     }
 
     var cfg searchTypes.Config
-    err = application.Parse("search.yao", bytes, &cfg)
+    err = application.Parse("search.yml", bytes, &cfg)
     if err != nil {
         return err
     }
@@ -1304,62 +1412,55 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
 
 ### Global Configuration
 
-`agent/search.yao` - Override system defaults for all assistants:
+`agent/search.yml` - Override system defaults for all assistants:
 
-```jsonc
-{
-  // Web search settings
-  "web": {
-    "provider": "tavily", // "tavily", "serper" (builtin providers only)
-    "api_key_env": "TAVILY_API_KEY",
-    "max_results": 10
-  },
+```yaml
+# Global Search Configuration
+# These settings apply to all assistants unless overridden by assistant-specific configurations.
 
-  // Knowledge base search settings
-  "kb": {
-    "threshold": 0.7, // Similarity threshold
-    "graph": false // Enable GraphRAG association
-  },
+# Web search settings
+web:
+  provider: "tavily" # "tavily", "serper", or "serpapi" (builtin providers only)
+  api_key_env: "TAVILY_API_KEY"
+  max_results: 10
+  # engine: "google"  # For SerpAPI only: "google", "bing", "baidu", "yandex", etc.
 
-  // Database search settings
-  "db": {
-    "max_results": 20
-  },
+# Knowledge base search settings
+kb:
+  threshold: 0.7 # Similarity threshold
+  graph: false # Enable GraphRAG association
 
-  // Keyword extraction options (uses.keyword)
-  "keyword": {
-    "max_keywords": 10,
-    "language": "auto" // "auto", "en", "zh", etc.
-  },
+# Database search settings
+db:
+  max_results: 20
 
-  // QueryDSL generation options (uses.querydsl)
-  "querydsl": {
-    "strict": false // Strict mode: fail if generation fails
-  },
+# Keyword extraction options (uses.keyword)
+keyword:
+  max_keywords: 10
+  language: "auto" # "auto", "en", "zh", etc.
 
-  // Rerank options (uses.rerank)
-  "rerank": {
-    "top_n": 10 // Return top N results after reranking
-  },
+# QueryDSL generation options (uses.querydsl)
+querydsl:
+  strict: false # Strict mode: fail if generation fails
 
-  // Citation format for LLM references
-  "citation": {
-    "format": "#ref:{id}",
-    "auto_inject_prompt": true // Auto-inject citation instructions to system prompt
-  },
+# Rerank options (uses.rerank)
+rerank:
+  top_n: 10 # Return top N results after reranking
 
-  // Source weighting for result merging
-  "weights": {
-    "user": 1.0, // User-provided DataContent (highest priority)
-    "hook": 0.8, // Hook ctx.search.*() results
-    "auto": 0.6 // Auto search results
-  },
+# Citation format for LLM references
+citation:
+  format: "#ref:{id}"
+  auto_inject_prompt: true # Auto-inject citation instructions to system prompt
 
-  // Search behavior options
-  "options": {
-    "skip_threshold": 5 // Skip auto search if user provides >= N results
-  }
-}
+# Source weighting for result merging
+weights:
+  user: 1.0 # User-provided DataContent (highest priority)
+  hook: 0.8 # Hook ctx.search.*() results
+  auto: 0.6 # Auto search results
+
+# Search behavior options
+options:
+  skip_threshold: 5 # Skip auto search if user provides >= N results
 ```
 
 ### Assistant Configuration
@@ -1380,7 +1481,7 @@ func (ast *Assistant) GetMergedSearchConfig() *searchTypes.Config {
     "rerank": "mcp:my-server.rerank" // Use MCP tool for reranking
   },
 
-  // Search configuration (overrides agent/search.yao)
+  // Search configuration (overrides agent/search.yml)
   "search": {
     // Overrides global web settings
     "web": {
@@ -1451,23 +1552,96 @@ Stream(ctx, messages, options)
   ├── 2. Create Hook (optional)
   │   └── Can call ctx.search.* and return search results
   │
-  ├── 3. Auto Search Decision
+  ├── 3. BuildRequest + BuildContent
+  │
+  ├── 4. Auto Search Decision (shouldAutoSearch)
   │   ├── IF Uses.Search == "disabled" → SKIP
   │   ├── IF Create Hook returned uses.search="disabled" → SKIP
-  │   └── ELSE → Execute Auto Search (based on Uses.Search mode)
-  │       ├── Read assistant's search config
-  │       ├── Execute web/kb/db in parallel
-  │       ├── Send search_start/search_result/search_complete to output
-  │       ├── Rerank results
-  │       ├── Generate citation IDs
-  │       └── Inject search context + citation prompt to messages
+  │   └── ELSE → Execute Auto Search (executeAutoSearch)
+  │       ├── Read assistant's search config (GetMergedSearchConfig)
+  │       ├── Extract keywords (if uses.keyword && !Skip.Keyword)
+  │       ├── Build search requests (buildSearchRequests)
+  │       ├── Execute web/kb/db in parallel (searcher.All)
+  │       ├── Build reference context (BuildReferenceContext)
+  │       └── Inject search context to messages (injectSearchContext)
   │
-  ├── 4. LLM Call (with search context if any)
+  ├── 5. LLM Call (with search context if any)
   │
-  ├── 5. Next Hook (optional)
+  ├── 6. Next Hook (optional)
   │
-  └── 6. Output (response may contain #ref:xxx citations)
+  └── 7. Output (response may contain #ref:xxx citations)
 ```
+
+**Implementation Files:**
+
+| File                  | Description                                     |
+| --------------------- | ----------------------------------------------- |
+| `assistant/search.go` | Core integration logic (shouldAutoSearch, etc.) |
+| `assistant/agent.go`  | Stream() integration point (after BuildContent) |
+| `search/reference.go` | BuildReferenceContext, FormatReferencesXML      |
+
+**Key Functions (`assistant/search.go`):**
+
+```go
+// shouldAutoSearch determines if auto search should be executed
+func (ast *Assistant) shouldAutoSearch(ctx *context.Context, createResponse *context.HookCreateResponse) bool
+
+// executeAutoSearch executes auto search based on configuration
+// opts is optional, used to check Skip.Keyword for keyword extraction
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts ...*context.Options) *searchTypes.ReferenceContext
+
+// injectSearchContext injects search results into messages
+func (ast *Assistant) injectSearchContext(messages []context.Message, refCtx *searchTypes.ReferenceContext) []context.Message
+
+// getMergedSearchUses returns the merged uses configuration for search
+func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResponse) *context.Uses
+
+// buildSearchRequests builds search requests based on assistant configuration
+func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Config) []*searchTypes.Request
+```
+
+**Keyword Extraction in executeAutoSearch:**
+
+When `uses.keyword` is configured and `opts.Skip.Keyword` is not true, keyword extraction is performed before web search:
+
+```go
+// Extract keywords for web search if:
+// 1. uses.keyword is configured (not empty)
+// 2. Skip.Keyword is not true
+// 3. Web search is enabled
+if webSearchEnabled && !skipKeyword && searchUses.Keyword != "" {
+    extractor := keyword.NewExtractor(searchUses.Keyword, searchConfig.Keyword)
+    keywords, err := extractor.Extract(ctx, query, nil)
+    if err == nil && len(keywords) > 0 {
+        query = strings.Join(keywords, " ")
+    }
+}
+```
+
+**Integration in agent.go:**
+
+```go
+// In Stream(), after BuildContent:
+if ast.shouldAutoSearch(ctx, createResponse) {
+    refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
+    if refCtx != nil && len(refCtx.References) > 0 {
+        completionMessages = ast.injectSearchContext(completionMessages, refCtx)
+    }
+}
+```
+
+**Skip.Keyword Option (`context.Options.Skip`):**
+
+```go
+type Skip struct {
+    History bool `json:"history"` // Skip saving chat history
+    Trace   bool `json:"trace"`   // Skip trace logging
+    Output  bool `json:"output"`  // Skip output to client
+    Keyword bool `json:"keyword"` // Skip keyword extraction for web search
+}
+```
+
+Use `Skip.Keyword = true` when you want to use the raw query directly without keyword extraction.
 
 ### Control via Uses.Search
 
@@ -1600,50 +1774,64 @@ Configure via `uses.*` in `agent/agent.yml`:
 | `<assistant-id>`      | Delegate to an assistant (Agent)          | LLM-based, custom logic        |
 | `mcp:<server>.<tool>` | Call MCP tool                             | External services integration  |
 
-#### Keyword Extraction (`nlp/keyword.go`)
+#### Keyword Extraction (`nlp/keyword/`)
 
-Configure via `uses.keyword`:
+Configure via `uses.keyword`. The keyword extraction module follows the Handler + Registry pattern with three modes:
+
+| Mode    | Value                        | Description                                   |
+| ------- | ---------------------------- | --------------------------------------------- |
+| Builtin | `"builtin"`                  | Frequency-based extraction (no external deps) |
+| Agent   | `"workers.nlp.keyword"`      | LLM-powered semantic extraction               |
+| MCP     | `"mcp:nlp.extract_keywords"` | External service via MCP                      |
+
+**Directory Structure:**
+
+```
+nlp/keyword/
+├── extractor.go   # Main entry point (mode dispatch)
+├── builtin.go     # Builtin: frequency-based, stopword filtering
+├── agent.go       # Agent: delegate to LLM assistant
+└── mcp.go         # MCP: call external tool
+```
+
+**Usage:**
 
 ```go
-// nlp/keyword.go
-package nlp
+// nlp/keyword/extractor.go
+package keyword
 
-import (
-    "strings"
-
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/types"
-)
-
-// KeywordExtractor extracts keywords from user query
-type KeywordExtractor struct {
-    usesKeyword string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+// Extractor extracts keywords from text
+type Extractor struct {
+    usesKeyword string              // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
     config      *types.KeywordConfig
 }
 
-// NewKeywordExtractor creates a keyword extractor
-func NewKeywordExtractor(usesKeyword string, cfg *types.KeywordConfig) *KeywordExtractor {
-    return &KeywordExtractor{usesKeyword: usesKeyword, config: cfg}
-}
+// NewExtractor creates a new keyword extractor
+func NewExtractor(usesKeyword string, cfg *types.KeywordConfig) *Extractor
 
-// Extract extracts keywords from content
-func (e *KeywordExtractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
-    switch {
-    case e.usesKeyword == "builtin" || e.usesKeyword == "":
-        return e.builtinExtract(content, opts)
-    case strings.HasPrefix(e.usesKeyword, "mcp:"):
-        return e.mcpExtract(ctx, content, opts)
-    default:
-        return e.agentExtract(ctx, content, opts)
-    }
-}
+// Extract extracts keywords based on configured mode
+func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error)
 ```
+
+**Builtin Implementation:**
+
+The builtin extractor uses simple frequency-based extraction with no external dependencies:
+
+- Tokenization (handles English and Chinese)
+- Stop word filtering (common English and Chinese stop words)
+- Frequency counting and ranking
+- Returns top N keywords by frequency
+
+> **Note**: For production use cases requiring high accuracy (semantic understanding, phrase extraction), use Agent or MCP mode.
+
+**Example:**
 
 ```
 "I want to find the best wireless headphones under $100"
-    ↓ builtin: simple tokenization + stopword removal
-    ↓ agent: LLM extracts ["wireless headphones", "under $100", "best"]
-→ Keywords: ["wireless headphones", "under $100", "best"]
+    ↓ builtin: tokenization + stopword removal + frequency ranking
+      → ["wireless", "headphones", "find", "best"]
+    ↓ agent: LLM semantic extraction
+      → ["wireless headphones", "under $100", "best"]
 ```
 
 #### Embedding (KB Collection Config)
@@ -1668,50 +1856,54 @@ func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Resul
 }
 ```
 
-#### QueryDSL Generation (`nlp/querydsl.go`)
+#### QueryDSL Generation (`nlp/querydsl/`)
 
-Configure via `uses.querydsl`:
+Configure via `uses.querydsl`. The QueryDSL generation module follows the same pattern as keyword extraction:
+
+| Mode    | Value                         | Description                                 |
+| ------- | ----------------------------- | ------------------------------------------- |
+| Builtin | `"builtin"`                   | Template-based generation from model schema |
+| Agent   | `"workers.nlp.querydsl"`      | LLM-powered semantic query generation       |
+| MCP     | `"mcp:nlp.generate_querydsl"` | External service via MCP                    |
+
+**Directory Structure:**
+
+```
+nlp/querydsl/
+├── generator.go   # Main entry point (mode dispatch)
+├── builtin.go     # Builtin: template-based generation
+├── agent.go       # Agent: delegate to LLM assistant
+└── mcp.go         # MCP: call external tool
+```
+
+**Usage:**
 
 ```go
-// nlp/querydsl.go
-package nlp
+// nlp/querydsl/generator.go
+package querydsl
 
-import (
-    "strings"
-
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/types"
-)
-
-// QueryDSLGenerator generates QueryDSL from natural language
-type QueryDSLGenerator struct {
-    usesQueryDSL string // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+// Generator generates QueryDSL from natural language
+type Generator struct {
+    usesQueryDSL string
     config       *types.QueryDSLConfig
 }
 
-// NewQueryDSLGenerator creates a QueryDSL generator
-func NewQueryDSLGenerator(usesQueryDSL string, cfg *types.QueryDSLConfig) *QueryDSLGenerator {
-    return &QueryDSLGenerator{usesQueryDSL: usesQueryDSL, config: cfg}
-}
+// NewGenerator creates a new QueryDSL generator
+func NewGenerator(usesQueryDSL string, cfg *types.QueryDSLConfig) *Generator
 
 // Generate converts natural language to QueryDSL
-func (g *QueryDSLGenerator) Generate(ctx *context.Context, query string, schemas []*types.ModelSchema) (*types.QueryDSL, error) {
-    switch {
-    case g.usesQueryDSL == "builtin" || g.usesQueryDSL == "":
-        return g.builtinGenerate(query, schemas)
-    case strings.HasPrefix(g.usesQueryDSL, "mcp:"):
-        return g.mcpGenerate(ctx, query, schemas)
-    default:
-        return g.agentGenerate(ctx, query, schemas)
-    }
-}
+// Uses GOU types directly: model.Model and gou.QueryDSL
+func (g *Generator) Generate(query string, models []*model.Model) (*gou.QueryDSL, error)
 ```
+
+**Example:**
 
 ```
 "Products cheaper than $100 from Apple"
     ↓ builtin: template matching against model schema
+      → QueryDSL with simple keyword matching
     ↓ agent: LLM generates DSL from NL + schema
-→ QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
+      → QueryDSL: {"wheres": [{"column": "price", "op": "<", "value": 100}, {"column": "brand", "value": "Apple"}]}
 ```
 
 ## Handlers & Providers
@@ -1724,7 +1916,7 @@ Web search supports three modes via `uses.web`:
 
 | Mode    | Value                        | Description                                 |
 | ------- | ---------------------------- | ------------------------------------------- |
-| Builtin | `"builtin"`                  | Direct API calls to Tavily/Serper           |
+| Builtin | `"builtin"`                  | Direct API calls to Tavily/Serper/SerpAPI   |
 | Agent   | `"workers.search.web"`       | AI-powered search with intent understanding |
 | MCP     | `"mcp:my-server.web_search"` | External search tool via MCP                |
 
@@ -1735,7 +1927,7 @@ package web
 import (
     "strings"
 
-    "github.com/yaoapp/yao/agent/context"
+    agentContext "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1746,64 +1938,66 @@ type Handler struct {
 }
 
 // NewHandler creates a new web search handler
-func NewHandler(usesWeb string, cfg *types.WebConfig) *Handler {
-    return &Handler{usesWeb: usesWeb, config: cfg}
-}
+func NewHandler(usesWeb string, cfg *types.WebConfig) *Handler
 
-// Search executes web search based on uses.web mode
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    switch {
-    case h.usesWeb == "builtin" || h.usesWeb == "":
-        return h.builtinSearch(ctx, req)
-    case strings.HasPrefix(h.usesWeb, "mcp:"):
-        return h.mcpSearch(ctx, req)
-    default:
-        // Agent mode: delegate to assistant for AI-powered search
-        return h.agentSearch(ctx, req)
-    }
-}
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
-// builtinSearch uses Tavily/Serper directly
-func (h *Handler) builtinSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    var provider Provider
-    switch h.config.Provider {
-    case "tavily":
-        provider = NewTavilyProvider(h.config)
-    case "serper":
-        provider = NewSerperProvider(h.config)
-    }
-    return provider.Search(ctx, req)
-}
+// Search implements interfaces.Handler (without context)
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 
-// agentSearch delegates to an assistant for AI-powered search
-func (h *Handler) agentSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Call assistant with search request
-    // 2. Assistant understands intent, generates optimized queries
-    // 3. Assistant executes searches (may call builtin internally)
-    // 4. Assistant analyzes and returns structured results
-    return nil, nil
-}
+// SearchWithContext executes web search with context (for Agent/MCP modes)
+func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Request) (*types.Result, error)
+```
 
-// mcpSearch calls external MCP tool
-func (h *Handler) mcpSearch(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // Parse "mcp:server.tool"
-    mcpRef := strings.TrimPrefix(h.usesWeb, "mcp:")
-    parts := strings.SplitN(mcpRef, ".", 2)
-    if len(parts) != 2 {
-        return nil, fmt.Errorf("invalid MCP format, expected 'mcp:server.tool', got '%s'", h.usesWeb)
-    }
-    serverID, toolName := parts[0], parts[1]
-    // Call MCP tool
-    return nil, nil
-}
+**Directory Structure:**
+
+```
+handlers/web/
+├── handler.go     # Main entry point (mode dispatch)
+├── tavily.go      # Tavily provider (builtin)
+├── serper.go      # Serper provider (serper.dev)
+├── serpapi.go     # SerpAPI provider (serpapi.com, multi-engine)
+├── agent.go       # Agent mode (AI Search)
+└── mcp.go         # MCP mode (external service)
 ```
 
 **Built-in Providers (when `uses.web = "builtin"`):**
 
-| Provider | File        | Notes                           |
-| -------- | ----------- | ------------------------------- |
-| Tavily   | `tavily.go` | Recommended for AI applications |
-| Serper   | `serper.go` | Google search API               |
+| Provider | File         | Notes                                           |
+| -------- | ------------ | ----------------------------------------------- |
+| Tavily   | `tavily.go`  | Recommended for AI applications                 |
+| Serper   | `serper.go`  | Google search via serper.dev (POST + X-API-KEY) |
+| SerpAPI  | `serpapi.go` | Multi-engine search via serpapi.com (GET + URL) |
+
+**SerpAPI Engine Support:**
+
+SerpAPI supports multiple search engines via the `engine` config:
+
+| Engine       | Description                  |
+| ------------ | ---------------------------- |
+| `google`     | Google Search (default)      |
+| `bing`       | Bing Search                  |
+| `baidu`      | Baidu (百度)                 |
+| `yandex`     | Yandex Search                |
+| `yahoo`      | Yahoo Search                 |
+| `duckduckgo` | DuckDuckGo Search            |
+| `naver`      | Naver Search (Korean)        |
+| `ecosia`     | Ecosia Search (eco-friendly) |
+| `seznam`     | Seznam Search (Czech)        |
+
+See [SerpAPI Documentation](https://serpapi.com/search-api) for the full list of supported engines.
+
+Configuration example:
+
+```yaml
+# agent/search.yml
+web:
+  provider: "serpapi"
+  api_key_env: "SERPAPI_API_KEY"
+  engine: "bing" # Use Bing instead of Google
+  max_results: 10
+```
 
 **Agent Mode (AI Search):**
 
@@ -1874,8 +2068,6 @@ function Create(ctx, messages, options) {
 package kb
 
 import (
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/interfaces"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1885,18 +2077,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new KB search handler
-func NewHandler(cfg *types.KBConfig) *Handler {
-    return &Handler{config: cfg}
-}
+func NewHandler(cfg *types.KBConfig) *Handler
+
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
 // Search executes vector search and optional graph association
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Generate embedding via query processor
-    // 2. Vector search in collections
-    // 3. Optional: Graph association (if req.Graph)
-    // 4. Return results
-    return nil, nil
-}
+// TODO: Implement actual search logic
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 ```
 
 | File         | Description                        |
@@ -1912,8 +2100,6 @@ func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Resul
 package db
 
 import (
-    "github.com/yaoapp/yao/agent/context"
-    "github.com/yaoapp/yao/agent/search/interfaces"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -1924,18 +2110,14 @@ type Handler struct {
 }
 
 // NewHandler creates a new DB search handler
-func NewHandler(usesQueryDSL string, cfg *types.DBConfig) *Handler {
-    return &Handler{usesQueryDSL: usesQueryDSL, config: cfg}
-}
+func NewHandler(usesQueryDSL string, cfg *types.DBConfig) *Handler
+
+// Type returns the search type this handler supports
+func (h *Handler) Type() types.SearchType
 
 // Search converts NL to QueryDSL and executes
-func (h *Handler) Search(ctx *context.Context, req *types.Request) (*types.Result, error) {
-    // 1. Get model schemas
-    // 2. Generate QueryDSL via query processor
-    // 3. Execute queries on models
-    // 4. Return results
-    return nil, nil
-}
+// TODO: Implement actual search logic
+func (h *Handler) Search(req *types.Request) (*types.Result, error)
 ```
 
 | File         | Description                    |
@@ -1955,42 +2137,71 @@ Integrates with Yao's Model/QueryDSL system:
 
 ### Reranking (`rerank/`)
 
+The rerank module follows the Handler + Registry pattern, consistent with `keyword/` and `web/`.
+
 ```go
-// rerank/rerank.go
+// rerank/reranker.go
 package rerank
 
 import (
-    "github.com/yaoapp/yao/agent/search/interfaces"
+    "strings"
+
+    "github.com/yaoapp/yao/agent/context"
     "github.com/yaoapp/yao/agent/search/types"
 )
 
-// NewReranker creates a reranker based on uses.rerank config
-func NewReranker(usesRerank string) interfaces.Reranker {
-    switch {
-    case usesRerank == "builtin" || usesRerank == "":
-        return NewBuiltinReranker()
-    case strings.HasPrefix(usesRerank, "mcp:"):
-        // Parse "mcp:server.tool"
-        mcpRef := strings.TrimPrefix(usesRerank, "mcp:")
-        parts := strings.SplitN(mcpRef, ".", 2)
-        if len(parts) != 2 {
-            // Invalid format, fallback to builtin
-            return NewBuiltinReranker()
-        }
-        return NewMCPReranker(parts[0], parts[1]) // serverID, toolName
-    default:
-        // Assume it's an assistant ID
-        return NewAgentReranker(usesRerank)
-    }
+// Reranker reorders search results by relevance
+// Mode is determined by uses.rerank configuration
+type Reranker struct {
+    usesRerank string             // "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+    config     *types.RerankConfig
 }
+
+// NewReranker creates a new reranker
+func NewReranker(usesRerank string, cfg *types.RerankConfig) *Reranker
+
+// Rerank reorders results based on configured mode
+func (r *Reranker) Rerank(ctx *context.Context, query string, items []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error)
 ```
 
-| File         | Description                      |
-| ------------ | -------------------------------- |
-| `rerank.go`  | Factory and common logic         |
-| `builtin.go` | Simple score sorting (default)   |
-| `agent.go`   | Delegate to an assistant (Agent) |
-| `mcp.go`     | Call MCP tool for reranking      |
+**Directory Structure:**
+
+```
+rerank/
+├── reranker.go        # Main entry point (mode dispatch)
+├── builtin.go         # Builtin: weighted score sorting (score * weight)
+├── agent.go           # Agent mode (delegate to LLM assistant)
+└── mcp.go             # MCP mode (external service)
+```
+
+**Builtin Implementation:**
+
+The builtin reranker uses weighted score sorting:
+
+- Calculate `weightedScore = score * weight`
+- Sort items by weighted score descending
+- Return top N items
+
+> **Note**: For production use cases requiring semantic understanding, use Agent or MCP mode.
+
+**Agent Response Format:**
+
+The agent should return reordered items in one of these formats:
+
+```json
+// Format 1: Order list (recommended)
+{ "order": ["ref_003", "ref_001", "ref_002"] }
+
+// Format 2: Items list with citation_id
+{ "items": [{ "citation_id": "ref_003" }, { "citation_id": "ref_001" }] }
+```
+
+| File          | Description                              |
+| ------------- | ---------------------------------------- |
+| `reranker.go` | Main entry point and mode dispatch       |
+| `builtin.go`  | Weighted score sorting (score \* weight) |
+| `agent.go`    | Delegate to LLM assistant for reranking  |
+| `mcp.go`      | Call external MCP tool for reranking     |
 
 Configure via `uses.rerank` in `agent/agent.yml`:
 
@@ -2017,7 +2228,7 @@ if (result.error) {
 Configuration is merged with later layers overriding earlier ones:
 
 1. **System Built-in** - Hardcoded defaults (lowest priority)
-2. **Global-level** - `agent/agent.yml` (uses) + `agent/search.yao` (search options)
+2. **Global-level** - `agent/agent.yml` (uses) + `agent/search.yml` (search options)
 3. **Assistant-level** - `assistants/<assistant-id>/package.yao` (uses + search)
 4. **Hook-level** - CreateHook return `uses.search` value
 5. **Request-level** - `options.uses.search` in Stream() call (highest priority)
@@ -2301,19 +2512,15 @@ Stream()
 
 **Configuration:**
 
-Global defaults (`agent/search.yao`):
+Global defaults (`agent/search.yml`):
 
-```jsonc
-{
-  "weights": {
-    "user": 1.0, // User-provided DataContent
-    "hook": 0.8, // Hook ctx.search.*() results
-    "auto": 0.6 // Auto search results
-  },
-  "options": {
-    "skip_threshold": 5 // Skip auto search if user provides >= N results
-  }
-}
+```yaml
+weights:
+  user: 1.0 # User-provided DataContent
+  hook: 0.8 # Hook ctx.search.*() results
+  auto: 0.6 # Auto search results
+options:
+  skip_threshold: 5 # Skip auto search if user provides >= N results
 ```
 
 Assistant-level override (`assistants/<assistant-id>/package.yao`):

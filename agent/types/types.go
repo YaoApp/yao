@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/yaoapp/gou/connector/openai"
 	"github.com/yaoapp/yao/agent/assistant"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 )
 
@@ -19,6 +20,7 @@ type DSL struct {
 	// ===============================
 	Models map[string]openai.Capabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
 	KB     *store.KBSetting               `json:"kb,omitempty" yaml:"kb,omitempty"`         // The knowledge base configuration loaded from agent/kb.yml
+	Search *searchTypes.Config            `json:"search,omitempty" yaml:"search,omitempty"` // The search configuration loaded from agent/search.yao
 
 	// Internal
 	// ===============================
@@ -38,6 +40,12 @@ type Uses struct {
 	Audio   string `json:"audio,omitempty" yaml:"audio,omitempty"`     // The assistant for processing audio (speech-to-text, text-to-speech). If the model doesn't support audio, use this to convert audio to text. Format: "agent" or "mcp:mcp_server_id"
 	Search  string `json:"search,omitempty" yaml:"search,omitempty"`   // The assistant for searching the knowledge, global web search. If not set, and the assistant enable the knowledge, it will search the result from the knowledge automatically.
 	Fetch   string `json:"fetch,omitempty" yaml:"fetch,omitempty"`     // The assistant for fetching the http/https/ftp/sftp/etc. file, and return the file's content. if not set, use the http process to fetch the file.
+
+	// Search-related processing tools (NLP)
+	Web      string `json:"web,omitempty" yaml:"web,omitempty"`           // Web search handler: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	Keyword  string `json:"keyword,omitempty" yaml:"keyword,omitempty"`   // Keyword extraction: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	QueryDSL string `json:"querydsl,omitempty" yaml:"querydsl,omitempty"` // QueryDSL generation: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+	Rerank   string `json:"rerank,omitempty" yaml:"rerank,omitempty"`     // Result reranking: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 }
 
 // Mention Structure

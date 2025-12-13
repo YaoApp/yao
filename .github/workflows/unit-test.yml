@@ -53,6 +53,11 @@ env:
   DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
   DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
 
+  # Search API Configuration
+  TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+  SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+  SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+
   # Claude API Configuration
   CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
   CLAUDE_PROXY: ${{ secrets.CLAUDE_PROXY }}

@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	searchTypes "github.com/yaoapp/yao/agent/search/types"
 )
 
 // Setting represents the conversation configuration structure
@@ -436,6 +437,7 @@ type AssistantModel struct {
 	Source               string                 `json:"source,omitempty"`                 // Hook script source code
 	Locales              i18n.Map               `json:"locales,omitempty"`                // Assistant Locales
 	Uses                 *context.Uses          `json:"uses,omitempty"`                   // Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings
+	Search               *searchTypes.Config    `json:"search,omitempty"`                 // Search configuration (web, kb, db, citation, weights, etc.)
 	CreatedAt            int64                  `json:"created_at"`                       // Creation timestamp
 	UpdatedAt            int64                  `json:"updated_at"`                       // Last update timestamp
 

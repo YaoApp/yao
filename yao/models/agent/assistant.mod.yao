@@ -236,6 +236,13 @@
       "nullable": true
     },
     {
+      "name": "search",
+      "type": "json",
+      "label": "Search",
+      "comment": "Search configuration (web, kb, db, citation, weights, etc.)",
+      "nullable": true
+    },
+    {
       "name": "automated",
       "type": "boolean",
       "label": "Automated",
