@@ -367,6 +367,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var nextResponse *context.NextHookResponse = nil
 
 	if ast.HookScript != nil {
+		ctx.Logger.HookStart("Next")
+
 		// Begin step tracking for hook_next
 		ast.BeginStep(ctx, context.StepTypeHookNext, map[string]interface{}{
 			"messages":   fullMessages,
@@ -392,6 +394,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		ast.CompleteStep(ctx, map[string]interface{}{
 			"response": nextResponse,
 		})
+
+		ctx.Logger.HookComplete("Next")
 
 		// Process Next hook response
 		finalResponse, err = ast.processNextResponse(&NextProcessContext{

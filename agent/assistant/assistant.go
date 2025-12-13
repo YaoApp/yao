@@ -5,7 +5,7 @@ import (
 	"path"
 
 	"github.com/yaoapp/gou/fs"
-	"github.com/yaoapp/yao/agent/content"
+	"github.com/yaoapp/yao/agent/caller"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
@@ -14,8 +14,8 @@ import (
 )
 
 func init() {
-	// Initialize AgentGetterFunc to allow content package to call agents
-	content.AgentGetterFunc = func(agentID string) (content.AgentCaller, error) {
+	// Initialize AgentGetterFunc to allow content and search packages to call agents
+	caller.AgentGetterFunc = func(agentID string) (caller.AgentCaller, error) {
 		ast, err := Get(agentID)
 		if err != nil {
 			return nil, err

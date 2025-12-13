@@ -9,16 +9,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/caller"
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
-
-// AgentCaller interface for calling agents (to avoid circular dependency)
-type AgentCaller interface {
-	Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error)
-}
-
-// AgentGetterFunc is a function type that gets an agent by ID
-var AgentGetterFunc func(agentID string) (AgentCaller, error)
 
 // fileInfoMutex protects concurrent access to files_info list in Space
 var fileInfoMutex sync.Mutex
@@ -26,12 +19,12 @@ var fileInfoMutex sync.Mutex
 // CallAgent calls an agent to process content (vision, audio, etc.)
 // This is a generic function that can be used by any handler
 func CallAgent(ctx *agentContext.Context, agentID string, message agentContext.Message) (string, error) {
-	if AgentGetterFunc == nil {
+	if caller.AgentGetterFunc == nil {
 		return "", fmt.Errorf("AgentGetterFunc not initialized")
 	}
 
 	// Load the agent by ID using the injected function
-	agent, err := AgentGetterFunc(agentID)
+	agent, err := caller.AgentGetterFunc(agentID)
 	if err != nil {
 		return "", fmt.Errorf("failed to load agent %s: %w", agentID, err)
 	}

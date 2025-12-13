@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -24,7 +25,14 @@ func (h *Handler) Type() types.SearchType {
 }
 
 // Search executes web search based on uses.web mode
+// ctx is optional and only required for agent mode
 func (h *Handler) Search(req *types.Request) (*types.Result, error) {
+	return h.SearchWithContext(nil, req)
+}
+
+// SearchWithContext executes web search with optional agent context
+// ctx is required for agent mode, optional for builtin and MCP modes
+func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Request) (*types.Result, error) {
 	switch {
 	case h.usesWeb == "builtin" || h.usesWeb == "":
 		return h.builtinSearch(req)
@@ -32,7 +40,17 @@ func (h *Handler) Search(req *types.Request) (*types.Result, error) {
 		return h.mcpSearch(req)
 	default:
 		// Agent mode: delegate to assistant for AI-powered search
-		return h.agentSearch(req)
+		if ctx == nil {
+			return &types.Result{
+				Type:   types.SearchTypeWeb,
+				Query:  req.Query,
+				Source: req.Source,
+				Items:  []*types.ResultItem{},
+				Total:  0,
+				Error:  "Agent mode requires context",
+			}, nil
+		}
+		return h.agentSearch(ctx, req)
 	}
 }
 
@@ -66,46 +84,27 @@ func (h *Handler) builtinSearch(req *types.Request) (*types.Result, error) {
 }
 
 // agentSearch delegates to an assistant for AI-powered search
-func (h *Handler) agentSearch(req *types.Request) (*types.Result, error) {
-	// TODO: Implement agent mode
-	// 1. Call assistant with search request
-	// 2. Assistant understands intent, generates optimized queries
-	// 3. Assistant executes searches (may call builtin internally)
-	// 4. Assistant analyzes and returns structured results
-	return &types.Result{
-		Type:   types.SearchTypeWeb,
-		Query:  req.Query,
-		Source: req.Source,
-		Items:  []*types.ResultItem{},
-		Total:  0,
-		Error:  "Agent mode not yet implemented",
-	}, nil
+func (h *Handler) agentSearch(ctx *agentContext.Context, req *types.Request) (*types.Result, error) {
+	provider := NewAgentProvider(h.usesWeb)
+	return provider.Search(ctx, req)
 }
 
 // mcpSearch calls external MCP tool
 func (h *Handler) mcpSearch(req *types.Request) (*types.Result, error) {
-	// TODO: Implement MCP mode
 	// Parse "mcp:server.tool"
 	mcpRef := strings.TrimPrefix(h.usesWeb, "mcp:")
-	parts := strings.SplitN(mcpRef, ".", 2)
-	if len(parts) != 2 {
+
+	provider, err := NewMCPProvider(mcpRef)
+	if err != nil {
 		return &types.Result{
 			Type:   types.SearchTypeWeb,
 			Query:  req.Query,
 			Source: req.Source,
 			Items:  []*types.ResultItem{},
 			Total:  0,
-			Error:  fmt.Sprintf("Invalid MCP format, expected 'mcp:server.tool', got '%s'", h.usesWeb),
+			Error:  fmt.Sprintf("Invalid MCP format: %v", err),
 		}, nil
 	}
-	// serverID, toolName := parts[0], parts[1]
-	// Call MCP tool
-	return &types.Result{
-		Type:   types.SearchTypeWeb,
-		Query:  req.Query,
-		Source: req.Source,
-		Items:  []*types.ResultItem{},
-		Total:  0,
-		Error:  "MCP mode not yet implemented",
-	}, nil
+
+	return provider.Search(req)
 }

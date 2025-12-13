@@ -1110,7 +1110,7 @@ Tool format: `"builtin"`, `"<assistant-id>"` (Agent), `"mcp:<server>.<tool>"` (M
 
 | Mode      | Example                      | Description                                                                |
 | --------- | ---------------------------- | -------------------------------------------------------------------------- |
-| `builtin` | `"builtin"`                  | Use built-in providers (Tavily, Serper)                                    |
+| `builtin` | `"builtin"`                  | Use built-in providers (Tavily, Serper, SerpAPI)                           |
 | Agent     | `"workers.search.web"`       | AI-powered search: understand intent → optimize query → search → summarize |
 | MCP       | `"mcp:my-server.web_search"` | External search tool via MCP protocol                                      |
 
@@ -1707,7 +1707,7 @@ Web search supports three modes via `uses.web`:
 
 | Mode    | Value                        | Description                                 |
 | ------- | ---------------------------- | ------------------------------------------- |
-| Builtin | `"builtin"`                  | Direct API calls to Tavily/Serper           |
+| Builtin | `"builtin"`                  | Direct API calls to Tavily/Serper/SerpAPI   |
 | Agent   | `"workers.search.web"`       | AI-powered search with intent understanding |
 | MCP     | `"mcp:my-server.web_search"` | External search tool via MCP                |
 
