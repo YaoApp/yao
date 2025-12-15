@@ -1,12 +1,16 @@
 package assistant
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/search"
 	"github.com/yaoapp/yao/agent/search/nlp/keyword"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
+	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // shouldAutoSearch determines if auto search should be executed
@@ -136,6 +140,12 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 		return nil
 	}
 
+	// === Output: Send loading message ===
+	loadingID := ast.sendSearchLoading(ctx)
+
+	// === Trace: Create search trace node ===
+	searchNode := ast.createSearchTrace(ctx, query, requests)
+
 	// Execute searches in parallel
 	ctx.Logger.Info("Executing %d search requests for query: %s", len(requests), truncateString(query, 50))
 
@@ -143,6 +153,12 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	if err != nil {
 		// Log error but don't fail - search errors shouldn't block the main flow
 		ctx.Logger.Error("Auto search failed: %v", err)
+
+		// === Output: Send failed message ===
+		ast.sendSearchDone(ctx, loadingID, 0, true)
+
+		// === Trace: Mark as failed ===
+		ast.completeSearchTrace(searchNode, 0, err)
 		return nil
 	}
 
@@ -153,13 +169,177 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	}
 	refCtx := search.BuildReferenceContext(results, citationConfig)
 
-	if len(refCtx.References) == 0 {
+	resultCount := len(refCtx.References)
+
+	// === Output: Send result message, then done ===
+	ast.sendSearchResult(ctx, loadingID, resultCount)
+	ast.sendSearchDone(ctx, loadingID, resultCount, false)
+
+	// === Trace: Mark as completed ===
+	ast.completeSearchTrace(searchNode, resultCount, nil)
+
+	if resultCount == 0 {
 		ctx.Logger.Info("No search results found")
 		return nil
 	}
 
-	ctx.Logger.Info("Auto search completed: %d references", len(refCtx.References))
+	ctx.Logger.Info("Auto search completed: %d references", resultCount)
 	return refCtx
+}
+
+// ============================================================================
+// Output: Loading Replace Pattern
+// ============================================================================
+
+// sendSearchLoading sends the initial loading message
+// Returns the message ID for later replacement
+func (ast *Assistant) sendSearchLoading(ctx *context.Context) string {
+	loadingMsg := i18n.T(ctx.Locale, "search.loading")
+
+	msg := &message.Message{
+		Type: "loading",
+		Props: map[string]any{
+			"message": loadingMsg,
+		},
+	}
+
+	// Send and get message ID
+	msgID, err := ctx.SendStream(msg)
+	if err != nil {
+		ctx.Logger.Warn("Failed to send search loading message: %v", err)
+		return ""
+	}
+
+	return msgID
+}
+
+// sendSearchResult replaces loading with result message (without done flag)
+func (ast *Assistant) sendSearchResult(ctx *context.Context, loadingID string, count int) {
+	if loadingID == "" {
+		return
+	}
+
+	var resultMsg string
+	if count == 0 {
+		resultMsg = i18n.T(ctx.Locale, "search.no_results")
+	} else if count == 1 {
+		resultMsg = i18n.T(ctx.Locale, "search.success.one")
+	} else {
+		resultMsg = fmt.Sprintf(i18n.T(ctx.Locale, "search.success"), count)
+	}
+
+	msg := &message.Message{
+		MessageID:   loadingID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        "loading",
+		Props: map[string]any{
+			"message": resultMsg,
+		},
+	}
+
+	if err := ctx.Send(msg); err != nil {
+		ctx.Logger.Warn("Failed to send search result message: %v", err)
+	}
+}
+
+// sendSearchDone sends the final done message (removes loading indicator)
+func (ast *Assistant) sendSearchDone(ctx *context.Context, loadingID string, count int, failed bool) {
+	if loadingID == "" {
+		return
+	}
+
+	var resultMsg string
+	if failed {
+		resultMsg = i18n.T(ctx.Locale, "search.failed")
+	} else if count == 0 {
+		resultMsg = i18n.T(ctx.Locale, "search.no_results")
+	} else if count == 1 {
+		resultMsg = i18n.T(ctx.Locale, "search.success.one")
+	} else {
+		resultMsg = fmt.Sprintf(i18n.T(ctx.Locale, "search.success"), count)
+	}
+
+	msg := &message.Message{
+		MessageID:   loadingID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        "loading",
+		Props: map[string]any{
+			"message": resultMsg,
+			"done":    true, // Frontend will remove loading indicator
+		},
+	}
+
+	if err := ctx.Send(msg); err != nil {
+		ctx.Logger.Warn("Failed to send search done message: %v", err)
+	}
+}
+
+// ============================================================================
+// Trace: Search Node
+// ============================================================================
+
+// createSearchTrace creates a trace node for search operation
+func (ast *Assistant) createSearchTrace(ctx *context.Context, query string, requests []*searchTypes.Request) traceTypes.Node {
+	trace, _ := ctx.Trace()
+	if trace == nil {
+		return nil
+	}
+
+	// Build search types list
+	var searchTypes []string
+	for _, req := range requests {
+		searchTypes = append(searchTypes, string(req.Type))
+	}
+
+	input := map[string]any{
+		"query": query,
+		"types": searchTypes,
+	}
+
+	node, err := trace.Add(input, traceTypes.TraceNodeOption{
+		Label:       i18n.T(ctx.Locale, "search.trace.label"),
+		Type:        "search",
+		Icon:        "search",
+		Description: i18n.T(ctx.Locale, "search.trace.description"),
+	})
+
+	if err != nil {
+		ctx.Logger.Warn("Failed to create search trace node: %v", err)
+		return nil
+	}
+
+	// Log search start
+	node.Info("Starting search", map[string]any{
+		"query": query,
+		"types": searchTypes,
+	})
+
+	return node
+}
+
+// completeSearchTrace marks the search trace node as completed or failed
+func (ast *Assistant) completeSearchTrace(node traceTypes.Node, resultCount int, err error) {
+	if node == nil {
+		return
+	}
+
+	if err != nil {
+		node.Warn("Search failed", map[string]any{"error": err.Error()})
+		node.Fail(err)
+		return
+	}
+
+	// Log completion
+	node.Info("Search completed", map[string]any{
+		"result_count": resultCount,
+	})
+
+	// Complete with output
+	node.Complete(map[string]any{
+		"result_count": resultCount,
+	})
 }
 
 // buildSearchRequests builds search requests based on assistant configuration

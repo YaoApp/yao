@@ -155,7 +155,7 @@ agent/search/
 │   │   ├── builtin.go     # Builtin frequency-based extraction
 │   │   ├── agent.go       # Agent mode (LLM-powered)
 │   │   └── mcp.go         # MCP mode (external service)
-│   └── querydsl/          # QueryDSL generation for DB search (待实现)
+│   └── querydsl/          # QueryDSL generation for DB search (TODO)
 │       ├── generator.go   # Main generator (mode dispatch)
 │       ├── builtin.go     # Builtin template-based generation
 │       ├── agent.go       # Agent mode (LLM-powered)
@@ -171,22 +171,21 @@ agent/search/
 │   │   ├── agent.go       # Agent mode (AI Search)
 │   │   └── mcp.go         # MCP mode (external service)
 │   │
-│   ├── kb/                # Knowledge base search (骨架)
+│   ├── kb/                # Knowledge base search (skeleton)
 │   │   ├── handler.go     # KB search handler
-│   │   ├── vector.go      # Vector similarity search (待实现)
-│   │   └── graph.go       # Graph-based association (待实现)
+│   │   ├── vector.go      # Vector similarity search (TODO)
+│   │   └── graph.go       # Graph-based association (TODO)
 │   │
-│   └── db/                # Database search (骨架)
+│   └── db/                # Database search (skeleton)
 │       ├── handler.go     # DB search handler
-│       ├── query.go       # QueryDSL builder (待实现)
-│       └── schema.go      # Model schema introspection (待实现)
+│       ├── query.go       # QueryDSL builder (TODO)
+│       └── schema.go      # Model schema introspection (TODO)
 │
 └── defaults/              # Default configuration values
     └── defaults.go        # System built-in defaults (used by agent/load.go)
 
-# 待实现文件:
-# - trace.go              # Trace node creation and management
-# - output.go             # Real-time output/streaming to client
+# Note: Output and Trace are integrated into assistant/search.go
+# No separate trace.go or output.go files needed
 ```
 
 ### Dependency Graph
@@ -836,51 +835,177 @@ search:
 
 ## Trace Integration
 
-Search operations create trace nodes to report execution details to users, providing transparency about what the agent is doing.
+Search operations create minimal trace nodes to report execution status to users, providing transparency about what the agent is doing. Detailed information is recorded via LOG for debugging.
 
 ### Trace Node Structure
 
+Uses `trace/types.NodeStatus` constants:
+
+- `pending` - Node created but not started
+- `running` - Node is currently executing
+- `completed` - Node finished successfully
+- `failed` - Node failed with error
+
+**Single Search:**
+
 ```
 search (type: "search")
-├── query       // Original query
-├── search_type // "web", "kb", or "db"
-├── duration_ms
-├── status      // "success", "failed"
-├── result_count
-└── children    // Sub-operations
-    ├── embedding (kb only)
-    ├── vector_search (kb only)
-    ├── graph_search (kb, if enabled)
-    ├── querydsl_build (db only)
-    ├── db_query (db only)
-    └── rerank (if enabled)
+├── label       // i18n: "Search" / "搜索"
+├── status      // "pending" | "running" | "completed" | "failed"
+├── input
+│   ├── query   // Original query
+│   └── types   // ["web"], ["kb"], ["web", "kb", "db"]
+└── output      // (set on complete)
+    └── result_count // Total results found
+```
+
+**Parallel Search:**
+
+```
+search (type: "search")
+├── label       // i18n: "Search" / "搜索"
+├── status      // "pending" | "running" | "completed" | "failed"
+├── input
+│   ├── query   // Original query
+│   └── types   // ["web", "kb", "db"]
+└── children
+    ├── web (type: "search_item")
+    │   ├── label   // i18n: "Web Search" / "网页搜索"
+    │   ├── status  // "pending" | "running" | "completed" | "failed"
+    │   └── output
+    │       └── result_count
+    ├── kb (type: "search_item")
+    │   └── ...
+    └── db (type: "search_item")
+        └── ...
+```
+
+### Trace Logging
+
+Detailed search information is recorded via Trace node logging methods (broadcasts to client):
+
+```go
+// Node logging methods (from trace/node.go):
+// - node.Info(message, args...)  - Info level log
+// - node.Debug(message, args...) - Debug level log
+// - node.Warn(message, args...)  - Warning level log
+// - node.Error(message, args...) - Error level log
+
+// Search start
+searchNode.Info("Starting search", map[string]any{"query": query, "types": types})
+
+// Per-type results (on parallel search children)
+webNode.Debug("Web search completed", map[string]any{"count": count, "duration_ms": duration})
+kbNode.Debug("KB search completed", map[string]any{"count": count, "duration_ms": duration})
+dbNode.Debug("DB search completed", map[string]any{"count": count, "duration_ms": duration})
+
+// Errors (non-blocking, search continues)
+webNode.Warn("Web search failed", map[string]any{"error": err.Error()})
+
+// Final summary (on parent node)
+searchNode.Info("Search completed", map[string]any{"total": total, "duration_ms": duration})
+```
+
+**Log Event Structure** (broadcasted via SSE):
+
+```go
+// types.TraceLog
+type TraceLog struct {
+    Timestamp int64  `json:"timestamp"` // milliseconds since epoch
+    Level     string `json:"level"`     // "info", "debug", "warn", "error"
+    Message   string `json:"message"`   // Log message
+    Data      any    `json:"data"`      // Additional data
+    NodeID    string `json:"node_id"`   // Parent node ID
+}
 ```
 
 ## Real-time Output
 
-Search progress is streamed to the client via the output system.
+Search progress is displayed to the client using **Loading component with Replace** pattern. Uses `ctx.Send()` and `ctx.Replace()` methods.
 
-### Output Message Types
+### Output Flow
+
+```
+1. Send Loading Message
+   loading_id = ctx.Send({ type: "loading", props: { message: "Searching..." } })
+   → Client displays loading indicator
+
+2. Execute Search (parallel web/kb/db)
+
+3. Replace with Result Message (shows result to user)
+   ctx.Replace(loading_id, { type: "loading", props: { message: "Found 5 references" } })
+   → Client displays result message
+
+4. Mark as Done (removes the loading after brief display)
+   ctx.Replace(loading_id, { type: "loading", props: { message: "Found 5 references", done: true } })
+   → Client removes loading indicator
+```
+
+### Implementation
 
 ```go
-const (
-    TypeSearchStart    = "search_start"    // Search initiated
-    TypeSearchResult   = "search_result"   // Result item (streamed)
-    TypeSearchComplete = "search_complete" // Search completed
-)
+// Send loading message
+loadingID := ctx.Send(map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": i18n.Tr("search.loading", locale), // "Searching..." / "正在搜索..."
+    },
+})
+
+// Execute search...
+
+// Replace with result message (displayed to user)
+resultMessage := i18n.Tr("search.success", locale, count) // "Found 5 references"
+ctx.Replace(loadingID, map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": resultMessage,
+    },
+})
+
+// Mark as done (removes loading indicator after user sees the result)
+ctx.Replace(loadingID, map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": resultMessage,
+        "done":    true, // Frontend will remove loading indicator
+    },
+})
 ```
+
+### Loading Props
+
+| Prop      | Type   | Description                                         |
+| --------- | ------ | --------------------------------------------------- |
+| `message` | string | Localized message to display                        |
+| `done`    | bool   | When `true`, frontend removes the loading indicator |
+
+### Localized Messages
+
+| Scenario      | English                                  | Chinese                           |
+| ------------- | ---------------------------------------- | --------------------------------- |
+| Loading       | Searching...                             | 正在搜索...                       |
+| Success (1)   | Found 1 reference                        | 找到 1 条参考资料                 |
+| Success (N)   | Found N references                       | 找到 N 条参考资料                 |
+| Partial Error | Found N references (some sources failed) | 找到 N 条参考资料（部分来源失败） |
+| All Failed    | Search failed                            | 搜索失败                          |
+| No Results    | No references found                      | 未找到相关资料                    |
 
 ### Client Display Example
 
 ```
-🔍 Searching "latest AI developments"...
+Frame 1 - During search:
+┌─────────────────────────────────┐
+│ Searching...                    │  ← Loading (done: false)
+└─────────────────────────────────┘
 
-📄 Found 5 results:
-   1. #ref:a1b2 - OpenAI Announces GPT-5
-   2. #ref:c3d4 - Google's New AI Model
-   ...
+Frame 2 - Result displayed:
+┌─────────────────────────────────┐
+│ Found 5 references              │  ← Result (done: false)
+└─────────────────────────────────┘
 
-✅ Search complete (1.2s)
+Frame 3 - Removed:
+(loading indicator removed when done: true)
 ```
 
 ## JSAPI Integration
@@ -1978,7 +2103,7 @@ SerpAPI supports multiple search engines via the `engine` config:
 | ------------ | ---------------------------- |
 | `google`     | Google Search (default)      |
 | `bing`       | Bing Search                  |
-| `baidu`      | Baidu (百度)                 |
+| `baidu`      | Baidu Search (Chinese)       |
 | `yandex`     | Yandex Search                |
 | `yahoo`      | Yahoo Search                 |
 | `duckduckgo` | DuckDuckGo Search            |
