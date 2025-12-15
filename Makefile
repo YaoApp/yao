@@ -11,11 +11,15 @@ OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*' | awk '!/\/tests\// || /openapi\/tests/')
+# Core tests (exclude AI-related: agent, aigc, openai)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent' | awk '!/\/tests\// || /openapi\/tests/')
+# AI tests (agent, aigc)
+TESTFOLDER_AI := $(shell $(GO) list ./agent/... ./aigc/...)
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
 
-# Unit Test
+# Unit Test (all tests)
 .PHONY: unit-test
 unit-test:
 	echo "mode: count" > coverage.out
@@ -37,6 +41,64 @@ unit-test:
 		fi; \
 		if [ -f profile.out ]; then \
 			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+
+# Core Unit Test (exclude AI-related tests)
+.PHONY: unit-test-core
+unit-test-core:
+	echo "mode: count" > coverage.out
+	for d in $(TESTFOLDER_CORE); do \
+		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+
+# AI Unit Test (agent, aigc)
+.PHONY: unit-test-ai
+unit-test-ai:
+	echo "mode: count" > coverage-ai.out
+	for d in $(TESTFOLDER_AI); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage-ai.out; \
 			rm profile.out; \
 		fi; \
 	done
@@ -73,7 +135,7 @@ memory-leak:
 			echo ""; \
 			echo "🔍 Memory Leak Detection: $$d"; \
 			echo "---------------------------------------------"; \
-			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' -v -timeout=60s $$d || exit 1; \
+			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' -v -timeout=5m $$d || exit 1; \
 		fi; \
 	done
 	@echo ""

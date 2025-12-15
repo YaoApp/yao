@@ -51,3 +51,4 @@ openapi/*.md
 coverage.html
 agent/assistant/hook/*.test.md
 agent/search/TODO.md
+agent/search/job-logs.txt

@@ -145,8 +145,8 @@ func TestWebSearch_All(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Load the web-tavily test assistant
-	ast, err := assistant.LoadPath("/assistants/tests/web-tavily")
+	// Load the web-serper test assistant
+	ast, err := assistant.LoadPath("/assistants/tests/web-serper")
 	require.NoError(t, err)
 	require.NotNil(t, ast.Search)
 
@@ -220,8 +220,8 @@ func TestWebSearch_Race(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Load the web-tavily test assistant
-	ast, err := assistant.LoadPath("/assistants/tests/web-tavily")
+	// Load the web-serper test assistant
+	ast, err := assistant.LoadPath("/assistants/tests/web-serper")
 	require.NoError(t, err)
 	require.NotNil(t, ast.Search)
 
@@ -260,8 +260,8 @@ func TestWebSearch_BuildReferences(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Load the web-tavily test assistant
-	ast, err := assistant.LoadPath("/assistants/tests/web-tavily")
+	// Load the web-serper test assistant
+	ast, err := assistant.LoadPath("/assistants/tests/web-serper")
 	require.NoError(t, err)
 	require.NotNil(t, ast.Search)
 
