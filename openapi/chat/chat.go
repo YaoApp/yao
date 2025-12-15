@@ -59,6 +59,18 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Query params: request_id, role, block_id, thread_id, type, limit, offset
 	group.GET("/sessions/:chat_id/messages", GetMessages)
 
+	// ==========================================================================
+	// Search References (Citation Support)
+	// ==========================================================================
+
+	// Get all references for a request
+	// Returns all search references for citation support
+	group.GET("/references/:request_id", GetReferences)
+
+	// Get a single reference by request ID and index
+	// Returns a specific reference for citation click handling
+	group.GET("/references/:request_id/:index", GetReference)
+
 }
 
 func placeholder(c *gin.Context) {

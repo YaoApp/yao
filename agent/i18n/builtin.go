@@ -98,6 +98,24 @@ func init() {
 			// KB: Chat collection
 			"kb.chat.name":        "Chat Knowledge Base",
 			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
+
+			// Search: assistant/search.go - Output messages
+			"search.loading":     "Searching...",
+			"search.success":     "Found %d references",
+			"search.success.one": "Found 1 reference",
+			"search.partial":     "Found %d references (some sources failed)",
+			"search.failed":      "Search failed",
+			"search.no_results":  "No references found",
+
+			// Search: assistant/search.go - Trace labels
+			"search.trace.label":           "Search",
+			"search.trace.description":     "Search the web and knowledge base for relevant information",
+			"search.trace.web.label":       "Web Search",
+			"search.trace.web.description": "Searching the web",
+			"search.trace.kb.label":        "KB Search",
+			"search.trace.kb.description":  "Searching knowledge base",
+			"search.trace.db.label":        "DB Search",
+			"search.trace.db.description":  "Searching database",
 		},
 	}
 
@@ -164,6 +182,24 @@ func init() {
 			// KB: Chat collection
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
+
+			// Search: assistant/search.go - Output messages
+			"search.loading":     "正在搜索...",
+			"search.success":     "找到 %d 条参考资料",
+			"search.success.one": "找到 1 条参考资料",
+			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
+			"search.failed":      "搜索失败",
+			"search.no_results":  "未找到相关资料",
+
+			// Search: assistant/search.go - Trace labels
+			"search.trace.label":           "搜索",
+			"search.trace.description":     "搜索网络和知识库获取相关信息",
+			"search.trace.web.label":       "网页搜索",
+			"search.trace.web.description": "搜索网页获取相关信息",
+			"search.trace.kb.label":        "知识库搜索",
+			"search.trace.kb.description":  "搜索知识库获取相关信息",
+			"search.trace.db.label":        "数据库搜索",
+			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 
@@ -258,6 +294,24 @@ func init() {
 			// KB: Chat collection
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
+
+			// Search: assistant/search.go - Output messages
+			"search.loading":     "正在搜索...",
+			"search.success":     "找到 %d 条参考资料",
+			"search.success.one": "找到 1 条参考资料",
+			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
+			"search.failed":      "搜索失败",
+			"search.no_results":  "未找到相关资料",
+
+			// Search: assistant/search.go - Trace labels
+			"search.trace.label":           "搜索",
+			"search.trace.description":     "搜索网络和知识库获取相关信息",
+			"search.trace.web.label":       "网页搜索",
+			"search.trace.web.description": "搜索网页获取相关信息",
+			"search.trace.kb.label":        "知识库搜索",
+			"search.trace.kb.description":  "搜索知识库获取相关信息",
+			"search.trace.db.label":        "数据库搜索",
+			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 // DefaultCitationPrompt is the default prompt for citation instructions
 const DefaultCitationPrompt = `You have access to reference data in <references> tags. Each <ref> has:
-- id: Citation identifier
+- id: Citation identifier (integer)
 - type: Data type (web/kb/db)
 - weight: Relevance weight (1.0=highest priority, 0.6=lowest)
 - source: Origin (user=user-provided, hook=assistant-searched, auto=auto-searched)
@@ -19,7 +19,7 @@ Prioritize higher-weight references when answering.
 When citing a reference, use this exact HTML format:
 <a class="ref" data-ref-id="{id}" data-ref-type="{type}" href="#ref:{id}">[{id}]</a>
 
-Example: According to the product data<a class="ref" data-ref-id="ref_001" data-ref-type="db" href="#ref:ref_001">[ref_001]</a>, the price is $999.`
+Example: According to the product data<a class="ref" data-ref-id="1" data-ref-type="db" href="#ref:1">[1]</a>, the price is $999.`
 
 // BuildReferences converts search results to unified Reference format
 func BuildReferences(results []*types.Result) []*types.Reference {

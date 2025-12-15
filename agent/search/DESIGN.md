@@ -155,7 +155,7 @@ agent/search/
 │   │   ├── builtin.go     # Builtin frequency-based extraction
 │   │   ├── agent.go       # Agent mode (LLM-powered)
 │   │   └── mcp.go         # MCP mode (external service)
-│   └── querydsl/          # QueryDSL generation for DB search (待实现)
+│   └── querydsl/          # QueryDSL generation for DB search (TODO)
 │       ├── generator.go   # Main generator (mode dispatch)
 │       ├── builtin.go     # Builtin template-based generation
 │       ├── agent.go       # Agent mode (LLM-powered)
@@ -171,22 +171,21 @@ agent/search/
 │   │   ├── agent.go       # Agent mode (AI Search)
 │   │   └── mcp.go         # MCP mode (external service)
 │   │
-│   ├── kb/                # Knowledge base search (骨架)
+│   ├── kb/                # Knowledge base search (skeleton)
 │   │   ├── handler.go     # KB search handler
-│   │   ├── vector.go      # Vector similarity search (待实现)
-│   │   └── graph.go       # Graph-based association (待实现)
+│   │   ├── vector.go      # Vector similarity search (TODO)
+│   │   └── graph.go       # Graph-based association (TODO)
 │   │
-│   └── db/                # Database search (骨架)
+│   └── db/                # Database search (skeleton)
 │       ├── handler.go     # DB search handler
-│       ├── query.go       # QueryDSL builder (待实现)
-│       └── schema.go      # Model schema introspection (待实现)
+│       ├── query.go       # QueryDSL builder (TODO)
+│       └── schema.go      # Model schema introspection (TODO)
 │
 └── defaults/              # Default configuration values
     └── defaults.go        # System built-in defaults (used by agent/load.go)
 
-# 待实现文件:
-# - trace.go              # Trace node creation and management
-# - output.go             # Real-time output/streaming to client
+# Note: Output and Trace are integrated into assistant/search.go
+# No separate trace.go or output.go files needed
 ```
 
 ### Dependency Graph
@@ -566,7 +565,7 @@ type RerankOptions struct {
     TopN int `json:"top_n,omitempty"` // Return top N after reranking
 }
 
-// Result represents the search result
+// Result represents the search result with all intermediate processing data
 type Result struct {
     Type     SearchType    `json:"type"`            // Search type
     Query    string        `json:"query"`           // Original query
@@ -576,8 +575,29 @@ type Result struct {
     Duration int64         `json:"duration_ms"`     // Search duration in ms
     Error    string        `json:"error,omitempty"` // Error message if failed
 
+    // Intermediate processing results (for storage and debugging)
+    Keywords  []string       `json:"keywords,omitempty"`  // Extracted keywords (Web/NLP)
+    DSL       map[string]any `json:"dsl,omitempty"`       // Generated QueryDSL (DB)
+    Entities  []Entity       `json:"entities,omitempty"`  // Extracted entities (Graph RAG)
+    Relations []Relation     `json:"relations,omitempty"` // Extracted relations (Graph RAG)
+
     // Graph associations (KB only, if enabled)
     GraphNodes []*GraphNode `json:"graph_nodes,omitempty"`
+}
+
+// Entity represents an extracted entity (for Graph RAG)
+type Entity struct {
+    Name   string `json:"name"`
+    Type   string `json:"type,omitempty"`
+    Source string `json:"source,omitempty"`
+}
+
+// Relation represents an extracted relation (for Graph RAG)
+type Relation struct {
+    Subject   string `json:"subject"`
+    Predicate string `json:"predicate"`
+    Object    string `json:"object"`
+    Source    string `json:"source,omitempty"`
 }
 
 // ResultItem represents a single search result item
@@ -615,6 +635,43 @@ type ProcessedQuery struct {
     Keywords []string      `json:"keywords,omitempty"` // For web search
     Vector   []float32     `json:"vector,omitempty"`   // For KB search
     DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
+}
+```
+
+> **Design Note: Result with Intermediate Data**
+>
+> The `Result` type now includes intermediate processing results (`Keywords`, `DSL`, `Entities`, `Relations`)
+> that were previously only available during query processing. This design enables:
+>
+> 1. **Storage for Debugging**: All processing steps are captured for later analysis
+> 2. **System Tuning**: Analyze extracted keywords, generated DSL, and entity extraction quality
+> 3. **Unified Data Flow**: Handlers populate these fields during execution, eliminating the need
+>    for separate data collection in `executeAutoSearch`
+>
+> **Handler Responsibilities**:
+>
+> - **Web Handler**: Populates `Keywords` from NLP extraction
+> - **DB Handler**: Populates `DSL` from QueryDSL generation
+> - **KB Handler**: Populates `Entities`, `Relations`, and `GraphNodes` from Graph RAG
+>
+> **Data Flow**:
+>
+> ```
+> Request → Handler → Result (with Keywords/DSL/Entities/Relations)
+>                         ↓
+>                   BuildReferenceContext
+>                         ↓
+>                   saveSearch (stores all intermediate data)
+> ```
+
+```go
+// ProcessedQuery is DEPRECATED for external use
+// Handlers should populate Result.Keywords/DSL/Entities/Relations directly
+type ProcessedQuery struct {
+    Type     SearchType    `json:"type"`
+    Keywords []string      `json:"keywords,omitempty"` // For web search
+    Vector   []float32     `json:"vector,omitempty"`   // For KB search
+    DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search
 }
 
 // Note: For QueryDSL and Model types, use GOU types directly:
@@ -836,51 +893,666 @@ search:
 
 ## Trace Integration
 
-Search operations create trace nodes to report execution details to users, providing transparency about what the agent is doing.
+Search operations create minimal trace nodes to report execution status to users, providing transparency about what the agent is doing. Detailed information is recorded via LOG for debugging.
 
 ### Trace Node Structure
 
+Uses `trace/types.NodeStatus` constants:
+
+- `pending` - Node created but not started
+- `running` - Node is currently executing
+- `completed` - Node finished successfully
+- `failed` - Node failed with error
+
+**Single Search:**
+
 ```
 search (type: "search")
-├── query       // Original query
-├── search_type // "web", "kb", or "db"
-├── duration_ms
-├── status      // "success", "failed"
-├── result_count
-└── children    // Sub-operations
-    ├── embedding (kb only)
-    ├── vector_search (kb only)
-    ├── graph_search (kb, if enabled)
-    ├── querydsl_build (db only)
-    ├── db_query (db only)
-    └── rerank (if enabled)
+├── label       // i18n: "Search" / "搜索"
+├── status      // "pending" | "running" | "completed" | "failed"
+├── input
+│   ├── query   // Original query
+│   └── types   // ["web"], ["kb"], ["web", "kb", "db"]
+└── output      // (set on complete)
+    └── result_count // Total results found
+```
+
+**Parallel Search:**
+
+```
+search (type: "search")
+├── label       // i18n: "Search" / "搜索"
+├── status      // "pending" | "running" | "completed" | "failed"
+├── input
+│   ├── query   // Original query
+│   └── types   // ["web", "kb", "db"]
+└── children
+    ├── web (type: "search_item")
+    │   ├── label   // i18n: "Web Search" / "网页搜索"
+    │   ├── status  // "pending" | "running" | "completed" | "failed"
+    │   └── output
+    │       └── result_count
+    ├── kb (type: "search_item")
+    │   └── ...
+    └── db (type: "search_item")
+        └── ...
+```
+
+### Trace Logging
+
+Detailed search information is recorded via Trace node logging methods (broadcasts to client):
+
+```go
+// Node logging methods (from trace/node.go):
+// - node.Info(message, args...)  - Info level log
+// - node.Debug(message, args...) - Debug level log
+// - node.Warn(message, args...)  - Warning level log
+// - node.Error(message, args...) - Error level log
+
+// Search start
+searchNode.Info("Starting search", map[string]any{"query": query, "types": types})
+
+// Per-type results (on parallel search children)
+webNode.Debug("Web search completed", map[string]any{"count": count, "duration_ms": duration})
+kbNode.Debug("KB search completed", map[string]any{"count": count, "duration_ms": duration})
+dbNode.Debug("DB search completed", map[string]any{"count": count, "duration_ms": duration})
+
+// Errors (non-blocking, search continues)
+webNode.Warn("Web search failed", map[string]any{"error": err.Error()})
+
+// Final summary (on parent node)
+searchNode.Info("Search completed", map[string]any{"total": total, "duration_ms": duration})
+```
+
+**Log Event Structure** (broadcasted via SSE):
+
+```go
+// types.TraceLog
+type TraceLog struct {
+    Timestamp int64  `json:"timestamp"` // milliseconds since epoch
+    Level     string `json:"level"`     // "info", "debug", "warn", "error"
+    Message   string `json:"message"`   // Log message
+    Data      any    `json:"data"`      // Additional data
+    NodeID    string `json:"node_id"`   // Parent node ID
+}
 ```
 
 ## Real-time Output
 
-Search progress is streamed to the client via the output system.
+Search progress is displayed to the client using **Loading component with Replace** pattern. Uses `ctx.Send()` and `ctx.Replace()` methods.
 
-### Output Message Types
+### Output Flow
+
+```
+1. Send Loading Message
+   loading_id = ctx.Send({ type: "loading", props: { message: "Searching..." } })
+   → Client displays loading indicator
+
+2. Execute Search (parallel web/kb/db)
+
+3. Replace with Result Message (shows result to user)
+   ctx.Replace(loading_id, { type: "loading", props: { message: "Found 5 references" } })
+   → Client displays result message
+
+4. Mark as Done (removes the loading after brief display)
+   ctx.Replace(loading_id, { type: "loading", props: { message: "Found 5 references", done: true } })
+   → Client removes loading indicator
+```
+
+### Implementation
 
 ```go
-const (
-    TypeSearchStart    = "search_start"    // Search initiated
-    TypeSearchResult   = "search_result"   // Result item (streamed)
-    TypeSearchComplete = "search_complete" // Search completed
-)
+// Send loading message
+loadingID := ctx.Send(map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": i18n.Tr("search.loading", locale), // "Searching..." / "正在搜索..."
+    },
+})
+
+// Execute search...
+
+// Replace with result message (displayed to user)
+resultMessage := i18n.Tr("search.success", locale, count) // "Found 5 references"
+ctx.Replace(loadingID, map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": resultMessage,
+    },
+})
+
+// Mark as done (removes loading indicator after user sees the result)
+ctx.Replace(loadingID, map[string]any{
+    "type": "loading",
+    "props": map[string]any{
+        "message": resultMessage,
+        "done":    true, // Frontend will remove loading indicator
+    },
+})
 ```
+
+### Loading Props
+
+| Prop      | Type   | Description                                         |
+| --------- | ------ | --------------------------------------------------- |
+| `message` | string | Localized message to display                        |
+| `done`    | bool   | When `true`, frontend removes the loading indicator |
+
+### Localized Messages
+
+| Scenario      | English                                  | Chinese                           |
+| ------------- | ---------------------------------------- | --------------------------------- |
+| Loading       | Searching...                             | 正在搜索...                       |
+| Success (1)   | Found 1 reference                        | 找到 1 条参考资料                 |
+| Success (N)   | Found N references                       | 找到 N 条参考资料                 |
+| Partial Error | Found N references (some sources failed) | 找到 N 条参考资料（部分来源失败） |
+| All Failed    | Search failed                            | 搜索失败                          |
+| No Results    | No references found                      | 未找到相关资料                    |
 
 ### Client Display Example
 
 ```
-🔍 Searching "latest AI developments"...
+Frame 1 - During search:
+┌─────────────────────────────────┐
+│ Searching...                    │  ← Loading (done: false)
+└─────────────────────────────────┘
 
-📄 Found 5 results:
-   1. #ref:a1b2 - OpenAI Announces GPT-5
-   2. #ref:c3d4 - Google's New AI Model
-   ...
+Frame 2 - Result displayed:
+┌─────────────────────────────────┐
+│ Found 5 references              │  ← Result (done: false)
+└─────────────────────────────────┘
 
-✅ Search complete (1.2s)
+Frame 3 - Removed:
+(loading indicator removed when done: true)
+```
+
+## Search Result Storage
+
+Search results are stored per request to support citation click-through and history replay.
+
+### Data Model
+
+```
+Relationships:
+Chat
+ └── Request (request_id)
+      ├── Message[] (user, assistant, tool...)
+      └── SearchResult[] (one request may have multiple searches)
+           └── Reference[] (indexed references from each search)
+```
+
+### Citation Locating
+
+LLM output uses `<a>` tags with index:
+
+```xml
+AI is artificial intelligence<a index="1" />, it has developed rapidly<a index="2" />...
+```
+
+Location path: `request_id` + `index` → precisely locate reference
+
+### Database Schema
+
+**Table: `agent_search`**
+
+| Column     | Type        | Description                            |
+| ---------- | ----------- | -------------------------------------- |
+| id         | BIGINT      | Auto-increment primary key             |
+| request_id | VARCHAR(64) | Associated request ID (indexed)        |
+| chat_id    | VARCHAR(64) | Associated chat ID (indexed)           |
+| query      | TEXT        | Original search query                  |
+| config     | JSON        | Search config used (for tuning)        |
+| keywords   | JSON        | Extracted keywords (from NLP)          |
+| entities   | JSON        | Extracted entities (for Graph search)  |
+| relations  | JSON        | Extracted relations (for Graph search) |
+| dsl        | JSON        | Generated QueryDSL (for DB search)     |
+| source     | VARCHAR(32) | Search source: web/kb/db/auto          |
+| references | JSON        | Reference[] with global index          |
+| graph      | JSON        | GraphNode[] from knowledge graph       |
+| xml        | TEXT        | Formatted XML for LLM context          |
+| prompt     | TEXT        | Citation instruction prompt            |
+| duration   | INT         | Search duration in milliseconds        |
+| error      | TEXT        | Error message if failed (nullable)     |
+| created_at | TIMESTAMP   | Creation time                          |
+| deleted_at | TIMESTAMP   | Soft delete time (nullable)            |
+
+**Config Field Structure:**
+
+```json
+{
+  "uses": {
+    "search": "builtin",
+    "web": "builtin",
+    "keyword": "builtin",
+    "querydsl": "builtin",
+    "rerank": "builtin"
+  },
+  "web": {
+    "provider": "tavily",
+    "max_results": 5
+  },
+  "kb": {
+    "collections": ["docs", "faq"],
+    "threshold": 0.7,
+    "graph": true
+  },
+  "db": {
+    "models": ["product", "order"],
+    "max_results": 20
+  },
+  "rerank": {
+    "provider": "builtin",
+    "top_n": 10
+  }
+}
+```
+
+### Type Definitions
+
+```go
+// store/types/types.go
+
+// Search represents stored search results for a request
+// Stores all intermediate processing results for debugging and replay
+type Search struct {
+    ID         int64          `json:"id"`
+    RequestID  string         `json:"request_id"`
+    ChatID     string         `json:"chat_id"`
+    Query      string         `json:"query"`               // Original query
+    Config     map[string]any `json:"config,omitempty"`    // Search config used (for tuning)
+    Keywords   []string       `json:"keywords,omitempty"`  // Extracted keywords (Web/NLP)
+    Entities   []Entity       `json:"entities,omitempty"`  // Extracted entities (Graph)
+    Relations  []Relation     `json:"relations,omitempty"` // Extracted relations (Graph)
+    DSL        map[string]any `json:"dsl,omitempty"`       // Generated QueryDSL (DB)
+    Source     string         `json:"source"`              // web/kb/db/auto
+    References []Reference    `json:"references"`
+    Graph      []GraphNode    `json:"graph,omitempty"`     // Graph nodes from KB
+    XML        string         `json:"xml,omitempty"`       // Formatted XML for LLM
+    Prompt     string         `json:"prompt,omitempty"`    // Citation prompt
+    Duration   int64          `json:"duration_ms"`         // Search duration
+    Error      string         `json:"error,omitempty"`     // Error if failed
+    CreatedAt  time.Time      `json:"created_at"`
+}
+
+// Reference represents a single reference with global index (for storage)
+type Reference struct {
+    Index    int            `json:"index"`             // Global index: 1, 2, 3...
+    Type     string         `json:"type"`              // web/kb/db
+    Title    string         `json:"title"`
+    URL      string         `json:"url,omitempty"`
+    Snippet  string         `json:"snippet"`
+    Content  string         `json:"content,omitempty"` // Full content (optional)
+    Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// Entity represents an extracted entity from query (for Graph search)
+type Entity struct {
+    Name   string         `json:"name"`             // Entity name
+    Type   string         `json:"type"`             // Entity type: person, org, location, etc.
+    Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// Relation represents an extracted relation from query (for Graph search)
+type Relation struct {
+    Subject  string         `json:"subject"`          // Source entity
+    Predicate string        `json:"predicate"`        // Relation type
+    Object   string         `json:"object"`           // Target entity
+    Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// GraphNode represents a node from knowledge graph (search result)
+type GraphNode struct {
+    ID          string         `json:"id"`
+    Type        string         `json:"type"`              // Entity type
+    Name        string         `json:"name"`              // Entity name
+    Description string         `json:"description,omitempty"`
+    Relation    string         `json:"relation,omitempty"` // Relationship to query
+    Score       float64        `json:"score,omitempty"`
+    Metadata    map[string]any `json:"metadata,omitempty"`
+}
+
+// SearchFilter for querying search records
+type SearchFilter struct {
+    RequestID string `json:"request_id,omitempty"`
+    ChatID    string `json:"chat_id,omitempty"`
+    Source    string `json:"source,omitempty"`
+}
+```
+
+### Store Interface Extension
+
+```go
+// store/types/store.go
+
+// ChatStore interface extension
+type ChatStore interface {
+    // ... existing methods ...
+
+    // ==========================================================================
+    // Search Management
+    // ==========================================================================
+
+    // SaveSearch saves search record for a request
+    // search: Search record to save
+    // Returns: Potential error
+    SaveSearch(search *Search) error
+
+    // GetSearches retrieves search records for a request
+    // requestID: Request ID
+    // Returns: Search records and potential error
+    GetSearches(requestID string) ([]*Search, error)
+
+    // GetReference retrieves a single reference by request ID and index
+    // requestID: Request ID
+    // index: Reference index (1-based)
+    // Returns: Reference and potential error
+    GetReference(requestID string, index int) (*Reference, error)
+
+    // DeleteSearches deletes all search records for a chat
+    // chatID: Chat ID
+    // Returns: Potential error
+    DeleteSearches(chatID string) error
+}
+```
+
+### Xun Implementation
+
+```go
+// store/xun/search.go
+
+// SaveSearch saves a search record
+func (store *Xun) SaveSearch(search *Search) error {
+    if search.RequestID == "" {
+        return fmt.Errorf("request_id is required")
+    }
+
+    refsJSON, err := jsoniter.MarshalToString(search.References)
+    if err != nil {
+        return fmt.Errorf("failed to marshal references: %w", err)
+    }
+
+    row := map[string]interface{}{
+        "request_id": search.RequestID,
+        "chat_id":    search.ChatID,
+        "query":      search.Query,
+        "config":     search.Config,     // Search config for tuning
+        "keywords":   search.Keywords,
+        "entities":   search.Entities,   // Graph entities
+        "relations":  search.Relations,  // Graph relations
+        "dsl":        search.DSL,
+        "source":     search.Source,
+        "references": refsJSON,
+        "graph":      search.Graph,      // Graph nodes
+        "xml":        search.XML,
+        "prompt":     search.Prompt,
+        "duration":   search.Duration,
+        "error":      search.Error,
+        "created_at": time.Now(),
+    }
+
+    return store.newQuerySearch().Insert(row)
+}
+
+// GetSearches retrieves all search records for a request
+func (store *Xun) GetSearches(requestID string) ([]*Search, error) {
+    rows, err := store.newQuerySearch().
+        Where("request_id", requestID).
+        WhereNull("deleted_at").
+        OrderBy("created_at", "asc").
+        Get()
+    // ... convert rows to Search
+}
+
+// GetReference retrieves a single reference
+func (store *Xun) GetReference(requestID string, index int) (*Reference, error) {
+    searches, err := store.GetSearches(requestID)
+    if err != nil {
+        return nil, err
+    }
+
+    // Find reference by index across all search records
+    for _, search := range searches {
+        for _, ref := range search.References {
+            if ref.Index == index {
+                return &ref, nil
+            }
+        }
+    }
+
+    return nil, fmt.Errorf("reference %d not found in request %s", index, requestID)
+}
+```
+
+### Model Definition
+
+```json
+// yao/models/agent/search.mod.yao
+{
+  "name": "Search",
+  "label": "Search",
+  "description": "Search records for citation support and debugging",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "table": {
+    "name": "agent_search",
+    "comment": "Agent search table"
+  },
+  "columns": [
+    { "name": "id", "type": "ID", "label": "ID" },
+    {
+      "name": "request_id",
+      "type": "string",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    { "name": "query", "type": "text", "nullable": true },
+    {
+      "name": "config",
+      "type": "json",
+      "nullable": true,
+      "comment": "Search config used (for tuning)"
+    },
+    { "name": "keywords", "type": "json", "nullable": true },
+    { "name": "entities", "type": "json", "nullable": true },
+    { "name": "relations", "type": "json", "nullable": true },
+    { "name": "dsl", "type": "json", "nullable": true },
+    { "name": "source", "type": "string", "length": 32, "nullable": false },
+    { "name": "references", "type": "json", "nullable": true },
+    { "name": "graph", "type": "json", "nullable": true },
+    { "name": "xml", "type": "text", "nullable": true },
+    { "name": "prompt", "type": "text", "nullable": true },
+    { "name": "duration", "type": "integer", "nullable": true },
+    { "name": "error", "type": "text", "nullable": true }
+  ],
+  "option": { "timestamps": true, "soft_deletes": true }
+}
+```
+
+### Stream Integration
+
+Storage logic is encapsulated in `assistant/search.go` with a dedicated method:
+
+```go
+// assistant/search.go
+
+// SearchExecutionResult contains all intermediate results from search execution
+type SearchExecutionResult struct {
+    Query      string                          // Original query
+    Config     map[string]any                  // Search config used
+    Keywords   []string                        // Extracted keywords (Web/NLP)
+    Entities   []storeTypes.Entity             // Extracted entities (Graph)
+    Relations  []storeTypes.Relation           // Extracted relations (Graph)
+    DSL        map[string]any                  // Generated QueryDSL (DB)
+    Source     string                          // web/kb/db/auto
+    RefCtx     *searchTypes.ReferenceContext   // Reference context for LLM
+    Graph      []storeTypes.GraphNode          // Graph nodes from KB
+    Duration   int64                           // Duration in ms
+    Error      string                          // Error message if failed
+}
+
+// saveSearch saves search record to store for citation support and debugging
+func (ast *Assistant) saveSearch(ctx *context.Context, result *SearchExecutionResult) {
+    if ctx.Store == nil || result == nil {
+        return
+    }
+
+    // Skip if no references and no error
+    if result.RefCtx == nil && result.Error == "" {
+        return
+    }
+
+    var refs []storeTypes.Reference
+    var xml, prompt string
+
+    if result.RefCtx != nil {
+        refs = convertReferences(result.RefCtx.References)
+        xml = result.RefCtx.XML
+        prompt = result.RefCtx.Prompt
+    }
+
+    search := &storeTypes.Search{
+        RequestID:  ctx.RequestID,
+        ChatID:     ctx.ID,
+        Query:      result.Query,
+        Config:     result.Config,     // Search config for tuning analysis
+        Keywords:   result.Keywords,
+        Entities:   result.Entities,   // Graph entities
+        Relations:  result.Relations,  // Graph relations
+        DSL:        result.DSL,
+        Source:     result.Source,
+        References: refs,
+        Graph:      result.Graph,      // Graph nodes
+        XML:        xml,
+        Prompt:     prompt,
+        Duration:   result.Duration,
+        Error:      result.Error,
+    }
+
+    if err := ctx.Store.SaveSearch(search); err != nil {
+        ctx.Logger.Warn("Failed to save search: %v", err)
+    }
+}
+
+// convertReferences converts search references to store format
+func convertReferences(refs []*searchTypes.Reference) []storeTypes.Reference {
+    result := make([]storeTypes.Reference, len(refs))
+    for i, ref := range refs {
+        result[i] = storeTypes.Reference{
+            Index:    i + 1, // 1-based index
+            Type:     string(ref.Type),
+            Title:    ref.Title,
+            URL:      ref.URL,
+            Snippet:  ref.Content,
+            Content:  ref.Content,
+            Metadata: ref.Meta,
+        }
+    }
+    return result
+}
+
+// In executeAutoSearch:
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, ...) *searchTypes.ReferenceContext {
+    start := time.Now()
+
+    // 1. Execute search (Result now contains all intermediate data)
+    results, err := searcher.All(ctx, requests)
+    duration := time.Since(start).Milliseconds()
+
+    // 2. Prepare execution result for storage
+    execResult := &SearchExecutionResult{
+        Query:    query,
+        Config:   buildSearchConfig(searchConfig, searchUses),
+        Source:   "auto",
+        Duration: duration,
+    }
+
+    if err != nil {
+        execResult.Error = err.Error()
+        ast.saveSearch(ctx, execResult)
+        return nil
+    }
+
+    // 3. Extract intermediate data from results
+    // Result.Keywords, Result.DSL, Result.Entities, Result.Relations are populated by handlers
+    for _, result := range results {
+        if len(result.Keywords) > 0 {
+            execResult.Keywords = result.Keywords
+        }
+        if result.DSL != nil {
+            execResult.DSL = result.DSL
+        }
+        if len(result.Entities) > 0 {
+            execResult.Entities = convertEntities(result.Entities)
+        }
+        if len(result.Relations) > 0 {
+            execResult.Relations = convertRelations(result.Relations)
+        }
+        if len(result.GraphNodes) > 0 {
+            execResult.Graph = convertGraphNodes(result.GraphNodes)
+        }
+    }
+
+    // 4. Build reference context
+    refCtx := search.BuildReferenceContext(results, citationConfig)
+    execResult.RefCtx = refCtx
+
+    // 5. Save search record
+    ast.saveSearch(ctx, execResult)
+
+    return refCtx
+}
+```
+
+### Usage Scenarios
+
+**Scenario 1: Single Search**
+
+```
+Request: req_001
+  └── Search: { source: "auto", references: [{index:1,...}, {index:2,...}, {index:3,...}] }
+```
+
+**Scenario 2: Multiple Searches (e.g., Tool Call triggers another search)**
+
+```
+Request: req_001
+  ├── Search[0]: { source: "web", references: [{index:1,...}, {index:2,...}] }
+  └── Search[1]: { source: "kb",  references: [{index:3,...}, {index:4,...}] }
+```
+
+Index is globally incremented, so `request_id + index` is always unique.
+
+### API Endpoints
+
+```
+GET /api/chat/{chat_id}/request/{request_id}/references           # Get all references for request
+GET /api/chat/{chat_id}/request/{request_id}/reference/{index}    # Get single reference by index
+```
+
+### Frontend Integration
+
+```typescript
+// When user clicks citation [1]
+async function onCitationClick(requestId: string, index: number) {
+  const ref = await api.get(
+    `/chat/${chatId}/request/${requestId}/reference/${index}`
+  );
+  showReferenceCard({
+    title: ref.title,
+    url: ref.url,
+    snippet: ref.snippet,
+    content: ref.content,
+  });
+}
 ```
 
 ## JSAPI Integration
@@ -1978,7 +2650,7 @@ SerpAPI supports multiple search engines via the `engine` config:
 | ------------ | ---------------------------- |
 | `google`     | Google Search (default)      |
 | `bing`       | Bing Search                  |
-| `baidu`      | Baidu (百度)                 |
+| `baidu`      | Baidu Search (Chinese)       |
 | `yandex`     | Yandex Search                |
 | `yahoo`      | Yahoo Search                 |
 | `duckduckgo` | DuckDuckGo Search            |

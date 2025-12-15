@@ -199,6 +199,7 @@ var testSystemModels = map[string]string{
 	"__yao.agent.chat":         "yao/models/agent/chat.mod.yao",
 	"__yao.agent.message":      "yao/models/agent/message.mod.yao",
 	"__yao.agent.resume":       "yao/models/agent/resume.mod.yao",
+	"__yao.agent.search":       "yao/models/agent/search.mod.yao",
 	"__yao.attachment":         "yao/models/attachment.mod.yao",
 	"__yao.audit":              "yao/models/audit.mod.yao",
 	"__yao.config":             "yao/models/config.mod.yao",

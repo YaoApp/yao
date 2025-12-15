@@ -447,3 +447,71 @@ type AssistantModel struct {
 	YaoTeamID    string `json:"-"` // Team ID for team-based access control (not exposed in JSON)
 	YaoTenantID  string `json:"-"` // Tenant ID for multi-tenancy support (not exposed in JSON)
 }
+
+// =============================================================================
+// Search Types (for search result storage)
+// =============================================================================
+
+// Search represents stored search results for a request
+// Stores all intermediate processing results for debugging, replay, and citation
+type Search struct {
+	ID         int64          `json:"id"`
+	RequestID  string         `json:"request_id"`
+	ChatID     string         `json:"chat_id"`
+	Query      string         `json:"query"`               // Original query
+	Config     map[string]any `json:"config,omitempty"`    // Search config used (for tuning)
+	Keywords   []string       `json:"keywords,omitempty"`  // Extracted keywords (Web/NLP)
+	Entities   []Entity       `json:"entities,omitempty"`  // Extracted entities (Graph)
+	Relations  []Relation     `json:"relations,omitempty"` // Extracted relations (Graph)
+	DSL        map[string]any `json:"dsl,omitempty"`       // Generated QueryDSL (DB)
+	Source     string         `json:"source"`              // web/kb/db/auto
+	References []Reference    `json:"references"`          // References with global index
+	Graph      []GraphNode    `json:"graph,omitempty"`     // Graph nodes from KB
+	XML        string         `json:"xml,omitempty"`       // Formatted XML for LLM
+	Prompt     string         `json:"prompt,omitempty"`    // Citation prompt
+	Duration   int64          `json:"duration_ms"`         // Search duration in ms
+	Error      string         `json:"error,omitempty"`     // Error if failed
+	CreatedAt  time.Time      `json:"created_at"`
+}
+
+// Reference represents a single reference with global index (for storage)
+type Reference struct {
+	Index    int            `json:"index"`             // Global index (1-based, unique within request)
+	Type     string         `json:"type"`              // web/kb/db
+	Title    string         `json:"title"`             // Reference title
+	URL      string         `json:"url,omitempty"`     // URL (for web)
+	Snippet  string         `json:"snippet,omitempty"` // Short snippet
+	Content  string         `json:"content,omitempty"` // Full content
+	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// SearchFilter for listing searches
+type SearchFilter struct {
+	RequestID string `json:"request_id,omitempty"`
+	ChatID    string `json:"chat_id,omitempty"`
+	Source    string `json:"source,omitempty"`
+}
+
+// Entity represents an extracted entity (for Graph RAG)
+type Entity struct {
+	Name   string `json:"name"`
+	Type   string `json:"type,omitempty"`
+	Source string `json:"source,omitempty"`
+}
+
+// Relation represents an extracted relation (for Graph RAG)
+type Relation struct {
+	Subject   string `json:"subject"`
+	Predicate string `json:"predicate"`
+	Object    string `json:"object"`
+	Source    string `json:"source,omitempty"`
+}
+
+// GraphNode represents a node from knowledge graph
+type GraphNode struct {
+	ID         string         `json:"id"`
+	Type       string         `json:"type"`
+	Label      string         `json:"label,omitempty"`
+	Properties map[string]any `json:"properties,omitempty"`
+	Score      float64        `json:"score,omitempty"`
+}

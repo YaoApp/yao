@@ -157,3 +157,31 @@ func (r *Redis) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	// TODO: implement
 	return 0, nil
 }
+
+// =============================================================================
+// Search Management
+// =============================================================================
+
+// SaveSearch saves a search record for a request
+func (r *Redis) SaveSearch(search *types.Search) error {
+	// TODO: implement
+	return nil
+}
+
+// GetSearches retrieves all search records for a request
+func (r *Redis) GetSearches(requestID string) ([]*types.Search, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetReference retrieves a single reference by request ID and index
+func (r *Redis) GetReference(requestID string, index int) (*types.Reference, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteSearches deletes all search records for a chat
+func (r *Redis) DeleteSearches(chatID string) error {
+	// TODO: implement
+	return nil
+}
