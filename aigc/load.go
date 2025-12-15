@@ -28,7 +28,7 @@ func Load(cfg config.Config) error {
 			return nil
 		}
 
-		id := share.ID(root, file)
+		id := aigcID(root, file)
 		_, err := LoadFile(file, id)
 		if err != nil {
 			messages = append(messages, err.Error())
@@ -46,6 +46,17 @@ func Load(cfg config.Config) error {
 	}
 
 	return nil
+}
+
+// aigcID parses AIGC ID from file path
+// Special handling for .ai.yml and .ai.yaml extensions
+// e.g., "aigcs/translate.ai.yml" -> "translate"
+func aigcID(root, file string) string {
+	id := share.ID(root, file)
+	// Remove "_ai" suffix caused by .ai.yml/.ai.yaml extension
+	// share.ID treats .yml/.yaml as single extension, so "translate.ai.yml" becomes "translate_ai"
+	id = strings.TrimSuffix(id, "_ai")
+	return id
 }
 
 // LoadFile load AIGC by file

@@ -40,6 +40,7 @@ env:
 
   OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
   TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_TEST_KEY }}
   TEST_MOAPI_MIRROR: https://api.openai.com
 
   # DeepSeek API Configuration
@@ -314,10 +315,20 @@ jobs:
         with:
           ref: ${{ env.HEAD }}
 
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
 
       - name: Setup Go Tools
         run: make tools
@@ -467,6 +478,11 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
 
       - name: Setup Go Tools
         run: make tools
