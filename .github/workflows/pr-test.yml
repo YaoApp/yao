@@ -461,6 +461,18 @@ jobs:
           user: "xiang"
           password: ${{ secrets.UNIT_PASS }}
 
+      - name: Setup ENV
+        env:
+          PASSWORD: ${{ secrets.UNIT_PASS }}
+        run: |
+          echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
+          if [ "$DB_DRIVER" = "mysql" ]; then
+            echo "YAO_DB_PRIMARY=$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+          else
+            echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+            mkdir -p ${{ github.WORKSPACE }}/../app/db
+          fi
+
       - name: Run Benchmark & Memory Leak Tests
         run: |
           make benchmark
