@@ -32,7 +32,7 @@ func TestBuildReferences(t *testing.T) {
 					Query: "test query",
 					Items: []*types.ResultItem{
 						{
-							CitationID: "ref_001",
+							CitationID: "1",
 							Type:       types.SearchTypeWeb,
 							Source:     types.SourceAuto,
 							Weight:     0.6,
@@ -42,7 +42,7 @@ func TestBuildReferences(t *testing.T) {
 							URL:        "https://example.com",
 						},
 						{
-							CitationID: "ref_002",
+							CitationID: "2",
 							Type:       types.SearchTypeWeb,
 							Source:     types.SourceAuto,
 							Weight:     0.6,
@@ -62,19 +62,19 @@ func TestBuildReferences(t *testing.T) {
 				{
 					Type: types.SearchTypeWeb,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_001", Type: types.SearchTypeWeb, Content: "Web content"},
+						{CitationID: "1", Type: types.SearchTypeWeb, Content: "Web content"},
 					},
 				},
 				{
 					Type: types.SearchTypeKB,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_002", Type: types.SearchTypeKB, Content: "KB content"},
+						{CitationID: "2", Type: types.SearchTypeKB, Content: "KB content"},
 					},
 				},
 				{
 					Type: types.SearchTypeDB,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_003", Type: types.SearchTypeDB, Content: "DB content"},
+						{CitationID: "3", Type: types.SearchTypeDB, Content: "DB content"},
 					},
 				},
 			},
@@ -86,9 +86,9 @@ func TestBuildReferences(t *testing.T) {
 				{
 					Type: types.SearchTypeWeb,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_001", Content: "Content 1"},
+						{CitationID: "1", Content: "Content 1"},
 						nil,
-						{CitationID: "ref_002", Content: "Content 2"},
+						{CitationID: "2", Content: "Content 2"},
 					},
 				},
 			},
@@ -100,14 +100,14 @@ func TestBuildReferences(t *testing.T) {
 				{
 					Type: types.SearchTypeWeb,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_001", Content: "Content"},
+						{CitationID: "1", Content: "Content"},
 					},
 				},
 				nil,
 				{
 					Type: types.SearchTypeKB,
 					Items: []*types.ResultItem{
-						{CitationID: "ref_002", Content: "Content 2"},
+						{CitationID: "2", Content: "Content 2"},
 					},
 				},
 			},
@@ -125,7 +125,7 @@ func TestBuildReferences(t *testing.T) {
 
 func TestBuildReferences_FieldMapping(t *testing.T) {
 	item := &types.ResultItem{
-		CitationID: "ref_001",
+		CitationID: "1",
 		Type:       types.SearchTypeWeb,
 		Source:     types.SourceHook,
 		Weight:     0.8,
@@ -143,7 +143,7 @@ func TestBuildReferences_FieldMapping(t *testing.T) {
 	assert.Equal(t, 1, len(refs))
 
 	ref := refs[0]
-	assert.Equal(t, "ref_001", ref.ID)
+	assert.Equal(t, "1", ref.ID)
 	assert.Equal(t, types.SearchTypeWeb, ref.Type)
 	assert.Equal(t, types.SourceHook, ref.Source)
 	assert.Equal(t, 0.8, ref.Weight)
@@ -176,7 +176,7 @@ func TestFormatReferencesXML(t *testing.T) {
 			name: "single ref with all fields",
 			refs: []*types.Reference{
 				{
-					ID:      "ref_001",
+					ID:      "1",
 					Type:    types.SearchTypeWeb,
 					Source:  types.SourceUser,
 					Weight:  1.0,
@@ -189,7 +189,7 @@ func TestFormatReferencesXML(t *testing.T) {
 			contains: []string{
 				"<references>",
 				"</references>",
-				`<ref id="ref_001" type="web" weight="1.0" source="user">`,
+				`<ref id="1" type="web" weight="1.0" source="user">`,
 				"</ref>",
 				"Test Title",
 				"Test Content",
@@ -200,7 +200,7 @@ func TestFormatReferencesXML(t *testing.T) {
 			name: "ref without title",
 			refs: []*types.Reference{
 				{
-					ID:      "ref_001",
+					ID:      "1",
 					Type:    types.SearchTypeKB,
 					Source:  types.SourceHook,
 					Weight:  0.8,
@@ -208,7 +208,7 @@ func TestFormatReferencesXML(t *testing.T) {
 				},
 			},
 			contains: []string{
-				`<ref id="ref_001" type="kb" weight="0.8" source="hook">`,
+				`<ref id="1" type="kb" weight="0.8" source="hook">`,
 				"Content without title",
 			},
 			excludes: []string{
@@ -219,7 +219,7 @@ func TestFormatReferencesXML(t *testing.T) {
 			name: "ref without URL",
 			refs: []*types.Reference{
 				{
-					ID:      "ref_001",
+					ID:      "1",
 					Type:    types.SearchTypeDB,
 					Source:  types.SourceAuto,
 					Weight:  0.6,
@@ -228,7 +228,7 @@ func TestFormatReferencesXML(t *testing.T) {
 				},
 			},
 			contains: []string{
-				`<ref id="ref_001" type="db" weight="0.6" source="auto">`,
+				`<ref id="1" type="db" weight="0.6" source="auto">`,
 				"DB Record",
 				"Database content",
 			},
@@ -239,16 +239,16 @@ func TestFormatReferencesXML(t *testing.T) {
 		{
 			name: "multiple refs",
 			refs: []*types.Reference{
-				{ID: "ref_001", Type: types.SearchTypeWeb, Source: types.SourceUser, Weight: 1.0, Content: "Content 1"},
-				{ID: "ref_002", Type: types.SearchTypeKB, Source: types.SourceHook, Weight: 0.8, Content: "Content 2"},
-				{ID: "ref_003", Type: types.SearchTypeDB, Source: types.SourceAuto, Weight: 0.6, Content: "Content 3"},
+				{ID: "1", Type: types.SearchTypeWeb, Source: types.SourceUser, Weight: 1.0, Content: "Content 1"},
+				{ID: "2", Type: types.SearchTypeKB, Source: types.SourceHook, Weight: 0.8, Content: "Content 2"},
+				{ID: "3", Type: types.SearchTypeDB, Source: types.SourceAuto, Weight: 0.6, Content: "Content 3"},
 			},
 			contains: []string{
 				"<references>",
 				"</references>",
-				`id="ref_001"`,
-				`id="ref_002"`,
-				`id="ref_003"`,
+				`id="1"`,
+				`id="2"`,
+				`id="3"`,
 				"Content 1",
 				"Content 2",
 				"Content 3",
@@ -257,13 +257,13 @@ func TestFormatReferencesXML(t *testing.T) {
 		{
 			name: "nil ref in slice",
 			refs: []*types.Reference{
-				{ID: "ref_001", Type: types.SearchTypeWeb, Weight: 1.0, Content: "Content 1"},
+				{ID: "1", Type: types.SearchTypeWeb, Weight: 1.0, Content: "Content 1"},
 				nil,
-				{ID: "ref_002", Type: types.SearchTypeKB, Weight: 0.8, Content: "Content 2"},
+				{ID: "2", Type: types.SearchTypeKB, Weight: 0.8, Content: "Content 2"},
 			},
 			contains: []string{
-				`id="ref_001"`,
-				`id="ref_002"`,
+				`id="1"`,
+				`id="2"`,
 			},
 		},
 	}
@@ -286,7 +286,7 @@ func TestFormatReferencesXML(t *testing.T) {
 func TestFormatReferencesXML_Structure(t *testing.T) {
 	refs := []*types.Reference{
 		{
-			ID:      "ref_001",
+			ID:      "1",
 			Type:    types.SearchTypeWeb,
 			Source:  types.SourceUser,
 			Weight:  1.0,
@@ -361,6 +361,8 @@ func TestDefaultCitationPrompt(t *testing.T) {
 	assert.Contains(t, DefaultCitationPrompt, `<a class="ref"`)
 	assert.Contains(t, DefaultCitationPrompt, "data-ref-id")
 	assert.Contains(t, DefaultCitationPrompt, "data-ref-type")
+	// Verify example uses simple integer ID
+	assert.Contains(t, DefaultCitationPrompt, `data-ref-id="1"`)
 }
 
 func TestBuildReferenceContext(t *testing.T) {
@@ -369,7 +371,7 @@ func TestBuildReferenceContext(t *testing.T) {
 			Type: types.SearchTypeWeb,
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_001",
+					CitationID: "1",
 					Type:       types.SearchTypeWeb,
 					Source:     types.SourceAuto,
 					Weight:     0.6,
@@ -387,7 +389,7 @@ func TestBuildReferenceContext(t *testing.T) {
 		assert.NotNil(t, ctx)
 		assert.Equal(t, 1, len(ctx.References))
 		assert.Contains(t, ctx.XML, "<references>")
-		assert.Contains(t, ctx.XML, "ref_001")
+		assert.Contains(t, ctx.XML, `id="1"`)
 		assert.Equal(t, DefaultCitationPrompt, ctx.Prompt)
 	})
 
@@ -419,7 +421,7 @@ func TestBuildReferenceContext_Integration(t *testing.T) {
 			Query: "AI developments",
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_001",
+					CitationID: "1",
 					Type:       types.SearchTypeWeb,
 					Source:     types.SourceAuto,
 					Weight:     0.6,
@@ -435,7 +437,7 @@ func TestBuildReferenceContext_Integration(t *testing.T) {
 			Query: "AI developments",
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_002",
+					CitationID: "2",
 					Type:       types.SearchTypeKB,
 					Source:     types.SourceHook,
 					Weight:     0.8,
@@ -450,7 +452,7 @@ func TestBuildReferenceContext_Integration(t *testing.T) {
 			Query: "AI developments",
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_003",
+					CitationID: "3",
 					Type:       types.SearchTypeDB,
 					Source:     types.SourceUser,
 					Weight:     1.0,
@@ -468,9 +470,9 @@ func TestBuildReferenceContext_Integration(t *testing.T) {
 	assert.Equal(t, 3, len(ctx.References))
 
 	// Verify XML contains all references
-	assert.Contains(t, ctx.XML, "ref_001")
-	assert.Contains(t, ctx.XML, "ref_002")
-	assert.Contains(t, ctx.XML, "ref_003")
+	assert.Contains(t, ctx.XML, `id="1"`)
+	assert.Contains(t, ctx.XML, `id="2"`)
+	assert.Contains(t, ctx.XML, `id="3"`)
 
 	// Verify different source types are represented
 	assert.Contains(t, ctx.XML, `source="auto"`)

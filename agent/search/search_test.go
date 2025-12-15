@@ -352,7 +352,7 @@ func TestSearcher_BuildReferences(t *testing.T) {
 			Type: types.SearchTypeWeb,
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_001",
+					CitationID: "1",
 					Type:       types.SearchTypeWeb,
 					Source:     types.SourceAuto,
 					Weight:     0.6,
@@ -366,7 +366,7 @@ func TestSearcher_BuildReferences(t *testing.T) {
 			Type: types.SearchTypeKB,
 			Items: []*types.ResultItem{
 				{
-					CitationID: "ref_002",
+					CitationID: "2",
 					Type:       types.SearchTypeKB,
 					Source:     types.SourceHook,
 					Weight:     0.8,
@@ -379,8 +379,8 @@ func TestSearcher_BuildReferences(t *testing.T) {
 
 	refs := s.BuildReferences(results)
 	assert.Equal(t, 2, len(refs))
-	assert.Equal(t, "ref_001", refs[0].ID)
-	assert.Equal(t, "ref_002", refs[1].ID)
+	assert.Equal(t, "1", refs[0].ID)
+	assert.Equal(t, "2", refs[1].ID)
 }
 
 func TestSearcher_CitationGeneration(t *testing.T) {
@@ -396,7 +396,8 @@ func TestSearcher_CitationGeneration(t *testing.T) {
 	id2 := s.citation.Next()
 	id3 := s.citation.Next()
 
-	assert.Equal(t, "ref_001", id1)
-	assert.Equal(t, "ref_002", id2)
-	assert.Equal(t, "ref_003", id3)
+	// Citation IDs are now simple integers
+	assert.Equal(t, "1", id1)
+	assert.Equal(t, "2", id2)
+	assert.Equal(t, "3", id3)
 }
