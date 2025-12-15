@@ -108,14 +108,14 @@ func init() {
 			"search.no_results":  "No references found",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":            "Search",
-			"search.trace.description":      "Search the web and knowledge base for relevant information",
-			"search.trace.web.label":        "Web Search",
-			"search.trace.web.description":  "Searching the web",
-			"search.trace.kb.label":         "KB Search",
-			"search.trace.kb.description":   "Searching knowledge base",
-			"search.trace.db.label":         "DB Search",
-			"search.trace.db.description":   "Searching database",
+			"search.trace.label":           "Search",
+			"search.trace.description":     "Search the web and knowledge base for relevant information",
+			"search.trace.web.label":       "Web Search",
+			"search.trace.web.description": "Searching the web",
+			"search.trace.kb.label":        "KB Search",
+			"search.trace.kb.description":  "Searching knowledge base",
+			"search.trace.db.label":        "DB Search",
+			"search.trace.db.description":  "Searching database",
 		},
 	}
 
@@ -192,14 +192,14 @@ func init() {
 			"search.no_results":  "未找到相关资料",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":            "搜索",
-			"search.trace.description":      "搜索网络和知识库获取相关信息",
-			"search.trace.web.label":        "网页搜索",
-			"search.trace.web.description":  "搜索网页获取相关信息",
-			"search.trace.kb.label":         "知识库搜索",
-			"search.trace.kb.description":   "搜索知识库获取相关信息",
-			"search.trace.db.label":         "数据库搜索",
-			"search.trace.db.description":   "搜索数据库获取相关信息",
+			"search.trace.label":           "搜索",
+			"search.trace.description":     "搜索网络和知识库获取相关信息",
+			"search.trace.web.label":       "网页搜索",
+			"search.trace.web.description": "搜索网页获取相关信息",
+			"search.trace.kb.label":        "知识库搜索",
+			"search.trace.kb.description":  "搜索知识库获取相关信息",
+			"search.trace.db.label":        "数据库搜索",
+			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 

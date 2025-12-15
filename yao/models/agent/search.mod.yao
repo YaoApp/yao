@@ -1,0 +1,138 @@
+{
+  "name": "Search",
+  "label": "Search",
+  "description": "Search records for citation support and debugging",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_search", "comment": "Agent search table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "request_id",
+      "type": "string",
+      "label": "Request ID",
+      "comment": "Associated request ID",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Associated chat ID",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "query",
+      "type": "text",
+      "label": "Query",
+      "comment": "Original search query",
+      "nullable": true
+    },
+    {
+      "name": "config",
+      "type": "json",
+      "label": "Config",
+      "comment": "Search config used (for tuning)",
+      "nullable": true
+    },
+    {
+      "name": "keywords",
+      "type": "json",
+      "label": "Keywords",
+      "comment": "Extracted keywords (from NLP)",
+      "nullable": true
+    },
+    {
+      "name": "entities",
+      "type": "json",
+      "label": "Entities",
+      "comment": "Extracted entities (for Graph search)",
+      "nullable": true
+    },
+    {
+      "name": "relations",
+      "type": "json",
+      "label": "Relations",
+      "comment": "Extracted relations (for Graph search)",
+      "nullable": true
+    },
+    {
+      "name": "dsl",
+      "type": "json",
+      "label": "DSL",
+      "comment": "Generated QueryDSL (for DB search)",
+      "nullable": true
+    },
+    {
+      "name": "source",
+      "type": "string",
+      "label": "Source",
+      "comment": "Search source: web/kb/db/auto",
+      "length": 32,
+      "nullable": false
+    },
+    {
+      "name": "references",
+      "type": "json",
+      "label": "References",
+      "comment": "Reference[] with global index",
+      "nullable": true
+    },
+    {
+      "name": "graph",
+      "type": "json",
+      "label": "Graph",
+      "comment": "GraphNode[] from knowledge graph",
+      "nullable": true
+    },
+    {
+      "name": "xml",
+      "type": "text",
+      "label": "XML",
+      "comment": "Formatted XML for LLM context",
+      "nullable": true
+    },
+    {
+      "name": "prompt",
+      "type": "text",
+      "label": "Prompt",
+      "comment": "Citation instruction prompt",
+      "nullable": true
+    },
+    {
+      "name": "duration",
+      "type": "integer",
+      "label": "Duration",
+      "comment": "Search duration in milliseconds",
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "type": "text",
+      "label": "Error",
+      "comment": "Error message if failed",
+      "nullable": true
+    }
+  ],
+  "relations": {
+    "chat": {
+      "type": "hasOne",
+      "model": "__yao.agent.chat",
+      "key": "chat_id",
+      "foreign": "chat_id"
+    }
+  },
+  "option": { "timestamps": true, "soft_deletes": true }
+}
+

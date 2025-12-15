@@ -119,6 +119,7 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	// 1. uses.keyword is configured (not empty)
 	// 2. Skip.Keyword is not true
 	// 3. Web search is enabled
+	var extractedKeywords []string
 	webSearchEnabled := searchConfig != nil && searchConfig.Web != nil
 	if webSearchEnabled && !skipKeyword && searchUses.Keyword != "" {
 		extractor := keyword.NewExtractor(searchUses.Keyword, searchConfig.Keyword)
@@ -126,12 +127,15 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 		if err != nil {
 			ctx.Logger.Warn("Keyword extraction failed, using original query: %v", err)
 		} else if len(keywords) > 0 {
+			extractedKeywords = keywords
 			// Use extracted keywords as the search query for web search
 			optimizedQuery := strings.Join(keywords, " ")
 			ctx.Logger.Info("Extracted keywords for web search: %s -> %s", truncateString(query, 30), optimizedQuery)
 			query = optimizedQuery
 		}
 	}
+	// extractedKeywords will be used for storage in saveSearch() - TODO: Phase 1.9.5
+	_ = extractedKeywords
 
 	// Build search requests based on configuration
 	requests := ast.buildSearchRequests(query, searchConfig)

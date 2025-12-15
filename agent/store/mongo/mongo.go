@@ -157,3 +157,31 @@ func (m *Mongo) DeleteAssistants(filter types.AssistantFilter) (int64, error) {
 	// TODO: implement
 	return 0, nil
 }
+
+// =============================================================================
+// Search Management
+// =============================================================================
+
+// SaveSearch saves a search record for a request
+func (m *Mongo) SaveSearch(search *types.Search) error {
+	// TODO: implement
+	return nil
+}
+
+// GetSearches retrieves all search records for a request
+func (m *Mongo) GetSearches(requestID string) ([]*types.Search, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// GetReference retrieves a single reference by request ID and index
+func (m *Mongo) GetReference(requestID string, index int) (*types.Reference, error) {
+	// TODO: implement
+	return nil, nil
+}
+
+// DeleteSearches deletes all search records for a chat
+func (m *Mongo) DeleteSearches(chatID string) error {
+	// TODO: implement
+	return nil
+}

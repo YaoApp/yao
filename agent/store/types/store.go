@@ -98,6 +98,34 @@ type ChatStore interface {
 	// chatID: Chat ID
 	// Returns: Potential error
 	DeleteResume(chatID string) error
+
+	// ==========================================================================
+	// Search Management
+	// ==========================================================================
+
+	// SaveSearch saves a search record for a request
+	// Used for citation support, debugging, and replay
+	// search: Search record to save
+	// Returns: Potential error
+	SaveSearch(search *Search) error
+
+	// GetSearches retrieves all search records for a request
+	// requestID: Request ID
+	// Returns: Search records and potential error
+	GetSearches(requestID string) ([]*Search, error)
+
+	// GetReference retrieves a single reference by request ID and index
+	// Used for citation click handling
+	// requestID: Request ID
+	// index: Reference index (1-based)
+	// Returns: Reference and potential error
+	GetReference(requestID string, index int) (*Reference, error)
+
+	// DeleteSearches deletes all search records for a chat
+	// Called when deleting a chat
+	// chatID: Chat ID
+	// Returns: Potential error
+	DeleteSearches(chatID string) error
 }
 
 // AssistantStore defines the assistant storage interface
