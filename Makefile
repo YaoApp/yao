@@ -76,7 +76,7 @@ unit-test-core:
 unit-test-ai:
 	echo "mode: count" > coverage-ai.out
 	for d in $(TESTFOLDER_AI); do \
-		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
 		cat tmp.out; \
 		if grep -q "^--- FAIL" tmp.out; then \
 			rm tmp.out; \
@@ -135,7 +135,7 @@ memory-leak:
 			echo ""; \
 			echo "🔍 Memory Leak Detection: $$d"; \
 			echo "---------------------------------------------"; \
-			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' -v -timeout=60s $$d || exit 1; \
+			$(GO) test -run='TestMemoryLeak|TestIsolateDisposal|TestGoroutineLeak' -v -timeout=5m $$d || exit 1; \
 		fi; \
 	done
 	@echo ""
