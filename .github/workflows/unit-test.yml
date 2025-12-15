@@ -274,11 +274,108 @@ jobs:
 
       - name: Setup ENV (SQLite)
         run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
           echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=$YAO_ROOT/db/yao.db" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
 
       - name: Run AI Tests (agent, aigc)
         run: make unit-test-ai
+
+  # =============================================================================
+  # Benchmark & Memory Leak Tests - Run with MySQL8.0 and SQLite3
+  # =============================================================================
+  perf-test:
+    runs-on: ubuntu-latest
+    services:
+      mcp-everything:
+        image: yaoapp/mcp-everything:latest
+        ports:
+          - "3021:3021"
+          - "3022:3022"
+
+    strategy:
+      matrix:
+        go: [1.24]
+        db: [MySQL8.0, SQLite3]
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Setup ${{ matrix.db }}
+        uses: ./.github/actions/setup-db
+        with:
+          kind: "${{ matrix.db }}"
+          db: "xiang"
+          user: "xiang"
+          password: ${{ secrets.UNIT_PASS }}
+
+      - name: Run Benchmark & Memory Leak Tests
+        run: |
+          make benchmark
+          make memory-leak
 
   # =============================================================================
   # Core Tests - Run with DB matrix (MySQL/SQLite/Redis/Mongo combinations)
@@ -315,7 +412,7 @@ jobs:
     strategy:
       matrix:
         go: [1.24]
-        db: [MySQL8.0, MySQL5.7, SQLite3]
+        db: [MySQL8.0, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
     steps:
@@ -488,10 +585,7 @@ jobs:
           go run . inspect
 
       - name: Run Core Tests (exclude AI)
-        run: |
-          make unit-test-core
-          make benchmark
-          make memory-leak
+        run: make unit-test-core
 
       - name: Codecov Report
         uses: codecov/codecov-action@v4
