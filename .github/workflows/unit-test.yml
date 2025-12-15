@@ -302,6 +302,15 @@ jobs:
           - "3021:3021"
           - "3022:3022"
 
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
     strategy:
       matrix:
         go: [1.24]
