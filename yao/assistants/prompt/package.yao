@@ -2,6 +2,7 @@
   "name": "Prompt Optimizer",
   "description": "Transform user requirements into effective prompts",
   "type": "worker",
+  "uses": { "search": "disabled" },
   "options": {
     "temperature": 0
   }

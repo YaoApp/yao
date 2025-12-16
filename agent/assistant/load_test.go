@@ -544,6 +544,34 @@ func TestLoadSystemAgents(t *testing.T) {
 		}
 		assert.True(t, found, "System agents should be found in storage")
 	})
+
+	t.Run("SystemAgentsGetFromStorage", func(t *testing.T) {
+		// Clear cache to force loading from storage
+		assistant.GetCache().Clear()
+
+		// Test Get for each system agent
+		systemAgents := []string{
+			"__yao.keyword",
+			"__yao.querydsl",
+			"__yao.title",
+			"__yao.prompt",
+			"__yao.needsearch",
+			"__yao.entity",
+		}
+
+		for _, agentID := range systemAgents {
+			ast, err := assistant.Get(agentID)
+			require.NoError(t, err, "Get(%s) should succeed", agentID)
+			require.NotNil(t, ast, "Get(%s) should return assistant", agentID)
+			assert.Equal(t, agentID, ast.ID)
+			assert.True(t, ast.BuiltIn, "%s should be built-in", agentID)
+			assert.True(t, ast.Readonly, "%s should be readonly", agentID)
+			assert.Contains(t, ast.Tags, "system", "%s should have system tag", agentID)
+			assert.Equal(t, "worker", ast.Type, "%s should be worker type", agentID)
+			assert.NotNil(t, ast.Prompts, "%s should have prompts", agentID)
+			assert.Greater(t, len(ast.Prompts), 0, "%s should have at least one prompt", agentID)
+		}
+	})
 }
 
 // TestValidate tests the assistant Validate method

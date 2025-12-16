@@ -146,9 +146,8 @@ func loadSystemAgent(id, pathPrefix string) (*Assistant, error) {
 		return nil, fmt.Errorf("failed to parse %s: %w", pkgPath, err)
 	}
 
-	// Set assistant_id and path
+	// Set assistant_id (no path - system agents are loaded from storage, not filesystem)
 	pkgData["assistant_id"] = id
-	pkgData["path"] = "/" + pathPrefix
 
 	// Set type if not specified
 	if _, has := pkgData["type"]; !has {

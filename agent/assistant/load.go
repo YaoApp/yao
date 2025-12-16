@@ -33,8 +33,10 @@ var globalSearchConfig *searchTypes.Config = nil // global search config from ag
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
 
-	// Clear the cache
-	loaded.Clear()
+	// Clear non-system agents from cache (preserve system agents loaded by LoadSystemAgents)
+	loaded.ClearExcept(func(id string) bool {
+		return strings.HasPrefix(id, "__yao.") // Keep system agents
+	})
 
 	root := `/assistants`
 	app, err := fs.Get("app")

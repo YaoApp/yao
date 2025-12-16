@@ -2,6 +2,7 @@
   "name": "Title Generator",
   "description": "Generate concise titles for conversations",
   "type": "worker",
+  "uses": { "search": "disabled" },
   "options": {
     "temperature": 0
   }

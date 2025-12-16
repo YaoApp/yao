@@ -107,6 +107,11 @@ func init() {
 			"search.failed":      "Search failed",
 			"search.no_results":  "No references found",
 
+			// Search Intent: assistant/search.go - Intent detection messages
+			"search.intent.loading":     "Checking if references are needed...",
+			"search.intent.need_search": "Searching for references...",
+			"search.intent.no_search":   "No references needed",
+
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "Search",
 			"search.trace.description":     "Search the web and knowledge base for relevant information",
@@ -190,6 +195,11 @@ func init() {
 			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
 			"search.failed":      "搜索失败",
 			"search.no_results":  "未找到相关资料",
+
+			// Search Intent: assistant/search.go - Intent detection messages
+			"search.intent.loading":     "检查是否需要查询资料...",
+			"search.intent.need_search": "正在查询相关资料...",
+			"search.intent.no_search":   "无需查询资料",
 
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "搜索",
@@ -302,6 +312,11 @@ func init() {
 			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
 			"search.failed":      "搜索失败",
 			"search.no_results":  "未找到相关资料",
+
+			// Search Intent: assistant/search.go - Intent detection messages
+			"search.intent.loading":     "检查是否需要查询资料...",
+			"search.intent.need_search": "正在查询相关资料...",
+			"search.intent.no_search":   "无需查询资料",
 
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "搜索",

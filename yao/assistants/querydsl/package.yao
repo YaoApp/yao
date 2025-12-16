@@ -2,6 +2,7 @@
   "name": "QueryDSL Generator",
   "description": "Generate QueryDSL from natural language",
   "type": "worker",
+  "uses": { "search": "disabled" },
   "options": {
     "max_tokens": 2000,
     "temperature": 0.2

@@ -5,12 +5,16 @@
     Task:
     1. Analyze content and identify main topic
     2. Create brief, descriptive title
-    3. Match input language
-    4. Return ONLY the title, no explanation
+    3. Title MUST be in the same language as user input
+
+    Output:
+    - Return ONLY the plain text title
+    - NO markdown, NO code blocks, NO quotes, NO explanation
+    - Just the title text itself
 
     Length:
     - English: 2-6 words, 15-50 chars
-    - CJK: 2-10 chars
+    - CJK (Chinese/Japanese/Korean): 2-10 chars
     - Mixed: max 50 chars
 
     Style:
@@ -20,7 +24,14 @@
     - Sentence case for English
 
     Examples:
-    "How to bake cookies?" → Chocolate Chip Cookie Recipe
-    "请教如何制作曲奇" → 巧克力曲奇制作
-    "Debug my React component" → React Component Debugging
-    "帮我调试React组件" → React组件调试
+    Input: "How to bake cookies?"
+    Output: Chocolate Chip Cookie Recipe
+
+    Input: "请教如何制作曲奇"
+    Output: 巧克力曲奇制作
+
+    Input: "Debug my React component"
+    Output: React Component Debugging
+
+    Input: "帮我调试React组件"
+    Output: React组件调试

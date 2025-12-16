@@ -124,6 +124,35 @@ func (c *Cache) Clear() {
 	c.items = make(map[string]*list.Element)
 }
 
+// ClearExcept removes items from the cache except those matching the keep function
+// keep function returns true for items that should be preserved
+func (c *Cache) ClearExcept(keep func(id string) bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// Collect items to remove
+	var toRemove []*list.Element
+	for element := c.list.Front(); element != nil; element = element.Next() {
+		item := element.Value.(*cacheItem)
+		if !keep(item.key) {
+			toRemove = append(toRemove, element)
+		}
+	}
+
+	// Remove collected items
+	for _, element := range toRemove {
+		item := element.Value.(*cacheItem)
+
+		// Unregister scripts before removing
+		if item.value != nil && len(item.value.Scripts) > 0 {
+			item.value.UnregisterScripts()
+		}
+
+		c.list.Remove(element)
+		delete(c.items, item.key)
+	}
+}
+
 // removeOldest removes the least recently used item from the cache
 func (c *Cache) removeOldest() {
 	if element := c.list.Back(); element != nil {

@@ -196,6 +196,7 @@ type Skip struct {
 	Trace   bool `json:"trace"`   // Skip trace logging
 	Output  bool `json:"output"`  // Skip output to client (for internal A2A calls that only need response data)
 	Keyword bool `json:"keyword"` // Skip keyword extraction for web search (use raw query directly)
+	Search  bool `json:"search"`  // Skip auto search (for internal calls like needsearch intent detection)
 }
 
 // MessageMetadata stores metadata for sent messages
