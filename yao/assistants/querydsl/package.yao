@@ -1,0 +1,10 @@
+{
+  "name": "Query Builder",
+  "description": "Build database queries",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {
+    "max_tokens": 2000,
+    "temperature": 0.2
+  }
+}

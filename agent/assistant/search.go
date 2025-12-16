@@ -1,6 +1,7 @@
 package assistant
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -17,9 +18,17 @@ import (
 
 // shouldAutoSearch determines if auto search should be executed
 // Returns false if:
+// - opts.Skip.Search is true
 // - uses.search is "disabled"
 // - assistant has no search configuration
-func (ast *Assistant) shouldAutoSearch(ctx *context.Context, createResponse *context.HookCreateResponse) bool {
+// - needsearch intent detection returns false
+func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts *context.Options) bool {
+	// Check if search is skipped via options
+	if opts != nil && opts.Skip != nil && opts.Skip.Search {
+		ctx.Logger.Debug("Auto search skipped by opts.Skip.Search")
+		return false
+	}
+
 	// Get merged uses configuration
 	uses := ast.getMergedSearchUses(createResponse)
 
@@ -34,8 +43,192 @@ func (ast *Assistant) shouldAutoSearch(ctx *context.Context, createResponse *con
 		return false
 	}
 
+	// Check search intent using __yao.needsearch agent
+	if !ast.checkSearchIntent(ctx, messages) {
+		ctx.Logger.Info("Auto search skipped: intent detection returned false")
+		return false
+	}
+
 	// Check if search is enabled (builtin, agent, mcp, or empty means builtin)
 	return true
+}
+
+// checkSearchIntent uses __yao.needsearch agent to determine if search is needed
+// Returns true if search is needed, false otherwise
+func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context.Message) bool {
+	// Get the last user message
+	var userQuery string
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			if content, ok := messages[i].Content.(string); ok {
+				userQuery = content
+				break
+			}
+		}
+	}
+
+	if userQuery == "" {
+		return true // No user message, proceed with search
+	}
+
+	// Try to get __yao.needsearch agent
+	needsearchAst, err := Get("__yao.needsearch")
+	if err != nil {
+		ctx.Logger.Debug("__yao.needsearch agent not available: %v, proceeding with search", err)
+		return true // Agent not available, proceed with search
+	}
+
+	// === Output: Send loading message ===
+	loadingID := ast.sendIntentLoading(ctx)
+
+	// Build messages for intent detection
+	intentMessages := []context.Message{
+		{Role: "user", Content: userQuery},
+	}
+
+	// Call the needsearch agent (Stack will auto-track)
+	// IMPORTANT: Skip search to prevent infinite loop, skip output to prevent JSON showing in UI
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true, // Don't save to history
+			Search:  true, // Skip search to prevent infinite loop
+			Output:  true, // Skip output to prevent JSON showing in UI
+		},
+	}
+
+	result, err := needsearchAst.Stream(ctx, intentMessages, opts)
+	if err != nil {
+		ctx.Logger.Debug("__yao.needsearch failed: %v, proceeding with search", err)
+		// === Output: Send done (error case, proceed with search) ===
+		ast.sendIntentDone(ctx, loadingID, true, "")
+		return true // On error, proceed with search
+	}
+
+	// Parse the result
+	// Next hook returns {data: {need_search: bool, search_types: [], confidence: float}}
+	if response, ok := result.(*context.Response); ok {
+		// First try to get from Next hook response
+		if response.Next != nil {
+			if nextData, ok := response.Next.(map[string]interface{}); ok {
+				// Check for data field (from Next hook's {data: result})
+				var intentData map[string]interface{}
+				if data, ok := nextData["data"].(map[string]interface{}); ok {
+					intentData = data
+				} else {
+					intentData = nextData
+				}
+
+				if needSearch, ok := intentData["need_search"].(bool); ok {
+					reason, _ := intentData["reason"].(string)
+					ctx.Logger.Debug("Search intent (from Next): need_search=%v, reason=%s", needSearch, reason)
+					ast.sendIntentDone(ctx, loadingID, needSearch, reason)
+					return needSearch
+				}
+			}
+		}
+
+		// Fallback: parse from Completion.Content if Next hook didn't process
+		if response.Completion != nil {
+			content, ok := response.Completion.Content.(string)
+			if !ok || content == "" {
+				ast.sendIntentDone(ctx, loadingID, true, "")
+				return true
+			}
+			needSearch, reason := parseNeedSearchFromContent(content)
+			ctx.Logger.Debug("Search intent (from Content): need_search=%v, reason=%s", needSearch, reason)
+			ast.sendIntentDone(ctx, loadingID, needSearch, reason)
+			return needSearch
+		}
+	}
+
+	// Default: proceed with search if we can't parse the result
+	// === Output: Send done (default case) ===
+	ast.sendIntentDone(ctx, loadingID, true, "")
+	return true
+}
+
+// parseNeedSearchFromContent parses need_search result from LLM completion content
+// Handles JSON wrapped in markdown code blocks
+func parseNeedSearchFromContent(content string) (bool, string) {
+	// Remove markdown code block if present
+	content = strings.TrimSpace(content)
+	if strings.HasPrefix(content, "```json") {
+		content = strings.TrimPrefix(content, "```json")
+		content = strings.TrimSuffix(content, "```")
+		content = strings.TrimSpace(content)
+	} else if strings.HasPrefix(content, "```") {
+		content = strings.TrimPrefix(content, "```")
+		content = strings.TrimSuffix(content, "```")
+		content = strings.TrimSpace(content)
+	}
+
+	// Try to parse JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(content), &result); err != nil {
+		// Failed to parse, default to search
+		return true, ""
+	}
+
+	needSearch, ok := result["need_search"].(bool)
+	if !ok {
+		return true, ""
+	}
+
+	reason, _ := result["reason"].(string)
+	return needSearch, reason
+}
+
+// sendIntentLoading sends the initial intent detection loading message
+// Returns the message ID for later replacement
+func (ast *Assistant) sendIntentLoading(ctx *context.Context) string {
+	loadingMsg := i18n.T(ctx.Locale, "search.intent.loading")
+
+	msg := &message.Message{
+		Type: "loading",
+		Props: map[string]any{
+			"message": loadingMsg,
+		},
+	}
+
+	// Send and get message ID
+	msgID, err := ctx.SendStream(msg)
+	if err != nil {
+		ctx.Logger.Warn("Failed to send intent loading message: %v", err)
+		return ""
+	}
+
+	return msgID
+}
+
+// sendIntentDone replaces loading with result
+// Only marks as done when needSearch is false (no further loading will follow)
+// When needSearch is true, the search loading will continue
+func (ast *Assistant) sendIntentDone(ctx *context.Context, loadingID string, needSearch bool, reason string) {
+	if loadingID == "" {
+		return
+	}
+
+	var resultMsg string
+	if needSearch {
+		resultMsg = i18n.T(ctx.Locale, "search.intent.need_search")
+	} else {
+		resultMsg = i18n.T(ctx.Locale, "search.intent.no_search")
+	}
+
+	msg := &message.Message{
+		MessageID:   loadingID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        "loading",
+		Props: map[string]any{
+			"message": resultMsg,
+			"done":    true, // Intent detection loading is independent, always close it
+		},
+	}
+
+	if err := ctx.Send(msg); err != nil {
+		ctx.Logger.Warn("Failed to send intent done message: %v", err)
+	}
 }
 
 // getMergedSearchUses returns the merged uses configuration for search

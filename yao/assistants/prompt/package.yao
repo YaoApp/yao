@@ -1,0 +1,9 @@
+{
+  "name": "Prompt Optimizer",
+  "description": "Optimize prompts for better results",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {
+    "temperature": 0
+  }
+}

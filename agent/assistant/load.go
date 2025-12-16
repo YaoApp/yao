@@ -33,8 +33,10 @@ var globalSearchConfig *searchTypes.Config = nil // global search config from ag
 // LoadBuiltIn load the built-in assistants
 func LoadBuiltIn() error {
 
-	// Clear the cache
-	loaded.Clear()
+	// Clear non-system agents from cache (preserve system agents loaded by LoadSystemAgents)
+	loaded.ClearExcept(func(id string) bool {
+		return strings.HasPrefix(id, "__yao.") // Keep system agents
+	})
 
 	root := `/assistants`
 	app, err := fs.Get("app")
@@ -45,7 +47,7 @@ func LoadBuiltIn() error {
 	// Get all existing built-in assistants
 	deletedBuiltIn := map[string]bool{}
 
-	// Remove the built-in assistants
+	// Remove the built-in assistants (exclude system agents with __yao. prefix)
 	if storage != nil {
 
 		builtIn := true
@@ -54,8 +56,12 @@ func LoadBuiltIn() error {
 			return err
 		}
 
-		// Get all existing built-in assistants
+		// Get all existing built-in assistants (exclude system agents)
 		for _, assistant := range res.Data {
+			// Skip system agents (they are managed by LoadSystemAgents)
+			if strings.HasPrefix(assistant.ID, "__yao.") {
+				continue
+			}
 			deletedBuiltIn[assistant.ID] = true
 		}
 	}
@@ -582,15 +588,19 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 
 		i18n.Locales[id] = flattened
 	} else {
-		// No locales defined, create default with name and description
+		// No locales defined, create default with name and description for all common locales
 		if assistant.Name != "" || assistant.Description != "" {
 			defaultLocales := make(map[string]i18n.I18n)
-			defaultLocales["en"] = i18n.I18n{
-				Locale: "en",
-				Messages: map[string]any{
-					"name":        assistant.Name,
-					"description": assistant.Description,
-				},
+			// Create entries for all common locales so {{name}} can be resolved
+			commonLocales := []string{"en", "en-us", "zh", "zh-cn", "zh-tw"}
+			for _, locale := range commonLocales {
+				defaultLocales[locale] = i18n.I18n{
+					Locale: locale,
+					Messages: map[string]any{
+						"name":        assistant.Name,
+						"description": assistant.Description,
+					},
+				}
 			}
 			i18n.Locales[id] = defaultLocales
 		}

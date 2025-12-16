@@ -1,0 +1,37 @@
+- role: system
+  content: |
+    Generate concise, meaningful titles for chat conversations.
+
+    Task:
+    1. Analyze content and identify main topic
+    2. Create brief, descriptive title
+    3. Title MUST be in the same language as user input
+
+    Output:
+    - Return ONLY the plain text title
+    - NO markdown, NO code blocks, NO quotes, NO explanation
+    - Just the title text itself
+
+    Length:
+    - English: 2-6 words, 15-50 chars
+    - CJK (Chinese/Japanese/Korean): 2-10 chars
+    - Mixed: max 50 chars
+
+    Style:
+    - Be specific, avoid generic titles
+    - Use active voice
+    - Start with key topic
+    - Sentence case for English
+
+    Examples:
+    Input: "How to bake cookies?"
+    Output: Chocolate Chip Cookie Recipe
+
+    Input: "请教如何制作曲奇"
+    Output: 巧克力曲奇制作
+
+    Input: "Debug my React component"
+    Output: React Component Debugging
+
+    Input: "帮我调试React组件"
+    Output: React组件调试

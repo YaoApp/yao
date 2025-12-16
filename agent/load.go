@@ -234,7 +234,25 @@ func initAssistant() error {
 		assistant.SetGlobalSearchConfig(agentDSL.Search)
 	}
 
-	// Load Built-in Assistants
+	// Set system agents configuration
+	if agentDSL.System != nil {
+		assistant.SetSystemConfig(&assistant.SystemConfig{
+			Default:    agentDSL.System.Default,
+			Keyword:    agentDSL.System.Keyword,
+			QueryDSL:   agentDSL.System.QueryDSL,
+			Title:      agentDSL.System.Title,
+			Prompt:     agentDSL.System.Prompt,
+			NeedSearch: agentDSL.System.NeedSearch,
+			Entity:     agentDSL.System.Entity,
+		})
+	}
+
+	// Load System Agents (from bindata: __yao.keyword, __yao.querydsl, etc.)
+	if err := assistant.LoadSystemAgents(); err != nil {
+		return err
+	}
+
+	// Load Built-in Assistants (from application /assistants directory)
 	err := assistant.LoadBuiltIn()
 	if err != nil {
 		return err

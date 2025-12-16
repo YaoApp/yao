@@ -16,6 +16,13 @@ type DSL struct {
 	StoreSetting store.Setting `json:"store" yaml:"store"`                   // The store setting of the assistant
 	Cache        string        `json:"cache" yaml:"cache"`                   // The cache store of the assistant, if not set, default is "__yao.agent.cache"
 
+	// System Agents Connector Settings
+	// ===============================
+	// System configures connectors for system agents (__yao.keyword, __yao.querydsl, __yao.title, __yao.prompt)
+	// Each agent can have its own connector, or use the default
+	// If not set, fallback to the first connector that supports the required capabilities
+	System *System `json:"system,omitempty" yaml:"system,omitempty"`
+
 	// Global External Settings - model capabilities, tools, etc.
 	// ===============================
 	Models map[string]openai.Capabilities `json:"models,omitempty" yaml:"models,omitempty"` // The model capabilities configuration
@@ -46,6 +53,18 @@ type Uses struct {
 	Keyword  string `json:"keyword,omitempty" yaml:"keyword,omitempty"`   // Keyword extraction: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 	QueryDSL string `json:"querydsl,omitempty" yaml:"querydsl,omitempty"` // QueryDSL generation: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 	Rerank   string `json:"rerank,omitempty" yaml:"rerank,omitempty"`     // Result reranking: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+}
+
+// System configures connectors for system agents
+// ===============================
+type System struct {
+	Default    string `json:"default,omitempty" yaml:"default,omitempty"`       // Default connector for all system agents
+	Keyword    string `json:"keyword,omitempty" yaml:"keyword,omitempty"`       // Connector for __yao.keyword agent
+	QueryDSL   string `json:"querydsl,omitempty" yaml:"querydsl,omitempty"`     // Connector for __yao.querydsl agent
+	Title      string `json:"title,omitempty" yaml:"title,omitempty"`           // Connector for __yao.title agent
+	Prompt     string `json:"prompt,omitempty" yaml:"prompt,omitempty"`         // Connector for __yao.prompt agent
+	NeedSearch string `json:"needsearch,omitempty" yaml:"needsearch,omitempty"` // Connector for __yao.needsearch agent
+	Entity     string `json:"entity,omitempty" yaml:"entity,omitempty"`         // Connector for __yao.entity agent
 }
 
 // Mention Structure

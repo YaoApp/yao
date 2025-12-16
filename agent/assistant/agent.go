@@ -132,7 +132,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	fullMessages := historyResult.FullMessages
 
 	// Buffer user input messages (use cleaned input without overlap)
-	ast.BufferUserInput(ctx, historyResult.InputMessages)
+	// Skip if History is disabled in options (for internal calls like needsearch)
+	if opts == nil || opts.Skip == nil || !opts.Skip.History {
+		ast.BufferUserInput(ctx, historyResult.InputMessages)
+	}
 	ctx.Logger.PhaseComplete("History")
 
 	// ================================================
@@ -202,7 +205,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// ================================================
 		// Execute Auto Search (if enabled)
 		// ================================================
-		if ast.shouldAutoSearch(ctx, createResponse) {
+		if ast.shouldAutoSearch(ctx, completionMessages, createResponse, opts) {
 			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
 			if refCtx != nil && len(refCtx.References) > 0 {
 				completionMessages = ast.injectSearchContext(completionMessages, refCtx)

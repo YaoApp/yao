@@ -1,0 +1,10 @@
+{
+  "name": "Keyword Extractor",
+  "description": "Extract search keywords",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {
+    "max_tokens": 500,
+    "temperature": 0.3
+  }
+}

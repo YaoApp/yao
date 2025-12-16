@@ -1,10 +1,12 @@
-package assistant
+package assistant_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
@@ -14,13 +16,19 @@ func prepare(t *testing.T) {
 	test.Prepare(t, config.Conf)
 }
 
+func prepareAgent(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	err := agent.Load(config.Conf)
+	require.NoError(t, err, "agent.Load should succeed")
+}
+
 // TestLoadPath tests loading assistant from path
 func TestLoadPath(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
 	t.Run("LoadFullFieldsAssistant", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -67,7 +75,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadConnectorOptions", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -84,7 +92,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadPromptPresets", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -116,7 +124,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadKnowledgeBase", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -129,7 +137,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadMCPServers", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -143,7 +151,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadWorkflow", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -156,7 +164,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadPlaceholder", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -169,7 +177,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadLocales", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 		require.NotNil(t, assistant)
 
@@ -186,7 +194,7 @@ func TestLoadPath(t *testing.T) {
 	})
 
 	t.Run("LoadNonExistentAssistant", func(t *testing.T) {
-		_, err := LoadPath("/assistants/non-existent")
+		_, err := assistant.LoadPath("/assistants/non-existent")
 		assert.Error(t, err)
 	})
 }
@@ -196,7 +204,7 @@ func TestLoadPathMCPTest(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
-	assistant, err := LoadPath("/assistants/tests/mcptest")
+	assistant, err := assistant.LoadPath("/assistants/tests/mcptest")
 	require.NoError(t, err)
 	require.NotNil(t, assistant)
 
@@ -220,7 +228,7 @@ func TestLoadPathBuildRequest(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
-	assistant, err := LoadPath("/assistants/tests/buildrequest")
+	assistant, err := assistant.LoadPath("/assistants/tests/buildrequest")
 	require.NoError(t, err)
 	require.NotNil(t, assistant)
 
@@ -238,57 +246,57 @@ func TestLoadPathBuildRequest(t *testing.T) {
 // TestCache tests the assistant cache functionality
 func TestCache(t *testing.T) {
 	// Clear any existing cache
-	ClearCache()
+	assistant.ClearCache()
 
 	// Set small cache for testing
-	SetCache(3)
-	assert.NotNil(t, loaded)
+	assistant.SetCache(3)
+	assert.NotNil(t, assistant.GetCache())
 
 	// Create test assistants
-	ast1 := &Assistant{AssistantModel: store.AssistantModel{ID: "id1", Name: "Assistant 1"}}
-	ast2 := &Assistant{AssistantModel: store.AssistantModel{ID: "id2", Name: "Assistant 2"}}
-	ast3 := &Assistant{AssistantModel: store.AssistantModel{ID: "id3", Name: "Assistant 3"}}
-	ast4 := &Assistant{AssistantModel: store.AssistantModel{ID: "id4", Name: "Assistant 4"}}
+	ast1 := &assistant.Assistant{AssistantModel: store.AssistantModel{ID: "id1", Name: "Assistant 1"}}
+	ast2 := &assistant.Assistant{AssistantModel: store.AssistantModel{ID: "id2", Name: "Assistant 2"}}
+	ast3 := &assistant.Assistant{AssistantModel: store.AssistantModel{ID: "id3", Name: "Assistant 3"}}
+	ast4 := &assistant.Assistant{AssistantModel: store.AssistantModel{ID: "id4", Name: "Assistant 4"}}
 
 	t.Run("PutAndGet", func(t *testing.T) {
-		loaded.Put(ast1)
-		assert.Equal(t, 1, loaded.Len())
+		assistant.GetCache().Put(ast1)
+		assert.Equal(t, 1, assistant.GetCache().Len())
 
-		cached, exists := loaded.Get("id1")
+		cached, exists := assistant.GetCache().Get("id1")
 		assert.True(t, exists)
 		assert.Equal(t, ast1, cached)
 	})
 
 	t.Run("CacheEviction", func(t *testing.T) {
-		loaded.Put(ast2)
-		loaded.Put(ast3)
-		assert.Equal(t, 3, loaded.Len())
+		assistant.GetCache().Put(ast2)
+		assistant.GetCache().Put(ast3)
+		assert.Equal(t, 3, assistant.GetCache().Len())
 
 		// Access ast1 to make it recently used
-		loaded.Get("id1")
+		assistant.GetCache().Get("id1")
 
 		// Add ast4, should evict ast2 (least recently used)
-		loaded.Put(ast4)
-		assert.Equal(t, 3, loaded.Len())
+		assistant.GetCache().Put(ast4)
+		assert.Equal(t, 3, assistant.GetCache().Len())
 
-		_, exists := loaded.Get("id2")
+		_, exists := assistant.GetCache().Get("id2")
 		assert.False(t, exists, "ast2 should be evicted")
 
-		_, exists = loaded.Get("id1")
+		_, exists = assistant.GetCache().Get("id1")
 		assert.True(t, exists, "ast1 should still exist")
 
-		_, exists = loaded.Get("id4")
+		_, exists = assistant.GetCache().Get("id4")
 		assert.True(t, exists, "ast4 should exist")
 	})
 
 	t.Run("ClearCache", func(t *testing.T) {
-		ClearCache()
-		assert.Nil(t, loaded)
+		assistant.ClearCache()
+		assert.Nil(t, assistant.GetCache())
 	})
 
 	t.Run("SetCacheAfterClear", func(t *testing.T) {
-		SetCache(100)
-		assert.NotNil(t, loaded)
+		assistant.SetCache(100)
+		assert.NotNil(t, assistant.GetCache())
 	})
 }
 
@@ -298,7 +306,7 @@ func TestClone(t *testing.T) {
 	defer test.Clean()
 
 	t.Run("CloneFullFieldsAssistant", func(t *testing.T) {
-		original, err := LoadPath("/assistants/tests/fullfields")
+		original, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 
 		clone := original.Clone()
@@ -328,7 +336,7 @@ func TestClone(t *testing.T) {
 	})
 
 	t.Run("CloneNil", func(t *testing.T) {
-		var nilAssistant *Assistant
+		var nilAssistant *assistant.Assistant
 		assert.Nil(t, nilAssistant.Clone())
 	})
 }
@@ -339,7 +347,7 @@ func TestUpdate(t *testing.T) {
 	defer test.Clean()
 
 	t.Run("UpdateBasicFields", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 
 		updates := map[string]interface{}{
@@ -357,7 +365,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("UpdateConnectorOptions", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 
 		updates := map[string]interface{}{
@@ -377,7 +385,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("UpdatePromptPresets", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 
 		updates := map[string]interface{}{
@@ -398,7 +406,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("UpdateSource", func(t *testing.T) {
-		assistant, err := LoadPath("/assistants/tests/fullfields")
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 		require.NoError(t, err)
 
 		updates := map[string]interface{}{
@@ -412,7 +420,7 @@ func TestUpdate(t *testing.T) {
 	})
 
 	t.Run("UpdateNilAssistant", func(t *testing.T) {
-		var nilAssistant *Assistant
+		var nilAssistant *assistant.Assistant
 		err := nilAssistant.Update(map[string]interface{}{"name": "test"})
 		assert.Error(t, err)
 	})
@@ -423,7 +431,7 @@ func TestMap(t *testing.T) {
 	prepare(t)
 	defer test.Clean()
 
-	assistant, err := LoadPath("/assistants/tests/fullfields")
+	assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
 	require.NoError(t, err)
 
 	m := assistant.Map()
@@ -451,16 +459,131 @@ func TestMap(t *testing.T) {
 	assert.Equal(t, assistant.Source, m["source"])
 }
 
+// TestLoadSystemAgents tests loading system agents from bindata
+func TestLoadSystemAgents(t *testing.T) {
+	prepareAgent(t)
+	defer test.Clean()
+
+	// Clear cache first
+	assistant.ClearCache()
+	assistant.SetCache(200)
+
+	t.Run("LoadSystemAgents", func(t *testing.T) {
+		err := assistant.LoadSystemAgents()
+		require.NoError(t, err)
+
+		// Check __yao.keyword
+		keywordAst, keywordExists := assistant.GetCache().Get("__yao.keyword")
+		require.True(t, keywordExists, "__yao.keyword should be loaded")
+		assert.Equal(t, "__yao.keyword", keywordAst.ID)
+		assert.Equal(t, "Keyword Extractor", keywordAst.Name)
+		assert.True(t, keywordAst.Readonly)
+		assert.True(t, keywordAst.BuiltIn)
+		assert.Contains(t, keywordAst.Tags, "system")
+		assert.NotNil(t, keywordAst.Prompts)
+		assert.Greater(t, len(keywordAst.Prompts), 0)
+
+		// Check __yao.querydsl
+		querydslAst, querydslExists := assistant.GetCache().Get("__yao.querydsl")
+		require.True(t, querydslExists, "__yao.querydsl should be loaded")
+		assert.Equal(t, "__yao.querydsl", querydslAst.ID)
+		assert.Equal(t, "Query Builder", querydslAst.Name)
+		assert.True(t, querydslAst.Readonly)
+		assert.True(t, querydslAst.BuiltIn)
+		assert.Contains(t, querydslAst.Tags, "system")
+		assert.NotNil(t, querydslAst.Prompts)
+		assert.Greater(t, len(querydslAst.Prompts), 0)
+
+		// Check __yao.title
+		titleAst, titleExists := assistant.GetCache().Get("__yao.title")
+		require.True(t, titleExists, "__yao.title should be loaded")
+		assert.Equal(t, "__yao.title", titleAst.ID)
+		assert.Equal(t, "Title Generator", titleAst.Name)
+		assert.True(t, titleAst.Readonly)
+		assert.True(t, titleAst.BuiltIn)
+
+		// Check __yao.prompt
+		promptAst, promptExists := assistant.GetCache().Get("__yao.prompt")
+		require.True(t, promptExists, "__yao.prompt should be loaded")
+		assert.Equal(t, "__yao.prompt", promptAst.ID)
+		assert.Equal(t, "Prompt Optimizer", promptAst.Name)
+		assert.True(t, promptAst.Readonly)
+		assert.True(t, promptAst.BuiltIn)
+
+		// Check __yao.needsearch
+		needsearchAst, needsearchExists := assistant.GetCache().Get("__yao.needsearch")
+		require.True(t, needsearchExists, "__yao.needsearch should be loaded")
+		assert.Equal(t, "__yao.needsearch", needsearchAst.ID)
+		assert.Equal(t, "Reference Checker", needsearchAst.Name)
+		assert.True(t, needsearchAst.Readonly)
+		assert.True(t, needsearchAst.BuiltIn)
+	})
+
+	t.Run("SystemAgentsSavedToStorage", func(t *testing.T) {
+		// System agents should be saved to storage
+		require.NotNil(t, assistant.GetStore(), "storage should be initialized")
+
+		// Check __yao.keyword in storage
+		builtIn := true
+		tags := []string{"system"}
+		res, err := assistant.GetStore().GetAssistants(store.AssistantFilter{
+			BuiltIn: &builtIn,
+			Tags:    tags,
+			Select:  []string{"assistant_id", "name"},
+		})
+		require.NoError(t, err)
+		require.Greater(t, len(res.Data), 0, "System agents should be in storage")
+
+		// Verify at least one system agent exists
+		found := false
+		for _, ast := range res.Data {
+			if ast.ID == "__yao.keyword" || ast.ID == "__yao.querydsl" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "System agents should be found in storage")
+	})
+
+	t.Run("SystemAgentsGetFromStorage", func(t *testing.T) {
+		// Clear cache to force loading from storage
+		assistant.GetCache().Clear()
+
+		// Test Get for each system agent
+		systemAgents := []string{
+			"__yao.keyword",
+			"__yao.querydsl",
+			"__yao.title",
+			"__yao.prompt",
+			"__yao.needsearch",
+			"__yao.entity",
+		}
+
+		for _, agentID := range systemAgents {
+			ast, err := assistant.Get(agentID)
+			require.NoError(t, err, "Get(%s) should succeed", agentID)
+			require.NotNil(t, ast, "Get(%s) should return assistant", agentID)
+			assert.Equal(t, agentID, ast.ID)
+			assert.True(t, ast.BuiltIn, "%s should be built-in", agentID)
+			assert.True(t, ast.Readonly, "%s should be readonly", agentID)
+			assert.Contains(t, ast.Tags, "system", "%s should have system tag", agentID)
+			assert.Equal(t, "worker", ast.Type, "%s should be worker type", agentID)
+			assert.NotNil(t, ast.Prompts, "%s should have prompts", agentID)
+			assert.Greater(t, len(ast.Prompts), 0, "%s should have at least one prompt", agentID)
+		}
+	})
+}
+
 // TestValidate tests the assistant Validate method
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name    string
-		ast     *Assistant
+		ast     *assistant.Assistant
 		wantErr bool
 	}{
 		{
 			name: "ValidAssistant",
-			ast: &Assistant{
+			ast: &assistant.Assistant{
 				AssistantModel: store.AssistantModel{
 					ID:        "test-id",
 					Name:      "Test Assistant",
@@ -471,7 +594,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name: "MissingID",
-			ast: &Assistant{
+			ast: &assistant.Assistant{
 				AssistantModel: store.AssistantModel{
 					Name:      "Test Assistant",
 					Connector: "gpt-4o",
@@ -481,7 +604,7 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			name: "MissingName",
-			ast: &Assistant{
+			ast: &assistant.Assistant{
 				AssistantModel: store.AssistantModel{
 					ID:        "test-id",
 					Connector: "gpt-4o",

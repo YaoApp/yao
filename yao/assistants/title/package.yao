@@ -1,0 +1,9 @@
+{
+  "name": "Title Generator",
+  "description": "Generate conversation titles",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {
+    "temperature": 0
+  }
+}
