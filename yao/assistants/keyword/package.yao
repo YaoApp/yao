@@ -1,6 +1,6 @@
 {
-  "name": "Keyword Extraction",
-  "description": "Extract keywords from text content",
+  "name": "Keyword Extractor",
+  "description": "Extract search keywords",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {

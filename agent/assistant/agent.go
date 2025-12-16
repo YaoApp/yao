@@ -132,7 +132,10 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	fullMessages := historyResult.FullMessages
 
 	// Buffer user input messages (use cleaned input without overlap)
-	ast.BufferUserInput(ctx, historyResult.InputMessages)
+	// Skip if History is disabled in options (for internal calls like needsearch)
+	if opts == nil || opts.Skip == nil || !opts.Skip.History {
+		ast.BufferUserInput(ctx, historyResult.InputMessages)
+	}
 	ctx.Logger.PhaseComplete("History")
 
 	// ================================================

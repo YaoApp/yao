@@ -588,15 +588,19 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 
 		i18n.Locales[id] = flattened
 	} else {
-		// No locales defined, create default with name and description
+		// No locales defined, create default with name and description for all common locales
 		if assistant.Name != "" || assistant.Description != "" {
 			defaultLocales := make(map[string]i18n.I18n)
-			defaultLocales["en"] = i18n.I18n{
-				Locale: "en",
-				Messages: map[string]any{
-					"name":        assistant.Name,
-					"description": assistant.Description,
-				},
+			// Create entries for all common locales so {{name}} can be resolved
+			commonLocales := []string{"en", "en-us", "zh", "zh-cn", "zh-tw"}
+			for _, locale := range commonLocales {
+				defaultLocales[locale] = i18n.I18n{
+					Locale: locale,
+					Messages: map[string]any{
+						"name":        assistant.Name,
+						"description": assistant.Description,
+					},
+				}
 			}
 			i18n.Locales[id] = defaultLocales
 		}

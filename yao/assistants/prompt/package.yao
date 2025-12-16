@@ -1,6 +1,6 @@
 {
   "name": "Prompt Optimizer",
-  "description": "Transform user requirements into effective prompts",
+  "description": "Optimize prompts for better results",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {

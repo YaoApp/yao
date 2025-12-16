@@ -1,6 +1,6 @@
 {
-  "name": "QueryDSL Generator",
-  "description": "Generate QueryDSL from natural language",
+  "name": "Query Builder",
+  "description": "Build database queries",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {

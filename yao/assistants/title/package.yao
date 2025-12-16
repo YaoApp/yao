@@ -1,6 +1,6 @@
 {
   "name": "Title Generator",
-  "description": "Generate concise titles for conversations",
+  "description": "Generate conversation titles",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {
