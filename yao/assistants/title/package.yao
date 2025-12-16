@@ -1,0 +1,8 @@
+{
+  "name": "Title Generator",
+  "description": "Generate concise titles for conversations",
+  "type": "worker",
+  "options": {
+    "temperature": 0
+  }
+}

@@ -45,7 +45,7 @@ func LoadBuiltIn() error {
 	// Get all existing built-in assistants
 	deletedBuiltIn := map[string]bool{}
 
-	// Remove the built-in assistants
+	// Remove the built-in assistants (exclude system agents with __yao. prefix)
 	if storage != nil {
 
 		builtIn := true
@@ -54,8 +54,12 @@ func LoadBuiltIn() error {
 			return err
 		}
 
-		// Get all existing built-in assistants
+		// Get all existing built-in assistants (exclude system agents)
 		for _, assistant := range res.Data {
+			// Skip system agents (they are managed by LoadSystemAgents)
+			if strings.HasPrefix(assistant.ID, "__yao.") {
+				continue
+			}
 			deletedBuiltIn[assistant.ID] = true
 		}
 	}

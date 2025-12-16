@@ -1,0 +1,8 @@
+{
+  "name": "Prompt Optimizer",
+  "description": "Transform user requirements into effective prompts",
+  "type": "worker",
+  "options": {
+    "temperature": 0
+  }
+}

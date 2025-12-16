@@ -1,0 +1,9 @@
+{
+  "name": "Need Search",
+  "description": "Determine if query requires external search",
+  "type": "worker",
+  "options": {
+    "max_tokens": 200,
+    "temperature": 0.1
+  }
+}
