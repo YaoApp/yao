@@ -8,8 +8,12 @@ import (
 	"github.com/yaoapp/gou/mcp"
 	gouMCPTypes "github.com/yaoapp/gou/mcp/types"
 	"github.com/yaoapp/gou/query/gou"
+	"github.com/yaoapp/gou/query/linter"
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
+
+// MaxRetries is the maximum number of retry attempts for QueryDSL generation
+const MaxRetries = 3
 
 // MCPProvider delegates QueryDSL generation to an MCP tool
 type MCPProvider struct {
@@ -30,7 +34,7 @@ func NewMCPProvider(mcpRef string) (*MCPProvider, error) {
 	}, nil
 }
 
-// Generate generates QueryDSL by calling the MCP tool
+// Generate generates QueryDSL by calling the MCP tool with retry and lint validation
 func (p *MCPProvider) Generate(ctx *agentContext.Context, input *Input) (*Result, error) {
 	// Get MCP client
 	client, err := mcp.Select(p.serverID)
@@ -38,8 +42,54 @@ func (p *MCPProvider) Generate(ctx *agentContext.Context, input *Input) (*Result
 		return nil, fmt.Errorf("MCP server '%s' not found: %w", p.serverID, err)
 	}
 
-	// Build arguments for the MCP tool
-	// Note: model metadata is loaded internally by the MCP tool
+	var lastError error
+	var lastLintErrors string
+
+	for attempt := 1; attempt <= MaxRetries; attempt++ {
+		// Build arguments for the MCP tool
+		arguments := p.buildArguments(input, attempt, lastLintErrors)
+
+		// Call the MCP tool
+		callResult, err := client.CallTool(ctx, p.toolName, arguments)
+		if err != nil {
+			lastError = fmt.Errorf("MCP tool call failed: %w", err)
+			continue
+		}
+
+		// Parse the result
+		result, err := p.parseResult(callResult)
+		if err != nil {
+			lastError = err
+			continue
+		}
+
+		// Validate with linter if DSL is present
+		if result.DSL != nil {
+			lintResult := p.validateDSL(result.DSL)
+			if lintResult.Valid {
+				return result, nil
+			}
+
+			// Lint failed, prepare error message for retry
+			lastLintErrors = lintResult.FormatDiagnostics()
+			lastError = fmt.Errorf("QueryDSL validation failed: %s", lastLintErrors)
+
+			// Add lint warnings to result warnings
+			for _, diag := range lintResult.Diagnostics {
+				result.Warnings = append(result.Warnings, fmt.Sprintf("[%s] %s: %s", diag.Code, diag.Path, diag.Message))
+			}
+			continue
+		}
+
+		// No DSL returned
+		lastError = fmt.Errorf("no QueryDSL returned from MCP tool")
+	}
+
+	return nil, fmt.Errorf("QueryDSL generation failed after %d attempts: %w", MaxRetries, lastError)
+}
+
+// buildArguments constructs the MCP tool arguments
+func (p *MCPProvider) buildArguments(input *Input, attempt int, lastLintErrors string) map[string]interface{} {
 	arguments := map[string]interface{}{
 		"query":  input.Query,
 		"models": input.ModelIDs,
@@ -60,14 +110,29 @@ func (p *MCPProvider) Generate(ctx *agentContext.Context, input *Input) (*Result
 		arguments["extra"] = input.ExtraParams
 	}
 
-	// Call the MCP tool (ctx embeds context.Context)
-	callResult, err := client.CallTool(ctx, p.toolName, arguments)
-	if err != nil {
-		return nil, fmt.Errorf("MCP tool call failed: %w", err)
+	// Add retry context if this is a retry attempt
+	if attempt > 1 && lastLintErrors != "" {
+		arguments["retry"] = map[string]interface{}{
+			"attempt":      attempt,
+			"lint_errors":  lastLintErrors,
+			"instructions": "The previous QueryDSL was invalid. Please fix the errors and regenerate.",
+		}
 	}
 
-	// Parse the result
-	return p.parseResult(callResult)
+	return arguments
+}
+
+// validateDSL validates the generated QueryDSL using the linter
+func (p *MCPProvider) validateDSL(dsl *gou.QueryDSL) *linter.LintResult {
+	// Marshal DSL to JSON for linting
+	jsonBytes, err := json.Marshal(dsl)
+	if err != nil {
+		result := &linter.LintResult{Valid: false}
+		return result
+	}
+
+	_, lintResult := linter.Parse(string(jsonBytes))
+	return lintResult
 }
 
 // parseResult extracts QueryDSL from the MCP tool response

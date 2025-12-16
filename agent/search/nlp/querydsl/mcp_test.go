@@ -200,3 +200,38 @@ func TestGenerator_MCP_Integration(t *testing.T) {
 		assert.NotEmpty(t, result.Warnings)
 	})
 }
+
+func TestMCPProvider_Generate_WithRetry(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	ctx := newTestContext()
+
+	// Create MCP provider for search.generate_querydsl_with_retry
+	// This tool returns invalid DSL on first call, valid on second
+	provider, err := NewMCPProvider("search.generate_querydsl_with_retry")
+	assert.NoError(t, err)
+	assert.NotNil(t, provider)
+
+	t.Run("retry_on_lint_failure", func(t *testing.T) {
+		input := &Input{
+			Query:    "test retry mechanism",
+			ModelIDs: []string{"user"},
+			Limit:    10,
+		}
+
+		// This should succeed after retry
+		// First call returns invalid DSL (missing 'from')
+		// Second call (with lint_errors) returns valid DSL
+		result, err := provider.Generate(ctx, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+
+		if result != nil && result.DSL != nil {
+			// Should have valid DSL after retry
+			assert.NotNil(t, result.DSL.From, "DSL should have 'from' field after retry")
+			// Explain should indicate this was fixed after receiving lint errors
+			assert.Contains(t, result.Explain, "fixed after receiving lint errors")
+		}
+	})
+}

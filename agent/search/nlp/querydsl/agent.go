@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou/query/gou"
+	"github.com/yaoapp/gou/query/linter"
 	"github.com/yaoapp/yao/agent/caller"
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
@@ -22,7 +23,7 @@ func NewAgentProvider(agentID string) *AgentProvider {
 	}
 }
 
-// Generate generates QueryDSL by calling the target agent
+// Generate generates QueryDSL by calling the target agent with retry and lint validation
 // The agent receives the query and schema, returns generated QueryDSL
 func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Result, error) {
 	if ctx == nil {
@@ -40,8 +41,70 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 		return nil, fmt.Errorf("failed to get agent %s: %w", p.agentID, err)
 	}
 
-	// Build the request message
-	// Note: Agent will load model metadata internally based on model IDs
+	var lastError error
+	var lastLintErrors string
+
+	for attempt := 1; attempt <= MaxRetries; attempt++ {
+		// Build the request message
+		requestData := p.buildRequestData(input, attempt, lastLintErrors)
+		requestJSON, _ := json.Marshal(requestData)
+
+		// Create message for the agent
+		messages := []agentContext.Message{
+			{
+				Role:    "user",
+				Content: string(requestJSON),
+			},
+		}
+
+		// Call the agent with skip options (no history, no output)
+		options := &agentContext.Options{
+			Skip: &agentContext.Skip{
+				History: true,
+				Output:  true,
+			},
+		}
+
+		result, err := agent.Stream(ctx, messages, options)
+		if err != nil {
+			lastError = fmt.Errorf("agent call failed: %w", err)
+			continue
+		}
+
+		// Parse the result
+		genResult, err := p.parseResult(result)
+		if err != nil {
+			lastError = err
+			continue
+		}
+
+		// Validate with linter if DSL is present
+		if genResult.DSL != nil {
+			lintResult := p.validateDSL(genResult.DSL)
+			if lintResult.Valid {
+				return genResult, nil
+			}
+
+			// Lint failed, prepare error message for retry
+			lastLintErrors = lintResult.FormatDiagnostics()
+			lastError = fmt.Errorf("QueryDSL validation failed: %s", lastLintErrors)
+
+			// Add lint warnings to result warnings
+			for _, diag := range lintResult.Diagnostics {
+				genResult.Warnings = append(genResult.Warnings, fmt.Sprintf("[%s] %s: %s", diag.Code, diag.Path, diag.Message))
+			}
+			continue
+		}
+
+		// No DSL returned
+		lastError = fmt.Errorf("no QueryDSL returned from agent")
+	}
+
+	return nil, fmt.Errorf("QueryDSL generation failed after %d attempts: %w", MaxRetries, lastError)
+}
+
+// buildRequestData constructs the request data for the agent
+func (p *AgentProvider) buildRequestData(input *Input, attempt int, lastLintErrors string) map[string]interface{} {
 	requestData := map[string]interface{}{
 		"query":  input.Query,
 		"models": input.ModelIDs,
@@ -62,31 +125,29 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 		requestData["extra"] = input.ExtraParams
 	}
 
-	requestJSON, _ := json.Marshal(requestData)
-
-	// Create message for the agent
-	messages := []agentContext.Message{
-		{
-			Role:    "user",
-			Content: string(requestJSON),
-		},
+	// Add retry context if this is a retry attempt
+	if attempt > 1 && lastLintErrors != "" {
+		requestData["retry"] = map[string]interface{}{
+			"attempt":      attempt,
+			"lint_errors":  lastLintErrors,
+			"instructions": "The previous QueryDSL was invalid. Please fix the errors and regenerate.",
+		}
 	}
 
-	// Call the agent with skip options (no history, no output)
-	options := &agentContext.Options{
-		Skip: &agentContext.Skip{
-			History: true,
-			Output:  true,
-		},
-	}
+	return requestData
+}
 
-	result, err := agent.Stream(ctx, messages, options)
+// validateDSL validates the generated QueryDSL using the linter
+func (p *AgentProvider) validateDSL(dsl *gou.QueryDSL) *linter.LintResult {
+	// Marshal DSL to JSON for linting
+	jsonBytes, err := json.Marshal(dsl)
 	if err != nil {
-		return nil, fmt.Errorf("agent call failed: %w", err)
+		result := &linter.LintResult{Valid: false}
+		return result
 	}
 
-	// Parse the result
-	return p.parseResult(result)
+	_, lintResult := linter.Parse(string(jsonBytes))
+	return lintResult
 }
 
 // parseResult extracts QueryDSL from the agent's response

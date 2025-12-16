@@ -187,6 +187,52 @@ func TestGenerator_Agent_Integration(t *testing.T) {
 	})
 }
 
+func TestAgentProvider_Generate_WithRetry(t *testing.T) {
+	// Skip if running short tests
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	// Initialize test environment
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	// Load the querydsl-agent-retry assistant
+	ast, err := assistant.Get("tests.querydsl-agent-retry")
+	require.NoError(t, err)
+	require.NotNil(t, ast)
+
+	// Create test context
+	ctx := newTestContext(t)
+
+	// Create Agent provider for tests.querydsl-agent-retry
+	// This agent returns invalid DSL on first call, valid on second
+	provider := querydsl.NewAgentProvider("tests.querydsl-agent-retry")
+	assert.NotNil(t, provider)
+
+	t.Run("retry_on_lint_failure", func(t *testing.T) {
+		input := &querydsl.Input{
+			Query:    "test retry mechanism",
+			ModelIDs: []string{"user"},
+			Limit:    10,
+		}
+
+		// This should succeed after retry
+		// First call returns invalid DSL (missing 'from')
+		// Second call (with lint_errors) returns valid DSL
+		result, err := provider.Generate(ctx, input)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		if result.DSL != nil {
+			// Should have valid DSL after retry
+			assert.NotNil(t, result.DSL.From, "DSL should have 'from' field after retry")
+			// Explain should indicate this was fixed after receiving lint errors
+			assert.Contains(t, result.Explain, "fixed after receiving lint errors")
+		}
+	})
+}
+
 // newTestContext creates a test context with required fields
 func newTestContext(t *testing.T) *context.Context {
 	t.Helper()
