@@ -103,12 +103,19 @@ func (r *Executor) RunDirect() (*Report, error) {
 	output := extractOutput(response)
 	r.output.DirectOutput(output)
 
+	// Determine connector: user-specified > agent default
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
 	// Return minimal report (for exit code handling)
 	return &Report{
 		Summary: &Summary{
-			Total:   1,
-			Passed:  1,
-			AgentID: agentInfo.ID,
+			Total:     1,
+			Passed:    1,
+			AgentID:   agentInfo.ID,
+			Connector: connector,
 		},
 	}, nil
 }
@@ -165,13 +172,19 @@ func (r *Executor) RunTests() (*Report, error) {
 		return nil, fmt.Errorf("failed to get assistant: %w", err)
 	}
 
+	// Determine connector: user-specified > agent default
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
 	// Create report
 	report := &Report{
 		Summary: &Summary{
 			Total:       len(testCases),
 			AgentID:     agentInfo.ID,
 			AgentPath:   agentInfo.Path,
-			Connector:   r.opts.Connector,
+			Connector:   connector,
 			RunsPerCase: r.opts.Runs,
 		},
 		Environment: NewEnvironment(r.opts.UserID, r.opts.TeamID),
