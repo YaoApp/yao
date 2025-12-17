@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
+	"github.com/yaoapp/yao/cmd/agent"
 	"github.com/yaoapp/yao/cmd/sui"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/pack"
@@ -84,7 +85,6 @@ var rootCmd = &cobra.Command{
 	Use:   share.BUILDNAME,
 	Short: "Yao App Engine",
 	Long:  `Yao App Engine`,
-	Args:  cobra.MinimumNArgs(1),
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
@@ -93,10 +93,14 @@ var rootCmd = &cobra.Command{
 			switch args[0] {
 			case "fuxi":
 				fuxi()
+				return
 			}
+			fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
+			os.Exit(1)
+			return
 		}
-		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
-		os.Exit(1)
+		// No arguments - show help
+		cmd.Help()
 	},
 }
 
@@ -104,13 +108,11 @@ var studioCmd = &cobra.Command{
 	Use:   "studio",
 	Short: "Yao Studio CLI",
 	Long:  `Yao Studio CLI`,
-	Args:  cobra.MinimumNArgs(1),
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
-		os.Exit(1)
+		cmd.Help()
 	},
 }
 
@@ -118,13 +120,23 @@ var suiCmd = &cobra.Command{
 	Use:   "sui",
 	Short: L("SUI Template Engine"),
 	Long:  L("SUI Template Engine"),
-	Args:  cobra.MinimumNArgs(1),
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Fprintln(os.Stderr, L("One or more arguments are not correct"), args)
-		os.Exit(1)
+		cmd.Help()
+	},
+}
+
+var agentCmd = &cobra.Command{
+	Use:   "agent",
+	Short: L("Agent commands"),
+	Long:  L("Agent commands for testing and management"),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
 	},
 }
 
@@ -137,6 +149,9 @@ func init() {
 	suiCmd.AddCommand(sui.WatchCmd)
 	suiCmd.AddCommand(sui.BuildCmd)
 	suiCmd.AddCommand(sui.TransCmd)
+
+	// Agent
+	agentCmd.AddCommand(agent.TestCmd)
 
 	rootCmd.AddCommand(
 		versionCmd,
@@ -152,6 +167,7 @@ func init() {
 		// packCmd,
 		// studioCmd,
 		suiCmd,
+		agentCmd,
 		// upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)

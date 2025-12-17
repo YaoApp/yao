@@ -2,7 +2,7 @@ package openapi
 
 import (
 	"errors"
-	"fmt"
+	// "fmt"
 	"path/filepath"
 	"strings"
 	"time"
@@ -135,10 +135,10 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 			Features:  tempConfig.OAuth.Features,
 		}
 
-		fmt.Println("----debug----")
-		fmt.Println("tempConfig.OAuth.IssuerURL", tempConfig.OAuth.IssuerURL)
-		fmt.Println("config.OAuth.IssuerURL", config.OAuth.IssuerURL)
-		fmt.Println("----debug----")
+		// fmt.Println("----debug----")
+		// fmt.Println("tempConfig.OAuth.IssuerURL", tempConfig.OAuth.IssuerURL)
+		// fmt.Println("config.OAuth.IssuerURL", config.OAuth.IssuerURL)
+		// fmt.Println("----debug----")
 
 		// Convert signing config with duration parsing
 		config.OAuth.Signing = types.SigningConfig{

@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
@@ -39,6 +41,16 @@ var runCmd = &cobra.Command{
 				fmt.Printf("%s\n", err.Error())
 			}
 		}()
+
+		// Auto-detect app root if not specified
+		if appPath == "" {
+			cwd, err := os.Getwd()
+			if err == nil {
+				if root, err := findAppRootFromPath(cwd); err == nil {
+					appPath = root
+				}
+			}
+		}
 
 		Boot()
 
@@ -173,4 +185,48 @@ var runCmd = &cobra.Command{
 
 func init() {
 	runCmd.PersistentFlags().BoolVarP(&runSilent, "silent", "s", false, L("Silent mode"))
+}
+
+// findAppRootFromPath finds the Yao application root directory by looking for app.yao
+// It traverses up from the given path until it finds app.yao or reaches the filesystem root
+func findAppRootFromPath(startPath string) (string, error) {
+	// Get absolute path
+	absPath, err := filepath.Abs(startPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to get absolute path: %w", err)
+	}
+
+	// If it's a file, start from its directory
+	info, err := os.Stat(absPath)
+	if err != nil {
+		return "", fmt.Errorf("path not found: %s", absPath)
+	}
+
+	var dir string
+	if info.IsDir() {
+		dir = absPath
+	} else {
+		dir = filepath.Dir(absPath)
+	}
+
+	// Traverse up to find app.yao
+	for {
+		// Check for app.yao, app.json, or app.jsonc
+		for _, appFile := range []string{"app.yao", "app.json", "app.jsonc"} {
+			appFilePath := filepath.Join(dir, appFile)
+			if _, err := os.Stat(appFilePath); err == nil {
+				return dir, nil
+			}
+		}
+
+		// Move to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root, no app.yao found
+			break
+		}
+		dir = parent
+	}
+
+	return "", fmt.Errorf("no app.yao found in path hierarchy of %s", startPath)
 }
