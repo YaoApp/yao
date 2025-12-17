@@ -378,6 +378,10 @@ func (l *RequestLogger) LLMStart(connector, model string, messageCount int) {
 
 // LLMComplete logs the completion of an LLM call
 func (l *RequestLogger) LLMComplete(tokens int, hasToolCalls bool) {
+	if l.noop {
+		return
+	}
+
 	elapsed := time.Since(l.startTime).Round(time.Millisecond)
 	status := "streaming"
 	if hasToolCalls {
@@ -397,6 +401,10 @@ func (l *RequestLogger) LLMComplete(tokens int, hasToolCalls bool) {
 
 // ToolStart logs the start of tool execution
 func (l *RequestLogger) ToolStart(toolName string) {
+	if l.noop {
+		return
+	}
+
 	if config.IsDevelopment() {
 		fmt.Printf("%s  🔧 Tool: %s%s\n", colorYellow, toolName, colorReset)
 	} else {
@@ -406,6 +414,10 @@ func (l *RequestLogger) ToolStart(toolName string) {
 
 // ToolComplete logs the completion of tool execution
 func (l *RequestLogger) ToolComplete(toolName string, success bool) {
+	if l.noop {
+		return
+	}
+
 	if config.IsDevelopment() {
 		if success {
 			fmt.Printf("%s    ✓ %s completed%s\n", colorGreen, toolName, colorReset)
@@ -423,6 +435,10 @@ func (l *RequestLogger) ToolComplete(toolName string, success bool) {
 
 // HookStart logs the start of a hook execution
 func (l *RequestLogger) HookStart(hookName string) {
+	if l.noop {
+		return
+	}
+
 	elapsed := time.Since(l.startTime).Round(time.Millisecond)
 
 	if config.IsDevelopment() {
@@ -434,6 +450,10 @@ func (l *RequestLogger) HookStart(hookName string) {
 
 // HookComplete logs the completion of a hook
 func (l *RequestLogger) HookComplete(hookName string) {
+	if l.noop {
+		return
+	}
+
 	if config.IsDevelopment() {
 		fmt.Printf("%s    ✓ %s done%s\n", colorGreen, hookName, colorReset)
 	} else {
@@ -456,6 +476,10 @@ func (l *RequestLogger) Cleanup(resource string) {
 
 // HistoryLoad logs history loading
 func (l *RequestLogger) HistoryLoad(count, maxSize int) {
+	if l.noop {
+		return
+	}
+
 	if config.IsDevelopment() {
 		fmt.Printf("%s    Loaded %d/%d history messages%s\n", colorGray, count, maxSize, colorReset)
 	} else {
@@ -465,6 +489,10 @@ func (l *RequestLogger) HistoryLoad(count, maxSize int) {
 
 // HistoryOverlap logs overlap detection
 func (l *RequestLogger) HistoryOverlap(overlapCount int) {
+	if l.noop {
+		return
+	}
+
 	if overlapCount > 0 {
 		if config.IsDevelopment() {
 			fmt.Printf("%s    Removed %d overlapping messages%s\n", colorYellow, overlapCount, colorReset)
