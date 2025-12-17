@@ -56,19 +56,16 @@ func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.
 // checkSearchIntent uses __yao.needsearch agent to determine if search is needed
 // Returns true if search is needed, false otherwise
 func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context.Message) bool {
-	// Get the last user message
-	var userQuery string
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Role == "user" {
-			if content, ok := messages[i].Content.(string); ok {
-				userQuery = content
-				break
-			}
+	// Filter out system messages and pass full conversation context
+	var intentMessages []context.Message
+	for _, msg := range messages {
+		if msg.Role != "system" {
+			intentMessages = append(intentMessages, msg)
 		}
 	}
 
-	if userQuery == "" {
-		return true // No user message, proceed with search
+	if len(intentMessages) == 0 {
+		return true // No messages, proceed with search
 	}
 
 	// Try to get __yao.needsearch agent
@@ -80,11 +77,6 @@ func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context
 
 	// === Output: Send loading message ===
 	loadingID := ast.sendIntentLoading(ctx)
-
-	// Build messages for intent detection
-	intentMessages := []context.Message{
-		{Role: "user", Content: userQuery},
-	}
 
 	// Call the needsearch agent (Stack will auto-track)
 	// IMPORTANT: Skip search to prevent infinite loop, skip output to prevent JSON showing in UI

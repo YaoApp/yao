@@ -1,19 +1,21 @@
 // Package querydsl provides QueryDSL generation from natural language for DB search
 // Supports three modes via uses.querydsl configuration:
-//   - "builtin": Template-based generation (no external dependencies)
-//   - "<assistant-id>": Delegate to an LLM-powered assistant for high-quality generation
+//   - "builtin" or "": Uses __yao.querydsl system agent (LLM-powered)
+//   - "<assistant-id>": Delegate to a custom LLM-powered assistant
 //   - "mcp:<server>.<tool>": Call external MCP tool
-//
-// For production use cases requiring high accuracy, use Agent or MCP mode.
 package querydsl
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yaoapp/gou/query/gou"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/types"
 )
+
+// SystemQueryDSLAgent is the default system agent for QueryDSL generation
+const SystemQueryDSLAgent = "__yao.querydsl"
 
 // Generator generates QueryDSL from natural language
 // Mode is determined by uses.querydsl configuration
@@ -40,12 +42,13 @@ func (g *Generator) Generate(ctx *context.Context, input *Input) (*Result, error
 
 	switch {
 	case g.usesQueryDSL == "builtin" || g.usesQueryDSL == "":
-		result, err = g.builtinGenerate(input)
+		// Use system querydsl agent
+		result, err = g.agentGenerate(ctx, input, SystemQueryDSLAgent)
 	case strings.HasPrefix(g.usesQueryDSL, "mcp:"):
 		result, err = g.mcpGenerate(ctx, input)
 	default:
 		// Assume it's an assistant ID for Agent mode
-		result, err = g.agentGenerate(ctx, input)
+		result, err = g.agentGenerate(ctx, input, g.usesQueryDSL)
 	}
 
 	if err != nil {
@@ -60,18 +63,13 @@ func (g *Generator) Generate(ctx *context.Context, input *Input) (*Result, error
 	return result, nil
 }
 
-// builtinGenerate uses template-based generation
-// This is a lightweight implementation with no external dependencies.
-// For better results, use Agent or MCP mode.
-func (g *Generator) builtinGenerate(input *Input) (*Result, error) {
-	generator := NewBuiltinGenerator()
-	return generator.Generate(input)
-}
-
 // agentGenerate delegates to an LLM-powered assistant
 // The assistant can understand context and generate semantically correct QueryDSL
-func (g *Generator) agentGenerate(ctx *context.Context, input *Input) (*Result, error) {
-	provider := NewAgentProvider(g.usesQueryDSL)
+func (g *Generator) agentGenerate(ctx *context.Context, input *Input, agentID string) (*Result, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("context is required for QueryDSL generation")
+	}
+	provider := NewAgentProvider(agentID)
 	return provider.Generate(ctx, input)
 }
 
@@ -81,8 +79,8 @@ func (g *Generator) mcpGenerate(ctx *context.Context, input *Input) (*Result, er
 	mcpRef := strings.TrimPrefix(g.usesQueryDSL, "mcp:")
 	provider, err := NewMCPProvider(mcpRef)
 	if err != nil {
-		// Fallback to builtin on invalid MCP format
-		return g.builtinGenerate(input)
+		// Fallback to system agent on invalid MCP format
+		return g.agentGenerate(ctx, input, SystemQueryDSLAgent)
 	}
 	return provider.Generate(ctx, input)
 }

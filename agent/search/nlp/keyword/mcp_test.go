@@ -72,13 +72,13 @@ func TestMCPProviderWithCustomOptions(t *testing.T) {
 }
 
 func TestMCPProviderInvalidFormat(t *testing.T) {
-	// Test invalid MCP format fallback to builtin
+	// Test invalid MCP format fallback to system agent (requires context)
 	extractor := keyword.NewExtractor("mcp:invalid", nil)
 
-	// Should fallback to builtin (no error)
-	keywords, err := extractor.Extract(nil, "test content for keyword extraction", nil)
-	assert.NoError(t, err)
-	assert.NotEmpty(t, keywords, "Should fallback to builtin and extract keywords")
+	// Should fallback to system agent which requires context
+	_, err := extractor.Extract(nil, "test content for keyword extraction", nil)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context is required")
 }
 
 func TestMCPProviderServerNotFound(t *testing.T) {

@@ -46,27 +46,24 @@ func TestNewGenerator(t *testing.T) {
 	}
 }
 
-func TestGenerator_Generate_Builtin(t *testing.T) {
+func TestGenerator_Generate_Builtin_RequiresContext(t *testing.T) {
+	// Builtin mode now uses __yao.querydsl agent which requires context
 	gen := NewGenerator("builtin", nil)
 
-	// Note: In real usage, models are loaded internally via model.Select()
-	// For this test, we just verify the basic flow works without models
 	input := &Input{
 		Query:    "find all active users",
 		ModelIDs: []string{"user"},
 		Limit:    10,
 	}
 
-	result, err := gen.Generate(nil, input)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.NotNil(t, result.DSL)
-	assert.NotEmpty(t, result.Explain)
-	assert.NotEmpty(t, result.Warnings)
+	// Without context, should return error
+	_, err := gen.Generate(nil, input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context is required")
 }
 
-func TestGenerator_Generate_EmptyMode(t *testing.T) {
-	// Empty mode should default to builtin
+func TestGenerator_Generate_EmptyMode_RequiresContext(t *testing.T) {
+	// Empty mode defaults to __yao.querydsl agent which requires context
 	gen := NewGenerator("", nil)
 
 	input := &Input{
@@ -75,116 +72,45 @@ func TestGenerator_Generate_EmptyMode(t *testing.T) {
 		Limit:    5,
 	}
 
-	result, err := gen.Generate(nil, input)
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
+	// Without context, should return error
+	_, err := gen.Generate(nil, input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context is required")
 }
 
-func TestBuiltinGenerator_Generate(t *testing.T) {
-	gen := NewBuiltinGenerator()
+func TestGenerator_Generate_AgentMode_RequiresContext(t *testing.T) {
+	// Custom agent mode requires context
+	gen := NewGenerator("custom.querydsl.agent", nil)
 
-	t.Run("empty query", func(t *testing.T) {
-		result, err := gen.Generate(&Input{})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Nil(t, result.DSL)
-		assert.Contains(t, result.Warnings, "empty query, returning empty DSL")
-	})
+	input := &Input{
+		Query:    "find users",
+		ModelIDs: []string{"user"},
+		Limit:    10,
+	}
 
-	t.Run("nil input", func(t *testing.T) {
-		result, err := gen.Generate(nil)
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.Nil(t, result.DSL)
-	})
+	_, err := gen.Generate(nil, input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context is required")
+}
 
-	t.Run("basic query without models loaded", func(t *testing.T) {
-		// Models are loaded internally via model.Select()
-		// When model is not found, it still generates basic DSL
-		result, err := gen.Generate(&Input{
-			Query:    "find users",
-			ModelIDs: []string{"user"},
-			Limit:    10,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-		assert.Equal(t, 10, result.DSL.Limit)
-	})
+func TestGenerator_Generate_MCPMode_InvalidFormat(t *testing.T) {
+	// Invalid MCP format should fallback to system agent (which requires context)
+	gen := NewGenerator("mcp:invalid", nil)
 
-	t.Run("query with pre-defined wheres", func(t *testing.T) {
-		preWheres := []gou.Where{
-			{
-				Condition: gou.Condition{
-					Field: &gou.Expression{Field: "status"},
-					OP:    "=",
-					Value: "active",
-				},
-			},
-		}
-		result, err := gen.Generate(&Input{
-			Query:    "find users",
-			ModelIDs: []string{"user"},
-			Wheres:   preWheres,
-			Limit:    10,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-		// Should use pre-defined wheres
-		assert.Equal(t, preWheres, result.DSL.Wheres)
-	})
+	input := &Input{
+		Query:    "find users",
+		ModelIDs: []string{"user"},
+		Limit:    10,
+	}
 
-	t.Run("query with orders", func(t *testing.T) {
-		orders := gou.Orders{
-			{Field: &gou.Expression{Field: "created_at"}, Sort: "desc"},
-		}
-		result, err := gen.Generate(&Input{
-			Query:    "find users",
-			ModelIDs: []string{"user"},
-			Orders:   orders,
-			Limit:    10,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-		assert.Equal(t, orders, result.DSL.Orders)
-	})
+	_, err := gen.Generate(nil, input)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context is required")
+}
 
-	t.Run("query with allowed fields", func(t *testing.T) {
-		result, err := gen.Generate(&Input{
-			Query:         "find users",
-			ModelIDs:      []string{"user"},
-			AllowedFields: []string{"id", "name", "email"},
-			Limit:         10,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-	})
-
-	t.Run("default limit", func(t *testing.T) {
-		result, err := gen.Generate(&Input{
-			Query:    "find users",
-			ModelIDs: []string{"user"},
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-		assert.Equal(t, 20, result.DSL.Limit)
-	})
-
-	t.Run("multi-model query", func(t *testing.T) {
-		// Models are loaded internally via model.Select()
-		result, err := gen.Generate(&Input{
-			Query:    "find user orders",
-			ModelIDs: []string{"user", "order"},
-			Limit:    10,
-		})
-		assert.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.NotNil(t, result.DSL)
-	})
+func TestSystemQueryDSLAgentConstant(t *testing.T) {
+	// Verify the system querydsl agent constant
+	assert.Equal(t, "__yao.querydsl", SystemQueryDSLAgent)
 }
 
 func TestResult(t *testing.T) {
@@ -200,4 +126,81 @@ func TestResult(t *testing.T) {
 	assert.Equal(t, 10, result.DSL.Limit)
 	assert.NotEmpty(t, result.Explain)
 	assert.Len(t, result.Warnings, 1)
+}
+
+func TestGenerator_ValidateFields(t *testing.T) {
+	gen := NewGenerator("", nil)
+
+	t.Run("validate select fields", func(t *testing.T) {
+		result := &Result{
+			DSL: &gou.QueryDSL{
+				Select: []gou.Expression{
+					{Field: "id"},
+					{Field: "name"},
+					{Field: "secret_field"},
+				},
+			},
+		}
+		allowedFields := []string{"id", "name", "email"}
+
+		validated := gen.validateFields(result, allowedFields)
+		assert.NotNil(t, validated)
+		assert.Len(t, validated.DSL.Select, 2)
+		assert.Contains(t, validated.Warnings[0], "secret_field")
+	})
+
+	t.Run("validate where fields", func(t *testing.T) {
+		result := &Result{
+			DSL: &gou.QueryDSL{
+				Wheres: []gou.Where{
+					{
+						Condition: gou.Condition{
+							Field: &gou.Expression{Field: "status"},
+							OP:    "=",
+							Value: "active",
+						},
+					},
+					{
+						Condition: gou.Condition{
+							Field: &gou.Expression{Field: "secret"},
+							OP:    "=",
+							Value: "hidden",
+						},
+					},
+				},
+			},
+		}
+		allowedFields := []string{"status", "name"}
+
+		validated := gen.validateFields(result, allowedFields)
+		assert.NotNil(t, validated)
+		assert.Len(t, validated.DSL.Wheres, 1)
+		assert.Contains(t, validated.Warnings[0], "secret")
+	})
+
+	t.Run("validate order fields", func(t *testing.T) {
+		result := &Result{
+			DSL: &gou.QueryDSL{
+				Orders: gou.Orders{
+					{Field: &gou.Expression{Field: "created_at"}, Sort: "desc"},
+					{Field: &gou.Expression{Field: "secret_sort"}, Sort: "asc"},
+				},
+			},
+		}
+		allowedFields := []string{"created_at", "updated_at"}
+
+		validated := gen.validateFields(result, allowedFields)
+		assert.NotNil(t, validated)
+		assert.Len(t, validated.DSL.Orders, 1)
+		assert.Contains(t, validated.Warnings[0], "secret_sort")
+	})
+
+	t.Run("nil DSL", func(t *testing.T) {
+		result := &Result{DSL: nil}
+		allowedFields := []string{"id", "name"}
+
+		validated := gen.validateFields(result, allowedFields)
+		assert.NotNil(t, validated)
+		assert.Nil(t, validated.DSL)
+	})
 }
