@@ -7,7 +7,7 @@
 
 /**
  * Next hook - processes keyword extraction response
- * Uses json.Parse for fault-tolerant JSON parsing
+ * Uses text.ExtractJSON for fault-tolerant JSON extraction from LLM output
  */
 function Next(
   ctx: agent.Context,
@@ -20,24 +20,13 @@ function Next(
     return null;
   }
 
-  // Remove markdown code block if present
-  let content = completion.content.trim();
-  if (content.startsWith("```json")) {
-    content = content.slice(7);
-  } else if (content.startsWith("```")) {
-    content = content.slice(3);
-  }
-  if (content.endsWith("```")) {
-    content = content.slice(0, -3);
-  }
-  content = content.trim();
-
-  // Try to parse JSON from completion content
+  const content = completion.content;
   let keywords: string[] = [];
 
   try {
-    // Use json.Parse for fault-tolerant parsing (handles broken JSON, JSONC, etc.)
-    const parsed = Process("json.Parse", content) as {
+    // Use text.ExtractJSON for fault-tolerant extraction
+    // Handles markdown code blocks, broken JSON, etc.
+    const parsed = Process("text.ExtractJSON", content) as {
       keywords?: string[];
     } | null;
 
@@ -47,7 +36,7 @@ function Next(
       );
     }
   } catch (e) {
-    // If json.Parse fails, try to extract keywords from text
+    // If extraction fails, try to extract keywords from text
     keywords = extractKeywordsFromText(content);
   }
 

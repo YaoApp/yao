@@ -13,7 +13,7 @@ interface SearchResult {
 
 /**
  * Next hook - processes search intent response
- * Uses json.Parse for fault-tolerant JSON parsing
+ * Uses text.ExtractJSON for fault-tolerant JSON extraction from LLM output
  */
 function Next(
   ctx: agent.Context,
@@ -26,17 +26,7 @@ function Next(
     return null;
   }
 
-  // Remove markdown code block if present
-  let content = completion.content.trim();
-  if (content.startsWith("```json")) {
-    content = content.slice(7); // Remove ```json
-  } else if (content.startsWith("```")) {
-    content = content.slice(3); // Remove ```
-  }
-  if (content.endsWith("```")) {
-    content = content.slice(0, -3); // Remove trailing ```
-  }
-  content = content.trim();
+  const content = completion.content;
 
   // Default result
   let result: SearchResult = {
@@ -46,8 +36,9 @@ function Next(
   };
 
   try {
-    // Use json.Parse for fault-tolerant parsing
-    const parsed = Process("json.Parse", content) as {
+    // Use text.ExtractJSON for fault-tolerant extraction
+    // Handles markdown code blocks, broken JSON, etc.
+    const parsed = Process("text.ExtractJSON", content) as {
       need_search?: boolean;
       search_types?: string[];
       confidence?: number;
@@ -68,7 +59,7 @@ function Next(
           : 0.5;
     }
   } catch (e) {
-    // If json.Parse fails, try to extract from text
+    // If extraction fails, try to extract from text
     result = extractFromText(content);
   }
 
