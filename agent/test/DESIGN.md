@@ -357,12 +357,142 @@ Each line in the input file is a JSON object with the following structure:
 | ---------- | ------------------------------ | -------- | ---------------------------------------------------- |
 | `id`       | string                         | Yes      | Unique test case identifier (e.g., "T001")           |
 | `input`    | string \| Message \| []Message | Yes      | Test input                                           |
-| `expected` | any                            | No       | Expected output for validation                       |
+| `expected` | any                            | No       | Expected output for exact match validation           |
+| `assert`   | Assertion \| []Assertion       | No       | Custom assertion rules (see Assertions section)      |
 | `user`     | string                         | No       | User ID for this test case (overridden by `-u` flag) |
 | `team`     | string                         | No       | Team ID for this test case (overridden by `-t` flag) |
 | `metadata` | map                            | No       | Additional metadata for the test case                |
 | `skip`     | bool                           | No       | Skip this test case                                  |
 | `timeout`  | string                         | No       | Override timeout (e.g., "30s", "1m")                 |
+
+### Assertions
+
+The `assert` field allows flexible validation of agent output. If `assert` is defined, it takes precedence over `expected`.
+
+#### Assertion Types
+
+| Type           | Description                                     | Example                                                          |
+| -------------- | ----------------------------------------------- | ---------------------------------------------------------------- |
+| `equals`       | Exact match (default if only `expected` is set) | `{"type": "equals", "value": {"need_search": false}}`            |
+| `contains`     | Output contains the expected string/value       | `{"type": "contains", "value": "keyword"}`                       |
+| `not_contains` | Output does not contain the string/value        | `{"type": "not_contains", "value": "error"}`                     |
+| `json_path`    | Extract value using JSON path and compare       | `{"type": "json_path", "path": "$.need_search", "value": false}` |
+| `regex`        | Match output against regex pattern              | `{"type": "regex", "value": "\\d{3}-\\d{4}"}`                    |
+| `type`         | Check output type (string, object, array, etc.) | `{"type": "type", "value": "object"}`                            |
+| `script`       | Run a custom assertion script                   | `{"type": "script", "script": "scripts.test.Assert"}`            |
+
+#### Assertion Structure
+
+```typescript
+interface Assertion {
+  type: string; // Assertion type (required)
+  value?: any; // Expected value or pattern
+  path?: string; // JSON path for json_path assertions
+  script?: string; // Script name for script assertions
+  message?: string; // Custom failure message
+  negate?: boolean; // Invert the assertion result
+}
+```
+
+#### Examples
+
+**Simple contains check:**
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Hello",
+  "assert": {
+    "type": "contains",
+    "value": "need_search"
+  }
+}
+```
+
+**JSON path validation (for agents returning JSON):**
+
+```jsonl
+{
+  "id": "T002",
+  "input": "What's the weather?",
+  "assert": {
+    "type": "json_path",
+    "path": "$.need_search",
+    "value": true
+  }
+}
+```
+
+**Multiple assertions (all must pass):**
+
+```jsonl
+{
+  "id": "T003",
+  "input": "Calculate 2+2",
+  "assert": [
+    {
+      "type": "json_path",
+      "path": "$.need_search",
+      "value": false
+    },
+    {
+      "type": "json_path",
+      "path": "$.confidence",
+      "value": 0.99
+    },
+    {
+      "type": "not_contains",
+      "value": "error"
+    }
+  ]
+}
+```
+
+**Custom script assertion:**
+
+```jsonl
+{
+  "id": "T004",
+  "input": "Complex test",
+  "assert": {
+    "type": "script",
+    "script": "scripts.test.ValidateOutput"
+  }
+}
+```
+
+The script receives `(output, input, expected)` and should return:
+
+```typescript
+// Simple boolean
+return true; // or false
+
+// Or detailed result
+return {
+  pass: true,
+  message: "Validation passed: output contains expected keywords",
+};
+```
+
+**Negated assertion:**
+
+```jsonl
+{
+  "id": "T005",
+  "input": "Hello",
+  "assert": {
+    "type": "contains",
+    "value": "error",
+    "negate": true
+  }
+}
+```
+
+#### JSON Path Notes
+
+- Supports simple dot-notation paths: `$.field.subfield` or `field.subfield`
+- Automatically extracts JSON from markdown code blocks (e.g., ` ```json ... ``` `)
+- Works with both string output and structured objects
 
 ### Environment Override Priority
 

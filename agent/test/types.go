@@ -190,6 +190,11 @@ type Case struct {
 	// If set, the actual output will be compared against this
 	Expected interface{} `json:"expected,omitempty"`
 
+	// Assert defines custom assertion rules (optional)
+	// If set, these rules will be used instead of simple expected comparison
+	// Can be a single assertion or an array of assertions
+	Assert interface{} `json:"assert,omitempty"`
+
 	// Environment (per-test case, can be overridden by command line flags)
 	// ===============================
 
@@ -208,6 +213,54 @@ type Case struct {
 	// Timeout overrides the default timeout for this test case
 	// Format: "30s", "1m", "2m30s"
 	Timeout string `json:"timeout,omitempty"`
+}
+
+// Assertion represents a single assertion rule
+type Assertion struct {
+	// Type is the assertion type:
+	// - "equals": exact match (default if expected is set)
+	// - "contains": output contains the expected string/value
+	// - "not_contains": output does not contain the string/value
+	// - "json_path": extract value using JSON path and compare
+	// - "regex": match output against regex pattern
+	// - "script": run a custom assertion script
+	// - "type": check output type (string, object, array, number, boolean)
+	// - "schema": validate against JSON schema
+	Type string `json:"type"`
+
+	// Value is the expected value or pattern (depends on type)
+	Value interface{} `json:"value,omitempty"`
+
+	// Path is the JSON path for json_path assertions (e.g., "$.need_search")
+	Path string `json:"path,omitempty"`
+
+	// Script is the assertion script name for script assertions
+	// The script receives (output, input, expected) and returns {pass: bool, message: string}
+	Script string `json:"script,omitempty"`
+
+	// Message is a custom failure message
+	Message string `json:"message,omitempty"`
+
+	// Negate inverts the assertion result
+	Negate bool `json:"negate,omitempty"`
+}
+
+// AssertionResult represents the result of an assertion
+type AssertionResult struct {
+	// Passed indicates whether the assertion passed
+	Passed bool `json:"passed"`
+
+	// Message describes the assertion result
+	Message string `json:"message,omitempty"`
+
+	// Assertion is the original assertion that was evaluated
+	Assertion *Assertion `json:"assertion,omitempty"`
+
+	// Actual is the actual value that was compared
+	Actual interface{} `json:"actual,omitempty"`
+
+	// Expected is the expected value
+	Expected interface{} `json:"expected,omitempty"`
 }
 
 // GetEnvironment returns the effective test environment for this test case

@@ -64,8 +64,12 @@ func (r *Executor) RunDirect() (*Report, error) {
 	ctx := NewTestContextFromOptions(chatID, agentInfo.ID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set connector override if specified
-	opts := &context.Options{}
+	// Set options: skip history (input already contains conversation), connector override
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true, // Skip history loading - input already contains full conversation
+		},
+	}
 	if r.opts.Connector != "" {
 		opts.Connector = r.opts.Connector
 	}
@@ -293,8 +297,12 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	ctx := NewTestContextFromOptions(chatID, agentID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set connector override if specified
-	opts := &context.Options{}
+	// Set options: skip history (input already contains conversation), connector override
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true, // Skip history loading - input already contains full conversation
+		},
+	}
 	if r.opts.Connector != "" {
 		opts.Connector = r.opts.Connector
 	}
@@ -332,17 +340,14 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	// Extract output
 	result.Output = extractOutput(response)
 
-	// Validate result if expected is set
-	if tc.Expected != nil {
-		if validateOutput(result.Output, tc.Expected) {
-			result.Status = StatusPassed
-		} else {
-			result.Status = StatusFailed
-			result.Error = "output does not match expected"
-		}
-	} else {
-		// No expected value - pass if no error
+	// Validate result using asserter
+	asserter := NewAsserter()
+	passed, errMsg := asserter.Validate(tc, result.Output)
+	if passed {
 		result.Status = StatusPassed
+	} else {
+		result.Status = StatusFailed
+		result.Error = errMsg
 	}
 
 	r.output.TestResult(result.Status, duration)
