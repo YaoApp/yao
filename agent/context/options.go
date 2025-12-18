@@ -25,6 +25,9 @@ func (opts *Options) ToMap() map[string]interface{} {
 	if opts.DisableGlobalPrompts {
 		result["disable_global_prompts"] = opts.DisableGlobalPrompts
 	}
+	if opts.Metadata != nil {
+		result["metadata"] = opts.Metadata
+	}
 
 	// Note: Runtime fields (Context, Writer) are not serialized (json:"-")
 	// They should not be included in the map
@@ -65,6 +68,9 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 	}
 	if disableGlobalPrompts, ok := m["disable_global_prompts"].(bool); ok {
 		opts.DisableGlobalPrompts = disableGlobalPrompts
+	}
+	if metadata, ok := m["metadata"].(map[string]interface{}); ok {
+		opts.Metadata = metadata
 	}
 
 	// Note: Context and Writer are runtime fields, not restored from map

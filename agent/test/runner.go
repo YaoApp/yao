@@ -64,15 +64,8 @@ func (r *Executor) RunDirect() (*Report, error) {
 	ctx := NewTestContextFromOptions(chatID, agentInfo.ID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set options: skip history (input already contains conversation), connector override
-	opts := &context.Options{
-		Skip: &context.Skip{
-			History: true, // Skip history loading - input already contains full conversation
-		},
-	}
-	if r.opts.Connector != "" {
-		opts.Connector = r.opts.Connector
-	}
+	// Build context options
+	opts := buildContextOptions(tc, r.opts)
 
 	// Create timeout context
 	timeout := tc.GetTimeout(r.opts.Timeout)
@@ -292,6 +285,7 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		ID:       tc.ID,
 		Input:    tc.Input,
 		Expected: tc.Expected,
+		Options:  tc.Options,
 	}
 
 	// Parse input to messages
@@ -310,15 +304,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	ctx := NewTestContextFromOptions(chatID, agentID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set options: skip history (input already contains conversation), connector override
-	opts := &context.Options{
-		Skip: &context.Skip{
-			History: true, // Skip history loading - input already contains full conversation
-		},
-	}
-	if r.opts.Connector != "" {
-		opts.Connector = r.opts.Connector
-	}
+	// Build context options from test case and runner options
+	opts := buildContextOptions(tc, r.opts)
 
 	// Create timeout context
 	timeout := tc.GetTimeout(r.opts.Timeout)
@@ -490,23 +477,99 @@ func writeJSONLine(writer *bufio.Writer, data interface{}) error {
 	return err
 }
 
+// buildContextOptions builds context.Options from test case and runner options
+// Priority: test case options > runner options > defaults
+func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true, // Default: skip history loading - input already contains full conversation
+		},
+	}
+
+	// Apply test case options if specified
+	if tc.Options != nil {
+		// Connector: test case > runner
+		if tc.Options.Connector != "" {
+			opts.Connector = tc.Options.Connector
+		}
+
+		// Mode
+		if tc.Options.Mode != "" {
+			opts.Mode = tc.Options.Mode
+		}
+
+		// DisableGlobalPrompts
+		if tc.Options.DisableGlobalPrompts {
+			opts.DisableGlobalPrompts = true
+		}
+
+		// Search (pointer to distinguish unset from false)
+		if tc.Options.Search != nil {
+			opts.Search = tc.Options.Search
+		}
+
+		// Metadata for hooks
+		if tc.Options.Metadata != nil {
+			opts.Metadata = tc.Options.Metadata
+		}
+
+		// Skip options from test case
+		if tc.Options.Skip != nil {
+			opts.Skip.Trace = tc.Options.Skip.Trace
+			opts.Skip.Output = tc.Options.Skip.Output
+			opts.Skip.Keyword = tc.Options.Skip.Keyword
+			opts.Skip.Search = tc.Options.Skip.Search
+			// Note: History defaults to true for tests
+		}
+	}
+
+	// Runner connector override (highest priority)
+	if runnerOpts != nil && runnerOpts.Connector != "" {
+		opts.Connector = runnerOpts.Connector
+	}
+
+	return opts
+}
+
 // extractOutput extracts the output from the agent response
+// Priority: Next hook data (if non-empty) > Completion content > raw response
 func extractOutput(response interface{}) interface{} {
 	if response == nil {
 		return nil
 	}
 
-	// Try to get completion content from context.Response
+	// Try to get data from context.Response
 	if resp, ok := response.(*context.Response); ok {
+		// Prefer Next hook data if available and non-empty
+		// resp.Next is already the Data value (not NextHookResponse struct)
+		if resp.Next != nil && !isEmptyValue(resp.Next) {
+			return resp.Next
+		}
+		// Fall back to raw completion content
 		if resp.Completion != nil {
 			return resp.Completion.Content
-		}
-		if resp.Next != nil {
-			return resp.Next
 		}
 	}
 
 	return response
+}
+
+// isEmptyValue checks if a value is considered "empty" for output purposes
+func isEmptyValue(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+
+	switch val := v.(type) {
+	case string:
+		return val == ""
+	case map[string]interface{}:
+		return len(val) == 0
+	case []interface{}:
+		return len(val) == 0
+	}
+
+	return false
 }
 
 // validateOutput validates the actual output against expected

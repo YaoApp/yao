@@ -1,10 +1,11 @@
 {
   "name": "Query Builder",
   "description": "Build database queries",
+  "connector": "deepseek.v3",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {
-    "max_tokens": 2000,
+    "max_tokens": 8192,
     "temperature": 0.2
   }
 }

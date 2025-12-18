@@ -289,6 +289,9 @@ type Options struct {
 
 	// Agent mode, use to select the mode of the request, default is "chat"
 	Mode string `json:"mode,omitempty"` // Agent mode, use to select the mode of the request, default is "chat"
+
+	// Metadata for passing custom data to hooks (e.g., scenario selection)
+	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks
 }
 
 // Stack represents the call stack node for tracing agent-to-agent calls
