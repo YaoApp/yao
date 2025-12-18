@@ -595,13 +595,13 @@ func (r *AgentReporter) Write(report *Report, w io.Writer) error {
 		},
 	}
 
-	result, err := agent.Stream(ctx, messages, options)
+	response, err := agent.Stream(ctx, messages, options)
 	if err != nil {
 		return fmt.Errorf("reporter agent call failed: %w", err)
 	}
 
-	// Extract content from result
-	content, err := r.extractContent(result)
+	// Extract content from response
+	content, err := r.extractContent(response)
 	if err != nil {
 		return fmt.Errorf("failed to extract report content: %w", err)
 	}
@@ -615,55 +615,25 @@ func (r *AgentReporter) Write(report *Report, w io.Writer) error {
 	return nil
 }
 
-// extractContent extracts the report content from the agent's response
-func (r *AgentReporter) extractContent(result interface{}) (string, error) {
-	if result == nil {
-		return "", fmt.Errorf("agent returned nil result")
+// extractContent extracts the report content from the agent's *context.Response
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+func (r *AgentReporter) extractContent(response *context.Response) (string, error) {
+	if response == nil {
+		return "", fmt.Errorf("agent returned nil response")
 	}
 
-	// Try to convert to map first (context.Response)
-	switch v := result.(type) {
-	case string:
-		return v, nil
-
-	case *context.Response:
-		// Extract from completion content
-		if v.Completion != nil && v.Completion.Content != nil {
-			return r.contentToString(v.Completion.Content)
-		}
-		// Try next field
-		if v.Next != nil {
-			return r.contentToString(v.Next)
-		}
-		return "", fmt.Errorf("no content in response")
-
-	case map[string]interface{}:
-		// Check for completion.content
-		if completion, ok := v["completion"].(map[string]interface{}); ok {
-			if content, ok := completion["content"]; ok {
-				return r.contentToString(content)
-			}
-		}
-		// Check for next
-		if next, ok := v["next"]; ok {
-			return r.contentToString(next)
-		}
-		// Check for content directly
-		if content, ok := v["content"]; ok {
-			return r.contentToString(content)
-		}
-		// Marshal the whole thing
-		jsonBytes, _ := jsoniter.Marshal(v)
-		return string(jsonBytes), nil
-
-	default:
-		// Try to marshal as JSON
-		jsonBytes, err := jsoniter.Marshal(result)
-		if err != nil {
-			return fmt.Sprintf("%v", result), nil
-		}
-		return string(jsonBytes), nil
+	// Priority 1: Check Next field (custom hook data)
+	if response.Next != nil {
+		return r.contentToString(response.Next)
 	}
+
+	// Priority 2: Extract from completion content
+	if response.Completion != nil && response.Completion.Content != nil {
+		return r.contentToString(response.Completion.Content)
+	}
+
+	return "", fmt.Errorf("no content in response")
 }
 
 // contentToString converts various content types to string
