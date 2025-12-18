@@ -59,20 +59,24 @@ func (p *AgentProvider) Rerank(ctx *context.Context, query string, items []*type
 		},
 	}
 
-	result, err := agent.Stream(ctx, messages, options)
+	response, err := agent.Stream(ctx, messages, options)
 	if err != nil {
 		return nil, fmt.Errorf("agent stream failed: %w", err)
 	}
 
-	// Parse response
-	return p.parseResponse(result, items, opts)
+	// Parse response from response.Next
+	return p.parseAgentResponse(response, items, opts)
 }
 
-// parseResponse extracts reranked items from agent response
-// The response format from agent.Stream is typically:
-// { "next": { "data": { "order": [...] } } }
-func (p *AgentProvider) parseResponse(result interface{}, originalItems []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error) {
-	if result == nil {
+// parseAgentResponse extracts reranked items from agent's *context.Response
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+//
+// Expected response.Next format:
+// { "order": ["ref_001", "ref_003", "ref_002"] }
+// Or: { "items": [{ "citation_id": "ref_001", ... }, ...] }
+func (p *AgentProvider) parseAgentResponse(response *context.Response, originalItems []*types.ResultItem, opts *types.RerankOptions) ([]*types.ResultItem, error) {
+	if response == nil || response.Next == nil {
 		return originalItems, nil
 	}
 
@@ -84,20 +88,20 @@ func (p *AgentProvider) parseResponse(result interface{}, originalItems []*types
 		}
 	}
 
-	// Extract response data
-	response := extractResponseData(result)
-	if response == nil {
+	// Extract response data from Next field
+	data := extractNextData(response.Next)
+	if data == nil {
 		return originalItems, nil
 	}
 
-	// Try to get reranked order from response
+	// Try to get reranked order from data
 	// Expected format: { "order": ["ref_001", "ref_003", "ref_002"] }
 	// Or: { "items": [{ "citation_id": "ref_001", ... }, ...] }
 
 	var reranked []*types.ResultItem
 
 	// Try "order" field (list of citation IDs)
-	if order, ok := response["order"]; ok {
+	if order, ok := data["order"]; ok {
 		if orderList := toStringSlice(order); len(orderList) > 0 {
 			for _, id := range orderList {
 				if item, exists := itemMap[id]; exists {
@@ -116,7 +120,7 @@ func (p *AgentProvider) parseResponse(result interface{}, originalItems []*types
 
 	// Try "items" field (full items or items with citation_id)
 	if len(reranked) == 0 {
-		if items, ok := response["items"]; ok {
+		if items, ok := data["items"]; ok {
 			if itemsList := toItemsList(items); len(itemsList) > 0 {
 				for _, respItem := range itemsList {
 					// Check if it's just a reference or full item
@@ -150,20 +154,16 @@ func (p *AgentProvider) parseResponse(result interface{}, originalItems []*types
 	return reranked, nil
 }
 
-// extractResponseData extracts the actual response data from agent.Stream result
-// Handles nested structures like { "next": { "data": { ... } } }
-func extractResponseData(result interface{}) map[string]interface{} {
-	switch v := result.(type) {
+// extractNextData extracts the actual data from response.Next field
+// Handles nested structures like { "data": { ... } }
+func extractNextData(next interface{}) map[string]interface{} {
+	if next == nil {
+		return nil
+	}
+
+	switch v := next.(type) {
 	case map[string]interface{}:
-		// Check for "next" wrapper (from NextHookResponse)
-		if next, ok := v["next"].(map[string]interface{}); ok {
-			// Check for "data" inside next
-			if data, ok := next["data"].(map[string]interface{}); ok {
-				return data
-			}
-			return next
-		}
-		// Check for direct "data" wrapper
+		// Check for "data" wrapper
 		if data, ok := v["data"].(map[string]interface{}); ok {
 			return data
 		}
@@ -172,16 +172,14 @@ func extractResponseData(result interface{}) map[string]interface{} {
 		// Try to parse as JSON
 		var data map[string]interface{}
 		if err := json.Unmarshal([]byte(v), &data); err == nil {
-			return extractResponseData(data)
+			return extractNextData(data)
 		}
 	}
 	// Try to handle other types by converting to JSON and back
-	if result != nil {
-		if bytes, err := json.Marshal(result); err == nil {
-			var data map[string]interface{}
-			if err := json.Unmarshal(bytes, &data); err == nil {
-				return extractResponseData(data)
-			}
+	if bytes, err := json.Marshal(next); err == nil {
+		var data map[string]interface{}
+		if err := json.Unmarshal(bytes, &data); err == nil {
+			return extractNextData(data)
 		}
 	}
 	return nil

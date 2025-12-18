@@ -1,18 +1,20 @@
 // Package keyword provides keyword extraction for web search optimization
 // Supports three modes via uses.keyword configuration:
-//   - "builtin": Simple frequency-based extraction (no external dependencies)
-//   - "<assistant-id>": Delegate to an LLM-powered assistant for high-quality extraction
+//   - "builtin" or "": Uses __yao.keyword system agent (LLM-powered)
+//   - "<assistant-id>": Delegate to a custom LLM-powered assistant
 //   - "mcp:<server>.<tool>": Call external MCP tool
-//
-// For production use cases requiring high accuracy, use Agent or MCP mode.
 package keyword
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/types"
 )
+
+// SystemKeywordAgent is the default system agent for keyword extraction
+const SystemKeywordAgent = "__yao.keyword"
 
 // Extractor extracts keywords from text
 // Mode is determined by uses.keyword configuration
@@ -32,19 +34,20 @@ func NewExtractor(usesKeyword string, cfg *types.KeywordConfig) *Extractor {
 }
 
 // Extract extracts keywords from content based on configured mode
-// Returns a list of keywords optimized for search queries
-func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+// Returns a list of keywords with weights optimized for search queries
+func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	// Merge options with config defaults
 	mergedOpts := e.mergeOptions(opts)
 
 	switch {
 	case e.usesKeyword == "builtin" || e.usesKeyword == "":
-		return e.builtinExtract(content, mergedOpts)
+		// Use system keyword agent
+		return e.agentExtract(ctx, content, SystemKeywordAgent, mergedOpts)
 	case strings.HasPrefix(e.usesKeyword, "mcp:"):
 		return e.mcpExtract(ctx, content, mergedOpts)
 	default:
 		// Assume it's an assistant ID for Agent mode
-		return e.agentExtract(ctx, content, mergedOpts)
+		return e.agentExtract(ctx, content, e.usesKeyword, mergedOpts)
 	}
 }
 
@@ -78,29 +81,24 @@ func (e *Extractor) mergeOptions(opts *types.KeywordOptions) *types.KeywordOptio
 	return result
 }
 
-// builtinExtract uses simple frequency-based extraction
-// This is a lightweight implementation with no external dependencies.
-// For better results, use Agent or MCP mode.
-func (e *Extractor) builtinExtract(content string, opts *types.KeywordOptions) ([]string, error) {
-	extractor := NewBuiltinExtractor()
-	return extractor.ExtractAsStrings(content, opts.MaxKeywords), nil
-}
-
 // agentExtract delegates to an LLM-powered assistant
 // The assistant can understand context and extract semantically relevant keywords
-func (e *Extractor) agentExtract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
-	provider := NewAgentProvider(e.usesKeyword)
+func (e *Extractor) agentExtract(ctx *context.Context, content string, agentID string, opts *types.KeywordOptions) ([]types.Keyword, error) {
+	if ctx == nil {
+		return nil, fmt.Errorf("context is required for keyword extraction")
+	}
+	provider := NewAgentProvider(agentID)
 	return provider.Extract(ctx, content, opts)
 }
 
 // mcpExtract calls an external MCP tool
 // Format: "mcp:<server>.<tool>"
-func (e *Extractor) mcpExtract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+func (e *Extractor) mcpExtract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	mcpRef := strings.TrimPrefix(e.usesKeyword, "mcp:")
 	provider, err := NewMCPProvider(mcpRef)
 	if err != nil {
-		// Fallback to builtin on invalid MCP format
-		return e.builtinExtract(content, opts)
+		// Fallback to system agent on invalid MCP format
+		return e.agentExtract(ctx, content, SystemKeywordAgent, e.mergeOptions(nil))
 	}
 	return provider.Extract(ctx, content, opts)
 }

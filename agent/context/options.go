@@ -16,7 +16,7 @@ func (opts *Options) ToMap() map[string]interface{} {
 		result["mode"] = opts.Mode
 	}
 	if opts.Search != nil {
-		result["search"] = *opts.Search
+		result["search"] = opts.Search
 	}
 	if opts.Skip != nil {
 		result["skip"] = opts.Skip
@@ -24,6 +24,9 @@ func (opts *Options) ToMap() map[string]interface{} {
 	// Only add DisableGlobalPrompts if true (avoid false values in map)
 	if opts.DisableGlobalPrompts {
 		result["disable_global_prompts"] = opts.DisableGlobalPrompts
+	}
+	if opts.Metadata != nil {
+		result["metadata"] = opts.Metadata
 	}
 
 	// Note: Runtime fields (Context, Writer) are not serialized (json:"-")
@@ -47,8 +50,9 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 	if mode, ok := m["mode"].(string); ok {
 		opts.Mode = mode
 	}
-	if search, ok := m["search"].(bool); ok {
-		opts.Search = &search
+	// Search supports: bool | SearchIntent | map[string]any | nil
+	if search := m["search"]; search != nil {
+		opts.Search = search
 	}
 	if skipMap, ok := m["skip"].(map[string]interface{}); ok {
 		skip := &Skip{}
@@ -65,6 +69,9 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 	}
 	if disableGlobalPrompts, ok := m["disable_global_prompts"].(bool); ok {
 		opts.DisableGlobalPrompts = disableGlobalPrompts
+	}
+	if metadata, ok := m["metadata"].(map[string]interface{}); ok {
+		opts.Metadata = metadata
 	}
 
 	// Note: Context and Writer are runtime fields, not restored from map

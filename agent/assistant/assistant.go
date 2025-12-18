@@ -51,7 +51,7 @@ type agentCallerWrapper struct {
 	ast *Assistant
 }
 
-func (w *agentCallerWrapper) Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error) {
+func (w *agentCallerWrapper) Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (*agentContext.Response, error) {
 	return w.ast.Stream(ctx, messages, options...)
 }
 

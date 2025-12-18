@@ -56,19 +56,18 @@ func TestAgentNextStandard(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 
-	resp := response.(*context.Response)
-	assert.NotNil(t, resp.Completion)
-	assert.Nil(t, resp.Next)
+	assert.NotNil(t, response.Completion)
+	assert.Nil(t, response.Next)
 
 	// Verify response structure
-	assert.Equal(t, "tests.realworld-next", resp.AssistantID)
-	assert.NotEmpty(t, resp.ContextID)
-	assert.NotEmpty(t, resp.RequestID)
-	assert.NotEmpty(t, resp.TraceID)
-	assert.NotEmpty(t, resp.ChatID)
+	assert.Equal(t, "tests.realworld-next", response.AssistantID)
+	assert.NotEmpty(t, response.ContextID)
+	assert.NotEmpty(t, response.RequestID)
+	assert.NotEmpty(t, response.TraceID)
+	assert.NotEmpty(t, response.ChatID)
 
 	// Verify completion has content
-	assert.NotNil(t, resp.Completion.Content)
+	assert.NotNil(t, response.Completion.Content)
 
 	t.Log("✓ Standard response test passed")
 }
@@ -94,19 +93,18 @@ func TestAgentNextCustomData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 
-	resp := response.(*context.Response)
-	assert.NotNil(t, resp.Completion)
-	assert.NotNil(t, resp.Next)
+	assert.NotNil(t, response.Completion)
+	assert.NotNil(t, response.Next)
 
 	// Verify response structure
-	assert.Equal(t, "tests.realworld-next", resp.AssistantID)
-	assert.NotEmpty(t, resp.ContextID)
-	assert.NotEmpty(t, resp.RequestID)
-	assert.NotEmpty(t, resp.TraceID)
+	assert.Equal(t, "tests.realworld-next", response.AssistantID)
+	assert.NotEmpty(t, response.ContextID)
+	assert.NotEmpty(t, response.RequestID)
+	assert.NotEmpty(t, response.TraceID)
 
 	// Verify custom data structure (from scenarioCustomData)
-	// resp.Next contains the "data" field value from NextHookResponse
-	nextData, ok := resp.Next.(map[string]interface{})
+	// response.Next contains the "data" field value from NextHookResponse
+	nextData, ok := response.Next.(map[string]interface{})
 	assert.True(t, ok, "Next should be a map")
 	assert.Equal(t, "custom_response", nextData["type"])
 	assert.Equal(t, "This is a custom response from Next Hook", nextData["message"])
@@ -137,21 +135,19 @@ func TestAgentNextDelegate(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 
-	resp := response.(*context.Response)
-
 	// Verify response structure
-	assert.NotEmpty(t, resp.AssistantID)
-	assert.NotEmpty(t, resp.ContextID)
-	assert.NotEmpty(t, resp.RequestID)
-	assert.NotEmpty(t, resp.TraceID)
+	assert.NotEmpty(t, response.AssistantID)
+	assert.NotEmpty(t, response.ContextID)
+	assert.NotEmpty(t, response.RequestID)
+	assert.NotEmpty(t, response.TraceID)
 
 	// Verify completion (delegated agent should have returned completion)
-	assert.NotNil(t, resp.Completion)
-	assert.NotNil(t, resp.Completion.Content)
+	assert.NotNil(t, response.Completion)
+	assert.NotNil(t, response.Completion.Content)
 
 	// Next should be from the delegated agent
 	// If delegated agent also has Next hook, it will be present
-	t.Logf("✓ Delegation test passed (delegated to: %s)", resp.AssistantID)
+	t.Logf("✓ Delegation test passed (delegated to: %s)", response.AssistantID)
 }
 
 // TestAgentNextConditional tests agent with conditional logic in Next Hook
@@ -177,18 +173,17 @@ func TestAgentNextConditional(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 
-	resp := response.(*context.Response)
-	assert.NotNil(t, resp.Next)
+	assert.NotNil(t, response.Next)
 
 	// Verify response structure
-	assert.Equal(t, "tests.realworld-next", resp.AssistantID)
-	assert.NotEmpty(t, resp.ContextID)
-	assert.NotEmpty(t, resp.RequestID)
-	assert.NotEmpty(t, resp.TraceID)
+	assert.Equal(t, "tests.realworld-next", response.AssistantID)
+	assert.NotEmpty(t, response.ContextID)
+	assert.NotEmpty(t, response.RequestID)
+	assert.NotEmpty(t, response.TraceID)
 
 	// Verify conditional response structure (from scenarioConditional)
-	// resp.Next contains the "data" field value from NextHookResponse
-	nextData, ok := resp.Next.(map[string]interface{})
+	// response.Next contains the "data" field value from NextHookResponse
+	nextData, ok := response.Next.(map[string]interface{})
 	assert.True(t, ok, "Next should be a map")
 	assert.Equal(t, "Conditional analysis complete", nextData["message"])
 	assert.Contains(t, nextData, "action")
@@ -224,19 +219,18 @@ func TestAgentWithoutNextHook(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, response)
 
-	resp := response.(*context.Response)
-	assert.Nil(t, resp.Next)
+	assert.Nil(t, response.Next)
 
 	// Verify response structure
-	assert.Equal(t, "tests.create", resp.AssistantID)
-	assert.NotEmpty(t, resp.ContextID)
-	assert.NotEmpty(t, resp.RequestID)
-	assert.NotEmpty(t, resp.TraceID)
-	assert.NotEmpty(t, resp.ChatID)
+	assert.Equal(t, "tests.create", response.AssistantID)
+	assert.NotEmpty(t, response.ContextID)
+	assert.NotEmpty(t, response.RequestID)
+	assert.NotEmpty(t, response.TraceID)
+	assert.NotEmpty(t, response.ChatID)
 
 	// Verify completion
-	assert.NotNil(t, resp.Completion)
-	assert.NotNil(t, resp.Completion.Content)
+	assert.NotNil(t, response.Completion)
+	assert.NotNil(t, response.Completion.Content)
 
 	t.Log("✓ No Next Hook test passed")
 }

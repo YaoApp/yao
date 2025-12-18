@@ -23,8 +23,8 @@ func NewAgentProvider(agentID string) *AgentProvider {
 }
 
 // Extract extracts keywords by calling the target agent
-// The agent receives the content and returns extracted keywords
-func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+// The agent receives the content and returns extracted keywords with weights
+func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context is required for agent keyword extraction")
 	}
@@ -64,73 +64,64 @@ func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts 
 		},
 	}
 
-	result, err := agent.Stream(ctx, messages, options)
+	response, err := agent.Stream(ctx, messages, options)
 	if err != nil {
 		return nil, fmt.Errorf("agent call failed: %w", err)
 	}
 
-	// Debug: log the result type and value
-	// fmt.Printf("DEBUG Agent result type: %T, value: %+v\n", result, result)
-
-	// Parse the result
-	return p.parseResult(result)
+	// Parse the result from response.Next
+	return p.parseResponse(response)
 }
 
-// parseResult extracts keywords from the agent's response
-// The agent should return data in NextHookResponse format: { data: { keywords: [...] } }
-// The Stream() response wraps this in: { next: { data: { keywords: [...] } } }
-func (p *AgentProvider) parseResult(result interface{}) ([]string, error) {
-	if result == nil {
-		return []string{}, nil
+// parseResponse extracts keywords from the agent's *context.Response
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+//
+// The agent returns keywords in response.Next field as {data: {keywords: [{k, w}, ...]}}
+func (p *AgentProvider) parseResponse(response *agentContext.Response) ([]types.Keyword, error) {
+	if response == nil || response.Next == nil {
+		return []types.Keyword{}, nil
+	}
+
+	return p.parseNextData(response.Next)
+}
+
+// parseNextData extracts keywords from Next hook data
+// Expected format: {data: {keywords: [{k: "keyword", w: 0.9}, ...]}}
+func (p *AgentProvider) parseNextData(next interface{}) ([]types.Keyword, error) {
+	if next == nil {
+		return []types.Keyword{}, nil
 	}
 
 	// Try to convert to map first (most common case)
 	var data map[string]interface{}
 
-	switch v := result.(type) {
+	switch v := next.(type) {
 	case map[string]interface{}:
 		data = v
 	case string:
 		// Try to parse as JSON
 		if err := json.Unmarshal([]byte(v), &data); err != nil {
-			// Not a JSON object, try as array
-			var keywords []string
+			// Not a JSON object, try as array of keywords
+			var keywords []types.Keyword
 			if err := json.Unmarshal([]byte(v), &keywords); err == nil {
 				return keywords, nil
 			}
-			// Return as single keyword
-			return []string{v}, nil
+			// Return as single keyword with default weight
+			return []types.Keyword{{K: v, W: 0.5}}, nil
 		}
-	case []string:
+	case []types.Keyword:
 		return v, nil
 	case []interface{}:
-		keywords := make([]string, 0, len(v))
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				keywords = append(keywords, s)
-			}
-		}
-		return keywords, nil
+		return p.extractKeywordsFromArray(v)
 	default:
 		// Try to marshal and unmarshal
-		jsonBytes, err := json.Marshal(result)
+		jsonBytes, err := json.Marshal(next)
 		if err != nil {
-			return []string{}, nil
+			return []types.Keyword{}, nil
 		}
 		if err := json.Unmarshal(jsonBytes, &data); err != nil {
-			return []string{}, nil
-		}
-	}
-
-	// Check for "next" field (custom hook data from NextHookResponse)
-	// Stream() returns: { next: { data: { keywords: [...] } } }
-	if next, hasNext := data["next"]; hasNext && next != nil {
-		if nextMap, ok := next.(map[string]interface{}); ok {
-			data = nextMap
-		} else if nextStr, ok := next.(string); ok {
-			if err := json.Unmarshal([]byte(nextStr), &data); err != nil {
-				return []string{}, nil
-			}
+			return []types.Keyword{}, nil
 		}
 	}
 
@@ -148,28 +139,48 @@ func (p *AgentProvider) parseResult(result interface{}) ([]string, error) {
 		return p.extractKeywordsFromValue(d)
 	}
 
-	return []string{}, nil
+	return []types.Keyword{}, nil
 }
 
-// extractKeywordsFromValue extracts string array from various types
-func (p *AgentProvider) extractKeywordsFromValue(v interface{}) ([]string, error) {
+// extractKeywordsFromValue extracts Keyword array from various types
+func (p *AgentProvider) extractKeywordsFromValue(v interface{}) ([]types.Keyword, error) {
 	switch kw := v.(type) {
-	case []string:
+	case []types.Keyword:
 		return kw, nil
 	case []interface{}:
-		keywords := make([]string, 0, len(kw))
-		for _, item := range kw {
-			if s, ok := item.(string); ok {
-				keywords = append(keywords, s)
-			}
-		}
-		return keywords, nil
+		return p.extractKeywordsFromArray(kw)
 	case string:
-		var keywords []string
+		var keywords []types.Keyword
 		if err := json.Unmarshal([]byte(kw), &keywords); err == nil {
 			return keywords, nil
 		}
-		return []string{kw}, nil
+		return []types.Keyword{{K: kw, W: 0.5}}, nil
 	}
-	return []string{}, nil
+	return []types.Keyword{}, nil
+}
+
+// extractKeywordsFromArray extracts keywords from []interface{}
+// Handles both {k, w} objects and plain strings
+func (p *AgentProvider) extractKeywordsFromArray(items []interface{}) ([]types.Keyword, error) {
+	keywords := make([]types.Keyword, 0, len(items))
+	for _, item := range items {
+		switch v := item.(type) {
+		case map[string]interface{}:
+			// Handle {k: "keyword", w: 0.9} format
+			k, _ := v["k"].(string)
+			w, _ := v["w"].(float64)
+			if k != "" {
+				if w == 0 {
+					w = 0.5 // Default weight
+				}
+				keywords = append(keywords, types.Keyword{K: k, W: w})
+			}
+		case string:
+			// Plain string, use default weight
+			if v != "" {
+				keywords = append(keywords, types.Keyword{K: v, W: 0.5})
+			}
+		}
+	}
+	return keywords, nil
 }

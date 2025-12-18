@@ -2,12 +2,14 @@ package querydsl
 
 import (
 	"github.com/yaoapp/gou/query/gou"
+	"github.com/yaoapp/yao/agent/search/types"
 )
 
 // Input contains all information needed to generate QueryDSL
 type Input struct {
 	Query         string                 // Natural language query
 	ModelIDs      []string               // Target model IDs (e.g., ["user", "order", "product"])
+	Scenario      types.ScenarioType     // QueryDSL scenario: "filter", "aggregation", "join", "complex"
 	Wheres        []gou.Where            // Pre-defined filters (optional)
 	Orders        gou.Orders             // Sort orders (optional)
 	AllowedFields []string               // Allowed fields whitelist (optional, for security validation)

@@ -209,10 +209,14 @@ func initAssistant() error {
 	// Set global Uses configuration
 	if agentDSL.Uses != nil {
 		globalUses := &context.Uses{
-			Vision: agentDSL.Uses.Vision,
-			Audio:  agentDSL.Uses.Audio,
-			Search: agentDSL.Uses.Search,
-			Fetch:  agentDSL.Uses.Fetch,
+			Vision:   agentDSL.Uses.Vision,
+			Audio:    agentDSL.Uses.Audio,
+			Search:   agentDSL.Uses.Search,
+			Fetch:    agentDSL.Uses.Fetch,
+			Web:      agentDSL.Uses.Web,
+			Keyword:  agentDSL.Uses.Keyword,
+			QueryDSL: agentDSL.Uses.QueryDSL,
+			Rerank:   agentDSL.Uses.Rerank,
 		}
 		assistant.SetGlobalUses(globalUses)
 	}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	jsoniter "github.com/json-iterator/go"
@@ -244,7 +245,7 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 		jsonData = v
 	default:
 		result.Passed = false
-		result.Message = "output is not a JSON object or array"
+		result.Message = fmt.Sprintf("output is not a JSON object or array, got: %T = %v", output, truncateOutput(output, 200))
 		return result
 	}
 
@@ -253,6 +254,8 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 	actual := a.extractPath(jsonData, path)
 	result.Actual = actual
 
+	// Compare expected value with actual value
+	// First, try direct comparison (handles both primitive values and arrays)
 	if validateOutput(actual, assertion.Value) {
 		result.Passed = true
 		result.Message = fmt.Sprintf("path '%s' equals expected value", assertion.Path)
@@ -264,25 +267,111 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 	return result
 }
 
-// extractPath extracts a value from JSON using a simple dot-notation path
+// truncateOutput truncates output for error messages
+func truncateOutput(output interface{}, maxLen int) string {
+	var s string
+	switch v := output.(type) {
+	case string:
+		s = v
+	case nil:
+		return "<nil>"
+	default:
+		bytes, err := jsoniter.Marshal(v)
+		if err != nil {
+			s = fmt.Sprintf("%v", v)
+		} else {
+			s = string(bytes)
+		}
+	}
+
+	if len(s) > maxLen {
+		return s[:maxLen] + "..."
+	}
+	return s
+}
+
+// extractPath extracts a value from JSON using dot-notation path with array index support
+// Supports: "field", "field.nested", "field[0]", "field[0].nested", "field.nested[0].value"
 func (a *Asserter) extractPath(data interface{}, path string) interface{} {
-	parts := strings.Split(path, ".")
 	current := data
 
-	for _, part := range parts {
-		if part == "" {
+	// Parse path into segments, handling both dots and array indices
+	// e.g., "wheres[0].like" -> ["wheres", "[0]", "like"]
+	segments := parsePathSegments(path)
+
+	for _, segment := range segments {
+		if segment == "" {
 			continue
 		}
 
-		switch v := current.(type) {
-		case map[string]interface{}:
-			current = v[part]
-		default:
-			return nil
+		// Check if this is an array index like "[0]"
+		if strings.HasPrefix(segment, "[") && strings.HasSuffix(segment, "]") {
+			indexStr := segment[1 : len(segment)-1]
+			index, err := strconv.Atoi(indexStr)
+			if err != nil {
+				return nil
+			}
+
+			arr, ok := current.([]interface{})
+			if !ok {
+				return nil
+			}
+
+			if index < 0 || index >= len(arr) {
+				return nil
+			}
+			current = arr[index]
+		} else {
+			// Regular field access
+			switch v := current.(type) {
+			case map[string]interface{}:
+				current = v[segment]
+			default:
+				return nil
+			}
 		}
 	}
 
 	return current
+}
+
+// parsePathSegments splits a path like "wheres[0].like" into ["wheres", "[0]", "like"]
+func parsePathSegments(path string) []string {
+	var segments []string
+	var current strings.Builder
+
+	for i := 0; i < len(path); i++ {
+		ch := path[i]
+		switch ch {
+		case '.':
+			if current.Len() > 0 {
+				segments = append(segments, current.String())
+				current.Reset()
+			}
+		case '[':
+			if current.Len() > 0 {
+				segments = append(segments, current.String())
+				current.Reset()
+			}
+			// Find the closing bracket
+			j := i + 1
+			for j < len(path) && path[j] != ']' {
+				j++
+			}
+			if j < len(path) {
+				segments = append(segments, path[i:j+1]) // Include "[" and "]"
+				i = j
+			}
+		default:
+			current.WriteByte(ch)
+		}
+	}
+
+	if current.Len() > 0 {
+		segments = append(segments, current.String())
+	}
+
+	return segments
 }
 
 // assertRegex checks if output matches a regex pattern

@@ -16,7 +16,7 @@ import (
 
 // Stream stream the agent
 // handler is optional, if not provided, a default handler will be used
-func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (interface{}, error) {
+func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (*context.Response, error) {
 
 	// Update logger with assistant ID and start logging
 	ctx.Logger.SetAssistantID(ast.ID)
@@ -205,8 +205,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// ================================================
 		// Execute Auto Search (if enabled)
 		// ================================================
-		if ast.shouldAutoSearch(ctx, completionMessages, createResponse, opts) {
-			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
+		if intent := ast.shouldAutoSearch(ctx, completionMessages, createResponse, opts); intent != nil {
+			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, intent, opts)
 			if refCtx != nil && len(refCtx.References) > 0 {
 				completionMessages = ast.injectSearchContext(completionMessages, refCtx)
 			}
@@ -376,7 +376,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Execute Next Hook and Process Response
 	// ================================================
-	var finalResponse interface{}
+	var finalResponse *context.Response
 	var nextResponse *context.NextHookResponse = nil
 
 	if ast.HookScript != nil {

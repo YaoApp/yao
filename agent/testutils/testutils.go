@@ -3,6 +3,12 @@ package testutils
 import (
 	"testing"
 
+	_ "github.com/yaoapp/gou/encoding"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/query"
+	"github.com/yaoapp/gou/query/gou"
+	_ "github.com/yaoapp/gou/text"
+	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
@@ -27,6 +33,21 @@ func Prepare(t *testing.T, opts ...interface{}) {
 	err = agent.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	// Register default query engine (required for DB search)
+	// capsule.Global is initialized by test.Prepare
+	if _, has := query.Engines["default"]; !has && capsule.Global != nil {
+		query.Register("default", &gou.Query{
+			Query: capsule.Query(),
+			GetTableName: func(s string) string {
+				if mod, has := model.Models[s]; has {
+					return mod.MetaData.Table.Name
+				}
+				return s
+			},
+			AESKey: config.Conf.DB.AESKey,
+		})
 	}
 }
 

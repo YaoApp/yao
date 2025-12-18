@@ -17,16 +17,32 @@ import (
 )
 
 // shouldAutoSearch determines if auto search should be executed
-// Returns false if:
+// Returns nil if search should be skipped, otherwise returns SearchIntent with types to search
+// Search is skipped if:
 // - opts.Skip.Search is true
+// - createResponse.Search is false
 // - uses.search is "disabled"
 // - assistant has no search configuration
 // - needsearch intent detection returns false
-func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts *context.Options) bool {
+func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts *context.Options) *SearchIntent {
 	// Check if search is skipped via options
 	if opts != nil && opts.Skip != nil && opts.Skip.Search {
 		ctx.Logger.Debug("Auto search skipped by opts.Skip.Search")
-		return false
+		return nil
+	}
+
+	// Check createResponse.Search field (highest priority from Create hook)
+	// Supports: bool | SearchIntent | nil
+	if createResponse != nil && createResponse.Search != nil {
+		intent := parseSearchField(createResponse.Search)
+		if intent != nil {
+			if !intent.NeedSearch {
+				ctx.Logger.Info("Auto search disabled by createResponse.Search")
+				return nil
+			}
+			ctx.Logger.Info("Auto search controlled by createResponse.Search: types=%v", intent.SearchTypes)
+			return intent
+		}
 	}
 
 	// Get merged uses configuration
@@ -35,56 +51,122 @@ func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.
 	// Check if search is explicitly disabled
 	if uses != nil && uses.Search == "disabled" {
 		ctx.Logger.Info("Auto search disabled by uses.search=disabled")
-		return false
+		return nil
 	}
 
 	// Check if assistant has search configuration
 	if ast.Search == nil && (uses == nil || uses.Search == "") {
-		return false
+		return nil
 	}
 
 	// Check search intent using __yao.needsearch agent
-	if !ast.checkSearchIntent(ctx, messages) {
+	intent := ast.checkSearchIntent(ctx, messages)
+	if intent == nil || !intent.NeedSearch {
 		ctx.Logger.Info("Auto search skipped: intent detection returned false")
-		return false
+		return nil
 	}
 
-	// Check if search is enabled (builtin, agent, mcp, or empty means builtin)
-	return true
+	return intent
+}
+
+// parseSearchField parses the Search field from HookCreateResponse
+// Supports: bool | SearchIntent | map[string]any | nil
+func parseSearchField(search any) *SearchIntent {
+	if search == nil {
+		return nil
+	}
+
+	switch v := search.(type) {
+	case bool:
+		// bool: true = enable all, false = disable all
+		if v {
+			return &SearchIntent{
+				NeedSearch:  true,
+				SearchTypes: []string{"web", "kb", "db"},
+				Confidence:  1.0,
+				Reason:      "enabled by hook",
+			}
+		}
+		return &SearchIntent{
+			NeedSearch:  false,
+			SearchTypes: []string{},
+			Confidence:  1.0,
+			Reason:      "disabled by hook",
+		}
+
+	case *SearchIntent:
+		// SearchIntent is alias for context.SearchIntent, so this covers both
+		return v
+
+	case SearchIntent:
+		return &v
+
+	case map[string]any:
+		// Parse from map (e.g., from JSON)
+		intent := &SearchIntent{
+			NeedSearch:  false,
+			SearchTypes: []string{},
+			Confidence:  0.5,
+		}
+
+		if needSearch, ok := v["need_search"].(bool); ok {
+			intent.NeedSearch = needSearch
+		}
+
+		if types, ok := v["search_types"].([]any); ok {
+			for _, t := range types {
+				if typeStr, ok := t.(string); ok {
+					intent.SearchTypes = append(intent.SearchTypes, typeStr)
+				}
+			}
+		}
+
+		if confidence, ok := v["confidence"].(float64); ok {
+			intent.Confidence = confidence
+		}
+
+		if reason, ok := v["reason"].(string); ok {
+			intent.Reason = reason
+		}
+
+		return intent
+
+	default:
+		return nil
+	}
 }
 
 // checkSearchIntent uses __yao.needsearch agent to determine if search is needed
-// Returns true if search is needed, false otherwise
-func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context.Message) bool {
-	// Get the last user message
-	var userQuery string
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Role == "user" {
-			if content, ok := messages[i].Content.(string); ok {
-				userQuery = content
-				break
-			}
+// Returns SearchIntent with search types and confidence
+func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context.Message) *SearchIntent {
+	// Default intent: no search needed (fallback when agent unavailable or fails)
+	defaultIntent := &SearchIntent{
+		NeedSearch:  false,
+		SearchTypes: []string{},
+		Confidence:  0,
+	}
+
+	// Filter out system messages and pass full conversation context
+	var intentMessages []context.Message
+	for _, msg := range messages {
+		if msg.Role != "system" {
+			intentMessages = append(intentMessages, msg)
 		}
 	}
 
-	if userQuery == "" {
-		return true // No user message, proceed with search
+	if len(intentMessages) == 0 {
+		return defaultIntent // No messages, skip search
 	}
 
 	// Try to get __yao.needsearch agent
 	needsearchAst, err := Get("__yao.needsearch")
 	if err != nil {
-		ctx.Logger.Debug("__yao.needsearch agent not available: %v, proceeding with search", err)
-		return true // Agent not available, proceed with search
+		ctx.Logger.Debug("__yao.needsearch agent not available: %v, skipping search", err)
+		return defaultIntent // Agent not available, skip search
 	}
 
 	// === Output: Send loading message ===
 	loadingID := ast.sendIntentLoading(ctx)
-
-	// Build messages for intent detection
-	intentMessages := []context.Message{
-		{Role: "user", Content: userQuery},
-	}
 
 	// Call the needsearch agent (Stack will auto-track)
 	// IMPORTANT: Skip search to prevent infinite loop, skip output to prevent JSON showing in UI
@@ -98,58 +180,108 @@ func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context
 
 	result, err := needsearchAst.Stream(ctx, intentMessages, opts)
 	if err != nil {
-		ctx.Logger.Debug("__yao.needsearch failed: %v, proceeding with search", err)
-		// === Output: Send done (error case, proceed with search) ===
-		ast.sendIntentDone(ctx, loadingID, true, "")
-		return true // On error, proceed with search
+		ctx.Logger.Debug("__yao.needsearch failed: %v, skipping search", err)
+		// === Output: Send done (error case, skip search) ===
+		ast.sendIntentDone(ctx, loadingID, false, "")
+		return defaultIntent // On error, skip search
 	}
 
 	// Parse the result
 	// Next hook returns {data: {need_search: bool, search_types: [], confidence: float}}
-	if response, ok := result.(*context.Response); ok {
-		// First try to get from Next hook response
-		if response.Next != nil {
-			if nextData, ok := response.Next.(map[string]interface{}); ok {
-				// Check for data field (from Next hook's {data: result})
-				var intentData map[string]interface{}
-				if data, ok := nextData["data"].(map[string]interface{}); ok {
-					intentData = data
-				} else {
-					intentData = nextData
-				}
-
-				if needSearch, ok := intentData["need_search"].(bool); ok {
-					reason, _ := intentData["reason"].(string)
-					ctx.Logger.Debug("Search intent (from Next): need_search=%v, reason=%s", needSearch, reason)
-					ast.sendIntentDone(ctx, loadingID, needSearch, reason)
-					return needSearch
-				}
+	// First try to get from Next hook response
+	if result.Next != nil {
+		if nextData, ok := result.Next.(map[string]interface{}); ok {
+			// Check for data field (from Next hook's {data: result})
+			var intentData map[string]interface{}
+			if data, ok := nextData["data"].(map[string]interface{}); ok {
+				intentData = data
+			} else {
+				intentData = nextData
 			}
-		}
 
-		// Fallback: parse from Completion.Content if Next hook didn't process
-		if response.Completion != nil {
-			content, ok := response.Completion.Content.(string)
-			if !ok || content == "" {
-				ast.sendIntentDone(ctx, loadingID, true, "")
-				return true
+			intent := parseSearchIntent(intentData)
+			if intent != nil {
+				ctx.Logger.Debug("Search intent (from Next): need_search=%v, types=%v, confidence=%.2f, reason=%s",
+					intent.NeedSearch, intent.SearchTypes, intent.Confidence, intent.Reason)
+				ast.sendIntentDone(ctx, loadingID, intent.NeedSearch, intent.Reason)
+				return intent
 			}
-			needSearch, reason := parseNeedSearchFromContent(content)
-			ctx.Logger.Debug("Search intent (from Content): need_search=%v, reason=%s", needSearch, reason)
-			ast.sendIntentDone(ctx, loadingID, needSearch, reason)
-			return needSearch
 		}
 	}
 
-	// Default: proceed with search if we can't parse the result
+	// Fallback: parse from Completion.Content if Next hook didn't process
+	if result.Completion != nil {
+		content, ok := result.Completion.Content.(string)
+		if !ok || content == "" {
+			ast.sendIntentDone(ctx, loadingID, false, "")
+			return defaultIntent
+		}
+		intent := parseSearchIntentFromContent(content)
+		ctx.Logger.Debug("Search intent (from Content): need_search=%v, types=%v, confidence=%.2f, reason=%s",
+			intent.NeedSearch, intent.SearchTypes, intent.Confidence, intent.Reason)
+		ast.sendIntentDone(ctx, loadingID, intent.NeedSearch, intent.Reason)
+		return intent
+	}
+
+	// Default: skip search if we can't parse the result
 	// === Output: Send done (default case) ===
-	ast.sendIntentDone(ctx, loadingID, true, "")
-	return true
+	ast.sendIntentDone(ctx, loadingID, false, "")
+	return defaultIntent
 }
 
-// parseNeedSearchFromContent parses need_search result from LLM completion content
+// parseSearchIntent parses SearchIntent from intent data map
+func parseSearchIntent(intentData map[string]interface{}) *SearchIntent {
+	if intentData == nil {
+		return nil
+	}
+
+	needSearch, ok := intentData["need_search"].(bool)
+	if !ok {
+		return nil
+	}
+
+	intent := &SearchIntent{
+		NeedSearch:  needSearch,
+		SearchTypes: []string{},
+		Confidence:  0.5, // Default confidence
+	}
+
+	// Parse search_types
+	if types, ok := intentData["search_types"].([]interface{}); ok {
+		for _, t := range types {
+			if typeStr, ok := t.(string); ok {
+				// Validate type
+				typeStr = strings.ToLower(typeStr)
+				if typeStr == "web" || typeStr == "kb" || typeStr == "db" {
+					intent.SearchTypes = append(intent.SearchTypes, typeStr)
+				}
+			}
+		}
+	}
+
+	// Parse confidence
+	if confidence, ok := intentData["confidence"].(float64); ok {
+		intent.Confidence = confidence
+	}
+
+	// Parse reason
+	if reason, ok := intentData["reason"].(string); ok {
+		intent.Reason = reason
+	}
+
+	return intent
+}
+
+// parseSearchIntentFromContent parses SearchIntent from LLM completion content
 // Handles JSON wrapped in markdown code blocks
-func parseNeedSearchFromContent(content string) (bool, string) {
+func parseSearchIntentFromContent(content string) *SearchIntent {
+	// Default intent: no search needed
+	defaultIntent := &SearchIntent{
+		NeedSearch:  false,
+		SearchTypes: []string{},
+		Confidence:  0,
+	}
+
 	// Remove markdown code block if present
 	content = strings.TrimSpace(content)
 	if strings.HasPrefix(content, "```json") {
@@ -165,17 +297,16 @@ func parseNeedSearchFromContent(content string) (bool, string) {
 	// Try to parse JSON
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
-		// Failed to parse, default to search
-		return true, ""
+		// Failed to parse, default to no search
+		return defaultIntent
 	}
 
-	needSearch, ok := result["need_search"].(bool)
-	if !ok {
-		return true, ""
+	intent := parseSearchIntent(result)
+	if intent == nil {
+		return defaultIntent
 	}
 
-	reason, _ := result["reason"].(string)
-	return needSearch, reason
+	return intent
 }
 
 // sendIntentLoading sends the initial intent detection loading message
@@ -271,10 +402,11 @@ func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResp
 	return uses
 }
 
-// executeAutoSearch executes auto search based on configuration
+// executeAutoSearch executes auto search based on configuration and intent
 // Returns ReferenceContext with results and formatted context
+// intent specifies which search types to execute (from needsearch agent)
 // opts is optional, used to check Skip.Keyword
-func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, opts ...*context.Options) *searchTypes.ReferenceContext {
+func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context.Message, createResponse *context.HookCreateResponse, intent *SearchIntent, opts ...*context.Options) *searchTypes.ReferenceContext {
 	ctx.Logger.Phase("Search")
 	defer ctx.Logger.PhaseComplete("Search")
 
@@ -311,31 +443,21 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 		skipKeyword = opts[0].Skip.Keyword
 	}
 
-	// Extract keywords for web search if:
-	// 1. uses.keyword is configured (not empty)
-	// 2. Skip.Keyword is not true
-	// 3. Web search is enabled
-	var extractedKeywords []string
-	webSearchEnabled := searchConfig != nil && searchConfig.Web != nil
-	if webSearchEnabled && !skipKeyword && searchUses.Keyword != "" {
-		extractor := keyword.NewExtractor(searchUses.Keyword, searchConfig.Keyword)
-		keywords, err := extractor.Extract(ctx, query, nil)
-		if err != nil {
-			ctx.Logger.Warn("Keyword extraction failed, using original query: %v", err)
-		} else if len(keywords) > 0 {
-			extractedKeywords = keywords
-			// Use extracted keywords as the search query for web search
-			optimizedQuery := strings.Join(keywords, " ")
-			ctx.Logger.Info("Extracted keywords for web search: %s -> %s", truncateString(query, 30), optimizedQuery)
-			query = optimizedQuery
-		}
+	// Build search requests based on configuration and intent
+	// Keyword extraction is done inside buildSearchRequests for web search
+	buildOpts := &buildSearchRequestsOptions{
+		skipKeyword: skipKeyword,
+		usesKeyword: searchUses.Keyword,
 	}
-
-	// Build search requests based on configuration
-	requests := ast.buildSearchRequests(query, searchConfig)
+	requests, extractedKeywords := ast.buildSearchRequests(ctx, query, searchConfig, intent, buildOpts)
 	if len(requests) == 0 {
 		ctx.Logger.Info("No search requests to execute")
 		return nil
+	}
+
+	// Update query if keywords were extracted (for web search)
+	if len(extractedKeywords) > 0 {
+		query = keywordsToQuery(extractedKeywords)
 	}
 
 	// === Output: Send loading message ===
@@ -433,6 +555,52 @@ func (ast *Assistant) sendSearchLoading(ctx *context.Context) string {
 	}
 
 	return msgID
+}
+
+// sendKeywordLoading sends the keyword extraction loading message
+// Returns the message ID for later replacement
+func (ast *Assistant) sendKeywordLoading(ctx *context.Context) string {
+	loadingMsg := i18n.T(ctx.Locale, "search.keyword.loading")
+
+	msg := &message.Message{
+		Type: "loading",
+		Props: map[string]any{
+			"message": loadingMsg,
+		},
+	}
+
+	// Send and get message ID
+	msgID, err := ctx.SendStream(msg)
+	if err != nil {
+		ctx.Logger.Warn("Failed to send keyword loading message: %v", err)
+		return ""
+	}
+
+	return msgID
+}
+
+// sendKeywordDone replaces keyword loading with done message
+func (ast *Assistant) sendKeywordDone(ctx *context.Context, loadingID string, success bool) {
+	if loadingID == "" {
+		return
+	}
+
+	resultMsg := i18n.T(ctx.Locale, "search.keyword.done")
+
+	msg := &message.Message{
+		MessageID:   loadingID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        "loading",
+		Props: map[string]any{
+			"message": resultMsg,
+			"done":    true,
+		},
+	}
+
+	if err := ctx.Send(msg); err != nil {
+		ctx.Logger.Warn("Failed to send keyword done message: %v", err)
+	}
 }
 
 // sendSearchResult replaces loading with result message (without done flag)
@@ -564,22 +732,67 @@ func (ast *Assistant) completeSearchTrace(node traceTypes.Node, resultCount int,
 	})
 }
 
-// buildSearchRequests builds search requests based on assistant configuration
-func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Config) []*searchTypes.Request {
-	var requests []*searchTypes.Request
+// buildSearchRequestsOptions contains options for building search requests
+type buildSearchRequestsOptions struct {
+	skipKeyword bool   // Skip keyword extraction
+	usesKeyword string // Keyword extractor config: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+}
 
-	// Web search - check if web search is configured
-	if config != nil && config.Web != nil {
+// buildSearchRequests builds search requests based on assistant configuration and intent
+// intent specifies which search types to execute (from needsearch agent)
+// Returns requests and extracted keywords (if any)
+func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, config *searchTypes.Config, intent *SearchIntent, opts *buildSearchRequestsOptions) ([]*searchTypes.Request, []searchTypes.Keyword) {
+	var requests []*searchTypes.Request
+	var extractedKeywords []searchTypes.Keyword
+
+	// Helper to check if a search type is allowed by intent
+	isTypeAllowed := func(searchType string) bool {
+		if intent == nil || len(intent.SearchTypes) == 0 {
+			return true // No intent or empty types means all types allowed
+		}
+		for _, t := range intent.SearchTypes {
+			if t == searchType {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Web search - check if web search is configured and allowed by intent
+	if config != nil && config.Web != nil && isTypeAllowed("web") {
+		webQuery := query
+
+		// Extract keywords for web search if configured
+		if opts != nil && !opts.skipKeyword && opts.usesKeyword != "" {
+			// === Output: Send keyword extraction loading ===
+			keywordLoadingID := ast.sendKeywordLoading(ctx)
+
+			extractor := keyword.NewExtractor(opts.usesKeyword, config.Keyword)
+			keywords, err := extractor.Extract(ctx, query, nil)
+			if err != nil {
+				ctx.Logger.Warn("Keyword extraction failed, using original query: %v", err)
+				ast.sendKeywordDone(ctx, keywordLoadingID, false)
+			} else if len(keywords) > 0 {
+				extractedKeywords = keywords
+				// Use extracted keywords as the search query for web search
+				webQuery = keywordsToQuery(keywords)
+				ctx.Logger.Info("Extracted keywords for web search: %s -> %s", truncateString(query, 30), webQuery)
+				ast.sendKeywordDone(ctx, keywordLoadingID, true)
+			} else {
+				ast.sendKeywordDone(ctx, keywordLoadingID, true)
+			}
+		}
+
 		requests = append(requests, &searchTypes.Request{
 			Type:   searchTypes.SearchTypeWeb,
-			Query:  query,
+			Query:  webQuery,
 			Source: searchTypes.SourceAuto,
 			Limit:  config.Web.MaxResults,
 		})
 	}
 
-	// KB search - check if KB is configured
-	if ast.KB != nil && len(ast.KB.Collections) > 0 {
+	// KB search - check if KB is configured and allowed by intent
+	if ast.KB != nil && len(ast.KB.Collections) > 0 && isTypeAllowed("kb") {
 		limit := 10
 		threshold := 0.7
 		if config != nil && config.KB != nil {
@@ -589,7 +802,7 @@ func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Conf
 		}
 		requests = append(requests, &searchTypes.Request{
 			Type:        searchTypes.SearchTypeKB,
-			Query:       query,
+			Query:       query, // KB uses original query for semantic search
 			Source:      searchTypes.SourceAuto,
 			Limit:       limit,
 			Collections: ast.KB.Collections,
@@ -598,22 +811,22 @@ func (ast *Assistant) buildSearchRequests(query string, config *searchTypes.Conf
 		})
 	}
 
-	// DB search - check if DB is configured
-	if ast.DB != nil && len(ast.DB.Models) > 0 {
+	// DB search - check if DB is configured and allowed by intent
+	if ast.DB != nil && len(ast.DB.Models) > 0 && isTypeAllowed("db") {
 		limit := 20
 		if config != nil && config.DB != nil && config.DB.MaxResults > 0 {
 			limit = config.DB.MaxResults
 		}
 		requests = append(requests, &searchTypes.Request{
 			Type:   searchTypes.SearchTypeDB,
-			Query:  query,
+			Query:  query, // DB uses original query for QueryDSL generation
 			Source: searchTypes.SourceAuto,
 			Limit:  limit,
 			Models: ast.DB.Models,
 		})
 	}
 
-	return requests
+	return requests, extractedKeywords
 }
 
 // injectSearchContext injects search results into messages
@@ -709,12 +922,60 @@ func truncateString(s string, maxLen int) string {
 // SearchExecutionResult holds all data from search execution for storage
 type SearchExecutionResult struct {
 	Query      string                        // Original query (before keyword optimization)
-	Keywords   []string                      // Extracted keywords
+	Keywords   []searchTypes.Keyword         // Extracted keywords with weights
 	Config     map[string]any                // Search config used
 	RefCtx     *searchTypes.ReferenceContext // Reference context with results
 	Duration   int64                         // Search duration in ms
 	Error      error                         // Error if failed
 	SearchType string                        // "auto", "web", "kb", "db"
+}
+
+// keywordsToQuery converts keywords with weights to a search query string
+// Keywords are sorted by weight (descending) and joined with spaces
+func keywordsToQuery(keywords []searchTypes.Keyword) string {
+	if len(keywords) == 0 {
+		return ""
+	}
+
+	// Sort by weight descending (higher weight first)
+	sorted := make([]searchTypes.Keyword, len(keywords))
+	copy(sorted, keywords)
+	for i := 0; i < len(sorted)-1; i++ {
+		for j := i + 1; j < len(sorted); j++ {
+			if sorted[j].W > sorted[i].W {
+				sorted[i], sorted[j] = sorted[j], sorted[i]
+			}
+		}
+	}
+
+	// Join keywords
+	parts := make([]string, len(sorted))
+	for i, kw := range sorted {
+		parts[i] = kw.K
+	}
+	return strings.Join(parts, " ")
+}
+
+// keywordsToStrings converts keywords to string slice for storage
+func keywordsToStrings(keywords []searchTypes.Keyword) []string {
+	if len(keywords) == 0 {
+		return nil
+	}
+	result := make([]string, len(keywords))
+	for i, kw := range keywords {
+		result[i] = kw.K
+	}
+	return result
+}
+
+// containsSearchType checks if a search type is in the list
+func containsSearchType(types []string, searchType string) bool {
+	for _, t := range types {
+		if t == searchType {
+			return true
+		}
+	}
+	return false
 }
 
 // saveSearch saves search results to storage
@@ -732,7 +993,7 @@ func (ast *Assistant) saveSearch(ctx *context.Context, execResult *SearchExecuti
 		RequestID: ctx.RequestID(),
 		ChatID:    ctx.ChatID,
 		Query:     execResult.Query,
-		Keywords:  execResult.Keywords,
+		Keywords:  keywordsToStrings(execResult.Keywords),
 		Config:    execResult.Config,
 		Source:    execResult.SearchType,
 		Duration:  execResult.Duration,

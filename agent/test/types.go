@@ -205,7 +205,12 @@ type Case struct {
 	TeamID string `json:"team,omitempty"`
 
 	// Metadata contains additional metadata for the test case
+	// This is passed to ctx.Metadata and can be used by Create Hook
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+
+	// Options contains context options for this test case
+	// Supports: connector, skip (history, trace, output, keyword, search), mode
+	Options *CaseOptions `json:"options,omitempty"`
 
 	// Skip indicates whether to skip this test case
 	Skip bool `json:"skip,omitempty"`
@@ -213,6 +218,38 @@ type Case struct {
 	// Timeout overrides the default timeout for this test case
 	// Format: "30s", "1m", "2m30s"
 	Timeout string `json:"timeout,omitempty"`
+}
+
+// CaseOptions represents per-test-case context options
+// Maps to context.Options fields
+type CaseOptions struct {
+	// Connector overrides the agent's default connector
+	Connector string `json:"connector,omitempty"`
+
+	// Skip configuration
+	Skip *CaseSkipOptions `json:"skip,omitempty"`
+
+	// DisableGlobalPrompts temporarily disables global prompts for this request
+	DisableGlobalPrompts bool `json:"disable_global_prompts,omitempty"`
+
+	// Search mode, default is true (use pointer to distinguish unset from false)
+	Search *bool `json:"search,omitempty"`
+
+	// Mode is the agent mode (default: "chat")
+	Mode string `json:"mode,omitempty"`
+
+	// Metadata for passing custom data to hooks (e.g., scenario selection)
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// CaseSkipOptions represents skip configuration for a test case
+// Maps to context.Skip fields
+type CaseSkipOptions struct {
+	History bool `json:"history,omitempty"` // Skip history loading
+	Trace   bool `json:"trace,omitempty"`   // Skip trace logging
+	Output  bool `json:"output,omitempty"`  // Skip output to client
+	Keyword bool `json:"keyword,omitempty"` // Skip keyword extraction
+	Search  bool `json:"search,omitempty"`  // Skip auto search
 }
 
 // Assertion represents a single assertion rule
@@ -333,6 +370,9 @@ type Result struct {
 
 	// Error contains the error message if status is failed/error/timeout
 	Error string `json:"error,omitempty"`
+
+	// Options contains the context options used for this test case
+	Options *CaseOptions `json:"options,omitempty"`
 
 	// Metadata contains additional result metadata
 	Metadata map[string]interface{} `json:"metadata,omitempty"`

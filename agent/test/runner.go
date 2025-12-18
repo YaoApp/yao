@@ -64,15 +64,8 @@ func (r *Executor) RunDirect() (*Report, error) {
 	ctx := NewTestContextFromOptions(chatID, agentInfo.ID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set options: skip history (input already contains conversation), connector override
-	opts := &context.Options{
-		Skip: &context.Skip{
-			History: true, // Skip history loading - input already contains full conversation
-		},
-	}
-	if r.opts.Connector != "" {
-		opts.Connector = r.opts.Connector
-	}
+	// Build context options
+	opts := buildContextOptions(tc, r.opts)
 
 	// Create timeout context
 	timeout := tc.GetTimeout(r.opts.Timeout)
@@ -103,12 +96,19 @@ func (r *Executor) RunDirect() (*Report, error) {
 	output := extractOutput(response)
 	r.output.DirectOutput(output)
 
+	// Determine connector: user-specified > agent default
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
 	// Return minimal report (for exit code handling)
 	return &Report{
 		Summary: &Summary{
-			Total:   1,
-			Passed:  1,
-			AgentID: agentInfo.ID,
+			Total:     1,
+			Passed:    1,
+			AgentID:   agentInfo.ID,
+			Connector: connector,
 		},
 	}, nil
 }
@@ -165,13 +165,19 @@ func (r *Executor) RunTests() (*Report, error) {
 		return nil, fmt.Errorf("failed to get assistant: %w", err)
 	}
 
+	// Determine connector: user-specified > agent default
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
 	// Create report
 	report := &Report{
 		Summary: &Summary{
 			Total:       len(testCases),
 			AgentID:     agentInfo.ID,
 			AgentPath:   agentInfo.Path,
-			Connector:   r.opts.Connector,
+			Connector:   connector,
 			RunsPerCase: r.opts.Runs,
 		},
 		Environment: NewEnvironment(r.opts.UserID, r.opts.TeamID),
@@ -279,6 +285,7 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		ID:       tc.ID,
 		Input:    tc.Input,
 		Expected: tc.Expected,
+		Options:  tc.Options,
 	}
 
 	// Parse input to messages
@@ -297,15 +304,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	ctx := NewTestContextFromOptions(chatID, agentID, r.opts, tc)
 	defer ctx.Release()
 
-	// Set options: skip history (input already contains conversation), connector override
-	opts := &context.Options{
-		Skip: &context.Skip{
-			History: true, // Skip history loading - input already contains full conversation
-		},
-	}
-	if r.opts.Connector != "" {
-		opts.Connector = r.opts.Connector
-	}
+	// Build context options from test case and runner options
+	opts := buildContextOptions(tc, r.opts)
 
 	// Create timeout context
 	timeout := tc.GetTimeout(r.opts.Timeout)
@@ -477,23 +477,96 @@ func writeJSONLine(writer *bufio.Writer, data interface{}) error {
 	return err
 }
 
+// buildContextOptions builds context.Options from test case and runner options
+// Priority: test case options > runner options > defaults
+func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true, // Default: skip history loading - input already contains full conversation
+		},
+	}
+
+	// Apply test case options if specified
+	if tc.Options != nil {
+		// Connector: test case > runner
+		if tc.Options.Connector != "" {
+			opts.Connector = tc.Options.Connector
+		}
+
+		// Mode
+		if tc.Options.Mode != "" {
+			opts.Mode = tc.Options.Mode
+		}
+
+		// DisableGlobalPrompts
+		if tc.Options.DisableGlobalPrompts {
+			opts.DisableGlobalPrompts = true
+		}
+
+		// Search (pointer to distinguish unset from false)
+		if tc.Options.Search != nil {
+			opts.Search = tc.Options.Search
+		}
+
+		// Metadata for hooks
+		if tc.Options.Metadata != nil {
+			opts.Metadata = tc.Options.Metadata
+		}
+
+		// Skip options from test case
+		if tc.Options.Skip != nil {
+			opts.Skip.Trace = tc.Options.Skip.Trace
+			opts.Skip.Output = tc.Options.Skip.Output
+			opts.Skip.Keyword = tc.Options.Skip.Keyword
+			opts.Skip.Search = tc.Options.Skip.Search
+			// Note: History defaults to true for tests
+		}
+	}
+
+	// Runner connector override (highest priority)
+	if runnerOpts != nil && runnerOpts.Connector != "" {
+		opts.Connector = runnerOpts.Connector
+	}
+
+	return opts
+}
+
 // extractOutput extracts the output from the agent response
-func extractOutput(response interface{}) interface{} {
+// Priority: Next hook data (if non-empty) > Completion content > nil
+func extractOutput(response *context.Response) interface{} {
 	if response == nil {
 		return nil
 	}
 
-	// Try to get completion content from context.Response
-	if resp, ok := response.(*context.Response); ok {
-		if resp.Completion != nil {
-			return resp.Completion.Content
-		}
-		if resp.Next != nil {
-			return resp.Next
-		}
+	// Prefer Next hook data if available and non-empty
+	// response.Next is already the Data value (not NextHookResponse struct)
+	if response.Next != nil && !isEmptyValue(response.Next) {
+		return response.Next
+	}
+	// Fall back to raw completion content
+	if response.Completion != nil {
+		return response.Completion.Content
 	}
 
-	return response
+	return nil
+}
+
+// isEmptyValue checks if a value is considered "empty" for output purposes
+func isEmptyValue(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+
+	switch val := v.(type) {
+	case string:
+		return val == ""
+	case map[string]interface{}:
+		return len(val) == 0
+	case []interface{}:
+		return len(val) == 0
+	}
+
+	return false
 }
 
 // validateOutput validates the actual output against expected

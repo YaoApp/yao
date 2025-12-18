@@ -42,10 +42,10 @@ func CallAgent(ctx *agentContext.Context, agentID string, message agentContext.M
 
 	// Extract text from agent response
 	// Two formats are supported:
-	// 1. Custom Hook response (from Next hook)
-	// 2. Standard Agent Stream response (LLM completion)
+	// 1. Custom Hook response (from Next hook) - response.Next
+	// 2. Standard Agent Stream response (LLM completion) - response.Completion
 
-	return extractTextFromAgentResponse(response)
+	return extractTextFromResponse(response)
 }
 
 // CallAgentWithFileInfo calls an agent to process content with file metadata
@@ -120,116 +120,63 @@ func CallAgentWithFileInfo(ctx *agentContext.Context, agentID string, message ag
 	return CallAgent(ctx, agentID, message)
 }
 
-// extractTextFromAgentResponse extracts text from agent response
-// Handles two main response formats from agent.Stream():
-//
-//  1. Standard Response (No Next Hook or Next Hook returns nil):
-//     Structure: { completion: { content: "text" | [...ContentPart] } }
-//     Action: Extract text from completion.content field
-//
-//  2. Next Hook Response with Custom Data:
-//     Structure: { next: <any data from Next hook> }
-//     Action:
-//     - If next is string → return directly
-//     - If next is map/object → JSON stringify and return
-//     - This preserves the complete custom data structure from the hook
+// extractTextFromResponse extracts text from agent response
+// Now that agent.Stream() returns *agentContext.Response directly,
+// we can access fields without type assertions or JSON conversion.
 //
 // Priority:
-//  1. Check for "next" field (custom hook data) → return complete data
-//  2. Check for "completion" field (standard LLM response) → extract text only
-//  3. Fallback to direct string or JSON stringify
-func extractTextFromAgentResponse(response interface{}) (string, error) {
+//  1. Check response.Next (custom hook data) → return complete data
+//  2. Check response.Completion (standard LLM response) → extract text only
+func extractTextFromResponse(response *agentContext.Response) (string, error) {
 	if response == nil {
 		return "", fmt.Errorf("agent returned nil response")
 	}
 
-	// First, try to convert to map if it's a struct
-	// agent.Stream() may return *agentContext.Response which needs to be converted
-	var responseMap map[string]interface{}
-
-	// Check if it's already a map
-	if rm, ok := response.(map[string]interface{}); ok {
-		responseMap = rm
-	} else {
-		// Try to marshal and unmarshal to convert struct to map
-		jsonBytes, err := jsoniter.Marshal(response)
-		if err != nil {
-			// If it's a plain string, return directly
-			if responseStr, ok := response.(string); ok {
-				return responseStr, nil
-			}
-			return "", fmt.Errorf("failed to serialize agent response: %w", err)
-		}
-
-		// Unmarshal to map
-		if err := jsoniter.Unmarshal(jsonBytes, &responseMap); err != nil {
-			// If unmarshal fails, return the JSON string
-			return string(jsonBytes), nil
-		}
-	}
-
-	// Priority 1: Check for "next" field (custom hook data)
-	// If Next hook returns custom data, it's stored in the "next" field
-	// Return the complete custom data structure (preserve hook's intent)
-	if next, hasNext := responseMap["next"]; hasNext && next != nil {
+	// Priority 1: Check Next field (custom hook data)
+	// If Next hook returns custom data, return the complete structure
+	if response.Next != nil {
 		// If next is a string, return directly
-		if nextStr, ok := next.(string); ok {
+		if nextStr, ok := response.Next.(string); ok {
 			return nextStr, nil
 		}
 		// Otherwise, JSON stringify to preserve complete structure
-		jsonBytes, err := jsoniter.Marshal(next)
+		jsonBytes, err := jsoniter.Marshal(response.Next)
 		if err != nil {
 			return "", fmt.Errorf("failed to serialize next hook data: %w", err)
 		}
 		return string(jsonBytes), nil
 	}
 
-	// Priority 2: Check for "completion" field (standard LLM response)
+	// Priority 2: Check Completion field (standard LLM response)
 	// Extract text content from the LLM completion
-	if completion, hasCompletion := responseMap["completion"]; hasCompletion && completion != nil {
-		if completionMap, ok := completion.(map[string]interface{}); ok {
-			// Extract content from completion
-			if content, hasContent := completionMap["content"]; hasContent {
-				// Content can be string or []ContentPart (multimodal)
-				switch v := content.(type) {
-				case string:
-					// Simple text content
-					return v, nil
-				case []interface{}:
-					// Multimodal content array - extract all text parts
-					var text string
-					for _, part := range v {
-						if partMap, ok := part.(map[string]interface{}); ok {
-							if partType, _ := partMap["type"].(string); partType == "text" {
-								if textContent, ok := partMap["text"].(string); ok {
-									text += textContent
-								}
-							}
+	if response.Completion != nil {
+		// Content can be string or []ContentPart (multimodal)
+		switch v := response.Completion.Content.(type) {
+		case string:
+			// Simple text content
+			return v, nil
+		case []interface{}:
+			// Multimodal content array - extract all text parts
+			var text string
+			for _, part := range v {
+				if partMap, ok := part.(map[string]interface{}); ok {
+					if partType, _ := partMap["type"].(string); partType == "text" {
+						if textContent, ok := partMap["text"].(string); ok {
+							text += textContent
 						}
 					}
-					if text != "" {
-						return text, nil
-					}
-					// No text found in content parts
-					return "", fmt.Errorf("no text content found in completion content parts")
 				}
 			}
+			if text != "" {
+				return text, nil
+			}
+			// No text found in content parts
+			return "", fmt.Errorf("no text content found in completion content parts")
 		}
 	}
 
-	// Fallback: Try to find a "content" field directly (shouldn't happen normally)
-	if content, hasContent := responseMap["content"]; hasContent {
-		if contentStr, ok := content.(string); ok {
-			return contentStr, nil
-		}
-	}
-
-	// Last resort: JSON stringify the entire response
-	jsonBytes, err := jsoniter.Marshal(response)
-	if err != nil {
-		return "", fmt.Errorf("failed to serialize agent response: %w", err)
-	}
-	return string(jsonBytes), nil
+	// No content found
+	return "", fmt.Errorf("no content found in agent response")
 }
 
 // CallMCPTool calls an MCP tool to process content

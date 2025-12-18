@@ -110,9 +110,57 @@ Each line is a JSON object:
 | `expected` | any                            | No       | Expected output (exact match)  |
 | `user`     | string                         | No       | Override user ID               |
 | `team`     | string                         | No       | Override team ID               |
+| `options`  | Options                        | No       | Context options (see below)    |
 | `timeout`  | string                         | No       | Override timeout (e.g., "30s") |
 | `skip`     | bool                           | No       | Skip this test                 |
 | `metadata` | map                            | No       | Additional metadata            |
+
+### Options
+
+The `options` field allows per-test-case configuration that maps to `context.Options`:
+
+| Field                    | Type    | Description                                        |
+| ------------------------ | ------- | -------------------------------------------------- |
+| `connector`              | string  | Override connector (e.g., `"deepseek.v3"`)         |
+| `mode`                   | string  | Agent mode (default: `"chat"`)                     |
+| `search`                 | bool    | Enable/disable search mode (default: `true`)       |
+| `disable_global_prompts` | bool    | Temporarily disable global prompts                 |
+| `metadata`               | map     | Custom data passed to hooks (e.g., scenario)       |
+| `skip`                   | object  | Skip configuration (see below)                     |
+
+#### Options.skip
+
+| Field     | Type | Description              |
+| --------- | ---- | ------------------------ |
+| `history` | bool | Skip history loading     |
+| `trace`   | bool | Skip trace logging       |
+| `output`  | bool | Skip output to client    |
+| `keyword` | bool | Skip keyword extraction  |
+| `search`  | bool | Skip auto search         |
+
+**Example with options:**
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Query users with status active",
+  "options": {
+    "connector": "deepseek.v3",
+    "metadata": {"scenario": "filter"},
+    "skip": {"trace": true}
+  },
+  "assert": {"type": "json_path", "path": "from", "value": "users"}
+}
+```
+
+**Using metadata for hook scenarios:**
+
+The `options.metadata` field is passed to agent hooks. For example, a Create Hook can read `options.metadata.scenario` to select different prompt presets:
+
+```jsonl
+{"id": "T001", "input": "...", "options": {"metadata": {"scenario": "aggregation"}}}
+{"id": "T002", "input": "...", "options": {"metadata": {"scenario": "join"}}}
+```
 
 ### Input Types
 
@@ -225,8 +273,27 @@ return { pass: true, message: "Validation passed" };
 ### JSON Path Notes
 
 - Supports dot-notation: `$.field.subfield` or `field.subfield`
+- Supports array indexing: `field[0]`, `field[0].subfield`, `field[0].nested[1]`
+- Supports multiple expected values (OR logic): `"value": ["a", "b"]` - passes if actual matches any
 - Auto-extracts JSON from markdown code blocks (` ```json ... ``` `)
 - Works with both string output and structured objects
+
+**Array index examples:**
+
+```jsonl
+{"id": "T001", "assert": {"type": "json_path", "path": "wheres[0].like", "value": "%test%"}}
+{"id": "T002", "assert": {"type": "json_path", "path": "wheres[0].in[0]", "value": "pending"}}
+{"id": "T003", "assert": {"type": "json_path", "path": "joins[0].from", "value": "users"}}
+{"id": "T004", "assert": {"type": "json_path", "path": "groups[0]", "value": "category"}}
+```
+
+**Multiple expected values (OR logic):**
+
+```jsonl
+{"id": "T005", "assert": {"type": "json_path", "path": "error", "value": ["missing_schema", "missing_query"]}}
+```
+
+This passes if `error` equals either `"missing_schema"` or `"missing_query"`.
 
 ## Output Formats
 

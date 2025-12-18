@@ -150,46 +150,20 @@ func (p *AgentProvider) Search(ctx *agentContext.Context, req *types.Request) (*
 	}, nil
 }
 
-// parseAgentResponse parses the agent response into search result items
-// The agent should return a JSON structure with search results
-func (p *AgentProvider) parseAgentResponse(response interface{}, source types.SourceType) ([]*types.ResultItem, int, string) {
-	if response == nil {
+// parseAgentResponse parses the agent's *context.Response into search result items
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+//
+// The agent returns search results in response.Next field
+func (p *AgentProvider) parseAgentResponse(response *agentContext.Response, source types.SourceType) ([]*types.ResultItem, int, string) {
+	if response == nil || response.Next == nil {
 		return nil, 0, "Agent returned nil response"
 	}
 
-	// Try to extract data from response
-	var data map[string]interface{}
-
-	// Handle different response types
-	switch v := response.(type) {
-	case map[string]interface{}:
-		data = v
-	case string:
-		// Try to parse as JSON
-		if err := json.Unmarshal([]byte(v), &data); err != nil {
-			return nil, 0, fmt.Sprintf("Failed to parse agent response as JSON: %v", err)
-		}
-	default:
-		// Try to marshal and unmarshal
-		jsonBytes, err := json.Marshal(response)
-		if err != nil {
-			return nil, 0, fmt.Sprintf("Failed to serialize agent response: %v", err)
-		}
-		if err := json.Unmarshal(jsonBytes, &data); err != nil {
-			return nil, 0, fmt.Sprintf("Failed to parse agent response: %v", err)
-		}
-	}
-
-	// Check for "next" field (custom hook data)
-	if next, hasNext := data["next"]; hasNext && next != nil {
-		if nextMap, ok := next.(map[string]interface{}); ok {
-			data = nextMap
-		} else if nextStr, ok := next.(string); ok {
-			// Try to parse as JSON
-			if err := json.Unmarshal([]byte(nextStr), &data); err != nil {
-				return nil, 0, fmt.Sprintf("Failed to parse next hook data: %v", err)
-			}
-		}
+	// Extract data from Next field
+	data := extractNextData(response.Next)
+	if data == nil {
+		return nil, 0, "Failed to extract data from agent response"
 	}
 
 	// Extract items from data
@@ -229,4 +203,35 @@ func (p *AgentProvider) parseAgentResponse(response interface{}, source types.So
 	}
 
 	return items, total, ""
+}
+
+// extractNextData extracts the actual data from response.Next field
+// Handles nested structures like { "data": { ... } }
+func extractNextData(next interface{}) map[string]interface{} {
+	if next == nil {
+		return nil
+	}
+
+	switch v := next.(type) {
+	case map[string]interface{}:
+		// Check for "data" wrapper
+		if data, ok := v["data"].(map[string]interface{}); ok {
+			return data
+		}
+		return v
+	case string:
+		// Try to parse as JSON
+		var data map[string]interface{}
+		if err := json.Unmarshal([]byte(v), &data); err == nil {
+			return extractNextData(data)
+		}
+	}
+	// Try to handle other types by converting to JSON and back
+	if bytes, err := json.Marshal(next); err == nil {
+		var data map[string]interface{}
+		if err := json.Unmarshal(bytes, &data); err == nil {
+			return extractNextData(data)
+		}
+	}
+	return nil
 }

@@ -266,6 +266,15 @@ type Context struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // The metadata of the request, it will be used to pass data to the page
 }
 
+// SearchIntent represents the result of search intent detection
+// Used by Create hook to specify fine-grained search behavior
+type SearchIntent struct {
+	NeedSearch  bool     `json:"need_search"`            // Whether search is needed
+	SearchTypes []string `json:"search_types,omitempty"` // Types of search to perform: "web", "kb", "db"
+	Confidence  float64  `json:"confidence,omitempty"`   // Confidence level (0-1)
+	Reason      string   `json:"reason,omitempty"`       // Reason for the decision
+}
+
 // Options represents the options for the context
 type Options struct {
 
@@ -284,11 +293,17 @@ type Options struct {
 	// Disable global prompts, default is false
 	DisableGlobalPrompts bool `json:"disable_global_prompts,omitempty"` // Temporarily disable global prompts for this request
 
-	// Search mode, default is true
-	Search *bool `json:"search,omitempty"` // Search mode, default is true
+	// Search controls search behavior, supports multiple types:
+	// - bool: true = enable all search types, false = disable all search
+	// - SearchIntent: fine-grained control with specific types, confidence, etc.
+	// - nil: use default behavior (determined by __yao.needsearch agent)
+	Search any `json:"search,omitempty"` // Search mode: bool | SearchIntent | nil
 
 	// Agent mode, use to select the mode of the request, default is "chat"
 	Mode string `json:"mode,omitempty"` // Agent mode, use to select the mode of the request, default is "chat"
+
+	// Metadata for passing custom data to hooks (e.g., scenario selection)
+	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks
 }
 
 // Stack represents the call stack node for tracing agent-to-agent calls
@@ -369,6 +384,12 @@ type HookCreateResponse struct {
 
 	// ForceUses controls whether to force using Uses tools even when model has native capabilities
 	ForceUses *bool `json:"force_uses,omitempty"` // Force using Uses tools regardless of model capabilities
+
+	// Search controls search behavior, supports multiple types:
+	// - bool: true = enable all search types, false = disable all search
+	// - SearchIntent: fine-grained control with specific types, confidence, etc.
+	// - nil: use default behavior (determined by __yao.needsearch agent)
+	Search any `json:"search,omitempty"` // Search mode: bool | SearchIntent | nil
 }
 
 // NextHookPayload payload for the next hook

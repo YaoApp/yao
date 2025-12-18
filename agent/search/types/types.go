@@ -14,6 +14,17 @@ const (
 	SearchTypeDB  SearchType = "db"  // Database search (Yao Model/QueryDSL)
 )
 
+// ScenarioType represents the QueryDSL generation scenario
+type ScenarioType string
+
+// ScenarioType constants for QueryDSL generation
+const (
+	ScenarioFilter      ScenarioType = "filter"      // Simple filtering queries
+	ScenarioAggregation ScenarioType = "aggregation" // Aggregation/grouping queries
+	ScenarioJoin        ScenarioType = "join"        // Multi-table join queries
+	ScenarioComplex     ScenarioType = "complex"     // Complex queries combining multiple features
+)
+
 // SourceType represents where the search result came from
 type SourceType string
 
@@ -42,10 +53,11 @@ type Request struct {
 	Graph       bool     `json:"graph,omitempty"`       // Enable graph association
 
 	// Database search specific
-	Models []string    `json:"models,omitempty"` // Model IDs (e.g., "user", "agents.mybot.product")
-	Wheres []gou.Where `json:"wheres,omitempty"` // Pre-defined filters (optional), uses GOU QueryDSL Where
-	Orders gou.Orders  `json:"orders,omitempty"` // Sort orders (optional), uses GOU QueryDSL Orders
-	Select []string    `json:"select,omitempty"` // Fields to return (optional)
+	Models   []string     `json:"models,omitempty"`   // Model IDs (e.g., "user", "agents.mybot.product")
+	Scenario ScenarioType `json:"scenario,omitempty"` // QueryDSL scenario: "filter", "aggregation", "join", "complex"
+	Wheres   []gou.Where  `json:"wheres,omitempty"`   // Pre-defined filters (optional), uses GOU QueryDSL Where
+	Orders   gou.Orders   `json:"orders,omitempty"`   // Sort orders (optional), uses GOU QueryDSL Orders
+	Select   []string     `json:"select,omitempty"`   // Fields to return (optional)
 
 	// Reranking
 	Rerank *RerankOptions `json:"rerank,omitempty"`
@@ -106,6 +118,12 @@ type ProcessedQuery struct {
 	Keywords []string      `json:"keywords,omitempty"` // For web search
 	Vector   []float32     `json:"vector,omitempty"`   // For KB search
 	DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
+}
+
+// Keyword represents an extracted keyword with weight
+type Keyword struct {
+	K string  `json:"k"` // Keyword text
+	W float64 `json:"w"` // Weight (0.1-1.0), higher means more relevant
 }
 
 // Note: For QueryDSL and Model types, use GOU types directly:

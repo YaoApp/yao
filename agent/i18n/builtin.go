@@ -112,6 +112,10 @@ func init() {
 			"search.intent.need_search": "Searching for references...",
 			"search.intent.no_search":   "No references needed",
 
+			// Keyword Extraction: assistant/search.go - Keyword extraction messages
+			"search.keyword.loading": "Analyzing conversation...",
+			"search.keyword.done":    "Analysis complete",
+
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "Search",
 			"search.trace.description":     "Search the web and knowledge base for relevant information",
@@ -200,6 +204,10 @@ func init() {
 			"search.intent.loading":     "检查是否需要查询资料...",
 			"search.intent.need_search": "正在查询相关资料...",
 			"search.intent.no_search":   "无需查询资料",
+
+			// Keyword Extraction: assistant/search.go - Keyword extraction messages
+			"search.keyword.loading": "正在分析对话内容...",
+			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "搜索",
@@ -317,6 +325,10 @@ func init() {
 			"search.intent.loading":     "检查是否需要查询资料...",
 			"search.intent.need_search": "正在查询相关资料...",
 			"search.intent.no_search":   "无需查询资料",
+
+			// Keyword Extraction: assistant/search.go - Keyword extraction messages
+			"search.keyword.loading": "正在分析对话内容...",
+			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
 			"search.trace.label":           "搜索",

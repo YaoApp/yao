@@ -637,11 +637,25 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	errorDetected := false
 
 	// Wrap streamHandler to detect JSON error responses
+	// Note: API error responses are raw JSON without "data: " prefix
+	// Normal SSE data always starts with "data: " prefix
 	wrappedHandler := func(data []byte) int {
 		dataStr := string(data)
+		trimmed := strings.TrimSpace(dataStr)
 
-		// Detect if this looks like a JSON error response (starts with "{" or contains "error")
-		if strings.Contains(dataStr, `"error"`) || (strings.TrimSpace(dataStr) == "{" && !errorDetected) {
+		// Skip empty lines
+		if trimmed == "" {
+			return http.HandlerReturnOk
+		}
+
+		// Normal SSE data starts with "data: " - pass to streamHandler
+		if strings.HasPrefix(dataStr, "data: ") {
+			return streamHandler(data)
+		}
+
+		// Detect if this looks like a JSON error response (raw JSON without "data: " prefix)
+		// API errors are returned as raw JSON: {"error": {...}}
+		if strings.HasPrefix(trimmed, "{") && strings.Contains(dataStr, `"error"`) {
 			errorDetected = true
 		}
 
@@ -652,7 +666,7 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 			return http.HandlerReturnOk
 		}
 
-		// Otherwise, use normal handler
+		// Unknown format, pass to streamHandler (it will skip non-SSE data)
 		return streamHandler(data)
 	}
 
