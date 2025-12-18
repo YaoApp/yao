@@ -60,8 +60,14 @@ func (s *Searcher) Search(ctx *context.Context, req *types.Request) (*types.Resu
 		return &types.Result{Error: "unsupported search type"}, nil
 	}
 
-	// Execute search
-	result, err := handler.Search(req)
+	// Execute search - use context if handler supports it
+	var result *types.Result
+	var err error
+	if ctxHandler, ok := handler.(interfaces.ContextHandler); ok {
+		result, err = ctxHandler.SearchWithContext(ctx, req)
+	} else {
+		result, err = handler.Search(req)
+	}
 	if err != nil {
 		return &types.Result{Error: err.Error()}, nil
 	}

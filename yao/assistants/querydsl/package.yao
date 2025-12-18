@@ -1,7 +1,6 @@
 {
   "name": "Query Builder",
   "description": "Build database queries",
-  "connector": "deepseek.v3",
   "type": "worker",
   "uses": { "search": "disabled" },
   "options": {

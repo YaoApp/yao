@@ -3,9 +3,12 @@ package testutils
 import (
 	"testing"
 
+	_ "github.com/yaoapp/gou/encoding"
+	_ "github.com/yaoapp/gou/text"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
+	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -17,8 +20,14 @@ import (
 func Prepare(t *testing.T, opts ...interface{}) {
 	test.Prepare(t, config.Conf, opts...)
 
+	// Load Query Engine (required for DB search)
+	err := query.Load(config.Conf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	// Load KB (required for agent KB features)
-	_, err := kb.Load(config.Conf)
+	_, err = kb.Load(config.Conf)
 	if err != nil {
 		t.Fatal(err)
 	}

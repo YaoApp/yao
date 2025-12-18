@@ -45,15 +45,14 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 	var lastLintErrors string
 
 	for attempt := 1; attempt <= MaxRetries; attempt++ {
-		// Build the request message
-		requestData := p.buildRequestData(input, attempt, lastLintErrors)
-		requestJSON, _ := json.Marshal(requestData)
+		// Build the request message in the format expected by querydsl agent
+		requestMessage := p.buildRequestMessage(input, attempt, lastLintErrors)
 
 		// Create message for the agent
 		messages := []agentContext.Message{
 			{
 				Role:    "user",
-				Content: string(requestJSON),
+				Content: requestMessage,
 			},
 		}
 
@@ -103,38 +102,36 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 	return nil, fmt.Errorf("QueryDSL generation failed after %d attempts: %w", MaxRetries, lastError)
 }
 
-// buildRequestData constructs the request data for the agent
-func (p *AgentProvider) buildRequestData(input *Input, attempt int, lastLintErrors string) map[string]interface{} {
-	requestData := map[string]interface{}{
-		"query":  input.Query,
-		"models": input.ModelIDs,
-		"limit":  input.Limit,
+// buildRequestMessage constructs the request message for the agent
+// Format follows the querydsl agent prompts.yml:
+// "用户查询\nSchema:\n{schema JSON}"
+func (p *AgentProvider) buildRequestMessage(input *Input, attempt int, lastLintErrors string) string {
+	// Build schema from extra params if provided
+	var schemaJSON string
+	if input.ExtraParams != nil {
+		if schema, ok := input.ExtraParams["schema"]; ok {
+			schemaBytes, _ := json.Marshal(schema)
+			schemaJSON = string(schemaBytes)
+		}
 	}
 
-	// Add optional fields
-	if len(input.Wheres) > 0 {
-		requestData["wheres"] = input.Wheres
+	// Build message in the expected format
+	message := input.Query
+	if schemaJSON != "" {
+		message = fmt.Sprintf("%s\nSchema:\n%s", input.Query, schemaJSON)
 	}
-	if len(input.Orders) > 0 {
-		requestData["orders"] = input.Orders
-	}
-	if len(input.AllowedFields) > 0 {
-		requestData["allowed_fields"] = input.AllowedFields
-	}
-	if len(input.ExtraParams) > 0 {
-		requestData["extra"] = input.ExtraParams
+
+	// Add scenario hint if specified (filter, aggregation, join, complex)
+	if input.Scenario != "" {
+		message = fmt.Sprintf("%s\nScenario: %s", message, input.Scenario)
 	}
 
 	// Add retry context if this is a retry attempt
 	if attempt > 1 && lastLintErrors != "" {
-		requestData["retry"] = map[string]interface{}{
-			"attempt":      attempt,
-			"lint_errors":  lastLintErrors,
-			"instructions": "The previous QueryDSL was invalid. Please fix the errors and regenerate.",
-		}
+		message = fmt.Sprintf("%s\n\nPrevious attempt failed with errors:\n%s\n\nPlease fix the errors and regenerate.", message, lastLintErrors)
 	}
 
-	return requestData
+	return message
 }
 
 // validateDSL validates the generated QueryDSL using the linter
@@ -151,14 +148,25 @@ func (p *AgentProvider) validateDSL(dsl *gou.QueryDSL) *linter.LintResult {
 }
 
 // parseResult extracts QueryDSL from the agent's response
-// The agent should return data in NextHookResponse format: { data: { dsl: {...}, explain: "..." } }
-// The Stream() response wraps this in: { next: { data: { dsl: {...} } } }
+// The querydsl agent returns QueryDSL JSON directly (not wrapped in {dsl: ...})
+// Or returns error JSON: {"error": "code", "message": "..."}
+// Stream() returns *context.Response with QueryDSL in "next" field
 func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 	if result == nil {
 		return &Result{}, nil
 	}
 
-	// Try to convert to map first (most common case)
+	// Handle *context.Response directly (most common case from Stream())
+	if resp, ok := result.(*agentContext.Response); ok {
+		genResult := &Result{}
+		if resp.Next != nil {
+			// Next contains the QueryDSL from hook
+			genResult.DSL = p.extractDSL(resp.Next)
+		}
+		return genResult, nil
+	}
+
+	// Try to convert to map first
 	var data map[string]interface{}
 
 	switch v := result.(type) {
@@ -180,21 +188,79 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 		}
 	}
 
-	// Check for "next" field (custom hook data from NextHookResponse)
-	// Stream() returns: { next: { data: { dsl: {...} } } }
-	if next, hasNext := data["next"]; hasNext && next != nil {
-		if nextMap, ok := next.(map[string]interface{}); ok {
-			data = nextMap
-		} else if nextStr, ok := next.(string); ok {
-			if err := json.Unmarshal([]byte(nextStr), &data); err != nil {
-				return &Result{}, nil
+	genResult := &Result{}
+
+	// Check for Stream() wrapper: { content: "...", next: {...} }
+	// The actual response is in "content" field as a string
+	if content, hasContent := data["content"]; hasContent && content != nil {
+		if contentStr, ok := content.(string); ok && contentStr != "" {
+			// Parse the content string as JSON
+			var contentData map[string]interface{}
+			if err := json.Unmarshal([]byte(contentStr), &contentData); err == nil {
+				data = contentData
 			}
 		}
 	}
 
-	// Extract QueryDSL from data
-	// Try common field names: "dsl", "data", "data.dsl"
-	genResult := &Result{}
+	// Check for error response: {"error": "code", "message": "..."}
+	if errCode, hasError := data["error"]; hasError {
+		errMsg := ""
+		if msg, ok := data["message"].(string); ok {
+			errMsg = msg
+		}
+		return nil, fmt.Errorf("QueryDSL generation error [%v]: %s", errCode, errMsg)
+	}
+
+	// Check if this is a direct QueryDSL (has "from" or "select" field)
+	// The querydsl agent returns QueryDSL directly, e.g., {"select": [...], "from": "table", ...}
+	if _, hasFrom := data["from"]; hasFrom {
+		genResult.DSL = p.extractDSL(data)
+		return genResult, nil
+	}
+	if _, hasSelect := data["select"]; hasSelect {
+		genResult.DSL = p.extractDSL(data)
+		return genResult, nil
+	}
+
+	// Fallback: check for wrapped formats
+	// Check for "next" field (custom hook data from NextHookResponse)
+	if next, hasNext := data["next"]; hasNext && next != nil {
+		if nextMap, ok := next.(map[string]interface{}); ok {
+			data = nextMap
+		} else if nextStr, ok := next.(string); ok {
+			if err := json.Unmarshal([]byte(nextStr), &data); err == nil {
+				// Check if parsed data is a QueryDSL
+				if _, hasFrom := data["from"]; hasFrom {
+					genResult.DSL = p.extractDSL(data)
+					return genResult, nil
+				}
+			}
+		}
+	}
+
+	// Check for "dsl" field wrapper
+	if dsl, ok := data["dsl"]; ok {
+		genResult.DSL = p.extractDSL(dsl)
+	} else if d, ok := data["data"]; ok {
+		if dm, ok := d.(map[string]interface{}); ok {
+			// Check if data.data is a wrapped DSL: { dsl: {...} }
+			if dsl, ok := dm["dsl"]; ok {
+				genResult.DSL = p.extractDSL(dsl)
+			} else if _, hasFrom := dm["from"]; hasFrom {
+				// data.data is directly a QueryDSL (from __yao.querydsl Next hook)
+				genResult.DSL = p.extractDSL(dm)
+			} else if _, hasSelect := dm["select"]; hasSelect {
+				// data.data is directly a QueryDSL
+				genResult.DSL = p.extractDSL(dm)
+			}
+			if explain, ok := dm["explain"].(string); ok {
+				genResult.Explain = explain
+			}
+			if warnings, ok := dm["warnings"]; ok {
+				genResult.Warnings = p.extractWarnings(warnings)
+			}
+		}
+	}
 
 	// Get explain if present
 	if explain, ok := data["explain"].(string); ok {
@@ -204,23 +270,6 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 	// Get warnings if present
 	if warnings, ok := data["warnings"]; ok {
 		genResult.Warnings = p.extractWarnings(warnings)
-	}
-
-	// Get DSL
-	if dsl, ok := data["dsl"]; ok {
-		genResult.DSL = p.extractDSL(dsl)
-	} else if d, ok := data["data"]; ok {
-		if dm, ok := d.(map[string]interface{}); ok {
-			if dsl, ok := dm["dsl"]; ok {
-				genResult.DSL = p.extractDSL(dsl)
-			}
-			if explain, ok := dm["explain"].(string); ok {
-				genResult.Explain = explain
-			}
-			if warnings, ok := dm["warnings"]; ok {
-				genResult.Warnings = p.extractWarnings(warnings)
-			}
-		}
 	}
 
 	return genResult, nil
