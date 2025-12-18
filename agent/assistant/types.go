@@ -85,6 +85,10 @@ type NextProcessContext struct {
 	CreateResponse     *chatctx.HookCreateResponse // Create hook response
 }
 
+// SearchIntent is an alias for context.SearchIntent
+// Used for search intent detection from __yao.needsearch agent
+type SearchIntent = chatctx.SearchIntent
+
 // ParsedContent extracts the actual tool return value from MCP ToolContent array
 // According to MCP protocol:
 // - Content is []ToolContent array

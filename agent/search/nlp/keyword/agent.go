@@ -23,8 +23,8 @@ func NewAgentProvider(agentID string) *AgentProvider {
 }
 
 // Extract extracts keywords by calling the target agent
-// The agent receives the content and returns extracted keywords
-func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+// The agent receives the content and returns extracted keywords with weights
+func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context is required for agent keyword extraction")
 	}
@@ -77,19 +77,20 @@ func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts 
 // Now that agent.Stream() returns *context.Response directly,
 // we can access fields without type assertions.
 //
-// The agent returns keywords in response.Next field
-func (p *AgentProvider) parseResponse(response *agentContext.Response) ([]string, error) {
+// The agent returns keywords in response.Next field as {data: {keywords: [{k, w}, ...]}}
+func (p *AgentProvider) parseResponse(response *agentContext.Response) ([]types.Keyword, error) {
 	if response == nil || response.Next == nil {
-		return []string{}, nil
+		return []types.Keyword{}, nil
 	}
 
 	return p.parseNextData(response.Next)
 }
 
 // parseNextData extracts keywords from Next hook data
-func (p *AgentProvider) parseNextData(next interface{}) ([]string, error) {
+// Expected format: {data: {keywords: [{k: "keyword", w: 0.9}, ...]}}
+func (p *AgentProvider) parseNextData(next interface{}) ([]types.Keyword, error) {
 	if next == nil {
-		return []string{}, nil
+		return []types.Keyword{}, nil
 	}
 
 	// Try to convert to map first (most common case)
@@ -101,32 +102,26 @@ func (p *AgentProvider) parseNextData(next interface{}) ([]string, error) {
 	case string:
 		// Try to parse as JSON
 		if err := json.Unmarshal([]byte(v), &data); err != nil {
-			// Not a JSON object, try as array
-			var keywords []string
+			// Not a JSON object, try as array of keywords
+			var keywords []types.Keyword
 			if err := json.Unmarshal([]byte(v), &keywords); err == nil {
 				return keywords, nil
 			}
-			// Return as single keyword
-			return []string{v}, nil
+			// Return as single keyword with default weight
+			return []types.Keyword{{K: v, W: 0.5}}, nil
 		}
-	case []string:
+	case []types.Keyword:
 		return v, nil
 	case []interface{}:
-		keywords := make([]string, 0, len(v))
-		for _, item := range v {
-			if s, ok := item.(string); ok {
-				keywords = append(keywords, s)
-			}
-		}
-		return keywords, nil
+		return p.extractKeywordsFromArray(v)
 	default:
 		// Try to marshal and unmarshal
 		jsonBytes, err := json.Marshal(next)
 		if err != nil {
-			return []string{}, nil
+			return []types.Keyword{}, nil
 		}
 		if err := json.Unmarshal(jsonBytes, &data); err != nil {
-			return []string{}, nil
+			return []types.Keyword{}, nil
 		}
 	}
 
@@ -144,28 +139,48 @@ func (p *AgentProvider) parseNextData(next interface{}) ([]string, error) {
 		return p.extractKeywordsFromValue(d)
 	}
 
-	return []string{}, nil
+	return []types.Keyword{}, nil
 }
 
-// extractKeywordsFromValue extracts string array from various types
-func (p *AgentProvider) extractKeywordsFromValue(v interface{}) ([]string, error) {
+// extractKeywordsFromValue extracts Keyword array from various types
+func (p *AgentProvider) extractKeywordsFromValue(v interface{}) ([]types.Keyword, error) {
 	switch kw := v.(type) {
-	case []string:
+	case []types.Keyword:
 		return kw, nil
 	case []interface{}:
-		keywords := make([]string, 0, len(kw))
-		for _, item := range kw {
-			if s, ok := item.(string); ok {
-				keywords = append(keywords, s)
-			}
-		}
-		return keywords, nil
+		return p.extractKeywordsFromArray(kw)
 	case string:
-		var keywords []string
+		var keywords []types.Keyword
 		if err := json.Unmarshal([]byte(kw), &keywords); err == nil {
 			return keywords, nil
 		}
-		return []string{kw}, nil
+		return []types.Keyword{{K: kw, W: 0.5}}, nil
 	}
-	return []string{}, nil
+	return []types.Keyword{}, nil
+}
+
+// extractKeywordsFromArray extracts keywords from []interface{}
+// Handles both {k, w} objects and plain strings
+func (p *AgentProvider) extractKeywordsFromArray(items []interface{}) ([]types.Keyword, error) {
+	keywords := make([]types.Keyword, 0, len(items))
+	for _, item := range items {
+		switch v := item.(type) {
+		case map[string]interface{}:
+			// Handle {k: "keyword", w: 0.9} format
+			k, _ := v["k"].(string)
+			w, _ := v["w"].(float64)
+			if k != "" {
+				if w == 0 {
+					w = 0.5 // Default weight
+				}
+				keywords = append(keywords, types.Keyword{K: k, W: w})
+			}
+		case string:
+			// Plain string, use default weight
+			if v != "" {
+				keywords = append(keywords, types.Keyword{K: v, W: 0.5})
+			}
+		}
+	}
+	return keywords, nil
 }

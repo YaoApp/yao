@@ -16,7 +16,7 @@ func (opts *Options) ToMap() map[string]interface{} {
 		result["mode"] = opts.Mode
 	}
 	if opts.Search != nil {
-		result["search"] = *opts.Search
+		result["search"] = opts.Search
 	}
 	if opts.Skip != nil {
 		result["skip"] = opts.Skip
@@ -50,8 +50,9 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 	if mode, ok := m["mode"].(string); ok {
 		opts.Mode = mode
 	}
-	if search, ok := m["search"].(bool); ok {
-		opts.Search = &search
+	// Search supports: bool | SearchIntent | map[string]any | nil
+	if search := m["search"]; search != nil {
+		opts.Search = search
 	}
 	if skipMap, ok := m["skip"].(map[string]interface{}); ok {
 		skip := &Skip{}

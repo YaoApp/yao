@@ -205,8 +205,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// ================================================
 		// Execute Auto Search (if enabled)
 		// ================================================
-		if ast.shouldAutoSearch(ctx, completionMessages, createResponse, opts) {
-			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, opts)
+		if intent := ast.shouldAutoSearch(ctx, completionMessages, createResponse, opts); intent != nil {
+			refCtx := ast.executeAutoSearch(ctx, completionMessages, createResponse, intent, opts)
 			if refCtx != nil && len(refCtx.References) > 0 {
 				completionMessages = ast.injectSearchContext(completionMessages, refCtx)
 			}

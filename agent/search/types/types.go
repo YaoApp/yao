@@ -120,6 +120,12 @@ type ProcessedQuery struct {
 	DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
 }
 
+// Keyword represents an extracted keyword with weight
+type Keyword struct {
+	K string  `json:"k"` // Keyword text
+	W float64 `json:"w"` // Weight (0.1-1.0), higher means more relevant
+}
+
 // Note: For QueryDSL and Model types, use GOU types directly:
 // - github.com/yaoapp/gou/query/gou.QueryDSL
 // - github.com/yaoapp/gou/model.Model

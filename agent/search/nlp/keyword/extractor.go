@@ -34,8 +34,8 @@ func NewExtractor(usesKeyword string, cfg *types.KeywordConfig) *Extractor {
 }
 
 // Extract extracts keywords from content based on configured mode
-// Returns a list of keywords optimized for search queries
-func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+// Returns a list of keywords with weights optimized for search queries
+func (e *Extractor) Extract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	// Merge options with config defaults
 	mergedOpts := e.mergeOptions(opts)
 
@@ -83,7 +83,7 @@ func (e *Extractor) mergeOptions(opts *types.KeywordOptions) *types.KeywordOptio
 
 // agentExtract delegates to an LLM-powered assistant
 // The assistant can understand context and extract semantically relevant keywords
-func (e *Extractor) agentExtract(ctx *context.Context, content string, agentID string, opts *types.KeywordOptions) ([]string, error) {
+func (e *Extractor) agentExtract(ctx *context.Context, content string, agentID string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	if ctx == nil {
 		return nil, fmt.Errorf("context is required for keyword extraction")
 	}
@@ -93,7 +93,7 @@ func (e *Extractor) agentExtract(ctx *context.Context, content string, agentID s
 
 // mcpExtract calls an external MCP tool
 // Format: "mcp:<server>.<tool>"
-func (e *Extractor) mcpExtract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+func (e *Extractor) mcpExtract(ctx *context.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	mcpRef := strings.TrimPrefix(e.usesKeyword, "mcp:")
 	provider, err := NewMCPProvider(mcpRef)
 	if err != nil {

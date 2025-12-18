@@ -31,7 +31,7 @@ func NewMCPProvider(mcpRef string) (*MCPProvider, error) {
 }
 
 // Extract extracts keywords by calling the MCP tool
-func (p *MCPProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]string, error) {
+func (p *MCPProvider) Extract(ctx *agentContext.Context, content string, opts *types.KeywordOptions) ([]types.Keyword, error) {
 	// Get MCP client
 	client, err := mcp.Select(p.serverID)
 	if err != nil {
@@ -56,9 +56,9 @@ func (p *MCPProvider) Extract(ctx *agentContext.Context, content string, opts *t
 }
 
 // parseResult extracts keywords from the MCP tool response
-func (p *MCPProvider) parseResult(result *gouMCPTypes.CallToolResponse) ([]string, error) {
+func (p *MCPProvider) parseResult(result *gouMCPTypes.CallToolResponse) ([]types.Keyword, error) {
 	if result == nil {
-		return []string{}, nil
+		return []types.Keyword{}, nil
 	}
 
 	// Check for errors in result
@@ -72,7 +72,7 @@ func (p *MCPProvider) parseResult(result *gouMCPTypes.CallToolResponse) ([]strin
 
 	// Parse content - expect JSON data with "keywords" field
 	if len(result.Content) == 0 {
-		return []string{}, nil
+		return []types.Keyword{}, nil
 	}
 
 	// Try to extract keywords from content
@@ -88,36 +88,50 @@ func (p *MCPProvider) parseResult(result *gouMCPTypes.CallToolResponse) ([]strin
 				}
 			}
 
-			// Try to parse as direct array
-			var keywords []string
+			// Try to parse as direct array of keywords
+			var keywords []types.Keyword
 			if err := json.Unmarshal([]byte(content.Text), &keywords); err == nil {
 				return keywords, nil
 			}
 		}
 	}
 
-	return []string{}, nil
+	return []types.Keyword{}, nil
 }
 
-// extractKeywordsFromValue extracts string array from various types
-func (p *MCPProvider) extractKeywordsFromValue(v interface{}) ([]string, error) {
+// extractKeywordsFromValue extracts Keyword array from various types
+func (p *MCPProvider) extractKeywordsFromValue(v interface{}) ([]types.Keyword, error) {
 	switch kw := v.(type) {
-	case []string:
+	case []types.Keyword:
 		return kw, nil
 	case []interface{}:
-		keywords := make([]string, 0, len(kw))
+		keywords := make([]types.Keyword, 0, len(kw))
 		for _, item := range kw {
-			if s, ok := item.(string); ok {
-				keywords = append(keywords, s)
+			switch v := item.(type) {
+			case map[string]interface{}:
+				// Handle {k: "keyword", w: 0.9} format
+				k, _ := v["k"].(string)
+				w, _ := v["w"].(float64)
+				if k != "" {
+					if w == 0 {
+						w = 0.5 // Default weight
+					}
+					keywords = append(keywords, types.Keyword{K: k, W: w})
+				}
+			case string:
+				// Plain string, use default weight
+				if v != "" {
+					keywords = append(keywords, types.Keyword{K: v, W: 0.5})
+				}
 			}
 		}
 		return keywords, nil
 	case string:
-		var keywords []string
+		var keywords []types.Keyword
 		if err := json.Unmarshal([]byte(kw), &keywords); err == nil {
 			return keywords, nil
 		}
-		return []string{kw}, nil
+		return []types.Keyword{{K: kw, W: 0.5}}, nil
 	}
-	return []string{}, nil
+	return []types.Keyword{}, nil
 }
