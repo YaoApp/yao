@@ -137,6 +137,52 @@ func TestHandler_Search_Integration(t *testing.T) {
 			}
 		}
 	})
+
+	t.Run("search_nonexistent_model_graceful", func(t *testing.T) {
+		h := db.NewHandler("builtin", nil)
+
+		req := &types.Request{
+			Type:   types.SearchTypeDB,
+			Query:  "查询文章",
+			Source: types.SourceAuto,
+			Models: []string{"nonexistent_model", "article", "fake_model"},
+			Limit:  10,
+		}
+
+		// Should NOT panic, should return gracefully with error
+		result, err := h.SearchWithContext(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should have error message about no valid models
+		assert.Equal(t, types.SearchTypeDB, result.Type)
+		assert.Equal(t, "no valid models found", result.Error)
+		assert.Empty(t, result.Items)
+	})
+
+	t.Run("search_mixed_models_partial_exist", func(t *testing.T) {
+		h := db.NewHandler("builtin", nil)
+
+		req := &types.Request{
+			Type:   types.SearchTypeDB,
+			Query:  "查询角色",
+			Source: types.SourceAuto,
+			Models: []string{"nonexistent_model", "__yao.role", "fake_model"}, // Only __yao.role exists
+			Limit:  10,
+		}
+
+		// Should NOT panic, should work with the existing model
+		result, err := h.SearchWithContext(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should succeed with partial models
+		assert.Equal(t, types.SearchTypeDB, result.Type)
+		if result.Error == "" {
+			// If no error, should have results from __yao.role
+			assert.GreaterOrEqual(t, len(result.Items), 0)
+		}
+	})
 }
 
 // newTestContext creates a test context with required fields

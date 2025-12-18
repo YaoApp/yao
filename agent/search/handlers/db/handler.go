@@ -98,8 +98,8 @@ func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Reques
 	schemas := make([]map[string]interface{}, 0, len(modelIDs))
 
 	for _, modelID := range modelIDs {
-		mod := model.Select(modelID)
-		if mod == nil {
+		mod, err := model.Get(modelID)
+		if err != nil {
 			continue // Skip non-existent models
 		}
 		models[modelID] = mod
@@ -196,7 +196,7 @@ func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Reques
 
 	primaryModel := models[primaryModelID]
 	if primaryModel == nil {
-		primaryModel = model.Select(primaryModelID)
+		primaryModel, _ = model.Get(primaryModelID) // May be nil, that's ok
 	}
 
 	// 6. Convert records to ResultItems
