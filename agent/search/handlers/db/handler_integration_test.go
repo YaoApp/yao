@@ -3,8 +3,6 @@ package db_test
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/query/gou"
 	"github.com/yaoapp/yao/agent/context"
@@ -12,6 +10,9 @@ import (
 	"github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/testutils"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // ============================================================================
@@ -24,7 +25,7 @@ func TestHandler_Search_Integration(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	// Initialize test environment (loads models, database, etc.)
+	// Initialize test environment (loads models, database, query engine, etc.)
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
