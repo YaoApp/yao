@@ -103,35 +103,43 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 }
 
 // buildRequestMessage constructs the request message for the agent
-// Format follows the querydsl agent prompts.yml:
-// "用户查询\nSchema:\n{schema JSON}"
+// Returns JSON format for structured communication with the agent
 func (p *AgentProvider) buildRequestMessage(input *Input, attempt int, lastLintErrors string) string {
-	// Build schema from extra params if provided
-	var schemaJSON string
-	if input.ExtraParams != nil {
-		if schema, ok := input.ExtraParams["schema"]; ok {
-			schemaBytes, _ := json.Marshal(schema)
-			schemaJSON = string(schemaBytes)
-		}
+	// Build request data as JSON
+	requestData := map[string]interface{}{
+		"query":  input.Query,
+		"models": input.ModelIDs,
+		"limit":  input.Limit,
 	}
 
-	// Build message in the expected format
-	message := input.Query
-	if schemaJSON != "" {
-		message = fmt.Sprintf("%s\nSchema:\n%s", input.Query, schemaJSON)
+	// Add schema from extra params if provided
+	if input.ExtraParams != nil {
+		if schema, ok := input.ExtraParams["schema"]; ok {
+			requestData["schema"] = schema
+		}
 	}
 
 	// Add scenario hint if specified (filter, aggregation, join, complex)
 	if input.Scenario != "" {
-		message = fmt.Sprintf("%s\nScenario: %s", message, input.Scenario)
+		requestData["scenario"] = string(input.Scenario)
+	}
+
+	// Add allowed fields if specified
+	if len(input.AllowedFields) > 0 {
+		requestData["allowed_fields"] = input.AllowedFields
 	}
 
 	// Add retry context if this is a retry attempt
 	if attempt > 1 && lastLintErrors != "" {
-		message = fmt.Sprintf("%s\n\nPrevious attempt failed with errors:\n%s\n\nPlease fix the errors and regenerate.", message, lastLintErrors)
+		requestData["retry"] = map[string]interface{}{
+			"attempt":      attempt,
+			"lint_errors":  lastLintErrors,
+			"instructions": "The previous QueryDSL was invalid. Please fix the errors and regenerate.",
+		}
 	}
 
-	return message
+	jsonBytes, _ := json.Marshal(requestData)
+	return string(jsonBytes)
 }
 
 // validateDSL validates the generated QueryDSL using the linter
@@ -158,12 +166,11 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 
 	// Handle *context.Response directly (most common case from Stream())
 	if resp, ok := result.(*agentContext.Response); ok {
-		genResult := &Result{}
 		if resp.Next != nil {
-			// Next contains the QueryDSL from hook
-			genResult.DSL = p.extractDSL(resp.Next)
+			// Next contains the hook response, recursively parse it
+			return p.parseResult(resp.Next)
 		}
-		return genResult, nil
+		return &Result{}, nil
 	}
 
 	// Try to convert to map first
@@ -238,12 +245,22 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 		}
 	}
 
-	// Check for "dsl" field wrapper
+	// Check for "dsl" field wrapper: { dsl: {...} }
 	if dsl, ok := data["dsl"]; ok {
 		genResult.DSL = p.extractDSL(dsl)
-	} else if d, ok := data["data"]; ok {
+		if explain, ok := data["explain"].(string); ok {
+			genResult.Explain = explain
+		}
+		if warnings, ok := data["warnings"]; ok {
+			genResult.Warnings = p.extractWarnings(warnings)
+		}
+		return genResult, nil
+	}
+
+	// Check for "data" field wrapper: { data: { dsl: {...}, explain: "...", warnings: [] } }
+	if d, ok := data["data"]; ok {
 		if dm, ok := d.(map[string]interface{}); ok {
-			// Check if data.data is a wrapped DSL: { dsl: {...} }
+			// Check if data.data contains dsl field: { data: { dsl: {...} } }
 			if dsl, ok := dm["dsl"]; ok {
 				genResult.DSL = p.extractDSL(dsl)
 			} else if _, hasFrom := dm["from"]; hasFrom {
@@ -253,21 +270,21 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 				// data.data is directly a QueryDSL
 				genResult.DSL = p.extractDSL(dm)
 			}
+			// Extract explain and warnings from data.data
 			if explain, ok := dm["explain"].(string); ok {
 				genResult.Explain = explain
 			}
 			if warnings, ok := dm["warnings"]; ok {
 				genResult.Warnings = p.extractWarnings(warnings)
 			}
+			return genResult, nil
 		}
 	}
 
-	// Get explain if present
+	// Fallback: Get explain and warnings from top level
 	if explain, ok := data["explain"].(string); ok {
 		genResult.Explain = explain
 	}
-
-	// Get warnings if present
 	if warnings, ok := data["warnings"]; ok {
 		genResult.Warnings = p.extractWarnings(warnings)
 	}
