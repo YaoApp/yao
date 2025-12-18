@@ -9,7 +9,7 @@ import (
 // AgentCaller interface for calling agents (to avoid circular dependency)
 // Used by content handlers (vision, audio, etc.) and search handlers (agent mode)
 type AgentCaller interface {
-	Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (interface{}, error)
+	Stream(ctx *agentContext.Context, messages []agentContext.Message, options ...*agentContext.Options) (*agentContext.Response, error)
 }
 
 // AgentGetterFunc is a function type that gets an agent by ID

@@ -64,30 +64,38 @@ func (p *AgentProvider) Extract(ctx *agentContext.Context, content string, opts 
 		},
 	}
 
-	result, err := agent.Stream(ctx, messages, options)
+	response, err := agent.Stream(ctx, messages, options)
 	if err != nil {
 		return nil, fmt.Errorf("agent call failed: %w", err)
 	}
 
-	// Debug: log the result type and value
-	// fmt.Printf("DEBUG Agent result type: %T, value: %+v\n", result, result)
-
-	// Parse the result
-	return p.parseResult(result)
+	// Parse the result from response.Next
+	return p.parseResponse(response)
 }
 
-// parseResult extracts keywords from the agent's response
-// The agent should return data in NextHookResponse format: { data: { keywords: [...] } }
-// The Stream() response wraps this in: { next: { data: { keywords: [...] } } }
-func (p *AgentProvider) parseResult(result interface{}) ([]string, error) {
-	if result == nil {
+// parseResponse extracts keywords from the agent's *context.Response
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+//
+// The agent returns keywords in response.Next field
+func (p *AgentProvider) parseResponse(response *agentContext.Response) ([]string, error) {
+	if response == nil || response.Next == nil {
+		return []string{}, nil
+	}
+
+	return p.parseNextData(response.Next)
+}
+
+// parseNextData extracts keywords from Next hook data
+func (p *AgentProvider) parseNextData(next interface{}) ([]string, error) {
+	if next == nil {
 		return []string{}, nil
 	}
 
 	// Try to convert to map first (most common case)
 	var data map[string]interface{}
 
-	switch v := result.(type) {
+	switch v := next.(type) {
 	case map[string]interface{}:
 		data = v
 	case string:
@@ -113,24 +121,12 @@ func (p *AgentProvider) parseResult(result interface{}) ([]string, error) {
 		return keywords, nil
 	default:
 		// Try to marshal and unmarshal
-		jsonBytes, err := json.Marshal(result)
+		jsonBytes, err := json.Marshal(next)
 		if err != nil {
 			return []string{}, nil
 		}
 		if err := json.Unmarshal(jsonBytes, &data); err != nil {
 			return []string{}, nil
-		}
-	}
-
-	// Check for "next" field (custom hook data from NextHookResponse)
-	// Stream() returns: { next: { data: { keywords: [...] } } }
-	if next, hasNext := data["next"]; hasNext && next != nil {
-		if nextMap, ok := next.(map[string]interface{}); ok {
-			data = nextMap
-		} else if nextStr, ok := next.(string); ok {
-			if err := json.Unmarshal([]byte(nextStr), &data); err != nil {
-				return []string{}, nil
-			}
 		}
 	}
 

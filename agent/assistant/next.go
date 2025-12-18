@@ -8,7 +8,7 @@ import (
 )
 
 // processNextResponse processes the Next hook's response and handles agent delegation or custom data
-func (ast *Assistant) processNextResponse(npc *NextProcessContext) (interface{}, error) {
+func (ast *Assistant) processNextResponse(npc *NextProcessContext) (*agentContext.Response, error) {
 	// If no Next hook response, return standard response
 	if npc.NextResponse == nil {
 		return ast.buildStandardResponse(npc), nil
@@ -42,7 +42,7 @@ func (ast *Assistant) handleDelegation(
 	ctx *agentContext.Context,
 	delegate *agentContext.DelegateConfig,
 	streamHandler func(message.StreamChunkType, []byte) int,
-) (interface{}, error) {
+) (*agentContext.Response, error) {
 	// Load the target assistant
 	targetAssistant, err := Get(delegate.AgentID)
 	if err != nil {
@@ -62,7 +62,7 @@ func (ast *Assistant) handleDelegation(
 }
 
 // buildStandardResponse builds the standard agent response when no custom Next hook processing is needed
-func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) interface{} {
+func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) *agentContext.Response {
 	return &agentContext.Response{
 		ContextID:   npc.Context.ID,
 		RequestID:   npc.Context.RequestID(),

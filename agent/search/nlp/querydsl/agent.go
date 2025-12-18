@@ -70,8 +70,8 @@ func (p *AgentProvider) Generate(ctx *agentContext.Context, input *Input) (*Resu
 			continue
 		}
 
-		// Parse the result
-		genResult, err := p.parseResult(result)
+		// Parse the result from response
+		genResult, err := p.parseResponse(result)
 		if err != nil {
 			lastError = err
 			continue
@@ -155,28 +155,36 @@ func (p *AgentProvider) validateDSL(dsl *gou.QueryDSL) *linter.LintResult {
 	return lintResult
 }
 
-// parseResult extracts QueryDSL from the agent's response
-// The querydsl agent returns QueryDSL JSON directly (not wrapped in {dsl: ...})
+// parseResponse extracts QueryDSL from the agent's *context.Response
+// Now that agent.Stream() returns *context.Response directly,
+// we can access fields without type assertions.
+//
+// The querydsl agent returns QueryDSL in response.Next field
 // Or returns error JSON: {"error": "code", "message": "..."}
-// Stream() returns *context.Response with QueryDSL in "next" field
-func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
-	if result == nil {
+func (p *AgentProvider) parseResponse(response *agentContext.Response) (*Result, error) {
+	if response == nil {
 		return &Result{}, nil
 	}
 
-	// Handle *context.Response directly (most common case from Stream())
-	if resp, ok := result.(*agentContext.Response); ok {
-		if resp.Next != nil {
-			// Next contains the hook response, recursively parse it
-			return p.parseResult(resp.Next)
-		}
+	// Check Next field first (custom hook data)
+	if response.Next != nil {
+		return p.parseNextData(response.Next)
+	}
+
+	// No Next data, return empty result
+	return &Result{}, nil
+}
+
+// parseNextData extracts QueryDSL from Next hook data
+func (p *AgentProvider) parseNextData(next interface{}) (*Result, error) {
+	if next == nil {
 		return &Result{}, nil
 	}
 
 	// Try to convert to map first
 	var data map[string]interface{}
 
-	switch v := result.(type) {
+	switch v := next.(type) {
 	case map[string]interface{}:
 		data = v
 	case string:
@@ -186,7 +194,7 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 		}
 	default:
 		// Try to marshal and unmarshal
-		jsonBytes, err := json.Marshal(result)
+		jsonBytes, err := json.Marshal(next)
 		if err != nil {
 			return &Result{}, nil
 		}
@@ -196,18 +204,6 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 	}
 
 	genResult := &Result{}
-
-	// Check for Stream() wrapper: { content: "...", next: {...} }
-	// The actual response is in "content" field as a string
-	if content, hasContent := data["content"]; hasContent && content != nil {
-		if contentStr, ok := content.(string); ok && contentStr != "" {
-			// Parse the content string as JSON
-			var contentData map[string]interface{}
-			if err := json.Unmarshal([]byte(contentStr), &contentData); err == nil {
-				data = contentData
-			}
-		}
-	}
 
 	// Check for error response: {"error": "code", "message": "..."}
 	if errCode, hasError := data["error"]; hasError {
@@ -227,22 +223,6 @@ func (p *AgentProvider) parseResult(result interface{}) (*Result, error) {
 	if _, hasSelect := data["select"]; hasSelect {
 		genResult.DSL = p.extractDSL(data)
 		return genResult, nil
-	}
-
-	// Fallback: check for wrapped formats
-	// Check for "next" field (custom hook data from NextHookResponse)
-	if next, hasNext := data["next"]; hasNext && next != nil {
-		if nextMap, ok := next.(map[string]interface{}); ok {
-			data = nextMap
-		} else if nextStr, ok := next.(string); ok {
-			if err := json.Unmarshal([]byte(nextStr), &data); err == nil {
-				// Check if parsed data is a QueryDSL
-				if _, hasFrom := data["from"]; hasFrom {
-					genResult.DSL = p.extractDSL(data)
-					return genResult, nil
-				}
-			}
-		}
 	}
 
 	// Check for "dsl" field wrapper: { dsl: {...} }

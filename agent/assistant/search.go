@@ -98,39 +98,37 @@ func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context
 
 	// Parse the result
 	// Next hook returns {data: {need_search: bool, search_types: [], confidence: float}}
-	if response, ok := result.(*context.Response); ok {
-		// First try to get from Next hook response
-		if response.Next != nil {
-			if nextData, ok := response.Next.(map[string]interface{}); ok {
-				// Check for data field (from Next hook's {data: result})
-				var intentData map[string]interface{}
-				if data, ok := nextData["data"].(map[string]interface{}); ok {
-					intentData = data
-				} else {
-					intentData = nextData
-				}
+	// First try to get from Next hook response
+	if result.Next != nil {
+		if nextData, ok := result.Next.(map[string]interface{}); ok {
+			// Check for data field (from Next hook's {data: result})
+			var intentData map[string]interface{}
+			if data, ok := nextData["data"].(map[string]interface{}); ok {
+				intentData = data
+			} else {
+				intentData = nextData
+			}
 
-				if needSearch, ok := intentData["need_search"].(bool); ok {
-					reason, _ := intentData["reason"].(string)
-					ctx.Logger.Debug("Search intent (from Next): need_search=%v, reason=%s", needSearch, reason)
-					ast.sendIntentDone(ctx, loadingID, needSearch, reason)
-					return needSearch
-				}
+			if needSearch, ok := intentData["need_search"].(bool); ok {
+				reason, _ := intentData["reason"].(string)
+				ctx.Logger.Debug("Search intent (from Next): need_search=%v, reason=%s", needSearch, reason)
+				ast.sendIntentDone(ctx, loadingID, needSearch, reason)
+				return needSearch
 			}
 		}
+	}
 
-		// Fallback: parse from Completion.Content if Next hook didn't process
-		if response.Completion != nil {
-			content, ok := response.Completion.Content.(string)
-			if !ok || content == "" {
-				ast.sendIntentDone(ctx, loadingID, true, "")
-				return true
-			}
-			needSearch, reason := parseNeedSearchFromContent(content)
-			ctx.Logger.Debug("Search intent (from Content): need_search=%v, reason=%s", needSearch, reason)
-			ast.sendIntentDone(ctx, loadingID, needSearch, reason)
-			return needSearch
+	// Fallback: parse from Completion.Content if Next hook didn't process
+	if result.Completion != nil {
+		content, ok := result.Completion.Content.(string)
+		if !ok || content == "" {
+			ast.sendIntentDone(ctx, loadingID, true, "")
+			return true
 		}
+		needSearch, reason := parseNeedSearchFromContent(content)
+		ctx.Logger.Debug("Search intent (from Content): need_search=%v, reason=%s", needSearch, reason)
+		ast.sendIntentDone(ctx, loadingID, needSearch, reason)
+		return needSearch
 	}
 
 	// Default: proceed with search if we can't parse the result

@@ -16,7 +16,7 @@ import (
 
 // Stream stream the agent
 // handler is optional, if not provided, a default handler will be used
-func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (interface{}, error) {
+func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Message, options ...*context.Options) (*context.Response, error) {
 
 	// Update logger with assistant ID and start logging
 	ctx.Logger.SetAssistantID(ast.ID)
@@ -376,7 +376,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Execute Next Hook and Process Response
 	// ================================================
-	var finalResponse interface{}
+	var finalResponse *context.Response
 	var nextResponse *context.NextHookResponse = nil
 
 	if ast.HookScript != nil {

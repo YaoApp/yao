@@ -532,26 +532,23 @@ func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
 }
 
 // extractOutput extracts the output from the agent response
-// Priority: Next hook data (if non-empty) > Completion content > raw response
-func extractOutput(response interface{}) interface{} {
+// Priority: Next hook data (if non-empty) > Completion content > nil
+func extractOutput(response *context.Response) interface{} {
 	if response == nil {
 		return nil
 	}
 
-	// Try to get data from context.Response
-	if resp, ok := response.(*context.Response); ok {
-		// Prefer Next hook data if available and non-empty
-		// resp.Next is already the Data value (not NextHookResponse struct)
-		if resp.Next != nil && !isEmptyValue(resp.Next) {
-			return resp.Next
-		}
-		// Fall back to raw completion content
-		if resp.Completion != nil {
-			return resp.Completion.Content
-		}
+	// Prefer Next hook data if available and non-empty
+	// response.Next is already the Data value (not NextHookResponse struct)
+	if response.Next != nil && !isEmptyValue(response.Next) {
+		return response.Next
+	}
+	// Fall back to raw completion content
+	if response.Completion != nil {
+		return response.Completion.Content
 	}
 
-	return response
+	return nil
 }
 
 // isEmptyValue checks if a value is considered "empty" for output purposes

@@ -87,8 +87,7 @@ func TestSearchAutoKeyword(t *testing.T) {
 		}
 
 		require.NotNil(t, response)
-		resp := response.(*context.Response)
-		assert.NotNil(t, resp.Completion, "should have completion")
+		assert.NotNil(t, response.Completion, "should have completion")
 		t.Logf("✓ Stream with keyword extraction executed successfully")
 	})
 
@@ -127,8 +126,7 @@ func TestSearchAutoKeyword(t *testing.T) {
 		}
 
 		require.NotNil(t, response)
-		resp := response.(*context.Response)
-		assert.NotNil(t, resp.Completion, "should have completion")
+		assert.NotNil(t, response.Completion, "should have completion")
 		t.Logf("✓ Stream with Skip.Keyword executed successfully")
 	})
 }
@@ -179,8 +177,7 @@ func TestSearchAutoKeywordNotConfigured(t *testing.T) {
 		}
 
 		require.NotNil(t, response)
-		resp := response.(*context.Response)
-		assert.NotNil(t, resp.Completion, "should have completion")
+		assert.NotNil(t, response.Completion, "should have completion")
 		t.Logf("✓ Stream without keyword config executed successfully")
 	})
 }

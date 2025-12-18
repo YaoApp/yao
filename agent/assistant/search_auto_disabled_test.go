@@ -77,8 +77,7 @@ func TestSearchAutoDisabled(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, response)
 
-		resp := response.(*context.Response)
-		assert.NotNil(t, resp.Completion, "should have completion")
+		assert.NotNil(t, response.Completion, "should have completion")
 		t.Logf("✓ Stream executed without search (disabled)")
 	})
 }

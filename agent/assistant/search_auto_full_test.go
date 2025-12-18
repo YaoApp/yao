@@ -118,8 +118,7 @@ func TestSearchAutoFull(t *testing.T) {
 		}
 
 		require.NotNil(t, response)
-		resp := response.(*context.Response)
-		assert.NotNil(t, resp.Completion, "should have completion")
+		assert.NotNil(t, response.Completion, "should have completion")
 		t.Logf("✓ Stream executed with full search config (Web + KB + DB)")
 	})
 }
