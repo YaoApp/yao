@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	graphragtypes "github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/kb/api"
@@ -21,8 +22,14 @@ func TestMain(m *testing.M) {
 	test.Prepare(&testing.T{}, config.Conf)
 	defer test.Clean()
 
+	// Load attachment managers (needed for file upload tests)
+	err := attachment.Load(config.Conf)
+	if err != nil {
+		panic("Failed to load attachment managers: " + err.Error())
+	}
+
 	// Load knowledge base
-	_, err := kb.Load(config.Conf)
+	_, err = kb.Load(config.Conf)
 	if err != nil {
 		panic("Failed to load knowledge base: " + err.Error())
 	}

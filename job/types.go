@@ -59,6 +59,7 @@ type ExecutionType string
 const (
 	ExecutionTypeProcess ExecutionType = "process" // Yao process (default)
 	ExecutionTypeCommand ExecutionType = "command" // System command
+	ExecutionTypeFunc    ExecutionType = "func"    // Go function (internal use)
 )
 
 // ExecutionOptions holds common execution options
@@ -96,14 +97,56 @@ func (o *ExecutionOptions) AddSharedData(key string, value interface{}) *Executi
 	return o
 }
 
+// ExecutionFunc is the function signature for ExecutionTypeFunc
+// The function receives the execution context and returns an error if failed
+type ExecutionFunc func(ctx *ExecutionContext) error
+
+// ExecutionContext provides context for ExecutionFunc
+type ExecutionContext struct {
+	Ctx       context.Context        // Go context
+	Execution *Execution             // Current execution
+	Args      map[string]interface{} // Function arguments
+}
+
+// funcRegistry is a global registry for ExecutionFunc
+// Key is the funcID (execution_id), value is the function
+var funcRegistry = make(map[string]ExecutionFunc)
+var funcRegistryMutex sync.RWMutex
+
+// RegisterFunc registers a function in the global registry
+func RegisterFunc(funcID string, fn ExecutionFunc) {
+	funcRegistryMutex.Lock()
+	defer funcRegistryMutex.Unlock()
+	funcRegistry[funcID] = fn
+}
+
+// GetFunc retrieves a function from the global registry
+func GetFunc(funcID string) (ExecutionFunc, bool) {
+	funcRegistryMutex.RLock()
+	defer funcRegistryMutex.RUnlock()
+	fn, ok := funcRegistry[funcID]
+	return fn, ok
+}
+
+// UnregisterFunc removes a function from the global registry
+func UnregisterFunc(funcID string) {
+	funcRegistryMutex.Lock()
+	defer funcRegistryMutex.Unlock()
+	delete(funcRegistry, funcID)
+}
+
 // ExecutionConfig holds execution configuration based on type
 type ExecutionConfig struct {
-	Type        ExecutionType     `json:"type"`
-	ProcessName string            `json:"process_name,omitempty"` // Yao process name
-	ProcessArgs []interface{}     `json:"process_args,omitempty"` // Yao process arguments
-	Command     string            `json:"command,omitempty"`      // System command
-	CommandArgs []string          `json:"command_args,omitempty"` // Command arguments
-	Environment map[string]string `json:"environment,omitempty"`  // Environment variables
+	Type        ExecutionType          `json:"type"`
+	ProcessName string                 `json:"process_name,omitempty"` // Yao process name
+	ProcessArgs []interface{}          `json:"process_args,omitempty"` // Yao process arguments
+	Command     string                 `json:"command,omitempty"`      // System command
+	CommandArgs []string               `json:"command_args,omitempty"` // Command arguments
+	Environment map[string]string      `json:"environment,omitempty"`  // Environment variables
+	Func        ExecutionFunc          `json:"-"`                      // Go function (not serialized, use FuncID instead)
+	FuncID      string                 `json:"func_id,omitempty"`      // Function ID for registry lookup
+	FuncName    string                 `json:"func_name,omitempty"`    // Function name for logging
+	FuncArgs    map[string]interface{} `json:"func_args,omitempty"`    // Function arguments
 }
 
 // Job represents the main job entity

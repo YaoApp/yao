@@ -371,11 +371,11 @@ func (w *Worker) processWork(work *WorkRequest) {
 	}
 
 	// Clean up execution context from job
+	work.Job.executionMutex.Lock()
 	if work.Job.executionContexts != nil {
-		work.Job.executionMutex.Lock()
 		delete(work.Job.executionContexts, work.Execution.ExecutionID)
-		work.Job.executionMutex.Unlock()
 	}
+	work.Job.executionMutex.Unlock()
 
 	log.Debug("Worker %s finished processing job %s", w.ID, work.Job.JobID)
 }
@@ -396,6 +396,9 @@ func (w *Worker) executeInGoroutine(ctx context.Context, work *WorkRequest, prog
 
 	case ExecutionTypeCommand:
 		return goroutineExecutor.ExecuteSystemCommand(ctx, work, progress)
+
+	case ExecutionTypeFunc:
+		return goroutineExecutor.ExecuteFunc(ctx, work, progress)
 
 	default:
 		return fmt.Errorf("unsupported execution type: %s", work.Execution.ExecutionConfig.Type)
@@ -422,6 +425,11 @@ func (w *Worker) executeInProcess(ctx context.Context, work *WorkRequest, progre
 
 	case ExecutionTypeCommand:
 		return processExecutor.ExecuteSystemCommand(ctx, work, progress)
+
+	case ExecutionTypeFunc:
+		// ExecutionTypeFunc is not supported in process mode, fall back to goroutine
+		goroutineExecutor := &Goroutine{}
+		return goroutineExecutor.ExecuteFunc(ctx, work, progress)
 
 	default:
 		return fmt.Errorf("unsupported execution type: %s", work.Execution.ExecutionConfig.Type)

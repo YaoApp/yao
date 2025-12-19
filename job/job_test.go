@@ -678,3 +678,274 @@ func TestDaemonAndSave(t *testing.T) {
 
 	t.Log("DaemonAndSave job created and saved successfully")
 }
+
+// TestAddFunc tests the AddFunc method for adding Go functions as job executions
+func TestAddFunc(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Create a job
+	testJob, err := job.OnceAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test AddFunc Job",
+		"description": "Testing Go function execution",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create job: %v", err)
+	}
+
+	// Track if function was called
+	funcCalled := false
+	funcArgs := make(map[string]interface{})
+
+	// Add a Go function execution
+	err = testJob.AddFunc(&job.ExecutionOptions{
+		Priority: 1,
+	}, "test.func", func(ctx *job.ExecutionContext) error {
+		funcCalled = true
+		funcArgs = ctx.Args
+		t.Logf("Function executed with args: %v", ctx.Args)
+		return nil
+	}, map[string]interface{}{
+		"key1": "value1",
+		"key2": 42,
+	})
+	if err != nil {
+		t.Fatalf("Failed to add function execution: %v", err)
+	}
+
+	// Get the execution to verify it was saved
+	executions, err := testJob.GetExecutions()
+	if err != nil {
+		t.Fatalf("Failed to get executions: %v", err)
+	}
+	if len(executions) != 1 {
+		t.Fatalf("Expected 1 execution, got %d", len(executions))
+	}
+
+	// Verify function is registered in global registry
+	funcID := executions[0].ExecutionID
+	fn, ok := job.GetFunc(funcID)
+	if !ok || fn == nil {
+		t.Error("Expected function to be registered in global registry")
+	}
+
+	// Push the job
+	err = testJob.Push()
+	if err != nil {
+		t.Fatalf("Failed to push job: %v", err)
+	}
+
+	// Wait for execution to complete
+	time.Sleep(2 * time.Second)
+
+	// Verify function was called
+	if !funcCalled {
+		t.Error("Expected function to be called")
+	}
+
+	// Verify args were passed
+	if funcArgs["key1"] != "value1" {
+		t.Errorf("Expected key1=value1, got %v", funcArgs["key1"])
+	}
+	// Note: JSON unmarshaling converts numbers to float64
+	key2Val, ok := funcArgs["key2"].(float64)
+	if !ok {
+		// Try int in case it wasn't serialized
+		if intVal, ok := funcArgs["key2"].(int); ok {
+			key2Val = float64(intVal)
+		} else {
+			t.Errorf("Expected key2 to be a number, got %T: %v", funcArgs["key2"], funcArgs["key2"])
+		}
+	}
+	if key2Val != 42 {
+		t.Errorf("Expected key2=42, got %v", key2Val)
+	}
+
+	// Verify function was cleaned up from registry after execution
+	fn, ok = job.GetFunc(funcID)
+	if ok || fn != nil {
+		t.Error("Expected function to be removed from global registry after execution")
+	}
+
+	t.Log("AddFunc test completed successfully")
+}
+
+// TestAddFuncMemoryCleanup tests that memory is properly cleaned up after function execution
+func TestAddFuncMemoryCleanup(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Create a job
+	testJob, err := job.OnceAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test AddFunc Memory Cleanup",
+		"description": "Testing memory cleanup after function execution",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create job: %v", err)
+	}
+
+	// Create a large closure to make memory leak more detectable
+	largeData := make([]byte, 1024*1024) // 1MB
+	for i := range largeData {
+		largeData[i] = byte(i % 256)
+	}
+
+	executed := false
+
+	// Add a Go function with large closure
+	err = testJob.AddFunc(&job.ExecutionOptions{
+		Priority: 1,
+	}, "test.cleanup", func(ctx *job.ExecutionContext) error {
+		// Use largeData to ensure it's captured in closure
+		_ = len(largeData)
+		executed = true
+		return nil
+	}, map[string]interface{}{
+		"test": "cleanup",
+	})
+	if err != nil {
+		t.Fatalf("Failed to add function execution: %v", err)
+	}
+
+	// Get the execution to verify FuncID is set
+	executions, err := testJob.GetExecutions()
+	if err != nil {
+		t.Fatalf("Failed to get executions: %v", err)
+	}
+	if len(executions) != 1 {
+		t.Fatalf("Expected 1 execution, got %d", len(executions))
+	}
+	funcID := executions[0].ExecutionID
+	t.Logf("FuncID (ExecutionID): %s", funcID)
+
+	// Verify function is registered in global registry before execution
+	fn, ok := job.GetFunc(funcID)
+	if !ok || fn == nil {
+		t.Error("Expected function to be registered in global registry before execution")
+	}
+
+	// Push the job
+	err = testJob.Push()
+	if err != nil {
+		t.Fatalf("Failed to push job: %v", err)
+	}
+
+	// Wait for execution to complete with polling
+	maxWait := 10 * time.Second
+	pollInterval := 200 * time.Millisecond
+	startTime := time.Now()
+
+	for time.Since(startTime) < maxWait {
+		if executed {
+			break
+		}
+		time.Sleep(pollInterval)
+	}
+
+	// Verify function was executed
+	if !executed {
+		t.Error("Expected function to be executed")
+	}
+
+	// Wait for execution to complete in database
+	var finalStatus string
+	for time.Since(startTime) < maxWait {
+		executions, err := testJob.GetExecutions()
+		if err == nil && len(executions) > 0 {
+			finalStatus = executions[0].Status
+			t.Logf("Execution status: %s", finalStatus)
+			if finalStatus == "completed" || finalStatus == "failed" {
+				break
+			}
+		}
+		time.Sleep(pollInterval)
+	}
+
+	// Wait a bit more for cleanup to complete
+	time.Sleep(500 * time.Millisecond)
+
+	// Verify memory cleanup: function should be removed from global registry
+	fn, ok = job.GetFunc(funcID)
+	if ok || fn != nil {
+		t.Errorf("Expected function to be removed from global registry after completion")
+	}
+
+	// Verify execution status in database
+	executions, err = testJob.GetExecutions()
+	if err != nil {
+		t.Fatalf("Failed to get executions: %v", err)
+	}
+
+	if len(executions) != 1 {
+		t.Errorf("Expected 1 execution in database, got %d", len(executions))
+	}
+
+	if executions[0].Status != "completed" {
+		t.Errorf("Expected execution status 'completed', got '%s'", executions[0].Status)
+	}
+
+	t.Log("AddFunc memory cleanup test completed successfully")
+}
+
+// TestAddFuncError tests error handling in AddFunc execution
+func TestAddFuncError(t *testing.T) {
+	// Setup
+	test.Prepare(&testing.T{}, config.Conf)
+	defer test.Clean()
+
+	// Create a job
+	testJob, err := job.OnceAndSave(job.GOROUTINE, map[string]interface{}{
+		"name":        "Test AddFunc Error",
+		"description": "Testing error handling in function execution",
+	})
+	if err != nil {
+		t.Fatalf("Failed to create job: %v", err)
+	}
+
+	// Add a Go function that returns an error
+	err = testJob.AddFunc(&job.ExecutionOptions{
+		Priority: 1,
+	}, "test.error", func(ctx *job.ExecutionContext) error {
+		return fmt.Errorf("intentional test error")
+	}, nil)
+	if err != nil {
+		t.Fatalf("Failed to add function execution: %v", err)
+	}
+
+	// Push the job
+	err = testJob.Push()
+	if err != nil {
+		t.Fatalf("Failed to push job: %v", err)
+	}
+
+	// Wait for execution to complete
+	time.Sleep(2 * time.Second)
+
+	// Verify execution failed
+	executions, err := testJob.GetExecutions()
+	if err != nil {
+		t.Fatalf("Failed to get executions: %v", err)
+	}
+
+	if len(executions) != 1 {
+		t.Errorf("Expected 1 execution, got %d", len(executions))
+	}
+
+	if executions[0].Status != "failed" {
+		t.Errorf("Expected execution status 'failed', got '%s'", executions[0].Status)
+	}
+
+	// Verify memory cleanup even on error: function should be removed from global registry
+	// Get the execution ID first
+	if len(executions) > 0 {
+		funcID := executions[0].ExecutionID
+		fn, ok := job.GetFunc(funcID)
+		if ok || fn != nil {
+			t.Errorf("Expected function to be removed from global registry after failure")
+		}
+	}
+
+	t.Log("AddFunc error handling test completed successfully")
+}

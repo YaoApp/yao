@@ -5,9 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou/graphrag/utils"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
 	kbtypes "github.com/yaoapp/yao/kb/types"
 	apiutils "github.com/yaoapp/yao/openapi/utils"
@@ -96,132 +94,7 @@ func PrepareCreateCollection(c *gin.Context) (*CreateCollectionRequest, map[stri
 		data["num_probes"] = req.Config.NumProbes
 	}
 
-	// Add context fields (permissions, user info, etc.)
-	addContextFields(c, data)
-
 	return &req, data, nil
-}
-
-// PrepareAddFile prepares AddFile request and database data
-func PrepareAddFile(c *gin.Context, req *AddFileRequest) (*AddFileRequest, map[string]interface{}, error) {
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, nil, err
-	}
-
-	// Validate file and get path
-	path, contentType, err := validateFileAndGetPath(c, req)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Get file info
-	m, _ := attachment.Managers[req.Uploader]
-	fileInfo, _ := m.Info(c.Request.Context(), req.FileID)
-
-	// Generate document ID if not provided
-	if req.DocID == "" {
-		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
-	}
-
-	// Prepare document data for database
-	data := map[string]interface{}{
-		"document_id":    req.DocID,
-		"collection_id":  req.CollectionID,
-		"name":           fileInfo.Filename,
-		"type":           "file",
-		"status":         "pending",
-		"uploader_id":    req.Uploader,
-		"file_name":      fileInfo.Filename,
-		"file_path":      path,
-		"file_mime_type": contentType,
-		"size":           int64(fileInfo.Bytes),
-	}
-
-	req.BaseUpsertRequest.AddBaseFields(data)
-	addContextFields(c, data)
-
-	return req, data, nil
-}
-
-// PrepareAddText prepares AddText request and database data
-func PrepareAddText(c *gin.Context, req *AddTextRequest) (*AddTextRequest, map[string]interface{}, error) {
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, nil, err
-	}
-
-	// Generate document ID if not provided
-	if req.DocID == "" {
-		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
-	}
-
-	// Prepare document data for database
-	data := map[string]interface{}{
-		"document_id":   req.DocID,
-		"collection_id": req.CollectionID,
-		"name":          "Text Document",
-		"type":          "text",
-		"status":        "pending",
-		"text_content":  req.Text,
-		"size":          int64(len(req.Text)),
-	}
-
-	// Use title from metadata if available
-	if req.Metadata != nil {
-		if title, ok := req.Metadata["title"].(string); ok && title != "" {
-			data["name"] = title
-		}
-	}
-
-	req.BaseUpsertRequest.AddBaseFields(data)
-	addContextFields(c, data)
-
-	return req, data, nil
-}
-
-// PrepareAddURL prepares AddURL request and database data
-func PrepareAddURL(c *gin.Context, req *AddURLRequest) (*AddURLRequest, map[string]interface{}, error) {
-	// Validate request
-	if err := req.Validate(); err != nil {
-		return nil, nil, err
-	}
-
-	// Generate document ID if not provided
-	if req.DocID == "" {
-		req.DocID = utils.GenDocIDWithCollectionID(req.CollectionID)
-	}
-
-	// Prepare document data for database
-	data := map[string]interface{}{
-		"document_id":   req.DocID,
-		"collection_id": req.CollectionID,
-		"name":          req.URL,
-		"type":          "url",
-		"status":        "pending",
-		"url":           req.URL,
-	}
-
-	// Use title from metadata if available
-	if req.Metadata != nil {
-		if title, ok := req.Metadata["title"].(string); ok && title != "" {
-			data["name"] = title
-			data["url_title"] = title
-		}
-	}
-
-	req.BaseUpsertRequest.AddBaseFields(data)
-	addContextFields(c, data)
-
-	return req, data, nil
-}
-
-// addContextFields adds context-specific fields like permissions, user info
-func addContextFields(c *gin.Context, data map[string]interface{}) {
-	// TODO: Add permission-related fields from Guard
-	// Example: data["user_id"] = c.GetString("user_id")
-	// Example: data["permissions"] = c.Get("permissions")
-	// Example: data["tenant_id"] = c.GetString("tenant_id")
 }
 
 // UpdateCollectionWithSync updates collection metadata in database and syncs to GraphRag
