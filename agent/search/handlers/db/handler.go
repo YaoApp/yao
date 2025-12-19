@@ -207,6 +207,9 @@ func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Reques
 		items = items[:maxResults]
 	}
 
+	// 7. Convert DSL to map for storage
+	dslMap := h.dslToMap(result.DSL)
+
 	return &types.Result{
 		Type:     types.SearchTypeDB,
 		Query:    req.Query,
@@ -214,6 +217,7 @@ func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Reques
 		Items:    items,
 		Total:    len(items),
 		Duration: time.Since(start).Milliseconds(),
+		DSL:      dslMap,
 	}, nil
 }
 
@@ -376,4 +380,24 @@ func (h *Handler) extractContent(rec map[string]interface{}, mod *model.Model) s
 		content = content[:500]
 	}
 	return string(content)
+}
+
+// dslToMap converts QueryDSL to map for storage
+func (h *Handler) dslToMap(dsl *gou.QueryDSL) map[string]interface{} {
+	if dsl == nil {
+		return nil
+	}
+
+	// Marshal and unmarshal to get a clean map
+	data, err := json.Marshal(dsl)
+	if err != nil {
+		return nil
+	}
+
+	var result map[string]interface{}
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil
+	}
+
+	return result
 }
