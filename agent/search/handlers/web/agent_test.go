@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -278,7 +279,7 @@ func createTestContext(t *testing.T) *agentContext.Context {
 		UserID:   "test-user",
 		TenantID: "test-tenant",
 	}
-	ctx := agentContext.New(nil, authorized, "test-chat-id")
+	ctx := agentContext.New(context.Background(), authorized, "test-chat-id")
 	ctx.AssistantID = "tests.web-agent-caller"
 	return ctx
 }

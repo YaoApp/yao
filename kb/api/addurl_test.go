@@ -67,10 +67,10 @@ func TestAddURL(t *testing.T) {
 	t.Run("AddURLSuccess", func(t *testing.T) {
 		params := &api.AddURLParams{
 			CollectionID: collectionID,
-			URL:          "https://example.com",
+			URL:          "https://raw.githubusercontent.com/trheyi/yao/refs/heads/main/agent/caller/caller.go",
 			Locale:       "en",
 			Metadata: map[string]interface{}{
-				"title":       "Example Website",
+				"title":       "Yao Agent Caller",
 				"description": "A test URL document",
 			},
 			Chunking: &api.ProviderConfigParams{
@@ -96,7 +96,7 @@ func TestAddURL(t *testing.T) {
 		if result != nil {
 			assert.Equal(t, collectionID, result.CollectionID)
 			assert.NotEmpty(t, result.DocID)
-			assert.Equal(t, "https://example.com", result.URL)
+			assert.Equal(t, "https://raw.githubusercontent.com/trheyi/yao/refs/heads/main/agent/caller/caller.go", result.URL)
 			assert.Contains(t, result.Message, "successfully")
 			t.Logf("Added URL document: %s", result.DocID)
 		}
@@ -107,7 +107,7 @@ func TestAddURL(t *testing.T) {
 			assert.NoError(t, err)
 			assert.NotNil(t, doc)
 			assert.Equal(t, "url", doc["type"])
-			assert.Equal(t, "https://example.com", doc["url"])
+			assert.Equal(t, "https://raw.githubusercontent.com/trheyi/yao/refs/heads/main/agent/caller/caller.go", doc["url"])
 			t.Logf("✅ URL Document verified: type=%v, url=%v, status=%v", doc["type"], doc["url"], doc["status"])
 		}
 	})
