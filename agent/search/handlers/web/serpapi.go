@@ -115,9 +115,9 @@ type serpAPIAnswerBox struct {
 
 // serpAPIKnowledge represents knowledge graph data
 type serpAPIKnowledge struct {
-	Title       string `json:"title,omitempty"`
-	Type        string `json:"type,omitempty"`
-	Description string `json:"description,omitempty"`
+	Title       string      `json:"title,omitempty"`
+	Type        interface{} `json:"type,omitempty"` // Can be string or object depending on query
+	Description string      `json:"description,omitempty"`
 }
 
 // serpAPIRelated represents related searches
