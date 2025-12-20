@@ -15,7 +15,7 @@ import (
 const (
 	DefaultSearchK        = 10
 	DefaultMaxDepth       = 2
-	DefaultMinScore       = 0.0
+	DefaultThreshold      = 0.0
 	MaxSearchK            = 100
 	DefaultSearchPageSize = 20
 )
@@ -257,7 +257,7 @@ func (kb *KBInstance) searchVector(ctx context.Context, collectionID string, que
 		DocumentID:   query.DocumentID,
 		Query:        queryText,
 		K:            k,
-		MinScore:     query.MinScore,
+		MinScore:     query.Threshold,
 		Embedding:    embedding,
 	}
 
@@ -356,7 +356,7 @@ func (kb *KBInstance) searchExpand(ctx context.Context, collectionID string, que
 		DocumentID:   query.DocumentID,
 		Query:        queryText,
 		K:            k,
-		MinScore:     query.MinScore,
+		MinScore:     query.Threshold,
 		Embedding:    embedding,
 	}
 

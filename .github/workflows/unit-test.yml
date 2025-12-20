@@ -295,6 +295,11 @@ jobs:
       - name: Run KB Tests (kb)
         run: make unit-test-kb
 
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   # =============================================================================
   # AI Tests (agent, aigc) - Run once with SQLite
   # =============================================================================
@@ -424,6 +429,11 @@ jobs:
 
       - name: Run AI Tests (agent, aigc)
         run: make unit-test-ai
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   # =============================================================================
   # Benchmark & Memory Leak Tests - Run with MySQL8.0 and SQLite3

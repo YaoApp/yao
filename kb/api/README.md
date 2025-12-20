@@ -184,10 +184,10 @@ result, err := kb.API.RemoveDocuments(ctx, params)
 
 The Search API supports batch queries with three search modes:
 
-| Mode | Description |
-|------|-------------|
-| `vector` | Pure vector similarity search |
-| `graph` | Graph traversal to find related segments via entities |
+| Mode     | Description                                            |
+| -------- | ------------------------------------------------------ |
+| `vector` | Pure vector similarity search                          |
+| `graph`  | Graph traversal to find related segments via entities  |
 | `expand` | Graph-based entity expansion + vector search (default) |
 
 ### Basic Vector Search
@@ -274,7 +274,7 @@ queries := []api.Query{
         CollectionID: "my_collection",
         Input:        "physics",
         DocumentID:   "specific_doc_id", // filter to specific document
-        MinScore:     0.5,               // minimum similarity score
+        Threshold:    0.5,               // similarity threshold
         Metadata: map[string]interface{}{
             "category": "science",
         },
@@ -288,18 +288,18 @@ result, err := kb.API.Search(ctx, queries)
 
 ## Query Parameters
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `CollectionID` | string | Collection to search (required) |
-| `Input` | string | Direct query text |
-| `Messages` | []ChatMessage | Conversation history (last user message used as query) |
-| `Mode` | SearchMode | `vector`, `graph`, or `expand` (default: `expand`) |
-| `DocumentID` | string | Filter to specific document |
-| `MinScore` | float64 | Minimum similarity threshold |
-| `Metadata` | map | Filter by metadata fields |
-| `MaxDepth` | int | Graph traversal depth (default: 2) |
-| `Page` | int | Page number (1-based) |
-| `PageSize` | int | Results per page |
+| Field          | Type          | Description                                            |
+| -------------- | ------------- | ------------------------------------------------------ |
+| `CollectionID` | string        | Collection to search (required)                        |
+| `Input`        | string        | Direct query text                                      |
+| `Messages`     | []ChatMessage | Conversation history (last user message used as query) |
+| `Mode`         | SearchMode    | `vector`, `graph`, or `expand` (default: `expand`)     |
+| `DocumentID`   | string        | Filter to specific document                            |
+| `Threshold`    | float64       | Similarity threshold (0-1)                             |
+| `Metadata`     | map           | Filter by metadata fields                              |
+| `MaxDepth`     | int           | Graph traversal depth (default: 2)                     |
+| `Page`         | int           | Page number (1-based)                                  |
+| `PageSize`     | int           | Results per page                                       |
 
 ## Search Result
 
@@ -328,7 +328,7 @@ type ProviderConfigParams struct {
 ```
 
 Common providers:
+
 - **Chunking**: `__yao.structured` - text splitting
 - **Embedding**: `__yao.openai` - vector embeddings
 - **Extraction**: `__yao.openai` - entity/relationship extraction for graph
-

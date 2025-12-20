@@ -233,8 +233,8 @@ type Query struct {
 	// DocumentID filters results to a specific document (optional)
 	DocumentID string `json:"document_id,omitempty" yaml:"document_id,omitempty"`
 
-	// MinScore filters results below this similarity threshold (optional)
-	MinScore float64 `json:"min_score,omitempty" yaml:"min_score,omitempty"`
+	// Threshold filters results below this similarity threshold (optional)
+	Threshold float64 `json:"threshold,omitempty" yaml:"threshold,omitempty"`
 
 	// Metadata filters segments by metadata fields (optional)
 	Metadata map[string]interface{} `json:"metadata,omitempty" yaml:"metadata,omitempty"`
