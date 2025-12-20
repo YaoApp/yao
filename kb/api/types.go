@@ -195,3 +195,80 @@ type AddDocumentAsyncResult struct {
 	JobID string `json:"job_id" yaml:"job_id"`
 	DocID string `json:"doc_id" yaml:"doc_id"`
 }
+
+// ========== Search Types ==========
+
+// SearchMode defines the search strategy
+type SearchMode string
+
+const (
+	// SearchModeVector performs pure vector similarity search
+	SearchModeVector SearchMode = "vector"
+	// SearchModeGraph performs graph traversal to find related segments
+	SearchModeGraph SearchMode = "graph"
+	// SearchModeExpand uses graph to expand/associate entities, then enhances vector search
+	// This enables deeper semantic connections through entity relationships
+	SearchModeExpand SearchMode = "expand"
+)
+
+// Query represents a single search query
+type Query struct {
+	// CollectionID is the collection to search in (required)
+	CollectionID string `json:"collection_id" yaml:"collection_id"`
+
+	// Input is the direct search query text (e.g., LLM-summarized query)
+	// Either Input or Messages is required; Input takes precedence if both provided
+	Input string `json:"input,omitempty" yaml:"input,omitempty"`
+
+	// Messages is the conversation history for context-aware search
+	// The last user message is used as the query if Input is empty
+	Messages []types.ChatMessage `json:"messages,omitempty" yaml:"messages,omitempty"`
+
+	// Mode determines the search strategy (optional, defaults to collection config or "expand")
+	// - vector: pure vector similarity search
+	// - graph: graph traversal to find related segments
+	// - expand: graph-based entity expansion/association + vector search
+	Mode SearchMode `json:"mode,omitempty" yaml:"mode,omitempty"`
+
+	// DocumentID filters results to a specific document (optional)
+	DocumentID string `json:"document_id,omitempty" yaml:"document_id,omitempty"`
+
+	// MinScore filters results below this similarity threshold (optional)
+	MinScore float64 `json:"min_score,omitempty" yaml:"min_score,omitempty"`
+
+	// Metadata filters segments by metadata fields (optional)
+	Metadata map[string]interface{} `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+
+	// Graph search options (used when Mode is graph or hybrid)
+	MaxDepth int `json:"max_depth,omitempty" yaml:"max_depth,omitempty"` // Max traversal depth (default: 2)
+
+	// Pagination options
+	// If not specified, returns default number of results
+	Page     int    `json:"page,omitempty" yaml:"page,omitempty"`         // Page number (1-based), 0 means no pagination
+	PageSize int    `json:"pagesize,omitempty" yaml:"pagesize,omitempty"` // Number of results per page
+	Cursor   string `json:"cursor,omitempty" yaml:"cursor,omitempty"`     // Cursor for cursor-based pagination
+}
+
+// GraphData contains graph-specific search results
+type GraphData struct {
+	Nodes         []types.GraphNode         `json:"nodes,omitempty" yaml:"nodes,omitempty"`
+	Relationships []types.GraphRelationship `json:"relationships,omitempty" yaml:"relationships,omitempty"`
+}
+
+// SearchResult represents the merged result of search operations
+type SearchResult struct {
+	// Segments contains the merged and deduplicated text segments with scores
+	Segments []types.Segment `json:"segments" yaml:"segments"`
+
+	// Graph contains merged nodes and relationships (only for graph/hybrid mode)
+	Graph *GraphData `json:"graph,omitempty" yaml:"graph,omitempty"`
+
+	// Pagination info
+	Page       int    `json:"page,omitempty" yaml:"page,omitempty"`         // Current page number
+	PageSize   int    `json:"pagesize,omitempty" yaml:"pagesize,omitempty"` // Results per page
+	Total      int    `json:"total" yaml:"total"`                           // Total number of results
+	TotalPages int    `json:"pagecnt,omitempty" yaml:"pagecnt,omitempty"`   // Total pages
+	Next       int    `json:"next,omitempty" yaml:"next,omitempty"`         // Next page number
+	Prev       int    `json:"prev,omitempty" yaml:"prev,omitempty"`         // Previous page number
+	Cursor     string `json:"cursor,omitempty" yaml:"cursor,omitempty"`     // Cursor for next page
+}

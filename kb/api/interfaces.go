@@ -32,8 +32,8 @@ type API interface {
 	AddTextAsync(ctx context.Context, params *AddTextParams) (*AddDocumentAsyncResult, error)
 	AddURLAsync(ctx context.Context, params *AddURLParams) (*AddDocumentAsyncResult, error)
 
-	// Segment operations (future)
-	// ...
+	// Search operations
+	Search(ctx context.Context, queries []Query) (*SearchResult, error)
 }
 
 // KBInstance holds the KB instance dependencies required by the API
