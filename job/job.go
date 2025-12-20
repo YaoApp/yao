@@ -185,7 +185,9 @@ func DaemonAndSave(mode ModeType, data map[string]interface{}) (*Job, error) {
 
 // Push pushes the job to execution queue (renamed from Start for better semantics)
 func (j *Job) Push() error {
-	// Get executions for this job
+	// Get executions from database
+	// For ExecutionTypeFunc, the function is stored in global registry (funcRegistry)
+	// and will be looked up by FuncID (ExecutionID) during execution
 	executions, err := j.GetExecutions()
 	if err != nil {
 		return fmt.Errorf("failed to get executions: %w", err)

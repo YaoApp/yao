@@ -11,10 +11,12 @@ OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*' | awk '!/\/tests\// || /openapi\/tests/')
-# Core tests (exclude AI-related: agent, aigc, openai)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent' | awk '!/\/tests\// || /openapi\/tests/')
+# Core tests (exclude AI-related: agent, aigc, openai, and KB)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb' | awk '!/\/tests\// || /openapi\/tests/')
 # AI tests (agent, aigc)
 TESTFOLDER_AI := $(shell $(GO) list ./agent/... ./aigc/...)
+# KB tests (kb)
+TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
@@ -99,6 +101,38 @@ unit-test-ai:
 		fi; \
 		if [ -f profile.out ]; then \
 			cat profile.out | grep -v "mode:" >> coverage-ai.out; \
+			rm profile.out; \
+		fi; \
+	done
+
+# KB Unit Test (kb)
+.PHONY: unit-test-kb
+unit-test-kb:
+	echo "mode: count" > coverage-kb.out
+	for d in $(TESTFOLDER_KB); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestSearchCleanup' $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage-kb.out; \
 			rm profile.out; \
 		fi; \
 	done

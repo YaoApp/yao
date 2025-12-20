@@ -29,6 +29,19 @@ func (j *Job) AddCommand(options *ExecutionOptions, command string, args []strin
 	})
 }
 
+// AddFunc adds a new execution with a Go function
+// The function is registered in a global registry and will be cleaned up after execution
+// Note: The function is stored in memory registry and will be lost if the process restarts
+func (j *Job) AddFunc(options *ExecutionOptions, name string, fn ExecutionFunc, args map[string]interface{}) error {
+	// fn will be registered in addExecution after ExecutionID is generated
+	return j.addExecution(options, &ExecutionConfig{
+		Type:     ExecutionTypeFunc,
+		Func:     fn, // Temporarily store here, will be moved to registry
+		FuncName: name,
+		FuncArgs: args,
+	})
+}
+
 // addExecution is the internal method to create execution records
 func (j *Job) addExecution(options *ExecutionOptions, config *ExecutionConfig) error {
 	// Set default options if nil
@@ -37,6 +50,14 @@ func (j *Job) addExecution(options *ExecutionOptions, config *ExecutionConfig) e
 			Priority:   0,
 			SharedData: make(map[string]interface{}),
 		}
+	}
+
+	// For ExecutionTypeFunc, we need to register the function after getting ExecutionID
+	// Store the function temporarily and clear it before serialization
+	var funcToRegister ExecutionFunc
+	if config.Type == ExecutionTypeFunc && config.Func != nil {
+		funcToRegister = config.Func
+		config.Func = nil // Clear before serialization (can't be serialized anyway)
 	}
 
 	// Serialize ExecutionConfig to JSON for ConfigSnapshot
@@ -61,9 +82,15 @@ func (j *Job) addExecution(options *ExecutionOptions, config *ExecutionConfig) e
 		UpdatedAt:        time.Now(),
 	}
 
-	// Save execution to database
+	// Save execution to database (this generates ExecutionID)
 	if err := SaveExecution(execution); err != nil {
 		return fmt.Errorf("failed to create execution record: %w", err)
+	}
+
+	// For ExecutionTypeFunc, register the function in global registry using ExecutionID
+	if config.Type == ExecutionTypeFunc && funcToRegister != nil {
+		config.FuncID = execution.ExecutionID // Set FuncID for later lookup
+		RegisterFunc(execution.ExecutionID, funcToRegister)
 	}
 
 	return nil

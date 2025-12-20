@@ -172,6 +172,130 @@ env:
 
 jobs:
   # =============================================================================
+  # KB Tests (kb) - Run once with SQLite (requires Qdrant, Neo4j, FastEmbed)
+  # =============================================================================
+  kb-test:
+    runs-on: ubuntu-latest
+    services:
+      qdrant:
+        image: qdrant/qdrant:latest
+        ports:
+          - 6333:6333
+          - 6334:6334
+
+      fastembed:
+        image: yaoapp/fastembed:latest-amd64
+        env:
+          FASTEMBED_PASSWORD: Yao@2026
+        ports:
+          - 6001:8000
+
+      neo4j:
+        image: neo4j:latest
+        ports:
+          - "7687:7687"
+        env:
+          NEO4J_AUTH: neo4j/Yao2026Neo4j
+
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Setup ENV (SQLite)
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+
+      - name: Run KB Tests (kb)
+        run: make unit-test-kb
+
+  # =============================================================================
   # AI Tests (agent, aigc) - Run once with SQLite
   # =============================================================================
   ai-test:
@@ -214,7 +338,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
     steps:
       - name: Checkout Kun
         uses: actions/checkout@v4
@@ -324,7 +448,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
         db: [MySQL8.0, SQLite3]
     steps:
       - name: Checkout Kun
@@ -457,7 +581,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
         db: [MySQL8.0, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]

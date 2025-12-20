@@ -274,61 +274,79 @@ func (instance *KBInstance) RemoveCollection(ctx context.Context, collectionID s
 }
 
 // GetCollection retrieves a collection by ID
+// Reads from database first, then merges with GraphRag metadata
 func (instance *KBInstance) GetCollection(ctx context.Context, collectionID string) (map[string]interface{}, error) {
 
 	if collectionID == "" {
 		return nil, fmt.Errorf("collection ID is required")
 	}
 
-	collection, err := instance.GraphRag.GetCollection(ctx, collectionID)
+	// Read from database (source of truth for existence and permissions)
+	dbRecord, err := instance.Config.FindCollection(collectionID, model.QueryParam{})
 	if err != nil {
-		// Check if it's a "not found" error
-		if err.Error() == fmt.Sprintf("collection with ID '%s' not found", collectionID) {
-			return nil, fmt.Errorf("collection not found")
-		}
-		return nil, fmt.Errorf("failed to get collection: %w", err)
+		return nil, fmt.Errorf("collection not found")
 	}
 
-	// Convert CollectionInfo to map[string]interface{}
-	// Use a hybrid structure: flatten metadata to top level AND include metadata object
-	// This ensures backward compatibility with both access patterns:
-	// - collection.id / collection.collection_id (for ID)
-	// - collection.metadata.name (for nested access)
+	// Convert database record to result map (flatten to top level)
 	result := make(map[string]interface{})
-	result["id"] = collection.ID            // Primary ID field for frontend
-	result["collection_id"] = collection.ID // Alias for backward compatibility
-
-	// Flatten metadata fields to top level for backward compatibility
-	if collection.Metadata != nil {
-		for k, v := range collection.Metadata {
-			result[k] = v
-		}
-		// Also include the metadata object itself
-		result["metadata"] = collection.Metadata
+	for k, v := range dbRecord {
+		result[k] = v
 	}
 
-	if collection.Config != nil {
-		result["config"] = collection.Config
+	// Set standard ID fields
+	result["id"] = collectionID
+	result["collection_id"] = collectionID
+
+	// Read from GraphRag and merge (for config and metadata object)
+	graphRagCollection, err := instance.GraphRag.GetCollection(ctx, collectionID)
+	if err == nil && graphRagCollection != nil {
+		// Set GraphRag config (vector store configuration)
+		if graphRagCollection.Config != nil {
+			result["config"] = graphRagCollection.Config
+		}
+
+		// Set GraphRag metadata as nested object (for backward compatibility)
+		// This allows access via collection["metadata"]["field"]
+		if graphRagCollection.Metadata != nil {
+			result["metadata"] = graphRagCollection.Metadata
+
+			// Also flatten GraphRag metadata fields to top level
+			// Only add fields that don't exist in database record
+			for k, v := range graphRagCollection.Metadata {
+				if _, exists := result[k]; !exists {
+					result[k] = v
+				}
+			}
+		}
 	}
 
 	return result, nil
 }
 
 // CollectionExists checks if a collection exists by ID
+// Checks both database and GraphRag for consistency
 func (instance *KBInstance) CollectionExists(ctx context.Context, collectionID string) (*CollectionExistsResult, error) {
 
 	if collectionID == "" {
 		return nil, fmt.Errorf("collection ID is required")
 	}
 
-	exists, err := instance.GraphRag.CollectionExists(ctx, collectionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check collection existence: %w", err)
+	// Check database (source of truth for existence)
+	_, dbErr := instance.Config.FindCollection(collectionID, model.QueryParam{})
+	dbExists := dbErr == nil
+
+	// Check GraphRag for consistency
+	graphRagExists, _ := instance.GraphRag.CollectionExists(ctx, collectionID)
+
+	// Collection exists if it exists in database
+	// Log warning if there's inconsistency (for debugging)
+	if dbExists != graphRagExists {
+		log.Warn("Collection %s existence mismatch: database=%v, graphrag=%v", collectionID, dbExists, graphRagExists)
 	}
 
 	return &CollectionExistsResult{
 		CollectionID: collectionID,
-		Exists:       exists,
+		Exists:       dbExists,
 	}, nil
 }
 

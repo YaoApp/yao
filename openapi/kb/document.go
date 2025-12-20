@@ -6,59 +6,19 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou/graphrag/types"
-	kbutils "github.com/yaoapp/gou/graphrag/utils"
 	"github.com/yaoapp/gou/model"
-	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/kb"
+	kbapi "github.com/yaoapp/yao/kb/api"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
-)
-
-// Document field definitions
-var (
-	// availableDocumentFields defines all available fields for security filtering
-	availableDocumentFields = map[string]bool{
-		"id": true, "document_id": true, "collection_id": true, "name": true,
-		"description": true, "status": true, "type": true, "size": true,
-		"segment_count": true, "job_id": true, "uploader_id": true, "tags": true,
-		"locale": true, "system": true, "readonly": true, "sort": true, "cover": true,
-		"file_id": true, "file_name": true, "file_mime_type": true,
-		"url": true, "url_title": true, "text_content": true,
-		"converter_provider_id": true, "converter_option_id": true, "converter_properties": true,
-		"fetcher_provider_id": true, "fetcher_option_id": true, "fetcher_properties": true,
-		"chunking_provider_id": true, "chunking_option_id": true, "chunking_properties": true,
-		"extraction_provider_id": true, "extraction_option_id": true, "extraction_properties": true,
-		"processed_at": true, "error_message": true, "created_at": true, "updated_at": true,
-	}
-
-	// defaultDocumentFields defines the default compact field list
-	defaultDocumentFields = []interface{}{
-		"id", "document_id", "collection_id", "name", "description",
-		"cover", "tags", "type", "size", "segment_count", "status", "locale",
-		"system", "readonly", "file_id", "file_name", "file_mime_type", "uploader_id",
-		"url", "url_title", "text_content", // 添加 URL 和文本内容字段
-		"error_message", "created_at", "updated_at",
-	}
-
-	// validSortFields defines valid fields for sorting
-	validSortFields = map[string]bool{
-		"created_at":    true,
-		"updated_at":    true,
-		"name":          true,
-		"size":          true,
-		"segment_count": true,
-		"sort":          true,
-		"processed_at":  true,
-	}
 )
 
 // Document Management Handlers
 
 // ListDocuments lists documents with pagination
 func ListDocuments(c *gin.Context) {
-	// Check if kb.Instance is available
-	if !checkKBInstance(c) {
+	// Check if kb.API is available
+	if !checkKBAPI(c) {
 		return
 	}
 
@@ -77,70 +37,39 @@ func ListDocuments(c *gin.Context) {
 		}
 	}
 
-	// Get KB instance and config
-	kbInstance := kb.Instance.(*kb.KnowledgeBase)
-	config := kbInstance.Config
-
 	// Parse select parameter
 	var selectFields []interface{}
 	if selectParam := strings.TrimSpace(c.Query("select")); selectParam != "" {
 		requestedFields := strings.Split(selectParam, ",")
 		for _, field := range requestedFields {
 			field = strings.TrimSpace(field)
-			if field != "" && availableDocumentFields[field] {
+			if field != "" && kbapi.AvailableDocumentFields[field] {
 				selectFields = append(selectFields, field)
 			}
 		}
 		// If no valid fields found, use default
 		if len(selectFields) == 0 {
-			selectFields = defaultDocumentFields
+			selectFields = kbapi.DefaultDocumentFields
 		}
 	} else {
-		selectFields = defaultDocumentFields
-	}
-
-	// Build query parameters
-	param := model.QueryParam{
-		Select: selectFields,
-	}
-
-	// Add filters
-	var wheres []model.QueryWhere
-
-	// Filter by keywords (search in name and description)
-	if keywords := strings.TrimSpace(c.Query("keywords")); keywords != "" {
-		wheres = append(wheres, model.QueryWhere{
-			Column: "name",
-			Value:  "%" + keywords + "%",
-			OP:     "like",
-		})
-		wheres = append(wheres, model.QueryWhere{
-			Column: "description",
-			Value:  "%" + keywords + "%",
-			OP:     "like",
-			Wheres: []model.QueryWhere{},
-			Method: "orwhere",
-		})
-	}
-
-	// Filter by tag
-	if tag := strings.TrimSpace(c.Query("tag")); tag != "" {
-		wheres = append(wheres, model.QueryWhere{
-			Column: "tags",
-			Value:  "%" + tag + "%",
-			OP:     "like",
-		})
+		selectFields = kbapi.DefaultDocumentFields
 	}
 
 	// Get authorized information
 	authInfo := authorized.GetInfo(c)
 
+	// Build filter for kb.API
+	filter := &kbapi.ListDocumentsFilter{
+		Page:     page,
+		PageSize: pagesize,
+		Keywords: strings.TrimSpace(c.Query("keywords")),
+		Tag:      strings.TrimSpace(c.Query("tag")),
+		Select:   selectFields,
+	}
+
 	// Filter by collection_id
-	// If collection_id is provided, validate collection permission
-	// If not provided, filter by authorization constraints (TeamOnly or OwnerOnly)
 	collectionID := strings.TrimSpace(c.Query("collection_id"))
 	if collectionID != "" {
-
 		// Validate collection permission
 		hasPermission, err := checkCollectionPermission(authInfo, collectionID, true)
 		if err != nil {
@@ -156,83 +85,43 @@ func ListDocuments(c *gin.Context) {
 		if !hasPermission {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrAccessDenied.Code,
-				ErrorDescription: "Forbidden: No permission to update collection",
+				ErrorDescription: "Forbidden: No permission to view collection",
 			}
 			response.RespondWithError(c, response.StatusForbidden, errorResp)
 			return
 		}
 
-		wheres = append(wheres, model.QueryWhere{Column: "collection_id", Value: collectionID})
-
+		filter.CollectionID = collectionID
 	} else {
 		// Filter by authorization constraints
-		wheres = append(wheres, AuthFilter(c, authInfo)...)
+		filter.AuthFilters = AuthFilter(c, authInfo)
 	}
 
 	// Filter by status (support multiple values separated by comma)
 	if statusParam := strings.TrimSpace(c.Query("status")); statusParam != "" {
 		statusList := strings.Split(statusParam, ",")
-		var statusValues []interface{}
+		var statusValues []string
 		for _, status := range statusList {
 			status = strings.TrimSpace(status)
 			if status != "" {
 				statusValues = append(statusValues, status)
 			}
 		}
-
-		if len(statusValues) > 0 {
-			if len(statusValues) == 1 {
-				// Single status
-				wheres = append(wheres, model.QueryWhere{
-					Column: "status",
-					Value:  statusValues[0],
-				})
-			} else {
-				// Multiple status - use IN clause
-				wheres = append(wheres, model.QueryWhere{
-					Column: "status",
-					Value:  statusValues,
-					OP:     "in",
-				})
-			}
-		}
+		filter.Status = statusValues
 	}
 
 	// Filter by status_not (exclude specific statuses)
 	if statusNotParam := strings.TrimSpace(c.Query("status_not")); statusNotParam != "" {
 		statusNotList := strings.Split(statusNotParam, ",")
-		var statusNotValues []interface{}
+		var statusNotValues []string
 		for _, status := range statusNotList {
 			status = strings.TrimSpace(status)
 			if status != "" {
 				statusNotValues = append(statusNotValues, status)
 			}
 		}
-
-		if len(statusNotValues) > 0 {
-			if len(statusNotValues) == 1 {
-				// Single status exclusion
-				wheres = append(wheres, model.QueryWhere{
-					Column: "status",
-					Value:  statusNotValues[0],
-					OP:     "!=",
-				})
-			} else {
-				// Multiple status exclusion - use NOT IN clause
-				// Since gou/model doesn't support "notin" OP directly,
-				// we need to use a different approach or multiple != conditions
-				for _, status := range statusNotValues {
-					wheres = append(wheres, model.QueryWhere{
-						Column: "status",
-						Value:  status,
-						OP:     "!=",
-					})
-				}
-			}
-		}
+		filter.StatusNot = statusNotValues
 	}
-
-	param.Wheres = wheres
 
 	// Add ordering
 	sortParam := strings.TrimSpace(c.Query("sort"))
@@ -263,7 +152,7 @@ func ListDocuments(c *gin.Context) {
 		}
 
 		// Validate sort field
-		if !validSortFields[sortField] {
+		if !kbapi.ValidDocumentSortFields[sortField] {
 			continue // Skip invalid fields
 		}
 
@@ -284,11 +173,10 @@ func ListDocuments(c *gin.Context) {
 			{Column: "created_at", Option: "desc"},
 		}
 	}
+	filter.Sort = orders
 
-	param.Orders = orders
-
-	// Query documents using KB config
-	result, err := config.SearchDocuments(param, page, pagesize)
+	// Query documents using kb.API
+	result, err := kb.API.ListDocuments(c.Request.Context(), filter)
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -303,8 +191,8 @@ func ListDocuments(c *gin.Context) {
 
 // GetDocument gets document details by document ID
 func GetDocument(c *gin.Context) {
-	// Check if kb.Instance is available
-	if !checkKBInstance(c) {
+	// Check if kb.API is available
+	if !checkKBAPI(c) {
 		return
 	}
 
@@ -318,35 +206,31 @@ func GetDocument(c *gin.Context) {
 		return
 	}
 
-	// Get KB instance and config
-	kbInstance := kb.Instance.(*kb.KnowledgeBase)
-	config := kbInstance.Config
-
 	// Parse select parameter - same logic as ListDocuments
 	var selectFields []interface{}
 	if selectParam := strings.TrimSpace(c.Query("select")); selectParam != "" {
 		requestedFields := strings.Split(selectParam, ",")
 		for _, field := range requestedFields {
 			field = strings.TrimSpace(field)
-			if field != "" && availableDocumentFields[field] {
+			if field != "" && kbapi.AvailableDocumentFields[field] {
 				selectFields = append(selectFields, field)
 			}
 		}
 		// If no valid fields found, use default
 		if len(selectFields) == 0 {
-			selectFields = defaultDocumentFields
+			selectFields = kbapi.DefaultDocumentFields
 		}
 	} else {
-		selectFields = defaultDocumentFields
+		selectFields = kbapi.DefaultDocumentFields
 	}
 
-	// Build query parameters
-	param := model.QueryParam{
+	// Build params for kb.API
+	params := &kbapi.GetDocumentParams{
 		Select: selectFields,
 	}
 
-	// Query single document using KB config
-	result, err := config.FindDocument(docID, param)
+	// Query single document using kb.API
+	result, err := kb.API.GetDocument(c.Request.Context(), docID, params)
 	if err != nil {
 		if strings.Contains(err.Error(), "document not found") {
 			errorResp := &response.ErrorResponse{
@@ -370,8 +254,8 @@ func GetDocument(c *gin.Context) {
 
 // RemoveDocs removes documents by IDs
 func RemoveDocs(c *gin.Context) {
-	// Check if kb.Instance is available
-	if !checkKBInstance(c) {
+	// Check if kb.API is available
+	if !checkKBAPI(c) {
 		return
 	}
 
@@ -405,29 +289,20 @@ func RemoveDocs(c *gin.Context) {
 		return
 	}
 
-	// Get KB config for database operations
-	config, err := kb.GetConfig()
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to get KB config: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
 	// Validate document permissions
-	collectionIDs := []string{}
 	authInfo := authorized.GetInfo(c)
+	checkedCollections := make(map[string]bool)
 	for _, docID := range validDocIDs {
-		collectionID, _ := kbutils.ExtractCollectionIDFromDocID(docID)
+		collectionID := extractCollectionIDFromDocID(docID)
 		if collectionID == "" {
 			collectionID = "default"
 		}
-		collectionIDs = append(collectionIDs, collectionID)
-	}
 
-	for _, collectionID := range collectionIDs {
+		// Skip if already checked
+		if checkedCollections[collectionID] {
+			continue
+		}
+		checkedCollections[collectionID] = true
 
 		// Check update permission
 		hasPermission, err := checkCollectionPermission(authInfo, collectionID)
@@ -451,8 +326,10 @@ func RemoveDocs(c *gin.Context) {
 		}
 	}
 
-	// Remove documents using GraphRAG
-	deletedCount, err := kb.Instance.RemoveDocs(c.Request.Context(), validDocIDs)
+	// Remove documents using kb.API
+	result, err := kb.API.RemoveDocuments(c.Request.Context(), &kbapi.RemoveDocumentsParams{
+		DocumentIDs: validDocIDs,
+	})
 	if err != nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
@@ -462,62 +339,16 @@ func RemoveDocs(c *gin.Context) {
 		return
 	}
 
-	// Also remove documents from the database and track collections to update
-	dbDeletedCount := 0
-	collectionsToUpdate := make(map[string]bool) // Track unique collection IDs
-
-	for _, docID := range validDocIDs {
-		// Get document info before deletion to track collection
-		if docInfo, err := config.FindDocument(docID, model.QueryParam{
-			Select: []interface{}{"collection_id"},
-		}); err == nil && docInfo != nil {
-			if collectionID, ok := docInfo["collection_id"].(string); ok && collectionID != "" {
-				collectionsToUpdate[collectionID] = true
-			}
-		}
-
-		if err := config.RemoveDocument(docID); err != nil {
-			// Log the error but don't fail the entire operation
-			// since the document was already removed from GraphRAG
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrServerError.Code,
-				ErrorDescription: "Failed to remove document from database: " + err.Error(),
-			}
-			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-			return
-		}
-		dbDeletedCount++
-	}
-
-	// Update document counts for affected collections and sync to GraphRag
-	for collectionID := range collectionsToUpdate {
-		if err := UpdateDocumentCountWithSync(collectionID, config); err != nil {
-			// Log error but don't fail the operation
-			// TODO: Add proper logging
-			// log.Error("Failed to update document count for collection %s: %v", collectionID, err)
-		}
-	}
-
 	// Return success response with deletion count
-	c.JSON(http.StatusOK, gin.H{
-		"message":          "Documents removed successfully",
-		"deleted_count":    deletedCount,
-		"requested_count":  len(validDocIDs),
-		"db_deleted_count": dbDeletedCount,
-	})
+	c.JSON(http.StatusOK, result)
 }
 
-// Validator interface for request validation
-type Validator interface {
-	Validate() error
-}
-
-// checkKBInstance checks if kb.Instance is available
-func checkKBInstance(c *gin.Context) bool {
-	if kb.Instance == nil {
+// checkKBAPI checks if kb.API is available
+func checkKBAPI(c *gin.Context) bool {
+	if kb.API == nil {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Knowledge base not initialized",
+			ErrorDescription: "Knowledge base API not initialized",
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return false
@@ -525,54 +356,19 @@ func checkKBInstance(c *gin.Context) bool {
 	return true
 }
 
-// getUpsertOptions converts BaseUpsertRequest to UpsertOptions with optional file info
-func getUpsertOptions(c *gin.Context, req *BaseUpsertRequest, fileInfo ...string) (*types.UpsertOptions, error) {
-	upsertOptions, err := req.ToUpsertOptions(fileInfo...)
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Failed to convert request to upsert options: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return nil, err
+// extractCollectionIDFromDocID extracts collection ID from document ID
+// Document ID format: {prefix}_{collection_id}__{random_id}
+func extractCollectionIDFromDocID(docID string) string {
+	parts := strings.Split(docID, "__")
+	if len(parts) < 2 {
+		return ""
 	}
-	return upsertOptions, nil
-}
-
-// validateFileAndGetPath validates file manager, file existence and gets local path
-func validateFileAndGetPath(c *gin.Context, req *AddFileRequest) (string, string, error) {
-	// Get file manager
-	m, ok := attachment.Managers[req.Uploader]
-	if !ok {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Invalid uploader: " + req.Uploader + " not found",
-		}
-		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return "", "", response.ErrInvalidRequest
+	// First part contains prefix_collection_id
+	prefix := parts[0]
+	// Find the first underscore to skip the prefix
+	idx := strings.Index(prefix, "_")
+	if idx == -1 {
+		return prefix
 	}
-
-	// Check if the file exists
-	exists := m.Exists(c.Request.Context(), req.FileID)
-	if !exists {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "File not found: " + req.FileID,
-		}
-		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return "", "", response.ErrInvalidRequest
-	}
-
-	// Get the options of the manager
-	path, contentType, err := m.LocalPath(c.Request.Context(), req.FileID)
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to get local path: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return "", "", err
-	}
-
-	return path, contentType, nil
+	return prefix[idx+1:]
 }

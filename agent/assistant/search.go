@@ -518,6 +518,7 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 		Keywords:   extractedKeywords,
 		Config:     ast.configToMap(searchConfig),
 		RefCtx:     refCtx,
+		Results:    results,
 		Duration:   duration,
 		SearchType: "auto",
 	})
@@ -925,6 +926,7 @@ type SearchExecutionResult struct {
 	Keywords   []searchTypes.Keyword         // Extracted keywords with weights
 	Config     map[string]any                // Search config used
 	RefCtx     *searchTypes.ReferenceContext // Reference context with results
+	Results    []*searchTypes.Result         // Raw search results (for extracting DSL, etc.)
 	Duration   int64                         // Search duration in ms
 	Error      error                         // Error if failed
 	SearchType string                        // "auto", "web", "kb", "db"
@@ -1010,6 +1012,16 @@ func (ast *Assistant) saveSearch(ctx *context.Context, execResult *SearchExecuti
 		searchRecord.References = convertToStoreReferences(execResult.RefCtx.References)
 		searchRecord.XML = execResult.RefCtx.XML
 		searchRecord.Prompt = execResult.RefCtx.Prompt
+	}
+
+	// Extract DSL from DB search results
+	if execResult.Results != nil {
+		for _, result := range execResult.Results {
+			if result != nil && result.Type == searchTypes.SearchTypeDB && result.DSL != nil {
+				searchRecord.DSL = result.DSL
+				break // Only store the first DSL (usually there's only one DB search)
+			}
+		}
 	}
 
 	// Save to store

@@ -81,6 +81,9 @@ type Result struct {
 
 	// Graph associations (KB only, if enabled)
 	GraphNodes []*GraphNode `json:"graph_nodes,omitempty"`
+
+	// DB specific
+	DSL map[string]interface{} `json:"dsl,omitempty"` // Generated QueryDSL (DB only)
 }
 
 // ResultItem represents a single search result item

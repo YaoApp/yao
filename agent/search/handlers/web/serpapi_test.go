@@ -39,7 +39,7 @@ func TestSerpAPIProviderWithAssistantConfig(t *testing.T) {
 
 	// Execute search
 	req := &types.Request{
-		Query:  "Yao App Engine",
+		Query:  "golang programming language",
 		Type:   types.SearchTypeWeb,
 		Source: types.SourceAuto,
 		Limit:  5,
@@ -51,7 +51,7 @@ func TestSerpAPIProviderWithAssistantConfig(t *testing.T) {
 
 	// Verify result structure
 	assert.Equal(t, types.SearchTypeWeb, result.Type)
-	assert.Equal(t, "Yao App Engine", result.Query)
+	assert.Equal(t, "golang programming language", result.Query)
 	assert.Equal(t, types.SourceAuto, result.Source)
 
 	// API key must be valid - search should succeed

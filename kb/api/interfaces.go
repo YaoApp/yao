@@ -17,18 +17,29 @@ type API interface {
 	ListCollections(ctx context.Context, filter *ListCollectionsFilter) (*ListCollectionsResult, error)
 	UpdateCollectionMetadata(ctx context.Context, collectionID string, params *UpdateMetadataParams) (*UpdateMetadataResult, error)
 
-	// Document operations (future)
-	// AddDocument(ctx context.Context, params *AddDocumentParams) (*AddDocumentResult, error)
-	// RemoveDocument(ctx context.Context, documentID string) (*RemoveDocumentResult, error)
-	// ...
+	// Document operations
+	ListDocuments(ctx context.Context, filter *ListDocumentsFilter) (*ListDocumentsResult, error)
+	GetDocument(ctx context.Context, docID string, params *GetDocumentParams) (map[string]interface{}, error)
+	RemoveDocuments(ctx context.Context, params *RemoveDocumentsParams) (*RemoveDocumentsResult, error)
 
-	// Segment operations (future)
-	// ...
+	// Document add operations (sync)
+	AddFile(ctx context.Context, params *AddFileParams) (*AddDocumentResult, error)
+	AddText(ctx context.Context, params *AddTextParams) (*AddDocumentResult, error)
+	AddURL(ctx context.Context, params *AddURLParams) (*AddDocumentResult, error)
+
+	// Document add operations (async)
+	AddFileAsync(ctx context.Context, params *AddFileParams) (*AddDocumentAsyncResult, error)
+	AddTextAsync(ctx context.Context, params *AddTextParams) (*AddDocumentAsyncResult, error)
+	AddURLAsync(ctx context.Context, params *AddURLParams) (*AddDocumentAsyncResult, error)
+
+	// Search operations
+	Search(ctx context.Context, queries []Query) (*SearchResult, error)
 }
 
 // KBInstance holds the KB instance dependencies required by the API
 type KBInstance struct {
-	GraphRag  types.GraphRag          // GraphRag instance for vector/graph operations
+	GraphRag types.GraphRag // GraphRag instance
+	// for vector/graph operations
 	Config    *kbtypes.Config         // KB configuration
 	Providers *kbtypes.ProviderConfig // Provider configurations
 }

@@ -233,6 +233,84 @@ func UpdateExecutionProgress(executionID string, progressData map[string]interfa
 	return nil
 }
 
+// ExecuteFunc executes a Go function using goroutine mode
+func (g *Goroutine) ExecuteFunc(ctx context.Context, work *WorkRequest, progress *Progress) error {
+	config := work.Execution.ExecutionConfig
+
+	// Get function from global registry using FuncID (ExecutionID)
+	funcID := config.FuncID
+	if funcID == "" {
+		funcID = work.Execution.ExecutionID // Fallback to ExecutionID
+	}
+
+	fn, ok := GetFunc(funcID)
+	if !ok || fn == nil {
+		return fmt.Errorf("execution function not found in registry (funcID: %s)", funcID)
+	}
+
+	// Ensure cleanup after execution (success or failure)
+	defer UnregisterFunc(funcID)
+
+	funcName := config.FuncName
+	if funcName == "" {
+		funcName = "anonymous"
+	}
+
+	work.Execution.Info("Executing function: %s (goroutine mode, funcID: %s)", funcName, funcID)
+
+	// Create execution context
+	execCtx := &ExecutionContext{
+		Ctx:       ctx,
+		Execution: work.Execution,
+		Args:      config.FuncArgs,
+	}
+
+	// Execute the function
+	err := fn(execCtx)
+	if err != nil {
+		// Check if it was cancelled
+		if ctx.Err() != nil {
+			work.Execution.Warn("Function cancelled: %s", ctx.Err().Error())
+			work.Execution.Status = "cancelled"
+		} else {
+			work.Execution.Error("Function failed: %s", err.Error())
+			work.Execution.Status = "failed"
+
+			// Store error info
+			errorInfo := map[string]interface{}{
+				"error":     err.Error(),
+				"func_name": funcName,
+			}
+			if errorBytes, jsonErr := jsoniter.Marshal(errorInfo); jsonErr == nil {
+				work.Execution.ErrorInfo = (*json.RawMessage)(&errorBytes)
+			}
+		}
+
+		// Save execution status
+		if saveErr := SaveExecution(work.Execution); saveErr != nil {
+			work.Execution.Error("Failed to save execution error: %s", saveErr.Error())
+		}
+
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return fmt.Errorf("function execution failed: %w", err)
+	}
+
+	work.Execution.Info("Function completed successfully (funcID: %s)", funcID)
+
+	// Update execution with success result
+	work.Execution.Status = "completed"
+	work.Execution.Progress = 100
+
+	if saveErr := SaveExecution(work.Execution); saveErr != nil {
+		work.Execution.Error("Failed to save execution result: %s", saveErr.Error())
+		return fmt.Errorf("failed to save execution result: %w", saveErr)
+	}
+
+	return nil
+}
+
 // extractProgressData extracts progress and message from callback data
 func extractProgressData(data map[string]interface{}) (int, string) {
 	var progressInt int = -1 // Default to -1 to indicate no progress value
