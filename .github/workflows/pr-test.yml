@@ -201,7 +201,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
     if: >
       ${{ github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' }}
@@ -393,7 +393,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
     if: >
       ${{ github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.conclusion == 'success' }}
@@ -565,7 +565,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
         db: [MySQL8.0, SQLite3]
     if: >
       ${{ github.event.workflow_run.event == 'pull_request' &&
@@ -733,7 +733,7 @@ jobs:
 
     strategy:
       matrix:
-        go: [1.24]
+        go: ["1.25"]
         db: [MySQL8.0, SQLite3]
         redis: [4, 5, 6]
         mongo: ["6.0"]
