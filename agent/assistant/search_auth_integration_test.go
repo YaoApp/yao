@@ -3,8 +3,6 @@ package assistant_test
 import (
 	"context"
 	"fmt"
-	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -14,12 +12,10 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
-	"github.com/yaoapp/yao/attachment"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/kb/api"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
-	"github.com/yaoapp/yao/test"
 )
 
 // ========== Test Constants ==========
@@ -37,42 +33,6 @@ const (
 	TestTeam2 = "team_2"
 )
 
-// ========== Test Environment ==========
-
-var (
-	testEnvOnce sync.Once
-	testEnvErr  error
-)
-
-// initTestEnv initializes the test environment (only once)
-func initTestEnv(t *testing.T) {
-	testEnvOnce.Do(func() {
-		// Setup test environment
-		test.Prepare(t, config.Conf)
-
-		// Load attachment managers
-		if err := attachment.Load(config.Conf); err != nil {
-			t.Logf("Warning: Failed to load attachment managers: %v", err)
-		}
-
-		// Load knowledge base
-		if _, err := kb.Load(config.Conf); err != nil {
-			testEnvErr = fmt.Errorf("failed to load knowledge base: %w", err)
-			return
-		}
-	})
-
-	if testEnvErr != nil {
-		t.Fatalf("Test environment initialization failed: %v", testEnvErr)
-	}
-}
-
-// ========== TestMain ==========
-
-func TestMain(m *testing.M) {
-	os.Exit(m.Run())
-}
-
 // ========== Setup Test ==========
 
 // TestAuthSearchSetup creates test collections with different permissions.
@@ -80,7 +40,8 @@ func TestMain(m *testing.M) {
 //
 //	go test -v -run "TestAuthSearchSetup" ./agent/assistant/...
 func TestAuthSearchSetup(t *testing.T) {
-	initTestEnv(t)
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
 	if kb.API == nil {
 		t.Fatal("KB API not initialized")
@@ -131,7 +92,8 @@ func TestAuthSearchSetup(t *testing.T) {
 
 // TestAuthSearchCleanup removes auth test collections.
 func TestAuthSearchCleanup(t *testing.T) {
-	initTestEnv(t)
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
 	if kb.API == nil {
 		t.Fatal("KB API not initialized")
@@ -149,14 +111,11 @@ func TestAuthSearchCleanup(t *testing.T) {
 // FilterKBCollectionsByAuth filters collections based on user authorization.
 
 func TestKBCollectionAuthFilter(t *testing.T) {
-	initTestEnv(t)
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-	if kb.API == nil {
-		t.Fatal("KB API not initialized")
-	}
-
-	// Ensure test data exists
-	TestAuthSearchSetup(t)
+	// Ensure test data exists (auto-creates if not)
+	ensureAuthTestData(t)
 
 	t.Run("TeamMemberCanAccessTeamCollection", func(t *testing.T) {
 		// UserA from Team1 should access Team1 collection
@@ -235,6 +194,7 @@ func TestKBCollectionAuthFilter(t *testing.T) {
 // ========== DB Auth Wheres Tests ==========
 
 func TestDBAuthWheresFilter(t *testing.T) {
+	// Note: This test doesn't need KB, just tests the BuildDBAuthWheres function
 	t.Run("TeamOnlyGeneratesCorrectWheres", func(t *testing.T) {
 		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
 		wheres := assistant.BuildDBAuthWheres(ctx)
@@ -352,14 +312,11 @@ func TestDBAuthWheresFilter(t *testing.T) {
 // ========== KB Search Integration Tests ==========
 
 func TestKBSearchIntegration(t *testing.T) {
-	initTestEnv(t)
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
 
-	if kb.API == nil {
-		t.Fatal("KB API not initialized")
-	}
-
-	// Ensure test data exists
-	TestAuthSearchSetup(t)
+	// Ensure test data exists (auto-creates if not)
+	ensureAuthTestData(t)
 
 	t.Run("TeamMemberSearchOnlyFindsTeamData", func(t *testing.T) {
 		// UserA from Team1 searches - should ONLY find Team1 data
@@ -476,6 +433,63 @@ func TestKBSearchIntegration(t *testing.T) {
 }
 
 // ========== Helper Functions ==========
+
+// ensureAuthTestData checks if auth test data exists, creates if not.
+// This is a utility function that can be called from any test.
+// Note: testutils.Prepare must be called before this function.
+func ensureAuthTestData(t *testing.T) {
+	if kb.API == nil {
+		t.Fatal("KB API not initialized - call testutils.Prepare first")
+	}
+
+	ctx := context.Background()
+
+	// Check if all collections already exist with required documents
+	team1Ready := collectionReady(ctx, AuthTestCollectionTeam1, 2)
+	team2Ready := collectionReady(ctx, AuthTestCollectionTeam2, 2)
+	publicReady := collectionReady(ctx, AuthTestCollectionPublic, 2)
+
+	if team1Ready && team2Ready && publicReady {
+		// All data exists, skip creation
+		return
+	}
+
+	// Data not ready, create it
+	t.Log("Auth test data not found, creating...")
+	createAuthTestData(t, ctx)
+}
+
+// createAuthTestData creates the test collections and documents
+func createAuthTestData(t *testing.T, ctx context.Context) {
+	// Cleanup existing
+	t.Log("Cleaning up existing collections...")
+	cleanupAuthCollections(ctx, t)
+	time.Sleep(1 * time.Second)
+
+	// Create Team1 collection (owned by UserA, Team1)
+	t.Log("Creating Team1 collection...")
+	createAuthCollection(ctx, t, AuthTestCollectionTeam1, TestUserA, TestTeam1, false, "team")
+	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc1", "Team1 private document about quantum physics and relativity theory.")
+	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc2", "Team1 shared document about machine learning and neural networks.")
+
+	// Create Team2 collection (owned by UserB, Team2)
+	t.Log("Creating Team2 collection...")
+	createAuthCollection(ctx, t, AuthTestCollectionTeam2, TestUserB, TestTeam2, false, "team")
+	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc1", "Team2 private document about deep learning algorithms.")
+	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc2", "Team2 shared document about computer vision techniques.")
+
+	// Create Public collection
+	t.Log("Creating Public collection...")
+	createAuthCollection(ctx, t, AuthTestCollectionPublic, TestUserA, TestTeam1, true, "")
+	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc1", "Public document about artificial intelligence and robotics.")
+	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc2", "Public document about natural language processing.")
+
+	// Wait for indexing
+	t.Log("Waiting for indexing...")
+	time.Sleep(2 * time.Second)
+
+	t.Log("✓ Auth test data created!")
+}
 
 func createAuthContext(userID, teamID string, teamOnly, ownerOnly bool) *agentContext.Context {
 	return &agentContext.Context{
