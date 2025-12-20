@@ -48,9 +48,10 @@ type Request struct {
 	TimeRange string   `json:"time_range,omitempty"` // "day", "week", "month", "year"
 
 	// Knowledge base specific
-	Collections []string `json:"collections,omitempty"` // KB collection IDs
-	Threshold   float64  `json:"threshold,omitempty"`   // Similarity threshold (0-1)
-	Graph       bool     `json:"graph,omitempty"`       // Enable graph association
+	Collections []string               `json:"collections,omitempty"` // KB collection IDs
+	Threshold   float64                `json:"threshold,omitempty"`   // Similarity threshold (0-1)
+	Graph       bool                   `json:"graph,omitempty"`       // Enable graph association
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`    // Metadata filter for KB search
 
 	// Database search specific
 	Models   []string     `json:"models,omitempty"`   // Model IDs (e.g., "user", "agents.mybot.product")

@@ -31,13 +31,12 @@ func TestHandler_Type(t *testing.T) {
 	assert.Equal(t, types.SearchTypeKB, h.Type())
 }
 
-func TestHandler_Search(t *testing.T) {
+func TestHandler_Search_Validation(t *testing.T) {
 	tests := []struct {
 		name        string
 		config      *types.KBConfig
 		req         *types.Request
 		expectError string
-		expectItems int
 	}{
 		{
 			name:   "empty query",
@@ -47,85 +46,15 @@ func TestHandler_Search(t *testing.T) {
 				Query: "",
 			},
 			expectError: "query is required",
-			expectItems: 0,
 		},
 		{
-			name:   "no collections in request or config",
+			name:   "no collections - KB not initialized",
 			config: nil,
 			req: &types.Request{
 				Type:  types.SearchTypeKB,
 				Query: "test query",
 			},
-			expectError: "",
-			expectItems: 0,
-		},
-		{
-			name: "collections from config",
-			config: &types.KBConfig{
-				Collections: []string{"docs"},
-				Threshold:   0.7,
-			},
-			req: &types.Request{
-				Type:  types.SearchTypeKB,
-				Query: "test query",
-			},
-			expectError: "",
-			expectItems: 0, // skeleton returns empty
-		},
-		{
-			name:   "collections from request",
-			config: nil,
-			req: &types.Request{
-				Type:        types.SearchTypeKB,
-				Query:       "test query",
-				Collections: []string{"docs", "faq"},
-			},
-			expectError: "",
-			expectItems: 0, // skeleton returns empty
-		},
-		{
-			name: "with threshold from request",
-			config: &types.KBConfig{
-				Collections: []string{"docs"},
-				Threshold:   0.7,
-			},
-			req: &types.Request{
-				Type:        types.SearchTypeKB,
-				Query:       "test query",
-				Threshold:   0.9,
-				Collections: []string{"docs"},
-			},
-			expectError: "",
-			expectItems: 0, // skeleton returns empty
-		},
-		{
-			name: "with graph enabled",
-			config: &types.KBConfig{
-				Collections: []string{"docs"},
-				Graph:       true,
-			},
-			req: &types.Request{
-				Type:        types.SearchTypeKB,
-				Query:       "test query",
-				Collections: []string{"docs"},
-				Graph:       true,
-			},
-			expectError: "",
-			expectItems: 0, // skeleton returns empty
-		},
-		{
-			name: "with limit",
-			config: &types.KBConfig{
-				Collections: []string{"docs"},
-			},
-			req: &types.Request{
-				Type:        types.SearchTypeKB,
-				Query:       "test query",
-				Collections: []string{"docs"},
-				Limit:       5,
-			},
-			expectError: "",
-			expectItems: 0, // skeleton returns empty
+			expectError: "knowledge base not initialized",
 		},
 	}
 
@@ -138,7 +67,6 @@ func TestHandler_Search(t *testing.T) {
 			assert.NotNil(t, result)
 			assert.Equal(t, types.SearchTypeKB, result.Type)
 			assert.Equal(t, tt.req.Query, result.Query)
-			assert.Equal(t, tt.expectItems, len(result.Items))
 
 			if tt.expectError != "" {
 				assert.Equal(t, tt.expectError, result.Error)
@@ -166,5 +94,168 @@ func TestHandler_Search_SourcePreserved(t *testing.T) {
 		result, err := h.Search(req)
 		assert.NoError(t, err)
 		assert.Equal(t, source, result.Source)
+	}
+}
+
+func TestHandler_Search_CollectionsFromConfig(t *testing.T) {
+	cfg := &types.KBConfig{
+		Collections: []string{"docs", "faq"},
+		Threshold:   0.7,
+	}
+	h := NewHandler(cfg)
+
+	// Request without collections should use config collections
+	req := &types.Request{
+		Type:  types.SearchTypeKB,
+		Query: "test query",
+	}
+	result, err := h.Search(req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Without KB initialized, we get "knowledge base not initialized" error
+	assert.Equal(t, "knowledge base not initialized", result.Error)
+}
+
+func TestHandler_Search_CollectionsFromRequest(t *testing.T) {
+	h := NewHandler(nil)
+
+	// Request with collections
+	req := &types.Request{
+		Type:        types.SearchTypeKB,
+		Query:       "test query",
+		Collections: []string{"docs", "faq"},
+	}
+	result, err := h.Search(req)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	// Without KB initialized, we get "knowledge base not initialized" error
+	assert.Equal(t, "knowledge base not initialized", result.Error)
+}
+
+func TestHandler_Search_ThresholdHandling(t *testing.T) {
+	tests := []struct {
+		name            string
+		configThreshold float64
+		reqThreshold    float64
+	}{
+		{
+			name:            "threshold from request",
+			configThreshold: 0.7,
+			reqThreshold:    0.9,
+		},
+		{
+			name:            "threshold from config",
+			configThreshold: 0.8,
+			reqThreshold:    0,
+		},
+		{
+			name:            "default threshold",
+			configThreshold: 0,
+			reqThreshold:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var cfg *types.KBConfig
+			if tt.configThreshold > 0 {
+				cfg = &types.KBConfig{
+					Collections: []string{"docs"},
+					Threshold:   tt.configThreshold,
+				}
+			}
+			h := NewHandler(cfg)
+
+			req := &types.Request{
+				Type:        types.SearchTypeKB,
+				Query:       "test query",
+				Threshold:   tt.reqThreshold,
+				Collections: []string{"docs"},
+			}
+			result, err := h.Search(req)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+		})
+	}
+}
+
+func TestHandler_Search_GraphMode(t *testing.T) {
+	tests := []struct {
+		name        string
+		configGraph bool
+		reqGraph    bool
+	}{
+		{
+			name:        "graph from request",
+			configGraph: false,
+			reqGraph:    true,
+		},
+		{
+			name:        "graph from config",
+			configGraph: true,
+			reqGraph:    false,
+		},
+		{
+			name:        "no graph",
+			configGraph: false,
+			reqGraph:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &types.KBConfig{
+				Collections: []string{"docs"},
+				Graph:       tt.configGraph,
+			}
+			h := NewHandler(cfg)
+
+			req := &types.Request{
+				Type:        types.SearchTypeKB,
+				Query:       "test query",
+				Collections: []string{"docs"},
+				Graph:       tt.reqGraph,
+			}
+			result, err := h.Search(req)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+		})
+	}
+}
+
+func TestHandler_Search_LimitHandling(t *testing.T) {
+	h := NewHandler(&types.KBConfig{Collections: []string{"docs"}})
+
+	tests := []struct {
+		name  string
+		limit int
+	}{
+		{
+			name:  "custom limit",
+			limit: 5,
+		},
+		{
+			name:  "default limit",
+			limit: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := &types.Request{
+				Type:        types.SearchTypeKB,
+				Query:       "test query",
+				Collections: []string{"docs"},
+				Limit:       tt.limit,
+			}
+			result, err := h.Search(req)
+
+			assert.NoError(t, err)
+			assert.NotNil(t, result)
+		})
 	}
 }

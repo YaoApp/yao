@@ -801,15 +801,25 @@ func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, co
 				threshold = config.KB.Threshold
 			}
 		}
-		requests = append(requests, &searchTypes.Request{
-			Type:        searchTypes.SearchTypeKB,
-			Query:       query, // KB uses original query for semantic search
-			Source:      searchTypes.SourceAuto,
-			Limit:       limit,
-			Collections: ast.KB.Collections,
-			Threshold:   threshold,
-			Graph:       config != nil && config.KB != nil && config.KB.Graph,
-		})
+
+		// Filter collections by authorization (Collection-level permission check)
+		allowedCollections := FilterKBCollectionsByAuth(ctx, ast.KB.Collections)
+		if len(allowedCollections) == 0 {
+			ctx.Logger.Info("No accessible KB collections after auth filter")
+		} else {
+			// Build KB request
+			kbReq := &searchTypes.Request{
+				Type:        searchTypes.SearchTypeKB,
+				Query:       query, // KB uses original query for semantic search
+				Source:      searchTypes.SourceAuto,
+				Limit:       limit,
+				Collections: allowedCollections,
+				Threshold:   threshold,
+				Graph:       config != nil && config.KB != nil && config.KB.Graph,
+			}
+
+			requests = append(requests, kbReq)
+		}
 	}
 
 	// DB search - check if DB is configured and allowed by intent
@@ -818,13 +828,22 @@ func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, co
 		if config != nil && config.DB != nil && config.DB.MaxResults > 0 {
 			limit = config.DB.MaxResults
 		}
-		requests = append(requests, &searchTypes.Request{
+
+		// Build DB request with auth where clauses
+		dbReq := &searchTypes.Request{
 			Type:   searchTypes.SearchTypeDB,
 			Query:  query, // DB uses original query for QueryDSL generation
 			Source: searchTypes.SourceAuto,
 			Limit:  limit,
 			Models: ast.DB.Models,
-		})
+		}
+
+		// Apply authorization where clauses
+		if authWheres := BuildDBAuthWheres(ctx); authWheres != nil {
+			dbReq.Wheres = authWheres
+		}
+
+		requests = append(requests, dbReq)
 	}
 
 	return requests, extractedKeywords

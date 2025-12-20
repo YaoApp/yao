@@ -314,30 +314,30 @@ func TestSearchQuery(t *testing.T) {
 		}
 	})
 
-	t.Run("Search_WithMinScore", func(t *testing.T) {
-		// Test: Filter by minimum score
+	t.Run("Search_WithThreshold", func(t *testing.T) {
+		// Test: Filter by similarity threshold
 		queries := []api.Query{
 			{
 				CollectionID: SearchTestScienceCollection,
 				Input:        "Einstein relativity",
 				Mode:         api.SearchModeVector,
-				MinScore:     0.5,
+				Threshold:    0.5,
 				PageSize:     10,
 			},
 		}
 
 		result, err := kb.API.Search(ctx, queries)
 		if err != nil {
-			t.Logf("MinScore search error: %v", err)
+			t.Logf("Threshold search error: %v", err)
 			return
 		}
 
 		assert.NotNil(t, result)
-		t.Logf("MinScore search returned %d segments", len(result.Segments))
+		t.Logf("Threshold search returned %d segments", len(result.Segments))
 
-		// Verify all results meet minimum score
+		// Verify all results meet threshold
 		for _, seg := range result.Segments {
-			assert.GreaterOrEqual(t, seg.Score, 0.5, "All segments should meet minimum score")
+			assert.GreaterOrEqual(t, seg.Score, 0.5, "All segments should meet threshold")
 		}
 	})
 

@@ -76,7 +76,7 @@ unit-test-core:
 # AI Unit Test (agent, aigc)
 .PHONY: unit-test-ai
 unit-test-ai:
-	echo "mode: count" > coverage-ai.out
+	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_AI); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
 		cat tmp.out; \
@@ -100,7 +100,7 @@ unit-test-ai:
 			exit 1; \
 		fi; \
 		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage-ai.out; \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
 			rm profile.out; \
 		fi; \
 	done
@@ -108,7 +108,7 @@ unit-test-ai:
 # KB Unit Test (kb)
 .PHONY: unit-test-kb
 unit-test-kb:
-	echo "mode: count" > coverage-kb.out
+	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_KB); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestSearchCleanup' $$d > tmp.out; \
 		cat tmp.out; \
@@ -132,7 +132,7 @@ unit-test-kb:
 			exit 1; \
 		fi; \
 		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage-kb.out; \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
 			rm profile.out; \
 		fi; \
 	done

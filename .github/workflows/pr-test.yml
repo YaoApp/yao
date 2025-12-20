@@ -336,6 +336,11 @@ jobs:
       - name: Run KB Tests (kb)
         run: make unit-test-kb
 
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
       - name: "Comment on PR - KB Tests Done"
         uses: actions/github-script@v7
         with:
@@ -527,6 +532,11 @@ jobs:
 
       - name: Run AI Tests (agent, aigc)
         run: make unit-test-ai
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
 
       - name: "Comment on PR - AI Tests Done"
         uses: actions/github-script@v7

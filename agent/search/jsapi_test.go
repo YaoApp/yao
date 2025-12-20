@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search"
 	"github.com/yaoapp/yao/agent/search/types"
+	"github.com/yaoapp/yao/agent/testutils"
 )
 
 func TestNewJSAPI(t *testing.T) {
@@ -51,6 +52,9 @@ func TestJSAPI_Web_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_KB(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		KB: &types.KBConfig{Collections: []string{"docs"}},
 	}, nil)
@@ -66,6 +70,9 @@ func TestJSAPI_KB(t *testing.T) {
 }
 
 func TestJSAPI_KB_WithOptions(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		KB: &types.KBConfig{Collections: []string{"docs"}},
 	}, nil)
@@ -87,6 +94,9 @@ func TestJSAPI_KB_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_DB(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		DB: &types.DBConfig{Models: []string{"product"}},
 	}, &search.Uses{QueryDSL: "builtin"})
@@ -102,6 +112,9 @@ func TestJSAPI_DB(t *testing.T) {
 }
 
 func TestJSAPI_DB_WithOptions(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		DB: &types.DBConfig{Models: []string{"product"}},
 	}, &search.Uses{QueryDSL: "builtin"})
@@ -122,6 +135,9 @@ func TestJSAPI_DB_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_All(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		KB: &types.KBConfig{Collections: []string{"docs"}},
 		DB: &types.DBConfig{Models: []string{"product"}},
@@ -155,6 +171,9 @@ func TestJSAPI_All(t *testing.T) {
 }
 
 func TestJSAPI_Any(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		KB: &types.KBConfig{Collections: []string{"docs"}},
 		DB: &types.DBConfig{Models: []string{"product"}},
@@ -186,6 +205,9 @@ func TestJSAPI_Any(t *testing.T) {
 }
 
 func TestJSAPI_Race(t *testing.T) {
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	api := search.NewJSAPI(nil, &types.Config{
 		KB: &types.KBConfig{Collections: []string{"docs"}},
 		DB: &types.DBConfig{Models: []string{"product"}},

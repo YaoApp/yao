@@ -151,14 +151,24 @@ func (s *Searcher) parallelAny(ctx *context.Context, reqs []*types.Request) ([]*
 		wg.Add(1)
 		go func(idx int, r *types.Request) {
 			defer wg.Done()
-			result, _ := s.Search(ctx, r)
+
+			// Check if done before starting
 			select {
+			case <-done:
+				return
+			default:
+			}
+
+			result, _ := s.Search(ctx, r)
+
+			// Try to send result
+			select {
+			case <-done:
+				// Already found a successful result
 			case resultChan <- struct {
 				idx    int
 				result *types.Result
 			}{idx, result}:
-			case <-done:
-				// Already found a successful result, discard this one
 			}
 		}(i, req)
 	}
@@ -170,25 +180,23 @@ func (s *Searcher) parallelAny(ctx *context.Context, reqs []*types.Request) ([]*
 	}()
 
 	// Collect results until we find one with items (success)
-	var mu sync.Mutex
+	var foundSuccess bool
 	for res := range resultChan {
-		mu.Lock()
 		results[res.idx] = res.result
 		// Check if this result has items (success = has results and no error)
-		if res.result != nil && len(res.result.Items) > 0 && res.result.Error == "" {
-			mu.Unlock()
-			close(done) // Signal other goroutines to stop sending
-			return results, nil
+		if !foundSuccess && res.result != nil && len(res.result.Items) > 0 && res.result.Error == "" {
+			foundSuccess = true
+			close(done) // Signal other goroutines to stop
 		}
-		mu.Unlock()
 	}
 
-	// No successful result found, return all results
+	// All goroutines have completed (resultChan is closed)
 	return results, nil
 }
 
 // parallelRace returns as soon as any search completes (like Promise.race)
 // Returns immediately when first result arrives, regardless of success/failure
+// Note: Still waits for all goroutines to complete before returning to avoid resource leaks
 func (s *Searcher) parallelRace(ctx *context.Context, reqs []*types.Request) ([]*types.Result, error) {
 	results := make([]*types.Result, len(reqs))
 	resultChan := make(chan struct {
@@ -203,14 +211,24 @@ func (s *Searcher) parallelRace(ctx *context.Context, reqs []*types.Request) ([]
 		wg.Add(1)
 		go func(idx int, r *types.Request) {
 			defer wg.Done()
-			result, _ := s.Search(ctx, r)
+
+			// Check if done before starting
 			select {
+			case <-done:
+				return
+			default:
+			}
+
+			result, _ := s.Search(ctx, r)
+
+			// Try to send result
+			select {
+			case <-done:
+				// Already got first result
 			case resultChan <- struct {
 				idx    int
 				result *types.Result
 			}{idx, result}:
-			case <-done:
-				// Already got first result, discard this one
 			}
 		}(i, req)
 	}
@@ -221,14 +239,17 @@ func (s *Searcher) parallelRace(ctx *context.Context, reqs []*types.Request) ([]
 		close(resultChan)
 	}()
 
-	// Return immediately when first result arrives
-	if res, ok := <-resultChan; ok {
+	// Get first result and signal others to stop
+	var gotFirst bool
+	for res := range resultChan {
 		results[res.idx] = res.result
-		close(done) // Signal other goroutines to stop sending
-		return results, nil
+		if !gotFirst {
+			gotFirst = true
+			close(done) // Signal other goroutines to stop
+		}
 	}
 
-	// No results (shouldn't happen with valid requests)
+	// All goroutines have completed (resultChan is closed)
 	return results, nil
 }
 
