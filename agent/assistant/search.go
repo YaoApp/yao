@@ -803,7 +803,7 @@ func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, co
 		}
 
 		// Filter collections by authorization (Collection-level permission check)
-		allowedCollections := filterKBCollectionsByAuth(ctx, ast.KB.Collections)
+		allowedCollections := FilterKBCollectionsByAuth(ctx, ast.KB.Collections)
 		if len(allowedCollections) == 0 {
 			ctx.Logger.Info("No accessible KB collections after auth filter")
 		} else {
@@ -839,7 +839,7 @@ func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, co
 		}
 
 		// Apply authorization where clauses
-		if authWheres := buildDBAuthWheres(ctx); authWheres != nil {
+		if authWheres := BuildDBAuthWheres(ctx); authWheres != nil {
 			dbReq.Wheres = authWheres
 		}
 

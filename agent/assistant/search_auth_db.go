@@ -5,10 +5,10 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 )
 
-// buildDBAuthWheres builds where clauses for DB search based on authorization
+// BuildDBAuthWheres builds where clauses for DB search based on authorization
 // This applies permission-based filtering to database queries
 // Returns gou.Where clauses to filter records by authorization scope
-func buildDBAuthWheres(ctx *context.Context) []gou.Where {
+func BuildDBAuthWheres(ctx *context.Context) []gou.Where {
 	if ctx == nil || ctx.Authorized == nil {
 		return nil
 	}

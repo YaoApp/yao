@@ -8,10 +8,10 @@ import (
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
-// filterKBCollectionsByAuth filters collections based on user authorization.
+// FilterKBCollectionsByAuth filters collections based on user authorization.
 // Returns only collections that the user has permission to access.
 // Permission is determined by Collection's metadata (public, share, __yao_team_id, __yao_created_by).
-func filterKBCollectionsByAuth(ctx *agentContext.Context, collections []string) []string {
+func FilterKBCollectionsByAuth(ctx *agentContext.Context, collections []string) []string {
 	if ctx == nil || ctx.Authorized == nil {
 		return collections // No auth context, return all
 	}
