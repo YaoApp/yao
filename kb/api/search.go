@@ -73,12 +73,17 @@ func (kb *KBInstance) Search(ctx context.Context, queries []Query) (*SearchResul
 	close(errChan)
 
 	// Collect errors
-	var errors []error
+	var errs []error
 	for err := range errChan {
-		errors = append(errors, err)
+		errs = append(errs, err)
 	}
-	if len(errors) > 0 {
-		log.Warn("Search completed with errors: %v", errors)
+	if len(errs) > 0 {
+		// Combine all error messages
+		errMsgs := make([]string, len(errs))
+		for i, e := range errs {
+			errMsgs[i] = e.Error()
+		}
+		return nil, fmt.Errorf("search failed: %v", errMsgs)
 	}
 
 	// 4. Merge and deduplicate results

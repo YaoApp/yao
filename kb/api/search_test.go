@@ -14,22 +14,12 @@ import (
 // Note: Test data setup is in search_setup_test.go
 
 // ========== Search Query Tests ==========
-// These tests use fixed collection IDs from search_setup_test.go
-// Run TestSearchSetup first to create test data, then run these tests.
-//
-// Usage:
-//   1. Setup (run once):    go test -v -run "TestSearchSetup" ./kb/api/...
-//   2. Run tests:           go test -v -run "TestSearchQuery" ./kb/api/...
-//   3. Cleanup (optional):  go test -v -run "TestSearchCleanup" ./kb/api/...
 
-// verifyTestDataExists checks if test collections exist, skips if not
-func verifyTestDataExists(t *testing.T, ctx context.Context) {
-	scienceExists, _ := kb.API.CollectionExists(ctx, SearchTestScienceCollection)
-	techExists, _ := kb.API.CollectionExists(ctx, SearchTestTechCollection)
-
-	if scienceExists == nil || !scienceExists.Exists || techExists == nil || !techExists.Exists {
-		t.Skip("Test data not found. Run 'go test -v -run TestSearchSetup ./kb/api/...' first")
-	}
+// ensureTestDataExists ensures test collections exist by running setup if needed
+// Setup will skip creation if data already exists
+func ensureTestDataExists(t *testing.T, ctx context.Context) {
+	// Run setup - it checks if data exists and skips if already complete
+	TestSearchSetup(t)
 }
 
 func TestSearchQuery(t *testing.T) {
@@ -38,7 +28,7 @@ func TestSearchQuery(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	verifyTestDataExists(t, ctx)
+	ensureTestDataExists(t, ctx)
 
 	t.Run("VectorSearch_SingleCollection", func(t *testing.T) {
 		// Test: Simple vector search in science collection

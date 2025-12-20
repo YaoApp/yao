@@ -239,7 +239,7 @@ type Query struct {
 	// Metadata filters segments by metadata fields (optional)
 	Metadata map[string]interface{} `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 
-	// Graph search options (used when Mode is graph or hybrid)
+	// Graph search options (used when Mode is graph or expand)
 	MaxDepth int `json:"max_depth,omitempty" yaml:"max_depth,omitempty"` // Max traversal depth (default: 2)
 
 	// Pagination options
