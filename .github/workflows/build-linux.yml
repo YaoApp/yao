@@ -10,7 +10,7 @@ jobs:
   build:
     runs-on: "ubuntu-latest"
     container:
-      image: yaoapp/yao-build:0.10.5
+      image: yaoapp/yao-build:1.0.0
 
     env:
       CF_ACCESS_KEY_ID: ${{ secrets.CF_ACCESS_KEY_ID }}

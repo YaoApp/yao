@@ -7,13 +7,13 @@ on:
         description: "Version tags"
 
 env:
-  VERSION: 0.10.5
+  VERSION: 1.0.0
 
 jobs:
   build:
     strategy:
       matrix:
-        go: [1.24.3]
+        go: ["1.25"]
     runs-on: "macos-latest"
     steps:
       - name: Setup Node.js
