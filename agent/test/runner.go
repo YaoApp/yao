@@ -33,12 +33,44 @@ func NewRunner(opts *Options) *Executor {
 
 // Run executes all test cases and returns a report
 func (r *Executor) Run() (*Report, error) {
+	// For script test mode, use script runner
+	if r.opts.InputMode == InputModeScript {
+		return r.RunScriptTests()
+	}
+
 	// For direct message mode, use simplified output (development mode)
 	if r.opts.InputMode == InputModeMessage {
 		return r.RunDirect()
 	}
 
 	return r.RunTests()
+}
+
+// RunScriptTests executes script tests and returns a report
+func (r *Executor) RunScriptTests() (*Report, error) {
+	scriptRunner := NewScriptRunner(r.opts)
+	scriptReport, err := scriptRunner.Run()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to standard report for unified output handling
+	report := scriptReport.ToReport()
+
+	// Write output if specified
+	if r.opts.OutputFile != "" {
+		err = r.writeOutput(report)
+		if err != nil {
+			r.output.Error("Failed to write output: %s", err.Error())
+		} else {
+			r.output.OutputFile(r.opts.OutputFile)
+		}
+	}
+
+	// Print final result
+	r.output.FinalResult(!report.HasFailures())
+
+	return report, nil
 }
 
 // RunDirect executes a single direct message and outputs the result directly
