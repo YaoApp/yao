@@ -5,6 +5,8 @@
 Agent Test Package provides a framework for testing AI agents with structured test cases.
 It supports batch testing, report generation, stability analysis, and CI integration.
 
+Additionally, it supports **Script Testing** for testing Agent handler scripts (hooks, tools, etc.) with a Go-like testing interface.
+
 ### Quick Start
 
 ```bash
@@ -23,6 +25,12 @@ yao agent test -i assistants/keyword/tests/inputs.jsonl --runs 5
 
 # Generate HTML report
 yao agent test -i assistants/keyword/tests/inputs.jsonl -r report.html -o report.html
+
+# Run script tests (test agent handler scripts)
+yao agent test -i scripts.expense.setup -v
+
+# Run script tests with specific user/team context
+yao agent test -i scripts.expense.tools -u admin -t ops-team -v
 ```
 
 ## Usage
@@ -77,7 +85,7 @@ yao agent test -i tests/inputs.jsonl \
 
 ### Input Modes
 
-The `-i` flag supports two input modes:
+The `-i` flag supports three input modes:
 
 **1. JSONL File Mode** - Load test cases from a file:
 
@@ -103,6 +111,33 @@ When using direct message mode:
 - If not found, use `-n` flag to specify agent explicitly
 - Output is printed to stdout (or saved to `-o` if specified)
 - Useful for quick testing and debugging
+
+**3. Script Test Mode** - Test agent handler scripts:
+
+```bash
+# Run all tests in a script module
+yao agent test -i scripts.expense.setup -v
+
+# Run with specific user/team context
+yao agent test -i scripts.expense.tools -u admin -t ops-team
+
+# Run with timeout
+yao agent test -i scripts.expense.setup --timeout 30s
+
+# Run specific tests by pattern (like go test -run)
+yao agent test -i scripts.expense.setup -run TestSystemReady
+
+# Run tests matching a regex pattern
+yao agent test -i scripts.expense.setup -run "TestSystem.*"
+```
+
+When using script test mode:
+
+- Input starts with `scripts.` prefix to indicate script testing
+- Maps to the script file (e.g., `scripts.expense.setup` → `expense/src/setup_test.ts`)
+- Automatically discovers and runs all `Test*` functions in the script
+- Uses Go-like testing interface with assertions
+- See [Script Testing](#script-testing) section for details
 
 ### Default Output Path
 
@@ -131,8 +166,10 @@ When using direct message mode without `-o`, output is printed to stdout.
 | `-c` | `--connector` | Override connector                    | agent default              | `-c openai.gpt4`                        |
 | `-u` | `--user`      | Test user ID (global override)        | "test-user"                | `-u admin`                              |
 | `-t` | `--team`      | Test team ID (global override)        | "test-team"                | `-t ops-team`                           |
+|      | `--ctx`       | Path to context JSON file             | -                          | `--ctx tests/context.json`              |
 | `-r` | `--reporter`  | Custom reporter agent ID              | - (use built-in)           | `-r report.beautiful`                   |
 |      | `--runs`      | Number of runs for stability analysis | 1                          | `--runs 5`                              |
+|      | `--run`       | Regex pattern to filter tests         | -                          | `--run "TestSystem.*"`                  |
 |      | `--timeout`   | Default timeout per test case         | 5m                         | `--timeout 10m`                         |
 |      | `--parallel`  | Number of parallel test cases         | 1                          | `--parallel 4`                          |
 | `-v` | `--verbose`   | Verbose output                        | false                      | `-v`                                    |
@@ -329,6 +366,437 @@ Create a custom reporter agent at `assistants/reporters/my-reporter/`:
     - Include charts for stability metrics
     - Make it printable
 ```
+
+## Script Testing
+
+Script Testing allows you to test Agent handler scripts (hooks, tools, setup functions, etc.) using a Go-like testing interface. This is useful for unit testing individual functions in your agent's TypeScript/JavaScript code.
+
+### Quick Start
+
+```bash
+# Run script tests
+yao agent test -i scripts.expense.setup -v
+
+# With user/team context
+yao agent test -i scripts.expense.setup -u admin -t ops-team -v
+
+# With timeout
+yao agent test -i scripts.expense.setup --timeout 30s -v
+```
+
+### Script Resolution
+
+The `scripts.` prefix indicates script test mode. The script is resolved as follows:
+
+| Input                   | Script Path            | Test File                   |
+| ----------------------- | ---------------------- | --------------------------- |
+| `scripts.expense.setup` | `expense/src/setup.ts` | `expense/src/setup_test.ts` |
+| `scripts.expense.tools` | `expense/src/tools.ts` | `expense/src/tools_test.ts` |
+| `scripts.keyword.index` | `keyword/src/index.ts` | `keyword/src/index_test.ts` |
+
+The test file naming convention is `{module}_test.ts` (similar to Go's `_test.go` convention).
+
+### Test Function Signature
+
+Test functions must follow this signature:
+
+```typescript
+function TestFunctionName(t: testing.T, ctx: agent.Context) {
+  // Test logic here
+}
+```
+
+**Requirements:**
+
+- Function name must start with `Test` (case-sensitive)
+- First parameter `t` is the testing object with assertions
+- Second parameter `ctx` is the agent context (same as used in hooks/tools)
+- Functions not starting with `Test` are ignored (can be used as helpers)
+
+### Example Test File
+
+```typescript
+// setup_test.ts
+// @ts-nocheck
+
+// Test the SystemReady function
+function TestSystemReady(t: testing.T, ctx: agent.Context) {
+  const { assert } = t;
+
+  // Call the function being tested
+  const result = SystemReady(ctx);
+
+  // Assert the result
+  assert.True(result, "SystemReady should return true");
+}
+
+// Test error case
+function TestSystemReadyWithInvalidContext(t: testing.T, ctx: agent.Context) {
+  const { assert } = t;
+
+  // Modify context to simulate error condition
+  ctx.User = null;
+
+  const result = SystemReady(ctx);
+  assert.False(result, "SystemReady should return false when user is null");
+}
+
+// Helper function (not a test - doesn't start with "Test")
+function createMockData() {
+  return { id: 1, name: "test" };
+}
+
+// Test with helper
+function TestSetupWithMockData(t: testing.T, ctx: agent.Context) {
+  const { assert } = t;
+  const mockData = createMockData();
+
+  const result = Setup(ctx, mockData);
+  assert.NotNil(result, "Setup should return a result");
+  assert.Equal(result.id, 1, "Result ID should match");
+}
+```
+
+### Testing Object (`t`)
+
+The `t` parameter provides the testing interface:
+
+```typescript
+interface testing.T {
+  // Assertions object
+  assert: testing.Assert;
+
+  // Test metadata
+  name: string;        // Current test function name
+  failed: boolean;     // Whether the test has failed
+
+  // Logging (output appears in test report)
+  log(...args: any[]): void;      // Log info message
+  error(...args: any[]): void;    // Log error message
+
+  // Control flow
+  skip(reason?: string): void;    // Skip this test
+  fail(reason?: string): void;    // Mark test as failed
+  fatal(reason?: string): void;   // Mark as failed and stop execution
+}
+```
+
+### Assertions (`t.assert`)
+
+The `assert` object provides assertion methods:
+
+| Method                              | Description                        |
+| ----------------------------------- | ---------------------------------- |
+| `True(value, message?)`             | Assert value is true               |
+| `False(value, message?)`            | Assert value is false              |
+| `Equal(actual, expected, message?)` | Assert deep equality               |
+| `NotEqual(actual, expected, msg?)`  | Assert not equal                   |
+| `Nil(value, message?)`              | Assert value is null/undefined     |
+| `NotNil(value, message?)`           | Assert value is not null/undefined |
+| `Contains(str, substr, message?)`   | Assert string contains substring   |
+| `NotContains(str, substr, msg?)`    | Assert string does not contain     |
+| `Len(value, length, message?)`      | Assert array/string length         |
+| `Greater(a, b, message?)`           | Assert a > b                       |
+| `GreaterOrEqual(a, b, message?)`    | Assert a >= b                      |
+| `Less(a, b, message?)`              | Assert a < b                       |
+| `LessOrEqual(a, b, message?)`       | Assert a <= b                      |
+| `Error(err, message?)`              | Assert err is an error             |
+| `NoError(err, message?)`            | Assert err is null/undefined       |
+| `Panic(fn, message?)`               | Assert function throws             |
+| `NoPanic(fn, message?)`             | Assert function does not throw     |
+| `Match(value, pattern, message?)`   | Assert value matches regex         |
+| `NotMatch(value, pattern, msg?)`    | Assert value does not match regex  |
+| `JSONPath(obj, path, expected, m?)` | Assert JSON path value             |
+| `Type(value, typeName, message?)`   | Assert value type                  |
+
+### Agent Context (`ctx`)
+
+The `ctx` parameter is the same `agent.Context` used in agent hooks and tools:
+
+```typescript
+interface agent.Context {
+  // User information (from -u flag or default)
+  User: {
+    ID: string;
+    Name?: string;
+  };
+
+  // Team information (from -t flag or default)
+  Team: {
+    ID: string;
+    Name?: string;
+  };
+
+  // Locale (default: "en-us")
+  Locale: string;
+
+  // Client information
+  Client: {
+    Type: string;    // "test"
+    IP: string;      // "127.0.0.1"
+  };
+
+  // Metadata (can be set via test case)
+  Metadata: Record<string, any>;
+
+  // Chat/Session ID
+  ChatID: string;
+
+  // Assistant ID (resolved from script path)
+  AssistantID: string;
+}
+```
+
+### Script Test Output
+
+Script test results are reported in the same format as agent tests:
+
+```
+═══════════════════════════════════════════════════════════════════════════════
+  Script Test: scripts.expense.setup
+═══════════════════════════════════════════════════════════════════════════════
+  Script: expense/src/setup_test.ts
+  Tests: 3 functions
+  User: test-user
+  Team: test-team
+───────────────────────────────────────────────────────────────────────────────
+  Running Tests
+───────────────────────────────────────────────────────────────────────────────
+► [TestSystemReady] ...
+  ✓ PASSED (12ms)
+
+► [TestSystemReadyWithInvalidContext] ...
+  ✓ PASSED (8ms)
+
+► [TestSetupWithMockData] ...
+  ✗ FAILED (15ms)
+    └─ assertion failed: Result ID should match
+       expected: 1
+       actual: 2
+
+═══════════════════════════════════════════════════════════════════════════════
+  Summary: 2 passed, 1 failed, 0 skipped (35ms)
+═══════════════════════════════════════════════════════════════════════════════
+```
+
+### Script Test Options
+
+Script tests support the following command line options:
+
+| Flag          | Description                      | Default     | Example              |
+| ------------- | -------------------------------- | ----------- | -------------------- |
+| `-u`          | User ID for context              | "test-user" | `-u admin`           |
+| `-t`          | Team ID for context              | "test-team" | `-t ops-team`        |
+| `--ctx`       | Path to context JSON file        | -           | `--ctx context.json` |
+| `-v`          | Verbose output                   | false       | `-v`                 |
+| `--run`       | Regex to filter tests            | -           | `--run "TestSystem"` |
+| `--timeout`   | Timeout per test function        | 30s         | `--timeout 1m`       |
+| `--fail-fast` | Stop on first failure            | false       | `--fail-fast`        |
+| `-o`          | Output file for report           | stdout      | `-o report.json`     |
+| `-r`          | Reporter agent for custom report | -           | `-r report.html`     |
+
+The `--run` flag accepts a Go-style regex pattern to filter which tests to run:
+
+```bash
+# Run only TestSystemReady
+yao agent test -i scripts.expense.setup --run TestSystemReady
+
+# Run all tests starting with "TestSystem"
+yao agent test -i scripts.expense.setup --run "TestSystem.*"
+
+# Run tests containing "Error"
+yao agent test -i scripts.expense.setup --run ".*Error.*"
+```
+
+### Custom Context Configuration
+
+The `--ctx` flag allows you to provide a JSON file with custom context configuration, giving full control over authorization data, metadata, and client information:
+
+```bash
+# Use custom context file
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+```
+
+**Context JSON Format:**
+
+```json
+{
+  "authorized": {
+    "sub": "user-12345",
+    "client_id": "my-app",
+    "scope": "read write",
+    "session_id": "sess-abc123",
+    "user_id": "admin",
+    "team_id": "team-001",
+    "tenant_id": "acme-corp",
+    "remember_me": false,
+    "constraints": {
+      "owner_only": false,
+      "creator_only": false,
+      "editor_only": false,
+      "team_only": true,
+      "extra": {
+        "department": "engineering",
+        "region": "us-west"
+      }
+    }
+  },
+  "metadata": {
+    "request_id": "req-123",
+    "trace_id": "trace-456",
+    "custom_field": "custom_value"
+  },
+  "client": {
+    "type": "web",
+    "user_agent": "Mozilla/5.0",
+    "ip": "192.168.1.100"
+  },
+  "locale": "zh-cn",
+  "referer": "https://example.com/dashboard"
+}
+```
+
+**Field Descriptions:**
+
+| Field                      | Description                                         |
+| -------------------------- | --------------------------------------------------- |
+| `authorized.sub`           | Subject identifier (JWT sub claim)                  |
+| `authorized.client_id`     | OAuth client ID                                     |
+| `authorized.scope`         | Access scope                                        |
+| `authorized.session_id`    | Session identifier                                  |
+| `authorized.user_id`       | User identifier (overrides -u flag)                 |
+| `authorized.team_id`       | Team identifier (overrides -t flag)                 |
+| `authorized.tenant_id`     | Tenant identifier                                   |
+| `authorized.remember_me`   | Remember me flag                                    |
+| `authorized.constraints`   | Data access constraints (set by ACL enforcement)    |
+| `constraints.owner_only`   | Only access owner's data                            |
+| `constraints.creator_only` | Only access creator's data                          |
+| `constraints.editor_only`  | Only access editor's data                           |
+| `constraints.team_only`    | Only access team's data (filter by team_id)         |
+| `constraints.extra`        | User-defined constraints (department, region, etc.) |
+| `metadata`                 | Custom metadata passed to context                   |
+| `client.type`              | Client type (web, mobile, test, etc.)               |
+| `client.user_agent`        | Client user agent string                            |
+| `client.ip`                | Client IP address                                   |
+| `locale`                   | Locale setting (e.g., "en-us", "zh-cn")             |
+| `referer`                  | Request referer URL                                 |
+
+**Priority:** When both `-u`/`-t` flags and `--ctx` file are provided, the context file values take precedence.
+
+### Script Test Report Format
+
+When using `-o` to save results:
+
+```json
+{
+  "type": "script_test",
+  "script": "scripts.expense.setup",
+  "script_path": "expense/src/setup_test.ts",
+  "summary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 1,
+    "skipped": 0,
+    "duration_ms": 35
+  },
+  "environment": {
+    "user_id": "test-user",
+    "team_id": "test-team",
+    "locale": "en-us"
+  },
+  "results": [
+    {
+      "name": "TestSystemReady",
+      "status": "passed",
+      "duration_ms": 12,
+      "logs": []
+    },
+    {
+      "name": "TestSystemReadyWithInvalidContext",
+      "status": "passed",
+      "duration_ms": 8,
+      "logs": []
+    },
+    {
+      "name": "TestSetupWithMockData",
+      "status": "failed",
+      "duration_ms": 15,
+      "error": "assertion failed: Result ID should match",
+      "assertion": {
+        "type": "Equal",
+        "expected": 1,
+        "actual": 2,
+        "message": "Result ID should match"
+      },
+      "logs": []
+    }
+  ],
+  "metadata": {
+    "started_at": "2024-12-17T10:00:00Z",
+    "completed_at": "2024-12-17T10:00:00Z",
+    "version": "0.10.5"
+  }
+}
+```
+
+### Best Practices
+
+1. **Naming Convention**: Use descriptive test names that explain what's being tested
+
+   - Good: `TestSystemReadyWithValidUser`, `TestSetupReturnsErrorOnMissingConfig`
+   - Bad: `Test1`, `TestIt`
+
+2. **One Assertion Per Concept**: Each test should verify one behavior
+
+   ```typescript
+   // Good: Focused tests
+   function TestSetupCreatesDatabase(t, ctx) { ... }
+   function TestSetupInitializesCache(t, ctx) { ... }
+
+   // Bad: Testing too many things
+   function TestSetup(t, ctx) {
+     // tests database, cache, config, etc.
+   }
+   ```
+
+3. **Use Helper Functions**: Extract common setup logic
+
+   ```typescript
+   function setupTestContext(ctx) {
+     ctx.Metadata.testMode = true;
+     return ctx;
+   }
+
+   function TestFeatureA(t, ctx) {
+     ctx = setupTestContext(ctx);
+     // ...
+   }
+   ```
+
+4. **Test Error Cases**: Don't just test happy paths
+
+   ```typescript
+   function TestSetupWithMissingConfig(t, ctx) {
+     const { assert } = t;
+     ctx.Metadata.config = null;
+
+     const result = Setup(ctx);
+     assert.Error(result.error, "Should return error for missing config");
+   }
+   ```
+
+5. **Clean Up**: If your test modifies global state, clean up after
+   ```typescript
+   function TestWithGlobalState(t, ctx) {
+     const originalValue = GlobalConfig.value;
+     try {
+       GlobalConfig.value = "test";
+       // ... test logic
+     } finally {
+       GlobalConfig.value = originalValue;
+     }
+   }
+   ```
 
 ## Input Format (JSONL)
 
@@ -632,8 +1100,13 @@ agent/test/
 ├── runner.go           # Test runner implementation
 ├── loader.go           # Test case loader
 ├── resolver.go         # Agent resolver
-├── environment.go      # Test environment setup
-├── stability.go        # Stability analysis
+├── context.go          # Test context creation
+├── assert.go           # Assertion implementation
+├── input.go            # Input parsing
+├── output.go           # Output formatting
+├── script.go           # Script test runner (NEW)
+├── script_types.go     # Script test types (NEW)
+├── script_assert.go    # Script assertion bindings (NEW)
 └── reporter/
     ├── json.go         # JSON reporter
     ├── html.go         # HTML reporter
@@ -665,7 +1138,74 @@ Executes test cases against an agent:
 - Executes each test case (optionally multiple runs)
 - Collects results and stability metrics
 
-### 5. Reporter
+### 5. ScriptRunner (NEW)
+
+Executes script tests for agent handler scripts:
+
+- Resolves script path from `scripts.` prefix
+- Discovers `Test*` functions in the script
+- Creates test context with environment
+- Executes each test function with testing object and context
+- Collects results and generates report
+
+### 6. ScriptTestCase (NEW)
+
+Represents a single script test function:
+
+```go
+type ScriptTestCase struct {
+    Name     string // Function name (e.g., "TestSystemReady")
+    Function string // Full function reference
+}
+```
+
+### 7. ScriptTestResult (NEW)
+
+Represents the result of running a script test function:
+
+```go
+type ScriptTestResult struct {
+    Name       string        `json:"name"`
+    Status     Status        `json:"status"`
+    DurationMs int64         `json:"duration_ms"`
+    Error      string        `json:"error,omitempty"`
+    Assertion  *AssertionInfo `json:"assertion,omitempty"`
+    Logs       []string      `json:"logs,omitempty"`
+}
+
+type AssertionInfo struct {
+    Type     string      `json:"type"`
+    Expected interface{} `json:"expected,omitempty"`
+    Actual   interface{} `json:"actual,omitempty"`
+    Message  string      `json:"message,omitempty"`
+}
+```
+
+### 8. ScriptTestReport (NEW)
+
+Represents the complete script test report:
+
+```go
+type ScriptTestReport struct {
+    Type        string              `json:"type"` // "script_test"
+    Script      string              `json:"script"`
+    ScriptPath  string              `json:"script_path"`
+    Summary     *ScriptTestSummary  `json:"summary"`
+    Environment *Environment        `json:"environment"`
+    Results     []*ScriptTestResult `json:"results"`
+    Metadata    *ReportMetadata     `json:"metadata"`
+}
+
+type ScriptTestSummary struct {
+    Total      int   `json:"total"`
+    Passed     int   `json:"passed"`
+    Failed     int   `json:"failed"`
+    Skipped    int   `json:"skipped"`
+    DurationMs int64 `json:"duration_ms"`
+}
+```
+
+### 9. Reporter
 
 Generates reports in various formats. The format is determined by the `-o` file extension:
 
@@ -713,7 +1253,8 @@ This allows for fully customizable report generation using AI agents
 ```go
 type Options struct {
     // Input/Output
-    InputFile   string        // Path to inputs.jsonl
+    Input       string        // Input source: file path, message, or scripts.xxx
+    InputMode   InputMode     // Auto-detected: file, message, or script
     OutputFile  string        // Path to output report
 
     // Agent Selection
@@ -736,6 +1277,186 @@ type Options struct {
     // Behavior
     Verbose     bool          // Verbose output
     FailFast    bool          // Stop on first failure
+}
+
+// InputMode represents the input mode for test cases
+type InputMode string
+
+const (
+    InputModeFile    InputMode = "file"    // JSONL file input
+    InputModeMessage InputMode = "message" // Direct message input
+    InputModeScript  InputMode = "script"  // Script test mode (NEW)
+)
+```
+
+### Input Mode Detection
+
+The input mode is automatically detected based on the input value:
+
+| Input Pattern     | Mode      | Description                |
+| ----------------- | --------- | -------------------------- |
+| `scripts.xxx.yyy` | `script`  | Script test mode           |
+| `*.jsonl`         | `file`    | JSONL file mode            |
+| `path/to/file`    | `file`    | File path (if file exists) |
+| `"any text"`      | `message` | Direct message mode        |
+
+```go
+func DetectInputMode(input string) InputMode {
+    // Check for script test prefix
+    if strings.HasPrefix(input, "scripts.") {
+        return InputModeScript
+    }
+
+    // Check if it's a file path
+    if strings.HasSuffix(input, ".jsonl") || fileExists(input) {
+        return InputModeFile
+    }
+
+    // Default to message mode
+    return InputModeMessage
+}
+```
+
+## Script Testing Implementation
+
+### Script Resolution
+
+```go
+// ResolveScript resolves the script path from scripts.xxx.yyy format
+func ResolveScript(input string) (*ScriptInfo, error) {
+    // Remove "scripts." prefix
+    path := strings.TrimPrefix(input, "scripts.")
+
+    // Split into parts: "expense.setup" -> ["expense", "setup"]
+    parts := strings.Split(path, ".")
+    if len(parts) < 2 {
+        return nil, fmt.Errorf("invalid script path: %s", input)
+    }
+
+    // Build paths
+    // assistantDir: expense
+    // moduleName: setup
+    // scriptPath: expense/src/setup.ts
+    // testPath: expense/src/setup_test.ts
+    assistantDir := parts[0]
+    moduleName := parts[1]
+
+    return &ScriptInfo{
+        ID:         input,
+        Assistant:  assistantDir,
+        Module:     moduleName,
+        ScriptPath: filepath.Join(assistantDir, "src", moduleName+".ts"),
+        TestPath:   filepath.Join(assistantDir, "src", moduleName+"_test.ts"),
+    }, nil
+}
+```
+
+### Test Function Discovery
+
+Test functions are discovered by scanning the script for functions starting with `Test`:
+
+```go
+// DiscoverTests finds all Test* functions in the script
+func DiscoverTests(scriptPath string) ([]*ScriptTestCase, error) {
+    // Use the JavaScript runtime to list exported functions
+    // Filter for functions starting with "Test"
+    // Return list of test cases
+}
+```
+
+### Testing Object Binding
+
+The `testing.T` object is provided to test functions via JavaScript runtime binding:
+
+```go
+// TestingT represents the testing object passed to test functions
+type TestingT struct {
+    name    string
+    failed  bool
+    skipped bool
+    logs    []string
+    assert  *AssertObject
+}
+
+// AssertObject provides assertion methods
+type AssertObject struct {
+    t *TestingT
+}
+
+func (a *AssertObject) True(value bool, message ...string) {
+    if !value {
+        a.t.fail(formatMessage("expected true, got false", message))
+    }
+}
+
+func (a *AssertObject) Equal(actual, expected interface{}, message ...string) {
+    if !reflect.DeepEqual(actual, expected) {
+        a.t.fail(formatMessage(
+            fmt.Sprintf("expected %v, got %v", expected, actual),
+            message,
+        ))
+    }
+}
+
+// ... other assertion methods
+```
+
+### Script Execution Flow
+
+```
+1. Parse input: "scripts.expense.setup"
+2. Resolve script info:
+   - TestPath: expense/src/setup_test.ts
+   - ScriptPath: expense/src/setup.ts
+3. Discover test functions: [TestSystemReady, TestSetupWithMockData, ...]
+4. For each test function:
+   a. Create testing.T object
+   b. Create agent.Context with environment
+   c. Execute: TestFunction(t, ctx)
+   d. Collect result (passed/failed/skipped)
+5. Generate report
+```
+
+### Integration with Existing Runner
+
+```go
+func (r *Executor) Run() (*Report, error) {
+    switch r.opts.InputMode {
+    case InputModeScript:
+        return r.RunScriptTests()
+    case InputModeMessage:
+        return r.RunDirect()
+    default:
+        return r.RunTests()
+    }
+}
+
+func (r *Executor) RunScriptTests() (*Report, error) {
+    // 1. Resolve script
+    scriptInfo, err := ResolveScript(r.opts.Input)
+    if err != nil {
+        return nil, err
+    }
+
+    // 2. Discover tests
+    tests, err := DiscoverTests(scriptInfo.TestPath)
+    if err != nil {
+        return nil, err
+    }
+
+    // 3. Run each test
+    results := make([]*ScriptTestResult, 0, len(tests))
+    for _, tc := range tests {
+        result := r.runScriptTest(tc, scriptInfo)
+        results = append(results, result)
+
+        if r.opts.FailFast && result.Status == StatusFailed {
+            break
+        }
+    }
+
+    // 4. Generate report
+    return r.buildScriptReport(scriptInfo, results), nil
 }
 ```
 
@@ -785,3 +1506,8 @@ The command exits with code 1 if any tests fail, making it easy to integrate wit
 5. **Diff Reports**: Compare results between runs
 6. **Flaky Test Detection**: Automatic identification of unstable tests
 7. **Test Prioritization**: Run most important/failing tests first
+8. **Script Test Enhancements**:
+   - Parallel script test execution
+   - Setup/Teardown hooks (`TestMain`, `BeforeEach`, `AfterEach`)
+   - Mocking utilities for external dependencies
+   - Code coverage for TypeScript/JavaScript scripts

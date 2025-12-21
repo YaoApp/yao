@@ -4,6 +4,8 @@ A testing framework for Yao AI agents with support for assertions, stability ana
 
 ## Quick Start
 
+### Agent Tests
+
 ```bash
 # Test with direct message (auto-detect agent from current directory)
 cd assistants/keyword
@@ -22,9 +24,22 @@ yao agent test -i tests/inputs.jsonl -o report.html
 yao agent test -i tests/inputs.jsonl --runs 5
 ```
 
+### Script Tests
+
+```bash
+# Test agent handler scripts (hooks, tools, setup functions)
+yao agent test -i scripts.expense.setup -v
+
+# Run specific tests with regex filter
+yao agent test -i scripts.expense.setup --run "TestSystemReady" -v
+
+# Run with custom context (authorization, metadata)
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+```
+
 ## Input Modes
 
-The `-i` flag supports two input modes:
+The `-i` flag supports three input modes:
 
 ### 1. JSONL File Mode
 
@@ -51,22 +66,101 @@ yao agent test -i "Hello" -n workers.system.keyword
 
 Output is printed to stdout (or saved to `-o` if specified).
 
+### 3. Script Test Mode
+
+Test agent handler scripts (hooks, tools, setup functions):
+
+```bash
+# Run all tests in a script module
+yao agent test -i scripts.expense.setup -v
+
+# Run specific tests with filtering
+yao agent test -i scripts.expense.setup --run "TestSystemReady"
+
+# Run with custom context
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+```
+
+Script test input format: `scripts.<assistant>.<module>` (e.g., `scripts.expense.setup` → `assistants/expense/src/setup_test.ts`).
+
+**Writing Test Scripts:**
+
+Test scripts should be placed alongside the source files with `_test.ts` or `_test.js` suffix:
+
+```
+assistants/expense/src/
+├── setup.ts           # Source file
+├── setup_test.ts      # Test file
+├── tools.ts
+└── tools_test.ts
+```
+
+Test functions must follow the naming convention `Test*` and accept `(t: testing.T, ctx: agent.Context)`:
+
+```typescript
+// assistants/expense/src/setup_test.ts
+import { SystemReady } from "./setup";
+
+// Test function signature: function Test*(t: testing.T, ctx: agent.Context)
+export function TestSystemReady(t: testing.T, ctx: agent.Context) {
+  const result = SystemReady(ctx);
+
+  // Use t.assert for assertions
+  t.assert.True(result.success, "SystemReady should succeed");
+  t.assert.Equal(result.status, "ready", "Status should be ready");
+  t.assert.NotNil(result.data, "Data should not be nil");
+}
+
+export function TestSystemReadyError(t: testing.T, ctx: agent.Context) {
+  // Access context properties
+  console.log("Testing with user:", ctx.authorized.user_id);
+
+  // Test error handling
+  const result = SystemReady(ctx);
+  t.assert.False(result.error, "Should not have error");
+}
+```
+
+**Available Assertions:**
+
+| Method                           | Description                    |
+| -------------------------------- | ------------------------------ |
+| `t.assert.True(value, msg)`      | Assert value is true           |
+| `t.assert.False(value, msg)`     | Assert value is false          |
+| `t.assert.Equal(a, b, msg)`      | Assert a equals b              |
+| `t.assert.NotEqual(a, b, msg)`   | Assert a not equals b          |
+| `t.assert.Nil(value, msg)`       | Assert value is null/undefined |
+| `t.assert.NotNil(value, msg)`    | Assert value is not nil        |
+| `t.assert.Contains(s, sub, msg)` | Assert string contains substr  |
+| `t.assert.Len(arr, n, msg)`      | Assert array/string length     |
+
+**Test Control:**
+
+| Method         | Description                  |
+| -------------- | ---------------------------- |
+| `t.Log(msg)`   | Log a message                |
+| `t.Error(msg)` | Mark test as failed with msg |
+| `t.Fatal(msg)` | Mark failed and stop test    |
+| `t.Skip(msg)`  | Skip this test               |
+
 ## Command Line Options
 
-| Flag          | Description                              | Default                    |
-| ------------- | ---------------------------------------- | -------------------------- |
-| `-i`          | Input: JSONL file path or direct message | (required)                 |
-| `-o`          | Output file path                         | `output-{timestamp}.jsonl` |
-| `-n`          | Agent ID (optional, auto-detected)       | auto-detect                |
-| `-c`          | Override connector                       | agent default              |
-| `-u`          | Test user ID                             | `test-user`                |
-| `-t`          | Test team ID                             | `test-team`                |
-| `-r`          | Reporter agent ID                        | built-in                   |
-| `--runs`      | Runs per test (stability analysis)       | 1                          |
-| `--timeout`   | Timeout per test                         | 5m                         |
-| `--parallel`  | Parallel test cases                      | 1                          |
-| `-v`          | Verbose output                           | false                      |
-| `--fail-fast` | Stop on first failure                    | false                      |
+| Flag          | Description                                        | Default                    |
+| ------------- | -------------------------------------------------- | -------------------------- |
+| `-i`          | Input: JSONL file path, message, or script ID      | (required)                 |
+| `-o`          | Output file path                                   | `output-{timestamp}.jsonl` |
+| `-n`          | Agent ID (optional, auto-detected)                 | auto-detect                |
+| `-c`          | Override connector                                 | agent default              |
+| `-u`          | Test user ID                                       | `test-user`                |
+| `-t`          | Test team ID                                       | `test-team`                |
+| `--ctx`       | Path to context JSON file for custom authorization | -                          |
+| `-r`          | Reporter agent ID                                  | built-in                   |
+| `--runs`      | Runs per test (stability analysis)                 | 1                          |
+| `--run`       | Regex pattern to filter which tests to run         | -                          |
+| `--timeout`   | Timeout per test                                   | 5m                         |
+| `--parallel`  | Parallel test cases                                | 1                          |
+| `-v`          | Verbose output                                     | false                      |
+| `--fail-fast` | Stop on first failure                              | false                      |
 
 ## Agent Resolution
 
@@ -119,24 +213,24 @@ Each line is a JSON object:
 
 The `options` field allows per-test-case configuration that maps to `context.Options`:
 
-| Field                    | Type    | Description                                        |
-| ------------------------ | ------- | -------------------------------------------------- |
-| `connector`              | string  | Override connector (e.g., `"deepseek.v3"`)         |
-| `mode`                   | string  | Agent mode (default: `"chat"`)                     |
-| `search`                 | bool    | Enable/disable search mode (default: `true`)       |
-| `disable_global_prompts` | bool    | Temporarily disable global prompts                 |
-| `metadata`               | map     | Custom data passed to hooks (e.g., scenario)       |
-| `skip`                   | object  | Skip configuration (see below)                     |
+| Field                    | Type   | Description                                  |
+| ------------------------ | ------ | -------------------------------------------- |
+| `connector`              | string | Override connector (e.g., `"deepseek.v3"`)   |
+| `mode`                   | string | Agent mode (default: `"chat"`)               |
+| `search`                 | bool   | Enable/disable search mode (default: `true`) |
+| `disable_global_prompts` | bool   | Temporarily disable global prompts           |
+| `metadata`               | map    | Custom data passed to hooks (e.g., scenario) |
+| `skip`                   | object | Skip configuration (see below)               |
 
 #### Options.skip
 
-| Field     | Type | Description              |
-| --------- | ---- | ------------------------ |
-| `history` | bool | Skip history loading     |
-| `trace`   | bool | Skip trace logging       |
-| `output`  | bool | Skip output to client    |
-| `keyword` | bool | Skip keyword extraction  |
-| `search`  | bool | Skip auto search         |
+| Field     | Type | Description             |
+| --------- | ---- | ----------------------- |
+| `history` | bool | Skip history loading    |
+| `trace`   | bool | Skip trace logging      |
+| `output`  | bool | Skip output to client   |
+| `keyword` | bool | Skip keyword extraction |
+| `search`  | bool | Skip auto search        |
 
 **Example with options:**
 
@@ -146,10 +240,18 @@ The `options` field allows per-test-case configuration that maps to `context.Opt
   "input": "Query users with status active",
   "options": {
     "connector": "deepseek.v3",
-    "metadata": {"scenario": "filter"},
-    "skip": {"trace": true}
+    "metadata": {
+      "scenario": "filter"
+    },
+    "skip": {
+      "trace": true
+    }
   },
-  "assert": {"type": "json_path", "path": "from", "value": "users"}
+  "assert": {
+    "type": "json_path",
+    "path": "from",
+    "value": "users"
+  }
 }
 ```
 
@@ -290,7 +392,17 @@ return { pass: true, message: "Validation passed" };
 **Multiple expected values (OR logic):**
 
 ```jsonl
-{"id": "T005", "assert": {"type": "json_path", "path": "error", "value": ["missing_schema", "missing_query"]}}
+{
+  "id": "T005",
+  "assert": {
+    "type": "json_path",
+    "path": "error",
+    "value": [
+      "missing_schema",
+      "missing_query"
+    ]
+  }
+}
 ```
 
 This passes if `error` equals either `"missing_schema"` or `"missing_query"`.
@@ -382,6 +494,9 @@ yao agent test -i tests/inputs.jsonl -o results.jsonl --fail-fast
 
 # Parse JSONL results
 cat results.jsonl | jq 'select(.type == "summary")'
+
+# Run script tests
+yao agent test -i scripts.expense.setup --fail-fast
 ```
 
 ### GitHub Actions Example
@@ -394,12 +509,26 @@ cat results.jsonl | jq 'select(.type == "summary")'
       --runs 3 \
       -o report.json
 
+- name: Run Script Tests
+  run: |
+    yao agent test -i scripts.expense.setup -v
+    yao agent test -i scripts.expense.tools -v
+
+- name: Run Script Tests with Custom Context
+  run: |
+    yao agent test -i scripts.expense.setup \
+      --ctx tests/context.json \
+      --run "TestSystem.*" \
+      -v
+
 - name: Check Stability
   run: |
     jq -e '.results | all(.pass_rate >= 80)' report.json
 ```
 
 ## Examples
+
+### Agent Tests
 
 ```bash
 # Quick development test (auto-detect agent)
@@ -438,6 +567,32 @@ yao agent test -i tests/inputs.jsonl \
   --parallel 4 \
   -r report.html \
   -o report.html
+```
+
+### Script Tests
+
+```bash
+# Run all tests in a script module
+yao agent test -i scripts.expense.setup -v
+
+# Run specific tests with regex filter
+yao agent test -i scripts.expense.setup --run "TestSystemReady"
+
+# Run tests matching a pattern
+yao agent test -i scripts.expense.setup --run "TestSystem.*" -v
+
+# Run with custom context (authorization, metadata, etc.)
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+
+# Run with specific user/team
+yao agent test -i scripts.expense.setup -u admin -t ops-team -v
+
+# Combine options
+yao agent test -i scripts.expense.setup \
+  --ctx tests/context.json \
+  --run "TestSystem.*" \
+  --timeout 30s \
+  -v
 ```
 
 ## Exit Codes

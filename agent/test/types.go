@@ -1,7 +1,10 @@
 package test
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
+	"os"
 	"time"
 
 	"github.com/yaoapp/yao/agent/context"
@@ -57,6 +60,8 @@ const (
 	InputModeFile InputMode = "file"
 	// InputModeMessage indicates input from a direct message string
 	InputModeMessage InputMode = "message"
+	// InputModeScript indicates script test mode (testing agent handler scripts)
+	InputModeScript InputMode = "script"
 )
 
 // Options represents the configuration options for running tests
@@ -96,6 +101,14 @@ type Options struct {
 	// Locale is the locale for the test context (default: "en-us")
 	Locale string `json:"locale,omitempty"`
 
+	// ContextFile is the path to a JSON file containing custom context data (-ctx flag)
+	// This allows full customization of authorized info, metadata, etc.
+	ContextFile string `json:"context_file,omitempty"`
+
+	// ContextData is the parsed context data from ContextFile
+	// This is populated internally after loading the file
+	ContextData *ContextConfig `json:"-"`
+
 	// Execution
 	// ===============================
 
@@ -126,6 +139,92 @@ type Options struct {
 
 	// FailFast stops execution on first failure
 	FailFast bool `json:"fail_fast,omitempty"`
+
+	// Run is a regex pattern to filter which tests to run (similar to go test -run)
+	// Only tests matching the pattern will be executed
+	// Example: "TestSystem" matches TestSystemReady, TestSystemError, etc.
+	Run string `json:"run,omitempty"`
+}
+
+// ContextConfig represents custom context configuration from JSON file
+// This allows full customization of the test context including authorized info
+type ContextConfig struct {
+	// Authorized contains custom authorization data
+	Authorized *AuthorizedConfig `json:"authorized,omitempty"`
+
+	// Metadata contains custom metadata to pass to the context
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+
+	// Client contains custom client information
+	Client *ClientConfig `json:"client,omitempty"`
+
+	// Locale overrides the locale setting
+	Locale string `json:"locale,omitempty"`
+
+	// Referer overrides the referer setting
+	Referer string `json:"referer,omitempty"`
+}
+
+// AuthorizedConfig represents custom authorization configuration
+// Matches the structure of types.AuthorizedInfo from openapi/oauth/types
+type AuthorizedConfig struct {
+	// Sub is the subject identifier (JWT sub claim)
+	Sub string `json:"sub,omitempty"`
+
+	// ClientID is the OAuth client ID
+	ClientID string `json:"client_id,omitempty"`
+
+	// Scope is the access scope
+	Scope string `json:"scope,omitempty"`
+
+	// SessionID is the session identifier
+	SessionID string `json:"session_id,omitempty"`
+
+	// UserID is the user identifier
+	UserID string `json:"user_id,omitempty"`
+
+	// TeamID is the team identifier
+	TeamID string `json:"team_id,omitempty"`
+
+	// TenantID is the tenant identifier
+	TenantID string `json:"tenant_id,omitempty"`
+
+	// RememberMe is the remember me flag
+	RememberMe bool `json:"remember_me,omitempty"`
+
+	// Constraints contains data access constraints (set by ACL enforcement)
+	Constraints *DataConstraintsConfig `json:"constraints,omitempty"`
+}
+
+// DataConstraintsConfig represents data access constraints
+// Matches the structure of types.DataConstraints from openapi/oauth/types
+type DataConstraintsConfig struct {
+	// OwnerOnly - only access owner's data
+	OwnerOnly bool `json:"owner_only,omitempty"`
+
+	// CreatorOnly - only access creator's data
+	CreatorOnly bool `json:"creator_only,omitempty"`
+
+	// EditorOnly - only access editor's data
+	EditorOnly bool `json:"editor_only,omitempty"`
+
+	// TeamOnly - only access team's data (filter by team_id)
+	TeamOnly bool `json:"team_only,omitempty"`
+
+	// Extra contains user-defined constraints (department, region, etc.)
+	Extra map[string]interface{} `json:"extra,omitempty"`
+}
+
+// ClientConfig represents custom client configuration
+type ClientConfig struct {
+	// Type is the client type (e.g., "web", "mobile", "test")
+	Type string `json:"type,omitempty"`
+
+	// UserAgent is the client user agent string
+	UserAgent string `json:"user_agent,omitempty"`
+
+	// IP is the client IP address
+	IP string `json:"ip,omitempty"`
 }
 
 // Environment configures the test execution context
@@ -150,6 +249,9 @@ type Environment struct {
 
 	// Accept is the accept format (default: "standard")
 	Accept string `json:"accept"`
+
+	// ContextConfig contains custom context configuration (from -ctx flag)
+	ContextConfig *ContextConfig `json:"-"`
 }
 
 // NewEnvironment creates a new test environment with defaults
@@ -173,6 +275,61 @@ func NewEnvironment(userID, teamID string) *Environment {
 	}
 
 	return env
+}
+
+// NewEnvironmentWithContext creates a new test environment with custom context config
+func NewEnvironmentWithContext(userID, teamID string, ctxConfig *ContextConfig) *Environment {
+	env := NewEnvironment(userID, teamID)
+
+	if ctxConfig == nil {
+		return env
+	}
+
+	env.ContextConfig = ctxConfig
+
+	// Override with context config values
+	if ctxConfig.Locale != "" {
+		env.Locale = ctxConfig.Locale
+	}
+	if ctxConfig.Referer != "" {
+		env.Referer = ctxConfig.Referer
+	}
+	if ctxConfig.Client != nil {
+		if ctxConfig.Client.Type != "" {
+			env.ClientType = ctxConfig.Client.Type
+		}
+		if ctxConfig.Client.IP != "" {
+			env.ClientIP = ctxConfig.Client.IP
+		}
+	}
+	if ctxConfig.Authorized != nil {
+		if ctxConfig.Authorized.UserID != "" {
+			env.UserID = ctxConfig.Authorized.UserID
+		}
+		// TeamID takes precedence over TenantID for team override
+		if ctxConfig.Authorized.TeamID != "" {
+			env.TeamID = ctxConfig.Authorized.TeamID
+		} else if ctxConfig.Authorized.TenantID != "" {
+			env.TeamID = ctxConfig.Authorized.TenantID
+		}
+	}
+
+	return env
+}
+
+// LoadContextConfig loads context configuration from a JSON file
+func LoadContextConfig(filePath string) (*ContextConfig, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read context file: %w", err)
+	}
+
+	var config ContextConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to parse context file: %w", err)
+	}
+
+	return &config, nil
 }
 
 // Case represents a single test case loaded from JSONL

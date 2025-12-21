@@ -257,6 +257,52 @@ func (w *OutputWriter) DirectOutput(output interface{}) {
 	}
 }
 
+// ScriptTestSummary prints the script test summary
+func (w *OutputWriter) ScriptTestSummary(summary *ScriptTestSummary, duration time.Duration) {
+	w.SubHeader("Summary")
+
+	// Results
+	color.New(color.FgWhite).Printf("  Total:     ")
+	fmt.Printf("%d\n", summary.Total)
+
+	color.New(color.FgWhite).Printf("  Passed:    ")
+	if summary.Passed > 0 {
+		color.New(color.FgGreen).Printf("%d\n", summary.Passed)
+	} else {
+		fmt.Printf("%d\n", summary.Passed)
+	}
+
+	color.New(color.FgWhite).Printf("  Failed:    ")
+	if summary.Failed > 0 {
+		color.New(color.FgRed).Printf("%d\n", summary.Failed)
+	} else {
+		fmt.Printf("%d\n", summary.Failed)
+	}
+
+	if summary.Skipped > 0 {
+		color.New(color.FgWhite).Printf("  Skipped:   ")
+		color.New(color.FgYellow).Printf("%d\n", summary.Skipped)
+	}
+
+	// Pass rate
+	passRate := float64(0)
+	if summary.Total > 0 {
+		passRate = float64(summary.Passed) / float64(summary.Total) * 100
+	}
+	color.New(color.FgWhite).Printf("  Pass Rate: ")
+	if passRate == 100 {
+		color.New(color.FgGreen, color.Bold).Printf("%.1f%%\n", passRate)
+	} else if passRate >= 80 {
+		color.New(color.FgYellow).Printf("%.1f%%\n", passRate)
+	} else {
+		color.New(color.FgRed).Printf("%.1f%%\n", passRate)
+	}
+
+	// Duration
+	color.New(color.FgWhite).Printf("  Duration:  ")
+	fmt.Printf("%s\n", formatDuration(duration))
+}
+
 // StabilityResult prints stability analysis result for a test case
 func (w *OutputWriter) StabilityResult(sr *StabilityResult) {
 	color.New(color.FgWhite).Printf("  [%s] ", sr.ID)

@@ -25,8 +25,10 @@ var (
 	testConnector string
 	testUser      string
 	testTeam      string
+	testContext   string // --ctx flag for custom context JSON file
 	testReporter  string
 	testRuns      int
+	testRun       string // --run flag for test filtering (regex pattern)
 	testTimeout   string
 	testParallel  int
 	testVerbose   bool
@@ -140,19 +142,21 @@ var TestCmd = &cobra.Command{
 
 		// Build test options
 		opts := &test.Options{
-			Input:      testInput,
-			InputMode:  inputMode,
-			OutputFile: testOutput,
-			AgentID:    testAgent,
-			Connector:  testConnector,
-			UserID:     testUser,
-			TeamID:     testTeam,
-			ReporterID: testReporter,
-			Runs:       testRuns,
-			Timeout:    timeout,
-			Parallel:   testParallel,
-			Verbose:    testVerbose,
-			FailFast:   testFailFast,
+			Input:       testInput,
+			InputMode:   inputMode,
+			OutputFile:  testOutput,
+			AgentID:     testAgent,
+			Connector:   testConnector,
+			UserID:      testUser,
+			TeamID:      testTeam,
+			ContextFile: testContext,
+			ReporterID:  testReporter,
+			Runs:        testRuns,
+			Run:         testRun,
+			Timeout:     timeout,
+			Parallel:    testParallel,
+			Verbose:     testVerbose,
+			FailFast:    testFailFast,
 		}
 
 		// Merge with defaults
@@ -232,8 +236,10 @@ func init() {
 	TestCmd.Flags().StringVarP(&testConnector, "connector", "c", "", L("Override connector"))
 	TestCmd.Flags().StringVarP(&testUser, "user", "u", "", L("Test user ID (default: test-user)"))
 	TestCmd.Flags().StringVarP(&testTeam, "team", "t", "", L("Test team ID (default: test-team)"))
+	TestCmd.Flags().StringVar(&testContext, "ctx", "", L("Path to context JSON file for custom authorization"))
 	TestCmd.Flags().StringVarP(&testReporter, "reporter", "r", "", L("Reporter agent ID for custom report"))
 	TestCmd.Flags().IntVar(&testRuns, "runs", 1, L("Number of runs for stability analysis"))
+	TestCmd.Flags().StringVar(&testRun, "run", "", L("Regex pattern to filter which tests to run"))
 	TestCmd.Flags().StringVar(&testTimeout, "timeout", "5m", L("Default timeout per test case"))
 	TestCmd.Flags().IntVar(&testParallel, "parallel", 1, L("Number of parallel test cases"))
 	TestCmd.Flags().BoolVarP(&testVerbose, "verbose", "v", false, L("Verbose output"))

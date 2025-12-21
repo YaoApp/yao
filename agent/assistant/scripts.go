@@ -75,6 +75,11 @@ func LoadScripts(srcDir string) (*hook.Script, map[string]*Script, error) {
 		// Get relative path for determining if it's index
 		relPath := strings.TrimPrefix(file, root+"/")
 
+		// Skip test files (*_test.ts, *_test.js)
+		if strings.HasSuffix(relPath, "_test.ts") || strings.HasSuffix(relPath, "_test.js") {
+			return nil
+		}
+
 		// Check if it's the root index.ts/js (hook script)
 		// Only src/index.ts is the hook script, not src/foo/index.ts
 		isRootIndex := relPath == "index.ts" || relPath == "index.js"

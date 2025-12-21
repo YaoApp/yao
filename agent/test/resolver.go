@@ -213,8 +213,16 @@ func DefaultOptions() *Options {
 }
 
 // DetectInputMode detects the input mode from the input string
-// Returns InputModeFile if input looks like a file path, InputModeMessage otherwise
+// Returns:
+//   - InputModeScript: if input starts with "scripts."
+//   - InputModeFile: if input ends with ".jsonl" or is an existing file
+//   - InputModeMessage: otherwise (direct message mode)
 func DetectInputMode(input string) InputMode {
+	// Check for script test prefix
+	if strings.HasPrefix(input, "scripts.") {
+		return InputModeScript
+	}
+
 	// If input ends with .jsonl or .json, treat as file
 	if strings.HasSuffix(input, ".jsonl") || strings.HasSuffix(input, ".json") {
 		return InputModeFile
@@ -268,6 +276,12 @@ func MergeOptions(opts *Options, defaults *Options) *Options {
 	}
 	if opts.ReporterID != "" {
 		result.ReporterID = opts.ReporterID
+	}
+	if opts.ContextFile != "" {
+		result.ContextFile = opts.ContextFile
+	}
+	if opts.Run != "" {
+		result.Run = opts.Run
 	}
 	if opts.Verbose {
 		result.Verbose = opts.Verbose

@@ -255,13 +255,27 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 	result.Actual = actual
 
 	// Compare expected value with actual value
-	// First, try direct comparison (handles both primitive values and arrays)
-	if validateOutput(actual, assertion.Value) {
-		result.Passed = true
-		result.Message = fmt.Sprintf("path '%s' equals expected value", assertion.Path)
-	} else {
+	// If expected is an array, check if actual matches ANY element (IN semantics)
+	if expectedArr, ok := assertion.Value.([]interface{}); ok {
+		// Check if actual is one of the expected values
+		for _, expectedItem := range expectedArr {
+			if validateOutput(actual, expectedItem) {
+				result.Passed = true
+				result.Message = fmt.Sprintf("path '%s' equals one of expected values", assertion.Path)
+				return result
+			}
+		}
 		result.Passed = false
-		result.Message = fmt.Sprintf("path '%s': expected %v, got %v", assertion.Path, assertion.Value, actual)
+		result.Message = fmt.Sprintf("path '%s': expected one of %v, got %v", assertion.Path, assertion.Value, actual)
+	} else {
+		// Direct comparison for non-array expected values
+		if validateOutput(actual, assertion.Value) {
+			result.Passed = true
+			result.Message = fmt.Sprintf("path '%s' equals expected value", assertion.Path)
+		} else {
+			result.Passed = false
+			result.Message = fmt.Sprintf("path '%s': expected %v, got %v", assertion.Path, assertion.Value, actual)
+		}
 	}
 
 	return result
