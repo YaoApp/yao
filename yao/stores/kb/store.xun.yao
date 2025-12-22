@@ -1,0 +1,15 @@
+{
+  "label": "Knowledge Base Data Store",
+  "description": "Database-backed persistent store for Knowledge Base data",
+  "tags": ["kb", "persistent", "xun", "data"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 10,
+  "name": "Knowledge Base Data Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_kb_store",
+    "connector": "default"
+  }
+}

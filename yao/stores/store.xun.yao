@@ -1,0 +1,16 @@
+{
+  "label": "System Data Store",
+  "description": "Database-backed key-value store for common data storage in Yao system",
+  "tags": ["system", "storage", "xun", "kv"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 1,
+  "name": "System Data Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_kv_store",
+    "connector": "default"
+  }
+}
+
