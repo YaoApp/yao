@@ -246,14 +246,15 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 		switch result.Status {
 		case StatusPassed:
 			report.Summary.Passed++
-		case StatusFailed:
+		case StatusFailed, StatusError:
+			// Both Failed and Error count as failures
 			report.Summary.Failed++
 		case StatusSkipped:
 			report.Summary.Skipped++
 		}
 
-		// Check fail-fast
-		if r.opts.FailFast && result.Status == StatusFailed {
+		// Check fail-fast (stop on both Failed and Error)
+		if r.opts.FailFast && (result.Status == StatusFailed || result.Status == StatusError) {
 			r.output.Warning("Stopping due to --fail-fast")
 			break
 		}
@@ -397,7 +398,15 @@ func generateTestScriptID(filePath string, srcDir string) string {
 }
 
 // executeTestFunction executes a single test function using V8
-func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *ScriptInfo, testingT *TestingT, agentCtx *context.Context) error {
+func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *ScriptInfo, testingT *TestingT, agentCtx *context.Context) (execErr error) {
+	// Recover from panics thrown by Process calls
+	// Even if JavaScript try-catch catches the error, we want to fail the test
+	defer func() {
+		if r := recover(); r != nil {
+			execErr = fmt.Errorf("panic in test function: %v", r)
+		}
+	}()
+
 	// Get the test script (already loaded by loadAllScripts)
 	testScriptID := generateTestScriptID(scriptInfo.TestPath, filepath.Dir(scriptInfo.TestPath))
 	script, ok := v8.Scripts[testScriptID]
@@ -444,7 +453,7 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 	}
 
 	// Call the test function with (t, ctx)
-	_, err = fn.Call(global, testingTObj, agentCtxObj)
+	result, err := fn.Call(global, testingTObj, agentCtxObj)
 	if err != nil {
 		// Check if this is an assertion failure or a real error
 		if testingT.Failed() {
@@ -452,6 +461,20 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 			return nil
 		}
 		return fmt.Errorf("test function error: %w", err)
+	}
+
+	// Check if the result is a JavaScript Error (thrown by bridge.JsException)
+	if result != nil && result.IsNativeError() {
+		// Get error message from Error object
+		if result.IsObject() {
+			obj, err := result.AsObject()
+			if err == nil {
+				if msgVal, err := obj.Get("message"); err == nil && !msgVal.IsUndefined() {
+					return fmt.Errorf("test threw exception: %s", msgVal.String())
+				}
+			}
+		}
+		return fmt.Errorf("test threw exception: %s", result.String())
 	}
 
 	return nil
