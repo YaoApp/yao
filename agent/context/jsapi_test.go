@@ -10,7 +10,6 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -23,12 +22,8 @@ func TestJsValue(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "ChatID-123456",
-		AssistantID: "AssistantID-1234",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "ChatID-123456")
+	cxt.AssistantID = "AssistantID-1234"
 
 	v8.RegisterFunction("testContextJsvalue", testContextJsvalueEmbed)
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -91,12 +86,8 @@ func TestJsValueConcurrent(t *testing.T) {
 				chatID := fmt.Sprintf("ChatID-%d-%d", routineID, j)
 				assistantID := fmt.Sprintf("AssistantID-%d-%d", routineID, j)
 
-				cxt := &context.Context{
-					ChatID:      chatID,
-					AssistantID: assistantID,
-					Context:     stdContext.Background(),
-					IDGenerator: message.NewIDGenerator(),
-				}
+				cxt := context.New(stdContext.Background(), nil, chatID)
+				cxt.AssistantID = assistantID
 
 				res, err := v8.Call(v8.CallOptions{}, `
 					function test(cxt) {
@@ -150,12 +141,8 @@ func TestJsValueRegistrationAndCleanup(t *testing.T) {
 	// Create multiple contexts and verify registration
 	contextCount := 5
 	for i := 0; i < contextCount; i++ {
-		cxt := &context.Context{
-			ChatID:      fmt.Sprintf("ChatID-%d", i),
-			AssistantID: fmt.Sprintf("AssistantID-%d", i),
-			Context:     stdContext.Background(),
-			IDGenerator: message.NewIDGenerator(),
-		}
+		cxt := context.New(stdContext.Background(), nil, fmt.Sprintf("ChatID-%d", i))
+		cxt.AssistantID = fmt.Sprintf("AssistantID-%d", i)
 
 		_, err := v8.Call(v8.CallOptions{}, `
 			function test(cxt) {
@@ -219,41 +206,39 @@ func TestJsValueAllFields(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "zh-cn",
-		Theme:       "dark",
-		Context:     stdContext.Background(),
-		Client: context.Client{
-			Type:      "web",
-			UserAgent: "Mozilla/5.0",
-			IP:        "127.0.0.1",
-		},
-		Referer: "api",
-		Accept:  "cui-web",
-		Route:   "/dashboard/home",
-		Metadata: map[string]interface{}{
-			"key1": "value1",
-			"key2": 123,
-			"key3": true,
-		},
-		Authorized: &types.AuthorizedInfo{
-			Subject:  "test-user",
-			ClientID: "test-client",
-			UserID:   "user-123",
-			TeamID:   "team-456",
-			TenantID: "tenant-789",
-			Constraints: types.DataConstraints{
-				OwnerOnly:   true,
-				CreatorOnly: false,
-				TeamOnly:    true,
-				Extra: map[string]interface{}{
-					"department": "engineering",
-					"region":     "us-west",
-				},
+	authInfo := &types.AuthorizedInfo{
+		Subject:  "test-user",
+		ClientID: "test-client",
+		UserID:   "user-123",
+		TeamID:   "team-456",
+		TenantID: "tenant-789",
+		Constraints: types.DataConstraints{
+			OwnerOnly:   true,
+			CreatorOnly: false,
+			TeamOnly:    true,
+			Extra: map[string]interface{}{
+				"department": "engineering",
+				"region":     "us-west",
 			},
 		},
+	}
+
+	cxt := context.New(stdContext.Background(), authInfo, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Locale = "zh-cn"
+	cxt.Theme = "dark"
+	cxt.Client = context.Client{
+		Type:      "web",
+		UserAgent: "Mozilla/5.0",
+		IP:        "127.0.0.1",
+	}
+	cxt.Referer = "api"
+	cxt.Accept = "cui-web"
+	cxt.Route = "/dashboard/home"
+	cxt.Metadata = map[string]interface{}{
+		"key1": "value1",
+		"key2": 123,
+		"key3": true,
 	}
 
 	v8.RegisterFunction("testAllFields", testAllFieldsEmbed)
@@ -404,14 +389,10 @@ func TestJsValueTrace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Stack: &context.Stack{
-			TraceID: "test-trace-id",
-		},
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Stack = &context.Stack{
+		TraceID: "test-trace-id",
 	}
 
 	res, err := v8.Call(v8.CallOptions{}, `
@@ -470,21 +451,17 @@ func TestJsValueAuthorizedAndMetadata(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Authorized: &types.AuthorizedInfo{
-			UserID:   "user-123",
-			TenantID: "tenant-456",
-			ClientID: "client-789",
-		},
-		Metadata: map[string]interface{}{
-			"request_id": "req-001",
-			"source":     "api",
-			"version":    "1.0.0",
-		},
+	authInfo := &types.AuthorizedInfo{
+		UserID:   "user-123",
+		TenantID: "tenant-456",
+		ClientID: "client-789",
+	}
+	cxt := context.New(stdContext.Background(), authInfo, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Metadata = map[string]interface{}{
+		"request_id": "req-001",
+		"source":     "api",
+		"version":    "1.0.0",
 	}
 
 	v8.RegisterFunction("testAuthorizedMetadata", testAuthorizedMetadataEmbed)
@@ -573,14 +550,9 @@ func TestJsValueAuthorizedNil(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Authorized:  nil, // Explicitly nil
-		Metadata:    nil, // Explicitly nil (should be empty object)
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
+	cxt.Metadata = nil // Explicitly nil (should be empty object)
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(cxt) {

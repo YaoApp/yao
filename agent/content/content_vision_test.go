@@ -457,8 +457,8 @@ func TestVision_CachedContent(t *testing.T) {
 	t.Logf("✓ Content successfully cached and reused: %d characters", len(cachedText))
 }
 
-// TestVision_FileMetadataInSpace tests that file metadata is correctly passed to vision agent via ctx.Space
-func TestVision_FileMetadataInSpace(t *testing.T) {
+// TestVision_FileMetadataInMemory tests that file metadata is correctly passed to vision agent via ctx.Memory.Context
+func TestVision_FileMetadataInMemory(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 

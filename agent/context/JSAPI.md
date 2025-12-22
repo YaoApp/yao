@@ -35,7 +35,7 @@ interface Context {
   authorized: Record<string, any>; // Authorization data (empty object if not set)
 
   // Objects
-  space: Space; // Shared data space for passing data between requests
+  memory: Memory; // Agent memory with four namespaces: user, team, chat, context
   trace: Trace; // Trace object for debugging and monitoring
   mcp: MCP; // MCP object for external tool/resource access
 }
@@ -1210,7 +1210,7 @@ Releases trace resources.
 
 Trace spaces are visual containers for organizing trace nodes in the frontend UI. They help group related operations together for better presentation to users.
 
-> **Note:** Trace spaces are purely for visual organization and presentation. They do not store data - use `ctx.space` for data storage between hooks.
+> **Note:** Trace spaces are purely for visual organization and presentation. They do not store data - use `ctx.memory` for data storage between hooks.
 
 #### `ctx.trace.CreateSpace(option)`
 
@@ -1248,138 +1248,372 @@ Retrieves a trace space by ID.
 const search_space = ctx.trace.GetSpace("search-space-id");
 ```
 
-## Space API
+## Memory API
 
-The `ctx.space` object provides a shared data space for passing data between requests and agent calls. This is useful for storing temporary data that needs to be accessed across different hooks or nested agent calls.
+The `ctx.memory` object provides a four-level hierarchical memory system for agent state management. Each level has different persistence and scope characteristics.
 
-### Methods Summary
+### Memory Namespaces
 
-| Method            | Description                           |
-| ----------------- | ------------------------------------- |
-| `Get(key)`        | Get a value from the space            |
-| `Set(key, value)` | Set a value in the space              |
-| `Delete(key)`     | Delete a key from the space           |
-| `GetDel(key)`     | Get a value and immediately delete it |
+| Namespace            | Scope               | Persistence | Use Case                                    |
+| -------------------- | ------------------- | ----------- | ------------------------------------------- |
+| `ctx.memory.user`    | Per user            | Persistent  | User preferences, settings, long-term state |
+| `ctx.memory.team`    | Per team            | Persistent  | Team-wide settings, shared configurations   |
+| `ctx.memory.chat`    | Per chat session    | Persistent  | Chat-specific context, conversation state   |
+| `ctx.memory.context` | Per request context | Temporary   | Request-scoped data, cleared on release     |
 
-### Methods
+### Namespace Interface
 
-#### `ctx.space.Get(key): any`
+Each namespace (`user`, `team`, `chat`, `context`) provides the same interface:
 
-Gets a value from the space.
+```typescript
+interface MemoryNamespace {
+  // Basic KV operations
+  Get(key: string): any; // Get a value
+  Set(key: string, value: any, ttl?: number): void; // Set a value with optional TTL (seconds)
+  Del(key: string): void; // Delete a key (supports wildcards: "prefix:*")
+  Has(key: string): boolean; // Check if key exists
+  GetDel(key: string): any; // Get and delete atomically
 
-**Parameters:**
+  // Collection operations
+  Keys(): string[]; // Get all keys
+  Len(): number; // Get number of keys
+  Clear(): void; // Delete all keys
 
-- `key`: String - The key to retrieve
+  // Atomic counter operations
+  Incr(key: string, delta?: number): number; // Increment (default delta=1)
+  Decr(key: string, delta?: number): number; // Decrement (default delta=1)
 
-**Returns:**
+  // List operations
+  Push(key: string, values: any[]): number; // Append to list, returns new length
+  Pop(key: string): any; // Remove and return last element
+  Pull(key: string, count: number): any[]; // Remove and return last N elements
+  PullAll(key: string): any[]; // Remove and return all elements
+  AddToSet(key: string, values: any[]): number; // Add unique values to set
 
-- `any`: The value, or `null` if not found
+  // Array access operations
+  ArrayLen(key: string): number; // Get array length
+  ArrayGet(key: string, index: number): any; // Get element at index
+  ArraySet(key: string, index: number, value: any): void; // Set element at index
+  ArraySlice(key: string, start: number, end: number): any[]; // Get slice
+  ArrayPage(key: string, page: number, size: number): any[]; // Paginated access
+  ArrayAll(key: string): any[]; // Get all elements
 
-**Example:**
-
-```javascript
-const user_data = ctx.space.Get("user_data");
-if (user_data) {
-  console.log("Found user:", user_data.name);
+  // Metadata
+  id: string; // Namespace ID
+  space: string; // Space type: "user", "team", "chat", or "context"
 }
 ```
 
-#### `ctx.space.Set(key, value): void`
+### Basic KV Operations
 
-Sets a value in the space.
+#### `Get(key): any`
 
-**Parameters:**
-
-- `key`: String - The key to set
-- `value`: Any - The value to store
-
-**Example:**
+Gets a value from the namespace.
 
 ```javascript
-ctx.space.Set("user_data", { name: "John", id: 123 });
-ctx.space.Set("processing_status", "started");
+// User preferences
+const theme = ctx.memory.user.Get("theme");
+if (theme) {
+  console.log("User prefers:", theme);
+}
+
+// Chat context
+const topic = ctx.memory.chat.Get("current_topic");
 ```
 
-#### `ctx.space.Delete(key): void`
+#### `Set(key, value, ttl?): void`
 
-Deletes a key from the space.
-
-**Parameters:**
-
-- `key`: String - The key to delete
-
-**Example:**
+Sets a value with optional TTL (time-to-live in seconds).
 
 ```javascript
-ctx.space.Delete("temp_data");
+// Persistent user setting
+ctx.memory.user.Set("language", "en");
+
+// Team configuration
+ctx.memory.team.Set("api_key", "sk-xxx");
+
+// Chat state
+ctx.memory.chat.Set("last_query", "What is AI?");
+
+// Temporary context data with 5 minute TTL
+ctx.memory.context.Set("temp_result", { data: "..." }, 300);
 ```
 
-#### `ctx.space.GetDel(key): any`
+#### `Del(key): void`
 
-Gets a value and immediately deletes it. Convenient for one-time use data.
-
-**Parameters:**
-
-- `key`: String - The key to retrieve and delete
-
-**Returns:**
-
-- `any`: The value, or `null` if not found
-
-**Example:**
+Deletes a key. Supports wildcard patterns with `*`.
 
 ```javascript
-// Store file metadata in parent agent
-ctx.space.Set("file_metadata", { name: "report.pdf", size: 1024 });
+// Delete single key
+ctx.memory.user.Del("old_setting");
 
-// In child agent, get and consume the data
-const metadata = ctx.space.GetDel("file_metadata");
-// metadata is now deleted from space
+// Delete with wildcard pattern
+ctx.memory.chat.Del("cache:*"); // Deletes all keys starting with "cache:"
+```
+
+#### `Has(key): boolean`
+
+Checks if a key exists.
+
+```javascript
+if (ctx.memory.user.Has("onboarding_complete")) {
+  // Skip onboarding
+}
+```
+
+#### `GetDel(key): any`
+
+Atomically gets and deletes a value. Useful for one-time tokens.
+
+```javascript
+const token = ctx.memory.context.GetDel("one_time_token");
+if (token) {
+  // Use token (it's now deleted)
+}
+```
+
+### Collection Operations
+
+#### `Keys(): string[]`
+
+Returns all keys in the namespace.
+
+```javascript
+const userKeys = ctx.memory.user.Keys();
+console.log("User has", userKeys.length, "stored values");
+```
+
+#### `Len(): number`
+
+Returns the number of keys.
+
+```javascript
+const count = ctx.memory.chat.Len();
+console.log("Chat has", count, "stored values");
+```
+
+#### `Clear(): void`
+
+Deletes all keys in the namespace.
+
+```javascript
+// Clear temporary context data
+ctx.memory.context.Clear();
+```
+
+### Atomic Counter Operations
+
+#### `Incr(key, delta?): number`
+
+Atomically increments a counter. Returns the new value.
+
+```javascript
+// Simple counter
+const views = ctx.memory.user.Incr("page_views");
+console.log("Total views:", views);
+
+// Increment by custom amount
+const points = ctx.memory.user.Incr("points", 10);
+```
+
+#### `Decr(key, delta?): number`
+
+Atomically decrements a counter. Returns the new value.
+
+```javascript
+const remaining = ctx.memory.user.Decr("credits");
+if (remaining < 0) {
+  throw new Error("Insufficient credits");
+}
+```
+
+### List Operations
+
+#### `Push(key, values): number`
+
+Appends values to a list. Returns new length.
+
+```javascript
+const len = ctx.memory.chat.Push("history", [
+  { role: "user", content: "Hello" },
+  { role: "assistant", content: "Hi there!" },
+]);
+```
+
+#### `Pop(key): any`
+
+Removes and returns the last element.
+
+```javascript
+const lastItem = ctx.memory.chat.Pop("pending_tasks");
+```
+
+#### `Pull(key, count): any[]`
+
+Removes and returns the last N elements.
+
+```javascript
+const recentItems = ctx.memory.chat.Pull("notifications", 5);
+```
+
+#### `PullAll(key): any[]`
+
+Removes and returns all elements.
+
+```javascript
+const allTasks = ctx.memory.context.PullAll("batch_queue");
+// Process all tasks, queue is now empty
+```
+
+#### `AddToSet(key, values): number`
+
+Adds unique values to a set (no duplicates). Returns new size.
+
+```javascript
+ctx.memory.user.AddToSet("visited_pages", ["/home", "/about"]);
+ctx.memory.user.AddToSet("visited_pages", ["/home", "/contact"]); // "/home" not added again
+```
+
+### Array Access Operations
+
+#### `ArrayLen(key): number`
+
+Gets the length of an array.
+
+```javascript
+const historyLen = ctx.memory.chat.ArrayLen("messages");
+```
+
+#### `ArrayGet(key, index): any`
+
+Gets an element at a specific index.
+
+```javascript
+const firstMessage = ctx.memory.chat.ArrayGet("messages", 0);
+const lastMessage = ctx.memory.chat.ArrayGet("messages", -1); // Negative index
+```
+
+#### `ArraySet(key, index, value): void`
+
+Sets an element at a specific index.
+
+```javascript
+ctx.memory.chat.ArraySet("messages", 0, { role: "system", content: "Updated" });
+```
+
+#### `ArraySlice(key, start, end): any[]`
+
+Gets a slice of the array.
+
+```javascript
+const recent = ctx.memory.chat.ArraySlice("messages", -10, -1); // Last 10 messages
+```
+
+#### `ArrayPage(key, page, size): any[]`
+
+Gets a page of elements (1-indexed pages).
+
+```javascript
+const page1 = ctx.memory.chat.ArrayPage("messages", 1, 20); // First 20 messages
+const page2 = ctx.memory.chat.ArrayPage("messages", 2, 20); // Next 20 messages
+```
+
+#### `ArrayAll(key): any[]`
+
+Gets all elements of the array.
+
+```javascript
+const allMessages = ctx.memory.chat.ArrayAll("messages");
 ```
 
 ### Use Cases
 
 ```javascript
-// Use case 1: Pass data between hooks
+// Use case 1: User preferences (persistent across sessions)
 function Create(ctx, messages) {
-  // Store data for later use
-  ctx.space.Set("original_query", messages[0].content);
+  // Load user preferences
+  const locale = ctx.memory.user.Get("preferred_locale") || "en";
+  const style = ctx.memory.user.Get("response_style") || "concise";
+
+  return {
+    messages,
+    locale: locale,
+    metadata: { style: style },
+  };
+}
+
+// Use case 2: Chat context (persistent within chat session)
+function Next(ctx, payload) {
+  // Track conversation topics
+  const topics = ctx.memory.chat.Get("discussed_topics") || [];
+  const newTopic = extractTopic(payload.completion.content);
+
+  if (newTopic && !topics.includes(newTopic)) {
+    topics.push(newTopic);
+    ctx.memory.chat.Set("discussed_topics", topics);
+  }
+}
+
+// Use case 3: Request-scoped data (cleared on context release)
+function Create(ctx, messages) {
+  // Store temporary processing data
+  ctx.memory.context.Set("request_start", Date.now());
+  ctx.memory.context.Set("original_query", messages[0]?.content);
+
   return { messages };
 }
 
 function Next(ctx, payload) {
-  // Retrieve data from Create hook
-  const query = ctx.space.Get("original_query");
-  console.log("Original query was:", query);
+  // Retrieve temporary data
+  const startTime = ctx.memory.context.Get("request_start");
+  const duration = Date.now() - startTime;
+  console.log("Request took", duration, "ms");
+
+  // context memory is automatically cleared when ctx.Release() is called
 }
 
-// Use case 2: Pass data to nested agent calls
+// Use case 4: Team-wide settings
 function Create(ctx, messages) {
-  // Prepare context for child agent
-  ctx.space.Set("parent_context", {
-    user_id: ctx.authorized.user_id,
-    session_start: Date.now(),
-  });
+  // Check team quota
+  const used = ctx.memory.team.Incr("monthly_requests");
+  const limit = ctx.memory.team.Get("monthly_limit") || 10000;
 
-  // Call child agent...
+  if (used > limit) {
+    throw new Error("Team quota exceeded");
+  }
+
+  return { messages };
 }
 
-// Use case 3: One-time data consumption
-function Next(ctx, payload) {
-  // Get and delete in one operation
-  const temp_data = ctx.space.GetDel("temp_processing_data");
-  if (temp_data) {
-    // Process and discard
+// Use case 5: Rate limiting with counters
+function Create(ctx, messages) {
+  const key = `rate:${new Date().toISOString().slice(0, 13)}`; // Hourly bucket
+  const count = ctx.memory.user.Incr(key);
+
+  if (count > 100) {
+    throw new Error("Rate limit exceeded");
   }
+
+  return { messages };
 }
 ```
 
+### Memory Lifecycle
+
+| Namespace | Created When     | Cleared When    |
+| --------- | ---------------- | --------------- |
+| `user`    | First access     | Manual only     |
+| `team`    | First access     | Manual only     |
+| `chat`    | First access     | Manual only     |
+| `context` | Context creation | `ctx.Release()` |
+
 **Notes:**
 
-- Space is shared across all hooks within the same request
-- Space persists across nested agent calls (A2A)
-- Values can be any JSON-serializable data
-- Use `GetDel` for data that should only be consumed once
+- `user`, `team`, `chat` namespaces are persistent (backed by database)
+- `context` namespace is temporary and cleared when the request context is released
+- All namespaces support TTL for automatic expiration
+- Wildcard deletion (`Del("prefix:*")`) works on all namespaces
+- Counter operations (`Incr`, `Decr`) are atomic
 
 ## MCP API
 
@@ -1697,7 +1931,7 @@ interface UsesConfig {
 ```javascript
 function Create(ctx, messages) {
   // Store data for Next hook
-  ctx.space.Set("user_query", messages[0]?.content);
+  ctx.memory.context.Set("user_query", messages[0]?.content);
 
   // Modify messages
   const enhanced_messages = messages.map((msg) => ({
@@ -1873,7 +2107,7 @@ See the [Agent Execution Lifecycle](#agent-execution-lifecycle) diagram above fo
 - **Hooks can send messages directly** via `ctx.Send()`, `ctx.SendStream()`, etc.
 - **Create Hook** runs before LLM call (if any), can modify messages and configure the request
 - **Next Hook** runs after LLM call and tool execution (if any), can post-process or delegate
-- Use `ctx.space` to pass data between Create and Next hooks
+- Use `ctx.memory.context` to pass data between Create and Next hooks within a request
 
 ## Complete Example
 
@@ -1891,9 +2125,9 @@ function Create(ctx, messages) {
   // Extract user query from the last message
   const user_query = messages[messages.length - 1]?.content || "";
 
-  // Store data in space for use in Next hook
-  ctx.space.Set("original_query", user_query);
-  ctx.space.Set("request_time", Date.now());
+  // Store data in context memory for use in Next hook
+  ctx.memory.context.Set("original_query", user_query);
+  ctx.memory.context.Set("request_time", Date.now());
 
   // Add trace node to show processing in UI
   const create_node = ctx.trace.Add(
@@ -1943,9 +2177,9 @@ function Create(ctx, messages) {
 function Next(ctx, payload) {
   const { messages, completion, tools, error } = payload;
 
-  // Retrieve data from Create hook via space
-  const original_query = ctx.space.Get("original_query");
-  const request_time = ctx.space.Get("request_time");
+  // Retrieve data from Create hook via context memory
+  const original_query = ctx.memory.context.Get("original_query");
+  const request_time = ctx.memory.context.Get("request_time");
   const duration = Date.now() - request_time;
 
   // Create trace node for Next hook processing
@@ -2038,7 +2272,7 @@ function Next(ctx, payload) {
 4. **Logging Levels**: Use appropriate log levels (Debug for development, Info for progress, Error for failures)
 5. **Message IDs**: Let the system auto-generate message IDs unless you need specific tracking
 6. **Parallel Operations**: Use `Trace.Parallel()` for concurrent operations to maintain trace clarity
-7. **Space Usage**: Use `ctx.space` for passing data between hooks and nested agent calls
+7. **Memory Usage**: Use `ctx.memory.context` for request-scoped data, `ctx.memory.chat` for chat state, `ctx.memory.user` for user preferences
 8. **Streaming Messages**: Use `SendStream()` + `Append()` + `End()` for streaming output; use `Send()` for complete messages
 9. **Block Grouping**: Only use Block IDs when you need to group multiple messages together (e.g., LLM output + follow-up card)
 

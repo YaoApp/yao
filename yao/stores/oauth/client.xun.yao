@@ -1,0 +1,16 @@
+{
+  "label": "OAuth Client Store",
+  "description": "Database-backed store for OAuth client information and credentials",
+  "tags": ["oauth", "client", "xun", "security"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 10,
+  "name": "OAuth Client Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_oauth_client",
+    "connector": "default"
+  }
+}
+

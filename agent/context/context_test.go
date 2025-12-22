@@ -211,7 +211,7 @@ func TestGetCompletionRequest(t *testing.T) {
 			assert.Equal(t, tt.expectedReferer, ctx.Referer)
 			assert.Equal(t, tt.expectedAccept, ctx.Accept)
 			assert.Equal(t, tt.expectedAssistantID, ctx.AssistantID)
-			assert.NotNil(t, ctx.Space)
+			assert.NotNil(t, ctx.Memory)
 			assert.NotNil(t, ctx.Cache)
 		})
 	}
@@ -227,7 +227,7 @@ func TestContextNew_WithAuthorized(t *testing.T) {
 
 	assert.NotNil(t, ctx)
 	assert.Equal(t, "test-chat-id", ctx.ChatID)
-	assert.NotNil(t, ctx.Space)
+	assert.NotNil(t, ctx.Memory)
 	assert.NotNil(t, ctx.IDGenerator)
 }
 

@@ -21,11 +21,6 @@ import (
 // ========== Test Constants ==========
 
 const (
-	// Collection IDs for auth testing
-	AuthTestCollectionTeam1  = "auth_test_team1"
-	AuthTestCollectionTeam2  = "auth_test_team2"
-	AuthTestCollectionPublic = "auth_test_public"
-
 	// Test users and teams
 	TestUserA = "user_a"
 	TestUserB = "user_b"
@@ -33,75 +28,31 @@ const (
 	TestTeam2 = "team_2"
 )
 
-// ========== Setup Test ==========
-
-// TestAuthSearchSetup creates test collections with different permissions.
-// Run once before running auth tests:
-//
-//	go test -v -run "TestAuthSearchSetup" ./agent/assistant/...
-func TestAuthSearchSetup(t *testing.T) {
-	testutils.Prepare(t)
-	defer testutils.Clean(t)
-
-	if kb.API == nil {
-		t.Fatal("KB API not initialized")
-	}
-
-	ctx := context.Background()
-
-	// Check if collections already exist
-	team1Exists := collectionReady(ctx, AuthTestCollectionTeam1, 2)
-	team2Exists := collectionReady(ctx, AuthTestCollectionTeam2, 2)
-	publicExists := collectionReady(ctx, AuthTestCollectionPublic, 2)
-
-	if team1Exists && team2Exists && publicExists {
-		t.Log("✓ All auth test collections already exist")
-		t.Log("  Run TestAuthSearchCleanup to recreate")
-		return
-	}
-
-	// Cleanup existing
-	t.Log("Cleaning up existing collections...")
-	cleanupAuthCollections(ctx, t)
-	time.Sleep(1 * time.Second)
-
-	// Create Team1 collection (owned by UserA, Team1)
-	t.Log("Creating Team1 collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionTeam1, TestUserA, TestTeam1, false, "team")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc1", "Team1 private document about quantum physics and relativity theory.")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc2", "Team1 shared document about machine learning and neural networks.")
-
-	// Create Team2 collection (owned by UserB, Team2)
-	t.Log("Creating Team2 collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionTeam2, TestUserB, TestTeam2, false, "team")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc1", "Team2 private document about deep learning algorithms.")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc2", "Team2 shared document about computer vision techniques.")
-
-	// Create Public collection
-	t.Log("Creating Public collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionPublic, TestUserA, TestTeam1, true, "")
-	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc1", "Public document about artificial intelligence and robotics.")
-	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc2", "Public document about natural language processing.")
-
-	// Wait for indexing
-	t.Log("Waiting for indexing...")
-	time.Sleep(2 * time.Second)
-
-	t.Log("✓ Auth test setup complete!")
+// authTestCollections holds dynamically generated collection IDs for a test run
+type authTestCollections struct {
+	Team1  string
+	Team2  string
+	Public string
 }
 
-// TestAuthSearchCleanup removes auth test collections.
-func TestAuthSearchCleanup(t *testing.T) {
-	testutils.Prepare(t)
-	defer testutils.Clean(t)
-
-	if kb.API == nil {
-		t.Fatal("KB API not initialized")
+// newAuthTestCollections creates unique collection IDs for a test run
+func newAuthTestCollections() *authTestCollections {
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	return &authTestCollections{
+		Team1:  fmt.Sprintf("auth_test_team1_%s", suffix),
+		Team2:  fmt.Sprintf("auth_test_team2_%s", suffix),
+		Public: fmt.Sprintf("auth_test_public_%s", suffix),
 	}
+}
 
-	ctx := context.Background()
-	cleanupAuthCollections(ctx, t)
-	t.Log("✓ Auth test cleanup complete!")
+// cleanup removes all test collections
+func (c *authTestCollections) cleanup(ctx context.Context, t *testing.T) {
+	collections := []string{c.Team1, c.Team2, c.Public}
+	for _, id := range collections {
+		if result, err := kb.API.RemoveCollection(ctx, id); err == nil && result.Removed {
+			t.Logf("  Removed: %s", id)
+		}
+	}
 }
 
 // ========== KB Collection-Level Auth Filter Tests ==========
@@ -114,37 +65,48 @@ func TestKBCollectionAuthFilter(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Ensure test data exists (auto-creates if not)
-	ensureAuthTestData(t)
+	if kb.API == nil {
+		t.Fatal("KB API not initialized")
+	}
+
+	ctx := context.Background()
+	cols := newAuthTestCollections()
+	defer cols.cleanup(ctx, t)
+
+	// Create test collections
+	t.Log("Creating test collections...")
+	createAuthCollection(ctx, t, cols.Team1, TestUserA, TestTeam1, false, "team")
+	createAuthCollection(ctx, t, cols.Team2, TestUserB, TestTeam2, false, "team")
+	createAuthCollection(ctx, t, cols.Public, TestUserA, TestTeam1, true, "")
 
 	t.Run("TeamMemberCanAccessTeamCollection", func(t *testing.T) {
 		// UserA from Team1 should access Team1 collection
-		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
-		collections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2}
+		authCtx := createAuthContext(TestUserA, TestTeam1, true, false)
+		collections := []string{cols.Team1, cols.Team2}
 
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
-		assert.Contains(t, allowed, AuthTestCollectionTeam1, "Team1 member should access Team1 collection")
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
+		assert.Contains(t, allowed, cols.Team1, "Team1 member should access Team1 collection")
 		t.Logf("  Allowed collections: %v", allowed)
 	})
 
 	t.Run("TeamMemberCannotAccessOtherTeamCollection", func(t *testing.T) {
 		// UserA from Team1 should NOT access Team2 collection
-		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
-		collections := []string{AuthTestCollectionTeam2}
+		authCtx := createAuthContext(TestUserA, TestTeam1, true, false)
+		collections := []string{cols.Team2}
 
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
-		assert.NotContains(t, allowed, AuthTestCollectionTeam2, "Team1 member should NOT access Team2 collection")
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
+		assert.NotContains(t, allowed, cols.Team2, "Team1 member should NOT access Team2 collection")
 		t.Logf("  Allowed collections: %v (expected empty)", allowed)
 	})
 
 	t.Run("OwnerCanAccessOwnCollection", func(t *testing.T) {
 		// UserA with OwnerOnly should access collections they created
-		ctx := createAuthContext(TestUserA, "", false, true)
-		collections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2}
+		authCtx := createAuthContext(TestUserA, "", false, true)
+		collections := []string{cols.Team1, cols.Team2}
 
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
-		assert.Contains(t, allowed, AuthTestCollectionTeam1, "Owner should access own collection")
-		assert.NotContains(t, allowed, AuthTestCollectionTeam2, "Owner should NOT access other's collection")
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
+		assert.Contains(t, allowed, cols.Team1, "Owner should access own collection")
+		assert.NotContains(t, allowed, cols.Team2, "Owner should NOT access other's collection")
 		t.Logf("  Allowed collections: %v", allowed)
 	})
 
@@ -154,8 +116,7 @@ func TestKBCollectionAuthFilter(t *testing.T) {
 		// When public=true is properly set in DB, this should pass.
 
 		// First, check the collection metadata
-		bgCtx := context.Background()
-		collection, err := kb.API.GetCollection(bgCtx, AuthTestCollectionPublic)
+		collection, err := kb.API.GetCollection(ctx, cols.Public)
 		assert.NoError(t, err)
 
 		// Check if public is set correctly
@@ -164,26 +125,26 @@ func TestKBCollectionAuthFilter(t *testing.T) {
 
 		// If public is not set (0 or false), the test documents current behavior
 		// The collection should be accessible via owner check since UserA created it
-		ctx := createAuthContext(TestUserA, TestTeam1, false, true) // Owner check
-		collections := []string{AuthTestCollectionPublic}
+		authCtx := createAuthContext(TestUserA, TestTeam1, false, true) // Owner check
+		collections := []string{cols.Public}
 
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
-		assert.Contains(t, allowed, AuthTestCollectionPublic, "Owner should access their collection")
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
+		assert.Contains(t, allowed, cols.Public, "Owner should access their collection")
 		t.Logf("  Allowed collections (owner check): %v", allowed)
 	})
 
 	t.Run("NoConstraintsMeansFullAccess", func(t *testing.T) {
 		// User with no constraints should access all collections
-		ctx := createAuthContext(TestUserA, TestTeam1, false, false)
-		collections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2, AuthTestCollectionPublic}
+		authCtx := createAuthContext(TestUserA, TestTeam1, false, false)
+		collections := []string{cols.Team1, cols.Team2, cols.Public}
 
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
 		assert.Len(t, allowed, 3, "No constraints should allow all collections")
 		t.Logf("  Allowed collections: %v", allowed)
 	})
 
 	t.Run("NilContextMeansFullAccess", func(t *testing.T) {
-		collections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2}
+		collections := []string{cols.Team1, cols.Team2}
 
 		allowed := assistant.FilterKBCollectionsByAuth(nil, collections)
 		assert.Len(t, allowed, 2, "Nil context should allow all collections")
@@ -301,7 +262,7 @@ func TestDBAuthWheresFilter(t *testing.T) {
 	})
 
 	t.Run("NilAuthorizedReturnsNil", func(t *testing.T) {
-		ctx := &agentContext.Context{Authorized: nil}
+		ctx := agentContext.New(context.Background(), nil, "test-chat")
 		wheres := assistant.BuildDBAuthWheres(ctx)
 
 		assert.Nil(t, wheres, "Nil Authorized should return nil")
@@ -315,20 +276,43 @@ func TestKBSearchIntegration(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Ensure test data exists (auto-creates if not)
-	ensureAuthTestData(t)
+	if kb.API == nil {
+		t.Fatal("KB API not initialized")
+	}
+
+	ctx := context.Background()
+	cols := newAuthTestCollections()
+	defer cols.cleanup(ctx, t)
+
+	// Create test collections with documents
+	t.Log("Creating test collections with documents...")
+	createAuthCollection(ctx, t, cols.Team1, TestUserA, TestTeam1, false, "team")
+	addAuthDocument(ctx, t, cols.Team1, "Team1 Doc1", "Team1 private document about quantum physics and relativity theory.")
+	addAuthDocument(ctx, t, cols.Team1, "Team1 Doc2", "Team1 shared document about machine learning and neural networks.")
+
+	createAuthCollection(ctx, t, cols.Team2, TestUserB, TestTeam2, false, "team")
+	addAuthDocument(ctx, t, cols.Team2, "Team2 Doc1", "Team2 private document about deep learning algorithms.")
+	addAuthDocument(ctx, t, cols.Team2, "Team2 Doc2", "Team2 shared document about computer vision techniques.")
+
+	createAuthCollection(ctx, t, cols.Public, TestUserA, TestTeam1, true, "")
+	addAuthDocument(ctx, t, cols.Public, "Public Doc1", "Public document about artificial intelligence and robotics.")
+	addAuthDocument(ctx, t, cols.Public, "Public Doc2", "Public document about natural language processing.")
+
+	// Wait for indexing
+	t.Log("Waiting for indexing...")
+	time.Sleep(2 * time.Second)
 
 	t.Run("TeamMemberSearchOnlyFindsTeamData", func(t *testing.T) {
 		// UserA from Team1 searches - should ONLY find Team1 data
-		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
+		authCtx := createAuthContext(TestUserA, TestTeam1, true, false)
 
 		// Filter collections first
-		allCollections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2}
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, allCollections)
+		allCollections := []string{cols.Team1, cols.Team2}
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, allCollections)
 
 		// Should only allow Team1
-		assert.Contains(t, allowed, AuthTestCollectionTeam1)
-		assert.NotContains(t, allowed, AuthTestCollectionTeam2)
+		assert.Contains(t, allowed, cols.Team1)
+		assert.NotContains(t, allowed, cols.Team2)
 		assert.Len(t, allowed, 1, "Should only have 1 allowed collection")
 
 		// Search on allowed collections
@@ -337,7 +321,7 @@ func TestKBSearchIntegration(t *testing.T) {
 
 		// Verify ALL results are from Team1 collection only
 		for _, item := range result.Items {
-			assert.Equal(t, AuthTestCollectionTeam1, item.Collection,
+			assert.Equal(t, cols.Team1, item.Collection,
 				"All results should be from Team1 collection, got: %s", item.Collection)
 		}
 		t.Logf("  ✓ Team1 member found %d items, all from Team1 collection", len(result.Items))
@@ -345,11 +329,11 @@ func TestKBSearchIntegration(t *testing.T) {
 
 	t.Run("TeamMemberCannotAccessOtherTeamData", func(t *testing.T) {
 		// UserA from Team1 tries to access Team2 - should be blocked
-		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
+		authCtx := createAuthContext(TestUserA, TestTeam1, true, false)
 
 		// Try to filter Team2 collection
-		collections := []string{AuthTestCollectionTeam2}
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, collections)
+		collections := []string{cols.Team2}
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, collections)
 
 		// Should be empty - no access
 		assert.Empty(t, allowed, "Team1 member should NOT have access to Team2 collection")
@@ -358,16 +342,16 @@ func TestKBSearchIntegration(t *testing.T) {
 
 	t.Run("OwnerSearchOnlyFindsOwnData", func(t *testing.T) {
 		// UserA with OwnerOnly - should only find collections they created
-		ctx := createAuthContext(TestUserA, "", false, true)
+		authCtx := createAuthContext(TestUserA, "", false, true)
 
 		// Filter all collections
-		allCollections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2, AuthTestCollectionPublic}
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, allCollections)
+		allCollections := []string{cols.Team1, cols.Team2, cols.Public}
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, allCollections)
 
 		// UserA created Team1 and Public, not Team2
-		assert.Contains(t, allowed, AuthTestCollectionTeam1, "Owner should access Team1 (created by UserA)")
-		assert.Contains(t, allowed, AuthTestCollectionPublic, "Owner should access Public (created by UserA)")
-		assert.NotContains(t, allowed, AuthTestCollectionTeam2, "Owner should NOT access Team2 (created by UserB)")
+		assert.Contains(t, allowed, cols.Team1, "Owner should access Team1 (created by UserA)")
+		assert.Contains(t, allowed, cols.Public, "Owner should access Public (created by UserA)")
+		assert.NotContains(t, allowed, cols.Team2, "Owner should NOT access Team2 (created by UserB)")
 
 		// Search and verify results
 		result := executeKBSearchOnCollections(t, allowed, "quantum artificial intelligence")
@@ -375,7 +359,7 @@ func TestKBSearchIntegration(t *testing.T) {
 
 		// Verify NO results from Team2
 		for _, item := range result.Items {
-			assert.NotEqual(t, AuthTestCollectionTeam2, item.Collection,
+			assert.NotEqual(t, cols.Team2, item.Collection,
 				"Should NOT have results from Team2, got: %s", item.Collection)
 		}
 		t.Logf("  ✓ Owner found %d items, none from Team2", len(result.Items))
@@ -383,11 +367,11 @@ func TestKBSearchIntegration(t *testing.T) {
 
 	t.Run("NoConstraintsSearchFindsAllData", func(t *testing.T) {
 		// User with no constraints - should find all data
-		ctx := createAuthContext(TestUserA, TestTeam1, false, false)
+		authCtx := createAuthContext(TestUserA, TestTeam1, false, false)
 
 		// Filter all collections
-		allCollections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2, AuthTestCollectionPublic}
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, allCollections)
+		allCollections := []string{cols.Team1, cols.Team2, cols.Public}
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, allCollections)
 
 		// Should have access to all
 		assert.Len(t, allowed, 3, "No constraints should allow all collections")
@@ -406,14 +390,14 @@ func TestKBSearchIntegration(t *testing.T) {
 
 	t.Run("SearchResultsMatchCollectionFilter", func(t *testing.T) {
 		// Verify that search results ONLY come from allowed collections
-		ctx := createAuthContext(TestUserB, TestTeam2, true, false)
+		authCtx := createAuthContext(TestUserB, TestTeam2, true, false)
 
 		// UserB from Team2 - should only access Team2
-		allCollections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2, AuthTestCollectionPublic}
-		allowed := assistant.FilterKBCollectionsByAuth(ctx, allCollections)
+		allCollections := []string{cols.Team1, cols.Team2, cols.Public}
+		allowed := assistant.FilterKBCollectionsByAuth(authCtx, allCollections)
 
-		assert.Contains(t, allowed, AuthTestCollectionTeam2, "Team2 member should access Team2")
-		assert.NotContains(t, allowed, AuthTestCollectionTeam1, "Team2 member should NOT access Team1")
+		assert.Contains(t, allowed, cols.Team2, "Team2 member should access Team2")
+		assert.NotContains(t, allowed, cols.Team1, "Team2 member should NOT access Team1")
 
 		// Search
 		result := executeKBSearchOnCollections(t, allowed, "deep learning computer vision")
@@ -434,101 +418,16 @@ func TestKBSearchIntegration(t *testing.T) {
 
 // ========== Helper Functions ==========
 
-// ensureAuthTestData checks if auth test data exists, creates if not.
-// This is a utility function that can be called from any test.
-// Note: testutils.Prepare must be called before this function.
-func ensureAuthTestData(t *testing.T) {
-	if kb.API == nil {
-		t.Fatal("KB API not initialized - call testutils.Prepare first")
-	}
-
-	ctx := context.Background()
-
-	// Check if all collections already exist with required documents
-	team1Ready := collectionReady(ctx, AuthTestCollectionTeam1, 2)
-	team2Ready := collectionReady(ctx, AuthTestCollectionTeam2, 2)
-	publicReady := collectionReady(ctx, AuthTestCollectionPublic, 2)
-
-	if team1Ready && team2Ready && publicReady {
-		// All data exists, skip creation
-		return
-	}
-
-	// Data not ready, create it
-	t.Log("Auth test data not found, creating...")
-	createAuthTestData(t, ctx)
-}
-
-// createAuthTestData creates the test collections and documents
-func createAuthTestData(t *testing.T, ctx context.Context) {
-	// Cleanup existing
-	t.Log("Cleaning up existing collections...")
-	cleanupAuthCollections(ctx, t)
-	time.Sleep(1 * time.Second)
-
-	// Create Team1 collection (owned by UserA, Team1)
-	t.Log("Creating Team1 collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionTeam1, TestUserA, TestTeam1, false, "team")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc1", "Team1 private document about quantum physics and relativity theory.")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam1, "Team1 Doc2", "Team1 shared document about machine learning and neural networks.")
-
-	// Create Team2 collection (owned by UserB, Team2)
-	t.Log("Creating Team2 collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionTeam2, TestUserB, TestTeam2, false, "team")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc1", "Team2 private document about deep learning algorithms.")
-	addAuthDocument(ctx, t, AuthTestCollectionTeam2, "Team2 Doc2", "Team2 shared document about computer vision techniques.")
-
-	// Create Public collection
-	t.Log("Creating Public collection...")
-	createAuthCollection(ctx, t, AuthTestCollectionPublic, TestUserA, TestTeam1, true, "")
-	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc1", "Public document about artificial intelligence and robotics.")
-	addAuthDocument(ctx, t, AuthTestCollectionPublic, "Public Doc2", "Public document about natural language processing.")
-
-	// Wait for indexing
-	t.Log("Waiting for indexing...")
-	time.Sleep(2 * time.Second)
-
-	t.Log("✓ Auth test data created!")
-}
-
 func createAuthContext(userID, teamID string, teamOnly, ownerOnly bool) *agentContext.Context {
-	return &agentContext.Context{
-		Authorized: &oauthtypes.AuthorizedInfo{
-			UserID: userID,
-			TeamID: teamID,
-			Constraints: oauthtypes.DataConstraints{
-				TeamOnly:  teamOnly,
-				OwnerOnly: ownerOnly,
-			},
+	authorized := &oauthtypes.AuthorizedInfo{
+		UserID: userID,
+		TeamID: teamID,
+		Constraints: oauthtypes.DataConstraints{
+			TeamOnly:  teamOnly,
+			OwnerOnly: ownerOnly,
 		},
 	}
-}
-
-func collectionReady(ctx context.Context, collectionID string, minDocs int) bool {
-	collection, err := kb.API.GetCollection(ctx, collectionID)
-	if err != nil || collection == nil {
-		return false
-	}
-
-	docs, err := kb.API.ListDocuments(ctx, &api.ListDocumentsFilter{
-		Page:         1,
-		PageSize:     20,
-		CollectionID: collectionID,
-	})
-	if err != nil || docs == nil {
-		return false
-	}
-
-	return len(docs.Data) >= minDocs
-}
-
-func cleanupAuthCollections(ctx context.Context, t *testing.T) {
-	collections := []string{AuthTestCollectionTeam1, AuthTestCollectionTeam2, AuthTestCollectionPublic}
-	for _, id := range collections {
-		if result, err := kb.API.RemoveCollection(ctx, id); err == nil && result.Removed {
-			t.Logf("  Removed: %s", id)
-		}
-	}
+	return agentContext.New(context.Background(), authorized, "test-chat")
 }
 
 func createAuthCollection(ctx context.Context, t *testing.T, id, userID, teamID string, public bool, share string) {
@@ -595,10 +494,6 @@ func sanitizeForID(s string) string {
 		}
 	}
 	return result
-}
-
-func executeKBSearch(t *testing.T, collectionID, query string, metadata map[string]interface{}) *searchTypes.Result {
-	return executeKBSearchOnCollections(t, []string{collectionID}, query)
 }
 
 func executeKBSearchOnCollections(t *testing.T, collections []string, query string) *searchTypes.Result {

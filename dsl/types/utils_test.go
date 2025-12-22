@@ -258,11 +258,6 @@ func TestDetectType(t *testing.T) {
 			want: TypeStore,
 		},
 		{
-			name: "Store Badger",
-			path: filepath.Join("stores", "cache.badger.yao"),
-			want: TypeStore,
-		},
-		{
 			name: "Store by extension",
 			path: filepath.Join("stores", "cache.store.yao"),
 			want: TypeStore,
@@ -510,7 +505,7 @@ func TestTypeRootAndExts(t *testing.T) {
 			name:     "Store",
 			typ:      TypeStore,
 			wantRoot: "stores",
-			wantExts: []string{".lru.yao", ".redis.yao", ".mongo.yao", ".badger.yao", ".store.yao", ".store.jsonc", ".store.json"},
+			wantExts: []string{".lru.yao", ".redis.yao", ".mongo.yao", ".xun.yao", ".store.yao", ".store.jsonc", ".store.json"},
 		},
 		{
 			name:     "Unknown",

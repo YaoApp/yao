@@ -220,15 +220,18 @@ var testSystemModels = map[string]string{
 }
 
 var testSystemStores = map[string]string{
-	"__yao.store":        "yao/stores/store.badger.yao",
-	"__yao.cache":        "yao/stores/cache.lru.yao",
-	"__yao.oauth.store":  "yao/stores/oauth/store.badger.yao",
-	"__yao.oauth.client": "yao/stores/oauth/client.badger.yao",
-	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
-	"__yao.agent.memory": "yao/stores/agent/memory.badger.yao",
-	"__yao.agent.cache":  "yao/stores/agent/cache.lru.yao",
-	"__yao.kb.store":     "yao/stores/kb/store.badger.yao",
-	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",
+	"__yao.store":                "yao/stores/store.xun.yao",
+	"__yao.cache":                "yao/stores/cache.lru.yao",
+	"__yao.oauth.store":          "yao/stores/oauth/store.xun.yao",
+	"__yao.oauth.client":         "yao/stores/oauth/client.xun.yao",
+	"__yao.oauth.cache":          "yao/stores/oauth/cache.lru.yao",
+	"__yao.agent.memory.user":    "yao/stores/agent/memory/user.xun.yao",
+	"__yao.agent.memory.team":    "yao/stores/agent/memory/team.xun.yao",
+	"__yao.agent.memory.chat":    "yao/stores/agent/memory/chat.xun.yao",
+	"__yao.agent.memory.context": "yao/stores/agent/memory/context.xun.yao",
+	"__yao.agent.cache":          "yao/stores/agent/cache.lru.yao",
+	"__yao.kb.store":             "yao/stores/kb/store.xun.yao",
+	"__yao.kb.cache":             "yao/stores/kb/cache.lru.yao",
 }
 
 func loadSystemStores(t *testing.T, cfg config.Config) error {
@@ -251,24 +254,6 @@ func loadSystemStores(t *testing.T, cfg config.Config) error {
 				"YAO_DATA_ROOT": cfg.DataRoot,
 			}
 			source = replaceVars(source, vars)
-		}
-
-		// Parse store config to check if we need to create directories (for badger stores)
-		var storeConfig map[string]interface{}
-		if err := application.Parse(path, []byte(source), &storeConfig); err == nil {
-			// Check if this is a badger store
-			if storeType, ok := storeConfig["type"].(string); ok && storeType == "badger" {
-				// Extract the path from option.path
-				if option, ok := storeConfig["option"].(map[string]interface{}); ok {
-					if storePath, ok := option["path"].(string); ok {
-						// Create directory for badger store
-						if err := os.MkdirAll(storePath, 0755); err != nil {
-							log.Error("failed to create directory for store %s at %s: %s", id, storePath, err.Error())
-							return fmt.Errorf("failed to create directory for store %s: %w", id, err)
-						}
-					}
-				}
-			}
 		}
 
 		// Load store with the processed source
@@ -574,10 +559,8 @@ func dbconnect(t *testing.T, cfg config.Config) {
 	switch cfg.DB.Driver {
 	case "sqlite3":
 		capsule.AddConn("primary", "sqlite3", cfg.DB.Primary[0]).SetAsGlobal()
-		break
 	default:
 		capsule.AddConn("primary", "mysql", cfg.DB.Primary[0]).SetAsGlobal()
-		break
 	}
 
 }

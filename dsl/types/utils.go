@@ -111,7 +111,7 @@ func DetectType(path string) Type {
 		return TypeModel
 	case "conn":
 		return TypeConnector
-	case "lru", "redis", "mongo", "badger":
+	case "lru", "redis", "mongo", "xun":
 		return TypeStore
 	}
 
@@ -187,7 +187,7 @@ func TypeRootAndExts(typ Type) (string, []string) {
 	case TypeAIGC:
 		return "aigcs", []string{".ai.yao", ".ai.jsonc", ".ai.json"}
 	case TypeStore:
-		return "stores", []string{".lru.yao", ".redis.yao", ".mongo.yao", ".badger.yao", ".store.yao", ".store.jsonc", ".store.json"}
+		return "stores", []string{".lru.yao", ".redis.yao", ".mongo.yao", ".xun.yao", ".store.yao", ".store.jsonc", ".store.json"}
 	default:
 		return "", []string{}
 	}

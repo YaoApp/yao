@@ -1,0 +1,18 @@
+{
+  "label": "Agent Memory - Context",
+  "description": "Context-level memory store for intermediate results, temporary variables, and request-scoped cache",
+  "tags": ["agent", "memory", "context", "xun"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 23,
+  "name": "Agent Memory Context Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_agent_memory_context",
+    "connector": "default",
+    "cache_size": 10240,
+    "persist_interval": 10,
+    "cleanup_interval": 5
+  }
+}

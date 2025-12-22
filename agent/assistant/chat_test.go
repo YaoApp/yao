@@ -10,7 +10,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
@@ -431,15 +430,16 @@ func TestBufferStepTracking(t *testing.T) {
 
 	t.Run("BeginAndCompleteStep", func(t *testing.T) {
 		ctx := agentcontext.New(context.Background(), nil, "test_chat_step_001")
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
 		defer done()
 		ast.InitBuffer(ctx)
 
-		// Set some space data
-		ctx.Space.Set("test_key", "test_value")
+		// Set some context memory data
+		if ctx.Memory != nil && ctx.Memory.Context != nil {
+			ctx.Memory.Context.Set("test_key", "test_value", 0)
+		}
 
 		// Begin a step
 		step := ast.BeginStep(ctx, agentcontext.StepTypeLLM, map[string]interface{}{
@@ -464,34 +464,34 @@ func TestBufferStepTracking(t *testing.T) {
 		t.Logf("✓ Step tracking works correctly")
 	})
 
-	t.Run("SpaceSnapshotCapture", func(t *testing.T) {
-		ctx := agentcontext.New(context.Background(), nil, "test_chat_space_001")
-		ctx.Space = plan.NewMemorySharedSpace()
+	t.Run("ContextMemorySnapshotCapture", func(t *testing.T) {
+		ctx := agentcontext.New(context.Background(), nil, "test_chat_memory_001")
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
 		defer done()
 		ast.InitBuffer(ctx)
 
-		// Set space data before step
-		ctx.Space.Set("key1", "value1")
-		ctx.Space.Set("key2", 123)
+		// Set context memory data before step
+		require.NotNil(t, ctx.Memory)
+		require.NotNil(t, ctx.Memory.Context)
+		ctx.Memory.Context.Set("key1", "value1", 0)
+		ctx.Memory.Context.Set("key2", 123, 0)
 
-		// Begin step (should capture space snapshot)
+		// Begin step (should capture context memory snapshot)
 		ast.BeginStep(ctx, agentcontext.StepTypeHookCreate, nil)
 
-		// Verify space snapshot was captured
+		// Verify context memory snapshot was captured
 		steps := ctx.Buffer.GetAllSteps()
 		require.Len(t, steps, 1)
 		assert.NotNil(t, steps[0].SpaceSnapshot)
 		assert.Equal(t, "value1", steps[0].SpaceSnapshot["key1"])
 		assert.Equal(t, 123, steps[0].SpaceSnapshot["key2"])
-		t.Logf("✓ Space snapshot captured: %v", steps[0].SpaceSnapshot)
+		t.Logf("✓ Context memory snapshot captured: %v", steps[0].SpaceSnapshot)
 	})
 
 	t.Run("MultipleSteps", func(t *testing.T) {
 		ctx := agentcontext.New(context.Background(), nil, "test_chat_multi_step")
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
@@ -536,7 +536,6 @@ func TestFlushBuffer(t *testing.T) {
 	t.Run("FlushOnSuccess", func(t *testing.T) {
 		chatID := fmt.Sprintf("test_flush_success_%s", uuid.New().String()[:8])
 		ctx := agentcontext.New(context.Background(), nil, chatID)
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
@@ -584,7 +583,6 @@ func TestFlushBuffer(t *testing.T) {
 	t.Run("FlushOnFailure", func(t *testing.T) {
 		chatID := fmt.Sprintf("test_flush_fail_%s", uuid.New().String()[:8])
 		ctx := agentcontext.New(context.Background(), nil, chatID)
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
@@ -633,7 +631,6 @@ func TestFlushBuffer(t *testing.T) {
 	t.Run("FlushOnInterrupt", func(t *testing.T) {
 		chatID := fmt.Sprintf("test_flush_interrupt_%s", uuid.New().String()[:8])
 		ctx := agentcontext.New(context.Background(), nil, chatID)
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack and init buffer
 		_, _, done := agentcontext.EnterStack(ctx, ast.ID, nil)
@@ -673,7 +670,6 @@ func TestFlushBuffer(t *testing.T) {
 	t.Run("FlushWithModeAndConnector", func(t *testing.T) {
 		chatID := fmt.Sprintf("test_flush_mode_%s", uuid.New().String()[:8])
 		ctx := agentcontext.New(context.Background(), nil, chatID)
-		ctx.Space = plan.NewMemorySharedSpace()
 
 		// Enter stack with connector and mode options
 		opts := &agentcontext.Options{

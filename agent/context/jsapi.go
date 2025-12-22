@@ -1,7 +1,10 @@
 package context
 
 import (
+	"time"
+
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
 	traceJsapi "github.com/yaoapp/yao/trace/jsapi"
@@ -136,11 +139,11 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		}
 	}
 
-	// Space object - create a JavaScript object with Get/Set/Delete methods
-	if ctx.Space != nil {
-		spaceObj := ctx.createSpaceObject(v8ctx)
-		obj.Set("space", spaceObj)
-		spaceObj.Release()
+	// Memory object - create a JavaScript object with User/Team/Chat/Context namespaces
+	if ctx.Memory != nil {
+		memoryObj := ctx.createMemoryObject(v8ctx)
+		obj.Set("memory", memoryObj)
+		memoryObj.Release()
 	}
 
 	return instance.Value, nil
@@ -718,26 +721,57 @@ func (ctx *Context) endBlockMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	})
 }
 
-// createSpaceObject creates a Space object for JavaScript access
-// Space is a shared data space for passing data between requests and calls
-func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
+// createMemoryObject creates a Memory object for JavaScript access
+// Memory provides four namespaces: User, Team, Chat, Context
+// Each namespace supports: Get, Set, Del, Has, Keys, Len, Clear, Incr, Decr
+func (ctx *Context) createMemoryObject(v8ctx *v8go.Context) *v8go.Value {
 	iso := v8ctx.Isolate()
-	spaceObj, _ := v8ctx.RunScript("({})", "space-init")
-	obj, _ := spaceObj.AsObject()
+	objTpl := v8go.NewObjectTemplate(iso)
+	obj, _ := objTpl.NewInstance(v8ctx)
 
-	// Get method: space.Get(key)
+	// Create namespace accessors
+	if ctx.Memory.User != nil {
+		userObj := ctx.createNamespaceObject(v8ctx, ctx.Memory.User)
+		obj.Set("user", userObj)
+		userObj.Release()
+	}
+
+	if ctx.Memory.Team != nil {
+		teamObj := ctx.createNamespaceObject(v8ctx, ctx.Memory.Team)
+		obj.Set("team", teamObj)
+		teamObj.Release()
+	}
+
+	if ctx.Memory.Chat != nil {
+		chatObj := ctx.createNamespaceObject(v8ctx, ctx.Memory.Chat)
+		obj.Set("chat", chatObj)
+		chatObj.Release()
+	}
+
+	if ctx.Memory.Context != nil {
+		contextObj := ctx.createNamespaceObject(v8ctx, ctx.Memory.Context)
+		obj.Set("context", contextObj)
+		contextObj.Release()
+	}
+
+	return obj.Value
+}
+
+// createNamespaceObject creates a namespace object with KV store methods
+func (ctx *Context) createNamespaceObject(v8ctx *v8go.Context, ns *memory.Namespace) *v8go.Value {
+	iso := v8ctx.Isolate()
+	objTpl := v8go.NewObjectTemplate(iso)
+	obj, _ := objTpl.NewInstance(v8ctx)
+
+	// Get method: ns.Get(key)
 	getFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		if ctx.Space == nil {
-			return v8go.Null(iso)
-		}
-
 		if len(info.Args()) < 1 {
 			return bridge.JsException(info.Context(), "Get requires a key argument")
 		}
 
 		key := info.Args()[0].String()
-		value, err := ctx.Space.Get(key)
-		if err != nil {
+		value, ok := ns.Get(key)
+		if !ok {
 			return v8go.Null(iso)
 		}
 
@@ -751,12 +785,8 @@ func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
 	getFuncVal := getFunc.GetFunction(v8ctx)
 	obj.Set("Get", getFuncVal.Value)
 
-	// Set method: space.Set(key, value)
+	// Set method: ns.Set(key, value, ttl?)
 	setFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		if ctx.Space == nil {
-			return bridge.JsException(info.Context(), "Space is not available")
-		}
-
 		if len(info.Args()) < 2 {
 			return bridge.JsException(info.Context(), "Set requires key and value arguments")
 		}
@@ -767,7 +797,14 @@ func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
 			return bridge.JsException(info.Context(), "Failed to convert value: "+err.Error())
 		}
 
-		if err := ctx.Space.Set(key, value); err != nil {
+		// Optional TTL in milliseconds (third argument)
+		var ttl time.Duration
+		if len(info.Args()) >= 3 && info.Args()[2].IsNumber() {
+			ttlMs := info.Args()[2].Integer()
+			ttl = time.Duration(ttlMs) * time.Millisecond
+		}
+
+		if err := ns.Set(key, value, ttl); err != nil {
 			return bridge.JsException(info.Context(), "Failed to set value: "+err.Error())
 		}
 
@@ -776,50 +813,128 @@ func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
 	setFuncVal := setFunc.GetFunction(v8ctx)
 	obj.Set("Set", setFuncVal.Value)
 
-	// Delete method: space.Delete(key)
+	// Del method: ns.Del(key)
 	delFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		if ctx.Space == nil {
-			return bridge.JsException(info.Context(), "Space is not available")
-		}
-
 		if len(info.Args()) < 1 {
-			return bridge.JsException(info.Context(), "Delete requires a key argument")
+			return bridge.JsException(info.Context(), "Del requires a key argument")
 		}
 
 		key := info.Args()[0].String()
-		if err := ctx.Space.Delete(key); err != nil {
+		if err := ns.Del(key); err != nil {
 			return bridge.JsException(info.Context(), "Failed to delete key: "+err.Error())
 		}
 
 		return v8go.Undefined(iso)
 	})
 	delFuncVal := delFunc.GetFunction(v8ctx)
-	obj.Set("Delete", delFuncVal.Value)
+	obj.Set("Del", delFuncVal.Value)
 
-	// GetDel method: space.GetDel(key) - Get value and delete immediately
-	// Convenient for one-time use data (e.g., file metadata passed between agents)
-	getDelFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		if ctx.Space == nil {
-			return v8go.Null(iso)
+	// Has method: ns.Has(key)
+	hasFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "Has requires a key argument")
 		}
 
+		key := info.Args()[0].String()
+		exists := ns.Has(key)
+
+		jsValue, _ := v8go.NewValue(iso, exists)
+		return jsValue
+	})
+	hasFuncVal := hasFunc.GetFunction(v8ctx)
+	obj.Set("Has", hasFuncVal.Value)
+
+	// Keys method: ns.Keys()
+	keysFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		keys := ns.Keys()
+		jsValue, err := bridge.JsValue(info.Context(), keys)
+		if err != nil {
+			return bridge.JsException(info.Context(), "Failed to get keys: "+err.Error())
+		}
+		return jsValue
+	})
+	keysFuncVal := keysFunc.GetFunction(v8ctx)
+	obj.Set("Keys", keysFuncVal.Value)
+
+	// Len method: ns.Len()
+	lenFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		length := ns.Len()
+		// Use int32 for JavaScript Number (int64 becomes BigInt which is incompatible)
+		jsValue, _ := v8go.NewValue(iso, int32(length))
+		return jsValue
+	})
+	lenFuncVal := lenFunc.GetFunction(v8ctx)
+	obj.Set("Len", lenFuncVal.Value)
+
+	// Clear method: ns.Clear()
+	clearFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		ns.Clear()
+		return v8go.Undefined(iso)
+	})
+	clearFuncVal := clearFunc.GetFunction(v8ctx)
+	obj.Set("Clear", clearFuncVal.Value)
+
+	// Incr method: ns.Incr(key, delta?)
+	incrFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "Incr requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+		delta := int64(1)
+		if len(info.Args()) >= 2 && info.Args()[1].IsNumber() {
+			delta = info.Args()[1].Integer()
+		}
+
+		newValue, err := ns.Incr(key, delta)
+		if err != nil {
+			return bridge.JsException(info.Context(), "Failed to increment: "+err.Error())
+		}
+
+		// Use int32 for JavaScript Number (int64 becomes BigInt which is incompatible with ===)
+		// For counters, int32 range (-2^31 to 2^31-1) is sufficient
+		jsValue, _ := v8go.NewValue(iso, int32(newValue))
+		return jsValue
+	})
+	incrFuncVal := incrFunc.GetFunction(v8ctx)
+	obj.Set("Incr", incrFuncVal.Value)
+
+	// Decr method: ns.Decr(key, delta?)
+	decrFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if len(info.Args()) < 1 {
+			return bridge.JsException(info.Context(), "Decr requires a key argument")
+		}
+
+		key := info.Args()[0].String()
+		delta := int64(1)
+		if len(info.Args()) >= 2 && info.Args()[1].IsNumber() {
+			delta = info.Args()[1].Integer()
+		}
+
+		newValue, err := ns.Decr(key, delta)
+		if err != nil {
+			return bridge.JsException(info.Context(), "Failed to decrement: "+err.Error())
+		}
+
+		// Use int32 for JavaScript Number (int64 becomes BigInt which is incompatible with ===)
+		jsValue, _ := v8go.NewValue(iso, int32(newValue))
+		return jsValue
+	})
+	decrFuncVal := decrFunc.GetFunction(v8ctx)
+	obj.Set("Decr", decrFuncVal.Value)
+
+	// GetDel method: ns.GetDel(key) - Get value and delete immediately
+	getDelFunc := v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		if len(info.Args()) < 1 {
 			return bridge.JsException(info.Context(), "GetDel requires a key argument")
 		}
 
 		key := info.Args()[0].String()
-
-		// Get value first
-		value, err := ctx.Space.Get(key)
-		if err != nil {
+		value, ok := ns.GetDel(key)
+		if !ok {
 			return v8go.Null(iso)
 		}
 
-		// Delete immediately after getting
-		// Ignore delete errors (key might not exist)
-		ctx.Space.Delete(key)
-
-		// Convert to JavaScript value
 		jsValue, err := bridge.JsValue(info.Context(), value)
 		if err != nil {
 			return v8go.Null(iso)
@@ -830,7 +945,7 @@ func (ctx *Context) createSpaceObject(v8ctx *v8go.Context) *v8go.Value {
 	getDelFuncVal := getDelFunc.GetFunction(v8ctx)
 	obj.Set("GetDel", getDelFuncVal.Value)
 
-	return spaceObj
+	return obj.Value
 }
 
 // sendGroupMethod implements ctx.SendGroup(group)

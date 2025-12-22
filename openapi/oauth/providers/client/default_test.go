@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,9 +10,11 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
-	"github.com/yaoapp/gou/store/badger"
 	"github.com/yaoapp/gou/store/lru"
+	"github.com/yaoapp/gou/store/xun"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/test"
 )
 
 // Store configuration for parameterized tests
@@ -52,20 +53,26 @@ func getMongoStore(t *testing.T) store.Store {
 	return mongoStore
 }
 
-func getBadgerStore(t *testing.T) store.Store {
-	// Create temporary directory for test database
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test_oauth_badger")
+func getXunStore(t *testing.T) store.Store {
+	// Use test.Prepare to initialize the environment (database, etc.)
+	test.Prepare(t, config.Conf)
 
-	badgerStore, err := badger.New(dbPath)
+	// Create xun store using default database connection
+	xunStore, err := xun.New(xun.Option{
+		Table:     "__yao_oauth_client_test",
+		Connector: "default",
+		CacheSize: 1024,
+	})
 	require.NoError(t, err)
 
 	// Clean up on test completion
 	t.Cleanup(func() {
-		badgerStore.Close()
+		xunStore.Clear()
+		xunStore.Close()
+		test.Clean()
 	})
 
-	return badgerStore
+	return xunStore
 }
 
 func getLRUCache(t *testing.T) store.Store {
@@ -78,7 +85,7 @@ func getLRUCache(t *testing.T) store.Store {
 func getStoreConfigs() []StoreConfig {
 	return []StoreConfig{
 		{Name: "MongoDB", GetFunc: getMongoStore},
-		{Name: "Badger", GetFunc: getBadgerStore},
+		{Name: "Xun", GetFunc: getXunStore},
 	}
 }
 

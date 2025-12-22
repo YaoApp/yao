@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -15,8 +14,8 @@ import (
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/store"
-	"github.com/yaoapp/gou/store/badger"
 	"github.com/yaoapp/gou/store/lru"
+	"github.com/yaoapp/gou/store/xun"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
@@ -332,7 +331,7 @@ func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store
 	// Get store configurations
 	storeConfigs := getStoreConfigs()
 
-	// Use the first available store (prefer MongoDB, fallback to Badger)
+	// Use the first available store (prefer MongoDB, fallback to Xun)
 	var mainStore store.Store
 	var storeConfig StoreConfig
 
@@ -357,10 +356,10 @@ func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store
 		}
 	}
 
-	// Fallback to Badger if no other store is available
+	// Fallback to Xun if no other store is available
 	if mainStore == nil {
-		mainStore = getBadgerStore(t)
-		storeConfig = StoreConfig{Name: "Badger", GetFunc: getBadgerStore}
+		mainStore = getXunStore(t)
+		storeConfig = StoreConfig{Name: "Xun", GetFunc: getXunStore}
 	}
 
 	// Create cache
@@ -656,18 +655,25 @@ func getMongoStore(t *testing.T) store.Store {
 	return mongoStore
 }
 
-func getBadgerStore(t *testing.T) store.Store {
-	tempDir := t.TempDir()
-	dbPath := filepath.Join(tempDir, "test_oauth_badger")
+func getXunStore(t *testing.T) store.Store {
+	// Use test.Prepare to ensure database connection is initialized
+	test.Prepare(t, config.Conf)
 
-	badgerStore, err := badger.New(dbPath)
+	// Create xun store using default database connection
+	xunStore, err := xun.New(xun.Option{
+		Table:     "__yao_oauth_test",
+		Connector: "default",
+		CacheSize: 1024,
+	})
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
-		badgerStore.Close()
+		xunStore.Clear()
+		xunStore.Close()
+		test.Clean()
 	})
 
-	return badgerStore
+	return xunStore
 }
 
 func getLRUCache(t *testing.T) store.Store {
@@ -679,7 +685,7 @@ func getLRUCache(t *testing.T) store.Store {
 func getStoreConfigs() []StoreConfig {
 	return []StoreConfig{
 		{Name: "MongoDB", GetFunc: getMongoStore},
-		{Name: "Badger", GetFunc: getBadgerStore},
+		{Name: "Xun", GetFunc: getXunStore},
 	}
 }
 
@@ -795,7 +801,7 @@ func TestNewService(t *testing.T) {
 	})
 
 	t.Run("create service with missing issuer URL", func(t *testing.T) {
-		store := getBadgerStore(t)
+		store := getXunStore(t)
 		config := &Config{
 			Store: store,
 			Signing: types.SigningConfig{
@@ -836,7 +842,7 @@ func TestServiceGetters(t *testing.T) {
 }
 
 func TestConfigDefaults(t *testing.T) {
-	store := getBadgerStore(t)
+	store := getXunStore(t)
 
 	t.Run("set default values", func(t *testing.T) {
 		config := &Config{
@@ -915,7 +921,7 @@ func TestFeatureFlags(t *testing.T) {
 
 func TestProviderInitialization(t *testing.T) {
 	t.Run("default providers created when not provided", func(t *testing.T) {
-		store := getBadgerStore(t)
+		store := getXunStore(t)
 		cache := getLRUCache(t)
 
 		config := &Config{
@@ -942,7 +948,7 @@ func TestProviderInitialization(t *testing.T) {
 	})
 
 	t.Run("custom providers used when provided", func(t *testing.T) {
-		store := getBadgerStore(t)
+		store := getXunStore(t)
 		cache := getLRUCache(t)
 
 		// Create a temporary service to get default providers for testing
@@ -1026,7 +1032,7 @@ func TestServiceIntegration(t *testing.T) {
 func TestConfigValidation(t *testing.T) {
 	t.Run("valid configuration", func(t *testing.T) {
 		config := &Config{
-			Store:     getBadgerStore(t),
+			Store:     getXunStore(t),
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
 				SigningCertPath: testCertPath,
@@ -1069,7 +1075,7 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("missing issuer URL", func(t *testing.T) {
 		config := &Config{
-			Store: getBadgerStore(t),
+			Store: getXunStore(t),
 			Signing: types.SigningConfig{
 				SigningCertPath: testCertPath,
 				SigningKeyPath:  testKeyPath,
@@ -1088,7 +1094,7 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("partial certificate configuration", func(t *testing.T) {
 		config := &Config{
-			Store:     getBadgerStore(t),
+			Store:     getXunStore(t),
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
 				SigningCertPath: testCertPath, // Only cert path, missing key path
@@ -1108,7 +1114,7 @@ func TestConfigValidation(t *testing.T) {
 
 	t.Run("invalid token lifetime", func(t *testing.T) {
 		config := &Config{
-			Store:     getBadgerStore(t),
+			Store:     getXunStore(t),
 			IssuerURL: "https://test.example.com",
 			Signing: types.SigningConfig{
 				SigningCertPath: testCertPath,

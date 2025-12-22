@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/connector/openai"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -226,7 +226,7 @@ type Context struct {
 
 	// External
 	ID          string               `json:"id"` // Context ID for external interrupt identification
-	Space       plan.Space           `json:"-"`  // Shared data space, it will be used to share data between the request and the call
+	Memory      *memory.Memory       `json:"-"`  // Agent memory with four spaces: User, Team, Chat, Context
 	Cache       store.Store          `json:"-"`  // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
 	Stack       *Stack               `json:"-"`  // Stack, current active stack of the request
 	Stacks      map[string]*Stack    `json:"-"`  // Stacks, all stacks in this request (for trace logging)

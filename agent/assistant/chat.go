@@ -252,14 +252,14 @@ func (ast *Assistant) BufferUserInput(ctx *agentcontext.Context, inputMessages [
 	}
 }
 
-// UpdateSpaceSnapshot updates the space snapshot in the buffer
-// Should be called when space data changes
+// UpdateSpaceSnapshot updates the context memory snapshot in the buffer
+// Only captures Context-level memory (request-scoped temporary data) for recovery
 func (ast *Assistant) UpdateSpaceSnapshot(ctx *agentcontext.Context) {
-	if ctx.Buffer == nil || ctx.Space == nil {
+	if ctx.Buffer == nil || ctx.Memory == nil || ctx.Memory.Context == nil {
 		return
 	}
 
-	snapshot := ctx.Space.Snapshot()
+	snapshot := ctx.Memory.Context.Snapshot()
 	ctx.Buffer.SetSpaceSnapshot(snapshot)
 }
 

@@ -1,0 +1,18 @@
+{
+  "label": "Agent Memory - Team",
+  "description": "Team-level memory store for team knowledge, shared settings, and collaborative data",
+  "tags": ["agent", "memory", "team", "xun"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 21,
+  "name": "Agent Memory Team Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_agent_memory_team",
+    "connector": "default",
+    "cache_size": 10240,
+    "persist_interval": 60,
+    "cleanup_interval": 1440
+  }
+}
