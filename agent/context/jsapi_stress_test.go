@@ -12,10 +12,19 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
+
+// newStressTestContext creates a test context for stress testing
+func newStressTestContext(chatID string) *context.Context {
+	ctx := context.New(stdContext.Background(), nil, chatID)
+	ctx.AssistantID = "test-assistant"
+	ctx.Referer = context.RefererAPI
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
+	ctx.Stack = stack
+	return ctx
+}
 
 // TestStressContextCreationAndRelease tests massive context creation and cleanup
 func TestStressContextCreationAndRelease(t *testing.T) {
@@ -30,17 +39,7 @@ func TestStressContextCreationAndRelease(t *testing.T) {
 	startMemory := getMemStats()
 
 	for i := 0; i < iterations; i++ {
-		cxt := &context.Context{
-			ChatID:      fmt.Sprintf("chat-%d", i),
-			AssistantID: "test-assistant",
-			Context:     stdContext.Background(),
-			IDGenerator: message.NewIDGenerator(),
-		}
-
-		// Initialize stack and trace
-		cxt.Referer = context.RefererAPI
-		stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-		cxt.Stack = stack
+		cxt := newStressTestContext(fmt.Sprintf("chat-%d", i))
 
 		_, err := v8.Call(v8.CallOptions{}, `
 			function test(ctx) {
@@ -107,17 +106,7 @@ func TestStressTraceOperations(t *testing.T) {
 
 	for i := 0; i < iterations; i++ {
 		// Create new context for each iteration to avoid context cancellation issues
-		cxt := &context.Context{
-			ChatID:      fmt.Sprintf("stress-test-chat-%d", i),
-			AssistantID: "test-assistant",
-			Context:     stdContext.Background(),
-			IDGenerator: message.NewIDGenerator(),
-			Referer:     context.RefererAPI,
-		}
-
-		// Initialize stack and trace
-		stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-		cxt.Stack = stack
+		cxt := newStressTestContext(fmt.Sprintf("stress-test-chat-%d", i))
 		_, err := v8.Call(v8.CallOptions{}, fmt.Sprintf(`
 			function test(ctx) {
 				const trace = ctx.trace
@@ -185,16 +174,7 @@ func TestStressMCPOperations(t *testing.T) {
 
 	iterations := 500
 
-	cxt := &context.Context{
-		ChatID:      "mcp-stress-test",
-		AssistantID: "test-assistant",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newStressTestContext("mcp-stress-test")
 
 	startMemory := getMemStats()
 
@@ -269,16 +249,7 @@ func TestStressConcurrentContexts(t *testing.T) {
 			defer wg.Done()
 
 			for i := 0; i < iterationsPerGoroutine; i++ {
-				cxt := &context.Context{
-					ChatID:      fmt.Sprintf("chat-%d-%d", goroutineID, i),
-					AssistantID: "test-assistant",
-					Context:     stdContext.Background(),
-					IDGenerator: message.NewIDGenerator(),
-					Referer:     context.RefererAPI,
-				}
-
-				stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-				cxt.Stack = stack
+				cxt := newStressTestContext(fmt.Sprintf("chat-%d-%d", goroutineID, i))
 
 				_, err := v8.Call(v8.CallOptions{}, `
 					function test(ctx) {
@@ -345,12 +316,8 @@ func TestStressNoOpTracePerformance(t *testing.T) {
 	iterations := 1000
 
 	// Context without trace initialization (no-op trace)
-	cxt := &context.Context{
-		ChatID:      "noop-stress-test",
-		AssistantID: "test-assistant",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "noop-stress-test")
+	cxt.AssistantID = "test-assistant"
 
 	startMemory := getMemStats()
 	startTime := time.Now()
@@ -420,16 +387,7 @@ func TestStressReleasePatterns(t *testing.T) {
 		startMemory := getMemStats()
 
 		for i := 0; i < iterations; i++ {
-			cxt := &context.Context{
-				ChatID:      fmt.Sprintf("manual-%d", i),
-				AssistantID: "test-assistant",
-				Context:     stdContext.Background(),
-				IDGenerator: message.NewIDGenerator(),
-				Referer:     context.RefererAPI,
-			}
-
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-			cxt.Stack = stack
+			cxt := newStressTestContext(fmt.Sprintf("manual-%d", i))
 
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
@@ -459,16 +417,7 @@ func TestStressReleasePatterns(t *testing.T) {
 		startMemory := getMemStats()
 
 		for i := 0; i < iterations; i++ {
-			cxt := &context.Context{
-				ChatID:      fmt.Sprintf("gc-%d", i),
-				AssistantID: "test-assistant",
-				Context:     stdContext.Background(),
-				IDGenerator: message.NewIDGenerator(),
-				Referer:     context.RefererAPI,
-			}
-
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-			cxt.Stack = stack
+			cxt := newStressTestContext(fmt.Sprintf("gc-%d", i))
 
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
@@ -500,16 +449,7 @@ func TestStressReleasePatterns(t *testing.T) {
 		startMemory := getMemStats()
 
 		for i := 0; i < iterations; i++ {
-			cxt := &context.Context{
-				ChatID:      fmt.Sprintf("separate-%d", i),
-				AssistantID: "test-assistant",
-				Context:     stdContext.Background(),
-				IDGenerator: message.NewIDGenerator(),
-				Referer:     context.RefererAPI,
-			}
-
-			stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-			cxt.Stack = stack
+			cxt := newStressTestContext(fmt.Sprintf("separate-%d", i))
 
 			_, err := v8.Call(v8.CallOptions{}, `
 				function test(ctx) {
@@ -546,16 +486,7 @@ func TestStressLongRunningTrace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "long-running-test",
-		AssistantID: "test-assistant",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newStressTestContext("long-running-test")
 
 	startMemory := getMemStats()
 	operations := 100

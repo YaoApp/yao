@@ -49,15 +49,15 @@ func CallAgent(ctx *agentContext.Context, agentID string, message agentContext.M
 }
 
 // CallAgentWithFileInfo calls an agent to process content with file metadata
-// The file metadata is passed via ctx.Space for access by hooks (especially Next hook)
-// Uses Space instead of Metadata to avoid creating context copies and ensure proper cleanup
+// The file metadata is passed via ctx.Memory.Context for access by hooks (especially Next hook)
+// Uses Memory.Context (request-scoped) to avoid creating context copies and ensure proper cleanup
 //
-// Space Keys (with agent ID as namespace prefix to avoid conflicts between different agents):
+// Memory Keys (with agent ID as namespace prefix to avoid conflicts between different agents):
 //   - {agentID}:files_info      - List of all files being processed by this agent (array)
 //   - {agentID}:current_file    - Currently processing file (single object)
 func CallAgentWithFileInfo(ctx *agentContext.Context, agentID string, message agentContext.Message, info *Info) (string, error) {
-	// Store file information in Space if available
-	if info != nil && ctx.Space != nil {
+	// Store file information in Memory.Context if available
+	if info != nil && ctx.Memory != nil && ctx.Memory.Context != nil {
 		fileInfo := map[string]interface{}{
 			"url":          info.URL,
 			"filename":     info.Filename,
@@ -74,14 +74,14 @@ func CallAgentWithFileInfo(ctx *agentContext.Context, agentID string, message ag
 			fileInfo["file_id"] = info.FileID
 		}
 
-		// Use agent ID as namespace prefix for Space keys
+		// Use agent ID as namespace prefix for Memory keys
 		filesListKey := agentID + ":files_info"
 		currentFileKey := agentID + ":current_file"
 
 		// Thread-safe: append current file to files list
 		fileInfoMutex.Lock()
 		var filesList []map[string]interface{}
-		if existing, err := ctx.Space.Get(filesListKey); err == nil {
+		if existing, ok := ctx.Memory.Context.Get(filesListKey); ok {
 			// Convert existing data to []map[string]interface{}
 			if existingList, ok := existing.([]interface{}); ok {
 				for _, item := range existingList {
@@ -95,23 +95,23 @@ func CallAgentWithFileInfo(ctx *agentContext.Context, agentID string, message ag
 		}
 		// Append current file to list
 		filesList = append(filesList, fileInfo)
-		ctx.Space.Set(filesListKey, filesList)
+		ctx.Memory.Context.Set(filesListKey, filesList, 0)
 		fileInfoMutex.Unlock()
 
-		// Store current file in Space
-		if err := ctx.Space.Set(currentFileKey, fileInfo); err != nil {
-			log.Trace("[Content] Failed to set current file info in Space: %v", err)
+		// Store current file in Memory.Context
+		if err := ctx.Memory.Context.Set(currentFileKey, fileInfo, 0); err != nil {
+			log.Trace("[Content] Failed to set current file info in Memory.Context: %v", err)
 		}
 
 		// Ensure cleanup after agent call completes
 		defer func() {
 			// Clean up current file
-			if err := ctx.Space.Delete(currentFileKey); err != nil {
-				log.Trace("[Content] Failed to delete current file info from Space: %v", err)
+			if err := ctx.Memory.Context.Del(currentFileKey); err != nil {
+				log.Trace("[Content] Failed to delete current file info from Memory.Context: %v", err)
 			}
 			// Clean up files list (reset for next call)
-			if err := ctx.Space.Delete(filesListKey); err != nil {
-				log.Trace("[Content] Failed to delete files list from Space: %v", err)
+			if err := ctx.Memory.Context.Del(filesListKey); err != nil {
+				log.Trace("[Content] Failed to delete files list from Memory.Context: %v", err)
 			}
 		}()
 	}

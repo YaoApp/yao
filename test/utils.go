@@ -220,15 +220,18 @@ var testSystemModels = map[string]string{
 }
 
 var testSystemStores = map[string]string{
-	"__yao.store":        "yao/stores/store.xun.yao",
-	"__yao.cache":        "yao/stores/cache.lru.yao",
-	"__yao.oauth.store":  "yao/stores/oauth/store.xun.yao",
-	"__yao.oauth.client": "yao/stores/oauth/client.xun.yao",
-	"__yao.oauth.cache":  "yao/stores/oauth/cache.lru.yao",
-	"__yao.agent.memory": "yao/stores/agent/memory.xun.yao",
-	"__yao.agent.cache":  "yao/stores/agent/cache.lru.yao",
-	"__yao.kb.store":     "yao/stores/kb/store.xun.yao",
-	"__yao.kb.cache":     "yao/stores/kb/cache.lru.yao",
+	"__yao.store":                "yao/stores/store.xun.yao",
+	"__yao.cache":                "yao/stores/cache.lru.yao",
+	"__yao.oauth.store":          "yao/stores/oauth/store.xun.yao",
+	"__yao.oauth.client":         "yao/stores/oauth/client.xun.yao",
+	"__yao.oauth.cache":          "yao/stores/oauth/cache.lru.yao",
+	"__yao.agent.memory.user":    "yao/stores/agent/memory/user.xun.yao",
+	"__yao.agent.memory.team":    "yao/stores/agent/memory/team.xun.yao",
+	"__yao.agent.memory.chat":    "yao/stores/agent/memory/chat.xun.yao",
+	"__yao.agent.memory.context": "yao/stores/agent/memory/context.xun.yao",
+	"__yao.agent.cache":          "yao/stores/agent/cache.lru.yao",
+	"__yao.kb.store":             "yao/stores/kb/store.xun.yao",
+	"__yao.kb.cache":             "yao/stores/kb/cache.lru.yao",
 }
 
 func loadSystemStores(t *testing.T, cfg config.Config) error {

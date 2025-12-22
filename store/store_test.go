@@ -43,7 +43,10 @@ func check(t *testing.T) {
 	assert.True(t, ids["__yao.oauth.store"])
 	assert.True(t, ids["__yao.oauth.client"])
 	assert.True(t, ids["__yao.oauth.cache"])
-	assert.True(t, ids["__yao.agent.memory"])
+	assert.True(t, ids["__yao.agent.memory.user"])
+	assert.True(t, ids["__yao.agent.memory.team"])
+	assert.True(t, ids["__yao.agent.memory.chat"])
+	assert.True(t, ids["__yao.agent.memory.context"])
 	assert.True(t, ids["__yao.agent.cache"])
 }
 

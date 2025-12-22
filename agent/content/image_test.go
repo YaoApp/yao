@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/connector/openai"
-	"github.com/yaoapp/gou/plan"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -27,31 +26,29 @@ func TestMain(m *testing.M) {
 
 // newTestContext creates a Context for testing with commonly used fields pre-populated
 func newTestContext(capabilities *openai.Capabilities) *agentContext.Context {
-	return &agentContext.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ChatID:      "test-chat",
-		AssistantID: "test-assistant",
-		Locale:      "en-us",
-		Theme:       "light",
-		Client: agentContext.Client{
-			Type:      "web",
-			UserAgent: "TestAgent/1.0",
-			IP:        "127.0.0.1",
-		},
-		Referer:      agentContext.RefererAPI,
-		Accept:       agentContext.AcceptWebCUI,
-		Route:        "",
-		Metadata:     make(map[string]interface{}),
-		Capabilities: capabilities,
-		Authorized: &types.AuthorizedInfo{
-			Subject:  "test-user",
-			ClientID: "test-client-id",
-			UserID:   "test-user-123",
-			TeamID:   "test-team-456",
-			TenantID: "test-tenant-789",
-		},
+	authorized := &types.AuthorizedInfo{
+		Subject:  "test-user",
+		ClientID: "test-client-id",
+		UserID:   "test-user-123",
+		TeamID:   "test-team-456",
+		TenantID: "test-tenant-789",
 	}
+
+	ctx := agentContext.New(stdContext.Background(), authorized, "test-chat")
+	ctx.AssistantID = "test-assistant"
+	ctx.Locale = "en-us"
+	ctx.Theme = "light"
+	ctx.Client = agentContext.Client{
+		Type:      "web",
+		UserAgent: "TestAgent/1.0",
+		IP:        "127.0.0.1",
+	}
+	ctx.Referer = agentContext.RefererAPI
+	ctx.Accept = agentContext.AcceptWebCUI
+	ctx.Route = ""
+	ctx.Metadata = make(map[string]interface{})
+	ctx.Capabilities = capabilities
+	return ctx
 }
 
 func TestImageHandler_CanHandle(t *testing.T) {

@@ -1,0 +1,18 @@
+{
+  "label": "Agent Memory - Chat",
+  "description": "Chat-level memory store for conversation context, chat-specific settings, and accumulated knowledge",
+  "tags": ["agent", "memory", "chat", "xun"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 22,
+  "name": "Agent Memory Chat Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_agent_memory_chat",
+    "connector": "default",
+    "cache_size": 10240,
+    "persist_interval": 30,
+    "cleanup_interval": 60
+  }
+}

@@ -11,21 +11,23 @@ import (
 	"github.com/yaoapp/yao/test"
 )
 
+// newMCPTestContext creates a test context for MCP testing
+func newMCPTestContext() *context.Context {
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.AssistantID = "test-assistant-id"
+	ctx.Locale = "en"
+	ctx.Referer = context.RefererAPI
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
+	ctx.Stack = stack
+	return ctx
+}
+
 // TestMCPListResources tests MCP.ListResources from JavaScript
 func TestMCPListResources(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	// Initialize context with trace
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -62,15 +64,7 @@ func TestMCPReadResource(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -105,15 +99,7 @@ func TestMCPListTools(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -152,15 +138,7 @@ func TestMCPCallTool(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -195,15 +173,7 @@ func TestMCPCallTools(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -243,15 +213,7 @@ func TestMCPCallToolsParallel(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -291,15 +253,7 @@ func TestMCPListPrompts(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -336,15 +290,7 @@ func TestMCPGetPrompt(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -379,15 +325,7 @@ func TestMCPListSamples(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -422,15 +360,7 @@ func TestMCPGetSample(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -467,15 +397,7 @@ func TestMCPJsApiWithTrace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	ctx := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Locale:      "en",
-		Context:     stdContext.Background(),
-		Referer:     context.RefererAPI,
-	}
-	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
-	ctx.Stack = stack
+	ctx := newMCPTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {

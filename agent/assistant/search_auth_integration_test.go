@@ -262,7 +262,7 @@ func TestDBAuthWheresFilter(t *testing.T) {
 	})
 
 	t.Run("NilAuthorizedReturnsNil", func(t *testing.T) {
-		ctx := &agentContext.Context{Authorized: nil}
+		ctx := agentContext.New(context.Background(), nil, "test-chat")
 		wheres := assistant.BuildDBAuthWheres(ctx)
 
 		assert.Nil(t, wheres, "Nil Authorized should return nil")
@@ -419,16 +419,15 @@ func TestKBSearchIntegration(t *testing.T) {
 // ========== Helper Functions ==========
 
 func createAuthContext(userID, teamID string, teamOnly, ownerOnly bool) *agentContext.Context {
-	return &agentContext.Context{
-		Authorized: &oauthtypes.AuthorizedInfo{
-			UserID: userID,
-			TeamID: teamID,
-			Constraints: oauthtypes.DataConstraints{
-				TeamOnly:  teamOnly,
-				OwnerOnly: ownerOnly,
-			},
+	authorized := &oauthtypes.AuthorizedInfo{
+		UserID: userID,
+		TeamID: teamID,
+		Constraints: oauthtypes.DataConstraints{
+			TeamOnly:  teamOnly,
+			OwnerOnly: ownerOnly,
 		},
 	}
+	return agentContext.New(context.Background(), authorized, "test-chat")
 }
 
 func createAuthCollection(ctx context.Context, t *testing.T, id, userID, teamID string, public bool, share string) {

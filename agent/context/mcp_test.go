@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/mcp/types"
-	"github.com/yaoapp/gou/plan"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
@@ -13,15 +12,10 @@ import (
 
 // newTestMCPContext creates a test context
 func newTestMCPContext() *context.Context {
-	ctx := &context.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ID:          "test-context",
-		ChatID:      "test-chat",
-		AssistantID: "test-assistant",
-		Locale:      "en",
-		Referer:     context.RefererAPI,
-	}
+	ctx := context.New(stdContext.Background(), nil, "test-chat")
+	ctx.AssistantID = "test-assistant"
+	ctx.Locale = "en"
+	ctx.Referer = context.RefererAPI
 
 	// Initialize stack and trace
 	stack, traceID, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})

@@ -7,27 +7,26 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
+
+// newReleaseTestContext creates a test context for release testing
+func newReleaseTestContext() *context.Context {
+	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
+	ctx.AssistantID = "test-assistant-id"
+	ctx.Referer = context.RefererAPI
+	stack, _, _ := context.EnterStack(ctx, "test-assistant", &context.Options{})
+	ctx.Stack = stack
+	return ctx
+}
 
 // TestContextRelease tests explicit Release() method on Context
 func TestContextRelease(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newReleaseTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -71,17 +70,7 @@ func TestTraceRelease(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newReleaseTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -134,17 +123,7 @@ func TestContextReleaseWithTrace(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newReleaseTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -183,17 +162,7 @@ func TestTryFinallyPattern(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newReleaseTestContext()
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -237,12 +206,8 @@ func TestNoOpTraceRelease(t *testing.T) {
 	defer test.Clean()
 
 	// Context without trace initialization
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-	}
+	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
+	cxt.AssistantID = "test-assistant-id"
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
@@ -286,17 +251,7 @@ func TestTryFinallyPatternWithError(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	cxt := &context.Context{
-		ChatID:      "test-chat-id",
-		AssistantID: "test-assistant-id",
-		Context:     stdContext.Background(),
-		IDGenerator: message.NewIDGenerator(),
-		Referer:     context.RefererAPI,
-	}
-
-	// Initialize stack and trace
-	stack, _, _ := context.EnterStack(cxt, "test-assistant", &context.Options{})
-	cxt.Stack = stack
+	cxt := newReleaseTestContext()
 
 	_, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {

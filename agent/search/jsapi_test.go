@@ -312,7 +312,7 @@ func TestSetJSAPIFactory(t *testing.T) {
 	require.NotNil(t, context.SearchAPIFactory)
 
 	// Create a mock context
-	ctx := &context.Context{}
+	ctx := context.New(nil, nil, "test-chat")
 
 	// Get search API
 	searchAPI := context.SearchAPIFactory(ctx)
@@ -337,7 +337,8 @@ func TestSetJSAPIFactory_WithGetter(t *testing.T) {
 	require.NotNil(t, context.SearchAPIFactory)
 
 	// Create a context with assistant ID
-	ctx := &context.Context{AssistantID: "test-assistant"}
+	ctx := context.New(nil, nil, "test-chat")
+	ctx.AssistantID = "test-assistant"
 
 	// Get search API
 	searchAPI := context.SearchAPIFactory(ctx)

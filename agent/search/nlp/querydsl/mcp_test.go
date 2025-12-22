@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/yaoapp/gou/plan"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
@@ -14,15 +13,10 @@ import (
 
 // newTestContext creates a test context for MCP testing
 func newTestContext() *agentContext.Context {
-	ctx := &agentContext.Context{
-		Context:     stdContext.Background(),
-		Space:       plan.NewMemorySharedSpace(),
-		ID:          "test-querydsl",
-		ChatID:      "test-chat",
-		AssistantID: "test-assistant",
-		Locale:      "en",
-		Referer:     agentContext.RefererAPI,
-	}
+	ctx := agentContext.New(stdContext.Background(), nil, "test-chat")
+	ctx.AssistantID = "test-assistant"
+	ctx.Locale = "en"
+	ctx.Referer = agentContext.RefererAPI
 	stack, _, _ := agentContext.EnterStack(ctx, "test-assistant", &agentContext.Options{})
 	ctx.Stack = stack
 	return ctx

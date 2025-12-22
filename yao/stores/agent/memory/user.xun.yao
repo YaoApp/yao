@@ -1,0 +1,19 @@
+{
+  "label": "Agent Memory - User",
+  "description": "User-level memory store for user preferences, long-term knowledge, and personal settings",
+  "tags": ["agent", "memory", "user", "xun"],
+  "readonly": false,
+  "builtin": true,
+  "sort": 20,
+  "name": "Agent Memory User Store",
+  "type": "xun",
+  "option": {
+    "type": "xun",
+    "table": "__yao_agent_memory_user",
+    "connector": "default",
+    "cache_size": 10240,
+    "persist_interval": 60,
+    "cleanup_interval": 1440
+  }
+}
+

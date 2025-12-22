@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/yaoapp/gou/plan"
+	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -27,11 +27,21 @@ func New(parent context.Context, authorized *types.AuthorizedInfo, chatID string
 
 	contextID := generateContextID()
 
+	// Extract user and team IDs from authorized info
+	var userID, teamID string
+	if authorized != nil {
+		userID = authorized.UserID
+		teamID = authorized.TeamID
+	}
+
+	// Create memory instance using global manager
+	mem, _ := memory.GetMemory(userID, teamID, chatID, contextID)
+
 	ctx := &Context{
 		Context:         parent,
 		ID:              contextID,  // Generate unique ID for the context
 		Authorized:      authorized, // Set authorized info
-		Space:           plan.NewMemorySharedSpace(),
+		Memory:          mem,
 		ChatID:          chatID,
 		IDGenerator:     message.NewIDGenerator(),                // Initialize ID generator for this context
 		messageMetadata: newMessageMetadataStore(),               // Initialize message metadata store
@@ -78,14 +88,15 @@ func (ctx *Context) Release() {
 		ctx.trace = nil
 	}
 
-	// Clear space
-	if ctx.Space != nil {
+	// Clear context-level memory only (request-scoped temporary data)
+	// User, Team, Chat level memory is persistent and should NOT be cleared
+	if ctx.Memory != nil && ctx.Memory.Context != nil {
 		if ctx.Logger != nil {
-			ctx.Logger.Cleanup("Space")
+			ctx.Logger.Cleanup("Memory.Context")
 		}
-		ctx.Space.Clear()
-		ctx.Space = nil
+		ctx.Memory.Context.Clear()
 	}
+	ctx.Memory = nil
 
 	// Clear stacks
 	if ctx.Stacks != nil {
@@ -379,9 +390,9 @@ func (ctx *Context) BeginStep(stepType string, input map[string]interface{}) *Bu
 		return nil
 	}
 
-	// Update space snapshot before starting step
-	if ctx.Space != nil {
-		ctx.Buffer.SetSpaceSnapshot(ctx.Space.Snapshot())
+	// Update context memory snapshot before starting step (for recovery)
+	if ctx.Memory != nil && ctx.Memory.Context != nil {
+		ctx.Buffer.SetSpaceSnapshot(ctx.Memory.Context.Snapshot())
 	}
 
 	return ctx.Buffer.BeginStep(stepType, input, ctx.Stack)
