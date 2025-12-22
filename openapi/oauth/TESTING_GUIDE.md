@@ -9,7 +9,7 @@ This guide provides comprehensive testing infrastructure for OAuth 2.1 authoriza
 ### Core Components
 
 - **OAuth Service Configuration**: Complete OAuth 2.1 configuration with all features enabled
-- **Store Management**: Support for MongoDB and Badger stores with automatic fallback
+- **Store Management**: Support for MongoDB and Xun (database-backed) stores with automatic fallback
 - **Test Data Sets**: Pre-configured clients and users for comprehensive testing
 - **Environment Setup**: Standardized initialization and cleanup procedures
 
@@ -110,7 +110,7 @@ source $YAO_SOURCE_ROOT/env.local.sh
 func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store, func()) {
     // Creates complete OAuth test environment with:
     // - Configured OAuth service with all features enabled
-    // - Primary store (MongoDB preferred, Badger fallback)
+    // - Primary store (MongoDB preferred, Xun database fallback)
     // - Cache store (LRU cache)
     // - Pre-loaded test clients and users
     // - Cleanup function for proper teardown
@@ -325,7 +325,7 @@ export MONGO_TEST_PASS=test
 
 ### Common Issues
 
-1. **Store Connection**: Check MongoDB availability or use Badger fallback
+1. **Store Connection**: Check MongoDB availability or use Xun (database) fallback
 2. **Environment Setup**: Ensure `env.local.sh` is sourced
 3. **Test Timeouts**: Increase timeout for slow operations
 4. **Data Conflicts**: ✅ **RESOLVED** - Now automatically handled with unique test suffixes
@@ -361,7 +361,7 @@ Tests include comprehensive logging:
 ### Performance Considerations
 
 - **MongoDB**: Preferred for full feature testing
-- **Badger**: Fast fallback for basic testing
+- **Xun**: Database-backed fallback with LRU cache layer
 - **Cache**: LRU cache for improved performance
 - **Cleanup**: Efficient cleanup procedures
 

@@ -331,7 +331,7 @@ func setupOAuthTestEnvironment(t *testing.T) (*Service, store.Store, store.Store
 	// Get store configurations
 	storeConfigs := getStoreConfigs()
 
-	// Use the first available store (prefer MongoDB, fallback to Badger)
+	// Use the first available store (prefer MongoDB, fallback to Xun)
 	var mainStore store.Store
 	var storeConfig StoreConfig
 
