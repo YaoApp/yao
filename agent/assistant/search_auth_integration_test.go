@@ -60,10 +60,9 @@ func TestAuthSearchSetup(t *testing.T) {
 		return
 	}
 
-	// Cleanup existing
+	// Cleanup existing (includes waiting for deletion to complete)
 	t.Log("Cleaning up existing collections...")
 	cleanupAuthCollections(ctx, t)
-	time.Sleep(1 * time.Second)
 
 	// Create Team1 collection (owned by UserA, Team1)
 	t.Log("Creating Team1 collection...")
@@ -461,10 +460,9 @@ func ensureAuthTestData(t *testing.T) {
 
 // createAuthTestData creates the test collections and documents
 func createAuthTestData(t *testing.T, ctx context.Context) {
-	// Cleanup existing
+	// Cleanup existing (includes waiting for deletion to complete)
 	t.Log("Cleaning up existing collections...")
 	cleanupAuthCollections(ctx, t)
-	time.Sleep(1 * time.Second)
 
 	// Create Team1 collection (owned by UserA, Team1)
 	t.Log("Creating Team1 collection...")
@@ -529,6 +527,24 @@ func cleanupAuthCollections(ctx context.Context, t *testing.T) {
 			t.Logf("  Removed: %s", id)
 		}
 	}
+
+	// Wait for Qdrant to fully process deletions
+	// This is necessary because Qdrant may take time to propagate deletions
+	maxRetries := 10
+	for retry := 0; retry < maxRetries; retry++ {
+		allGone := true
+		for _, id := range collections {
+			if exists, err := kb.API.CollectionExists(ctx, id); err == nil && exists.Exists {
+				allGone = false
+				break
+			}
+		}
+		if allGone {
+			return
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	t.Log("  Warning: Some collections may still exist after cleanup")
 }
 
 func createAuthCollection(ctx context.Context, t *testing.T, id, userID, teamID string, public bool, share string) {
@@ -595,10 +611,6 @@ func sanitizeForID(s string) string {
 		}
 	}
 	return result
-}
-
-func executeKBSearch(t *testing.T, collectionID, query string, metadata map[string]interface{}) *searchTypes.Result {
-	return executeKBSearchOnCollections(t, []string{collectionID}, query)
 }
 
 func executeKBSearchOnCollections(t *testing.T, collections []string, query string) *searchTypes.Result {
