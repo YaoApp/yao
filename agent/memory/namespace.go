@@ -46,14 +46,23 @@ func (ns *Namespace) Del(key string) error {
 }
 
 // Keys returns all keys in this namespace
-func (ns *Namespace) Keys() []string {
-	allKeys := ns.Store.Keys()
+// Uses pattern-based query for efficiency
+func (ns *Namespace) Keys(pattern ...string) []string {
+	// Build pattern with namespace prefix
+	var storePattern string
+	if len(pattern) > 0 && pattern[0] != "" {
+		storePattern = ns.Prefix + pattern[0]
+	} else {
+		storePattern = ns.Prefix + "*"
+	}
+
+	allKeys := ns.Store.Keys(storePattern)
 	prefixLen := len(ns.Prefix)
 
-	// Filter keys that belong to this namespace
-	var result []string
+	// Remove prefix from keys
+	result := make([]string, 0, len(allKeys))
 	for _, key := range allKeys {
-		if len(key) >= prefixLen && key[:prefixLen] == ns.Prefix {
+		if len(key) >= prefixLen {
 			result = append(result, key[prefixLen:])
 		}
 	}
@@ -61,8 +70,17 @@ func (ns *Namespace) Keys() []string {
 }
 
 // Len returns the number of keys in this namespace
-func (ns *Namespace) Len() int {
-	return len(ns.Keys())
+// Uses pattern-based query for efficiency
+func (ns *Namespace) Len(pattern ...string) int {
+	// Build pattern with namespace prefix
+	var storePattern string
+	if len(pattern) > 0 && pattern[0] != "" {
+		storePattern = ns.Prefix + pattern[0]
+	} else {
+		storePattern = ns.Prefix + "*"
+	}
+
+	return ns.Store.Len(storePattern)
 }
 
 // Clear deletes all keys in this namespace
