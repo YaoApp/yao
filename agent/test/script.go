@@ -424,6 +424,22 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 	// Get the V8 context
 	v8ctx := scriptCtx.Context
 
+	// Set share data with authorized info for Process calls
+	// This is needed because we call fn.Call directly instead of scriptCtx.Call
+	var authorized map[string]interface{}
+	if agentCtx.Authorized != nil {
+		authorized = agentCtx.Authorized.AuthorizedToMap()
+	}
+	err = bridge.SetShareData(v8ctx, v8ctx.Global(), &bridge.Share{
+		Sid:        "",
+		Root:       false,
+		Global:     nil,
+		Authorized: authorized,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to set share data: %w", err)
+	}
+
 	// Create testing.T JavaScript object
 	testingTObj, err := NewTestingTObject(v8ctx, testingT)
 	if err != nil {
