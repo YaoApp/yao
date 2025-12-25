@@ -122,6 +122,16 @@ func (ctx *Context) Release() {
 	}
 }
 
+// GetAuthorizedMap returns the authorized information as a map
+// This implements the AuthorizedProvider interface for MCP process calls
+// Allows MCP tools to receive authorization context when called via Process transport
+func (ctx *Context) GetAuthorizedMap() map[string]interface{} {
+	if ctx.Authorized == nil {
+		return nil
+	}
+	return ctx.Authorized.AuthorizedToMap()
+}
+
 // Send sends data to the context's writer
 // This is used by the output module to send messages to the client
 // func (ctx *Context) Send(data []byte) error {
