@@ -1,5 +1,15 @@
 # Agent Test Framework V2 - Implementation TODO
 
+## Format Rules Summary
+
+| Context | Format | Example |
+|---------|--------|---------|
+| `-i` flag (CLI) | Prefix required | `agents:workers.test.gen`, `scripts:tests.gen` |
+| JSONL assertion `use` | Prefix required | `"use": "agents:workers.test.validator"` |
+| JSONL `simulator.use` | No prefix (agent only) | `"use": "workers.test.user-sim"` |
+| `--simulator` flag | No prefix (agent only) | `--simulator workers.test.user-sim` |
+| `t.assert.Agent()` | No prefix (method is explicit) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+
 ## Phase 1: Static Multi-Turn
 
 - [ ] Extend test case parser for `turns` array
@@ -29,12 +39,13 @@
 ## Phase 3: Dynamic Simulator
 
 - [ ] Implement simulator invocation via `Assistant.Stream()` with `context.Options`
+- [ ] `simulator.use` is direct agent ID (no prefix needed)
 - [ ] Pass `test_mode: "simulator"` in `options.metadata`
-- [ ] Pass persona, goal, turn_count in `options.metadata`
+- [ ] Pass persona, goal, turn_count from `simulator.options.metadata`
 - [ ] Pass conversation history as messages
 - [ ] Pass tool results in `options.metadata`
 - [ ] Add goal completion detection (`goal_achieved` in response)
-- [ ] Add max_turns limit and timeout (from `options.metadata`)
+- [ ] Add max_turns limit and timeout
 - [ ] Support hybrid mode (static turns + simulator fallback)
 - [ ] Create example simulator agent with prompt template
 

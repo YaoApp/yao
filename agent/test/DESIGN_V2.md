@@ -35,7 +35,7 @@ Current single-turn testing cannot adequately test:
 │  INPUT SOURCES (-i flag)                                                 │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐     │
 │  │ JSONL File  │  │   Message   │  │ Generator   │  │ Interactive │     │
-│  │ ./test.jsonl│  │ "Hello..."  │  │ agent:xxx   │  │ (stdin)     │     │
+│  │ ./test.jsonl│  │ "Hello..."  │  │ agents:xxx  │  │ (stdin)     │     │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘     │
 │         │                │                │                │            │
 │         └────────────────┴────────────────┴────────────────┘            │
@@ -305,7 +305,7 @@ options := &context.Options{
     Metadata: map[string]any{
         "test_mode":    "simulator",
         "test_id":      "T001",
-        // From simulator.metadata in test case
+        // From simulator.options.metadata in test case
         "persona":      "New employee",
         "goal":         "Submit expense report",
         // Runtime context
@@ -385,7 +385,7 @@ For fuzzy, semantic, or context-aware validation. Uses `options` aligned with `c
 ```jsonl
 {
   "type": "agent",
-  "use": "workers.test.validator",
+  "use": "agents:workers.test.validator",
   "options": {
     "connector": "openai-gpt4",
     "metadata": {
@@ -427,7 +427,7 @@ Mix static and agent-driven assertions:
     },
     {
       "type": "agent",
-      "use": "workers.test.validator",
+      "use": "agents:workers.test.validator",
       "options": {
         "metadata": {
           "criteria": "Confirmation message should include expense amount and be polite"
@@ -605,7 +605,7 @@ func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context
     }
   ],
   "simulator": {
-    "use": "agents:workers.test.user-simulator",
+    "use": "workers.test.user-simulator",
     "options": {
       "metadata": {
         "persona": "New employee unfamiliar with expense process",
@@ -631,29 +631,29 @@ func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context
 
 ### Field Descriptions
 
-| Field                 | Type   | Required | Description                                      |
-| --------------------- | ------ | -------- | ------------------------------------------------ |
-| `id`                  | string | Yes      | Unique test identifier                           |
-| `name`                | string | No       | Human-readable test name                         |
-| `type`                | string | No       | `"single_turn"` (default) or `"multi_turn"`      |
-| `options`             | object | No       | `context.Options` passed to target agent         |
-| `options.connector`   | string | No       | LLM connector to use                             |
-| `options.skip`        | object | No       | Skip config (history, trace, etc.)               |
-| `options.search`      | any    | No       | Search behavior control                          |
-| `options.mode`        | string | No       | Agent mode                                       |
-| `options.metadata`    | object | No       | Custom metadata passed to agent                  |
-| `turns`               | array  | No       | Static turn definitions                          |
-| `turns[].input`       | string | Yes      | User input for this turn                         |
-| `turns[].assertions`  | array  | No       | Assertions for this turn's response              |
-| `turns[].options`     | object | No       | Per-turn options override                        |
-| `simulator`           | object | No       | Dynamic input generator configuration            |
-| `simulator.use`       | string | Yes      | Simulator reference: `agents:id` or `scripts:id` |
-| `simulator.options`   | object | No       | `context.Options` passed to simulator agent      |
-| `interactive`         | object | No       | Interactive mode configuration                   |
-| `interactive.enabled` | bool   | No       | Enable human input (default: false)              |
-| `interactive.timeout` | string | No       | Timeout for human input (default: "5m")          |
-| `on_missing_input`    | string | No       | `"skip"`, `"fail"`, or `"end"` (default: "skip") |
-| `final_assertions`    | array  | No       | Assertions after conversation completes          |
+| Field                 | Type   | Required | Description                                        |
+| --------------------- | ------ | -------- | -------------------------------------------------- |
+| `id`                  | string | Yes      | Unique test identifier                             |
+| `name`                | string | No       | Human-readable test name                           |
+| `type`                | string | No       | `"single_turn"` (default) or `"multi_turn"`        |
+| `options`             | object | No       | `context.Options` passed to target agent           |
+| `options.connector`   | string | No       | LLM connector to use                               |
+| `options.skip`        | object | No       | Skip config (history, trace, etc.)                 |
+| `options.search`      | any    | No       | Search behavior control                            |
+| `options.mode`        | string | No       | Agent mode                                         |
+| `options.metadata`    | object | No       | Custom metadata passed to agent                    |
+| `turns`               | array  | No       | Static turn definitions                            |
+| `turns[].input`       | string | Yes      | User input for this turn                           |
+| `turns[].assertions`  | array  | No       | Assertions for this turn's response                |
+| `turns[].options`     | object | No       | Per-turn options override                          |
+| `simulator`           | object | No       | Dynamic input generator configuration              |
+| `simulator.use`       | string | Yes      | Simulator agent ID (e.g., `workers.test.user-sim`) |
+| `simulator.options`   | object | No       | `context.Options` passed to simulator agent        |
+| `interactive`         | object | No       | Interactive mode configuration                     |
+| `interactive.enabled` | bool   | No       | Enable human input (default: false)                |
+| `interactive.timeout` | string | No       | Timeout for human input (default: "5m")            |
+| `on_missing_input`    | string | No       | `"skip"`, `"fail"`, or `"end"` (default: "skip")   |
+| `final_assertions`    | array  | No       | Assertions after conversation completes            |
 
 ## Execution Modes
 
@@ -714,9 +714,11 @@ This allows hybrid testing: define some turns statically, then let simulator han
     }
   ],
   "simulator": {
-    "use": "agents:workers.test.user-sim",
-    "metadata": {
-      "goal": "Complete the expense submission"
+    "use": "workers.test.user-sim",
+    "options": {
+      "metadata": {
+        "goal": "Complete the expense submission"
+      }
     }
   }
 }
@@ -778,19 +780,19 @@ In this example:
 
 ### Flags Reference
 
-| Flag | Long            | Description                                              |
-| ---- | --------------- | -------------------------------------------------------- |
-| `-i` | `--input`       | Input source: file path, message, or `type:id` reference |
-| `-n` | `--name`        | Target agent ID (the agent being tested)                 |
-| `-o` | `--output`      | Output file path for results                             |
-| `-c` | `--connector`   | Override connector for the target agent                  |
-| `-v` | `--verbose`     | Verbose output showing all turns                         |
-|      | `--interactive` | Enable human input when agent awaits                     |
-|      | `--simulator`   | Default simulator: `agents:id` or `scripts:id`           |
-|      | `--timeout`     | Timeout per test case (default: 5m)                      |
-|      | `--parallel`    | Number of parallel test cases                            |
-|      | `--fail-fast`   | Stop on first failure                                    |
-|      | `--dry-run`     | Generate/parse tests without running                     |
+| Flag | Long            | Description                                                |
+| ---- | --------------- | ---------------------------------------------------------- |
+| `-i` | `--input`       | Input source: file path, message, or `type:id` reference   |
+| `-n` | `--name`        | Target agent ID (the agent being tested)                   |
+| `-o` | `--output`      | Output file path for results                               |
+| `-c` | `--connector`   | Override connector for the target agent                    |
+| `-v` | `--verbose`     | Verbose output showing all turns                           |
+|      | `--interactive` | Enable human input when agent awaits                       |
+|      | `--simulator`   | Default simulator agent ID (e.g., `workers.test.user-sim`) |
+|      | `--timeout`     | Timeout per test case (default: 5m)                        |
+|      | `--parallel`    | Number of parallel test cases                              |
+|      | `--fail-fast`   | Stop on first failure                                      |
+|      | `--dry-run`     | Generate/parse tests without running                       |
 
 ### Input Sources (`-i` flag)
 
@@ -893,7 +895,7 @@ yao agent test \
 yao agent test \
   -i "agents:workers.test.generator?count=10" \
   -n assistants.expense \
-  --simulator agents:workers.test.user-simulator
+  --simulator workers.test.user-simulator
 
 # Generate tests only, save to file (dry-run)
 yao agent test \
