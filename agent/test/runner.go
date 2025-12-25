@@ -5,6 +5,7 @@ import (
 	stdContext "context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -105,8 +106,9 @@ func (r *Executor) RunDirect() (*Report, error) {
 	defer cancel()
 	ctx.Context = timeoutCtx
 
-	// Parse input to messages
-	messages, err := tc.GetMessages()
+	// Parse input to messages with file loading support
+	inputOpts := r.getInputOptions()
+	messages, err := tc.GetMessagesWithOptions(inputOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse input: %w", err)
 	}
@@ -320,8 +322,10 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		Options:  tc.Options,
 	}
 
-	// Parse input to messages
-	messages, err := tc.GetMessages()
+	// Parse input to messages with file loading support
+	// BaseDir is derived from the input file directory
+	inputOpts := r.getInputOptions()
+	messages, err := tc.GetMessagesWithOptions(inputOpts)
 	if err != nil {
 		result.Status = StatusError
 		result.Error = fmt.Sprintf("failed to parse input: %s", err.Error())
@@ -612,4 +616,20 @@ func validateOutput(actual, expected interface{}) bool {
 	}
 
 	return string(actualJSON) == string(expectedJSON)
+}
+
+// getInputOptions returns InputOptions based on the runner configuration
+// BaseDir is derived from the input file directory (for file mode) or current working directory
+func (r *Executor) getInputOptions() *InputOptions {
+	opts := &InputOptions{}
+
+	// For file mode, use the input file's directory as base
+	if r.opts.InputMode == InputModeFile && r.opts.Input != "" {
+		// Resolve path considering YAO_ROOT
+		resolvedPath := ResolvePathWithYaoRoot(r.opts.Input)
+		opts.BaseDir = filepath.Dir(resolvedPath)
+	}
+	// For message mode, BaseDir remains empty (uses current working directory)
+
+	return opts
 }

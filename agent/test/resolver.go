@@ -55,6 +55,7 @@ func (r *PathResolver) ResolveFromCwd() (*AgentInfo, error) {
 
 // ResolveFromPath resolves the agent by traversing up from the input file path
 // It looks for package.yao in parent directories
+// If YAO_ROOT is set, it also considers paths relative to YAO_ROOT
 func (r *PathResolver) ResolveFromPath(inputPath string) (*AgentInfo, error) {
 	// Get absolute path
 	absPath, err := filepath.Abs(inputPath)
@@ -80,6 +81,37 @@ func (r *PathResolver) ResolveFromPath(inputPath string) (*AgentInfo, error) {
 			break
 		}
 		dir = parent
+	}
+
+	// If YAO_ROOT is set, try resolving relative to it
+	yaoRoot := os.Getenv("YAO_ROOT")
+	if yaoRoot != "" {
+		// Try the input path relative to YAO_ROOT
+		relPath := inputPath
+		// If inputPath is absolute, try to make it relative
+		if filepath.IsAbs(inputPath) {
+			// Check if inputPath is under YAO_ROOT
+			if rel, err := filepath.Rel(yaoRoot, inputPath); err == nil && !strings.HasPrefix(rel, "..") {
+				relPath = rel
+			}
+		}
+
+		// Traverse up from YAO_ROOT + relPath
+		dir = filepath.Join(yaoRoot, filepath.Dir(relPath))
+		for {
+			packagePath := filepath.Join(dir, "package.yao")
+			if _, err := os.Stat(packagePath); err == nil {
+				// Found package.yao
+				return r.loadAgentFromPath(dir, packagePath)
+			}
+
+			// Move to parent directory, but don't go above YAO_ROOT
+			parent := filepath.Dir(dir)
+			if parent == dir || !strings.HasPrefix(parent, yaoRoot) {
+				break
+			}
+			dir = parent
+		}
 	}
 
 	return nil, fmt.Errorf("no package.yao found in path hierarchy of %s", inputPath)
@@ -180,7 +212,8 @@ func ValidateOptions(opts *Options) error {
 
 	// For file mode, check input file exists
 	if opts.InputMode == InputModeFile {
-		if _, err := os.Stat(opts.Input); os.IsNotExist(err) {
+		resolvedPath := ResolvePathWithYaoRoot(opts.Input)
+		if _, err := os.Stat(resolvedPath); os.IsNotExist(err) {
 			return fmt.Errorf("input file not found: %s", opts.Input)
 		}
 	}
@@ -297,7 +330,9 @@ func MergeOptions(opts *Options, defaults *Options) *Options {
 // Format: {input_directory}/output-{timestamp}.jsonl
 // Timestamp format: YYYYMMDDHHMMSS
 func GenerateDefaultOutputPath(inputPath string) string {
-	dir := filepath.Dir(inputPath)
+	// Resolve input path considering YAO_ROOT
+	resolvedPath := ResolvePathWithYaoRoot(inputPath)
+	dir := filepath.Dir(resolvedPath)
 	timestamp := time.Now().Format("20060102150405")
 	filename := fmt.Sprintf("output-%s.jsonl", timestamp)
 	return filepath.Join(dir, filename)
@@ -327,4 +362,20 @@ func CreateTestCaseFromMessage(message string) *Case {
 		ID:    "T001",
 		Input: message,
 	}
+}
+
+// ResolvePathWithYaoRoot resolves a file path relative to current directory
+// No fallback to YAO_ROOT - paths are always resolved from current working directory
+func ResolvePathWithYaoRoot(path string) string {
+	// If path is absolute, return as-is
+	if filepath.IsAbs(path) {
+		return path
+	}
+
+	// Resolve relative to current directory
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return path
+	}
+	return absPath
 }

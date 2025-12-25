@@ -52,6 +52,7 @@ func L(words string) string {
 
 // Boot sets the configuration
 func Boot() {
+	// Use root from Init() unless appPath is explicitly specified
 	root := config.Conf.Root
 	if appPath != "" {
 		r, err := filepath.Abs(appPath)
@@ -60,15 +61,13 @@ func Boot() {
 		}
 		root = r
 	}
+
+	// Load .env file, preserving the correct root
 	if envFile != "" {
-		config.Conf = config.LoadFrom(envFile)
+		config.Conf = config.LoadFromWithRoot(envFile, root)
 	} else {
-		config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
+		config.Conf = config.LoadFromWithRoot(filepath.Join(root, ".env"), root)
 	}
 
-	if config.Conf.Mode == "production" {
-		config.Production()
-	} else if config.Conf.Mode == "development" {
-		config.Development()
-	}
+	config.ApplyMode()
 }
