@@ -55,6 +55,7 @@
 
 ## Phase 6: Agent-Driven Assertions
 
+### In JSONL Test Cases
 - [ ] Add `agent` assertion type to assertion parser
 - [ ] Support `options` field in assertion (aligned with `context.Options`)
 - [ ] Implement validator agent invocation via `Assistant.Stream()`
@@ -62,7 +63,17 @@
 - [ ] Pass conversation context and criteria in `options.metadata`
 - [ ] Support score-based pass/fail threshold (configurable in `options.metadata`)
 - [ ] Add `suggestions` to assertion error output
+
+### In Script Tests
+- [ ] Add `t.assert.Agent(response, agentID, options?)` method
+- [ ] `agentID` is direct ID (e.g., `workers.test.validator`), no prefix needed
+- [ ] Invoke validator agent with context
+- [ ] Return `ValidatorResult` object to JavaScript
+- [ ] Support passing conversation history in options
+
+### Shared
 - [ ] Create example validator agent with prompt template
+- [ ] Document `ValidatorResult` interface
 
 ## Phase 7: Error Handling & Reporting
 

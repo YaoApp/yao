@@ -385,7 +385,7 @@ For fuzzy, semantic, or context-aware validation. Uses `options` aligned with `c
 ```jsonl
 {
   "type": "agent",
-  "use": "agents:workers.test.validator",
+  "use": "workers.test.validator",
   "options": {
     "connector": "openai-gpt4",
     "metadata": {
@@ -397,9 +397,9 @@ For fuzzy, semantic, or context-aware validation. Uses `options` aligned with `c
 }
 ```
 
-### Script Assertions
+### Script Assertions (in JSONL)
 
-For custom validation logic:
+For custom validation logic in JSONL test cases:
 
 ```jsonl
 {
@@ -427,7 +427,7 @@ Mix static and agent-driven assertions:
     },
     {
       "type": "agent",
-      "use": "agents:workers.test.validator",
+      "use": "workers.test.validator",
       "options": {
         "metadata": {
           "criteria": "Confirmation message should include expense amount and be polite"
@@ -435,6 +435,110 @@ Mix static and agent-driven assertions:
       }
     }
   ]
+}
+```
+
+## Script Testing with Agent Assertions
+
+Script tests can also use Agent-driven assertions via the `t.assert.Agent()` method.
+
+### API
+
+```typescript
+// t.assert.Agent(response, agentID, options?) -> ValidatorResult
+// agentID: Direct agent ID without prefix, e.g., "workers.test.validator"
+interface ValidatorResult {
+  passed: boolean;
+  score?: number;
+  reason: string;
+  suggestions?: string[];
+}
+```
+
+### Usage in Script Tests
+
+```typescript
+// tests/expense_test.ts
+export function TestExpenseResponse(t: TestingT, ctx: Context) {
+  // Call the agent being tested
+  const response = Process("agents.expense.Stream", ctx, [
+    { role: "user", content: "How do I submit an expense?" },
+  ]);
+
+  // Static assertions
+  t.assert.NotNil(response);
+  t.assert.Contains(response.content, "expense");
+
+  // Agent-driven assertion - automatically fails test if validation fails
+  t.assert.Agent(response.content, "workers.test.validator", {
+    metadata: {
+      criteria:
+        "Response should explain the expense submission process clearly",
+      expected_topics: ["receipt", "approval", "deadline"],
+      tone: "helpful",
+    },
+  });
+}
+```
+
+### With Conversation Context
+
+```typescript
+export function TestMultiTurnExpense(t: TestingT, ctx: Context) {
+  const messages = [
+    { role: "user", content: "I need to submit a travel expense" },
+    { role: "assistant", content: "I'd be happy to help..." },
+    { role: "user", content: "It's for a flight to Beijing, $2000" },
+  ];
+
+  const response = Process("agents.expense.Stream", ctx, messages);
+
+  // Agent assertion with conversation context
+  // Automatically fails test and logs suggestions if validation fails
+  t.assert.Agent(response.content, "workers.test.validator", {
+    metadata: {
+      criteria:
+        "Response should confirm the expense details and ask for receipt",
+      conversation: messages,
+    },
+  });
+}
+```
+
+### Implementation
+
+The `t.assert.Agent()` method internally:
+
+1. Prepares `context.Options` with `test_mode: "validator"`
+2. Calls the validator agent via `Assistant.Stream()`
+3. Parses structured output (JSON)
+4. Returns `ValidatorResult`
+
+```go
+// In script_assert.go
+func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context) *v8go.FunctionTemplate {
+    return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+        // Parse arguments: response, agentID, options
+        response := args[0].String()
+        agentID := args[1].String()  // Direct agent ID, e.g., "workers.test.validator"
+        options := parseOptions(args[2])
+
+        // Prepare validator options
+        validatorOpts := &context.Options{
+            Skip: &context.Skip{History: true},
+            Metadata: map[string]any{
+                "test_mode": "validator",
+                ...options.Metadata,
+            },
+        }
+
+        // Call validator agent
+        assistant, _ := agent.Get(agentID)
+        result, _ := assistant.Stream(agentCtx, messages, validatorOpts)
+
+        // Parse and return result
+        return toJsValue(parseValidatorResult(result))
+    })
 }
 ```
 
