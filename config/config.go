@@ -130,7 +130,7 @@ func LoadWithRoot(root string) Config {
 	if root != "" {
 		cfg.Root, _ = filepath.Abs(root)
 	} else {
-	cfg.Root, _ = filepath.Abs(cfg.Root)
+		cfg.Root, _ = filepath.Abs(cfg.Root)
 	}
 
 	// App Root
