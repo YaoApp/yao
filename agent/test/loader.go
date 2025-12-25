@@ -25,8 +25,12 @@ func (l *JSONLLoader) Load() ([]*Case, error) {
 }
 
 // LoadFile loads test cases from a JSONL file
+// If path is relative and YAO_ROOT is set, resolves relative to YAO_ROOT
 func (l *JSONLLoader) LoadFile(path string) ([]*Case, error) {
-	file, err := os.Open(path)
+	// Resolve path relative to YAO_ROOT if it's a relative path
+	resolvedPath := ResolvePathWithYaoRoot(path)
+
+	file, err := os.Open(resolvedPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}

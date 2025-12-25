@@ -272,6 +272,111 @@ The `options.metadata` field is passed to agent hooks. For example, a Create Hoo
 | `Message`   | Single message       | `{"role": "user", "content": "..."}`                  |
 | `[]Message` | Conversation history | `[{"role": "user", ...}, {"role": "assistant", ...}]` |
 
+### File Attachments
+
+Test inputs support file attachments (images, audio, documents) using the `file://` protocol. Files are loaded and converted to appropriate formats for the LLM.
+
+**Supported file types:**
+
+| Type   | Extensions                                                             | Format                         |
+| ------ | ---------------------------------------------------------------------- | ------------------------------ |
+| Image  | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.bmp`                       | Base64 data URL in `image_url` |
+| Audio  | `.wav`, `.mp3`, `.flac`, `.ogg`, `.m4a`                                | Base64 in `input_audio`        |
+| Doc    | `.pdf`, `.doc`, `.docx`, `.xls`, `.xlsx`, `.txt`, `.csv`, `.json`      | Base64 data URL in `file`      |
+| Source | `.yao`, `.ts`, `.js`, `.go`, `.py`, `.rs`, `.java`, `.sql`, `.yaml`... | Base64 data URL in `file`      |
+
+**File path resolution:**
+
+- **Relative paths**: Resolved relative to the JSONL input file's directory (for file mode) or current working directory (for message mode)
+- **Absolute paths**: Used as-is
+
+**Example with image attachment:**
+
+```jsonl
+{
+  "id": "T001",
+  "input": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Please analyze this invoice"
+      },
+      {
+        "type": "image",
+        "source": "file://fixtures/invoice.jpg"
+      }
+    ]
+  },
+  "assert": {
+    "type": "contains",
+    "value": "amount"
+  }
+}
+```
+
+**Example with multiple attachments:**
+
+```jsonl
+{
+  "id": "T002",
+  "input": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Process these receipts"
+      },
+      {
+        "type": "image",
+        "source": "file://fixtures/receipt1.png"
+      },
+      {
+        "type": "image",
+        "source": "file://fixtures/receipt2.png"
+      },
+      {
+        "type": "file",
+        "source": "file://fixtures/policy.pdf",
+        "name": "expense_policy.pdf"
+      }
+    ]
+  }
+}
+```
+
+**Example with audio:**
+
+```jsonl
+{
+  "id": "T003",
+  "input": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Transcribe this audio"
+      },
+      {
+        "type": "audio",
+        "source": "file://fixtures/recording.wav"
+      }
+    ]
+  }
+}
+```
+
+**Content part types:**
+
+| Type        | Fields                                  | Description                      |
+| ----------- | --------------------------------------- | -------------------------------- |
+| `text`      | `text`                                  | Text content                     |
+| `image`     | `source` (file://) or `url`             | Image attachment                 |
+| `image_url` | `image_url: {url, detail?}`             | Direct image URL (OpenAI format) |
+| `audio`     | `source` (file://) or `data`, `format`  | Audio attachment                 |
+| `file`      | `source` (file://) or `url`, `filename` | Document attachment              |
+| `data`      | `data: {sources: [...]}`                | Data source references           |
+
 ## Assertions
 
 Use `assert` for flexible validation. If `assert` is defined, it takes precedence over `expected`.

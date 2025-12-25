@@ -255,27 +255,32 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 	result.Actual = actual
 
 	// Compare expected value with actual value
-	// If expected is an array, check if actual matches ANY element (IN semantics)
+	// First try direct comparison (handles array-to-array comparison)
+	if validateOutput(actual, assertion.Value) {
+		result.Passed = true
+		result.Message = fmt.Sprintf("path '%s' equals expected value", assertion.Path)
+		return result
+	}
+
+	// If expected is an array and direct comparison failed, check if actual matches ANY element (IN semantics)
+	// This is for cases like: expected: ["a", "b"], actual: "a" (actual is one of expected)
 	if expectedArr, ok := assertion.Value.([]interface{}); ok {
-		// Check if actual is one of the expected values
-		for _, expectedItem := range expectedArr {
-			if validateOutput(actual, expectedItem) {
-				result.Passed = true
-				result.Message = fmt.Sprintf("path '%s' equals one of expected values", assertion.Path)
-				return result
+		// Only apply IN semantics if actual is NOT an array (otherwise it was already compared above)
+		if _, actualIsArr := actual.([]interface{}); !actualIsArr {
+			for _, expectedItem := range expectedArr {
+				if validateOutput(actual, expectedItem) {
+					result.Passed = true
+					result.Message = fmt.Sprintf("path '%s' equals one of expected values", assertion.Path)
+					return result
+				}
 			}
 		}
 		result.Passed = false
-		result.Message = fmt.Sprintf("path '%s': expected one of %v, got %v", assertion.Path, assertion.Value, actual)
+		result.Message = fmt.Sprintf("path '%s': expected %v, got %v", assertion.Path, assertion.Value, actual)
 	} else {
-		// Direct comparison for non-array expected values
-		if validateOutput(actual, assertion.Value) {
-			result.Passed = true
-			result.Message = fmt.Sprintf("path '%s' equals expected value", assertion.Path)
-		} else {
-			result.Passed = false
-			result.Message = fmt.Sprintf("path '%s': expected %v, got %v", assertion.Path, assertion.Value, actual)
-		}
+		// Direct comparison already failed above
+		result.Passed = false
+		result.Message = fmt.Sprintf("path '%s': expected %v, got %v", assertion.Path, assertion.Value, actual)
 	}
 
 	return result

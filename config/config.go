@@ -32,52 +32,106 @@ func init() {
 
 // Init setting
 func Init() {
+	// Determine app root: YAO_ROOT env > find app.yao > current directory
+	root := os.Getenv("YAO_ROOT")
+	if root == "" {
+		root = findAppRoot()
+	}
+	if root == "" {
+		root = "."
+	}
 
-	filename, _ := filepath.Abs(filepath.Join(".", ".env"))
+	filename := filepath.Join(root, ".env")
 	if _, err := os.Stat(filename); errors.Is(err, os.ErrNotExist) {
-		Conf = Load()
-		if Conf.Mode == "production" {
-			Production()
-		} else if Conf.Mode == "development" {
-			Development()
-		}
+		Conf = LoadWithRoot(root)
+		ApplyMode()
 		return
 	}
 
-	Conf = LoadFrom(filename)
-	if Conf.Mode == "production" {
+	// Load .env then override root if auto-detected
+	Conf = LoadFromWithRoot(filename, root)
+	ApplyMode()
+}
+
+// ApplyMode applies production or development mode based on Conf.Mode
+func ApplyMode() {
+	switch Conf.Mode {
+	case "production":
 		Production()
-	} else if Conf.Mode == "development" {
+	case "development":
 		Development()
 	}
 }
 
+// findAppRoot finds the Yao application root directory by looking for app.yao
+// It traverses up from the current directory until it finds app.yao or reaches the filesystem root
+func findAppRoot() string {
+	dir, err := os.Getwd()
+	if err != nil {
+		return ""
+	}
+
+	for {
+		// Check for app.yao, app.json, or app.jsonc
+		for _, appFile := range []string{"app.yao", "app.json", "app.jsonc"} {
+			appFilePath := filepath.Join(dir, appFile)
+			if _, err := os.Stat(appFilePath); err == nil {
+				return dir
+			}
+		}
+
+		// Move to parent directory
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached root, no app.yao found
+			break
+		}
+		dir = parent
+	}
+
+	return ""
+}
+
 // LoadFrom 从配置项中加载
 func LoadFrom(envfile string) Config {
+	return LoadFromWithRoot(envfile, "")
+}
 
+// LoadFromWithRoot loads config from env file with optional root override
+func LoadFromWithRoot(envfile string, root string) Config {
 	file, err := filepath.Abs(envfile)
 	if err != nil {
-		cfg := Load()
+		cfg := LoadWithRoot(root)
 		ReloadLog()
 		return cfg
 	}
 
 	// load from env
 	godotenv.Overload(file)
-	cfg := Load()
+	cfg := LoadWithRoot(root)
 	ReloadLog()
 	return cfg
 }
 
 // Load the config
 func Load() Config {
+	return LoadWithRoot("")
+}
+
+// LoadWithRoot loads config with an optional root override
+// If root is empty, uses YAO_ROOT env or current directory
+func LoadWithRoot(root string) Config {
 	cfg := Config{}
 	if err := env.Parse(&cfg); err != nil {
 		exception.New("Can't read config %s", 500, err.Error()).Throw()
 	}
 
-	// Root path
+	// Root path: use provided root > env YAO_ROOT > default "."
+	if root != "" {
+		cfg.Root, _ = filepath.Abs(root)
+	} else {
 	cfg.Root, _ = filepath.Abs(cfg.Root)
+	}
 
 	// App Root
 	if cfg.AppSource == "" {

@@ -492,6 +492,13 @@ func (tc *Case) GetMessages() ([]context.Message, error) {
 	return ParseInput(tc.Input)
 }
 
+// GetMessagesWithOptions converts the Input to a slice of context.Message with options
+// This handles all input formats: string, Message, []Message
+// It also processes file:// references in content parts
+func (tc *Case) GetMessagesWithOptions(opts *InputOptions) ([]context.Message, error) {
+	return ParseInputWithOptions(tc.Input, opts)
+}
+
 // GetTimeout returns the timeout duration for this test case
 // Returns the override timeout if set, otherwise returns the default
 func (tc *Case) GetTimeout(defaultTimeout time.Duration) time.Duration {

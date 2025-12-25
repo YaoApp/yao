@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# yao-dev - Run yao from source for real-time debugging
+# Uses go -C to compile from source while keeping current directory as app root
+
+# Get the real path of this script (resolve symlinks)
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    # If the link is relative, resolve it relative to the directory
+    [[ "$SCRIPT_PATH" != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+# YAO source directory is the parent of bin/
+YAO_SOURCE_DIR="$(dirname "$SCRIPT_DIR")"
+
+if [ ! -d "$YAO_SOURCE_DIR" ]; then
+    echo "Error: yao source directory not found at $YAO_SOURCE_DIR"
+    exit 1
+fi
+
+if [ ! -f "$YAO_SOURCE_DIR/go.mod" ]; then
+    echo "Error: go.mod not found in $YAO_SOURCE_DIR, not a valid yao source directory"
+    exit 1
+fi
+
+# Find app root by looking for app.yao in current directory or parent directories
+find_app_root() {
+    local dir="$(pwd)"
+    while [ "$dir" != "/" ]; do
+        if [ -f "$dir/app.yao" ] || [ -f "$dir/app.json" ] || [ -f "$dir/app.jsonc" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    # If not found, use current directory as fallback
+    pwd
+}
+
+# Set YAO_ROOT to app root directory
+export YAO_ROOT="$(find_app_root)"
+
+# Convert relative file paths in arguments to absolute paths
+# This is needed because go -C changes the working directory
+ARGS=()
+for arg in "$@"; do
+    # Check if it looks like a relative path
+    if [[ "$arg" == ./* ]] || [[ "$arg" == ../* ]]; then
+        # Always convert to absolute path based on current directory
+        ARGS+=("$(pwd)/${arg#./}")
+    else
+        ARGS+=("$arg")
+    fi
+done
+
+# Use go -C to run from source directory while staying in current directory
+exec go -C "$YAO_SOURCE_DIR" run . "${ARGS[@]}"
+

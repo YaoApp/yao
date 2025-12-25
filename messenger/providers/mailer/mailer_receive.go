@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/mail"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/messenger/types"
 )
 
@@ -118,10 +118,10 @@ func (r *MailReceiver) startReceiving(ctx context.Context) {
 	for retry := 0; retry < maxRetries; retry++ {
 		select {
 		case <-ctx.Done():
-			log.Println("Context cancelled, stopping email receiver")
+			log.Info("[Messenger] Context cancelled, stopping email receiver")
 			return
 		case <-r.stopChan:
-			log.Println("Stop signal received, stopping email receiver")
+			log.Info("[Messenger] Stop signal received, stopping email receiver")
 			return
 		default:
 		}
@@ -129,7 +129,7 @@ func (r *MailReceiver) startReceiving(ctx context.Context) {
 		// Reconnect if needed
 		if r.client == nil || r.client.State() != imap.SelectedState {
 			if err := r.reconnect(); err != nil {
-				log.Printf("Failed to reconnect to IMAP server: %v", err)
+				log.Error("[Messenger] Failed to reconnect to IMAP server: %v", err)
 				if retry < maxRetries-1 {
 					time.Sleep(retryDelay)
 					retryDelay *= 2 // Exponential backoff
@@ -142,7 +142,7 @@ func (r *MailReceiver) startReceiving(ctx context.Context) {
 		// Select mailbox
 		_, err := r.client.Select(r.provider.imapMailbox, false)
 		if err != nil {
-			log.Printf("Failed to select mailbox %s: %v", r.provider.imapMailbox, err)
+			log.Error("[Messenger] Failed to select mailbox %s: %v", r.provider.imapMailbox, err)
 			if retry < maxRetries-1 {
 				time.Sleep(retryDelay)
 				retryDelay *= 2
@@ -266,7 +266,7 @@ func (r *MailReceiver) processNewMessages() {
 
 	uids, err := r.client.UidSearch(criteria)
 	if err != nil {
-		log.Printf("Failed to search for new messages: %v", err)
+		log.Error("[Messenger] Failed to search for new messages: %v", err)
 		return
 	}
 
@@ -318,7 +318,7 @@ func (r *MailReceiver) processNewMessages() {
 
 		if shouldProcess {
 			if err := r.processMessage(msg); err != nil {
-				log.Printf("Failed to process message UID %d: %v", msg.Uid, err)
+				log.Error("[Messenger] Failed to process message UID %d: %v", msg.Uid, err)
 			} else {
 				processedCount++
 			}
@@ -331,7 +331,7 @@ func (r *MailReceiver) processNewMessages() {
 	}
 
 	if err := <-done; err != nil {
-		log.Printf("Failed to fetch messages: %v", err)
+		log.Error("[Messenger] Failed to fetch messages: %v", err)
 		return
 	}
 }
