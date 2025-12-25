@@ -8,6 +8,16 @@ This document describes the design for Agent Test Framework V2, which extends th
 - **Agent-driven testing** - Use agents to generate test cases and simulate user responses
 - **Interactive testing** - Human-in-the-loop testing mode
 
+## Quick Reference: Format Rules
+
+| Context               | Format                   | Example                                                 |
+| --------------------- | ------------------------ | ------------------------------------------------------- |
+| `-i` flag (CLI)       | Prefix required          | `agents:workers.test.gen`, `scripts:tests.gen`          |
+| JSONL assertion `use` | Prefix required          | `"use": "agents:workers.test.validator"`                |
+| JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-sim"`                        |
+| `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-sim`                     |
+| `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+
 ## Problem Statement
 
 Current single-turn testing cannot adequately test:
@@ -51,51 +61,36 @@ Current single-turn testing cannot adequately test:
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                      Multi-Turn Executor                         │    │
 │  │                                                                   │    │
-│  │   ┌─────────┐    ┌─────────────────┐    ┌─────────────────┐      │    │
-│  │   │  Turn   │───▶│  Target Agent   │───▶│    Response     │      │    │
-│  │   │  Input  │    │  (being tested) │    │    + State      │      │    │
-│  │   └─────────┘    └─────────────────┘    └────────┬────────┘      │    │
-│  │        ▲                                         │               │    │
-│  │        │                                         ▼               │    │
-│  │        │         ┌─────────────────────────────────────┐         │    │
-│  │        │         │      Awaiting Input Detection       │         │    │
-│  │        │         │  - Explicit declaration             │         │    │
-│  │        │         │  - Tool-based detection             │         │    │
-│  │        │         │  - Content heuristics               │         │    │
-│  │        │         └──────────────┬──────────────────────┘         │    │
-│  │        │                        │                                │    │
-│  │        │              ┌─────────┴─────────┐                      │    │
-│  │        │              ▼                   ▼                      │    │
-│  │        │         Awaiting=YES        Awaiting=NO                 │    │
-│  │        │              │                   │                      │    │
-│  │        │              ▼                   ▼                      │    │
-│  │   NEXT INPUT     ┌─────────┐         ┌─────────┐                 │    │
-│  │   SOURCES:       │ Get Next│         │Complete │                 │    │
-│  │                  │  Input  │         │  Test   │                 │    │
-│  │   ┌──────────┐   └────┬────┘         └─────────┘                 │    │
-│  │   │  Static  │◀───────┤                                          │    │
-│  │   │  turns[] │        │                                          │    │
-│  │   └──────────┘        │                                          │    │
-│  │   ┌──────────┐        │                                          │    │
-│  │   │Simulator │◀───────┤                                          │    │
-│  │   │  Agent   │        │                                          │    │
-│  │   └──────────┘        │                                          │    │
-│  │   ┌──────────┐        │                                          │    │
-│  │   │  Human   │◀───────┤                                          │    │
-│  │   │  Input   │        │                                          │    │
-│  │   └──────────┘        │                                          │    │
-│  │   ┌──────────┐        │                                          │    │
-│  │   │   SKIP   │◀───────┘                                          │    │
-│  │   │ (no src) │                                                   │    │
-│  │   └──────────┘                                                   │    │
+│  │   ┌─────────────────────────────────────────────────────────┐    │    │
+│  │   │ MODE SELECTION (based on test case fields)              │    │    │
+│  │   │                                                          │    │    │
+│  │   │   Has `turns`? ─────────────────▶ STATIC MODE            │    │    │
+│  │   │   Has `simulator` + `checkpoints`? ──▶ DYNAMIC MODE      │    │    │
+│  │   │   Neither? ─────────────────────▶ SINGLE-TURN (legacy)   │    │    │
+│  │   └─────────────────────────────────────────────────────────┘    │    │
+│  │                              │                                   │    │
+│  │              ┌───────────────┴───────────────┐                   │    │
+│  │              ▼                               ▼                   │    │
+│  │   ┌─────────────────────┐       ┌─────────────────────────┐      │    │
+│  │   │    STATIC MODE      │       │     DYNAMIC MODE        │      │    │
+│  │   │                     │       │                         │      │    │
+│  │   │ FOR each turn:      │       │ LOOP until terminated:  │      │    │
+│  │   │  1. Send input      │       │  1. Simulator → input   │      │    │
+│  │   │  2. Get response    │       │  2. Send to Agent       │      │    │
+│  │   │  3. Run assertions  │       │  3. Check checkpoints   │      │    │
+│  │   │  4. Continue/Fail   │       │  4. Check termination   │      │    │
+│  │   │                     │       │                         │      │    │
+│  │   │ All passed → PASS   │       │ All checkpoints → PASS  │      │    │
+│  │   │ Any failed → FAIL   │       │ Timeout/Missing → FAIL  │      │    │
+│  │   └─────────────────────┘       └─────────────────────────┘      │    │
 │  │                                                                   │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                   │                                      │
 │                                   ▼                                      │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
 │  │                         Assertions                               │    │
-│  │  - Per-turn assertions                                           │    │
-│  │  - Final assertions                                              │    │
+│  │  - Static: Per-turn assertions                                   │    │
+│  │  - Dynamic: Checkpoint assertions (order-independent)            │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                   │                                      │
 │                                   ▼                                      │
@@ -559,20 +554,19 @@ func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context
 }
 ```
 
-### Multi-Turn (New)
+### Multi-Turn: Static Mode
+
+For **deterministic flows** where you know the exact conversation sequence:
 
 ```jsonl
 {
   "id": "T001",
-  "name": "Expense Reimbursement Flow",
-  "type": "multi_turn",
+  "name": "Expense Reimbursement - Happy Path",
+  "mode": "static",
   "options": {
     "connector": "openai-gpt4",
     "skip": {
       "history": true
-    },
-    "metadata": {
-      "test_scenario": "happy-path"
     }
   },
   "turns": [
@@ -586,7 +580,7 @@ func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context
       ]
     },
     {
-      "input": "Business travel to Beijing, flight $2000, hotel $1500",
+      "input": "Business travel to Beijing, $3500",
       "assertions": [
         {
           "type": "tool_called",
@@ -603,175 +597,363 @@ func assertAgentMethod(iso *v8go.Isolate, t *TestingT, agentCtx *context.Context
         }
       ]
     }
-  ],
+  ]
+}
+```
+
+**Characteristics:**
+
+- Fixed number of turns
+- Each turn has specific input and assertions
+- Test fails if any turn assertion fails
+- Best for regression testing known flows
+
+### Multi-Turn: Dynamic Mode (Checkpoints)
+
+For **coverage testing** where you care about functionality, not exact sequence:
+
+```jsonl
+{
+  "id": "T002",
+  "name": "Expense Submission Coverage",
+  "mode": "dynamic",
   "simulator": {
     "use": "workers.test.user-simulator",
     "options": {
       "metadata": {
         "persona": "New employee unfamiliar with expense process",
-        "goal": "Submit a $3500 travel expense",
-        "max_turns": 10
+        "goal": "Submit a $3500 travel expense"
       }
     }
   },
-  "interactive": {
-    "enabled": false,
-    "timeout": "5m"
-  },
-  "on_missing_input": "skip",
-  "final_assertions": [
+  "checkpoints": [
     {
-      "type": "json_path",
-      "path": "$.expense.status",
-      "value": "submitted"
+      "id": "ask_type",
+      "description": "Agent asks for expense type",
+      "assertion": {
+        "type": "contains",
+        "value": "type"
+      }
+    },
+    {
+      "id": "call_create",
+      "description": "Agent calls create_expense tool",
+      "assertion": {
+        "type": "tool_called",
+        "name": "create_expense"
+      }
+    },
+    {
+      "id": "confirm_submit",
+      "description": "Agent confirms submission",
+      "assertion": {
+        "type": "contains",
+        "value": "submitted"
+      }
+    }
+  ],
+  "max_turns": 10,
+  "timeout": "2m"
+}
+```
+
+**Characteristics:**
+
+- Simulator drives the conversation
+- Checkpoints are verified across all turns (order-independent by default)
+- Test passes when ALL checkpoints are reached
+- Test fails if max_turns/timeout reached before all checkpoints
+- Best for functional coverage testing
+
+### Checkpoints with Order Constraints
+
+When checkpoints must occur in a specific order:
+
+```jsonl
+{
+  "checkpoints": [
+    {
+      "id": "ask_type",
+      "description": "Agent asks for expense type",
+      "assertion": {
+        "type": "contains",
+        "value": "type"
+      }
+    },
+    {
+      "id": "call_create",
+      "description": "Agent calls create_expense",
+      "after": [
+        "ask_type"
+      ],
+      "assertion": {
+        "type": "tool_called",
+        "name": "create_expense"
+      }
+    },
+    {
+      "id": "confirm_submit",
+      "description": "Agent confirms submission",
+      "after": [
+        "call_create"
+      ],
+      "assertion": {
+        "type": "contains",
+        "value": "submitted"
+      }
     }
   ]
 }
 ```
 
-### Field Descriptions
+### Checkpoints with Agent Validation
 
-| Field                 | Type   | Required | Description                                        |
-| --------------------- | ------ | -------- | -------------------------------------------------- |
-| `id`                  | string | Yes      | Unique test identifier                             |
-| `name`                | string | No       | Human-readable test name                           |
-| `type`                | string | No       | `"single_turn"` (default) or `"multi_turn"`        |
-| `options`             | object | No       | `context.Options` passed to target agent           |
-| `options.connector`   | string | No       | LLM connector to use                               |
-| `options.skip`        | object | No       | Skip config (history, trace, etc.)                 |
-| `options.search`      | any    | No       | Search behavior control                            |
-| `options.mode`        | string | No       | Agent mode                                         |
-| `options.metadata`    | object | No       | Custom metadata passed to agent                    |
-| `turns`               | array  | No       | Static turn definitions                            |
-| `turns[].input`       | string | Yes      | User input for this turn                           |
-| `turns[].assertions`  | array  | No       | Assertions for this turn's response                |
-| `turns[].options`     | object | No       | Per-turn options override                          |
-| `simulator`           | object | No       | Dynamic input generator configuration              |
-| `simulator.use`       | string | Yes      | Simulator agent ID (e.g., `workers.test.user-sim`) |
-| `simulator.options`   | object | No       | `context.Options` passed to simulator agent        |
-| `interactive`         | object | No       | Interactive mode configuration                     |
-| `interactive.enabled` | bool   | No       | Enable human input (default: false)                |
-| `interactive.timeout` | string | No       | Timeout for human input (default: "5m")            |
-| `on_missing_input`    | string | No       | `"skip"`, `"fail"`, or `"end"` (default: "skip")   |
-| `final_assertions`    | array  | No       | Assertions after conversation completes            |
-
-## Execution Modes
-
-### Mode 1: Static Turns
-
-Uses predefined `turns` array. Best for deterministic flows.
-
-```
-Turn 1: Send turns[0].input → Assert turns[0].assertions
-Turn 2: Send turns[1].input → Assert turns[1].assertions
-...
-```
-
-### Mode 2: Dynamic Simulator
-
-Uses an agent to simulate user responses. Best for complex/variable flows.
-
-```
-Turn 1: Send initial input → Get response
-Turn 2: Simulator generates input based on response → Get response
-...
-Until: Goal achieved OR max_turns reached
-```
-
-### Mode 3: Interactive
-
-Prompts human for input when agent awaits. Best for debugging/exploration.
-
-```
-Turn 1: Send input → Get response
-Turn 2: [Agent awaiting] → Prompt human → Get response
-...
-```
-
-### Mode 4: Skip (Default Fallback)
-
-When agent awaits input but no source available, skip with explanation.
-
-### Mode Priority
-
-When multiple input sources are configured, they are used in this order:
-
-1. **Static turns** - If `turns[n+1]` exists, use it
-2. **Simulator** - If no more static turns but simulator configured, use it
-3. **Interactive** - If `--interactive` flag and no simulator, prompt human
-4. **Skip/Fail/End** - Based on `on_missing_input` setting
-
-This allows hybrid testing: define some turns statically, then let simulator handle the rest.
+Use Agent-driven assertions for semantic validation:
 
 ```jsonl
 {
-  "turns": [
+  "checkpoints": [
     {
-      "input": "Start expense report"
+      "id": "helpful_guidance",
+      "description": "Agent provides helpful expense guidance",
+      "assertion": {
+        "type": "agent",
+        "use": "agents:workers.test.validator",
+        "options": {
+          "metadata": {
+            "criteria": "Response explains expense process clearly and professionally"
+          }
+        }
+      }
     },
     {
-      "input": "Travel expense, $500"
-    }
-  ],
-  "simulator": {
-    "use": "workers.test.user-sim",
-    "options": {
-      "metadata": {
-        "goal": "Complete the expense submission"
+      "id": "tool_called",
+      "description": "Agent creates expense record",
+      "assertion": {
+        "type": "tool_called",
+        "name": "create_expense"
       }
     }
-  }
+  ]
 }
 ```
 
-In this example:
+### Dynamic Mode Termination
 
-- Turn 1-2: Use static inputs
-- Turn 3+: Simulator generates inputs until goal achieved
+| Condition                            | Result     | Description                |
+| ------------------------------------ | ---------- | -------------------------- |
+| All checkpoints reached              | ✅ PASSED  | All functionality verified |
+| Agent completes, checkpoints missing | ❌ FAILED  | Missing coverage           |
+| max_turns exceeded                   | ❌ FAILED  | Timeout - flow too long    |
+| timeout exceeded                     | ❌ FAILED  | Time limit reached         |
+| Checkpoint assertion fails           | ❌ FAILED  | Functionality broken       |
+| Simulator error                      | ⚠️ SKIPPED | Cannot continue            |
+
+### Field Descriptions
+
+| Field                       | Type   | Required      | Description                                |
+| --------------------------- | ------ | ------------- | ------------------------------------------ |
+| `id`                        | string | Yes           | Unique test identifier                     |
+| `name`                      | string | No            | Human-readable test name                   |
+| `mode`                      | string | No            | `"static"` (default) or `"dynamic"`        |
+| `options`                   | object | No            | `context.Options` passed to target agent   |
+| **Static Mode Fields**      |
+| `turns`                     | array  | Yes (static)  | Static turn definitions                    |
+| `turns[].input`             | string | Yes           | User input for this turn                   |
+| `turns[].assertions`        | array  | No            | Assertions for this turn's response        |
+| `turns[].options`           | object | No            | Per-turn options override                  |
+| **Dynamic Mode Fields**     |
+| `simulator`                 | object | Yes (dynamic) | User simulator configuration               |
+| `simulator.use`             | string | Yes           | Simulator agent ID (no prefix)             |
+| `simulator.options`         | object | No            | `context.Options` passed to simulator      |
+| `checkpoints`               | array  | Yes (dynamic) | Functionality checkpoints to verify        |
+| `checkpoints[].id`          | string | Yes           | Unique checkpoint identifier               |
+| `checkpoints[].description` | string | No            | Human-readable description                 |
+| `checkpoints[].assertion`   | object | Yes           | Assertion to verify                        |
+| `checkpoints[].after`       | array  | No            | Checkpoint IDs that must occur first       |
+| `max_turns`                 | int    | No            | Maximum turns before timeout (default: 20) |
+| `timeout`                   | string | No            | Maximum time (default: "5m")               |
+| **Shared Fields**           |
+| `interactive`               | object | No            | Interactive mode configuration             |
+| `interactive.enabled`       | bool   | No            | Enable human input (default: false)        |
+| `interactive.timeout`       | string | No            | Timeout for human input (default: "5m")    |
+
+## Execution Modes
+
+### Static Mode
+
+Uses predefined `turns` array. Best for **regression testing** known flows.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Static Mode Flow                      │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  FOR each turn in turns[]:                               │
+│    1. Send turn.input to Agent                           │
+│    2. Get Agent response                                 │
+│    3. Run turn.assertions                                │
+│       ├─ PASS → Continue to next turn                    │
+│       └─ FAIL → Test FAILED, stop                        │
+│                                                          │
+│  All turns completed → Test PASSED                       │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Dynamic Mode (Checkpoints)
+
+Uses simulator + checkpoints. Best for **coverage testing** functionality.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   Dynamic Mode Flow                      │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  Initialize: pending_checkpoints = all checkpoints       │
+│                                                          │
+│  LOOP (until terminated):                                │
+│    1. Simulator generates user input                     │
+│    2. Send input to Agent                                │
+│    3. Get Agent response                                 │
+│    4. Check response against pending_checkpoints         │
+│       └─ If matched → Move to reached_checkpoints        │
+│    5. Check termination conditions:                      │
+│       ├─ All checkpoints reached → PASSED                │
+│       ├─ Agent completed, missing checkpoints → FAILED   │
+│       ├─ max_turns exceeded → FAILED                     │
+│       └─ timeout exceeded → FAILED                       │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Interactive Mode
+
+For debugging, human can provide input when agent awaits:
+
+```bash
+# Enable with --interactive flag
+yao agent test -i ./tests.jsonl --interactive
+```
+
+In interactive mode:
+
+- Static mode: Human can override any turn input
+- Dynamic mode: Human can replace simulator for specific turns
+
+### Mode Selection
+
+| Has `turns`? | Has `simulator` + `checkpoints`? | Mode                    |
+| ------------ | -------------------------------- | ----------------------- |
+| Yes          | No                               | Static                  |
+| No           | Yes                              | Dynamic                 |
+| Yes          | Yes                              | ❌ Invalid (choose one) |
+| No           | No                               | Single-turn (legacy)    |
+
+### Example: Static vs Dynamic
+
+**Same feature, different testing approaches:**
+
+```jsonl
+// Static Mode - Exact sequence testing
+{
+  "id": "expense-static",
+  "mode": "static",
+  "turns": [
+    {"input": "Submit expense", "assertions": [{"type": "contains", "value": "type"}]},
+    {"input": "Travel, $500", "assertions": [{"type": "tool_called", "name": "create_expense"}]},
+    {"input": "Confirm", "assertions": [{"type": "contains", "value": "submitted"}]}
+  ]
+}
+
+// Dynamic Mode - Coverage testing
+{
+  "id": "expense-dynamic",
+  "mode": "dynamic",
+  "simulator": {"use": "workers.test.user-sim", "options": {"metadata": {"goal": "Submit $500 expense"}}},
+  "checkpoints": [
+    {"id": "ask", "assertion": {"type": "contains", "value": "type"}},
+    {"id": "create", "assertion": {"type": "tool_called", "name": "create_expense"}},
+    {"id": "done", "assertion": {"type": "contains", "value": "submitted"}}
+  ],
+  "max_turns": 10
+}
+```
 
 ## Execution Flow
 
+### Static Mode Flow
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Multi-Turn Test Execution                     │
+│                    Static Mode Execution                         │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  START: Get initial input                                        │
-│         ├─ From turns[0].input if defined                        │
-│         └─ From test.input (single-turn compat)                  │
+│  INITIALIZE:                                                     │
+│    - Load turns[] from test case                                 │
+│    - Set current_turn = 0                                        │
+│                              ↓                                   │
+│  FOR each turn in turns[]:                                       │
+│    ┌─────────────────────────────────────────────────────────┐   │
+│    │ 1. Get input from turns[current_turn].input             │   │
+│    │                         ↓                               │   │
+│    │ 2. Send input to Agent                                  │   │
+│    │                         ↓                               │   │
+│    │ 3. Get Agent response                                   │   │
+│    │                         ↓                               │   │
+│    │ 4. Run turns[current_turn].assertions                   │   │
+│    │           │                                             │   │
+│    │           ├─ PASS → Continue to next turn               │   │
+│    │           └─ FAIL → Test FAILED, stop                   │   │
+│    └─────────────────────────────────────────────────────────┘   │
+│                              ↓                                   │
+│  All turns completed → Test PASSED                               │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Dynamic Mode Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Dynamic Mode Execution                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  INITIALIZE:                                                     │
+│    - pending_checkpoints = all checkpoints                       │
+│    - reached_checkpoints = []                                    │
+│    - turn_count = 0                                              │
+│    - start_time = now()                                          │
 │                              ↓                                   │
 │  LOOP:                                                           │
 │    ┌─────────────────────────────────────────────────────────┐   │
-│    │ 1. Send input to Agent                                  │   │
+│    │ 1. Call Simulator Agent → Get user input                │   │
+│    │    (pass: persona, goal, conversation history)          │   │
 │    │                         ↓                               │   │
-│    │ 2. Get Agent response                                   │   │
+│    │ 2. Send input to Target Agent                           │   │
 │    │                         ↓                               │   │
-│    │ 3. Execute turn assertions (if defined)                 │   │
+│    │ 3. Get Agent response                                   │   │
 │    │                         ↓                               │   │
-│    │ 4. Check: Is Agent awaiting input?                      │   │
-│    │           │                                             │   │
-│    │           ├─ NO → Exit loop (conversation complete)     │   │
-│    │           │                                             │   │
-│    │           └─ YES → Get next input:                      │   │
-│    │                    │                                    │   │
-│    │                    ├─ turns[n+1] exists?                │   │
-│    │                    │   → Use static input               │   │
-│    │                    │                                    │   │
-│    │                    ├─ simulator configured?             │   │
-│    │                    │   → Call simulator agent           │   │
-│    │                    │                                    │   │
-│    │                    ├─ interactive enabled?              │   │
-│    │                    │   → Prompt for human input         │   │
-│    │                    │                                    │   │
-│    │                    └─ None available?                   │   │
-│    │                        → Handle per on_missing_input:   │   │
-│    │                           skip: SKIP test               │   │
-│    │                           fail: FAIL test               │   │
-│    │                           end:  Exit loop normally      │   │
+│    │ 4. Check response against pending_checkpoints           │   │
+│    │    FOR each pending checkpoint:                         │   │
+│    │      - Run checkpoint.assertion                         │   │
+│    │      - If PASS and `after` satisfied → move to reached  │   │
+│    │                         ↓                               │   │
+│    │ 5. Check termination conditions:                        │   │
+│    │    ├─ pending_checkpoints empty?                        │   │
+│    │    │   → Test PASSED ✅                                 │   │
+│    │    │                                                    │   │
+│    │    ├─ Agent completed (not awaiting)?                   │   │
+│    │    │   → Test FAILED ❌ (missing checkpoints)           │   │
+│    │    │                                                    │   │
+│    │    ├─ turn_count >= max_turns?                          │   │
+│    │    │   → Test FAILED ❌ (turn limit)                    │   │
+│    │    │                                                    │   │
+│    │    ├─ now() - start_time > timeout?                     │   │
+│    │    │   → Test FAILED ❌ (timeout)                       │   │
+│    │    │                                                    │   │
+│    │    └─ Otherwise → Continue loop                         │   │
 │    └─────────────────────────────────────────────────────────┘   │
-│                              ↓                                   │
-│  END: Execute final_assertions                                   │
-│       Report result                                              │
 │                                                                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -1111,33 +1293,35 @@ Respond in JSON format:
 Existing single-turn tests continue to work unchanged:
 
 ```jsonl
-// This still works
+// This still works (single-turn, legacy format)
 {"id": "T001", "input": "Hello", "assertions": [...]}
 
-// Equivalent to
-{"id": "T001", "type": "single_turn", "turns": [{"input": "Hello", "assertions": [...]}]}
+// Static mode with one turn (equivalent)
+{"id": "T001", "mode": "static", "turns": [{"input": "Hello", "assertions": [...]}]}
 ```
 
 ## Error Handling
 
-### Turn-Level Errors
+### Static Mode Errors
 
-| Error Type       | Behavior             | Output                           |
-| ---------------- | -------------------- | -------------------------------- |
-| Agent timeout    | Mark turn as FAILED  | `error: "timeout after 30s"`     |
-| Agent error      | Mark turn as FAILED  | `error: "agent error: ..."`      |
-| Assertion failed | Mark turn as FAILED  | `assertion_errors: [...]`        |
-| Simulator error  | Mark turn as SKIPPED | `skip_reason: "simulator error"` |
+| Error Type       | Behavior            | Output                       |
+| ---------------- | ------------------- | ---------------------------- |
+| Agent timeout    | Mark turn as FAILED | `error: "timeout after 30s"` |
+| Agent error      | Mark turn as FAILED | `error: "agent error: ..."`  |
+| Assertion failed | Mark turn as FAILED | `assertion_errors: [...]`    |
+| All turns passed | Test PASSED         | `status: "passed"`           |
+| Any turn failed  | Test FAILED         | `status: "failed"`           |
 
-### Test-Level Errors
+### Dynamic Mode Errors
 
-| Error Type                   | Behavior             | Output                             |
-| ---------------------------- | -------------------- | ---------------------------------- |
-| No initial input             | Mark test as FAILED  | `error: "no initial input"`        |
-| Max turns exceeded           | Mark test as FAILED  | `error: "max turns (20) exceeded"` |
-| All turns passed             | Mark test as PASSED  | `status: "passed"`                 |
-| Any turn failed              | Mark test as FAILED  | `status: "failed"`                 |
-| Skipped due to missing input | Mark test as SKIPPED | `status: "skipped"`                |
+| Error Type                  | Behavior    | Output                              |
+| --------------------------- | ----------- | ----------------------------------- |
+| All checkpoints reached     | Test PASSED | `status: "passed"`                  |
+| Checkpoints missing         | Test FAILED | `error: "missing checkpoints: ..."` |
+| Max turns exceeded          | Test FAILED | `error: "max turns (20) exceeded"`  |
+| Timeout exceeded            | Test FAILED | `error: "timeout after 5m"`         |
+| Simulator error             | Test FAILED | `error: "simulator error: ..."`     |
+| Checkpoint assertion failed | Test FAILED | `error: "checkpoint X failed"`      |
 
 ## Context and State
 

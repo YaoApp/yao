@@ -10,8 +10,9 @@
 | `--simulator` flag | No prefix (agent only) | `--simulator workers.test.user-sim` |
 | `t.assert.Agent()` | No prefix (method is explicit) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
 
-## Phase 1: Static Multi-Turn
+## Phase 1: Static Mode
 
+- [ ] Add `mode` field to test case parser (`static` | `dynamic`)
 - [ ] Extend test case parser for `turns` array
 - [ ] Add `options` field support (aligned with `context.Options`)
 - [ ] Support test-level `options` and per-turn `options` override
@@ -19,9 +20,6 @@
 - [ ] Implement conversation context management
 - [ ] Add per-turn assertions
 - [ ] Support attachments at turn level
-- [ ] Implement awaiting input detection (heuristics)
-- [ ] Add `on_missing_input` handling (`skip`, `fail`, `end`)
-- [ ] Implement mode priority (static → simulator → interactive → skip)
 - [ ] Update console output for multi-turn display
 - [ ] Update JSONL output format for turns
 
@@ -36,17 +34,22 @@
 - [ ] Add `--dry-run` flag to save generated cases without running
 - [ ] Create example generator agent with prompt template
 
-## Phase 3: Dynamic Simulator
+## Phase 3: Dynamic Mode (Checkpoints)
 
-- [ ] Implement simulator invocation via `Assistant.Stream()` with `context.Options`
+- [ ] Add `checkpoints` array to test case parser
+- [ ] Implement checkpoint matching against agent responses
+- [ ] Support `after` field for order constraints
+- [ ] Track pending/reached checkpoints during execution
+- [ ] Implement termination conditions:
+  - [ ] All checkpoints reached → PASSED
+  - [ ] Agent completed, missing checkpoints → FAILED
+  - [ ] max_turns exceeded → FAILED
+  - [ ] timeout exceeded → FAILED
+- [ ] Implement simulator invocation via `Assistant.Stream()`
 - [ ] `simulator.use` is direct agent ID (no prefix needed)
 - [ ] Pass `test_mode: "simulator"` in `options.metadata`
 - [ ] Pass persona, goal, turn_count from `simulator.options.metadata`
 - [ ] Pass conversation history as messages
-- [ ] Pass tool results in `options.metadata`
-- [ ] Add goal completion detection (`goal_achieved` in response)
-- [ ] Add max_turns limit and timeout
-- [ ] Support hybrid mode (static turns + simulator fallback)
 - [ ] Create example simulator agent with prompt template
 
 ## Phase 4: Interactive Mode
