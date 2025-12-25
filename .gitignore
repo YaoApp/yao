@@ -52,3 +52,4 @@ coverage.html
 agent/assistant/hook/*.test.md
 agent/search/TODO.md
 agent/search/job-logs.txt
+agent/test/MULTI_TURN_DESIGN.md
