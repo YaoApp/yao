@@ -3,7 +3,9 @@
 ## Phase 1: Static Multi-Turn
 
 - [ ] Extend test case parser for `turns` array
-- [ ] Implement turn-by-turn execution
+- [ ] Add `options` field support (aligned with `context.Options`)
+- [ ] Support test-level `options` and per-turn `options` override
+- [ ] Implement turn-by-turn execution with options passing
 - [ ] Implement conversation context management
 - [ ] Add per-turn assertions
 - [ ] Support attachments at turn level
@@ -17,22 +19,24 @@
 
 - [ ] Parse `agents:` prefix in `-i` flag
 - [ ] Parse `scripts:` prefix in `-i` flag
-- [ ] Define generator agent interface (GeneratorInput/GeneratorOutput)
-- [ ] Implement generator invocation
-- [ ] Support query parameters (`?count=10&focus=...`)
-- [ ] Pass target agent metadata to generator (description, tools)
+- [ ] Use standard `context.Options` for all agent invocations
+- [ ] Pass `test_mode: "generator"` in `options.metadata`
+- [ ] Pass target agent info (description, tools) in `options.metadata`
+- [ ] Support query parameters (`?count=10&focus=...`) → merged into `options.metadata`
 - [ ] Add `--dry-run` flag to save generated cases without running
-- [ ] Create example generator agent
+- [ ] Create example generator agent with prompt template
 
 ## Phase 3: Dynamic Simulator
 
-- [ ] Define simulator agent interface (SimulatorInput/SimulatorOutput)
-- [ ] Implement simulator invocation with full context
-- [ ] Pass conversation history and tool results to simulator
-- [ ] Add goal completion detection
-- [ ] Add max_turns limit and timeout
+- [ ] Implement simulator invocation via `Assistant.Stream()` with `context.Options`
+- [ ] Pass `test_mode: "simulator"` in `options.metadata`
+- [ ] Pass persona, goal, turn_count in `options.metadata`
+- [ ] Pass conversation history as messages
+- [ ] Pass tool results in `options.metadata`
+- [ ] Add goal completion detection (`goal_achieved` in response)
+- [ ] Add max_turns limit and timeout (from `options.metadata`)
 - [ ] Support hybrid mode (static turns + simulator fallback)
-- [ ] Create example simulator agent
+- [ ] Create example simulator agent with prompt template
 
 ## Phase 4: Interactive Mode
 
@@ -49,7 +53,18 @@
 - [ ] Add configurable detection rules
 - [ ] Support custom detection via script/agent
 
-## Phase 6: Error Handling & Reporting
+## Phase 6: Agent-Driven Assertions
+
+- [ ] Add `agent` assertion type to assertion parser
+- [ ] Support `options` field in assertion (aligned with `context.Options`)
+- [ ] Implement validator agent invocation via `Assistant.Stream()`
+- [ ] Pass `test_mode: "validator"` in `options.metadata`
+- [ ] Pass conversation context and criteria in `options.metadata`
+- [ ] Support score-based pass/fail threshold (configurable in `options.metadata`)
+- [ ] Add `suggestions` to assertion error output
+- [ ] Create example validator agent with prompt template
+
+## Phase 7: Error Handling & Reporting
 
 - [ ] Implement turn-level error handling
 - [ ] Implement test-level error aggregation

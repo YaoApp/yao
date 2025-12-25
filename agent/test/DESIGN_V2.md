@@ -197,6 +197,247 @@ func IsAwaitingInput(result *TurnResult) (awaiting bool, reason string) {
 }
 ```
 
+## Standard Agent Interface
+
+All agent-driven features (generator, simulator, validator) use standard Yao Agent interfaces.
+
+### Using `context.Options`
+
+The test framework uses `context.Options` to pass parameters, aligned with `Assistant.Stream()`:
+
+```go
+// context.Options - standard Yao Agent options
+type Options struct {
+    Skip      *Skip          `json:"skip,omitempty"`      // Skip history, trace, etc.
+    Connector string         `json:"connector,omitempty"` // LLM connector to use
+    Search    any            `json:"search,omitempty"`    // Search behavior control
+    Mode      string         `json:"mode,omitempty"`      // Agent mode (chat, etc.)
+    Metadata  map[string]any `json:"metadata,omitempty"`  // Custom metadata
+}
+```
+
+### Test Framework Usage
+
+```go
+// Prepare options for agent invocation
+options := &context.Options{
+    Skip: &context.Skip{
+        History: true,  // Don't save test messages to history
+        Trace:   false, // Keep trace for debugging
+    },
+    Metadata: map[string]any{
+        "test_mode": "validator",  // "generator" | "simulator" | "validator"
+        "test_id":   "T001",
+        "criteria":  "Response should be helpful",
+        // ... other custom params from test config
+    },
+}
+
+// Prepare context
+ctx := context.New(parent, authorized, chatID)
+ctx.Referer = "agent-test"
+
+// Call agent with standard Stream API
+assistant := agent.Get(agentID)
+response, err := assistant.Stream(ctx, messages, options)
+```
+
+### Test Case Options Field
+
+Test cases can specify options to pass to the target agent or helper agents:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Hello",
+  "options": {
+    "connector": "openai-gpt4",
+    "skip": {
+      "history": true
+    },
+    "metadata": {
+      "scenario": "edge-case"
+    }
+  }
+}
+```
+
+### Generator Mode
+
+Used when `-i agents:xxx` is specified to generate test cases:
+
+```go
+// Framework calls generator agent
+options := &context.Options{
+    Skip: &context.Skip{History: true},
+    Metadata: map[string]any{
+        "test_mode":          "generator",
+        "target_agent":       "assistants.expense",
+        "target_description": "Expense reimbursement assistant",
+        "target_tools":       []string{"create_expense", "get_policy"},
+        // From query params: agents:xxx?count=10&focus=edge-cases
+        "count":      10,
+        "focus":      "edge-cases",
+        "complexity": "medium",
+    },
+}
+```
+
+Expected structured output:
+
+```json
+{
+  "cases": [
+    {"id": "G001", "input": "...", "assertions": [...]},
+    {"id": "G002", "input": "...", "assertions": [...]}
+  ]
+}
+```
+
+### Simulator Mode
+
+Used when test case has `simulator` config:
+
+```go
+// Framework calls simulator agent for next user input
+options := &context.Options{
+    Skip: &context.Skip{History: true},
+    Metadata: map[string]any{
+        "test_mode":    "simulator",
+        "test_id":      "T001",
+        // From simulator.metadata in test case
+        "persona":      "New employee",
+        "goal":         "Submit expense report",
+        // Runtime context
+        "turn_number":  3,
+        "max_turns":    10,
+        "tool_results": map[string]any{...},
+    },
+}
+
+// Messages include full conversation history
+messages := conversationHistory
+```
+
+Expected structured output:
+
+```json
+{
+  "input": "The amount is $500",
+  "goal_achieved": false,
+  "reasoning": "Providing requested amount info"
+}
+```
+
+### Validator Mode
+
+Used when assertion has `type: "agent"`:
+
+```go
+// Framework calls validator agent
+options := &context.Options{
+    Skip: &context.Skip{History: true},
+    Metadata: map[string]any{
+        "test_mode": "validator",
+        "test_id":   "T001",
+        // From assertion.metadata
+        "criteria":        "Response should be helpful",
+        "expected_intent": "answer question",
+        "tone":            "professional",
+    },
+}
+
+// Messages include agent response to validate
+messages := []context.Message{
+    {Role: "user", Content: "Original user question"},
+    {Role: "assistant", Content: "Agent's response to validate"},
+}
+```
+
+Expected structured output:
+
+```json
+{
+  "passed": true,
+  "score": 0.95,
+  "reason": "Response is helpful and addresses the question",
+  "suggestions": []
+}
+```
+
+## Assertion Types
+
+### Static Assertions (Existing)
+
+| Type          | Description            | Example                                                    |
+| ------------- | ---------------------- | ---------------------------------------------------------- |
+| `contains`    | Response contains text | `{"type": "contains", "value": "success"}`                 |
+| `equals`      | Exact match            | `{"type": "equals", "value": "OK"}`                        |
+| `regex`       | Regex pattern match    | `{"type": "regex", "pattern": "order-\\d+"}`               |
+| `json_path`   | JSONPath value check   | `{"type": "json_path", "path": "$.status", "value": "ok"}` |
+| `tool_called` | Tool was invoked       | `{"type": "tool_called", "name": "create_expense"}`        |
+| `type`        | Value type check       | `{"type": "type", "path": "$.count", "value": "number"}`   |
+
+### Agent-Driven Assertions (New)
+
+For fuzzy, semantic, or context-aware validation. Uses `options` aligned with `context.Options`:
+
+```jsonl
+{
+  "type": "agent",
+  "use": "agents:workers.test.validator",
+  "options": {
+    "connector": "openai-gpt4",
+    "metadata": {
+      "criteria": "Response should be helpful and answer the user's question",
+      "expected_intent": "provide expense submission guidance",
+      "tone": "professional and friendly"
+    }
+  }
+}
+```
+
+### Script Assertions
+
+For custom validation logic:
+
+```jsonl
+{
+  "type": "script",
+  "use": "scripts:tests.validate-expense",
+  "options": {
+    "metadata": {
+      "min_amount": 100,
+      "max_amount": 10000
+    }
+  }
+}
+```
+
+### Combined Assertions
+
+Mix static and agent-driven assertions:
+
+```jsonl
+{
+  "assertions": [
+    {
+      "type": "tool_called",
+      "name": "create_expense"
+    },
+    {
+      "type": "agent",
+      "use": "agents:workers.test.validator",
+      "options": {
+        "metadata": {
+          "criteria": "Confirmation message should include expense amount and be polite"
+        }
+      }
+    }
+  ]
+}
+```
+
 ## Test Case Format
 
 ### Single-Turn (Existing)
@@ -221,6 +462,15 @@ func IsAwaitingInput(result *TurnResult) (awaiting bool, reason string) {
   "id": "T001",
   "name": "Expense Reimbursement Flow",
   "type": "multi_turn",
+  "options": {
+    "connector": "openai-gpt4",
+    "skip": {
+      "history": true
+    },
+    "metadata": {
+      "test_scenario": "happy-path"
+    }
+  },
   "turns": [
     {
       "input": "I want to submit an expense report",
@@ -252,9 +502,13 @@ func IsAwaitingInput(result *TurnResult) (awaiting bool, reason string) {
   ],
   "simulator": {
     "use": "agents:workers.test.user-simulator",
-    "persona": "New employee unfamiliar with expense process",
-    "goal": "Submit a $3500 travel expense",
-    "max_turns": 10
+    "options": {
+      "metadata": {
+        "persona": "New employee unfamiliar with expense process",
+        "goal": "Submit a $3500 travel expense",
+        "max_turns": 10
+      }
+    }
   },
   "interactive": {
     "enabled": false,
@@ -278,14 +532,19 @@ func IsAwaitingInput(result *TurnResult) (awaiting bool, reason string) {
 | `id`                  | string | Yes      | Unique test identifier                           |
 | `name`                | string | No       | Human-readable test name                         |
 | `type`                | string | No       | `"single_turn"` (default) or `"multi_turn"`      |
+| `options`             | object | No       | `context.Options` passed to target agent         |
+| `options.connector`   | string | No       | LLM connector to use                             |
+| `options.skip`        | object | No       | Skip config (history, trace, etc.)               |
+| `options.search`      | any    | No       | Search behavior control                          |
+| `options.mode`        | string | No       | Agent mode                                       |
+| `options.metadata`    | object | No       | Custom metadata passed to agent                  |
 | `turns`               | array  | No       | Static turn definitions                          |
 | `turns[].input`       | string | Yes      | User input for this turn                         |
 | `turns[].assertions`  | array  | No       | Assertions for this turn's response              |
+| `turns[].options`     | object | No       | Per-turn options override                        |
 | `simulator`           | object | No       | Dynamic input generator configuration            |
 | `simulator.use`       | string | Yes      | Simulator reference: `agents:id` or `scripts:id` |
-| `simulator.persona`   | string | No       | User persona description                         |
-| `simulator.goal`      | string | No       | What the simulated user wants to achieve         |
-| `simulator.max_turns` | int    | No       | Maximum turns before timeout (default: 20)       |
+| `simulator.options`   | object | No       | `context.Options` passed to simulator agent      |
 | `interactive`         | object | No       | Interactive mode configuration                   |
 | `interactive.enabled` | bool   | No       | Enable human input (default: false)              |
 | `interactive.timeout` | string | No       | Timeout for human input (default: "5m")          |
@@ -352,7 +611,9 @@ This allows hybrid testing: define some turns statically, then let simulator han
   ],
   "simulator": {
     "use": "agents:workers.test.user-sim",
-    "goal": "Complete the expense submission"
+    "metadata": {
+      "goal": "Complete the expense submission"
+    }
   }
 }
 ```
@@ -790,21 +1051,28 @@ type ConversationContext struct {
 
 ### Context Passing to Simulator
 
-The simulator receives full context to generate appropriate responses:
+The simulator receives context via standard Yao Agent Context metadata:
 
-```json
-{
-  "persona": "New employee",
-  "goal": "Submit expense report",
-  "context": {
-    "session_id": "test-session-001",
-    "messages": [...],
-    "tool_results": {
-      "create_expense": {"id": "EXP-001", "status": "pending"}
-    },
-    "turn_count": 3
-  },
-  "last_response": "Please confirm the expense details..."
+```go
+// Framework prepares context for simulator
+ctx.Metadata = map[string]any{
+    "test_mode":     "simulator",
+    "test_id":       "T001",
+    // From simulator config
+    "persona":       "New employee",
+    "goal":          "Submit expense report",
+    // Runtime context
+    "session_id":    "test-session-001",
+    "turn_count":    3,
+    "tool_results":  map[string]any{...},
+}
+
+// Messages include conversation history
+messages := []Message{
+    {Role: "user", Content: "I want to submit an expense"},
+    {Role: "assistant", Content: "What type of expense?"},
+    {Role: "user", Content: "Travel expense"},
+    {Role: "assistant", Content: "Please confirm the details..."},
 }
 ```
 
