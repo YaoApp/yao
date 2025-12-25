@@ -2,32 +2,30 @@
 
 ## Format Rules Summary
 
-| Context | Format | Example |
-|---------|--------|---------|
-| `-i` flag (CLI) | Prefix required | `agents:workers.test.gen`, `scripts:tests.gen` |
-| JSONL assertion `use` | Prefix required | `"use": "agents:workers.test.validator"` |
-| JSONL `simulator.use` | No prefix (agent only) | `"use": "workers.test.user-sim"` |
-| `--simulator` flag | No prefix (agent only) | `--simulator workers.test.user-sim` |
-| `t.assert.Agent()` | No prefix (method is explicit) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+| Context               | Format                   | Example                                                 |
+| --------------------- | ------------------------ | ------------------------------------------------------- |
+| `-i` flag (CLI)       | Prefix required          | `agents:workers.test.gen`, `scripts:tests.gen`          |
+| JSONL assertion `use` | Prefix required          | `"use": "agents:workers.test.validator"`                |
+| JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-simulator"`                  |
+| `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
+| `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
 
-## Phase 1: Static Mode
+## Phase 1: Message History Support
 
-- [ ] Add `mode` field to test case parser (`static` | `dynamic`)
-- [ ] Extend test case parser for `turns` array
+- [ ] Add `messages` field to test case parser
+- [ ] Support both `input` (string) and `messages` (array) fields
+- [ ] Convert `input` to `messages` format internally
+- [ ] Pass messages directly to `Agent.Stream()`
 - [ ] Add `options` field support (aligned with `context.Options`)
-- [ ] Support test-level `options` and per-turn `options` override
-- [ ] Implement turn-by-turn execution with options passing
-- [ ] Implement conversation context management
-- [ ] Add per-turn assertions
-- [ ] Support attachments at turn level
-- [ ] Update console output for multi-turn display
-- [ ] Update JSONL output format for turns
+- [ ] Support attachments in message content parts
+- [ ] Update console output to show message count
+- [ ] Update JSONL output format
 
 ## Phase 2: Agent-Driven Input
 
 - [ ] Parse `agents:` prefix in `-i` flag
 - [ ] Parse `scripts:` prefix in `-i` flag
-- [ ] Use standard `context.Options` for all agent invocations
+- [ ] Use standard `context.Options` for generator invocation
 - [ ] Pass `test_mode: "generator"` in `options.metadata`
 - [ ] Pass target agent info (description, tools) in `options.metadata`
 - [ ] Support query parameters (`?count=10&focus=...`) → merged into `options.metadata`
@@ -37,12 +35,13 @@
 ## Phase 3: Dynamic Mode (Checkpoints)
 
 - [ ] Add `checkpoints` array to test case parser
+- [ ] Add `simulator` field to test case parser
 - [ ] Implement checkpoint matching against agent responses
 - [ ] Support `after` field for order constraints
 - [ ] Track pending/reached checkpoints during execution
 - [ ] Implement termination conditions:
   - [ ] All checkpoints reached → PASSED
-  - [ ] Agent completed, missing checkpoints → FAILED
+  - [ ] Simulator signals goal_achieved but checkpoints missing → FAILED
   - [ ] max_turns exceeded → FAILED
   - [ ] timeout exceeded → FAILED
 - [ ] Implement simulator invocation via `Assistant.Stream()`
@@ -52,24 +51,10 @@
 - [ ] Pass conversation history as messages
 - [ ] Create example simulator agent with prompt template
 
-## Phase 4: Interactive Mode
-
-- [ ] Add `--interactive` flag
-- [ ] Implement terminal input prompt with context display
-- [ ] Add input timeout handling
-- [ ] Support input history/editing
-- [ ] Add `--skip-interactive` for CI/CD mode
-
-## Phase 5: Enhanced Detection
-
-- [ ] Add `awaiting_input` field to agent response schema
-- [ ] Implement tool-based detection (confirmation tools)
-- [ ] Add configurable detection rules
-- [ ] Support custom detection via script/agent
-
-## Phase 6: Agent-Driven Assertions
+## Phase 4: Agent-Driven Assertions
 
 ### In JSONL Test Cases
+
 - [ ] Add `agent` assertion type to assertion parser
 - [ ] Support `options` field in assertion (aligned with `context.Options`)
 - [ ] Implement validator agent invocation via `Assistant.Stream()`
@@ -79,6 +64,7 @@
 - [ ] Add `suggestions` to assertion error output
 
 ### In Script Tests
+
 - [ ] Add `t.assert.Agent(response, agentID, options?)` method
 - [ ] `agentID` is direct ID (e.g., `workers.test.validator`), no prefix needed
 - [ ] Invoke validator agent with context
@@ -86,25 +72,22 @@
 - [ ] Support passing conversation history in options
 
 ### Shared
+
 - [ ] Create example validator agent with prompt template
 - [ ] Document `ValidatorResult` interface
 
-## Phase 7: Error Handling & Reporting
+## Phase 5: Error Handling & Reporting
 
-- [ ] Implement turn-level error handling
-- [ ] Implement test-level error aggregation
+- [ ] Implement test-level error handling
 - [ ] Add detailed error messages with hints
-- [ ] Support custom reporter agent
+- [ ] Support `--parallel` flag for concurrent test execution
+- [ ] Support `--fail-fast` flag to stop on first failure
+- [ ] Add verbose mode (`-v`) for detailed output
 
 ## Open Questions
 
-1. **Session Management**: How to handle session state across turns? Use existing session or create new per-test?
+1. **Message Generation**: Should we provide a helper to generate message history from a script?
 
-2. **Timeout Strategy**: Per-turn timeout vs. total test timeout?
+2. **Snapshot Testing**: Should we support "golden file" comparison for responses?
 
-3. **Parallel Execution**: Can multi-turn tests run in parallel, or must they be sequential?
-
-4. **Retry Logic**: If a turn fails, retry just that turn or restart entire conversation?
-
-5. **Snapshot Testing**: Should we support "golden file" comparison for conversation flows?
-
+3. **Retry Logic**: If a test fails, should we support automatic retry?
