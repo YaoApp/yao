@@ -23,7 +23,7 @@ See `input.go` → `ParseInputWithOptions()` for implementation.
 - [ ] Add `options` field support (aligned with `context.Options`) - partially done via `CaseOptions`
 - [x] Support attachments in message content parts (file:// protocol)
 - [ ] Update console output to show message count
-- [ ] Update JSONL output format with `messages_count`
+- [ ] Update JSON output format with `messages_count`
 
 ## Phase 2: Agent-Driven Input
 

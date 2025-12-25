@@ -65,7 +65,7 @@ This document describes the design for Agent Test Framework V2, which extends th
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │                          Reporter                                  │  │
 │  │  - Console output                                                  │  │
-│  │  - JSONL output                                                    │  │
+│  │  - JSON file output                                                │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -539,100 +539,244 @@ yao agent test -i ./tests/expense.jsonl -v
 
 ## Output Format
 
-### Console Output
+### Console Output (Standard Mode)
+
+Standard mode shows each test case as a single line with input preview:
 
 ```
 ═══════════════════════════════════════════════════════════════
   Agent Test
 ═══════════════════════════════════════════════════════════════
-ℹ Agent: assistants.expense
-ℹ Input: ./tests/expense.jsonl (3 test cases)
+ℹ Agent: workers.system.keyword
+ℹ Connector: deepseek.v3
+ℹ Input: ./tests/inputs.jsonl (42 test cases)
+ℹ Timeout: 5m0s
 
 ───────────────────────────────────────────────────────────────
   Running Tests
 ───────────────────────────────────────────────────────────────
-
-✓ [expense-turn1] First turn - ask type (1.2s)
-  Messages: 1, Assertions: 1/1 passed
-
-✓ [expense-turn2] Second turn - create expense (2.1s)
-  Messages: 3, Assertions: 1/1 passed
-
-✓ [expense-turn3] Final turn - confirm (1.8s)
-  Messages: 5, Assertions: 1/1 passed
+► [T001] 人工智能和机器学习正在改变我们�... PASSED (2.7s)
+► [T002] The rapid development of cloud computing has re... PASSED (3.0s)
+► [T003] 区块链技术是一种分布式账本技术�... PASSED (2.7s)
+...
 
 ───────────────────────────────────────────────────────────────
   Summary
 ───────────────────────────────────────────────────────────────
-  Total:   3 tests
-  Passed:  3
-  Failed:  0
-  Time:    5.1s
+  Agent:     workers.system.keyword
+  Connector: deepseek.v3
+  Total:     42
+  Passed:    42
+  Failed:    0
+  Pass Rate: 100.0%
+  Duration:  1.8m
+
+  Output: ./tests/output-20251225185335.jsonl
+
+═══════════════════════════════════════════════════════════════
+  ✨ ALL TESTS PASSED ✨
+═══════════════════════════════════════════════════════════════
 ```
 
-### JSONL Output
+### Console Output (Dynamic Mode)
 
-```jsonl
+Dynamic mode shows each test case as a tree with turns and checkpoints:
+
+```
+═══════════════════════════════════════════════════════════════
+  Agent Test (Dynamic Mode)
+═══════════════════════════════════════════════════════════════
+ℹ Agent: assistants.expense
+ℹ Connector: openai.gpt4
+ℹ Input: ./tests/dynamic.jsonl (2 test cases)
+ℹ Simulator: workers.test.user-simulator
+
+───────────────────────────────────────────────────────────────
+  Running Tests
+───────────────────────────────────────────────────────────────
+► [T001] Expense Submission Coverage
+  ├─ Turn 1: "Help me file an expense" → "What type of expense?"
+  │  └─ ✓ checkpoint: ask_type
+  ├─ Turn 2: "Client dinner, $250" → "I'll create... Please confirm."
+  │  └─ ✓ checkpoint: call_create (tool: create_expense)
+  └─ Turn 3: "Yes, confirm" → "Expense submitted! Reference: EXP-001"
+     └─ ✓ checkpoint: confirm
+  PASSED (6.8s) - 3 turns, 3/3 checkpoints
+
+► [T002] Expense with Attachment
+  ├─ Turn 1: "Submit receipt" + [receipt.jpg] → "What type?"
+  │  └─ ✓ checkpoint: ask_type
+  ├─ Turn 2: "Business lunch" → "Amount from receipt: $85.50. Confirm?"
+  │  └─ ✓ checkpoint: extract_amount
+  └─ Turn 3: "Yes" → "Submitted! Reference: EXP-002"
+     └─ ✓ checkpoint: confirm
+  PASSED (8.2s) - 3 turns, 3/3 checkpoints
+
+───────────────────────────────────────────────────────────────
+  Summary
+───────────────────────────────────────────────────────────────
+  Agent:     assistants.expense
+  Connector: openai.gpt4
+  Simulator: workers.test.user-simulator
+  Total:     2
+  Passed:    2
+  Failed:    0
+  Pass Rate: 100.0%
+  Duration:  15.0s
+
+  Output: ./tests/output-20251225190000.jsonl
+
+═══════════════════════════════════════════════════════════════
+  ✨ ALL TESTS PASSED ✨
+═══════════════════════════════════════════════════════════════
+```
+
+### Console Output (Parallel Mode)
+
+When `--parallel N` is enabled, tests run concurrently. Output is buffered and displayed as complete test trees:
+
+```
+═══════════════════════════════════════════════════════════════
+  Agent Test (Parallel: 5)
+═══════════════════════════════════════════════════════════════
+ℹ Agent: assistants.expense
+ℹ Input: ./tests/dynamic.jsonl (10 test cases)
+ℹ Parallel: 5 concurrent
+
+───────────────────────────────────────────────────────────────
+  Running Tests (5 parallel)
+───────────────────────────────────────────────────────────────
+► [T003] Quick approval flow
+  ├─ Turn 1: "Approve expense EXP-001" → "Approved!"
+  └─ ✓ checkpoint: approved
+  PASSED (1.2s) - 1 turn, 1/1 checkpoints
+
+► [T001] Expense Submission Coverage
+  ├─ Turn 1: "Help me file an expense" → "What type?"
+  │  └─ ✓ checkpoint: ask_type
+  ├─ Turn 2: "Client dinner, $250" → "Confirm?"
+  │  └─ ✓ checkpoint: call_create
+  └─ Turn 3: "Yes" → "Submitted!"
+     └─ ✓ checkpoint: confirm
+  PASSED (6.8s) - 3 turns, 3/3 checkpoints
+
+► [T002] Expense with Attachment
+  ├─ Turn 1: "Submit receipt" + [receipt.jpg] → "What type?"
+  ...
+  PASSED (8.2s) - 3 turns, 3/3 checkpoints
+
+[Progress: 3/10 completed, 5 running...]
+
+► [T004] Rejection flow
+  ...
+  PASSED (4.5s) - 2 turns, 2/2 checkpoints
+
+───────────────────────────────────────────────────────────────
+  Summary
+───────────────────────────────────────────────────────────────
+  Total:     10
+  Passed:    10
+  Failed:    0
+  Pass Rate: 100.0%
+  Duration:  25.3s (effective: 2.5s/test with 5 parallel)
+
+═══════════════════════════════════════════════════════════════
+  ✨ ALL TESTS PASSED ✨
+═══════════════════════════════════════════════════════════════
+```
+
+**Note**: In parallel mode, test results appear in completion order (not input order). Each test's output is buffered and displayed as a complete tree to maintain readability.
+
+### JSON Output (Standard Mode)
+
+Output file is a JSON object with `summary`, `environment`, `results`, and `metadata`:
+
+```json
 {
-  "id": "expense-turn3",
-  "name": "Final turn - confirm",
-  "status": "passed",
-  "messages_count": 5,
-  "response": "Expense submitted. Reference: EXP-2025-001",
-  "assertions": [
+  "summary": {
+    "total": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped": 0,
+    "errors": 0,
+    "timeouts": 0,
+    "duration_ms": 5100,
+    "agent_id": "assistants.expense",
+    "agent_path": "/path/to/expense"
+  },
+  "environment": {
+    "user_id": "test-user",
+    "team_id": "test-team",
+    "locale": "en-us"
+  },
+  "results": [
     {
-      "type": "contains",
-      "value": "submitted",
-      "passed": true
+      "id": "expense-turn1",
+      "status": "passed",
+      "input": [{ "role": "user", "content": "I want to submit an expense" }],
+      "output": "What type of expense would you like to submit?",
+      "duration_ms": 1200
+    },
+    {
+      "id": "expense-turn2",
+      "status": "passed",
+      "input": [
+        { "role": "user", "content": "I want to submit an expense" },
+        { "role": "assistant", "content": "What type?" },
+        { "role": "user", "content": "Business travel, $3500" }
+      ],
+      "output": "Confirm $3500 expense?",
+      "duration_ms": 2100
     }
   ],
-  "duration_ms": 1800
+  "metadata": {
+    "started_at": "2025-12-25T10:00:00Z",
+    "completed_at": "2025-12-25T10:00:05Z",
+    "input_file": "./tests/expense.jsonl"
+  }
 }
 ```
 
-## Dynamic Mode Output
+### JSON Output (Dynamic Mode)
 
-```jsonl
+Dynamic mode adds `turns` and `checkpoints` to each result:
+
+```json
 {
-  "id": "expense-dynamic",
-  "name": "Expense Coverage Test",
-  "status": "passed",
-  "turns": [
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "duration_ms": 6800,
+    "agent_id": "assistants.expense"
+  },
+  "results": [
     {
-      "turn": 1,
-      "input": "Help me file an expense",
-      "output": "What type?"
-    },
-    {
-      "turn": 2,
-      "input": "Client dinner, $250",
-      "output": "Confirm?"
-    },
-    {
-      "turn": 3,
-      "input": "Yes",
-      "output": "Submitted!"
+      "id": "expense-dynamic",
+      "name": "Expense Coverage Test",
+      "status": "passed",
+      "turns": [
+        {
+          "turn": 1,
+          "input": "Help me file an expense",
+          "output": "What type?"
+        },
+        { "turn": 2, "input": "Client dinner, $250", "output": "Confirm?" },
+        { "turn": 3, "input": "Yes", "output": "Submitted!" }
+      ],
+      "checkpoints": [
+        { "id": "ask_type", "reached_at_turn": 1, "passed": true },
+        { "id": "call_create", "reached_at_turn": 2, "passed": true },
+        { "id": "confirm", "reached_at_turn": 3, "passed": true }
+      ],
+      "total_turns": 3,
+      "duration_ms": 6800
     }
   ],
-  "checkpoints": [
-    {
-      "id": "ask_type",
-      "reached_at_turn": 1,
-      "passed": true
-    },
-    {
-      "id": "call_create",
-      "reached_at_turn": 2,
-      "passed": true
-    },
-    {
-      "id": "confirm",
-      "reached_at_turn": 3,
-      "passed": true
-    }
-  ],
-  "total_turns": 3,
-  "duration_ms": 6800
+  "metadata": {
+    "started_at": "2025-12-25T10:00:00Z",
+    "completed_at": "2025-12-25T10:00:07Z"
+  }
 }
 ```
 
