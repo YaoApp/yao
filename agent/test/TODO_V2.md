@@ -10,16 +10,20 @@
 | `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
 | `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
 
-## Phase 1: Message History Support
+## Phase 1: Message History Support ✅ (Already Implemented)
 
-- [ ] Add `messages` field to test case parser
-- [ ] Support both `input` (string) and `messages` (array) fields
-- [ ] Convert `input` to `messages` format internally
-- [ ] Pass messages directly to `Agent.Stream()`
-- [ ] Add `options` field support (aligned with `context.Options`)
-- [ ] Support attachments in message content parts
+The `input` field already supports:
+- `string`: Simple text input
+- `object`: Single message `{role, content}`  
+- `array`: Message history `[{role, content}, ...]`
+
+See `input.go` → `ParseInputWithOptions()` for implementation.
+
+**Remaining tasks:**
+- [ ] Add `options` field support (aligned with `context.Options`) - partially done via `CaseOptions`
+- [x] Support attachments in message content parts (file:// protocol)
 - [ ] Update console output to show message count
-- [ ] Update JSONL output format
+- [ ] Update JSONL output format with `messages_count`
 
 ## Phase 2: Agent-Driven Input
 

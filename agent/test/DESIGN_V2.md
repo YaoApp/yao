@@ -4,7 +4,7 @@
 
 This document describes the design for Agent Test Framework V2, which extends the existing testing capabilities with:
 
-- **Message history support** - Test agents with conversation context via `messages[]`
+- **Message history support** - Test agents with conversation context via `input` array (already implemented)
 - **Agent-driven testing** - Use agents to generate test cases and validate responses
 - **Dynamic testing** - Simulator-driven testing with checkpoint validation
 
@@ -45,7 +45,7 @@ This document describes the design for Agent Test Framework V2, which extends th
 │  ┌───────────────────────────────────────────────────────────────────┐  │
 │  │                      Test Case Parser                              │  │
 │  │                                                                    │  │
-│  │  Standard Mode:     {input: "...", messages: [...], assertions}   │  │
+│  │  Standard Mode:     {input: "..." | [...], assertions}            │  │
 │  │  Dynamic Mode:      {simulator: {...}, checkpoints: [...]}        │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                          │                                               │
@@ -77,12 +77,11 @@ This document describes the design for Agent Test Framework V2, which extends th
 
 Single call to agent with optional message history. **No multi-turn state management needed.**
 
-| Field        | Type   | Description                                      |
-| ------------ | ------ | ------------------------------------------------ |
-| `input`      | string | Simple text input (shorthand for single message) |
-| `messages`   | array  | Full message history (overrides `input`)         |
-| `assertions` | array  | Assertions to validate response                  |
-| `options`    | object | `context.Options` passed to agent                |
+| Field        | Type                           | Description                                   |
+| ------------ | ------------------------------ | --------------------------------------------- |
+| `input`      | string \| Message \| Message[] | Text, single message, or conversation history |
+| `assertions` | array                          | Assertions to validate response               |
+| `options`    | object                         | `context.Options` passed to agent             |
 
 ### Dynamic Mode
 
@@ -112,15 +111,15 @@ Simulator-driven testing with checkpoint validation.
 }
 ```
 
-### With Message History (New)
+### With Message History (Existing)
 
-Test agent with conversation context - simulates multi-turn without complex state:
+The `input` field already supports message arrays for conversation context:
 
 ```jsonl
 {
   "id": "T002",
   "name": "Expense submission - final confirmation",
-  "messages": [
+  "input": [
     {
       "role": "user",
       "content": "I want to submit an expense"
@@ -170,16 +169,14 @@ To test agent behavior at different conversation stages, create separate test ca
 // Test 1: First turn - agent should ask for expense type
 {
   "id": "expense-turn1",
-  "messages": [
-    {"role": "user", "content": "I want to submit an expense"}
-  ],
+  "input": [{"role": "user", "content": "I want to submit an expense"}],
   "assertions": [{"type": "contains", "value": "type"}]
 }
 
 // Test 2: Second turn - agent should create expense
 {
   "id": "expense-turn2",
-  "messages": [
+  "input": [
     {"role": "user", "content": "I want to submit an expense"},
     {"role": "assistant", "content": "What type of expense would you like to submit?"},
     {"role": "user", "content": "Business travel, $3500"}
@@ -190,7 +187,7 @@ To test agent behavior at different conversation stages, create separate test ca
 // Test 3: Final turn - agent should confirm submission
 {
   "id": "expense-turn3",
-  "messages": [
+  "input": [
     {"role": "user", "content": "I want to submit an expense"},
     {"role": "assistant", "content": "What type of expense?"},
     {"role": "user", "content": "Business travel, $3500"},
@@ -206,7 +203,7 @@ To test agent behavior at different conversation stages, create separate test ca
 ```jsonl
 {
   "id": "T003",
-  "messages": [
+  "input": [
     {
       "role": "user",
       "content": [
@@ -288,16 +285,19 @@ For coverage testing where conversation flow is unpredictable:
 
 ### Standard Mode Fields
 
-| Field        | Type   | Required | Description                       |
-| ------------ | ------ | -------- | --------------------------------- |
-| `id`         | string | Yes      | Unique test identifier            |
-| `name`       | string | No       | Human-readable test name          |
-| `input`      | string | No\*     | Simple text input                 |
-| `messages`   | array  | No\*     | Full message history              |
-| `assertions` | array  | No       | Assertions to validate response   |
-| `options`    | object | No       | `context.Options` passed to agent |
+| Field        | Type                           | Required | Description                                       |
+| ------------ | ------------------------------ | -------- | ------------------------------------------------- |
+| `id`         | string                         | Yes      | Unique test identifier                            |
+| `name`       | string                         | No       | Human-readable test name                          |
+| `input`      | string \| Message \| Message[] | Yes      | Input: text, single message, or message array     |
+| `assertions` | array                          | No       | Assertions to validate response (alias: `assert`) |
+| `options`    | object                         | No       | `context.Options` passed to agent                 |
 
-\*Either `input` or `messages` required
+**Note**: The `input` field supports three formats:
+
+- `string`: Simple text (converted to `[{role: "user", content: "..."}]`)
+- `object`: Single message `{role: "...", content: "..."}`
+- `array`: Message history `[{role: "user", ...}, {role: "assistant", ...}, ...]`
 
 ### Dynamic Mode Fields
 
@@ -327,8 +327,8 @@ For coverage testing where conversation flow is unpredictable:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  1. Parse test case                                              │
-│     ├─ Has `messages`? → Use as-is                               │
-│     └─ Has `input`? → Convert to [{role: "user", content: input}]│
+│     ├─ `input` is array? → Use as messages                       │
+│     └─ `input` is string? → Convert to [{role: "user", content}] │
 │                              ↓                                   │
 │  2. Call Agent.Stream(ctx, messages, options)                    │
 │                              ↓                                   │
@@ -683,11 +683,11 @@ Respond in JSON format:
 Existing single-turn tests work unchanged:
 
 ```jsonl
-// This still works
+// Simple string input
 {"id": "T001", "input": "Hello", "assertions": [...]}
 
-// Equivalent to
-{"id": "T001", "messages": [{"role": "user", "content": "Hello"}], "assertions": [...]}
+// Equivalent to array format
+{"id": "T001", "input": [{"role": "user", "content": "Hello"}], "assertions": [...]}
 ```
 
 ## Error Handling
@@ -711,16 +711,17 @@ Existing single-turn tests work unchanged:
 | Simulator error             | Test FAILED | `error: "simulator error: ..."`     |
 | Checkpoint assertion failed | Test FAILED | `error: "checkpoint X failed"`      |
 
-## Comparison: Old vs New Design
+## Current Implementation Status
 
-| Aspect             | Old (Static Mode)         | New (Messages)              |
-| ------------------ | ------------------------- | --------------------------- |
-| Multi-turn testing | Sequential turn execution | Pass message history        |
-| State management   | Session state per test    | Stateless                   |
-| Parallelization    | Sequential within test    | Fully parallel              |
-| Implementation     | Complex turn loop         | Single agent call           |
-| Debugging          | Need to trace turns       | Clear input/output per test |
-| Flexibility        | Coupled turns             | Independent tests           |
+| Feature                 | Status     | Notes                                    |
+| ----------------------- | ---------- | ---------------------------------------- |
+| Simple text input       | ✅ Done    | `input: "Hello"`                         |
+| Message history         | ✅ Done    | `input: [{role, content}, ...]`          |
+| File attachments        | ✅ Done    | `file://` protocol in content parts      |
+| Static assertions       | ✅ Done    | contains, equals, regex, json_path, etc. |
+| Agent-driven assertions | 🔲 Planned | `type: "agent"` with validator agent     |
+| Dynamic mode            | 🔲 Planned | Simulator + Checkpoints                  |
+| Agent-driven input      | 🔲 Planned | `-i agents:xxx` for test generation      |
 
 ## Open Questions
 
