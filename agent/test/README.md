@@ -198,7 +198,7 @@ Simulator-driven testing with checkpoint validation. A simulator agent generates
 | `--after`     | Global AfterAll hook (e.g., `env_test.AfterAll`)         | -                          |
 | `--runs`      | Runs per test (stability analysis)                       | 1                          |
 | `--run`       | Regex pattern to filter which tests to run               | -                          |
-| `--timeout`   | Timeout per test                                         | 5m                         |
+| `--timeout`   | Timeout per test                                         | 2m                         |
 | `--parallel`  | Parallel test cases                                      | 1                          |
 | `--fail-fast` | Stop on first failure                                    | false                      |
 | `--dry-run`   | Generate test cases without running them                 | false                      |

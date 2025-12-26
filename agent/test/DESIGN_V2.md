@@ -646,7 +646,7 @@ options := &context.Options{
 |      | `--simulator` | Default simulator agent ID for dynamic mode                  |
 |      | `--before`    | Global before script (e.g., `env_test.BeforeAll`)            |
 |      | `--after`     | Global after script (e.g., `env_test.AfterAll`)              |
-|      | `--timeout`   | Timeout per test case (default: 5m)                          |
+|      | `--timeout`   | Timeout per test case (default: 2m)                          |
 |      | `--parallel`  | Number of parallel test cases                                |
 |      | `--runs`      | Number of runs for stability analysis                        |
 |      | `--run`       | Regex pattern to filter which tests to run                   |
@@ -995,18 +995,18 @@ Existing single-turn tests work unchanged:
 
 ## Current Implementation Status
 
-| Feature                 | Status     | Notes                                              |
-| ----------------------- | ---------- | -------------------------------------------------- |
-| Simple text input       | ✅ Done    | `input: "Hello"`                                   |
-| Message history         | ✅ Done    | `input: [{role, content}, ...]`                    |
-| File attachments        | ✅ Done    | `file://` protocol in content parts                |
-| Static assertions       | ✅ Done    | contains, equals, regex, json_path, etc.           |
-| Before/After hooks      | ✅ Done    | `before/after` in JSONL, `--before/--after` in CLI |
-| Agent-driven assertions | ✅ Done    | `type: "agent"` + `t.assert.Agent()` JSAPI         |
-| Agent-driven input      | ✅ Done    | `-i agents:xxx` for test generation                |
-| Dry-run mode            | ✅ Done    | `--dry-run` to preview generated tests             |
-| Dynamic mode            | ✅ Done    | Simulator + Checkpoints                            |
-| Console output          | ✅ Done    | Dynamic mode tree output, checkpoint display       |
+| Feature                 | Status  | Notes                                              |
+| ----------------------- | ------- | -------------------------------------------------- |
+| Simple text input       | ✅ Done | `input: "Hello"`                                   |
+| Message history         | ✅ Done | `input: [{role, content}, ...]`                    |
+| File attachments        | ✅ Done | `file://` protocol in content parts                |
+| Static assertions       | ✅ Done | contains, equals, regex, json_path, etc.           |
+| Before/After hooks      | ✅ Done | `before/after` in JSONL, `--before/--after` in CLI |
+| Agent-driven assertions | ✅ Done | `type: "agent"` + `t.assert.Agent()` JSAPI         |
+| Agent-driven input      | ✅ Done | `-i agents:xxx` for test generation                |
+| Dry-run mode            | ✅ Done | `--dry-run` to preview generated tests             |
+| Dynamic mode            | ✅ Done | Simulator + Checkpoints                            |
+| Console output          | ✅ Done | Dynamic mode tree output, checkpoint display       |
 
 ## Open Questions
 
