@@ -648,6 +648,31 @@ Supported types: images (jpg, png, gif, webp), audio (wav, mp3), documents (pdf,
 
 ## Before/After Hooks
 
+Hooks allow you to run setup and teardown code before and after tests. Hook scripts must be placed in the agent's `src/` directory with `_test.ts` suffix.
+
+### Hook Types
+
+| Hook        | Scope    | When Called           | Use Case                        |
+| ----------- | -------- | --------------------- | ------------------------------- |
+| `Before`    | Per-test | Before each test case | Create test data, setup context |
+| `After`     | Per-test | After each test case  | Cleanup test data, log results  |
+| `BeforeAll` | Global   | Once before all tests | Database migration, init        |
+| `AfterAll`  | Global   | Once after all tests  | Global cleanup, report          |
+
+### Execution Order
+
+```
+BeforeAll (global)
+  ├─ Before (test 1)
+  │    └─ Test 1 execution
+  │    └─ After (test 1)
+  ├─ Before (test 2)
+  │    └─ Test 2 execution
+  │    └─ After (test 2)
+  └─ ...
+AfterAll (global)
+```
+
 ### Per-Test Hooks
 
 Defined in JSONL, scripts located in agent's `src/` directory:
@@ -669,36 +694,176 @@ Via CLI flags:
 yao agent test -i tests/inputs.jsonl --before env_test.BeforeAll --after env_test.AfterAll
 ```
 
-### Hook Script Example
+### Hook Function Signatures
 
 ```typescript
 // assistants/expense/src/env_test.ts
 
+/**
+ * Before - Called before each test case
+ * @param ctx - Agent context with user/team info
+ * @param testCase - The test case about to run
+ * @returns any - Data passed to After hook (optional)
+ */
 export function Before(ctx: Context, testCase: TestCase): any {
-  // Setup: create test data
   const userId = Process("models.user.Create", { name: "Test User" });
-  return { userId }; // Passed to After
+  return { userId }; // This data is passed to After
 }
 
+/**
+ * After - Called after each test case (pass or fail)
+ * @param ctx - Agent context
+ * @param testCase - The test case that ran
+ * @param result - Test result with status, output, duration
+ * @param beforeData - Data returned from Before hook
+ */
 export function After(
   ctx: Context,
   testCase: TestCase,
   result: TestResult,
   beforeData: any
 ) {
-  // Cleanup: delete test data
   if (beforeData?.userId) {
     Process("models.user.Delete", beforeData.userId);
   }
+  if (result.status === "failed") {
+    console.log(`Test ${testCase.id} failed: ${result.error}`);
+  }
 }
 
+/**
+ * BeforeAll - Called once before all tests
+ * @param ctx - Agent context
+ * @param testCases - Array of all test cases
+ * @returns any - Data passed to AfterAll hook (optional)
+ */
 export function BeforeAll(ctx: Context, testCases: TestCase[]): any {
   Process("models.migrate");
-  return { initialized: true };
+  return { initialized: true, count: testCases.length };
 }
 
+/**
+ * AfterAll - Called once after all tests complete
+ * @param ctx - Agent context
+ * @param results - Array of all test results
+ * @param beforeData - Data returned from BeforeAll hook
+ */
 export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
+  const passed = results.filter((r) => r.status === "passed").length;
+  console.log(`Tests completed: ${passed}/${results.length} passed`);
   Process("models.cleanup");
+}
+```
+
+### Hook Parameters
+
+**Context** - Agent execution context:
+
+```typescript
+interface Context {
+  user_id: string; // Test user ID
+  team_id: string; // Test team ID
+  locale: string; // Locale (e.g., "en-us")
+  metadata: object; // Custom metadata from test case
+}
+```
+
+**TestCase** - Test case definition:
+
+```typescript
+interface TestCase {
+  id: string; // Test case ID
+  input: any; // Test input (string, Message, or Message[])
+  assert?: object; // Assertion rules
+  expected?: any; // Expected output
+  user?: string; // Override user ID
+  team?: string; // Override team ID
+  metadata?: object; // Custom metadata
+  options?: object; // Context options
+  timeout?: string; // Timeout (e.g., "30s")
+  skip?: boolean; // Skip flag
+  before?: string; // Before hook reference
+  after?: string; // After hook reference
+}
+```
+
+**TestResult** - Test execution result:
+
+```typescript
+interface TestResult {
+  id: string; // Test case ID
+  status: string; // "passed" | "failed" | "error" | "skipped" | "timeout"
+  input: any; // Actual input sent
+  output: any; // Agent response
+  expected?: any; // Expected output (if defined)
+  error?: string; // Error message (if failed)
+  duration_ms: number; // Execution time in milliseconds
+  assertions?: object[]; // Assertion results
+}
+```
+
+### Common Use Cases
+
+**Database Setup/Teardown**:
+
+```typescript
+export function Before(ctx: Context, testCase: TestCase): any {
+  // Create test records
+  const user = Process("models.user.Create", {
+    name: "Test",
+    email: "test@example.com",
+  });
+  const expense = Process("models.expense.Create", {
+    user_id: user.id,
+    amount: 100,
+  });
+  return { user, expense };
+}
+
+export function After(
+  ctx: Context,
+  testCase: TestCase,
+  result: TestResult,
+  data: any
+) {
+  // Clean up in reverse order
+  if (data?.expense) Process("models.expense.Delete", data.expense.id);
+  if (data?.user) Process("models.user.Delete", data.user.id);
+}
+```
+
+**Conditional Setup Based on Metadata**:
+
+```typescript
+export function Before(ctx: Context, testCase: TestCase): any {
+  const scenario = testCase.metadata?.scenario || "default";
+
+  if (scenario === "empty_db") {
+    Process("models.expense.DeleteAll");
+  } else if (scenario === "with_data") {
+    Process("scripts.tests.seed.LoadTestData");
+  }
+
+  return { scenario };
+}
+```
+
+**Logging and Debugging**:
+
+```typescript
+export function After(
+  ctx: Context,
+  testCase: TestCase,
+  result: TestResult,
+  data: any
+) {
+  if (result.status === "failed") {
+    console.log("=== Test Failed ===");
+    console.log("Test ID:", testCase.id);
+    console.log("Input:", JSON.stringify(testCase.input));
+    console.log("Output:", JSON.stringify(result.output));
+    console.log("Error:", result.error);
+  }
 }
 ```
 
