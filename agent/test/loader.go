@@ -8,6 +8,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/process"
 )
 
 // JSONLLoader loads test cases from JSONL files
@@ -142,4 +143,36 @@ func FilterByIDs(cases []*Case, ids []string) []*Case {
 	return FilterTestCases(cases, func(tc *Case) bool {
 		return idSet[tc.ID]
 	})
+}
+
+// LoadFromAgent generates test cases using a generator agent
+func (l *JSONLLoader) LoadFromAgent(agentID string, targetInfo *TargetAgentInfo, params map[string]interface{}) ([]*Case, error) {
+	return GenerateTestCases(agentID, targetInfo, params)
+}
+
+// LoadFromScript generates test cases using a script
+// scriptRef format: "module.FunctionName" (e.g., "tests.gen.Generate")
+func (l *JSONLLoader) LoadFromScript(scriptRef string, targetInfo *TargetAgentInfo) ([]*Case, error) {
+	// Parse script reference
+	parts := strings.Split(scriptRef, ".")
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid script reference format: %s (expected 'module.Function')", scriptRef)
+	}
+
+	// Build process name: scripts.module.Function
+	processName := "scripts." + scriptRef
+
+	// Execute via process
+	p, err := process.Of(processName, targetInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create process %s: %w", processName, err)
+	}
+
+	result, err := p.Exec()
+	if err != nil {
+		return nil, fmt.Errorf("script execution failed: %w", err)
+	}
+
+	// Parse result as test cases
+	return convertToCases(result)
 }

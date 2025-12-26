@@ -152,6 +152,10 @@ type Options struct {
 	// AfterAll is the global after script (e.g., "scripts:tests.env.AfterAll")
 	// Called once after all test cases
 	AfterAll string `json:"after_all,omitempty"`
+
+	// DryRun generates test cases without running them
+	// Useful for previewing agent-generated test cases
+	DryRun bool `json:"dry_run,omitempty"`
 }
 
 // ContextConfig represents custom context configuration from JSON file

@@ -35,6 +35,7 @@ var (
 	testFailFast  bool
 	testBefore    string // --before flag for global BeforeAll hook
 	testAfter     string // --after flag for global AfterAll hook
+	testDryRun    bool   // --dry-run flag for generating tests without running
 )
 
 // TestCmd is the agent test command
@@ -161,6 +162,7 @@ var TestCmd = &cobra.Command{
 			FailFast:    testFailFast,
 			BeforeAll:   testBefore,
 			AfterAll:    testAfter,
+			DryRun:      testDryRun,
 		}
 
 		// Merge with defaults
@@ -250,6 +252,7 @@ func init() {
 	TestCmd.Flags().BoolVar(&testFailFast, "fail-fast", false, L("Stop on first failure"))
 	TestCmd.Flags().StringVar(&testBefore, "before", "", L("Global BeforeAll hook (e.g., env_test.BeforeAll)"))
 	TestCmd.Flags().StringVar(&testAfter, "after", "", L("Global AfterAll hook (e.g., env_test.AfterAll)"))
+	TestCmd.Flags().BoolVar(&testDryRun, "dry-run", false, L("Generate test cases without running them"))
 
 	// Mark input as required
 	TestCmd.MarkFlagRequired("input")

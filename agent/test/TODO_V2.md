@@ -41,9 +41,42 @@
 - [x] 创建示例 validator agent (`assistants/tests/validator-agent`)
 - [x] 创建单元测试 `assert_agent_test.go` (JSONL 断言 + JSAPI 断言)
 
-## Phase 3: Dynamic Mode (Simulator + Checkpoints)
+## Phase 3: Agent-Driven Input ✅
+
+**新增文件**: `input_source.go`
+
+> 用 Agent 生成测试用例，生成后使用标准模式执行。相对简单。
+
+**准备工作**:
+
+- [x] 创建 generator agent (`yao-dev-app/assistants/tests/generator-agent`)
+- [x] 编写 generator agent 的 prompts.yml
+
+**实现**:
+
+- [x] `input_source.go`: 实现 `ParseInputSource`
+- [x] `input_source.go`: 实现 `GenerateTestCases`
+- [x] `loader.go`: 添加 `LoadFromAgent` 方法
+- [x] `loader.go`: 添加 `LoadFromScript` 方法
+- [x] `runner.go`: 在 `RunTests` 支持不同输入源
+- [x] `cmd/agent/test.go`: 添加 `--dry-run` flag
+
+**测试**:
+
+- [x] 创建单元测试 `input_source_test.go`
+
+## Phase 4: Dynamic Mode (Simulator + Checkpoints)
 
 **新增文件**: `dynamic_runner.go`, `dynamic_types.go`
+
+> 运行时使用 Simulator Agent 动态生成对话，需要多轮循环和 checkpoint 匹配。依赖 Phase 3 的 Agent 调用经验。
+
+**准备工作**:
+
+- [ ] 创建 simulator agent (`yao-dev-app/assistants/tests/simulator-agent`)
+- [ ] 编写 simulator agent 的 prompts.yml (模拟用户行为)
+
+**实现**:
 
 - [ ] `types.go`: 添加 `Simulator`, `Checkpoints` 字段到 `Case`
 - [ ] `dynamic_types.go`: 定义 `Checkpoint`, `DynamicResult` 等类型
@@ -51,19 +84,10 @@
 - [ ] `dynamic_runner.go`: 实现 checkpoint 匹配逻辑
 - [ ] `dynamic_runner.go`: 实现终止条件判断
 - [ ] `runner.go`: 在 `runSingleTest` 判断并调用动态模式
-- [ ] 创建示例 simulator agent
 
-## Phase 4: Agent-Driven Input
+**测试**:
 
-**新增文件**: `input_source.go`
-
-- [ ] `input_source.go`: 实现 `ParseInputSource`
-- [ ] `input_source.go`: 实现 `GenerateTestCases`
-- [ ] `loader.go`: 添加 `LoadFromAgent` 方法
-- [ ] `loader.go`: 添加 `LoadFromScript` 方法
-- [ ] `runner.go`: 在 `RunTests` 支持不同输入源
-- [ ] `cmd/agent/agent.go`: 添加 `--dry-run` flag
-- [ ] 创建示例 generator agent
+- [ ] 创建单元测试 `dynamic_runner_test.go`
 
 ## Phase 5: Console Output Optimization
 
@@ -85,6 +109,8 @@
 - [x] Script testing (`*_test.ts`)
 - [x] Before/After hooks (Phase 1)
 - [x] Agent-driven assertions (Phase 2)
+- [x] Agent-driven input (Phase 3)
+- [x] `--dry-run` flag
 
 ## Open Questions
 

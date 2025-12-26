@@ -998,8 +998,9 @@ Existing single-turn tests work unchanged:
 | Static assertions       | ✅ Done    | contains, equals, regex, json_path, etc.           |
 | Before/After hooks      | ✅ Done    | `before/after` in JSONL, `--before/--after` in CLI |
 | Agent-driven assertions | ✅ Done    | `type: "agent"` + `t.assert.Agent()` JSAPI         |
+| Agent-driven input      | ✅ Done    | `-i agents:xxx` for test generation                |
+| Dry-run mode            | ✅ Done    | `--dry-run` to preview generated tests             |
 | Dynamic mode            | 🔲 Planned | Simulator + Checkpoints                            |
-| Agent-driven input      | 🔲 Planned | `-i agents:xxx` for test generation                |
 
 ## Open Questions
 

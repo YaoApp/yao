@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -170,15 +172,58 @@ func (r *Executor) RunTests() (*Report, error) {
 		r.output.Info("Connector: %s", agentInfo.Connector)
 	}
 
-	// Load test cases
+	// Load test cases based on input source
 	var testCases []*Case
+	inputSource := ParseInputSource(r.opts.Input)
 
-	// File mode - load from JSONL
-	testCases, err = r.loader.LoadFile(r.opts.Input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load test cases: %w", err)
+	switch inputSource.Type {
+	case InputSourceAgent:
+		// Generate test cases using agent
+		r.output.Info("Generating test cases from agent: %s", inputSource.Value)
+		targetInfo := &TargetAgentInfo{
+			ID:          agentInfo.ID,
+			Description: agentInfo.Description,
+		}
+		testCases, err = r.loader.LoadFromAgent(inputSource.Value, targetInfo, inputSource.Params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate test cases: %w", err)
+		}
+		r.output.Info("Generated: %d test cases", len(testCases))
+
+	case InputSourceScript:
+		// Generate test cases using script (if it's a generator script, not test script)
+		// Note: scripts. prefix without "scripts:" is handled by RunScriptTests
+		if strings.HasPrefix(r.opts.Input, "scripts:") {
+			scriptRef := strings.TrimPrefix(r.opts.Input, "scripts:")
+			r.output.Info("Generating test cases from script: %s", scriptRef)
+			targetInfo := &TargetAgentInfo{
+				ID:          agentInfo.ID,
+				Description: agentInfo.Description,
+			}
+			testCases, err = r.loader.LoadFromScript(scriptRef, targetInfo)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate test cases from script: %w", err)
+			}
+			r.output.Info("Generated: %d test cases", len(testCases))
+		} else {
+			// This is a test script (scripts.xxx format), handled by RunScriptTests
+			return nil, fmt.Errorf("script test mode should be handled by RunScriptTests")
+		}
+
+	default:
+		// File mode - load from JSONL
+		testCases, err = r.loader.LoadFile(r.opts.Input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load test cases: %w", err)
+		}
+		r.output.Info("Input: %s (%d test cases)", r.opts.Input, len(testCases))
 	}
-	r.output.Info("Input: %s (%d test cases)", r.opts.Input, len(testCases))
+
+	// Handle dry-run mode - just output the generated test cases
+	if r.opts.DryRun {
+		r.output.Info("Dry-run mode: outputting generated test cases")
+		return r.outputDryRun(testCases, agentInfo)
+	}
 
 	// Filter skipped tests
 	activeTests := FilterSkipped(testCases)
@@ -641,6 +686,12 @@ func isEmptyValue(v interface{}) bool {
 		return true
 	}
 
+	// Use reflection to check for typed nil (e.g., *NextHookResponse(nil))
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && rv.IsNil() {
+		return true
+	}
+
 	switch val := v.(type) {
 	case string:
 		return val == ""
@@ -648,6 +699,12 @@ func isEmptyValue(v interface{}) bool {
 		return len(val) == 0
 	case []interface{}:
 		return len(val) == 0
+	case *context.NextHookResponse:
+		// Check if NextHookResponse is effectively empty
+		if val == nil {
+			return true
+		}
+		return val.Data == nil && val.Delegate == nil
 	}
 
 	return false
@@ -680,4 +737,52 @@ func (r *Executor) getInputOptions() *InputOptions {
 	// For message mode, BaseDir remains empty (uses current working directory)
 
 	return opts
+}
+
+// outputDryRun outputs generated test cases without running them
+func (r *Executor) outputDryRun(testCases []*Case, agentInfo *AgentInfo) (*Report, error) {
+	r.output.Info("Generated Test Cases:")
+
+	// Output each test case as JSONL
+	for _, tc := range testCases {
+		data, err := jsoniter.Marshal(tc)
+		if err != nil {
+			r.output.Warning("Failed to marshal test case %s: %s", tc.ID, err.Error())
+			continue
+		}
+		fmt.Println(string(data))
+	}
+
+	// Write to output file if specified
+	if r.opts.OutputFile != "" {
+		file, err := os.Create(r.opts.OutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer file.Close()
+
+		for _, tc := range testCases {
+			data, err := jsoniter.Marshal(tc)
+			if err != nil {
+				continue
+			}
+			file.WriteString(string(data) + "\n")
+		}
+
+		r.output.Info("Output written to: %s", r.opts.OutputFile)
+	}
+
+	// Return a minimal report
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
+	return &Report{
+		Summary: &Summary{
+			Total:     len(testCases),
+			AgentID:   agentInfo.ID,
+			Connector: connector,
+		},
+	}, nil
 }
