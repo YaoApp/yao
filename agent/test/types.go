@@ -156,6 +156,10 @@ type Options struct {
 	// DryRun generates test cases without running them
 	// Useful for previewing agent-generated test cases
 	DryRun bool `json:"dry_run,omitempty"`
+
+	// Simulator is the default simulator agent ID for dynamic mode
+	// Can be overridden per test case in JSONL
+	Simulator string `json:"simulator,omitempty"`
 }
 
 // ContextConfig represents custom context configuration from JSON file
@@ -395,6 +399,60 @@ type Case struct {
 	// After script function (e.g., "scripts:tests.env.After")
 	// Called after the test case completes (pass or fail)
 	After string `json:"after,omitempty"`
+
+	// Dynamic Mode Fields
+	// ===============================
+
+	// Simulator configures the user simulator for dynamic testing
+	// When set, the test runs in dynamic mode with multi-turn conversation
+	Simulator *Simulator `json:"simulator,omitempty"`
+
+	// Checkpoints define validation points for dynamic testing
+	// Each checkpoint is checked after every agent response
+	Checkpoints []*Checkpoint `json:"checkpoints,omitempty"`
+
+	// MaxTurns is the maximum number of conversation turns (default: 20)
+	MaxTurns int `json:"max_turns,omitempty"`
+}
+
+// Simulator configures the user simulator for dynamic testing
+type Simulator struct {
+	// Use is the simulator agent ID (no prefix needed)
+	Use string `json:"use"`
+
+	// Options for the simulator agent
+	Options *SimulatorOptions `json:"options,omitempty"`
+}
+
+// SimulatorOptions configures simulator behavior
+type SimulatorOptions struct {
+	// Metadata passed to the simulator agent
+	// Common fields: persona, goal, style
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
+
+	// Connector overrides the simulator's default connector
+	Connector string `json:"connector,omitempty"`
+}
+
+// Checkpoint defines a validation point in dynamic testing
+type Checkpoint struct {
+	// ID is the unique identifier for this checkpoint
+	ID string `json:"id"`
+
+	// Description is a human-readable description
+	Description string `json:"description,omitempty"`
+
+	// Assert defines the assertion to validate
+	// Same format as Case.Assert
+	Assert interface{} `json:"assert"`
+
+	// After specifies checkpoint IDs that must be reached before this one
+	// Used to enforce ordering (e.g., "ask_type" must come before "confirm")
+	After []string `json:"after,omitempty"`
+
+	// Required indicates if this checkpoint must be reached (default: true)
+	// Optional checkpoints don't cause test failure if not reached
+	Required *bool `json:"required,omitempty"`
 }
 
 // CaseOptions represents per-test-case context options

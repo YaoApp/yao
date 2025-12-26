@@ -303,6 +303,45 @@ func (w *OutputWriter) ScriptTestSummary(summary *ScriptTestSummary, duration ti
 	fmt.Printf("%s\n", formatDuration(duration))
 }
 
+// DynamicTestStart outputs the start of a dynamic test
+func (w *OutputWriter) DynamicTestStart(id string, checkpointCount int) {
+	color.New(color.FgWhite).Printf("► [%s] ", id)
+	color.New(color.FgCyan).Printf("(dynamic, %d checkpoints)\n", checkpointCount)
+}
+
+// DynamicTurn outputs a single turn in dynamic testing
+func (w *OutputWriter) DynamicTurn(turn int, inputSummary string, checkpointsReached, total int) {
+	if w.verbose {
+		color.New(color.FgHiBlack).Printf("│  ├─ Turn %d: %s ", turn, inputSummary)
+		color.New(color.FgCyan).Printf("[%d/%d checkpoints]\n", checkpointsReached, total)
+	}
+}
+
+// DynamicCheckpoint outputs a checkpoint being reached
+func (w *OutputWriter) DynamicCheckpoint(checkpointID string) {
+	if w.verbose {
+		color.New(color.FgGreen).Printf("│  │  └─ ✓ checkpoint: %s\n", checkpointID)
+	}
+}
+
+// DynamicTestResult outputs the result of a dynamic test
+func (w *OutputWriter) DynamicTestResult(status Status, turns int, checkpoints int, duration time.Duration) {
+	color.New(color.FgHiBlack).Printf("  └─ ")
+
+	switch status {
+	case StatusPassed:
+		color.New(color.FgGreen).Printf("PASSED")
+	case StatusFailed:
+		color.New(color.FgRed).Printf("FAILED")
+	case StatusError:
+		color.New(color.FgRed).Printf("ERROR")
+	case StatusTimeout:
+		color.New(color.FgRed).Printf("TIMEOUT")
+	}
+
+	color.New(color.FgHiBlack).Printf(" (%d turns, %d checkpoints, %s)\n", turns, checkpoints, formatDuration(duration))
+}
+
 // StabilityResult prints stability analysis result for a test case
 func (w *OutputWriter) StabilityResult(sr *StabilityResult) {
 	color.New(color.FgWhite).Printf("  [%s] ", sr.ID)

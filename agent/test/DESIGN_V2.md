@@ -633,20 +633,25 @@ options := &context.Options{
 
 ### Flags Reference
 
-| Flag | Long          | Description                                                |
-| ---- | ------------- | ---------------------------------------------------------- |
-| `-i` | `--input`     | Input source: file path, message, or `type:id` reference   |
-| `-n` | `--name`      | Target agent ID (the agent being tested)                   |
-| `-o` | `--output`    | Output file path for results                               |
-| `-c` | `--connector` | Override connector for the target agent                    |
-| `-v` | `--verbose`   | Verbose output                                             |
-|      | `--simulator` | Default simulator agent ID                                 |
-|      | `--before`    | Global before script (e.g., `env_test.BeforeAll`)          |
-|      | `--after`     | Global after script (e.g., `env_test.AfterAll`)            |
-|      | `--timeout`   | Timeout per test case (default: 5m)                        |
-|      | `--parallel`  | Number of parallel test cases                              |
-|      | `--fail-fast` | Stop on first failure                                      |
-|      | `--dry-run`   | Generate/parse tests without running                       |
+| Flag | Long          | Description                                                  |
+| ---- | ------------- | ------------------------------------------------------------ |
+| `-i` | `--input`     | Input source: file path, message, or `agents:`/`scripts:` ID |
+| `-n` | `--name`      | Target agent ID (the agent being tested)                     |
+| `-o` | `--output`    | Output file path for results                                 |
+| `-c` | `--connector` | Override connector for the target agent                      |
+| `-u` | `--user`      | Test user ID (default: test-user)                            |
+| `-t` | `--team`      | Test team ID (default: test-team)                            |
+| `-v` | `--verbose`   | Verbose output                                               |
+|      | `--ctx`       | Path to context JSON file for custom authorization           |
+|      | `--simulator` | Default simulator agent ID for dynamic mode                  |
+|      | `--before`    | Global before script (e.g., `env_test.BeforeAll`)            |
+|      | `--after`     | Global after script (e.g., `env_test.AfterAll`)              |
+|      | `--timeout`   | Timeout per test case (default: 5m)                          |
+|      | `--parallel`  | Number of parallel test cases                                |
+|      | `--runs`      | Number of runs for stability analysis                        |
+|      | `--run`       | Regex pattern to filter which tests to run                   |
+|      | `--fail-fast` | Stop on first failure                                        |
+|      | `--dry-run`   | Generate/parse tests without running                         |
 
 ### Examples
 
@@ -1000,7 +1005,8 @@ Existing single-turn tests work unchanged:
 | Agent-driven assertions | ✅ Done    | `type: "agent"` + `t.assert.Agent()` JSAPI         |
 | Agent-driven input      | ✅ Done    | `-i agents:xxx` for test generation                |
 | Dry-run mode            | ✅ Done    | `--dry-run` to preview generated tests             |
-| Dynamic mode            | 🔲 Planned | Simulator + Checkpoints                            |
+| Dynamic mode            | ✅ Done    | Simulator + Checkpoints                            |
+| Console output          | ✅ Done    | Dynamic mode tree output, checkpoint display       |
 
 ## Open Questions
 

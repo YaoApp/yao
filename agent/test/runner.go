@@ -377,6 +377,11 @@ func (r *Executor) runParallel(ast *assistant.Assistant, testCases []*Case, agen
 
 // runSingleTest runs a single test case
 func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID string, runNum int) *Result {
+	// Check if this is a dynamic mode test
+	if tc.IsDynamicMode() {
+		return r.runDynamicTest(ast, tc, agentID)
+	}
+
 	// Get input summary for display
 	inputSummary := SummarizeInput(tc.Input, 50)
 	r.output.TestStart(tc.ID, inputSummary, runNum)
@@ -485,6 +490,58 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		r.output.TestError(result.Error)
 	}
 	r.output.TestOutput(fmt.Sprintf("%v", result.Output))
+
+	return result
+}
+
+// runDynamicTest runs a dynamic (simulator-driven) test case
+func (r *Executor) runDynamicTest(ast *assistant.Assistant, tc *Case, agentID string) *Result {
+	// Output test start for dynamic mode
+	r.output.DynamicTestStart(tc.ID, len(tc.Checkpoints))
+
+	startTime := time.Now()
+
+	// Execute before script if specified
+	var beforeData interface{}
+	if tc.Before != "" {
+		var err error
+		beforeData, err = r.hookExecutor.ExecuteBefore(tc.Before, tc, r.agentPath)
+		if err != nil {
+			result := &Result{
+				ID:         tc.ID,
+				Status:     StatusError,
+				Error:      fmt.Sprintf("before script failed: %s", err.Error()),
+				DurationMs: time.Since(startTime).Milliseconds(),
+			}
+			r.output.TestResult(result.Status, time.Since(startTime))
+			r.output.TestError(result.Error)
+			return result
+		}
+	}
+
+	// Create dynamic runner and execute
+	dynamicRunner := NewDynamicRunner(r.opts)
+	dynamicResult := dynamicRunner.RunDynamic(ast, tc, agentID)
+
+	// Convert to standard result
+	result := dynamicResult.ToResult()
+
+	// Execute after script if specified
+	defer func() {
+		if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
+			if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
+				r.output.Warning("after script failed: %s", err.Error())
+			}
+		}
+	}()
+
+	// Output result
+	duration := time.Duration(result.DurationMs) * time.Millisecond
+	r.output.DynamicTestResult(result.Status, dynamicResult.TotalTurns, len(tc.Checkpoints), duration)
+
+	if result.Error != "" {
+		r.output.TestError(result.Error)
+	}
 
 	return result
 }

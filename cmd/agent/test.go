@@ -36,6 +36,7 @@ var (
 	testBefore    string // --before flag for global BeforeAll hook
 	testAfter     string // --after flag for global AfterAll hook
 	testDryRun    bool   // --dry-run flag for generating tests without running
+	testSimulator string // --simulator flag for default simulator agent in dynamic mode
 )
 
 // TestCmd is the agent test command
@@ -163,6 +164,7 @@ var TestCmd = &cobra.Command{
 			BeforeAll:   testBefore,
 			AfterAll:    testAfter,
 			DryRun:      testDryRun,
+			Simulator:   testSimulator,
 		}
 
 		// Merge with defaults
@@ -253,6 +255,7 @@ func init() {
 	TestCmd.Flags().StringVar(&testBefore, "before", "", L("Global BeforeAll hook (e.g., env_test.BeforeAll)"))
 	TestCmd.Flags().StringVar(&testAfter, "after", "", L("Global AfterAll hook (e.g., env_test.AfterAll)"))
 	TestCmd.Flags().BoolVar(&testDryRun, "dry-run", false, L("Generate test cases without running them"))
+	TestCmd.Flags().StringVar(&testSimulator, "simulator", "", L("Default simulator agent for dynamic mode (e.g., tests.simulator-agent)"))
 
 	// Mark input as required
 	TestCmd.MarkFlagRequired("input")

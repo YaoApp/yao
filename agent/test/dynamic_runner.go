@@ -1,0 +1,413 @@
+package test
+
+import (
+	"fmt"
+	"time"
+
+	jsoniter "github.com/json-iterator/go"
+	goutext "github.com/yaoapp/gou/text"
+	"github.com/yaoapp/yao/agent/assistant"
+	"github.com/yaoapp/yao/agent/context"
+)
+
+// DynamicRunner handles dynamic (simulator-driven) test execution
+type DynamicRunner struct {
+	opts     *Options
+	output   *OutputWriter
+	asserter *Asserter
+}
+
+// NewDynamicRunner creates a new dynamic runner
+func NewDynamicRunner(opts *Options) *DynamicRunner {
+	return &DynamicRunner{
+		opts:     opts,
+		output:   NewOutputWriter(opts.Verbose),
+		asserter: NewAsserter(),
+	}
+}
+
+// RunDynamic executes a dynamic test case
+func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID string) *DynamicResult {
+	startTime := time.Now()
+
+	result := &DynamicResult{
+		ID:          tc.ID,
+		Turns:       make([]*TurnResult, 0),
+		Checkpoints: make(map[string]*CheckpointResult),
+	}
+
+	// Initialize checkpoints
+	for _, cp := range tc.Checkpoints {
+		result.Checkpoints[cp.ID] = &CheckpointResult{
+			ID:       cp.ID,
+			Reached:  false,
+			Required: cp.IsRequired(),
+		}
+	}
+
+	// Get simulator agent
+	simAST, err := assistant.Get(tc.Simulator.Use)
+	if err != nil {
+		result.Status = StatusError
+		result.Error = fmt.Sprintf("failed to get simulator agent: %s", err.Error())
+		result.DurationMs = time.Since(startTime).Milliseconds()
+		return result
+	}
+
+	// Get configuration
+	maxTurns := tc.GetMaxTurns()
+	timeout := tc.GetTimeout(r.opts.Timeout)
+
+	// Build simulator metadata
+	simMetadata := make(map[string]interface{})
+	if tc.Simulator.Options != nil && tc.Simulator.Options.Metadata != nil {
+		for k, v := range tc.Simulator.Options.Metadata {
+			simMetadata[k] = v
+		}
+	}
+
+	// Conversation history
+	messages := make([]context.Message, 0)
+
+	// Get initial input if provided
+	initialMessages, err := tc.GetMessages()
+	if err == nil && len(initialMessages) > 0 {
+		messages = append(messages, initialMessages...)
+	}
+
+	// Output dynamic test start
+	if r.opts.Verbose {
+		r.output.Info("Dynamic test: %s (max %d turns)", tc.ID, maxTurns)
+	}
+
+	// Conversation loop
+	for turn := 1; turn <= maxTurns; turn++ {
+		turnStart := time.Now()
+		turnResult := &TurnResult{Turn: turn}
+
+		// Check timeout
+		if time.Since(startTime) > timeout {
+			result.Status = StatusTimeout
+			result.Error = fmt.Sprintf("timeout after %s", timeout)
+			result.DurationMs = time.Since(startTime).Milliseconds()
+			result.TotalTurns = turn - 1
+			return result
+		}
+
+		// For turns after the first, get input from simulator
+		if turn > 1 || len(messages) == 0 {
+			simInput := r.buildSimulatorInput(tc, messages, result, turn, maxTurns, simMetadata)
+			simOutput, err := r.callSimulator(simAST, tc, simInput)
+			if err != nil {
+				turnResult.Error = fmt.Sprintf("simulator error: %s", err.Error())
+				result.Turns = append(result.Turns, turnResult)
+				result.Status = StatusError
+				result.Error = turnResult.Error
+				result.DurationMs = time.Since(startTime).Milliseconds()
+				result.TotalTurns = turn
+				return result
+			}
+
+			// Check if goal achieved
+			if simOutput.GoalAchieved {
+				if r.opts.Verbose {
+					r.output.Info("  Turn %d: Simulator signaled goal achieved", turn)
+				}
+
+				// Check if all required checkpoints reached
+				if r.allRequiredCheckpointsReached(result) {
+					result.Status = StatusPassed
+				} else {
+					result.Status = StatusFailed
+					result.Error = "simulator signaled goal achieved but not all required checkpoints reached"
+				}
+				result.DurationMs = time.Since(startTime).Milliseconds()
+				result.TotalTurns = turn - 1
+				return result
+			}
+
+			// Add user message
+			userMessage := context.Message{
+				Role:    context.RoleUser,
+				Content: simOutput.Message,
+			}
+			messages = append(messages, userMessage)
+			turnResult.Input = simOutput.Message
+
+			if r.opts.Verbose {
+				r.output.Info("  Turn %d: User: %s", turn, truncateOutput(simOutput.Message, 50))
+			}
+		} else {
+			// Use initial input for first turn
+			if len(messages) > 0 {
+				lastMsg := messages[len(messages)-1]
+				turnResult.Input = lastMsg.Content
+				if r.opts.Verbose {
+					r.output.Info("  Turn %d: User: %s", turn, truncateOutput(lastMsg.Content, 50))
+				}
+			}
+		}
+
+		// Call target agent
+		ctx := NewTestContextFromOptions(
+			fmt.Sprintf("dynamic-%s-%d", tc.ID, turn),
+			agentID,
+			r.opts,
+			tc,
+		)
+
+		opts := buildContextOptions(tc, r.opts)
+		response, err := ast.Stream(ctx, messages, opts)
+		ctx.Release()
+
+		if err != nil {
+			turnResult.Error = err.Error()
+			turnResult.DurationMs = time.Since(turnStart).Milliseconds()
+			result.Turns = append(result.Turns, turnResult)
+			result.Status = StatusError
+			result.Error = fmt.Sprintf("agent error at turn %d: %s", turn, err.Error())
+			result.DurationMs = time.Since(startTime).Milliseconds()
+			result.TotalTurns = turn
+			return result
+		}
+
+		// Extract output
+		output := extractOutput(response)
+		turnResult.Output = output
+		turnResult.DurationMs = time.Since(turnStart).Milliseconds()
+
+		if r.opts.Verbose {
+			r.output.Info("  Turn %d: Agent: %s", turn, truncateOutput(output, 50))
+		}
+
+		// Add assistant response to messages
+		messages = append(messages, context.Message{
+			Role:    context.RoleAssistant,
+			Content: output,
+		})
+
+		// Check checkpoints against this response
+		reachedIDs := r.checkCheckpoints(tc.Checkpoints, output, result)
+		turnResult.CheckpointsReached = reachedIDs
+
+		if r.opts.Verbose && len(reachedIDs) > 0 {
+			for _, id := range reachedIDs {
+				r.output.Info("    ✓ checkpoint: %s", id)
+			}
+		}
+
+		result.Turns = append(result.Turns, turnResult)
+
+		// Check if all required checkpoints reached
+		if r.allRequiredCheckpointsReached(result) {
+			result.Status = StatusPassed
+			result.DurationMs = time.Since(startTime).Milliseconds()
+			result.TotalTurns = turn
+			return result
+		}
+	}
+
+	// Max turns exceeded
+	result.Status = StatusFailed
+	result.Error = fmt.Sprintf("max turns (%d) exceeded without reaching all checkpoints", maxTurns)
+	result.DurationMs = time.Since(startTime).Milliseconds()
+	result.TotalTurns = maxTurns
+	return result
+}
+
+// buildSimulatorInput builds the input for the simulator agent
+func (r *DynamicRunner) buildSimulatorInput(
+	tc *Case,
+	messages []context.Message,
+	result *DynamicResult,
+	turn, maxTurns int,
+	metadata map[string]interface{},
+) *SimulatorInput {
+	input := &SimulatorInput{
+		Conversation: messages,
+		TurnNumber:   turn,
+		MaxTurns:     maxTurns,
+	}
+
+	// Extract persona and goal from metadata
+	if persona, ok := metadata["persona"].(string); ok {
+		input.Persona = persona
+	}
+	if goal, ok := metadata["goal"].(string); ok {
+		input.Goal = goal
+	}
+
+	// Build checkpoint lists
+	input.CheckpointsReached = make([]string, 0)
+	input.CheckpointsPending = make([]string, 0)
+	for id, cp := range result.Checkpoints {
+		if cp.Reached {
+			input.CheckpointsReached = append(input.CheckpointsReached, id)
+		} else {
+			input.CheckpointsPending = append(input.CheckpointsPending, id)
+		}
+	}
+
+	// Store extra metadata
+	input.Extra = make(map[string]interface{})
+	for k, v := range metadata {
+		if k != "persona" && k != "goal" {
+			input.Extra[k] = v
+		}
+	}
+
+	return input
+}
+
+// callSimulator calls the simulator agent and parses the response
+func (r *DynamicRunner) callSimulator(simAST *assistant.Assistant, tc *Case, input *SimulatorInput) (*SimulatorOutput, error) {
+	// Create context
+	env := NewEnvironment("", "")
+	ctx := NewTestContext("simulator", tc.Simulator.Use, env)
+	defer ctx.Release()
+
+	// Build options - skip history and trace
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true,
+			Trace:   true,
+			Output:  true,
+		},
+		Metadata: map[string]interface{}{
+			"test_mode": "simulator",
+		},
+	}
+
+	// Override connector if specified
+	if tc.Simulator.Options != nil && tc.Simulator.Options.Connector != "" {
+		opts.Connector = tc.Simulator.Options.Connector
+	}
+
+	// Build message
+	inputJSON, err := jsoniter.Marshal(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal simulator input: %w", err)
+	}
+
+	messages := []context.Message{{
+		Role:    context.RoleUser,
+		Content: string(inputJSON),
+	}}
+
+	// Call simulator
+	response, err := simAST.Stream(ctx, messages, opts)
+	if err != nil {
+		return nil, fmt.Errorf("simulator agent error: %w", err)
+	}
+
+	// Parse response
+	return r.parseSimulatorResponse(response)
+}
+
+// parseSimulatorResponse parses the simulator agent's response
+func (r *DynamicRunner) parseSimulatorResponse(response *context.Response) (*SimulatorOutput, error) {
+	if response == nil || response.Completion == nil {
+		return nil, fmt.Errorf("empty response from simulator")
+	}
+
+	// Extract content
+	content := response.Completion.Content
+	if content == nil {
+		return nil, fmt.Errorf("no content in simulator response")
+	}
+
+	// Convert to string
+	var text string
+	switch v := content.(type) {
+	case string:
+		text = v
+	default:
+		data, err := jsoniter.Marshal(content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal content: %w", err)
+		}
+		text = string(data)
+	}
+
+	// Use goutext.ExtractJSON for fault-tolerant parsing
+	parsed := goutext.ExtractJSON(text)
+	if parsed == nil {
+		// Try to use the text as the message directly
+		return &SimulatorOutput{
+			Message:      text,
+			GoalAchieved: false,
+		}, nil
+	}
+
+	// Parse as SimulatorOutput
+	output := &SimulatorOutput{}
+	if m, ok := parsed.(map[string]interface{}); ok {
+		if msg, ok := m["message"].(string); ok {
+			output.Message = msg
+		}
+		if achieved, ok := m["goal_achieved"].(bool); ok {
+			output.GoalAchieved = achieved
+		}
+		if reasoning, ok := m["reasoning"].(string); ok {
+			output.Reasoning = reasoning
+		}
+	}
+
+	if output.Message == "" {
+		return nil, fmt.Errorf("simulator returned empty message")
+	}
+
+	return output, nil
+}
+
+// checkCheckpoints validates checkpoints against current output
+func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, output interface{}, result *DynamicResult) []string {
+	reachedIDs := make([]string, 0)
+
+	for _, cp := range checkpoints {
+		cpResult := result.Checkpoints[cp.ID]
+		if cpResult.Reached {
+			continue // Already reached
+		}
+
+		// Check "after" constraint
+		if len(cp.After) > 0 {
+			allAfterReached := true
+			for _, afterID := range cp.After {
+				if afterResult, ok := result.Checkpoints[afterID]; ok {
+					if !afterResult.Reached {
+						allAfterReached = false
+						break
+					}
+				}
+			}
+			if !allAfterReached {
+				continue // Dependencies not met
+			}
+		}
+
+		// Validate using asserter
+		tempCase := &Case{Assert: cp.Assert}
+		passed, msg := r.asserter.Validate(tempCase, output)
+
+		if passed {
+			cpResult.Reached = true
+			cpResult.Passed = true
+			cpResult.ReachedAtTurn = len(result.Turns) + 1
+			cpResult.Message = msg
+			reachedIDs = append(reachedIDs, cp.ID)
+		}
+	}
+
+	return reachedIDs
+}
+
+// allRequiredCheckpointsReached checks if all required checkpoints are reached
+func (r *DynamicRunner) allRequiredCheckpointsReached(result *DynamicResult) bool {
+	for _, cp := range result.Checkpoints {
+		if cp.Required && !cp.Reached {
+			return false
+		}
+	}
+	return true
+}

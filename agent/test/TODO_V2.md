@@ -65,7 +65,7 @@
 
 - [x] 创建单元测试 `input_source_test.go`
 
-## Phase 4: Dynamic Mode (Simulator + Checkpoints)
+## Phase 4: Dynamic Mode (Simulator + Checkpoints) ✅
 
 **新增文件**: `dynamic_runner.go`, `dynamic_types.go`
 
@@ -73,31 +73,31 @@
 
 **准备工作**:
 
-- [ ] 创建 simulator agent (`yao-dev-app/assistants/tests/simulator-agent`)
-- [ ] 编写 simulator agent 的 prompts.yml (模拟用户行为)
+- [x] 创建 simulator agent (`yao-dev-app/assistants/tests/simulator-agent`)
+- [x] 编写 simulator agent 的 prompts.yml (模拟用户行为)
 
 **实现**:
 
-- [ ] `types.go`: 添加 `Simulator`, `Checkpoints` 字段到 `Case`
-- [ ] `dynamic_types.go`: 定义 `Checkpoint`, `DynamicResult` 等类型
-- [ ] `dynamic_runner.go`: 实现 `DynamicRunner`
-- [ ] `dynamic_runner.go`: 实现 checkpoint 匹配逻辑
-- [ ] `dynamic_runner.go`: 实现终止条件判断
-- [ ] `runner.go`: 在 `runSingleTest` 判断并调用动态模式
+- [x] `types.go`: 添加 `Simulator`, `Checkpoints` 字段到 `Case`
+- [x] `dynamic_types.go`: 定义 `Checkpoint`, `DynamicResult` 等类型
+- [x] `dynamic_runner.go`: 实现 `DynamicRunner`
+- [x] `dynamic_runner.go`: 实现 checkpoint 匹配逻辑
+- [x] `dynamic_runner.go`: 实现终止条件判断
+- [x] `runner.go`: 在 `runSingleTest` 判断并调用动态模式
 
 **测试**:
 
-- [ ] 创建单元测试 `dynamic_runner_test.go`
+- [x] 创建单元测试 `dynamic_runner_test.go`
 
-## Phase 5: Console Output Optimization
+## Phase 5: Console Output Optimization ✅
 
 **修改文件**: `output.go`
 
-- [ ] `output.go`: 添加 `DynamicTestStart` 方法
-- [ ] `output.go`: 添加 `DynamicTurn` 方法
-- [ ] `output.go`: 添加 `DynamicTestResult` 方法
-- [ ] `output.go`: 添加 `ParallelResults` 方法
-- [ ] 测试并行模式输出效果
+- [x] `output.go`: 添加 `DynamicTestStart` 方法
+- [x] `output.go`: 添加 `DynamicTurn` 方法
+- [x] `output.go`: 添加 `DynamicCheckpoint` 方法
+- [x] `output.go`: 添加 `DynamicTestResult` 方法
+- [x] 动态模式输出效果已验证
 
 ## Already Implemented ✅
 
@@ -111,6 +111,9 @@
 - [x] Agent-driven assertions (Phase 2)
 - [x] Agent-driven input (Phase 3)
 - [x] `--dry-run` flag
+- [x] Dynamic mode (Phase 4)
+- [x] `--simulator` flag
+- [x] Console output optimization (Phase 5)
 
 ## Open Questions
 
