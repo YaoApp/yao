@@ -237,7 +237,7 @@ func ValidateOptions(opts *Options) error {
 // DefaultOptions returns options with default values
 func DefaultOptions() *Options {
 	return &Options{
-		Timeout:  5 * time.Minute, // 5 minutes default timeout
+		Timeout:  120 * time.Second, // 2 minutes default timeout
 		Parallel: 1,
 		Runs:     1,
 		Verbose:  false,
