@@ -205,14 +205,265 @@ Simulator-driven testing with checkpoint validation. A simulator agent generates
 
 ## Input Format (JSONL)
 
-Each line is a JSON object:
+Each line is a JSON object. Below are examples organized by scenario.
+
+### Scenario 1: Simple Text Input
+
+Basic test with string input:
 
 ```jsonl
-{"id": "T001", "input": "Simple text"}
-{"id": "T002", "input": {"role": "user", "content": "Message with role"}}
-{"id": "T003", "input": [{"role": "user", "content": "Hi"}, {"role": "assistant", "content": "Hello"}, {"role": "user", "content": "Follow-up"}]}
-{"id": "T004", "input": "Test", "assert": {"type": "json_path", "path": "field", "value": true}}
-{"id": "T005", "input": "Skip this", "skip": true}
+{"id": "greeting-basic", "input": "Hello, how are you?"}
+{"id": "greeting-chinese", "input": "你好，请问有什么可以帮助你的？"}
+```
+
+### Scenario 2: With Assertions
+
+Validate response content:
+
+```jsonl
+{"id": "keyword-extract", "input": "Extract keywords from: AI and machine learning", "assert": {"type": "contains", "value": "AI"}}
+{"id": "json-response", "input": "What's the weather?", "assert": {"type": "json_path", "path": "need_search", "value": true}}
+{"id": "no-error", "input": "Help me", "assert": {"type": "not_contains", "value": "error"}}
+```
+
+### Scenario 3: Multiple Assertions
+
+All assertions must pass:
+
+```jsonl
+{
+  "id": "expense-submit",
+  "input": "Submit $500 travel expense",
+  "assert": [
+    {
+      "type": "contains",
+      "value": "expense"
+    },
+    {
+      "type": "not_contains",
+      "value": "error"
+    },
+    {
+      "type": "regex",
+      "value": "(?i)(submitted|created|confirmed)"
+    }
+  ]
+}
+```
+
+### Scenario 4: Conversation History
+
+Test with multi-turn context:
+
+```jsonl
+{
+  "id": "expense-confirm",
+  "input": [
+    {
+      "role": "user",
+      "content": "Submit an expense"
+    },
+    {
+      "role": "assistant",
+      "content": "What type of expense?"
+    },
+    {
+      "role": "user",
+      "content": "Travel, $500"
+    },
+    {
+      "role": "assistant",
+      "content": "Please confirm: $500 travel expense"
+    },
+    {
+      "role": "user",
+      "content": "Yes, confirm"
+    }
+  ],
+  "assert": {
+    "type": "regex",
+    "value": "(?i)(submitted|created)"
+  }
+}
+```
+
+### Scenario 5: With File Attachments
+
+Test with images or documents:
+
+```jsonl
+{
+  "id": "receipt-analyze",
+  "input": {
+    "role": "user",
+    "content": [
+      {
+        "type": "text",
+        "text": "Analyze this receipt"
+      },
+      {
+        "type": "image",
+        "source": "file://fixtures/receipt.jpg"
+      }
+    ]
+  },
+  "assert": {
+    "type": "contains",
+    "value": "amount"
+  }
+}
+```
+
+### Scenario 6: Agent-Driven Assertion
+
+Use LLM to validate response semantics:
+
+```jsonl
+{
+  "id": "helpful-response",
+  "input": "How do I reset my password?",
+  "assert": {
+    "type": "agent",
+    "use": "agents:tests.validator-agent",
+    "value": "Response should provide clear step-by-step instructions"
+  }
+}
+```
+
+### Scenario 7: With Options
+
+Override connector or skip features:
+
+```jsonl
+{"id": "fast-model", "input": "Quick question", "options": {"connector": "deepseek.v3", "skip": {"history": true, "trace": true}}}
+{"id": "scenario-test", "input": "Query users", "options": {"metadata": {"scenario": "filter"}}, "assert": {"type": "json_path", "path": "from", "value": "users"}}
+```
+
+### Scenario 8: With Before/After Hooks
+
+Setup and teardown for each test:
+
+```jsonl
+{
+  "id": "with-user-data",
+  "input": "Show my expenses",
+  "before": "env_test.Before",
+  "after": "env_test.After",
+  "assert": {
+    "type": "contains",
+    "value": "expense"
+  }
+}
+```
+
+### Scenario 9: Skip Test
+
+Temporarily disable a test:
+
+```jsonl
+{
+  "id": "wip-feature",
+  "input": "New feature test",
+  "skip": true
+}
+```
+
+### Scenario 10: Dynamic Mode (Simulator)
+
+Multi-turn testing with user simulator:
+
+```jsonl
+{
+  "id": "coffee-order",
+  "input": "I want to order coffee",
+  "simulator": {
+    "use": "tests.simulator-agent",
+    "options": {
+      "metadata": {
+        "persona": "Regular customer",
+        "goal": "Order a medium latte"
+      }
+    }
+  },
+  "checkpoints": [
+    {
+      "id": "greeting",
+      "assert": {
+        "type": "regex",
+        "value": "(?i)(hello|hi|help)"
+      }
+    },
+    {
+      "id": "ask-size",
+      "after": [
+        "greeting"
+      ],
+      "assert": {
+        "type": "regex",
+        "value": "(?i)size"
+      }
+    },
+    {
+      "id": "confirm",
+      "after": [
+        "ask-size"
+      ],
+      "assert": {
+        "type": "regex",
+        "value": "(?i)confirm"
+      }
+    }
+  ],
+  "max_turns": 10
+}
+```
+
+### Scenario 11: Dynamic Mode with Optional Checkpoint
+
+Some checkpoints are optional:
+
+```jsonl
+{
+  "id": "expense-flow",
+  "input": "Submit expense",
+  "simulator": {
+    "use": "tests.simulator-agent",
+    "options": {
+      "metadata": {
+        "persona": "New employee",
+        "goal": "Submit $500 travel expense"
+      }
+    }
+  },
+  "checkpoints": [
+    {
+      "id": "ask-type",
+      "assert": {
+        "type": "regex",
+        "value": "(?i)type"
+      }
+    },
+    {
+      "id": "suggest-category",
+      "required": false,
+      "assert": {
+        "type": "contains",
+        "value": "category"
+      }
+    },
+    {
+      "id": "confirm",
+      "after": [
+        "ask-type"
+      ],
+      "assert": {
+        "type": "regex",
+        "value": "(?i)confirm"
+      }
+    }
+  ],
+  "max_turns": 15
+}
 ```
 
 ### Standard Mode Fields
@@ -639,6 +890,193 @@ yao agent test -i tests/inputs.jsonl --parallel 4
 
 - `scripts.xxx` (dot) - Run script tests (`*_test.ts` functions)
 - `scripts:xxx` (colon) - Generate test cases from a script
+
+## Built-in Test Agents
+
+The framework provides three specialized agents for testing:
+
+### Generator Agent (`tests.generator-agent`)
+
+Generates test cases based on target agent description.
+
+**package.yao**:
+
+```json
+{
+  "name": "Test Case Generator",
+  "connector": "gpt-4o",
+  "description": "Generates test cases for agent testing",
+  "options": { "temperature": 0.7 },
+  "automated": true
+}
+```
+
+**prompts.yml**:
+
+```yaml
+- role: system
+  content: |
+    You are a test case generator. Generate test cases based on the target agent.
+
+    ## Input Format
+    - `target_agent`: Agent info (id, description, tools)
+    - `count`: Number of test cases (default: 5)
+    - `focus`: Focus area (e.g., "edge-cases", "happy-path")
+
+    ## Output Format
+    JSON array of test cases:
+    [
+      {
+        "id": "test-id",
+        "input": "User message",
+        "assert": [{"type": "contains", "value": "expected"}]
+      }
+    ]
+```
+
+**Usage**:
+
+```bash
+yao agent test -i "agents:tests.generator-agent?count=10" -n assistants.expense
+```
+
+### Validator Agent (`tests.validator-agent`)
+
+Validates agent responses for agent-driven assertions.
+
+**package.yao**:
+
+```json
+{
+  "name": "Response Validator",
+  "connector": "gpt-4o",
+  "description": "Validates responses against criteria",
+  "options": { "temperature": 0 },
+  "automated": true
+}
+```
+
+**prompts.yml**:
+
+```yaml
+- role: system
+  content: |
+    You are a response validator. Evaluate whether the response meets the criteria.
+
+    ## Input Format
+    - `output`: The response to validate
+    - `criteria`: The validation rules
+    - `input`: Original input (optional)
+
+    ## Output Format
+    JSON object (no markdown):
+    {"passed": true/false, "reason": "explanation"}
+
+    ## Examples
+    Input: {"output": "Paris is the capital", "criteria": "factually accurate"}
+    Output: {"passed": true, "reason": "Statement is correct"}
+```
+
+**Usage in JSONL**:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Hello",
+  "assert": {
+    "type": "agent",
+    "use": "agents:tests.validator-agent",
+    "value": "Response should be friendly"
+  }
+}
+```
+
+**Usage in script tests**:
+
+```typescript
+t.assert.Agent(response, "tests.validator-agent", {
+  criteria: "Response should be helpful",
+});
+```
+
+### Simulator Agent (`tests.simulator-agent`)
+
+Simulates user behavior for dynamic mode testing.
+
+**package.yao**:
+
+```json
+{
+  "name": "User Simulator",
+  "connector": "gpt-4o",
+  "description": "Simulates user behavior for dynamic testing",
+  "options": { "temperature": 0.7 },
+  "automated": true
+}
+```
+
+**prompts.yml**:
+
+```yaml
+- role: system
+  content: |
+    You are a user simulator. Generate realistic user messages based on persona and goal.
+
+    ## Input Format
+    - `persona`: User description (e.g., "New employee")
+    - `goal`: What user wants to achieve
+    - `conversation`: Previous messages
+    - `turn_number`: Current turn
+    - `max_turns`: Maximum turns
+
+    ## Output Format
+    JSON object:
+    {
+      "message": "User response",
+      "goal_achieved": false,
+      "reasoning": "Strategy explanation"
+    }
+
+    ## Guidelines
+    1. Stay in character
+    2. Work toward the goal
+    3. Be realistic (include natural variations)
+    4. Set goal_achieved: true when done
+```
+
+**Usage in JSONL**:
+
+```jsonl
+{
+  "id": "dynamic-test",
+  "input": "I need help",
+  "simulator": {
+    "use": "tests.simulator-agent",
+    "options": {
+      "metadata": {
+        "persona": "New employee",
+        "goal": "Submit expense report"
+      }
+    }
+  },
+  "checkpoints": [
+    {
+      "id": "greeting",
+      "assert": {
+        "type": "regex",
+        "value": "(?i)hello"
+      }
+    }
+  ],
+  "max_turns": 10
+}
+```
+
+**Usage via CLI**:
+
+```bash
+yao agent test -i tests/dynamic.jsonl --simulator tests.simulator-agent
+```
 
 ## Exit Codes
 
