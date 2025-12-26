@@ -33,6 +33,8 @@ var (
 	testParallel  int
 	testVerbose   bool
 	testFailFast  bool
+	testBefore    string // --before flag for global BeforeAll hook
+	testAfter     string // --after flag for global AfterAll hook
 )
 
 // TestCmd is the agent test command
@@ -157,6 +159,8 @@ var TestCmd = &cobra.Command{
 			Parallel:    testParallel,
 			Verbose:     testVerbose,
 			FailFast:    testFailFast,
+			BeforeAll:   testBefore,
+			AfterAll:    testAfter,
 		}
 
 		// Merge with defaults
@@ -244,6 +248,8 @@ func init() {
 	TestCmd.Flags().IntVar(&testParallel, "parallel", 1, L("Number of parallel test cases"))
 	TestCmd.Flags().BoolVarP(&testVerbose, "verbose", "v", false, L("Verbose output"))
 	TestCmd.Flags().BoolVar(&testFailFast, "fail-fast", false, L("Stop on first failure"))
+	TestCmd.Flags().StringVar(&testBefore, "before", "", L("Global BeforeAll hook (e.g., env_test.BeforeAll)"))
+	TestCmd.Flags().StringVar(&testAfter, "after", "", L("Global AfterAll hook (e.g., env_test.AfterAll)"))
 
 	// Mark input as required
 	TestCmd.MarkFlagRequired("input")

@@ -144,6 +144,14 @@ type Options struct {
 	// Only tests matching the pattern will be executed
 	// Example: "TestSystem" matches TestSystemReady, TestSystemError, etc.
 	Run string `json:"run,omitempty"`
+
+	// BeforeAll is the global before script (e.g., "scripts:tests.env.BeforeAll")
+	// Called once before all test cases
+	BeforeAll string `json:"before_all,omitempty"`
+
+	// AfterAll is the global after script (e.g., "scripts:tests.env.AfterAll")
+	// Called once after all test cases
+	AfterAll string `json:"after_all,omitempty"`
 }
 
 // ContextConfig represents custom context configuration from JSON file
@@ -375,6 +383,14 @@ type Case struct {
 	// Timeout overrides the default timeout for this test case
 	// Format: "30s", "1m", "2m30s"
 	Timeout string `json:"timeout,omitempty"`
+
+	// Before script function (e.g., "scripts:tests.env.Before")
+	// Called before the test case runs, returns data passed to After
+	Before string `json:"before,omitempty"`
+
+	// After script function (e.g., "scripts:tests.env.After")
+	// Called after the test case completes (pass or fail)
+	After string `json:"after,omitempty"`
 }
 
 // CaseOptions represents per-test-case context options

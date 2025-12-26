@@ -1,7 +1,6 @@
 package test
 
 import (
-	"bufio"
 	stdContext "context"
 	"fmt"
 	"os"
@@ -16,19 +15,22 @@ import (
 
 // Executor executes test cases against an agent
 type Executor struct {
-	opts     *Options
-	output   *OutputWriter
-	resolver Resolver
-	loader   Loader
+	opts         *Options
+	output       *OutputWriter
+	resolver     Resolver
+	loader       Loader
+	hookExecutor *HookExecutor
+	agentPath    string // Path to the agent being tested
 }
 
 // NewRunner creates a new test runner
 func NewRunner(opts *Options) *Executor {
 	return &Executor{
-		opts:     opts,
-		output:   NewOutputWriter(opts.Verbose),
-		resolver: NewResolver(),
-		loader:   NewLoader(),
+		opts:         opts,
+		output:       NewOutputWriter(opts.Verbose),
+		resolver:     NewResolver(),
+		loader:       NewLoader(),
+		hookExecutor: NewHookExecutor(opts.Verbose),
 	}
 }
 
@@ -161,6 +163,7 @@ func (r *Executor) RunTests() (*Report, error) {
 	}
 
 	r.output.Info("Agent: %s", agentInfo.ID)
+	r.agentPath = agentInfo.Path // Store agent path for hook execution
 	if r.opts.Connector != "" {
 		r.output.Info("Connector: %s (override)", r.opts.Connector)
 	} else if agentInfo.Connector != "" {
@@ -221,6 +224,27 @@ func (r *Executor) RunTests() (*Report, error) {
 			Options:   r.opts,
 		},
 	}
+
+	// Execute global BeforeAll if specified
+	var globalBeforeData interface{}
+	if r.opts.BeforeAll != "" {
+		r.output.Info("BeforeAll: %s", r.opts.BeforeAll)
+		var err error
+		globalBeforeData, err = r.hookExecutor.ExecuteBeforeAll(r.opts.BeforeAll, activeTests, agentInfo.Path)
+		if err != nil {
+			return nil, fmt.Errorf("beforeAll script failed: %w", err)
+		}
+	}
+
+	// Ensure AfterAll runs even if tests fail
+	defer func() {
+		if r.opts.AfterAll != "" {
+			r.output.Info("AfterAll: %s", r.opts.AfterAll)
+			if err := r.hookExecutor.ExecuteAfterAll(r.opts.AfterAll, report.Results, globalBeforeData, agentInfo.Path); err != nil {
+				r.output.Warning("afterAll script failed: %s", err.Error())
+			}
+		}
+	}()
 
 	// Run tests
 	r.output.SubHeader("Running Tests")
@@ -322,6 +346,31 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		Options:  tc.Options,
 	}
 
+	// Execute before script if specified
+	var beforeData interface{}
+	if tc.Before != "" {
+		var err error
+		beforeData, err = r.hookExecutor.ExecuteBefore(tc.Before, tc, r.agentPath)
+		if err != nil {
+			result.Status = StatusError
+			result.Error = fmt.Sprintf("before script failed: %s", err.Error())
+			result.DurationMs = time.Since(startTime).Milliseconds()
+			r.output.TestResult(result.Status, time.Since(startTime))
+			r.output.TestError(result.Error)
+			// Note: after script is NOT called when before fails
+			return result
+		}
+	}
+
+	// Ensure after script runs even if test fails (but only if before succeeded)
+	defer func() {
+		if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
+			if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
+				r.output.Warning("after script failed: %s", err.Error())
+			}
+		}
+	}()
+
 	// Parse input to messages with file loading support
 	// BaseDir is derived from the input file directory
 	inputOpts := r.getInputOptions()
@@ -393,6 +442,19 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	r.output.TestOutput(fmt.Sprintf("%v", result.Output))
 
 	return result
+}
+
+// isBeforeError checks if the error message indicates a before script failure
+func isBeforeError(errMsg string) bool {
+	return len(errMsg) > 0 && errMsg[:min(len(errMsg), 20)] == "before script failed"
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // runStabilityTests runs each test case multiple times for stability analysis
@@ -497,20 +559,6 @@ func (r *Executor) writeOutput(report *Report) error {
 
 	// Write report using the reporter
 	return reporter.Write(report, file)
-}
-
-// writeJSONLine writes a JSON line to the writer
-func writeJSONLine(writer *bufio.Writer, data interface{}) error {
-	line, err := jsoniter.Marshal(data)
-	if err != nil {
-		return err
-	}
-	_, err = writer.Write(line)
-	if err != nil {
-		return err
-	}
-	_, err = writer.WriteString("\n")
-	return err
 }
 
 // buildContextOptions builds context.Options from test case and runner options

@@ -11,21 +11,23 @@
 | JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-simulator"`         |
 | `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`      |
 | `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.val")`     |
-| JSONL `before/after`  | `scripts:` prefix        | `"before": "scripts:tests.env.Before"`         |
-| `--before/--after`    | `scripts:` prefix        | `--before scripts:tests.env.BeforeAll`         |
+| JSONL `before/after`  | No prefix (in src/)      | `"before": "env_test.Before"`                  |
+| `--before/--after`    | No prefix (in src/)      | `--before env_test.BeforeAll`                  |
 
-## Phase 1: Before/After Scripts
+## Phase 1: Before/After Scripts ✅
 
 **新增文件**: `script_hooks.go`
 
-- [ ] `types.go`: 添加 `Before`, `After` 字段到 `Case`
-- [ ] `types.go`: 添加 `BeforeAll`, `AfterAll` 字段到 `Options`
-- [ ] `script_hooks.go`: 实现 `HookExecutor`
-- [ ] `script_hooks.go`: 解析 `scripts:` 前缀
-- [ ] `runner.go`: 集成 before/after 到 `runSingleTest`
-- [ ] `runner.go`: 集成 beforeAll/afterAll 到 `RunTests`
-- [ ] `cmd/agent/agent.go`: 添加 `--before`, `--after` flags
-- [ ] 创建示例脚本 `tests/env_test.ts`
+- [x] `types.go`: 添加 `Before`, `After` 字段到 `Case`
+- [x] `types.go`: 添加 `BeforeAll`, `AfterAll` 字段到 `Options`
+- [x] `script_hooks.go`: 实现 `HookExecutor`
+- [x] `script_hooks.go`: 通过 V8 直接执行 `*_test.ts` 脚本
+- [x] `runner.go`: 集成 before/after 到 `runSingleTest`
+- [x] `runner.go`: 集成 beforeAll/afterAll 到 `RunTests`
+- [x] `cmd/agent/test.go`: 添加 `--before`, `--after` flags
+- [x] `test/utils.go`: 添加 `LoadAgentTestScripts()` 通用函数
+- [x] 创建示例脚本 `assistants/tests/hooks-test/src/env_test.ts`
+- [x] 创建单元测试 `script_hooks_test.go` (黑盒测试)
 
 ## Phase 2: Agent-Driven Assertions
 
@@ -79,6 +81,7 @@
 - [x] `--fail-fast` flag
 - [x] `-v` verbose mode
 - [x] Script testing (`*_test.ts`)
+- [x] Before/After hooks (Phase 1)
 
 ## Open Questions
 

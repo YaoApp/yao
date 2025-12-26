@@ -17,8 +17,8 @@ This document describes the design for Agent Test Framework V2, which extends th
 | JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-simulator"`                  |
 | `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
 | `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
-| JSONL `before/after`  | `scripts:` prefix        | `"before": "scripts:tests.env.Before"`                  |
-| `--before/--after`    | `scripts:` prefix        | `--before scripts:tests.env.BeforeAll`                  |
+| JSONL `before/after`  | No prefix (in src/)      | `"before": "env_test.Before"`                           |
+| `--before/--after`    | No prefix (in src/)      | `--before env_test.BeforeAll`                           |
 
 ## Design Goals
 
@@ -294,8 +294,8 @@ For coverage testing where conversation flow is unpredictable:
 | `input`      | string \| Message \| Message[] | Yes      | Input: text, single message, or message array     |
 | `assertions` | array                          | No       | Assertions to validate response (alias: `assert`) |
 | `options`    | object                         | No       | `context.Options` passed to agent                 |
-| `before`     | string                         | No       | Before script (e.g., `scripts:tests.env.Before`)  |
-| `after`      | string                         | No       | After script (e.g., `scripts:tests.env.After`)    |
+| `before`     | string                         | No       | Before script (e.g., `env_test.Before`)           |
+| `after`      | string                         | No       | After script (e.g., `env_test.After`)             |
 
 **Note**: The `input` field supports three formats:
 
@@ -329,15 +329,17 @@ JSONL test cases can reference `*_test.ts` scripts for environment preparation:
 
 ### Script Location
 
-Scripts are located in the agent's `tests/` directory:
+Scripts are located in the agent's `src/` directory (as `*_test.ts` files):
 
 ```
 assistants/expense/
-├── agent.yml
 ├── package.yao
+├── prompts.yml
+├── src/
+│   ├── index.ts          # Main agent script
+│   └── env_test.ts       # Before/after functions
 └── tests/
     ├── inputs.jsonl      # Test cases
-    ├── env_test.ts       # Before/after functions
     └── fixtures/
         └── receipt.jpg
 ```
@@ -345,7 +347,7 @@ assistants/expense/
 ### Script Interface
 
 ```typescript
-// tests/env_test.ts
+// src/env_test.ts
 
 // Before function - called before test case runs
 // Returns context data that will be passed to After
@@ -402,8 +404,8 @@ export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
 {
   "id": "T001",
   "name": "Submit expense with user context",
-  "before": "scripts:tests.env.Before",
-  "after": "scripts:tests.env.After",
+  "before": "env_test.Before",
+  "after": "env_test.After",
   "input": "Submit a $500 travel expense",
   "assertions": [
     {
@@ -419,8 +421,8 @@ export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
 ```bash
 # Run with global before/after
 yao agent test -i ./tests/inputs.jsonl \
-  --before scripts:tests.env.BeforeAll \
-  --after scripts:tests.env.AfterAll
+  --before env_test.BeforeAll \
+  --after env_test.AfterAll
 ```
 
 ### Execution Order
@@ -639,8 +641,8 @@ options := &context.Options{
 | `-c` | `--connector` | Override connector for the target agent                    |
 | `-v` | `--verbose`   | Verbose output                                             |
 |      | `--simulator` | Default simulator agent ID                                 |
-|      | `--before`    | Global before script (e.g., `scripts:tests.env.BeforeAll`) |
-|      | `--after`     | Global after script (e.g., `scripts:tests.env.AfterAll`)   |
+|      | `--before`    | Global before script (e.g., `env_test.BeforeAll`)          |
+|      | `--after`     | Global after script (e.g., `env_test.AfterAll`)            |
 |      | `--timeout`   | Timeout per test case (default: 5m)                        |
 |      | `--parallel`  | Number of parallel test cases                              |
 |      | `--fail-fast` | Stop on first failure                                      |
