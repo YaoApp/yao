@@ -9,6 +9,9 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
+	goutext "github.com/yaoapp/gou/text"
+	"github.com/yaoapp/yao/agent/assistant"
+	"github.com/yaoapp/yao/agent/context"
 )
 
 // Asserter handles test assertions
@@ -115,11 +118,25 @@ func (a *Asserter) mapToAssertion(m map[string]interface{}) *Assertion {
 	if s, ok := m["script"].(string); ok {
 		assertion.Script = s
 	}
+	if u, ok := m["use"].(string); ok {
+		assertion.Use = u
+	}
 	if msg, ok := m["message"].(string); ok {
 		assertion.Message = msg
 	}
 	if n, ok := m["negate"].(bool); ok {
 		assertion.Negate = n
+	}
+
+	// Parse options for agent assertions
+	if opts, ok := m["options"].(map[string]interface{}); ok {
+		assertion.Options = &AssertionOptions{}
+		if c, ok := opts["connector"].(string); ok {
+			assertion.Options.Connector = c
+		}
+		if meta, ok := opts["metadata"].(map[string]interface{}); ok {
+			assertion.Options.Metadata = meta
+		}
 	}
 
 	return assertion
@@ -147,6 +164,8 @@ func (a *Asserter) evaluateAssertion(assertion *Assertion, output, input interfa
 		result = a.assertType(assertion, output)
 	case "script":
 		result = a.assertScript(assertion, output, input)
+	case "agent":
+		result = a.assertAgent(assertion, output, input)
 	default:
 		result.Passed = false
 		result.Message = fmt.Sprintf("unknown assertion type: %s", assertion.Type)
@@ -229,17 +248,14 @@ func (a *Asserter) assertJSONPath(assertion *Assertion, output interface{}) *Ass
 	var jsonData interface{}
 	switch v := output.(type) {
 	case string:
-		// Try to parse as JSON
-		if err := jsoniter.Unmarshal([]byte(v), &jsonData); err != nil {
-			// Try to extract JSON from markdown code blocks
-			extracted := extractJSONFromText(v)
-			if extracted != nil {
-				jsonData = extracted
-			} else {
-				result.Passed = false
-				result.Message = fmt.Sprintf("output is not valid JSON: %s", err.Error())
-				return result
-			}
+		// Use gou/text to extract JSON (handles markdown, auto-repair, etc.)
+		extracted := goutext.ExtractJSON(v)
+		if extracted != nil {
+			jsonData = extracted
+		} else {
+			result.Passed = false
+			result.Message = fmt.Sprintf("output is not valid JSON: %s", v)
+			return result
 		}
 	case map[string]interface{}, []interface{}:
 		jsonData = v
@@ -478,6 +494,158 @@ func (a *Asserter) getType(v interface{}) string {
 	}
 }
 
+// assertAgent uses an agent to validate the output
+func (a *Asserter) assertAgent(assertion *Assertion, output, input interface{}) *AssertionResult {
+	result := &AssertionResult{
+		Assertion: assertion,
+		Actual:    output,
+	}
+
+	// Parse use field: "agents:tests.validator-agent"
+	if !strings.HasPrefix(assertion.Use, "agents:") {
+		result.Passed = false
+		result.Message = "agent assertion requires 'use' field with 'agents:' prefix"
+		return result
+	}
+
+	agentID := strings.TrimPrefix(assertion.Use, "agents:")
+
+	// Get assistant
+	ast, err := assistant.Get(agentID)
+	if err != nil {
+		result.Passed = false
+		result.Message = fmt.Sprintf("failed to get validator agent: %s", err.Error())
+		return result
+	}
+
+	// Build validation request
+	validationInput := map[string]interface{}{
+		"output": output,
+		"input":  input,
+	}
+
+	// Add criteria from Value field
+	if assertion.Value != nil {
+		validationInput["criteria"] = assertion.Value
+	}
+
+	// Add metadata from options
+	if assertion.Options != nil && assertion.Options.Metadata != nil {
+		for k, v := range assertion.Options.Metadata {
+			validationInput[k] = v
+		}
+	}
+
+	// Build context options - skip history and trace for validator
+	opts := &context.Options{
+		Skip: &context.Skip{
+			History: true,
+			Trace:   true,
+			Output:  true,
+		},
+		Metadata: map[string]interface{}{
+			"test_mode": "validator",
+		},
+	}
+	if assertion.Options != nil && assertion.Options.Connector != "" {
+		opts.Connector = assertion.Options.Connector
+	}
+
+	// Create context and call agent
+	env := NewEnvironment("", "")
+	ctx := NewTestContext("validator", agentID, env)
+	defer ctx.Release()
+
+	// Convert validation input to JSON string for the message
+	inputJSON, err := json.Marshal(validationInput)
+	if err != nil {
+		result.Passed = false
+		result.Message = fmt.Sprintf("failed to marshal validation input: %s", err.Error())
+		return result
+	}
+
+	messages := []context.Message{{
+		Role:    context.RoleUser,
+		Content: string(inputJSON),
+	}}
+
+	response, err := ast.Stream(ctx, messages, opts)
+	if err != nil {
+		result.Passed = false
+		result.Message = fmt.Sprintf("validator agent error: %s", err.Error())
+		return result
+	}
+
+	// Parse response
+	return a.parseValidatorResponse(response, result)
+}
+
+// parseValidatorResponse parses the validator agent's response
+func (a *Asserter) parseValidatorResponse(response *context.Response, result *AssertionResult) *AssertionResult {
+	output := extractValidatorOutput(response)
+
+	// Expected format: { "passed": bool, "reason": string, "score": float, "suggestions": [] }
+	if outputMap, ok := output.(map[string]interface{}); ok {
+		if passed, ok := outputMap["passed"].(bool); ok {
+			result.Passed = passed
+		} else {
+			result.Passed = false
+			result.Message = "validator response missing 'passed' field"
+			return result
+		}
+		if reason, ok := outputMap["reason"].(string); ok {
+			result.Message = reason
+		}
+		// Store score and suggestions in expected field for reference
+		result.Expected = outputMap
+	} else {
+		result.Passed = false
+		result.Message = "validator agent returned invalid response format"
+	}
+
+	return result
+}
+
+// extractValidatorOutput extracts the output from a validator response
+func extractValidatorOutput(response *context.Response) interface{} {
+	if response == nil || response.Completion == nil {
+		return nil
+	}
+
+	// Get content from completion
+	content := response.Completion.Content
+	if content == nil {
+		return nil
+	}
+
+	// Try to get text content
+	var text string
+	switch v := content.(type) {
+	case string:
+		text = v
+	default:
+		// Try to marshal and use as-is
+		data, err := json.Marshal(content)
+		if err != nil {
+			return nil
+		}
+		text = string(data)
+	}
+
+	if text == "" {
+		return nil
+	}
+
+	// Use gou/text to extract JSON (handles markdown code blocks, auto-repair, etc.)
+	result := goutext.ExtractJSON(text)
+	if result != nil {
+		return result
+	}
+
+	// Return raw text if extraction fails
+	return text
+}
+
 // assertScript runs a custom assertion script
 func (a *Asserter) assertScript(assertion *Assertion, output, input interface{}) *AssertionResult {
 	result := &AssertionResult{
@@ -558,31 +726,4 @@ func (a *Asserter) toString(v interface{}) string {
 		}
 		return string(b)
 	}
-}
-
-// extractJSONFromText tries to extract JSON from text (e.g., markdown code blocks)
-func extractJSONFromText(text string) interface{} {
-	// Try to find JSON in code blocks
-	patterns := []string{
-		"```json\n",
-		"```\n",
-	}
-
-	for _, start := range patterns {
-		if idx := strings.Index(text, start); idx >= 0 {
-			text = text[idx+len(start):]
-			if endIdx := strings.Index(text, "```"); endIdx >= 0 {
-				text = text[:endIdx]
-			}
-			break
-		}
-	}
-
-	// Try to parse
-	var result interface{}
-	if err := jsoniter.Unmarshal([]byte(strings.TrimSpace(text)), &result); err == nil {
-		return result
-	}
-
-	return nil
 }

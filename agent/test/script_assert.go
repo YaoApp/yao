@@ -261,6 +261,9 @@ func newAssertObject(v8ctx *v8go.Context, t *TestingT) (*v8go.Value, error) {
 	// JSON path assertion
 	assertObj.Set("JSONPath", assertJSONPathMethod(iso, t))
 
+	// Agent-driven assertion
+	assertObj.Set("Agent", assertAgentMethod(iso, t))
+
 	// Create instance
 	instance, err := assertObj.NewInstance(v8ctx)
 	if err != nil {
@@ -920,6 +923,70 @@ func assertJSONPathMethod(iso *v8go.Isolate, t *TestingT) *v8go.FunctionTemplate
 				Message:  message,
 			})
 		}
+		return v8go.Undefined(iso)
+	})
+}
+
+// assertAgentMethod implements assert.Agent(response, agentID, options?)
+// Uses a validator agent to check the response
+// agentID is the direct agent ID (no "agents:" prefix needed)
+func assertAgentMethod(iso *v8go.Isolate, t *TestingT) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+		if len(args) < 2 {
+			t.fail("Agent requires response and agentID arguments", &ScriptAssertionInfo{Type: "Agent"})
+			return v8go.Undefined(iso)
+		}
+
+		response, _ := bridge.GoValue(args[0], v8ctx)
+		agentID := args[1].String()
+
+		// Get options if provided
+		var options map[string]interface{}
+		if len(args) > 2 && args[2].IsObject() {
+			optVal, _ := bridge.GoValue(args[2], v8ctx)
+			options, _ = optVal.(map[string]interface{})
+		}
+
+		// Build assertion with agents: prefix
+		assertion := &Assertion{
+			Type: "agent",
+			Use:  "agents:" + agentID,
+		}
+
+		// Extract criteria and metadata from options
+		if options != nil {
+			if criteria, ok := options["criteria"]; ok {
+				assertion.Value = criteria
+			}
+			if metadata, ok := options["metadata"].(map[string]interface{}); ok {
+				assertion.Options = &AssertionOptions{Metadata: metadata}
+			}
+			if connector, ok := options["connector"].(string); ok {
+				if assertion.Options == nil {
+					assertion.Options = &AssertionOptions{}
+				}
+				assertion.Options.Connector = connector
+			}
+		}
+
+		// Use the asserter to validate
+		asserter := &Asserter{}
+		result := asserter.assertAgent(assertion, response, nil)
+
+		if !result.Passed {
+			msg := result.Message
+			if msg == "" {
+				msg = "agent assertion failed"
+			}
+			t.fail(msg, &ScriptAssertionInfo{
+				Type:    "Agent",
+				Actual:  response,
+				Message: msg,
+			})
+		}
+
 		return v8go.Undefined(iso)
 	})
 }

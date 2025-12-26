@@ -29,15 +29,17 @@
 - [x] 创建示例脚本 `assistants/tests/hooks-test/src/env_test.ts`
 - [x] 创建单元测试 `script_hooks_test.go` (黑盒测试)
 
-## Phase 2: Agent-Driven Assertions
+## Phase 2: Agent-Driven Assertions ✅
 
 **修改文件**: `assert.go`, `script_assert.go`
 
-- [ ] `types.go`: 添加 `Use`, `Options` 字段到 `Assertion`
-- [ ] `assert.go`: 实现 `assertAgent` 方法
-- [ ] `assert.go`: 在 `evaluateAssertion` 添加 `agent` 类型
-- [ ] `script_assert.go`: 添加 `AssertAgent` 方法到 `TestingT`
-- [ ] 创建示例 validator agent
+- [x] `types.go`: 添加 `Use`, `Options` 字段到 `Assertion`
+- [x] `assert.go`: 实现 `assertAgent` 方法
+- [x] `assert.go`: 在 `evaluateAssertion` 添加 `agent` 类型
+- [x] `assert.go`: 使用 `goutext.ExtractJSON` 容错解析 LLM 响应
+- [x] `script_assert.go`: 添加 `assertAgentMethod` 到 `newAssertObject`
+- [x] 创建示例 validator agent (`assistants/tests/validator-agent`)
+- [x] 创建单元测试 `assert_agent_test.go` (JSONL 断言 + JSAPI 断言)
 
 ## Phase 3: Dynamic Mode (Simulator + Checkpoints)
 
@@ -82,6 +84,7 @@
 - [x] `-v` verbose mode
 - [x] Script testing (`*_test.ts`)
 - [x] Before/After hooks (Phase 1)
+- [x] Agent-driven assertions (Phase 2)
 
 ## Open Questions
 

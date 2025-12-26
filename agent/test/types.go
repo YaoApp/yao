@@ -436,6 +436,7 @@ type Assertion struct {
 	// - "script": run a custom assertion script
 	// - "type": check output type (string, object, array, number, boolean)
 	// - "schema": validate against JSON schema
+	// - "agent": use an agent to validate the response
 	Type string `json:"type"`
 
 	// Value is the expected value or pattern (depends on type)
@@ -448,11 +449,28 @@ type Assertion struct {
 	// The script receives (output, input, expected) and returns {pass: bool, message: string}
 	Script string `json:"script,omitempty"`
 
+	// Use specifies the agent/script for validation
+	// For agent assertions: "agents:tests.validator-agent" (with prefix)
+	// For script assertions: "scripts:tests.validate" (with prefix)
+	Use string `json:"use,omitempty"`
+
+	// Options for agent-driven assertions (aligned with context.Options)
+	Options *AssertionOptions `json:"options,omitempty"`
+
 	// Message is a custom failure message
 	Message string `json:"message,omitempty"`
 
 	// Negate inverts the assertion result
 	Negate bool `json:"negate,omitempty"`
+}
+
+// AssertionOptions for agent-driven assertions
+type AssertionOptions struct {
+	// Connector overrides the agent's default connector
+	Connector string `json:"connector,omitempty"`
+
+	// Metadata contains custom data passed to the validator agent
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // AssertionResult represents the result of an assertion

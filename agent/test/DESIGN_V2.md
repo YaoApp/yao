@@ -990,15 +990,16 @@ Existing single-turn tests work unchanged:
 
 ## Current Implementation Status
 
-| Feature                 | Status     | Notes                                    |
-| ----------------------- | ---------- | ---------------------------------------- |
-| Simple text input       | ✅ Done    | `input: "Hello"`                         |
-| Message history         | ✅ Done    | `input: [{role, content}, ...]`          |
-| File attachments        | ✅ Done    | `file://` protocol in content parts      |
-| Static assertions       | ✅ Done    | contains, equals, regex, json_path, etc. |
-| Agent-driven assertions | 🔲 Planned | `type: "agent"` with validator agent     |
-| Dynamic mode            | 🔲 Planned | Simulator + Checkpoints                  |
-| Agent-driven input      | 🔲 Planned | `-i agents:xxx` for test generation      |
+| Feature                 | Status     | Notes                                              |
+| ----------------------- | ---------- | -------------------------------------------------- |
+| Simple text input       | ✅ Done    | `input: "Hello"`                                   |
+| Message history         | ✅ Done    | `input: [{role, content}, ...]`                    |
+| File attachments        | ✅ Done    | `file://` protocol in content parts                |
+| Static assertions       | ✅ Done    | contains, equals, regex, json_path, etc.           |
+| Before/After hooks      | ✅ Done    | `before/after` in JSONL, `--before/--after` in CLI |
+| Agent-driven assertions | ✅ Done    | `type: "agent"` + `t.assert.Agent()` JSAPI         |
+| Dynamic mode            | 🔲 Planned | Simulator + Checkpoints                            |
+| Agent-driven input      | 🔲 Planned | `-i agents:xxx` for test generation                |
 
 ## Open Questions
 
