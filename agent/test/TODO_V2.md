@@ -2,13 +2,15 @@
 
 ## Format Rules Summary
 
-| Context               | Format                   | Example                                                 |
-| --------------------- | ------------------------ | ------------------------------------------------------- |
-| `-i` flag (CLI)       | Prefix required          | `agents:workers.test.gen`, `scripts:tests.gen`          |
-| JSONL assertion `use` | Prefix required          | `"use": "agents:workers.test.validator"`                |
-| JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-simulator"`                  |
-| `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
-| `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+| Context              | Format                   | Example                                                 |
+| -------------------- | ------------------------ | ------------------------------------------------------- |
+| `-i` flag (CLI)      | Prefix required          | `agents:workers.test.gen`, `scripts:tests.gen`          |
+| JSONL assertion `use`| Prefix required          | `"use": "agents:workers.test.validator"`                |
+| JSONL `simulator.use`| No prefix (agent only)   | `"use": "workers.test.user-simulator"`                  |
+| `--simulator` flag   | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
+| `t.assert.Agent()`   | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+| JSONL `before/after` | `scripts:` prefix        | `"before": "scripts:tests.env.Before"`                  |
+| `--before/--after`   | `scripts:` prefix        | `--before scripts:tests.env.BeforeAll`                  |
 
 ## Phase 1: Message History Support ✅ (Already Implemented)
 
@@ -80,7 +82,22 @@ See `input.go` → `ParseInputWithOptions()` for implementation.
 - [ ] Create example validator agent with prompt template
 - [ ] Document `ValidatorResult` interface
 
-## Phase 5: Error Handling & Reporting
+## Phase 5: Before and After Scripts
+
+- [ ] Add `before` field to test case parser
+- [ ] Add `after` field to test case parser
+- [ ] Add `--before` CLI flag for global before
+- [ ] Add `--after` CLI flag for global after
+- [ ] Parse `scripts:` prefix in before/after fields
+- [ ] Implement script function invocation via `Process()`
+- [ ] Pass `TestCase` object to before function
+- [ ] Pass `TestResult` and before data to after function
+- [ ] Ensure after runs even if test fails
+- [ ] Support `BeforeAll()` for one-time initialization
+- [ ] Support `AfterAll()` for final cleanup
+- [ ] Create example before/after script
+
+## Phase 6: Error Handling & Reporting
 
 - [ ] Implement test-level error handling
 - [ ] Add detailed error messages with hints

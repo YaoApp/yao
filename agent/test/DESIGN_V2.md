@@ -17,6 +17,8 @@ This document describes the design for Agent Test Framework V2, which extends th
 | JSONL `simulator.use` | No prefix (agent only)   | `"use": "workers.test.user-simulator"`                  |
 | `--simulator` flag    | No prefix (agent only)   | `--simulator workers.test.user-simulator`               |
 | `t.assert.Agent()`    | No prefix (method-bound) | `t.assert.Agent(resp, "workers.test.validator", {...})` |
+| JSONL `before/after`  | `scripts:` prefix        | `"before": "scripts:tests.env.Before"`                  |
+| `--before/--after`    | `scripts:` prefix        | `--before scripts:tests.env.BeforeAll`                  |
 
 ## Design Goals
 
@@ -292,6 +294,8 @@ For coverage testing where conversation flow is unpredictable:
 | `input`      | string \| Message \| Message[] | Yes      | Input: text, single message, or message array     |
 | `assertions` | array                          | No       | Assertions to validate response (alias: `assert`) |
 | `options`    | object                         | No       | `context.Options` passed to agent                 |
+| `before`     | string                         | No       | Before script (e.g., `scripts:tests.env.Before`)  |
+| `after`      | string                         | No       | After script (e.g., `scripts:tests.env.After`)    |
 
 **Note**: The `input` field supports three formats:
 
@@ -316,6 +320,131 @@ For coverage testing where conversation flow is unpredictable:
 | `max_turns`                 | int    | No       | Maximum turns before timeout (default: 20) |
 | `timeout`                   | string | No       | Maximum time (default: "5m")               |
 | `options`                   | object | No       | `context.Options` passed to target agent   |
+| `before`                    | string | No       | Before script function                     |
+| `after`                     | string | No       | After script function                      |
+
+## Before and After Scripts
+
+JSONL test cases can reference `*_test.ts` scripts for environment preparation:
+
+### Script Location
+
+Scripts are located in the agent's `tests/` directory:
+
+```
+assistants/expense/
+├── agent.yml
+├── package.yao
+└── tests/
+    ├── inputs.jsonl      # Test cases
+    ├── env_test.ts       # Before/after functions
+    └── fixtures/
+        └── receipt.jpg
+```
+
+### Script Interface
+
+```typescript
+// tests/env_test.ts
+
+// Before function - called before test case runs
+// Returns context data that will be passed to After
+export function Before(ctx: Context, testCase: TestCase): BeforeResult {
+  // Prepare database
+  const userId = Process("models.user.Create", {
+    name: "Test User",
+    email: "test@example.com",
+  });
+
+  // Prepare knowledge base
+  Process("knowledge.expense.Index", {
+    documents: [{ title: "Policy", content: "Max expense $5000" }],
+  });
+
+  return {
+    data: { userId, testId: testCase.id },
+  };
+}
+
+// After function - called after test case completes (pass or fail)
+export function After(
+  ctx: Context,
+  testCase: TestCase,
+  result: TestResult,
+  beforeData: any
+) {
+  // Clean up database
+  if (beforeData?.userId) {
+    Process("models.user.Delete", beforeData.userId);
+  }
+
+  // Clean up knowledge base
+  Process("knowledge.expense.Clear");
+}
+
+// Global before - called once before all test cases
+export function BeforeAll(ctx: Context, testCases: TestCase[]): BeforeResult {
+  // One-time initialization
+  Process("models.migrate");
+  return { data: { initialized: true } };
+}
+
+// Global after - called once after all test cases
+export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
+  // Final cleanup
+  Process("models.cleanup");
+}
+```
+
+### Test Case with Before/After
+
+```jsonl
+{
+  "id": "T001",
+  "name": "Submit expense with user context",
+  "before": "scripts:tests.env.Before",
+  "after": "scripts:tests.env.After",
+  "input": "Submit a $500 travel expense",
+  "assertions": [
+    {
+      "type": "tool_called",
+      "name": "create_expense"
+    }
+  ]
+}
+```
+
+### Global Before/After via CLI
+
+```bash
+# Run with global before/after
+yao agent test -i ./tests/inputs.jsonl \
+  --before scripts:tests.env.BeforeAll \
+  --after scripts:tests.env.AfterAll
+```
+
+### Execution Order
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Test Execution with Before/After              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. BeforeAll() - Global initialization (once)                   │
+│                              ↓                                   │
+│  FOR EACH test case:                                             │
+│    2. Before() - Per-test initialization                         │
+│                              ↓                                   │
+│    3. Run test (call agent, check assertions)                    │
+│                              ↓                                   │
+│    4. After() - Per-test cleanup (always runs)                   │
+│                              ↓                                   │
+│  5. AfterAll() - Global cleanup (once)                           │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Note**: Script tests (`*_test.ts`) don't need before/after fields since they can call functions directly within the test.
 
 ## Execution Flow
 
@@ -502,18 +631,20 @@ options := &context.Options{
 
 ### Flags Reference
 
-| Flag | Long          | Description                                              |
-| ---- | ------------- | -------------------------------------------------------- |
-| `-i` | `--input`     | Input source: file path, message, or `type:id` reference |
-| `-n` | `--name`      | Target agent ID (the agent being tested)                 |
-| `-o` | `--output`    | Output file path for results                             |
-| `-c` | `--connector` | Override connector for the target agent                  |
-| `-v` | `--verbose`   | Verbose output                                           |
-|      | `--simulator` | Default simulator agent ID                               |
-|      | `--timeout`   | Timeout per test case (default: 5m)                      |
-|      | `--parallel`  | Number of parallel test cases                            |
-|      | `--fail-fast` | Stop on first failure                                    |
-|      | `--dry-run`   | Generate/parse tests without running                     |
+| Flag | Long          | Description                                                |
+| ---- | ------------- | ---------------------------------------------------------- |
+| `-i` | `--input`     | Input source: file path, message, or `type:id` reference   |
+| `-n` | `--name`      | Target agent ID (the agent being tested)                   |
+| `-o` | `--output`    | Output file path for results                               |
+| `-c` | `--connector` | Override connector for the target agent                    |
+| `-v` | `--verbose`   | Verbose output                                             |
+|      | `--simulator` | Default simulator agent ID                                 |
+|      | `--before`    | Global before script (e.g., `scripts:tests.env.BeforeAll`) |
+|      | `--after`     | Global after script (e.g., `scripts:tests.env.AfterAll`)   |
+|      | `--timeout`   | Timeout per test case (default: 5m)                        |
+|      | `--parallel`  | Number of parallel test cases                              |
+|      | `--fail-fast` | Stop on first failure                                      |
+|      | `--dry-run`   | Generate/parse tests without running                       |
 
 ### Examples
 
