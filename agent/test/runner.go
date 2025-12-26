@@ -1,11 +1,12 @@
 package test
 
 import (
-	"bufio"
 	stdContext "context"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,19 +17,22 @@ import (
 
 // Executor executes test cases against an agent
 type Executor struct {
-	opts     *Options
-	output   *OutputWriter
-	resolver Resolver
-	loader   Loader
+	opts         *Options
+	output       *OutputWriter
+	resolver     Resolver
+	loader       Loader
+	hookExecutor *HookExecutor
+	agentPath    string // Path to the agent being tested
 }
 
 // NewRunner creates a new test runner
 func NewRunner(opts *Options) *Executor {
 	return &Executor{
-		opts:     opts,
-		output:   NewOutputWriter(opts.Verbose),
-		resolver: NewResolver(),
-		loader:   NewLoader(),
+		opts:         opts,
+		output:       NewOutputWriter(opts.Verbose),
+		resolver:     NewResolver(),
+		loader:       NewLoader(),
+		hookExecutor: NewHookExecutor(opts.Verbose),
 	}
 }
 
@@ -161,21 +165,65 @@ func (r *Executor) RunTests() (*Report, error) {
 	}
 
 	r.output.Info("Agent: %s", agentInfo.ID)
+	r.agentPath = agentInfo.Path // Store agent path for hook execution
 	if r.opts.Connector != "" {
 		r.output.Info("Connector: %s (override)", r.opts.Connector)
 	} else if agentInfo.Connector != "" {
 		r.output.Info("Connector: %s", agentInfo.Connector)
 	}
 
-	// Load test cases
+	// Load test cases based on input source
 	var testCases []*Case
+	inputSource := ParseInputSource(r.opts.Input)
 
-	// File mode - load from JSONL
-	testCases, err = r.loader.LoadFile(r.opts.Input)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load test cases: %w", err)
+	switch inputSource.Type {
+	case InputSourceAgent:
+		// Generate test cases using agent
+		r.output.Info("Generating test cases from agent: %s", inputSource.Value)
+		targetInfo := &TargetAgentInfo{
+			ID:          agentInfo.ID,
+			Description: agentInfo.Description,
+		}
+		testCases, err = r.loader.LoadFromAgent(inputSource.Value, targetInfo, inputSource.Params)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate test cases: %w", err)
+		}
+		r.output.Info("Generated: %d test cases", len(testCases))
+
+	case InputSourceScript:
+		// Generate test cases using script (if it's a generator script, not test script)
+		// Note: scripts. prefix without "scripts:" is handled by RunScriptTests
+		if strings.HasPrefix(r.opts.Input, "scripts:") {
+			scriptRef := strings.TrimPrefix(r.opts.Input, "scripts:")
+			r.output.Info("Generating test cases from script: %s", scriptRef)
+			targetInfo := &TargetAgentInfo{
+				ID:          agentInfo.ID,
+				Description: agentInfo.Description,
+			}
+			testCases, err = r.loader.LoadFromScript(scriptRef, targetInfo)
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate test cases from script: %w", err)
+			}
+			r.output.Info("Generated: %d test cases", len(testCases))
+		} else {
+			// This is a test script (scripts.xxx format), handled by RunScriptTests
+			return nil, fmt.Errorf("script test mode should be handled by RunScriptTests")
+		}
+
+	default:
+		// File mode - load from JSONL
+		testCases, err = r.loader.LoadFile(r.opts.Input)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load test cases: %w", err)
+		}
+		r.output.Info("Input: %s (%d test cases)", r.opts.Input, len(testCases))
 	}
-	r.output.Info("Input: %s (%d test cases)", r.opts.Input, len(testCases))
+
+	// Handle dry-run mode - just output the generated test cases
+	if r.opts.DryRun {
+		r.output.Info("Dry-run mode: outputting generated test cases")
+		return r.outputDryRun(testCases, agentInfo)
+	}
 
 	// Filter skipped tests
 	activeTests := FilterSkipped(testCases)
@@ -221,6 +269,27 @@ func (r *Executor) RunTests() (*Report, error) {
 			Options:   r.opts,
 		},
 	}
+
+	// Execute global BeforeAll if specified
+	var globalBeforeData interface{}
+	if r.opts.BeforeAll != "" {
+		r.output.Info("BeforeAll: %s", r.opts.BeforeAll)
+		var err error
+		globalBeforeData, err = r.hookExecutor.ExecuteBeforeAll(r.opts.BeforeAll, activeTests, agentInfo.Path)
+		if err != nil {
+			return nil, fmt.Errorf("beforeAll script failed: %w", err)
+		}
+	}
+
+	// Ensure AfterAll runs even if tests fail
+	defer func() {
+		if r.opts.AfterAll != "" {
+			r.output.Info("AfterAll: %s", r.opts.AfterAll)
+			if err := r.hookExecutor.ExecuteAfterAll(r.opts.AfterAll, report.Results, globalBeforeData, agentInfo.Path); err != nil {
+				r.output.Warning("afterAll script failed: %s", err.Error())
+			}
+		}
+	}()
 
 	// Run tests
 	r.output.SubHeader("Running Tests")
@@ -308,6 +377,11 @@ func (r *Executor) runParallel(ast *assistant.Assistant, testCases []*Case, agen
 
 // runSingleTest runs a single test case
 func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID string, runNum int) *Result {
+	// Check if this is a dynamic mode test
+	if tc.IsDynamicMode() {
+		return r.runDynamicTest(ast, tc, agentID)
+	}
+
 	// Get input summary for display
 	inputSummary := SummarizeInput(tc.Input, 50)
 	r.output.TestStart(tc.ID, inputSummary, runNum)
@@ -321,6 +395,31 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		Expected: tc.Expected,
 		Options:  tc.Options,
 	}
+
+	// Execute before script if specified
+	var beforeData interface{}
+	if tc.Before != "" {
+		var err error
+		beforeData, err = r.hookExecutor.ExecuteBefore(tc.Before, tc, r.agentPath)
+		if err != nil {
+			result.Status = StatusError
+			result.Error = fmt.Sprintf("before script failed: %s", err.Error())
+			result.DurationMs = time.Since(startTime).Milliseconds()
+			r.output.TestResult(result.Status, time.Since(startTime))
+			r.output.TestError(result.Error)
+			// Note: after script is NOT called when before fails
+			return result
+		}
+	}
+
+	// Ensure after script runs even if test fails (but only if before succeeded)
+	defer func() {
+		if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
+			if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
+				r.output.Warning("after script failed: %s", err.Error())
+			}
+		}
+	}()
 
 	// Parse input to messages with file loading support
 	// BaseDir is derived from the input file directory
@@ -393,6 +492,71 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	r.output.TestOutput(fmt.Sprintf("%v", result.Output))
 
 	return result
+}
+
+// runDynamicTest runs a dynamic (simulator-driven) test case
+func (r *Executor) runDynamicTest(ast *assistant.Assistant, tc *Case, agentID string) *Result {
+	// Output test start for dynamic mode
+	r.output.DynamicTestStart(tc.ID, len(tc.Checkpoints))
+
+	startTime := time.Now()
+
+	// Execute before script if specified
+	var beforeData interface{}
+	if tc.Before != "" {
+		var err error
+		beforeData, err = r.hookExecutor.ExecuteBefore(tc.Before, tc, r.agentPath)
+		if err != nil {
+			result := &Result{
+				ID:         tc.ID,
+				Status:     StatusError,
+				Error:      fmt.Sprintf("before script failed: %s", err.Error()),
+				DurationMs: time.Since(startTime).Milliseconds(),
+			}
+			r.output.TestResult(result.Status, time.Since(startTime))
+			r.output.TestError(result.Error)
+			return result
+		}
+	}
+
+	// Create dynamic runner and execute
+	dynamicRunner := NewDynamicRunner(r.opts)
+	dynamicResult := dynamicRunner.RunDynamic(ast, tc, agentID)
+
+	// Convert to standard result
+	result := dynamicResult.ToResult()
+
+	// Execute after script if specified
+	defer func() {
+		if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
+			if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
+				r.output.Warning("after script failed: %s", err.Error())
+			}
+		}
+	}()
+
+	// Output result
+	duration := time.Duration(result.DurationMs) * time.Millisecond
+	r.output.DynamicTestResult(result.Status, dynamicResult.TotalTurns, len(tc.Checkpoints), duration)
+
+	if result.Error != "" {
+		r.output.TestError(result.Error)
+	}
+
+	return result
+}
+
+// isBeforeError checks if the error message indicates a before script failure
+func isBeforeError(errMsg string) bool {
+	return len(errMsg) > 0 && errMsg[:min(len(errMsg), 20)] == "before script failed"
+}
+
+// min returns the minimum of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // runStabilityTests runs each test case multiple times for stability analysis
@@ -499,20 +663,6 @@ func (r *Executor) writeOutput(report *Report) error {
 	return reporter.Write(report, file)
 }
 
-// writeJSONLine writes a JSON line to the writer
-func writeJSONLine(writer *bufio.Writer, data interface{}) error {
-	line, err := jsoniter.Marshal(data)
-	if err != nil {
-		return err
-	}
-	_, err = writer.Write(line)
-	if err != nil {
-		return err
-	}
-	_, err = writer.WriteString("\n")
-	return err
-}
-
 // buildContextOptions builds context.Options from test case and runner options
 // Priority: test case options > runner options > defaults
 func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
@@ -593,6 +743,12 @@ func isEmptyValue(v interface{}) bool {
 		return true
 	}
 
+	// Use reflection to check for typed nil (e.g., *NextHookResponse(nil))
+	rv := reflect.ValueOf(v)
+	if rv.Kind() == reflect.Ptr && rv.IsNil() {
+		return true
+	}
+
 	switch val := v.(type) {
 	case string:
 		return val == ""
@@ -600,6 +756,12 @@ func isEmptyValue(v interface{}) bool {
 		return len(val) == 0
 	case []interface{}:
 		return len(val) == 0
+	case *context.NextHookResponse:
+		// Check if NextHookResponse is effectively empty
+		if val == nil {
+			return true
+		}
+		return val.Data == nil && val.Delegate == nil
 	}
 
 	return false
@@ -632,4 +794,52 @@ func (r *Executor) getInputOptions() *InputOptions {
 	// For message mode, BaseDir remains empty (uses current working directory)
 
 	return opts
+}
+
+// outputDryRun outputs generated test cases without running them
+func (r *Executor) outputDryRun(testCases []*Case, agentInfo *AgentInfo) (*Report, error) {
+	r.output.Info("Generated Test Cases:")
+
+	// Output each test case as JSONL
+	for _, tc := range testCases {
+		data, err := jsoniter.Marshal(tc)
+		if err != nil {
+			r.output.Warning("Failed to marshal test case %s: %s", tc.ID, err.Error())
+			continue
+		}
+		fmt.Println(string(data))
+	}
+
+	// Write to output file if specified
+	if r.opts.OutputFile != "" {
+		file, err := os.Create(r.opts.OutputFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create output file: %w", err)
+		}
+		defer file.Close()
+
+		for _, tc := range testCases {
+			data, err := jsoniter.Marshal(tc)
+			if err != nil {
+				continue
+			}
+			file.WriteString(string(data) + "\n")
+		}
+
+		r.output.Info("Output written to: %s", r.opts.OutputFile)
+	}
+
+	// Return a minimal report
+	connector := r.opts.Connector
+	if connector == "" {
+		connector = agentInfo.Connector
+	}
+
+	return &Report{
+		Summary: &Summary{
+			Total:     len(testCases),
+			AgentID:   agentInfo.ID,
+			Connector: connector,
+		},
+	}, nil
 }

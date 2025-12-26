@@ -800,3 +800,70 @@ func GuardBearerJWT(c *gin.Context) {
 	claims := helper.JwtValidate(tokenString)
 	c.Set("__sid", claims.SID)
 }
+
+// LoadAgentTestScripts loads all *_test.ts/js scripts from an agent's src directory.
+// This is useful for testing agent hooks (before/after scripts) and other agent-specific test scripts.
+//
+// Usage:
+//
+//	test.Prepare(t, config.Conf)
+//	defer test.Clean()
+//	scripts := test.LoadAgentTestScripts(t, "assistants/tests/hooks-test")
+//
+// Parameters:
+//   - t: testing.T instance
+//   - agentRelPath: relative path to agent directory from app root (e.g., "assistants/tests/hooks-test")
+//
+// Returns:
+//   - []string: list of loaded script IDs (e.g., ["hook.env_test"])
+func LoadAgentTestScripts(t *testing.T, agentRelPath string) []string {
+	srcDir := filepath.Join(agentRelPath, "src")
+
+	// Check if src directory exists
+	exists, err := application.App.Exists(srcDir)
+	if err != nil {
+		t.Fatalf("Failed to check src directory: %v", err)
+	}
+	if !exists {
+		t.Logf("No src directory found at %s, skipping", srcDir)
+		return nil
+	}
+
+	var loadedScripts []string
+	exts := []string{"*_test.ts", "*_test.js"}
+
+	err = application.App.Walk(srcDir, func(root, file string, isdir bool) error {
+		if isdir {
+			return nil
+		}
+
+		// Only load *_test.ts/js files
+		base := filepath.Base(file)
+		if !strings.HasSuffix(base, "_test.ts") && !strings.HasSuffix(base, "_test.js") {
+			return nil
+		}
+
+		// Generate script ID: hook.{relative_path_without_ext}
+		// e.g., assistants/tests/hooks-test/src/env_test.ts -> hook.env_test
+		relPath := strings.TrimPrefix(file, srcDir+"/")
+		relPath = strings.TrimPrefix(relPath, "/")
+		relPath = strings.TrimSuffix(relPath, filepath.Ext(relPath))
+		scriptID := "hook." + strings.ReplaceAll(relPath, "/", ".")
+
+		// Load the script
+		_, err := v8.Load(file, scriptID)
+		if err != nil {
+			t.Logf("Warning: Failed to load hook script %s: %v", base, err)
+			return nil // Continue loading other scripts
+		}
+
+		loadedScripts = append(loadedScripts, scriptID)
+		return nil
+	}, exts...)
+
+	if err != nil {
+		t.Fatalf("Failed to walk src directory: %v", err)
+	}
+
+	return loadedScripts
+}

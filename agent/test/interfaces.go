@@ -43,6 +43,12 @@ type Loader interface {
 
 	// LoadFile loads test cases from a JSONL file
 	LoadFile(path string) ([]*Case, error)
+
+	// LoadFromAgent generates test cases using a generator agent
+	LoadFromAgent(agentID string, targetInfo *TargetAgentInfo, params map[string]interface{}) ([]*Case, error)
+
+	// LoadFromScript generates test cases using a script
+	LoadFromScript(scriptRef string, targetInfo *TargetAgentInfo) ([]*Case, error)
 }
 
 // Resolver is the interface for resolving agent information
