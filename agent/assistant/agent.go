@@ -169,6 +169,36 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Log the create response
 		ast.traceCreateHook(agentNode, createResponse)
 		ctx.Logger.HookComplete("Create")
+
+		// Check if Create hook wants to delegate to another agent
+		// This allows early routing to sub-agents without LLM call
+		if createResponse != nil && createResponse.Delegate != nil {
+			ctx.Logger.Debug("Create hook delegating to agent: %s", createResponse.Delegate.AgentID)
+
+			// Delegate to target agent (reuse existing delegation logic from next.go)
+			delegateResponse, err := ast.handleDelegation(ctx, createResponse.Delegate, streamHandler)
+			if err != nil {
+				finalStatus = context.ResumeStatusFailed
+				finalError = err
+				ast.traceAgentFail(agentNode, err)
+				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+				return nil, err
+			}
+
+			// For root stack, send stream_end and close output
+			// (delegated agent handles its own stream events, but root needs to close)
+			if ctx.Stack != nil && ctx.Stack.IsRoot() {
+				ast.sendAgentStreamEnd(ctx, streamHandler, streamStartTime, "completed", nil, nil)
+				if err := ctx.CloseOutput(); err != nil {
+					if trace, _ := ctx.Trace(); trace != nil {
+						trace.Error(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.close_error"), map[string]any{"error": err.Error()})
+					}
+				}
+			}
+
+			// Return delegated response directly (skip LLM call and Next hook)
+			return delegateResponse, nil
+		}
 	}
 
 	// ================================================

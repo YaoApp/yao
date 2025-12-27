@@ -391,6 +391,10 @@ type HookCreateResponse struct {
 	// - SearchIntent: fine-grained control with specific types, confidence, etc.
 	// - nil: use default behavior (determined by __yao.needsearch agent)
 	Search any `json:"search,omitempty"` // Search mode: bool | SearchIntent | nil
+
+	// Delegate: if provided, delegate to another agent immediately (skip LLM call)
+	// This allows Create hook to route to sub-agents before any LLM processing
+	Delegate *DelegateConfig `json:"delegate,omitempty"`
 }
 
 // NextHookPayload payload for the next hook
