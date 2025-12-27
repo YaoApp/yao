@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -142,6 +143,13 @@ func FilterByIDs(cases []*Case, ids []string) []*Case {
 	}
 	return FilterTestCases(cases, func(tc *Case) bool {
 		return idSet[tc.ID]
+	})
+}
+
+// FilterByPattern returns test cases whose ID matches the given regex pattern
+func FilterByPattern(cases []*Case, pattern *regexp.Regexp) []*Case {
+	return FilterTestCases(cases, func(tc *Case) bool {
+		return pattern.MatchString(tc.ID)
 	})
 }
 

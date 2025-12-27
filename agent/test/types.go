@@ -165,6 +165,10 @@ type Options struct {
 // ContextConfig represents custom context configuration from JSON file
 // This allows full customization of the test context including authorized info
 type ContextConfig struct {
+	// ChatID is the chat session identifier
+	// Used to maintain session state across turns in dynamic tests
+	ChatID string `json:"chat_id,omitempty"`
+
 	// Authorized contains custom authorization data
 	Authorized *AuthorizedConfig `json:"authorized,omitempty"`
 
@@ -554,9 +558,15 @@ type AssertionResult struct {
 }
 
 // GetEnvironment returns the effective test environment for this test case
-// Priority: command line flags > test case fields > defaults
+// Priority: command line flags > context config > test case fields > defaults
 func (tc *Case) GetEnvironment(opts *Options) *Environment {
-	env := NewEnvironment("", "")
+	// Start with context config if available, otherwise use defaults
+	var env *Environment
+	if opts != nil && opts.ContextData != nil {
+		env = NewEnvironmentWithContext("", "", opts.ContextData)
+	} else {
+		env = NewEnvironment("", "")
+	}
 
 	// Apply test case specific values
 	if tc.UserID != "" {

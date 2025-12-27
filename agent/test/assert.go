@@ -15,11 +15,20 @@ import (
 )
 
 // Asserter handles test assertions
-type Asserter struct{}
+type Asserter struct {
+	// response holds the current response for tool-related assertions
+	response *context.Response
+}
 
 // NewAsserter creates a new asserter
 func NewAsserter() *Asserter {
 	return &Asserter{}
+}
+
+// WithResponse sets the response for tool-related assertions
+func (a *Asserter) WithResponse(response *context.Response) *Asserter {
+	a.response = response
+	return a
 }
 
 // Validate validates the output against the test case's assertions
@@ -40,6 +49,45 @@ func (a *Asserter) Validate(tc *Case, output interface{}) (bool, string) {
 
 	// No assertions defined - pass if we got output without error
 	return true, ""
+}
+
+// ValidateWithDetails validates the output and returns detailed results
+// This is useful for agent assertions where we want to capture the validator's response
+func (a *Asserter) ValidateWithDetails(tc *Case, output interface{}) *AssertionResult {
+	if tc.Assert == nil {
+		return &AssertionResult{Passed: true}
+	}
+
+	assertions := a.parseAssertions(tc.Assert)
+	if len(assertions) == 0 {
+		return &AssertionResult{Passed: true}
+	}
+
+	// For single assertion, return its full result
+	if len(assertions) == 1 {
+		return a.evaluateAssertion(assertions[0], output, tc.Input)
+	}
+
+	// For multiple assertions, combine results
+	var failures []string
+	for _, assertion := range assertions {
+		result := a.evaluateAssertion(assertion, output, tc.Input)
+		if !result.Passed {
+			msg := result.Message
+			if assertion.Message != "" {
+				msg = assertion.Message
+			}
+			failures = append(failures, msg)
+		}
+	}
+
+	if len(failures) > 0 {
+		return &AssertionResult{
+			Passed:  false,
+			Message: strings.Join(failures, "; "),
+		}
+	}
+	return &AssertionResult{Passed: true}
 }
 
 // validateAssertions validates output against assertion rules
@@ -166,6 +214,10 @@ func (a *Asserter) evaluateAssertion(assertion *Assertion, output, input interfa
 		result = a.assertScript(assertion, output, input)
 	case "agent":
 		result = a.assertAgent(assertion, output, input)
+	case "tool_called":
+		result = a.assertToolCalled(assertion)
+	case "tool_result":
+		result = a.assertToolResult(assertion)
 	default:
 		result.Passed = false
 		result.Message = fmt.Sprintf("unknown assertion type: %s", assertion.Type)
@@ -706,6 +758,268 @@ func (a *Asserter) assertScript(assertion *Assertion, output, input interface{})
 	}
 
 	return result
+}
+
+// assertToolCalled checks if a specific tool was called
+// value can be:
+// - string: exact tool name to match
+// - []string: any of the tool names
+// - map with "name" and optional "arguments" for more specific matching
+func (a *Asserter) assertToolCalled(assertion *Assertion) *AssertionResult {
+	result := &AssertionResult{
+		Assertion: assertion,
+		Expected:  assertion.Value,
+	}
+
+	if a.response == nil {
+		result.Passed = false
+		result.Message = "no response available for tool_called assertion"
+		return result
+	}
+
+	if len(a.response.Tools) == 0 {
+		result.Passed = false
+		result.Message = "no tools were called"
+		return result
+	}
+
+	// Get tool names that were called
+	calledTools := make([]string, 0, len(a.response.Tools))
+	for _, tool := range a.response.Tools {
+		calledTools = append(calledTools, tool.Tool)
+	}
+	result.Actual = calledTools
+
+	switch v := assertion.Value.(type) {
+	case string:
+		// Simple case: check if tool name matches (supports prefix matching)
+		for _, tool := range a.response.Tools {
+			if matchToolName(tool.Tool, v) {
+				result.Passed = true
+				result.Message = fmt.Sprintf("tool '%s' was called", v)
+				return result
+			}
+		}
+		result.Passed = false
+		result.Message = fmt.Sprintf("tool '%s' was not called, called: %v", v, calledTools)
+
+	case []interface{}:
+		// Check if any of the specified tools were called
+		for _, expected := range v {
+			if expectedStr, ok := expected.(string); ok {
+				for _, tool := range a.response.Tools {
+					if matchToolName(tool.Tool, expectedStr) {
+						result.Passed = true
+						result.Message = fmt.Sprintf("tool '%s' was called", expectedStr)
+						return result
+					}
+				}
+			}
+		}
+		result.Passed = false
+		result.Message = fmt.Sprintf("none of the expected tools were called, called: %v", calledTools)
+
+	case map[string]interface{}:
+		// Advanced case: match name and optionally arguments
+		expectedName, _ := v["name"].(string)
+		expectedArgs := v["arguments"]
+
+		for _, tool := range a.response.Tools {
+			if matchToolName(tool.Tool, expectedName) {
+				// If arguments specified, check them too
+				if expectedArgs != nil {
+					if matchArguments(tool.Arguments, expectedArgs) {
+						result.Passed = true
+						result.Message = fmt.Sprintf("tool '%s' was called with matching arguments", expectedName)
+						return result
+					}
+				} else {
+					result.Passed = true
+					result.Message = fmt.Sprintf("tool '%s' was called", expectedName)
+					return result
+				}
+			}
+		}
+		result.Passed = false
+		if expectedArgs != nil {
+			result.Message = fmt.Sprintf("tool '%s' was not called with expected arguments", expectedName)
+		} else {
+			result.Message = fmt.Sprintf("tool '%s' was not called, called: %v", expectedName, calledTools)
+		}
+
+	default:
+		result.Passed = false
+		result.Message = fmt.Sprintf("invalid tool_called value type: %T", assertion.Value)
+	}
+
+	return result
+}
+
+// assertToolResult checks the result of a tool call
+// value should be a map with "tool" (name) and "result" (expected result pattern)
+func (a *Asserter) assertToolResult(assertion *Assertion) *AssertionResult {
+	result := &AssertionResult{
+		Assertion: assertion,
+		Expected:  assertion.Value,
+	}
+
+	if a.response == nil {
+		result.Passed = false
+		result.Message = "no response available for tool_result assertion"
+		return result
+	}
+
+	if len(a.response.Tools) == 0 {
+		result.Passed = false
+		result.Message = "no tools were called"
+		return result
+	}
+
+	spec, ok := assertion.Value.(map[string]interface{})
+	if !ok {
+		result.Passed = false
+		result.Message = "tool_result assertion requires a map with 'tool' and 'result' fields"
+		return result
+	}
+
+	toolName, _ := spec["tool"].(string)
+	expectedResult := spec["result"]
+
+	if toolName == "" {
+		result.Passed = false
+		result.Message = "tool_result assertion requires 'tool' field"
+		return result
+	}
+
+	// Find the tool call
+	for _, tool := range a.response.Tools {
+		if matchToolName(tool.Tool, toolName) {
+			result.Actual = tool.Result
+
+			// Check if there was an error
+			if tool.Error != "" {
+				result.Passed = false
+				result.Message = fmt.Sprintf("tool '%s' returned error: %s", toolName, tool.Error)
+				return result
+			}
+
+			// If no expected result specified, just check success (no error)
+			if expectedResult == nil {
+				result.Passed = true
+				result.Message = fmt.Sprintf("tool '%s' executed successfully", toolName)
+				return result
+			}
+
+			// Match result
+			if matchResult(tool.Result, expectedResult) {
+				result.Passed = true
+				result.Message = fmt.Sprintf("tool '%s' result matches expected", toolName)
+				return result
+			}
+
+			result.Passed = false
+			result.Message = fmt.Sprintf("tool '%s' result does not match expected", toolName)
+			return result
+		}
+	}
+
+	result.Passed = false
+	result.Message = fmt.Sprintf("tool '%s' was not called", toolName)
+	return result
+}
+
+// matchToolName checks if a tool name matches the expected pattern
+// Supports exact match and suffix match (e.g., "setup" matches "agents_expense_tools__setup")
+func matchToolName(actual, expected string) bool {
+	if actual == expected {
+		return true
+	}
+	// Support suffix matching (tool name without namespace prefix)
+	if strings.HasSuffix(actual, "__"+expected) || strings.HasSuffix(actual, "."+expected) {
+		return true
+	}
+	// Support contains matching for partial names
+	if strings.Contains(actual, expected) {
+		return true
+	}
+	return false
+}
+
+// matchArguments checks if tool arguments match expected pattern
+func matchArguments(actual, expected interface{}) bool {
+	expectedMap, ok := expected.(map[string]interface{})
+	if !ok {
+		return false
+	}
+
+	actualMap, ok := actual.(map[string]interface{})
+	if !ok {
+		// Try parsing as JSON string
+		if actualStr, ok := actual.(string); ok {
+			var parsed map[string]interface{}
+			if err := jsoniter.UnmarshalFromString(actualStr, &parsed); err == nil {
+				actualMap = parsed
+			} else {
+				return false
+			}
+		} else {
+			return false
+		}
+	}
+
+	// Check that all expected keys exist and match
+	for key, expectedVal := range expectedMap {
+		actualVal, exists := actualMap[key]
+		if !exists {
+			return false
+		}
+		if !validateOutput(actualVal, expectedVal) {
+			return false
+		}
+	}
+	return true
+}
+
+// matchResult checks if tool result matches expected pattern
+func matchResult(actual, expected interface{}) bool {
+	switch exp := expected.(type) {
+	case map[string]interface{}:
+		actualMap, ok := actual.(map[string]interface{})
+		if !ok {
+			return false
+		}
+		// Check that all expected keys exist and match
+		for key, expectedVal := range exp {
+			actualVal, exists := actualMap[key]
+			if !exists {
+				return false
+			}
+			if !matchResult(actualVal, expectedVal) {
+				return false
+			}
+		}
+		return true
+
+	case string:
+		// Support regex pattern matching for strings
+		if strings.HasPrefix(exp, "regex:") {
+			pattern := strings.TrimPrefix(exp, "regex:")
+			re, err := regexp.Compile(pattern)
+			if err != nil {
+				return false
+			}
+			actualStr := fmt.Sprintf("%v", actual)
+			return re.MatchString(actualStr)
+		}
+		return fmt.Sprintf("%v", actual) == exp
+
+	case bool:
+		actualBool, ok := actual.(bool)
+		return ok && actualBool == exp
+
+	default:
+		return validateOutput(actual, expected)
+	}
 }
 
 // toString converts a value to string for comparison

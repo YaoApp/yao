@@ -77,7 +77,14 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 
 	// Output dynamic test start
 	if r.opts.Verbose {
-		r.output.Info("Dynamic test: %s (max %d turns)", tc.ID, maxTurns)
+		r.output.Verbose("Dynamic test: %s (max %d turns)", tc.ID, maxTurns)
+	}
+
+	// Use consistent chatID across all turns to preserve session state (ctx.memory.chat)
+	// Priority: context config > generated ID
+	chatID := fmt.Sprintf("dynamic-%s", tc.ID)
+	if r.opts.ContextData != nil && r.opts.ContextData.ChatID != "" {
+		chatID = r.opts.ContextData.ChatID
 	}
 
 	// Conversation loop
@@ -111,7 +118,7 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 			// Check if goal achieved
 			if simOutput.GoalAchieved {
 				if r.opts.Verbose {
-					r.output.Info("  Turn %d: Simulator signaled goal achieved", turn)
+					r.output.Verbose("Turn %d: Simulator signaled goal achieved", turn)
 				}
 
 				// Check if all required checkpoints reached
@@ -135,7 +142,7 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 			turnResult.Input = simOutput.Message
 
 			if r.opts.Verbose {
-				r.output.Info("  Turn %d: User: %s", turn, truncateOutput(simOutput.Message, 50))
+				r.output.Verbose("Turn %d: User: %s", turn, truncateOutput(simOutput.Message, 50))
 			}
 		} else {
 			// Use initial input for first turn
@@ -143,14 +150,15 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 				lastMsg := messages[len(messages)-1]
 				turnResult.Input = lastMsg.Content
 				if r.opts.Verbose {
-					r.output.Info("  Turn %d: User: %s", turn, truncateOutput(lastMsg.Content, 50))
+					r.output.Verbose("Turn %d: User: %s", turn, truncateOutput(lastMsg.Content, 50))
 				}
 			}
 		}
 
 		// Call target agent
+		// Use consistent chatID across all turns to preserve session state (ctx.memory.chat)
 		ctx := NewTestContextFromOptions(
-			fmt.Sprintf("dynamic-%s-%d", tc.ID, turn),
+			chatID,
 			agentID,
 			r.opts,
 			tc,
@@ -171,28 +179,28 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 			return result
 		}
 
-		// Extract output
+		// Extract output (summary for display and conversation history)
 		output := extractOutput(response)
 		turnResult.Output = output
 		turnResult.DurationMs = time.Since(turnStart).Milliseconds()
 
+		// Store full response for reporting
+		turnResult.Response = buildTurnResponse(response)
+
 		if r.opts.Verbose {
-			r.output.Info("  Turn %d: Agent: %s", turn, truncateOutput(output, 50))
+			r.output.Verbose("Turn %d: Agent: %s", turn, truncateOutput(output, 50))
 		}
 
-		// Add assistant response to messages
-		messages = append(messages, context.Message{
-			Role:    context.RoleAssistant,
-			Content: output,
-		})
+		// Add assistant response to messages, including tool calls if any
+		messages = appendAssistantMessages(messages, response)
 
-		// Check checkpoints against this response
-		reachedIDs := r.checkCheckpoints(tc.Checkpoints, output, result)
+		// Check checkpoints against this response (including tool results)
+		reachedIDs := r.checkCheckpoints(tc.Checkpoints, response, result)
 		turnResult.CheckpointsReached = reachedIDs
 
 		if r.opts.Verbose && len(reachedIDs) > 0 {
 			for _, id := range reachedIDs {
-				r.output.Info("    ✓ checkpoint: %s", id)
+				r.output.Verbose("  ✓ checkpoint: %s", id)
 			}
 		}
 
@@ -360,9 +368,17 @@ func (r *DynamicRunner) parseSimulatorResponse(response *context.Response) (*Sim
 	return output, nil
 }
 
-// checkCheckpoints validates checkpoints against current output
-func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, output interface{}, result *DynamicResult) []string {
+// checkCheckpoints validates checkpoints against current response
+// It checks both the completion content and tool results for comprehensive validation
+func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, response *context.Response, result *DynamicResult) []string {
 	reachedIDs := make([]string, 0)
+
+	// Build combined output for checkpoint validation
+	// This includes both content and tool result messages
+	combinedOutput := buildCombinedOutput(response)
+
+	// Set response on asserter for tool-related assertions
+	r.asserter.WithResponse(response)
 
 	for _, cp := range checkpoints {
 		cpResult := result.Checkpoints[cp.ID]
@@ -386,20 +402,164 @@ func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, output inter
 			}
 		}
 
-		// Validate using asserter
+		// Validate using asserter against combined output with full details
 		tempCase := &Case{Assert: cp.Assert}
-		passed, msg := r.asserter.Validate(tempCase, output)
+		assertResult := r.asserter.ValidateWithDetails(tempCase, combinedOutput)
 
-		if passed {
+		if assertResult.Passed {
 			cpResult.Reached = true
 			cpResult.Passed = true
 			cpResult.ReachedAtTurn = len(result.Turns) + 1
-			cpResult.Message = msg
+			cpResult.Message = assertResult.Message
 			reachedIDs = append(reachedIDs, cp.ID)
+		} else {
+			// Store failure message for debugging (but don't mark as failed yet - it might pass in a later turn)
+			if cpResult.Message == "" {
+				cpResult.Message = assertResult.Message
+			}
+		}
+
+		// Store agent validation details if this is an agent assertion
+		if isAgentAssertion(cp.Assert) {
+			// Extract criteria from assertion value
+			var criteria string
+			if assertMap, ok := cp.Assert.(map[string]interface{}); ok {
+				if c, ok := assertMap["value"].(string); ok {
+					criteria = c
+				}
+			}
+
+			cpResult.AgentValidation = &AgentValidationResult{
+				Passed:   assertResult.Passed,
+				Criteria: criteria,
+				Input:    combinedOutput, // Content sent to validator for checking
+			}
+
+			// Extract reason and store full response from validator
+			if assertResult.Expected != nil {
+				if validatorResponse, ok := assertResult.Expected.(map[string]interface{}); ok {
+					if reason, ok := validatorResponse["reason"].(string); ok {
+						cpResult.AgentValidation.Reason = reason
+					}
+					// Store the full validator response
+					cpResult.AgentValidation.Response = validatorResponse
+				}
+			}
 		}
 	}
 
 	return reachedIDs
+}
+
+// isAgentAssertion checks if the assertion is an agent-based assertion
+func isAgentAssertion(assert interface{}) bool {
+	if assertMap, ok := assert.(map[string]interface{}); ok {
+		if assertType, ok := assertMap["type"].(string); ok {
+			return assertType == "agent"
+		}
+	}
+	return false
+}
+
+// truncateForReport truncates content for report output
+func truncateForReport(content interface{}, maxLen int) interface{} {
+	if content == nil {
+		return nil
+	}
+
+	str, ok := content.(string)
+	if !ok {
+		return content
+	}
+
+	if len(str) <= maxLen {
+		return str
+	}
+
+	return str[:maxLen] + "... (truncated)"
+}
+
+// buildCombinedOutput builds a combined output string from response
+// that includes both completion content and tool result messages
+func buildCombinedOutput(response *context.Response) string {
+	if response == nil {
+		return ""
+	}
+
+	var parts []string
+
+	// Add completion content
+	if response.Completion != nil && response.Completion.Content != nil {
+		if content := extractContentString(response.Completion.Content); content != "" {
+			parts = append(parts, content)
+		}
+	}
+
+	// Add tool result messages
+	if len(response.Tools) > 0 {
+		for _, tool := range response.Tools {
+			if tool.Result != nil {
+				// Try to extract message from result
+				if resultMap, ok := tool.Result.(map[string]interface{}); ok {
+					if msg, exists := resultMap["message"]; exists && msg != nil {
+						if msgStr, ok := msg.(string); ok && msgStr != "" {
+							parts = append(parts, msgStr)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Join all parts with newline for comprehensive matching
+	return joinNonEmpty(parts, "\n")
+}
+
+// extractContentString extracts string content from various types
+func extractContentString(content interface{}) string {
+	if content == nil {
+		return ""
+	}
+
+	switch v := content.(type) {
+	case string:
+		return v
+	case []interface{}:
+		// Handle array content (e.g., multimodal content)
+		var texts []string
+		for _, item := range v {
+			if m, ok := item.(map[string]interface{}); ok {
+				if text, ok := m["text"].(string); ok {
+					texts = append(texts, text)
+				}
+			}
+		}
+		return joinNonEmpty(texts, "\n")
+	default:
+		// Try to marshal to string
+		if data, err := jsoniter.MarshalToString(content); err == nil {
+			return data
+		}
+		return ""
+	}
+}
+
+// joinNonEmpty joins non-empty strings with separator
+func joinNonEmpty(parts []string, sep string) string {
+	var nonEmpty []string
+	for _, p := range parts {
+		if p != "" {
+			nonEmpty = append(nonEmpty, p)
+		}
+	}
+	if len(nonEmpty) == 0 {
+		return ""
+	}
+	result := nonEmpty[0]
+	for i := 1; i < len(nonEmpty); i++ {
+		result += sep + nonEmpty[i]
+	}
+	return result
 }
 
 // allRequiredCheckpointsReached checks if all required checkpoints are reached
@@ -410,4 +570,115 @@ func (r *DynamicRunner) allRequiredCheckpointsReached(result *DynamicResult) boo
 		}
 	}
 	return true
+}
+
+// buildTurnResponse builds a TurnResponse from the agent response
+func buildTurnResponse(response *context.Response) *TurnResponse {
+	if response == nil {
+		return nil
+	}
+
+	tr := &TurnResponse{}
+
+	// Extract completion content
+	if response.Completion != nil {
+		tr.Content = response.Completion.Content
+
+		// Extract tool calls from completion
+		if len(response.Completion.ToolCalls) > 0 {
+			for _, tc := range response.Completion.ToolCalls {
+				tr.ToolCalls = append(tr.ToolCalls, ToolCallInfo{
+					Tool:      tc.Function.Name,
+					Arguments: tc.Function.Arguments,
+				})
+			}
+		}
+	}
+
+	// Add tool results
+	if len(response.Tools) > 0 {
+		// If we already have tool calls from completion, match results
+		if len(tr.ToolCalls) > 0 {
+			for i, toolResult := range response.Tools {
+				if i < len(tr.ToolCalls) {
+					tr.ToolCalls[i].Result = toolResult.Result
+				}
+			}
+		} else {
+			// Create tool call entries from results
+			for _, toolResult := range response.Tools {
+				tr.ToolCalls = append(tr.ToolCalls, ToolCallInfo{
+					Tool:      toolResult.Tool,
+					Arguments: toolResult.Arguments,
+					Result:    toolResult.Result,
+				})
+			}
+		}
+	}
+
+	// Extract Next hook data
+	if response.Next != nil && !isEmptyValue(response.Next) {
+		tr.Next = response.Next
+	}
+
+	return tr
+}
+
+// appendAssistantMessages appends assistant messages to the conversation history
+// including tool calls and tool results if present
+func appendAssistantMessages(messages []context.Message, response *context.Response) []context.Message {
+	if response == nil {
+		return messages
+	}
+
+	// Check if there are tool calls in the completion
+	hasToolCalls := response.Completion != nil && len(response.Completion.ToolCalls) > 0
+
+	if hasToolCalls {
+		// Add assistant message with tool calls
+		assistantMsg := context.Message{
+			Role:      context.RoleAssistant,
+			ToolCalls: response.Completion.ToolCalls,
+		}
+		// Include content if present
+		if response.Completion.Content != nil && !isEmptyValue(response.Completion.Content) {
+			assistantMsg.Content = response.Completion.Content
+		}
+		messages = append(messages, assistantMsg)
+
+		// Add tool result messages for each tool call
+		for i, tc := range response.Completion.ToolCalls {
+			toolCallID := tc.ID
+			var resultContent string
+
+			// Get result from response.Tools if available
+			if i < len(response.Tools) {
+				resultJSON, err := jsoniter.MarshalToString(response.Tools[i].Result)
+				if err == nil {
+					resultContent = resultJSON
+				} else {
+					resultContent = fmt.Sprintf("%v", response.Tools[i].Result)
+				}
+			} else {
+				resultContent = "{}"
+			}
+
+			messages = append(messages, context.Message{
+				Role:       context.RoleTool,
+				ToolCallID: &toolCallID,
+				Content:    resultContent,
+			})
+		}
+	} else {
+		// No tool calls, just add content if present
+		content := extractOutput(response)
+		if content != nil && !isEmptyValue(content) {
+			messages = append(messages, context.Message{
+				Role:    context.RoleAssistant,
+				Content: content,
+			})
+		}
+	}
+
+	return messages
 }

@@ -34,8 +34,11 @@ type TurnResult struct {
 	// Input is the user message (from simulator or initial input)
 	Input interface{} `json:"input"`
 
-	// Output is the agent's response
+	// Output is the agent's response (summary for display and conversation history)
 	Output interface{} `json:"output,omitempty"`
+
+	// Response is the full agent response including completion and tool results
+	Response *TurnResponse `json:"response,omitempty"`
 
 	// CheckpointsReached lists checkpoint IDs reached in this turn
 	CheckpointsReached []string `json:"checkpoints_reached,omitempty"`
@@ -45,6 +48,30 @@ type TurnResult struct {
 
 	// Error contains error message if this turn failed
 	Error string `json:"error,omitempty"`
+}
+
+// TurnResponse contains the full agent response for a turn
+type TurnResponse struct {
+	// Content is the text content from LLM completion
+	Content interface{} `json:"content,omitempty"`
+
+	// ToolCalls contains the tool calls made by the agent
+	ToolCalls []ToolCallInfo `json:"tool_calls,omitempty"`
+
+	// Next is the data returned from Next hook
+	Next interface{} `json:"next,omitempty"`
+}
+
+// ToolCallInfo contains information about a tool call
+type ToolCallInfo struct {
+	// Tool is the tool name
+	Tool string `json:"tool"`
+
+	// Arguments are the tool call arguments
+	Arguments interface{} `json:"arguments,omitempty"`
+
+	// Result is the tool execution result
+	Result interface{} `json:"result,omitempty"`
 }
 
 // CheckpointResult represents the result of a checkpoint validation
@@ -66,6 +93,27 @@ type CheckpointResult struct {
 
 	// Message contains assertion result message
 	Message string `json:"message,omitempty"`
+
+	// AgentValidation contains the agent validator's response (for agent assertions)
+	AgentValidation *AgentValidationResult `json:"agent_validation,omitempty"`
+}
+
+// AgentValidationResult contains the result from an agent-based assertion
+type AgentValidationResult struct {
+	// Passed indicates if the agent validator determined the assertion passed
+	Passed bool `json:"passed"`
+
+	// Reason is the explanation from the agent validator
+	Reason string `json:"reason,omitempty"`
+
+	// Criteria is the validation criteria that was checked
+	Criteria string `json:"criteria,omitempty"`
+
+	// Input is the content that was sent to validator for checking
+	Input interface{} `json:"input,omitempty"`
+
+	// Response is the raw response from the validator agent
+	Response interface{} `json:"response,omitempty"`
 }
 
 // SimulatorInput is the input sent to the simulator agent

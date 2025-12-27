@@ -30,6 +30,7 @@ func (ast *Assistant) processNextResponse(npc *NextProcessContext) (*agentContex
 			Create:      npc.CreateResponse,
 			Next:        npc.NextResponse.Data, // Put custom data in Next field
 			Completion:  npc.CompletionResponse,
+			Tools:       npc.ToolCallResponses,
 		}, nil
 	}
 
@@ -72,5 +73,6 @@ func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) *agentConte
 		Create:      npc.CreateResponse,
 		Next:        npc.NextResponse,
 		Completion:  npc.CompletionResponse,
+		Tools:       npc.ToolCallResponses,
 	}
 }

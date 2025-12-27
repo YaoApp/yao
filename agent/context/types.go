@@ -349,6 +349,7 @@ type Response struct {
 	Create      *HookCreateResponse `json:"create,omitempty"`     // Create response from the create hook
 	Next        interface{}         `json:"next,omitempty"`       // Next response from the next hook
 	Completion  *CompletionResponse `json:"completion,omitempty"` // Completion response from the completion hook
+	Tools       []ToolCallResponse  `json:"tools,omitempty"`      // Tool call results (if any tools were executed)
 }
 
 // HookCreateResponse the response of the create hook

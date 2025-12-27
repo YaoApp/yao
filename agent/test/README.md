@@ -203,6 +203,33 @@ Simulator-driven testing with checkpoint validation. A simulator agent generates
 | `--fail-fast` | Stop on first failure                                    | false                      |
 | `--dry-run`   | Generate test cases without running them                 | false                      |
 
+## Custom Context File
+
+Create a JSON file for custom authorization:
+
+```json
+{
+  "chat_id": "test-chat-001",
+  "authorized": {
+    "user_id": "test-user-123",
+    "team_id": "test-team-456",
+    "constraints": {
+      "owner_only": true,
+      "extra": { "department": "engineering" }
+    }
+  },
+  "metadata": {
+    "mode": "test"
+  }
+}
+```
+
+Use with `--ctx`:
+
+```bash
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+```
+
 ## Input Format (JSONL)
 
 Each line is a JSON object. Below are examples organized by scenario.
@@ -548,6 +575,8 @@ Use `assert` for flexible validation. If `assert` is defined, it takes precedenc
 | `json_path`    | Extract JSON path and compare | `{"type": "json_path", "path": "$.field", "value": true}` |
 | `regex`        | Match regex pattern           | `{"type": "regex", "value": "\\d+"}`                      |
 | `type`         | Check output type             | `{"type": "type", "value": "object"}`                     |
+| `tool_called`  | Check if a tool was called    | `{"type": "tool_called", "value": "setup"}`               |
+| `tool_result`  | Check tool execution result   | `{"type": "tool_result", "value": {"tool": "setup", "result": {"success": true}}}` |
 
 ### Assertion Fields
 
@@ -579,6 +608,103 @@ For semantic or fuzzy validation using an LLM:
 ```
 
 The validator agent receives the output and criteria, then returns `{"passed": true/false, "reason": "..."}`.
+
+**How it works:**
+
+1. The framework builds a validation request with the agent's response (including tool result messages)
+2. The validator agent evaluates the response against the criteria
+3. The validator returns a JSON response with `passed` and `reason`
+
+**Output in test report (for checkpoints):**
+
+```json
+{
+  "agent_validation": {
+    "passed": true,
+    "reason": "Response explicitly confirms setup completion",
+    "criteria": "Response should be friendly and helpful",
+    "input": "Hello! How can I help you today?",
+    "response": {
+      "passed": true,
+      "reason": "Response explicitly confirms setup completion"
+    }
+  }
+}
+```
+
+- `input`: The content sent to the validator (agent response + tool result messages)
+- `response`: The raw JSON response from the validator agent
+- `criteria`: The validation criteria from the test case
+
+### Tool Assertions
+
+For validating that specific tools were called and their results:
+
+#### tool_called
+
+Check if a specific tool was called:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Set up my expense system",
+  "assert": {
+    "type": "tool_called",
+    "value": "setup"
+  }
+}
+```
+
+**Value formats:**
+
+- **String**: Tool name (supports suffix matching, e.g., `"setup"` matches `"agents_expense_tools__setup"`)
+- **Array**: Any of the specified tools must be called
+- **Object**: Match tool name and optionally arguments
+
+```jsonl
+// Match any of these tools
+{"type": "tool_called", "value": ["setup", "init"]}
+
+// Match tool with specific arguments
+{"type": "tool_called", "value": {"name": "setup", "arguments": {"action": "init"}}}
+```
+
+#### tool_result
+
+Check the result of a tool execution:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Set up my expense system",
+  "assert": {
+    "type": "tool_result",
+    "value": {
+      "tool": "setup",
+      "result": {
+        "success": true
+      }
+    }
+  }
+}
+```
+
+**Result matching:**
+
+- If `result` is omitted, only checks that the tool executed without error
+- Supports partial matching (only specified fields are checked)
+- Supports regex patterns with `regex:` prefix for string values
+
+```jsonl
+// Just check tool executed without error
+{"type": "tool_result", "value": {"tool": "setup"}}
+
+// Check specific result fields
+{"type": "tool_result", "value": {"tool": "setup", "result": {"success": true}}}
+
+// Use regex for message matching
+{"type": "tool_result", "value": {"tool": "setup", "result": {"message": "regex:(?i)setup.*complete"}}}
+```
 
 ### Script Assertions
 
@@ -761,9 +887,12 @@ export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
 
 ```typescript
 interface Context {
-  user_id: string; // Test user ID
-  team_id: string; // Test team ID
   locale: string; // Locale (e.g., "en-us")
+  authorized: {
+    user_id: string; // Test user ID
+    team_id: string; // Test team ID
+    constraints?: object; // Access constraints
+  };
   metadata: object; // Custom metadata from test case
 }
 ```
@@ -979,6 +1108,62 @@ For testing complex conversation flows where the path is unpredictable:
 ℹ     ✓ checkpoint: confirm
   └─ PASSED (3 turns, 3 checkpoints, 8.5s)
 ```
+
+### Dynamic Mode Output Structure
+
+Each turn in the output includes:
+
+```typescript
+interface TurnResult {
+  turn: number; // Turn number (1-based)
+  input: string; // User message
+  output: any; // Agent response summary (for display)
+  response: {
+    // Full agent response (for detailed analysis)
+    content: string; // LLM text content
+    tool_calls: [
+      {
+        // Tool calls made
+        tool: string; // Tool name
+        arguments: any; // Call arguments
+        result: any; // Execution result
+      }
+    ];
+    next: any; // Next hook data
+  };
+  checkpoints_reached: string[]; // Checkpoint IDs reached
+  duration_ms: number; // Execution time
+}
+```
+
+### Checkpoint Result Structure
+
+Each checkpoint in the output includes:
+
+```typescript
+interface CheckpointResult {
+  id: string; // Checkpoint identifier
+  reached: boolean; // Whether checkpoint was reached
+  reached_at_turn?: number; // Turn number when reached (if reached)
+  required: boolean; // Whether checkpoint is required
+  passed: boolean; // Whether assertion passed
+  message?: string; // Assertion result message
+  agent_validation?: {
+    // Agent assertion details (for type: "agent")
+    passed: boolean; // Validator's determination
+    reason: string; // Explanation from validator
+    criteria: string; // Validation criteria checked
+    input: any; // Content sent to validator
+    response: {
+      // Raw validator response
+      passed: boolean;
+      reason: string;
+    };
+  };
+}
+```
+
+**Note**: For agent-based assertions (`type: "agent"`), the `agent_validation` field provides full transparency into the validation process. The `input` field contains the combined output (agent text response + tool result messages) that was validated.
 
 ## Output Formats
 

@@ -19,6 +19,7 @@ type HookExecutor struct {
 	output       *OutputWriter
 	loadedDirs   map[string]bool // Track which directories have been loaded
 	agentContext *context.Context
+	opts         *Options // Test options (includes ContextData from --ctx)
 }
 
 // NewHookExecutor creates a new hook executor
@@ -33,6 +34,11 @@ func NewHookExecutor(verbose bool) *HookExecutor {
 // SetAgentContext sets the agent context for script execution
 func (h *HookExecutor) SetAgentContext(ctx *context.Context) {
 	h.agentContext = ctx
+}
+
+// SetOptions sets the test options for hook execution
+func (h *HookExecutor) SetOptions(opts *Options) {
+	h.opts = opts
 }
 
 // HookRef represents a parsed hook reference
@@ -86,13 +92,23 @@ func ParseHookRef(ref string) (*HookRef, error) {
 func (h *HookExecutor) LoadTestScripts(agentPath string) ([]string, error) {
 	srcDir := filepath.Join(agentPath, "src")
 
-	// Check if already loaded
+	// Convert to relative path for application.App
+	// application.App expects paths relative to YAO_ROOT
+	relSrcDir := srcDir
+	if application.App != nil {
+		if rel, err := filepath.Rel(application.App.Root(), srcDir); err == nil {
+			relSrcDir = rel
+		}
+	}
+
+	// Check if already loaded (use absolute path as key)
+	// No logging for already loaded - this is normal and happens frequently
 	if h.loadedDirs[srcDir] {
 		return nil, nil
 	}
 
 	// Check if src directory exists
-	exists, err := application.App.Exists(srcDir)
+	exists, err := application.App.Exists(relSrcDir)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +119,7 @@ func (h *HookExecutor) LoadTestScripts(agentPath string) ([]string, error) {
 	var loadedScripts []string
 	exts := []string{"*_test.ts", "*_test.js"}
 
-	err = application.App.Walk(srcDir, func(root, file string, isdir bool) error {
+	err = application.App.Walk(relSrcDir, func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
@@ -114,10 +130,10 @@ func (h *HookExecutor) LoadTestScripts(agentPath string) ([]string, error) {
 			return nil
 		}
 
-		// Generate script ID
-		scriptID := generateHookScriptID(file, srcDir)
+		// Generate script ID (use relative path for consistency)
+		scriptID := generateHookScriptID(file, relSrcDir)
 
-		// Load the script
+		// Load the script (file path from Walk is relative to App root)
 		_, err := v8.Load(file, scriptID)
 		if err != nil {
 			if h.verbose {
@@ -127,10 +143,6 @@ func (h *HookExecutor) LoadTestScripts(agentPath string) ([]string, error) {
 		}
 
 		loadedScripts = append(loadedScripts, scriptID)
-		if h.verbose {
-			h.output.Verbose("Loaded hook script: %s (id: %s)", base, scriptID)
-		}
-
 		return nil
 	}, exts...)
 
@@ -139,6 +151,12 @@ func (h *HookExecutor) LoadTestScripts(agentPath string) ([]string, error) {
 	}
 
 	h.loadedDirs[srcDir] = true
+
+	// Log summary only once when scripts are first loaded
+	if h.verbose && len(loadedScripts) > 0 {
+		h.output.Verbose("Loaded %d hook scripts from %s", len(loadedScripts), relSrcDir)
+	}
+
 	return loadedScripts, nil
 }
 
@@ -392,13 +410,19 @@ func (h *HookExecutor) executeHookFunctionWithCases(script *v8.Script, funcName 
 		return nil, fmt.Errorf("failed to convert to function: %w", err)
 	}
 
+	// Build ctx argument
+	ctxJS, err := h.buildCtxArg(v8ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Convert test cases to JS array
 	casesJS, err := h.testCasesToJS(v8ctx, testCases)
 	if err != nil {
 		return nil, err
 	}
 
-	jsResult, err := fn.Call(global, casesJS)
+	jsResult, err := fn.Call(global, ctxJS, casesJS)
 	if err != nil {
 		return nil, fmt.Errorf("hook function %s failed: %w", funcName, err)
 	}
@@ -454,6 +478,12 @@ func (h *HookExecutor) executeHookFunctionWithResults(script *v8.Script, funcNam
 		return nil, fmt.Errorf("failed to convert to function: %w", err)
 	}
 
+	// Build ctx argument
+	ctxJS, err := h.buildCtxArg(v8ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// Convert results to JS array
 	resultsJS, err := h.resultsToJS(v8ctx, results)
 	if err != nil {
@@ -466,7 +496,7 @@ func (h *HookExecutor) executeHookFunctionWithResults(script *v8.Script, funcNam
 		return nil, fmt.Errorf("failed to convert beforeData: %w", err)
 	}
 
-	jsResult, err := fn.Call(global, resultsJS, beforeDataJS)
+	jsResult, err := fn.Call(global, ctxJS, resultsJS, beforeDataJS)
 	if err != nil {
 		return nil, fmt.Errorf("hook function %s failed: %w", funcName, err)
 	}
@@ -498,11 +528,105 @@ func (h *HookExecutor) setShareData(v8ctx *v8go.Context) error {
 	})
 }
 
+// buildCtxArg builds the context argument for hook functions
+func (h *HookExecutor) buildCtxArg(v8ctx *v8go.Context) (*v8go.Value, error) {
+	ctxMap := map[string]interface{}{
+		"locale": "en",
+	}
+
+	// Use ContextData from --ctx flag if available
+	if h.opts != nil && h.opts.ContextData != nil {
+		cfg := h.opts.ContextData
+		if cfg.Locale != "" {
+			ctxMap["locale"] = cfg.Locale
+		}
+		if cfg.Authorized != nil {
+			authorized := map[string]interface{}{}
+			if cfg.Authorized.UserID != "" {
+				authorized["user_id"] = cfg.Authorized.UserID
+			}
+			if cfg.Authorized.TeamID != "" {
+				authorized["team_id"] = cfg.Authorized.TeamID
+			}
+			if cfg.Authorized.TenantID != "" {
+				authorized["tenant_id"] = cfg.Authorized.TenantID
+			}
+			if cfg.Authorized.Sub != "" {
+				authorized["sub"] = cfg.Authorized.Sub
+			}
+			ctxMap["authorized"] = authorized
+		}
+		if cfg.Metadata != nil {
+			ctxMap["metadata"] = cfg.Metadata
+		}
+	}
+
+	return bridge.JsValue(v8ctx, ctxMap)
+}
+
 // buildHookArgs builds the arguments for a hook function call
+// Arguments order: ctx, testCase, result (for After), beforeData (for After)
 func (h *HookExecutor) buildHookArgs(v8ctx *v8go.Context, testCase *Case, result *Result, beforeData interface{}) ([]*v8go.Value, error) {
 	var args []*v8go.Value
 
-	// Arg 1: testCase
+	// Arg 1: ctx (context) - build from opts.ContextData if available
+	ctxMap := map[string]interface{}{
+		"locale": "en",
+	}
+
+	// Use ContextData from --ctx flag if available
+	if h.opts != nil && h.opts.ContextData != nil {
+		cfg := h.opts.ContextData
+		if cfg.Locale != "" {
+			ctxMap["locale"] = cfg.Locale
+		}
+		if cfg.Authorized != nil {
+			authorized := map[string]interface{}{}
+			if cfg.Authorized.UserID != "" {
+				authorized["user_id"] = cfg.Authorized.UserID
+			}
+			if cfg.Authorized.TeamID != "" {
+				authorized["team_id"] = cfg.Authorized.TeamID
+			}
+			if cfg.Authorized.TenantID != "" {
+				authorized["tenant_id"] = cfg.Authorized.TenantID
+			}
+			if cfg.Authorized.Sub != "" {
+				authorized["sub"] = cfg.Authorized.Sub
+			}
+			ctxMap["authorized"] = authorized
+		}
+		if cfg.Metadata != nil {
+			ctxMap["metadata"] = cfg.Metadata
+		}
+	} else if testCase != nil {
+		// Fallback to test case fields
+		if testCase.UserID != "" {
+			ctxMap["user_id"] = testCase.UserID
+		}
+		if testCase.TeamID != "" {
+			ctxMap["team_id"] = testCase.TeamID
+		}
+		// Build authorized info
+		authorized := map[string]interface{}{}
+		if testCase.UserID != "" {
+			authorized["user_id"] = testCase.UserID
+		}
+		if testCase.TeamID != "" {
+			authorized["team_id"] = testCase.TeamID
+		}
+		if len(authorized) > 0 {
+			ctxMap["authorized"] = authorized
+		}
+	}
+
+	ctxJS, err := bridge.JsValue(v8ctx, ctxMap)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert ctx: %w", err)
+	}
+	args = append(args, ctxJS)
+
+	// Arg 2: testCase
 	if testCase != nil {
 		tcMap := map[string]interface{}{
 			"id":    testCase.ID,
@@ -514,12 +638,20 @@ func (h *HookExecutor) buildHookArgs(v8ctx *v8go.Context, testCase *Case, result
 		if testCase.Assert != nil {
 			tcMap["assert"] = testCase.Assert
 		}
+		// Include simulator options for dynamic tests
+		if testCase.Simulator != nil {
+			tcMap["simulator"] = testCase.Simulator
+		}
 
 		tcJS, err := bridge.JsValue(v8ctx, tcMap)
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert testCase: %w", err)
 		}
 		args = append(args, tcJS)
+	} else {
+		// Pass empty object if no testCase
+		emptyJS, _ := bridge.JsValue(v8ctx, map[string]interface{}{})
+		args = append(args, emptyJS)
 	}
 
 	// Arg 2: result (for After)
