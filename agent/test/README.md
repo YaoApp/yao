@@ -575,6 +575,8 @@ Use `assert` for flexible validation. If `assert` is defined, it takes precedenc
 | `json_path`    | Extract JSON path and compare | `{"type": "json_path", "path": "$.field", "value": true}` |
 | `regex`        | Match regex pattern           | `{"type": "regex", "value": "\\d+"}`                      |
 | `type`         | Check output type             | `{"type": "type", "value": "object"}`                     |
+| `tool_called`  | Check if a tool was called    | `{"type": "tool_called", "value": "setup"}`               |
+| `tool_result`  | Check tool execution result   | `{"type": "tool_result", "value": {"tool": "setup", "result": {"success": true}}}` |
 
 ### Assertion Fields
 
@@ -633,6 +635,76 @@ The validator agent receives the output and criteria, then returns `{"passed": t
 - `input`: The content sent to the validator (agent response + tool result messages)
 - `response`: The raw JSON response from the validator agent
 - `criteria`: The validation criteria from the test case
+
+### Tool Assertions
+
+For validating that specific tools were called and their results:
+
+#### tool_called
+
+Check if a specific tool was called:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Set up my expense system",
+  "assert": {
+    "type": "tool_called",
+    "value": "setup"
+  }
+}
+```
+
+**Value formats:**
+
+- **String**: Tool name (supports suffix matching, e.g., `"setup"` matches `"agents_expense_tools__setup"`)
+- **Array**: Any of the specified tools must be called
+- **Object**: Match tool name and optionally arguments
+
+```jsonl
+// Match any of these tools
+{"type": "tool_called", "value": ["setup", "init"]}
+
+// Match tool with specific arguments
+{"type": "tool_called", "value": {"name": "setup", "arguments": {"action": "init"}}}
+```
+
+#### tool_result
+
+Check the result of a tool execution:
+
+```jsonl
+{
+  "id": "T001",
+  "input": "Set up my expense system",
+  "assert": {
+    "type": "tool_result",
+    "value": {
+      "tool": "setup",
+      "result": {
+        "success": true
+      }
+    }
+  }
+}
+```
+
+**Result matching:**
+
+- If `result` is omitted, only checks that the tool executed without error
+- Supports partial matching (only specified fields are checked)
+- Supports regex patterns with `regex:` prefix for string values
+
+```jsonl
+// Just check tool executed without error
+{"type": "tool_result", "value": {"tool": "setup"}}
+
+// Check specific result fields
+{"type": "tool_result", "value": {"tool": "setup", "result": {"success": true}}}
+
+// Use regex for message matching
+{"type": "tool_result", "value": {"tool": "setup", "result": {"message": "regex:(?i)setup.*complete"}}}
+```
 
 ### Script Assertions
 

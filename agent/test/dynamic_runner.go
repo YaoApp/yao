@@ -377,6 +377,9 @@ func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, response *co
 	// This includes both content and tool result messages
 	combinedOutput := buildCombinedOutput(response)
 
+	// Set response on asserter for tool-related assertions
+	r.asserter.WithResponse(response)
+
 	for _, cp := range checkpoints {
 		cpResult := result.Checkpoints[cp.ID]
 		if cpResult.Reached {
@@ -409,6 +412,11 @@ func (r *DynamicRunner) checkCheckpoints(checkpoints []*Checkpoint, response *co
 			cpResult.ReachedAtTurn = len(result.Turns) + 1
 			cpResult.Message = assertResult.Message
 			reachedIDs = append(reachedIDs, cp.ID)
+		} else {
+			// Store failure message for debugging (but don't mark as failed yet - it might pass in a later turn)
+			if cpResult.Message == "" {
+				cpResult.Message = assertResult.Message
+			}
 		}
 
 		// Store agent validation details if this is an agent assertion

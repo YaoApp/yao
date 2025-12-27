@@ -264,6 +264,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// Execute all tool calls
 			toolResults, hasErrors := ast.executeToolCalls(ctx, currentResponse.ToolCalls, attempt)
 
+			// Build a map of tool call ID to arguments for quick lookup
+			toolCallArgsMap := make(map[string]interface{})
+			for _, tc := range currentResponse.ToolCalls {
+				toolCallArgsMap[tc.ID] = tc.Function.Arguments
+			}
+
 			// Convert toolResults to toolCallResponses
 			toolCallResponses = make([]context.ToolCallResponse, len(toolResults))
 			for i, result := range toolResults {
@@ -272,7 +278,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 					ToolCallID: result.ToolCallID,
 					Server:     result.Server(),
 					Tool:       result.Tool(),
-					Arguments:  nil,
+					Arguments:  toolCallArgsMap[result.ToolCallID],
 					Result:     parsedContent,
 					Error:      "",
 				}
