@@ -99,10 +99,14 @@ func processMessage(
 		return *msg, nil
 	}
 
-	// Get content parts
+	// Get content parts - try typed first, then convert from interface{}
 	parts, ok := msg.GetContentAsParts()
 	if !ok {
-		return *msg, nil
+		// Try to convert from []interface{} (common when loaded from history/JSON)
+		parts, ok = convertToContentParts(msg.Content)
+		if !ok {
+			return *msg, nil
+		}
 	}
 
 	// Note: File information will be collected and stored in Space by CallAgentWithFileInfo
@@ -293,6 +297,28 @@ func processImageURLContent(
 		}, nil
 	}
 
+	// Check model capabilities
+	supportsVision := false
+	if capabilities != nil && capabilities.Vision != nil {
+		// Vision can be bool or string (format)
+		switch v := capabilities.Vision.(type) {
+		case bool:
+			supportsVision = v
+		case string:
+			supportsVision = v != "" && v != "false" && v != "none"
+		}
+	}
+
+	// If model supports vision AND we're not forcing uses, pass through
+	if supportsVision && !forceUses {
+		return &Result{
+			ContentPart: part,
+		}, nil
+	}
+
+	// Model doesn't support vision OR forceUses is true
+	// Need to convert image to text
+
 	// If it's uploader wrapper or HTTP URL, need to process
 	// Check cache first
 	cachedText, found, err := tryGetCachedText(ctx, url, processedFiles)
@@ -441,6 +467,7 @@ func getToolForProcessing(uses *agentContext.Uses, fileType FileType) string {
 func tryGetCachedText(ctx *agentContext.Context, url string, processedFiles map[string]string) (string, bool, error) {
 	// Parse URL to check if it's an uploader wrapper
 	uploaderName, fileID, isWrapper := attachment.Parse(url)
+
 	if !isWrapper {
 		return "", false, nil // Not an uploader wrapper, no cache
 	}
@@ -484,4 +511,81 @@ func cacheProcessedText(ctx *agentContext.Context, url string, text string, proc
 	}
 
 	return nil
+}
+
+// convertToContentParts converts []interface{} to []ContentPart
+// This is needed when content is loaded from JSON/history and is []interface{} instead of []ContentPart
+func convertToContentParts(content interface{}) ([]agentContext.ContentPart, bool) {
+	// Check if it's []interface{}
+	arr, ok := content.([]interface{})
+	if !ok {
+		return nil, false
+	}
+
+	parts := make([]agentContext.ContentPart, 0, len(arr))
+	for _, item := range arr {
+		// Each item should be a map
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// Get type field
+		typeStr, _ := m["type"].(string)
+		if typeStr == "" {
+			continue
+		}
+
+		part := agentContext.ContentPart{
+			Type: agentContext.ContentPartType(typeStr),
+		}
+
+		switch typeStr {
+		case "text":
+			if text, ok := m["text"].(string); ok {
+				part.Text = text
+			}
+
+		case "image_url":
+			if imgData, ok := m["image_url"].(map[string]interface{}); ok {
+				part.ImageURL = &agentContext.ImageURL{}
+				if url, ok := imgData["url"].(string); ok {
+					part.ImageURL.URL = url
+				}
+				if detail, ok := imgData["detail"].(string); ok {
+					part.ImageURL.Detail = agentContext.ImageDetailLevel(detail)
+				}
+			}
+
+		case "file":
+			if fileData, ok := m["file"].(map[string]interface{}); ok {
+				part.File = &agentContext.FileAttachment{}
+				if url, ok := fileData["url"].(string); ok {
+					part.File.URL = url
+				}
+				if filename, ok := fileData["filename"].(string); ok {
+					part.File.Filename = filename
+				}
+			}
+
+		case "input_audio":
+			if audioData, ok := m["input_audio"].(map[string]interface{}); ok {
+				part.InputAudio = &agentContext.InputAudio{}
+				if data, ok := audioData["data"].(string); ok {
+					part.InputAudio.Data = data
+				}
+				if format, ok := audioData["format"].(string); ok {
+					part.InputAudio.Format = format
+				}
+			}
+		}
+
+		parts = append(parts, part)
+	}
+
+	if len(parts) == 0 {
+		return nil, false
+	}
+
+	return parts, true
 }

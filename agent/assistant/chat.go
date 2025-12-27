@@ -237,6 +237,12 @@ func (ast *Assistant) BufferUserInput(ctx *agentcontext.Context, inputMessages [
 		return
 	}
 
+	// Only root stack should buffer user input
+	// Delegated agents share the same buffer but should not duplicate user input
+	if ctx.Stack != nil && !ctx.Stack.IsRoot() {
+		return
+	}
+
 	// Convert input messages to buffer format
 	for _, msg := range inputMessages {
 		// Extract content from message
