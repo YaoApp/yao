@@ -19,10 +19,11 @@ func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Mess
 	}
 
 	// Get connector and capabilities
-	_, capabilities, err := ast.GetConnector(ctx, opts)
+	connector, capabilities, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connector: %w", err)
 	}
+	_ = connector // unused but needed for GetConnector call
 
 	// Get Uses configuration from options (already merged in BuildRequest)
 	uses := options.Uses

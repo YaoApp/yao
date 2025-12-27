@@ -33,11 +33,22 @@ func (ast *Assistant) executeLLMStream(
 	// Log the capabilities
 	ast.traceConnectorCapabilities(agentNode, capabilities)
 
-	// Trace Add LLM request
-	ast.traceLLMRequest(ctx, conn.ID(), completionMessages, completionOptions)
+	// Build content - convert extended types (file, data, __yao.attachment://) to standard LLM types
+	// This is done here (right before LLM call) to ensure:
+	// 1. autoSearch receives original messages (not converted)
+	// 2. delegate receives original messages (not converted)
+	// 3. Only the actual LLM call sees converted messages
+	llmMessages, err := ast.BuildContent(ctx, completionMessages, completionOptions, opts)
+	if err != nil {
+		ast.traceAgentFail(agentNode, err)
+		return nil, err
+	}
+
+	// Trace Add LLM request (use converted messages for trace)
+	ast.traceLLMRequest(ctx, conn.ID(), llmMessages, completionOptions)
 
 	// Log LLM call start
-	ctx.Logger.LLMStart(conn.ID(), "", len(completionMessages))
+	ctx.Logger.LLMStart(conn.ID(), "", len(llmMessages))
 
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
@@ -48,7 +59,8 @@ func (ast *Assistant) executeLLMStream(
 	}
 
 	// Call the LLM Completion Stream (streamHandler was set earlier)
-	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
+	// Use llmMessages (converted) instead of completionMessages (original)
+	completionResponse, err := llmInstance.Stream(ctx, llmMessages, completionOptions, streamHandler)
 
 	if err != nil {
 		// Mark LLM Request as failed in trace
@@ -86,11 +98,18 @@ func (ast *Assistant) executeLLMForToolRetry(
 		completionOptions.Capabilities = capabilities
 	}
 
+	// Build content - convert extended types for LLM call
+	llmMessages, err := ast.BuildContent(ctx, completionMessages, completionOptions, opts)
+	if err != nil {
+		ast.traceAgentFail(agentNode, err)
+		return nil, err
+	}
+
 	// Trace Add LLM retry request
-	ast.traceLLMRetryRequest(ctx, conn.ID(), completionMessages, completionOptions)
+	ast.traceLLMRetryRequest(ctx, conn.ID(), llmMessages, completionOptions)
 
 	// Log LLM call start (retry)
-	ctx.Logger.LLMStart(conn.ID(), "", len(completionMessages))
+	ctx.Logger.LLMStart(conn.ID(), "", len(llmMessages))
 
 	// Create LLM instance with connector and options
 	llmInstance, err := llm.New(conn, completionOptions)
@@ -101,7 +120,8 @@ func (ast *Assistant) executeLLMForToolRetry(
 	}
 
 	// Call the LLM Completion Stream (still streaming for tool retry)
-	completionResponse, err := llmInstance.Stream(ctx, completionMessages, completionOptions, streamHandler)
+	// Use llmMessages (converted) instead of completionMessages (original)
+	completionResponse, err := llmInstance.Stream(ctx, llmMessages, completionOptions, streamHandler)
 	if err != nil {
 		// Mark LLM Retry Request as failed in trace
 		ast.traceLLMFail(ctx, err)

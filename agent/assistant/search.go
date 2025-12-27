@@ -146,14 +146,8 @@ func (ast *Assistant) checkSearchIntent(ctx *context.Context, messages []context
 		Confidence:  0,
 	}
 
-	// Filter out system messages and pass full conversation context
-	var intentMessages []context.Message
-	for _, msg := range messages {
-		if msg.Role != "system" {
-			intentMessages = append(intentMessages, msg)
-		}
-	}
-
+	// Build a single text message with conversation context
+	intentMessages := buildContextMessage(messages)
 	if len(intentMessages) == 0 {
 		return defaultIntent // No messages, skip search
 	}
@@ -435,7 +429,16 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 		ctx.Logger.Info("No query found in messages, skipping auto search")
 		return nil
 	}
+
+	// Build query with conversation context for better keyword extraction
+	// This helps the keyword extractor understand the full context
+	contextMessages := buildContextMessage(messages)
 	query := originalQuery
+	if len(contextMessages) > 0 {
+		if contextStr, ok := contextMessages[0].Content.(string); ok {
+			query = contextStr
+		}
+	}
 
 	// Check if keyword extraction should be skipped
 	skipKeyword := false
@@ -467,7 +470,9 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	searchNode := ast.createSearchTrace(ctx, query, requests)
 
 	// Execute searches in parallel
-	ctx.Logger.Info("Executing %d search requests for query: %s", len(requests), truncateString(query, 50))
+	// Build provider info for logging
+	providerInfo := ast.getSearchProviderInfo(searchConfig, searchUses)
+	ctx.Logger.Info("Executing %d search requests via %s for query: %s", len(requests), providerInfo, truncateString(query, 50))
 
 	startTime := time.Now()
 	results, err := searcher.All(ctx, requests)
@@ -899,6 +904,105 @@ func (ast *Assistant) injectSearchContext(messages []context.Message, refCtx *se
 	return result
 }
 
+// extractTextContent extracts text-only content from a message
+// For multimodal messages, concatenates all text parts
+// Returns empty string if no text content found
+func extractTextContent(msg context.Message) string {
+	content := msg.Content
+	// Handle string content
+	if str, ok := content.(string); ok {
+		return str
+	}
+	// Handle content parts (array of objects) - extract only text parts
+	if parts, ok := content.([]interface{}); ok {
+		var texts []string
+		for _, part := range parts {
+			if partMap, ok := part.(map[string]interface{}); ok {
+				if partMap["type"] == "text" {
+					if text, ok := partMap["text"].(string); ok {
+						texts = append(texts, text)
+					}
+				}
+			}
+		}
+		if len(texts) > 0 {
+			return strings.Join(texts, "\n")
+		}
+	}
+	// Handle []context.ContentPart
+	if parts, ok := content.([]context.ContentPart); ok {
+		var texts []string
+		for _, part := range parts {
+			if part.Type == context.ContentText && part.Text != "" {
+				texts = append(texts, part.Text)
+			}
+		}
+		if len(texts) > 0 {
+			return strings.Join(texts, "\n")
+		}
+	}
+	return ""
+}
+
+// buildContextMessage builds a single user message with conversation context
+// Filters out system messages and extracts text-only content
+// Only takes the last 5 messages for efficiency
+// Returns a slice with one message containing the full context, or empty slice if no content
+func buildContextMessage(messages []context.Message) []context.Message {
+	const maxMessages = 5
+
+	// Take only the last maxMessages (excluding system messages)
+	var recentMessages []context.Message
+	for i := len(messages) - 1; i >= 0 && len(recentMessages) < maxMessages; i-- {
+		if messages[i].Role != "system" {
+			recentMessages = append(recentMessages, messages[i])
+		}
+	}
+	// Reverse to maintain chronological order
+	for i, j := 0, len(recentMessages)-1; i < j; i, j = i+1, j-1 {
+		recentMessages[i], recentMessages[j] = recentMessages[j], recentMessages[i]
+	}
+
+	var contextParts []string
+	var lastUserMessage string
+
+	for _, msg := range recentMessages {
+		textContent := extractTextContent(msg)
+		if textContent == "" {
+			continue
+		}
+
+		// Format message with role label
+		switch msg.Role {
+		case "user":
+			contextParts = append(contextParts, "[User]: "+textContent)
+			lastUserMessage = textContent
+		case "assistant":
+			contextParts = append(contextParts, "[Assistant]: "+textContent)
+		default:
+			contextParts = append(contextParts, "["+string(msg.Role)+"]: "+textContent)
+		}
+	}
+
+	// Build single message with context
+	var result []context.Message
+	if len(contextParts) > 1 {
+		// Multiple messages: include conversation context
+		fullContext := "=== Conversation Context ===\n" + strings.Join(contextParts, "\n\n") + "\n=== End Context ===\n\nCurrent user request: " + lastUserMessage
+		result = append(result, context.Message{
+			Role:    "user",
+			Content: fullContext,
+		})
+	} else if lastUserMessage != "" {
+		// Single user message: just use it directly
+		result = append(result, context.Message{
+			Role:    "user",
+			Content: lastUserMessage,
+		})
+	}
+	return result
+}
+
 // extractQueryFromMessages extracts the search query from messages
 // Uses the last user message as the query
 func extractQueryFromMessages(messages []context.Message) string {
@@ -1128,4 +1232,40 @@ func (ast *Assistant) configToMap(config *searchTypes.Config) map[string]any {
 	}
 
 	return result
+}
+
+// getSearchProviderInfo returns a human-readable string describing the search provider(s)
+func (ast *Assistant) getSearchProviderInfo(config *searchTypes.Config, uses *search.Uses) string {
+	var parts []string
+
+	// Web search provider - always show when web search is being executed
+	webMode := ""
+	if uses != nil {
+		webMode = uses.Web
+	}
+
+	if webMode == "" || webMode == "builtin" {
+		// Builtin mode: show the actual provider (tavily/serper/serpapi)
+		provider := "tavily" // default
+		if config != nil && config.Web != nil && config.Web.Provider != "" {
+			provider = config.Web.Provider
+		}
+		parts = append(parts, "web:"+provider)
+	} else if strings.HasPrefix(webMode, "mcp:") {
+		parts = append(parts, "web:"+webMode)
+	} else {
+		parts = append(parts, "web:agent:"+webMode)
+	}
+
+	// KB search
+	if config != nil && config.KB != nil && len(config.KB.Collections) > 0 {
+		parts = append(parts, "kb")
+	}
+
+	// DB search
+	if config != nil && config.DB != nil && len(config.DB.Models) > 0 {
+		parts = append(parts, "db")
+	}
+
+	return strings.Join(parts, ", ")
 }

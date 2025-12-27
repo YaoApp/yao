@@ -123,7 +123,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Get Full Messages with chat history
 	// ================================================
 	ctx.Logger.Phase("History")
-	historyResult, err := ast.WithHistory(ctx, inputMessages, agentNode)
+	historyResult, err := ast.WithHistory(ctx, inputMessages, agentNode, opts)
 	if err != nil {
 		ast.traceAgentFail(agentNode, err)
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -213,22 +213,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		ctx.Logger.Phase("LLM")
 
 		// Build the LLM request first (use fullMessages which includes history)
+		// Note: completionMessages here are still in original format (with __yao.attachment:// URLs)
+		// Content conversion (BuildContent) happens inside executeLLMStream, right before LLM call
+		// This ensures autoSearch and delegate receive original messages, not converted ones
 		completionMessages, completionOptions, err = ast.BuildRequest(ctx, fullMessages, createResponse)
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
 			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
-			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-			return nil, err
-		}
-
-		// Build content - convert extended types (file, data) to standard LLM types (text, image_url, input_audio)
-		completionMessages, err = ast.BuildContent(ctx, completionMessages, completionOptions, opts)
-		if err != nil {
-			finalStatus = context.ResumeStatusFailed
-			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
