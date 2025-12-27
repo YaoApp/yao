@@ -607,6 +607,33 @@ For semantic or fuzzy validation using an LLM:
 
 The validator agent receives the output and criteria, then returns `{"passed": true/false, "reason": "..."}`.
 
+**How it works:**
+
+1. The framework builds a validation request with the agent's response (including tool result messages)
+2. The validator agent evaluates the response against the criteria
+3. The validator returns a JSON response with `passed` and `reason`
+
+**Output in test report (for checkpoints):**
+
+```json
+{
+  "agent_validation": {
+    "passed": true,
+    "reason": "Response explicitly confirms setup completion",
+    "criteria": "Response should be friendly and helpful",
+    "input": "Hello! How can I help you today?",
+    "response": {
+      "passed": true,
+      "reason": "Response explicitly confirms setup completion"
+    }
+  }
+}
+```
+
+- `input`: The content sent to the validator (agent response + tool result messages)
+- `response`: The raw JSON response from the validator agent
+- `criteria`: The validation criteria from the test case
+
 ### Script Assertions
 
 For custom validation logic:
@@ -1036,6 +1063,35 @@ interface TurnResult {
   duration_ms: number; // Execution time
 }
 ```
+
+### Checkpoint Result Structure
+
+Each checkpoint in the output includes:
+
+```typescript
+interface CheckpointResult {
+  id: string; // Checkpoint identifier
+  reached: boolean; // Whether checkpoint was reached
+  reached_at_turn?: number; // Turn number when reached (if reached)
+  required: boolean; // Whether checkpoint is required
+  passed: boolean; // Whether assertion passed
+  message?: string; // Assertion result message
+  agent_validation?: {
+    // Agent assertion details (for type: "agent")
+    passed: boolean; // Validator's determination
+    reason: string; // Explanation from validator
+    criteria: string; // Validation criteria checked
+    input: any; // Content sent to validator
+    response: {
+      // Raw validator response
+      passed: boolean;
+      reason: string;
+    };
+  };
+}
+```
+
+**Note**: For agent-based assertions (`type: "agent"`), the `agent_validation` field provides full transparency into the validation process. The `input` field contains the combined output (agent text response + tool result messages) that was validated.
 
 ## Output Formats
 

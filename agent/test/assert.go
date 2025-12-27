@@ -42,6 +42,45 @@ func (a *Asserter) Validate(tc *Case, output interface{}) (bool, string) {
 	return true, ""
 }
 
+// ValidateWithDetails validates the output and returns detailed results
+// This is useful for agent assertions where we want to capture the validator's response
+func (a *Asserter) ValidateWithDetails(tc *Case, output interface{}) *AssertionResult {
+	if tc.Assert == nil {
+		return &AssertionResult{Passed: true}
+	}
+
+	assertions := a.parseAssertions(tc.Assert)
+	if len(assertions) == 0 {
+		return &AssertionResult{Passed: true}
+	}
+
+	// For single assertion, return its full result
+	if len(assertions) == 1 {
+		return a.evaluateAssertion(assertions[0], output, tc.Input)
+	}
+
+	// For multiple assertions, combine results
+	var failures []string
+	for _, assertion := range assertions {
+		result := a.evaluateAssertion(assertion, output, tc.Input)
+		if !result.Passed {
+			msg := result.Message
+			if assertion.Message != "" {
+				msg = assertion.Message
+			}
+			failures = append(failures, msg)
+		}
+	}
+
+	if len(failures) > 0 {
+		return &AssertionResult{
+			Passed:  false,
+			Message: strings.Join(failures, "; "),
+		}
+	}
+	return &AssertionResult{Passed: true}
+}
+
 // validateAssertions validates output against assertion rules
 func (a *Asserter) validateAssertions(tc *Case, output interface{}) (bool, string) {
 	assertions := a.parseAssertions(tc.Assert)

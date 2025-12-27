@@ -93,6 +93,27 @@ type CheckpointResult struct {
 
 	// Message contains assertion result message
 	Message string `json:"message,omitempty"`
+
+	// AgentValidation contains the agent validator's response (for agent assertions)
+	AgentValidation *AgentValidationResult `json:"agent_validation,omitempty"`
+}
+
+// AgentValidationResult contains the result from an agent-based assertion
+type AgentValidationResult struct {
+	// Passed indicates if the agent validator determined the assertion passed
+	Passed bool `json:"passed"`
+
+	// Reason is the explanation from the agent validator
+	Reason string `json:"reason,omitempty"`
+
+	// Criteria is the validation criteria that was checked
+	Criteria string `json:"criteria,omitempty"`
+
+	// Input is the content that was sent to validator for checking
+	Input interface{} `json:"input,omitempty"`
+
+	// Response is the raw response from the validator agent
+	Response interface{} `json:"response,omitempty"`
 }
 
 // SimulatorInput is the input sent to the simulator agent
