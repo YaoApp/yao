@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,32 @@ func (r *Executor) RunTests() (*Report, error) {
 	if skippedCount > 0 {
 		r.output.Warning("Skipped: %d test cases", skippedCount)
 	}
+
+	// Filter by --run pattern if specified
+	if r.opts.Run != "" {
+		runPattern, err := regexp.Compile(r.opts.Run)
+		if err != nil {
+			return nil, fmt.Errorf("invalid --run pattern %q: %w", r.opts.Run, err)
+		}
+		activeTests = FilterByPattern(activeTests, runPattern)
+		if len(activeTests) == 0 {
+			return nil, fmt.Errorf("no test cases match pattern %q", r.opts.Run)
+		}
+		r.output.Info("Filter: %q (%d test cases match)", r.opts.Run, len(activeTests))
+	}
+
+	// Load context config if specified
+	if r.opts.ContextFile != "" {
+		ctxConfig, err := LoadContextConfig(r.opts.ContextFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load context file: %w", err)
+		}
+		r.opts.ContextData = ctxConfig
+		r.output.Info("Context: %s", r.opts.ContextFile)
+	}
+
+	// Set options on hook executor (for context data access in hooks)
+	r.hookExecutor.SetOptions(r.opts)
 
 	// Print test info
 	if r.opts.Runs > 1 {
@@ -526,14 +553,12 @@ func (r *Executor) runDynamicTest(ast *assistant.Assistant, tc *Case, agentID st
 	// Convert to standard result
 	result := dynamicResult.ToResult()
 
-	// Execute after script if specified
-	defer func() {
-		if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
-			if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
-				r.output.Warning("after script failed: %s", err.Error())
-			}
+	// Execute after script if specified (before outputting result)
+	if tc.After != "" && (tc.Before == "" || beforeData != nil || result.Status != StatusError || !isBeforeError(result.Error)) {
+		if err := r.hookExecutor.ExecuteAfter(tc.After, tc, result, beforeData, r.agentPath); err != nil {
+			r.output.Warning("after script failed: %s", err.Error())
 		}
-	}()
+	}
 
 	// Output result
 	duration := time.Duration(result.DurationMs) * time.Millisecond
@@ -718,7 +743,7 @@ func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
 }
 
 // extractOutput extracts the output from the agent response
-// Priority: Next hook data (if non-empty) > Completion content > nil
+// Priority: Next hook data > Completion content > Tool results message > nil
 func extractOutput(response *context.Response) interface{} {
 	if response == nil {
 		return nil
@@ -729,11 +754,76 @@ func extractOutput(response *context.Response) interface{} {
 	if response.Next != nil && !isEmptyValue(response.Next) {
 		return response.Next
 	}
-	// Fall back to raw completion content
+
+	// Fall back to completion response
 	if response.Completion != nil {
-		return response.Completion.Content
+		// If content is non-empty, return it
+		if response.Completion.Content != nil && !isEmptyValue(response.Completion.Content) {
+			return response.Completion.Content
+		}
 	}
 
+	// If no content but tools were executed, extract message from tool results
+	// This handles the case where LLM calls tools but doesn't generate text
+	if len(response.Tools) > 0 {
+		return extractToolResultMessage(response.Tools)
+	}
+
+	return nil
+}
+
+// extractToolResultMessage extracts the message field from tool results
+// Returns the first non-empty message found, or a summary of tool calls
+func extractToolResultMessage(tools []context.ToolCallResponse) interface{} {
+	if len(tools) == 0 {
+		return nil
+	}
+
+	// Try to extract "message" field from tool results first
+	for _, tool := range tools {
+		if tool.Result != nil {
+			// Try to get message from result map
+			if resultMap, ok := tool.Result.(map[string]interface{}); ok {
+				if msg, exists := resultMap["message"]; exists && msg != nil {
+					if msgStr, ok := msg.(string); ok && msgStr != "" {
+						return msgStr
+					}
+				}
+			}
+		}
+	}
+
+	// No message found, generate a summary of tool calls
+	var summaries []string
+	for _, tool := range tools {
+		toolName := tool.Tool
+		if toolName == "" {
+			toolName = "unknown"
+		}
+		// Extract key info from result if possible
+		if tool.Result != nil {
+			if resultMap, ok := tool.Result.(map[string]interface{}); ok {
+				// Try common result fields
+				if action, ok := resultMap["action"].(string); ok {
+					summaries = append(summaries, fmt.Sprintf("[%s: %s]", toolName, action))
+					continue
+				}
+				if success, ok := resultMap["success"].(bool); ok {
+					status := "failed"
+					if success {
+						status = "success"
+					}
+					summaries = append(summaries, fmt.Sprintf("[%s: %s]", toolName, status))
+					continue
+				}
+			}
+		}
+		summaries = append(summaries, fmt.Sprintf("[%s]", toolName))
+	}
+
+	if len(summaries) > 0 {
+		return strings.Join(summaries, " ")
+	}
 	return nil
 }
 

@@ -203,6 +203,33 @@ Simulator-driven testing with checkpoint validation. A simulator agent generates
 | `--fail-fast` | Stop on first failure                                    | false                      |
 | `--dry-run`   | Generate test cases without running them                 | false                      |
 
+## Custom Context File
+
+Create a JSON file for custom authorization:
+
+```json
+{
+  "chat_id": "test-chat-001",
+  "authorized": {
+    "user_id": "test-user-123",
+    "team_id": "test-team-456",
+    "constraints": {
+      "owner_only": true,
+      "extra": { "department": "engineering" }
+    }
+  },
+  "metadata": {
+    "mode": "test"
+  }
+}
+```
+
+Use with `--ctx`:
+
+```bash
+yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+```
+
 ## Input Format (JSONL)
 
 Each line is a JSON object. Below are examples organized by scenario.
@@ -761,9 +788,12 @@ export function AfterAll(ctx: Context, results: TestResult[], beforeData: any) {
 
 ```typescript
 interface Context {
-  user_id: string; // Test user ID
-  team_id: string; // Test team ID
   locale: string; // Locale (e.g., "en-us")
+  authorized: {
+    user_id: string; // Test user ID
+    team_id: string; // Test team ID
+    constraints?: object; // Access constraints
+  };
   metadata: object; // Custom metadata from test case
 }
 ```
@@ -978,6 +1008,33 @@ For testing complex conversation flows where the path is unpredictable:
 ℹ   Turn 3: Agent: Let me confirm: Medium latte. Correct?
 ℹ     ✓ checkpoint: confirm
   └─ PASSED (3 turns, 3 checkpoints, 8.5s)
+```
+
+### Dynamic Mode Output Structure
+
+Each turn in the output includes:
+
+```typescript
+interface TurnResult {
+  turn: number; // Turn number (1-based)
+  input: string; // User message
+  output: any; // Agent response summary (for display)
+  response: {
+    // Full agent response (for detailed analysis)
+    content: string; // LLM text content
+    tool_calls: [
+      {
+        // Tool calls made
+        tool: string; // Tool name
+        arguments: any; // Call arguments
+        result: any; // Execution result
+      }
+    ];
+    next: any; // Next hook data
+  };
+  checkpoints_reached: string[]; // Checkpoint IDs reached
+  duration_ms: number; // Execution time
+}
 ```
 
 ## Output Formats
