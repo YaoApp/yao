@@ -176,6 +176,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			ctx.Logger.Debug("Create hook delegating to agent: %s", createResponse.Delegate.AgentID)
 
 			// Delegate to target agent (reuse existing delegation logic from next.go)
+			// Note: User input is already buffered by root agent, delegated agent will skip buffering
 			delegateResponse, err := ast.handleDelegation(ctx, createResponse.Delegate, streamHandler)
 			if err != nil {
 				finalStatus = context.ResumeStatusFailed

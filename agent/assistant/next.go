@@ -15,6 +15,7 @@ func (ast *Assistant) processNextResponse(npc *NextProcessContext) (*agentContex
 	}
 
 	// Handle Delegate: call another agent
+	// Note: User input is already buffered by root agent, delegated agent will skip buffering
 	if npc.NextResponse.Delegate != nil {
 		return ast.handleDelegation(npc.Context, npc.NextResponse.Delegate, npc.StreamHandler)
 	}
