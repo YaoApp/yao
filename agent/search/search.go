@@ -124,9 +124,23 @@ func (s *Searcher) parallelAll(ctx *context.Context, reqs []*types.Request) ([]*
 		wg.Add(1)
 		go func(idx int, r *types.Request) {
 			defer wg.Done()
-			result, _ := s.Search(ctx, r)
+			defer func() {
+				if err := recover(); err != nil {
+					mu.Lock()
+					results[idx] = &types.Result{Error: "search panic recovered"}
+					mu.Unlock()
+				}
+			}()
+
+			result, err := s.Search(ctx, r)
 			mu.Lock()
-			results[idx] = result
+			if err != nil {
+				results[idx] = &types.Result{Error: err.Error()}
+			} else if result == nil {
+				results[idx] = &types.Result{Error: "empty result"}
+			} else {
+				results[idx] = result
+			}
 			mu.Unlock()
 		}(i, req)
 	}

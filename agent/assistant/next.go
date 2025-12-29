@@ -65,6 +65,12 @@ func (ast *Assistant) handleDelegation(
 
 // buildStandardResponse builds the standard agent response when no custom Next hook processing is needed
 func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) *agentContext.Response {
+
+	var next interface{} = nil
+	if npc.NextResponse != nil {
+		next = npc.NextResponse
+	}
+
 	return &agentContext.Response{
 		ContextID:   npc.Context.ID,
 		RequestID:   npc.Context.RequestID(),
@@ -72,7 +78,7 @@ func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) *agentConte
 		ChatID:      npc.Context.ChatID,
 		AssistantID: ast.ID,
 		Create:      npc.CreateResponse,
-		Next:        npc.NextResponse,
+		Next:        next,
 		Completion:  npc.CompletionResponse,
 		Tools:       npc.ToolCallResponses,
 	}

@@ -192,11 +192,12 @@ type AssistantInfo struct {
 
 // Skip configuration for what to skip in this request
 type Skip struct {
-	History bool `json:"history"` // Skip saving chat history (for internal calls like title/prompt generation)
-	Trace   bool `json:"trace"`   // Skip trace logging
-	Output  bool `json:"output"`  // Skip output to client (for internal A2A calls that only need response data)
-	Keyword bool `json:"keyword"` // Skip keyword extraction for web search (use raw query directly)
-	Search  bool `json:"search"`  // Skip auto search (for internal calls like needsearch intent detection)
+	History        bool `json:"history"`         // Skip saving chat history (for internal calls like title/prompt generation)
+	Trace          bool `json:"trace"`           // Skip trace logging
+	Output         bool `json:"output"`          // Skip output to client (for internal A2A calls that only need response data)
+	Keyword        bool `json:"keyword"`         // Skip keyword extraction for web search (use raw query directly)
+	Search         bool `json:"search"`          // Skip auto search (for internal calls like needsearch intent detection)
+	ContentParsing bool `json:"content_parsing"` // Skip content parsing (vision, PDF, docx, etc.), convert files to raw text directly
 }
 
 // MessageMetadata stores metadata for sent messages
@@ -301,6 +302,9 @@ type Options struct {
 
 	// Agent mode, use to select the mode of the request, default is "chat"
 	Mode string `json:"mode,omitempty"` // Agent mode, use to select the mode of the request, default is "chat"
+
+	// Uses configuration, allow hook to override wrapper configurations for vision, audio, search, and fetch
+	Uses *Uses `json:"uses,omitempty"` // Uses configuration, allow hook to override wrapper configurations for vision, audio, search, and fetch
 
 	// Metadata for passing custom data to hooks (e.g., scenario selection)
 	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks

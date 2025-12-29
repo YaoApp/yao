@@ -99,6 +99,12 @@ func init() {
 			"kb.chat.name":        "Chat Knowledge Base",
 			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
 
+			// Content: content/image/image.go - Image processing messages
+			"content.image.analyzing": "Analyzing image...",
+
+			// Content: content/pdf/pdf.go - PDF processing messages
+			"content.pdf.analyzing_page": "Analyzing PDF page %d/%d...",
+
 			// Search: assistant/search.go - Output messages
 			"search.loading":     "Searching...",
 			"search.success":     "Found %d references",
@@ -191,6 +197,12 @@ func init() {
 			// KB: Chat collection
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
+
+			// Content: content/image/image.go - Image processing messages
+			"content.image.analyzing": "正在分析图片...",
+
+			// Content: content/pdf/pdf.go - PDF processing messages
+			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页...",
 
 			// Search: assistant/search.go - Output messages
 			"search.loading":     "正在搜索...",
@@ -312,6 +324,12 @@ func init() {
 			// KB: Chat collection
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
+
+			// Content: content/image/image.go - Image processing messages
+			"content.image.analyzing": "正在分析图片...",
+
+			// Content: content/pdf/pdf.go - PDF processing messages
+			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页...",
 
 			// Search: assistant/search.go - Output messages
 			"search.loading":     "正在搜索...",

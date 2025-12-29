@@ -31,6 +31,15 @@ func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.
 		return nil
 	}
 
+	// Check if search is skipped via ctx.Metadata["__disable_search"]
+	if ctx != nil && ctx.Metadata != nil {
+		disableSearch := getBool(ctx.Metadata, "__disable_search")
+		if disableSearch {
+			ctx.Logger.Debug("Auto search skipped by ctx.Metadata['__disable_search']")
+			return nil
+		}
+	}
+
 	// Check createResponse.Search field (highest priority from Create hook)
 	// Supports: bool | SearchIntent | nil
 	if createResponse != nil && createResponse.Search != nil {
@@ -46,7 +55,7 @@ func (ast *Assistant) shouldAutoSearch(ctx *context.Context, messages []context.
 	}
 
 	// Get merged uses configuration
-	uses := ast.getMergedSearchUses(createResponse)
+	uses := ast.getMergedSearchUses(createResponse, opts)
 
 	// Check if search is explicitly disabled
 	if uses != nil && uses.Search == "disabled" {
@@ -357,8 +366,9 @@ func (ast *Assistant) sendIntentDone(ctx *context.Context, loadingID string, nee
 }
 
 // getMergedSearchUses returns the merged uses configuration for search
-// Priority: createResponse > assistant
-func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResponse) *context.Uses {
+// Priority:  createResponse > options.Uses > assistant
+func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResponse, opts ...*context.Options) *context.Uses {
+
 	// Start with assistant uses
 	var uses *context.Uses
 	if ast.Uses != nil {
@@ -368,6 +378,31 @@ func (ast *Assistant) getMergedSearchUses(createResponse *context.HookCreateResp
 			Keyword:  ast.Uses.Keyword,
 			QueryDSL: ast.Uses.QueryDSL,
 			Rerank:   ast.Uses.Rerank,
+		}
+	}
+
+	// Override with options.Uses if provided (highest priority)
+	if len(opts) > 0 && opts[0] != nil && opts[0].Uses != nil {
+
+		if uses == nil {
+			uses = &context.Uses{}
+		}
+
+		if opts[0].Uses.Search != "" {
+			uses.Search = opts[0].Uses.Search
+		}
+		if opts[0].Uses.Web != "" {
+			uses.Web = opts[0].Uses.Web
+		}
+
+		if opts[0].Uses.Keyword != "" {
+			uses.Keyword = opts[0].Uses.Keyword
+		}
+		if opts[0].Uses.QueryDSL != "" {
+			uses.QueryDSL = opts[0].Uses.QueryDSL
+		}
+		if opts[0].Uses.Rerank != "" {
+			uses.Rerank = opts[0].Uses.Rerank
 		}
 	}
 
@@ -405,7 +440,7 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	defer ctx.Logger.PhaseComplete("Search")
 
 	// Get merged uses configuration
-	uses := ast.getMergedSearchUses(createResponse)
+	uses := ast.getMergedSearchUses(createResponse, opts...)
 
 	// Convert to search.Uses
 	searchUses := &search.Uses{}
