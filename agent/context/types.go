@@ -302,6 +302,9 @@ type Options struct {
 	// Agent mode, use to select the mode of the request, default is "chat"
 	Mode string `json:"mode,omitempty"` // Agent mode, use to select the mode of the request, default is "chat"
 
+	// Uses configuration, allow hook to override wrapper configurations for vision, audio, search, and fetch
+	Uses *Uses `json:"uses,omitempty"` // Uses configuration, allow hook to override wrapper configurations for vision, audio, search, and fetch
+
 	// Metadata for passing custom data to hooks (e.g., scenario selection)
 	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks
 }

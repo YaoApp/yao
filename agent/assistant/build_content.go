@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/yao/agent/content"
+	contentTypes "github.com/yaoapp/yao/agent/content/types"
 	"github.com/yaoapp/yao/agent/context"
 )
 
@@ -23,19 +24,24 @@ func (ast *Assistant) BuildContent(ctx *context.Context, messages []context.Mess
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connector: %w", err)
 	}
-	_ = connector // unused but needed for GetConnector call
 
-	// Get Uses configuration from options (already merged in BuildRequest)
-	uses := options.Uses
-
-	// Get ForceUses configuration from options
-	forceUses := options.ForceUses
-
-	// Process content through Vision function
-	processedMessages, err := content.Vision(ctx, capabilities, messages, uses, forceUses)
-	if err != nil {
-		return nil, fmt.Errorf("failed to process content: %w", err)
+	// Build parse options
+	parseOptions := &contentTypes.Options{
+		Capabilities:      capabilities,
+		CompletionOptions: options,
+		Connector:         connector,
+		StreamOptions:     options.StreamOptions,
 	}
 
-	return processedMessages, nil
+	contentMessages, referenceContext, err := content.ParseUserInput(ctx, messages, parseOptions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse content: %w", err)
+	}
+
+	// Inject reference context into messages
+	if referenceContext != nil {
+		contentMessages = ast.injectSearchContext(contentMessages, referenceContext)
+	}
+
+	return contentMessages, nil
 }

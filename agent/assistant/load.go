@@ -609,7 +609,15 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// Search configuration (from package.yao search block)
 	// This contains search options like web.max_results, kb.threshold, citation.format, etc.
 	// Merge hierarchy: global config < assistant config
-	if v, ok := data["search"].(map[string]interface{}); ok {
+	switch v := data["search"].(type) {
+
+	case *searchTypes.Config:
+		assistant.Search = v
+
+	case searchTypes.Config:
+		assistant.Search = &v
+
+	case map[string]interface{}:
 		var assistantSearch searchTypes.Config
 		raw, err := jsoniter.Marshal(v)
 		if err != nil {
@@ -621,8 +629,8 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		}
 		// Merge with global search config
 		assistant.Search = mergeSearchConfig(globalSearchConfig, &assistantSearch)
-	} else if globalSearchConfig != nil {
-		// No assistant-specific config, use global
+
+	default:
 		assistant.Search = globalSearchConfig
 	}
 

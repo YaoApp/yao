@@ -43,6 +43,25 @@ func getTimestamp(v interface{}) (int64, error) {
 	return 0, fmt.Errorf("invalid timestamp type %T", v)
 }
 
+// getBool gets bool from data map[string]interface{}, key string
+func getBool(data map[string]interface{}, key string) bool {
+	switch v := data[key].(type) {
+	case bool:
+		return v
+	case int64:
+		return v != 0
+	case int:
+		return v != 0
+	case float64:
+		return v != 0
+	case string:
+		return v == "true" || v == "1" || v == "enabled" || v == "yes" || v == "on"
+	case nil:
+		return false
+	}
+	return false
+}
+
 // stringHash returns the sha256 hash of the string
 func stringHash(v string) string {
 	h := sha256.New()
