@@ -20,4 +20,7 @@ type Options struct {
 
 	// StreamOptions, Current stream options instance
 	StreamOptions *agentContext.StreamOptions
+
+	// SilentLoading, if true, suppress loading messages (used when called from parent handler)
+	SilentLoading bool
 }

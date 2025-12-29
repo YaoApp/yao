@@ -2,9 +2,14 @@ package content
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/content/docx"
 	"github.com/yaoapp/yao/agent/content/image"
+	"github.com/yaoapp/yao/agent/content/pdf"
+	"github.com/yaoapp/yao/agent/content/pptx"
+	"github.com/yaoapp/yao/agent/content/text"
 	"github.com/yaoapp/yao/agent/content/types"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
@@ -99,7 +104,7 @@ func parseContentPart(ctx *agentContext.Context, content agentContext.ContentPar
 		return content, nil, nil
 
 	case agentContext.ContentFile:
-		return content, nil, nil
+		return parseFileContent(ctx, content, options)
 
 	case agentContext.ContentData:
 		return content, nil, nil
@@ -107,6 +112,35 @@ func parseContentPart(ctx *agentContext.Context, content agentContext.ContentPar
 	default:
 		return content, nil, fmt.Errorf("unsupported content part type: %s", content.Type)
 	}
+}
+
+// parseFileContent parses file content based on file type
+func parseFileContent(ctx *agentContext.Context, content agentContext.ContentPart, options *types.Options) (agentContext.ContentPart, []*searchTypes.Reference, error) {
+	if content.File == nil || content.File.URL == "" {
+		return content, nil, nil
+	}
+
+	// Determine file type from filename
+	filename := strings.ToLower(content.File.Filename)
+
+	// Check file type and route to appropriate handler
+	switch {
+	case strings.HasSuffix(filename, ".pdf"):
+		return pdf.New(options).Parse(ctx, content)
+
+	case strings.HasSuffix(filename, ".docx"):
+		return docx.New(options).Parse(ctx, content)
+
+	case strings.HasSuffix(filename, ".pptx"):
+		return pptx.New(options).Parse(ctx, content)
+
+	case text.IsSupportedExtension(filename):
+		return text.New(options).Parse(ctx, content)
+	}
+
+	// For unsupported file types, try to read as text
+	// This allows any file to be converted to text content
+	return text.New(options).ParseRaw(ctx, content)
 }
 
 // convertToContentParts converts []interface{} to []ContentPart

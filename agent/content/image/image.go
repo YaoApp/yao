@@ -361,7 +361,13 @@ func (h *Image) callMCPVisionTool(ctx *agentContext.Context, serverID string, co
 }
 
 // sendLoading sends a loading message and returns the message ID
+// Returns empty string if SilentLoading is enabled
 func (h *Image) sendLoading(ctx *agentContext.Context, msg string) string {
+	// Skip loading message if SilentLoading is enabled (called from parent handler like PDF)
+	if h.options != nil && h.options.SilentLoading {
+		return ""
+	}
+
 	loadingMsg := &message.Message{
 		Type: message.TypeLoading,
 		Props: map[string]interface{}{
