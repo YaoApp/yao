@@ -161,6 +161,14 @@ func (ast *Assistant) convertStoreMessageToContext(msg *storetypes.Message) *age
 		return nil
 	}
 
+	// Skip internal message types that should not be included in LLM context
+	// These types are for UI/internal use only and can confuse the LLM
+	// Note: "error" is kept so LLM can help troubleshoot issues
+	switch msg.Type {
+	case "tool_call", "loading", "action", "event":
+		return nil
+	}
+
 	// Extract content from Props
 	content := ast.extractContentFromProps(msg.Props, msg.Type)
 	if content == nil {
