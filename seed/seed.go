@@ -572,17 +572,14 @@ func buildColumnTypeMap(mod *model.Model, header []string) []string {
 	return columnTypes
 }
 
-// parseJSONField attempts to parse a value as JSON if the column type is json
-// Returns the parsed JSON object if successful, otherwise returns the original value
+// parseJSONField attempts to parse a value based on column type
+// For JSON columns: parses JSON string to object
+// For boolean columns: converts "true"/"false"/"1"/"0" to bool
+// Returns the parsed value if successful, otherwise returns the original value
 func parseJSONField(value interface{}, columnType string) interface{} {
-	// Check if column type is JSON
-	if columnType != "json" && columnType != "jsonb" {
-		return value
-	}
-
-	// Try to parse string value as JSON
+	// Try to parse string value
 	strValue, ok := value.(string)
-	if !ok || strValue == "" {
+	if !ok {
 		return value
 	}
 
@@ -592,15 +589,30 @@ func parseJSONField(value interface{}, columnType string) interface{} {
 		return value
 	}
 
-	// Try to parse as JSON
-	var jsonValue interface{}
-	if err := json.Unmarshal([]byte(strValue), &jsonValue); err != nil {
-		// If parsing fails, return original value (might be empty or malformed)
-		// Don't log error as this is expected for non-JSON strings
+	// Handle boolean type
+	if columnType == "boolean" || columnType == "bool" {
+		switch strings.ToLower(strValue) {
+		case "true", "1", "yes":
+			return true
+		case "false", "0", "no":
+			return false
+		}
 		return value
 	}
 
-	return jsonValue
+	// Handle JSON type
+	if columnType == "json" || columnType == "jsonb" {
+		// Try to parse as JSON
+		var jsonValue interface{}
+		if err := json.Unmarshal([]byte(strValue), &jsonValue); err != nil {
+			// If parsing fails, return original value (might be empty or malformed)
+			// Don't log error as this is expected for non-JSON strings
+			return value
+		}
+		return jsonValue
+	}
+
+	return value
 }
 
 // sortColumns sorts column names alphabetically for consistent ordering

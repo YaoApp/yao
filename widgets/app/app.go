@@ -396,7 +396,12 @@ func processMenu(p *process.Process) interface{} {
 		exception.New(err.Error(), 400).Throw()
 	}
 
-	err = handle.WithGlobal(p.Global).WithSID(p.Sid).Execute()
+	handle.WithGlobal(p.Global).WithSID(p.Sid)
+	if p.Authorized != nil {
+		handle = handle.WithAuthorized(p.Authorized)
+	}
+
+	err = handle.Execute()
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

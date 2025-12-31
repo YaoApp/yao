@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/agent"
+	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
 	"github.com/yaoapp/yao/openapi/chat"
 	"github.com/yaoapp/yao/openapi/dsl"
@@ -149,6 +150,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Trace handlers
 	openapiTrace.Attach(group.Group("/trace"), openapi.OAuth)
+
+	// App handlers (menu, etc.)
+	app.Attach(group.Group("/app"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 
