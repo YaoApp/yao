@@ -78,7 +78,87 @@ yao agent test -i "Hello, how are you?"
 yao start
 ```
 
-Access via API: `POST /api/__yao/agent`
+Access via API: `POST /v1/chat/completions`
+
+## Examples
+
+### Hook: Route to Specialist
+
+```typescript
+// src/index.ts
+function Create(ctx: agent.Context, messages: agent.Message[]): agent.Create {
+  const last = messages[messages.length - 1]?.content || "";
+  if (last.includes("refund")) {
+    return { delegate: { agent_id: "refund-specialist", messages } };
+  }
+  return null;
+}
+```
+
+### Database Query
+
+```json
+// package.yao - Enable auto DB search
+{ "db": { "models": ["orders", "products"] } }
+```
+
+```bash
+# Test: Agent auto-generates QueryDSL and searches database
+yao agent test -i "Find orders over $1000 from last month"
+```
+
+### MCP Tools (Process Transport)
+
+```json
+// mcps/tools.mcp.yao - Define MCP server with Yao Processes
+{
+  "label": "Tools",
+  "transport": "process",
+  "tools": {
+    "search_orders": "models.order.Paginate",
+    "create_order": "models.order.Create"
+  }
+}
+```
+
+```json
+// mcps/mapping/tools/schemes/search_orders.in.yao - Input schema
+{
+  "type": "object",
+  "properties": {
+    "keyword": { "type": "string" },
+    "page": { "type": "integer" }
+  },
+  "x-process-args": [":arguments"]
+}
+```
+
+```json
+// package.yao
+{ "mcp": { "servers": [{ "server_id": "tools" }] } }
+```
+
+### Sidebar Page (Display Data)
+
+Pages render in the right sidebar during conversation to display structured data:
+
+```html
+<!-- pages/result/result.html - Display query results -->
+<div class="result-panel">
+  <h3>{{ title }}</h3>
+  <table s:if="{{ rows.length > 0 }}">
+    <tr s:for="{{ rows }}" s:for-item="row">
+      <td>{{ row.name }}</td>
+      <td>{{ row.value }}</td>
+    </tr>
+  </table>
+</div>
+```
+
+```bash
+yao sui build agent    # Build pages
+# Rendered via ctx.Send({ type: "page", props: { page: "result", data: {...} } })
+```
 
 ## Documentation
 
@@ -88,6 +168,7 @@ Access via API: `POST /api/__yao/agent`
 - [Context API](docs/context-api.md) - Messaging, memory, trace, MCP
 - [MCP Integration](docs/mcp.md) - Tool servers and resources
 - [Search](docs/search.md) - Web, knowledge base, and database search
+- [Pages](docs/pages.md) - Web UI for agents (SUI framework)
 - [Internationalization](docs/i18n.md) - Multi-language support
 - [Testing](docs/testing.md) - Agent testing framework
 
@@ -136,13 +217,19 @@ flowchart LR
 
 ## API Endpoints
 
-| Endpoint                        | Method | Description         |
-| ------------------------------- | ------ | ------------------- |
-| `/api/__yao/agent`              | POST   | Chat with assistant |
-| `/api/__yao/agent/history`      | GET    | Get chat history    |
-| `/api/__yao/agent/chats`        | GET    | List chat sessions  |
-| `/api/__yao/agent/assistants`   | GET    | List assistants     |
-| `/api/__yao/agent/upload/:type` | POST   | Upload files        |
+OpenAPI endpoints (base URL: `/v1`):
+
+| Endpoint                               | Method | Description           |
+| -------------------------------------- | ------ | --------------------- |
+| `/v1/chat/completions`                 | POST   | Chat with assistant   |
+| `/v1/chat/sessions`                    | GET    | List chat sessions    |
+| `/v1/chat/sessions/:chat_id`           | GET    | Get chat session      |
+| `/v1/chat/sessions/:chat_id/messages`  | GET    | Get messages          |
+| `/v1/agent/assistants`                 | GET    | List assistants       |
+| `/v1/agent/assistants/:id`             | GET    | Get assistant details |
+| `/v1/file/:uploaderID`                 | POST   | Upload files          |
+| `/v1/file/:uploaderID/:fileID`         | GET    | Get file info         |
+| `/v1/file/:uploaderID/:fileID/content` | GET    | Download file         |
 
 ## License
 
