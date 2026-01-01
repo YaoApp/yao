@@ -35,8 +35,14 @@ func LibSUI() ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
+	// Read openapi source code from bindata
+	openapi, err := data.Read("libsui/openapi.ts")
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Merge the source code
-	source := fmt.Sprintf("%s\n%s\n%s\n%s", index, utils, yao, agent)
+	source := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", index, utils, yao, agent, openapi)
 
 	// Build the source code
 	js, sm, err := transform.TypeScriptWithSourceMap(string(source), api.TransformOptions{

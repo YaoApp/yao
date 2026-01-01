@@ -17,32 +17,10 @@ import (
 
 // Guard is the OAuth guard middleware
 func (s *Service) Guard(c *gin.Context) {
-	// Get the token from the request
-	token := s.getAccessToken(c)
-
-	// Validate the token
-	if token == "" {
-		response.RespondWithError(c, http.StatusUnauthorized, types.ErrTokenMissing)
-		c.Abort()
-		return
+	// Authenticate first (validates token and sets authorized info)
+	if !s.Authenticate(c) {
+		return // Authentication failed, response already sent
 	}
-
-	// Validate the token
-	claims, err := s.VerifyToken(token)
-	if err != nil {
-		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
-		c.Abort()
-		return
-	}
-
-	// Auto refresh the token
-	if claims.ExpiresAt.Before(time.Now()) {
-		s.tryAutoRefreshToken(c, claims)
-	}
-
-	// Set Authorized Info in context
-	sessionID := s.getSessionID(c)
-	authorized.SetInfo(c, claims, sessionID, s.UserID)
 
 	// Check if ACL is enabled
 	if acl.Global == nil || !acl.Global.Enabled() {
@@ -64,6 +42,43 @@ func (s *Service) Guard(c *gin.Context) {
 		c.Abort()
 		return
 	}
+}
+
+// Authenticate validates the token and sets authorized info in context
+// This method only performs authentication without ACL checks
+// Returns true if authentication succeeded, false otherwise
+func (s *Service) Authenticate(c *gin.Context) bool {
+	// Get the token from the request
+	token := s.getAccessToken(c)
+
+	// Validate the token
+	if token == "" {
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrTokenMissing)
+		c.Abort()
+		return false
+	}
+
+	// Validate the token
+	claims, err := s.VerifyToken(token)
+	if err != nil {
+		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
+		c.Abort()
+		return false
+	}
+
+	// Auto refresh the token
+	if claims.ExpiresAt.Before(time.Now()) {
+		s.tryAutoRefreshToken(c, claims)
+		if c.IsAborted() {
+			return false
+		}
+	}
+
+	// Set Authorized Info in context
+	sessionID := s.getSessionID(c)
+	authorized.SetInfo(c, claims, sessionID, s.UserID)
+
+	return true
 }
 
 // GetAuthorizedInfo gets authorized info from context

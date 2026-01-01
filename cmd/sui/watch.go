@@ -31,8 +31,8 @@ var WatchCmd = &cobra.Command{
 	Short: L("Auto-build when the template file changes"),
 	Long:  L("Auto-build when the template file changes"),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, color.RedString(L("yao sui watch <sui> <template> [data]")))
+		if len(args) < 1 {
+			fmt.Fprintln(os.Stderr, color.RedString(L("yao sui watch <sui> [template] [data]")))
 			return
 		}
 
@@ -52,7 +52,15 @@ var WatchCmd = &cobra.Command{
 		}
 
 		id := args[0]
-		template := args[1]
+		template := "default"
+		if len(args) >= 2 {
+			template = args[1]
+		}
+
+		// For agent SUI, use "agent" as default template
+		if id == "agent" && template == "default" {
+			template = "agent"
+		}
 
 		var sessionData map[string]interface{}
 		err = jsoniter.UnmarshalFromString(strings.TrimPrefix(data, "::"), &sessionData)
