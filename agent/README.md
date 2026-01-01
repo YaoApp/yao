@@ -157,7 +157,21 @@ Pages render in the right sidebar during conversation to display structured data
 
 ```bash
 yao sui build agent    # Build pages
-# Rendered via ctx.Send({ type: "page", props: { page: "result", data: {...} } })
+```
+
+```javascript
+// In hook: send action to open page in sidebar
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: {
+      route: "/agents/my-assistant/result",
+      title: "Query Results",
+      query: { id: "123" }, // Passed as $query in page
+    },
+  },
+});
 ```
 
 ## Documentation
