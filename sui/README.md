@@ -100,4 +100,4 @@ See [Agent SUI Documentation](docs/agent-sui.md) for details.
 
 ## License
 
-Apache-2.0
+This project is part of the Yao App Engine and follows the [Yao Open Source License](../LICENSE).
