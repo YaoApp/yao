@@ -23,7 +23,7 @@ Agent SUI is a special SUI configuration designed for AI Agent applications. It 
 │
 └── assistants/                # Assistants directory
     ├── demo/                  # Assistant: demo
-    │   ├── assistant.yao      # Assistant configuration
+    │   ├── package.yao        # Assistant configuration
     │   └── pages/             # Assistant-specific pages
     │       ├── index/
     │       │   ├── index.html
@@ -32,7 +32,7 @@ Agent SUI is a special SUI configuration designed for AI Agent applications. It 
     │       └── __assets/      # Optional assistant-specific assets
     │
     └── another/               # Assistant: another
-        ├── assistant.yao
+        ├── package.yao
         └── pages/
             └── settings/
                 └── settings.html
