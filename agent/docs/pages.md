@@ -33,11 +33,11 @@ Agent Pages provide a built-in SUI (Simple User Interface) framework for buildin
 
 ## Route Mapping
 
-| File Path | Public URL |
-|-----------|------------|
-| `/agent/template/pages/login/login.html` | `/agents/login` |
+| File Path                                 | Public URL           |
+| ----------------------------------------- | -------------------- |
+| `/agent/template/pages/login/login.html`  | `/agents/login`      |
 | `/assistants/demo/pages/index/index.html` | `/agents/demo/index` |
-| `/assistants/demo/pages/chat/chat.html` | `/agents/demo/chat` |
+| `/assistants/demo/pages/chat/chat.html`   | `/agents/demo/chat`  |
 
 ## Quick Start
 
@@ -48,15 +48,15 @@ Agent Pages provide a built-in SUI (Simple User Interface) framework for buildin
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>{{ $global.title }}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" href="/agents/assets/images/favicon.png">
-</head>
-<body>
-  <div class="container">{{ __page }}</div>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>{{ $global.title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="/agents/assets/images/favicon.png" />
+  </head>
+  <body>
+    <div class="container">{{ __page }}</div>
+  </body>
 </html>
 ```
 
@@ -81,7 +81,11 @@ Agent Pages provide a built-in SUI (Simple User Interface) framework for buildin
   <div class="messages" s:for="{{ messages }}" s:for-item="msg">
     <div class="message {{ msg.role }}">{{ msg.content }}</div>
   </div>
-  <input type="text" s:on-keypress="handleInput" placeholder="Type a message...">
+  <input
+    type="text"
+    s:on-keypress="handleInput"
+    placeholder="Type a message..."
+  />
 </div>
 ```
 
@@ -130,7 +134,7 @@ function BeforeRender(request: Request): Record<string, any> {
   const chatId = request.query.chat_id;
   return {
     messages: chatId ? Process("scripts.chat.GetHistory", chatId) : [],
-    user: request.authorized?.user_id
+    user: request.authorized?.user_id,
   };
 }
 
@@ -208,7 +212,7 @@ Access at: `http://localhost:5099/agents/my-assistant/index`
 
 ```html
 <button s:on-click="handleClick">Click Me</button>
-<input s:on-change="handleChange" s:on-keypress="handleKeypress">
+<input s:on-change="handleChange" s:on-keypress="handleKeypress" />
 ```
 
 ### Components
@@ -220,25 +224,25 @@ Pages can use other pages as components:
 <import s:as="Footer" s:from="/shared/footer" />
 
 <div class="page">
-  <Header title="My Page" />
+  <header title="My Page" />
   <main>Content</main>
-  <Footer />
+  <footer />
 </div>
 ```
 
 ## Built-in Variables
 
-| Variable | Description |
-|----------|-------------|
-| `$global` | Global data from `__data.json` |
-| `$query` | URL query parameters |
-| `$param` | URL path parameters |
-| `$payload` | POST request body |
-| `$cookie` | Cookie values |
-| `$url` | Current URL info |
-| `$theme` | Current theme |
-| `$locale` | Current locale |
-| `$auth` | OAuth authorization info (if authenticated) |
+| Variable   | Description                                 |
+| ---------- | ------------------------------------------- |
+| `$global`  | Global data from `__data.json`              |
+| `$query`   | URL query parameters                        |
+| `$param`   | URL path parameters                         |
+| `$payload` | POST request body                           |
+| `$cookie`  | Cookie values                               |
+| `$url`     | Current URL info                            |
+| `$theme`   | Current theme                               |
+| `$locale`  | Current locale                              |
+| `$auth`    | OAuth authorization info (if authenticated) |
 
 ## Page Configuration
 
@@ -292,12 +296,202 @@ Pages default to public access. To require authentication:
 
 Available guards:
 
-| Guard | Description |
-|-------|-------------|
-| `-` | No authentication (default) |
+| Guard        | Description                       |
+| ------------ | --------------------------------- |
+| `-`          | No authentication (default)       |
 | `bearer-jwt` | JWT token in Authorization header |
-| `cookie-jwt` | JWT token in cookie |
-| `oauth` | OAuth 2.0 authentication |
+| `cookie-jwt` | JWT token in cookie               |
+| `oauth`      | OAuth 2.0 authentication          |
+
+## Triggering Pages from Hooks
+
+Use `action` messages to open pages in the sidebar during conversation:
+
+```typescript
+// Navigate to a page in sidebar
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: {
+      route: "/agents/my-assistant/result", // Page route
+      title: "Query Results", // Sidebar title
+      query: { id: "123" }, // Passed as $query in page
+    },
+  },
+});
+
+// Open in new tab
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: {
+      route: "/agents/my-assistant/detail",
+      target: "_blank",
+    },
+  },
+});
+```
+
+### Action Reference
+
+#### Navigate
+
+Open a route in the sidebar or new window.
+
+**Payload:**
+
+| Field    | Type                     | Required | Description                                          |
+| -------- | ------------------------ | -------- | ---------------------------------------------------- |
+| `route`  | `string`                 | ✅       | Target route or URL                                  |
+| `title`  | `string`                 | -        | Page title (shows custom title bar with back button) |
+| `icon`   | `string`                 | -        | Tab icon (e.g., `material-folder`)                   |
+| `query`  | `Record<string, string>` | -        | Query parameters (passed as `$query` in page)        |
+| `target` | `'_self'` \| `'_blank'`  | -        | `_self` (sidebar, default) or `_blank` (new window)  |
+
+**Route Types:**
+
+| Prefix            | Type     | Description                                     |
+| ----------------- | -------- | ----------------------------------------------- |
+| `$dashboard/`     | CUI Page | Dashboard pages (e.g., `$dashboard/kb` → `/kb`) |
+| `/`               | SUI Page | Custom pages (e.g., `/agents/demo/result`)      |
+| `http://https://` | External | External URL (loaded in iframe)                 |
+
+**Examples:**
+
+```typescript
+// Open agent page in sidebar with title
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: {
+      route: "/agents/my-assistant/result",
+      title: "Query Results",
+      icon: "material-table_chart",
+      query: { id: "123" },
+    },
+  },
+});
+
+// Open CUI dashboard page
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: { route: "$dashboard/users" },
+  },
+});
+
+// Open external URL in new tab
+ctx.Send({
+  type: "action",
+  props: {
+    name: "navigate",
+    payload: {
+      route: "https://docs.example.com",
+      target: "_blank",
+    },
+  },
+});
+```
+
+#### Navigate Back
+
+Navigate back in history.
+
+```typescript
+ctx.Send({
+  type: "action",
+  props: { name: "navigate.back" },
+});
+```
+
+#### Notify
+
+Show notification messages.
+
+**Actions:**
+
+| Action           | Description                   |
+| ---------------- | ----------------------------- |
+| `notify.success` | Success notification (green)  |
+| `notify.error`   | Error notification (red)      |
+| `notify.warning` | Warning notification (yellow) |
+| `notify.info`    | Info notification (blue)      |
+
+**Payload:**
+
+| Field      | Type      | Required | Description                                    |
+| ---------- | --------- | -------- | ---------------------------------------------- |
+| `message`  | `string`  | ✅       | Notification message                           |
+| `duration` | `number`  | -        | Auto-close seconds (default: 3, 0 = keep open) |
+| `icon`     | `string`  | -        | Custom icon (overrides default)                |
+| `closable` | `boolean` | -        | Show close button (default: false)             |
+
+**Examples:**
+
+```typescript
+// Success notification
+ctx.Send({
+  type: "action",
+  props: {
+    name: "notify.success",
+    payload: { message: "Data saved successfully!" },
+  },
+});
+
+// Error with custom duration
+ctx.Send({
+  type: "action",
+  props: {
+    name: "notify.error",
+    payload: {
+      message: "Operation failed",
+      duration: 5,
+      closable: true,
+    },
+  },
+});
+```
+
+#### App Menu
+
+Refresh application menu/navigation.
+
+```typescript
+ctx.Send({
+  type: "action",
+  props: { name: "app.menu.reload" },
+});
+```
+
+#### All Actions
+
+| Category | Action              | Description                     |
+| -------- | ------------------- | ------------------------------- |
+| Navigate | `navigate`          | Open page in sidebar or new tab |
+|          | `navigate.back`     | Navigate back in history        |
+| Notify   | `notify.success`    | Show success notification       |
+|          | `notify.error`      | Show error notification         |
+|          | `notify.warning`    | Show warning notification       |
+|          | `notify.info`       | Show info notification          |
+| App      | `app.menu.reload`   | Refresh application menu        |
+| Modal    | `modal.open`        | Open content in modal dialog    |
+|          | `modal.close`       | Close modal                     |
+| Table    | `table.search`      | Trigger table search            |
+|          | `table.refresh`     | Refresh table data              |
+|          | `table.save`        | Save table row data             |
+|          | `table.delete`      | Delete table row(s)             |
+| Form     | `form.find`         | Load form data by ID            |
+|          | `form.submit`       | Submit form data                |
+|          | `form.reset`        | Reset form to initial state     |
+|          | `form.setFields`    | Set form field values           |
+| MCP      | `mcp.tool.call`     | Execute MCP tool (client-side)  |
+|          | `mcp.resource.read` | Read MCP resource               |
+| Event    | `event.emit`        | Emit custom event               |
+| Confirm  | `confirm`           | Show confirmation dialog        |
 
 ## Frontend API
 
