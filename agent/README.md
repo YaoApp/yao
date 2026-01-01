@@ -181,6 +181,7 @@ ctx.Send({
 - [Hooks](docs/hooks.md) - Create/Next hooks and agent lifecycle
 - [Context API](docs/context-api.md) - Messaging, memory, trace, MCP
 - [MCP Integration](docs/mcp.md) - Tool servers and resources
+- [Models](docs/models.md) - Assistant-scoped data models
 - [Search](docs/search.md) - Web, knowledge base, and database search
 - [Pages](docs/pages.md) - Web UI for agents (SUI framework)
 - [Internationalization](docs/i18n.md) - Multi-language support

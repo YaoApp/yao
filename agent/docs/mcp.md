@@ -2,6 +2,26 @@
 
 Model Context Protocol (MCP) enables tool integration with external services.
 
+## Directory Structure
+
+Assistants can define their own namespaced MCP servers in the `mcps/` directory:
+
+```
+assistants/
+└── my-assistant/
+    ├── package.yao
+    └── mcps/
+        ├── tools.mcp.yao           # → agents.my-assistant.tools
+        ├── calculator.mcp.yao      # → agents.my-assistant.calculator
+        └── mapping/
+            └── tools/
+                └── schemes/
+                    ├── search.in.yao
+                    └── search.out.yao
+```
+
+MCP servers are automatically loaded with `agents.<assistant-id>.` prefix.
+
 ## Defining MCP Servers
 
 Create `mcps/tools.mcp.yao` in the assistant directory:
@@ -75,9 +95,7 @@ Map Yao Processes directly to MCP tools:
 ```json
 {
   "mcp": {
-    "servers": [
-      { "server_id": "tools", "tools": ["search", "calculate"] }
-    ]
+    "servers": [{ "server_id": "tools", "tools": ["search", "calculate"] }]
   }
 }
 ```
@@ -106,8 +124,8 @@ function Create(ctx: agent.Context, messages: agent.Message[]): agent.Create {
     messages,
     mcp_servers: [
       { server_id: "tools", tools: ["search"] },
-      { server_id: "data", resources: ["data://reports"] }
-    ]
+      { server_id: "data", resources: ["data://reports"] },
+    ],
   };
 }
 ```
@@ -126,7 +144,7 @@ const tools = ctx.mcp.ListTools("server-id");
 ```typescript
 const result = ctx.mcp.CallTool("server-id", "search", {
   query: "example",
-  limit: 10
+  limit: 10,
 });
 // { content: [{ type: "text", text: "..." }] }
 ```
@@ -137,13 +155,13 @@ const result = ctx.mcp.CallTool("server-id", "search", {
 // Sequential
 const results = ctx.mcp.CallTools("server-id", [
   { name: "step1", arguments: { input: "a" } },
-  { name: "step2", arguments: { input: "b" } }
+  { name: "step2", arguments: { input: "b" } },
 ]);
 
 // Parallel
 const results = ctx.mcp.CallToolsParallel("server-id", [
   { name: "api1", arguments: {} },
-  { name: "api2", arguments: {} }
+  { name: "api2", arguments: {} },
 ]);
 ```
 
@@ -189,8 +207,59 @@ mcps/
 ```
 
 The `x-process-args` maps MCP arguments to Yao Process parameters:
+
 - `":arguments"` - Pass entire arguments object
 - `"$args.field"` - Extract specific field
+
+### Schema with Nested Objects
+
+```json
+{
+  "type": "object",
+  "description": "Extract structured data from input",
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": ["query", "create", "update"],
+      "description": "Operation intent"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "value": { "type": "number" }
+        },
+        "required": ["name", "value"]
+      }
+    }
+  },
+  "required": ["intent"],
+  "x-process-args": [":arguments"]
+}
+```
+
+## Using Assistant Models in MCP
+
+MCP tools can reference assistant's own models:
+
+**mcps/data.mcp.yao**
+
+```json
+{
+  "label": "Data Tools",
+  "transport": "process",
+  "tools": {
+    "list_orders": "models.agents.my-assistant.order.Paginate",
+    "get_order": "models.agents.my-assistant.order.Find",
+    "create_order": "models.agents.my-assistant.order.Create",
+    "custom_query": "agents.my-assistant.orders.Query"
+  }
+}
+```
+
+See [Models](models.md) for defining assistant models.
 
 ## Error Handling
 
@@ -237,9 +306,7 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
   "name": "Math Assistant",
   "connector": "gpt-4o",
   "mcp": {
-    "servers": [
-      { "server_id": "calculator", "tools": ["add", "multiply"] }
-    ]
+    "servers": [{ "server_id": "calculator", "tools": ["add", "multiply"] }]
   }
 }
 ```
@@ -254,7 +321,7 @@ function Create(ctx: agent.Context, messages: agent.Message[]): agent.Create {
     // Enable calculator
     return {
       messages,
-      mcp_servers: [{ server_id: "calculator" }]
+      mcp_servers: [{ server_id: "calculator" }],
     };
   }
   return { messages };
@@ -264,13 +331,13 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
   const { tools } = payload;
 
   if (tools?.length > 0) {
-    const calcResult = tools.find(t => t.server === "calculator");
+    const calcResult = tools.find((t) => t.server === "calculator");
     if (calcResult?.result) {
       return {
         data: {
           answer: calcResult.result,
-          expression: calcResult.arguments
-        }
+          expression: calcResult.arguments,
+        },
       };
     }
   }
