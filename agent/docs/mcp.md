@@ -8,40 +8,43 @@ Create `mcps/tools.mcp.yao` in the assistant directory:
 
 ```json
 {
-  "name": "Tools",
+  "label": "Tools",
   "description": "Custom tools for the assistant",
   "transport": "process",
-  "process": {
-    "command": "node",
-    "args": ["server.js"]
+  "tools": {
+    "search": "scripts.tools.Search",
+    "create": "models.data.Create"
   }
 }
 ```
 
 ### Transport Types
 
-**Process (Local)**
+**Process (Yao Internal)**
+
+Map Yao Processes directly to MCP tools:
 
 ```json
 {
   "transport": "process",
-  "process": {
-    "command": "python",
-    "args": ["mcp_server.py"],
-    "env": { "API_KEY": "$ENV.API_KEY" }
+  "tools": {
+    "search": "models.data.Paginate",
+    "create": "models.data.Create"
+  },
+  "resources": {
+    "detail": "models.data.Find"
   }
 }
 ```
 
-**HTTP**
+**STDIO (Local Server)**
 
 ```json
 {
-  "transport": "http",
-  "http": {
-    "url": "https://mcp.example.com",
-    "headers": { "Authorization": "Bearer $ENV.TOKEN" }
-  }
+  "transport": "stdio",
+  "command": "python",
+  "arguments": ["mcp_server.py"],
+  "env": { "API_KEY": "$ENV.API_KEY" }
 }
 ```
 
@@ -50,9 +53,8 @@ Create `mcps/tools.mcp.yao` in the assistant directory:
 ```json
 {
   "transport": "sse",
-  "sse": {
-    "url": "https://mcp.example.com/events"
-  }
+  "url": "https://mcp.example.com/events",
+  "authorization_token": "$ENV.TOKEN"
 }
 ```
 
@@ -159,26 +161,36 @@ const prompts = ctx.mcp.ListPrompts("server-id");
 const prompt = ctx.mcp.GetPrompt("server-id", "system", { role: "helper" });
 ```
 
-## Tool Mapping
+## Tool Schema Mapping
 
-Map MCP tools to Yao processes:
+Define input schemas for process transport tools:
 
 ```
 mcps/
 └── mapping/
-    └── tools/
-        ├── search.yao
-        └── calculate.yao
+    └── <server-id>/
+        └── schemes/
+            ├── search.in.yao      # Input schema
+            └── search.out.yao     # Output schema (optional)
 ```
 
-**mapping/tools/search.yao**
+**mapping/tools/schemes/search.in.yao**
 
 ```json
 {
-  "process": "scripts.search.Execute",
-  "args": ["{{input}}"]
+  "type": "object",
+  "description": "Search data",
+  "properties": {
+    "keyword": { "type": "string" },
+    "page": { "type": "integer" }
+  },
+  "x-process-args": [":arguments"]
 }
 ```
+
+The `x-process-args` maps MCP arguments to Yao Process parameters:
+- `":arguments"` - Pass entire arguments object
+- `"$args.field"` - Extract specific field
 
 ## Error Handling
 
@@ -208,12 +220,12 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
 
 ```json
 {
-  "name": "Calculator",
+  "label": "Calculator",
   "description": "Math operations",
   "transport": "process",
-  "process": {
-    "command": "node",
-    "args": ["calc-server.js"]
+  "tools": {
+    "add": "scripts.math.Add",
+    "multiply": "scripts.math.Multiply"
   }
 }
 ```
@@ -226,7 +238,7 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
   "connector": "gpt-4o",
   "mcp": {
     "servers": [
-      { "server_id": "agents.assistant.calculator", "tools": ["add", "multiply"] }
+      { "server_id": "calculator", "tools": ["add", "multiply"] }
     ]
   }
 }
@@ -242,7 +254,7 @@ function Create(ctx: agent.Context, messages: agent.Message[]): agent.Create {
     // Enable calculator
     return {
       messages,
-      mcp_servers: [{ server_id: "agents.assistant.calculator" }]
+      mcp_servers: [{ server_id: "calculator" }]
     };
   }
   return { messages };
@@ -252,7 +264,7 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
   const { tools } = payload;
 
   if (tools?.length > 0) {
-    const calcResult = tools.find(t => t.server.includes("calculator"));
+    const calcResult = tools.find(t => t.server === "calculator");
     if (calcResult?.result) {
       return {
         data: {
