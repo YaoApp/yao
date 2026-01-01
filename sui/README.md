@@ -1,29 +1,103 @@
-# SUI
+# SUI - Simple User Interface
 
-SUI is a full-stack web development tool that allows you to create web applications using HTML, CSS, and Typescript/JavaScript.
+SUI is a full-stack web development framework that allows you to create web applications using HTML, CSS, and TypeScript/JavaScript without complex build tools.
 
-It is designed to be simple and easy to use. If you are familiar with HTML, CSS, and Typescript/JavaScript, you can start using SUI right away.
+## Features
 
-No dependencies required, no build tools required, no complex frameworks required, just write your HTML, CSS, and TS/JS code, and you are good to go.
+- **Page as Component**: Every page is a component, unifying the development model
+- **Template Syntax**: Intuitive data binding, conditionals, and loops
+- **Backend Scripts**: Server-side logic with TypeScript
+- **Scoped Styles**: Automatic CSS scoping per component
+- **i18n Support**: Built-in internationalization
+- **Agent SUI**: Special configuration for AI Agent applications
 
-## Demo Application
+## Quick Start
 
-[https://github.com/YaoApp/yao-startup-webapp](https://github.com/YaoApp/yao-startup-webapp)
+### Directory Structure
 
-## Commands
+```
+/templates/<template_name>/
+├── __document.html         # Global document template
+├── __assets/               # Static assets
+├── __locales/              # Locale files
+└── <route>/                # Pages
+    └── <page>/
+        ├── <page>.html     # HTML template
+        ├── <page>.css      # Styles
+        ├── <page>.ts       # Frontend script
+        ├── <page>.json     # Data configuration
+        ├── <page>.config   # Page configuration
+        └── <page>.backend.ts  # Backend script
+```
 
-- `yao sui watch` - Watch for changes in the templates directory and compile them into a single SUI file.
-- `yao sui build` - Compile the templates into a single SUI file.
-- `yao sui trans` - Generate the i18n translation files, and compile the templates. you can specify the translator automatically translate the text with `trans` attribute.
+### Basic Page
 
-## Usage
+**`/home/home.html`**:
 
-Comming soon...
+```html
+<div class="home">
+  <h1>{{ title }}</h1>
+  <p s:if="{{ showMessage }}">{{ message }}</p>
+</div>
+```
 
-## About SUI
+**`/home/home.json`**:
 
-SUI is a part of the Yao project, which is a collection of tools for web development.
+```json
+{
+  "title": "Welcome",
+  "showMessage": true,
+  "message": "Hello, World!"
+}
+```
 
-SUI name comes from the chinese word "随" which means "follow" or "accompany", it's one of the sixteenth hexagrams of the I Ching, and you can think of SUI as a tool that follows you in your web development journey.
+### Commands
 
-SUI name also comes from the word "SUI" which means "simple user interface", and you can think of SUI as a tool that makes it easy to create web applications.
+```bash
+# Build templates
+yao sui build <sui> [template]
+
+# Watch for changes
+yao sui watch <sui> [template]
+
+# Build Agent SUI
+yao sui build agent
+
+# Watch Agent SUI
+yao sui watch agent
+```
+
+## Documentation
+
+- [Template Syntax](docs/template-syntax.md) - Data binding, conditionals, loops
+- [Components](docs/components.md) - Page as component, props, slots
+- [Backend Scripts](docs/backend-scripts.md) - Server-side logic
+- [Data Binding](docs/data-binding.md) - Built-in variables and functions
+- [Event Handling](docs/event-handling.md) - Event binding and state management
+- [Internationalization](docs/i18n.md) - Translation and localization
+- [Frontend API](docs/frontend-api.md) - Component query, backend calls, render API
+- [Agent SUI](docs/agent-sui.md) - AI Agent application setup
+
+## Agent SUI
+
+Agent SUI is designed for AI Agent applications with automatic page loading from assistants:
+
+```
+<app>/
+├── agent/
+│   └── template/              # Agent SUI template
+│       ├── __document.html
+│       ├── __assets/
+│       └── pages/
+└── assistants/
+    └── <name>/
+        └── pages/             # Assistant pages
+```
+
+Build with: `yao sui build agent`
+
+See [Agent SUI Documentation](docs/agent-sui.md) for details.
+
+## License
+
+Apache-2.0

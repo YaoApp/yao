@@ -104,6 +104,12 @@ func (script *Script) Call(r *Request, method string, args ...any) (interface{},
 
 	// Set the sid
 	ctx.Sid = r.Sid
+
+	// Set authorized information if available
+	if r.Authorized != nil {
+		ctx.WithAuthorized(r.Authorized)
+	}
+
 	res, err := ctx.Call(method, args...)
 	if err != nil {
 		return nil, err
@@ -126,6 +132,12 @@ func (script *Script) BeforeRender(r *Request, props map[string]interface{}) (Da
 
 	// Set the sid
 	ctx.Sid = r.Sid
+
+	// Set authorized information if available
+	if r.Authorized != nil {
+		ctx.WithAuthorized(r.Authorized)
+	}
+
 	res, err := ctx.Call("BeforeRender", r, props)
 	if err != nil {
 		return nil, err

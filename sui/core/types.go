@@ -278,19 +278,20 @@ type BuildOption struct {
 
 // Request is the struct for the request
 type Request struct {
-	Method    string                 `json:"method"`
-	AssetRoot string                 `json:"asset_root,omitempty"`
-	Referer   string                 `json:"referer,omitempty"`
-	Payload   map[string]interface{} `json:"payload,omitempty"`
-	Query     url.Values             `json:"query,omitempty"`
-	Params    map[string]string      `json:"params,omitempty"`
-	Headers   url.Values             `json:"headers,omitempty"`
-	Body      interface{}            `json:"body,omitempty"`
-	URL       ReqeustURL             `json:"url,omitempty"`
-	Sid       string                 `json:"sid,omitempty"`
-	Theme     any                    `json:"theme,omitempty"`
-	Locale    any                    `json:"locale,omitempty"`
-	Script    *Script                `json:"-"`
+	Method     string                 `json:"method"`
+	AssetRoot  string                 `json:"asset_root,omitempty"`
+	Referer    string                 `json:"referer,omitempty"`
+	Payload    map[string]interface{} `json:"payload,omitempty"`
+	Query      url.Values             `json:"query,omitempty"`
+	Params     map[string]string      `json:"params,omitempty"`
+	Headers    url.Values             `json:"headers,omitempty"`
+	Body       interface{}            `json:"body,omitempty"`
+	URL        ReqeustURL             `json:"url,omitempty"`
+	Sid        string                 `json:"sid,omitempty"`
+	Theme      any                    `json:"theme,omitempty"`
+	Locale     any                    `json:"locale,omitempty"`
+	Script     *Script                `json:"-"`
+	Authorized map[string]interface{} `json:"authorized,omitempty"` // OAuth authorized information
 }
 
 // RequestSource is the struct for the request

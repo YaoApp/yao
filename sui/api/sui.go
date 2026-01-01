@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/sui/core"
+	"github.com/yaoapp/yao/sui/storages/agent"
 	"github.com/yaoapp/yao/sui/storages/azure"
 	"github.com/yaoapp/yao/sui/storages/local"
 )
@@ -28,6 +29,9 @@ func New(dsl *core.DSL) (core.SUI, error) {
 
 	case "azure":
 		return azure.New(dsl)
+
+	case "agent":
+		return agent.New(dsl)
 
 	default:
 		return nil, fmt.Errorf("%s is not a valid driver", dsl.Storage.Driver)
@@ -55,8 +59,53 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
+	// Auto-load Agent SUI if /agent directory exists and has pages
+	if err := loadAgentSUI(); err != nil {
+		log.Warn("[sui] Failed to load agent SUI: %s", err.Error())
+	}
+
 	buildRouteMatchers()
 	return registerAPI()
+}
+
+// loadAgentSUI automatically loads the agent SUI if /agent directory exists
+func loadAgentSUI() error {
+	// Check if agent storage is available
+	if !agent.Exists() {
+		return nil // No agent directory, skip silently
+	}
+
+	// Check if there are any assistant pages
+	if !agent.HasAssistantPages() {
+		log.Debug("[sui] Agent directory exists but no assistant pages found")
+		return nil
+	}
+
+	// Create agent DSL
+	dsl := &core.DSL{
+		ID:   "agent",
+		Name: "Agent",
+		Storage: &core.Storage{
+			Driver: "agent",
+		},
+		Public: &core.Public{
+			Root:  "/agents",
+			Host:  "/",
+			Index: "/index",
+		},
+	}
+
+	// Create agent SUI
+	sui, err := agent.New(dsl)
+	if err != nil {
+		return err
+	}
+
+	// Register the agent SUI
+	core.SUIs["agent"] = sui
+	log.Info("[sui] Agent SUI loaded successfully (public root: /agents)")
+
+	return nil
 }
 
 func loadFile(file string, id string) (core.SUI, error) {

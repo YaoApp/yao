@@ -78,6 +78,12 @@ func (r *Request) NewData() Data {
 	data["$locale"] = r.Locale
 	data["$timezone"] = GetSystemTimezone()
 	data["$direction"] = "ltr"
+
+	// Add authorized information if available
+	if r.Authorized != nil {
+		data["$auth"] = r.Authorized
+	}
+
 	return data
 }
 
