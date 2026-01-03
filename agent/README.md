@@ -184,6 +184,7 @@ ctx.Send({
 - [Models](docs/models.md) - Assistant-scoped data models
 - [Search](docs/search.md) - Web, knowledge base, and database search
 - [Pages](docs/pages.md) - Web UI for agents (SUI framework)
+- [Iframe Integration](docs/iframe.md) - Iframe communication with CUI
 - [Internationalization](docs/i18n.md) - Multi-language support
 - [Testing](docs/testing.md) - Agent testing framework
 

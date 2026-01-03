@@ -148,16 +148,65 @@ function ApiGetData(request: Request): any {
 
 **`/assistants/my-assistant/pages/index/index.ts`**:
 
-```typescript
-function index(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
+Frontend scripts can be written in two styles:
 
-  this.handleClick = async (event: Event) => {
-    const data = await this.backend.ApiGetData({ id: 1 });
-    console.log(data);
-  };
-}
+**Style 1: Direct Code (Simple Pages)**
+
+```typescript
+// Runs immediately when script loads
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.querySelector("#myForm") as HTMLFormElement;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    // Handle form submission
+  });
+});
+
+// Smooth scrolling for navigation
+document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+  anchor.addEventListener("click", function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute("href"));
+    target?.scrollIntoView({ behavior: "smooth" });
+  });
+});
+```
+
+**Style 2: Component Pattern (Interactive Pages)**
+
+```typescript
+import { $Backend, Component, EventData } from "@yao/sui";
+
+const self = this as Component;
+
+// Event handler bound to s:on-click="HandleClick"
+self.HandleClick = async (event: Event, data: EventData) => {
+  const result = await $Backend().Call("ApiGetData", data.id);
+  console.log(result);
+};
+
+// Form submission handler
+self.HandleSubmit = async (event: Event) => {
+  event.preventDefault();
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
+  await $Backend().Call("ApiSubmit", Object.fromEntries(formData));
+};
+```
+
+**Using Backend API:**
+
+```typescript
+import { $Backend, Yao } from "@yao/sui";
+
+// Call backend method
+const data = await $Backend().Call("ApiMethodName", arg1, arg2);
+
+// Direct API calls
+const yao = new Yao();
+const res = await yao.Get("/api/endpoint", { param: "value" });
+await yao.Post("/api/endpoint", { data: "value" });
 ```
 
 ### 6. Build and Run
@@ -495,23 +544,103 @@ ctx.Send({
 
 ## Frontend API
 
-The SUI frontend SDK provides:
+### Backend Calls
 
 ```typescript
-// Backend calls
-const data = await this.backend.ApiMethodName(payload);
+import { $Backend, Yao } from "@yao/sui";
 
-// State management
-this.store.Set("key", value);
-const value = this.store.Get("key");
+// Call backend method defined in .backend.ts
+const data = await $Backend().Call("ApiMethodName", arg1, arg2);
 
-// OpenAPI client (if using oauth guard)
-const response = await OpenAPI.Get("/api/endpoint");
-await OpenAPI.Post("/api/endpoint", data);
+// Direct API calls
+const yao = new Yao();
+const res = await yao.Get("/api/endpoint", { query: "value" });
+await yao.Post("/api/endpoint", { body: "data" });
 ```
+
+### State Management
+
+```typescript
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+// Store values (per component instance)
+self.store.Set("key", value);
+const value = self.store.Get("key");
+```
+
+### Parent Communication (Iframe)
+
+```typescript
+// Helper: Send action to CUI parent
+const sendAction = (name: string, payload?: any) => {
+  window.parent.postMessage(
+    { type: "action", message: { name, payload } },
+    window.location.origin
+  );
+};
+
+// Usage
+sendAction("notify.success", { message: "Done!" });
+sendAction("navigate", {
+  route: "/agents/my-assistant/detail",
+  title: "Details",
+});
+
+// Receive messages from parent
+window.addEventListener("message", (e) => {
+  if (e.origin !== window.location.origin) return;
+  const { type, message } = e.data;
+  if (type === "setup") {
+    document.documentElement.setAttribute("data-theme", message.theme);
+  }
+});
+```
+
+## Iframe Communication
+
+When pages are embedded in CUI via `/web/<assistant-id>/<page>`, they can communicate with the host:
+
+### Receiving Context
+
+```javascript
+window.addEventListener("message", (e) => {
+  if (e.origin !== window.location.origin) return;
+  if (e.data.type === "setup") {
+    const { theme, locale } = e.data.message;
+    // Apply theme, set locale
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+});
+```
+
+### Sending Actions
+
+```javascript
+// Helper function
+const sendAction = (name, payload) => {
+  window.parent.postMessage(
+    { type: "action", message: { name, payload } },
+    window.location.origin
+  );
+};
+
+// Show notification
+sendAction("notify.success", { message: "Done!" });
+
+// Navigate to page
+sendAction("navigate", {
+  route: "/agents/my-assistant/detail",
+  title: "Details",
+});
+```
+
+See [Iframe Integration](iframe.md) for complete documentation.
 
 ## Related Documentation
 
+- [Iframe Integration](iframe.md) - CUI iframe communication
 - [SUI Template Syntax](../../sui/docs/template-syntax.md)
 - [SUI Data Binding](../../sui/docs/data-binding.md)
 - [SUI Components](../../sui/docs/components.md)
