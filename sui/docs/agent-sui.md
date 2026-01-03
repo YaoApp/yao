@@ -11,31 +11,28 @@ Agent SUI is a special SUI configuration designed for AI Agent applications. It 
 │   └── template/              # Agent SUI template directory
 │       ├── template.json      # Optional template configuration
 │       ├── __document.html    # Global document template
-│       ├── __data.json        # Global data
-│       ├── __assets/          # Global assets (CSS, JS, images)
+│       ├── __data.json        # Global data (accessible via $global)
+│       ├── __assets/          # Global assets (reference via @assets/)
 │       │   ├── css/
 │       │   ├── js/
 │       │   └── images/
-│       ├── pages/             # Global agent pages (login, error, etc.)
-│       │   └── login/
-│       │       └── login.html
-│       └── __locales/         # Internationalization
+│       ├── __locales/         # Global locale files
+│       └── pages/             # Global pages (401, 404, login, etc.)
+│           └── <page>/        # Route = folder name
+│               ├── <page>.html
+│               ├── <page>.css
+│               ├── <page>.ts
+│               └── __locales/ # Page-level locale files
 │
 └── assistants/                # Assistants directory
-    ├── demo/                  # Assistant: demo
-    │   ├── package.yao        # Assistant configuration
-    │   └── pages/             # Assistant-specific pages
-    │       ├── index/
-    │       │   ├── index.html
-    │       │   ├── index.css
-    │       │   └── index.ts
-    │       └── __assets/      # Optional assistant-specific assets
-    │
-    └── another/               # Assistant: another
-        ├── package.yao
-        └── pages/
-            └── settings/
-                └── settings.html
+    └── <name>/                # Assistant
+        ├── package.yao        # Assistant configuration
+        └── pages/             # Assistant pages → /agents/<name>/<route>
+            └── <page>/        # Route = folder name (can be nested)
+                ├── <page>.html
+                ├── <page>.css
+                ├── <page>.ts
+                └── __locales/
 ```
 
 ## Route Mapping
