@@ -118,3 +118,13 @@ type IComponent interface {
 	Load() error
 	Source() string
 }
+
+// IWatchDirs is an optional interface for templates that need to watch multiple directories
+type IWatchDirs interface {
+	// GetWatchDirs returns all directories that should be watched for changes
+	// The returned paths are relative to the application source root (not data root)
+	GetWatchDirs() []string
+	// GetWatchRoot returns the root directory for watch paths
+	// Returns "app" for application source root, "data" for data root
+	GetWatchRoot() string
+}

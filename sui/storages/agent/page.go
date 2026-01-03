@@ -11,6 +11,7 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
+	"gopkg.in/yaml.v3"
 )
 
 // Page wraps core.Page with agent-specific functionality
@@ -315,6 +316,13 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 		return warnings, err
 	}
 
+	// Write locale files from page's __locales directory
+	err = page.writeLocaleFiles(option.Data)
+	if err != nil {
+		log.Warn("[Agent] Write locale files error: %s", err.Error())
+		// Don't fail the build for locale errors
+	}
+
 	return warnings, nil
 }
 
@@ -464,4 +472,117 @@ func (page *Page) AssetRoot() string {
 // AssistantID get the assistant ID (empty for global agent pages)
 func (page *Page) AssistantID() string {
 	return page.assistantID
+}
+
+// writeLocaleFiles writes locale files from page's __locales directory to public
+func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
+	fs := page.tmpl.agent.fs
+
+	// Check if page has __locales directory
+	localesDir := filepath.Join(page.Path, "__locales")
+	if !fs.IsDir(localesDir) {
+		return nil
+	}
+
+	// Get the public root
+	root, err := page.tmpl.agent.DSL.PublicRoot(data)
+	if err != nil {
+		log.Error("writeLocaleFiles: Get the public root error: %s. use %s", err.Error(), page.tmpl.agent.DSL.Public.Root)
+		root = page.tmpl.agent.DSL.Public.Root
+	}
+
+	// Read all locale files in __locales directory
+	files, err := fs.ReadDir(localesDir, false)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		// Skip directories
+		if fs.IsDir(file) {
+			continue
+		}
+
+		// Only process .yml files
+		if filepath.Ext(file) != ".yml" {
+			continue
+		}
+
+		// Get locale name (e.g., "zh-cn" from "zh-cn.yml")
+		localeName := filepath.Base(file)
+		localeName = localeName[:len(localeName)-4] // Remove .yml extension
+
+		// Read the locale file
+		content, err := fs.ReadFile(file)
+		if err != nil {
+			log.Error("[Agent] Read locale file error: %s", err.Error())
+			continue
+		}
+
+		// Parse the locale file
+		var localeData map[string]interface{}
+		err = yaml.Unmarshal(content, &localeData)
+		if err != nil {
+			log.Error("[Agent] Parse locale file error: %s", err.Error())
+			continue
+		}
+
+		// Convert to the format expected by core.Locale
+		locale := core.Locale{
+			Name:           localeName,
+			Keys:           map[string]string{},
+			Messages:       map[string]string{},
+			ScriptMessages: map[string]string{},
+		}
+
+		// Extract messages
+		if messages, ok := localeData["messages"].(map[string]interface{}); ok {
+			for k, v := range messages {
+				if strVal, ok := v.(string); ok {
+					locale.Messages[k] = strVal
+				}
+			}
+		}
+
+		// Extract script_messages
+		if scriptMessages, ok := localeData["script_messages"].(map[string]interface{}); ok {
+			for k, v := range scriptMessages {
+				if strVal, ok := v.(string); ok {
+					locale.ScriptMessages[k] = strVal
+				}
+			}
+		}
+
+		// Extract timezone and direction
+		if tz, ok := localeData["timezone"].(string); ok {
+			locale.Timezone = tz
+		}
+		if dir, ok := localeData["direction"].(string); ok {
+			locale.Direction = dir
+		}
+
+		// Write to public/.locales/<locale>/<route>.yml
+		// page.Route may contain path like /expense/test, so we need to create nested directories
+		targetFile := filepath.Join(application.App.Root(), "public", root, ".locales", localeName, fmt.Sprintf("%s.yml", page.Route))
+		targetDir := filepath.Dir(targetFile)
+		if exist, _ := os.Stat(targetDir); exist == nil {
+			os.MkdirAll(targetDir, os.ModePerm)
+		}
+
+		localeContent, err := yaml.Marshal(locale)
+		if err != nil {
+			log.Error("[Agent] Marshal locale error: %s", err.Error())
+			continue
+		}
+
+		err = os.WriteFile(targetFile, localeContent, 0644)
+		if err != nil {
+			log.Error("[Agent] Write locale file error: %s", err.Error())
+			continue
+		}
+
+		log.Info("[Agent] Wrote locale file: %s", targetFile)
+	}
+
+	return nil
 }
