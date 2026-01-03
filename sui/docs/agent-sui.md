@@ -237,16 +237,94 @@ Use standard SUI template syntax:
 
 ## Frontend Script
 
+Frontend scripts can be written in two styles:
+
+### Direct Style (Simple Pages)
+
+```typescript
+// Runs immediately when script loads
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.querySelector("#myForm") as HTMLFormElement;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    // Handle submission
+  });
+});
+
+// Smooth scrolling
+document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+  anchor.addEventListener("click", function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute("href"));
+    target?.scrollIntoView({ behavior: "smooth" });
+  });
+});
+```
+
+### Component Style (Interactive Pages)
+
 **`/assistants/demo/pages/index/index.ts`**:
 
 ```typescript
-function index(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  this.handleClick = async (event: Event) => {
-    const data = await this.backend.ApiGetData();
-    console.log(data);
-  };
-}
+const self = this as Component;
+
+// Event handler bound to s:on-click="HandleClick"
+self.HandleClick = async (event: Event, data: EventData) => {
+  const result = await $Backend().Call("ApiGetData", data.id);
+  console.log(result);
+};
+
+// Form submission
+self.HandleSubmit = async (event: Event) => {
+  event.preventDefault();
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
+  await $Backend().Call("ApiSubmit", Object.fromEntries(formData));
+};
 ```
+
+## CUI Integration
+
+When Agent SUI pages are embedded in CUI via `/web/` routes, they can communicate with the CUI host.
+
+### Receiving Context
+
+```typescript
+window.addEventListener("message", (e) => {
+  if (e.origin !== window.location.origin) return;
+
+  if (e.data.type === "setup") {
+    const { theme, locale } = e.data.message;
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+});
+```
+
+### Sending Actions
+
+```typescript
+// Helper function
+const sendAction = (name: string, payload?: any) => {
+  window.parent.postMessage(
+    { type: "action", message: { name, payload } },
+    window.location.origin
+  );
+};
+
+// Show notification
+sendAction("notify.success", { message: "Done!" });
+
+// Navigate
+sendAction("navigate", {
+  route: "/agents/demo/detail",
+  title: "Details",
+});
+
+// Close sidebar
+sendAction("event.emit", { key: "app/closeSidebar", value: {} });
+```
+
+See [Frontend API - CUI Integration](frontend-api.md#cui-integration) for complete documentation.

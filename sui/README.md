@@ -75,7 +75,7 @@ yao sui watch agent
 - [Data Binding](docs/data-binding.md) - Built-in variables and functions
 - [Event Handling](docs/event-handling.md) - Event binding and state management
 - [Internationalization](docs/i18n.md) - Translation and localization
-- [Frontend API](docs/frontend-api.md) - Component query, backend calls, render API
+- [Frontend API](docs/frontend-api.md) - Component query, backend calls, render API, CUI integration
 - [Agent SUI](docs/agent-sui.md) - AI Agent application setup
 
 ## Agent SUI

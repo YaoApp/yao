@@ -203,75 +203,68 @@ Use `<slot name="xxx">` for multiple content areas:
 ### Structure
 
 ```typescript
-function componentName(component: HTMLElement) {
-  // Root element
-  this.root = component;
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  // Data store (data-* attributes)
-  this.store = new __sui_store(component);
+const self = this as Component;
 
-  // Props (passed attributes)
-  this.props = new __sui_props(component);
+// self.root - Root element (HTMLElement)
+// self.store - Data store (data-* attributes)
+// self.props - Props (passed attributes)
+// self.state - State management
 
-  // State management
-  this.state = new __sui_state(this);
+// State watchers
+self.watch = {
+  propertyName: (value: any, state: any) => {
+    // React to state changes
+  },
+};
 
-  // Backend API
-  this.backend = {
-    ApiMethod: async (...args) => {
-      /* ... */
-    },
-  };
-
-  // State watchers
-  this.watch = {
-    propertyName: (value, state) => {
-      // React to state changes
-    },
-  };
-
-  // Methods
-  this.handleClick = (event, data, context) => {
-    // Handle events
-  };
-}
+// Event handlers (bound to s:on-click="HandleClick")
+self.HandleClick = async (event: Event, data: EventData) => {
+  const result = await $Backend().Call("ApiMethod", data.id);
+  // Handle result
+};
 ```
 
 ### Store API
 
 ```typescript
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
 // String data
-this.store.Get("key");
-this.store.Set("key", "value");
+self.store.Get("key");
+self.store.Set("key", "value");
 
 // JSON data
-this.store.GetJSON("items");
-this.store.SetJSON("items", [{ id: 1 }]);
+self.store.GetJSON("items");
+self.store.SetJSON("items", [{ id: 1 }]);
 
 // Component data (from BeforeRender)
-this.store.GetData();
+self.store.GetData();
 ```
 
 ### Props API
 
 ```typescript
 // Get single prop
-const value = this.props.Get("propName");
+const value = self.props.Get("propName");
 
 // Get all props
-const props = this.props.List();
+const props = self.props.List();
 ```
 
 ### State API
 
 ```typescript
 // Set state (triggers watchers)
-this.state.Set("count", 10);
+self.state.Set("count", 10);
 
 // Watch state changes
-this.watch = {
-  count: (value, state) => {
-    this.root.querySelector(".count").textContent = value;
+self.watch = {
+  count: (value: number, state: any) => {
+    self.root.querySelector(".count")!.textContent = String(value);
     // state.stopPropagation(); // Prevent bubbling to parent
   },
 };

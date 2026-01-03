@@ -38,19 +38,15 @@ const items = component.queryAll(".item"); // Returns NodeList
 
 ## Backend Calls
 
-### Via Component
+### Via $Backend
 
 ```typescript
-function Page(component: HTMLElement) {
-  this.root = component;
+import { $Backend } from "@yao/sui";
 
-  this.loadData = async () => {
-    // Call backend API methods
-    const users = await this.backend.ApiGetUsers();
-    const user = await this.backend.ApiGetUser(123);
-    const result = await this.backend.ApiCreateUser("John", "john@example.com");
-  };
-}
+// Call backend API methods
+const users = await $Backend().Call("ApiGetUsers");
+const user = await $Backend().Call("ApiGetUser", 123);
+const result = await $Backend().Call("ApiCreateUser", "John", "john@example.com");
 ```
 
 ### Direct Call
@@ -80,22 +76,22 @@ Define render targets in HTML:
 ### Render Method
 
 ```typescript
-function Page(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component } from "@yao/sui";
 
-  this.refreshUsers = async () => {
-    const users = await this.backend.ApiGetUsers();
+const self = this as Component;
 
-    // Render with data
-    await this.render("userList", { users });
-  };
-}
+self.RefreshUsers = async () => {
+  const users = await $Backend().Call("ApiGetUsers");
+
+  // Render with data
+  await self.render("userList", { users });
+};
 ```
 
 ### Render Options
 
 ```typescript
-await this.render("targetName", data, {
+await self.render("targetName", data, {
   replace: true, // Replace content (default: true)
   showLoader: true, // Show loading indicator
   withPageData: true, // Include page data in render context
@@ -292,32 +288,32 @@ api.ClearTokens();
 ### Emit
 
 ```typescript
-function Card(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  this.select = () => {
-    this.emit("card:selected", { id: this.store.Get("id") });
-  };
-}
+const self = this as Component;
+
+self.Select = () => {
+  self.emit("card:selected", { id: self.store.Get("id") });
+};
 ```
 
 ### Listen
 
 ```typescript
-function CardList(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  this.root.addEventListener("card:selected", (e: CustomEvent) => {
-    console.log("Selected:", e.detail.id);
-  });
-}
+const self = this as Component;
+
+self.root.addEventListener("card:selected", (e: CustomEvent) => {
+  console.log("Selected:", e.detail.id);
+});
 ```
 
 ### State Change Events
 
 ```typescript
 // Listen to child state changes
-this.root.addEventListener("state:change", (e: CustomEvent) => {
+self.root.addEventListener("state:change", (e: CustomEvent) => {
   const { key, value, target } = e.detail;
   console.log(`${key} = ${value}`);
 });
@@ -326,54 +322,200 @@ this.root.addEventListener("state:change", (e: CustomEvent) => {
 ## Complete Example
 
 ```typescript
-function UserDashboard(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
-  this.state = new __sui_state(this);
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  // Initialize API
-  const api = new OpenAPI({ baseURL: "/api" });
-  const fileApi = new FileAPI(api);
+const self = this as Component;
 
-  // State watchers
-  this.watch = {
-    users: (users) => this.render("userList", { users }),
-    loading: (loading) => {
-      this.root.classList.toggle("loading", loading);
-    },
-  };
+// Initialize API
+const api = new OpenAPI({ baseURL: "/api" });
+const fileApi = new FileAPI(api);
 
-  // Load users
-  this.loadUsers = async () => {
-    this.state.Set("loading", true);
+// State watchers
+self.watch = {
+  users: (users: any[]) => self.render("userList", { users }),
+  loading: (loading: boolean) => {
+    self.root.classList.toggle("loading", loading);
+  },
+};
 
-    const response = await api.Get<User[]>("/users");
-    if (!api.IsError(response)) {
-      this.state.Set("users", response.data);
-    }
+// Load users
+async function loadUsers() {
+  self.state.Set("loading", true);
 
-    this.state.Set("loading", false);
-  };
+  const response = await api.Get<User[]>("/users");
+  if (!api.IsError(response)) {
+    self.state.Set("users", response.data);
+  }
 
-  // Create user
-  this.createUser = async (event: Event, data: any) => {
-    const response = await this.backend.ApiCreateUser(data.name, data.email);
-    const users = this.state.Get("users");
-    this.state.Set("users", [...users, response]);
-  };
-
-  // Upload avatar
-  this.uploadAvatar = async (event: Event) => {
-    const input = event.target as HTMLInputElement;
-    const file = input.files[0];
-
-    const response = await fileApi.Upload(file, { path: "avatars" });
-    if (!api.IsError(response)) {
-      this.emit("avatar:uploaded", { url: response.data.url });
-    }
-  };
-
-  // Initialize
-  this.loadUsers();
+  self.state.Set("loading", false);
 }
+
+// Create user
+self.CreateUser = async (event: Event, data: EventData) => {
+  const response = await $Backend().Call("ApiCreateUser", data.name, data.email);
+  const users = self.state.Get("users");
+  self.state.Set("users", [...users, response]);
+};
+
+// Upload avatar
+self.UploadAvatar = async (event: Event) => {
+  const input = event.target as HTMLInputElement;
+  const file = input.files![0];
+
+  const response = await fileApi.Upload(file, { path: "avatars" });
+  if (!api.IsError(response)) {
+    self.emit("avatar:uploaded", { url: response.data.url });
+  }
+};
+
+// Initialize
+loadUsers();
+```
+
+## CUI Integration
+
+When SUI pages are embedded in CUI via `/web/` routes, they can communicate with the CUI host.
+
+### URL Parameters
+
+CUI automatically replaces special parameter values:
+
+| Value      | Replaced With                    |
+| ---------- | -------------------------------- |
+| `__theme`  | Current theme (`light` / `dark`) |
+| `__locale` | Current locale (e.g., `en-us`)   |
+
+> **Note**: Authentication uses secure HTTP-only cookies, no token parameter needed.
+
+### Receiving Messages from CUI
+
+```typescript
+window.addEventListener("message", (e) => {
+  // Only accept messages from same origin
+  if (e.origin !== window.location.origin) return;
+
+  const { type, message } = e.data;
+  switch (type) {
+    case "setup":
+      // Initial context from CUI
+      document.documentElement.setAttribute("data-theme", message.theme);
+      console.log("Locale:", message.locale);
+      break;
+    case "update":
+      // Data updates from CUI
+      handleUpdate(message);
+      break;
+  }
+});
+```
+
+### Sending Actions to CUI
+
+Use the unified Action system to trigger CUI operations:
+
+```typescript
+// Helper function
+const sendAction = (name: string, payload?: any) => {
+  window.parent.postMessage(
+    { type: "action", message: { name, payload } },
+    window.location.origin
+  );
+};
+
+// Show notification
+sendAction("notify.success", { message: "Operation completed!" });
+sendAction("notify.error", { message: "Something went wrong" });
+
+// Navigate to page
+sendAction("navigate", {
+  route: "/agents/my-app/detail",
+  title: "Details",
+  query: { id: "123" },
+});
+
+// Open in new tab
+sendAction("navigate", {
+  route: "/agents/my-app/report",
+  target: "_blank",
+});
+
+// Refresh menu
+sendAction("app.menu.reload");
+
+// Close sidebar
+sendAction("event.emit", { key: "app/closeSidebar", value: {} });
+```
+
+### Available Actions
+
+| Category | Action            | Description               | Payload                                     |
+| -------- | ----------------- | ------------------------- | ------------------------------------------- |
+| Navigate | `navigate`        | Open page in sidebar/tab  | `{ route, title?, icon?, query?, target? }` |
+|          | `navigate.back`   | Go back in history        | -                                           |
+| Notify   | `notify.success`  | Success notification      | `{ message, duration?, closable? }`         |
+|          | `notify.error`    | Error notification        | `{ message, duration?, closable? }`         |
+|          | `notify.warning`  | Warning notification      | `{ message, duration?, closable? }`         |
+|          | `notify.info`     | Info notification         | `{ message, duration?, closable? }`         |
+| App      | `app.menu.reload` | Refresh application menu  | -                                           |
+| Modal    | `modal.open`      | Open modal dialog         | `{ ... }`                                   |
+|          | `modal.close`     | Close modal               | -                                           |
+| Table    | `table.search`    | Trigger table search      | `{ keywords }`                              |
+|          | `table.refresh`   | Refresh table data        | -                                           |
+| Form     | `form.submit`     | Submit form               | -                                           |
+|          | `form.reset`      | Reset form                | -                                           |
+| Event    | `event.emit`      | Emit custom event         | `{ key, value }`                            |
+| Confirm  | `confirm`         | Show confirmation dialog  | `{ title, content }`                        |
+
+### Complete Example
+
+```typescript
+import { $Backend, Component, EventData } from "@yao/sui";
+
+const self = this as Component;
+
+// Helper: Send action to CUI
+const sendAction = (name: string, payload?: any) => {
+  window.parent.postMessage(
+    { type: "action", message: { name, payload } },
+    window.location.origin
+  );
+};
+
+// Initialize CUI communication
+function init() {
+  window.addEventListener("message", (e) => {
+    if (e.origin !== window.location.origin) return;
+
+    if (e.data.type === "setup") {
+      const { theme, locale } = e.data.message;
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  });
+
+  (window as any).sendAction = sendAction;
+}
+
+init();
+
+// Event handlers
+self.HandleSave = async (event: Event, data: EventData) => {
+  try {
+    await $Backend().Call("ApiSave", data);
+    sendAction("notify.success", { message: "Saved successfully!" });
+  } catch (error: any) {
+    sendAction("notify.error", { message: error.message });
+  }
+};
+
+self.HandleViewDetail = (event: Event, data: EventData) => {
+  sendAction("navigate", {
+    route: `/agents/my-app/detail`,
+    title: "Details",
+    query: { id: data.id },
+  });
+};
+
+self.HandleClose = () => {
+  sendAction("event.emit", { key: "app/closeSidebar", value: {} });
+};
 ```

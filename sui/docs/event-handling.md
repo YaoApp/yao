@@ -76,23 +76,21 @@ Use `s:json-*` to pass complex data:
 ### Handler Signature
 
 ```typescript
-function Page(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  this.handleClick = (event: Event, data: any, context: EventContext) => {
-    // event - The DOM event
-    // data - Combined data from s:data-* and s:json-*
-    // context - Event context with element references
-  };
-}
+const self = this as Component;
+
+self.HandleClick = (event: Event, data: EventData) => {
+  // event - The DOM event
+  // data - Combined data from s:data-* and s:json-*
+};
 ```
 
-### EventContext
+### EventData
 
 ```typescript
-interface EventContext {
-  rootElement: HTMLElement; // Component root element
-  targetElement: HTMLElement; // Element that triggered the event
+interface EventData {
+  [key: string]: any; // Data from s:data-* and s:json-* attributes
 }
 ```
 
@@ -103,7 +101,7 @@ interface EventContext {
   <div s:for="{{ items }}" s:for-item="item">
     <span>{{ item.name }}</span>
     <button
-      s:on-click="deleteItem"
+      s:on-click="DeleteItem"
       s:data-id="{{ item.id }}"
       s:json-item="{{ item }}"
     >
@@ -114,19 +112,19 @@ interface EventContext {
 ```
 
 ```typescript
-function ItemList(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  this.deleteItem = async (event: Event, data: any, context: EventContext) => {
-    const id = data.id; // String from s:data-id
-    const item = data.item; // Object from s:json-item
+const self = this as Component;
 
-    if (confirm(`Delete ${item.name}?`)) {
-      await this.backend.ApiDeleteItem(id);
-      context.targetElement.closest(".item").remove();
-    }
-  };
-}
+self.DeleteItem = async (event: Event, data: EventData) => {
+  const id = data.id; // String from s:data-id
+  const item = data.item; // Object from s:json-item
+
+  if (confirm(`Delete ${item.name}?`)) {
+    await $Backend().Call("ApiDeleteItem", id);
+    (event.target as HTMLElement).closest(".item")?.remove();
+  }
+};
 ```
 
 ## State Management
@@ -134,13 +132,12 @@ function ItemList(component: HTMLElement) {
 ### State Object
 
 ```typescript
-function Counter(component: HTMLElement) {
-  this.root = component;
-  this.state = new __sui_state(this);
+import { Component } from "@yao/sui";
 
-  // Initial state
-  this.state.Set("count", 0);
-}
+const self = this as Component;
+
+// Initial state
+self.state.Set("count", 0);
 ```
 
 ### State Watchers
@@ -148,26 +145,25 @@ function Counter(component: HTMLElement) {
 React to state changes with watchers:
 
 ```typescript
-function Counter(component: HTMLElement) {
-  this.root = component;
-  this.state = new __sui_state(this);
+import { Component } from "@yao/sui";
 
-  // Define watchers
-  this.watch = {
-    count: (value: number, state: State) => {
-      this.root.querySelector(".count").textContent = value;
-    },
+const self = this as Component;
 
-    items: (value: any[], state: State) => {
-      this.renderItems(value);
-    },
-  };
+// Define watchers
+self.watch = {
+  count: (value: number) => {
+    self.root.querySelector(".count")!.textContent = String(value);
+  },
 
-  this.increment = () => {
-    const count = this.state.Get("count") || 0;
-    this.state.Set("count", count + 1); // Triggers watcher
-  };
-}
+  items: (value: any[]) => {
+    renderItems(value);
+  },
+};
+
+self.Increment = () => {
+  const count = self.state.Get("count") || 0;
+  self.state.Set("count", count + 1); // Triggers watcher
+};
 ```
 
 ### Stop Propagation
@@ -175,10 +171,10 @@ function Counter(component: HTMLElement) {
 Prevent state changes from bubbling to parent:
 
 ```typescript
-this.watch = {
-  localState: (value: any, state: State) => {
+self.watch = {
+  localState: (value: any, state: any) => {
     // Handle locally
-    this.updateUI(value);
+    updateUI(value);
 
     // Stop propagation to parent components
     state.stopPropagation();
@@ -193,18 +189,17 @@ Store manages `data-*` attributes on the component:
 ### Basic Usage
 
 ```typescript
-function Card(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
+import { Component } from "@yao/sui";
 
-  // Get/Set string values
-  const id = this.store.Get("id");
-  this.store.Set("id", "123");
+const self = this as Component;
 
-  // Get/Set JSON values
-  const items = this.store.GetJSON("items");
-  this.store.SetJSON("items", [{ id: 1 }, { id: 2 }]);
-}
+// Get/Set string values
+const id = self.store.Get("id");
+self.store.Set("id", "123");
+
+// Get/Set JSON values
+const items = self.store.GetJSON("items");
+self.store.SetJSON("items", [{ id: 1 }, { id: 2 }]);
 ```
 
 ### Component Data
@@ -213,7 +208,7 @@ Get data from BeforeRender:
 
 ```typescript
 // Backend returns: { user: { name: "John" }, settings: {...} }
-const data = this.store.GetData();
+const data = self.store.GetData();
 console.log(data.user.name); // "John"
 ```
 
@@ -222,30 +217,30 @@ console.log(data.user.name); // "John"
 ### Emit Events
 
 ```typescript
-function ItemCard(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  this.selectItem = () => {
-    const item = this.store.GetJSON("item");
+const self = this as Component;
 
-    // Emit custom event
-    this.emit("item:selected", { item });
-  };
-}
+self.SelectItem = () => {
+  const item = self.store.GetJSON("item");
+
+  // Emit custom event
+  self.emit("item:selected", { item });
+};
 ```
 
 ### Listen to Events
 
 ```typescript
-function ItemList(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  // Listen to child events
-  this.root.addEventListener("item:selected", (e: CustomEvent) => {
-    const { item } = e.detail;
-    console.log("Selected:", item);
-  });
-}
+const self = this as Component;
+
+// Listen to child events
+self.root.addEventListener("item:selected", (e: CustomEvent) => {
+  const { item } = e.detail;
+  console.log("Selected:", item);
+});
 ```
 
 ### State Change Events
@@ -253,14 +248,14 @@ function ItemList(component: HTMLElement) {
 Parent components can listen to state changes:
 
 ```typescript
-function Parent(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  this.root.addEventListener("state:change", (e: CustomEvent) => {
-    const { key, value, target } = e.detail;
-    console.log(`State ${key} changed to ${value} in`, target);
-  });
-}
+const self = this as Component;
+
+self.root.addEventListener("state:change", (e: CustomEvent) => {
+  const { key, value, target } = e.detail;
+  console.log(`State ${key} changed to ${value} in`, target);
+});
 ```
 
 ## Form Handling
@@ -268,7 +263,7 @@ function Parent(component: HTMLElement) {
 ### Form Submit
 
 ```html
-<form s:on-submit="handleSubmit">
+<form s:on-submit="HandleSubmit">
   <input name="email" type="email" required />
   <input name="password" type="password" required />
   <button type="submit">Login</button>
@@ -276,77 +271,77 @@ function Parent(component: HTMLElement) {
 ```
 
 ```typescript
-function LoginForm(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component } from "@yao/sui";
 
-  this.handleSubmit = async (event: Event) => {
-    event.preventDefault();
+const self = this as Component;
 
-    const form = event.target as HTMLFormElement;
-    const formData = new FormData(form);
+self.HandleSubmit = async (event: Event) => {
+  event.preventDefault();
 
-    const email = formData.get("email");
-    const password = formData.get("password");
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
 
-    try {
-      await this.backend.ApiLogin(email, password);
-      window.location.href = "/dashboard";
-    } catch (error) {
-      alert("Login failed");
-    }
-  };
-}
+  const email = formData.get("email");
+  const password = formData.get("password");
+
+  try {
+    await $Backend().Call("ApiLogin", email, password);
+    window.location.href = "/dashboard";
+  } catch (error) {
+    alert("Login failed");
+  }
+};
 ```
 
 ### Input Binding
 
 ```html
-<input type="text" s:on-input="handleInput" s:data-field="name" />
+<input type="text" s:on-input="HandleInput" s:data-field="name" />
 ```
 
 ```typescript
-function Form(component: HTMLElement) {
-  this.root = component;
-  this.formData = {};
+import { Component, EventData } from "@yao/sui";
 
-  this.handleInput = (event: Event, data: any) => {
-    const input = event.target as HTMLInputElement;
-    this.formData[data.field] = input.value;
-  };
-}
+const self = this as Component;
+const formData: Record<string, string> = {};
+
+self.HandleInput = (event: Event, data: EventData) => {
+  const input = event.target as HTMLInputElement;
+  formData[data.field] = input.value;
+};
 ```
 
 ## Keyboard Events
 
 ```html
-<input s:on-keydown="handleKeydown" s:on-keyup="handleKeyup" />
+<input s:on-keydown="HandleKeydown" s:on-keyup="HandleKeyup" />
 ```
 
 ```typescript
-function Search(component: HTMLElement) {
-  this.root = component;
+import { Component } from "@yao/sui";
 
-  this.handleKeydown = (event: KeyboardEvent) => {
-    if (event.key === "Enter") {
-      this.search();
-    }
+const self = this as Component;
 
-    if (event.key === "Escape") {
-      this.clear();
-    }
-  };
-}
+self.HandleKeydown = (event: KeyboardEvent) => {
+  if (event.key === "Enter") {
+    search();
+  }
+
+  if (event.key === "Escape") {
+    clear();
+  }
+};
 ```
 
 ## Complete Example
 
 ```html
 <div class="todo-app">
-  <form s:on-submit="addTodo">
+  <form s:on-submit="AddTodo">
     <input
       name="title"
       placeholder="Add todo..."
-      s:on-keydown="handleKeydown"
+      s:on-keydown="HandleKeydown"
     />
     <button type="submit">Add</button>
   </form>
@@ -355,53 +350,51 @@ function Search(component: HTMLElement) {
     <li s:for="{{ todos }}" s:for-item="todo">
       <input
         type="checkbox"
-        s:on-change="toggleTodo"
+        s:on-change="ToggleTodo"
         s:data-id="{{ todo.id }}"
         s:attr-checked="{{ todo.completed }}"
       />
       <span class="{{ todo.completed ? 'completed' : '' }}">
         {{ todo.title }}
       </span>
-      <button s:on-click="deleteTodo" s:data-id="{{ todo.id }}">×</button>
+      <button s:on-click="DeleteTodo" s:data-id="{{ todo.id }}">×</button>
     </li>
   </ul>
 </div>
 ```
 
 ```typescript
-function TodoApp(component: HTMLElement) {
-  this.root = component;
-  this.state = new __sui_state(this);
-  this.store = new __sui_store(component);
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  this.watch = {
-    todos: (todos: any[]) => {
-      this.render("todoList", { todos });
-    },
-  };
+const self = this as Component;
 
-  this.addTodo = async (event: Event) => {
-    event.preventDefault();
-    const form = event.target as HTMLFormElement;
-    const input = form.querySelector("input") as HTMLInputElement;
+self.watch = {
+  todos: (todos: any[]) => {
+    self.render("todoList", { todos });
+  },
+};
 
-    if (input.value.trim()) {
-      const todo = await this.backend.ApiAddTodo(input.value);
-      const todos = this.state.Get("todos") || [];
-      this.state.Set("todos", [...todos, todo]);
-      input.value = "";
-    }
-  };
+self.AddTodo = async (event: Event) => {
+  event.preventDefault();
+  const form = event.target as HTMLFormElement;
+  const input = form.querySelector("input") as HTMLInputElement;
 
-  this.toggleTodo = async (event: Event, data: any) => {
-    const checkbox = event.target as HTMLInputElement;
-    await this.backend.ApiToggleTodo(data.id, checkbox.checked);
-  };
+  if (input.value.trim()) {
+    const todo = await $Backend().Call("ApiAddTodo", input.value);
+    const todos = self.state.Get("todos") || [];
+    self.state.Set("todos", [...todos, todo]);
+    input.value = "";
+  }
+};
 
-  this.deleteTodo = async (event: Event, data: any) => {
-    await this.backend.ApiDeleteTodo(data.id);
-    const todos = this.state.Get("todos").filter((t) => t.id !== data.id);
-    this.state.Set("todos", todos);
-  };
-}
+self.ToggleTodo = async (event: Event, data: EventData) => {
+  const checkbox = event.target as HTMLInputElement;
+  await $Backend().Call("ApiToggleTodo", data.id, checkbox.checked);
+};
+
+self.DeleteTodo = async (event: Event, data: EventData) => {
+  await $Backend().Call("ApiDeleteTodo", data.id);
+  const todos = self.state.Get("todos").filter((t: any) => t.id !== data.id);
+  self.state.Set("todos", todos);
+};
 ```
