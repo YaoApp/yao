@@ -121,7 +121,7 @@ self.DeleteItem = async (event: Event, data: EventData) => {
   const item = data.item; // Object from s:json-item
 
   if (confirm(`Delete ${item.name}?`)) {
-    await $Backend().Call("ApiDeleteItem", id);
+    await $Backend().Call("DeleteItem", id);
     (event.target as HTMLElement).closest(".item")?.remove();
   }
 };
@@ -285,7 +285,7 @@ self.HandleSubmit = async (event: Event) => {
   const password = formData.get("password");
 
   try {
-    await $Backend().Call("ApiLogin", email, password);
+    await $Backend().Call("Login", email, password);
     window.location.href = "/dashboard";
   } catch (error) {
     alert("Login failed");
@@ -380,7 +380,7 @@ self.AddTodo = async (event: Event) => {
   const input = form.querySelector("input") as HTMLInputElement;
 
   if (input.value.trim()) {
-    const todo = await $Backend().Call("ApiAddTodo", input.value);
+    const todo = await $Backend().Call("AddTodo", input.value);
     const todos = self.state.Get("todos") || [];
     self.state.Set("todos", [...todos, todo]);
     input.value = "";
@@ -389,11 +389,11 @@ self.AddTodo = async (event: Event) => {
 
 self.ToggleTodo = async (event: Event, data: EventData) => {
   const checkbox = event.target as HTMLInputElement;
-  await $Backend().Call("ApiToggleTodo", data.id, checkbox.checked);
+  await $Backend().Call("ToggleTodo", data.id, checkbox.checked);
 };
 
 self.DeleteTodo = async (event: Event, data: EventData) => {
-  await $Backend().Call("ApiDeleteTodo", data.id);
+  await $Backend().Call("DeleteTodo", data.id);
   const todos = self.state.Get("todos").filter((t: any) => t.id !== data.id);
   self.state.Set("todos", todos);
 };

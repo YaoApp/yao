@@ -273,7 +273,7 @@ const self = this as Component;
 
 // Event handler bound to s:on-click="HandleClick"
 self.HandleClick = async (event: Event, data: EventData) => {
-  const result = await $Backend().Call("ApiGetData", data.id);
+  const result = await $Backend().Call("GetData", data.id);
   console.log(result);
 };
 
@@ -282,7 +282,7 @@ self.HandleSubmit = async (event: Event) => {
   event.preventDefault();
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
-  await $Backend().Call("ApiSubmit", Object.fromEntries(formData));
+  await $Backend().Call("Submit", Object.fromEntries(formData));
 };
 ```
 

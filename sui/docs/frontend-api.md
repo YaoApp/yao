@@ -40,23 +40,26 @@ const items = component.queryAll(".item"); // Returns NodeList
 
 ### Via $Backend
 
+The backend automatically adds the `Api` prefix to method names, so you call without the prefix:
+
 ```typescript
 import { $Backend } from "@yao/sui";
 
-// Call backend API methods
-const users = await $Backend().Call("ApiGetUsers");
-const user = await $Backend().Call("ApiGetUser", 123);
-const result = await $Backend().Call("ApiCreateUser", "John", "john@example.com");
+// Call backend API methods (backend functions are ApiGetUsers, ApiGetUser, ApiCreateUser)
+const users = await $Backend().Call("GetUsers");
+const user = await $Backend().Call("GetUser", 123);
+const result = await $Backend().Call("CreateUser", "John", "john@example.com");
 ```
 
 ### Direct Call
 
 ```typescript
 // __sui_backend_call(route, headers, method, ...args)
+// Note: method name here also gets Api prefix added automatically
 const result = await __sui_backend_call(
   "/users/list", // Page route
   { "X-Custom-Header": "value" }, // Custom headers
-  "ApiGetUsers", // Method name
+  "GetUsers", // Method name (backend has ApiGetUsers)
   { page: 1, limit: 10 } // Arguments
 );
 ```
@@ -81,7 +84,7 @@ import { $Backend, Component } from "@yao/sui";
 const self = this as Component;
 
 self.RefreshUsers = async () => {
-  const users = await $Backend().Call("ApiGetUsers");
+  const users = await $Backend().Call("GetUsers");
 
   // Render with data
   await self.render("userList", { users });
@@ -352,7 +355,7 @@ async function loadUsers() {
 
 // Create user
 self.CreateUser = async (event: Event, data: EventData) => {
-  const response = await $Backend().Call("ApiCreateUser", data.name, data.email);
+  const response = await $Backend().Call("CreateUser", data.name, data.email);
   const users = self.state.Get("users");
   self.state.Set("users", [...users, response]);
 };
@@ -500,7 +503,7 @@ init();
 // Event handlers
 self.HandleSave = async (event: Event, data: EventData) => {
   try {
-    await $Backend().Call("ApiSave", data);
+    await $Backend().Call("Save", data);
     sendAction("notify.success", { message: "Saved successfully!" });
   } catch (error: any) {
     sendAction("notify.error", { message: error.message });

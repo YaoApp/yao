@@ -47,8 +47,8 @@ When the iframe loads, CUI sends a `setup` message:
 // In your page script
 window.addEventListener("message", (e) => {
   if (e.data.type === "setup") {
-    const { theme, locale, token } = e.data.message;
-    // Apply theme, store token, set locale
+    const { theme, locale } = e.data.message;
+    // Apply theme, set locale
     document.documentElement.setAttribute("data-theme", theme);
   }
 });
@@ -165,7 +165,7 @@ window.addEventListener("message", (e) => {
 
   switch (type) {
     case "setup":
-      // Initial setup with theme, locale, token
+      // Initial setup with theme, locale
       break;
     case "refresh":
       // CUI requests page refresh

@@ -182,7 +182,7 @@ const self = this as Component;
 
 // Event handler bound to s:on-click="HandleClick"
 self.HandleClick = async (event: Event, data: EventData) => {
-  const result = await $Backend().Call("ApiGetData", data.id);
+  const result = await $Backend().Call("GetData", data.id);
   console.log(result);
 };
 
@@ -191,7 +191,7 @@ self.HandleSubmit = async (event: Event) => {
   event.preventDefault();
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
-  await $Backend().Call("ApiSubmit", Object.fromEntries(formData));
+  await $Backend().Call("Submit", Object.fromEntries(formData));
 };
 ```
 
@@ -201,7 +201,7 @@ self.HandleSubmit = async (event: Event) => {
 import { $Backend, Yao } from "@yao/sui";
 
 // Call backend method
-const data = await $Backend().Call("ApiMethodName", arg1, arg2);
+const data = await $Backend().Call("MethodName", arg1, arg2);
 
 // Direct API calls
 const yao = new Yao();
@@ -550,7 +550,7 @@ ctx.Send({
 import { $Backend, Yao } from "@yao/sui";
 
 // Call backend method defined in .backend.ts
-const data = await $Backend().Call("ApiMethodName", arg1, arg2);
+const data = await $Backend().Call("MethodName", arg1, arg2);
 
 // Direct API calls
 const yao = new Yao();

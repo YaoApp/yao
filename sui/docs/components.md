@@ -43,11 +43,13 @@ A component is just a page with a single root element:
 **`/card/card.ts`**:
 
 ```typescript
-function card(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
-  this.props = new __sui_props(component);
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+// self.root - Root element
+// self.store - Data store
+// self.props - Props from attributes
 ```
 
 ## Using Components
@@ -94,17 +96,16 @@ Props are passed as attributes:
 Access props in the component script:
 
 ```typescript
-function userCard(component: HTMLElement) {
-  this.root = component;
-  this.props = new __sui_props(component);
+import { Component } from "@yao/sui";
 
-  // Get single prop
-  const name = this.props.Get("name");
+const self = this as Component;
 
-  // Get all props
-  const allProps = this.props.List();
-  // { name: "John", email: "john@example.com", avatar: "...", role: "admin" }
-}
+// Get single prop
+const name = self.props.Get("name");
+
+// Get all props
+const allProps = self.props.List();
+// { name: "John", email: "john@example.com", avatar: "...", role: "admin" }
 ```
 
 Access props in backend script:
@@ -221,7 +222,7 @@ self.watch = {
 
 // Event handlers (bound to s:on-click="HandleClick")
 self.HandleClick = async (event: Event, data: EventData) => {
-  const result = await $Backend().Call("ApiMethod", data.id);
+  const result = await $Backend().Call("Method", data.id);
   // Handle result
 };
 ```
@@ -339,7 +340,6 @@ Component CSS is automatically scoped using namespace attributes:
 ## Important Notes
 
 1. **Single Root Element**: Components must have exactly one root element
-2. **Route as Identifier**: The page route becomes the component name (e.g., `/card` → `card()`)
-3. **Scoped Styles**: CSS is automatically scoped to prevent conflicts
-4. **Recursive Prevention**: SUI detects and prevents recursive component inclusion
-5. **Script Naming**: Function name is derived from the route path
+2. **Scoped Styles**: CSS is automatically scoped to prevent conflicts
+3. **Recursive Prevention**: SUI detects and prevents recursive component inclusion
+4. **Component Pattern**: Use `const self = this as Component` to access component APIs

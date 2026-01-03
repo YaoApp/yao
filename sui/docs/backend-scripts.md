@@ -58,20 +58,20 @@ function BeforeRender(request: Request): Record<string, any> {
 
 ## API Methods
 
-Functions prefixed with `Api` are exposed as callable endpoints:
+Functions prefixed with `Api` are exposed as callable endpoints. The backend automatically adds the `Api` prefix, so frontend calls use the method name without the prefix:
 
 ```typescript
-// Callable from frontend as: this.backend.ApiGetUsers()
+// Callable from frontend as: $Backend().Call("GetUsers")
 function ApiGetUsers(request: Request): any[] {
   return Process("models.user.Get", {});
 }
 
-// Callable from frontend as: this.backend.ApiCreateUser(name, email)
+// Callable from frontend as: $Backend().Call("CreateUser", name, email)
 function ApiCreateUser(name: string, email: string, request: Request): any {
   return Process("models.user.Create", { name, email });
 }
 
-// Callable from frontend as: this.backend.ApiDeleteUser(id)
+// Callable from frontend as: $Backend().Call("DeleteUser", id)
 function ApiDeleteUser(id: string, request: Request): boolean {
   Process("models.user.Delete", id);
   return true;
@@ -81,19 +81,20 @@ function ApiDeleteUser(id: string, request: Request): boolean {
 ### Calling from Frontend
 
 ```typescript
-function Page(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component } from "@yao/sui";
 
-  this.loadUsers = async () => {
-    const users = await this.backend.ApiGetUsers();
-    console.log(users);
-  };
+const self = this as Component;
 
-  this.createUser = async () => {
-    const user = await this.backend.ApiCreateUser("John", "john@example.com");
-    console.log("Created:", user);
-  };
-}
+self.LoadUsers = async () => {
+  // Call "ApiGetUsers" in backend script (without "Api" prefix)
+  const users = await $Backend().Call("GetUsers");
+  console.log(users);
+};
+
+self.CreateUser = async () => {
+  const user = await $Backend().Call("CreateUser", "John", "john@example.com");
+  console.log("Created:", user);
+};
 ```
 
 ## Constants
@@ -115,10 +116,12 @@ const __sui_constants = {
 Access in frontend:
 
 ```typescript
-function Page(component: HTMLElement) {
-  console.log(this.constants.API_URL); // "/api/v1"
-  console.log(this.constants.MAX_ITEMS); // 100
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+console.log(self.constants.API_URL); // "/api/v1"
+console.log(self.constants.MAX_ITEMS); // 100
 ```
 
 ## Helpers
@@ -147,11 +150,13 @@ function validateEmail(email: string): boolean {
 Access in frontend:
 
 ```typescript
-function Page(component: HTMLElement) {
-  const formatted = this.helpers.formatDate("2024-01-15");
-  const price = this.helpers.formatCurrency(99.99);
-  const isValid = this.helpers.validateEmail("test@example.com");
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+const formatted = self.helpers.formatDate("2024-01-15");
+const price = self.helpers.formatCurrency(99.99);
+const isValid = self.helpers.validateEmail("test@example.com");
 ```
 
 ## Request Object
