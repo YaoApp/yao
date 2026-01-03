@@ -18,16 +18,18 @@ SUI is a full-stack web development framework that allows you to create web appl
 ```
 /templates/<template_name>/
 ├── __document.html         # Global document template
-├── __assets/               # Static assets
+├── __data.json             # Global data (accessible via $global)
+├── __assets/               # Static assets (reference via @assets/)
 ├── __locales/              # Locale files
-└── <route>/                # Pages
-    └── <page>/
-        ├── <page>.html     # HTML template
+└── pages/                  # All pages go here
+    └── <page>/             # Route = folder name (can be nested)
+        ├── <page>.html     # HTML template (filename must match folder)
         ├── <page>.css      # Styles
         ├── <page>.ts       # Frontend script
         ├── <page>.json     # Data configuration
         ├── <page>.config   # Page configuration
-        └── <page>.backend.ts  # Backend script
+        ├── <page>.backend.ts  # Backend script
+        └── __locales/      # Page-level locale files
 ```
 
 ### Basic Page
@@ -75,7 +77,7 @@ yao sui watch agent
 - [Data Binding](docs/data-binding.md) - Built-in variables and functions
 - [Event Handling](docs/event-handling.md) - Event binding and state management
 - [Internationalization](docs/i18n.md) - Translation and localization
-- [Frontend API](docs/frontend-api.md) - Component query, backend calls, render API
+- [Frontend API](docs/frontend-api.md) - Component query, backend calls, render API, CUI integration
 - [Agent SUI](docs/agent-sui.md) - AI Agent application setup
 
 ## Agent SUI
@@ -85,13 +87,16 @@ Agent SUI is designed for AI Agent applications with automatic page loading from
 ```
 <app>/
 ├── agent/
-│   └── template/              # Agent SUI template
+│   └── template/              # Agent SUI template (shared)
 │       ├── __document.html
+│       ├── __data.json
 │       ├── __assets/
-│       └── pages/
+│       └── pages/             # Global pages (401, 404, etc.)
+│           └── <page>/
 └── assistants/
     └── <name>/
-        └── pages/             # Assistant pages
+        └── pages/             # Assistant pages → /agents/<name>/<route>
+            └── <page>/
 ```
 
 Build with: `yao sui build agent`

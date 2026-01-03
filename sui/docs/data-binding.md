@@ -150,6 +150,44 @@ Note: `$header` is only available in JSON configuration, not in HTML templates.
 }
 ```
 
+### Calling Backend Script Methods
+
+Use the `@MethodName` syntax to call functions defined in the page's `.backend.ts` file:
+
+```json
+{
+  "$record": "@GetRecord",
+  "$items": {
+    "process": "@GetItems",
+    "args": ["active", 20]
+  }
+}
+```
+
+**Important**: The Request object is automatically appended as the **last argument** to the backend function.
+
+**`page.backend.ts`**:
+
+```typescript
+// Called from .json as: "$record": "@GetRecord"
+// Receives: (request)
+function GetRecord(request: Request): any {
+  const id = request.params.id; // Access route params via request
+  return Process("models.record.Find", id);
+}
+
+// Called from .json as: { "process": "@GetItems", "args": ["active", 20] }
+// Receives: ("active", 20, request)
+function GetItems(status: string, limit: number, request: Request): any[] {
+  return Process("models.item.Get", {
+    wheres: [{ column: "status", value: status }],
+    limit: limit,
+  });
+}
+```
+
+> **⚠️ Common Mistake**: You cannot use `$param.id` directly in backend scripts. The `$param`, `$query`, etc. variables are only available in HTML templates and `.json` configurations. In backend scripts, access these values via the `request` parameter: `request.params.id`, `request.query.search`, etc.
+
 ## Built-in Functions
 
 ### P\_() - Process Call

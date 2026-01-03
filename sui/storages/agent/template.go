@@ -226,6 +226,33 @@ func (tmpl *Template) GetRoot() string {
 	return tmpl.agent.root
 }
 
+// GetWatchDirs returns all directories that should be watched for changes
+// This implements the core.IWatchDirs interface
+func (tmpl *Template) GetWatchDirs() []string {
+	dirs := []string{}
+
+	// 1. Add the main agent template directory
+	dirs = append(dirs, tmpl.agent.root)
+
+	// 2. Add each assistant's pages directory
+	assistants, err := tmpl.agent.getAssistants()
+	if err != nil {
+		return dirs
+	}
+
+	for _, assistantID := range assistants {
+		pagesDir := tmpl.agent.getAssistantPagesRoot(assistantID)
+		dirs = append(dirs, pagesDir)
+	}
+
+	return dirs
+}
+
+// GetWatchRoot returns "app" to indicate paths are relative to application source root
+func (tmpl *Template) GetWatchRoot() string {
+	return "app"
+}
+
 // Asset get the asset (check agent assets first, then assistant assets)
 func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error) {
 	// First check in agent assets

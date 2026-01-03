@@ -68,6 +68,16 @@ Map Yao Processes directly to MCP tools:
 }
 ```
 
+**HTTP (REST API)**
+
+```json
+{
+  "transport": "http",
+  "url": "https://mcp.example.com/api",
+  "authorization_token": "$ENV.TOKEN"
+}
+```
+
 **SSE (Server-Sent Events)**
 
 ```json

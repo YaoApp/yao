@@ -43,11 +43,13 @@ A component is just a page with a single root element:
 **`/card/card.ts`**:
 
 ```typescript
-function card(component: HTMLElement) {
-  this.root = component;
-  this.store = new __sui_store(component);
-  this.props = new __sui_props(component);
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+// self.root - Root element
+// self.store - Data store
+// self.props - Props from attributes
 ```
 
 ## Using Components
@@ -94,17 +96,16 @@ Props are passed as attributes:
 Access props in the component script:
 
 ```typescript
-function userCard(component: HTMLElement) {
-  this.root = component;
-  this.props = new __sui_props(component);
+import { Component } from "@yao/sui";
 
-  // Get single prop
-  const name = this.props.Get("name");
+const self = this as Component;
 
-  // Get all props
-  const allProps = this.props.List();
-  // { name: "John", email: "john@example.com", avatar: "...", role: "admin" }
-}
+// Get single prop
+const name = self.props.Get("name");
+
+// Get all props
+const allProps = self.props.List();
+// { name: "John", email: "john@example.com", avatar: "...", role: "admin" }
 ```
 
 Access props in backend script:
@@ -203,75 +204,68 @@ Use `<slot name="xxx">` for multiple content areas:
 ### Structure
 
 ```typescript
-function componentName(component: HTMLElement) {
-  // Root element
-  this.root = component;
+import { $Backend, Component, EventData } from "@yao/sui";
 
-  // Data store (data-* attributes)
-  this.store = new __sui_store(component);
+const self = this as Component;
 
-  // Props (passed attributes)
-  this.props = new __sui_props(component);
+// self.root - Root element (HTMLElement)
+// self.store - Data store (data-* attributes)
+// self.props - Props (passed attributes)
+// self.state - State management
 
-  // State management
-  this.state = new __sui_state(this);
+// State watchers
+self.watch = {
+  propertyName: (value: any, state: any) => {
+    // React to state changes
+  },
+};
 
-  // Backend API
-  this.backend = {
-    ApiMethod: async (...args) => {
-      /* ... */
-    },
-  };
-
-  // State watchers
-  this.watch = {
-    propertyName: (value, state) => {
-      // React to state changes
-    },
-  };
-
-  // Methods
-  this.handleClick = (event, data, context) => {
-    // Handle events
-  };
-}
+// Event handlers (bound to s:on-click="HandleClick")
+self.HandleClick = async (event: Event, data: EventData) => {
+  const result = await $Backend().Call("Method", data.id);
+  // Handle result
+};
 ```
 
 ### Store API
 
 ```typescript
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
 // String data
-this.store.Get("key");
-this.store.Set("key", "value");
+self.store.Get("key");
+self.store.Set("key", "value");
 
 // JSON data
-this.store.GetJSON("items");
-this.store.SetJSON("items", [{ id: 1 }]);
+self.store.GetJSON("items");
+self.store.SetJSON("items", [{ id: 1 }]);
 
 // Component data (from BeforeRender)
-this.store.GetData();
+self.store.GetData();
 ```
 
 ### Props API
 
 ```typescript
 // Get single prop
-const value = this.props.Get("propName");
+const value = self.props.Get("propName");
 
 // Get all props
-const props = this.props.List();
+const props = self.props.List();
 ```
 
 ### State API
 
 ```typescript
 // Set state (triggers watchers)
-this.state.Set("count", 10);
+self.state.Set("count", 10);
 
 // Watch state changes
-this.watch = {
-  count: (value, state) => {
-    this.root.querySelector(".count").textContent = value;
+self.watch = {
+  count: (value: number, state: any) => {
+    self.root.querySelector(".count")!.textContent = String(value);
     // state.stopPropagation(); // Prevent bubbling to parent
   },
 };
@@ -346,7 +340,6 @@ Component CSS is automatically scoped using namespace attributes:
 ## Important Notes
 
 1. **Single Root Element**: Components must have exactly one root element
-2. **Route as Identifier**: The page route becomes the component name (e.g., `/card` → `card()`)
-3. **Scoped Styles**: CSS is automatically scoped to prevent conflicts
-4. **Recursive Prevention**: SUI detects and prevents recursive component inclusion
-5. **Script Naming**: Function name is derived from the route path
+2. **Scoped Styles**: CSS is automatically scoped to prevent conflicts
+3. **Recursive Prevention**: SUI detects and prevents recursive component inclusion
+4. **Component Pattern**: Use `const self = this as Component` to access component APIs

@@ -14,6 +14,12 @@ Backend scripts use the naming convention `<page>.backend.ts` or `<page>.backend
 └── list.backend.ts    # Backend script
 ```
 
+## Important Notes
+
+> **⚠️ No ES Module Exports**: Backend scripts do NOT support ES Module `export` syntax. Simply define functions directly - they will be automatically available based on naming conventions.
+
+> **⚠️ `$param` Not Available**: Unlike HTML templates, you cannot use `$param.id` directly in backend scripts. Route parameters must be accessed via the `request.params` object passed to your functions.
+
 ## BeforeRender
 
 The `BeforeRender` function is called before the page is rendered:
@@ -58,20 +64,20 @@ function BeforeRender(request: Request): Record<string, any> {
 
 ## API Methods
 
-Functions prefixed with `Api` are exposed as callable endpoints:
+Functions prefixed with `Api` are exposed as callable endpoints. The backend automatically adds the `Api` prefix, so frontend calls use the method name without the prefix:
 
 ```typescript
-// Callable from frontend as: this.backend.ApiGetUsers()
+// Callable from frontend as: $Backend().Call("GetUsers")
 function ApiGetUsers(request: Request): any[] {
   return Process("models.user.Get", {});
 }
 
-// Callable from frontend as: this.backend.ApiCreateUser(name, email)
+// Callable from frontend as: $Backend().Call("CreateUser", name, email)
 function ApiCreateUser(name: string, email: string, request: Request): any {
   return Process("models.user.Create", { name, email });
 }
 
-// Callable from frontend as: this.backend.ApiDeleteUser(id)
+// Callable from frontend as: $Backend().Call("DeleteUser", id)
 function ApiDeleteUser(id: string, request: Request): boolean {
   Process("models.user.Delete", id);
   return true;
@@ -81,19 +87,20 @@ function ApiDeleteUser(id: string, request: Request): boolean {
 ### Calling from Frontend
 
 ```typescript
-function Page(component: HTMLElement) {
-  this.root = component;
+import { $Backend, Component } from "@yao/sui";
 
-  this.loadUsers = async () => {
-    const users = await this.backend.ApiGetUsers();
-    console.log(users);
-  };
+const self = this as Component;
 
-  this.createUser = async () => {
-    const user = await this.backend.ApiCreateUser("John", "john@example.com");
-    console.log("Created:", user);
-  };
-}
+self.LoadUsers = async () => {
+  // Call "ApiGetUsers" in backend script (without "Api" prefix)
+  const users = await $Backend().Call("GetUsers");
+  console.log(users);
+};
+
+self.CreateUser = async () => {
+  const user = await $Backend().Call("CreateUser", "John", "john@example.com");
+  console.log("Created:", user);
+};
 ```
 
 ## Constants
@@ -115,10 +122,12 @@ const __sui_constants = {
 Access in frontend:
 
 ```typescript
-function Page(component: HTMLElement) {
-  console.log(this.constants.API_URL); // "/api/v1"
-  console.log(this.constants.MAX_ITEMS); // 100
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+console.log(self.constants.API_URL); // "/api/v1"
+console.log(self.constants.MAX_ITEMS); // 100
 ```
 
 ## Helpers
@@ -147,11 +156,13 @@ function validateEmail(email: string): boolean {
 Access in frontend:
 
 ```typescript
-function Page(component: HTMLElement) {
-  const formatted = this.helpers.formatDate("2024-01-15");
-  const price = this.helpers.formatCurrency(99.99);
-  const isValid = this.helpers.validateEmail("test@example.com");
-}
+import { Component } from "@yao/sui";
+
+const self = this as Component;
+
+const formatted = self.helpers.formatDate("2024-01-15");
+const price = self.helpers.formatCurrency(99.99);
+const isValid = self.helpers.validateEmail("test@example.com");
 ```
 
 ## Request Object
@@ -240,6 +251,78 @@ function ApiUpdateUser(id: string, data: any, request: Request): any {
     // Error will be returned to frontend
     throw new Error(`Failed to update user: ${error.message}`);
   }
+}
+```
+
+## Data Binding Methods (Called from `.json`)
+
+In addition to `Api` prefixed methods (for frontend calls) and `BeforeRender`, you can define methods that are called directly from the page's `.json` configuration using the `@MethodName` syntax.
+
+### Naming Convention
+
+| Call Source                  | Function Name   | Example Call                    |
+| ---------------------------- | --------------- | ------------------------------- |
+| Frontend `$Backend().Call()` | `ApiMethodName` | `$Backend().Call("MethodName")` |
+| `.json` data binding         | `MethodName`    | `"$data": "@MethodName"`        |
+| Before render                | `BeforeRender`  | Automatic                       |
+
+### How It Works
+
+When using `@MethodName` in `.json`, SUI calls the backend function with the **Request object appended as the last argument**:
+
+```typescript
+// In .json: "$record": "@GetRecord"
+// SUI internally calls: GetRecord(request)
+
+function GetRecord(request: Request): any {
+  // Access route parameters via request.params
+  const id = request.params.id;
+  return Process("models.record.Find", id);
+}
+```
+
+### With Additional Arguments
+
+You can also pass arguments from `.json`:
+
+```json
+{
+  "$items": {
+    "process": "@GetItems",
+    "args": ["category_a", 10]
+  }
+}
+```
+
+```typescript
+// SUI calls: GetItems("category_a", 10, request)
+// Arguments from .json come first, request is appended last
+
+function GetItems(category: string, limit: number, request: Request): any[] {
+  return Process("models.item.Get", {
+    wheres: [{ column: "category", value: category }],
+    limit: limit,
+  });
+}
+```
+
+### Common Pitfall: Accessing Route Parameters
+
+❌ **Wrong** - `$param` is not available in backend scripts:
+
+```typescript
+function GetRecord(): any {
+  const id = $param.id; // ReferenceError: $param is not defined
+  return Process("models.record.Find", id);
+}
+```
+
+✅ **Correct** - Use `request.params`:
+
+```typescript
+function GetRecord(request: Request): any {
+  const id = request.params.id; // Works!
+  return Process("models.record.Find", id);
 }
 ```
 
