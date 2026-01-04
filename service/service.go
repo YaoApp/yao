@@ -25,20 +25,38 @@ func Start(cfg config.Config) (*http.Server, error) {
 
 	router := gin.New()
 	router.Use(Middlewares...)
-	api.SetGuards(Guards)
-	api.SetRoutes(router, "/api", cfg.AllowFrom...)
+
+	var apiRoot string
+	if openapi.Server != nil {
+		// OpenAPI mode: use OAuth guards and dynamic routing
+		apiRoot = openapi.Server.Config.BaseURL
+		api.SetGuards(OpenAPIGuards())
+
+		// Developer APIs: use dynamic proxy (supports hot-reload)
+		router.Any(apiRoot+"/api/*path", DynamicAPIHandler)
+
+		// Widgets and system APIs: static registration
+		api.SetRoutes(router, apiRoot, cfg.AllowFrom...)
+
+		// Build route table for dynamic lookup
+		api.BuildRouteTable()
+
+		// Attach OpenAPI built-in features
+		openapi.Server.Attach(router)
+	} else {
+		// Traditional mode: unchanged
+		apiRoot = "/api"
+		api.SetGuards(Guards)
+		api.SetRoutes(router, "/api", cfg.AllowFrom...)
+	}
+
 	srv := http.New(router, http.Option{
 		Host:    cfg.Host,
 		Port:    cfg.Port,
-		Root:    "/api",
+		Root:    apiRoot,
 		Allows:  cfg.AllowFrom,
 		Timeout: 5 * time.Second,
 	})
-
-	// OpenAPI Server
-	if openapi.Server != nil {
-		openapi.Server.Attach(router)
-	}
 
 	go func() {
 		err = srv.Start()
@@ -51,8 +69,21 @@ func Start(cfg config.Config) (*http.Server, error) {
 func Restart(srv *http.Server, cfg config.Config) error {
 	router := gin.New()
 	router.Use(Middlewares...)
-	api.SetGuards(Guards)
-	api.SetRoutes(router, "/api", cfg.AllowFrom...)
+
+	if openapi.Server != nil {
+		// OpenAPI mode
+		baseURL := openapi.Server.Config.BaseURL
+		api.SetGuards(OpenAPIGuards())
+		router.Any(baseURL+"/api/*path", DynamicAPIHandler)
+		api.SetRoutes(router, baseURL, cfg.AllowFrom...)
+		api.BuildRouteTable()
+		openapi.Server.Attach(router)
+	} else {
+		// Traditional mode: unchanged
+		api.SetGuards(Guards)
+		api.SetRoutes(router, "/api", cfg.AllowFrom...)
+	}
+
 	srv.Reset(router)
 	return srv.Restart()
 }

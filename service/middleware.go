@@ -26,7 +26,13 @@ func withStaticFileServer(c *gin.Context) {
 
 	// Handle OpenAPI server
 	if openapi.Server != nil && openapi.Server.Config != nil && openapi.Server.Config.BaseURL != "" {
+		// OpenAPI base URL routes
 		if strings.HasPrefix(c.Request.URL.Path, openapi.Server.Config.BaseURL+"/") {
+			c.Next()
+			return
+		}
+		// Well-known routes (OAuth discovery, Yao metadata, etc.)
+		if strings.HasPrefix(c.Request.URL.Path, "/.well-known/") {
 			c.Next()
 			return
 		}

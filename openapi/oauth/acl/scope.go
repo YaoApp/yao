@@ -440,13 +440,40 @@ func (m *ScopeManager) addEndpointRule(method, path, action string, scopes []str
 
 	// Classify path type and add to appropriate index
 	if strings.Contains(path, "*") {
-		// Wildcard path
+		// Wildcard path - merge with existing if present (support multiple scopes per endpoint)
 		prefix := strings.TrimSuffix(path, "*")
-		matcher.wildcardPaths = append(matcher.wildcardPaths, &WildcardPath{
-			Pattern:  path,
-			Prefix:   prefix,
-			Endpoint: info,
-		})
+		merged := false
+		for _, existing := range matcher.wildcardPaths {
+			if existing.Pattern == path {
+				// Endpoint already exists, merge scopes and constraints
+				existing.Endpoint.RequiredScopes = append(existing.Endpoint.RequiredScopes, info.RequiredScopes...)
+				existing.Endpoint.OwnerOnly = existing.Endpoint.OwnerOnly || info.OwnerOnly
+				existing.Endpoint.CreatorOnly = existing.Endpoint.CreatorOnly || info.CreatorOnly
+				existing.Endpoint.EditorOnly = existing.Endpoint.EditorOnly || info.EditorOnly
+				existing.Endpoint.TeamOnly = existing.Endpoint.TeamOnly || info.TeamOnly
+				if info.Extra != nil {
+					if existing.Endpoint.Extra == nil {
+						existing.Endpoint.Extra = make(map[string]interface{})
+					}
+					for key, value := range info.Extra {
+						existing.Endpoint.Extra[key] = deepCopyValue(value)
+					}
+				}
+				log.Trace("[ACL] Merged wildcard endpoint %s %s: scopes=%v, owner=%v, team=%v",
+					method, path, existing.Endpoint.RequiredScopes, existing.Endpoint.OwnerOnly, existing.Endpoint.TeamOnly)
+				merged = true
+				break
+			}
+		}
+		if !merged {
+			matcher.wildcardPaths = append(matcher.wildcardPaths, &WildcardPath{
+				Pattern:  path,
+				Prefix:   prefix,
+				Endpoint: info,
+			})
+			log.Trace("[ACL] Added wildcard endpoint %s %s: scopes=%v, owner=%v, team=%v",
+				method, path, info.RequiredScopes, info.OwnerOnly, info.TeamOnly)
+		}
 	} else if strings.Contains(path, ":") {
 		// Parameter path - merge with existing if present (support multiple scopes per endpoint)
 		if existing := matcher.paramPaths[path]; existing != nil {
@@ -718,25 +745,37 @@ func (m *ScopeManager) matchParameterPath(pattern, path string) bool {
 	return true
 }
 
-// expandUserScopes expands user scopes by resolving aliases
+// expandUserScopes expands user scopes by resolving aliases recursively
+// This allows nested aliases like: system:root -> *:*:* -> matches any scope
 func (m *ScopeManager) expandUserScopes(scopes []string) []string {
 	var expanded []string
 	seen := make(map[string]bool)
 
-	for _, scope := range scopes {
+	// Use a queue for iterative expansion to avoid deep recursion
+	queue := make([]string, len(scopes))
+	copy(queue, scopes)
+
+	for len(queue) > 0 {
+		scope := queue[0]
+		queue = queue[1:]
+
+		// Skip if already processed
+		if seen[scope] {
+			continue
+		}
+		seen[scope] = true
+
 		// Check if it's an alias
 		if aliasScopes := m.aliasIndex[scope]; aliasScopes != nil {
+			// Add alias expansions to queue for further processing
 			for _, s := range aliasScopes {
 				if !seen[s] {
-					expanded = append(expanded, s)
-					seen[s] = true
+					queue = append(queue, s)
 				}
 			}
 		} else {
-			if !seen[scope] {
-				expanded = append(expanded, scope)
-				seen[scope] = true
-			}
+			// Not an alias, add to expanded list
+			expanded = append(expanded, scope)
 		}
 	}
 
@@ -745,9 +784,15 @@ func (m *ScopeManager) expandUserScopes(scopes []string) []string {
 
 // matchesWildcardScope checks if a user scope (potentially with wildcards) matches a required scope
 // Supports patterns like:
-//   - *:*:* matches everything
+//   - *:*:* matches any 3-part scope (e.g., sui:run:execute)
+//   - *:*:*:* matches any 4-part scope (e.g., sui:run:execute:all)
+//   - *:*:*:*:* matches any 5-part scope
 //   - resource:*:* matches resource:action:level
 //   - resource:action:* matches resource:action:level
+//   - resource:*:*:* matches resource:action:level:sublevel
+//
+// The wildcard pattern must have the same number of parts as the required scope.
+// Use multiple wildcard patterns in alias.yml to cover different scope depths.
 func (m *ScopeManager) matchesWildcardScope(userScope, requiredScope string) bool {
 	// No wildcard, no match (exact match already checked)
 	if !strings.Contains(userScope, "*") {
@@ -758,7 +803,7 @@ func (m *ScopeManager) matchesWildcardScope(userScope, requiredScope string) boo
 	userParts := strings.Split(userScope, ":")
 	requiredParts := strings.Split(requiredScope, ":")
 
-	// If lengths don't match and user scope isn't full wildcard, no match
+	// Lengths must match for wildcard matching
 	if len(userParts) != len(requiredParts) {
 		return false
 	}

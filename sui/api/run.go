@@ -114,6 +114,13 @@ func Run(process *process.Process) interface{} {
 	}
 	defer scriptCtx.Close()
 
+	// Pass authorized info to V8 context
+	if authorized := process.GetAuthorized(); authorized != nil {
+		if authMap := authorized.AuthorizedToMap(); len(authMap) > 0 {
+			scriptCtx.WithAuthorized(authMap)
+		}
+	}
+
 	global := scriptCtx.Global()
 	if !global.Has(prefix + method) {
 		exception.New("Method %s not found", 500, method).Throw()

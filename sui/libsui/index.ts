@@ -274,7 +274,7 @@ async function __sui_backend_call(
   method: string,
   ...args: any
 ): Promise<any> {
-  const url = `/api/__yao/sui/v1/run${route}`;
+  const url = `/v1/__yao/sui/v1/run${route}`;
   headers = {
     "Content-Type": "application/json",
     Referer: window.location.href,
@@ -369,7 +369,7 @@ async function __sui_render(
     : option.route || window.location.pathname;
   option.component = (routeAttr && comp.root.getAttribute("s:cn")) || "";
 
-  const url = `/api/__yao/sui/v1/render${route}`;
+  const url = `/v1/__yao/sui/v1/render${route}`;
   const payload = { name, data: _data, option };
 
   // merge the user data
