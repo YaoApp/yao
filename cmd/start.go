@@ -24,6 +24,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/openapi"
 	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
@@ -470,6 +471,11 @@ func printTasks(silent bool) {
 }
 
 func printApis(silent bool) {
+	// Determine API root based on OpenAPI mode
+	apiRoot := "/api"
+	if openapi.Server != nil {
+		apiRoot = openapi.Server.Config.BaseURL
+	}
 
 	if silent {
 		for _, api := range api.APIs {
@@ -478,7 +484,7 @@ func printApis(silent bool) {
 			}
 			log.Info("[API] %s(%d)", api.ID, len(api.HTTP.Paths))
 			for _, p := range api.HTTP.Paths {
-				log.Info("%s %s %s", p.Method, filepath.Join("/api", api.HTTP.Group, p.Path), p.Process)
+				log.Info("%s %s %s", p.Method, filepath.Join(apiRoot, api.HTTP.Group, p.Path), p.Process)
 			}
 		}
 		for name, upgrader := range websocket.Upgraders { // WebSocket
@@ -491,7 +497,14 @@ func printApis(silent bool) {
 	fmt.Println(color.WhiteString(L("APIs List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
 
-	for _, api := range api.APIs { // API信息
+	// Show OpenAPI mode info if enabled
+	if openapi.Server != nil {
+		fmt.Println(color.CyanString("\nOpenAPI Mode: %s", apiRoot))
+		fmt.Println(color.WhiteString("Developer APIs: %s/api/*", apiRoot))
+		fmt.Println(color.WhiteString("Widgets: %s/__yao/*", apiRoot))
+	}
+
+	for _, api := range api.APIs { // API info
 		if len(api.HTTP.Paths) <= 0 {
 			continue
 		}
@@ -505,7 +518,7 @@ func printApis(silent bool) {
 		for _, p := range api.HTTP.Paths {
 			fmt.Println(
 				colorMehtod(p.Method),
-				color.WhiteString(filepath.Join("/api", api.HTTP.Group, p.Path)),
+				color.WhiteString(filepath.Join(apiRoot, api.HTTP.Group, p.Path)),
 				"\tprocess:", p.Process)
 		}
 	}

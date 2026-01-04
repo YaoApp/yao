@@ -24,7 +24,6 @@ var dsl = []byte(`
 			"label": "Run",
 			"description": "Run the backend script, with Api prefix method",
 			"path": "/run/*route",
-			"guard": "-",
 			"method": "POST",
 			"process": "sui.Run",
 			"in": [":context", "$param.route", ":payload"],

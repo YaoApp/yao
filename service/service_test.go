@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -20,6 +21,11 @@ func TestStartStop(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Temporarily disable OpenAPI for this test
+	savedOpenAPIServer := openapi.Server
+	openapi.Server = nil
+	defer func() { openapi.Server = savedOpenAPIServer }()
 
 	srv, err := Start(cfg)
 	if err != nil {

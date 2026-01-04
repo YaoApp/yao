@@ -6,7 +6,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/yaoapp/yao/helper"
-	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 
 	"github.com/yaoapp/yao/widgets/chart"
@@ -16,7 +15,7 @@ import (
 	"github.com/yaoapp/yao/widgets/table"
 )
 
-// Guards middlewares
+// Guards middlewares for traditional JWT mode
 var Guards = map[string]gin.HandlerFunc{
 	"bearer-jwt":       guardBearerJWT,   // Bearer JWT
 	"query-jwt":        guardQueryJWT,    // Get JWT Token from query string  "__tk"
@@ -28,6 +27,24 @@ var Guards = map[string]gin.HandlerFunc{
 	"widget-form":      form.Guard,       // Widget Form Guard
 	"widget-chart":     chart.Guard,      // Widget Chart Guard
 	"widget-dashboard": dashboard.Guard,  // Widget Dashboard Guard
+}
+
+// OpenAPIGuards returns middlewares for OpenAPI OAuth mode
+// All JWT-related guards are mapped to OAuth for backward compatibility
+// This is a function because oauth.OAuth is initialized at runtime
+func OpenAPIGuards() map[string]gin.HandlerFunc {
+	return map[string]gin.HandlerFunc{
+		"bearer-jwt":       oauth.OAuth.Guard, // JWT -> OAuth
+		"query-jwt":        oauth.OAuth.Guard, // JWT -> OAuth
+		"cookie-jwt":       oauth.OAuth.Guard, // JWT -> OAuth
+		"cookie-trace":     oauth.OAuth.Guard, // Session -> OAuth (OAuth manages sessions)
+		"cross-origin":     guardCrossOrigin,  // CORS remains unchanged
+		"widget-table":     table.Guard,       // Widget Guard remains unchanged
+		"widget-list":      list.Guard,        // Widget List Guard
+		"widget-form":      form.Guard,        // Widget Form Guard
+		"widget-chart":     chart.Guard,       // Widget Chart Guard
+		"widget-dashboard": dashboard.Guard,   // Widget Dashboard Guard
+	}
 }
 
 // guardCookieTrace set sid cookie
@@ -43,16 +60,8 @@ func guardCookieTrace(c *gin.Context) {
 	c.Set("__sid", sid)
 }
 
-// Cookie Cookie JWT
+// guardCookieJWT validates JWT token from cookie
 func guardCookieJWT(c *gin.Context) {
-
-	// OpenAPI OAuth
-	if openapi.Server != nil {
-		guardOpenapiOauth(c)
-		return
-	}
-
-	// Backward compatibility
 	tokenString, err := c.Cookie("__tk")
 	if err != nil {
 		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
@@ -70,16 +79,8 @@ func guardCookieJWT(c *gin.Context) {
 	c.Set("__sid", claims.SID)
 }
 
-// JWT Bearer JWT
+// guardBearerJWT validates Bearer JWT token from Authorization header
 func guardBearerJWT(c *gin.Context) {
-
-	// OpenAPI OAuth
-	if openapi.Server != nil {
-		guardOpenapiOauth(c)
-		return
-	}
-
-	// Backward compatibility
 	tokenString := c.Request.Header.Get("Authorization")
 	tokenString = strings.TrimSpace(strings.TrimPrefix(tokenString, "Bearer "))
 	if tokenString == "" {
@@ -116,53 +117,4 @@ func guardCrossOrigin(c *gin.Context) {
 		return
 	}
 	c.Next()
-}
-
-// Openapi Oauth
-func guardOpenapiOauth(c *gin.Context) {
-	s := oauth.OAuth
-	token := getAccessToken(c)
-	if token == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
-		c.Abort()
-		return
-	}
-
-	// Validate the token
-	_, err := s.VerifyToken(token)
-	if err != nil {
-		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
-		c.Abort()
-		return
-	}
-
-	// Get the session ID
-	sid := getSessionID(c)
-	if sid == "" {
-		c.JSON(403, gin.H{"code": 403, "message": "Not Authorized"})
-		c.Abort()
-		return
-	}
-
-	c.Set("__sid", sid)
-}
-
-func getAccessToken(c *gin.Context) string {
-	token := c.GetHeader("Authorization")
-	if token == "" || token == "Bearer undefined" {
-		cookie, err := c.Cookie("__Host-access_token")
-		if err != nil {
-			return ""
-		}
-		token = cookie
-	}
-	return strings.TrimPrefix(token, "Bearer ")
-}
-
-func getSessionID(c *gin.Context) string {
-	sid, err := c.Cookie("__Host-session_id")
-	if err != nil {
-		return ""
-	}
-	return sid
 }

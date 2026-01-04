@@ -505,10 +505,11 @@ func processXgen(process *process.Process) interface{} {
 			layout = new
 		}
 
+		apiBase := getAPIBase()
 		xgenLogin["entry"]["admin"] = admin.Layout.Entry
 		xgenLogin["admin"] = map[string]interface{}{
-			"captcha": "/api/__yao/login/admin/captcha?type=digit",
-			"login":   "/api/__yao/login/admin",
+			"captcha": fmt.Sprintf("%s/__yao/login/admin/captcha?type=digit", apiBase),
+			"login":   fmt.Sprintf("%s/__yao/login/admin", apiBase),
 			"layout":  layout,
 		}
 
@@ -541,10 +542,11 @@ func processXgen(process *process.Process) interface{} {
 		if new, ok := newLayout.(map[string]interface{}); ok {
 			layout = new
 		}
+		apiBase := getAPIBase()
 		xgenLogin["entry"]["user"] = user.Layout.Entry
 		xgenLogin["user"] = map[string]interface{}{
-			"captcha": "/api/__yao/login/user/captcha?type=digit",
-			"login":   "/api/__yao/login/user",
+			"captcha": fmt.Sprintf("%s/__yao/login/user/captcha?type=digit", apiBase),
+			"login":   fmt.Sprintf("%s/__yao/login/user", apiBase),
 			"layout":  layout,
 		}
 
@@ -690,12 +692,24 @@ func processXgen(process *process.Process) interface{} {
 		"kb":        kbConfig,
 	}
 
+	// Set logo and favicon with dynamic API base
+	apiBase := getAPIBase()
 	if Setting.Logo != "" {
-		xgenSetting["logo"] = Setting.Logo
+		// Replace /api/ prefix with current API base if needed
+		logo := Setting.Logo
+		if strings.HasPrefix(logo, "/api/") {
+			logo = apiBase + strings.TrimPrefix(logo, "/api")
+		}
+		xgenSetting["logo"] = logo
 	}
 
 	if Setting.Favicon != "" {
-		xgenSetting["favicon"] = Setting.Favicon
+		// Replace /api/ prefix with current API base if needed
+		favicon := Setting.Favicon
+		if strings.HasPrefix(favicon, "/api/") {
+			favicon = apiBase + strings.TrimPrefix(favicon, "/api")
+		}
+		xgenSetting["favicon"] = favicon
 	}
 
 	setting, err := i18n.Trans(session.Lang(process, config.Conf.Lang), []string{"app.app"}, xgenSetting)
@@ -726,20 +740,18 @@ func (dsl *DSL) replaceAdminRoot() error {
 
 // icons
 func (dsl *DSL) icons(cfg config.Config) {
-
-	dsl.Favicon = "/api/__yao/app/icons/app.ico"
-	dsl.Logo = "/api/__yao/app/icons/app.png"
+	apiBase := getAPIBase()
+	dsl.Favicon = fmt.Sprintf("%s/__yao/app/icons/app.ico", apiBase)
+	dsl.Logo = fmt.Sprintf("%s/__yao/app/icons/app.png", apiBase)
 	log.Trace("CFG %v", cfg.Root)
+}
 
-	// favicon := filepath.Join(cfg.Root, "icons", "app.ico")
-	// if _, err := os.Stat(favicon); err == nil {
-	// 	dsl.Favicon = fmt.Sprintf("/api/__yao/app/icons/app.ico")
-	// }
-
-	// logo := filepath.Join(cfg.Root, "icons", "app.png")
-	// if _, err := os.Stat(logo); err == nil {
-	// 	dsl.Logo = fmt.Sprintf("/api/__yao/app/icons/app.png")
-	// }
+// getAPIBase returns the API base path based on OpenAPI mode
+func getAPIBase() string {
+	if openapi.Server != nil && openapi.Server.Config != nil && openapi.Server.Config.BaseURL != "" {
+		return openapi.Server.Config.BaseURL
+	}
+	return "/api"
 }
 
 // Permissions get the permission blacklist

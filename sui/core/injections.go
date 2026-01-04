@@ -29,12 +29,6 @@ func LibSUI() ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 
-	// Read agent source code from bindata
-	agent, err := data.Read("libsui/agent.ts")
-	if err != nil {
-		return nil, nil, err
-	}
-
 	// Read openapi source code from bindata
 	openapi, err := data.Read("libsui/openapi.ts")
 	if err != nil {
@@ -42,7 +36,7 @@ func LibSUI() ([]byte, []byte, error) {
 	}
 
 	// Merge the source code
-	source := fmt.Sprintf("%s\n%s\n%s\n%s\n%s", index, utils, yao, agent, openapi)
+	source := fmt.Sprintf("%s\n%s\n%s\n%s", index, utils, yao, openapi)
 
 	// Build the source code
 	js, sm, err := transform.TypeScriptWithSourceMap(string(source), api.TransformOptions{
