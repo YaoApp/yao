@@ -171,10 +171,23 @@ Create `<page>.config` for page settings:
 ```json
 {
   "title": "Page Title",
-  "guard": "bearer-jwt",
-  "cache": 3600
+  "guard": "oauth",
+  "api": {
+    "defaultGuard": "oauth"
+  }
 }
 ```
+
+### Available Guards
+
+| Guard          | Description                                |
+| -------------- | ------------------------------------------ |
+| `oauth`        | OAuth 2.1 authentication (recommended)     |
+| `bearer-jwt`   | Bearer token JWT authentication            |
+| `cookie-jwt`   | Cookie-based JWT authentication            |
+| `-`            | No authentication (public access)          |
+
+> See [Page Configuration](./page-config.md) for complete configuration options.
 
 ## Backend Scripts
 

@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/sui/core"
 )
 
@@ -108,14 +109,17 @@ func Run(process *process.Process) interface{} {
 		return nil
 	}
 
-	scriptCtx, err := script.NewContext(process.Sid, nil)
+	scriptCtx, err := script.NewContext(r.Sid, nil)
 	if err != nil {
 		return nil
 	}
 	defer scriptCtx.Close()
 
 	// Pass authorized info to V8 context
-	if authorized := process.GetAuthorized(); authorized != nil {
+	// Priority: 1. From Request (set by SUI guard), 2. From Process (set by GOU handler)
+	if len(r.Authorized) > 0 {
+		scriptCtx.WithAuthorized(r.Authorized)
+	} else if authorized := process.GetAuthorized(); authorized != nil {
 		if authMap := authorized.AuthorizedToMap(); len(authMap) > 0 {
 			scriptCtx.WithAuthorized(authMap)
 		}
@@ -185,11 +189,19 @@ func (r *Request) apiGuard(method string, api *core.PageAPI) (int, error) {
 	}
 
 	// Build in guard
-	if guard, has := Guards[guard]; has {
-		err := guard(r)
+	if guardFunc, has := Guards[guard]; has {
+		err := guardFunc(r)
 		if err != nil {
 			return 403, err
 		}
+
+		// For OAuth guard, perform ACL check after authentication
+		if guard == "oauth" {
+			if err := r.enforceACL(); err != nil {
+				return 403, err
+			}
+		}
+
 		return 200, nil
 	}
 
@@ -202,11 +214,33 @@ func (r *Request) apiGuard(method string, api *core.PageAPI) (int, error) {
 	return 200, nil
 }
 
+// enforceACL performs ACL permission check for API calls
+func (r *Request) enforceACL() error {
+	if r.context == nil {
+		return nil
+	}
+
+	// Skip if ACL is not enabled
+	if acl.Global == nil || !acl.Global.Enabled() {
+		return nil
+	}
+
+	// Enforce ACL
+	ok, err := acl.Global.Enforce(r.context)
+	if err != nil {
+		log.Error("[SUI] ACL enforcement failed: %v", err)
+		return err
+	}
+
+	if !ok {
+		return fmt.Errorf("Access denied")
+	}
+
+	return nil
+}
+
 func configWriter() {
-	for {
-		select {
-		case config := <-chConfig:
-			configs[config.Root] = config
-		}
+	for config := range chConfig {
+		configs[config.Root] = config
 	}
 }

@@ -185,7 +185,26 @@ interface Request {
   sid: string; // Session ID
   theme: string; // Current theme
   locale: string; // Current locale
-  authorized?: Record<string, any>; // OAuth info (when guard is "oauth")
+  authorized?: {
+    // OAuth info (when guard is "oauth")
+    sub?: string; // Subject identifier
+    user_id?: string; // User ID
+    team_id?: string; // Team ID (if team login)
+    tenant_id?: string; // Tenant ID (multi-tenancy)
+    client_id?: string; // OAuth client ID
+    session_id?: string; // Session ID
+    scope?: string; // OAuth scopes
+    remember_me?: boolean; // Remember me flag
+
+    // Data access constraints (set by ACL)
+    constraints?: {
+      owner_only?: boolean; // Only access owner's data
+      creator_only?: boolean; // Only access creator's data
+      editor_only?: boolean; // Only access editor's data
+      team_only?: boolean; // Only access team's data
+      extra?: Record<string, any>; // Custom constraints
+    };
+  };
 }
 ```
 
