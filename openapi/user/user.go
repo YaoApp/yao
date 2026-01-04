@@ -131,6 +131,10 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/teams/invitations/:invitation_id", GinTeamInvitationGetPublic)                   // GET /user/teams/invitations/:invitation_id - Get invitation details (public)
 	group.POST("/teams/invitations/:invitation_id/accept", oauth.Guard, GinTeamInvitationAccept) // POST /user/teams/invitations/:invitation_id/accept - Accept invitation and login
 
+	// Team CRUD - Root level (avoid trailing slash redirect)
+	group.GET("/teams", oauth.Guard, GinTeamList)    // GET /teams - List user teams
+	group.POST("/teams", oauth.Guard, GinTeamCreate) // POST /teams - Create new team
+
 	team := group.Group("/teams")
 
 	// Protected endpoints (authentication required)
@@ -141,13 +145,9 @@ func attachTeam(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Team Selection
 	team.POST("/select", GinTeamSelection) // POST /teams/select - Select a team and issue tokens with team_id (requires authentication)
-
-	// Team CRUD - Standard REST endpoints
-	team.GET("/", GinTeamList)         // GET /teams - List user teams
-	team.POST("/", GinTeamCreate)      // POST /teams - Create new team
-	team.GET("/:id", GinTeamGet)       // GET /teams/:id - Get team details
-	team.PUT("/:id", GinTeamUpdate)    // PUT /teams/:id - Update team
-	team.DELETE("/:id", GinTeamDelete) // DELETE /teams/:id - Delete team
+	team.GET("/:id", GinTeamGet)           // GET /teams/:id - Get team details
+	team.PUT("/:id", GinTeamUpdate)        // PUT /teams/:id - Update team
+	team.DELETE("/:id", GinTeamDelete)     // DELETE /teams/:id - Delete team
 
 	// Get Current Team
 	team.GET("/current", GinTeamCurrent)
@@ -181,21 +181,16 @@ func attachInvitations(group *gin.RouterGroup, oauth types.OAuth) {
 
 // User Privacy
 func attachPrivacy(group *gin.RouterGroup, oauth types.OAuth) {
-	privacy := group.Group("/privacy")
-	privacy.Use(oauth.Guard)
-	privacy.GET("/", placeholder)       // Get user privacy
-	privacy.GET("/schema", placeholder) // Get user privacy schema
-	privacy.PUT("/", placeholder)       // Update user privacy
+	group.GET("/privacy", oauth.Guard, placeholder)        // Get user privacy
+	group.PUT("/privacy", oauth.Guard, placeholder)        // Update user privacy
+	group.GET("/privacy/schema", oauth.Guard, placeholder) // Get user privacy schema
 }
 
 // User Preferences
 func attachPreferences(group *gin.RouterGroup, oauth types.OAuth) {
-	preferences := group.Group("/preferences")
-	preferences.Use(oauth.Guard)
-
-	preferences.GET("/", placeholder)       // Get user preferences
-	preferences.GET("/schema", placeholder) // Get user preferences schema
-	preferences.PUT("/", placeholder)       // Update user preferences
+	group.GET("/preferences", oauth.Guard, placeholder)        // Get user preferences
+	group.PUT("/preferences", oauth.Guard, placeholder)        // Update user preferences
+	group.GET("/preferences/schema", oauth.Guard, placeholder) // Get user preferences schema
 }
 
 // User Billing Management
@@ -219,18 +214,14 @@ func attachReferral(group *gin.RouterGroup, oauth types.OAuth) {
 
 // User Credits Management
 func attachCredits(group *gin.RouterGroup, oauth types.OAuth) {
-	credits := group.Group("/credits")
-	credits.Use(oauth.Guard)
-
-	credits.GET("/", placeholder)        // Get user credits info
-	credits.GET("/history", placeholder) // Get credits change history
+	group.GET("/credits", oauth.Guard, placeholder)         // Get user credits info
+	group.GET("/credits/history", oauth.Guard, placeholder) // Get credits change history
 
 	// Top-up Management
-	topup := credits.Group("/topup")
-	topup.GET("/", placeholder)           // Get topup records
-	topup.POST("/", placeholder)          // Create topup order
-	topup.GET("/:order_id", placeholder)  // Get topup order status
-	topup.POST("/card-code", placeholder) // Redeem card code
+	group.GET("/credits/topup", oauth.Guard, placeholder)            // Get topup records
+	group.POST("/credits/topup", oauth.Guard, placeholder)           // Create topup order
+	group.GET("/credits/topup/:order_id", oauth.Guard, placeholder)  // Get topup order status
+	group.POST("/credits/topup/card-code", oauth.Guard, placeholder) // Redeem card code
 }
 
 // Usage Management
@@ -243,44 +234,33 @@ func attachUsage(group *gin.RouterGroup, oauth types.OAuth) {
 
 // User API Keys Management
 func attachAPIKeys(group *gin.RouterGroup, oauth types.OAuth) {
-	apiKeys := group.Group("/api-keys")
-	apiKeys.Use(oauth.Guard)
-
-	apiKeys.GET("/", placeholder)                    // Get all user API keys
-	apiKeys.POST("/", placeholder)                   // Create new API key
-	apiKeys.GET("/:key_id", placeholder)             // Get specific API key details
-	apiKeys.PUT("/:key_id", placeholder)             // Update API key (name, permissions)
-	apiKeys.DELETE("/:key_id", placeholder)          // Delete API key
-	apiKeys.POST("/:key_id/regenerate", placeholder) // Regenerate API key
+	group.GET("/api-keys", oauth.Guard, placeholder)                     // Get all user API keys
+	group.POST("/api-keys", oauth.Guard, placeholder)                    // Create new API key
+	group.GET("/api-keys/:key_id", oauth.Guard, placeholder)             // Get specific API key details
+	group.PUT("/api-keys/:key_id", oauth.Guard, placeholder)             // Update API key (name, permissions)
+	group.DELETE("/api-keys/:key_id", oauth.Guard, placeholder)          // Delete API key
+	group.POST("/api-keys/:key_id/regenerate", oauth.Guard, placeholder) // Regenerate API key
 }
 
 // User Subscription Management
 func attachSubscription(group *gin.RouterGroup, oauth types.OAuth) {
-	subscription := group.Group("/subscription")
-	subscription.Use(oauth.Guard)
-	subscription.GET("/", placeholder) // Get user subscription
-	subscription.PUT("/", placeholder) // Update user subscription
+	group.GET("/subscription", oauth.Guard, placeholder) // Get user subscription
+	group.PUT("/subscription", oauth.Guard, placeholder) // Update user subscription
 }
 
 // User profile management
 func attachProfile(group *gin.RouterGroup, oauth types.OAuth) {
-	profile := group.Group("/profile")
-	profile.Use(oauth.Guard)
-
-	profile.GET("/", GinProfileGet)    // Get user profile
-	profile.PUT("/", GinProfileUpdate) // Update user profile
+	group.GET("/profile", oauth.Guard, GinProfileGet)    // Get user profile
+	group.PUT("/profile", oauth.Guard, GinProfileUpdate) // Update user profile
 }
 
 // User management (CRUD)
 func attachUsers(group *gin.RouterGroup, oauth types.OAuth) {
-	users := group.Group("/users")
-	users.Use(oauth.Guard)
-
-	users.GET("/", placeholder)            // Get users
-	users.GET("/:user_id", placeholder)    // Get user details
-	users.POST("/", placeholder)           // Create user
-	users.PUT("/:user_id", placeholder)    // Update user
-	users.DELETE("/:user_id", placeholder) // Delete user
+	group.GET("/users", oauth.Guard, placeholder)             // Get users
+	group.POST("/users", oauth.Guard, placeholder)            // Create user
+	group.GET("/users/:user_id", oauth.Guard, placeholder)    // Get user details
+	group.PUT("/users/:user_id", oauth.Guard, placeholder)    // Update user
+	group.DELETE("/users/:user_id", oauth.Guard, placeholder) // Delete user
 }
 
 // Account settings

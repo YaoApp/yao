@@ -30,7 +30,7 @@ func Run(process *process.Process) interface{} {
 		return nil
 	}
 
-	ctx.Header("Content-Type", "text/html; charset=utf-8")
+	ctx.Header("Content-Type", "application/json; charset=utf-8")
 	route := process.ArgsString(1)
 	payload := process.ArgsMap(2)
 	if route == "" {
