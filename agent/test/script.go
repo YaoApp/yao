@@ -28,29 +28,43 @@ func NewScriptRunner(opts *Options) *ScriptRunner {
 	}
 }
 
-// ResolveScript resolves the script path from scripts.xxx.yyy format
+// ResolveScript resolves the script path from scripts.xxx.yyy or scripts.xxx.yyy.zzz format
 func ResolveScript(input string) (*ScriptInfo, error) {
 	// Remove "scripts." prefix
 	path := strings.TrimPrefix(input, "scripts.")
 
-	// Split into parts: "expense.setup" -> ["expense", "setup"]
+	// Split into parts:
+	// "expense.setup" -> ["expense", "setup"]
+	// "expense.submission.validation" -> ["expense", "submission", "validation"]
 	parts := strings.Split(path, ".")
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid script path: %s (expected format: scripts.assistant.module)", input)
+		return nil, fmt.Errorf("invalid script path: %s (expected format: scripts.assistant.module or scripts.assistant.sub_agent.module)", input)
 	}
 
-	// Build paths
-	// assistantDir: expense
-	// moduleName: setup
-	// scriptPath: expense/src/setup.ts (or assistants/expense/src/setup.ts)
-	// testPath: expense/src/setup_test.ts
-	assistantDir := parts[0]
-	moduleName := parts[1]
+	// Build paths based on number of parts
+	var basePaths []string
+	var assistantDir, moduleName string
 
-	// Try different path patterns
-	basePaths := []string{
-		filepath.Join("assistants", assistantDir, "src"),
-		filepath.Join(assistantDir, "src"),
+	if len(parts) == 2 {
+		// Format: scripts.expense.setup
+		// assistantDir: expense
+		// moduleName: setup
+		assistantDir = parts[0]
+		moduleName = parts[1]
+		basePaths = []string{
+			filepath.Join("assistants", assistantDir, "src"),
+			filepath.Join(assistantDir, "src"),
+		}
+	} else {
+		// Format: scripts.expense.submission.validation (sub-agent)
+		// assistantDir: expense/submission (or expense.submission)
+		// moduleName: validation
+		assistantDir = strings.Join(parts[:len(parts)-1], "/")
+		moduleName = parts[len(parts)-1]
+		basePaths = []string{
+			filepath.Join("assistants", assistantDir, "src"),
+			filepath.Join(assistantDir, "src"),
+		}
 	}
 
 	var scriptPath, testPath string
