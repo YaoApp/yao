@@ -363,12 +363,14 @@ func extractCollectionIDFromDocID(docID string) string {
 	if len(parts) < 2 {
 		return ""
 	}
-	// First part contains prefix_collection_id
-	prefix := parts[0]
-	// Find the first underscore to skip the prefix
-	idx := strings.Index(prefix, "_")
-	if idx == -1 {
-		return prefix
-	}
-	return prefix[idx+1:]
+
+	return parts[0]
+	// // First part contains prefix_collection_id
+	// prefix := parts[0]
+	// // Find the first underscore to skip the prefix
+	// idx := strings.Index(prefix, "_")
+	// if idx == -1 {
+	// 	return prefix
+	// }
+	// return prefix[idx+1:]
 }

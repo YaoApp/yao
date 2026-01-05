@@ -502,8 +502,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	// Extract output
 	result.Output = extractOutput(response)
 
-	// Validate result using asserter
-	asserter := NewAsserter()
+	// Validate result using asserter (with response for tool_called assertions)
+	asserter := NewAsserter().WithResponse(response)
 	passed, errMsg := asserter.Validate(tc, result.Output)
 	if passed {
 		result.Status = StatusPassed
