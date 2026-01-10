@@ -920,6 +920,223 @@ func (r *ExecutionRequest) CalculatePriority(config *ManagerConfig, agentConfig 
 
 ## Execution Flow
 
+### Execution Flow Diagram (Mermaid)
+
+```mermaid
+flowchart TB
+    subgraph Trigger["Trigger Sources"]
+        WC[/"World Clock<br/>(Schedule)"/]
+        HI[/"Human Intervention<br/>(Intervene)"/]
+        EV[/"External Events<br/>(Event)"/]
+    end
+
+    subgraph Manager["Autonomous Agent Manager"]
+        Cache[("Agent Cache<br/>(Memory)")]
+        Check{Schedule Check<br/>& Dedup}
+        Queue["Global Queue<br/>(Priority Sorted)"]
+    end
+
+    subgraph WorkerPool["Global Worker Pool"]
+        W1["Worker 1"]
+        W2["Worker 2"]
+        W3["Worker N..."]
+    end
+
+    subgraph Executor["Agent Executor"]
+        subgraph Phase0["Phase 0: Inspiration"]
+            P0_1["Collect Internal Data Changes"]
+            P0_2["Web Search: External World"]
+            P0_3["Call Inspiration Agent"]
+            P0_4[/"Inspiration Report"/]
+        end
+
+        subgraph Phase1["Phase 1: Goal Generation"]
+            P1_1["Inject Inspiration Report"]
+            P1_2["Call Goal Generator Agent"]
+            P1_3["Goal Deduplication"]
+            P1_4[/"Goals List"/]
+        end
+
+        subgraph Phase2["Phase 2: Task Decomposition"]
+            P2_1["Analyze Goals"]
+            P2_2["Call Task Planner Agent"]
+            P2_3["Task Deduplication"]
+            P2_4[/"Tasks List"/]
+        end
+
+        subgraph Phase3["Phase 3: Task Execution"]
+            P3_1["Execute Task via Assistant/MCP"]
+            P3_2["Call Validator Agent"]
+            P3_3{All Tasks<br/>Complete?}
+            P3_4[/"Task Results"/]
+        end
+
+        subgraph Phase4["Phase 4: Delivery"]
+            P4_1["Aggregate Results"]
+            P4_2["Call Delivery Agent"]
+            P4_3[/"Deliverables<br/>(Email/Report/File)"/]
+        end
+
+        subgraph Phase5["Phase 5: Learning"]
+            P5_1["Analyze Execution"]
+            P5_2["Call Learning Agent"]
+            P5_3["Write to Private KB"]
+        end
+    end
+
+    subgraph Storage["Persistence"]
+        KB[("Private KB")]
+        DB[("autonomous_executions")]
+        Job[("Job System<br/>(Activity Monitor)")]
+    end
+
+    %% Trigger to Manager
+    WC --> Cache
+    HI --> Cache
+    EV --> Cache
+    Cache --> Check
+    Check -->|Pass| Queue
+    Check -->|Duplicate/Skip| Cache
+
+    %% Manager to Worker
+    Queue --> W1
+    Queue --> W2
+    Queue --> W3
+
+    %% Worker to Executor
+    W1 --> Phase0
+    W2 --> Phase0
+    W3 --> Phase0
+
+    %% Phase 0 Flow
+    P0_1 --> P0_3
+    P0_2 --> P0_3
+    P0_3 --> P0_4
+
+    %% Phase 1 Flow
+    P0_4 --> P1_1
+    P1_1 --> P1_2
+    P1_2 --> P1_3
+    P1_3 --> P1_4
+
+    %% Phase 2 Flow
+    P1_4 --> P2_1
+    P2_1 --> P2_2
+    P2_2 --> P2_3
+    P2_3 --> P2_4
+
+    %% Phase 3 Flow
+    P2_4 --> P3_1
+    P3_1 --> P3_2
+    P3_2 --> P3_3
+    P3_3 -->|No| P3_1
+    P3_3 -->|Yes| P3_4
+
+    %% Phase 4 Flow
+    P3_4 --> P4_1
+    P4_1 --> P4_2
+    P4_2 --> P4_3
+
+    %% Phase 5 Flow
+    P4_3 --> P5_1
+    P5_1 --> P5_2
+    P5_2 --> P5_3
+
+    %% Storage connections
+    P5_3 --> KB
+    P5_3 --> DB
+    P5_3 --> Job
+
+    %% KB feedback to Phase 0
+    KB -.->|Historical Experience| P0_1
+```
+
+### Execution Sequence Diagram (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant WC as World Clock
+    participant M as Manager
+    participant S as Scheduler
+    participant W as Worker
+    participant E as Executor
+    participant IA as Inspiration Agent
+    participant GA as Goal Agent
+    participant TA as Task Planner
+    participant VA as Validator
+    participant DA as Delivery Agent
+    participant LA as Learning Agent
+    participant KB as Private KB
+    participant Job as Job System
+
+    WC->>M: Tick Event
+    M->>M: Get active agents from cache
+    M->>M: Check schedule & dedup
+    M->>S: Submit ExecutionRequest
+
+    S->>S: Check member quota
+    S->>S: Priority queue sorting
+    S->>W: Dispatch to worker
+
+    W->>E: Execute(agent)
+    E->>Job: Create Execution record
+
+    rect rgb(240, 248, 255)
+        Note over E,IA: Phase 0: Inspiration Collection
+        E->>E: Collect data changes
+        E->>E: Web search for world news
+        E->>IA: Analyze & generate report
+        IA-->>E: InspirationReport
+    end
+
+    rect rgb(255, 250, 240)
+        Note over E,GA: Phase 1: Goal Generation
+        E->>KB: Retrieve historical experience
+        KB-->>E: Past goals & insights
+        E->>GA: Generate goals (with inspiration)
+        GA-->>E: Goals[]
+        E->>E: Deduplicate goals
+    end
+
+    rect rgb(240, 255, 240)
+        Note over E,TA: Phase 2: Task Decomposition
+        E->>TA: Decompose goals into tasks
+        TA-->>E: Tasks[]
+        E->>E: Deduplicate tasks
+    end
+
+    rect rgb(255, 240, 245)
+        Note over E,VA: Phase 3: Task Execution
+        loop For each task
+            E->>E: Execute via Assistant/MCP
+            E->>VA: Validate result
+            VA-->>E: Validation result
+            E->>Job: Update progress
+        end
+    end
+
+    rect rgb(245, 245, 255)
+        Note over E,DA: Phase 4: Delivery
+        E->>DA: Generate deliverables
+        DA-->>E: Email/Report/File
+    end
+
+    rect rgb(255, 255, 240)
+        Note over E,LA: Phase 5: Learning
+        E->>LA: Analyze execution
+        LA-->>E: Knowledge entries
+        E->>KB: Store learned knowledge
+    end
+
+    E->>Job: Complete Execution
+    E-->>W: ExecutionState
+    W-->>S: Release worker
+    S-->>M: Execution complete
+```
+
+### Phase Details
+
 Each Autonomous Agent executes the following standard flow when scheduling conditions are met:
 
 ```
@@ -1306,6 +1523,98 @@ func (e *Executor) callAssistant(ctx *context.Context, assistantID string, messa
 ```
 
 ## Lifecycle Management
+
+### AI Member Lifecycle Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AI Member Lifecycle                                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+    ┌─────────────┐
+    │   Create    │  POST /api/teams/:team_id/members
+    │  (member_type: "ai")
+    └──────┬──────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Initialization                                                              │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │  1. Validate agent_config                                              │ │
+│  │  2. Generate agent_id (if not provided)                                │ │
+│  │  3. Create private KB: agent_{team_id}_{agent_id}_kb                   │ │
+│  │  4. Register with Manager (add to cache)                               │ │
+│  │  5. Create Job entry for scheduling                                    │ │
+│  │  6. Set status = "active"                                              │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Active State                                                                │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │                                                                        │ │
+│  │    ┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐    │ │
+│  │    │  Idle    │────▶│ Triggered│────▶│ Running  │────▶│ Learning │    │ │
+│  │    │          │◀────│          │     │          │     │          │    │ │
+│  │    └──────────┘     └──────────┘     └──────────┘     └────┬─────┘    │ │
+│  │         ▲                                                   │          │ │
+│  │         └───────────────────────────────────────────────────┘          │ │
+│  │                                                                        │ │
+│  │  Triggers:                                                             │ │
+│  │  • World Clock (schedule)                                              │ │
+│  │  • Human Intervention (intervene)                                      │ │
+│  │  • External Events (event)                                             │ │
+│  │                                                                        │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+           │
+           │  PATCH /api/teams/:team_id/members/:member_id
+           │  (status: "paused")
+           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Paused State                                                                │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │  • Removed from active cache                                           │ │
+│  │  • No longer triggered by World Clock                                  │ │
+│  │  • Private KB preserved                                                │ │
+│  │  • Can be resumed: PATCH status = "active"                             │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+           │
+           │  DELETE /api/teams/:team_id/members/:member_id
+           ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Termination                                                                 │
+│  ┌────────────────────────────────────────────────────────────────────────┐ │
+│  │  1. Cancel running executions (if any)                                 │ │
+│  │  2. Remove from Manager cache                                          │ │
+│  │  3. Delete Job entry                                                   │ │
+│  │  4. Handle private KB:                                                 │ │
+│  │     • Option A: Delete KB (default)                                    │ │
+│  │     • Option B: Archive KB (if preserve_kb=true)                       │ │
+│  │  5. Mark record as deleted (soft delete)                               │ │
+│  └────────────────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+           │
+           ▼
+    ┌─────────────┐
+    │  Deleted    │
+    │  (archived) │
+    └─────────────┘
+
+
+State Transitions:
+┌──────────┬───────────────────────┬─────────────────────────────────────────┐
+│  From    │  To                   │  Trigger                                │
+├──────────┼───────────────────────┼─────────────────────────────────────────┤
+│  -       │  active               │  POST create member                     │
+│  active  │  paused               │  PATCH status="paused"                  │
+│  paused  │  active               │  PATCH status="active"                  │
+│  active  │  deleted              │  DELETE member                          │
+│  paused  │  deleted              │  DELETE member                          │
+└──────────┴───────────────────────┴─────────────────────────────────────────┘
+```
 
 ### Creating AI Member
 
