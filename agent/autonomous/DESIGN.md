@@ -363,10 +363,10 @@ Suggestion meanings:
 
 **Deduplication Timing:**
 
-| Phase       | Dedup Type        | Description                                      |
-| ----------- | ----------------- | ------------------------------------------------ |
-| After Phase 1 | Goal dedup      | Compare generated goals with historical goals    |
-| After Phase 2 | Task dedup      | Compare decomposed tasks with historical tasks   |
+| Phase            | Dedup Type      | Description                                                         |
+| ---------------- | --------------- | ------------------------------------------------------------------- |
+| After Phase 1    | Goal dedup      | Compare generated goals with historical goals                       |
+| After Phase 2    | Task dedup      | Compare decomposed tasks with historical tasks                      |
 | Before execution | Execution dedup | Prevent same trigger from duplicate submission (memory-level, fast) |
 
 **Execution-Level Deduplication (Fast, Memory):**
@@ -1058,11 +1058,12 @@ type SharedKB struct {
 // Resources available resources
 type Resources struct {
     // Phase assistants (built-in or custom)
-    GoalGenerator string `json:"goal_generator"` // Goal generation assistant
-    TaskPlanner   string `json:"task_planner"`   // Task planning assistant
-    Validator     string `json:"validator"`      // Result validation assistant
-    Delivery      string `json:"delivery"`       // Delivery assistant
-    Learning      string `json:"learning"`       // Learning assistant (summarize experience, write to KB)
+    Inspiration   string `json:"inspiration"`    // Inspiration Agent (Phase 0)
+    GoalGenerator string `json:"goal_generator"` // Goal generation assistant (Phase 1)
+    TaskPlanner   string `json:"task_planner"`   // Task planning assistant (Phase 2)
+    Validator     string `json:"validator"`      // Result validation assistant (Phase 3)
+    Delivery      string `json:"delivery"`       // Delivery assistant (Phase 4)
+    Learning      string `json:"learning"`       // Learning assistant (Phase 5)
 
     // Execution resources
     Assistants []string           `json:"assistants"` // Callable assistant list
@@ -1112,10 +1113,12 @@ const (
 type ExecutionPhase string
 
 const (
-    PhaseGoalGeneration    ExecutionPhase = "goal_generation"
-    PhaseTaskDecomposition ExecutionPhase = "task_decomposition"
-    PhaseTaskExecution     ExecutionPhase = "task_execution"
-    PhaseDelivery          ExecutionPhase = "delivery"
+    PhaseInspiration       ExecutionPhase = "inspiration"        // Phase 0
+    PhaseGoalGeneration    ExecutionPhase = "goal_generation"    // Phase 1
+    PhaseTaskDecomposition ExecutionPhase = "task_decomposition" // Phase 2
+    PhaseTaskExecution     ExecutionPhase = "task_execution"     // Phase 3
+    PhaseDelivery          ExecutionPhase = "delivery"           // Phase 4
+    PhaseLearning          ExecutionPhase = "learning"           // Phase 5
 )
 
 // Goal
@@ -1216,11 +1219,11 @@ func createAgentPrivateKB(teamID, agentID string) (string, error) {
 
 The private knowledge base stores the following types of knowledge:
 
-| Category    | Description              | Examples                                    |
-| ----------- | ------------------------ | ------------------------------------------- |
-| `execution` | Execution records/results | Task execution process, success/failure cases |
-| `feedback`  | Feedback and evaluation  | Validation results, user feedback, error analysis |
-| `insight`   | Insights and summaries   | Pattern recognition, optimization suggestions, best practices |
+| Category    | Description               | Examples                                                      |
+| ----------- | ------------------------- | ------------------------------------------------------------- |
+| `execution` | Execution records/results | Task execution process, success/failure cases                 |
+| `feedback`  | Feedback and evaluation   | Validation results, user feedback, error analysis             |
+| `insight`   | Insights and summaries    | Pattern recognition, optimization suggestions, best practices |
 
 ### Learning Flow (Phase 5)
 
@@ -1855,15 +1858,15 @@ func executeTaskWithChildExecution(ctx *job.ExecutionContext, parent *job.Execut
 
 Via Job API (`yao/openapi/job`), the Activity Monitor provides:
 
-| Feature             | API                                              | Description          |
-| ------------------- | ------------------------------------------------ | -------------------- |
-| Agent task list     | `GET /api/jobs?category_id=autonomous_agent`     | View all Agent Jobs  |
-| Execution history   | `GET /api/jobs/:job_id/executions`               | View execution history |
-| Real-time progress  | `GET /api/jobs/:job_id/executions/:id`           | View current progress |
-| Execution logs      | `GET /api/jobs/:job_id/executions/:id/logs`      | View detailed logs   |
-| Expand child tasks  | `GET /api/jobs/:job_id/executions?parent_id=:id` | View child tasks     |
-| Cancel execution    | `POST /api/jobs/:job_id/stop`                    | Cancel running task  |
-| Manual trigger      | `POST /api/jobs/:job_id/trigger`                 | Manually trigger execution |
+| Feature            | API                                              | Description                |
+| ------------------ | ------------------------------------------------ | -------------------------- |
+| Agent task list    | `GET /api/jobs?category_id=autonomous_agent`     | View all Agent Jobs        |
+| Execution history  | `GET /api/jobs/:job_id/executions`               | View execution history     |
+| Real-time progress | `GET /api/jobs/:job_id/executions/:id`           | View current progress      |
+| Execution logs     | `GET /api/jobs/:job_id/executions/:id/logs`      | View detailed logs         |
+| Expand child tasks | `GET /api/jobs/:job_id/executions?parent_id=:id` | View child tasks           |
+| Cancel execution   | `POST /api/jobs/:job_id/stop`                    | Cancel running task        |
+| Manual trigger     | `POST /api/jobs/:job_id/trigger`                 | Manually trigger execution |
 
 ### Log Levels
 
@@ -1903,6 +1906,9 @@ type AgentConfig struct {
     // Identity settings
     Identity *Identity `json:"identity"`
 
+    // Concurrency quota
+    Concurrency *ConcurrencyConfig `json:"concurrency"`
+
     // Private knowledge base
     PrivateKB *PrivateKB `json:"private_kb"`
 
@@ -1929,5 +1935,21 @@ type AgentConfig struct {
 type MonitoringConfig struct {
     Enabled bool        `json:"enabled"`
     Alerts  []AlertRule `json:"alerts,omitempty"`
+}
+
+// AlertRule alert rule definition
+type AlertRule struct {
+    Name        string                 `json:"name"`        // Rule name
+    Condition   string                 `json:"condition"`   // Trigger condition: "execution_failed" | "timeout" | "error_rate_high"
+    Threshold   float64                `json:"threshold"`   // Threshold value (e.g., error rate > 0.1)
+    Window      string                 `json:"window"`      // Time window (e.g., "1h", "24h")
+    Actions     []AlertAction          `json:"actions"`     // Actions to take when triggered
+    Cooldown    string                 `json:"cooldown"`    // Cooldown period between alerts
+}
+
+// AlertAction alert action
+type AlertAction struct {
+    Type   string                 `json:"type"`   // "email" | "webhook" | "notification"
+    Config map[string]interface{} `json:"config"` // Action-specific configuration
 }
 ```
