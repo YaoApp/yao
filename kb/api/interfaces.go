@@ -20,6 +20,7 @@ type API interface {
 	// Document operations
 	ListDocuments(ctx context.Context, filter *ListDocumentsFilter) (*ListDocumentsResult, error)
 	GetDocument(ctx context.Context, docID string, params *GetDocumentParams) (map[string]interface{}, error)
+	GetDocumentsContent(ctx context.Context, docIDs []string) ([]map[string]interface{}, error)
 	RemoveDocuments(ctx context.Context, params *RemoveDocumentsParams) (*RemoveDocumentsResult, error)
 
 	// Document add operations (sync)

@@ -14,7 +14,6 @@ import (
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/testutils"
-	"github.com/yaoapp/yao/kb"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -85,18 +84,15 @@ func TestPrepareKBCollection(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Skip if KB not configured
-	kbSetting := assistant.GetGlobalKBSetting()
-	if kbSetting == nil || kbSetting.Chat == nil {
-		t.Skip("KB chat settings not configured in agent/kb.yml, skipping test")
-	}
-
 	// Get assistant
 	ast, err := assistant.Get("mohe")
 	require.NoError(t, err)
 	require.NotNil(t, ast)
 
-	t.Run("CreateNewCollection", func(t *testing.T) {
+	// Note: KB collection is now created during user login (see openapi/user/login.go)
+	// These tests verify that InitializeConversation handles various scenarios gracefully
+
+	t.Run("InitializeWithAuthorizedInfo", func(t *testing.T) {
 		// Use unique IDs based on timestamp to avoid conflicts
 		timestamp := fmt.Sprintf("%d", time.Now().UnixNano())
 		teamID := fmt.Sprintf("test_team_%s", timestamp)
@@ -109,19 +105,13 @@ func TestPrepareKBCollection(t *testing.T) {
 
 		opts := &agentcontext.Options{}
 
-		// This should create a new KB collection
+		// InitializeConversation should succeed (KB collection created at login time)
 		err := ast.InitializeConversation(ctx, opts)
-
-		// Should not return error
 		assert.NoError(t, err)
-		t.Logf("✓ KB collection prepared successfully")
-
-		// Clean up
-		collectionID := assistant.GetChatKBID(teamID, userID)
-		_, _ = kb.API.RemoveCollection(ctx.Context, collectionID)
+		t.Logf("✓ InitializeConversation completed successfully")
 	})
 
-	t.Run("IdempotentCollectionCreation", func(t *testing.T) {
+	t.Run("IdempotentInitialization", func(t *testing.T) {
 		// Use unique IDs based on timestamp to avoid conflicts
 		timestamp := fmt.Sprintf("%d", time.Now().UnixNano())
 		teamID := fmt.Sprintf("idem_team_%s", timestamp)
@@ -134,23 +124,17 @@ func TestPrepareKBCollection(t *testing.T) {
 
 		opts := &agentcontext.Options{}
 
-		// First call - creates collection
+		// Multiple calls should all succeed
 		err1 := ast.InitializeConversation(ctx, opts)
 		assert.NoError(t, err1)
 
-		// Second call - should skip because collection exists
 		err2 := ast.InitializeConversation(ctx, opts)
 		assert.NoError(t, err2)
 
-		// Third call - still no error
 		err3 := ast.InitializeConversation(ctx, opts)
 		assert.NoError(t, err3)
 
-		t.Logf("✓ Idempotent collection preparation works correctly")
-
-		// Clean up after test
-		collectionID := assistant.GetChatKBID(teamID, userID)
-		_, _ = kb.API.RemoveCollection(ctx.Context, collectionID)
+		t.Logf("✓ Idempotent initialization works correctly")
 	})
 
 	t.Run("HandleMissingAuthorizedInfo", func(t *testing.T) {
@@ -158,13 +142,13 @@ func TestPrepareKBCollection(t *testing.T) {
 
 		opts := &agentcontext.Options{}
 
-		// Should not error, just skip KB preparation
+		// Should not error, just return nil
 		err := ast.InitializeConversation(ctx, opts)
 		assert.NoError(t, err)
-		t.Logf("✓ Correctly skipped KB preparation when authorized info is missing")
+		t.Logf("✓ Correctly handled missing authorized info")
 	})
 
-	t.Run("ConcurrentCreation", func(t *testing.T) {
+	t.Run("ConcurrentInitialization", func(t *testing.T) {
 		// Use unique IDs based on timestamp to avoid conflicts
 		timestamp := fmt.Sprintf("%d", time.Now().UnixNano())
 		teamID := fmt.Sprintf("concurrent_team_%s", timestamp)
@@ -177,7 +161,7 @@ func TestPrepareKBCollection(t *testing.T) {
 
 		opts := &agentcontext.Options{}
 
-		// Launch 5 concurrent calls to create the same collection
+		// Launch 5 concurrent calls
 		var wg sync.WaitGroup
 		errors := make([]error, 5)
 		for i := 0; i < 5; i++ {
@@ -191,40 +175,18 @@ func TestPrepareKBCollection(t *testing.T) {
 		// Wait for all goroutines to complete
 		wg.Wait()
 
-		// All calls should succeed (no errors, or just warning logs)
-		// Note: Some goroutines may skip due to concurrent creation lock
+		// All calls should succeed
 		for i, err := range errors {
 			assert.NoError(t, err, "Goroutine %d should not error", i)
 		}
 
-		// Wait a bit for async operations to complete
-		time.Sleep(200 * time.Millisecond)
-
-		// Verify collection was created (at least by one goroutine)
-		collectionID := assistant.GetChatKBID(teamID, userID)
-		existsResult, err := kb.API.CollectionExists(ctx.Context, collectionID)
-		if err != nil || existsResult == nil || !existsResult.Exists {
-			// Collection might not have been created due to errors, that's okay for this test
-			// The main goal is to verify no panics or race conditions occurred
-			t.Logf("⚠ Collection not created (might have failed), but no panics occurred: %v", err)
-		} else {
-			t.Logf("✓ Concurrent creation handled correctly, collection: %s", collectionID)
-		}
-
-		// Clean up
-		_, _ = kb.API.RemoveCollection(ctx.Context, collectionID)
+		t.Logf("✓ Concurrent initialization handled correctly")
 	})
 }
 
 func TestInitializeConversation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
-
-	// Skip if KB not configured
-	kbSetting := assistant.GetGlobalKBSetting()
-	if kbSetting == nil || kbSetting.Chat == nil {
-		t.Skip("KB chat settings not configured in agent/kb.yml, skipping test")
-	}
 
 	ast, err := assistant.Get("mohe")
 	require.NoError(t, err)
@@ -244,20 +206,10 @@ func TestInitializeConversation(t *testing.T) {
 		opts := &agentcontext.Options{}
 
 		// Should initialize conversation without error
+		// Note: KB collection is now created during user login, not here
 		err := ast.InitializeConversation(ctx, opts)
 		assert.NoError(t, err)
-		t.Logf("✓ Conversation initialized successfully")
-
-		// Verify collection was created
-		collectionID := assistant.GetChatKBID(teamID, userID)
-		existsResult, err := kb.API.CollectionExists(ctx.Context, collectionID)
-		assert.NoError(t, err)
-		assert.NotNil(t, existsResult)
-		assert.True(t, existsResult.Exists, "KB collection should be created")
-		t.Logf("✓ KB collection created: %s", collectionID)
-
-		// Clean up
-		_, _ = kb.API.RemoveCollection(ctx.Context, collectionID)
+		t.Logf("✓ Conversation initialized successfully (KB collection created at login time)")
 	})
 
 	t.Run("SkipHistoryFlag", func(t *testing.T) {

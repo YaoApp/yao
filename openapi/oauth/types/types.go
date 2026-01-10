@@ -14,6 +14,7 @@ type LoginContext struct {
 	Platform   string `json:"platform,omitempty"`    // Platform (e.g., "ios", "android", "web")
 	Location   string `json:"location,omitempty"`    // Geographic location (optional)
 	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag for extended session
+	Locale     string `json:"locale,omitempty"`      // User's preferred locale (e.g., "en-US", "zh-CN")
 }
 
 // MFAOptions contains configuration for MFA operations

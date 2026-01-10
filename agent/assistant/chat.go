@@ -3,124 +3,24 @@ package assistant
 import (
 	"fmt"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/google/uuid"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/kb"
-	kbapi "github.com/yaoapp/yao/kb/api"
 )
 
-// kbCollectionCreating tracks collections currently being created to avoid duplicate creation
-var kbCollectionCreating sync.Map
-
-// InitializeConversation prepares KB collection for the conversation (synchronous)
+// InitializeConversation prepares conversation context (synchronous)
+// KB collection is now initialized when user logs in (see openapi/user/login.go)
 func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options ...*agentcontext.Options) error {
-
-	var opts *agentcontext.Options
-	if len(options) > 0 && options[0] != nil {
-		opts = options[0]
-	} else {
-		opts = &agentcontext.Options{}
-	}
-
-	// SKIP: History (for internal calls like title/prompt etc.)
-	if opts.Skip != nil && opts.Skip.History {
-		return nil
-	}
-
-	// Check if authorized info is available
-	if ctx.Authorized == nil {
-		ctx.Logger.Warn("no authorized info, skipping KB collection preparation")
-		return nil
-	}
-
-	// Prepare kb collection
-	err := ast.prepareKBCollection(ctx, opts)
-	if err != nil {
-		// Log but don't fail the chat
-		ctx.Logger.Warn("failed to prepare KB collection: %v", err)
-	}
-
+	// Reserved for future conversation initialization logic
 	return nil
 }
 
-// InitializeConversationAsync prepares KB collection asynchronously
+// InitializeConversationAsync prepares conversation context asynchronously
 func (ast *Assistant) InitializeConversationAsync(ctx *agentcontext.Context, options ...*agentcontext.Options) {
 	go ast.InitializeConversation(ctx, options...)
-}
-
-// prepareKBCollection prepares kb collection (internal method)
-func (ast *Assistant) prepareKBCollection(ctx *agentcontext.Context, opts *agentcontext.Options) error {
-
-	// Get global KB setting
-	kbSetting := GetGlobalKBSetting()
-	if kbSetting == nil || kbSetting.Chat == nil {
-		return nil // No KB configuration for chat, skip
-	}
-
-	// Check if KB API is initialized
-	if kb.API == nil {
-		return fmt.Errorf("KB API not initialized")
-	}
-
-	// Check if authorized info is available
-	if ctx.Authorized == nil {
-		return fmt.Errorf("authorized information not available")
-	}
-
-	chatKB := kbSetting.Chat
-
-	// Debug: log locale information
-	ctx.Logger.Debug("prepareKBCollection: locale=%s", ctx.Locale)
-
-	// Get KB collection ID for this chat session
-	// Same team + user always produces the same ID (idempotent)
-	collectionID := GetChatKBID(ctx.Authorized.TeamID, ctx.Authorized.UserID)
-
-	// Check if this collection is currently being created by another goroutine
-	if _, isCreating := kbCollectionCreating.LoadOrStore(collectionID, true); isCreating {
-		ctx.Logger.Debug("KB collection %s is already being created, skipping", collectionID)
-		return nil
-	}
-	// Ensure cleanup even if panic occurs
-	defer kbCollectionCreating.Delete(collectionID)
-
-	// Check if collection already exists
-	existsResult, err := kb.API.CollectionExists(ctx.Context, collectionID)
-	if err != nil {
-		// If check fails, log and continue to create (let create handle conflicts)
-		ctx.Logger.Warn("failed to check collection existence: %v, will attempt to create", err)
-	} else if existsResult != nil && existsResult.Exists {
-		// Collection exists, no need to create
-		ctx.Logger.Debug("KB collection already exists: %s", collectionID)
-		return nil
-	}
-
-	// Create new collection for this chat session
-	createParams := &kbapi.CreateCollectionParams{
-		ID:                  collectionID,
-		EmbeddingProviderID: chatKB.EmbeddingProviderID,
-		EmbeddingOptionID:   chatKB.EmbeddingOptionID,
-		Locale:              chatKB.Locale,
-		Config:              chatKB.Config,
-		Metadata:            mergeChatMetadata(chatKB.Metadata, ctx),
-		AuthScope:           ctx.Authorized.WithCreateScope(make(map[string]interface{})),
-	}
-
-	_, err = kb.API.CreateCollection(ctx.Context, createParams)
-	if err != nil {
-		return fmt.Errorf("failed to create KB collection: %w", err)
-	}
-
-	ctx.Logger.Info("Created KB collection: %s for team=%s, user=%s",
-		collectionID, ctx.Authorized.TeamID, ctx.Authorized.UserID)
-
-	_ = opts
-	return nil
 }
 
 // GetChatKBID returns the KB collection ID for a chat session
