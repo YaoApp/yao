@@ -710,12 +710,12 @@ func prepareUserKBCollection(userID, teamID, locale string) {
 	}
 
 	// Build auth scope (use __yao_ prefix for permission fields)
+	// Only set __yao_created_by for create operations (consistent with WithCreateScope)
 	authScope := make(map[string]interface{})
 	if teamID != "" {
 		authScope["__yao_team_id"] = teamID
 	}
 	authScope["__yao_created_by"] = userID
-	authScope["__yao_updated_by"] = userID
 
 	// Create new collection for this user
 	createParams := &kbapi.CreateCollectionParams{
