@@ -115,11 +115,22 @@ func makeLoginContext(c *gin.Context) *LoginContext {
 	userAgent := c.GetHeader("User-Agent")
 	device, platform := parseUserAgent(userAgent)
 
+	// Get locale from Accept-Language header or X-Locale header
+	locale := c.GetHeader("X-Locale")
+	if locale == "" {
+		locale = c.GetHeader("Accept-Language")
+		// Parse Accept-Language to get primary language (e.g., "zh-CN,zh;q=0.9" -> "zh-CN")
+		if idx := strings.Index(locale, ","); idx > 0 {
+			locale = locale[:idx]
+		}
+	}
+
 	return &LoginContext{
 		IP:        userIPAddress(c),
 		UserAgent: userAgent,
 		Device:    device,
 		Platform:  platform,
+		Locale:    locale,
 	}
 }
 

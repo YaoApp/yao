@@ -20,9 +20,10 @@ func init() {
 		"collection.updatemetadata": ProcessUpdateCollectionMetadata,
 
 		// Document processes
-		"documents.addfile": ProcessAddFile,
-		"documents.addtext": ProcessAddText,
-		"documents.addurl":  ProcessAddURL,
+		"documents.addfile":     ProcessAddFile,
+		"documents.addtext":     ProcessAddText,
+		"documents.addurl":      ProcessAddURL,
+		"documents.getcontents": ProcessGetDocumentsContent,
 	})
 }
 

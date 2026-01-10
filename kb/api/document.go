@@ -3,6 +3,8 @@ package api
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
@@ -276,4 +278,147 @@ func (instance *KBInstance) RemoveDocuments(ctx context.Context, params *RemoveD
 		RequestedCount: len(params.DocumentIDs),
 		DBDeletedCount: dbDeletedCount,
 	}, nil
+}
+
+// GetDocumentsContent retrieves content for multiple documents by IDs
+// Returns document info with content (only text-based files are supported)
+func (instance *KBInstance) GetDocumentsContent(ctx context.Context, docIDs []string) ([]map[string]interface{}, error) {
+	if len(docIDs) == 0 {
+		return nil, fmt.Errorf("document IDs are required")
+	}
+
+	// Get document model
+	modelName := "__yao.kb.document"
+	if instance.Config != nil && instance.Config.DocumentModel != "" {
+		modelName = instance.Config.DocumentModel
+	}
+
+	mod := model.Select(modelName)
+	if mod == nil {
+		return nil, fmt.Errorf("document model not found: %s", modelName)
+	}
+
+	results := make([]map[string]interface{}, 0, len(docIDs))
+	for _, docID := range docIDs {
+		param := model.QueryParam{
+			Select: []interface{}{"document_id", "collection_id", "name", "text_content", "type", "status", "file_path", "file_mime_type"},
+			Wheres: []model.QueryWhere{
+				{Column: "document_id", Value: docID},
+			},
+			Limit: 1,
+		}
+
+		docs, err := mod.Get(param)
+		if err != nil {
+			log.Warn("Failed to get document %s: %v", docID, err)
+			continue
+		}
+
+		if len(docs) == 0 {
+			log.Warn("Document not found: %s", docID)
+			continue
+		}
+
+		doc := docs[0]
+		content := ""
+		contentType := "text/plain"
+
+		// Get content type
+		filePath, _ := doc["file_path"].(string)
+		if mimeType, ok := doc["file_mime_type"].(string); ok && mimeType != "" {
+			contentType = mimeType
+		} else if filePath != "" {
+			contentType = inferContentType(filePath)
+		}
+
+		// Only process text-based files
+		if isTextContentType(contentType) {
+			// 1. Try text_content first
+			if textContent, ok := doc["text_content"].(string); ok && textContent != "" {
+				content = textContent
+			} else if filePath != "" {
+				// 2. Read from file_path
+				fileContent, err := readFileContent(filePath)
+				if err != nil {
+					log.Warn("Failed to read file content for %s: %v", docID, err)
+				} else {
+					content = fileContent
+				}
+			}
+		}
+
+		results = append(results, map[string]interface{}{
+			"document_id":   docID,
+			"collection_id": doc["collection_id"],
+			"name":          doc["name"],
+			"content":       content,
+			"content_type":  contentType,
+			"type":          doc["type"],
+			"status":        doc["status"],
+		})
+	}
+
+	return results, nil
+}
+
+// isTextContentType checks if the content type is text-based
+func isTextContentType(contentType string) bool {
+	textTypes := []string{
+		"text/",
+		"application/json",
+		"application/xml",
+		"application/javascript",
+	}
+	for _, tt := range textTypes {
+		if strings.HasPrefix(contentType, tt) {
+			return true
+		}
+	}
+	return false
+}
+
+// inferContentType infers content type from file extension
+func inferContentType(filePath string) string {
+	lower := strings.ToLower(filePath)
+	switch {
+	case strings.HasSuffix(lower, ".md"):
+		return "text/markdown"
+	case strings.HasSuffix(lower, ".txt"):
+		return "text/plain"
+	case strings.HasSuffix(lower, ".html"), strings.HasSuffix(lower, ".htm"):
+		return "text/html"
+	case strings.HasSuffix(lower, ".json"):
+		return "application/json"
+	case strings.HasSuffix(lower, ".xml"):
+		return "application/xml"
+	case strings.HasSuffix(lower, ".csv"):
+		return "text/csv"
+	case strings.HasSuffix(lower, ".pdf"):
+		return "application/pdf"
+	default:
+		return "text/plain"
+	}
+}
+
+// readFileContent reads the content of a file
+func readFileContent(filePath string) (string, error) {
+	// Check if file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return "", err
+	}
+
+	// Read file content
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	// Convert to string and handle encoding
+	content := string(data)
+
+	// Basic cleanup - remove null bytes and normalize line endings
+	content = strings.ReplaceAll(content, "\x00", "")
+	content = strings.ReplaceAll(content, "\r\n", "\n")
+
+	return content, nil
 }
