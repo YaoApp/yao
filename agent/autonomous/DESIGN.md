@@ -360,6 +360,53 @@ type Config struct {
 ### 5.2 Types
 
 ```go
+// Phase - execution phase enum
+type Phase string
+
+const (
+    PhaseInspiration Phase = "inspiration" // P0: Clock only
+    PhaseGoals       Phase = "goals"       // P1
+    PhaseTasks       Phase = "tasks"       // P2
+    PhaseValidation  Phase = "validation"  // P3
+    PhaseDelivery    Phase = "delivery"    // P4
+    PhaseLearning    Phase = "learning"    // P5
+)
+
+// AllPhases for iteration
+var AllPhases = []Phase{
+    PhaseInspiration, PhaseGoals, PhaseTasks,
+    PhaseValidation, PhaseDelivery, PhaseLearning,
+}
+
+// ClockMode - clock trigger mode enum
+type ClockMode string
+
+const (
+    ClockModeTimes    ClockMode = "times"    // run at specific times
+    ClockModeInterval ClockMode = "interval" // run every X duration
+    ClockModeDaemon   ClockMode = "daemon"   // run continuously
+)
+
+// DeliveryType - output delivery type enum
+type DeliveryType string
+
+const (
+    DeliveryEmail   DeliveryType = "email"
+    DeliveryFile    DeliveryType = "file"
+    DeliveryWebhook DeliveryType = "webhook"
+    DeliveryNotify  DeliveryType = "notify"
+)
+
+// Status - execution status enum
+type Status string
+
+const (
+    StatusPending   Status = "pending"
+    StatusRunning   Status = "running"
+    StatusCompleted Status = "completed"
+    StatusFailed    Status = "failed"
+)
+
 // Triggers - all on by default
 type Triggers struct {
     Clock     *Trigger `json:"clock,omitempty"`
@@ -374,18 +421,13 @@ type Trigger struct {
 
 // Clock - when to wake up
 type Clock struct {
-    Mode    string   `json:"mode"`    // "times" | "interval" | "daemon"
-    Times   []string `json:"times"`   // for mode=times: ["09:00", "14:00", "17:00"]
-    Days    []string `json:"days"`    // ["Mon", "Tue", "Wed", "Thu", "Fri"] or ["*"]
-    Every   string   `json:"every"`   // for mode=interval: "30m", "1h"
-    TZ      string   `json:"tz"`      // Asia/Shanghai
-    Timeout string   `json:"timeout"` // max run time per execution
+    Mode    ClockMode `json:"mode"`
+    Times   []string  `json:"times"`   // for times: ["09:00", "14:00"]
+    Days    []string  `json:"days"`    // ["Mon", "Tue"...] or ["*"]
+    Every   string    `json:"every"`   // for interval: "30m", "1h"
+    TZ      string    `json:"tz"`      // Asia/Shanghai
+    Timeout string    `json:"timeout"` // max run time
 }
-
-// Clock modes:
-// - times:    Run at specific times (e.g., 9am, 2pm, 5pm)
-// - interval: Run every X duration (e.g., every 30 minutes)
-// - daemon:   Run continuously (e.g., research analyst, market monitor)
 
 // Identity
 type Identity struct {
@@ -416,14 +458,9 @@ type Learn struct {
 
 // Resources
 type Resources struct {
-    P0     string   `json:"p0"` // Inspiration (Clock only)
-    P1     string   `json:"p1"` // Goals
-    P2     string   `json:"p2"` // Tasks
-    P3     string   `json:"p3"` // Validation
-    P4     string   `json:"p4"` // Delivery
-    P5     string   `json:"p5"` // Learning
-    Agents []string `json:"agents"`
-    MCP    []MCP    `json:"mcp"`
+    Phases map[Phase]string `json:"phases,omitempty"` // optional, defaults to __yao.{phase}
+    Agents []string         `json:"agents"`
+    MCP    []MCP            `json:"mcp"`
 }
 
 type MCP struct {
@@ -433,7 +470,7 @@ type MCP struct {
 
 // Delivery
 type Delivery struct {
-    Type string                 `json:"type"` // email | file | webhook | notify
+    Type DeliveryType           `json:"type"`
     Opts map[string]interface{} `json:"opts"`
 }
 
@@ -492,12 +529,14 @@ type Action struct {
     },
     "shared_kb": { "refs": ["sales-policies", "products"] },
     "resources": {
-      "p0": "__yao.inspiration",
-      "p1": "__yao.goals",
-      "p2": "__yao.tasks",
-      "p3": "__yao.validation",
-      "p4": "__yao.delivery",
-      "p5": "__yao.learning",
+      "phases": {
+        "inspiration": "__yao.inspiration",
+        "goals": "__yao.goals",
+        "tasks": "__yao.tasks",
+        "validation": "__yao.validation",
+        "delivery": "__yao.delivery",
+        "learning": "__yao.learning"
+      },
       "agents": ["data-analyst", "chart-gen"],
       "mcp": [{ "id": "database", "tools": ["query"] }]
     },
@@ -667,58 +706,113 @@ Made on agent create: `agent_{team_id}_{agent_id}_kb`
 
 ## 8. API
 
-### 8.1 Manager
+### 8.1 Manager (Internal)
 
 ```go
 type Manager interface {
+    // Lifecycle
     Start() error
     Stop() error
-    LoadActiveAgents(ctx context.Context) ([]*Agent, error)
-    ShouldExecute(agent *Agent, now time.Time) bool
-    Execute(ctx context.Context, agent *Agent) (*State, error)
-    Trigger(ctx context.Context, teamID, agentID string) (*State, error)
-    GetHistory(ctx context.Context, teamID, agentID string, limit int) ([]*State, error)
+
+    // Cache
+    LoadActiveAgents(ctx context.Context) error
+    GetAgent(teamID, agentID string) *Agent
+
+    // Clock trigger (internal, called by ticker)
+    Tick(ctx context.Context, now time.Time) error
 }
 ```
 
-### 8.2 State
+### 8.2 Trigger (Called by openapi layer)
 
 ```go
-type State struct {
-    ID        string
-    TeamID    string
+// TriggerType enum
+type TriggerType string
+
+const (
+    TriggerClock TriggerType = "clock"
+    TriggerHuman TriggerType = "human"
+    TriggerEvent TriggerType = "event"
+)
+
+// Trigger interface - called by openapi handlers
+type Trigger interface {
+    // Human intervention
+    Intervene(ctx context.Context, req InterveneRequest) (*ExecutionResult, error)
+
+    // Event trigger (webhook, db change)
+    HandleEvent(ctx context.Context, req EventRequest) (*ExecutionResult, error)
+
+    // Query & control
+    GetStatus(ctx context.Context, teamID, agentID string) (*AgentStatus, error)
+    Pause(ctx context.Context, teamID, agentID string) error
+    Resume(ctx context.Context, teamID, agentID string) error
+}
+
+type InterveneRequest struct {
+    TeamID      string
+    AgentID     string
+    Action      string // add_task | adjust_goal | cancel_task | pause | resume | abort | plan
+    Description string
+    Priority    string    // high | normal | low
+    PlanTime    time.Time // for action=plan
+}
+
+type EventRequest struct {
     AgentID   string
-    StartTime time.Time
-    EndTime   *time.Time
-    Status    Status // pending | running | completed | failed
-    Phase     Phase  // inspiration (clock only) | goal_gen | task_plan | run | deliver | learn
-    Goals     []Goal
-    Tasks     []Task
-    Error     string
-    Result    interface{}
+    Source    string // webhook path or table name
+    EventType string // lead.created, etc.
+    Data      map[string]interface{}
+}
+
+type ExecutionResult struct {
+    ExecutionID string // Job execution ID
+    Status      Status
+}
+
+type AgentStatus struct {
+    AgentID   string
+    Status    string // active | paused | running
+    LastRun   time.Time
+    NextRun   time.Time
+    RunningID string // current execution ID if running
 }
 ```
 
-### 8.3 Database
+### 8.4 Execution (Uses Job System)
 
-```sql
-CREATE TABLE autonomous_executions (
-    id VARCHAR(64) PRIMARY KEY,
-    team_id VARCHAR(64) NOT NULL,
-    agent_id VARCHAR(64) NOT NULL,
-    start_time DATETIME NOT NULL,
-    end_time DATETIME,
-    status VARCHAR(32) NOT NULL,
-    phase VARCHAR(32),
-    goals JSON,
-    tasks JSON,
-    error TEXT,
-    result JSON,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_team_agent (team_id, agent_id),
-    INDEX idx_status (status)
-);
+No separate `autonomous_executions` table. Uses existing Job system:
+
+```go
+// On agent create
+job.Create(Job{
+    ID:         "agent_" + agentID,
+    CategoryID: "autonomous_agent",
+    Name:       agent.Identity.Role,
+    Handler:    "autonomous.Execute",
+    Args:       map[string]interface{}{"agent_id": agentID},
+})
+
+// On trigger (clock/human/event)
+job.Push(jobID, ExecutionArgs{
+    TriggerType: TriggerClock, // or TriggerHuman, TriggerEvent
+    TriggerData: data,
+})
+
+// Query history
+executions := job.GetExecutions(jobID, limit)
+logs := job.GetLogs(executionID)
 ```
+
+**Job APIs for monitoring:**
+
+| Action  | API                                         |
+| ------- | ------------------------------------------- |
+| List    | `GET /api/jobs?category=autonomous_agent`   |
+| Status  | `GET /api/jobs/:job_id`                     |
+| History | `GET /api/jobs/:job_id/executions`          |
+| Logs    | `GET /api/jobs/:job_id/executions/:id/logs` |
+| Cancel  | `POST /api/jobs/:job_id/cancel`             |
 
 ---
 
@@ -770,13 +864,15 @@ clock:
 ### Phase Agents
 
 ```yaml
+# Optional - defaults to __yao.{phase} if not specified
 resources:
-  p0: "__yao.inspiration" # Clock only
-  p1: "__yao.goals"
-  p2: "__yao.tasks"
-  p3: "__yao.validation"
-  p4: "__yao.delivery"
-  p5: "__yao.learning"
+  phases:
+    inspiration: "__yao.inspiration" # Clock only
+    goals: "__yao.goals"
+    tasks: "__yao.tasks"
+    validation: "__yao.validation"
+    delivery: "__yao.delivery"
+    learning: "__yao.learning"
 ```
 
 ### Quota
