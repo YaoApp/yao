@@ -9,7 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
@@ -94,9 +93,7 @@ func (r *Request) Render() (string, int, error) {
 
 	if c == nil {
 
-		message := fmt.Sprintf("[SUI] The page %s is not cached. file=%s DisableCache=%v", r.Request.URL.Path, r.File, r.Request.DisableCache())
-		go fmt.Println(color.YellowString(message))
-		go log.Warn("%s", message)
+		go log.Warn("[SUI] The page %s is not cached. file=%s DisableCache=%v", r.Request.URL.Path, r.File, r.Request.DisableCache())
 
 		var status int
 		var err error
