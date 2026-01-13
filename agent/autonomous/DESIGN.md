@@ -40,7 +40,8 @@ flowchart TB
     end
 
     subgraph Executor["Executor"]
-        P0["P0: Inspiration<br/>(Schedule only)"]
+        TT{"Trigger?"}
+        P0["P0: Inspiration"]
         P1["P1: Goals"]
         P2["P2: Tasks"]
         P3["P3: Run"]
@@ -62,8 +63,9 @@ flowchart TB
     Dedup -->|OK| Queue
     Dedup -->|Dup| Cache
     Queue --> W1 & W2 & W3
-    W1 --> P0
-    W2 & W3 -.->|Human/Event| P1
+    W1 & W2 & W3 --> TT
+    TT -->|Schedule| P0
+    TT -->|Human/Event| P1
     P0 --> P1 --> P2 --> P3 --> P4 --> P5
     P5 --> KB & DB & Job
     KB -.->|History| P0
