@@ -21,7 +21,7 @@ An **Autonomous Agent** is an AI team member. It works on its own, makes decisio
 ```mermaid
 flowchart TB
     subgraph Triggers["Triggers"]
-        WC[/"⏰ Schedule"/]
+        WC[/"⏰ Clock"/]
         HI[/"👤 Human"/]
         EV[/"📡 Event"/]
     end
@@ -64,7 +64,7 @@ flowchart TB
     Dedup -->|Dup| Cache
     Queue --> W1 & W2 & W3
     W1 & W2 & W3 --> TT
-    TT -->|Schedule| P0
+    TT -->|Clock| P0
     TT -->|Human/Event| P1
     P0 --> P1 --> P2 --> P3 --> P4 --> P5
     P5 --> KB & DB & Job
@@ -138,8 +138,8 @@ sequenceDiagram
 
     W->>E: Run
 
-    alt Schedule trigger
-        E->>A: P0: Inspiration
+    alt Clock trigger
+        E->>A: P0: Inspiration (with clock context)
         A-->>E: Report
     end
 
@@ -154,17 +154,17 @@ sequenceDiagram
 
 ### 3.2 Triggers
 
-| Type         | What                     | Config               |
-| ------------ | ------------------------ | -------------------- |
-| **Schedule** | Timer (cron or interval) | `triggers.schedule`  |
-| **Human**    | Manual action            | `triggers.intervene` |
-| **Event**    | Webhook, DB change       | `triggers.event`     |
+| Type      | What                          | Config               |
+| --------- | ----------------------------- | -------------------- |
+| **Clock** | Timer (times/interval/daemon) | `triggers.clock`     |
+| **Human** | Manual action                 | `triggers.intervene` |
+| **Event** | Webhook, DB change            | `triggers.event`     |
 
 All on by default. Turn off per agent:
 
 ```yaml
 triggers:
-  schedule: { enabled: true }
+  clock: { enabled: true }
   intervene: { enabled: true, actions: ["add_task", "pause"] }
   event: { enabled: false }
 ```
@@ -219,27 +219,28 @@ type AgentCache struct {
 ### 4.1 Overview
 
 ```
-Schedule:     P0 → P1 → P2 → P3 → P4 → P5
+Clock:        P0 → P1 → P2 → P3 → P4 → P5
 Human/Event:       P1 → P2 → P3 → P4 → P5
 ```
 
-| Phase | Agent       | In               | Out             | When          |
-| ----- | ----------- | ---------------- | --------------- | ------------- |
-| P0    | Inspiration | Data, news, time | Report          | Schedule only |
-| P1    | Goal Gen    | Report + history | Goals           | Always        |
-| P2    | Task Plan   | Goals + tools    | Tasks           | Always        |
-| P3    | Validator   | Results          | Checked results | Always        |
-| P4    | Delivery    | All results      | Email/File      | Always        |
-| P5    | Learning    | Summary          | KB entries      | Always        |
+| Phase | Agent       | In                  | Out             | When       |
+| ----- | ----------- | ------------------- | --------------- | ---------- |
+| P0    | Inspiration | Clock + Data + News | Report          | Clock only |
+| P1    | Goal Gen    | Report + history    | Goals           | Always     |
+| P2    | Task Plan   | Goals + tools       | Tasks           | Always     |
+| P3    | Validator   | Results             | Checked results | Always     |
+| P4    | Delivery    | All results         | Email/File      | Always     |
+| P5    | Learning    | Summary             | KB entries      | Always     |
 
-### 4.2 P0: Inspiration (Schedule only)
+### 4.2 P0: Inspiration (Clock only)
 
 **Skipped for Human/Event triggers.** They already have clear intent.
 
-Gathers info to help make good goals:
+Gathers info to help make good goals. **Clock context is key input** - Agent knows what time it is and can decide what to do (e.g., 5pm Friday → write weekly report).
 
 ```go
 type InspirationReport struct {
+    Clock         ClockContext   // Current time context
     Summary       string         // What's happening
     Highlights    []Highlight    // Key changes
     Opportunities []Opportunity  // Chances to act
@@ -247,17 +248,29 @@ type InspirationReport struct {
     WorldInsights []WorldInsight // News from outside
     Suggestions   []string       // What to focus on
 }
+
+type ClockContext struct {
+    Now          time.Time // Current time
+    Hour         int       // 0-23
+    DayOfWeek    string    // Monday, Tuesday...
+    DayOfMonth   int       // 1-31
+    IsWeekend    bool
+    IsMonthStart bool      // 1st-3rd
+    IsMonthEnd   bool      // last 3 days
+    IsQuarterEnd bool
+    // Agent uses this to decide: "It's 5pm Friday, time for weekly report"
+}
 ```
 
 **Sources:**
 
+- **Clock**: Current time, day of week, month end, etc.
 - Internal: Data changes, events, feedback, pending work
 - External: Web search (news, competitors)
-- Time: Day of week, deadlines
 
 ### 4.3 P1: Goals
 
-**For Schedule:** Uses inspiration report to make goals.
+**For Clock:** Uses inspiration report (with clock context) to make goals. Agent decides based on time what's important now.
 
 **For Human/Event:** Uses the input directly as goals (or to generate goals).
 
@@ -331,7 +344,7 @@ Save to KB:
 ```go
 type Config struct {
     Triggers  *Triggers  `json:"triggers,omitempty"`
-    Schedule  *Schedule  `json:"schedule,omitempty"`
+    Clock     *Clock     `json:"clock,omitempty"`
     Identity  *Identity  `json:"identity"`
     Quota     *Quota     `json:"quota"`
     PrivateKB *KB        `json:"private_kb"`
@@ -349,7 +362,7 @@ type Config struct {
 ```go
 // Triggers - all on by default
 type Triggers struct {
-    Schedule  *Trigger `json:"schedule,omitempty"`
+    Clock     *Trigger `json:"clock,omitempty"`
     Intervene *Trigger `json:"intervene,omitempty"`
     Event     *Trigger `json:"event,omitempty"`
 }
@@ -359,13 +372,20 @@ type Trigger struct {
     Actions []string `json:"actions,omitempty"` // for intervene
 }
 
-// Schedule
-type Schedule struct {
-    Type    string `json:"type"`    // cron | interval
-    Expr    string `json:"expr"`    // "0 9 * * 1-5" or "1h"
-    TZ      string `json:"tz"`
-    Timeout string `json:"timeout"`
+// Clock - when to wake up
+type Clock struct {
+    Mode    string   `json:"mode"`    // "times" | "interval" | "daemon"
+    Times   []string `json:"times"`   // for mode=times: ["09:00", "14:00", "17:00"]
+    Days    []string `json:"days"`    // ["Mon", "Tue", "Wed", "Thu", "Fri"] or ["*"]
+    Every   string   `json:"every"`   // for mode=interval: "30m", "1h"
+    TZ      string   `json:"tz"`      // Asia/Shanghai
+    Timeout string   `json:"timeout"` // max run time per execution
 }
+
+// Clock modes:
+// - times:    Run at specific times (e.g., 9am, 2pm, 5pm)
+// - interval: Run every X duration (e.g., every 30 minutes)
+// - daemon:   Run continuously (e.g., monitoring, data sync)
 
 // Identity
 type Identity struct {
@@ -396,7 +416,7 @@ type Learn struct {
 
 // Resources
 type Resources struct {
-    P0     string   `json:"p0"` // Inspiration (Schedule only)
+    P0     string   `json:"p0"` // Inspiration (Clock only)
     P1     string   `json:"p1"` // Goals
     P2     string   `json:"p2"` // Tasks
     P3     string   `json:"p3"` // Validation
@@ -446,13 +466,14 @@ type Action struct {
   "agent_id": "sales-bot",
   "agent_config": {
     "triggers": {
-      "schedule": { "enabled": true },
+      "clock": { "enabled": true },
       "intervene": { "enabled": true },
       "event": { "enabled": false }
     },
-    "schedule": {
-      "type": "cron",
-      "expr": "0 9 * * 1-5",
+    "clock": {
+      "mode": "times",
+      "times": ["09:00", "14:00", "17:00"],
+      "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
       "tz": "Asia/Shanghai",
       "timeout": "30m"
     },
@@ -549,7 +570,7 @@ flowchart LR
         P5[P5: Learn]
     end
 
-    T -->|Schedule| P0
+    T -->|Clock| P0
     T -->|Human/Event| P1
     P0 --> P1
     P1 --> P2 --> P3 --> P4 --> P5
@@ -558,7 +579,7 @@ flowchart LR
 ```mermaid
 stateDiagram-v2
     [*] --> Triggered
-    Triggered --> P0_Inspiration: Schedule
+    Triggered --> P0_Inspiration: Clock
     Triggered --> P1_Goals: Human/Event
     P0_Inspiration --> P1_Goals
     P1_Goals --> P2_Tasks
@@ -624,7 +645,7 @@ Made on agent create: `agent_{team_id}_{agent_id}_kb`
 
 **Types:**
 
-- `schedule`: Timer
+- `clock`: Timer (with time context)
 - `intervene`: Human action
 - `event`: Webhook, DB change
 - `callback`: Async result
@@ -670,7 +691,7 @@ type State struct {
     StartTime time.Time
     EndTime   *time.Time
     Status    Status // pending | running | completed | failed
-    Phase     Phase  // inspiration (schedule only) | goal_gen | task_plan | run | deliver | learn
+    Phase     Phase  // inspiration (clock only) | goal_gen | task_plan | run | deliver | learn
     Goals     []Goal
     Tasks     []Task
     Error     string
@@ -717,16 +738,40 @@ CREATE TABLE autonomous_executions (
 
 ```yaml
 triggers:
-  schedule: { enabled: true }
+  clock: { enabled: true }
   intervene: { enabled: true, actions: [...] }
   event: { enabled: false }
+```
+
+### Clock
+
+```yaml
+# Mode 1: Specific times
+clock:
+  mode: times
+  times: ["09:00", "14:00", "17:00"]
+  days: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+  tz: Asia/Shanghai
+  timeout: 30m
+
+# Mode 2: Interval
+clock:
+  mode: interval
+  every: 30m  # run every 30 minutes
+  timeout: 10m
+
+# Mode 3: Daemon (continuous monitoring/sync)
+clock:
+  mode: daemon  # restart immediately after each run
+  timeout: 5m   # max time per run
+  # Use case: Data sync agent, system monitor agent
 ```
 
 ### Phase Agents
 
 ```yaml
 resources:
-  p0: "__yao.inspiration" # Schedule only
+  p0: "__yao.inspiration" # Clock only
   p1: "__yao.goals"
   p2: "__yao.tasks"
   p3: "__yao.validation"
@@ -743,12 +788,457 @@ quota:
   priority: 5 # 1-10
 ```
 
-### Schedule
+---
 
-```yaml
-schedule:
-  type: cron
-  expr: "0 9 * * 1-5"
-  tz: Asia/Shanghai
-  timeout: 30m
+## 11. Examples
+
+Each example shows a different trigger mode:
+
+| Example | Trigger | Mode      | Scenario                                     |
+| ------- | ------- | --------- | -------------------------------------------- |
+| 11.1    | Clock   | times     | SEO/GEO Content - daily content optimization |
+| 11.2    | Clock   | interval  | Competitor Monitor - check every 2 hours     |
+| 11.3    | Clock   | daemon    | Research Analyst - continuous insight mining |
+| 11.4    | Human   | intervene | Sales Assistant - manager assigns tasks      |
+| 11.5    | Event   | event     | Expense Processor - process new submissions  |
+
+---
+
+### 11.1 SEO/GEO Content Agent (Clock: times)
+
+**Trigger:** Clock - specific times daily
+
+**Role:** AI Marketing - auto-generate and optimize SEO/GEO content.
+
+```json
+{
+  "agent_id": "seo-content",
+  "agent_config": {
+    "triggers": {
+      "clock": { "enabled": true },
+      "intervene": { "enabled": true }
+    },
+    "clock": {
+      "mode": "times",
+      "times": ["06:00", "18:00"],
+      "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+      "tz": "Asia/Shanghai"
+    },
+    "identity": {
+      "role": "SEO/GEO Content Specialist",
+      "duties": [
+        "Research trending keywords in our industry",
+        "Generate SEO-optimized articles (2-3 per day)",
+        "Optimize existing content for GEO (AI search)",
+        "Track keyword rankings and adjust strategy",
+        "A/B test titles and meta descriptions"
+      ]
+    },
+    "resources": {
+      "agents": ["keyword-researcher", "content-writer", "seo-optimizer"],
+      "mcp": [
+        { "id": "google-search", "tools": ["trends", "rankings"] },
+        { "id": "cms", "tools": ["create", "update", "publish"] }
+      ]
+    },
+    "delivery": {
+      "type": "notify",
+      "opts": { "channel": "marketing-team" }
+    }
+  }
+}
+```
+
+**Example run at 06:00 Monday:**
+
+```
+P0 Inspiration:
+  Clock: Monday 06:00, start of week
+  Data:
+    - Keyword "AI应用开发" trending (+45% this week)
+    - Our article ranks #8, competitor #2
+    - 3 articles need GEO optimization
+  World: New AI regulation announced last Friday
+
+P1 Goals:
+  1. Write new article targeting "AI应用开发"
+  2. Optimize 3 old articles for GEO
+  3. Update meta descriptions for top 5 pages
+
+P2 Tasks:
+  1. Research "AI应用开发" keywords → keyword-researcher
+  2. Write article with SEO structure → content-writer
+  3. Add FAQ schema for GEO → seo-optimizer
+  4. Publish to CMS → cms.publish
+
+P4 Delivery:
+  → Notify: "Published: 'AI应用开发完整指南' - targeting 12 keywords"
+
+P5 Learn:
+  - "AI应用开发" articles perform well on Monday morning
+  - FAQ schema improves GEO visibility by 30%
+```
+
+---
+
+### 11.2 Competitor Monitor (Clock: interval)
+
+**Trigger:** Clock - every 2 hours
+
+**Role:** Monitor competitors, track market changes, alert on important updates.
+
+```json
+{
+  "agent_id": "competitor-monitor",
+  "agent_config": {
+    "triggers": {
+      "clock": { "enabled": true }
+    },
+    "clock": {
+      "mode": "interval",
+      "every": "2h"
+    },
+    "identity": {
+      "role": "Competitor Intelligence Analyst",
+      "duties": [
+        "Monitor competitor websites for changes",
+        "Track competitor pricing updates",
+        "Watch for new product launches",
+        "Analyze competitor content strategy",
+        "Alert team on significant changes"
+      ]
+    },
+    "resources": {
+      "agents": ["web-scraper", "diff-analyzer", "report-writer"],
+      "mcp": [{ "id": "web-search", "tools": ["search", "news"] }]
+    },
+    "delivery": {
+      "type": "webhook",
+      "opts": { "url": "https://slack.com/webhook/competitor-alerts" }
+    }
+  }
+}
+```
+
+**Example run detecting competitor change:**
+
+```
+P0 Inspiration:
+  Clock: Tuesday 14:00
+  Data:
+    - Competitor A: pricing page changed
+    - Competitor B: new blog post about "AI agents"
+    - Competitor C: no changes
+
+P1 Goals:
+  1. Analyze Competitor A pricing change
+  2. Summarize Competitor B's new content
+  3. Assess impact on our positioning
+
+P2 Tasks:
+  1. Scrape old vs new pricing → web-scraper
+  2. Compare pricing tiers → diff-analyzer
+  3. Generate competitive analysis → report-writer
+
+P3 Execute:
+  - Competitor A: dropped price 20% on enterprise tier
+  - Competitor B: targeting same keywords as us
+
+P4 Delivery:
+  → Slack: "🚨 Competitor A cut enterprise price 20% - review needed"
+
+P5 Learn:
+  - Competitor A tends to change pricing on Tuesdays
+  - Price changes often precede feature launches
+```
+
+---
+
+### 11.3 Industry Research Analyst (Clock: daemon)
+
+**Trigger:** Clock - continuous daemon mode
+
+**Role:** Continuously read industry news, papers, social media; extract insights; build knowledge.
+
+```json
+{
+  "agent_id": "research-analyst",
+  "agent_config": {
+    "triggers": {
+      "clock": { "enabled": true }
+    },
+    "clock": {
+      "mode": "daemon",
+      "timeout": "10m"
+    },
+    "identity": {
+      "role": "Industry Research Analyst",
+      "duties": [
+        "Continuously scan industry news and papers",
+        "Analyze trends and extract key insights",
+        "Identify emerging technologies and competitors",
+        "Build and maintain industry knowledge base",
+        "Alert team on significant developments"
+      ]
+    },
+    "resources": {
+      "agents": ["content-reader", "insight-extractor", "report-writer"],
+      "mcp": [
+        { "id": "web-search", "tools": ["search", "news"] },
+        { "id": "arxiv", "tools": ["search", "fetch"] },
+        { "id": "twitter", "tools": ["search", "trends"] }
+      ]
+    },
+    "delivery": {
+      "type": "notify",
+      "opts": { "channel": "research-insights" }
+    }
+  }
+}
+```
+
+**Example continuous run:**
+
+```
+Run #1 (09:00):
+  P0: Scan sources
+      - 15 new AI news articles
+      - 3 new papers on arXiv
+      - Twitter: "AI Agent" trending
+  P1: Goals:
+      1. Read and analyze new content
+      2. Extract insights relevant to our business
+      3. Update knowledge base
+  P2: Tasks:
+      1. Read articles → content-reader
+      2. Analyze papers → content-reader
+      3. Extract insights → insight-extractor
+  P3: Execute:
+      - Article: "OpenAI releases new agent framework"
+        Insight: Validates our direction, watch for API changes
+      - Paper: "Multi-agent collaboration patterns"
+        Insight: Useful for our agent design, save to KB
+      - Twitter: Sentiment positive on AI agents
+  P4: Notify: "📚 3 new insights added to KB"
+  P5: Learn: OpenAI news = high relevance, prioritize
+  → Restart immediately
+
+Run #2 (09:12):
+  P0: Scan sources
+      - 2 new articles (low relevance)
+      - No new papers
+      - Twitter: Normal activity
+  P1: Low-value content, skip deep analysis
+  P5: Learn: Mid-morning usually quiet
+  → Restart immediately
+
+Run #3 (09:25):
+  P0: Scan sources
+      - Breaking: "Competitor X raises $100M for AI platform"
+  P1: Goals:
+      1. Deep analyze competitor news
+      2. Assess impact on our market
+      3. Alert team immediately
+  P2: Tasks:
+      1. Gather all competitor X info → web-search
+      2. Analyze their positioning → insight-extractor
+      3. Write competitive brief → report-writer
+  P3: Execute:
+      - Competitor X: Focus on enterprise, similar target market
+      - Funding: Will likely expand sales team
+      - Threat level: Medium-High
+  P4: Notify: "🚨 Competitor X raised $100M - brief attached"
+  P5: Learn: Funding news = always high priority
+  → Restart immediately
+```
+
+---
+
+### 11.4 Sales Assistant (Human: intervene)
+
+**Trigger:** Human intervention - sales manager assigns tasks
+
+**Role:** Help sales team with research, proposals, follow-ups when manager assigns work.
+
+```json
+{
+  "agent_id": "sales-assistant",
+  "agent_config": {
+    "triggers": {
+      "clock": { "enabled": false },
+      "intervene": {
+        "enabled": true,
+        "actions": ["add_task", "adjust_goal", "pause"]
+      }
+    },
+    "identity": {
+      "role": "Sales Assistant",
+      "duties": [
+        "Research assigned prospects and companies",
+        "Prepare customized proposals and presentations",
+        "Draft follow-up emails",
+        "Analyze deal history and suggest strategies",
+        "Prepare meeting briefs"
+      ]
+    },
+    "resources": {
+      "agents": ["company-researcher", "proposal-writer", "email-drafter"],
+      "mcp": [
+        { "id": "crm", "tools": ["query", "update"] },
+        { "id": "linkedin", "tools": ["search", "profile"] },
+        { "id": "email", "tools": ["draft", "send"] }
+      ]
+    },
+    "delivery": {
+      "type": "email",
+      "opts": { "to": ["sales-manager@company.com"] }
+    }
+  }
+}
+```
+
+**Example: Sales manager assigns task:**
+
+```
+Sales Manager Input:
+  Action: add_task
+  Description: "Meeting with BigCorp CTO tomorrow. Prepare materials.
+               They do smart manufacturing, $150M revenue, digital transformation."
+
+Agent Execution (no P0 for human trigger):
+  P1 Goals (from human input):
+    1. Research BigCorp and their CTO
+    2. Prepare meeting brief
+    3. Draft customized proposal
+
+  P2 Tasks:
+    1. Research BigCorp → company-researcher
+       - Company background, recent news
+       - Digital transformation status
+       - Potential pain points
+    2. Research CTO profile → linkedin.profile
+       - Background, interests
+       - Recent posts/articles
+    3. Prepare meeting brief → proposal-writer
+    4. Draft proposal → proposal-writer
+
+  P3 Execute:
+    - BigCorp: Leading smart manufacturing, 3 factories, implementing MES
+    - CTO John: Ex-Google, focused on AI+Manufacturing, recent post on "AI QC"
+    - Pain point: High QC labor cost, 2% defect miss rate
+    - Opportunity: Our AI QC solution can reduce miss rate to 0.1%
+
+  P4 Delivery:
+    → Email to sales manager:
+      - Attachment 1: BigCorp Research Report (PDF)
+      - Attachment 2: CTO Profile Brief
+      - Attachment 3: Custom Proposal - AI QC Solution
+      - Attachment 4: Meeting Agenda Suggestion
+
+Sales Manager Follow-up:
+  Action: add_task
+  Description: "Also prepare some similar case studies, manufacturing preferred"
+
+Agent Continues:
+  P1: Find similar manufacturing case studies
+  P2: Search CRM for manufacturing wins
+  P3: Found 3 cases: Auto parts factory, Electronics plant, Food processing
+  P4: Email: "3 manufacturing case studies attached"
+```
+
+---
+
+### 11.5 Lead Processor (Event: webhook)
+
+**Trigger:** Event - new lead from website/CRM
+
+**Role:** Instantly process and qualify new leads, route to sales.
+
+```json
+{
+  "agent_id": "lead-processor",
+  "agent_config": {
+    "triggers": {
+      "clock": { "enabled": false },
+      "event": { "enabled": true }
+    },
+    "events": [
+      {
+        "type": "webhook",
+        "source": "/webhook/leads",
+        "filter": { "event_types": ["lead.created"] }
+      },
+      {
+        "type": "database",
+        "source": "crm_leads",
+        "filter": { "trigger": "insert" }
+      }
+    ],
+    "identity": {
+      "role": "Lead Qualification Specialist",
+      "duties": [
+        "Instantly process new leads",
+        "Enrich lead data (company info, LinkedIn)",
+        "Score lead quality (1-100)",
+        "Route hot leads to sales immediately",
+        "Add cold leads to nurture sequence"
+      ]
+    },
+    "resources": {
+      "agents": ["data-enricher", "lead-scorer"],
+      "mcp": [
+        { "id": "clearbit", "tools": ["enrich"] },
+        { "id": "crm", "tools": ["update", "assign"] },
+        { "id": "email", "tools": ["send"] }
+      ]
+    },
+    "delivery": {
+      "type": "webhook",
+      "opts": { "url": "https://slack.com/webhook/sales-leads" }
+    }
+  }
+}
+```
+
+**Example: New lead event:**
+
+```
+Event Received:
+  Type: lead.created
+  Data: {
+    name: "John Smith",
+    email: "john@bigcorp.com",
+    company: "BigCorp",
+    message: "Interested in Enterprise pricing, team of 50"
+  }
+
+Agent Execution (no P0 for events):
+  P1 Goals:
+    1. Enrich lead data
+    2. Score lead quality
+    3. Route appropriately
+
+  P2 Tasks:
+    1. Lookup company info → clearbit.enrich
+    2. Calculate lead score → lead-scorer
+    3. Update CRM → crm.update
+    4. Notify sales → slack webhook
+
+  P3 Execute:
+    - Company: BigCorp, 500 employees, Series C
+    - LinkedIn: VP of Engineering
+    - Lead Score: 85/100 (HOT)
+    - Reason: Enterprise inquiry, decision maker, funded company
+
+  P4 Delivery:
+    → Slack: "🔥 HOT LEAD (85/100): John Smith @ BigCorp
+              - 500 employees, Series C
+              - Interested in Enterprise (50 seats)
+              - Assigned to: Sales Rep A"
+    → CRM: Lead updated, assigned to Sales Rep A
+    → Email to lead: "Thanks for your inquiry. Our sales rep will contact you within 1 hour."
+
+  P5 Learn:
+    - BigCorp profile saved for future reference
+    - VP-level leads from funded companies = high conversion
 ```
