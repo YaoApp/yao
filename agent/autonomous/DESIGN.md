@@ -73,13 +73,13 @@ flowchart TB
 
 ### 2.2 Team Structure
 
-AI members live in `team_members` table with `member_type = "ai"`:
+Uses existing `__yao.member` model (`yao/models/member.mod.yao`):
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                            Team                                  │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                    AI Members                            │    │
+│  │                   Robot Members                          │    │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐        │    │
 │  │  │Sales Manager│ │Data Analyst │ │CS Specialist│        │    │
 │  │  │ • Track KPIs│ │ • Analyze   │ │ • Tickets   │        │    │
@@ -87,7 +87,7 @@ AI members live in `team_members` table with `member_type = "ai"`:
 │  │  └─────────────┘ └─────────────┘ └─────────────┘        │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                   Human Members                          │    │
+│  │                   User Members                           │    │
 │  │  ┌─────────────┐ ┌─────────────┐                        │    │
 │  │  │ John (Owner)│ │ Jane (Admin)│                        │    │
 │  │  └─────────────┘ └─────────────┘                        │    │
@@ -95,19 +95,18 @@ AI members live in `team_members` table with `member_type = "ai"`:
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-```sql
-CREATE TABLE team_members (
-    id BIGINT PRIMARY KEY AUTO_INCREMENT,
-    team_id VARCHAR(64) NOT NULL,
-    user_id VARCHAR(64),              -- for humans
-    member_type VARCHAR(32) NOT NULL, -- "user" | "ai"
-    agent_id VARCHAR(64),             -- for AI only
-    agent_config JSON,                -- AI config
-    status VARCHAR(32) DEFAULT 'active',
-    INDEX idx_team_id (team_id),
-    INDEX idx_agent_id (agent_id)
-);
-```
+**Key fields in `__yao.member` for autonomous agents:**
+
+| Field             | Type   | Description                                                 |
+| ----------------- | ------ | ----------------------------------------------------------- |
+| `member_type`     | enum   | `user` \| `robot`                                           |
+| `autonomous_mode` | bool   | Enable autonomous execution                                 |
+| `robot_config`    | JSON   | Agent configuration (see section 5)                         |
+| `robot_status`    | enum   | `idle` \| `working` \| `paused` \| `error` \| `maintenance` |
+| `system_prompt`   | text   | Identity & role prompt                                      |
+| `agents`          | JSON   | Accessible agents list                                      |
+| `mcp_servers`     | JSON   | Accessible MCP servers                                      |
+| `manager_id`      | string | Direct manager user ID                                      |
 
 ---
 
@@ -191,7 +190,7 @@ Two levels to prevent one agent from using all resources:
 **Fast check** (in memory):
 
 ```go
-key := agentID + ":" + triggerType + ":" + window
+key := memberID + ":" + triggerType + ":" + window
 if has(key) { skip }
 ```
 
@@ -206,8 +205,8 @@ Keeps agents in memory. No DB query on each tick:
 
 ```go
 type AgentCache struct {
-    agents map[string]*Agent   // agent_id -> agent
-    byTeam map[string][]string // team_id -> agent_ids
+    agents map[string]*Agent   // member_id -> agent
+    byTeam map[string][]string // team_id -> member_ids
 }
 // Refresh: on start, on change, every hour
 ```
@@ -407,13 +406,15 @@ const (
     ExecFailed    ExecStatus = "failed"
 )
 
-// AgentState - agent operational state enum
-type AgentState string
+// RobotStatus - matches __yao.member.robot_status enum
+type RobotStatus string
 
 const (
-    AgentActive  AgentState = "active"  // ready to run
-    AgentPaused  AgentState = "paused"  // manually paused
-    AgentRunning AgentState = "running" // currently executing
+    RobotIdle        RobotStatus = "idle"        // ready to run
+    RobotWorking     RobotStatus = "working"     // currently executing
+    RobotPaused      RobotStatus = "paused"      // manually paused
+    RobotError       RobotStatus = "error"       // encountered error
+    RobotMaintenance RobotStatus = "maintenance" // under maintenance
 )
 
 // Triggers - all on by default
@@ -506,11 +507,18 @@ type Action struct {
 
 ### 5.3 Example
 
+Example record in `__yao.member` table:
+
 ```json
 {
-  "member_type": "ai",
-  "agent_id": "sales-bot",
-  "agent_config": {
+  "member_id": "mem_abc123",
+  "team_id": "team_xyz",
+  "member_type": "robot",
+  "display_name": "Sales Bot",
+  "autonomous_mode": true,
+  "robot_status": "idle",
+  "system_prompt": "You are a sales analyst...",
+  "robot_config": {
     "triggers": {
       "clock": { "enabled": true },
       "intervene": { "enabled": true },
@@ -553,7 +561,9 @@ type Action struct {
       "type": "email",
       "opts": { "to": ["manager@company.com"] }
     }
-  }
+  },
+  "agents": ["data-analyst", "chart-gen"],
+  "mcp_servers": ["database"]
 }
 ```
 
@@ -565,25 +575,35 @@ type Action struct {
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Active: POST create
-    Active --> Paused: PATCH pause
-    Paused --> Active: PATCH resume
-    Active --> [*]: DELETE
+    [*] --> Idle: POST create
+    Idle --> Working: trigger
+    Working --> Idle: done
+    Idle --> Paused: PATCH pause
+    Working --> Paused: PATCH pause
+    Paused --> Idle: PATCH resume
+    Idle --> Error: error
+    Working --> Error: error
+    Error --> Idle: PATCH reset
+    Idle --> [*]: DELETE
     Paused --> [*]: DELETE
 ```
 
-| From   | To      | How                   |
-| ------ | ------- | --------------------- |
-| -      | active  | POST create           |
-| active | paused  | PATCH status="paused" |
-| paused | active  | PATCH status="active" |
-| any    | deleted | DELETE                |
+| From    | To      | How                         |
+| ------- | ------- | --------------------------- |
+| -       | idle    | POST create                 |
+| idle    | working | trigger (clock/human/event) |
+| working | idle    | execution done              |
+| idle    | paused  | PATCH robot_status="paused" |
+| paused  | idle    | PATCH robot_status="idle"   |
+| any     | error   | execution error             |
+| error   | idle    | PATCH robot_status="idle"   |
+| any     | deleted | DELETE                      |
 
 ### 6.2 On Create
 
 1. Check config
-2. Make agent_id if missing
-3. Create KB: `agent_{team_id}_{agent_id}_kb`
+2. Generate member_id if missing
+3. Create KB: `robot_{team_id}_{member_id}_kb`
 4. Add to cache
 5. Create Job
 6. Set active
@@ -665,7 +685,7 @@ Each agent = 1 Job. Each run = 1 Execution.
 
 | Action   | API                                          |
 | -------- | -------------------------------------------- |
-| List     | `GET /api/jobs?category_id=autonomous_agent` |
+| List     | `GET /api/jobs?category_id=autonomous_robot` |
 | History  | `GET /api/jobs/:job_id/executions`           |
 | Progress | `GET /api/jobs/:job_id/executions/:id`       |
 | Logs     | `GET /api/jobs/:job_id/executions/:id/logs`  |
@@ -674,7 +694,7 @@ Each agent = 1 Job. Each run = 1 Execution.
 
 ### 7.2 Private KB
 
-Made on agent create: `agent_{team_id}_{agent_id}_kb`
+Made on robot member create: `robot_{team_id}_{member_id}_kb`
 
 **What it stores:**
 
@@ -684,10 +704,10 @@ Made on agent create: `agent_{team_id}_{agent_id}_kb`
 
 **When:**
 
-- Create: On agent create
+- Create: On robot member create
 - Update: After P5
 - Clean: Based on `keep` days
-- Delete: On agent delete
+- Delete: On robot member delete
 
 ### 7.3 External Input
 
@@ -724,8 +744,8 @@ type Manager interface {
     Stop() error
 
     // Cache
-    LoadActiveAgents(ctx context.Context) error
-    GetAgent(teamID, agentID string) *Agent
+    LoadActiveRobots(ctx context.Context) error
+    GetRobot(teamID, memberID string) *Robot
 
     // Clock trigger (internal, called by ticker)
     Tick(ctx context.Context, now time.Time) error
@@ -753,14 +773,14 @@ type Trigger interface {
     HandleEvent(ctx context.Context, req EventRequest) (*ExecutionResult, error)
 
     // Query & control
-    GetStatus(ctx context.Context, teamID, agentID string) (*AgentStatus, error)
-    Pause(ctx context.Context, teamID, agentID string) error
-    Resume(ctx context.Context, teamID, agentID string) error
+    GetStatus(ctx context.Context, teamID, memberID string) (*RobotState, error)
+    Pause(ctx context.Context, teamID, memberID string) error
+    Resume(ctx context.Context, teamID, memberID string) error
 }
 
 type InterveneRequest struct {
     TeamID      string
-    AgentID     string
+    MemberID    string
     Action      string // add_task | adjust_goal | cancel_task | pause | resume | abort | plan
     Description string
     Priority    string    // high | normal | low
@@ -768,7 +788,7 @@ type InterveneRequest struct {
 }
 
 type EventRequest struct {
-    AgentID   string
+    MemberID  string
     Source    string // webhook path or table name
     EventType string // lead.created, etc.
     Data      map[string]interface{}
@@ -779,12 +799,12 @@ type ExecutionResult struct {
     Status      ExecStatus // pending | running | completed | failed
 }
 
-type AgentStatus struct {
-    AgentID   string
-    State     AgentState // active | paused | running
+type RobotState struct {
+    MemberID  string      // member_id from __yao.member
+    Status    RobotStatus // idle | working | paused | error | maintenance
     LastRun   time.Time
     NextRun   time.Time
-    RunningID string // current execution ID if running
+    RunningID string // current execution ID if working
 }
 ```
 
@@ -793,13 +813,13 @@ type AgentStatus struct {
 No separate `autonomous_executions` table. Uses existing Job system:
 
 ```go
-// On agent create
+// On robot member create
 job.Create(Job{
-    ID:         "agent_" + agentID,
-    CategoryID: "autonomous_agent",
-    Name:       agent.Identity.Role,
+    ID:         "robot_" + memberID,
+    CategoryID: "autonomous_robot",
+    Name:       member.DisplayName,
     Handler:    "autonomous.Execute",
-    Args:       map[string]interface{}{"agent_id": agentID},
+    Args:       map[string]interface{}{"member_id": memberID},
 })
 
 // On trigger (clock/human/event)
@@ -817,7 +837,7 @@ logs := job.GetLogs(executionID)
 
 | Action  | API                                         |
 | ------- | ------------------------------------------- |
-| List    | `GET /api/jobs?category=autonomous_agent`   |
+| List    | `GET /api/jobs?category=autonomous_robot`   |
 | Status  | `GET /api/jobs/:job_id`                     |
 | History | `GET /api/jobs/:job_id/executions`          |
 | Logs    | `GET /api/jobs/:job_id/executions/:id/logs` |
@@ -916,40 +936,38 @@ Each example shows a different trigger mode:
 **Role:** AI Marketing - auto-generate and optimize SEO/GEO content.
 
 ```json
+// robot_config for SEO Content Agent
 {
-  "agent_id": "seo-content",
-  "agent_config": {
-    "triggers": {
-      "clock": { "enabled": true },
-      "intervene": { "enabled": true }
-    },
-    "clock": {
-      "mode": "times",
-      "times": ["06:00", "18:00"],
-      "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
-      "tz": "Asia/Shanghai"
-    },
-    "identity": {
-      "role": "SEO/GEO Content Specialist",
-      "duties": [
-        "Research trending keywords in our industry",
-        "Generate SEO-optimized articles (2-3 per day)",
-        "Optimize existing content for GEO (AI search)",
-        "Track keyword rankings and adjust strategy",
-        "A/B test titles and meta descriptions"
-      ]
-    },
-    "resources": {
-      "agents": ["keyword-researcher", "content-writer", "seo-optimizer"],
-      "mcp": [
-        { "id": "google-search", "tools": ["trends", "rankings"] },
-        { "id": "cms", "tools": ["create", "update", "publish"] }
-      ]
-    },
-    "delivery": {
-      "type": "notify",
-      "opts": { "channel": "marketing-team" }
-    }
+  "triggers": {
+    "clock": { "enabled": true },
+    "intervene": { "enabled": true }
+  },
+  "clock": {
+    "mode": "times",
+    "times": ["06:00", "18:00"],
+    "days": ["Mon", "Tue", "Wed", "Thu", "Fri"],
+    "tz": "Asia/Shanghai"
+  },
+  "identity": {
+    "role": "SEO/GEO Content Specialist",
+    "duties": [
+      "Research trending keywords in our industry",
+      "Generate SEO-optimized articles (2-3 per day)",
+      "Optimize existing content for GEO (AI search)",
+      "Track keyword rankings and adjust strategy",
+      "A/B test titles and meta descriptions"
+    ]
+  },
+  "resources": {
+    "agents": ["keyword-researcher", "content-writer", "seo-optimizer"],
+    "mcp": [
+      { "id": "google-search", "tools": ["trends", "rankings"] },
+      { "id": "cms", "tools": ["create", "update", "publish"] }
+    ]
+  },
+  "delivery": {
+    "type": "notify",
+    "opts": { "channel": "marketing-team" }
   }
 }
 ```
@@ -998,34 +1016,32 @@ P5 Learn:
 **Role:** Monitor competitors, track market changes, alert on important updates.
 
 ```json
+// robot_config for Competitor Monitor
 {
-  "agent_id": "competitor-monitor",
-  "agent_config": {
-    "triggers": {
-      "clock": { "enabled": true }
-    },
-    "clock": {
-      "mode": "interval",
-      "every": "2h"
-    },
-    "identity": {
-      "role": "Competitor Intelligence Analyst",
-      "duties": [
-        "Monitor competitor websites for changes",
-        "Track competitor pricing updates",
-        "Watch for new product launches",
-        "Analyze competitor content strategy",
-        "Alert team on significant changes"
-      ]
-    },
-    "resources": {
-      "agents": ["web-scraper", "diff-analyzer", "report-writer"],
-      "mcp": [{ "id": "web-search", "tools": ["search", "news"] }]
-    },
-    "delivery": {
-      "type": "webhook",
-      "opts": { "url": "https://slack.com/webhook/competitor-alerts" }
-    }
+  "triggers": {
+    "clock": { "enabled": true }
+  },
+  "clock": {
+    "mode": "interval",
+    "every": "2h"
+  },
+  "identity": {
+    "role": "Competitor Intelligence Analyst",
+    "duties": [
+      "Monitor competitor websites for changes",
+      "Track competitor pricing updates",
+      "Watch for new product launches",
+      "Analyze competitor content strategy",
+      "Alert team on significant changes"
+    ]
+  },
+  "resources": {
+    "agents": ["web-scraper", "diff-analyzer", "report-writer"],
+    "mcp": [{ "id": "web-search", "tools": ["search", "news"] }]
+  },
+  "delivery": {
+    "type": "webhook",
+    "opts": { "url": "https://slack.com/webhook/competitor-alerts" }
   }
 }
 ```
@@ -1071,38 +1087,36 @@ P5 Learn:
 **Role:** Continuously read industry news, papers, social media; extract insights; build knowledge.
 
 ```json
+// robot_config for Research Analyst
 {
-  "agent_id": "research-analyst",
-  "agent_config": {
-    "triggers": {
-      "clock": { "enabled": true }
-    },
-    "clock": {
-      "mode": "daemon",
-      "timeout": "10m"
-    },
-    "identity": {
-      "role": "Industry Research Analyst",
-      "duties": [
-        "Continuously scan industry news and papers",
-        "Analyze trends and extract key insights",
-        "Identify emerging technologies and competitors",
-        "Build and maintain industry knowledge base",
-        "Alert team on significant developments"
-      ]
-    },
-    "resources": {
-      "agents": ["content-reader", "insight-extractor", "report-writer"],
-      "mcp": [
-        { "id": "web-search", "tools": ["search", "news"] },
-        { "id": "arxiv", "tools": ["search", "fetch"] },
-        { "id": "twitter", "tools": ["search", "trends"] }
-      ]
-    },
-    "delivery": {
-      "type": "notify",
-      "opts": { "channel": "research-insights" }
-    }
+  "triggers": {
+    "clock": { "enabled": true }
+  },
+  "clock": {
+    "mode": "daemon",
+    "timeout": "10m"
+  },
+  "identity": {
+    "role": "Industry Research Analyst",
+    "duties": [
+      "Continuously scan industry news and papers",
+      "Analyze trends and extract key insights",
+      "Identify emerging technologies and competitors",
+      "Build and maintain industry knowledge base",
+      "Alert team on significant developments"
+    ]
+  },
+  "resources": {
+    "agents": ["content-reader", "insight-extractor", "report-writer"],
+    "mcp": [
+      { "id": "web-search", "tools": ["search", "news"] },
+      { "id": "arxiv", "tools": ["search", "fetch"] },
+      { "id": "twitter", "tools": ["search", "trends"] }
+    ]
+  },
+  "delivery": {
+    "type": "notify",
+    "opts": { "channel": "research-insights" }
   }
 }
 ```
@@ -1171,38 +1185,36 @@ Run #3 (09:25):
 **Role:** Help sales team with research, proposals, follow-ups when manager assigns work.
 
 ```json
+// robot_config for Sales Assistant
 {
-  "agent_id": "sales-assistant",
-  "agent_config": {
-    "triggers": {
-      "clock": { "enabled": false },
-      "intervene": {
-        "enabled": true,
-        "actions": ["add_task", "adjust_goal", "pause"]
-      }
-    },
-    "identity": {
-      "role": "Sales Assistant",
-      "duties": [
-        "Research assigned prospects and companies",
-        "Prepare customized proposals and presentations",
-        "Draft follow-up emails",
-        "Analyze deal history and suggest strategies",
-        "Prepare meeting briefs"
-      ]
-    },
-    "resources": {
-      "agents": ["company-researcher", "proposal-writer", "email-drafter"],
-      "mcp": [
-        { "id": "crm", "tools": ["query", "update"] },
-        { "id": "linkedin", "tools": ["search", "profile"] },
-        { "id": "email", "tools": ["draft", "send"] }
-      ]
-    },
-    "delivery": {
-      "type": "email",
-      "opts": { "to": ["sales-manager@company.com"] }
+  "triggers": {
+    "clock": { "enabled": false },
+    "intervene": {
+      "enabled": true,
+      "actions": ["add_task", "adjust_goal", "pause"]
     }
+  },
+  "identity": {
+    "role": "Sales Assistant",
+    "duties": [
+      "Research assigned prospects and companies",
+      "Prepare customized proposals and presentations",
+      "Draft follow-up emails",
+      "Analyze deal history and suggest strategies",
+      "Prepare meeting briefs"
+    ]
+  },
+  "resources": {
+    "agents": ["company-researcher", "proposal-writer", "email-drafter"],
+    "mcp": [
+      { "id": "crm", "tools": ["query", "update"] },
+      { "id": "linkedin", "tools": ["search", "profile"] },
+      { "id": "email", "tools": ["draft", "send"] }
+    ]
+  },
+  "delivery": {
+    "type": "email",
+    "opts": { "to": ["sales-manager@company.com"] }
   }
 }
 ```
@@ -1266,47 +1278,45 @@ Agent Continues:
 **Role:** Instantly process and qualify new leads, route to sales.
 
 ```json
+// robot_config for Lead Processor
 {
-  "agent_id": "lead-processor",
-  "agent_config": {
-    "triggers": {
-      "clock": { "enabled": false },
-      "event": { "enabled": true }
-    },
-    "events": [
-      {
-        "type": "webhook",
-        "source": "/webhook/leads",
-        "filter": { "event_types": ["lead.created"] }
-      },
-      {
-        "type": "database",
-        "source": "crm_leads",
-        "filter": { "trigger": "insert" }
-      }
-    ],
-    "identity": {
-      "role": "Lead Qualification Specialist",
-      "duties": [
-        "Instantly process new leads",
-        "Enrich lead data (company info, LinkedIn)",
-        "Score lead quality (1-100)",
-        "Route hot leads to sales immediately",
-        "Add cold leads to nurture sequence"
-      ]
-    },
-    "resources": {
-      "agents": ["data-enricher", "lead-scorer"],
-      "mcp": [
-        { "id": "clearbit", "tools": ["enrich"] },
-        { "id": "crm", "tools": ["update", "assign"] },
-        { "id": "email", "tools": ["send"] }
-      ]
-    },
-    "delivery": {
+  "triggers": {
+    "clock": { "enabled": false },
+    "event": { "enabled": true }
+  },
+  "events": [
+    {
       "type": "webhook",
-      "opts": { "url": "https://slack.com/webhook/sales-leads" }
+      "source": "/webhook/leads",
+      "filter": { "event_types": ["lead.created"] }
+    },
+    {
+      "type": "database",
+      "source": "crm_leads",
+      "filter": { "trigger": "insert" }
     }
+  ],
+  "identity": {
+    "role": "Lead Qualification Specialist",
+    "duties": [
+      "Instantly process new leads",
+      "Enrich lead data (company info, LinkedIn)",
+      "Score lead quality (1-100)",
+      "Route hot leads to sales immediately",
+      "Add cold leads to nurture sequence"
+    ]
+  },
+  "resources": {
+    "agents": ["data-enricher", "lead-scorer"],
+    "mcp": [
+      { "id": "clearbit", "tools": ["enrich"] },
+      { "id": "crm", "tools": ["update", "assign"] },
+      { "id": "email", "tools": ["send"] }
+    ]
+  },
+  "delivery": {
+    "type": "webhook",
+    "opts": { "url": "https://slack.com/webhook/sales-leads" }
   }
 }
 ```
