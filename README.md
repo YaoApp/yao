@@ -14,6 +14,8 @@ Yao lets you create apps using AI, a visual interface, or by writing them yourse
 
 **✨ Why Yao?** [https://yaoapps.com/docs/why-yao](https://yaoapps.com/docs/documentation/en-us/getting-started/why-yao)
 
+**🤖 Yao Agents:** [https://github.com/YaoAgents/awesome](https://github.com/YaoAgents/awesome) ( Preview )
+
 ## Features
 
 Yao is effective in both human and machine programming, with each being independent, allowing for seamless switching between the two.
