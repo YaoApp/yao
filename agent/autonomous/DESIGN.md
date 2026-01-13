@@ -40,7 +40,7 @@ flowchart TB
     end
 
     subgraph Executor["Executor"]
-        P0["P0: Inspiration"]
+        P0["P0: Inspiration<br/>(Schedule only)"]
         P1["P1: Goals"]
         P2["P2: Tasks"]
         P3["P3: Run"]
@@ -54,14 +54,16 @@ flowchart TB
         Job[("Job")]
     end
 
-    WC & HI & EV --> TC
+    WC --> TC
+    HI & EV --> TC
     TC -->|Yes| Cache
     TC -->|No| X[/Skip/]
     Cache --> Dedup
     Dedup -->|OK| Queue
     Dedup -->|Dup| Cache
     Queue --> W1 & W2 & W3
-    W1 & W2 & W3 --> P0
+    W1 --> P0
+    W2 & W3 -.->|Human/Event| P1
     P0 --> P1 --> P2 --> P3 --> P4 --> P5
     P5 --> KB & DB & Job
     KB -.->|History| P0
@@ -134,7 +136,12 @@ sequenceDiagram
 
     W->>E: Run
 
-    loop P0 to P5
+    alt Schedule trigger
+        E->>A: P0: Inspiration
+        A-->>E: Report
+    end
+
+    loop P1 to P5
         E->>A: Call agent
         A-->>E: Result
     end
@@ -210,19 +217,22 @@ type AgentCache struct {
 ### 4.1 Overview
 
 ```
-P0: Inspiration → P1: Goals → P2: Tasks → P3: Run → P4: Deliver → P5: Learn
+Schedule:     P0 → P1 → P2 → P3 → P4 → P5
+Human/Event:       P1 → P2 → P3 → P4 → P5
 ```
 
-| Phase | Agent       | In               | Out             |
-| ----- | ----------- | ---------------- | --------------- |
-| P0    | Inspiration | Data, news, time | Report          |
-| P1    | Goal Gen    | Report + history | Goals           |
-| P2    | Task Plan   | Goals + tools    | Tasks           |
-| P3    | Validator   | Results          | Checked results |
-| P4    | Delivery    | All results      | Email/File      |
-| P5    | Learning    | Summary          | KB entries      |
+| Phase | Agent       | In               | Out             | When          |
+| ----- | ----------- | ---------------- | --------------- | ------------- |
+| P0    | Inspiration | Data, news, time | Report          | Schedule only |
+| P1    | Goal Gen    | Report + history | Goals           | Always        |
+| P2    | Task Plan   | Goals + tools    | Tasks           | Always        |
+| P3    | Validator   | Results          | Checked results | Always        |
+| P4    | Delivery    | All results      | Email/File      | Always        |
+| P5    | Learning    | Summary          | KB entries      | Always        |
 
-### 4.2 P0: Inspiration
+### 4.2 P0: Inspiration (Schedule only)
+
+**Skipped for Human/Event triggers.** They already have clear intent.
 
 Gathers info to help make good goals:
 
@@ -245,7 +255,9 @@ type InspirationReport struct {
 
 ### 4.3 P1: Goals
 
-Uses inspiration to make goals:
+**For Schedule:** Uses inspiration report to make goals.
+
+**For Human/Event:** Uses the input directly as goals (or to generate goals).
 
 ```
 Prompt:
@@ -382,10 +394,10 @@ type Learn struct {
 
 // Resources
 type Resources struct {
-    P0     string   `json:"p0"` // Inspiration
-    P1     string   `json:"p1"` // Goal Gen
-    P2     string   `json:"p2"` // Task Plan
-    P3     string   `json:"p3"` // Validator
+    P0     string   `json:"p0"` // Inspiration (Schedule only)
+    P1     string   `json:"p1"` // Goals
+    P2     string   `json:"p2"` // Tasks
+    P3     string   `json:"p3"` // Validation
     P4     string   `json:"p4"` // Delivery
     P5     string   `json:"p5"` // Learning
     Agents []string `json:"agents"`
@@ -458,9 +470,9 @@ type Action struct {
     "shared_kb": { "refs": ["sales-policies", "products"] },
     "resources": {
       "p0": "__yao.inspiration",
-      "p1": "__yao.goal-gen",
-      "p2": "__yao.task-plan",
-      "p3": "__yao.validator",
+      "p1": "__yao.goals",
+      "p2": "__yao.tasks",
+      "p3": "__yao.validation",
       "p4": "__yao.delivery",
       "p5": "__yao.learning",
       "agents": ["data-analyst", "chart-gen"],
@@ -478,27 +490,16 @@ type Action struct {
 
 ## 6. Lifecycle
 
-### 6.1 States
+### 6.1 Agent States
 
+```mermaid
+stateDiagram-v2
+    [*] --> Active: POST create
+    Active --> Paused: PATCH pause
+    Paused --> Active: PATCH resume
+    Active --> [*]: DELETE
+    Paused --> [*]: DELETE
 ```
-┌─────────┐  POST create   ┌─────────┐
-│  None   │ ─────────────▶ │ Active  │◀─────┐
-└─────────┘                └────┬────┘      │
-                                │           │
-                    PATCH pause │    PATCH resume
-                                ▼           │
-                           ┌─────────┐      │
-                           │ Paused  │──────┘
-                           └────┬────┘
-                                │
-                         DELETE │
-                                ▼
-                           ┌─────────┐
-                           │ Deleted │
-                           └─────────┘
-```
-
-### 6.2 Transitions
 
 | From   | To      | How                   |
 | ------ | ------- | --------------------- |
@@ -507,7 +508,7 @@ type Action struct {
 | paused | active  | PATCH status="active" |
 | any    | deleted | DELETE                |
 
-### 6.3 On Create
+### 6.2 On Create
 
 1. Check config
 2. Make agent_id if missing
@@ -516,24 +517,54 @@ type Action struct {
 5. Create Job
 6. Set active
 
-### 6.4 Running
-
-```
-┌──────────┐     ┌──────────┐     ┌──────────┐     ┌──────────┐
-│   Idle   │────▶│ Triggered│────▶│ Running  │────▶│ Learning │
-│          │◀────│          │     │ (P0-P4)  │     │  (P5)    │
-└──────────┘     └──────────┘     └──────────┘     └────┬─────┘
-      ▲                                                  │
-      └──────────────────────────────────────────────────┘
-```
-
-### 6.5 On Delete
+### 6.3 On Delete
 
 1. Stop running jobs
 2. Remove from cache
 3. Delete Job
 4. Delete or archive KB
 5. Soft delete record
+
+### 6.4 Execution Flow
+
+Single execution flow, depends on trigger type:
+
+```mermaid
+flowchart LR
+    subgraph Trigger
+        T{Trigger}
+    end
+
+    subgraph Schedule Path
+        P0[P0: Inspiration]
+    end
+
+    subgraph Common Path
+        P1[P1: Goals]
+        P2[P2: Tasks]
+        P3[P3: Run]
+        P4[P4: Deliver]
+        P5[P5: Learn]
+    end
+
+    T -->|Schedule| P0
+    T -->|Human/Event| P1
+    P0 --> P1
+    P1 --> P2 --> P3 --> P4 --> P5
+```
+
+```mermaid
+stateDiagram-v2
+    [*] --> Triggered
+    Triggered --> P0_Inspiration: Schedule
+    Triggered --> P1_Goals: Human/Event
+    P0_Inspiration --> P1_Goals
+    P1_Goals --> P2_Tasks
+    P2_Tasks --> P3_Run
+    P3_Run --> P4_Deliver
+    P4_Deliver --> P5_Learn
+    P5_Learn --> [*]
+```
 
 ---
 
@@ -637,7 +668,7 @@ type State struct {
     StartTime time.Time
     EndTime   *time.Time
     Status    Status // pending | running | completed | failed
-    Phase     Phase  // inspiration | goal_gen | task_plan | run | deliver | learn
+    Phase     Phase  // inspiration (schedule only) | goal_gen | task_plan | run | deliver | learn
     Goals     []Goal
     Tasks     []Task
     Error     string
@@ -693,10 +724,10 @@ triggers:
 
 ```yaml
 resources:
-  p0: "__yao.inspiration"
-  p1: "__yao.goal-gen"
-  p2: "__yao.task-plan"
-  p3: "__yao.validator"
+  p0: "__yao.inspiration" # Schedule only
+  p1: "__yao.goals"
+  p2: "__yao.tasks"
+  p3: "__yao.validation"
   p4: "__yao.delivery"
   p5: "__yao.learning"
 ```
