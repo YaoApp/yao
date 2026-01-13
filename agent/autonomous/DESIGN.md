@@ -681,16 +681,23 @@ Each agent = 1 Job. Each run = 1 Execution.
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**APIs:**
+**Go APIs (yao/job package):**
 
-| Action   | API                                          |
-| -------- | -------------------------------------------- |
-| List     | `GET /api/jobs?category_id=autonomous_robot` |
-| History  | `GET /api/jobs/:job_id/executions`           |
-| Progress | `GET /api/jobs/:job_id/executions/:id`       |
-| Logs     | `GET /api/jobs/:job_id/executions/:id/logs`  |
-| Cancel   | `POST /api/jobs/:job_id/stop`                |
-| Trigger  | `POST /api/jobs/:job_id/trigger`             |
+| Action       | API                                                      |
+| ------------ | -------------------------------------------------------- |
+| List Jobs    | `job.ListJobs(param, page, pagesize)`                    |
+| Get Job      | `job.GetJob(jobID, param)`                               |
+| Save Job     | `job.SaveJob(j)`                                         |
+| List Execs   | `job.ListExecutions(param, page, pagesize)`              |
+| Get Exec     | `job.GetExecution(execID, param)`                        |
+| Save Exec    | `job.SaveExecution(exec)`                                |
+| List Logs    | `job.ListLogs(param, page, pagesize)`                    |
+| Save Log     | `job.SaveLog(log)`                                       |
+| Push (start) | `j.Push()`                                               |
+| Stop         | `j.Stop()`                                               |
+| Destroy      | `j.Destroy()`                                            |
+| Active Jobs  | `job.GetActiveJobs()`                                    |
+| Query by Cat | `job.ListJobs({Wheres: [{Column: "category_id", ...}]})` |
 
 ### 7.2 Private KB
 
@@ -808,40 +815,71 @@ type RobotState struct {
 }
 ```
 
-### 8.4 Execution (Uses Job System)
+### 8.3 Execution (Uses Job System)
 
 No separate `autonomous_executions` table. Uses existing Job system:
 
 ```go
-// On robot member create
-job.Create(Job{
-    ID:         "robot_" + memberID,
-    CategoryID: "autonomous_robot",
-    Name:       member.DisplayName,
-    Handler:    "autonomous.Execute",
-    Args:       map[string]interface{}{"member_id": memberID},
+// On robot member create - use Once/Cron/Daemon based on clock mode
+j, _ := job.Once(job.GOROUTINE, map[string]interface{}{
+    "job_id":      "robot_" + memberID,
+    "category_id": "autonomous_robot",
+    "name":        member.DisplayName,
 })
+job.SaveJob(j)
 
-// On trigger (clock/human/event)
-job.Push(jobID, ExecutionArgs{
-    TriggerType: TriggerClock, // or TriggerHuman, TriggerEvent
-    TriggerData: data,
-})
+// Add execution with config
+exec := &job.Execution{
+    ExecutionID:     gonanoid.Must(),
+    JobID:           j.JobID,
+    Status:          "queued",
+    TriggerCategory: string(TriggerClock), // or TriggerHuman, TriggerEvent
+    ExecutionConfig: &job.ExecutionConfig{
+        Type:        job.ExecutionTypeProcess,
+        ProcessName: "autonomous.Execute",
+        ProcessArgs: []interface{}{memberID, triggerData},
+    },
+}
+job.SaveExecution(exec)
+
+// Start execution
+j.Push()
 
 // Query history
-executions := job.GetExecutions(jobID, limit)
-logs := job.GetLogs(executionID)
+param := model.QueryParam{
+    Wheres: []model.QueryWhere{{Column: "job_id", Value: j.JobID}},
+}
+execs, _ := job.ListExecutions(param, 1, 10)
 ```
 
-**Job APIs for monitoring:**
+**Query examples:**
 
-| Action  | API                                         |
-| ------- | ------------------------------------------- |
-| List    | `GET /api/jobs?category=autonomous_robot`   |
-| Status  | `GET /api/jobs/:job_id`                     |
-| History | `GET /api/jobs/:job_id/executions`          |
-| Logs    | `GET /api/jobs/:job_id/executions/:id/logs` |
-| Cancel  | `POST /api/jobs/:job_id/cancel`             |
+```go
+// List robot jobs
+param := model.QueryParam{
+    Wheres: []model.QueryWhere{
+        {Column: "category_id", Value: "autonomous_robot"},
+    },
+}
+jobs, _ := job.ListJobs(param, 1, 20)
+
+// Get executions for a robot
+execParam := model.QueryParam{
+    Wheres: []model.QueryWhere{
+        {Column: "job_id", Value: "robot_" + memberID},
+    },
+    Orders: []model.QueryOrder{{Column: "created_at", Option: "desc"}},
+}
+execs, _ := job.ListExecutions(execParam, 1, 10)
+
+// Get logs for an execution
+logParam := model.QueryParam{
+    Wheres: []model.QueryWhere{
+        {Column: "execution_id", Value: execID},
+    },
+}
+logs, _ := job.ListLogs(logParam, 1, 100)
+```
 
 ---
 
