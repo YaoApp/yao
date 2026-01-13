@@ -397,14 +397,23 @@ const (
     DeliveryNotify  DeliveryType = "notify"
 )
 
-// Status - execution status enum
-type Status string
+// ExecStatus - execution status enum
+type ExecStatus string
 
 const (
-    StatusPending   Status = "pending"
-    StatusRunning   Status = "running"
-    StatusCompleted Status = "completed"
-    StatusFailed    Status = "failed"
+    ExecPending   ExecStatus = "pending"
+    ExecRunning   ExecStatus = "running"
+    ExecCompleted ExecStatus = "completed"
+    ExecFailed    ExecStatus = "failed"
+)
+
+// AgentState - agent operational state enum
+type AgentState string
+
+const (
+    AgentActive  AgentState = "active"  // ready to run
+    AgentPaused  AgentState = "paused"  // manually paused
+    AgentRunning AgentState = "running" // currently executing
 )
 
 // Triggers - all on by default
@@ -766,13 +775,13 @@ type EventRequest struct {
 }
 
 type ExecutionResult struct {
-    ExecutionID string // Job execution ID
-    Status      Status
+    ExecutionID string     // Job execution ID
+    Status      ExecStatus // pending | running | completed | failed
 }
 
 type AgentStatus struct {
     AgentID   string
-    Status    string // active | paused | running
+    State     AgentState // active | paused | running
     LastRun   time.Time
     NextRun   time.Time
     RunningID string // current execution ID if running
