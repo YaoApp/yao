@@ -385,7 +385,7 @@ type Clock struct {
 // Clock modes:
 // - times:    Run at specific times (e.g., 9am, 2pm, 5pm)
 // - interval: Run every X duration (e.g., every 30 minutes)
-// - daemon:   Run continuously (e.g., monitoring, data sync)
+// - daemon:   Run continuously (e.g., research analyst, market monitor)
 
 // Identity
 type Identity struct {
@@ -760,11 +760,11 @@ clock:
   every: 30m  # run every 30 minutes
   timeout: 10m
 
-# Mode 3: Daemon (continuous monitoring/sync)
+# Mode 3: Daemon (continuous thinking/analysis)
 clock:
   mode: daemon  # restart immediately after each run
-  timeout: 5m   # max time per run
-  # Use case: Data sync agent, system monitor agent
+  timeout: 10m  # max time per run
+  # Use case: Research analyst, market monitor
 ```
 
 ### Phase Agents
@@ -800,7 +800,7 @@ Each example shows a different trigger mode:
 | 11.2    | Clock   | interval  | Competitor Monitor - check every 2 hours     |
 | 11.3    | Clock   | daemon    | Research Analyst - continuous insight mining |
 | 11.4    | Human   | intervene | Sales Assistant - manager assigns tasks      |
-| 11.5    | Event   | event     | Expense Processor - process new submissions  |
+| 11.5    | Event   | webhook   | Lead Processor - qualify and route new leads |
 
 ---
 
@@ -855,27 +855,32 @@ Each example shows a different trigger mode:
 P0 Inspiration:
   Clock: Monday 06:00, start of week
   Data:
-    - Keyword "AI应用开发" trending (+45% this week)
+    - Keyword "AI app development" trending (+45% this week)
     - Our article ranks #8, competitor #2
     - 3 articles need GEO optimization
   World: New AI regulation announced last Friday
 
 P1 Goals:
-  1. Write new article targeting "AI应用开发"
+  1. Write new article targeting "AI app development"
   2. Optimize 3 old articles for GEO
   3. Update meta descriptions for top 5 pages
 
 P2 Tasks:
-  1. Research "AI应用开发" keywords → keyword-researcher
+  1. Research "AI app development" keywords → keyword-researcher
   2. Write article with SEO structure → content-writer
   3. Add FAQ schema for GEO → seo-optimizer
   4. Publish to CMS → cms.publish
 
+P3 Execute:
+  - Keywords: "AI app development", "build AI apps", "AI dev guide" (12 total)
+  - Article: 2500 words, 8 sections, FAQ schema added
+  - Published to CMS, indexed by Google
+
 P4 Delivery:
-  → Notify: "Published: 'AI应用开发完整指南' - targeting 12 keywords"
+  → Notify: "Published: 'Complete Guide to AI App Development' - targeting 12 keywords"
 
 P5 Learn:
-  - "AI应用开发" articles perform well on Monday morning
+  - "AI app development" articles perform well on Monday morning
   - FAQ schema improves GEO visibility by 30%
 ```
 
@@ -1144,6 +1149,7 @@ Agent Continues:
   P2: Search CRM for manufacturing wins
   P3: Found 3 cases: Auto parts factory, Electronics plant, Food processing
   P4: Email: "3 manufacturing case studies attached"
+  P5: Learn: Manufacturing prospects often need QC case studies
 ```
 
 ---
