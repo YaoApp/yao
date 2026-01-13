@@ -920,17 +920,44 @@ func (r *ExecutionRequest) CalculatePriority(config *ManagerConfig, agentConfig 
 
 ## Execution Flow
 
+### Trigger Sources Configuration
+
+Trigger sources can be configured per AI member. All triggers are **enabled by default**.
+
+| Trigger Type | Config Field                 | Description                            | Default |
+| ------------ | ---------------------------- | -------------------------------------- | ------- |
+| Schedule     | `triggers.schedule.enabled`  | World Clock trigger (cron/interval)    | `true`  |
+| Intervene    | `triggers.intervene.enabled` | Human intervention trigger             | `true`  |
+| Event        | `triggers.event.enabled`     | External event trigger (webhook, etc.) | `true`  |
+
+**Configuration Example:**
+
+```yaml
+agent_config:
+  triggers:
+    schedule: { enabled: true }
+    intervene: { enabled: true, actions: ["add_task", "pause"] }
+    event: { enabled: false }
+
+  schedule:
+    type: cron
+    expr: "0 9 * * 1-5"
+    tz: Asia/Shanghai
+    timeout: 30m
+```
+
 ### Execution Flow Diagram (Mermaid)
 
 ```mermaid
 flowchart TB
-    subgraph Trigger["Trigger Sources"]
-        WC[/"World Clock<br/>(Schedule)"/]
-        HI[/"Human Intervention<br/>(Intervene)"/]
-        EV[/"External Events<br/>(Event)"/]
+    subgraph Trigger["Trigger Sources (Configurable)"]
+        WC[/"World Clock<br/>(Schedule)<br/>triggers.schedule"/]
+        HI[/"Human Intervention<br/>(Intervene)<br/>triggers.intervene"/]
+        EV[/"External Events<br/>(Event)<br/>triggers.event"/]
     end
 
     subgraph Manager["Autonomous Agent Manager"]
+        TriggerCheck{"Trigger<br/>Enabled?"}
         Cache[("Agent Cache<br/>(Memory)")]
         Check{Schedule Check<br/>& Dedup}
         Queue["Global Queue<br/>(Priority Sorted)"]
@@ -990,10 +1017,12 @@ flowchart TB
         Job[("Job System<br/>(Activity Monitor)")]
     end
 
-    %% Trigger to Manager
-    WC --> Cache
-    HI --> Cache
-    EV --> Cache
+    %% Trigger to Manager (with trigger enabled check)
+    WC --> TriggerCheck
+    HI --> TriggerCheck
+    EV --> TriggerCheck
+    TriggerCheck -->|Enabled| Cache
+    TriggerCheck -->|Disabled| X[/"Ignored"/]
     Cache --> Check
     Check -->|Pass| Queue
     Check -->|Duplicate/Skip| Cache
@@ -1206,97 +1235,92 @@ Each Autonomous Agent executes the following standard flow when scheduling condi
 ### Agent Configuration (stored in team_members.agent_config)
 
 ```go
-// AgentConfig AI member configuration (stored in team_members.agent_config JSON field)
-type AgentConfig struct {
-    // Scheduling configuration
-    Schedule *Schedule `json:"schedule"`
-
-    // Identity settings
-    Identity *Identity `json:"identity"`
-
-    // Concurrency quota
-    Concurrency *ConcurrencyConfig `json:"concurrency"`
-
-    // Private knowledge base (Agent exclusive, for self-learning)
-    PrivateKB *PrivateKB `json:"private_kb"`
-
-    // Shared knowledge base (optional, team-shared knowledge)
-    SharedKB *SharedKB `json:"shared_kb,omitempty"`
-
-    // Available resources
-    Resources *Resources `json:"resources"`
-
-    // Delivery configuration
-    Delivery *Delivery `json:"delivery"`
+// Config AI member configuration (stored in team_members.agent_config JSON field)
+type Config struct {
+    Triggers  *Triggers  `json:"triggers,omitempty"`  // Trigger sources (all enabled by default)
+    Schedule  *Schedule  `json:"schedule,omitempty"`  // Schedule config (for cron/interval)
+    Identity  *Identity  `json:"identity"`            // Role & responsibilities
+    Quota     *Quota     `json:"quota"`               // Concurrency quota
+    PrivateKB *KB        `json:"private_kb"`          // Private knowledge base
+    SharedKB  *KB        `json:"shared_kb,omitempty"` // Shared knowledge base
+    Resources *Resources `json:"resources"`           // Available assistants & tools
+    Delivery  *Delivery  `json:"delivery"`            // Output delivery config
 }
 
-// ConcurrencyConfig concurrency quota configuration
-type ConcurrencyConfig struct {
-    MaxConcurrent int `json:"max_concurrent"` // Max concurrent executions for this member (default: 2)
-    QueueSize     int `json:"queue_size"`     // Queue size (default: 10)
-    Priority      int `json:"priority"`       // Scheduling priority (1-10, default: 5)
+// Triggers trigger sources configuration (all enabled by default)
+type Triggers struct {
+    Schedule  *Trigger `json:"schedule,omitempty"`  // World Clock
+    Intervene *Trigger `json:"intervene,omitempty"` // Human Intervention
+    Event     *Trigger `json:"event,omitempty"`     // External Events
 }
 
-// Schedule scheduling configuration
+// Trigger single trigger configuration
+type Trigger struct {
+    Enabled bool     `json:"enabled"`          // default: true
+    Actions []string `json:"actions,omitempty"` // Allowed actions (for intervene only)
+}
+
+// Quota concurrency quota
+type Quota struct {
+    Max      int `json:"max"`      // Max concurrent (default: 2)
+    Queue    int `json:"queue"`    // Queue size (default: 10)
+    Priority int `json:"priority"` // Priority 1-10 (default: 5)
+}
+
+// Schedule timing configuration
 type Schedule struct {
-    Type             string `json:"type"`               // cron | interval
-    Expression       string `json:"expression"`         // cron: "0 9 * * 1-5" or interval: "1h"
-    Timezone         string `json:"timezone"`           // Timezone
-    MaxExecutionTime string `json:"max_execution_time"` // Max execution time
+    Type    string `json:"type"`    // cron | interval
+    Expr    string `json:"expr"`    // "0 9 * * 1-5" or "1h"
+    TZ      string `json:"tz"`      // Timezone
+    Timeout string `json:"timeout"` // Max execution time
 }
 
-// Identity identity settings
+// Identity role settings
 type Identity struct {
-    Role             string   `json:"role"`             // Role name
-    Responsibilities []string `json:"responsibilities"` // Responsibility list
-    Constraints      []string `json:"constraints"`      // Constraints
+    Role  string   `json:"role"`  // Role name
+    Duties []string `json:"duties"` // Responsibilities
+    Rules []string `json:"rules"` // Constraints
 }
 
-// PrivateKB Agent private knowledge base (auto-created, for self-learning)
-type PrivateKB struct {
-    CollectionID string `json:"collection_id"` // KB collection ID (auto-generated: agent_{agent_id}_kb)
-
-    // Learning configuration
-    Learning *LearningConfig `json:"learning,omitempty"`
+// KB knowledge base configuration
+type KB struct {
+    ID       string   `json:"id,omitempty"`   // Collection ID (auto-gen for private)
+    Refs     []string `json:"refs,omitempty"` // Referenced collections (for shared)
+    Learning *Learn   `json:"learn,omitempty"` // Learning config (for private)
 }
 
-// LearningConfig learning configuration
-type LearningConfig struct {
-    Enabled       bool     `json:"enabled"`        // Enable self-learning
-    Categories    []string `json:"categories"`     // Learning categories: ["execution", "feedback", "insight"]
-    RetentionDays int      `json:"retention_days"` // Knowledge retention days, 0 means permanent
+// Learn self-learning configuration
+type Learn struct {
+    On     bool     `json:"on"`     // Enable learning
+    Types  []string `json:"types"`  // ["execution", "feedback", "insight"]
+    Keep   int      `json:"keep"`   // Retention days, 0 = forever
 }
 
-// SharedKB shared knowledge base (optional, references team or global knowledge)
-type SharedKB struct {
-    Collections []string `json:"collections"` // Referenced KB collection list
-}
-
-// Resources available resources
+// Resources available assistants & tools
 type Resources struct {
-    // Phase assistants (built-in or custom)
-    Inspiration   string `json:"inspiration"`    // Inspiration Agent (Phase 0)
-    GoalGenerator string `json:"goal_generator"` // Goal generation assistant (Phase 1)
-    TaskPlanner   string `json:"task_planner"`   // Task planning assistant (Phase 2)
-    Validator     string `json:"validator"`      // Result validation assistant (Phase 3)
-    Delivery      string `json:"delivery"`       // Delivery assistant (Phase 4)
-    Learning      string `json:"learning"`       // Learning assistant (Phase 5)
+    // Phase agents (P0-P5)
+    P0 string `json:"p0"` // Inspiration
+    P1 string `json:"p1"` // Goal Generator
+    P2 string `json:"p2"` // Task Planner
+    P3 string `json:"p3"` // Validator
+    P4 string `json:"p4"` // Delivery
+    P5 string `json:"p5"` // Learning
 
     // Execution resources
-    Assistants []string           `json:"assistants"` // Callable assistant list
-    MCP        []MCPServerConfig  `json:"mcp"`        // Callable MCP services
+    Agents []string `json:"agents"` // Callable assistants
+    MCP    []MCP    `json:"mcp"`    // MCP services
 }
 
-// MCPServerConfig MCP service configuration
-type MCPServerConfig struct {
-    ServerID string   `json:"server_id"`
-    Tools    []string `json:"tools"` // Available tools list, empty means all
+// MCP server configuration
+type MCP struct {
+    ID    string   `json:"id"`
+    Tools []string `json:"tools,omitempty"` // empty = all
 }
 
-// Delivery delivery configuration
+// Delivery output configuration
 type Delivery struct {
-    Type   string                 `json:"type"`   // email | file | webhook | notification
-    Config map[string]interface{} `json:"config"` // Type-specific configuration
+    Type string                 `json:"type"` // email | file | webhook | notify
+    Opts map[string]interface{} `json:"opts"` // Type-specific options
 }
 ```
 
@@ -1626,46 +1650,46 @@ POST /api/teams/:team_id/members
     "agent_id": "sales-bot",
     "role_id": "analyst",
     "agent_config": {
+        "triggers": {
+            "schedule": { "enabled": true },
+            "intervene": { "enabled": true },
+            "event": { "enabled": false }
+        },
         "schedule": {
             "type": "cron",
-            "expression": "0 9 * * 1-5",
-            "timezone": "Asia/Shanghai",
-            "max_execution_time": "30m"
+            "expr": "0 9 * * 1-5",
+            "tz": "Asia/Shanghai",
+            "timeout": "30m"
         },
         "identity": {
             "role": "Sales Analyst",
-            "responsibilities": ["Analyze sales data", "Generate weekly reports"],
-            "constraints": ["Only access sales-related data"]
+            "duties": ["Analyze sales data", "Generate weekly reports"],
+            "rules": ["Only access sales-related data"]
         },
-        "concurrency": {
-            "max_concurrent": 2,
-            "queue_size": 10,
+        "quota": {
+            "max": 2,
+            "queue": 10,
             "priority": 5
         },
         "private_kb": {
-            "learning": {
-                "enabled": true,
-                "categories": ["execution", "feedback", "insight"],
-                "retention_days": 90
-            }
+            "learn": { "on": true, "types": ["execution", "feedback", "insight"], "keep": 90 }
         },
         "shared_kb": {
-            "collections": ["sales-policies", "product-catalog"]
+            "refs": ["sales-policies", "product-catalog"]
         },
         "resources": {
-            "goal_generator": "__yao.goal-generator",
-            "task_planner": "__yao.task-planner",
-            "validator": "__yao.validator",
-            "delivery": "__yao.report-generator",
-            "learning": "__yao.learning",
-            "assistants": ["data-analyst", "chart-generator"],
-            "mcp": [
-                {"server_id": "database", "tools": ["query"]}
-            ]
+            "p0": "__yao.inspiration",
+            "p1": "__yao.goal-gen",
+            "p2": "__yao.task-plan",
+            "p3": "__yao.validator",
+            "p4": "__yao.delivery",
+            "p5": "__yao.learning",
+            "agents": ["data-analyst", "chart-gen"],
+            "mcp": [{ "id": "database", "tools": ["query"] }]
         },
         "delivery": {
             "type": "email",
-            "config": {"recipients": ["manager@company.com"]}
+            "opts": { "to": ["manager@company.com"] }
         }
     }
 }
@@ -2204,61 +2228,56 @@ agent_config:
     priority: 5 # Execution priority (affects queue sorting)
 ```
 
-## Complete AgentConfig Structure
+## Complete Config Structure
 
 ```go
-// AgentConfig AI member complete configuration
-type AgentConfig struct {
-    // Scheduling configuration
-    Schedule *Schedule `json:"schedule"`
-
-    // Identity settings
-    Identity *Identity `json:"identity"`
-
-    // Concurrency quota
-    Concurrency *ConcurrencyConfig `json:"concurrency"`
-
-    // Private knowledge base
-    PrivateKB *PrivateKB `json:"private_kb"`
-
-    // Shared knowledge base
-    SharedKB *SharedKB `json:"shared_kb,omitempty"`
-
-    // Available resources
-    Resources *Resources `json:"resources"`
-
-    // Delivery configuration
-    Delivery *Delivery `json:"delivery"`
-
-    // Input configuration (isolation, strategies)
-    Input *InputConfig `json:"input,omitempty"`
-
-    // Event source configuration
-    EventSources []EventSource `json:"event_sources,omitempty"`
-
-    // Monitoring configuration
-    Monitoring *MonitoringConfig `json:"monitoring,omitempty"`
+// Config AI member complete configuration
+type Config struct {
+    Triggers  *Triggers  `json:"triggers,omitempty"`  // Trigger sources (all enabled by default)
+    Schedule  *Schedule  `json:"schedule,omitempty"`  // Timing config
+    Identity  *Identity  `json:"identity"`            // Role & duties
+    Quota     *Quota     `json:"quota"`               // Concurrency quota
+    PrivateKB *KB        `json:"private_kb"`          // Private KB
+    SharedKB  *KB        `json:"shared_kb,omitempty"` // Shared KB refs
+    Resources *Resources `json:"resources"`           // Agents & tools
+    Delivery  *Delivery  `json:"delivery"`            // Output config
+    Input     *Input     `json:"input,omitempty"`     // Input isolation
+    Events    []Event    `json:"events,omitempty"`    // Event sources
+    Monitor   *Monitor   `json:"monitor,omitempty"`   // Monitoring
 }
 
-// MonitoringConfig monitoring configuration
-type MonitoringConfig struct {
-    Enabled bool        `json:"enabled"`
-    Alerts  []AlertRule `json:"alerts,omitempty"`
+// Triggers trigger sources (all enabled by default)
+type Triggers struct {
+    Schedule  *Trigger `json:"schedule,omitempty"`
+    Intervene *Trigger `json:"intervene,omitempty"`
+    Event     *Trigger `json:"event,omitempty"`
 }
 
-// AlertRule alert rule definition
-type AlertRule struct {
-    Name        string                 `json:"name"`        // Rule name
-    Condition   string                 `json:"condition"`   // Trigger condition: "execution_failed" | "timeout" | "error_rate_high"
-    Threshold   float64                `json:"threshold"`   // Threshold value (e.g., error rate > 0.1)
-    Window      string                 `json:"window"`      // Time window (e.g., "1h", "24h")
-    Actions     []AlertAction          `json:"actions"`     // Actions to take when triggered
-    Cooldown    string                 `json:"cooldown"`    // Cooldown period between alerts
+// Trigger single trigger config
+type Trigger struct {
+    Enabled bool     `json:"enabled"`
+    Actions []string `json:"actions,omitempty"` // For intervene only
 }
 
-// AlertAction alert action
-type AlertAction struct {
-    Type   string                 `json:"type"`   // "email" | "webhook" | "notification"
-    Config map[string]interface{} `json:"config"` // Action-specific configuration
+// Monitor monitoring config
+type Monitor struct {
+    On     bool    `json:"on"`
+    Alerts []Alert `json:"alerts,omitempty"`
+}
+
+// Alert rule definition
+type Alert struct {
+    Name     string   `json:"name"`     // Rule name
+    When     string   `json:"when"`     // failed | timeout | error_rate
+    Value    float64  `json:"value"`    // Threshold
+    Window   string   `json:"window"`   // 1h | 24h
+    Do       []Action `json:"do"`       // Actions
+    Cooldown string   `json:"cooldown"` // Cooldown period
+}
+
+// Action alert action
+type Action struct {
+    Type string                 `json:"type"` // email | webhook | notify
+    Opts map[string]interface{} `json:"opts"`
 }
 ```
