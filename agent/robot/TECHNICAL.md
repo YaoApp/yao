@@ -25,8 +25,7 @@ yao/agent/robot/
 │   └── errors.go             # Error definitions
 │
 ├── manager/                  # Manager package (orchestration)
-│   ├── manager.go            # Manager struct, Start/Stop, ticker loop
-│   └── lifecycle.go          # OnRobotCreate/Delete/Update
+│   └── manager.go            # Manager struct, Start/Stop, Tick
 │
 ├── pool/                     # Worker pool & task dispatch
 │   ├── pool.go               # Pool struct, Submit
@@ -859,12 +858,12 @@ type Config struct {
     Clock     *Clock     `json:"clock,omitempty"`
     Identity  *Identity  `json:"identity"`
     Quota     *Quota     `json:"quota,omitempty"`
-    PrivateKB *KBConfig  `json:"private_kb,omitempty"`
-    SharedKB  *KBConfig  `json:"shared_kb,omitempty"`
+    KB        *KB        `json:"kb,omitempty"`        // shared knowledge base (same as assistant)
+    DB        *DB        `json:"db,omitempty"`        // shared database (same as assistant)
+    Learn     *Learn     `json:"learn,omitempty"`     // learning config for private KB
     Resources *Resources `json:"resources,omitempty"`
     Delivery  *Delivery  `json:"delivery,omitempty"`
     Events    []Event    `json:"events,omitempty"`
-    Monitor   *Monitor   `json:"monitor,omitempty"`
 }
 
 // Validate validates the config
@@ -999,13 +998,22 @@ func (q *Quota) GetPriority() int {
     return q.Priority
 }
 
-// KBConfig - knowledge base config
-type KBConfig struct {
-    ID    string   `json:"id,omitempty"`
-    Refs  []string `json:"refs,omitempty"`
-    Learn *Learn   `json:"learn,omitempty"`
+// KB - knowledge base config (same as assistant, from store/types)
+// Shared KB collections accessible by this robot
+type KB struct {
+    Collections []string               `json:"collections,omitempty"` // KB collection IDs
+    Options     map[string]interface{} `json:"options,omitempty"`
 }
 
+// DB - database config (same as assistant, from store/types)
+// Shared database models accessible by this robot
+type DB struct {
+    Models  []string               `json:"models,omitempty"` // database model names
+    Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// Learn - learning config for robot's private KB
+// Private KB is auto-created: robot_{team_id}_{member_id}_kb
 type Learn struct {
     On    bool     `json:"on"`
     Types []string `json:"types,omitempty"` // execution, feedback, insight
@@ -1048,24 +1056,6 @@ type Event struct {
 }
 
 // Monitor - monitoring config
-type Monitor struct {
-    On     bool    `json:"on"`
-    Alerts []Alert `json:"alerts,omitempty"`
-}
-
-type Alert struct {
-    Name     string   `json:"name"`
-    When     string   `json:"when"`  // failed | timeout | error_rate
-    Value    float64  `json:"value,omitempty"`
-    Window   string   `json:"window,omitempty"` // 1h | 24h
-    Do       []Action `json:"do"`
-    Cooldown string   `json:"cooldown,omitempty"`
-}
-
-type Action struct {
-    Type string                 `json:"type"` // email | webhook | notify
-    Opts map[string]interface{} `json:"opts,omitempty"`
-}
 ```
 
 ### 2.3 Core Types
@@ -1468,171 +1458,79 @@ import (
     "time"
 )
 
-// Manager - manages all robots
+// ==================== Internal Interfaces ====================
+// These are internal implementation interfaces, not exposed via API.
+// External API is defined in api/api.go
+
+// Manager - robot lifecycle and clock trigger management
 type Manager interface {
-    // Lifecycle
+    // Start/Stop the manager (clock ticker, workers)
     Start() error
     Stop() error
 
-    // Cache operations
-    LoadActiveRobots(ctx context.Context) error
-    GetRobot(teamID, memberID string) *Robot
-    ListRobots(teamID string) []*Robot
-    RefreshRobot(teamID, memberID string) error
-
-    // Clock trigger (called by internal ticker)
+    // Tick - called by internal clock ticker
     Tick(ctx context.Context, now time.Time) error
-
-    // Robot lifecycle (called when member created/deleted)
-    OnRobotCreate(ctx context.Context, teamID, memberID string) error
-    OnRobotDelete(ctx context.Context, teamID, memberID string) error
-    OnRobotUpdate(ctx context.Context, teamID, memberID string) error
 }
-```
-
-### 3.2 Trigger Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-import "context"
-
-// Trigger - called by openapi layer
-type Trigger interface {
-    // Human intervention
-    Intervene(ctx context.Context, req *InterveneRequest) (*ExecutionResult, error)
-
-    // Event trigger
-    HandleEvent(ctx context.Context, req *EventRequest) (*ExecutionResult, error)
-
-    // Query & control
-    GetStatus(ctx context.Context, teamID, memberID string) (*RobotState, error)
-    Pause(ctx context.Context, teamID, memberID string) error
-    Resume(ctx context.Context, teamID, memberID string) error
-    Cancel(ctx context.Context, teamID, memberID, executionID string) error
-}
-```
-
-### 3.3 Executor Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-import "context"
 
 // Executor - executes robot phases
 type Executor interface {
-    // Execute runs all phases for a trigger
-    Execute(ctx context.Context, robot *Robot, triggerType TriggerType, triggerData interface{}) (*Execution, error)
-
-    // Individual phase execution (for testing/debugging)
-    RunPhase(ctx context.Context, exec *Execution, phase Phase) error
+    // Execute runs all phases for a trigger, returns Execution
+    Execute(ctx context.Context, robot *Robot, trigger TriggerType, data interface{}) (*Execution, error)
 }
-```
 
-### 3.4 Phase Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-// PhaseExecutor - phase executor interface
-type PhaseExecutor interface {
-    // Name returns phase name
-    Name() Phase
-
-    // Execute runs the phase
-    Execute(ctx context.Context, exec *Execution) error
-}
-```
-
-### 3.5 Cache Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-import "context"
-
-// Cache - robot cache interface
-type Cache interface {
-    // Load all active robots
-    LoadAll(ctx context.Context) error
-
-    // Get robot by ID
-    Get(teamID, memberID string) *Robot
-
-    // List robots by team
-    List(teamID string) []*Robot
-
-    // Add/Update/Remove
-    Add(robot *Robot)
-    Update(robot *Robot)
-    Remove(teamID, memberID string)
-
-    // Stats
-    Count() int
-    CountByTeam(teamID string) int
-}
-```
-
-### 3.6 Scheduler Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-import "context"
-
-// Scheduler - worker pool and queue
-type Scheduler interface {
-    // Start/Stop
+// Pool - worker pool for concurrent execution
+type Pool interface {
+    // Start/Stop the pool
     Start() error
     Stop() error
 
-    // Submit execution
-    Submit(ctx context.Context, robot *Robot, triggerType TriggerType, triggerData interface{}) error
+    // Submit execution request to pool
+    Submit(robot *Robot, trigger TriggerType, data interface{}) (string, error) // returns execID
 
-    // Queue status
-    QueueSize() int
-    WorkerCount() int
-    ActiveCount() int
+    // Stats
+    Running() int  // current running count
+    Queued() int   // current queue size
 }
 
-// SchedulerConfig - scheduler configuration
-type SchedulerConfig struct {
-    Workers    int // global worker count (default: 10)
-    QueueSize  int // global queue size (default: 1000)
-    MaxPerTeam int // max concurrent per team (default: 20)
+// Cache - in-memory robot cache
+type Cache interface {
+    // Load all active robots from DB
+    Load(ctx context.Context) error
+
+    // Get robot by member ID
+    Get(memberID string) *Robot
+
+    // List all cached robots (optionally by team)
+    List(teamID string) []*Robot
+
+    // Refresh single robot from DB
+    Refresh(memberID string) error
+
+    // Add/Remove (called on member create/delete)
+    Add(robot *Robot)
+    Remove(memberID string)
 }
-```
 
-### 3.7 Dedup Interface
-
-```go
-// types/interfaces.go (continued)
-package types
-
-import (
-    "context"
-    "time"
-)
-
-// Dedup - deduplication service
+// Dedup - deduplication check
 type Dedup interface {
-    // CheckExecution - fast check for duplicate execution
-    CheckExecution(ctx context.Context, memberID string, triggerType TriggerType) (DedupResult, error)
+    // Check if execution should proceed
+    Check(ctx context.Context, memberID string, trigger TriggerType) (DedupResult, error)
 
-    // CheckGoal - semantic check for duplicate goal
-    CheckGoal(ctx context.Context, memberID string, goal *Goal) (DedupResult, error)
+    // Mark as executed (for time-window dedup)
+    Mark(memberID string, trigger TriggerType, window time.Duration)
+}
 
-    // CheckTask - semantic check for duplicate task
-    CheckTask(ctx context.Context, memberID string, task *Task) (DedupResult, error)
+// Store - data storage operations (KB, DB)
+type Store interface {
+    // Private KB operations
+    SaveLearning(ctx context.Context, memberID string, entries []LearningEntry) error
+    GetHistory(ctx context.Context, memberID string, limit int) ([]LearningEntry, error)
 
-    // MarkExecuted - mark execution as done
-    MarkExecuted(ctx context.Context, memberID string, triggerType TriggerType, window time.Duration)
+    // Shared KB query
+    SearchKB(ctx context.Context, collections []string, query string) ([]interface{}, error)
+
+    // Shared DB query
+    QueryDB(ctx context.Context, models []string, query interface{}) ([]interface{}, error)
 }
 ```
 

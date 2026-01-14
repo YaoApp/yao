@@ -346,13 +346,12 @@ type Config struct {
     Clock     *Clock     `json:"clock,omitempty"`
     Identity  *Identity  `json:"identity"`
     Quota     *Quota     `json:"quota"`
-    PrivateKB *KB        `json:"private_kb"`
-    SharedKB  *KB        `json:"shared_kb,omitempty"`
+    KB        *KB        `json:"kb,omitempty"`        // shared KB (same as assistant)
+    DB        *DB        `json:"db,omitempty"`        // shared DB (same as assistant)
+    Learn     *Learn     `json:"learn,omitempty"`     // learning for private KB
     Resources *Resources `json:"resources"`
     Delivery  *Delivery  `json:"delivery"`
-    Input     *Input     `json:"input,omitempty"`
     Events    []Event    `json:"events,omitempty"`
-    Monitor   *Monitor   `json:"monitor,omitempty"`
 }
 ```
 
@@ -454,12 +453,20 @@ type Quota struct {
 }
 
 // KB
+// KB - shared knowledge base (same as assistant)
 type KB struct {
-    ID    string   `json:"id,omitempty"`
-    Refs  []string `json:"refs,omitempty"`
-    Learn *Learn   `json:"learn,omitempty"`
+    Collections []string               `json:"collections,omitempty"` // KB collection IDs
+    Options     map[string]interface{} `json:"options,omitempty"`
 }
 
+// DB - shared database (same as assistant)
+type DB struct {
+    Models  []string               `json:"models,omitempty"` // database model names
+    Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// Learn - learning config for robot's private KB
+// Private KB auto-created: robot_{team_id}_{member_id}_kb
 type Learn struct {
     On    bool     `json:"on"`
     Types []string `json:"types"` // execution, feedback, insight
@@ -485,24 +492,6 @@ type Delivery struct {
 }
 
 // Monitor
-type Monitor struct {
-    On     bool    `json:"on"`
-    Alerts []Alert `json:"alerts,omitempty"`
-}
-
-type Alert struct {
-    Name     string   `json:"name"`
-    When     string   `json:"when"`  // failed | timeout | error_rate
-    Value    float64  `json:"value"`
-    Window   string   `json:"window"` // 1h | 24h
-    Do       []Action `json:"do"`
-    Cooldown string   `json:"cooldown"`
-}
-
-type Action struct {
-    Type string                 `json:"type"` // email | webhook | notify
-    Opts map[string]interface{} `json:"opts"`
-}
 ```
 
 ### 5.3 Example
@@ -537,14 +526,13 @@ Example record in `__yao.member` table:
       "rules": ["Only access sales data"]
     },
     "quota": { "max": 2, "queue": 10, "priority": 5 },
-    "private_kb": {
-      "learn": {
-        "on": true,
-        "types": ["execution", "feedback", "insight"],
-        "keep": 90
-      }
+    "kb": { "collections": ["sales-policies", "products"] },
+    "db": { "models": ["sales", "customers"] },
+    "learn": {
+      "on": true,
+      "types": ["execution", "feedback", "insight"],
+      "keep": 90
     },
-    "shared_kb": { "refs": ["sales-policies", "products"] },
     "resources": {
       "phases": {
         "inspiration": "__yao.inspiration",
