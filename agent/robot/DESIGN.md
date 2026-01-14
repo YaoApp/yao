@@ -663,7 +663,9 @@ stateDiagram-v2
 
 ### 7.1 Job System
 
-Each agent = 1 Job. Each run = 1 Execution.
+**Relationship:** 1 Robot : N Executions (concurrent), 1 Execution = 1 job.Job
+
+Each trigger creates a new Execution, mapped to a `job.Job` for monitoring.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -807,55 +809,65 @@ type ExecutionResult struct {
 }
 
 type RobotState struct {
-    MemberID  string      // member_id from __yao.member
-    Status    RobotStatus // idle | working | paused | error | maintenance
-    LastRun   time.Time
-    NextRun   time.Time
-    RunningID string // current execution ID if working
+    MemberID   string      // member_id from __yao.member
+    Status     RobotStatus // idle | working | paused | error | maintenance
+    LastRun    time.Time
+    NextRun    time.Time
+    Running    int         // current running execution count
+    MaxRunning int         // max concurrent executions (from Quota.Max)
+    RunningIDs []string    // list of running execution IDs
 }
 ```
 
 ### 8.3 Execution (Uses Job System)
 
-No separate `autonomous_executions` table. Uses existing Job system:
+No separate `autonomous_executions` table. Uses existing Job system.
+
+**Each trigger creates a new job.Job:**
 
 ```go
-// On robot member create - use Once/Cron/Daemon based on clock mode
+// On each trigger (clock/human/event), create a new Job
+execID := gonanoid.Must()
 j, _ := job.Once(job.GOROUTINE, map[string]interface{}{
-    "job_id":      "robot_" + memberID,
+    "job_id":      "robot_exec_" + execID,       // unique per execution
     "category_id": "autonomous_robot",
-    "name":        member.DisplayName,
+    "name":        fmt.Sprintf("%s - %s", member.DisplayName, triggerType),
+    "metadata": map[string]interface{}{
+        "member_id":    memberID,
+        "team_id":      teamID,
+        "trigger_type": triggerType,
+        "exec_id":      execID,
+    },
 })
 job.SaveJob(j)
 
-// Add execution with config
-exec := &job.Execution{
-    ExecutionID:     gonanoid.Must(),
-    JobID:           j.JobID,
-    Status:          "queued",
-    TriggerCategory: string(TriggerClock), // or TriggerHuman, TriggerEvent
-    ExecutionConfig: &job.ExecutionConfig{
-        Type:        job.ExecutionTypeProcess,
-        ProcessName: "robot.Execute",
-        ProcessArgs: []interface{}{memberID, triggerData},
-    },
+// Configure and start
+j.ExecutionConfig = &job.ExecutionConfig{
+    Type:        job.ExecutionTypeProcess,
+    ProcessName: "robot.Execute",
+    ProcessArgs: []interface{}{memberID, execID, triggerData},
 }
-job.SaveExecution(exec)
-
-// Start execution
 j.Push()
+```
 
-// Query history
+**Query executions for a robot:**
+
+```go
+// List all executions for a robot member
 param := model.QueryParam{
-    Wheres: []model.QueryWhere{{Column: "job_id", Value: j.JobID}},
+    Wheres: []model.QueryWhere{
+        {Column: "category_id", Value: "autonomous_robot"},
+        {Column: "metadata->member_id", Value: memberID},
+    },
+    Orders: []model.QueryOrder{{Column: "created_at", Option: "desc"}},
 }
-execs, _ := job.ListExecutions(param, 1, 10)
+jobs, _ := job.ListJobs(param, 1, 10)
 ```
 
 **Query examples:**
 
 ```go
-// List robot jobs
+// List all robot jobs (all robots, all executions)
 param := model.QueryParam{
     Wheres: []model.QueryWhere{
         {Column: "category_id", Value: "autonomous_robot"},

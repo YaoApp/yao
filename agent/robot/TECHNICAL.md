@@ -12,7 +12,7 @@ yao/agent/robot/
 ├── api/                      # All API forms
 │   ├── api.go                # Go API (facade)
 │   ├── process.go            # Yao Process: robot.*
-│   └── jsapi.go              # JS API: $robot.*
+│   └── jsapi.go              # JS API: robot (global) + Robot (class)
 │
 ├── types/                    # Types only (no logic, no external deps)
 │   ├── enums.go              # Phase, ClockMode, TriggerType, etc.
@@ -246,12 +246,12 @@ type RobotState struct {
     MemberID    string     `json:"member_id"`
     TeamID      string     `json:"team_id"`
     DisplayName string     `json:"display_name"`
-    Status      string     `json:"status"`                 // idle | working | paused | error
-    Running     int        `json:"running"`                // current running count
-    MaxRunning  int        `json:"max_running"`            // max concurrent allowed
+    Status      string     `json:"status"`                  // idle | working | paused | error
+    Running     int        `json:"running"`                 // current running execution count
+    MaxRunning  int        `json:"max_running"`             // max concurrent allowed (from Quota.Max)
     LastRun     *time.Time `json:"last_run,omitempty"`
     NextRun     *time.Time `json:"next_run,omitempty"`
-    CurrentExec string     `json:"current_exec,omitempty"` // current execution ID
+    RunningIDs  []string   `json:"running_ids,omitempty"`   // list of running execution IDs
 }
 
 // ==================== Trigger Types ====================
@@ -437,21 +437,32 @@ func RobotNew(ctx *v8go.Context, memberID string) (*v8go.Value, error) {
 }
 ```
 
-**Static methods (Robot.List, Robot.Create):**
+**Global object `robot` (static methods):**
 
 ```go
-// Register static methods on Robot constructor
-func RegisterStaticMethods(iso *v8go.Isolate, robotFn *v8go.FunctionTemplate) {
-    robotFn.Set("List", v8go.NewFunctionTemplate(iso, jsListRobots))
-    robotFn.Set("Create", v8go.NewFunctionTemplate(iso, jsCreateRobot))
-    robotFn.Set("Get", v8go.NewFunctionTemplate(iso, jsGetRobot))
-    robotFn.Set("Execution", v8go.NewFunctionTemplate(iso, jsGetExecution))
+func init() {
+    // Register global robot object (lowercase, for static methods)
+    v8.RegisterObject("robot", ExportObject)
+}
+
+// ExportObject exports the robot global object
+func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
+    obj := v8go.NewObjectTemplate(iso)
+    obj.Set("List", v8go.NewFunctionTemplate(iso, jsList))
+    obj.Set("Get", v8go.NewFunctionTemplate(iso, jsGet))
+    obj.Set("Create", v8go.NewFunctionTemplate(iso, jsCreate))
+    obj.Set("Update", v8go.NewFunctionTemplate(iso, jsUpdate))
+    obj.Set("Remove", v8go.NewFunctionTemplate(iso, jsRemove))
+    obj.Set("Execution", v8go.NewFunctionTemplate(iso, jsExecution))
+    return obj
 }
 ```
 
 **TypeScript Interface:**
 
 ```typescript
+// ==================== Types ====================
+
 interface RobotData {
   member_id: string;
   team_id: string;
@@ -462,12 +473,14 @@ interface RobotData {
 
 interface RobotState {
   member_id: string;
-  status: string;
-  running: number;
-  max_running: number;
+  team_id: string;
+  display_name: string;
+  status: string; // idle | working | paused | error
+  running: number; // current running execution count
+  max_running: number; // max concurrent allowed
   last_run?: string;
   next_run?: string;
-  current_exec?: string;
+  running_ids?: string[]; // list of running execution IDs
 }
 
 interface TriggerResult {
@@ -536,9 +549,28 @@ interface UpdateRequest {
   robot_config?: RobotConfig;
 }
 
-// Robot instance (created via new Robot(memberID))
+// ==================== Global object: robot ====================
+// Static methods, no instance needed
+
+interface RobotStatic {
+  List(query?: ListQuery): ListResult;
+  Get(memberID: string): RobotData;
+  Create(teamID: string, data: CreateRequest): RobotData;
+  Update(memberID: string, data: UpdateRequest): RobotData;
+  Remove(memberID: string): void;
+  Execution(execID: string): Execution;
+}
+
+declare const robot: RobotStatic;
+
+// ==================== Constructor: Robot ====================
+// Instance methods, operate on specific robot
+
 declare class Robot {
   constructor(memberID: string);
+
+  // Properties
+  readonly memberID: string;
 
   // Instance methods
   Status(): RobotState;
@@ -548,69 +580,71 @@ declare class Robot {
   Pause(execID: string): void;
   Resume(execID: string): void;
   Stop(execID: string): void;
-
-  // Static methods
-  static List(query?: ListQuery): ListResult;
-  static Create(teamID: string, data: CreateRequest): RobotData;
-  static Get(memberID: string): RobotData;
-  static Execution(execID: string): Execution;
 }
 ```
 
 **Usage:**
 
 ```javascript
-// Create robot instance
-const robot = new Robot("mem_abc123");
+// ==================== Global object: robot ====================
+// For CRUD and queries (no instance needed)
+
+const list = robot.List({ team_id: "team_xyz", status: "idle" });
+const data = robot.Get("mem_abc123");
+const newRobot = robot.Create("team_xyz", {
+  display_name: "Sales Bot",
+  robot_config: { ... }
+});
+robot.Update("mem_abc123", { display_name: "Updated Bot" });
+robot.Remove("mem_abc123");
+const exec = robot.Execution("exec_456");
+
+// ==================== Constructor: Robot ====================
+// For operating on a specific robot instance
+
+const bot = new Robot("mem_abc123");
 
 // Instance methods
-const state = robot.Status();
+const state = bot.Status();
 if (state.status === "idle") {
-  // Trigger with human intervention
-  const result = robot.Trigger({
+  const result = bot.Trigger({
     type: "human",
     action: "task.add",
     description: "Analyze sales data",
-    insert_at: "first", // urgent task, insert at beginning
+    insert_at: "first",
   });
   console.log("Triggered:", result.accepted);
 }
 
-// Get execution history
-const execs = robot.Executions({ status: "completed", page: 1 });
+// Get execution history for this robot
+const execs = bot.Executions({ status: "completed", page: 1 });
 
 // Control execution
-robot.Pause("exec_123");
-robot.Resume("exec_123");
-robot.Stop("exec_123");
+bot.Pause("exec_123");
+bot.Resume("exec_123");
+bot.Stop("exec_123");
 
-// Static methods
-const list = Robot.List({ team_id: "team_xyz", status: "idle" });
-const data = Robot.Get("mem_abc123");
-const newRobot = Robot.Create("team_xyz", {
-  display_name: "Sales Bot",
-  robot_config: { ... }
-});
-const exec = Robot.Execution("exec_456");
+// Update status
+bot.UpdateStatus("paused");
 ```
 
 **Usage in Agent Hooks:**
 
 ```javascript
 function Create(ctx, messages) {
-  const robot = new Robot("mem_abc123");
-  const state = robot.Status();
+  const bot = new Robot("mem_abc123");
+  const state = bot.Status();
 
   if (state.status === "working") {
     ctx.Send({ type: "text", props: { content: "Robot is busy" } });
     return null;
   }
 
-  const result = robot.Trigger({
+  const result = bot.Trigger({
     type: "human",
     action: "task.add",
     description: "Analyze this data",
-    insert_at: "first", // urgent: insert at beginning
+    insert_at: "first",
   });
 
   if (result.accepted) {
@@ -623,7 +657,7 @@ function Create(ctx, messages) {
 function Next(ctx, payload) {
   const execID = ctx.memory.context.Get("robot_exec_id");
   if (execID) {
-    const exec = Robot.Execution(execID);
+    const exec = robot.Execution(execID); // use global object
     if (exec.status === "completed") {
       ctx.Send({
         type: "text",
@@ -1046,7 +1080,9 @@ import (
     "time"
 )
 
-// Robot - runtime representation of an autonomous robot
+// Robot - runtime representation of an autonomous robot (from __yao.member)
+// Relationship: 1 Robot : N Executions (concurrent)
+// Each trigger creates a new Execution (mapped to job.Job)
 type Robot struct {
     // From __yao.member
     MemberID       string      `json:"member_id"`
@@ -1056,49 +1092,76 @@ type Robot struct {
     Status         RobotStatus `json:"robot_status"`
     AutonomousMode bool        `json:"autonomous_mode"`
 
-    // Parsed config
+    // Parsed config (from robot_config JSON field)
     Config *Config `json:"-"`
 
-    // Runtime state (job.Job stored as interface{} to avoid import cycle)
-    Job           interface{} `json:"-"` // *job.Job, set by manager
-    JobID         string      `json:"-"` // job_id for quick access
-    LastExecution time.Time   `json:"-"`
-    NextExecution time.Time   `json:"-"`
+    // Runtime state
+    LastRun   time.Time `json:"-"` // last execution start time
+    NextRun   time.Time `json:"-"` // next scheduled execution (for clock trigger)
 
     // Concurrency control
-    running   int
-    runningMu sync.Mutex
+    // Each Robot can run multiple Executions concurrently (up to Quota.Max)
+    executions map[string]*Execution // execID -> Execution
+    execMu     sync.RWMutex
 }
 
 // CanRun checks if robot can accept new execution
 func (r *Robot) CanRun() bool {
-    r.runningMu.Lock()
-    defer r.runningMu.Unlock()
-    return r.running < r.Config.Quota.GetMax()
+    r.execMu.RLock()
+    defer r.execMu.RUnlock()
+    return len(r.executions) < r.Config.Quota.GetMax()
 }
 
-// IncrRunning increments running count
-func (r *Robot) IncrRunning() {
-    r.runningMu.Lock()
-    defer r.runningMu.Unlock()
-    r.running++
+// RunningCount returns current running execution count
+func (r *Robot) RunningCount() int {
+    r.execMu.RLock()
+    defer r.execMu.RUnlock()
+    return len(r.executions)
 }
 
-// DecrRunning decrements running count
-func (r *Robot) DecrRunning() {
-    r.runningMu.Lock()
-    defer r.runningMu.Unlock()
-    if r.running > 0 {
-        r.running--
+// AddExecution adds an execution to tracking
+func (r *Robot) AddExecution(exec *Execution) {
+    r.execMu.Lock()
+    defer r.execMu.Unlock()
+    if r.executions == nil {
+        r.executions = make(map[string]*Execution)
     }
+    r.executions[exec.ID] = exec
 }
 
-// Execution - single execution context
+// RemoveExecution removes an execution from tracking
+func (r *Robot) RemoveExecution(execID string) {
+    r.execMu.Lock()
+    defer r.execMu.Unlock()
+    delete(r.executions, execID)
+}
+
+// GetExecution returns an execution by ID
+func (r *Robot) GetExecution(execID string) *Execution {
+    r.execMu.RLock()
+    defer r.execMu.RUnlock()
+    return r.executions[execID]
+}
+
+// GetExecutions returns all running executions
+func (r *Robot) GetExecutions() []*Execution {
+    r.execMu.RLock()
+    defer r.execMu.RUnlock()
+    execs := make([]*Execution, 0, len(r.executions))
+    for _, exec := range r.executions {
+        execs = append(execs, exec)
+    }
+    return execs
+}
+
+// Execution - single execution instance
+// Each trigger creates a new Execution, mapped to a job.Job for monitoring
+// Relationship: 1 Execution = 1 job.Job
 type Execution struct {
-    ID          string      `json:"id"`
-    MemberID    string      `json:"member_id"`
+    ID          string      `json:"id"`           // unique execution ID
+    MemberID    string      `json:"member_id"`    // robot member ID
     TeamID      string      `json:"team_id"`
-    TriggerType TriggerType `json:"trigger_type"`
+    TriggerType TriggerType `json:"trigger_type"` // clock | human | event
     TriggerData interface{} `json:"trigger_data,omitempty"`
     StartTime   time.Time   `json:"start_time"`
     EndTime     *time.Time  `json:"end_time,omitempty"`
@@ -1106,19 +1169,22 @@ type Execution struct {
     Phase       Phase       `json:"phase"`
     Error       string      `json:"error,omitempty"`
 
+    // Job integration (each Execution = 1 job.Job)
+    JobID string `json:"job_id"` // corresponding job.Job ID
+
     // Phase outputs
     Inspiration *InspirationReport `json:"inspiration,omitempty"`
-    Goals       []Goal             `json:"goals,omitempty"` // all goals
-    Tasks       []Task             `json:"tasks,omitempty"` // all tasks
+    Goals       []Goal             `json:"goals,omitempty"`   // all goals
+    Tasks       []Task             `json:"tasks,omitempty"`   // all tasks
     Current     *CurrentState      `json:"current,omitempty"` // current executing state
     Results     []TaskResult       `json:"results,omitempty"`
     Delivery    *DeliveryResult    `json:"delivery,omitempty"`
     Learning    []LearningEntry    `json:"learning,omitempty"`
 
-    // Context
-    ctx    context.Context
-    cancel context.CancelFunc
-    robot  *Robot
+    // Runtime (internal, not serialized)
+    ctx    context.Context    `json:"-"`
+    cancel context.CancelFunc `json:"-"`
+    robot  *Robot             `json:"-"`
 }
 
 // CurrentState - current executing goal and task
@@ -1377,10 +1443,11 @@ type RobotState struct {
     TeamID      string      `json:"team_id"`
     DisplayName string      `json:"display_name"`
     Status      RobotStatus `json:"status"`
+    Running     int         `json:"running"`               // current running execution count
+    MaxRunning  int         `json:"max_running"`           // max concurrent allowed
     LastRun     *time.Time  `json:"last_run,omitempty"`
     NextRun     *time.Time  `json:"next_run,omitempty"`
-    RunningID   string      `json:"running_id,omitempty"` // current execution ID
-    RunningCnt  int         `json:"running_cnt"`          // current running count
+    RunningIDs  []string    `json:"running_ids,omitempty"` // list of running execution IDs
 }
 ```
 
