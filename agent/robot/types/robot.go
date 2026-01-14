@@ -37,6 +37,9 @@ type Robot struct {
 func (r *Robot) CanRun() bool {
 	r.execMu.RLock()
 	defer r.execMu.RUnlock()
+	if r.Config == nil {
+		return len(r.executions) < 2 // default max
+	}
 	return len(r.executions) < r.Config.Quota.GetMax()
 }
 
@@ -86,8 +89,8 @@ func (r *Robot) GetExecutions() []*Execution {
 // Each trigger creates a new Execution, mapped to a job.Job for monitoring
 // Relationship: 1 Execution = 1 job.Job
 type Execution struct {
-	ID          string      `json:"id"`        // unique execution ID
-	MemberID    string      `json:"member_id"` // robot member ID
+	ID          string      `json:"id"`           // unique execution ID
+	MemberID    string      `json:"member_id"`    // robot member ID
 	TeamID      string      `json:"team_id"`
 	TriggerType TriggerType `json:"trigger_type"` // clock | human | event
 	StartTime   time.Time   `json:"start_time"`
@@ -145,11 +148,13 @@ type CurrentState struct {
 // Example:
 // ## Goals
 // 1. [High] Analyze sales data and identify trends
-//   - Reason: Sales up 50%, need to understand why
-//   - Reason: Friday 5pm, weekly report due
-//   - Reason: Friday 5pm, weekly report due
+//    - Reason: Sales up 50%, need to understand why
+// 2. [Normal] Prepare weekly report for manager
+//    - Reason: Friday 5pm, weekly report due
+// 3. [Low] Update CRM with new leads
+//    - Reason: 3 pending leads from yesterday
 type Goals struct {
-	// - Reason: 3 pending leads from yesterday
+	Content string `json:"content"` // markdown text
 }
 
 // Task - planned task (structured, for execution)
