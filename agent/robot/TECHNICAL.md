@@ -1181,7 +1181,6 @@ type Execution struct {
     MemberID    string      `json:"member_id"`    // robot member ID
     TeamID      string      `json:"team_id"`
     TriggerType TriggerType `json:"trigger_type"` // clock | human | event
-    TriggerData interface{} `json:"trigger_data,omitempty"`
     StartTime   time.Time   `json:"start_time"`
     EndTime     *time.Time  `json:"end_time,omitempty"`
     Status      ExecStatus  `json:"status"`
@@ -1190,6 +1189,9 @@ type Execution struct {
 
     // Job integration (each Execution = 1 job.Job)
     JobID string `json:"job_id"` // corresponding job.Job ID
+
+    // Trigger input (stored for traceability)
+    Input *TriggerInput `json:"input,omitempty"` // original trigger input
 
     // Phase outputs
     Inspiration *InspirationReport `json:"inspiration,omitempty"` // P0: markdown
@@ -1204,6 +1206,22 @@ type Execution struct {
     ctx    context.Context    `json:"-"`
     cancel context.CancelFunc `json:"-"`
     robot  *Robot             `json:"-"`
+}
+
+// TriggerInput - stored trigger input for traceability
+type TriggerInput struct {
+    // For human intervention
+    Action      InterventionAction `json:"action,omitempty"`      // task.add, goal.adjust, etc.
+    Description string             `json:"description,omitempty"` // user's original input
+    UserID      string             `json:"user_id,omitempty"`     // who triggered
+
+    // For event trigger
+    Source    EventSource            `json:"source,omitempty"`     // webhook | database
+    EventType string                 `json:"event_type,omitempty"` // lead.created, etc.
+    Data      map[string]interface{} `json:"data,omitempty"`       // event payload
+
+    // For clock trigger
+    Clock *ClockContext `json:"clock,omitempty"` // time context when triggered
 }
 
 // CurrentState - current executing goal and task
@@ -1228,19 +1246,22 @@ type Goals struct {
 }
 
 // Task - planned task (structured, for execution)
-// P2 Agent parses Goals markdown and generates these
 type Task struct {
-    ID           string       `json:"id"`
-    GoalRef      string       `json:"goal_ref"`     // reference to goal in markdown (e.g., "Goal 1")
-    Description  string       `json:"description"`
+    ID      string     `json:"id"`
+    Input   string     `json:"input"`             // natural language description
+    GoalRef string     `json:"goal_ref,omitempty"`// reference to goal (e.g., "Goal 1")
+    Source  TaskSource `json:"source"`            // auto | human | event
+
+    // Executor
     ExecutorType ExecutorType `json:"executor_type"`
     ExecutorID   string       `json:"executor_id"`
     Args         []any        `json:"args,omitempty"`
-    Status       TaskStatus   `json:"status"`
-    Order        int          `json:"order"`  // execution order (0-based, lower = first)
-    Source       TaskSource   `json:"source"` // how task was created
-    StartTime    *time.Time   `json:"start_time,omitempty"`
-    EndTime      *time.Time   `json:"end_time,omitempty"`
+
+    // Runtime
+    Status    TaskStatus `json:"status"`
+    Order     int        `json:"order"` // execution order (0-based)
+    StartTime *time.Time `json:"start_time,omitempty"`
+    EndTime   *time.Time `json:"end_time,omitempty"`
 }
 
 // TaskSource - how task was created

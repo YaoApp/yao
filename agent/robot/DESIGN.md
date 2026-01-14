@@ -299,8 +299,9 @@ P2 Agent reads Goals markdown and breaks into executable tasks:
 ```go
 type Task struct {
     ID           string       // unique task ID
-    GoalRef      string       // reference to goal in markdown (e.g., "Goal 1")
-    Description  string       // what to do
+    Input        string       // natural language description
+    GoalRef      string       // reference to goal (e.g., "Goal 1")
+    Source       TaskSource   // auto | human | event
     ExecutorType ExecutorType // assistant | mcp | process
     ExecutorID   string       // agent ID or mcp tool name
     Args         []any        // arguments for executor
