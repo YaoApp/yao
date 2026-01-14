@@ -1,18 +1,18 @@
-# Autonomous Agent - Technical Design
+# Robot Agent - Technical Design
 
 ## 1. Code Structure
 
 ```
-yao/agent/autonomous/
+yao/agent/robot/
 ├── DESIGN.md                 # Product design doc
 ├── TECHNICAL.md              # This file
 │
-├── autonomous.go             # Package entry, Init(), Shutdown()
+├── robot.go                  # Package entry, Init(), Shutdown()
 │
 ├── api/                      # All API forms
 │   ├── api.go                # Go API (facade)
-│   ├── process.go            # Yao Process: autonomous.*
-│   └── jsapi.go              # JS API for scripts
+│   ├── process.go            # Yao Process: robot.*
+│   └── jsapi.go              # JS API: $robot.*
 │
 ├── types/                    # Types only (no logic, no external deps)
 │   ├── enums.go              # Phase, ClockMode, TriggerType, etc.
@@ -119,7 +119,7 @@ yao/agent/autonomous/
        │                             │
        ▼                             ▼
 ┌─────────────┐              ┌─────────────┐
-│autonomous.go│              │    api/     │
+│  robot.go   │              │    api/     │
 └─────────────┘              └─────────────┘
 ```
 
@@ -143,69 +143,425 @@ yao/agent/autonomous/
 
 ### Public API (`api/`)
 
-三种 API 形态，统一放在 `api/` 目录下：
+Three API forms, all in `api/` directory.
 
 #### Go API (`api/api.go`)
 
 ```go
 package api
 
-// Robot Management
-func GetRobot(memberID string) (*types.Robot, error)
-func ListRobots(teamID string) ([]*types.Robot, error)
-func RefreshRobot(memberID string) error
+import (
+    "github.com/yaoapp/yao/agent/robot/types"
+)
 
-// Triggers
-func Intervene(req *types.InterveneRequest) (*types.ExecutionResult, error)
-func HandleEvent(req *types.EventRequest) (*types.ExecutionResult, error)
+// ==================== CRUD ====================
 
-// Control
-func GetStatus(memberID string) (*types.RobotState, error)
-func Pause(memberID string) error
-func Resume(memberID string) error
-func Cancel(memberID, executionID string) error
+// Get returns a robot by member ID
+func Get(ctx *types.Context, memberID string) (*types.Robot, error)
 
-// Query
-func GetExecution(executionID string) (*types.Execution, error)
-func ListExecutions(memberID string, limit int) ([]*types.Execution, error)
+// List returns robots with pagination and filtering
+func List(ctx *types.Context, query *ListQuery) (*ListResult, error)
+
+// Create creates a new robot member
+func Create(ctx *types.Context, teamID string, req *CreateRequest) (*types.Robot, error)
+
+// Update updates robot config
+func Update(ctx *types.Context, memberID string, req *UpdateRequest) (*types.Robot, error)
+
+// Remove deletes a robot member
+func Remove(ctx *types.Context, memberID string) error
+
+// ==================== Status ====================
+
+// Status returns current robot runtime state
+func Status(ctx *types.Context, memberID string) (*RobotState, error)
+
+// UpdateStatus updates robot status (idle, paused, etc.)
+func UpdateStatus(ctx *types.Context, memberID string, status types.RobotStatus) error
+
+// ==================== Trigger ====================
+
+// Trigger starts execution with specified trigger type and request
+func Trigger(ctx *types.Context, memberID string, req *TriggerRequest) (*TriggerResult, error)
+
+// ==================== Execution ====================
+
+// GetExecutions returns execution history
+func GetExecutions(ctx *types.Context, memberID string, query *ExecutionQuery) (*ExecutionResult, error)
+
+// GetExecution returns a specific execution by ID
+func GetExecution(ctx *types.Context, execID string) (*types.Execution, error)
+
+// Pause pauses a running execution
+func Pause(ctx *types.Context, execID string) error
+
+// Resume resumes a paused execution
+func Resume(ctx *types.Context, execID string) error
+
+// Stop stops a running execution
+func Stop(ctx *types.Context, execID string) error
+
 ```
 
-#### Yao Process (`api/process.go`)
+#### API Types
 
 ```go
-// autonomous.GetRobot(memberID) -> Robot
-// autonomous.ListRobots(teamID) -> []Robot
-// autonomous.Intervene(teamID, memberID, action, description, priority) -> ExecutionResult
-// autonomous.HandleEvent(memberID, source, eventType, data) -> ExecutionResult
-// autonomous.GetStatus(memberID) -> RobotState
-// autonomous.Pause(memberID) -> bool
-// autonomous.Resume(memberID) -> bool
-// autonomous.Cancel(memberID, executionID) -> bool
-// autonomous.GetExecution(executionID) -> Execution
-// autonomous.ListExecutions(memberID, limit) -> []Execution
+// ==================== CRUD Types ====================
+
+// CreateRequest - request for Create()
+type CreateRequest struct {
+    DisplayName  string        `json:"display_name"`
+    SystemPrompt string        `json:"system_prompt,omitempty"`
+    Config       *types.Config `json:"robot_config"`
+}
+
+// UpdateRequest - request for Update()
+type UpdateRequest struct {
+    DisplayName  *string       `json:"display_name,omitempty"`
+    SystemPrompt *string       `json:"system_prompt,omitempty"`
+    Config       *types.Config `json:"robot_config,omitempty"`
+}
+
+// ListQuery - query options for List()
+type ListQuery struct {
+    TeamID    string `json:"team_id,omitempty"`    // filter by team
+    Status    string `json:"status,omitempty"`     // idle | working | paused | error
+    Keywords  string `json:"keywords,omitempty"`   // search display_name, role
+    ClockMode string `json:"clock_mode,omitempty"` // times | interval | daemon
+    Page      int    `json:"page,omitempty"`       // default 1
+    PageSize  int    `json:"pagesize,omitempty"`   // default 20, max 100
+    Order     string `json:"order,omitempty"`      // e.g. "created_at desc"
+}
+
+// ListResult - result of List()
+type ListResult struct {
+    Data     []*types.Robot `json:"data"`
+    Total    int            `json:"total"`
+    Page     int            `json:"page"`
+    PageSize int            `json:"pagesize"`
+}
+
+// RobotState - runtime state from Status()
+type RobotState struct {
+    MemberID    string     `json:"member_id"`
+    TeamID      string     `json:"team_id"`
+    DisplayName string     `json:"display_name"`
+    Status      string     `json:"status"`                 // idle | working | paused | error
+    Running     int        `json:"running"`                // current running count
+    MaxRunning  int        `json:"max_running"`            // max concurrent allowed
+    LastRun     *time.Time `json:"last_run,omitempty"`
+    NextRun     *time.Time `json:"next_run,omitempty"`
+    CurrentExec string     `json:"current_exec,omitempty"` // current execution ID
+}
+
+// ==================== Trigger Types ====================
+
+// TriggerRequest - request for Trigger()
+type TriggerRequest struct {
+    Type types.TriggerType `json:"type"` // human | event
+
+    // Human intervention fields (when Type = human)
+    Action      types.InterventionAction `json:"action,omitempty"`      // add_task | adjust_goal | cancel_task | plan
+    Description string                   `json:"description,omitempty"` // task/goal description
+    Priority    types.Priority           `json:"priority,omitempty"`    // high | normal | low
+    PlanAt      *time.Time               `json:"plan_at,omitempty"`     // for action=plan
+
+    // Event fields (when Type = event)
+    Source    string                 `json:"source,omitempty"`     // webhook | database
+    EventType string                 `json:"event_type,omitempty"` // lead.created, order.paid, etc.
+    Data      map[string]interface{} `json:"data,omitempty"`       // event payload
+}
+
+// TriggerResult - result of Trigger()
+type TriggerResult struct {
+    Accepted  bool             `json:"accepted"`            // whether trigger was accepted
+    Queued    bool             `json:"queued"`              // true if queued (quota full)
+    Execution *types.Execution `json:"execution,omitempty"` // execution info if started
+    JobID     string           `json:"job_id,omitempty"`    // job ID for tracking
+    Message   string           `json:"message,omitempty"`   // status message
+}
+
+// ==================== Execution Types ====================
+
+// ExecutionQuery - query options for GetExecutions()
+type ExecutionQuery struct {
+    Status   string `json:"status,omitempty"`   // pending | running | completed | failed
+    Trigger  string `json:"trigger,omitempty"`  // clock | human | event
+    Page     int    `json:"page,omitempty"`     // default 1
+    PageSize int    `json:"pagesize,omitempty"` // default 20
+}
+
+// ExecutionResult - result of GetExecutions()
+type ExecutionResult struct {
+    Data     []*types.Execution `json:"data"`
+    Total    int                `json:"total"`
+    Page     int                `json:"page"`
+    PageSize int                `json:"pagesize"`
+}
 ```
 
-#### JS API (`api/jsapi.go`)
+#### Process API (`api/process.go`)
 
-```js
+Yao Process registration. Naming convention: `robot.<Action>`
+
+```go
+// Process registration
+func init() {
+    process.Register("robot.Get", processGet)
+    process.Register("robot.List", processList)
+    process.Register("robot.Create", processCreate)
+    process.Register("robot.Update", processUpdate)
+    process.Register("robot.Remove", processRemove)
+    process.Register("robot.Status", processStatus)
+    process.Register("robot.UpdateStatus", processUpdateStatus)
+    process.Register("robot.Trigger", processTrigger)
+    process.Register("robot.Executions", processExecutions)
+    process.Register("robot.Execution", processExecution)
+    process.Register("robot.Pause", processPause)
+    process.Register("robot.Resume", processResume)
+    process.Register("robot.Stop", processStop)
+}
+```
+
+| Process              | Args                                    | Returns           | Description        |
+| -------------------- | --------------------------------------- | ----------------- | ------------------ |
+| `robot.Get`          | `memberID`                              | `Robot`           | Get robot by ID    |
+| `robot.List`         | `query`                                 | `ListResult`      | List robots        |
+| `robot.Create`       | `teamID`, `data`                        | `Robot`           | Create robot       |
+| `robot.Update`       | `memberID`, `data`                      | `Robot`           | Update robot       |
+| `robot.Remove`       | `memberID`                              | `null`            | Delete robot       |
+| `robot.Status`       | `memberID`                              | `RobotState`      | Get runtime status |
+| `robot.UpdateStatus` | `memberID`, `status`                    | `null`            | Update status      |
+| `robot.Trigger`      | `memberID`, `type`, `action`, `payload` | `TriggerResult`   | Trigger execution  |
+| `robot.Executions`   | `memberID`, `query`                     | `ExecutionResult` | List executions    |
+| `robot.Execution`    | `execID`                                | `Execution`       | Get execution      |
+| `robot.Pause`        | `execID`                                | `null`            | Pause execution    |
+| `robot.Resume`       | `execID`                                | `null`            | Resume execution   |
+| `robot.Stop`         | `execID`                                | `null`            | Stop execution     |
+
+**Usage:**
+
+```javascript
 // In Yao scripts
-const robot = $autonomous.GetRobot("member_123");
-const result = $autonomous.Intervene({
-  member_id: "member_123",
-  action: "add_task",
-  description: "Prepare report",
+const robot = Process("robot.Get", "mem_abc123");
+
+const list = Process("robot.List", {
+  team_id: "team_xyz",
+  status: "idle",
+  page: 1,
+  pagesize: 20,
 });
-const status = $autonomous.GetStatus("member_123");
+
+const result = Process("robot.Trigger", "mem_abc123", "human", "task.add", {
+  description: "Prepare meeting materials for BigCorp",
+  priority: "high",
+});
+
+const execs = Process("robot.Executions", "mem_abc123", {
+  status: "completed",
+  page: 1,
+});
+```
+
+#### JSAPI (`api/jsapi.go`)
+
+Register to V8 Runtime using constructor pattern, similar to `new FS()`, `new Store()`, `new Query()`.
+
+```go
+func init() {
+    // Register Robot constructor
+    v8.RegisterFunction("Robot", ExportFunction)
+}
+
+// ExportFunction exports the Robot constructor
+func ExportFunction(iso *v8go.Isolate) *v8go.FunctionTemplate {
+    return v8go.NewFunctionTemplate(iso, robotConstructor)
+}
+
+// robotConstructor: new Robot(memberID)
+func robotConstructor(info *v8go.FunctionCallbackInfo) *v8go.Value {
+    ctx := info.Context()
+    args := info.Args()
+
+    if len(args) < 1 {
+        return bridge.JsException(ctx, "Robot requires member ID")
+    }
+
+    memberID := args[0].String()
+    robotObj, err := RobotNew(ctx, memberID)
+    if err != nil {
+        return bridge.JsException(ctx, err.Error())
+    }
+
+    return robotObj
+}
+
+// RobotNew creates a Robot JS object with methods
+func RobotNew(ctx *v8go.Context, memberID string) (*v8go.Value, error) {
+    iso := ctx.Isolate()
+    obj := v8go.NewObjectTemplate(iso)
+
+    // Instance methods (operate on this robot)
+    obj.Set("Status", v8go.NewFunctionTemplate(iso, jsStatus))
+    obj.Set("UpdateStatus", v8go.NewFunctionTemplate(iso, jsUpdateStatus))
+    obj.Set("Trigger", v8go.NewFunctionTemplate(iso, jsTrigger))
+    obj.Set("Executions", v8go.NewFunctionTemplate(iso, jsExecutions))
+    obj.Set("Pause", v8go.NewFunctionTemplate(iso, jsPause))
+    obj.Set("Resume", v8go.NewFunctionTemplate(iso, jsResume))
+    obj.Set("Stop", v8go.NewFunctionTemplate(iso, jsStop))
+
+    // ... create instance with memberID stored
+    return obj.NewInstance(ctx)
+}
+```
+
+**Static methods (Robot.List, Robot.Create):**
+
+```go
+// Register static methods on Robot constructor
+func RegisterStaticMethods(iso *v8go.Isolate, robotFn *v8go.FunctionTemplate) {
+    robotFn.Set("List", v8go.NewFunctionTemplate(iso, jsListRobots))
+    robotFn.Set("Create", v8go.NewFunctionTemplate(iso, jsCreateRobot))
+    robotFn.Set("Get", v8go.NewFunctionTemplate(iso, jsGetRobot))
+    robotFn.Set("Execution", v8go.NewFunctionTemplate(iso, jsGetExecution))
+}
+```
+
+**TypeScript Interface:**
+
+```typescript
+interface RobotData {
+  member_id: string;
+  team_id: string;
+  display_name: string;
+  robot_status: "idle" | "working" | "paused" | "error" | "maintenance";
+  robot_config: RobotConfig;
+}
+
+interface RobotState {
+  member_id: string;
+  status: string;
+  running: number;
+  max_running: number;
+  last_run?: string;
+  next_run?: string;
+  current_exec?: string;
+}
+
+interface TriggerResult {
+  accepted: boolean;
+  queued: boolean;
+  execution?: Execution;
+  job_id?: string;
+  message?: string;
+}
+
+// Robot instance (created via new Robot(memberID))
+declare class Robot {
+  constructor(memberID: string);
+
+  // Instance methods
+  Status(): RobotState;
+  UpdateStatus(status: string): void;
+  Trigger(request: TriggerRequest): TriggerResult;
+  Executions(query?: ExecutionQuery): ExecutionResult;
+  Pause(execID: string): void;
+  Resume(execID: string): void;
+  Stop(execID: string): void;
+
+  // Static methods
+  static List(query?: ListQuery): ListResult;
+  static Create(teamID: string, data: CreateRequest): RobotData;
+  static Get(memberID: string): RobotData;
+  static Execution(execID: string): Execution;
+}
+```
+
+**Usage:**
+
+```javascript
+// Create robot instance
+const robot = new Robot("mem_abc123");
+
+// Instance methods
+const state = robot.Status();
+if (state.status === "idle") {
+  const result = robot.Trigger({
+    type: "human",
+    action: "task.add",
+    description: "Analyze sales data",
+    priority: "high",
+  });
+  console.log("Triggered:", result.accepted);
+}
+
+// Get execution history
+const execs = robot.Executions({ status: "completed", page: 1 });
+
+// Control execution
+robot.Pause("exec_123");
+robot.Resume("exec_123");
+robot.Stop("exec_123");
+
+// Static methods
+const list = Robot.List({ team_id: "team_xyz", status: "idle" });
+const data = Robot.Get("mem_abc123");
+const newRobot = Robot.Create("team_xyz", {
+  display_name: "Sales Bot",
+  robot_config: { ... }
+});
+const exec = Robot.Execution("exec_456");
+```
+
+**Usage in Agent Hooks:**
+
+```javascript
+function Create(ctx, messages) {
+  const robot = new Robot("mem_abc123");
+  const state = robot.Status();
+
+  if (state.status === "working") {
+    ctx.Send({ type: "text", props: { content: "Robot is busy" } });
+    return null;
+  }
+
+  const result = robot.Trigger({
+    type: "human",
+    action: "task.add",
+    description: "Analyze this data",
+    priority: "high",
+  });
+
+  if (result.accepted) {
+    ctx.memory.context.Set("robot_exec_id", result.execution.id);
+  }
+
+  return { messages };
+}
+
+function Next(ctx, payload) {
+  const execID = ctx.memory.context.Get("robot_exec_id");
+  if (execID) {
+    const exec = Robot.Execution(execID);
+    if (exec.status === "completed") {
+      ctx.Send({
+        type: "text",
+        props: { content: `Robot completed: ${exec.delivery?.summary}` },
+      });
+    }
+  }
+  return null;
+}
 ```
 
 ---
 
 ## 2. Type Definitions
 
-> All types are in `autonomous/types/` package. Other files import as:
+> All types are in `robot/types/` package. Other files import as:
 >
 > ```go
-> import "github.com/yaoapp/yao/agent/autonomous/types"
+> import "github.com/yaoapp/yao/agent/robot/types"
 > ```
 
 ### 2.1 Enums
@@ -272,6 +628,40 @@ const (
     RobotMaintenance RobotStatus = "maintenance"
 )
 
+// InterventionAction - human intervention action
+// Format: category.action (e.g., "task.add", "goal.adjust")
+type InterventionAction string
+
+const (
+    // Task operations
+    ActionTaskAdd    InterventionAction = "task.add"    // add a new task
+    ActionTaskCancel InterventionAction = "task.cancel" // cancel a task
+    ActionTaskUpdate InterventionAction = "task.update" // update task details
+
+    // Goal operations
+    ActionGoalAdjust   InterventionAction = "goal.adjust"   // modify current goal
+    ActionGoalAdd      InterventionAction = "goal.add"      // add a new goal
+    ActionGoalComplete InterventionAction = "goal.complete" // mark goal as complete
+    ActionGoalCancel   InterventionAction = "goal.cancel"   // cancel a goal
+
+    // Plan operations (schedule for later)
+    ActionPlanAdd    InterventionAction = "plan.add"    // add to plan queue
+    ActionPlanRemove InterventionAction = "plan.remove" // remove from plan queue
+    ActionPlanUpdate InterventionAction = "plan.update" // update planned item
+
+    // Instruction (direct command)
+    ActionInstruct InterventionAction = "instruct" // direct instruction to robot
+)
+
+// Priority - task/goal priority
+type Priority string
+
+const (
+    PriorityHigh   Priority = "high"
+    PriorityNormal Priority = "normal"
+    PriorityLow    Priority = "low"
+)
+
 // DeliveryType - output delivery type
 type DeliveryType string
 
@@ -290,31 +680,57 @@ const (
     DedupMerge   DedupResult = "merge"   // merge with existing
     DedupProceed DedupResult = "proceed" // proceed normally
 )
-
-// InterventionAction - human intervention actions
-type InterventionAction string
-
-const (
-    ActionAddTask    InterventionAction = "add_task"
-    ActionAdjustGoal InterventionAction = "adjust_goal"
-    ActionCancelTask InterventionAction = "cancel_task"
-    ActionPause      InterventionAction = "pause"
-    ActionResume     InterventionAction = "resume"
-    ActionAbort      InterventionAction = "abort"
-    ActionPlan       InterventionAction = "plan"
-)
-
-// Priority levels
-type Priority string
-
-const (
-    PriorityHigh   Priority = "high"
-    PriorityNormal Priority = "normal"
-    PriorityLow    Priority = "low"
-)
 ```
 
-### 2.2 Config Types
+### 2.2 Context
+
+```go
+// types/context.go
+package types
+
+import (
+    "context"
+    "github.com/yaoapp/yao/openapi/oauth/types"
+)
+
+// Context - robot execution context (lightweight)
+type Context struct {
+    context.Context                          // embed standard context
+    Auth      *types.AuthorizedInfo          `json:"auth,omitempty"`       // reuse oauth AuthorizedInfo
+    MemberID  string                         `json:"member_id,omitempty"`  // current robot member ID
+    RequestID string                         `json:"request_id,omitempty"` // request trace ID
+    Locale    string                         `json:"locale,omitempty"`     // locale (e.g., "en-US")
+}
+
+// NewContext creates a new robot context
+func NewContext(parent context.Context, auth *types.AuthorizedInfo) *Context {
+    if parent == nil {
+        parent = context.Background()
+    }
+    return &Context{
+        Context: parent,
+        Auth:    auth,
+    }
+}
+
+// UserID returns user ID from auth
+func (c *Context) UserID() string {
+    if c.Auth == nil {
+        return ""
+    }
+    return c.Auth.UserID
+}
+
+// TeamID returns team ID from auth
+func (c *Context) TeamID() string {
+    if c.Auth == nil {
+        return ""
+    }
+    return c.Auth.TeamID
+}
+```
+
+### 2.3 Config Types
 
 ```go
 // types/config.go
@@ -611,8 +1027,9 @@ type Execution struct {
 
     // Phase outputs
     Inspiration *InspirationReport `json:"inspiration,omitempty"`
-    Goals       []Goal             `json:"goals,omitempty"`
-    Tasks       []Task             `json:"tasks,omitempty"`
+    Goals       []Goal             `json:"goals,omitempty"` // all goals
+    Tasks       []Task             `json:"tasks,omitempty"` // all tasks
+    Current     *CurrentState      `json:"current,omitempty"` // current executing state
     Results     []TaskResult       `json:"results,omitempty"`
     Delivery    *DeliveryResult    `json:"delivery,omitempty"`
     Learning    []LearningEntry    `json:"learning,omitempty"`
@@ -623,26 +1040,72 @@ type Execution struct {
     robot  *Robot
 }
 
+// CurrentState - current executing goal and task
+type CurrentState struct {
+    Goal      *Goal  `json:"goal,omitempty"`       // current goal being executed
+    GoalIndex int    `json:"goal_index"`           // index in Goals slice
+    Task      *Task  `json:"task,omitempty"`       // current task being executed
+    TaskIndex int    `json:"task_index"`           // index in Tasks slice
+    Progress  string `json:"progress,omitempty"`   // human-readable progress (e.g., "2/5 tasks")
+}
+
 // Goal - generated goal
 type Goal struct {
-    ID          string   `json:"id"`
-    Description string   `json:"description"`
-    Priority    Priority `json:"priority"`
-    Rationale   string   `json:"rationale,omitempty"`
-    Tags        []string `json:"tags,omitempty"`
+    ID          string     `json:"id"`
+    Description string     `json:"description"`
+    Priority    Priority   `json:"priority"`
+    Status      GoalStatus `json:"status"`
+    Rationale   string     `json:"rationale,omitempty"`
+    Tags        []string   `json:"tags,omitempty"`
+    StartTime   *time.Time `json:"start_time,omitempty"`
+    EndTime     *time.Time `json:"end_time,omitempty"`
 }
+
+// GoalStatus - goal execution status
+type GoalStatus string
+
+const (
+    GoalPending    GoalStatus = "pending"
+    GoalInProgress GoalStatus = "in_progress"
+    GoalCompleted  GoalStatus = "completed"
+    GoalFailed     GoalStatus = "failed"
+    GoalSkipped    GoalStatus = "skipped"
+)
 
 // Task - planned task
 type Task struct {
-    ID           string     `json:"id"`
-    GoalID       string     `json:"goal_id"`
-    Description  string     `json:"description"`
-    ExecutorType string     `json:"executor_type"` // "assistant" | "mcp"
-    ExecutorID   string     `json:"executor_id"`
-    Args         []any      `json:"args,omitempty"`
-    Status       ExecStatus `json:"status"`
-    Order        int        `json:"order"`
+    ID           string       `json:"id"`
+    GoalID       string       `json:"goal_id"`
+    Description  string       `json:"description"`
+    ExecutorType ExecutorType `json:"executor_type"`
+    ExecutorID   string       `json:"executor_id"`
+    Args         []any        `json:"args,omitempty"`
+    Status       TaskStatus   `json:"status"`
+    Order        int          `json:"order"`
+    StartTime    *time.Time   `json:"start_time,omitempty"`
+    EndTime      *time.Time   `json:"end_time,omitempty"`
 }
+
+// ExecutorType - task executor type
+type ExecutorType string
+
+const (
+    ExecutorAssistant ExecutorType = "assistant"
+    ExecutorMCP       ExecutorType = "mcp"
+    ExecutorProcess   ExecutorType = "process"
+)
+
+// TaskStatus - task execution status
+type TaskStatus string
+
+const (
+    TaskPending    TaskStatus = "pending"
+    TaskRunning    TaskStatus = "running"
+    TaskCompleted  TaskStatus = "completed"
+    TaskFailed     TaskStatus = "failed"
+    TaskSkipped    TaskStatus = "skipped"
+    TaskCancelled  TaskStatus = "cancelled"
+)
 
 // TaskResult - task execution result
 type TaskResult struct {

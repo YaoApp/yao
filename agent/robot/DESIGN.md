@@ -1,8 +1,8 @@
-# Autonomous Agent
+# Robot Agent
 
 ## 1. What is it?
 
-An **Autonomous Agent** is an AI team member. It works on its own, makes decisions, and runs tasks without waiting for user input.
+A **Robot Agent** is an AI team member. It works on its own, makes decisions, and runs tasks without waiting for user input.
 
 **Key points:**
 
@@ -95,12 +95,12 @@ Uses existing `__yao.member` model (`yao/models/member.mod.yao`):
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key fields in `__yao.member` for autonomous agents:**
+**Key fields in `__yao.member` for robot agents:**
 
 | Field             | Type   | Description                                                 |
 | ----------------- | ------ | ----------------------------------------------------------- |
 | `member_type`     | enum   | `user` \| `robot`                                           |
-| `autonomous_mode` | bool   | Enable autonomous execution                                 |
+| `autonomous_mode` | bool   | Enable robot execution                                      |
 | `robot_config`    | JSON   | Agent configuration (see section 5)                         |
 | `robot_status`    | enum   | `idle` \| `working` \| `paused` \| `error` \| `maintenance` |
 | `system_prompt`   | text   | Identity & role prompt                                      |
@@ -836,7 +836,7 @@ exec := &job.Execution{
     TriggerCategory: string(TriggerClock), // or TriggerHuman, TriggerEvent
     ExecutionConfig: &job.ExecutionConfig{
         Type:        job.ExecutionTypeProcess,
-        ProcessName: "autonomous.Execute",
+        ProcessName: "robot.Execute",
         ProcessArgs: []interface{}{memberID, triggerData},
     },
 }
