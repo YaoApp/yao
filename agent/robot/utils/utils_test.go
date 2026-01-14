@@ -145,10 +145,10 @@ func TestToJSON(t *testing.T) {
 
 func TestFromJSON(t *testing.T) {
 	jsonStr := `{"name":"test","age":30}`
-	
+
 	var result map[string]interface{}
 	err := utils.FromJSON(jsonStr, &result)
-	
+
 	assert.NoError(t, err)
 	assert.Equal(t, "test", result["name"])
 	assert.Equal(t, float64(30), result["age"]) // JSON numbers are float64

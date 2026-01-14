@@ -2,6 +2,7 @@ package types
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -89,8 +90,8 @@ func (r *Robot) GetExecutions() []*Execution {
 // Each trigger creates a new Execution, mapped to a job.Job for monitoring
 // Relationship: 1 Execution = 1 job.Job
 type Execution struct {
-	ID          string      `json:"id"`           // unique execution ID
-	MemberID    string      `json:"member_id"`    // robot member ID
+	ID          string      `json:"id"`        // unique execution ID
+	MemberID    string      `json:"member_id"` // robot member ID
 	TeamID      string      `json:"team_id"`
 	TriggerType TriggerType `json:"trigger_type"` // clock | human | event
 	StartTime   time.Time   `json:"start_time"`
@@ -148,11 +149,13 @@ type CurrentState struct {
 // Example:
 // ## Goals
 // 1. [High] Analyze sales data and identify trends
-//    - Reason: Sales up 50%, need to understand why
+//   - Reason: Sales up 50%, need to understand why
+//
 // 2. [Normal] Prepare weekly report for manager
-//    - Reason: Friday 5pm, weekly report due
+//   - Reason: Friday 5pm, weekly report due
+//
 // 3. [Low] Update CRM with new leads
-//    - Reason: 3 pending leads from yesterday
+//   - Reason: 3 pending leads from yesterday
 type Goals struct {
 	Content string `json:"content"` // markdown text
 }
@@ -200,4 +203,77 @@ type LearningEntry struct {
 	Content string       `json:"content"`
 	Tags    []string     `json:"tags,omitempty"`
 	Meta    interface{}  `json:"meta,omitempty"`
+}
+
+// NewRobotFromMap creates a Robot from a map (typically from DB record)
+func NewRobotFromMap(m map[string]interface{}) (*Robot, error) {
+	memberID := getString(m, "member_id")
+	teamID := getString(m, "team_id")
+
+	// Validate required fields
+	if memberID == "" || teamID == "" {
+		return nil, fmt.Errorf("missing required fields: member_id or team_id")
+	}
+
+	robot := &Robot{
+		MemberID:       memberID,
+		TeamID:         teamID,
+		DisplayName:    getString(m, "display_name"),
+		SystemPrompt:   getString(m, "system_prompt"),
+		AutonomousMode: getBool(m, "autonomous_mode"),
+	}
+
+	// Parse robot_status
+	if status := getString(m, "robot_status"); status != "" {
+		robot.Status = RobotStatus(status)
+	} else {
+		robot.Status = RobotIdle
+	}
+
+	// Parse robot_config JSON
+	if configData, ok := m["robot_config"]; ok && configData != nil {
+		config, err := ParseConfig(configData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse robot_config: %w", err)
+		}
+		robot.Config = config
+	}
+
+	return robot, nil
+}
+
+// getString safely gets a string value from map
+func getString(m map[string]interface{}, key string) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m[key]; ok && v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+		return fmt.Sprintf("%v", v)
+	}
+	return ""
+}
+
+// getBool safely gets a bool value from map
+func getBool(m map[string]interface{}, key string) bool {
+	if m == nil {
+		return false
+	}
+	if v, ok := m[key]; ok && v != nil {
+		switch b := v.(type) {
+		case bool:
+			return b
+		case int:
+			return b != 0
+		case int64:
+			return b != 0
+		case float64:
+			return b != 0
+		case string:
+			return b == "true" || b == "1"
+		}
+	}
+	return false
 }

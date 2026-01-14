@@ -36,8 +36,8 @@ type RobotState struct {
 	TeamID      string      `json:"team_id"`
 	DisplayName string      `json:"display_name"`
 	Status      RobotStatus `json:"status"`
-	Running     int         `json:"running"`               // current running execution count
-	MaxRunning  int         `json:"max_running"`           // max concurrent allowed
+	Running     int         `json:"running"`     // current running execution count
+	MaxRunning  int         `json:"max_running"` // max concurrent allowed
 	LastRun     *time.Time  `json:"last_run,omitempty"`
 	NextRun     *time.Time  `json:"next_run,omitempty"`
 	RunningIDs  []string    `json:"running_ids,omitempty"` // list of running execution IDs

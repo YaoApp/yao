@@ -89,3 +89,58 @@ func CloneMap(m map[string]interface{}) map[string]interface{} {
 	}
 	return result
 }
+
+// GetString safely gets a string value from map
+func GetString(m map[string]interface{}, key string) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m[key]; ok && v != nil {
+		return ToString(v)
+	}
+	return ""
+}
+
+// GetBool safely gets a bool value from map
+func GetBool(m map[string]interface{}, key string) bool {
+	if m == nil {
+		return false
+	}
+	if v, ok := m[key]; ok && v != nil {
+		switch b := v.(type) {
+		case bool:
+			return b
+		case int:
+			return b != 0
+		case int64:
+			return b != 0
+		case float64:
+			return b != 0
+		case string:
+			return b == "true" || b == "1"
+		}
+	}
+	return false
+}
+
+// GetInt safely gets an int value from map
+func GetInt(m map[string]interface{}, key string) int {
+	if m == nil {
+		return 0
+	}
+	if v, ok := m[key]; ok && v != nil {
+		switch n := v.(type) {
+		case int:
+			return n
+		case int64:
+			return int(n)
+		case float64:
+			return int(n)
+		case string:
+			var i int
+			fmt.Sscanf(n, "%d", &i)
+			return i
+		}
+	}
+	return 0
+}

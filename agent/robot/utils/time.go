@@ -92,7 +92,7 @@ func NextScheduledTime(now time.Time, timeStr string, days []string, loc *time.L
 	}
 
 	nowInLoc := now.In(loc)
-	
+
 	// Start from today at the specified time
 	next := time.Date(nowInLoc.Year(), nowInLoc.Month(), nowInLoc.Day(), hour, minute, 0, 0, loc)
 

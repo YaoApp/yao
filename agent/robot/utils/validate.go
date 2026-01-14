@@ -8,7 +8,7 @@ import (
 var (
 	// Email regex pattern
 	emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
-	
+
 	// Time pattern (HH:MM)
 	timeRegex = regexp.MustCompile(`^([01]?[0-9]|2[0-3]):[0-5][0-9]$`)
 )
@@ -33,7 +33,7 @@ func ValidateRequired(fieldName string, value interface{}) error {
 	if value == nil {
 		return fmt.Errorf("%s is required", fieldName)
 	}
-	
+
 	switch v := value.(type) {
 	case string:
 		if IsEmpty(v) {
@@ -48,7 +48,7 @@ func ValidateRequired(fieldName string, value interface{}) error {
 			return fmt.Errorf("%s is required", fieldName)
 		}
 	}
-	
+
 	return nil
 }
 

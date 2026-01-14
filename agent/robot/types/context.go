@@ -8,7 +8,7 @@ import (
 
 // Context - robot execution context (lightweight)
 type Context struct {
-	context.Context                      // embed standard context
+	context.Context                       // embed standard context
 	Auth            *types.AuthorizedInfo `json:"auth,omitempty"`       // reuse oauth AuthorizedInfo
 	MemberID        string                `json:"member_id,omitempty"`  // current robot member ID
 	RequestID       string                `json:"request_id,omitempty"` // request trace ID

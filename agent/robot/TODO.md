@@ -201,12 +201,17 @@ This phase delivers a fully working scheduling pipeline:
 Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) → Job
 ```
 
-### 3.1 Cache Implementation
+### ✅ 3.1 Cache Implementation (COMPLETE)
 
-- [ ] `cache/cache.go` - Cache struct with thread-safe map
-- [ ] `cache/load.go` - load robots from `__yao.member` where `member_type='robot'` and `autonomous_mode=true`
-- [ ] `cache/refresh.go` - refresh single robot, periodic full refresh (every hour)
-- [ ] Test: load/refresh with real DB
+- [x] `cache/cache.go` - Cache struct with thread-safe map
+- [x] `cache/load.go` - load robots from `__yao.member` where `member_type='robot'` and `autonomous_mode=true`
+  - [x] Implemented pagination (100 robots per page)
+  - [x] Configurable model name via `SetMemberModel()`
+- [x] `cache/refresh.go` - refresh single robot, periodic full refresh (every hour)
+- [x] Test: load/refresh with real DB
+  - [x] Created comprehensive integration tests with real database
+  - [x] Tests cover Load, LoadByID, Refresh, ListByTeam, GetByStatus
+  - [x] All tests passing with proper cleanup
 
 ### 3.2 Pool Implementation
 

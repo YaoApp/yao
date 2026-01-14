@@ -7,7 +7,7 @@ import (
 )
 
 // Cache implements types.Cache interface
-// This is a stub implementation for Phase 2
+// Thread-safe in-memory cache for Robot instances
 type Cache struct {
 	robots map[string]*types.Robot // memberID -> Robot
 	byTeam map[string][]string     // teamID -> memberIDs
@@ -22,12 +22,6 @@ func New() *Cache {
 	}
 }
 
-// Load loads all active robots from database
-// Stub: returns nil (will be implemented in Phase 3)
-func (c *Cache) Load(ctx *types.Context) error {
-	return nil
-}
-
 // Get returns a robot by member ID
 // Stub: returns nil (will be implemented in Phase 3)
 func (c *Cache) Get(memberID string) *types.Robot {
@@ -37,7 +31,6 @@ func (c *Cache) Get(memberID string) *types.Robot {
 }
 
 // List returns all robots for a team
-// Stub: returns empty slice (will be implemented in Phase 3)
 func (c *Cache) List(teamID string) []*types.Robot {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -52,14 +45,14 @@ func (c *Cache) List(teamID string) []*types.Robot {
 	return robots
 }
 
-// Refresh refreshes a single robot's config from database
-// Stub: returns nil (will be implemented in Phase 3)
-func (c *Cache) Refresh(ctx *types.Context, memberID string) error {
-	return nil
-}
+// Note: Refresh is implemented in refresh.go
 
 // Add adds or updates a robot in cache
 func (c *Cache) Add(robot *types.Robot) {
+	if robot == nil {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

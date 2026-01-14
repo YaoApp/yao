@@ -1,6 +1,9 @@
 package types
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // Config - robot_config in __yao.member
 type Config struct {
@@ -8,9 +11,9 @@ type Config struct {
 	Clock     *Clock     `json:"clock,omitempty"`
 	Identity  *Identity  `json:"identity"`
 	Quota     *Quota     `json:"quota,omitempty"`
-	KB        *KB        `json:"kb,omitempty"`        // shared knowledge base (same as assistant)
-	DB        *DB        `json:"db,omitempty"`        // shared database (same as assistant)
-	Learn     *Learn     `json:"learn,omitempty"`     // learning config for private KB
+	KB        *KB        `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
+	DB        *DB        `json:"db,omitempty"`    // shared database (same as assistant)
+	Learn     *Learn     `json:"learn,omitempty"` // learning config for private KB
 	Resources *Resources `json:"resources,omitempty"`
 	Delivery  *Delivery  `json:"delivery,omitempty"`
 	Events    []Event    `json:"events,omitempty"`
@@ -205,4 +208,45 @@ type Event struct {
 	Type   EventSource            `json:"type"`   // webhook | database
 	Source string                 `json:"source"` // webhook path or table name
 	Filter map[string]interface{} `json:"filter,omitempty"`
+}
+
+// ParseConfig parses robot_config from various formats (string, []byte, map)
+func ParseConfig(data interface{}) (*Config, error) {
+	if data == nil {
+		return nil, nil
+	}
+
+	var configBytes []byte
+
+	switch v := data.(type) {
+	case string:
+		if v == "" {
+			return nil, nil
+		}
+		configBytes = []byte(v)
+	case []byte:
+		if len(v) == 0 {
+			return nil, nil
+		}
+		configBytes = v
+	case map[string]interface{}:
+		var err error
+		configBytes, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		var err error
+		configBytes, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var config Config
+	if err := json.Unmarshal(configBytes, &config); err != nil {
+		return nil, err
+	}
+
+	return &config, nil
 }
