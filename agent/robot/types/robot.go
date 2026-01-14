@@ -35,6 +35,7 @@ type Robot struct {
 }
 
 // CanRun checks if robot can accept new execution
+// Note: This is a read-only check. For atomic check-and-acquire, use TryAcquireSlot()
 func (r *Robot) CanRun() bool {
 	r.execMu.RLock()
 	defer r.execMu.RUnlock()
@@ -42,6 +43,32 @@ func (r *Robot) CanRun() bool {
 		return len(r.executions) < 2 // default max
 	}
 	return len(r.executions) < r.Config.Quota.GetMax()
+}
+
+// TryAcquireSlot atomically checks if robot can run and reserves a slot
+// Returns true if slot was acquired, false if quota is full
+// This prevents race conditions between CanRun() check and AddExecution()
+func (r *Robot) TryAcquireSlot(exec *Execution) bool {
+	r.execMu.Lock()
+	defer r.execMu.Unlock()
+
+	// Get max quota
+	maxQuota := 2 // default
+	if r.Config != nil {
+		maxQuota = r.Config.Quota.GetMax()
+	}
+
+	// Check if we can add
+	if len(r.executions) >= maxQuota {
+		return false // quota full
+	}
+
+	// Reserve slot by adding execution
+	if r.executions == nil {
+		r.executions = make(map[string]*Execution)
+	}
+	r.executions[exec.ID] = exec
+	return true
 }
 
 // RunningCount returns current running execution count
@@ -52,6 +79,7 @@ func (r *Robot) RunningCount() int {
 }
 
 // AddExecution adds an execution to tracking
+// Note: Prefer TryAcquireSlot() for atomic check-and-add
 func (r *Robot) AddExecution(exec *Execution) {
 	r.execMu.Lock()
 	defer r.execMu.Unlock()

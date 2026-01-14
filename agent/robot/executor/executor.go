@@ -42,7 +42,26 @@ func NewWithCallback(delay time.Duration, onStart, onEnd func()) *Executor {
 // Execute executes a robot through all phases
 // Stub: returns empty execution (will be implemented in Phase 3+)
 func (e *Executor) Execute(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}) (*types.Execution, error) {
-	// Track execution count
+	// Create execution record first
+	execID := utils.NewID()
+	exec := &types.Execution{
+		ID:          execID,
+		MemberID:    robot.MemberID,
+		TeamID:      robot.TeamID,
+		TriggerType: trigger,
+		Status:      types.ExecRunning,
+		Phase:       types.PhaseInspiration,
+	}
+
+	// Atomically check quota and acquire slot
+	// This prevents race condition where multiple workers pass CanRun() check
+	// but then all add executions, exceeding the quota
+	if !robot.TryAcquireSlot(exec) {
+		return nil, types.ErrQuotaExceeded
+	}
+	defer robot.RemoveExecution(execID)
+
+	// Track execution count (after successful slot acquisition)
 	e.execCount.Add(1)
 	e.currentCount.Add(1)
 	defer e.currentCount.Add(-1)
@@ -55,19 +74,6 @@ func (e *Executor) Execute(ctx *types.Context, robot *types.Robot, trigger types
 	if e.onEnd != nil {
 		defer e.onEnd()
 	}
-
-	// Track on robot
-	execID := utils.NewID()
-	exec := &types.Execution{
-		ID:          execID,
-		MemberID:    robot.MemberID,
-		TeamID:      robot.TeamID,
-		TriggerType: trigger,
-		Status:      types.ExecRunning,
-		Phase:       types.PhaseInspiration,
-	}
-	robot.AddExecution(exec)
-	defer robot.RemoveExecution(execID)
 
 	// Simulate execution delay
 	if e.delay > 0 {

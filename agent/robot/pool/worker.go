@@ -66,19 +66,11 @@ func (w *Worker) run() {
 
 // execute processes a single queue item
 func (w *Worker) execute(item *QueueItem) {
-	// Check if robot can run (quota check before marking as running)
+	// Pre-check if robot can run (non-atomic, just for early rejection)
+	// The actual atomic check happens inside Executor.Execute() via TryAcquireSlot()
 	if !item.Robot.CanRun() {
-		// Robot has reached max concurrent executions
-		// Try to put back to queue for later processing
-		//
-		// Queue length is our system load threshold:
-		// - If queue has space: task waits for robot quota
-		// - If queue is full: system is overloaded, drop task
-		if !w.pool.queue.Enqueue(item) {
-			// Queue full = system overloaded, drop task (protective discard)
-			fmt.Printf("Worker %d: Task for robot %s dropped (queue full, system overloaded)\n",
-				w.id, item.Robot.MemberID)
-		}
+		// Robot likely at quota, re-enqueue for later
+		w.requeue(item, "quota pre-check failed")
 		return
 	}
 
@@ -87,9 +79,15 @@ func (w *Worker) execute(item *QueueItem) {
 	defer w.pool.decrementRunning()
 
 	// Execute via Executor interface
+	// Note: Executor.Execute() does atomic quota check via TryAcquireSlot()
 	execution, err := w.executor.Execute(item.Ctx, item.Robot, item.Trigger, item.Data)
 
 	if err != nil {
+		// Check if it's a quota error (race condition - another worker got the slot)
+		if err == types.ErrQuotaExceeded {
+			w.requeue(item, "quota exceeded (race)")
+			return
+		}
 		fmt.Printf("Worker %d: Execution failed for robot %s: %v\n",
 			w.id, item.Robot.MemberID, err)
 		return
@@ -98,5 +96,17 @@ func (w *Worker) execute(item *QueueItem) {
 	if execution != nil {
 		fmt.Printf("Worker %d: Execution %s completed for robot %s (status: %s)\n",
 			w.id, execution.ID, item.Robot.MemberID, execution.Status)
+	}
+}
+
+// requeue attempts to put the item back in the queue
+func (w *Worker) requeue(item *QueueItem, reason string) {
+	// Queue length is our system load threshold:
+	// - If queue has space: task waits for robot quota
+	// - If queue is full: system is overloaded, drop task
+	if !w.pool.queue.Enqueue(item) {
+		// Queue full = system overloaded, drop task (protective discard)
+		fmt.Printf("Worker %d: Task for robot %s dropped (queue full, %s)\n",
+			w.id, item.Robot.MemberID, reason)
 	}
 }

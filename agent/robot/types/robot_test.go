@@ -237,6 +237,121 @@ func TestRobotConcurrentAccess(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
+func TestRobotTryAcquireSlot(t *testing.T) {
+	t.Run("acquire slot when under quota", func(t *testing.T) {
+		robot := &types.Robot{
+			Config: &types.Config{
+				Quota: &types.Quota{Max: 2},
+			},
+		}
+
+		exec := &types.Execution{ID: "exec1"}
+		acquired := robot.TryAcquireSlot(exec)
+
+		assert.True(t, acquired)
+		assert.Equal(t, 1, robot.RunningCount())
+		assert.NotNil(t, robot.GetExecution("exec1"))
+	})
+
+	t.Run("fail to acquire when at quota", func(t *testing.T) {
+		robot := &types.Robot{
+			Config: &types.Config{
+				Quota: &types.Quota{Max: 2},
+			},
+		}
+
+		// Fill quota
+		robot.TryAcquireSlot(&types.Execution{ID: "exec1"})
+		robot.TryAcquireSlot(&types.Execution{ID: "exec2"})
+
+		// Try to acquire one more
+		exec3 := &types.Execution{ID: "exec3"}
+		acquired := robot.TryAcquireSlot(exec3)
+
+		assert.False(t, acquired)
+		assert.Equal(t, 2, robot.RunningCount())
+		assert.Nil(t, robot.GetExecution("exec3"))
+	})
+
+	t.Run("acquire with nil config uses default quota", func(t *testing.T) {
+		robot := &types.Robot{
+			Config: nil, // default quota is 2
+		}
+
+		exec1 := &types.Execution{ID: "exec1"}
+		exec2 := &types.Execution{ID: "exec2"}
+		exec3 := &types.Execution{ID: "exec3"}
+
+		assert.True(t, robot.TryAcquireSlot(exec1))
+		assert.True(t, robot.TryAcquireSlot(exec2))
+		assert.False(t, robot.TryAcquireSlot(exec3)) // should fail at default max=2
+	})
+}
+
+func TestRobotTryAcquireSlotConcurrent(t *testing.T) {
+	// Test that TryAcquireSlot is atomic and prevents exceeding quota
+	robot := &types.Robot{
+		Config: &types.Config{
+			Quota: &types.Quota{Max: 5},
+		},
+	}
+
+	// Launch 20 goroutines trying to acquire slots
+	successCount := make(chan bool, 20)
+	for i := 0; i < 20; i++ {
+		go func(id int) {
+			exec := &types.Execution{ID: string(rune('A' + id))}
+			success := robot.TryAcquireSlot(exec)
+			successCount <- success
+		}(i)
+	}
+
+	// Count successes
+	acquired := 0
+	for i := 0; i < 20; i++ {
+		if <-successCount {
+			acquired++
+		}
+	}
+
+	// Should have exactly 5 successful acquisitions (quota max)
+	assert.Equal(t, 5, acquired, "Should acquire exactly quota max slots")
+	assert.Equal(t, 5, robot.RunningCount(), "Running count should match quota max")
+}
+
+func TestRobotTryAcquireSlotRaceCondition(t *testing.T) {
+	// Stress test to verify no race condition in TryAcquireSlot
+	for iteration := 0; iteration < 100; iteration++ {
+		robot := &types.Robot{
+			Config: &types.Config{
+				Quota: &types.Quota{Max: 3},
+			},
+		}
+
+		// Launch many goroutines simultaneously
+		successCount := make(chan bool, 50)
+		for i := 0; i < 50; i++ {
+			go func(id int) {
+				exec := &types.Execution{ID: string(rune('A'+id%26)) + string(rune('0'+id/26))}
+				success := robot.TryAcquireSlot(exec)
+				successCount <- success
+			}(i)
+		}
+
+		// Count successes
+		acquired := 0
+		for i := 0; i < 50; i++ {
+			if <-successCount {
+				acquired++
+			}
+		}
+
+		// Should never exceed quota
+		assert.Equal(t, 3, acquired, "Iteration %d: Should acquire exactly quota max slots", iteration)
+		assert.Equal(t, 3, robot.RunningCount(), "Iteration %d: Running count should match quota max", iteration)
+	}
+}
+
 func TestExecutionStructure(t *testing.T) {
 	t.Run("execution with all fields", func(t *testing.T) {
 		exec := &types.Execution{

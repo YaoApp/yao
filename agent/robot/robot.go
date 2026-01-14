@@ -30,7 +30,7 @@ func Init() error {
 	globalCache = cache.New()
 	globalDedup = dedup.New()
 	globalStore = store.New()
-	globalPool = pool.New(10) // Default pool size
+	globalPool = pool.New() // Default pool size
 	globalTrigger = trigger.New()
 	globalExecutor = executor.New()
 	globalManager = manager.New()

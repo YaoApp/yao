@@ -23,6 +23,9 @@ var ErrRobotPaused = errors.New("robot is paused")
 // ErrRobotBusy indicates robot has reached max concurrent executions
 var ErrRobotBusy = errors.New("robot has reached max concurrent executions")
 
+// ErrQuotaExceeded indicates robot quota was exceeded (atomic check failed)
+var ErrQuotaExceeded = errors.New("robot quota exceeded")
+
 // ErrTriggerDisabled indicates trigger type is disabled for this robot
 var ErrTriggerDisabled = errors.New("trigger type is disabled for this robot")
 
