@@ -3,7 +3,9 @@ package cache_test
 import (
 	"context"
 	"encoding/json"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/model"
@@ -210,6 +212,140 @@ func TestCacheGetByStatus(t *testing.T) {
 	testRobot2 := c.Get("robot_test_support_002")
 	assert.Equal(t, types.RobotIdle, testRobot1.Status, "Test robot 1 should be idle")
 	assert.Equal(t, types.RobotIdle, testRobot2.Status, "Test robot 2 should be idle")
+}
+
+// TestCacheAutoRefresh tests auto-refresh functionality and goroutine leak prevention
+func TestCacheAutoRefresh(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobots(t)
+	defer cleanupTestRobots(t)
+
+	c := cache.New()
+	ctx := types.NewContext(context.Background(), nil)
+
+	// Load initial data
+	err := c.Load(ctx)
+	assert.NoError(t, err)
+	initialCount := c.Count()
+
+	t.Run("start and stop auto-refresh", func(t *testing.T) {
+		// Record initial goroutine count
+		runtime.GC()
+		time.Sleep(100 * time.Millisecond)
+		initialGoroutines := runtime.NumGoroutine()
+
+		// Start auto-refresh with short interval
+		config := &cache.RefreshConfig{Interval: 100 * time.Millisecond}
+		c.StartAutoRefresh(ctx, config)
+
+		// Wait a bit to let it run (should trigger at least 2 refreshes)
+		time.Sleep(250 * time.Millisecond)
+
+		// Stop auto-refresh
+		c.StopAutoRefresh()
+
+		// Wait for goroutine to exit
+		time.Sleep(100 * time.Millisecond)
+		runtime.GC()
+		time.Sleep(50 * time.Millisecond)
+
+		// Check for goroutine leak
+		finalGoroutines := runtime.NumGoroutine()
+		assert.LessOrEqual(t, finalGoroutines, initialGoroutines+1, 
+			"Should not leak goroutines after stop (initial: %d, final: %d)", 
+			initialGoroutines, finalGoroutines)
+
+		// Should still have robots
+		assert.GreaterOrEqual(t, c.Count(), initialCount)
+	})
+
+	t.Run("multiple start calls should not leak goroutines", func(t *testing.T) {
+		// Record initial goroutine count
+		runtime.GC()
+		time.Sleep(100 * time.Millisecond)
+		initialGoroutines := runtime.NumGoroutine()
+
+		// Start multiple times without stopping
+		// This should not create multiple goroutines or ticker leaks
+		config := &cache.RefreshConfig{Interval: 100 * time.Millisecond}
+		
+		c.StartAutoRefresh(ctx, config)
+		time.Sleep(50 * time.Millisecond)
+		
+		c.StartAutoRefresh(ctx, config) // Should stop previous one
+		time.Sleep(50 * time.Millisecond)
+		
+		c.StartAutoRefresh(ctx, config) // Should stop previous one
+		time.Sleep(50 * time.Millisecond)
+
+		// After multiple starts, should only have 1 goroutine running
+		afterStartsGoroutines := runtime.NumGoroutine()
+		assert.LessOrEqual(t, afterStartsGoroutines, initialGoroutines+2,
+			"Multiple starts should not accumulate goroutines (initial: %d, after starts: %d)",
+			initialGoroutines, afterStartsGoroutines)
+
+		// Stop once should be enough
+		c.StopAutoRefresh()
+
+		// Wait for cleanup
+		time.Sleep(100 * time.Millisecond)
+		runtime.GC()
+		time.Sleep(50 * time.Millisecond)
+
+		// Should be back to initial count
+		finalGoroutines := runtime.NumGoroutine()
+		assert.LessOrEqual(t, finalGoroutines, initialGoroutines+1,
+			"Should cleanup all goroutines after final stop (initial: %d, final: %d)",
+			initialGoroutines, finalGoroutines)
+
+		// Should still work correctly
+		assert.GreaterOrEqual(t, c.Count(), initialCount)
+	})
+
+	t.Run("stop without start should not panic", func(t *testing.T) {
+		// Multiple stops should be safe
+		assert.NotPanics(t, func() {
+			c.StopAutoRefresh()
+			c.StopAutoRefresh()
+			c.StopAutoRefresh()
+		})
+	})
+
+	t.Run("concurrent start and stop should be safe", func(t *testing.T) {
+		// Record initial goroutine count
+		runtime.GC()
+		time.Sleep(100 * time.Millisecond)
+		initialGoroutines := runtime.NumGoroutine()
+
+		config := &cache.RefreshConfig{Interval: 50 * time.Millisecond}
+
+		// Rapidly start and stop multiple times
+		for i := 0; i < 10; i++ {
+			c.StartAutoRefresh(ctx, config)
+			time.Sleep(10 * time.Millisecond)
+			c.StopAutoRefresh()
+			time.Sleep(10 * time.Millisecond)
+		}
+
+		// Final cleanup
+		c.StopAutoRefresh()
+		time.Sleep(100 * time.Millisecond)
+		runtime.GC()
+		time.Sleep(50 * time.Millisecond)
+
+		// Should not have leaked goroutines
+		finalGoroutines := runtime.NumGoroutine()
+		assert.LessOrEqual(t, finalGoroutines, initialGoroutines+1,
+			"Rapid start/stop cycles should not leak goroutines (initial: %d, final: %d)",
+			initialGoroutines, finalGoroutines)
+	})
 }
 
 // setupTestRobots creates 3 test robot records in database
