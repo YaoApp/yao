@@ -258,8 +258,8 @@ func TestCacheAutoRefresh(t *testing.T) {
 
 		// Check for goroutine leak
 		finalGoroutines := runtime.NumGoroutine()
-		assert.LessOrEqual(t, finalGoroutines, initialGoroutines+1, 
-			"Should not leak goroutines after stop (initial: %d, final: %d)", 
+		assert.LessOrEqual(t, finalGoroutines, initialGoroutines+1,
+			"Should not leak goroutines after stop (initial: %d, final: %d)",
 			initialGoroutines, finalGoroutines)
 
 		// Should still have robots
@@ -275,13 +275,13 @@ func TestCacheAutoRefresh(t *testing.T) {
 		// Start multiple times without stopping
 		// This should not create multiple goroutines or ticker leaks
 		config := &cache.RefreshConfig{Interval: 100 * time.Millisecond}
-		
+
 		c.StartAutoRefresh(ctx, config)
 		time.Sleep(50 * time.Millisecond)
-		
+
 		c.StartAutoRefresh(ctx, config) // Should stop previous one
 		time.Sleep(50 * time.Millisecond)
-		
+
 		c.StartAutoRefresh(ctx, config) // Should stop previous one
 		time.Sleep(50 * time.Millisecond)
 

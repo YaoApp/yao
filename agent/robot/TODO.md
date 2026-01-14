@@ -213,12 +213,20 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] Tests cover Load, LoadByID, Refresh, ListByTeam, GetByStatus
   - [x] All tests passing with proper cleanup
 
-### 3.2 Pool Implementation
+### ✅ 3.2 Pool Implementation (COMPLETE)
 
-- [ ] `pool/pool.go` - worker pool with configurable size (global limit)
-- [ ] `pool/queue.go` - priority queue (sorted by: robot priority, trigger type, wait time)
-- [ ] `pool/worker.go` - worker goroutines, dispatch to executor
-- [ ] Test: submit jobs, verify execution order, verify concurrency limits
+- [x] `pool/pool.go` - worker pool with configurable size (global limit)
+  - [x] Default config: 10 workers, 100 queue size
+  - [x] Configurable via `pool.NewWithConfig()`
+- [x] `pool/queue.go` - priority queue (sorted by: robot priority, trigger type, wait time)
+  - [x] Two-level limit: global queue + per-robot queue
+  - [x] Priority: Robot Priority × 1000 + Trigger Priority × 100
+- [x] `pool/worker.go` - worker goroutines, dispatch to executor
+  - [x] Non-blocking quota check with re-enqueue
+  - [x] Graceful shutdown support
+- [x] Test: submit jobs, verify execution order, verify concurrency limits
+  - [x] 15 test cases covering all edge cases
+  - [x] All tests passing
 
 ### 3.3 Trigger Implementation
 
