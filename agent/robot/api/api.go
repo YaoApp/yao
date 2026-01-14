@@ -176,11 +176,11 @@ type TriggerRequest struct {
 
 // TriggerResult - result of Trigger()
 type TriggerResult struct {
-	Accepted  bool              `json:"accepted"`
-	Queued    bool              `json:"queued"`
-	Execution *types.Execution  `json:"execution,omitempty"`
-	JobID     string            `json:"job_id,omitempty"`
-	Message   string            `json:"message,omitempty"`
+	Accepted  bool             `json:"accepted"`
+	Queued    bool             `json:"queued"`
+	Execution *types.Execution `json:"execution,omitempty"`
+	JobID     string           `json:"job_id,omitempty"`
+	Message   string           `json:"message,omitempty"`
 }
 
 // ExecutionQuery - query options for GetExecutions()

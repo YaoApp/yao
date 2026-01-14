@@ -41,7 +41,7 @@ func (c *Cache) Get(memberID string) *types.Robot {
 func (c *Cache) List(teamID string) []*types.Robot {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	
+
 	memberIDs := c.byTeam[teamID]
 	robots := make([]*types.Robot, 0, len(memberIDs))
 	for _, memberID := range memberIDs {
@@ -62,14 +62,14 @@ func (c *Cache) Refresh(ctx *types.Context, memberID string) error {
 func (c *Cache) Add(robot *types.Robot) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	c.robots[robot.MemberID] = robot
-	
+
 	// Update team index
 	if _, exists := c.byTeam[robot.TeamID]; !exists {
 		c.byTeam[robot.TeamID] = []string{}
 	}
-	
+
 	// Check if member ID already in team list
 	found := false
 	for _, id := range c.byTeam[robot.TeamID] {
@@ -87,14 +87,14 @@ func (c *Cache) Add(robot *types.Robot) {
 func (c *Cache) Remove(memberID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	robot := c.robots[memberID]
 	if robot == nil {
 		return
 	}
-	
+
 	delete(c.robots, memberID)
-	
+
 	// Remove from team index
 	teamMembers := c.byTeam[robot.TeamID]
 	for i, id := range teamMembers {

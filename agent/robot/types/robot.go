@@ -86,8 +86,8 @@ func (r *Robot) GetExecutions() []*Execution {
 // Each trigger creates a new Execution, mapped to a job.Job for monitoring
 // Relationship: 1 Execution = 1 job.Job
 type Execution struct {
-	ID          string      `json:"id"`           // unique execution ID
-	MemberID    string      `json:"member_id"`    // robot member ID
+	ID          string      `json:"id"`        // unique execution ID
+	MemberID    string      `json:"member_id"` // robot member ID
 	TeamID      string      `json:"team_id"`
 	TriggerType TriggerType `json:"trigger_type"` // clock | human | event
 	StartTime   time.Time   `json:"start_time"`
@@ -120,9 +120,9 @@ type Execution struct {
 // TriggerInput - stored trigger input for traceability
 type TriggerInput struct {
 	// For human intervention
-	Action   InterventionAction      `json:"action,omitempty"`   // task.add, goal.adjust, etc.
-	Messages []agentcontext.Message  `json:"messages,omitempty"` // user's input (text, images, files)
-	UserID   string                  `json:"user_id,omitempty"`  // who triggered
+	Action   InterventionAction     `json:"action,omitempty"`   // task.add, goal.adjust, etc.
+	Messages []agentcontext.Message `json:"messages,omitempty"` // user's input (text, images, files)
+	UserID   string                 `json:"user_id,omitempty"`  // who triggered
 
 	// For event trigger
 	Source    EventSource            `json:"source,omitempty"`     // webhook | database
@@ -145,13 +145,11 @@ type CurrentState struct {
 // Example:
 // ## Goals
 // 1. [High] Analyze sales data and identify trends
-//    - Reason: Sales up 50%, need to understand why
-// 2. [Normal] Prepare weekly report for manager
-//    - Reason: Friday 5pm, weekly report due
-// 3. [Low] Update CRM with new leads
-//    - Reason: 3 pending leads from yesterday
+//   - Reason: Sales up 50%, need to understand why
+//   - Reason: Friday 5pm, weekly report due
+//   - Reason: Friday 5pm, weekly report due
 type Goals struct {
-	Content string `json:"content"` // markdown text
+	// - Reason: 3 pending leads from yesterday
 }
 
 // Task - planned task (structured, for execution)

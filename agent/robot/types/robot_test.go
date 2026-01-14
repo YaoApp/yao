@@ -17,6 +17,23 @@ func TestRobotCanRun(t *testing.T) {
 		assert.True(t, robot.CanRun())
 	})
 
+	t.Run("can run with nil config (uses default quota)", func(t *testing.T) {
+		robot := &types.Robot{
+			Config: nil, // nil config should not panic
+		}
+		// Should not panic and use default max (2)
+		assert.True(t, robot.CanRun())
+	})
+
+	t.Run("can run with nil quota (uses default)", func(t *testing.T) {
+		robot := &types.Robot{
+			Config: &types.Config{
+				Quota: nil, // nil quota should use default
+			},
+		}
+		assert.True(t, robot.CanRun())
+	})
+
 	t.Run("cannot run when at quota", func(t *testing.T) {
 		robot := &types.Robot{
 			Config: &types.Config{
