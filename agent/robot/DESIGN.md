@@ -1,8 +1,8 @@
-# Autonomous Agent
+# Robot Agent
 
 ## 1. What is it?
 
-An **Autonomous Agent** is an AI team member. It works on its own, makes decisions, and runs tasks without waiting for user input.
+A **Robot Agent** is an AI team member. It works on its own, makes decisions, and runs tasks without waiting for user input.
 
 **Key points:**
 
@@ -95,12 +95,12 @@ Uses existing `__yao.member` model (`yao/models/member.mod.yao`):
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key fields in `__yao.member` for autonomous agents:**
+**Key fields in `__yao.member` for robot agents:**
 
 | Field             | Type   | Description                                                 |
 | ----------------- | ------ | ----------------------------------------------------------- |
 | `member_type`     | enum   | `user` \| `robot`                                           |
-| `autonomous_mode` | bool   | Enable autonomous execution                                 |
+| `autonomous_mode` | bool   | Enable robot execution                                      |
 | `robot_config`    | JSON   | Agent configuration (see section 5)                         |
 | `robot_status`    | enum   | `idle` \| `working` \| `paused` \| `error` \| `maintenance` |
 | `system_prompt`   | text   | Identity & role prompt                                      |
@@ -239,14 +239,16 @@ Gathers info to help make good goals. **Clock context is key input** - Agent kno
 
 ```go
 type InspirationReport struct {
-    Clock         ClockContext   // Current time context
-    Summary       string         // What's happening
-    Highlights    []Highlight    // Key changes
-    Opportunities []Opportunity  // Chances to act
-    Risks         []Risk         // Things to watch
-    WorldInsights []WorldInsight // News from outside
-    Suggestions   []string       // What to focus on
+    Clock   *ClockContext `json:"clock"`   // time context
+    Content string        `json:"content"` // markdown text for LLM
 }
+// Content is markdown like:
+// ## Summary
+// ...
+// ## Highlights
+// - [High] Sales up 50%
+// ## Opportunities / Risks / World News / Pending
+// ...
 
 type ClockContext struct {
     Now          time.Time // Current time
@@ -292,15 +294,18 @@ Make today's goals.
 
 ### 4.4 P2: Tasks
 
-Breaks goals into steps:
+P2 Agent reads Goals markdown and breaks into executable tasks:
 
 ```go
 type Task struct {
-    ID           string
-    GoalID       string
-    Description  string
-    ExecutorType string // "assistant" | "mcp"
-    ExecutorID   string
+    ID           string            // unique task ID
+    Messages     []context.Message // original input (text, images, files, audio)
+    GoalRef      string            // reference to goal (e.g., "Goal 1")
+    Source       TaskSource        // auto | human | event
+    ExecutorType ExecutorType      // assistant | mcp | process
+    ExecutorID   string            // agent ID or mcp tool name
+    Args         []any             // arguments for executor
+    Order        int               // execution order
 }
 ```
 
@@ -346,13 +351,12 @@ type Config struct {
     Clock     *Clock     `json:"clock,omitempty"`
     Identity  *Identity  `json:"identity"`
     Quota     *Quota     `json:"quota"`
-    PrivateKB *KB        `json:"private_kb"`
-    SharedKB  *KB        `json:"shared_kb,omitempty"`
+    KB        *KB        `json:"kb,omitempty"`        // shared KB (same as assistant)
+    DB        *DB        `json:"db,omitempty"`        // shared DB (same as assistant)
+    Learn     *Learn     `json:"learn,omitempty"`     // learning for private KB
     Resources *Resources `json:"resources"`
     Delivery  *Delivery  `json:"delivery"`
-    Input     *Input     `json:"input,omitempty"`
     Events    []Event    `json:"events,omitempty"`
-    Monitor   *Monitor   `json:"monitor,omitempty"`
 }
 ```
 
@@ -454,12 +458,20 @@ type Quota struct {
 }
 
 // KB
+// KB - shared knowledge base (same as assistant)
 type KB struct {
-    ID    string   `json:"id,omitempty"`
-    Refs  []string `json:"refs,omitempty"`
-    Learn *Learn   `json:"learn,omitempty"`
+    Collections []string               `json:"collections,omitempty"` // KB collection IDs
+    Options     map[string]interface{} `json:"options,omitempty"`
 }
 
+// DB - shared database (same as assistant)
+type DB struct {
+    Models  []string               `json:"models,omitempty"` // database model names
+    Options map[string]interface{} `json:"options,omitempty"`
+}
+
+// Learn - learning config for robot's private KB
+// Private KB auto-created: robot_{team_id}_{member_id}_kb
 type Learn struct {
     On    bool     `json:"on"`
     Types []string `json:"types"` // execution, feedback, insight
@@ -485,24 +497,6 @@ type Delivery struct {
 }
 
 // Monitor
-type Monitor struct {
-    On     bool    `json:"on"`
-    Alerts []Alert `json:"alerts,omitempty"`
-}
-
-type Alert struct {
-    Name     string   `json:"name"`
-    When     string   `json:"when"`  // failed | timeout | error_rate
-    Value    float64  `json:"value"`
-    Window   string   `json:"window"` // 1h | 24h
-    Do       []Action `json:"do"`
-    Cooldown string   `json:"cooldown"`
-}
-
-type Action struct {
-    Type string                 `json:"type"` // email | webhook | notify
-    Opts map[string]interface{} `json:"opts"`
-}
 ```
 
 ### 5.3 Example
@@ -537,14 +531,13 @@ Example record in `__yao.member` table:
       "rules": ["Only access sales data"]
     },
     "quota": { "max": 2, "queue": 10, "priority": 5 },
-    "private_kb": {
-      "learn": {
-        "on": true,
-        "types": ["execution", "feedback", "insight"],
-        "keep": 90
-      }
+    "kb": { "collections": ["sales-policies", "products"] },
+    "db": { "models": ["sales", "customers"] },
+    "learn": {
+      "on": true,
+      "types": ["execution", "feedback", "insight"],
+      "keep": 90
     },
-    "shared_kb": { "refs": ["sales-policies", "products"] },
     "resources": {
       "phases": {
         "inspiration": "__yao.inspiration",
@@ -663,7 +656,9 @@ stateDiagram-v2
 
 ### 7.1 Job System
 
-Each agent = 1 Job. Each run = 1 Execution.
+**Relationship:** 1 Robot : N Executions (concurrent), 1 Execution = 1 job.Job
+
+Each trigger creates a new Execution, mapped to a `job.Job` for monitoring.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -807,55 +802,65 @@ type ExecutionResult struct {
 }
 
 type RobotState struct {
-    MemberID  string      // member_id from __yao.member
-    Status    RobotStatus // idle | working | paused | error | maintenance
-    LastRun   time.Time
-    NextRun   time.Time
-    RunningID string // current execution ID if working
+    MemberID   string      // member_id from __yao.member
+    Status     RobotStatus // idle | working | paused | error | maintenance
+    LastRun    time.Time
+    NextRun    time.Time
+    Running    int         // current running execution count
+    MaxRunning int         // max concurrent executions (from Quota.Max)
+    RunningIDs []string    // list of running execution IDs
 }
 ```
 
 ### 8.3 Execution (Uses Job System)
 
-No separate `autonomous_executions` table. Uses existing Job system:
+No separate `autonomous_executions` table. Uses existing Job system.
+
+**Each trigger creates a new job.Job:**
 
 ```go
-// On robot member create - use Once/Cron/Daemon based on clock mode
+// On each trigger (clock/human/event), create a new Job
+execID := gonanoid.Must()
 j, _ := job.Once(job.GOROUTINE, map[string]interface{}{
-    "job_id":      "robot_" + memberID,
+    "job_id":      "robot_exec_" + execID,       // unique per execution
     "category_id": "autonomous_robot",
-    "name":        member.DisplayName,
+    "name":        fmt.Sprintf("%s - %s", member.DisplayName, triggerType),
+    "metadata": map[string]interface{}{
+        "member_id":    memberID,
+        "team_id":      teamID,
+        "trigger_type": triggerType,
+        "exec_id":      execID,
+    },
 })
 job.SaveJob(j)
 
-// Add execution with config
-exec := &job.Execution{
-    ExecutionID:     gonanoid.Must(),
-    JobID:           j.JobID,
-    Status:          "queued",
-    TriggerCategory: string(TriggerClock), // or TriggerHuman, TriggerEvent
-    ExecutionConfig: &job.ExecutionConfig{
-        Type:        job.ExecutionTypeProcess,
-        ProcessName: "autonomous.Execute",
-        ProcessArgs: []interface{}{memberID, triggerData},
-    },
+// Configure and start
+j.ExecutionConfig = &job.ExecutionConfig{
+    Type:        job.ExecutionTypeProcess,
+    ProcessName: "robot.Execute",
+    ProcessArgs: []interface{}{memberID, execID, triggerData},
 }
-job.SaveExecution(exec)
-
-// Start execution
 j.Push()
+```
 
-// Query history
+**Query executions for a robot:**
+
+```go
+// List all executions for a robot member
 param := model.QueryParam{
-    Wheres: []model.QueryWhere{{Column: "job_id", Value: j.JobID}},
+    Wheres: []model.QueryWhere{
+        {Column: "category_id", Value: "autonomous_robot"},
+        {Column: "metadata->member_id", Value: memberID},
+    },
+    Orders: []model.QueryOrder{{Column: "created_at", Option: "desc"}},
 }
-execs, _ := job.ListExecutions(param, 1, 10)
+jobs, _ := job.ListJobs(param, 1, 10)
 ```
 
 **Query examples:**
 
 ```go
-// List robot jobs
+// List all robot jobs (all robots, all executions)
 param := model.QueryParam{
     Wheres: []model.QueryWhere{
         {Column: "category_id", Value: "autonomous_robot"},
