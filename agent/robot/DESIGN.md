@@ -239,14 +239,16 @@ Gathers info to help make good goals. **Clock context is key input** - Agent kno
 
 ```go
 type InspirationReport struct {
-    Clock         ClockContext   // Current time context
-    Summary       string         // What's happening
-    Highlights    []Highlight    // Key changes
-    Opportunities []Opportunity  // Chances to act
-    Risks         []Risk         // Things to watch
-    WorldInsights []WorldInsight // News from outside
-    Suggestions   []string       // What to focus on
+    Clock   *ClockContext `json:"clock"`   // time context
+    Content string        `json:"content"` // markdown text for LLM
 }
+// Content is markdown like:
+// ## Summary
+// ...
+// ## Highlights
+// - [High] Sales up 50%
+// ## Opportunities / Risks / World News / Pending
+// ...
 
 type ClockContext struct {
     Now          time.Time // Current time
@@ -292,15 +294,17 @@ Make today's goals.
 
 ### 4.4 P2: Tasks
 
-Breaks goals into steps:
+P2 Agent reads Goals markdown and breaks into executable tasks:
 
 ```go
 type Task struct {
-    ID           string
-    GoalID       string
-    Description  string
-    ExecutorType string // "assistant" | "mcp"
-    ExecutorID   string
+    ID           string       // unique task ID
+    GoalRef      string       // reference to goal in markdown (e.g., "Goal 1")
+    Description  string       // what to do
+    ExecutorType ExecutorType // assistant | mcp | process
+    ExecutorID   string       // agent ID or mcp tool name
+    Args         []any        // arguments for executor
+    Order        int          // execution order
 }
 ```
 

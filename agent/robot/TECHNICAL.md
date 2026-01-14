@@ -223,13 +223,13 @@ type UpdateRequest struct {
 
 // ListQuery - query options for List()
 type ListQuery struct {
-    TeamID    string `json:"team_id,omitempty"`    // filter by team
-    Status    string `json:"status,omitempty"`     // idle | working | paused | error
-    Keywords  string `json:"keywords,omitempty"`   // search display_name, role
-    ClockMode string `json:"clock_mode,omitempty"` // times | interval | daemon
-    Page      int    `json:"page,omitempty"`       // default 1
-    PageSize  int    `json:"pagesize,omitempty"`   // default 20, max 100
-    Order     string `json:"order,omitempty"`      // e.g. "created_at desc"
+    TeamID    string            `json:"team_id,omitempty"`    // filter by team
+    Status    types.RobotStatus `json:"status,omitempty"`     // idle | working | paused | error
+    Keywords  string            `json:"keywords,omitempty"`   // search display_name, role
+    ClockMode types.ClockMode   `json:"clock_mode,omitempty"` // times | interval | daemon
+    Page      int               `json:"page,omitempty"`       // default 1
+    PageSize  int               `json:"pagesize,omitempty"`   // default 20, max 100
+    Order     string            `json:"order,omitempty"`      // e.g. "created_at desc"
 }
 
 // ListResult - result of List()
@@ -242,15 +242,15 @@ type ListResult struct {
 
 // RobotState - runtime state from Status()
 type RobotState struct {
-    MemberID    string     `json:"member_id"`
-    TeamID      string     `json:"team_id"`
-    DisplayName string     `json:"display_name"`
-    Status      string     `json:"status"`                  // idle | working | paused | error
-    Running     int        `json:"running"`                 // current running execution count
-    MaxRunning  int        `json:"max_running"`             // max concurrent allowed (from Quota.Max)
-    LastRun     *time.Time `json:"last_run,omitempty"`
-    NextRun     *time.Time `json:"next_run,omitempty"`
-    RunningIDs  []string   `json:"running_ids,omitempty"`   // list of running execution IDs
+    MemberID    string            `json:"member_id"`
+    TeamID      string            `json:"team_id"`
+    DisplayName string            `json:"display_name"`
+    Status      types.RobotStatus `json:"status"`                // idle | working | paused | error
+    Running     int               `json:"running"`               // current running execution count
+    MaxRunning  int               `json:"max_running"`           // max concurrent allowed
+    LastRun     *time.Time        `json:"last_run,omitempty"`
+    NextRun     *time.Time        `json:"next_run,omitempty"`
+    RunningIDs  []string          `json:"running_ids,omitempty"` // list of running execution IDs
 }
 
 // ==================== Trigger Types ====================
@@ -267,7 +267,7 @@ type TriggerRequest struct {
     AtIndex     int                      `json:"at_index,omitempty"`    // index when insert_at=at
 
     // Event fields (when Type = event)
-    Source    string                 `json:"source,omitempty"`     // webhook | database
+    Source    types.EventSource      `json:"source,omitempty"`     // webhook | database
     EventType string                 `json:"event_type,omitempty"` // lead.created, order.paid, etc.
     Data      map[string]interface{} `json:"data,omitempty"`       // event payload
 }
@@ -295,10 +295,10 @@ type TriggerResult struct {
 
 // ExecutionQuery - query options for GetExecutions()
 type ExecutionQuery struct {
-    Status   string `json:"status,omitempty"`   // pending | running | completed | failed
-    Trigger  string `json:"trigger,omitempty"`  // clock | human | event
-    Page     int    `json:"page,omitempty"`     // default 1
-    PageSize int    `json:"pagesize,omitempty"` // default 20
+    Status   types.ExecStatus   `json:"status,omitempty"`  // pending | running | completed | failed
+    Trigger  types.TriggerType  `json:"trigger,omitempty"` // clock | human | event
+    Page     int                `json:"page,omitempty"`    // default 1
+    PageSize int                `json:"pagesize,omitempty"`// default 20
 }
 
 // ExecutionResult - result of GetExecutions()
@@ -474,7 +474,7 @@ interface RobotState {
   member_id: string;
   team_id: string;
   display_name: string;
-  status: string; // idle | working | paused | error
+  status: "idle" | "working" | "paused" | "error" | "maintenance";
   running: number; // current running execution count
   max_running: number; // max concurrent allowed
   last_run?: string;
@@ -494,23 +494,34 @@ interface TriggerRequest {
   type: "human" | "event";
 
   // Human intervention fields
-  action?: string; // task.add | goal.adjust | task.cancel | plan.add
+  action?:
+    | "task.add"
+    | "task.cancel"
+    | "task.update"
+    | "goal.adjust"
+    | "goal.add"
+    | "goal.complete"
+    | "goal.cancel"
+    | "plan.add"
+    | "plan.remove"
+    | "plan.update"
+    | "instruct";
   description?: string;
   insert_at?: "first" | "last" | "next" | "at";
   at_index?: number;
   plan_at?: string; // ISO date for plan.add
 
   // Event fields
-  source?: string; // webhook | database
+  source?: "webhook" | "database";
   event_type?: string; // lead.created, etc.
   data?: Record<string, any>;
 }
 
 interface ListQuery {
   team_id?: string;
-  status?: string;
+  status?: "idle" | "working" | "paused" | "error" | "maintenance";
   keywords?: string;
-  clock_mode?: string;
+  clock_mode?: "times" | "interval" | "daemon";
   page?: number;
   pagesize?: number;
 }
@@ -523,8 +534,8 @@ interface ListResult {
 }
 
 interface ExecutionQuery {
-  status?: string;
-  trigger?: string;
+  status?: "pending" | "running" | "completed" | "failed" | "cancelled";
+  trigger?: "clock" | "human" | "event";
   page?: number;
   pagesize?: number;
 }
@@ -794,6 +805,24 @@ const (
     DedupMerge   DedupResult = "merge"   // merge with existing
     DedupProceed DedupResult = "proceed" // proceed normally
 )
+
+// EventSource - event trigger source
+type EventSource string
+
+const (
+    EventWebhook  EventSource = "webhook"  // HTTP webhook
+    EventDatabase EventSource = "database" // DB change trigger
+)
+
+// LearningType - learning entry type
+type LearningType string
+
+const (
+    LearnExecution LearningType = "execution" // execution record
+    LearnFeedback  LearningType = "feedback"  // error/fix feedback
+    LearnInsight   LearningType = "insight"   // pattern/tip insight
+)
+
 ```
 
 ### 2.2 Context
@@ -1050,8 +1079,8 @@ type Delivery struct {
 
 // Event - event trigger config
 type Event struct {
-    Type   string                 `json:"type"`   // webhook | database
-    Source string                 `json:"source"` // path or table
+    Type   EventSource            `json:"type"`   // webhook | database
+    Source string                 `json:"source"` // webhook path or table name
     Filter map[string]interface{} `json:"filter,omitempty"`
 }
 
@@ -1163,11 +1192,11 @@ type Execution struct {
     JobID string `json:"job_id"` // corresponding job.Job ID
 
     // Phase outputs
-    Inspiration *InspirationReport `json:"inspiration,omitempty"`
-    Goals       []Goal             `json:"goals,omitempty"`   // all goals
-    Tasks       []Task             `json:"tasks,omitempty"`   // all tasks
-    Current     *CurrentState      `json:"current,omitempty"` // current executing state
-    Results     []TaskResult       `json:"results,omitempty"`
+    Inspiration *InspirationReport `json:"inspiration,omitempty"` // P0: markdown
+    Goals       *Goals             `json:"goals,omitempty"`       // P1: markdown
+    Tasks       []Task             `json:"tasks,omitempty"`       // P2: structured tasks
+    Current     *CurrentState      `json:"current,omitempty"`     // current executing state
+    Results     []TaskResult       `json:"results,omitempty"`     // P3: task results
     Delivery    *DeliveryResult    `json:"delivery,omitempty"`
     Learning    []LearningEntry    `json:"learning,omitempty"`
 
@@ -1179,40 +1208,30 @@ type Execution struct {
 
 // CurrentState - current executing goal and task
 type CurrentState struct {
-    Goal      *Goal  `json:"goal,omitempty"`       // current goal being executed
-    GoalIndex int    `json:"goal_index"`           // index in Goals slice
-    Task      *Task  `json:"task,omitempty"`       // current task being executed
-    TaskIndex int    `json:"task_index"`           // index in Tasks slice
-    Progress  string `json:"progress,omitempty"`   // human-readable progress (e.g., "2/5 tasks")
+    Task      *Task  `json:"task,omitempty"`     // current task being executed
+    TaskIndex int    `json:"task_index"`         // index in Tasks slice
+    Progress  string `json:"progress,omitempty"` // human-readable progress (e.g., "2/5 tasks")
 }
 
-// Goal - generated goal
-type Goal struct {
-    ID          string     `json:"id"`
-    Description string     `json:"description"`
-    Priority    Priority   `json:"priority"`
-    Status      GoalStatus `json:"status"`
-    Rationale   string     `json:"rationale,omitempty"`
-    Tags        []string   `json:"tags,omitempty"`
-    StartTime   *time.Time `json:"start_time,omitempty"`
-    EndTime     *time.Time `json:"end_time,omitempty"`
+// Goals - P1 output (markdown for LLM)
+// P1 Agent reads InspirationReport and generates goals as markdown
+// Example:
+// ## Goals
+// 1. [High] Analyze sales data and identify trends
+//    - Reason: Sales up 50%, need to understand why
+// 2. [Normal] Prepare weekly report for manager
+//    - Reason: Friday 5pm, weekly report due
+// 3. [Low] Update CRM with new leads
+//    - Reason: 3 pending leads from yesterday
+type Goals struct {
+    Content string `json:"content"` // markdown text
 }
 
-// GoalStatus - goal execution status
-type GoalStatus string
-
-const (
-    GoalPending    GoalStatus = "pending"
-    GoalInProgress GoalStatus = "in_progress"
-    GoalCompleted  GoalStatus = "completed"
-    GoalFailed     GoalStatus = "failed"
-    GoalSkipped    GoalStatus = "skipped"
-)
-
-// Task - planned task
+// Task - planned task (structured, for execution)
+// P2 Agent parses Goals markdown and generates these
 type Task struct {
     ID           string       `json:"id"`
-    GoalID       string       `json:"goal_id"`
+    GoalRef      string       `json:"goal_ref"`     // reference to goal in markdown (e.g., "Goal 1")
     Description  string       `json:"description"`
     ExecutorType ExecutorType `json:"executor_type"`
     ExecutorID   string       `json:"executor_id"`
@@ -1274,10 +1293,10 @@ type DeliveryResult struct {
 
 // LearningEntry - knowledge to save
 type LearningEntry struct {
-    Type    string      `json:"type"` // execution | feedback | insight
-    Content string      `json:"content"`
-    Tags    []string    `json:"tags,omitempty"`
-    Meta    interface{} `json:"meta,omitempty"`
+    Type    LearningType `json:"type"` // execution | feedback | insight
+    Content string       `json:"content"`
+    Tags    []string     `json:"tags,omitempty"`
+    Meta    interface{}  `json:"meta,omitempty"`
 }
 ```
 
@@ -1344,51 +1363,26 @@ func NewClockContext(t time.Time, tz string) *ClockContext {
 // types/inspiration.go
 package types
 
-// InspirationReport - P0 output
+// InspirationReport - P0 output (simple markdown for LLM)
 type InspirationReport struct {
-    Clock         *ClockContext `json:"clock"`
-    Summary       string                   `json:"summary"`
-    Highlights    []Highlight              `json:"highlights,omitempty"`
-    Opportunities []Opportunity            `json:"opportunities,omitempty"`
-    Risks         []Risk                   `json:"risks,omitempty"`
-    WorldInsights []WorldInsight           `json:"world_insights,omitempty"`
-    Suggestions   []string                 `json:"suggestions,omitempty"`
-    PendingItems  []PendingItem            `json:"pending_items,omitempty"`
+    Clock   *ClockContext `json:"clock"`   // time context
+    Content string        `json:"content"` // markdown text for LLM
 }
 
-type Highlight struct {
-    Source   string `json:"source"`   // data | event | feedback
-    Priority string `json:"priority"` // high | medium | low
-    Content  string `json:"content"`
-    Change   string `json:"change,omitempty"` // +50%, -20%, etc.
-}
-
-type Opportunity struct {
-    Description string `json:"description"`
-    Impact      string `json:"impact"` // high | medium | low
-    Urgency     string `json:"urgency"`
-}
-
-type Risk struct {
-    Description string `json:"description"`
-    Severity    string `json:"severity"` // high | medium | low
-    Mitigation  string `json:"mitigation,omitempty"`
-}
-
-type WorldInsight struct {
-    Source  string `json:"source"` // news | competitor | industry
-    Title   string `json:"title"`
-    Summary string `json:"summary"`
-    Impact  string `json:"impact,omitempty"`
-    URL     string `json:"url,omitempty"`
-}
-
-type PendingItem struct {
-    Type        string `json:"type"` // goal | task | plan
-    ID          string `json:"id"`
-    Description string `json:"description"`
-    DueDate     string `json:"due_date,omitempty"`
-}
+// Content is markdown like:
+// ## Summary
+// ...
+// ## Highlights
+// - [High] Sales up 50%
+// - [Medium] New lead from BigCorp
+// ## Opportunities
+// ...
+// ## Risks
+// ...
+// ## World News
+// ...
+// ## Pending
+// ...
 ```
 
 ### 2.6 Request/Response Types
