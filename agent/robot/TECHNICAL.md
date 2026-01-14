@@ -260,11 +260,11 @@ type TriggerRequest struct {
     Type types.TriggerType `json:"type"` // human | event
 
     // Human intervention fields (when Type = human)
-    Action      types.InterventionAction `json:"action,omitempty"`      // task.add | goal.adjust | task.cancel | plan.add
-    Description string                   `json:"description,omitempty"` // task/goal description
-    PlanAt      *time.Time               `json:"plan_at,omitempty"`     // for action=plan.add
-    InsertAt    InsertPosition           `json:"insert_at,omitempty"`   // where to insert: first | last | next | at
-    AtIndex     int                      `json:"at_index,omitempty"`    // index when insert_at=at
+    Action   types.InterventionAction `json:"action,omitempty"`    // task.add | goal.adjust | task.cancel | plan.add
+    Input    string                   `json:"input,omitempty"`     // user's input
+    PlanAt   *time.Time               `json:"plan_at,omitempty"`   // for action=plan.add
+    InsertAt InsertPosition           `json:"insert_at,omitempty"` // where to insert: first | last | next | at
+    AtIndex  int                      `json:"at_index,omitempty"`  // index when insert_at=at
 
     // Event fields (when Type = event)
     Source    types.EventSource      `json:"source,omitempty"`     // webhook | database
@@ -366,7 +366,7 @@ const list = Process("robot.List", {
 const result = Process("robot.Trigger", "mem_abc123", {
   type: "human",
   action: "task.add",
-  description: "Prepare meeting materials for BigCorp",
+  input: "Prepare meeting materials for BigCorp",
   insert_at: "first",
 });
 
@@ -506,7 +506,7 @@ interface TriggerRequest {
     | "plan.remove"
     | "plan.update"
     | "instruct";
-  description?: string;
+  input?: string;
   insert_at?: "first" | "last" | "next" | "at";
   at_index?: number;
   plan_at?: string; // ISO date for plan.add
@@ -620,7 +620,7 @@ if (state.status === "idle") {
   const result = bot.Trigger({
     type: "human",
     action: "task.add",
-    description: "Analyze sales data",
+    input: "Analyze sales data",
     insert_at: "first",
   });
   console.log("Triggered:", result.accepted);
@@ -653,7 +653,7 @@ function Create(ctx, messages) {
   const result = bot.Trigger({
     type: "human",
     action: "task.add",
-    description: "Analyze this data",
+    input: "Analyze this data",
     insert_at: "first",
   });
 
@@ -1211,9 +1211,9 @@ type Execution struct {
 // TriggerInput - stored trigger input for traceability
 type TriggerInput struct {
     // For human intervention
-    Action      InterventionAction `json:"action,omitempty"`      // task.add, goal.adjust, etc.
-    Description string             `json:"description,omitempty"` // user's original input
-    UserID      string             `json:"user_id,omitempty"`     // who triggered
+    Action InterventionAction `json:"action,omitempty"` // task.add, goal.adjust, etc.
+    Input  string             `json:"input,omitempty"`  // user's original input
+    UserID string             `json:"user_id,omitempty"`// who triggered
 
     // For event trigger
     Source    EventSource            `json:"source,omitempty"`     // webhook | database
@@ -1419,12 +1419,12 @@ import (
 
 // InterveneRequest - human intervention request
 type InterveneRequest struct {
-    TeamID      string             `json:"team_id"`
-    MemberID    string             `json:"member_id"`
-    Action      InterventionAction `json:"action"`
-    Description string             `json:"description"`
-    Priority    Priority           `json:"priority,omitempty"`
-    PlanTime    *time.Time         `json:"plan_time,omitempty"` // for action=plan
+    TeamID   string             `json:"team_id"`
+    MemberID string             `json:"member_id"`
+    Action   InterventionAction `json:"action"`
+    Input    string             `json:"input"`
+    Priority Priority           `json:"priority,omitempty"`
+    PlanTime *time.Time         `json:"plan_time,omitempty"` // for action=plan
 }
 
 // EventRequest - event trigger request
@@ -1468,84 +1468,56 @@ type RobotState struct {
 // types/interfaces.go
 package types
 
-import (
-    "context"
-    "time"
-)
+import "time"
 
 // ==================== Internal Interfaces ====================
 // These are internal implementation interfaces, not exposed via API.
 // External API is defined in api/api.go
+// All interfaces use *Context (not context.Context) for consistency.
 
 // Manager - robot lifecycle and clock trigger management
 type Manager interface {
-    // Start/Stop the manager (clock ticker, workers)
     Start() error
     Stop() error
-
-    // Tick - called by internal clock ticker
-    Tick(ctx context.Context, now time.Time) error
+    Tick(ctx *Context, now time.Time) error
 }
 
 // Executor - executes robot phases
 type Executor interface {
-    // Execute runs all phases for a trigger, returns Execution
-    Execute(ctx context.Context, robot *Robot, trigger TriggerType, data interface{}) (*Execution, error)
+    Execute(ctx *Context, robot *Robot, trigger TriggerType, data interface{}) (*Execution, error)
 }
 
 // Pool - worker pool for concurrent execution
 type Pool interface {
-    // Start/Stop the pool
     Start() error
     Stop() error
-
-    // Submit execution request to pool
-    Submit(robot *Robot, trigger TriggerType, data interface{}) (string, error) // returns execID
-
-    // Stats
-    Running() int  // current running count
-    Queued() int   // current queue size
+    Submit(ctx *Context, robot *Robot, trigger TriggerType, data interface{}) (string, error)
+    Running() int
+    Queued() int
 }
 
 // Cache - in-memory robot cache
 type Cache interface {
-    // Load all active robots from DB
-    Load(ctx context.Context) error
-
-    // Get robot by member ID
+    Load(ctx *Context) error
     Get(memberID string) *Robot
-
-    // List all cached robots (optionally by team)
     List(teamID string) []*Robot
-
-    // Refresh single robot from DB
-    Refresh(memberID string) error
-
-    // Add/Remove (called on member create/delete)
+    Refresh(ctx *Context, memberID string) error
     Add(robot *Robot)
     Remove(memberID string)
 }
 
 // Dedup - deduplication check
 type Dedup interface {
-    // Check if execution should proceed
-    Check(ctx context.Context, memberID string, trigger TriggerType) (DedupResult, error)
-
-    // Mark as executed (for time-window dedup)
+    Check(ctx *Context, memberID string, trigger TriggerType) (DedupResult, error)
     Mark(memberID string, trigger TriggerType, window time.Duration)
 }
 
 // Store - data storage operations (KB, DB)
 type Store interface {
-    // Private KB operations
-    SaveLearning(ctx context.Context, memberID string, entries []LearningEntry) error
-    GetHistory(ctx context.Context, memberID string, limit int) ([]LearningEntry, error)
-
-    // Shared KB query
-    SearchKB(ctx context.Context, collections []string, query string) ([]interface{}, error)
-
-    // Shared DB query
-    QueryDB(ctx context.Context, models []string, query interface{}) ([]interface{}, error)
+    SaveLearning(ctx *Context, memberID string, entries []LearningEntry) error
+    GetHistory(ctx *Context, memberID string, limit int) ([]LearningEntry, error)
+    SearchKB(ctx *Context, collections []string, query string) ([]interface{}, error)
+    QueryDB(ctx *Context, models []string, query interface{}) ([]interface{}, error)
 }
 ```
 
