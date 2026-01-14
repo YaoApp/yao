@@ -261,16 +261,27 @@ type TriggerRequest struct {
     Type types.TriggerType `json:"type"` // human | event
 
     // Human intervention fields (when Type = human)
-    Action      types.InterventionAction `json:"action,omitempty"`      // add_task | adjust_goal | cancel_task | plan
+    Action      types.InterventionAction `json:"action,omitempty"`      // task.add | goal.adjust | task.cancel | plan.add
     Description string                   `json:"description,omitempty"` // task/goal description
-    Priority    types.Priority           `json:"priority,omitempty"`    // high | normal | low
-    PlanAt      *time.Time               `json:"plan_at,omitempty"`     // for action=plan
+    PlanAt      *time.Time               `json:"plan_at,omitempty"`     // for action=plan.add
+    InsertAt    InsertPosition           `json:"insert_at,omitempty"`   // where to insert: first | last | next | at
+    AtIndex     int                      `json:"at_index,omitempty"`    // index when insert_at=at
 
     // Event fields (when Type = event)
     Source    string                 `json:"source,omitempty"`     // webhook | database
     EventType string                 `json:"event_type,omitempty"` // lead.created, order.paid, etc.
     Data      map[string]interface{} `json:"data,omitempty"`       // event payload
 }
+
+// InsertPosition - where to insert task in queue
+type InsertPosition string
+
+const (
+    InsertFirst InsertPosition = "first" // insert at beginning (highest priority)
+    InsertLast  InsertPosition = "last"  // append at end (default)
+    InsertNext  InsertPosition = "next"  // insert after current task
+    InsertAt    InsertPosition = "at"    // insert at specific index (use AtIndex)
+)
 
 // TriggerResult - result of Trigger()
 type TriggerResult struct {
@@ -323,21 +334,21 @@ func init() {
 }
 ```
 
-| Process              | Args                                    | Returns           | Description        |
-| -------------------- | --------------------------------------- | ----------------- | ------------------ |
-| `robot.Get`          | `memberID`                              | `Robot`           | Get robot by ID    |
-| `robot.List`         | `query`                                 | `ListResult`      | List robots        |
-| `robot.Create`       | `teamID`, `data`                        | `Robot`           | Create robot       |
-| `robot.Update`       | `memberID`, `data`                      | `Robot`           | Update robot       |
-| `robot.Remove`       | `memberID`                              | `null`            | Delete robot       |
-| `robot.Status`       | `memberID`                              | `RobotState`      | Get runtime status |
-| `robot.UpdateStatus` | `memberID`, `status`                    | `null`            | Update status      |
-| `robot.Trigger`      | `memberID`, `type`, `action`, `payload` | `TriggerResult`   | Trigger execution  |
-| `robot.Executions`   | `memberID`, `query`                     | `ExecutionResult` | List executions    |
-| `robot.Execution`    | `execID`                                | `Execution`       | Get execution      |
-| `robot.Pause`        | `execID`                                | `null`            | Pause execution    |
-| `robot.Resume`       | `execID`                                | `null`            | Resume execution   |
-| `robot.Stop`         | `execID`                                | `null`            | Stop execution     |
+| Process              | Args                  | Returns           | Description        |
+| -------------------- | --------------------- | ----------------- | ------------------ |
+| `robot.Get`          | `memberID`            | `Robot`           | Get robot by ID    |
+| `robot.List`         | `query`               | `ListResult`      | List robots        |
+| `robot.Create`       | `teamID`, `data`      | `Robot`           | Create robot       |
+| `robot.Update`       | `memberID`, `data`    | `Robot`           | Update robot       |
+| `robot.Remove`       | `memberID`            | `null`            | Delete robot       |
+| `robot.Status`       | `memberID`            | `RobotState`      | Get runtime status |
+| `robot.UpdateStatus` | `memberID`, `status`  | `null`            | Update status      |
+| `robot.Trigger`      | `memberID`, `request` | `TriggerResult`   | Trigger execution  |
+| `robot.Executions`   | `memberID`, `query`   | `ExecutionResult` | List executions    |
+| `robot.Execution`    | `execID`              | `Execution`       | Get execution      |
+| `robot.Pause`        | `execID`              | `null`            | Pause execution    |
+| `robot.Resume`       | `execID`              | `null`            | Resume execution   |
+| `robot.Stop`         | `execID`              | `null`            | Stop execution     |
 
 **Usage:**
 
@@ -352,9 +363,20 @@ const list = Process("robot.List", {
   pagesize: 20,
 });
 
-const result = Process("robot.Trigger", "mem_abc123", "human", "task.add", {
+// Trigger with human intervention
+const result = Process("robot.Trigger", "mem_abc123", {
+  type: "human",
+  action: "task.add",
   description: "Prepare meeting materials for BigCorp",
-  priority: "high",
+  insert_at: "first",
+});
+
+// Trigger with event
+const eventResult = Process("robot.Trigger", "mem_abc123", {
+  type: "event",
+  source: "webhook",
+  event_type: "lead.created",
+  data: { name: "John", email: "john@example.com" },
 });
 
 const execs = Process("robot.Executions", "mem_abc123", {
@@ -456,6 +478,64 @@ interface TriggerResult {
   message?: string;
 }
 
+interface TriggerRequest {
+  type: "human" | "event";
+
+  // Human intervention fields
+  action?: string; // task.add | goal.adjust | task.cancel | plan.add
+  description?: string;
+  insert_at?: "first" | "last" | "next" | "at";
+  at_index?: number;
+  plan_at?: string; // ISO date for plan.add
+
+  // Event fields
+  source?: string; // webhook | database
+  event_type?: string; // lead.created, etc.
+  data?: Record<string, any>;
+}
+
+interface ListQuery {
+  team_id?: string;
+  status?: string;
+  keywords?: string;
+  clock_mode?: string;
+  page?: number;
+  pagesize?: number;
+}
+
+interface ListResult {
+  data: RobotData[];
+  total: number;
+  page: number;
+  pagesize: number;
+}
+
+interface ExecutionQuery {
+  status?: string;
+  trigger?: string;
+  page?: number;
+  pagesize?: number;
+}
+
+interface ExecutionResult {
+  data: Execution[];
+  total: number;
+  page: number;
+  pagesize: number;
+}
+
+interface CreateRequest {
+  display_name: string;
+  system_prompt?: string;
+  robot_config: RobotConfig;
+}
+
+interface UpdateRequest {
+  display_name?: string;
+  system_prompt?: string;
+  robot_config?: RobotConfig;
+}
+
 // Robot instance (created via new Robot(memberID))
 declare class Robot {
   constructor(memberID: string);
@@ -486,11 +566,12 @@ const robot = new Robot("mem_abc123");
 // Instance methods
 const state = robot.Status();
 if (state.status === "idle") {
+  // Trigger with human intervention
   const result = robot.Trigger({
     type: "human",
     action: "task.add",
     description: "Analyze sales data",
-    priority: "high",
+    insert_at: "first", // urgent task, insert at beginning
   });
   console.log("Triggered:", result.accepted);
 }
@@ -529,7 +610,7 @@ function Create(ctx, messages) {
     type: "human",
     action: "task.add",
     description: "Analyze this data",
-    priority: "high",
+    insert_at: "first", // urgent: insert at beginning
   });
 
   if (result.accepted) {
@@ -1081,10 +1162,20 @@ type Task struct {
     ExecutorID   string       `json:"executor_id"`
     Args         []any        `json:"args,omitempty"`
     Status       TaskStatus   `json:"status"`
-    Order        int          `json:"order"`
+    Order        int          `json:"order"`  // execution order (0-based, lower = first)
+    Source       TaskSource   `json:"source"` // how task was created
     StartTime    *time.Time   `json:"start_time,omitempty"`
     EndTime      *time.Time   `json:"end_time,omitempty"`
 }
+
+// TaskSource - how task was created
+type TaskSource string
+
+const (
+    TaskSourceAuto   TaskSource = "auto"   // generated by P2 (task planning)
+    TaskSourceHuman  TaskSource = "human"  // added via human intervention
+    TaskSourceEvent  TaskSource = "event"  // added via event trigger
+)
 
 // ExecutorType - task executor type
 type ExecutorType string
