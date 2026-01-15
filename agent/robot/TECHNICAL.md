@@ -50,12 +50,10 @@ yao/agent/robot/
 │   ├── id.go                 # ID generation (nanoid, uuid)
 │   └── validate.go           # Validation helpers
 │
-├── trigger/                  # All trigger sources
-│   ├── trigger.go            # Trigger interface & dispatcher
-│   ├── clock.go              # Clock trigger (tick, schedule matching)
-│   ├── intervene.go          # Human intervention trigger
-│   ├── event.go              # Event trigger (webhook, db change)
-│   └── control.go            # Pause/Resume/Cancel
+├── trigger/                  # Trigger utilities (logic in manager/)
+│   ├── trigger.go            # Validation helpers, action utilities
+│   ├── clock.go              # ClockMatcher (reusable clock matching logic)
+│   └── control.go            # ExecutionController (pause/resume/stop)
 │
 ├── cache/                    # Cache package
 │   ├── cache.go              # Cache struct, Get/List
@@ -86,6 +84,9 @@ yao/agent/robot/
 
 ### Dependency Graph (No Cycles)
 
+> **Note:** `trigger/` is a utility package (validation, clock matching, execution control).
+> All trigger logic flows through `manager/`.
+
 ```
                               ┌──────────┐
                               │  types/  │  (pure types, no deps)
@@ -94,24 +95,20 @@ yao/agent/robot/
     ┌───────┬───────┬───────┬──────┼──────┬───────┬───────┬───────┐
     │       │       │       │      │      │       │       │       │
     ▼       ▼       ▼       ▼      ▼      ▼       ▼       ▼       ▼
-┌───────┐┌───────┐┌───────┐┌──────┐┌────┐┌──────┐┌───────┐
-│ cache ││ dedup ││ store ││ pool ││job ││ plan ││ utils │
-└───┬───┘└───┬───┘└───┬───┘└──┬───┘└──┬─┘└──────┘└───────┘
-    │        │        │       │       │
-    └────────┴────────┴───────┴───────┘
-                      │
-       ┌──────────────┴──────────────┐
-       │                             │
-       ▼                             ▼
-┌────────────┐                ┌────────────┐
-│  trigger/  │                │  executor/ │
-└──────┬─────┘                └──────┬─────┘
-       │                             │
-       └──────────────┬──────────────┘
+┌───────┐┌───────┐┌───────┐┌──────┐┌────┐┌──────┐┌───────┐┌─────────┐
+│ cache ││ dedup ││ store ││ pool ││job ││ plan ││ utils ││ trigger │
+└───┬───┘└───┬───┘└───┬───┘└──┬───┘└──┬─┘└──────┘└───────┘└────┬────┘
+    │        │        │       │       │                        │
+    └────────┴────────┴───────┴───────┴────────────────────────┘
                       │
                       ▼
                ┌────────────┐
-               │  manager/  │
+               │  executor/ │
+               └──────┬─────┘
+                      │
+                      ▼
+               ┌────────────┐
+               │  manager/  │  (imports trigger/ for utilities)
                └──────┬─────┘
                       │
        ┌──────────────┴──────────────┐
@@ -124,21 +121,22 @@ yao/agent/robot/
 
 ### Package Dependencies
 
-| Package     | Imports                                                 |
-| ----------- | ------------------------------------------------------- |
-| `types/`    | stdlib only                                             |
-| `utils/`    | stdlib only                                             |
-| `cache/`    | `types/`                                                |
-| `dedup/`    | `types/`                                                |
-| `store/`    | `types/`                                                |
-| `pool/`     | `types/`                                                |
-| `trigger/`  | `types/`, `cache/`                                      |
-| `job/`      | `types/`, `yao/job`                                     |
-| `plan/`     | `types/`                                                |
-| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/` |
-| `manager/`  | `types/`, `cache/`, `pool/`, `trigger/`, `executor/`    |
-| `api/`      | `types/`, `manager/`, `trigger/`                        |
-| root        | all packages                                            |
+| Package     | Imports                                                     |
+| ----------- | ----------------------------------------------------------- |
+| `types/`    | stdlib only                                                 |
+| `utils/`    | stdlib only                                                 |
+| `cache/`    | `types/`                                                    |
+| `dedup/`    | `types/`                                                    |
+| `store/`    | `types/`                                                    |
+| `pool/`     | `types/`                                                    |
+| `trigger/`  | `types/`                                                    |
+| `job/`      | `types/`, `yao/job`                                         |
+| `plan/`     | `types/`                                                    |
+| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`     |
+| `manager/`  | `types/`, `cache/`, `pool/`, `trigger/`, `executor/`        |
+|             | Manager handles all trigger logic (clock, intervene, event) |
+| `api/`      | `types/`, `manager/`                                        |
+| root        | all packages                                                |
 
 ### Public API (`api/`)
 
@@ -1458,20 +1456,22 @@ import (
 )
 
 // InterveneRequest - human intervention request
+// Processed by Manager.Intervene()
 type InterveneRequest struct {
-    TeamID   string             `json:"team_id"`
-    MemberID string             `json:"member_id"`
-    Action   InterventionAction `json:"action"`
-    Messages []context.Message  `json:"messages"` // user input (text, images, files)
-    PlanTime *time.Time         `json:"plan_time,omitempty"` // for action=plan
+    TeamID   string                    `json:"team_id"`
+    MemberID string                    `json:"member_id"`
+    Action   InterventionAction        `json:"action"`             // task.add, goal.adjust, etc.
+    Messages []agentcontext.Message    `json:"messages,omitempty"` // user input (text, images, files)
+    PlanTime *time.Time                `json:"plan_time,omitempty"` // for action=plan.add
 }
 
 // EventRequest - event trigger request
+// Processed by Manager.HandleEvent()
 type EventRequest struct {
     MemberID  string                 `json:"member_id"`
     Source    string                 `json:"source"`     // webhook path or table name
     EventType string                 `json:"event_type"` // lead.created, etc.
-    Data      map[string]interface{} `json:"data"`
+    Data      map[string]interface{} `json:"data,omitempty"`
 }
 
 // ExecutionResult - trigger result
@@ -1514,11 +1514,33 @@ import "time"
 // External API is defined in api/api.go
 // All interfaces use *Context (not context.Context) for consistency.
 
-// Manager - robot lifecycle and clock trigger management
+// Manager - robot lifecycle, scheduling, and all trigger handling
+// Manager is the central orchestrator, handling:
+// - Clock triggers (via Tick)
+// - Human intervention (via Intervene)
+// - Event triggers (via HandleEvent)
+// - Execution control (pause/resume/stop)
 type Manager interface {
+    // Lifecycle
     Start() error
     Stop() error
+
+    // Clock trigger (called by internal ticker)
     Tick(ctx *Context, now time.Time) error
+
+    // Manual trigger (for testing/API)
+    TriggerManual(ctx *Context, memberID string, trigger TriggerType, data interface{}) (string, error)
+
+    // Human intervention
+    Intervene(ctx *Context, req *InterveneRequest) (*ExecutionResult, error)
+
+    // Event trigger
+    HandleEvent(ctx *Context, req *EventRequest) (*ExecutionResult, error)
+
+    // Execution control
+    PauseExecution(ctx *Context, execID string) error
+    ResumeExecution(ctx *Context, execID string) error
+    StopExecution(ctx *Context, execID string) error
 }
 
 // Executor - executes robot phases
@@ -1558,6 +1580,96 @@ type Store interface {
     SearchKB(ctx *Context, collections []string, query string) ([]interface{}, error)
     QueryDB(ctx *Context, models []string, query interface{}) ([]interface{}, error)
 }
+```
+
+### 3.2 Trigger Utilities (`trigger/` package)
+
+> **Note:** The `trigger/` package provides utilities, not the main trigger logic.
+> All trigger handling is done by `Manager`.
+
+```go
+// trigger/trigger.go - Validation and helper functions
+
+// ValidateIntervention validates a human intervention request
+func ValidateIntervention(req *InterveneRequest) error
+
+// ValidateEvent validates an event trigger request
+func ValidateEvent(req *EventRequest) error
+
+// BuildEventInput creates a TriggerInput from an event request
+func BuildEventInput(req *EventRequest) *TriggerInput
+
+// GetActionCategory returns the category of an intervention action
+// e.g., "task.add" -> "task", "goal.adjust" -> "goal"
+func GetActionCategory(action InterventionAction) string
+
+// GetActionDescription returns a human-readable description of an action
+func GetActionDescription(action InterventionAction) string
+```
+
+```go
+// trigger/clock.go - Clock matching logic (reusable)
+
+// ClockMatcher provides clock trigger matching logic
+type ClockMatcher struct{}
+
+// ShouldTrigger checks if a robot should be triggered based on its clock config
+func (cm *ClockMatcher) ShouldTrigger(robot *Robot, now time.Time) bool
+
+// ParseTime parses a time string in "HH:MM" format
+func ParseTime(timeStr string) (hour, minute int, err error)
+
+// FormatTime formats hour and minute to "HH:MM" string
+func FormatTime(hour, minute int) string
+```
+
+```go
+// trigger/control.go - Execution control (pause/resume/stop)
+
+// ExecutionController manages execution lifecycle
+type ExecutionController struct {
+    executions map[string]*ControlledExecution
+    mu         sync.RWMutex
+}
+
+// Track starts tracking an execution
+func (c *ExecutionController) Track(execID, memberID, teamID string) *ControlledExecution
+
+// Untrack stops tracking an execution
+func (c *ExecutionController) Untrack(execID string)
+
+// Pause pauses an execution
+func (c *ExecutionController) Pause(execID string) error
+
+// Resume resumes a paused execution
+func (c *ExecutionController) Resume(execID string) error
+
+// Stop stops an execution
+func (c *ExecutionController) Stop(execID string) error
+
+// ControlledExecution represents an execution that can be controlled
+type ControlledExecution struct {
+    ID        string
+    MemberID  string
+    TeamID    string
+    Status    ExecStatus
+    Phase     Phase
+    StartTime time.Time
+    PausedAt  *time.Time
+    // ... internal fields for context and channels
+}
+
+// IsPaused returns true if the execution is paused
+func (e *ControlledExecution) IsPaused() bool
+
+// IsCancelled returns true if the execution is cancelled
+func (e *ControlledExecution) IsCancelled() bool
+
+// WaitIfPaused blocks until the execution is resumed or cancelled
+func (e *ControlledExecution) WaitIfPaused() error
+
+// CheckCancelled checks if the execution is cancelled and returns error if so
+func (e *ControlledExecution) CheckCancelled() error
 ```
 
 ---

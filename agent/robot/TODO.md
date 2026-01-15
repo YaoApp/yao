@@ -228,34 +228,53 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] 15 test cases covering all edge cases
   - [x] All tests passing
 
-### 3.3 Trigger Implementation
+### ✅ 3.3 Manager Implementation (COMPLETE)
 
-- [ ] `trigger/trigger.go` - trigger dispatcher (routes to clock/intervene/event)
-- [ ] `trigger/clock.go` - clock trigger
-  - [ ] `times` mode: match specific times (09:00, 14:00)
-  - [ ] `interval` mode: run every X duration (30m, 1h)
-  - [ ] `daemon` mode: restart immediately after completion
-  - [ ] Timezone handling
-- [ ] `trigger/intervene.go` - human intervention
-  - [ ] Parse action (task.add, goal.adjust, etc.)
-  - [ ] Build TriggerInput with Messages
-- [ ] `trigger/event.go` - event handling
-  - [ ] Webhook event dispatch
-  - [ ] Database change event dispatch
-- [ ] `trigger/control.go` - execution control
-  - [ ] Pause execution
-  - [ ] Resume execution
-  - [ ] Cancel/Stop execution
-- [ ] Test: clock matching (all modes), intervention handling, event dispatch
+> **Note:** Manager is the scheduling core, depends on completed Cache and Pool.
 
-### 3.4 Dedup Implementation
+- [x] `manager/manager.go` - Manager struct
+  - [x] `Start()` - load cache, start pool, start ticker goroutine
+  - [x] `Stop()` - graceful shutdown (wait for running, drain queue)
+  - [x] `Tick()` - main loop:
+    1. Get all cached robots
+    2. For each robot with clock trigger enabled
+    3. Check if should execute (times/interval/daemon modes)
+    4. Submit to pool
+  - [x] `TriggerManual()` - manual trigger for testing/API
+  - [x] Clock modes: times, interval, daemon
+  - [x] Day matching for times mode
+  - [x] Timezone handling
+  - [x] Skip paused/error/maintenance robots
+- [x] Test: manager start/stop, tick cycle, manual trigger, clock modes, goroutine leak
 
-- [ ] `dedup/dedup.go` - Dedup struct
-- [ ] `dedup/fast.go` - fast in-memory time-window dedup
-  - [ ] Key: `memberID:triggerType:window`
-  - [ ] Check before submit
-  - [ ] Mark after submit
-- [ ] Test: dedup check/mark, window expiry
+### ✅ 3.4 Trigger Implementation (COMPLETE)
+
+- [x] `trigger/trigger.go` - validation and helper functions
+  - [x] `ValidateIntervention()` - validate human intervention requests
+  - [x] `ValidateEvent()` - validate event trigger requests
+  - [x] `BuildEventInput()` - build TriggerInput from event request
+  - [x] `GetActionCategory()` / `GetActionDescription()` - action helpers
+- [x] `trigger/clock.go` - ClockMatcher for clock trigger matching
+  - [x] `times` mode: match specific times (09:00, 14:00)
+  - [x] `interval` mode: run every X duration (30m, 1h)
+  - [x] `daemon` mode: restart immediately after completion
+  - [x] Timezone handling
+  - [x] Day-of-week filtering
+- [x] `trigger/control.go` - ExecutionController for pause/resume/stop
+  - [x] Track/Untrack executions
+  - [x] Pause/Resume execution
+  - [x] Stop execution (cancel context)
+  - [x] WaitIfPaused() for executor integration
+- [x] `manager/manager.go` - integrated trigger handling
+  - [x] `Intervene()` - human intervention handler
+  - [x] `HandleEvent()` - event trigger handler
+  - [x] `PauseExecution()` / `ResumeExecution()` / `StopExecution()`
+  - [x] `ListExecutions()` / `ListExecutionsByMember()`
+- [x] Tests: `trigger/trigger_test.go`, `trigger/clock_test.go`, `trigger/control_test.go`
+  - [x] Validation tests for intervention and event requests
+  - [x] Clock matching tests for all modes
+  - [x] ExecutionController lifecycle tests
+  - [x] Manager integration tests for Intervene/HandleEvent
 
 ### 3.5 Job Integration
 
@@ -272,29 +291,17 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [ ] Log errors
 - [ ] Test: job creation, execution tracking, log writing
 
-### 3.6 Manager Implementation
+### 3.6 Executor Stub Enhancement
 
-- [ ] `manager/manager.go` - Manager struct
-  - [ ] `Start()` - start ticker goroutine, start pool
-  - [ ] `Stop()` - graceful shutdown (wait for running, drain queue)
-  - [ ] `Tick()` - main loop:
-    1. Get all cached robots
-    2. For each robot with clock trigger enabled
-    3. Check if should execute (schedule match + dedup)
-    4. Submit to pool
-- [ ] Test: manager start/stop, tick cycle
-
-### 3.7 Executor Stub
-
-- [ ] `executor/executor.go` - stub implementation
-  - [ ] `Execute()` - simulate full execution
-    1. Create Execution record
+- [ ] `executor/executor.go` - enhance stub implementation
+  - [ ] `Execute()` - simulate full execution with Job integration
+    1. Create Execution record + Job
     2. Update phase: P0 → P1 → P2 → P3 → P4 → P5
-    3. Sleep briefly between phases (simulate work)
+    3. Log phase transitions
     4. Return success with mock data
-- [ ] Test: verify stub called, verify phase progression
+- [ ] Test: verify stub called, verify phase progression, verify job logs
 
-### 3.8 Integration Test (End-to-End Scheduling)
+### 3.7 Integration Test (End-to-End Scheduling)
 
 - [ ] Create test robot in `__yao.member` with clock config
 - [ ] Start manager
@@ -302,7 +309,6 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
 - [ ] Verify:
   - [ ] Robot loaded to cache
   - [ ] Clock trigger matched
-  - [ ] Dedup checked
   - [ ] Job submitted to pool
   - [ ] Worker picked up job
   - [ ] Executor stub called
@@ -490,15 +496,27 @@ Create `yao-dev-app/assistants/robot/` directory:
 
 ## Phase 11: Advanced Features
 
-**Goal:** Implement semantic dedup, plan queue.
+**Goal:** Implement dedup, semantic dedup, plan queue.
 
-### 11.1 Semantic Dedup
+### 11.1 Fast Dedup (Time-Window)
+
+> **Note:** Manager has `// TODO: dedup check` comment placeholder. Integrate after implementation.
+
+- [ ] `dedup/dedup.go` - Dedup struct
+- [ ] `dedup/fast.go` - fast in-memory time-window dedup
+  - [ ] Key: `memberID:triggerType:window`
+  - [ ] Check before submit
+  - [ ] Mark after submit
+- [ ] Integrate into Manager.Tick()
+- [ ] Test: dedup check/mark, window expiry
+
+### 11.2 Semantic Dedup
 
 - [ ] `dedup/semantic.go` - call Dedup Agent for goal/task level dedup
 - [ ] Dedup Agent setup (`assistants/robot/dedup/`)
 - [ ] Test: semantic dedup with real LLM
 
-### 11.2 Plan Queue
+### 11.3 Plan Queue
 
 - [ ] `plan/plan.go` - plan queue implementation
   - [ ] Store planned tasks/goals

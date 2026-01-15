@@ -18,6 +18,14 @@ A **Robot Agent** is an AI team member. It works on its own, makes decisions, an
 
 ### 2.1 System Flow
 
+> **Architecture Note:** All trigger types flow through Manager.
+>
+> - Clock: `Manager.Tick()` (internal ticker)
+> - Human: `Manager.Intervene()` (API call)
+> - Event: `Manager.HandleEvent()` (webhook/db trigger)
+>
+> The `trigger/` package provides utilities only (validation, clock matching, execution control).
+
 ```mermaid
 flowchart TB
     subgraph Triggers["Triggers"]
@@ -26,7 +34,7 @@ flowchart TB
         EV[/"📡 Event"/]
     end
 
-    subgraph Manager["Manager"]
+    subgraph Manager["Manager (Central Orchestrator)"]
         TC{"Enabled?"}
         Cache[("Cache")]
         Dedup{"Dedup?"}
@@ -153,18 +161,18 @@ sequenceDiagram
 
 ### 3.2 Triggers
 
-| Type      | What                          | Config               |
-| --------- | ----------------------------- | -------------------- |
-| **Clock** | Timer (times/interval/daemon) | `triggers.clock`     |
-| **Human** | Manual action                 | `triggers.intervene` |
-| **Event** | Webhook, DB change            | `triggers.event`     |
+| Type      | What                          | Config               | Handler                 |
+| --------- | ----------------------------- | -------------------- | ----------------------- |
+| **Clock** | Timer (times/interval/daemon) | `triggers.clock`     | `Manager.Tick()`        |
+| **Human** | Manual action                 | `triggers.intervene` | `Manager.Intervene()`   |
+| **Event** | Webhook, DB change            | `triggers.event`     | `Manager.HandleEvent()` |
 
 All on by default. Turn off per agent:
 
 ```yaml
 triggers:
   clock: { enabled: true }
-  intervene: { enabled: true, actions: ["add_task", "pause"] }
+  intervene: { enabled: true, actions: ["task.add", "goal.adjust"] }
   event: { enabled: false }
 ```
 
@@ -720,13 +728,19 @@ Made on robot member create: `robot_{team_id}_{member_id}_kb`
 - `event`: Webhook, DB change
 - `callback`: Async result
 
-**Human actions:**
+**Human actions (InterventionAction):**
 
-- `adjust_goal`: Change goal
-- `add_task`: Add task
-- `cancel_task`: Stop task
-- `pause` / `resume` / `abort`
-- `plan`: Do later
+- `task.add`: Add a new task
+- `task.cancel`: Cancel a task
+- `task.update`: Update task details
+- `goal.adjust`: Modify current goal
+- `goal.add`: Add a new goal
+- `goal.complete`: Mark goal as complete
+- `goal.cancel`: Cancel a goal
+- `plan.add`: Schedule for later
+- `plan.remove`: Remove from plan queue
+- `plan.update`: Update planned item
+- `instruct`: Direct instruction to robot
 
 **Plan Queue:**
 
@@ -739,22 +753,40 @@ Made on robot member create: `robot_{team_id}_{member_id}_kb`
 
 ### 8.1 Manager (Internal)
 
+> **Note:** Manager is the central orchestrator, handling all trigger types.
+
 ```go
 type Manager interface {
     // Lifecycle
     Start() error
     Stop() error
 
-    // Cache
-    LoadActiveRobots(ctx context.Context) error
-    GetRobot(teamID, memberID string) *Robot
-
     // Clock trigger (internal, called by ticker)
-    Tick(ctx context.Context, now time.Time) error
+    Tick(ctx *Context, now time.Time) error
+
+    // Manual trigger (for testing/API)
+    TriggerManual(ctx *Context, memberID string, trigger TriggerType, data interface{}) (string, error)
+
+    // Human intervention (called by API)
+    Intervene(ctx *Context, req *InterveneRequest) (*ExecutionResult, error)
+
+    // Event trigger (called by webhook/db trigger)
+    HandleEvent(ctx *Context, req *EventRequest) (*ExecutionResult, error)
+
+    // Execution control
+    PauseExecution(ctx *Context, execID string) error
+    ResumeExecution(ctx *Context, execID string) error
+    StopExecution(ctx *Context, execID string) error
+
+    // Cache access
+    Cache() Cache
 }
 ```
 
-### 8.2 Trigger (Called by openapi layer)
+### 8.2 Trigger (Integrated into Manager)
+
+> **Note:** Trigger logic is integrated into Manager, not a separate interface.
+> The `trigger/` package provides utilities (validation, clock matching, execution control).
 
 ```go
 // TriggerType enum
@@ -766,27 +798,24 @@ const (
     TriggerEvent TriggerType = "event"
 )
 
-// Trigger interface - called by openapi handlers
-type Trigger interface {
-    // Human intervention
-    Intervene(ctx context.Context, req InterveneRequest) (*ExecutionResult, error)
+// Manager handles all trigger types:
+// - Clock: Manager.Tick() called by internal ticker
+// - Human: Manager.Intervene() called by API
+// - Event: Manager.HandleEvent() called by webhook/db trigger
 
-    // Event trigger (webhook, db change)
-    HandleEvent(ctx context.Context, req EventRequest) (*ExecutionResult, error)
-
-    // Query & control
-    GetStatus(ctx context.Context, teamID, memberID string) (*RobotState, error)
-    Pause(ctx context.Context, teamID, memberID string) error
-    Resume(ctx context.Context, teamID, memberID string) error
-}
+// trigger/ package provides utilities:
+// - trigger.ValidateIntervention(req) - validate human intervention request
+// - trigger.ValidateEvent(req) - validate event request
+// - trigger.BuildEventInput(req) - build TriggerInput from event
+// - trigger.ClockMatcher - reusable clock matching logic
+// - trigger.ExecutionController - pause/resume/stop execution
 
 type InterveneRequest struct {
-    TeamID      string
-    MemberID    string
-    Action      string // add_task | adjust_goal | cancel_task | pause | resume | abort | plan
-    Description string
-    Priority    string    // high | normal | low
-    PlanTime    time.Time // for action=plan
+    TeamID   string
+    MemberID string
+    Action   InterventionAction // task.add | goal.adjust | task.cancel | plan.add | instruct
+    Messages []context.Message  // user input (text, images, files)
+    PlanTime *time.Time         // for action=plan.add
 }
 
 type EventRequest struct {
@@ -799,6 +828,7 @@ type EventRequest struct {
 type ExecutionResult struct {
     ExecutionID string     // Job execution ID
     Status      ExecStatus // pending | running | completed | failed
+    Message     string     // status message
 }
 
 type RobotState struct {
@@ -1234,7 +1264,7 @@ Run #3 (09:25):
     "clock": { "enabled": false },
     "intervene": {
       "enabled": true,
-      "actions": ["add_task", "adjust_goal", "pause"]
+      "actions": ["task.add", "goal.adjust", "instruct"]
     }
   },
   "identity": {
@@ -1266,9 +1296,9 @@ Run #3 (09:25):
 
 ```
 Sales Manager Input:
-  Action: add_task
-  Description: "Meeting with BigCorp CTO tomorrow. Prepare materials.
-               They do smart manufacturing, $150M revenue, digital transformation."
+  Action: task.add
+  Messages: [{ role: "user", content: "Meeting with BigCorp CTO tomorrow. Prepare materials.
+               They do smart manufacturing, $150M revenue, digital transformation." }]
 
 Agent Execution (no P0 for human trigger):
   P1 Goals (from human input):
@@ -1301,8 +1331,8 @@ Agent Execution (no P0 for human trigger):
       - Attachment 4: Meeting Agenda Suggestion
 
 Sales Manager Follow-up:
-  Action: add_task
-  Description: "Also prepare some similar case studies, manufacturing preferred"
+  Action: task.add
+  Messages: [{ role: "user", content: "Also prepare some similar case studies, manufacturing preferred" }]
 
 Agent Continues:
   P1: Find similar manufacturing case studies
