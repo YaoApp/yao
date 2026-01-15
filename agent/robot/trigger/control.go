@@ -26,11 +26,11 @@ type ControlledExecution struct {
 	PausedAt  *time.Time
 
 	// Control channels
-	ctx     context.Context
-	cancel  context.CancelFunc
-	paused  bool
-	pauseMu sync.Mutex
-	pauseCh chan struct{} // closed when paused, recreated on resume
+	ctx      context.Context
+	cancel   context.CancelFunc
+	paused   bool
+	pauseMu  sync.Mutex
+	resumeCh chan struct{} // signaled (closed) when resumed
 }
 
 // NewExecutionController creates a new execution controller
@@ -56,7 +56,7 @@ func (c *ExecutionController) Track(execID, memberID, teamID string) *Controlled
 		ctx:       ctx,
 		cancel:    cancel,
 		paused:    false,
-		pauseCh:   make(chan struct{}),
+		resumeCh:  nil, // nil when not paused, created on pause
 	}
 
 	c.executions[execID] = exec
@@ -121,8 +121,8 @@ func (c *ExecutionController) Pause(execID string) error {
 	now := time.Now()
 	exec.PausedAt = &now
 
-	// Close the pause channel to signal pause
-	close(exec.pauseCh)
+	// Create a new resume channel that will be closed on resume
+	exec.resumeCh = make(chan struct{})
 
 	return nil
 }
@@ -144,8 +144,11 @@ func (c *ExecutionController) Resume(execID string) error {
 	exec.paused = false
 	exec.PausedAt = nil
 
-	// Create new pause channel for future pauses
-	exec.pauseCh = make(chan struct{})
+	// Close the resume channel to signal resume to waiting goroutines
+	if exec.resumeCh != nil {
+		close(exec.resumeCh)
+		exec.resumeCh = nil
+	}
 
 	return nil
 }
@@ -202,36 +205,27 @@ func (e *ControlledExecution) Context() context.Context {
 func (e *ControlledExecution) WaitIfPaused() error {
 	e.pauseMu.Lock()
 	paused := e.paused
-	pauseCh := e.pauseCh
+	resumeCh := e.resumeCh
 	e.pauseMu.Unlock()
 
 	if !paused {
 		return nil
 	}
 
-	// Wait for resume (new pauseCh created) or cancel
+	// Safety check: if paused but resumeCh is nil (shouldn't happen in normal flow),
+	// treat as not paused to avoid blocking forever on nil channel
+	if resumeCh == nil {
+		return nil
+	}
+
+	// resumeCh is created when paused and closed when resumed
+	// Wait for resume signal or cancellation
 	select {
 	case <-e.ctx.Done():
 		return types.ErrExecutionCancelled
-	case <-pauseCh:
-		// Pause channel closed, check if we're still paused
-		// If still paused, this was the pause signal; wait for resume
-		for {
-			e.pauseMu.Lock()
-			if !e.paused {
-				e.pauseMu.Unlock()
-				return nil
-			}
-			newPauseCh := e.pauseCh
-			e.pauseMu.Unlock()
-
-			select {
-			case <-e.ctx.Done():
-				return types.ErrExecutionCancelled
-			case <-newPauseCh:
-				// Channel closed again, loop to check state
-			}
-		}
+	case <-resumeCh:
+		// Resume signal received, execution can continue
+		return nil
 	}
 }
 

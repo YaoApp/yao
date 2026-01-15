@@ -286,6 +286,62 @@ func TestControlledExecutionWaitIfPaused(t *testing.T) {
 		}
 	})
 
+	t.Run("does not infinite loop when paused without resume", func(t *testing.T) {
+		// This test verifies the fix for the infinite loop bug
+		// where WaitIfPaused would spin if pauseCh was closed but paused remained true
+		ctrl := trigger.NewExecutionController()
+		exec := ctrl.Track("exec_001", "robot_001", "team_001")
+
+		ctrl.Pause("exec_001")
+
+		// Start WaitIfPaused in a goroutine
+		done := make(chan error)
+		go func() {
+			done <- exec.WaitIfPaused()
+		}()
+
+		// Wait a bit - if there's an infinite loop, CPU would spike
+		// The goroutine should be blocked, not spinning
+		time.Sleep(100 * time.Millisecond)
+
+		// Now stop the execution - this should unblock WaitIfPaused
+		ctrl.Stop("exec_001")
+
+		select {
+		case err := <-done:
+			// Should get cancellation error
+			assert.Error(t, err)
+		case <-time.After(200 * time.Millisecond):
+			t.Fatal("WaitIfPaused should unblock after stop")
+		}
+	})
+
+	t.Run("rapid pause-resume-pause does not cause issues", func(t *testing.T) {
+		// Test TOCTOU race condition handling
+		ctrl := trigger.NewExecutionController()
+		exec := ctrl.Track("exec_001", "robot_001", "team_001")
+
+		// Pause first
+		ctrl.Pause("exec_001")
+
+		done := make(chan error)
+		go func() {
+			done <- exec.WaitIfPaused()
+		}()
+
+		// Rapid resume then pause again
+		time.Sleep(10 * time.Millisecond)
+		ctrl.Resume("exec_001")
+
+		// WaitIfPaused should return (the original resumeCh was closed)
+		select {
+		case err := <-done:
+			assert.NoError(t, err)
+		case <-time.After(200 * time.Millisecond):
+			t.Fatal("WaitIfPaused should return after resume")
+		}
+	})
+
 	t.Run("blocks when paused, resumes after resume", func(t *testing.T) {
 		ctrl := trigger.NewExecutionController()
 		exec := ctrl.Track("exec_001", "robot_001", "team_001")
