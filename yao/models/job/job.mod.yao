@@ -75,10 +75,12 @@
       "option": [
         "draft", // Job is being configured, not ready to run
         "ready", // Job is ready to be executed
+        "queued", // Job is queued for execution
         "running", // Job has active execution(s)
         "paused", // Job execution is temporarily paused
         "completed", // Job finished successfully (for 'once' jobs)
         "failed", // Job failed and won't retry anymore
+        "cancelled", // Job was cancelled by user
         "disabled" // Job is disabled by user/system
       ],
       "default": "draft",

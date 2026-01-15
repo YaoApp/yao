@@ -276,20 +276,36 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] ExecutionController lifecycle tests
   - [x] Manager integration tests for Intervene/HandleEvent
 
-### 3.5 Job Integration
+### ✅ 3.5 Job Integration (COMPLETE)
 
-- [ ] `job/job.go` - create job
-  - [ ] `job_id`: `robot_exec_{execID}`
-  - [ ] `category_id`: `autonomous_robot`
-  - [ ] Metadata: member_id, team_id, trigger_type, exec_id
-- [ ] `job/execution.go` - execution lifecycle
-  - [ ] Create execution on trigger
-  - [ ] Update status on phase change
-  - [ ] Complete/fail on finish
-- [ ] `job/log.go` - write phase logs
-  - [ ] Log phase start/end
-  - [ ] Log errors
-- [ ] Test: job creation, execution tracking, log writing
+- [x] `job/job.go` - create job
+  - [x] `job_id`: `robot_exec_{execID}`
+  - [x] `category_name`: `Autonomous Robot` / `自主机器人` (localized)
+  - [x] Metadata: member_id, team_id, trigger_type, exec_id, display_name
+  - [x] `Options` struct for extensibility (Priority, MaxRetryCount, DefaultTimeout, Metadata)
+  - [x] `Create()`, `Get()`, `Update()`, `Complete()`, `Fail()`, `Cancel()`
+  - [x] Status mapping: ExecPending→queued, ExecRunning→running, etc.
+  - [x] Localization support (en-US, zh-CN)
+- [x] `job/execution.go` - execution lifecycle
+  - [x] `CreateOptions` struct for extensibility
+  - [x] `CreateExecution()` - create both robot Execution and job.Execution
+  - [x] `UpdatePhase()` - update phase with progress tracking (10%→25%→40%→60%→80%→95%)
+  - [x] `UpdateStatus()` - update execution status
+  - [x] `CompleteExecution()` / `FailExecution()` / `CancelExecution()`
+  - [x] TriggerType → TriggerCategory mapping (clock→scheduled, human→manual, event→event)
+  - [x] Duration calculation on completion/failure/cancellation
+- [x] `job/log.go` - write phase logs
+  - [x] `Log()` - base log function with context
+  - [x] `LogPhaseStart()` / `LogPhaseEnd()` / `LogPhaseError()`
+  - [x] `LogError()` / `LogInfo()` / `LogDebug()` / `LogWarn()`
+  - [x] `LogTaskStart()` / `LogTaskEnd()`
+  - [x] `LogDelivery()` / `LogLearning()`
+  - [x] Localization support for all log messages
+- [x] Test: job creation, execution tracking, log writing
+  - [x] `job/job_test.go` - 17 test cases
+  - [x] `job/execution_test.go` - 26 test cases
+  - [x] `job/log_test.go` - 24 test cases
+  - [x] All tests passing with real database
 
 ### 3.6 Executor Stub Enhancement
 
@@ -633,19 +649,19 @@ func TestWithLLM(t *testing.T) {
 
 ## Progress Tracking
 
-| Phase                 | Status | Description                                          |
-| --------------------- | ------ | ---------------------------------------------------- |
-| 1. Types & Interfaces | ✅     | All types, enums, interfaces                         |
-| 2. Skeleton           | ✅     | Empty stubs, code compiles                           |
-| 3. Scheduling System  | ⬜     | Cache + Pool + Trigger + Dedup + Job (executor stub) |
-| 4. P0 Inspiration     | ⬜     | Inspiration Agent integration                        |
-| 5. P1 Goals           | ⬜     | Goal Generation Agent integration                    |
-| 6. P2 Tasks           | ⬜     | Task Planning Agent integration                      |
-| 7. P3 Run             | ⬜     | Task execution (assistant/mcp/process)               |
-| 8. P4 Delivery        | ⬜     | Output delivery (email/file/webhook/notify)          |
-| 9. P5 Learning        | ⬜     | Learning Agent + KB save                             |
-| 10. API & Integration | ⬜     | Complete API, end-to-end tests                       |
-| 11. Advanced          | ⬜     | Semantic dedup, plan queue                           |
+| Phase                 | Status | Description                                       |
+| --------------------- | ------ | ------------------------------------------------- |
+| 1. Types & Interfaces | ✅     | All types, enums, interfaces                      |
+| 2. Skeleton           | ✅     | Empty stubs, code compiles                        |
+| 3. Scheduling System  | 🟡     | Cache + Pool + Trigger + Job ✅, Executor stub 🟡 |
+| 4. P0 Inspiration     | ⬜     | Inspiration Agent integration                     |
+| 5. P1 Goals           | ⬜     | Goal Generation Agent integration                 |
+| 6. P2 Tasks           | ⬜     | Task Planning Agent integration                   |
+| 7. P3 Run             | ⬜     | Task execution (assistant/mcp/process)            |
+| 8. P4 Delivery        | ⬜     | Output delivery (email/file/webhook/notify)       |
+| 9. P5 Learning        | ⬜     | Learning Agent + KB save                          |
+| 10. API & Integration | ⬜     | Complete API, end-to-end tests                    |
+| 11. Advanced          | ⬜     | Semantic dedup, plan queue                        |
 
 Legend: ⬜ Not started | 🟡 In progress | ✅ Complete
 
