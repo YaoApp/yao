@@ -53,6 +53,10 @@ func TestIntegrationExecutionPauseResume(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		// Verify robot is loaded into cache
+		robot := m.Cache().Get("robot_integ_ctrl_pause")
+		require.NotNil(t, robot, "Robot should be loaded into cache")
+
 		ctx := types.NewContext(context.Background(), nil)
 
 		// Trigger execution

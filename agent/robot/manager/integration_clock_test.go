@@ -52,6 +52,10 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		// Verify robot is loaded into cache
+		robot := m.Cache().Get("robot_integ_clock_times1")
+		require.NotNil(t, robot, "Robot should be loaded into cache")
+
 		m.Executor().Reset()
 
 		// Trigger at 09:00 on Wednesday

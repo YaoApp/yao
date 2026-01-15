@@ -47,6 +47,10 @@ func TestIntegrationHumanIntervention(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		// Verify robot is loaded into cache
+		robot := m.Cache().Get("robot_integ_human_add")
+		require.NotNil(t, robot, "Robot should be loaded into cache")
+
 		ctx := types.NewContext(context.Background(), nil)
 		req := &types.InterveneRequest{
 			TeamID:   "team_integ_human",

@@ -76,6 +76,13 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		// Verify robots are loaded into cache
+		for i := 0; i < 5; i++ {
+			memberID := "robot_integ_conc_multi_" + string(rune('A'+i))
+			robot := m.Cache().Get(memberID)
+			require.NotNil(t, robot, "Robot %s should be loaded into cache", memberID)
+		}
+
 		ctx := types.NewContext(context.Background(), nil)
 
 		// Trigger all robots simultaneously

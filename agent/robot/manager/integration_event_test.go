@@ -46,6 +46,10 @@ func TestIntegrationEventTrigger(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		// Verify robot is loaded into cache
+		robot := m.Cache().Get("robot_integ_event_webhook")
+		require.NotNil(t, robot, "Robot should be loaded into cache")
+
 		ctx := types.NewContext(context.Background(), nil)
 		req := &types.EventRequest{
 			MemberID:  "robot_integ_event_webhook",
