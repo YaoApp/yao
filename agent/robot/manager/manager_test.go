@@ -373,8 +373,6 @@ func TestManagerTimezoneDedup(t *testing.T) {
 	defer cleanupTestRobots(t)
 
 	t.Run("times mode - same minute same day should not trigger twice", func(t *testing.T) {
-		// Create a dedicated manager with only the times robot to isolate the test
-		// We need to test that times mode dedup works correctly
 		m := manager.New()
 		err := m.Start()
 		assert.NoError(t, err)
@@ -389,31 +387,27 @@ func TestManagerTimezoneDedup(t *testing.T) {
 
 		ctx := types.NewContext(context.Background(), nil)
 
-		// First tick - should trigger times robot (and daemon/interval)
+		// First tick - should trigger
 		err = m.Tick(ctx, now)
 		assert.NoError(t, err)
 		time.Sleep(200 * time.Millisecond)
 		firstCount := m.Executor().ExecCount()
 		assert.GreaterOrEqual(t, firstCount, 1, "First tick should trigger")
 
-		// Second tick at 09:00:30 (same minute) - times robot should NOT trigger again
-		// But daemon robot will trigger again (it triggers whenever idle)
-		// And interval robot may trigger again if interval passed
+		// Second tick at 09:00:30 (same minute) - should NOT trigger again
 		now2 := time.Date(2025, 1, 15, 9, 0, 30, 0, loc)
 		err = m.Tick(ctx, now2)
 		assert.NoError(t, err)
 		time.Sleep(200 * time.Millisecond)
 
+		// Count should remain the same (times robot should not trigger twice)
+		// Note: daemon/interval robots may still trigger, so we check the delta
 		secondCount := m.Executor().ExecCount()
 		t.Logf("First count: %d, Second count: %d", firstCount, secondCount)
 
-		// The key assertion: times robot triggers once per minute
-		// First tick: times(1) + daemon(1) + interval(1) = 3
-		// Second tick: daemon(1) + possibly interval = 1-2 more
-		// So total should be 4-5, NOT 6 (which would mean times triggered twice)
-		//
-		// More precise: the delta between second and first should be <= 2
-		// (daemon always triggers when idle, interval might trigger)
+		// The times robot should not have triggered again in the same minute
+		// Delta should be <= 2 (daemon always triggers, interval might trigger)
+		// If delta > 2, it means times robot triggered twice (bug!)
 		delta := secondCount - firstCount
 		assert.LessOrEqual(t, delta, 2, "Times robot should not trigger twice in same minute (delta: %d)", delta)
 	})
