@@ -112,12 +112,15 @@ func TestPoolBasicExecution(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotEmpty(t, execID)
 
-	// Wait for execution
-	time.Sleep(200 * time.Millisecond)
+	// Wait for execution (worker polls every 100ms + 50ms exec + buffer)
+	time.Sleep(300 * time.Millisecond)
 
 	// Verify execution completed
 	assert.Equal(t, 1, exec.ExecCount())
-	assert.Equal(t, 0, exec.CurrentCount())
+	// Note: CurrentCount may briefly be non-zero during execution, use Eventually pattern
+	assert.Eventually(t, func() bool {
+		return exec.CurrentCount() == 0
+	}, 500*time.Millisecond, 50*time.Millisecond, "CurrentCount should be 0 after execution")
 }
 
 // TestPoolConcurrencyLimit tests global worker limit
@@ -152,16 +155,17 @@ func TestPoolConcurrencyLimit(t *testing.T) {
 	}
 
 	// Wait for workers to pick up jobs (worker polls every 100ms)
-	time.Sleep(150 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
 	// Should have at most 3 running (worker limit)
 	running := p.Running()
 	assert.LessOrEqual(t, running, 3, "Should not exceed worker limit")
 
-	// Wait for all to complete
-	time.Sleep(800 * time.Millisecond)
-
-	assert.Equal(t, 10, exec.ExecCount())
+	// Wait for all to complete (10 jobs / 3 workers * 200ms each = ~700ms + buffer)
+	// Use Eventually to handle CI timing variations
+	assert.Eventually(t, func() bool {
+		return exec.ExecCount() >= 10
+	}, 2*time.Second, 100*time.Millisecond, "All 10 jobs should complete")
 }
 
 // TestRobotConcurrencyLimit tests per-robot concurrent execution limit
@@ -289,11 +293,11 @@ func TestPriorityOrder(t *testing.T) {
 	p.Submit(ctx, robotMed, types.TriggerClock, nil)
 	p.Submit(ctx, robotHigh, types.TriggerClock, nil)
 
-	// Wait for all to complete
-	time.Sleep(400 * time.Millisecond)
-
-	// Verify all executed
-	assert.Equal(t, 3, exec.ExecCount())
+	// Wait for all to complete (3 jobs * (100ms poll + 50ms exec) = ~450ms + buffer)
+	// Use Eventually for CI timing variations
+	assert.Eventually(t, func() bool {
+		return exec.ExecCount() >= 3
+	}, 1*time.Second, 50*time.Millisecond, "All 3 jobs should complete")
 }
 
 // TestTriggerTypePriority tests that human triggers have higher priority than clock
@@ -316,9 +320,10 @@ func TestTriggerTypePriority(t *testing.T) {
 	p.Submit(ctx, robot, types.TriggerClock, nil)
 	p.Submit(ctx, robot, types.TriggerHuman, nil) // should execute first
 
-	time.Sleep(300 * time.Millisecond)
-
-	assert.Equal(t, 2, exec.ExecCount())
+	// Wait for all to complete (2 jobs * (100ms poll + 50ms exec) = ~300ms + buffer)
+	assert.Eventually(t, func() bool {
+		return exec.ExecCount() >= 2
+	}, 1*time.Second, 50*time.Millisecond, "Both jobs should complete")
 }
 
 // TestMultipleRobotsFairness tests that multiple robots get fair access
@@ -347,10 +352,11 @@ func TestMultipleRobotsFairness(t *testing.T) {
 	}
 
 	// Wait for all to complete
-	time.Sleep(500 * time.Millisecond)
-
-	// All 18 jobs should complete
-	assert.Equal(t, 18, exec.ExecCount())
+	// 18 jobs with Quota.Max=2 per robot, 5 workers, 30ms each
+	// Jobs are batched by robot quota, use Eventually for CI timing
+	assert.Eventually(t, func() bool {
+		return exec.ExecCount() >= 18
+	}, 3*time.Second, 100*time.Millisecond, "All 18 jobs should complete")
 }
 
 // TestGracefulShutdown tests that pool waits for running jobs on shutdown

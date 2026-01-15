@@ -191,9 +191,11 @@ Create empty structs and stub methods that return nil/empty/success:
 
 ---
 
-## Phase 3: Complete Scheduling System
+## Phase 3: Complete Scheduling System ✅
 
 **Goal:** Implement complete scheduling system. Executor is stub (simulates success).
+
+**Status:** Complete - All 7 sub-tasks done, 80+ integration tests passing
 
 This phase delivers a fully working scheduling pipeline:
 
@@ -331,24 +333,39 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] `executor/executor_test.go` - 6 test cases
   - [x] Clock/Human/Event triggers, nil robot, simulated failure, counters
 
-### 3.7 Integration Test (End-to-End Scheduling)
+### 3.7 Integration Test (End-to-End Scheduling) ✅
 
-- [ ] Create test robot in `__yao.member` with clock config
-- [ ] Start manager
-- [ ] Wait for clock trigger
-- [ ] Verify:
-  - [ ] Robot loaded to cache
-  - [ ] Clock trigger matched
-  - [ ] Job submitted to pool
-  - [ ] Worker picked up job
-  - [ ] Executor stub called
-  - [ ] Job execution recorded
-  - [ ] Logs written
-- [ ] Test human intervention trigger
-- [ ] Test event trigger
-- [ ] Test concurrent executions (multiple robots)
-- [ ] Test quota enforcement (per-robot limit)
-- [ ] Test pause/resume/stop
+- [x] Create test robot in `__yao.member` with clock config
+- [x] Start manager
+- [x] Wait for clock trigger
+- [x] Verify:
+  - [x] Robot loaded to cache
+  - [x] Clock trigger matched
+  - [x] Job submitted to pool
+  - [x] Worker picked up job
+  - [x] Executor stub called
+  - [x] Job execution recorded
+  - [x] Logs written
+- [x] Test human intervention trigger
+- [x] Test event trigger
+- [x] Test concurrent executions (multiple robots)
+- [x] Test quota enforcement (per-robot limit)
+- [x] Test pause/resume/stop
+
+**Test Files Created:**
+
+- `manager/integration_test.go` - Core scheduling flow (Cache→Pool→Executor)
+- `manager/integration_clock_test.go` - Clock trigger modes (times/interval/daemon)
+- `manager/integration_human_test.go` - Human intervention trigger tests
+- `manager/integration_event_test.go` - Event trigger tests
+- `manager/integration_concurrent_test.go` - Concurrent execution & quota tests
+- `manager/integration_control_test.go` - Pause/Resume/Stop tests
+
+**Test Coverage:**
+
+- 27 top-level test functions
+- 80+ sub-tests covering all verification points
+- 3x run stability verified
 
 ---
 
