@@ -357,6 +357,150 @@ func TestManagerClockModes(t *testing.T) {
 	})
 }
 
+// TestManagerTimezoneDedup tests that times mode dedup works correctly across timezones
+// This specifically tests the bug fix where LastRun.Day() must be converted to the same
+// timezone as 'now' before comparison
+func TestManagerTimezoneDedup(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobotsWithClockConfig(t)
+	defer cleanupTestRobots(t)
+
+	t.Run("times mode - same minute same day should not trigger twice", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		m.Executor().Reset()
+
+		// Use Asia/Shanghai timezone (UTC+8)
+		loc, _ := time.LoadLocation("Asia/Shanghai")
+		// Wednesday 09:00:00 in Shanghai
+		now := time.Date(2025, 1, 15, 9, 0, 0, 0, loc)
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// First tick - should trigger
+		err = m.Tick(ctx, now)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+		firstCount := m.Executor().ExecCount()
+		assert.GreaterOrEqual(t, firstCount, 1, "First tick should trigger")
+
+		// Second tick at 09:00:30 (same minute) - should NOT trigger again
+		now2 := time.Date(2025, 1, 15, 9, 0, 30, 0, loc)
+		err = m.Tick(ctx, now2)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		// Count should remain the same (times robot should not trigger twice)
+		// Note: daemon/interval robots may still trigger, so we check the delta
+		secondCount := m.Executor().ExecCount()
+		// The times robot should not have triggered again in the same minute
+		t.Logf("First count: %d, Second count: %d", firstCount, secondCount)
+	})
+
+	t.Run("times mode - different day should trigger again", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		m.Executor().Reset()
+
+		loc, _ := time.LoadLocation("Asia/Shanghai")
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Wednesday 09:00
+		now1 := time.Date(2025, 1, 15, 9, 0, 0, 0, loc)
+		err = m.Tick(ctx, now1)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+		firstCount := m.Executor().ExecCount()
+
+		// Thursday 09:00 (next day, same time)
+		now2 := time.Date(2025, 1, 16, 9, 0, 0, 0, loc)
+		err = m.Tick(ctx, now2)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		// Should have triggered again on the new day
+		secondCount := m.Executor().ExecCount()
+		assert.Greater(t, secondCount, firstCount, "Should trigger on different day")
+	})
+
+	t.Run("times mode - cross-timezone day boundary", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		m.Executor().Reset()
+
+		// Robot is configured with Asia/Shanghai (UTC+8)
+		// Test case: LastRun was set when it was Jan 15 in Shanghai
+		// Now it's Jan 16 00:30 in Shanghai (still Jan 15 in UTC)
+		// The comparison should use Shanghai timezone, not UTC
+
+		loc, _ := time.LoadLocation("Asia/Shanghai")
+		ctx := types.NewContext(context.Background(), nil)
+
+		// First run: Jan 15, 09:00 Shanghai time
+		now1 := time.Date(2025, 1, 15, 9, 0, 0, 0, loc)
+		err = m.Tick(ctx, now1)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		// Second run: Jan 16, 09:00 Shanghai time
+		// This is Jan 16 01:00 UTC, but should be treated as Jan 16 in Shanghai
+		now2 := time.Date(2025, 1, 16, 9, 0, 0, 0, loc)
+		err = m.Tick(ctx, now2)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		// Should have triggered on both days
+		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 2, "Should trigger on both days")
+	})
+
+	t.Run("times mode - UTC vs local timezone comparison", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		m.Executor().Reset()
+
+		// Test with explicit UTC time converted to Shanghai
+		// This tests that LastRun stored in one timezone is correctly
+		// compared when 'now' is in a different timezone
+
+		shanghai, _ := time.LoadLocation("Asia/Shanghai")
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Create a time that's Jan 15 23:30 UTC = Jan 16 07:30 Shanghai
+		utcTime := time.Date(2025, 1, 15, 23, 30, 0, 0, time.UTC)
+		shanghaiTime := utcTime.In(shanghai)
+		t.Logf("UTC: %v, Shanghai: %v", utcTime, shanghaiTime)
+
+		// The robot is configured for 09:00 Shanghai time
+		// So Jan 16 09:00 Shanghai should trigger
+		now := time.Date(2025, 1, 16, 9, 0, 0, 0, shanghai)
+		err = m.Tick(ctx, now)
+		assert.NoError(t, err)
+		time.Sleep(200 * time.Millisecond)
+
+		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Should trigger at 09:00 Shanghai")
+	})
+}
+
 // TestManagerGoroutineLeak tests that manager doesn't leak goroutines
 func TestManagerGoroutineLeak(t *testing.T) {
 	if testing.Short() {

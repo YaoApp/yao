@@ -273,8 +273,8 @@ func (m *Manager) shouldTriggerTimes(robot *types.Robot, clock *types.Clock, now
 		if t == currentTime {
 			// Check if already triggered in this minute
 			if !robot.LastRun.IsZero() {
-				lastRunMinute := robot.LastRun.In(now.Location()).Format("15:04")
-				if lastRunMinute == currentTime && robot.LastRun.Day() == now.Day() {
+				lastRunInLoc := robot.LastRun.In(now.Location())
+				if lastRunInLoc.Format("15:04") == currentTime && lastRunInLoc.Day() == now.Day() {
 					return false // Already triggered this minute today
 				}
 			}
