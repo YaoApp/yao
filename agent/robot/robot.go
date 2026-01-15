@@ -8,7 +8,6 @@ import (
 	"github.com/yaoapp/yao/agent/robot/plan"
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/store"
-	"github.com/yaoapp/yao/agent/robot/trigger"
 )
 
 var (
@@ -18,7 +17,6 @@ var (
 	globalPool     *pool.Pool
 	globalDedup    *dedup.Dedup
 	globalStore    *store.Store
-	globalTrigger  *trigger.Trigger
 	globalExecutor *executor.Executor
 	globalPlan     *plan.Plan
 )
@@ -31,7 +29,6 @@ func Init() error {
 	globalDedup = dedup.New()
 	globalStore = store.New()
 	globalPool = pool.New() // Default pool size
-	globalTrigger = trigger.New()
 	globalExecutor = executor.New()
 	globalManager = manager.New()
 	globalPlan = plan.New()
@@ -50,4 +47,9 @@ func Shutdown() error {
 	//     return globalManager.Stop()
 	// }
 	return nil
+}
+
+// Manager returns the global manager instance
+func Manager() *manager.Manager {
+	return globalManager
 }

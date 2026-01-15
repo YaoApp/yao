@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/yao/agent/robot/cache"
 	"github.com/yaoapp/yao/agent/robot/executor"
 	"github.com/yaoapp/yao/agent/robot/pool"
+	"github.com/yaoapp/yao/agent/robot/trigger"
 	"github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -38,6 +39,9 @@ type Manager struct {
 	cache    *cache.Cache
 	pool     *pool.Pool
 	executor *executor.Executor
+
+	// Execution control for pause/resume/stop
+	execController *trigger.ExecutionController
 
 	// Ticker for clock trigger checking
 	ticker     *time.Ticker
@@ -72,15 +76,17 @@ func NewWithConfig(config *Config) *Manager {
 	c := cache.New()
 	p := pool.NewWithConfig(config.PoolConfig)
 	e := executor.New()
+	ec := trigger.NewExecutionController()
 
 	// Wire up pool with executor
 	p.SetExecutor(e)
 
 	return &Manager{
-		config:   config,
-		cache:    c,
-		pool:     p,
-		executor: e,
+		config:         config,
+		cache:          c,
+		pool:           p,
+		executor:       e,
+		execController: ec,
 	}
 }
 
@@ -366,6 +372,161 @@ func (m *Manager) TriggerManual(ctx *types.Context, memberID string, trigger typ
 	}
 
 	return execID, nil
+}
+
+// ==================== Human Intervention & Event Triggers ====================
+
+// Intervene processes a human intervention request
+// Human intervention skips P0 (inspiration) and goes directly to P1 (goals)
+func (m *Manager) Intervene(ctx *types.Context, req *types.InterveneRequest) (*types.ExecutionResult, error) {
+	m.mu.RLock()
+	if !m.started {
+		m.mu.RUnlock()
+		return nil, fmt.Errorf("manager not started")
+	}
+	m.mu.RUnlock()
+
+	// Validate request
+	if err := trigger.ValidateIntervention(req); err != nil {
+		return nil, err
+	}
+
+	// Get robot from cache
+	robot := m.cache.Get(req.MemberID)
+	if robot == nil {
+		return nil, types.ErrRobotNotFound
+	}
+
+	// Check robot status
+	if robot.Status == types.RobotPaused {
+		return nil, types.ErrRobotPaused
+	}
+
+	// Check if human trigger is enabled
+	if robot.Config != nil && robot.Config.Triggers != nil {
+		if !robot.Config.Triggers.IsEnabled(types.TriggerHuman) {
+			return nil, types.ErrTriggerDisabled
+		}
+	}
+
+	// Build trigger input
+	triggerInput := &types.TriggerInput{
+		Action:   req.Action,
+		Messages: req.Messages,
+		UserID:   ctx.UserID(),
+	}
+
+	// Handle plan.add action - schedule for later
+	if req.Action == types.ActionPlanAdd && req.PlanTime != nil {
+		// TODO: Add to plan queue (Phase 11.3)
+		return &types.ExecutionResult{
+			Status:  types.ExecPending,
+			Message: fmt.Sprintf("Planned for %s (plan queue not implemented yet)", req.PlanTime.Format(time.RFC3339)),
+		}, nil
+	}
+
+	// Submit to pool
+	execID, err := m.pool.Submit(ctx, robot, types.TriggerHuman, triggerInput)
+	if err != nil {
+		return nil, err
+	}
+
+	// Track execution for pause/resume/stop
+	m.execController.Track(execID, req.MemberID, req.TeamID)
+
+	return &types.ExecutionResult{
+		ExecutionID: execID,
+		Status:      types.ExecPending,
+		Message:     fmt.Sprintf("Human intervention (%s) submitted", req.Action),
+	}, nil
+}
+
+// HandleEvent processes an event trigger request
+// Event trigger skips P0 (inspiration) and goes directly to P1 (goals)
+func (m *Manager) HandleEvent(ctx *types.Context, req *types.EventRequest) (*types.ExecutionResult, error) {
+	m.mu.RLock()
+	if !m.started {
+		m.mu.RUnlock()
+		return nil, fmt.Errorf("manager not started")
+	}
+	m.mu.RUnlock()
+
+	// Validate request
+	if err := trigger.ValidateEvent(req); err != nil {
+		return nil, err
+	}
+
+	// Get robot from cache
+	robot := m.cache.Get(req.MemberID)
+	if robot == nil {
+		return nil, types.ErrRobotNotFound
+	}
+
+	// Check robot status
+	if robot.Status == types.RobotPaused {
+		return nil, types.ErrRobotPaused
+	}
+
+	// Check if event trigger is enabled
+	if robot.Config != nil && robot.Config.Triggers != nil {
+		if !robot.Config.Triggers.IsEnabled(types.TriggerEvent) {
+			return nil, types.ErrTriggerDisabled
+		}
+	}
+
+	// Build trigger input
+	triggerInput := trigger.BuildEventInput(req)
+
+	// Submit to pool
+	execID, err := m.pool.Submit(ctx, robot, types.TriggerEvent, triggerInput)
+	if err != nil {
+		return nil, err
+	}
+
+	// Track execution for pause/resume/stop
+	m.execController.Track(execID, req.MemberID, "")
+
+	return &types.ExecutionResult{
+		ExecutionID: execID,
+		Status:      types.ExecPending,
+		Message:     fmt.Sprintf("Event trigger (%s: %s) submitted", req.Source, req.EventType),
+	}, nil
+}
+
+// ==================== Execution Control ====================
+
+// PauseExecution pauses a running execution
+func (m *Manager) PauseExecution(ctx *types.Context, execID string) error {
+	return m.execController.Pause(execID)
+}
+
+// ResumeExecution resumes a paused execution
+func (m *Manager) ResumeExecution(ctx *types.Context, execID string) error {
+	return m.execController.Resume(execID)
+}
+
+// StopExecution stops a running execution
+func (m *Manager) StopExecution(ctx *types.Context, execID string) error {
+	return m.execController.Stop(execID)
+}
+
+// GetExecutionStatus returns the status of an execution
+func (m *Manager) GetExecutionStatus(execID string) (*trigger.ControlledExecution, error) {
+	exec := m.execController.Get(execID)
+	if exec == nil {
+		return nil, fmt.Errorf("execution not found: %s", execID)
+	}
+	return exec, nil
+}
+
+// ListExecutions returns all tracked executions
+func (m *Manager) ListExecutions() []*trigger.ControlledExecution {
+	return m.execController.List()
+}
+
+// ListExecutionsByMember returns all executions for a specific robot
+func (m *Manager) ListExecutionsByMember(memberID string) []*trigger.ControlledExecution {
+	return m.execController.ListByMember(memberID)
 }
 
 // ==================== Getters for internal components ====================

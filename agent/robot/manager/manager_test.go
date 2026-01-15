@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/capsule"
+	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/robot/manager"
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/types"
@@ -887,6 +888,515 @@ func setupTestRobotsWithClockConfig(t *testing.T) {
 	}
 }
 
+// ==================== Intervene Tests ====================
+
+func TestManagerIntervene(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobotsWithInterveneConfig(t)
+	defer cleanupTestRobots(t)
+
+	t.Run("intervene success", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			TeamID:   "team_test_manager",
+			MemberID: "robot_test_manager_intervene",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Add a new task"},
+			},
+		}
+
+		result, err := m.Intervene(ctx, req)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.ExecutionID)
+		assert.Equal(t, types.ExecPending, result.Status)
+	})
+
+	t.Run("intervene - manager not started", func(t *testing.T) {
+		m := manager.New()
+		// Don't start
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "robot_test_manager_intervene",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Add a new task"},
+			},
+		}
+
+		_, err := m.Intervene(ctx, req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not started")
+	})
+
+	t.Run("intervene - robot not found", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "non_existent_robot",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Add a new task"},
+			},
+		}
+
+		_, err = m.Intervene(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrRobotNotFound, err)
+	})
+
+	t.Run("intervene - robot paused", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "robot_test_manager_paused",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Add a new task"},
+			},
+		}
+
+		_, err = m.Intervene(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrRobotPaused, err)
+	})
+
+	t.Run("intervene - invalid request", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "", // Invalid: empty member_id
+			Action:   types.ActionTaskAdd,
+		}
+
+		_, err = m.Intervene(ctx, req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "member_id")
+	})
+
+	t.Run("intervene - trigger disabled", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "robot_test_manager_intervene_disabled",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Add a new task"},
+			},
+		}
+
+		_, err = m.Intervene(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrTriggerDisabled, err)
+	})
+}
+
+// ==================== HandleEvent Tests ====================
+
+func TestManagerHandleEvent(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobotsWithEventConfig(t)
+	defer cleanupTestRobots(t)
+
+	t.Run("handle event success", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.EventRequest{
+			MemberID:  "robot_test_manager_event",
+			Source:    "webhook",
+			EventType: "lead.created",
+			Data:      map[string]interface{}{"name": "John", "email": "john@example.com"},
+		}
+
+		result, err := m.HandleEvent(ctx, req)
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotEmpty(t, result.ExecutionID)
+		assert.Equal(t, types.ExecPending, result.Status)
+	})
+
+	t.Run("handle event - manager not started", func(t *testing.T) {
+		m := manager.New()
+		// Don't start
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.EventRequest{
+			MemberID:  "robot_test_manager_event",
+			Source:    "webhook",
+			EventType: "lead.created",
+		}
+
+		_, err := m.HandleEvent(ctx, req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not started")
+	})
+
+	t.Run("handle event - robot not found", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.EventRequest{
+			MemberID:  "non_existent_robot",
+			Source:    "webhook",
+			EventType: "lead.created",
+		}
+
+		_, err = m.HandleEvent(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrRobotNotFound, err)
+	})
+
+	t.Run("handle event - invalid request", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.EventRequest{
+			MemberID:  "robot_test_manager_event",
+			Source:    "", // Invalid: empty source
+			EventType: "lead.created",
+		}
+
+		_, err = m.HandleEvent(ctx, req)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "source")
+	})
+
+	t.Run("handle event - trigger disabled", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.EventRequest{
+			MemberID:  "robot_test_manager_event_disabled",
+			Source:    "webhook",
+			EventType: "lead.created",
+		}
+
+		_, err = m.HandleEvent(ctx, req)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrTriggerDisabled, err)
+	})
+}
+
+// ==================== Execution Control Tests ====================
+
+func TestManagerExecutionControl(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobotsWithInterveneConfig(t)
+	defer cleanupTestRobots(t)
+
+	t.Run("pause and resume execution", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		// Trigger an execution
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "robot_test_manager_intervene",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Test task"},
+			},
+		}
+
+		result, err := m.Intervene(ctx, req)
+		assert.NoError(t, err)
+		execID := result.ExecutionID
+
+		// Wait a bit for execution to be tracked
+		time.Sleep(50 * time.Millisecond)
+
+		// Pause
+		err = m.PauseExecution(ctx, execID)
+		assert.NoError(t, err)
+
+		// Get status - should be paused
+		status, err := m.GetExecutionStatus(execID)
+		assert.NoError(t, err)
+		assert.True(t, status.IsPaused())
+
+		// Resume
+		err = m.ResumeExecution(ctx, execID)
+		assert.NoError(t, err)
+
+		// Get status - should not be paused
+		status, err = m.GetExecutionStatus(execID)
+		assert.NoError(t, err)
+		assert.False(t, status.IsPaused())
+	})
+
+	t.Run("stop execution", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		// Trigger an execution
+		ctx := types.NewContext(context.Background(), nil)
+		req := &types.InterveneRequest{
+			MemberID: "robot_test_manager_intervene",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Test task"},
+			},
+		}
+
+		result, err := m.Intervene(ctx, req)
+		assert.NoError(t, err)
+		execID := result.ExecutionID
+
+		// Wait a bit for execution to be tracked
+		time.Sleep(50 * time.Millisecond)
+
+		// Stop
+		err = m.StopExecution(ctx, execID)
+		assert.NoError(t, err)
+
+		// Get status - should not be found (removed after stop)
+		_, err = m.GetExecutionStatus(execID)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("list executions", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Track execution IDs
+		var execIDs []string
+
+		// Trigger multiple executions
+		for i := 0; i < 3; i++ {
+			req := &types.InterveneRequest{
+				MemberID: "robot_test_manager_intervene",
+				Action:   types.ActionTaskAdd,
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Test task"},
+				},
+			}
+			result, err := m.Intervene(ctx, req)
+			assert.NoError(t, err)
+			execIDs = append(execIDs, result.ExecutionID)
+		}
+
+		// Verify each execution was tracked (even if briefly)
+		// Note: executions complete quickly with stub executor, so they may be removed
+		// We just verify that we got valid execution IDs
+		assert.Len(t, execIDs, 3)
+		for _, id := range execIDs {
+			assert.NotEmpty(t, id)
+		}
+	})
+}
+
+// setupTestRobotsWithInterveneConfig creates test robots with intervene trigger enabled
+func setupTestRobotsWithInterveneConfig(t *testing.T) {
+	// First setup the basic robots
+	setupTestRobotsWithClockConfig(t)
+
+	// Add robots for intervene tests
+	qb := capsule.Query()
+	m := model.Select("__yao.member")
+	tableName := m.MetaData.Table.Name
+
+	// Robot with intervene enabled
+	robotConfigIntervene := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "Intervene Test Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock":     map[string]interface{}{"enabled": false},
+			"intervene": map[string]interface{}{"enabled": true},
+		},
+		"quota": map[string]interface{}{
+			"max":   5,
+			"queue": 10,
+		},
+	}
+	configInterveneJSON, _ := json.Marshal(robotConfigIntervene)
+
+	err := qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_intervene",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test Intervene Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
+			"robot_config":    string(configInterveneJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_intervene: %v", err)
+	}
+
+	// Robot with intervene disabled
+	robotConfigInterveneDisabled := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "Intervene Disabled Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock":     map[string]interface{}{"enabled": false},
+			"intervene": map[string]interface{}{"enabled": false},
+		},
+	}
+	configInterveneDisabledJSON, _ := json.Marshal(robotConfigInterveneDisabled)
+
+	err = qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_intervene_disabled",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test Intervene Disabled Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
+			"robot_config":    string(configInterveneDisabledJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_intervene_disabled: %v", err)
+	}
+}
+
+// setupTestRobotsWithEventConfig creates test robots with event trigger enabled
+func setupTestRobotsWithEventConfig(t *testing.T) {
+	// First setup the basic robots
+	setupTestRobotsWithClockConfig(t)
+
+	// Add robots for event tests
+	qb := capsule.Query()
+	m := model.Select("__yao.member")
+	tableName := m.MetaData.Table.Name
+
+	// Robot with event enabled
+	robotConfigEvent := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "Event Test Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock": map[string]interface{}{"enabled": false},
+			"event": map[string]interface{}{"enabled": true},
+		},
+		"quota": map[string]interface{}{
+			"max":   5,
+			"queue": 10,
+		},
+	}
+	configEventJSON, _ := json.Marshal(robotConfigEvent)
+
+	err := qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_event",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test Event Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
+			"robot_config":    string(configEventJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_event: %v", err)
+	}
+
+	// Robot with event disabled
+	robotConfigEventDisabled := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "Event Disabled Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock": map[string]interface{}{"enabled": false},
+			"event": map[string]interface{}{"enabled": false},
+		},
+	}
+	configEventDisabledJSON, _ := json.Marshal(robotConfigEventDisabled)
+
+	err = qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_event_disabled",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test Event Disabled Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": true,
+			"robot_status":    "idle",
+			"robot_config":    string(configEventDisabledJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_event_disabled: %v", err)
+	}
+}
+
 // cleanupTestRobots removes all test robot records
 func cleanupTestRobots(t *testing.T) {
 	qb := capsule.Query()
@@ -903,6 +1413,10 @@ func cleanupTestRobots(t *testing.T) {
 		"robot_test_manager_daemon",
 		"robot_test_manager_paused",
 		"robot_test_manager_disabled",
+		"robot_test_manager_intervene",
+		"robot_test_manager_intervene_disabled",
+		"robot_test_manager_event",
+		"robot_test_manager_event_disabled",
 	}
 
 	for _, id := range testRobotIDs {

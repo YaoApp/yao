@@ -247,25 +247,34 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] Skip paused/error/maintenance robots
 - [x] Test: manager start/stop, tick cycle, manual trigger, clock modes, goroutine leak
 
-### 3.4 Trigger Implementation
+### ✅ 3.4 Trigger Implementation (COMPLETE)
 
-- [ ] `trigger/trigger.go` - trigger dispatcher (routes to clock/intervene/event)
-- [ ] `trigger/clock.go` - clock trigger
-  - [ ] `times` mode: match specific times (09:00, 14:00)
-  - [ ] `interval` mode: run every X duration (30m, 1h)
-  - [ ] `daemon` mode: restart immediately after completion
-  - [ ] Timezone handling
-- [ ] `trigger/intervene.go` - human intervention
-  - [ ] Parse action (task.add, goal.adjust, etc.)
-  - [ ] Build TriggerInput with Messages
-- [ ] `trigger/event.go` - event handling
-  - [ ] Webhook event dispatch
-  - [ ] Database change event dispatch
-- [ ] `trigger/control.go` - execution control
-  - [ ] Pause execution
-  - [ ] Resume execution
-  - [ ] Cancel/Stop execution
-- [ ] Test: clock matching (all modes), intervention handling, event dispatch
+- [x] `trigger/trigger.go` - validation and helper functions
+  - [x] `ValidateIntervention()` - validate human intervention requests
+  - [x] `ValidateEvent()` - validate event trigger requests
+  - [x] `BuildEventInput()` - build TriggerInput from event request
+  - [x] `GetActionCategory()` / `GetActionDescription()` - action helpers
+- [x] `trigger/clock.go` - ClockMatcher for clock trigger matching
+  - [x] `times` mode: match specific times (09:00, 14:00)
+  - [x] `interval` mode: run every X duration (30m, 1h)
+  - [x] `daemon` mode: restart immediately after completion
+  - [x] Timezone handling
+  - [x] Day-of-week filtering
+- [x] `trigger/control.go` - ExecutionController for pause/resume/stop
+  - [x] Track/Untrack executions
+  - [x] Pause/Resume execution
+  - [x] Stop execution (cancel context)
+  - [x] WaitIfPaused() for executor integration
+- [x] `manager/manager.go` - integrated trigger handling
+  - [x] `Intervene()` - human intervention handler
+  - [x] `HandleEvent()` - event trigger handler
+  - [x] `PauseExecution()` / `ResumeExecution()` / `StopExecution()`
+  - [x] `ListExecutions()` / `ListExecutionsByMember()`
+- [x] Tests: `trigger/trigger_test.go`, `trigger/clock_test.go`, `trigger/control_test.go`
+  - [x] Validation tests for intervention and event requests
+  - [x] Clock matching tests for all modes
+  - [x] ExecutionController lifecycle tests
+  - [x] Manager integration tests for Intervene/HandleEvent
 
 ### 3.5 Job Integration
 
