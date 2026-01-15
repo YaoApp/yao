@@ -3,6 +3,7 @@ package job_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -675,12 +676,22 @@ func getJobLogs(jobID string) ([]*yaojob.Log, error) {
 		return nil, err
 	}
 
+	data, exists := result["data"]
+	if !exists {
+		return nil, fmt.Errorf("ListLogs result missing 'data' field")
+	}
+
+	// Handle nil data
+	if data == nil {
+		return []*yaojob.Log{}, nil
+	}
+
 	// Handle different data types from ListLogs
 	var logs []*yaojob.Log
 
-	switch data := result["data"].(type) {
+	switch typedData := data.(type) {
 	case []maps.MapStrAny:
-		for _, item := range data {
+		for _, item := range typedData {
 			log := &yaojob.Log{}
 			if msg, ok := item["message"].(string); ok {
 				log.Message = msg
@@ -694,7 +705,7 @@ func getJobLogs(jobID string) ([]*yaojob.Log, error) {
 			logs = append(logs, log)
 		}
 	case []map[string]interface{}:
-		for _, item := range data {
+		for _, item := range typedData {
 			log := &yaojob.Log{}
 			if msg, ok := item["message"].(string); ok {
 				log.Message = msg
@@ -707,6 +718,38 @@ func getJobLogs(jobID string) ([]*yaojob.Log, error) {
 			}
 			logs = append(logs, log)
 		}
+	case []interface{}:
+		// Handle generic []interface{} which may contain map types
+		for _, rawItem := range typedData {
+			log := &yaojob.Log{}
+			switch item := rawItem.(type) {
+			case maps.MapStrAny:
+				if msg, ok := item["message"].(string); ok {
+					log.Message = msg
+				}
+				if level, ok := item["level"].(string); ok {
+					log.Level = level
+				}
+				if jid, ok := item["job_id"].(string); ok {
+					log.JobID = jid
+				}
+			case map[string]interface{}:
+				if msg, ok := item["message"].(string); ok {
+					log.Message = msg
+				}
+				if level, ok := item["level"].(string); ok {
+					log.Level = level
+				}
+				if jid, ok := item["job_id"].(string); ok {
+					log.JobID = jid
+				}
+			default:
+				return nil, fmt.Errorf("unexpected item type in data array: %T", rawItem)
+			}
+			logs = append(logs, log)
+		}
+	default:
+		return nil, fmt.Errorf("unexpected data type from ListLogs: %T (value: %v)", data, data)
 	}
 
 	return logs, nil
