@@ -307,15 +307,29 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] `job/log_test.go` - 24 test cases
   - [x] All tests passing with real database
 
-### 3.6 Executor Stub Enhancement
+### ✅ 3.6 Executor Stub Enhancement (COMPLETE)
 
-- [ ] `executor/executor.go` - enhance stub implementation
-  - [ ] `Execute()` - simulate full execution with Job integration
-    1. Create Execution record + Job
+- [x] `executor/executor.go` - enhanced stub implementation
+  - [x] `Execute()` - simulate full execution with Job integration
+    1. Create Execution record + Job (via job package)
     2. Update phase: P0 → P1 → P2 → P3 → P4 → P5
     3. Log phase transitions
     4. Return success with mock data
-- [ ] Test: verify stub called, verify phase progression, verify job logs
+  - [x] `Config` struct with `SkipJobIntegration`, `OnPhaseStart`, `OnPhaseEnd`
+  - [x] `NewWithDelay()`, `NewWithCallback()` for testing
+  - [x] Quota check with `robot.TryAcquireSlot()`
+  - [x] Clock trigger: P0→P5, Human/Event trigger: P1→P5
+- [x] Phase-specific files (modular design for Phase 4+ replacement):
+  - [x] `executor/inspiration.go` - `RunInspiration()` P0 mock
+  - [x] `executor/goals.go` - `RunGoals()` P1 mock
+  - [x] `executor/tasks.go` - `RunTasks()` P2 mock
+  - [x] `executor/run.go` - `RunExecution()` P3 mock
+  - [x] `executor/delivery.go` - `RunDelivery()` P4 mock
+  - [x] `executor/learning.go` - `RunLearning()` P5 mock
+- [x] `simulateStreamDelay()` - 50ms hardcoded delay per phase
+- [x] Test: smoke tests for basic flow verification
+  - [x] `executor/executor_test.go` - 6 test cases
+  - [x] Clock/Human/Event triggers, nil robot, simulated failure, counters
 
 ### 3.7 Integration Test (End-to-End Scheduling)
 
@@ -649,19 +663,19 @@ func TestWithLLM(t *testing.T) {
 
 ## Progress Tracking
 
-| Phase                 | Status | Description                                       |
-| --------------------- | ------ | ------------------------------------------------- |
-| 1. Types & Interfaces | ✅     | All types, enums, interfaces                      |
-| 2. Skeleton           | ✅     | Empty stubs, code compiles                        |
-| 3. Scheduling System  | 🟡     | Cache + Pool + Trigger + Job ✅, Executor stub 🟡 |
-| 4. P0 Inspiration     | ⬜     | Inspiration Agent integration                     |
-| 5. P1 Goals           | ⬜     | Goal Generation Agent integration                 |
-| 6. P2 Tasks           | ⬜     | Task Planning Agent integration                   |
-| 7. P3 Run             | ⬜     | Task execution (assistant/mcp/process)            |
-| 8. P4 Delivery        | ⬜     | Output delivery (email/file/webhook/notify)       |
-| 9. P5 Learning        | ⬜     | Learning Agent + KB save                          |
-| 10. API & Integration | ⬜     | Complete API, end-to-end tests                    |
-| 11. Advanced          | ⬜     | Semantic dedup, plan queue                        |
+| Phase                 | Status | Description                                                          |
+| --------------------- | ------ | -------------------------------------------------------------------- |
+| 1. Types & Interfaces | ✅     | All types, enums, interfaces                                         |
+| 2. Skeleton           | ✅     | Empty stubs, code compiles                                           |
+| 3. Scheduling System  | 🟡     | Cache + Pool + Trigger + Job + Executor stub ✅, Integration test 🟡 |
+| 4. P0 Inspiration     | ⬜     | Inspiration Agent integration                                        |
+| 5. P1 Goals           | ⬜     | Goal Generation Agent integration                                    |
+| 6. P2 Tasks           | ⬜     | Task Planning Agent integration                                      |
+| 7. P3 Run             | ⬜     | Task execution (assistant/mcp/process)                               |
+| 8. P4 Delivery        | ⬜     | Output delivery (email/file/webhook/notify)                          |
+| 9. P5 Learning        | ⬜     | Learning Agent + KB save                                             |
+| 10. API & Integration | ⬜     | Complete API, end-to-end tests                                       |
+| 11. Advanced          | ⬜     | Semantic dedup, plan queue                                           |
 
 Legend: ⬜ Not started | 🟡 In progress | ✅ Complete
 
