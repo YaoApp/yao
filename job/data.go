@@ -1269,6 +1269,7 @@ func updateJobProgress(jobID string) error {
 	completedCount := 0
 	failedCount := 0
 	runningCount := 0
+	cancelledCount := 0
 	totalProgress := 0
 
 	for _, execution := range executions {
@@ -1281,6 +1282,8 @@ func updateJobProgress(jobID string) error {
 			failedCount++
 		case "running":
 			runningCount++
+		case "cancelled":
+			cancelledCount++
 		}
 	}
 
@@ -1289,12 +1292,17 @@ func updateJobProgress(jobID string) error {
 
 	// Determine job status
 	var jobStatus string
-	if completedCount == totalExecutions {
+	if cancelledCount == totalExecutions {
+		jobStatus = "cancelled" // All executions are cancelled
+	} else if completedCount == totalExecutions {
 		jobStatus = "completed"
-	} else if failedCount > 0 && runningCount == 0 && completedCount+failedCount == totalExecutions {
+	} else if failedCount > 0 && runningCount == 0 && completedCount+failedCount+cancelledCount == totalExecutions {
 		jobStatus = "failed"
 	} else if runningCount > 0 || completedCount > 0 {
 		jobStatus = "running"
+	} else if cancelledCount > 0 && cancelledCount+completedCount+failedCount == totalExecutions {
+		// Mix of cancelled with completed/failed, no running
+		jobStatus = "cancelled"
 	} else {
 		jobStatus = "ready" // All executions are queued
 	}
