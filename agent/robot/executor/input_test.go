@@ -282,18 +282,24 @@ func TestInputFormatterFormatTaskResults(t *testing.T) {
 	t.Run("formats task results with summary", func(t *testing.T) {
 		results := []types.TaskResult{
 			{
-				TaskID:    "task-1",
-				Success:   true,
-				Duration:  150,
-				Validated: true,
-				Output:    map[string]interface{}{"rows": 100},
+				TaskID:   "task-1",
+				Success:  true,
+				Duration: 150,
+				Validation: &types.ValidationResult{
+					Passed: true,
+					Score:  0.95,
+				},
+				Output: map[string]interface{}{"rows": 100},
 			},
 			{
-				TaskID:    "task-2",
-				Success:   false,
-				Duration:  50,
-				Validated: false,
-				Error:     "Connection timeout",
+				TaskID:   "task-2",
+				Success:  false,
+				Duration: 50,
+				Validation: &types.ValidationResult{
+					Passed: false,
+					Issues: []string{"Connection timeout"},
+				},
+				Error: "Connection timeout",
 			},
 		}
 
@@ -303,14 +309,18 @@ func TestInputFormatterFormatTaskResults(t *testing.T) {
 		assert.Contains(t, result, "### Task: task-1")
 		assert.Contains(t, result, "✓ Success")
 		assert.Contains(t, result, "150ms")
+		assert.Contains(t, result, "**Validation**: ✓ Passed")
+		assert.Contains(t, result, "score: 0.95")
 		assert.Contains(t, result, "**Output**")
 		assert.Contains(t, result, "### Task: task-2")
 		assert.Contains(t, result, "✗ Failed")
+		assert.Contains(t, result, "**Validation**: ✗ Failed")
 		assert.Contains(t, result, "Connection timeout")
 		assert.Contains(t, result, "## Summary")
 		assert.Contains(t, result, "Total: 2 tasks")
 		assert.Contains(t, result, "Success: 1")
 		assert.Contains(t, result, "Failed: 1")
+		assert.Contains(t, result, "Validated: 1")
 	})
 
 	t.Run("returns message for empty results", func(t *testing.T) {

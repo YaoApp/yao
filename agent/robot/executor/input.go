@@ -273,12 +273,16 @@ func (f *InputFormatter) FormatTaskResults(results []types.TaskResult) string {
 
 	successCount := 0
 	failCount := 0
+	validatedCount := 0
 
 	for _, result := range results {
 		if result.Success {
 			successCount++
 		} else {
 			failCount++
+		}
+		if result.Validation != nil && result.Validation.Passed {
+			validatedCount++
 		}
 
 		sb.WriteString(fmt.Sprintf("### Task: %s\n\n", result.TaskID))
@@ -288,7 +292,21 @@ func (f *InputFormatter) FormatTaskResults(results []types.TaskResult) string {
 			sb.WriteString("- **Status**: ✗ Failed\n")
 		}
 		sb.WriteString(fmt.Sprintf("- **Duration**: %dms\n", result.Duration))
-		sb.WriteString(fmt.Sprintf("- **Validated**: %t\n", result.Validated))
+
+		// Validation result (P3)
+		if result.Validation != nil {
+			if result.Validation.Passed {
+				sb.WriteString(fmt.Sprintf("- **Validation**: ✓ Passed (score: %.2f)\n", result.Validation.Score))
+			} else {
+				sb.WriteString("- **Validation**: ✗ Failed\n")
+				if len(result.Validation.Issues) > 0 {
+					sb.WriteString("  - Issues:\n")
+					for _, issue := range result.Validation.Issues {
+						sb.WriteString(fmt.Sprintf("    - %s\n", issue))
+					}
+				}
+			}
+		}
 
 		// Output
 		if result.Output != nil {
@@ -310,8 +328,8 @@ func (f *InputFormatter) FormatTaskResults(results []types.TaskResult) string {
 	}
 
 	// Summary
-	sb.WriteString(fmt.Sprintf("## Summary\n\n- Total: %d tasks\n- Success: %d\n- Failed: %d\n",
-		len(results), successCount, failCount))
+	sb.WriteString(fmt.Sprintf("## Summary\n\n- Total: %d tasks\n- Success: %d\n- Failed: %d\n- Validated: %d\n",
+		len(results), successCount, failCount, validatedCount))
 
 	return sb.String()
 }

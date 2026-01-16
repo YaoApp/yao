@@ -66,11 +66,14 @@ func (e *Executor) RunExecution(_ *types.Context, exec *types.Execution, _ inter
 
 		// Generate mock result with actual duration
 		exec.Results[i] = types.TaskResult{
-			TaskID:    exec.Tasks[i].ID,
-			Success:   true,
-			Output:    fmt.Sprintf("Mock output for %s: Task completed successfully", exec.Tasks[i].ID),
-			Duration:  endTime.Sub(startTime).Milliseconds(),
-			Validated: true,
+			TaskID:   exec.Tasks[i].ID,
+			Success:  true,
+			Output:   fmt.Sprintf("Mock output for %s: Task completed successfully", exec.Tasks[i].ID),
+			Duration: endTime.Sub(startTime).Milliseconds(),
+			Validation: &types.ValidationResult{
+				Passed: true,
+				Score:  1.0,
+			},
 		}
 	}
 

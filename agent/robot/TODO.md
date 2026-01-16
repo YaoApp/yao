@@ -428,85 +428,180 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
 
 ## Phase 5: Test Scenario & Assistants Setup
 
-**Goal:** Create a realistic test scenario with all required assistants.
+**Goal:** Create realistic test scenarios with all required assistants.
 
-**Test Scenario: Sales Analyst Robot**
-
-A Sales Analyst robot that:
-
-- Wakes up at 09:00 on weekdays
-- Checks sales data and market news
-- Generates daily goals based on findings
-- Creates 2-3 actionable tasks
-- (Future: executes tasks, delivers report, learns)
-
-Example flow:
+**Architecture:**
 
 ```
-Clock: Monday 09:00
-  ↓
-P0 Inspiration:
-  - Clock: Monday morning, start of week
-  - Data: 15 new orders (+20% vs last week)
-  - News: Competitor launched new product
-  ↓
-P1 Goals:
-  1. [High] Analyze weekend sales spike
-  2. [Normal] Review competitor product launch
-  3. [Low] Update weekly forecast
-  ↓
-P2 Tasks:
-  Task 1: Query sales DB for weekend orders
-  Task 2: Search web for competitor news
-  Task 3: Generate forecast update
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      6 Generic Phase Agents (P0-P5)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  inspiration  │  goals  │  tasks  │  validation  │  delivery  │  learning   │
+│     (P0)      │  (P1)   │  (P2)   │     (P3)     │    (P4)    │    (P5)     │
+└───────────────┴─────────┴─────────┴──────────────┴────────────┴─────────────┘
+                                    ↓ P2 assigns tasks to
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Expert Agents (Task Executors)                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  text-writer   │  web-reader  │  data-analyst  │  summarizer  │  ...        │
+│  (Generate)    │  (Fetch URL) │  (Analyze)     │  (Summarize) │             │
+└───────────────┴──────────────┴────────────────┴──────────────┴─────────────┘
 ```
 
-### 5.1 Test Assistant Directory Structure
+**Test Strategy:**
 
-Create `yao-dev-app/assistants/robot/` directory:
+- Phase Agents (P0-P5) are **generic** and reusable across all robot types
+- Expert Agents are **specialized** for specific tasks (text, web, data, etc.)
+- Each P0-P5 test uses **different expert combinations** to cover real scenarios
+- Tests use `interval: 1s` or `TriggerManual()` for easy triggering (no time dependency)
+
+### 5.1 Directory Structure
 
 ```
-assistants/robot/
-├── inspiration/           # P0: Inspiration Agent
-│   ├── package.yao       # Assistant config
-│   └── prompts.yml       # System prompt & templates
-├── goals/                 # P1: Goal Generation Agent
-│   ├── package.yao
-│   └── prompts.yml
-├── tasks/                 # P2: Task Planning Agent
-│   ├── package.yao
-│   └── prompts.yml
-├── validation/            # P3: Validation Agent (future)
-│   ├── package.yao
-│   └── prompts.yml
-├── delivery/              # P4: Delivery Agent (future)
-│   ├── package.yao
-│   └── prompts.yml
-└── learning/              # P5: Learning Agent (future)
-    ├── package.yao
-    └── prompts.yml
+yao-dev-app/assistants/
+├── robot/                    # Generic Phase Agents
+│   ├── inspiration/          # P0: Analyze clock context, generate insights
+│   │   ├── package.yao
+│   │   └── prompts.yml
+│   ├── goals/                # P1: Generate prioritized goals
+│   │   ├── package.yao
+│   │   └── prompts.yml
+│   ├── tasks/                # P2: Split goals into executable tasks
+│   │   ├── package.yao
+│   │   └── prompts.yml
+│   ├── validation/           # P3: Validate task results
+│   │   ├── package.yao
+│   │   └── prompts.yml
+│   ├── delivery/             # P4: Format and deliver results
+│   │   ├── package.yao
+│   │   └── prompts.yml
+│   └── learning/             # P5: Summarize execution, extract insights
+│       ├── package.yao
+│       └── prompts.yml
+│
+└── experts/                  # Expert Agents (Task Executors)
+    ├── text-writer/          # Generate text content (reports, emails, summaries)
+    │   ├── package.yao
+    │   └── prompts.yml
+    ├── web-reader/           # Fetch and parse web page content
+    │   ├── package.yao
+    │   └── prompts.yml
+    ├── data-analyst/         # Analyze data, generate insights
+    │   ├── package.yao
+    │   └── prompts.yml
+    └── summarizer/           # Summarize long text into key points
+        ├── package.yao
+        └── prompts.yml
 ```
 
-### 5.2 Inspiration Assistant (P0)
+### 5.2 Generic Phase Agents
+
+#### 5.2.1 Inspiration Agent (P0)
 
 - [ ] `robot/inspiration/package.yao` - config with model, temperature
-- [ ] `robot/inspiration/prompts.yml` - system prompt for P0:
-  - Input: Clock context, robot identity, data sources
+- [ ] `robot/inspiration/prompts.yml` - system prompt:
+  - Input: Clock context (time, day, markers), robot identity
   - Output: Markdown report with Summary, Highlights, Opportunities, Risks
+  - Style: Analytical, context-aware
 
-### 5.3 Goals Assistant (P1)
+#### 5.2.2 Goals Agent (P1)
 
 - [ ] `robot/goals/package.yao` - config
-- [ ] `robot/goals/prompts.yml` - system prompt for P1:
-  - Input: Inspiration report, robot duties
-  - Output: Prioritized goals in markdown format
+- [ ] `robot/goals/prompts.yml` - system prompt:
+  - Input: Inspiration report OR trigger input (human/event)
+  - Output: Prioritized goals in markdown (High/Normal/Low)
+  - Style: Strategic, actionable
 
-### 5.4 Tasks Assistant (P2)
+#### 5.2.3 Tasks Agent (P2)
 
 - [ ] `robot/tasks/package.yao` - config
-- [ ] `robot/tasks/prompts.yml` - system prompt for P2:
-  - Input: Goals, available tools/agents
-  - Output: Structured task list (JSON)
+- [ ] `robot/tasks/prompts.yml` - system prompt:
+  - Input: Goals, available expert agents list
+  - Output: Structured task list (JSON) with executor assignments
+  - Style: Detailed, executable
+
+#### 5.2.4 Validation Agent (P3)
+
+- [ ] `robot/validation/package.yao` - config
+- [ ] `robot/validation/prompts.yml` - system prompt:
+  - Input: Task result, expected outcome
+  - Output: Validation result (pass/fail, issues, suggestions)
+  - Style: Critical, thorough
+
+#### 5.2.5 Delivery Agent (P4)
+
+- [ ] `robot/delivery/package.yao` - config
+- [ ] `robot/delivery/prompts.yml` - system prompt:
+  - Input: Task results, delivery target (email, report, notification)
+  - Output: Formatted delivery content
+  - Style: Clear, professional
+
+#### 5.2.6 Learning Agent (P5)
+
+- [ ] `robot/learning/package.yao` - config
+- [ ] `robot/learning/prompts.yml` - system prompt:
+  - Input: Full execution summary
+  - Output: Insights, patterns, improvement suggestions
+  - Style: Reflective, insightful
+
+### 5.3 Expert Agents (Task Executors)
+
+#### 5.3.1 Text Writer
+
+- [ ] `experts/text-writer/package.yao` - config
+- [ ] `experts/text-writer/prompts.yml` - system prompt:
+  - Input: Topic, key points, style (formal/casual), length
+  - Output: Generated text content
+  - Use cases: Weekly reports, email drafts, summaries
+
+#### 5.3.2 Web Reader
+
+- [ ] `experts/web-reader/package.yao` - config
+- [ ] `experts/web-reader/prompts.yml` - system prompt:
+  - Input: URL or topic to search
+  - Output: Extracted content, key information
+  - Use cases: News fetching, competitor monitoring, research
+  - Note: May use MCP tools for actual web access
+
+#### 5.3.3 Data Analyst
+
+- [ ] `experts/data-analyst/package.yao` - config
+- [ ] `experts/data-analyst/prompts.yml` - system prompt:
+  - Input: Data description, analysis goal
+  - Output: Analysis report, trends, insights
+  - Use cases: Sales analysis, performance review
+
+#### 5.3.4 Summarizer
+
+- [ ] `experts/summarizer/package.yao` - config
+- [ ] `experts/summarizer/prompts.yml` - system prompt:
+  - Input: Long text content
+  - Output: Concise summary with key points
+  - Use cases: Document summarization, meeting notes
+
+### 5.4 Test Scenarios
+
+Each phase test uses different expert combinations:
+
+| Test | Phase | Trigger          | Expert Agents Used       | Verification                  |
+| ---- | ----- | ---------------- | ------------------------ | ----------------------------- |
+| T1   | P0    | Clock (interval) | -                        | Clock → Inspiration report    |
+| T2   | P1    | Clock            | -                        | Inspiration → Goals           |
+| T3   | P1    | Human            | -                        | User input → Goals            |
+| T4   | P2    | Clock            | text-writer, web-reader  | Goals → Tasks with executors  |
+| T5   | P3    | Clock            | text-writer              | Task exec → Result validation |
+| T6   | P3    | Human            | summarizer               | Task exec → Result validation |
+| T7   | P4    | Clock            | -                        | Results → Delivery format     |
+| T8   | P5    | Clock            | -                        | Full execution → Insights     |
+| T9   | E2E   | Clock            | text-writer, summarizer  | Full P0→P5 flow               |
+| T10  | E2E   | Human            | web-reader, data-analyst | Full P1→P5 flow               |
+
+### 5.5 Test Data Setup
+
+- [ ] Create test robot config in `__yao.member` with:
+  - `trigger.clock.mode: interval`, `interval: 1s` (for fast testing)
+  - `resources.agents: [experts.text-writer, experts.web-reader, ...]`
+- [ ] Create test trigger data for Human/Event scenarios
 
 ---
 
