@@ -11,9 +11,9 @@ import (
 
 // InputFormatter provides methods to format input data for assistant prompts
 // Each phase has specific input requirements:
-// - P0 (Inspiration): ClockContext + Robot identity
-// - P1 (Goals): InspirationReport (Clock) or TriggerInput (Human/Event)
-// - P2 (Tasks): Goals + Available tools
+// - P0 (Inspiration): ClockContext + Robot identity + Available resources
+// - P1 (Goals): InspirationReport/TriggerInput + Robot identity + Available resources
+// - P2 (Tasks): Goals + Available resources
 // - P3 (Run): Tasks
 // - P4 (Delivery): Task results
 // - P5 (Learning): Execution summary
@@ -107,6 +107,86 @@ func (f *InputFormatter) FormatRobotIdentity(robot *robottypes.Robot) string {
 		}
 	}
 
+	return sb.String()
+}
+
+// FormatAvailableResources formats available resources (agents, MCP tools, KB, DB) as user message content
+// Used by P0 (Inspiration) and P1 (Goals) to inform the agent what tools are available
+// This is critical for generating achievable goals - without knowing available tools,
+// the agent might generate goals that cannot be accomplished
+func (f *InputFormatter) FormatAvailableResources(robot *robottypes.Robot) string {
+	if robot == nil || robot.Config == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+	hasContent := false
+
+	// Available Agents
+	if robot.Config.Resources != nil && len(robot.Config.Resources.Agents) > 0 {
+		if !hasContent {
+			sb.WriteString("## Available Resources\n\n")
+			hasContent = true
+		}
+		sb.WriteString("### Agents\n")
+		sb.WriteString("These are the AI assistants you can delegate tasks to:\n")
+		for _, agent := range robot.Config.Resources.Agents {
+			sb.WriteString(fmt.Sprintf("- **%s**\n", agent))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Available MCP Tools
+	if robot.Config.Resources != nil && len(robot.Config.Resources.MCP) > 0 {
+		if !hasContent {
+			sb.WriteString("## Available Resources\n\n")
+			hasContent = true
+		}
+		sb.WriteString("### MCP Tools\n")
+		sb.WriteString("These are the external tools and services you can use:\n")
+		for _, mcp := range robot.Config.Resources.MCP {
+			if len(mcp.Tools) > 0 {
+				sb.WriteString(fmt.Sprintf("- **%s**: %s\n", mcp.ID, strings.Join(mcp.Tools, ", ")))
+			} else {
+				sb.WriteString(fmt.Sprintf("- **%s**: all tools available\n", mcp.ID))
+			}
+		}
+		sb.WriteString("\n")
+	}
+
+	// Available Knowledge Base
+	if robot.Config.KB != nil && len(robot.Config.KB.Collections) > 0 {
+		if !hasContent {
+			sb.WriteString("## Available Resources\n\n")
+			hasContent = true
+		}
+		sb.WriteString("### Knowledge Base\n")
+		sb.WriteString("You have access to these knowledge collections:\n")
+		for _, collection := range robot.Config.KB.Collections {
+			sb.WriteString(fmt.Sprintf("- %s\n", collection))
+		}
+		sb.WriteString("\n")
+	}
+
+	// Available Database Models
+	if robot.Config.DB != nil && len(robot.Config.DB.Models) > 0 {
+		if !hasContent {
+			sb.WriteString("## Available Resources\n\n")
+			hasContent = true
+		}
+		sb.WriteString("### Database\n")
+		sb.WriteString("You can query these database models:\n")
+		for _, model := range robot.Config.DB.Models {
+			sb.WriteString(fmt.Sprintf("- %s\n", model))
+		}
+		sb.WriteString("\n")
+	}
+
+	if !hasContent {
+		return ""
+	}
+
+	sb.WriteString("**Important**: Only plan goals and tasks that can be accomplished with the above resources.\n")
 	return sb.String()
 }
 
@@ -220,29 +300,11 @@ func (f *InputFormatter) FormatGoals(goals *robottypes.Goals, robot *robottypes.
 	sb.WriteString(goals.Content)
 	sb.WriteString("\n")
 
-	// Available resources (if robot config available)
-	if robot != nil && robot.Config != nil && robot.Config.Resources != nil {
-		sb.WriteString("\n## Available Resources\n\n")
-
-		// Agents
-		if len(robot.Config.Resources.Agents) > 0 {
-			sb.WriteString("### Agents\n")
-			for _, agent := range robot.Config.Resources.Agents {
-				sb.WriteString(fmt.Sprintf("- %s\n", agent))
-			}
-		}
-
-		// MCP tools
-		if len(robot.Config.Resources.MCP) > 0 {
-			sb.WriteString("\n### MCP Tools\n")
-			for _, mcp := range robot.Config.Resources.MCP {
-				if len(mcp.Tools) > 0 {
-					sb.WriteString(fmt.Sprintf("- %s: %s\n", mcp.ID, strings.Join(mcp.Tools, ", ")))
-				} else {
-					sb.WriteString(fmt.Sprintf("- %s: all tools\n", mcp.ID))
-				}
-			}
-		}
+	// Available resources - reuse FormatAvailableResources for consistency
+	resourcesContent := f.FormatAvailableResources(robot)
+	if resourcesContent != "" {
+		sb.WriteString("\n")
+		sb.WriteString(resourcesContent)
 	}
 
 	return sb.String()

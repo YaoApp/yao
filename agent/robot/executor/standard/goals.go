@@ -62,6 +62,13 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 		}
 	}
 
+	// Add available resources - critical for generating achievable goals
+	// Without knowing what tools are available, goals might be unachievable
+	resourcesContent := formatter.FormatAvailableResources(robot)
+	if resourcesContent != "" {
+		userContent += "\n\n" + resourcesContent
+	}
+
 	if userContent == "" {
 		return fmt.Errorf("no input available for goals generation")
 	}
@@ -70,7 +77,7 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 	caller := NewAgentCaller()
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
-		return fmt.Errorf("goals agent call failed: %w", err)
+		return fmt.Errorf("goals agent (%s) call failed: %w", agentID, err)
 	}
 
 	// Parse response as JSON
@@ -98,36 +105,38 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 
 	// Extract delivery
 	if delivery, ok := data["delivery"].(map[string]interface{}); ok {
-		exec.Goals.Delivery = parseDelivery(delivery)
+		exec.Goals.Delivery = ParseDelivery(delivery)
 	}
 
 	// Validate: content is required
 	if exec.Goals.Content == "" {
-		return fmt.Errorf("goals agent returned empty content")
+		return fmt.Errorf("goals agent (%s) returned empty content", agentID)
 	}
 
 	return nil
 }
 
-// parseDelivery converts map to DeliveryTarget struct
-func parseDelivery(data map[string]interface{}) *robottypes.DeliveryTarget {
+// ParseDelivery converts map to DeliveryTarget struct
+// Returns nil if data is nil or type is invalid/missing
+func ParseDelivery(data map[string]interface{}) *robottypes.DeliveryTarget {
 	if data == nil {
 		return nil
 	}
 
-	target := &robottypes.DeliveryTarget{}
+	// Type is required - if missing or invalid, return nil
+	t, ok := data["type"].(string)
+	if !ok || t == "" {
+		return nil
+	}
 
-	// Parse and validate type
-	if t, ok := data["type"].(string); ok {
-		deliveryType := robottypes.DeliveryType(t)
-		switch deliveryType {
-		case robottypes.DeliveryEmail, robottypes.DeliveryWebhook,
-			robottypes.DeliveryFile, robottypes.DeliveryNotify:
-			target.Type = deliveryType
-		default:
-			// Invalid type - still set it but caller should validate
-			target.Type = deliveryType
-		}
+	deliveryType := robottypes.DeliveryType(t)
+	if !IsValidDeliveryType(deliveryType) {
+		// Invalid type - return nil to indicate parsing failure
+		return nil
+	}
+
+	target := &robottypes.DeliveryTarget{
+		Type: deliveryType,
 	}
 
 	// Parse recipients

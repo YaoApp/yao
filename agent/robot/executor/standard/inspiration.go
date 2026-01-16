@@ -41,17 +41,23 @@ func (e *Executor) RunInspiration(ctx *robottypes.Context, exec *robottypes.Exec
 	formatter := NewInputFormatter()
 	userContent := formatter.FormatClockContext(clock, robot)
 
+	// Add available resources - critical for generating achievable insights
+	resourcesContent := formatter.FormatAvailableResources(robot)
+	if resourcesContent != "" {
+		userContent += "\n\n" + resourcesContent
+	}
+
 	// Call agent
 	caller := NewAgentCaller()
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
-		return fmt.Errorf("inspiration agent call failed: %w", err)
+		return fmt.Errorf("inspiration agent (%s) call failed: %w", agentID, err)
 	}
 
 	// Parse response - get markdown content
 	content := result.GetText()
 	if content == "" {
-		return fmt.Errorf("inspiration agent returned empty response")
+		return fmt.Errorf("inspiration agent (%s) returned empty response", agentID)
 	}
 
 	// Build InspirationReport

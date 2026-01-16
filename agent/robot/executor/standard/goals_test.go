@@ -241,7 +241,7 @@ func TestRunGoalsErrorHandling(t *testing.T) {
 		err := e.RunGoals(ctx, exec, nil)
 
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "agent call failed")
+		assert.Contains(t, err.Error(), "call failed")
 	})
 
 	t.Run("returns error when no input available and no identity", func(t *testing.T) {
@@ -377,6 +377,105 @@ func TestDeliveryTypeValidation(t *testing.T) {
 	})
 }
 
+func TestParseDelivery(t *testing.T) {
+	t.Run("parses valid delivery with all fields", func(t *testing.T) {
+		data := map[string]interface{}{
+			"type":       "email",
+			"recipients": []interface{}{"user@example.com", "team@example.com"},
+			"format":     "markdown",
+			"template":   "weekly-report",
+			"options": map[string]interface{}{
+				"subject": "Weekly Report",
+			},
+		}
+
+		result := standard.ParseDelivery(data)
+
+		require.NotNil(t, result)
+		assert.Equal(t, types.DeliveryEmail, result.Type)
+		assert.Equal(t, []string{"user@example.com", "team@example.com"}, result.Recipients)
+		assert.Equal(t, "markdown", result.Format)
+		assert.Equal(t, "weekly-report", result.Template)
+		assert.Equal(t, "Weekly Report", result.Options["subject"])
+	})
+
+	t.Run("returns nil for nil data", func(t *testing.T) {
+		result := standard.ParseDelivery(nil)
+		assert.Nil(t, result)
+	})
+
+	t.Run("returns nil for missing type", func(t *testing.T) {
+		data := map[string]interface{}{
+			"recipients": []interface{}{"user@example.com"},
+		}
+
+		result := standard.ParseDelivery(data)
+		assert.Nil(t, result)
+	})
+
+	t.Run("returns nil for empty type", func(t *testing.T) {
+		data := map[string]interface{}{
+			"type":       "",
+			"recipients": []interface{}{"user@example.com"},
+		}
+
+		result := standard.ParseDelivery(data)
+		assert.Nil(t, result)
+	})
+
+	t.Run("returns nil for invalid type", func(t *testing.T) {
+		data := map[string]interface{}{
+			"type":       "sms",
+			"recipients": []interface{}{"user@example.com"},
+		}
+
+		result := standard.ParseDelivery(data)
+		assert.Nil(t, result)
+	})
+
+	t.Run("handles missing optional fields", func(t *testing.T) {
+		data := map[string]interface{}{
+			"type": "webhook",
+		}
+
+		result := standard.ParseDelivery(data)
+
+		require.NotNil(t, result)
+		assert.Equal(t, types.DeliveryWebhook, result.Type)
+		assert.Empty(t, result.Recipients)
+		assert.Empty(t, result.Format)
+		assert.Empty(t, result.Template)
+		assert.Nil(t, result.Options)
+	})
+
+	t.Run("handles non-string recipients gracefully", func(t *testing.T) {
+		data := map[string]interface{}{
+			"type":       "email",
+			"recipients": []interface{}{"valid@example.com", 123, nil, "another@example.com"},
+		}
+
+		result := standard.ParseDelivery(data)
+
+		require.NotNil(t, result)
+		// Only string recipients should be included
+		assert.Equal(t, []string{"valid@example.com", "another@example.com"}, result.Recipients)
+	})
+
+	t.Run("parses all valid delivery types", func(t *testing.T) {
+		validTypes := []string{"email", "webhook", "file", "notify"}
+
+		for _, dt := range validTypes {
+			data := map[string]interface{}{
+				"type": dt,
+			}
+
+			result := standard.ParseDelivery(data)
+			require.NotNil(t, result, "should parse type: %s", dt)
+			assert.Equal(t, types.DeliveryType(dt), result.Type)
+		}
+	})
+}
+
 // ============================================================================
 // InputFormatter Tests for P1
 // ============================================================================
@@ -450,6 +549,10 @@ func TestInputFormatterFormatRobotIdentity(t *testing.T) {
 // ============================================================================
 
 // createGoalsTestRobot creates a test robot with specified goals agent
+// Includes available expert agents so the Goals Agent knows what resources are available
+//
+// Note: The agent IDs listed in Resources.Agents must exist in yao-dev-app/assistants/experts/
+// Current available experts: data-analyst, summarizer, text-writer, web-reader
 func createGoalsTestRobot(t *testing.T, agentID string) *types.Robot {
 	t.Helper()
 	return &types.Robot{
@@ -459,12 +562,24 @@ func createGoalsTestRobot(t *testing.T, agentID string) *types.Robot {
 		Config: &types.Config{
 			Identity: &types.Identity{
 				Role:   "Test Assistant",
-				Duties: []string{"Testing", "Validation"},
+				Duties: []string{"Testing", "Validation", "Data Analysis", "Report Generation"},
 			},
 			Resources: &types.Resources{
 				Phases: map[types.Phase]string{
 					types.PhaseGoals: agentID,
 				},
+				// Available expert agents that can be delegated to
+				// These IDs correspond to assistants in yao-dev-app/assistants/experts/
+				Agents: []string{
+					"experts.data-analyst", // Data analysis and insights
+					"experts.summarizer",   // Content summarization
+					"experts.text-writer",  // Report and document generation
+					"experts.web-reader",   // Web content extraction
+				},
+			},
+			// Knowledge base collections (if any)
+			KB: &types.KB{
+				Collections: []string{"test-knowledge"},
 			},
 		},
 	}

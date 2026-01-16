@@ -201,7 +201,7 @@ func TestRunInspirationErrorHandling(t *testing.T) {
 
 		// Real AgentCaller returns error for non-existent agent
 		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "agent call failed")
+		assert.Contains(t, err.Error(), "call failed")
 	})
 }
 
@@ -233,7 +233,7 @@ func TestRunInspirationWithDefaultAgent(t *testing.T) {
 		// In test environment, we expect it to fail with "agent not found"
 		// In production, it would use the default agent
 		if err != nil {
-			assert.Contains(t, err.Error(), "agent call failed")
+			assert.Contains(t, err.Error(), "call failed")
 		}
 	})
 }
@@ -314,6 +314,10 @@ func TestInputFormatterClockContext(t *testing.T) {
 // ============================================================================
 
 // createTestRobot creates a test robot with specified inspiration agent
+// Includes available expert agents so the Inspiration Agent knows what resources are available
+//
+// Note: The agent IDs listed in Resources.Agents must exist in yao-dev-app/assistants/experts/
+// Current available experts: data-analyst, summarizer, text-writer, web-reader
 func createTestRobot(t *testing.T, agentID string) *types.Robot {
 	t.Helper()
 	return &types.Robot{
@@ -323,12 +327,24 @@ func createTestRobot(t *testing.T, agentID string) *types.Robot {
 		Config: &types.Config{
 			Identity: &types.Identity{
 				Role:   "Test Assistant",
-				Duties: []string{"Testing"},
+				Duties: []string{"Testing", "Data Analysis", "Report Generation"},
 			},
 			Resources: &types.Resources{
 				Phases: map[types.Phase]string{
 					types.PhaseInspiration: agentID,
 				},
+				// Available expert agents that can be delegated to
+				// These IDs correspond to assistants in yao-dev-app/assistants/experts/
+				Agents: []string{
+					"experts.data-analyst", // Data analysis and insights
+					"experts.summarizer",   // Content summarization
+					"experts.text-writer",  // Report and document generation
+					"experts.web-reader",   // Web content extraction
+				},
+			},
+			// Knowledge base collections (if any)
+			KB: &types.KB{
+				Collections: []string{"test-knowledge"},
 			},
 		},
 	}

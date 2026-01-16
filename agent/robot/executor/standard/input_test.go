@@ -126,6 +126,103 @@ func TestInputFormatterFormatInspirationReport(t *testing.T) {
 	})
 }
 
+func TestInputFormatterFormatAvailableResources(t *testing.T) {
+	formatter := standard.NewInputFormatter()
+
+	t.Run("formats all resource types", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test-robot",
+			Config: &types.Config{
+				Resources: &types.Resources{
+					Agents: []string{"data-analyst", "chart-gen", "report-writer"},
+					MCP: []types.MCPConfig{
+						{ID: "database", Tools: []string{"query", "insert"}},
+						{ID: "email", Tools: []string{}}, // all tools
+					},
+				},
+				KB: &types.KB{
+					Collections: []string{"sales-policies", "products"},
+				},
+				DB: &types.DB{
+					Models: []string{"sales", "customers", "orders"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		// Check structure
+		assert.Contains(t, result, "## Available Resources")
+
+		// Check agents
+		assert.Contains(t, result, "### Agents")
+		assert.Contains(t, result, "data-analyst")
+		assert.Contains(t, result, "chart-gen")
+		assert.Contains(t, result, "report-writer")
+
+		// Check MCP tools
+		assert.Contains(t, result, "### MCP Tools")
+		assert.Contains(t, result, "database")
+		assert.Contains(t, result, "query, insert")
+		assert.Contains(t, result, "email")
+		assert.Contains(t, result, "all tools available")
+
+		// Check KB
+		assert.Contains(t, result, "### Knowledge Base")
+		assert.Contains(t, result, "sales-policies")
+		assert.Contains(t, result, "products")
+
+		// Check DB
+		assert.Contains(t, result, "### Database")
+		assert.Contains(t, result, "sales")
+		assert.Contains(t, result, "customers")
+		assert.Contains(t, result, "orders")
+
+		// Check important note
+		assert.Contains(t, result, "Only plan goals and tasks that can be accomplished")
+	})
+
+	t.Run("returns empty for nil robot", func(t *testing.T) {
+		result := formatter.FormatAvailableResources(nil)
+		assert.Empty(t, result)
+	})
+
+	t.Run("returns empty for robot without config", func(t *testing.T) {
+		robot := &types.Robot{MemberID: "test"}
+		result := formatter.FormatAvailableResources(robot)
+		assert.Empty(t, result)
+	})
+
+	t.Run("returns empty for robot without resources", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config:   &types.Config{},
+		}
+		result := formatter.FormatAvailableResources(robot)
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles partial resources", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				Resources: &types.Resources{
+					Agents: []string{"single-agent"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		assert.Contains(t, result, "## Available Resources")
+		assert.Contains(t, result, "### Agents")
+		assert.Contains(t, result, "single-agent")
+		assert.NotContains(t, result, "### MCP Tools")
+		assert.NotContains(t, result, "### Knowledge Base")
+		assert.NotContains(t, result, "### Database")
+	})
+}
+
 func TestInputFormatterFormatTriggerInput(t *testing.T) {
 	formatter := standard.NewInputFormatter()
 
@@ -207,8 +304,10 @@ func TestInputFormatterFormatGoals(t *testing.T) {
 		assert.Contains(t, result, "### Agents")
 		assert.Contains(t, result, "data-analyzer")
 		assert.Contains(t, result, "### MCP Tools")
-		assert.Contains(t, result, "database: query, insert")
-		assert.Contains(t, result, "email: all tools")
+		assert.Contains(t, result, "database")
+		assert.Contains(t, result, "query, insert")
+		assert.Contains(t, result, "email")
+		assert.Contains(t, result, "all tools available")
 	})
 
 	t.Run("formats goals without robot", func(t *testing.T) {
