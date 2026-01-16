@@ -369,164 +369,324 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
 
 ---
 
-## Phase 4: Executor - P0 Inspiration
+## Phase 4: Agent Call Infrastructure ✅
 
-**Goal:** Implement P0 (Inspiration Agent). Clock trigger → P0 → stub P1-P5.
+**Goal:** Implement unified Agent/Assistant calling mechanism. This is the foundation for all phase implementations (P0-P5).
 
-### 4.1 Test Assistant Setup
+**Architecture Note:**
+
+- **Prompt construction is handled by Assistant layer** (`prompts.yml` in each assistant)
+- **Executor only prepares input data** (ClockContext, InspirationReport, etc.) and calls Assistant
+- **Assistant framework handles** prompt rendering, LLM API calls, streaming
+
+**Implemented:**
+
+1. A unified way to call assistants with streaming support
+2. Input data formatting for each phase
+3. Response parsing (markdown and structured data via `gou/text`)
+4. Multi-turn conversation support
+
+### 4.1 Agent Caller Implementation ✅
+
+- [x] `executor/agent.go` - `AgentCaller` struct with `SkipOutput`, `SkipHistory`, `SkipSearch`, `ChatID`
+- [x] `executor/agent.go` - `Call(ctx, assistantID, messages)` - basic call with full response
+- [x] `executor/agent.go` - `CallWithMessages(ctx, assistantID, userContent)` - convenience method
+- [x] `executor/agent.go` - `CallWithSystemAndUser(ctx, assistantID, systemContent, userContent)`
+- [x] `executor/agent.go` - handle assistant not found error
+- [x] `executor/agent.go` - handle LLM API errors gracefully
+- [x] `executor/agent.go` - `CallResult.GetJSON()` / `GetJSONArray()` - parse JSON response using `gou/text`
+- [x] `executor/agent.go` - `Conversation` struct for multi-turn dialogues
+- [x] `executor/agent.go` - `Conversation.Turn()`, `RunUntil()`, `Reset()`, `WithSystemPrompt()`
+- [x] `executor/agent.go` - Use `agentcontext.Noop()` logger to suppress debug output
+
+### 4.2 Input Formatters ✅
+
+- [x] `executor/input.go` - `FormatClockContext(clockCtx, robot)` - format clock context as message content
+- [x] `executor/input.go` - `FormatInspirationReport(report)` - format P0 output for P1 input
+- [x] `executor/input.go` - `FormatTriggerInput(input)` - format Human/Event trigger for P1 input
+- [x] `executor/input.go` - `FormatGoals(goals, robot)` - format P1 output for P2 input
+- [x] `executor/input.go` - `FormatTasks(tasks)` - format P2 output for P3 input
+- [x] `executor/input.go` - `FormatTaskResults(results)` - format P3 output for P4/P5 input
+- [x] `executor/input.go` - `FormatExecutionSummary(exec)` - format full execution for P5 input
+- [x] `executor/input.go` - `BuildMessages()`, `BuildMessagesWithSystem()` - helper methods
+
+### 4.3 Test Assistants ✅
+
+- [x] `yao-dev-app/assistants/tests/robot-single/` - Single-turn test assistant
+- [x] `yao-dev-app/assistants/tests/robot-conversation/` - Multi-turn conversation test assistant
+
+### 4.4 Tests ✅
+
+- [x] `executor/agent_test.go` - 22 test cases for AgentCaller and Conversation
+- [x] `executor/input_test.go` - 20 test cases for InputFormatter
+- [x] Verify: assistant can be called and returns response
+- [x] Verify: multi-turn conversation maintains state
+- [x] Verify: input data is well-formatted for assistant prompts
+- [x] Verify: JSON/YAML extraction from LLM output works correctly
+
+---
+
+## Phase 5: Test Scenario & Assistants Setup
+
+**Goal:** Create a realistic test scenario with all required assistants.
+
+**Test Scenario: Sales Analyst Robot**
+
+A Sales Analyst robot that:
+
+- Wakes up at 09:00 on weekdays
+- Checks sales data and market news
+- Generates daily goals based on findings
+- Creates 2-3 actionable tasks
+- (Future: executes tasks, delivers report, learns)
+
+Example flow:
+
+```
+Clock: Monday 09:00
+  ↓
+P0 Inspiration:
+  - Clock: Monday morning, start of week
+  - Data: 15 new orders (+20% vs last week)
+  - News: Competitor launched new product
+  ↓
+P1 Goals:
+  1. [High] Analyze weekend sales spike
+  2. [Normal] Review competitor product launch
+  3. [Low] Update weekly forecast
+  ↓
+P2 Tasks:
+  Task 1: Query sales DB for weekend orders
+  Task 2: Search web for competitor news
+  Task 3: Generate forecast update
+```
+
+### 5.1 Test Assistant Directory Structure
 
 Create `yao-dev-app/assistants/robot/` directory:
 
-- [ ] `inspiration/package.yao` - Inspiration Agent config
-- [ ] `inspiration/prompts.yml` - P0 prompts
-- [ ] `inspiration/src/index.ts` - hooks if needed
+```
+assistants/robot/
+├── inspiration/           # P0: Inspiration Agent
+│   ├── package.yao       # Assistant config
+│   └── prompts.yml       # System prompt & templates
+├── goals/                 # P1: Goal Generation Agent
+│   ├── package.yao
+│   └── prompts.yml
+├── tasks/                 # P2: Task Planning Agent
+│   ├── package.yao
+│   └── prompts.yml
+├── validation/            # P3: Validation Agent (future)
+│   ├── package.yao
+│   └── prompts.yml
+├── delivery/              # P4: Delivery Agent (future)
+│   ├── package.yao
+│   └── prompts.yml
+└── learning/              # P5: Learning Agent (future)
+    ├── package.yao
+    └── prompts.yml
+```
 
-### 4.2 P0 Implementation
+### 5.2 Inspiration Assistant (P0)
 
-- [ ] `executor/inspiration.go` - build prompt with `ClockContext`
-- [ ] `executor/inspiration.go` - call Inspiration Agent
-- [ ] `executor/inspiration.go` - parse response to `InspirationReport`
-- [ ] `executor/prompt.go` - `BuildInspirationPrompt()`
+- [ ] `robot/inspiration/package.yao` - config with model, temperature
+- [ ] `robot/inspiration/prompts.yml` - system prompt for P0:
+  - Input: Clock context, robot identity, data sources
+  - Output: Markdown report with Summary, Highlights, Opportunities, Risks
 
-### 4.3 Tests
+### 5.3 Goals Assistant (P1)
 
-- [ ] `executor/inspiration_test.go` - P0 with real LLM call
-- [ ] Verify: clock context in prompt
-- [ ] Verify: markdown report generated
+- [ ] `robot/goals/package.yao` - config
+- [ ] `robot/goals/prompts.yml` - system prompt for P1:
+  - Input: Inspiration report, robot duties
+  - Output: Prioritized goals in markdown format
+
+### 5.4 Tasks Assistant (P2)
+
+- [ ] `robot/tasks/package.yao` - config
+- [ ] `robot/tasks/prompts.yml` - system prompt for P2:
+  - Input: Goals, available tools/agents
+  - Output: Structured task list (JSON)
 
 ---
 
-## Phase 5: Executor - P1 Goals
+## Phase 6: P0 Inspiration Implementation
+
+**Goal:** Implement P0 (Inspiration Agent). Clock trigger → P0 → stub P1-P5.
+
+**Depends on:** Phase 4 (Agent Call Infrastructure), Phase 5 (Assistants Setup)
+
+### 6.1 P0 Implementation
+
+- [ ] `executor/inspiration.go` - `RunInspiration(ctx, exec, data)` - real implementation
+- [ ] `executor/inspiration.go` - build prompt using `PromptBuilder`
+- [ ] `executor/inspiration.go` - call Inspiration Agent using `AgentCaller`
+- [ ] `executor/inspiration.go` - parse response to `InspirationReport`
+- [ ] `executor/inspiration.go` - handle streaming response
+- [ ] `executor/inspiration.go` - log phase progress to Job system
+
+### 6.2 Tests
+
+- [ ] `executor/inspiration_test.go` - P0 with real LLM call
+- [ ] Test: clock context correctly formatted in prompt
+- [ ] Test: robot identity included in system prompt
+- [ ] Test: markdown report generated with expected sections
+- [ ] Test: handles LLM errors gracefully
+
+---
+
+## Phase 7: P1 Goals Implementation
 
 **Goal:** Implement P1 (Goal Generation Agent). P0 → P1 → stub P2-P5.
 
-### 5.1 Test Assistant Setup
+**Depends on:** Phase 6 (P0 Inspiration)
 
-- [ ] `goals/package.yao` - Goal Generation Agent config
-- [ ] `goals/prompts.yml` - P1 prompts
+### 7.1 P1 Implementation
 
-### 5.2 P1 Implementation
-
+- [ ] `executor/goals.go` - `RunGoals(ctx, exec, data)` - real implementation
 - [ ] `executor/goals.go` - build prompt with inspiration report
-- [ ] `executor/goals.go` - call Goal Agent
-- [ ] `executor/goals.go` - parse response to `Goals` (markdown)
-- [ ] `executor/prompt.go` - `BuildGoalsPrompt()`
+- [ ] `executor/goals.go` - call Goals Agent
+- [ ] `executor/goals.go` - parse response to `Goals` struct
+- [ ] `executor/goals.go` - handle Human/Event trigger (skip P0, use input directly)
 
-### 5.3 Tests
+### 7.2 Tests
 
 - [ ] `executor/goals_test.go` - P1 with real LLM call
-- [ ] Verify: inspiration report in prompt
-- [ ] Verify: goals markdown generated
+- [ ] Test: inspiration report in prompt (Clock trigger)
+- [ ] Test: user input in prompt (Human trigger)
+- [ ] Test: goals markdown generated with priorities
+- [ ] Test: goals are actionable and measurable
 
 ---
 
-## Phase 6: Executor - P2 Tasks
+## Phase 8: P2 Tasks Implementation
 
 **Goal:** Implement P2 (Task Planning Agent). P1 → P2 → stub P3-P5.
 
-### 6.1 Test Assistant Setup
+**Depends on:** Phase 7 (P1 Goals)
 
-- [ ] `tasks/package.yao` - Task Planning Agent config
-- [ ] `tasks/prompts.yml` - P2 prompts
+### 8.1 P2 Implementation
 
-### 6.2 P2 Implementation
-
+- [ ] `executor/tasks.go` - `RunTasks(ctx, exec, data)` - real implementation
 - [ ] `executor/tasks.go` - build prompt with goals
-- [ ] `executor/tasks.go` - call Task Agent
-- [ ] `executor/tasks.go` - parse response to `[]Task` (structured)
-- [ ] `executor/prompt.go` - `BuildTasksPrompt()`
+- [ ] `executor/tasks.go` - include available tools/agents in prompt
+- [ ] `executor/tasks.go` - call Tasks Agent
+- [ ] `executor/tasks.go` - parse response to `[]Task` (structured JSON)
+- [ ] `executor/tasks.go` - validate task structure
 
-### 6.3 Tests
+### 8.2 Tests
 
 - [ ] `executor/tasks_test.go` - P2 with real LLM call
-- [ ] Verify: goals in prompt
-- [ ] Verify: structured tasks generated
+- [ ] Test: goals included in prompt
+- [ ] Test: available tools listed in prompt
+- [ ] Test: structured tasks generated (2-3 tasks per goal)
+- [ ] Test: each task has valid executor type and ID
 
 ---
 
-## Phase 7: Executor - P3 Run
+## Phase 9: P3 Run Implementation
 
 **Goal:** Implement P3 (Task Execution). P2 → P3 → stub P4-P5.
 
-### 7.1 Implementation
+**Depends on:** Phase 8 (P2 Tasks)
 
-- [ ] `executor/run.go` - iterate tasks
-- [ ] `executor/run.go` - call executor (assistant/mcp/process)
-- [ ] `executor/run.go` - collect results
-- [ ] `executor/agent.go` - unified agent call method
+### 9.1 Implementation
 
-### 7.2 Validation Agent Setup
+- [ ] `executor/run.go` - `RunExecution(ctx, exec, data)` - real implementation
+- [ ] `executor/run.go` - iterate tasks in order
+- [ ] `executor/run.go` - dispatch to correct executor (assistant/mcp/process)
+- [ ] `executor/run.go` - collect results with timing
+- [ ] `executor/run.go` - handle task failures gracefully
+- [ ] `executor/run.go` - support pause/resume during execution
 
-- [ ] `validation/package.yao` - Validation Agent config
-- [ ] `validation/prompts.yml` - validation prompts
+### 9.2 Validation Agent Setup
 
-### 7.3 Tests
+- [ ] `robot/validation/package.yao` - Validation Agent config
+- [ ] `robot/validation/prompts.yml` - validation prompts
+
+### 9.3 Tests
 
 - [ ] `executor/run_test.go` - P3 with real agent calls
-- [ ] Verify: tasks executed in order
-- [ ] Verify: results collected
+- [ ] Test: tasks executed in order
+- [ ] Test: results collected with correct structure
+- [ ] Test: task failure doesn't stop entire execution
+- [ ] Test: pause/resume works during task execution
 
 ---
 
-## Phase 8: Executor - P4 Delivery
+## Phase 10: P4 Delivery Implementation
 
 **Goal:** Implement P4 (Delivery). P3 → P4 → stub P5.
 
-### 8.1 Test Assistant Setup
+**Depends on:** Phase 9 (P3 Run)
 
-- [ ] `delivery/package.yao` - Delivery Agent config
-- [ ] `delivery/prompts.yml` - delivery prompts
+### 10.1 Delivery Agent Setup
 
-### 8.2 Implementation
+- [ ] `robot/delivery/package.yao` - Delivery Agent config
+- [ ] `robot/delivery/prompts.yml` - delivery prompts
 
-- [ ] `executor/delivery.go` - build delivery content
-- [ ] `executor/delivery.go` - send via configured channel (email/file/webhook/notify)
+### 10.2 Implementation
 
-### 8.3 Tests
+- [ ] `executor/delivery.go` - `RunDelivery(ctx, exec, data)` - real implementation
+- [ ] `executor/delivery.go` - build delivery content from results
+- [ ] `executor/delivery.go` - support email delivery
+- [ ] `executor/delivery.go` - support file delivery
+- [ ] `executor/delivery.go` - support webhook delivery
+- [ ] `executor/delivery.go` - support notify delivery
+
+### 10.3 Tests
 
 - [ ] `executor/delivery_test.go` - P4 delivery
-- [ ] Verify: delivery sent (mock or real)
+- [ ] Test: delivery content generated correctly
+- [ ] Test: email delivery (mock or real)
+- [ ] Test: file delivery to configured path
 
 ---
 
-## Phase 9: Executor - P5 Learning
+## Phase 11: P5 Learning Implementation
 
 **Goal:** Implement P5 (Learning). Full execution flow complete.
 
-### 9.1 Test Assistant Setup
+**Depends on:** Phase 10 (P4 Delivery)
 
-- [ ] `learning/package.yao` - Learning Agent config
-- [ ] `learning/prompts.yml` - learning prompts
+### 11.1 Learning Agent Setup
 
-### 9.2 Store Implementation
+- [ ] `robot/learning/package.yao` - Learning Agent config
+- [ ] `robot/learning/prompts.yml` - learning prompts
 
+### 11.2 Store Implementation
+
+- [ ] `store/store.go` - Store interface and struct
 - [ ] `store/kb.go` - KB operations (create, save, search)
 - [ ] `store/learning.go` - save learning entries to private KB
 
-### 9.3 Implementation
+### 11.3 Implementation
 
+- [ ] `executor/learning.go` - `RunLearning(ctx, exec, data)` - real implementation
 - [ ] `executor/learning.go` - extract learnings from execution
 - [ ] `executor/learning.go` - call Learning Agent
 - [ ] `executor/learning.go` - save to private KB
 
-### 9.4 Tests
+### 11.4 Tests
 
 - [ ] `executor/learning_test.go` - P5 learning
-- [ ] Verify: learnings saved to KB
+- [ ] Test: learnings extracted from execution
+- [ ] Test: learnings saved to KB
+- [ ] Test: KB can be queried for past learnings
 
 ---
 
-## Phase 10: API & Integration
+## Phase 12: API & Integration
 
 **Goal:** Complete API implementation, end-to-end tests.
 
-### 10.1 API Implementation
+### 12.1 API Implementation
 
 - [ ] `api/api.go` - implement all Go API functions
 - [ ] `api/process.go` - implement all Process handlers
 - [ ] `api/jsapi.go` - implement JSAPI
 
-### 10.2 End-to-End Tests
+### 12.2 End-to-End Tests
 
 - [ ] Full clock trigger flow (P0 → P5)
 - [ ] Human intervention flow (P1 → P5)
@@ -534,18 +694,18 @@ Create `yao-dev-app/assistants/robot/` directory:
 - [ ] Concurrent execution test
 - [ ] Pause/Resume/Stop test
 
-### 10.3 Integration with OpenAPI
+### 12.3 Integration with OpenAPI
 
 - [ ] HTTP endpoints for human intervention
 - [ ] Webhook endpoints for events
 
 ---
 
-## Phase 11: Advanced Features
+## Phase 13: Advanced Features
 
 **Goal:** Implement dedup, semantic dedup, plan queue.
 
-### 11.1 Fast Dedup (Time-Window)
+### 13.1 Fast Dedup (Time-Window)
 
 > **Note:** Manager has `// TODO: dedup check` comment placeholder. Integrate after implementation.
 
@@ -557,13 +717,13 @@ Create `yao-dev-app/assistants/robot/` directory:
 - [ ] Integrate into Manager.Tick()
 - [ ] Test: dedup check/mark, window expiry
 
-### 11.2 Semantic Dedup
+### 13.2 Semantic Dedup
 
 - [ ] `dedup/semantic.go` - call Dedup Agent for goal/task level dedup
 - [ ] Dedup Agent setup (`assistants/robot/dedup/`)
 - [ ] Test: semantic dedup with real LLM
 
-### 11.3 Plan Queue
+### 13.3 Plan Queue
 
 - [ ] `plan/plan.go` - plan queue implementation
   - [ ] Store planned tasks/goals
