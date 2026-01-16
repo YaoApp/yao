@@ -418,11 +418,7 @@ func TestTaskStructure(t *testing.T) {
 func TestGoalsStructure(t *testing.T) {
 	goals := &types.Goals{
 		Content: "## Goals\n1. [High] Complete project\n2. [Normal] Review code",
-		SuccessCriteria: []string{
-			"Project deliverables submitted",
-			"Code review completed with no blockers",
-		},
-		DeliveryTarget: &types.DeliveryTarget{
+		Delivery: &types.DeliveryTarget{
 			Type:       types.DeliveryEmail,
 			Recipients: []string{"team@example.com"},
 			Format:     "markdown",
@@ -431,10 +427,8 @@ func TestGoalsStructure(t *testing.T) {
 
 	assert.Contains(t, goals.Content, "Goals")
 	assert.Contains(t, goals.Content, "Complete project")
-	assert.Len(t, goals.SuccessCriteria, 2)
-	assert.Contains(t, goals.SuccessCriteria[0], "deliverables")
-	assert.NotNil(t, goals.DeliveryTarget)
-	assert.Equal(t, types.DeliveryEmail, goals.DeliveryTarget.Type)
+	assert.NotNil(t, goals.Delivery)
+	assert.Equal(t, types.DeliveryEmail, goals.Delivery.Type)
 }
 
 func TestTaskResultStructure(t *testing.T) {
@@ -497,7 +491,7 @@ func TestDeliveryResultStructure(t *testing.T) {
 }
 
 func TestDeliveryTargetStructure(t *testing.T) {
-	target := &types.DeliveryTarget{
+	delivery := &types.DeliveryTarget{
 		Type:       types.DeliveryEmail,
 		Recipients: []string{"team@example.com"},
 		Format:     "markdown",
@@ -507,10 +501,10 @@ func TestDeliveryTargetStructure(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, types.DeliveryEmail, target.Type)
-	assert.Len(t, target.Recipients, 1)
-	assert.Equal(t, "markdown", target.Format)
-	assert.Equal(t, "weekly-report", target.Template)
+	assert.Equal(t, types.DeliveryEmail, delivery.Type)
+	assert.Len(t, delivery.Recipients, 1)
+	assert.Equal(t, "markdown", delivery.Format)
+	assert.Equal(t, "weekly-report", delivery.Template)
 }
 
 func TestLearningEntryStructure(t *testing.T) {

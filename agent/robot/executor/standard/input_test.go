@@ -320,7 +320,7 @@ func TestInputFormatterFormatTaskResults(t *testing.T) {
 		assert.Contains(t, result, "Total: 2 tasks")
 		assert.Contains(t, result, "Success: 1")
 		assert.Contains(t, result, "Failed: 1")
-		assert.Contains(t, result, "Validated: 1")
+		assert.Contains(t, result, "Validated: 1/2")
 	})
 
 	t.Run("returns message for empty results", func(t *testing.T) {

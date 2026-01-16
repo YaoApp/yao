@@ -309,8 +309,24 @@ type ClockContext struct {
 
 **For Human/Event:** Uses the input directly as goals (or to generate goals).
 
+```go
+type Goals struct {
+    Content  string          // markdown text (for LLM)
+    Delivery *DeliveryTarget // where to send results (for P4)
+}
+
+type DeliveryTarget struct {
+    Type       DeliveryType // email | webhook | report | notification
+    Recipients []string     // email addresses, webhook URLs, user IDs
+    Format     string       // markdown | html | json | text
+    Template   string       // template name
+    Options    map[string]interface{}
+}
 ```
-Prompt:
+
+**Example prompt:**
+
+```
 You are [Sales Manager]. Your job: [track KPIs, make reports].
 
 ## Report
@@ -326,20 +342,26 @@ You are [Sales Manager]. Your job: [track KPIs, make reports].
 Make today's goals.
 ```
 
+**Note:** Validation criteria (`ExpectedOutput`, `ValidationRules`) are defined at the **Task level** (P2), not Goals level. This allows each task to have specific validation rules for P3.
+
 ### 4.4 P2: Tasks
 
 P2 Agent reads Goals markdown and breaks into executable tasks:
 
 ```go
 type Task struct {
-    ID           string            // unique task ID
-    Messages     []context.Message // original input (text, images, files, audio)
-    GoalRef      string            // reference to goal (e.g., "Goal 1")
-    Source       TaskSource        // auto | human | event
-    ExecutorType ExecutorType      // assistant | mcp | process
-    ExecutorID   string            // agent ID or mcp tool name
-    Args         []any             // arguments for executor
-    Order        int               // execution order
+    ID              string            // unique task ID
+    Messages        []context.Message // original input (text, images, files, audio)
+    GoalRef         string            // reference to goal (e.g., "Goal 1")
+    Source          TaskSource        // auto | human | event
+    ExecutorType    ExecutorType      // assistant | mcp | process
+    ExecutorID      string            // agent ID or mcp tool name
+    Args            []any             // arguments for executor
+    Order           int               // execution order
+
+    // Validation criteria (used in P3)
+    ExpectedOutput  string   // what the task should produce
+    ValidationRules []string // specific checks to perform
 }
 ```
 
@@ -349,8 +371,17 @@ For each task:
 
 1. Call Assistant or MCP Tool
 2. Get result
-3. Validate
+3. Validate against `ExpectedOutput` and `ValidationRules`
 4. Update status
+
+```go
+type ValidationResult struct {
+    Passed      bool     // overall validation passed
+    Score       float64  // 0-1 confidence score
+    Issues      []string // what failed
+    Suggestions []string // how to improve
+}
+```
 
 ### 4.6 P4: Deliver
 

@@ -1287,7 +1287,7 @@ type CurrentState struct {
     Progress  string `json:"progress,omitempty"` // human-readable progress (e.g., "2/5 tasks")
 }
 
-// Goals - P1 output (markdown for LLM)
+// Goals - P1 output (markdown for LLM + structured metadata)
 // P1 Agent reads InspirationReport and generates goals as markdown
 // Example:
 // ## Goals
@@ -1298,7 +1298,17 @@ type CurrentState struct {
 // 3. [Low] Update CRM with new leads
 //    - Reason: 3 pending leads from yesterday
 type Goals struct {
-    Content string `json:"content"` // markdown text
+    Content  string          `json:"content"`            // markdown text
+    Delivery *DeliveryTarget `json:"delivery,omitempty"` // where to send results (for P4)
+}
+
+// DeliveryTarget - where to deliver results (defined in P1, used in P4)
+type DeliveryTarget struct {
+    Type       DeliveryType           `json:"type"`                 // email | webhook | report | notification
+    Recipients []string               `json:"recipients,omitempty"` // email addresses, webhook URLs, user IDs
+    Format     string                 `json:"format,omitempty"`     // markdown | html | json | text
+    Template   string                 `json:"template,omitempty"`   // template name or inline template
+    Options    map[string]interface{} `json:"options,omitempty"`    // channel-specific options
 }
 
 // Task - planned task (structured, for execution)
@@ -1312,6 +1322,10 @@ type Task struct {
     ExecutorType ExecutorType `json:"executor_type"`
     ExecutorID   string       `json:"executor_id"`
     Args         []any        `json:"args,omitempty"`
+
+    // Validation (defined in P2, used in P3)
+    ExpectedOutput  string   `json:"expected_output,omitempty"`  // what the task should produce
+    ValidationRules []string `json:"validation_rules,omitempty"` // specific checks to perform
 
     // Runtime
     Status    TaskStatus `json:"status"`
@@ -1352,20 +1366,32 @@ const (
 
 // TaskResult - task execution result
 type TaskResult struct {
-    TaskID    string      `json:"task_id"`
-    Success   bool        `json:"success"`
-    Output    interface{} `json:"output,omitempty"`
-    Error     string      `json:"error,omitempty"`
-    Duration  int64       `json:"duration_ms"`
-    Validated bool        `json:"validated"`
+    TaskID     string            `json:"task_id"`
+    Success    bool              `json:"success"`
+    Output     interface{}       `json:"output,omitempty"`
+    Error      string            `json:"error,omitempty"`
+    Duration   int64             `json:"duration_ms"`
+    Validation *ValidationResult `json:"validation,omitempty"` // P3 validation result
 }
 
-// DeliveryResult - delivery output
+// ValidationResult - P3 semantic validation result
+type ValidationResult struct {
+    Passed      bool     `json:"passed"`                // overall validation passed
+    Score       float64  `json:"score,omitempty"`       // 0-1 confidence score
+    Issues      []string `json:"issues,omitempty"`      // what failed
+    Suggestions []string `json:"suggestions,omitempty"` // how to improve
+    Details     string   `json:"details,omitempty"`     // detailed validation report
+}
+
+// DeliveryResult - P4 delivery output
 type DeliveryResult struct {
-    Type    DeliveryType `json:"type"`
-    Success bool         `json:"success"`
-    Details interface{}  `json:"details,omitempty"`
-    Error   string       `json:"error,omitempty"`
+    Type       DeliveryType `json:"type"`
+    Success    bool         `json:"success"`
+    Recipients []string     `json:"recipients,omitempty"` // who received
+    Content    string       `json:"content,omitempty"`    // formatted content delivered
+    Details    interface{}  `json:"details,omitempty"`    // channel-specific response
+    Error      string       `json:"error,omitempty"`
+    SentAt     *time.Time   `json:"sent_at,omitempty"`
 }
 
 // LearningEntry - knowledge to save

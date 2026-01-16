@@ -197,12 +197,8 @@ type CurrentState struct {
 type Goals struct {
 	Content string `json:"content"` // markdown text
 
-	// Success criteria for P3 validation (semantic validation by LLM)
-	// Example: ["Report must include sales summary", "Growth rate must be calculated"]
-	SuccessCriteria []string `json:"success_criteria,omitempty"`
-
-	// Delivery target for P4 (where to send results)
-	DeliveryTarget *DeliveryTarget `json:"delivery_target,omitempty"`
+	// Delivery for P4 (where to send results)
+	Delivery *DeliveryTarget `json:"delivery,omitempty"`
 }
 
 // DeliveryTarget - where to deliver results (defined in P1, used in P4)

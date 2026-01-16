@@ -80,6 +80,36 @@ func (f *InputFormatter) FormatClockContext(clock *robottypes.ClockContext, robo
 	return sb.String()
 }
 
+// FormatRobotIdentity formats robot identity as user message content
+// Used to provide context about the robot's role and duties
+func (f *InputFormatter) FormatRobotIdentity(robot *robottypes.Robot) string {
+	if robot == nil || robot.Config == nil || robot.Config.Identity == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+	identity := robot.Config.Identity
+
+	sb.WriteString("## Robot Identity\n\n")
+	sb.WriteString(fmt.Sprintf("- **Role**: %s\n", identity.Role))
+
+	if len(identity.Duties) > 0 {
+		sb.WriteString("- **Duties**:\n")
+		for _, duty := range identity.Duties {
+			sb.WriteString(fmt.Sprintf("  - %s\n", duty))
+		}
+	}
+
+	if len(identity.Rules) > 0 {
+		sb.WriteString("- **Rules**:\n")
+		for _, rule := range identity.Rules {
+			sb.WriteString(fmt.Sprintf("  - %s\n", rule))
+		}
+	}
+
+	return sb.String()
+}
+
 // FormatInspirationReport formats InspirationReport as user message content
 // Used by P1 (Goals) phase when trigger is Clock
 func (f *InputFormatter) FormatInspirationReport(report *robottypes.InspirationReport) string {
@@ -273,7 +303,8 @@ func (f *InputFormatter) FormatTaskResults(results []robottypes.TaskResult) stri
 
 	successCount := 0
 	failCount := 0
-	validatedCount := 0
+	validatedPassedCount := 0
+	validatedTotalCount := 0
 
 	for _, result := range results {
 		if result.Success {
@@ -281,8 +312,11 @@ func (f *InputFormatter) FormatTaskResults(results []robottypes.TaskResult) stri
 		} else {
 			failCount++
 		}
-		if result.Validation != nil && result.Validation.Passed {
-			validatedCount++
+		if result.Validation != nil {
+			validatedTotalCount++
+			if result.Validation.Passed {
+				validatedPassedCount++
+			}
 		}
 
 		sb.WriteString(fmt.Sprintf("### Task: %s\n\n", result.TaskID))
@@ -328,8 +362,8 @@ func (f *InputFormatter) FormatTaskResults(results []robottypes.TaskResult) stri
 	}
 
 	// Summary
-	sb.WriteString(fmt.Sprintf("## Summary\n\n- Total: %d tasks\n- Success: %d\n- Failed: %d\n- Validated: %d\n",
-		len(results), successCount, failCount, validatedCount))
+	sb.WriteString(fmt.Sprintf("## Summary\n\n- Total: %d tasks\n- Success: %d\n- Failed: %d\n- Validated: %d/%d\n",
+		len(results), successCount, failCount, validatedPassedCount, validatedTotalCount))
 
 	return sb.String()
 }
