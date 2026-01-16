@@ -416,7 +416,8 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Authorization", fmt.Sprintf("Bearer %s", key)).
-		SetHeader("Accept", "text/event-stream")
+		SetHeader("Accept", "text/event-stream").
+		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
 
 	// Accumulate response data
 	accumulator := &streamAccumulator{
@@ -945,7 +946,8 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 	// Create HTTP request with proxy support
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
-		SetHeader("Authorization", fmt.Sprintf("Bearer %s", key))
+		SetHeader("Authorization", fmt.Sprintf("Bearer %s", key)).
+		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
 
 	// Make request
 	resp := req.Post(requestBody)

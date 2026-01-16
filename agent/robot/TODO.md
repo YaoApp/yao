@@ -426,7 +426,7 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
 
 ---
 
-## Phase 5: Test Scenario & Assistants Setup
+## Phase 5: Test Scenario & Assistants Setup ✅
 
 **Goal:** Create realistic test scenarios with all required assistants.
 
@@ -498,48 +498,48 @@ yao-dev-app/assistants/
 
 #### 5.2.1 Inspiration Agent (P0)
 
-- [ ] `robot/inspiration/package.yao` - config with model, temperature
-- [ ] `robot/inspiration/prompts.yml` - system prompt:
+- [x] `robot/inspiration/package.yao` - config with model, temperature
+- [x] `robot/inspiration/prompts.yml` - system prompt:
   - Input: Clock context (time, day, markers), robot identity
   - Output: Markdown report with Summary, Highlights, Opportunities, Risks
   - Style: Analytical, context-aware
 
 #### 5.2.2 Goals Agent (P1)
 
-- [ ] `robot/goals/package.yao` - config
-- [ ] `robot/goals/prompts.yml` - system prompt:
+- [x] `robot/goals/package.yao` - config
+- [x] `robot/goals/prompts.yml` - system prompt:
   - Input: Inspiration report OR trigger input (human/event)
   - Output: Prioritized goals in markdown (High/Normal/Low)
   - Style: Strategic, actionable
 
 #### 5.2.3 Tasks Agent (P2)
 
-- [ ] `robot/tasks/package.yao` - config
-- [ ] `robot/tasks/prompts.yml` - system prompt:
+- [x] `robot/tasks/package.yao` - config
+- [x] `robot/tasks/prompts.yml` - system prompt:
   - Input: Goals, available expert agents list
   - Output: Structured task list (JSON) with executor assignments
   - Style: Detailed, executable
 
 #### 5.2.4 Validation Agent (P3)
 
-- [ ] `robot/validation/package.yao` - config
-- [ ] `robot/validation/prompts.yml` - system prompt:
+- [x] `robot/validation/package.yao` - config
+- [x] `robot/validation/prompts.yml` - system prompt:
   - Input: Task result, expected outcome
   - Output: Validation result (pass/fail, issues, suggestions)
   - Style: Critical, thorough
 
 #### 5.2.5 Delivery Agent (P4)
 
-- [ ] `robot/delivery/package.yao` - config
-- [ ] `robot/delivery/prompts.yml` - system prompt:
+- [x] `robot/delivery/package.yao` - config
+- [x] `robot/delivery/prompts.yml` - system prompt:
   - Input: Task results, delivery target (email, report, notification)
   - Output: Formatted delivery content
   - Style: Clear, professional
 
 #### 5.2.6 Learning Agent (P5)
 
-- [ ] `robot/learning/package.yao` - config
-- [ ] `robot/learning/prompts.yml` - system prompt:
+- [x] `robot/learning/package.yao` - config
+- [x] `robot/learning/prompts.yml` - system prompt:
   - Input: Full execution summary
   - Output: Insights, patterns, improvement suggestions
   - Style: Reflective, insightful
@@ -548,33 +548,35 @@ yao-dev-app/assistants/
 
 #### 5.3.1 Text Writer
 
-- [ ] `experts/text-writer/package.yao` - config
-- [ ] `experts/text-writer/prompts.yml` - system prompt:
+- [x] `experts/text-writer/package.yao` - config
+- [x] `experts/text-writer/prompts.yml` - system prompt:
   - Input: Topic, key points, style (formal/casual), length
   - Output: Generated text content
   - Use cases: Weekly reports, email drafts, summaries
 
 #### 5.3.2 Web Reader
 
-- [ ] `experts/web-reader/package.yao` - config
-- [ ] `experts/web-reader/prompts.yml` - system prompt:
+- [x] `experts/web-reader/package.yao` - config with hooks
+- [x] `experts/web-reader/prompts.yml` - system prompt:
   - Input: URL or topic to search
   - Output: Extracted content, key information
   - Use cases: News fetching, competitor monitoring, research
-  - Note: May use MCP tools for actual web access
+- [x] `experts/web-reader/src/fetch.ts` - HTTP fetching utilities
+- [x] `experts/web-reader/src/fetch_test.ts` - 19 test cases (100% pass)
+- [x] `experts/web-reader/src/index.ts` - Create/Next hooks
 
 #### 5.3.3 Data Analyst
 
-- [ ] `experts/data-analyst/package.yao` - config
-- [ ] `experts/data-analyst/prompts.yml` - system prompt:
+- [x] `experts/data-analyst/package.yao` - config
+- [x] `experts/data-analyst/prompts.yml` - system prompt:
   - Input: Data description, analysis goal
   - Output: Analysis report, trends, insights
   - Use cases: Sales analysis, performance review
 
 #### 5.3.4 Summarizer
 
-- [ ] `experts/summarizer/package.yao` - config
-- [ ] `experts/summarizer/prompts.yml` - system prompt:
+- [x] `experts/summarizer/package.yao` - config
+- [x] `experts/summarizer/prompts.yml` - system prompt:
   - Input: Long text content
   - Output: Concise summary with key points
   - Use cases: Document summarization, meeting notes
@@ -596,12 +598,11 @@ Each phase test uses different expert combinations:
 | T9   | E2E   | Clock            | text-writer, summarizer  | Full P0→P5 flow               |
 | T10  | E2E   | Human            | web-reader, data-analyst | Full P1→P5 flow               |
 
-### 5.5 Test Data Setup
+### 5.5 Verification
 
-- [ ] Create test robot config in `__yao.member` with:
-  - `trigger.clock.mode: interval`, `interval: 1s` (for fast testing)
-  - `resources.agents: [experts.text-writer, experts.web-reader, ...]`
-- [ ] Create test trigger data for Human/Event scenarios
+- [x] All 6 Phase Agents load correctly (`robot.inspiration`, `robot.goals`, etc.)
+- [x] All 4 Expert Agents load correctly (`experts.text-writer`, `experts.web-reader`, etc.)
+- [x] Web Reader `fetch.ts` utilities tested (19 tests, 100% pass)
 
 ---
 
