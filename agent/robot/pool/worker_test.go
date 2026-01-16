@@ -16,7 +16,7 @@ import (
 
 // TestWorkerExecutesJob tests that worker executes a job from queue
 func TestWorkerExecutesJob(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -39,7 +39,7 @@ func TestWorkerExecutesJob(t *testing.T) {
 
 // TestWorkerMultipleJobs tests worker processes multiple jobs sequentially
 func TestWorkerMultipleJobs(t *testing.T) {
-	exec := executor.NewWithDelay(20 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(20 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1, // single worker
 		QueueSize:  10,
@@ -68,7 +68,7 @@ func TestWorkerMultipleJobs(t *testing.T) {
 // TestWorkerRespectsRobotQuota tests worker re-enqueues when robot quota is full
 func TestWorkerRespectsRobotQuota(t *testing.T) {
 	// This test verifies that all jobs eventually complete even when robot quota limits concurrency
-	exec := executor.NewWithDelay(100 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(100 * time.Millisecond)
 
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 5, // multiple workers
@@ -98,7 +98,7 @@ func TestWorkerRespectsRobotQuota(t *testing.T) {
 
 // TestWorkerReenqueueOnQuotaFull tests that jobs are re-enqueued when quota is full
 func TestWorkerReenqueueOnQuotaFull(t *testing.T) {
-	exec := executor.NewWithDelay(100 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(100 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 3,
 		QueueSize:  100,
@@ -132,7 +132,7 @@ func TestWorkersConcurrentExecution(t *testing.T) {
 	var maxConcurrent int32
 	var currentConcurrent int32
 
-	exec := executor.NewWithCallback(100*time.Millisecond, func() {
+	exec := executor.NewDryRunWithCallbacks(100*time.Millisecond, func() {
 		current := atomic.AddInt32(&currentConcurrent, 1)
 		// Update max if current is higher
 		for {
@@ -174,7 +174,7 @@ func TestWorkersDoNotExceedPoolSize(t *testing.T) {
 	var currentConcurrent int32
 	var mu sync.Mutex
 
-	exec := executor.NewWithCallback(50*time.Millisecond, func() {
+	exec := executor.NewDryRunWithCallbacks(50*time.Millisecond, func() {
 		mu.Lock()
 		currentConcurrent++
 		if currentConcurrent > maxConcurrent {
@@ -214,7 +214,7 @@ func TestWorkersDoNotExceedPoolSize(t *testing.T) {
 
 // TestWorkerStopsGracefully tests worker stops when signaled
 func TestWorkerStopsGracefully(t *testing.T) {
-	exec := executor.NewWithDelay(50 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 2,
 		QueueSize:  10,
@@ -242,7 +242,7 @@ func TestWorkerStopsGracefully(t *testing.T) {
 
 // TestWorkerCompletesCurrentJobOnStop tests worker completes current job before stopping
 func TestWorkerCompletesCurrentJobOnStop(t *testing.T) {
-	exec := executor.NewWithDelay(100 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(100 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -270,7 +270,7 @@ func TestWorkerCompletesCurrentJobOnStop(t *testing.T) {
 
 // TestWorkerHandlesExecutorError tests worker continues after executor error
 func TestWorkerHandlesExecutorError(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -299,7 +299,7 @@ func TestWorkerHandlesExecutorError(t *testing.T) {
 
 // TestWorkerRunningCounterAccurate tests running counter is accurate
 func TestWorkerRunningCounterAccurate(t *testing.T) {
-	exec := executor.NewWithDelay(100 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(100 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 3,
 		QueueSize:  10,
@@ -330,7 +330,7 @@ func TestWorkerRunningCounterAccurate(t *testing.T) {
 
 // TestWorkerRunningCounterDecrementsOnError tests running counter decrements on error
 func TestWorkerRunningCounterDecrementsOnError(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -356,7 +356,7 @@ func TestWorkerRunningCounterDecrementsOnError(t *testing.T) {
 
 // TestWorkerProcessesDifferentTriggers tests worker handles all trigger types
 func TestWorkerProcessesDifferentTriggers(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -384,7 +384,7 @@ func TestWorkerProcessesDifferentTriggers(t *testing.T) {
 
 // TestWorkerPollsQueuePeriodically tests worker polls queue at regular intervals
 func TestWorkerPollsQueuePeriodically(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,
@@ -408,7 +408,7 @@ func TestWorkerPollsQueuePeriodically(t *testing.T) {
 
 // TestWorkerContinuesAfterEmptyQueue tests worker continues polling after empty queue
 func TestWorkerContinuesAfterEmptyQueue(t *testing.T) {
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1,
 		QueueSize:  10,

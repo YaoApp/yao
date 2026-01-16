@@ -8,19 +8,21 @@ import (
 
 // InterveneRequest - human intervention request
 type InterveneRequest struct {
-	TeamID   string                 `json:"team_id"`
-	MemberID string                 `json:"member_id"`
-	Action   InterventionAction     `json:"action"`
-	Messages []agentcontext.Message `json:"messages"`            // user input (text, images, files)
-	PlanTime *time.Time             `json:"plan_time,omitempty"` // for action=plan
+	TeamID       string                 `json:"team_id"`
+	MemberID     string                 `json:"member_id"`
+	Action       InterventionAction     `json:"action"`
+	Messages     []agentcontext.Message `json:"messages"`                // user input (text, images, files)
+	PlanTime     *time.Time             `json:"plan_time,omitempty"`     // for action=plan
+	ExecutorMode ExecutorMode           `json:"executor_mode,omitempty"` // optional: override robot config
 }
 
 // EventRequest - event trigger request
 type EventRequest struct {
-	MemberID  string                 `json:"member_id"`
-	Source    string                 `json:"source"`     // webhook path or table name
-	EventType string                 `json:"event_type"` // lead.created, etc.
-	Data      map[string]interface{} `json:"data"`
+	MemberID     string                 `json:"member_id"`
+	Source       string                 `json:"source"`     // webhook path or table name
+	EventType    string                 `json:"event_type"` // lead.created, etc.
+	Data         map[string]interface{} `json:"data"`
+	ExecutorMode ExecutorMode           `json:"executor_mode,omitempty"` // optional: override robot config
 }
 
 // ExecutionResult - trigger result

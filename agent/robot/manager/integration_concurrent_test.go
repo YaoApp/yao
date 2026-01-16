@@ -50,7 +50,7 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 		var maxConcurrent int32
 		var currentConcurrent int32
 
-		exec := executor.NewWithCallback(100*time.Millisecond,
+		exec := executor.NewDryRunWithCallbacks(100*time.Millisecond,
 			func() {
 				curr := atomic.AddInt32(&currentConcurrent, 1)
 				for {
@@ -109,7 +109,7 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 	t.Run("same robot multiple triggers", func(t *testing.T) {
 		setupConcurrentTestRobot(t, "robot_integ_conc_same", "team_integ_conc", 3, 20)
 
-		exec := executor.NewWithDelay(50 * time.Millisecond)
+		exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
@@ -160,7 +160,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		var maxConcurrent int32
 		var currentConcurrent int32
 
-		exec := executor.NewWithCallback(200*time.Millisecond,
+		exec := executor.NewDryRunWithCallbacks(200*time.Millisecond,
 			func() {
 				curr := atomic.AddInt32(&currentConcurrent, 1)
 				for {
@@ -210,7 +210,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		// Create robot with Max=1, Queue=3
 		setupConcurrentTestRobot(t, "robot_integ_quota_queue", "team_integ_quota", 1, 3)
 
-		exec := executor.NewWithDelay(300 * time.Millisecond) // Slow execution
+		exec := executor.NewDryRunWithDelay(300 * time.Millisecond) // Slow execution
 
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
@@ -337,7 +337,7 @@ func TestIntegrationGlobalPoolLimit(t *testing.T) {
 		var maxConcurrent int32
 		var currentConcurrent int32
 
-		exec := executor.NewWithCallback(200*time.Millisecond,
+		exec := executor.NewDryRunWithCallbacks(200*time.Millisecond,
 			func() {
 				curr := atomic.AddInt32(&currentConcurrent, 1)
 				for {
@@ -391,7 +391,7 @@ func TestIntegrationGlobalPoolLimit(t *testing.T) {
 			setupConcurrentTestRobot(t, memberID, "team_integ_pool", 5, 20)
 		}
 
-		exec := executor.NewWithDelay(500 * time.Millisecond) // Slow execution
+		exec := executor.NewDryRunWithDelay(500 * time.Millisecond) // Slow execution
 
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,

@@ -1,4 +1,4 @@
-package executor_test
+package standard_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/yaoapp/yao/agent/robot/executor"
+	"github.com/yaoapp/yao/agent/robot/executor/standard"
 	"github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/agent/testutils"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -32,7 +32,7 @@ func TestAgentCallerSingleCall(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	// Test basic call - verify assistant responds and returns parseable JSON
@@ -72,7 +72,7 @@ func TestAgentCallerNextHookData(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("next_hook inspiration returns structured data", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestAgentCallerJSONArray(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("array_test returns JSON array", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestAgentCallerEmptyResponse(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("empty_test falls back to completion content", func(t *testing.T) {
@@ -171,7 +171,7 @@ func TestAgentCallerAssistantNotFound(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("non-existent assistant returns error", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestAgentCallerWithSystemAndUser(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	caller := executor.NewAgentCaller()
+	caller := standard.NewAgentCaller()
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("call with system and user messages", func(t *testing.T) {
@@ -223,7 +223,7 @@ func TestConversationMultiTurn(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("multi-turn conversation maintains state", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-1", 10)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-1", 10)
 
 		// Turn 1: Start planning
 		turn1, err := conv.Turn(ctx, "Plan tasks for sending weekly report")
@@ -273,7 +273,7 @@ func TestConversationTurnCount(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("turn count increments correctly", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-2", 10)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-2", 10)
 
 		assert.Equal(t, 0, conv.TurnCount())
 
@@ -298,7 +298,7 @@ func TestConversationMaxTurns(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("exceeding max turns returns error", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-3", 2)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-3", 2)
 
 		_, err := conv.Turn(ctx, "First")
 		require.NoError(t, err)
@@ -324,7 +324,7 @@ func TestConversationMessages(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("messages history is maintained", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-4", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-4", 5)
 
 		// Initially empty
 		assert.Empty(t, conv.Messages())
@@ -349,7 +349,7 @@ func TestConversationLastResponse(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("last response returns assistant message", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-5", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-5", 5)
 
 		// No response yet
 		assert.Nil(t, conv.LastResponse())
@@ -375,7 +375,7 @@ func TestConversationReset(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("reset clears conversation history", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-6", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-6", 5)
 
 		_, err := conv.Turn(ctx, "First message")
 		require.NoError(t, err)
@@ -398,7 +398,7 @@ func TestConversationWithSystemPrompt(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("system prompt is preserved after reset", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-7", 5).
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-7", 5).
 			WithSystemPrompt("You are a task planner.")
 
 		msgs := conv.Messages()
@@ -428,7 +428,7 @@ func TestConversationSpecialCommands(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("skip command jumps to completed", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-8", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-8", 5)
 
 		turn, err := conv.Turn(ctx, "skip")
 		require.NoError(t, err)
@@ -440,7 +440,7 @@ func TestConversationSpecialCommands(t *testing.T) {
 	})
 
 	t.Run("abort command ends conversation", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-9", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-9", 5)
 
 		turn, err := conv.Turn(ctx, "abort")
 		require.NoError(t, err)
@@ -452,7 +452,7 @@ func TestConversationSpecialCommands(t *testing.T) {
 	})
 
 	t.Run("reset command resets conversation state", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-10", 5)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-10", 5)
 
 		// First do a turn
 		_, err := conv.Turn(ctx, "Start planning")
@@ -479,7 +479,7 @@ func TestConversationRunUntil(t *testing.T) {
 	ctx := types.NewContext(context.Background(), testAuth())
 
 	t.Run("run until completion", func(t *testing.T) {
-		conv := executor.NewConversation("tests.robot-conversation", "test-conv-11", 10)
+		conv := standard.NewConversation("tests.robot-conversation", "test-conv-11", 10)
 
 		inputs := []string{
 			"Plan weekly report tasks",
@@ -490,7 +490,7 @@ func TestConversationRunUntil(t *testing.T) {
 
 		results, err := conv.RunUntil(
 			ctx,
-			func(turn int, lastResult *executor.CallResult) (string, error) {
+			func(turn int, lastResult *standard.CallResult) (string, error) {
 				if inputIdx < len(inputs) {
 					input := inputs[inputIdx]
 					inputIdx++
@@ -498,7 +498,7 @@ func TestConversationRunUntil(t *testing.T) {
 				}
 				return "confirm", nil
 			},
-			func(turn int, result *executor.CallResult) (bool, error) {
+			func(turn int, result *standard.CallResult) (bool, error) {
 				data, err := result.GetJSON()
 				if err != nil {
 					return false, nil
@@ -524,29 +524,29 @@ func TestConversationRunUntil(t *testing.T) {
 
 func TestCallResultGetText(t *testing.T) {
 	t.Run("returns content when available", func(t *testing.T) {
-		result := &executor.CallResult{Content: "Hello World"}
+		result := &standard.CallResult{Content: "Hello World"}
 		assert.Equal(t, "Hello World", result.GetText())
 	})
 
 	t.Run("returns empty for empty result", func(t *testing.T) {
-		result := &executor.CallResult{}
+		result := &standard.CallResult{}
 		assert.Equal(t, "", result.GetText())
 	})
 }
 
 func TestCallResultIsEmpty(t *testing.T) {
 	t.Run("empty when no content and no next", func(t *testing.T) {
-		result := &executor.CallResult{}
+		result := &standard.CallResult{}
 		assert.True(t, result.IsEmpty())
 	})
 
 	t.Run("not empty when has content", func(t *testing.T) {
-		result := &executor.CallResult{Content: "test"}
+		result := &standard.CallResult{Content: "test"}
 		assert.False(t, result.IsEmpty())
 	})
 
 	t.Run("not empty when has next", func(t *testing.T) {
-		result := &executor.CallResult{Next: map[string]interface{}{"key": "value"}}
+		result := &standard.CallResult{Next: map[string]interface{}{"key": "value"}}
 		assert.False(t, result.IsEmpty())
 	})
 }
@@ -558,7 +558,7 @@ func TestCallResultIsEmpty(t *testing.T) {
 func TestExtractCodeBlock(t *testing.T) {
 	t.Run("extracts JSON code block", func(t *testing.T) {
 		content := "Here is the result:\n```json\n{\"key\": \"value\"}\n```"
-		block := executor.ExtractCodeBlock(content)
+		block := standard.ExtractCodeBlock(content)
 
 		require.NotNil(t, block)
 		assert.Equal(t, "json", block.Type)
@@ -567,7 +567,7 @@ func TestExtractCodeBlock(t *testing.T) {
 
 	t.Run("returns nil for no code block", func(t *testing.T) {
 		content := "Just plain text"
-		block := executor.ExtractCodeBlock(content)
+		block := standard.ExtractCodeBlock(content)
 
 		// gou/text returns text type for plain text
 		require.NotNil(t, block)
@@ -578,7 +578,7 @@ func TestExtractCodeBlock(t *testing.T) {
 func TestExtractAllCodeBlocks(t *testing.T) {
 	t.Run("extracts multiple code blocks", func(t *testing.T) {
 		content := "```json\n{}\n```\n\n```python\nprint('hello')\n```"
-		blocks := executor.ExtractAllCodeBlocks(content)
+		blocks := standard.ExtractAllCodeBlocks(content)
 
 		assert.Len(t, blocks, 2)
 	})

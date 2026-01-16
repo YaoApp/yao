@@ -32,17 +32,25 @@ yao/agent/robot/
 │   ├── queue.go              # Priority queue
 │   └── worker.go             # Worker goroutines
 │
-├── executor/                 # Executor package
-│   ├── executor.go           # Executor struct, Execute
-│   ├── phase.go              # RunPhase dispatcher
-│   ├── inspiration.go        # P0: Inspiration (clock only)
-│   ├── goals.go              # P1: Goal generation
-│   ├── tasks.go              # P2: Task planning
-│   ├── run.go                # P3: Task execution
-│   ├── delivery.go           # P4: Delivery
-│   ├── learning.go           # P5: Learning
-│   ├── agent.go              # Call assistant/agent unified method
-│   └── prompt.go             # Prompt building helpers
+├── executor/                 # Executor package (pluggable architecture)
+│   ├── executor.go           # Factory functions, unified entry
+│   ├── types/
+│   │   ├── types.go          # Executor interface, Config types
+│   │   └── helpers.go        # Shared helper functions
+│   ├── standard/
+│   │   ├── executor.go       # Real Agent execution (production)
+│   │   ├── agent.go          # AgentCaller for LLM calls
+│   │   ├── input.go          # InputFormatter for prompts
+│   │   ├── inspiration.go    # P0: Inspiration phase
+│   │   ├── goals.go          # P1: Goals phase
+│   │   ├── tasks.go          # P2: Tasks phase
+│   │   ├── run.go            # P3: Run phase
+│   │   ├── delivery.go       # P4: Delivery phase
+│   │   └── learning.go       # P5: Learning phase
+│   ├── dryrun/
+│   │   └── executor.go       # Simulated execution (testing/demo)
+│   └── sandbox/
+│       └── executor.go       # Container-isolated (NOT IMPLEMENTED)
 │
 ├── utils/                    # Utility functions
 │   ├── convert.go            # Type conversions (JSON, map, struct)
@@ -269,6 +277,9 @@ type TriggerRequest struct {
     Source    types.EventSource      `json:"source,omitempty"`     // webhook | database
     EventType string                 `json:"event_type,omitempty"` // lead.created, order.paid, etc.
     Data      map[string]interface{} `json:"data,omitempty"`       // event payload
+
+    // Executor mode (optional, overrides robot config)
+    ExecutorMode types.ExecutorMode `json:"executor_mode,omitempty"` // standard | dryrun
 }
 
 // InsertPosition - where to insert task in queue
@@ -553,7 +564,14 @@ interface TriggerRequest {
   source?: "webhook" | "database";
   event_type?: string; // lead.created, etc.
   data?: Record<string, any>;
+
+  // Executor mode (optional, overrides robot config)
+  executor_mode?: "standard" | "dryrun"; // sandbox not implemented
 }
+
+// ExecutorMode - executor mode type
+type ExecutorMode = "standard" | "dryrun" | "sandbox";
+// Note: "sandbox" requires container infrastructure, falls back to "dryrun"
 
 interface ListQuery {
   team_id?: string;
@@ -1458,21 +1476,32 @@ import (
 // InterveneRequest - human intervention request
 // Processed by Manager.Intervene()
 type InterveneRequest struct {
-    TeamID   string                    `json:"team_id"`
-    MemberID string                    `json:"member_id"`
-    Action   InterventionAction        `json:"action"`             // task.add, goal.adjust, etc.
-    Messages []agentcontext.Message    `json:"messages,omitempty"` // user input (text, images, files)
-    PlanTime *time.Time                `json:"plan_time,omitempty"` // for action=plan.add
+    TeamID       string                    `json:"team_id"`
+    MemberID     string                    `json:"member_id"`
+    Action       InterventionAction        `json:"action"`               // task.add, goal.adjust, etc.
+    Messages     []agentcontext.Message    `json:"messages,omitempty"`   // user input (text, images, files)
+    PlanTime     *time.Time                `json:"plan_time,omitempty"`  // for action=plan.add
+    ExecutorMode ExecutorMode              `json:"executor_mode,omitempty"` // optional: standard | dryrun
 }
 
 // EventRequest - event trigger request
 // Processed by Manager.HandleEvent()
 type EventRequest struct {
-    MemberID  string                 `json:"member_id"`
-    Source    string                 `json:"source"`     // webhook path or table name
-    EventType string                 `json:"event_type"` // lead.created, etc.
-    Data      map[string]interface{} `json:"data,omitempty"`
+    MemberID     string                 `json:"member_id"`
+    Source       string                 `json:"source"`               // webhook path or table name
+    EventType    string                 `json:"event_type"`           // lead.created, etc.
+    Data         map[string]interface{} `json:"data,omitempty"`
+    ExecutorMode ExecutorMode           `json:"executor_mode,omitempty"` // optional: standard | dryrun
 }
+
+// ExecutorMode - executor mode enum
+type ExecutorMode string
+
+const (
+    ExecutorStandard ExecutorMode = "standard" // real Agent calls (default)
+    ExecutorDryRun   ExecutorMode = "dryrun"   // simulated, no LLM calls
+    ExecutorSandbox  ExecutorMode = "sandbox"  // container-isolated (NOT IMPLEMENTED)
+)
 
 // ExecutionResult - trigger result
 type ExecutionResult struct {

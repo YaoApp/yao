@@ -12,17 +12,15 @@ import (
 type Worker struct {
 	id       int
 	pool     *Pool
-	executor types.Executor
 	stopChan chan struct{}
 	wg       *sync.WaitGroup
 }
 
 // newWorker creates a new worker
-func newWorker(id int, pool *Pool, executor types.Executor, wg *sync.WaitGroup) *Worker {
+func newWorker(id int, pool *Pool, wg *sync.WaitGroup) *Worker {
 	return &Worker{
 		id:       id,
 		pool:     pool,
-		executor: executor,
 		stopChan: make(chan struct{}),
 		wg:       wg,
 	}
@@ -78,9 +76,12 @@ func (w *Worker) execute(item *QueueItem) {
 	w.pool.incrementRunning()
 	defer w.pool.decrementRunning()
 
+	// Get executor based on mode (uses factory if available, otherwise default)
+	exec := w.pool.GetExecutor(item.ExecutorMode)
+
 	// Execute via Executor interface
 	// Note: Executor.Execute() does atomic quota check via TryAcquireSlot()
-	execution, err := w.executor.Execute(item.Ctx, item.Robot, item.Trigger, item.Data)
+	execution, err := exec.Execute(item.Ctx, item.Robot, item.Trigger, item.Data)
 
 	if err != nil {
 		// Check if it's a quota error (race condition - another worker got the slot)

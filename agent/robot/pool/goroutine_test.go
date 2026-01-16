@@ -42,7 +42,7 @@ func TestPoolNoGoroutineLeak(t *testing.T) {
 	baseline := getGoroutineCount()
 
 	// Create and start pool
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 5,
 		QueueSize:  100,
@@ -81,7 +81,7 @@ func TestPoolMultipleStartStop(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	baseline := getGoroutineCount()
 
-	exec := executor.NewWithDelay(5 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(5 * time.Millisecond)
 
 	for i := 0; i < 5; i++ {
 		p := pool.NewWithConfig(&pool.Config{
@@ -139,7 +139,7 @@ func TestPoolStopWithPendingJobs(t *testing.T) {
 	baseline := getGoroutineCount()
 
 	// Use slow executor so jobs stay in queue
-	exec := executor.NewWithDelay(500 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(500 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1, // only 1 worker
 		QueueSize:  100,
@@ -170,7 +170,7 @@ func TestPoolConcurrentStartStop(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	baseline := getGoroutineCount()
 
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 5,
 		QueueSize:  100,
@@ -223,7 +223,7 @@ func TestWorkerGoroutinesCleanup(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	baseline := getGoroutineCount()
 
-	exec := executor.NewWithDelay(10 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(10 * time.Millisecond)
 
 	// Create pool with many workers
 	p := pool.NewWithConfig(&pool.Config{
@@ -253,7 +253,7 @@ func TestPoolLongRunningJobsNoLeak(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 	baseline := getGoroutineCount()
 
-	exec := executor.NewWithDelay(200 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(200 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 3,
 		QueueSize:  100,

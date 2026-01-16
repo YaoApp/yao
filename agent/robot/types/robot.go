@@ -149,6 +149,16 @@ type Execution struct {
 	robot  *Robot             `json:"-"`
 }
 
+// GetRobot returns the robot associated with this execution
+func (e *Execution) GetRobot() *Robot {
+	return e.robot
+}
+
+// SetRobot sets the robot associated with this execution
+func (e *Execution) SetRobot(robot *Robot) {
+	e.robot = robot
+}
+
 // TriggerInput - stored trigger input for traceability
 type TriggerInput struct {
 	// For human intervention

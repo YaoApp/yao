@@ -250,3 +250,67 @@ func TestResourcesGetPhaseAgent(t *testing.T) {
 		assert.Equal(t, "__yao.learning", resources.GetPhaseAgent(types.PhaseLearning))
 	})
 }
+
+func TestExecutorConfigGetMode(t *testing.T) {
+	t.Run("nil config - returns default", func(t *testing.T) {
+		var config *types.ExecutorConfig
+		assert.Equal(t, types.ExecutorStandard, config.GetMode())
+	})
+
+	t.Run("empty mode - returns default", func(t *testing.T) {
+		config := &types.ExecutorConfig{}
+		assert.Equal(t, types.ExecutorStandard, config.GetMode())
+	})
+
+	t.Run("standard mode", func(t *testing.T) {
+		config := &types.ExecutorConfig{Mode: types.ExecutorStandard}
+		assert.Equal(t, types.ExecutorStandard, config.GetMode())
+	})
+
+	t.Run("dryrun mode", func(t *testing.T) {
+		config := &types.ExecutorConfig{Mode: types.ExecutorDryRun}
+		assert.Equal(t, types.ExecutorDryRun, config.GetMode())
+	})
+
+	t.Run("sandbox mode", func(t *testing.T) {
+		config := &types.ExecutorConfig{Mode: types.ExecutorSandbox}
+		assert.Equal(t, types.ExecutorSandbox, config.GetMode())
+	})
+}
+
+func TestExecutorConfigGetMaxDuration(t *testing.T) {
+	t.Run("nil config - returns default 30m", func(t *testing.T) {
+		var config *types.ExecutorConfig
+		assert.Equal(t, 30*time.Minute, config.GetMaxDuration())
+	})
+
+	t.Run("empty duration - returns default 30m", func(t *testing.T) {
+		config := &types.ExecutorConfig{}
+		assert.Equal(t, 30*time.Minute, config.GetMaxDuration())
+	})
+
+	t.Run("custom duration", func(t *testing.T) {
+		config := &types.ExecutorConfig{MaxDuration: "10m"}
+		assert.Equal(t, 10*time.Minute, config.GetMaxDuration())
+	})
+
+	t.Run("invalid duration - returns default", func(t *testing.T) {
+		config := &types.ExecutorConfig{MaxDuration: "invalid"}
+		assert.Equal(t, 30*time.Minute, config.GetMaxDuration())
+	})
+
+	t.Run("various valid durations", func(t *testing.T) {
+		tests := []struct {
+			input    string
+			expected time.Duration
+		}{
+			{"1h", time.Hour},
+			{"30s", 30 * time.Second},
+			{"2h30m", 2*time.Hour + 30*time.Minute},
+		}
+		for _, tt := range tests {
+			config := &types.ExecutorConfig{MaxDuration: tt.input}
+			assert.Equal(t, tt.expected, config.GetMaxDuration(), "for input %s", tt.input)
+		}
+	})
+}

@@ -1,4 +1,4 @@
-package executor
+package standard
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/yaoapp/gou/text"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/robot/types"
+	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -160,7 +160,7 @@ func (r *CallResult) GetJSONArray() ([]interface{}, error) {
 
 // Call calls an assistant with messages and returns the result
 // This is the main entry point for agent calls
-func (c *AgentCaller) Call(ctx *types.Context, assistantID string, messages []agentcontext.Message) (*CallResult, error) {
+func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages []agentcontext.Message) (*CallResult, error) {
 	// Get assistant
 	ast, err := assistant.Get(assistantID)
 	if err != nil {
@@ -206,7 +206,7 @@ func (c *AgentCaller) Call(ctx *types.Context, assistantID string, messages []ag
 }
 
 // CallWithMessages is a convenience method that builds messages from a single user input
-func (c *AgentCaller) CallWithMessages(ctx *types.Context, assistantID string, userContent string) (*CallResult, error) {
+func (c *AgentCaller) CallWithMessages(ctx *robottypes.Context, assistantID string, userContent string) (*CallResult, error) {
 	messages := []agentcontext.Message{
 		{
 			Role:    agentcontext.RoleUser,
@@ -217,7 +217,7 @@ func (c *AgentCaller) CallWithMessages(ctx *types.Context, assistantID string, u
 }
 
 // CallWithSystemAndUser calls with both system and user messages
-func (c *AgentCaller) CallWithSystemAndUser(ctx *types.Context, assistantID string, systemContent, userContent string) (*CallResult, error) {
+func (c *AgentCaller) CallWithSystemAndUser(ctx *robottypes.Context, assistantID string, systemContent, userContent string) (*CallResult, error) {
 	messages := []agentcontext.Message{
 		{
 			Role:    agentcontext.RoleSystem,
@@ -232,7 +232,7 @@ func (c *AgentCaller) CallWithSystemAndUser(ctx *types.Context, assistantID stri
 }
 
 // buildAgentContext converts robot context to agent context
-func (c *AgentCaller) buildAgentContext(ctx *types.Context) *agentcontext.Context {
+func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.Context {
 	// Build authorized info for agent context
 	var authorized *oauthtypes.AuthorizedInfo
 	if ctx.Auth != nil {
@@ -337,7 +337,7 @@ func (c *Conversation) WithHistory(messages []agentcontext.Message) *Conversatio
 // Turn executes a single turn in the conversation
 // userInput: the user's message for this turn
 // Returns the turn result with agent response
-func (c *Conversation) Turn(ctx *types.Context, userInput string) (*TurnResult, error) {
+func (c *Conversation) Turn(ctx *robottypes.Context, userInput string) (*TurnResult, error) {
 	// Check max turns
 	turnNum := c.TurnCount() + 1
 	if c.maxTurns > 0 && turnNum > c.maxTurns {
@@ -431,7 +431,7 @@ func (c *Conversation) Reset() {
 // checkFn: called after each turn, returns (done, error)
 // Returns all turn results
 func (c *Conversation) RunUntil(
-	ctx *types.Context,
+	ctx *robottypes.Context,
 	inputFn func(turn int, lastResult *CallResult) (string, error),
 	checkFn func(turn int, result *CallResult) (done bool, err error),
 ) ([]*TurnResult, error) {

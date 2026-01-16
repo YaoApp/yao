@@ -1,4 +1,4 @@
-package executor_test
+package standard_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/robot/executor"
+	"github.com/yaoapp/yao/agent/robot/executor/standard"
 	"github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -16,7 +16,7 @@ import (
 // ============================================================================
 
 func TestInputFormatterFormatClockContext(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats clock context with all fields", func(t *testing.T) {
 		now := time.Date(2024, 1, 15, 9, 30, 0, 0, time.UTC)
@@ -90,7 +90,7 @@ func TestInputFormatterFormatClockContext(t *testing.T) {
 }
 
 func TestInputFormatterFormatInspirationReport(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats inspiration report with clock", func(t *testing.T) {
 		now := time.Date(2024, 1, 15, 9, 30, 0, 0, time.UTC)
@@ -127,7 +127,7 @@ func TestInputFormatterFormatInspirationReport(t *testing.T) {
 }
 
 func TestInputFormatterFormatTriggerInput(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats human intervention", func(t *testing.T) {
 		input := &types.TriggerInput{
@@ -180,7 +180,7 @@ func TestInputFormatterFormatTriggerInput(t *testing.T) {
 }
 
 func TestInputFormatterFormatGoals(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats goals with resources", func(t *testing.T) {
 		goals := &types.Goals{
@@ -230,7 +230,7 @@ func TestInputFormatterFormatGoals(t *testing.T) {
 }
 
 func TestInputFormatterFormatTasks(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats multiple tasks", func(t *testing.T) {
 		tasks := []types.Task{
@@ -277,7 +277,7 @@ func TestInputFormatterFormatTasks(t *testing.T) {
 }
 
 func TestInputFormatterFormatTaskResults(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats task results with summary", func(t *testing.T) {
 		results := []types.TaskResult{
@@ -330,7 +330,7 @@ func TestInputFormatterFormatTaskResults(t *testing.T) {
 }
 
 func TestInputFormatterFormatExecutionSummary(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("formats complete execution summary", func(t *testing.T) {
 		startTime := time.Date(2024, 1, 15, 9, 0, 0, 0, time.UTC)
@@ -404,7 +404,7 @@ func TestInputFormatterFormatExecutionSummary(t *testing.T) {
 }
 
 func TestInputFormatterBuildMessages(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("builds user message", func(t *testing.T) {
 		msgs := formatter.BuildMessages("Hello, world!")
@@ -416,7 +416,7 @@ func TestInputFormatterBuildMessages(t *testing.T) {
 }
 
 func TestInputFormatterBuildMessagesWithSystem(t *testing.T) {
-	formatter := executor.NewInputFormatter()
+	formatter := standard.NewInputFormatter()
 
 	t.Run("builds system and user messages", func(t *testing.T) {
 		msgs := formatter.BuildMessagesWithSystem(

@@ -1,4 +1,4 @@
-package executor
+package standard
 
 import (
 	"encoding/json"
@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/robot/types"
+	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
 
 // InputFormatter provides methods to format input data for assistant prompts
@@ -26,7 +26,7 @@ func NewInputFormatter() *InputFormatter {
 
 // FormatClockContext formats ClockContext as user message content
 // Used by P0 (Inspiration) phase
-func (f *InputFormatter) FormatClockContext(clock *types.ClockContext, robot *types.Robot) string {
+func (f *InputFormatter) FormatClockContext(clock *robottypes.ClockContext, robot *robottypes.Robot) string {
 	if clock == nil {
 		return ""
 	}
@@ -82,7 +82,7 @@ func (f *InputFormatter) FormatClockContext(clock *types.ClockContext, robot *ty
 
 // FormatInspirationReport formats InspirationReport as user message content
 // Used by P1 (Goals) phase when trigger is Clock
-func (f *InputFormatter) FormatInspirationReport(report *types.InspirationReport) string {
+func (f *InputFormatter) FormatInspirationReport(report *robottypes.InspirationReport) string {
 	if report == nil {
 		return ""
 	}
@@ -127,7 +127,7 @@ func (f *InputFormatter) FormatInspirationReport(report *types.InspirationReport
 
 // FormatTriggerInput formats TriggerInput as user message content
 // Used by P1 (Goals) phase when trigger is Human or Event
-func (f *InputFormatter) FormatTriggerInput(input *types.TriggerInput) string {
+func (f *InputFormatter) FormatTriggerInput(input *robottypes.TriggerInput) string {
 	if input == nil {
 		return ""
 	}
@@ -178,7 +178,7 @@ func (f *InputFormatter) FormatTriggerInput(input *types.TriggerInput) string {
 
 // FormatGoals formats Goals as user message content
 // Used by P2 (Tasks) phase
-func (f *InputFormatter) FormatGoals(goals *types.Goals, robot *types.Robot) string {
+func (f *InputFormatter) FormatGoals(goals *robottypes.Goals, robot *robottypes.Robot) string {
 	if goals == nil {
 		return ""
 	}
@@ -220,7 +220,7 @@ func (f *InputFormatter) FormatGoals(goals *types.Goals, robot *types.Robot) str
 
 // FormatTasks formats Tasks as user message content
 // Used by P3 (Run) phase
-func (f *InputFormatter) FormatTasks(tasks []types.Task) string {
+func (f *InputFormatter) FormatTasks(tasks []robottypes.Task) string {
 	if len(tasks) == 0 {
 		return "No tasks to execute."
 	}
@@ -262,7 +262,7 @@ func (f *InputFormatter) FormatTasks(tasks []types.Task) string {
 
 // FormatTaskResults formats TaskResults as user message content
 // Used by P4 (Delivery) and P5 (Learning) phases
-func (f *InputFormatter) FormatTaskResults(results []types.TaskResult) string {
+func (f *InputFormatter) FormatTaskResults(results []robottypes.TaskResult) string {
 	if len(results) == 0 {
 		return "No task results."
 	}
@@ -335,7 +335,7 @@ func (f *InputFormatter) FormatTaskResults(results []types.TaskResult) string {
 }
 
 // FormatExecutionSummary formats the entire execution for P5 (Learning) phase
-func (f *InputFormatter) FormatExecutionSummary(exec *types.Execution) string {
+func (f *InputFormatter) FormatExecutionSummary(exec *robottypes.Execution) string {
 	if exec == nil {
 		return ""
 	}

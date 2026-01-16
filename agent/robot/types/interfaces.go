@@ -17,6 +17,11 @@ type Manager interface {
 // Executor - executes robot phases
 type Executor interface {
 	Execute(ctx *Context, robot *Robot, trigger TriggerType, data interface{}) (*Execution, error)
+
+	// Metrics and control (for monitoring and testing)
+	ExecCount() int    // total execution count
+	CurrentCount() int // currently running count
+	Reset()            // reset counters
 }
 
 // Pool - worker pool for concurrent execution

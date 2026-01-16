@@ -233,21 +233,20 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 
 		// Track phases executed
 		phasesExecuted := make([]types.Phase, 0)
-		exec := executor.NewWithConfig(executor.Config{
-			SkipJobIntegration: true,
-			OnPhaseStart: func(phase types.Phase) {
-				phasesExecuted = append(phasesExecuted, phase)
+		exec := executor.NewDryRunWithConfig(executor.DryRunConfig{
+			Config: executor.Config{
+				OnPhaseStart: func(phase types.Phase) {
+					phasesExecuted = append(phasesExecuted, phase)
+				},
 			},
 		})
 
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 20},
+			Executor:     exec,
 		}
 		m := manager.NewWithConfig(config)
-
-		// Replace executor
-		m.Pool().SetExecutor(exec)
 
 		err := m.Start()
 		require.NoError(t, err)
@@ -272,21 +271,20 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 
 		// Track phases executed
 		phasesExecuted := make([]types.Phase, 0)
-		exec := executor.NewWithConfig(executor.Config{
-			SkipJobIntegration: true,
-			OnPhaseStart: func(phase types.Phase) {
-				phasesExecuted = append(phasesExecuted, phase)
+		exec := executor.NewDryRunWithConfig(executor.DryRunConfig{
+			Config: executor.Config{
+				OnPhaseStart: func(phase types.Phase) {
+					phasesExecuted = append(phasesExecuted, phase)
+				},
 			},
 		})
 
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 20},
+			Executor:     exec,
 		}
 		m := manager.NewWithConfig(config)
-
-		// Replace executor
-		m.Pool().SetExecutor(exec)
 
 		err := m.Start()
 		require.NoError(t, err)
