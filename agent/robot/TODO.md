@@ -766,30 +766,124 @@ Each phase test uses different expert combinations:
 
 ---
 
-## Phase 9: P3 Run Implementation
+## Phase 9: P3 Run Implementation 🟡
 
 **Goal:** Implement P3 (Task Execution + Validation). P2 → P3 → stub P4-P5.
 
 **Depends on:** Phase 8 (P2 Tasks + Validation Agent)
 
-### 9.1 Implementation
+**Status:** Implementation complete, unit tests pending
 
-- [ ] `executor/run.go` - `RunExecution(ctx, exec, data)` - real implementation
-- [ ] `executor/run.go` - iterate tasks in order
-- [ ] `executor/run.go` - dispatch to correct executor (assistant/mcp/process)
-- [ ] `executor/run.go` - collect results with timing
-- [ ] `executor/run.go` - call Validation Agent for each task result
-- [ ] `executor/run.go` - handle task failures gracefully (continue or abort based on config)
-- [ ] `executor/run.go` - support pause/resume during execution
+### 9.1 Implementation ✅
 
-### 9.2 Tests
+- [x] `executor/run.go` - `RunExecution(ctx, exec, data)` - real implementation
+  - [x] `RunConfig` - configuration for retries, validation threshold, etc.
+  - [x] Sequential task execution with progress tracking
+  - [x] Task status updates (Running → Completed/Failed/Skipped)
+  - [x] `ContinueOnFailure` option for graceful failure handling
+- [x] `executor/runner.go` - `Runner` struct for task execution
+  - [x] `ExecuteWithRetry()` - retry mechanism for validation failures
+  - [x] `ExecuteTask()` - dispatch to correct executor type
+  - [x] `ExecuteAssistantTask()` - AI assistant execution with multi-turn support
+  - [x] `ExecuteMCPTask()` - MCP tool execution (format: `clientID.toolName`)
+  - [x] `ExecuteProcessTask()` - Yao process execution
+  - [x] `BuildTaskContext()` - context with previous results
+  - [x] `GenerateAutoReply()` - auto-reply for multi-turn conversations
+  - [x] `FormatValidationFeedback()` - feedback for retry attempts
+- [x] `executor/validator.go` - Two-layer validation system
+  - [x] Layer 1: Rule-based validation using `yao/assert`
+  - [x] Layer 2: Semantic validation using Validation Agent
+  - [x] `convertStringRule()` - natural language rules to assertions
+  - [x] `parseRules()` - JSON and string rule parsing
+  - [x] `mergeResults()` - combine rule and semantic results
 
-- [ ] `executor/run_test.go` - P3 with real agent calls
-- [ ] Test: tasks executed in order
-- [ ] Test: results collected with correct structure
-- [ ] Test: validation called for each task
-- [ ] Test: task failure doesn't stop entire execution (configurable)
-- [ ] Test: pause/resume works during task execution
+### 9.2 Assert Package ✅
+
+Created new `yao/assert` package for universal assertion/validation:
+
+- [x] `assert/types.go` - `Assertion`, `Result`, `AssertionOptions` types
+- [x] `assert/asserter.go` - `Asserter` with 8 assertion types:
+  - [x] `equals` - exact match
+  - [x] `contains` - substring check
+  - [x] `not_contains` - negative substring check
+  - [x] `json_path` - JSON path extraction and comparison
+  - [x] `regex` - regex pattern matching
+  - [x] `type` - type checking (with optional path)
+  - [x] `script` - custom script validation
+  - [x] `agent` - AI agent validation
+- [x] `assert/helpers.go` - `ValidateOutput()`, `ExtractPath()`, `ToString()`, `GetType()`
+- [x] `assert/asserter_test.go` - 98.7% test coverage
+
+### 9.3 Tests
+
+**Completed:**
+- [x] `assert/asserter_test.go` - 40+ test cases (98.7% coverage)
+- [x] `types/robot_test.go` - Task structure tests with validation rules
+- [x] `tasks_test.go` - ParseTasks with validation rules format
+- [x] Validation rules format aligned with `prompts.yml` guidelines
+
+**TODO (Next Iteration):**
+- [ ] `executor/standard/run_test.go` - P3 RunExecution tests
+  - [ ] Test: tasks executed in order
+  - [ ] Test: task status updates (Running → Completed/Failed/Skipped)
+  - [ ] Test: ContinueOnFailure option
+  - [ ] Test: remaining tasks marked as skipped on failure
+- [ ] `executor/standard/runner_test.go` - Runner tests
+  - [ ] Test: ExecuteWithRetry with validation failures
+  - [ ] Test: ExecuteAssistantTask with multi-turn conversation
+  - [ ] Test: ExecuteMCPTask with correct ID parsing
+  - [ ] Test: ExecuteProcessTask with Yao process
+  - [ ] Test: BuildTaskContext with previous results
+  - [ ] Test: GenerateAutoReply for tool results
+- [ ] `executor/standard/validator_test.go` - Validator tests
+  - [ ] Test: two-layer validation (rules + semantic)
+  - [ ] Test: convertStringRule for natural language rules
+  - [ ] Test: parseRules for JSON assertions
+  - [ ] Test: validateSemantic with Validation Agent
+  - [ ] Test: mergeResults logic
+
+### 9.4 Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      run.go (P3 入口)                        │
+│  - RunConfig 配置                                            │
+│  - RunExecution 主循环                                       │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         ▼                         ▼
+┌─────────────────┐      ┌─────────────────┐
+│   runner.go     │      │  validator.go   │
+│  - Runner       │      │  - Validator    │
+│  - 任务执行      │      │  - 两层验证      │
+│  - 多轮对话      │      │  - 规则 + 语义   │
+└────────┬────────┘      └────────┬────────┘
+         │                        │
+         │                        ▼
+         │               ┌─────────────────┐
+         │               │  yao/assert     │
+         │               │  - Asserter     │
+         │               │  - 8种断言类型   │
+         │               │  - 可扩展接口    │
+         │               └─────────────────┘
+         ▼
+┌─────────────────────────────────────────┐
+│  执行器类型                               │
+│  - ExecutorAssistant → AI 助手           │
+│  - ExecutorMCP → MCP 工具                │
+│  - ExecutorProcess → Yao 进程            │
+└─────────────────────────────────────────┘
+```
+
+### 9.5 Notes
+
+- Validation rules support two formats:
+  1. Natural language: `"output must be valid JSON"`, `"must contain 'field'"`
+  2. Structured JSON: `{"type": "type", "path": "field", "value": "array"}`
+- Retry mechanism only triggers on validation failures, not execution errors
+- Multi-turn conversation uses auto-reply generation for tool results
+- `yao/assert` is a standalone package, can be used by other modules
 
 ---
 
@@ -1029,7 +1123,7 @@ func TestWithLLM(t *testing.T) {
 | 6. P0 Inspiration     | ✅     | Inspiration Agent integration                                                |
 | 7. P1 Goals           | ✅     | Goal Generation Agent integration                                            |
 | 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
-| 9. P3 Run             | ⬜     | Task execution (assistant/mcp/process)                                       |
+| 9. P3 Run             | 🟡     | Task execution + validation + yao/assert (tests pending)                     |
 | 10. P4 Delivery       | ⬜     | Output delivery (email/file/webhook/notify)                                  |
 | 11. P5 Learning       | ⬜     | Learning Agent + KB save                                                     |
 | 12. API & Integration | ⬜     | Complete API, end-to-end tests                                               |

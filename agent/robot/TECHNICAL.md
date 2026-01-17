@@ -44,7 +44,9 @@ yao/agent/robot/
 │   │   ├── inspiration.go    # P0: Inspiration phase
 │   │   ├── goals.go          # P1: Goals phase
 │   │   ├── tasks.go          # P2: Tasks phase
-│   │   ├── run.go            # P3: Run phase
+│   │   ├── run.go            # P3: Run phase (main entry)
+│   │   ├── runner.go         # P3: Task Runner (execution logic)
+│   │   ├── validator.go      # P3: Validator (two-layer validation)
 │   │   ├── delivery.go       # P4: Delivery phase
 │   │   └── learning.go       # P5: Learning phase
 │   ├── dryrun/
@@ -88,6 +90,11 @@ yao/agent/robot/
 └── plan/                     # Plan queue (deferred tasks)
     ├── plan.go               # Plan queue struct
     └── schedule.go           # Schedule for later
+
+yao/assert/                       # Universal assertion library (global package)
+├── types.go                      # Assertion, Result, interfaces
+├── asserter.go                   # Asserter implementation (8 assertion types)
+└── helpers.go                    # Utility functions (ExtractPath, ToString, etc.)
 ```
 
 ### Dependency Graph (No Cycles)
@@ -140,7 +147,7 @@ yao/agent/robot/
 | `trigger/`  | `types/`                                                    |
 | `job/`      | `types/`, `yao/job`                                         |
 | `plan/`     | `types/`                                                    |
-| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`     |
+| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`, `yao/assert` |
 | `manager/`  | `types/`, `cache/`, `pool/`, `trigger/`, `executor/`        |
 |             | Manager handles all trigger logic (clock, intervene, event) |
 | `api/`      | `types/`, `manager/`                                        |
@@ -1325,6 +1332,9 @@ type Task struct {
 
     // Validation (defined in P2, used in P3)
     ExpectedOutput  string   `json:"expected_output,omitempty"`  // what the task should produce
+    // ValidationRules supports two formats:
+    // 1. Natural language: "output must be valid JSON", "must contain 'field'"
+    // 2. JSON assertions: `{"type": "type", "value": "object"}`, `{"type": "contains", "value": "success"}`
     ValidationRules []string `json:"validation_rules,omitempty"` // specific checks to perform
 
     // Runtime

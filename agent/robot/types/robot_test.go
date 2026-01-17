@@ -399,8 +399,14 @@ func TestTaskStructure(t *testing.T) {
 		Status:       types.TaskPending,
 		Order:        0,
 		// P3 validation fields
-		ExpectedOutput:  "JSON with sales_total and growth_rate fields",
-		ValidationRules: []string{"sales_total > 0", "growth_rate is a percentage"},
+		ExpectedOutput: "JSON with sales_total and growth_rate fields",
+		ValidationRules: []string{
+			// Natural language rules (matched by validator)
+			"output must be valid JSON",
+			"must contain 'sales_total'",
+			// Structured rule: check field type
+			`{"type": "type", "path": "growth_rate", "value": "number"}`,
+		},
 	}
 
 	assert.Equal(t, "task1", task.ID)
@@ -412,7 +418,7 @@ func TestTaskStructure(t *testing.T) {
 	assert.Equal(t, 0, task.Order)
 	// Validation fields
 	assert.Contains(t, task.ExpectedOutput, "sales_total")
-	assert.Len(t, task.ValidationRules, 2)
+	assert.Len(t, task.ValidationRules, 3)
 }
 
 func TestGoalsStructure(t *testing.T) {

@@ -261,7 +261,7 @@ Human/Event:       P1 → P2 → P3 → P4 → P5
 | P0    | Inspiration | Clock + Data + News | Report          | Clock only |
 | P1    | Goal Gen    | Report + history    | Goals           | Always     |
 | P2    | Task Plan   | Goals + tools       | Tasks           | Always     |
-| P3    | Validator   | Results             | Checked results | Always     |
+| P3    | Run + Valid | Tasks + Experts     | TaskResults     | Always     |
 | P4    | Delivery    | All results         | Email/File      | Always     |
 | P5    | Learning    | Summary             | KB entries      | Always     |
 
@@ -367,21 +367,101 @@ type Task struct {
 
 ### 4.5 P3: Run
 
+**Architecture:** P3 uses a modular design with three components:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      run.go (P3 Entry)                       │
+│  - RunConfig: retries, threshold, continue-on-failure        │
+│  - RunExecution: main execution loop                         │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         ▼                         ▼
+┌─────────────────┐      ┌─────────────────┐
+│   runner.go     │      │  validator.go   │
+│  - Runner       │      │  - Validator    │
+│  - Task exec    │      │  - Two-layer    │
+│  - Multi-turn   │      │  - Rule+Semantic│
+└────────┬────────┘      └────────┬────────┘
+         │                        │
+         │                        ▼
+         │               ┌─────────────────┐
+         │               │  yao/assert     │
+         │               │  - 8 assertion  │
+         │               │    types        │
+         │               └─────────────────┘
+         ▼
+┌─────────────────────────────────────────┐
+│  Executor Types                          │
+│  - assistant: AI Agent (multi-turn)      │
+│  - mcp: MCP Tool (clientID.toolName)     │
+│  - process: Yao Process                  │
+└─────────────────────────────────────────┘
+```
+
+**Execution Flow:**
+
 For each task:
 
-1. Call Assistant or MCP Tool
-2. Get result
-3. Validate against `ExpectedOutput` and `ValidationRules`
-4. Update status
+1. **Execute** via appropriate executor (Assistant/MCP/Process)
+2. **Validate** using two-layer validation
+3. **Retry** if validation fails (with feedback to expert agent)
+4. **Update** task status and store result
+
+**Two-Layer Validation:**
+
+| Layer | Method | Speed | Use Case |
+|-------|--------|-------|----------|
+| 1. Rule-based | `yao/assert` | Fast | Type check, contains, regex, json_path |
+| 2. Semantic | Validation Agent | Slow | ExpectedOutput, complex criteria |
+
+**Executor Types:**
+
+| Type | ExecutorID Format | Example |
+|------|-------------------|---------|
+| `assistant` | Agent ID | `experts.text-writer` |
+| `mcp` | `clientID.toolName` | `filesystem.read_file` |
+| `process` | Process name | `models.user.Find` |
+
+**Retry Mechanism:**
+
+- Retries only on validation failure (not execution error)
+- Validation feedback sent to expert agent on retry
+- Configurable: `MaxRetries`, `RetryOnValidationFailure`
 
 ```go
+type RunConfig struct {
+    MaxRetries               int     // default: 3
+    RetryOnValidationFailure bool    // default: true
+    ContinueOnFailure        bool    // default: false
+    ValidationThreshold      float64 // default: 0.6
+    MaxTurnsPerTask          int     // default: 10
+}
+
 type ValidationResult struct {
     Passed      bool     // overall validation passed
     Score       float64  // 0-1 confidence score
     Issues      []string // what failed
     Suggestions []string // how to improve
+    Details     string   // detailed report (markdown)
 }
 ```
+
+**yao/assert Package:**
+
+Universal assertion library supporting 8 types:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `equals` | Exact match | `{"type": "equals", "value": "success"}` |
+| `contains` | Substring check | `{"type": "contains", "value": "total"}` |
+| `not_contains` | Negative check | `{"type": "not_contains", "value": "error"}` |
+| `json_path` | JSON path extraction | `{"type": "json_path", "path": "data.count", "value": 10}` |
+| `regex` | Pattern matching | `{"type": "regex", "value": "^[A-Z].*"}` |
+| `type` | Type checking | `{"type": "type", "value": "array"}` |
+| `script` | Custom script | `{"type": "script", "script": "scripts.validate"}` |
+| `agent` | AI validation | `{"type": "agent", "use": "validator"}` |
 
 ### 4.6 P4: Deliver
 
@@ -436,7 +516,7 @@ const (
     PhaseInspiration Phase = "inspiration" // P0: Clock only
     PhaseGoals       Phase = "goals"       // P1
     PhaseTasks       Phase = "tasks"       // P2
-    PhaseValidation  Phase = "validation"  // P3
+    PhaseRun         Phase = "run"         // P3 (execution + validation)
     PhaseDelivery    Phase = "delivery"    // P4
     PhaseLearning    Phase = "learning"    // P5
 )
@@ -444,7 +524,7 @@ const (
 // AllPhases for iteration
 var AllPhases = []Phase{
     PhaseInspiration, PhaseGoals, PhaseTasks,
-    PhaseValidation, PhaseDelivery, PhaseLearning,
+    PhaseRun, PhaseDelivery, PhaseLearning,
 }
 
 // ClockMode - clock trigger mode enum

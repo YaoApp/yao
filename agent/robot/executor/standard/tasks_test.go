@@ -273,8 +273,11 @@ func TestParseTasks(t *testing.T) {
 				},
 				"expected_output": "JSON with sales metrics",
 				"validation_rules": []interface{}{
-					"Output must be valid JSON",
-					"Must include total_sales field",
+					// Natural language rules (matched by validator)
+					"output must be valid JSON",
+					"must contain 'total_sales'",
+					// Structured rule: check field type
+					`{"type": "type", "path": "product_rankings", "value": "array"}`,
 				},
 				"order": float64(0),
 			},
@@ -300,7 +303,7 @@ func TestParseTasks(t *testing.T) {
 		assert.Equal(t, "experts.data-analyst", tasks[0].ExecutorID)
 		assert.Len(t, tasks[0].Messages, 1)
 		assert.Equal(t, "JSON with sales metrics", tasks[0].ExpectedOutput)
-		assert.Len(t, tasks[0].ValidationRules, 2)
+		assert.Len(t, tasks[0].ValidationRules, 3)
 		assert.Equal(t, 0, tasks[0].Order)
 
 		// Second task
