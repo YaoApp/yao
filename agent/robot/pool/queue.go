@@ -10,13 +10,14 @@ import (
 
 // QueueItem represents a job waiting in the queue
 type QueueItem struct {
-	Robot       *types.Robot
-	Ctx         *types.Context
-	Trigger     types.TriggerType
-	Data        interface{}
-	EnqueueTime time.Time
-	Priority    int // calculated priority for sorting
-	Index       int // index in heap (managed by container/heap)
+	Robot        *types.Robot
+	Ctx          *types.Context
+	Trigger      types.TriggerType
+	Data         interface{}
+	ExecutorMode types.ExecutorMode // optional: override robot's executor mode
+	EnqueueTime  time.Time
+	Priority     int // calculated priority for sorting
+	Index        int // index in heap (managed by container/heap)
 }
 
 // PriorityQueue implements a priority queue for robot executions

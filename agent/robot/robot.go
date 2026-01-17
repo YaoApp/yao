@@ -17,7 +17,7 @@ var (
 	globalPool     *pool.Pool
 	globalDedup    *dedup.Dedup
 	globalStore    *store.Store
-	globalExecutor *executor.Executor
+	globalExecutor executor.Executor
 	globalPlan     *plan.Plan
 )
 

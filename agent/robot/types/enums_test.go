@@ -132,3 +132,47 @@ func TestInsertPositionEnum(t *testing.T) {
 	assert.Equal(t, types.InsertPosition("next"), types.InsertNext)
 	assert.Equal(t, types.InsertPosition("at"), types.InsertAt)
 }
+
+func TestExecutorModeEnum(t *testing.T) {
+	assert.Equal(t, types.ExecutorMode("standard"), types.ExecutorStandard)
+	assert.Equal(t, types.ExecutorMode("dryrun"), types.ExecutorDryRun)
+	assert.Equal(t, types.ExecutorMode("sandbox"), types.ExecutorSandbox)
+}
+
+func TestExecutorModeIsValid(t *testing.T) {
+	tests := []struct {
+		mode  types.ExecutorMode
+		valid bool
+	}{
+		{types.ExecutorStandard, true},
+		{types.ExecutorDryRun, true},
+		{types.ExecutorSandbox, true},
+		{"", true}, // empty is valid (defaults to standard)
+		{types.ExecutorMode("invalid"), false},
+		{types.ExecutorMode("unknown"), false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.mode), func(t *testing.T) {
+			assert.Equal(t, tt.valid, tt.mode.IsValid())
+		})
+	}
+}
+
+func TestExecutorModeGetDefault(t *testing.T) {
+	tests := []struct {
+		mode     types.ExecutorMode
+		expected types.ExecutorMode
+	}{
+		{"", types.ExecutorStandard},
+		{types.ExecutorStandard, types.ExecutorStandard},
+		{types.ExecutorDryRun, types.ExecutorDryRun},
+		{types.ExecutorSandbox, types.ExecutorSandbox},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.mode), func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.mode.GetDefault())
+		})
+	}
+}

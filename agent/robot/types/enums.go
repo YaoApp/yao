@@ -189,3 +189,34 @@ const (
 	InsertNext  InsertPosition = "next"  // insert after current task
 	InsertAt    InsertPosition = "at"    // insert at specific index (use AtIndex)
 )
+
+// ExecutorMode - executor mode for robot execution
+type ExecutorMode string
+
+// ExecutorMode constants define the executor modes
+const (
+	// ExecutorStandard uses real Agent calls (production mode)
+	ExecutorStandard ExecutorMode = "standard"
+	// ExecutorDryRun simulates execution without LLM calls (testing/demo)
+	ExecutorDryRun ExecutorMode = "dryrun"
+	// ExecutorSandbox runs in container-isolated environment (NOT IMPLEMENTED)
+	// Requires Docker/gVisor/Firecracker infrastructure
+	ExecutorSandbox ExecutorMode = "sandbox"
+)
+
+// IsValid checks if the executor mode is valid
+func (m ExecutorMode) IsValid() bool {
+	switch m {
+	case ExecutorStandard, ExecutorDryRun, ExecutorSandbox, "":
+		return true
+	}
+	return false
+}
+
+// GetDefault returns the default executor mode if empty
+func (m ExecutorMode) GetDefault() ExecutorMode {
+	if m == "" {
+		return ExecutorStandard
+	}
+	return m
+}

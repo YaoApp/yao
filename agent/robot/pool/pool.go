@@ -28,17 +28,21 @@ func DefaultConfig() *Config {
 	}
 }
 
+// ExecutorFactory creates an executor based on the mode
+type ExecutorFactory func(mode types.ExecutorMode) types.Executor
+
 // Pool implements types.Pool interface
 // Manages a pool of workers that execute robot jobs from a priority queue
 type Pool struct {
-	size     int            // number of workers
-	queue    *PriorityQueue // priority queue for pending jobs
-	executor types.Executor // executor for running jobs
-	workers  []*Worker      // worker goroutines
-	running  atomic.Int32   // number of currently running jobs
-	wg       sync.WaitGroup // wait group for graceful shutdown
-	started  bool           // whether pool has been started
-	mu       sync.RWMutex   // protects started flag
+	size            int             // number of workers
+	queue           *PriorityQueue  // priority queue for pending jobs
+	executor        types.Executor  // default executor for running jobs
+	executorFactory ExecutorFactory // optional: factory for mode-specific executors
+	workers         []*Worker       // worker goroutines
+	running         atomic.Int32    // number of currently running jobs
+	wg              sync.WaitGroup  // wait group for graceful shutdown
+	started         bool            // whether pool has been started
+	mu              sync.RWMutex    // protects started flag
 }
 
 // New creates a new pool instance with default configuration
@@ -69,10 +73,27 @@ func NewWithConfig(config *Config) *Pool {
 	}
 }
 
-// SetExecutor sets the executor for the pool
+// SetExecutor sets the default executor for the pool
 // Must be called before Start()
 func (p *Pool) SetExecutor(executor types.Executor) {
 	p.executor = executor
+}
+
+// SetExecutorFactory sets the executor factory for mode-specific executors
+// If set, the factory is used to create executors based on ExecutorMode
+func (p *Pool) SetExecutorFactory(factory ExecutorFactory) {
+	p.executorFactory = factory
+}
+
+// GetExecutor returns the appropriate executor for the given mode
+// If factory is set and mode is specified, uses factory; otherwise uses default
+func (p *Pool) GetExecutor(mode types.ExecutorMode) types.Executor {
+	// If factory is set and mode is specified, use factory
+	if p.executorFactory != nil && mode != "" {
+		return p.executorFactory(mode)
+	}
+	// Otherwise use default executor
+	return p.executor
 }
 
 // Start starts the worker pool
@@ -91,7 +112,7 @@ func (p *Pool) Start() error {
 	// Create and start workers
 	p.workers = make([]*Worker, p.size)
 	for i := 0; i < p.size; i++ {
-		worker := newWorker(i+1, p, p.executor, &p.wg)
+		worker := newWorker(i+1, p, &p.wg)
 		p.workers[i] = worker
 		worker.start()
 	}
@@ -125,6 +146,13 @@ func (p *Pool) Stop() error {
 // Submit submits a robot execution to the pool
 // Returns execution ID if successfully queued, error otherwise
 func (p *Pool) Submit(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}) (string, error) {
+	return p.SubmitWithMode(ctx, robot, trigger, data, "")
+}
+
+// SubmitWithMode submits a robot execution with specified executor mode
+// executorMode: optional, overrides robot's config if provided
+// Returns execution ID if successfully queued, error otherwise
+func (p *Pool) SubmitWithMode(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, executorMode types.ExecutorMode) (string, error) {
 	p.mu.RLock()
 	if !p.started {
 		p.mu.RUnlock()
@@ -138,10 +166,11 @@ func (p *Pool) Submit(ctx *types.Context, robot *types.Robot, trigger types.Trig
 
 	// Create queue item
 	item := &QueueItem{
-		Robot:   robot,
-		Ctx:     ctx,
-		Trigger: trigger,
-		Data:    data,
+		Robot:        robot,
+		Ctx:          ctx,
+		Trigger:      trigger,
+		Data:         data,
+		ExecutorMode: executorMode,
 	}
 
 	// Try to add to queue

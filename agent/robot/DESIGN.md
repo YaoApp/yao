@@ -79,7 +79,33 @@ flowchart TB
     KB -.->|History| P0
 ```
 
-### 2.2 Team Structure
+### 2.2 Executor Modes
+
+Executor supports multiple execution modes for different use cases:
+
+| Mode     | Use Case                                | Status             |
+| -------- | --------------------------------------- | ------------------ |
+| Standard | Production with real Agent calls        | ✅ Implemented     |
+| DryRun   | Tests, demos, preview without LLM calls | ✅ Implemented     |
+| Sandbox  | Container-isolated for untrusted code   | ⬜ Not Implemented |
+
+**Standard Mode:** Real execution with LLM calls, Job integration, full phase execution.
+
+**DryRun Mode:** Simulated execution without LLM calls. Used for:
+
+- Unit tests and integration tests
+- Demo and preview modes
+- Scheduling and concurrency testing
+
+**Sandbox Mode (Future):** Container-level isolation (Docker/gVisor/Firecracker) for:
+
+- Untrusted robot configurations
+- Multi-tenant environments
+- Resource-limited execution
+
+> **⚠️ Sandbox requires infrastructure support.** Current placeholder behaves like DryRun.
+
+### 2.3 Team Structure
 
 Uses existing `__yao.member` model (`yao/models/member.mod.yao`):
 
@@ -283,8 +309,24 @@ type ClockContext struct {
 
 **For Human/Event:** Uses the input directly as goals (or to generate goals).
 
+```go
+type Goals struct {
+    Content  string          // markdown text (for LLM)
+    Delivery *DeliveryTarget // where to send results (for P4)
+}
+
+type DeliveryTarget struct {
+    Type       DeliveryType // email | webhook | report | notification
+    Recipients []string     // email addresses, webhook URLs, user IDs
+    Format     string       // markdown | html | json | text
+    Template   string       // template name
+    Options    map[string]interface{}
+}
 ```
-Prompt:
+
+**Example prompt:**
+
+```
 You are [Sales Manager]. Your job: [track KPIs, make reports].
 
 ## Report
@@ -300,20 +342,26 @@ You are [Sales Manager]. Your job: [track KPIs, make reports].
 Make today's goals.
 ```
 
+**Note:** Validation criteria (`ExpectedOutput`, `ValidationRules`) are defined at the **Task level** (P2), not Goals level. This allows each task to have specific validation rules for P3.
+
 ### 4.4 P2: Tasks
 
 P2 Agent reads Goals markdown and breaks into executable tasks:
 
 ```go
 type Task struct {
-    ID           string            // unique task ID
-    Messages     []context.Message // original input (text, images, files, audio)
-    GoalRef      string            // reference to goal (e.g., "Goal 1")
-    Source       TaskSource        // auto | human | event
-    ExecutorType ExecutorType      // assistant | mcp | process
-    ExecutorID   string            // agent ID or mcp tool name
-    Args         []any             // arguments for executor
-    Order        int               // execution order
+    ID              string            // unique task ID
+    Messages        []context.Message // original input (text, images, files, audio)
+    GoalRef         string            // reference to goal (e.g., "Goal 1")
+    Source          TaskSource        // auto | human | event
+    ExecutorType    ExecutorType      // assistant | mcp | process
+    ExecutorID      string            // agent ID or mcp tool name
+    Args            []any             // arguments for executor
+    Order           int               // execution order
+
+    // Validation criteria (used in P3)
+    ExpectedOutput  string   // what the task should produce
+    ValidationRules []string // specific checks to perform
 }
 ```
 
@@ -323,8 +371,17 @@ For each task:
 
 1. Call Assistant or MCP Tool
 2. Get result
-3. Validate
+3. Validate against `ExpectedOutput` and `ValidationRules`
 4. Update status
+
+```go
+type ValidationResult struct {
+    Passed      bool     // overall validation passed
+    Score       float64  // 0-1 confidence score
+    Issues      []string // what failed
+    Suggestions []string // how to improve
+}
+```
 
 ### 4.6 P4: Deliver
 
@@ -365,6 +422,7 @@ type Config struct {
     Resources *Resources `json:"resources"`
     Delivery  *Delivery  `json:"delivery"`
     Events    []Event    `json:"events,omitempty"`
+    Executor  *Executor  `json:"executor,omitempty"`  // executor mode settings
 }
 ```
 
@@ -504,6 +562,23 @@ type Delivery struct {
     Opts map[string]interface{} `json:"opts"`
 }
 
+// ExecutorMode - executor mode enum
+type ExecutorMode string
+
+const (
+    ExecutorStandard ExecutorMode = "standard" // real Agent calls (default)
+    ExecutorDryRun   ExecutorMode = "dryrun"   // simulated, no LLM calls
+    ExecutorSandbox  ExecutorMode = "sandbox"  // container-isolated (NOT IMPLEMENTED)
+)
+
+// Executor - executor settings
+type Executor struct {
+    Mode        ExecutorMode  `json:"mode,omitempty"`         // standard | dryrun | sandbox
+    MaxDuration string        `json:"max_duration,omitempty"` // max execution time (e.g., "30m")
+}
+// Note: Sandbox mode requires container infrastructure (Docker/gVisor).
+// Current implementation falls back to DryRun behavior.
+
 // Monitor
 ```
 
@@ -561,6 +636,10 @@ Example record in `__yao.member` table:
     "delivery": {
       "type": "email",
       "opts": { "to": ["manager@company.com"] }
+    },
+    "executor": {
+      "mode": "standard",
+      "max_duration": "30m"
     }
   },
   "agents": ["data-analyst", "chart-gen"],
@@ -811,18 +890,20 @@ const (
 // - trigger.ExecutionController - pause/resume/stop execution
 
 type InterveneRequest struct {
-    TeamID   string
-    MemberID string
-    Action   InterventionAction // task.add | goal.adjust | task.cancel | plan.add | instruct
-    Messages []context.Message  // user input (text, images, files)
-    PlanTime *time.Time         // for action=plan.add
+    TeamID       string
+    MemberID     string
+    Action       InterventionAction // task.add | goal.adjust | task.cancel | plan.add | instruct
+    Messages     []context.Message  // user input (text, images, files)
+    PlanTime     *time.Time         // for action=plan.add
+    ExecutorMode ExecutorMode       // optional: standard | dryrun (override robot config)
 }
 
 type EventRequest struct {
-    MemberID  string
-    Source    string // webhook path or table name
-    EventType string // lead.created, etc.
-    Data      map[string]interface{}
+    MemberID     string
+    Source       string // webhook path or table name
+    EventType    string // lead.created, etc.
+    Data         map[string]interface{}
+    ExecutorMode ExecutorMode // optional: standard | dryrun (override robot config)
 }
 
 type ExecutionResult struct {
@@ -984,6 +1065,37 @@ quota:
   max: 2 # max running
   queue: 10 # queue size
   priority: 5 # 1-10
+```
+
+### Executor
+
+```yaml
+# Standard mode (default) - real Agent calls
+executor:
+  mode: standard
+  max_duration: 30m
+
+# DryRun mode - simulated execution (for testing/demos)
+executor:
+  mode: dryrun
+
+# Sandbox mode (NOT IMPLEMENTED) - container-isolated
+# Requires Docker/gVisor infrastructure
+# executor:
+#   mode: sandbox
+#   max_duration: 10m
+```
+
+**API Override:**
+
+```javascript
+// Override executor mode per trigger
+const result = Process("robot.Trigger", "mem_abc123", {
+  type: "human",
+  action: "task.add",
+  messages: [{ role: "user", content: "Test task" }],
+  executor_mode: "dryrun", // override robot config
+});
 ```
 
 ---

@@ -20,8 +20,9 @@ const (
 
 // Config holds manager configuration
 type Config struct {
-	TickInterval time.Duration // how often to check clock triggers (default: 1 minute)
-	PoolConfig   *pool.Config  // worker pool configuration
+	TickInterval time.Duration  // how often to check clock triggers (default: 1 minute)
+	PoolConfig   *pool.Config   // worker pool configuration
+	Executor     types.Executor // optional: custom executor (default: real executor)
 }
 
 // DefaultConfig returns default manager configuration
@@ -38,7 +39,7 @@ type Manager struct {
 	config   *Config
 	cache    *cache.Cache
 	pool     *pool.Pool
-	executor *executor.Executor
+	executor types.Executor
 
 	// Execution control for pause/resume/stop
 	execController *trigger.ExecutionController
@@ -75,11 +76,36 @@ func NewWithConfig(config *Config) *Manager {
 	// Create components
 	c := cache.New()
 	p := pool.NewWithConfig(config.PoolConfig)
-	e := executor.New()
 	ec := trigger.NewExecutionController()
+
+	// Use custom executor if provided, otherwise create default
+	var e types.Executor
+	if config.Executor != nil {
+		e = config.Executor
+	} else {
+		e = executor.New()
+	}
 
 	// Wire up pool with executor
 	p.SetExecutor(e)
+
+	// Create shared executor instances for each mode
+	// These are reused across all executions to maintain accurate counters
+	dryRunExecutor := executor.NewDryRun()
+
+	// Set executor factory for mode-specific executors
+	p.SetExecutorFactory(func(mode types.ExecutorMode) types.Executor {
+		switch mode {
+		case types.ExecutorDryRun:
+			return dryRunExecutor
+		case types.ExecutorSandbox:
+			// Sandbox not implemented, fall back to DryRun
+			return dryRunExecutor
+		default:
+			// Standard mode or empty - use the configured executor
+			return e
+		}
+	})
 
 	return &Manager{
 		config:         config,
@@ -425,8 +451,11 @@ func (m *Manager) Intervene(ctx *types.Context, req *types.InterveneRequest) (*t
 		}, nil
 	}
 
-	// Submit to pool
-	execID, err := m.pool.Submit(ctx, robot, types.TriggerHuman, triggerInput)
+	// Determine executor mode: request > robot config > default
+	executorMode := m.resolveExecutorMode(req.ExecutorMode, robot)
+
+	// Submit to pool with executor mode
+	execID, err := m.pool.SubmitWithMode(ctx, robot, types.TriggerHuman, triggerInput, executorMode)
 	if err != nil {
 		return nil, err
 	}
@@ -477,8 +506,11 @@ func (m *Manager) HandleEvent(ctx *types.Context, req *types.EventRequest) (*typ
 	// Build trigger input
 	triggerInput := trigger.BuildEventInput(req)
 
-	// Submit to pool
-	execID, err := m.pool.Submit(ctx, robot, types.TriggerEvent, triggerInput)
+	// Determine executor mode: request > robot config > default
+	executorMode := m.resolveExecutorMode(req.ExecutorMode, robot)
+
+	// Submit to pool with executor mode
+	execID, err := m.pool.SubmitWithMode(ctx, robot, types.TriggerEvent, triggerInput, executorMode)
 	if err != nil {
 		return nil, err
 	}
@@ -529,6 +561,25 @@ func (m *Manager) ListExecutionsByMember(memberID string) []*trigger.ControlledE
 	return m.execController.ListByMember(memberID)
 }
 
+// ==================== Helper Methods ====================
+
+// resolveExecutorMode determines the executor mode to use
+// Priority: request > robot config > default (standard)
+func (m *Manager) resolveExecutorMode(requestMode types.ExecutorMode, robot *types.Robot) types.ExecutorMode {
+	// Request mode takes precedence
+	if requestMode != "" && requestMode.IsValid() {
+		return requestMode
+	}
+
+	// Robot config mode
+	if robot != nil && robot.Config != nil && robot.Config.Executor != nil {
+		return robot.Config.Executor.GetMode()
+	}
+
+	// Default: standard
+	return types.ExecutorStandard
+}
+
 // ==================== Getters for internal components ====================
 // These are exposed for testing and advanced use cases
 
@@ -543,7 +594,7 @@ func (m *Manager) Pool() *pool.Pool {
 }
 
 // Executor returns the internal executor
-func (m *Manager) Executor() *executor.Executor {
+func (m *Manager) Executor() types.Executor {
 	return m.executor
 }
 

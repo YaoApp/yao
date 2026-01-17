@@ -32,17 +32,25 @@ yao/agent/robot/
 │   ├── queue.go              # Priority queue
 │   └── worker.go             # Worker goroutines
 │
-├── executor/                 # Executor package
-│   ├── executor.go           # Executor struct, Execute
-│   ├── phase.go              # RunPhase dispatcher
-│   ├── inspiration.go        # P0: Inspiration (clock only)
-│   ├── goals.go              # P1: Goal generation
-│   ├── tasks.go              # P2: Task planning
-│   ├── run.go                # P3: Task execution
-│   ├── delivery.go           # P4: Delivery
-│   ├── learning.go           # P5: Learning
-│   ├── agent.go              # Call assistant/agent unified method
-│   └── prompt.go             # Prompt building helpers
+├── executor/                 # Executor package (pluggable architecture)
+│   ├── executor.go           # Factory functions, unified entry
+│   ├── types/
+│   │   ├── types.go          # Executor interface, Config types
+│   │   └── helpers.go        # Shared helper functions
+│   ├── standard/
+│   │   ├── executor.go       # Real Agent execution (production)
+│   │   ├── agent.go          # AgentCaller for LLM calls
+│   │   ├── input.go          # InputFormatter for prompts
+│   │   ├── inspiration.go    # P0: Inspiration phase
+│   │   ├── goals.go          # P1: Goals phase
+│   │   ├── tasks.go          # P2: Tasks phase
+│   │   ├── run.go            # P3: Run phase
+│   │   ├── delivery.go       # P4: Delivery phase
+│   │   └── learning.go       # P5: Learning phase
+│   ├── dryrun/
+│   │   └── executor.go       # Simulated execution (testing/demo)
+│   └── sandbox/
+│       └── executor.go       # Container-isolated (NOT IMPLEMENTED)
 │
 ├── utils/                    # Utility functions
 │   ├── convert.go            # Type conversions (JSON, map, struct)
@@ -269,6 +277,9 @@ type TriggerRequest struct {
     Source    types.EventSource      `json:"source,omitempty"`     // webhook | database
     EventType string                 `json:"event_type,omitempty"` // lead.created, order.paid, etc.
     Data      map[string]interface{} `json:"data,omitempty"`       // event payload
+
+    // Executor mode (optional, overrides robot config)
+    ExecutorMode types.ExecutorMode `json:"executor_mode,omitempty"` // standard | dryrun
 }
 
 // InsertPosition - where to insert task in queue
@@ -553,7 +564,14 @@ interface TriggerRequest {
   source?: "webhook" | "database";
   event_type?: string; // lead.created, etc.
   data?: Record<string, any>;
+
+  // Executor mode (optional, overrides robot config)
+  executor_mode?: "standard" | "dryrun"; // sandbox not implemented
 }
+
+// ExecutorMode - executor mode type
+type ExecutorMode = "standard" | "dryrun" | "sandbox";
+// Note: "sandbox" requires container infrastructure, falls back to "dryrun"
 
 interface ListQuery {
   team_id?: string;
@@ -1269,7 +1287,7 @@ type CurrentState struct {
     Progress  string `json:"progress,omitempty"` // human-readable progress (e.g., "2/5 tasks")
 }
 
-// Goals - P1 output (markdown for LLM)
+// Goals - P1 output (markdown for LLM + structured metadata)
 // P1 Agent reads InspirationReport and generates goals as markdown
 // Example:
 // ## Goals
@@ -1280,7 +1298,17 @@ type CurrentState struct {
 // 3. [Low] Update CRM with new leads
 //    - Reason: 3 pending leads from yesterday
 type Goals struct {
-    Content string `json:"content"` // markdown text
+    Content  string          `json:"content"`            // markdown text
+    Delivery *DeliveryTarget `json:"delivery,omitempty"` // where to send results (for P4)
+}
+
+// DeliveryTarget - where to deliver results (defined in P1, used in P4)
+type DeliveryTarget struct {
+    Type       DeliveryType           `json:"type"`                 // email | webhook | report | notification
+    Recipients []string               `json:"recipients,omitempty"` // email addresses, webhook URLs, user IDs
+    Format     string                 `json:"format,omitempty"`     // markdown | html | json | text
+    Template   string                 `json:"template,omitempty"`   // template name or inline template
+    Options    map[string]interface{} `json:"options,omitempty"`    // channel-specific options
 }
 
 // Task - planned task (structured, for execution)
@@ -1294,6 +1322,10 @@ type Task struct {
     ExecutorType ExecutorType `json:"executor_type"`
     ExecutorID   string       `json:"executor_id"`
     Args         []any        `json:"args,omitempty"`
+
+    // Validation (defined in P2, used in P3)
+    ExpectedOutput  string   `json:"expected_output,omitempty"`  // what the task should produce
+    ValidationRules []string `json:"validation_rules,omitempty"` // specific checks to perform
 
     // Runtime
     Status    TaskStatus `json:"status"`
@@ -1334,20 +1366,32 @@ const (
 
 // TaskResult - task execution result
 type TaskResult struct {
-    TaskID    string      `json:"task_id"`
-    Success   bool        `json:"success"`
-    Output    interface{} `json:"output,omitempty"`
-    Error     string      `json:"error,omitempty"`
-    Duration  int64       `json:"duration_ms"`
-    Validated bool        `json:"validated"`
+    TaskID     string            `json:"task_id"`
+    Success    bool              `json:"success"`
+    Output     interface{}       `json:"output,omitempty"`
+    Error      string            `json:"error,omitempty"`
+    Duration   int64             `json:"duration_ms"`
+    Validation *ValidationResult `json:"validation,omitempty"` // P3 validation result
 }
 
-// DeliveryResult - delivery output
+// ValidationResult - P3 semantic validation result
+type ValidationResult struct {
+    Passed      bool     `json:"passed"`                // overall validation passed
+    Score       float64  `json:"score,omitempty"`       // 0-1 confidence score
+    Issues      []string `json:"issues,omitempty"`      // what failed
+    Suggestions []string `json:"suggestions,omitempty"` // how to improve
+    Details     string   `json:"details,omitempty"`     // detailed validation report
+}
+
+// DeliveryResult - P4 delivery output
 type DeliveryResult struct {
-    Type    DeliveryType `json:"type"`
-    Success bool         `json:"success"`
-    Details interface{}  `json:"details,omitempty"`
-    Error   string       `json:"error,omitempty"`
+    Type       DeliveryType `json:"type"`
+    Success    bool         `json:"success"`
+    Recipients []string     `json:"recipients,omitempty"` // who received
+    Content    string       `json:"content,omitempty"`    // formatted content delivered
+    Details    interface{}  `json:"details,omitempty"`    // channel-specific response
+    Error      string       `json:"error,omitempty"`
+    SentAt     *time.Time   `json:"sent_at,omitempty"`
 }
 
 // LearningEntry - knowledge to save
@@ -1458,21 +1502,32 @@ import (
 // InterveneRequest - human intervention request
 // Processed by Manager.Intervene()
 type InterveneRequest struct {
-    TeamID   string                    `json:"team_id"`
-    MemberID string                    `json:"member_id"`
-    Action   InterventionAction        `json:"action"`             // task.add, goal.adjust, etc.
-    Messages []agentcontext.Message    `json:"messages,omitempty"` // user input (text, images, files)
-    PlanTime *time.Time                `json:"plan_time,omitempty"` // for action=plan.add
+    TeamID       string                    `json:"team_id"`
+    MemberID     string                    `json:"member_id"`
+    Action       InterventionAction        `json:"action"`               // task.add, goal.adjust, etc.
+    Messages     []agentcontext.Message    `json:"messages,omitempty"`   // user input (text, images, files)
+    PlanTime     *time.Time                `json:"plan_time,omitempty"`  // for action=plan.add
+    ExecutorMode ExecutorMode              `json:"executor_mode,omitempty"` // optional: standard | dryrun
 }
 
 // EventRequest - event trigger request
 // Processed by Manager.HandleEvent()
 type EventRequest struct {
-    MemberID  string                 `json:"member_id"`
-    Source    string                 `json:"source"`     // webhook path or table name
-    EventType string                 `json:"event_type"` // lead.created, etc.
-    Data      map[string]interface{} `json:"data,omitempty"`
+    MemberID     string                 `json:"member_id"`
+    Source       string                 `json:"source"`               // webhook path or table name
+    EventType    string                 `json:"event_type"`           // lead.created, etc.
+    Data         map[string]interface{} `json:"data,omitempty"`
+    ExecutorMode ExecutorMode           `json:"executor_mode,omitempty"` // optional: standard | dryrun
 }
+
+// ExecutorMode - executor mode enum
+type ExecutorMode string
+
+const (
+    ExecutorStandard ExecutorMode = "standard" // real Agent calls (default)
+    ExecutorDryRun   ExecutorMode = "dryrun"   // simulated, no LLM calls
+    ExecutorSandbox  ExecutorMode = "sandbox"  // container-isolated (NOT IMPLEMENTED)
+)
 
 // ExecutionResult - trigger result
 type ExecutionResult struct {

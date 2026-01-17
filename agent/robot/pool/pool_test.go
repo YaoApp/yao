@@ -95,7 +95,7 @@ func TestPoolSubmitNilRobot(t *testing.T) {
 
 // TestPoolBasicExecution tests basic job execution
 func TestPoolBasicExecution(t *testing.T) {
-	exec := executor.NewWithDelay(50 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 5,
 		QueueSize:  100,
@@ -125,7 +125,7 @@ func TestPoolBasicExecution(t *testing.T) {
 
 // TestPoolConcurrencyLimit tests global worker limit
 func TestPoolConcurrencyLimit(t *testing.T) {
-	exec := executor.NewWithDelay(200 * time.Millisecond) // longer delay
+	exec := executor.NewDryRunWithDelay(200 * time.Millisecond) // longer delay
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 3, // only 3 workers
 		QueueSize:  100,
@@ -170,7 +170,7 @@ func TestPoolConcurrencyLimit(t *testing.T) {
 
 // TestRobotConcurrencyLimit tests per-robot concurrent execution limit
 func TestRobotConcurrencyLimit(t *testing.T) {
-	exec := executor.NewWithDelay(100 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(100 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 10, // plenty of workers
 		QueueSize:  100,
@@ -207,7 +207,7 @@ func TestRobotConcurrencyLimit(t *testing.T) {
 
 // TestRobotQueueLimit tests per-robot queue limit
 func TestRobotQueueLimit(t *testing.T) {
-	exec := executor.NewWithDelay(200 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(200 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 2,
 		QueueSize:  100, // global queue is large
@@ -238,7 +238,7 @@ func TestRobotQueueLimit(t *testing.T) {
 
 // TestGlobalQueueLimit tests global queue limit
 func TestGlobalQueueLimit(t *testing.T) {
-	exec := executor.NewWithDelay(500 * time.Millisecond) // slow execution
+	exec := executor.NewDryRunWithDelay(500 * time.Millisecond) // slow execution
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1, // only 1 worker
 		QueueSize:  5, // small global queue
@@ -272,7 +272,7 @@ func TestGlobalQueueLimit(t *testing.T) {
 
 // TestPriorityOrder tests that higher priority jobs execute first
 func TestPriorityOrder(t *testing.T) {
-	exec := executor.NewWithDelay(50 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1, // single worker to ensure order
 		QueueSize:  100,
@@ -302,7 +302,7 @@ func TestPriorityOrder(t *testing.T) {
 
 // TestTriggerTypePriority tests that human triggers have higher priority than clock
 func TestTriggerTypePriority(t *testing.T) {
-	exec := executor.NewWithDelay(50 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 1, // single worker
 		QueueSize:  100,
@@ -328,7 +328,7 @@ func TestTriggerTypePriority(t *testing.T) {
 
 // TestMultipleRobotsFairness tests that multiple robots get fair access
 func TestMultipleRobotsFairness(t *testing.T) {
-	exec := executor.NewWithDelay(30 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(30 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 5,
 		QueueSize:  100,
@@ -361,7 +361,7 @@ func TestMultipleRobotsFairness(t *testing.T) {
 
 // TestGracefulShutdown tests that pool waits for running jobs on shutdown
 func TestGracefulShutdown(t *testing.T) {
-	exec := executor.NewWithDelay(200 * time.Millisecond)
+	exec := executor.NewDryRunWithDelay(200 * time.Millisecond)
 	p := pool.NewWithConfig(&pool.Config{
 		WorkerSize: 2,
 		QueueSize:  10,

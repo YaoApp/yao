@@ -14,11 +14,24 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/agent/robot/executor"
 	"github.com/yaoapp/yao/agent/robot/manager"
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/agent/testutils"
 )
+
+// createClockTestManager creates a manager with mock executor for clock tests
+func createClockTestManager(t *testing.T, tickInterval time.Duration, workerSize, queueSize int) (*manager.Manager, *executor.DryRunExecutor) {
+	exec := executor.NewDryRunWithDelay(0)
+	config := &manager.Config{
+		TickInterval: tickInterval,
+		PoolConfig:   &pool.Config{WorkerSize: workerSize, QueueSize: queueSize},
+		Executor:     exec,
+	}
+	m := manager.NewWithConfig(config)
+	return m, exec
+}
 
 // ==================== Times Mode Tests ====================
 
@@ -35,6 +48,9 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 	defer cleanupIntegrationRobots(t)
 
 	t.Run("triggers at configured time", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_times1", "team_integ_clock", map[string]interface{}{
 			"mode":  "times",
 			"times": []string{"09:00", "14:00", "17:00"},
@@ -42,11 +58,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
@@ -56,7 +68,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		robot := m.Cache().Get("robot_integ_clock_times1")
 		require.NotNil(t, robot, "Robot should be loaded into cache")
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at 09:00 on Wednesday
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -67,10 +79,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(300 * time.Millisecond)
-		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Should trigger at 09:00")
+		assert.GreaterOrEqual(t, exec.ExecCount(), 1, "Should trigger at 09:00")
 	})
 
 	t.Run("does not trigger at non-configured time", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_times2", "team_integ_clock", map[string]interface{}{
 			"mode":  "times",
 			"times": []string{"09:00", "14:00"},
@@ -78,17 +93,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at 10:30 (not configured)
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -99,10 +110,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(200 * time.Millisecond)
-		assert.Equal(t, 0, m.Executor().ExecCount(), "Should not trigger at non-configured time")
+		assert.Equal(t, 0, exec.ExecCount(), "Should not trigger at non-configured time")
 	})
 
 	t.Run("does not trigger on non-configured day", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_times3", "team_integ_clock", map[string]interface{}{
 			"mode":  "times",
 			"times": []string{"09:00"},
@@ -110,17 +124,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at 09:00 on Saturday (not configured)
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -131,10 +141,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(200 * time.Millisecond)
-		assert.Equal(t, 0, m.Executor().ExecCount(), "Should not trigger on Saturday")
+		assert.Equal(t, 0, exec.ExecCount(), "Should not trigger on Saturday")
 	})
 
 	t.Run("wildcard days matches all days", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_times4", "team_integ_clock", map[string]interface{}{
 			"mode":  "times",
 			"times": []string{"09:00"},
@@ -142,17 +155,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at 09:00 on Saturday
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -163,10 +172,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(300 * time.Millisecond)
-		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Should trigger on Saturday with wildcard days")
+		assert.GreaterOrEqual(t, exec.ExecCount(), 1, "Should trigger on Saturday with wildcard days")
 	})
 
 	t.Run("dedup prevents double trigger in same minute", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_times5", "team_integ_clock", map[string]interface{}{
 			"mode":  "times",
 			"times": []string{"09:00"},
@@ -174,17 +186,13 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		loc, _ := time.LoadLocation("Asia/Shanghai")
 		ctx := types.NewContext(context.Background(), nil)
@@ -194,7 +202,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		err = m.Tick(ctx, now1)
 		assert.NoError(t, err)
 		time.Sleep(200 * time.Millisecond)
-		firstCount := m.Executor().ExecCount()
+		firstCount := exec.ExecCount()
 		assert.GreaterOrEqual(t, firstCount, 1, "First tick should trigger")
 
 		// Second tick at 09:00:30 (same minute)
@@ -204,7 +212,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		// Should not trigger again in same minute
-		assert.Equal(t, firstCount, m.Executor().ExecCount(), "Should not trigger twice in same minute")
+		assert.Equal(t, firstCount, exec.ExecCount(), "Should not trigger twice in same minute")
 	})
 }
 
@@ -223,22 +231,21 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 	defer cleanupIntegrationRobots(t)
 
 	t.Run("triggers on first run", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_interval1", "team_integ_clock", map[string]interface{}{
 			"mode":  "interval",
 			"every": "30m",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 		now := time.Now()
@@ -246,26 +253,25 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(300 * time.Millisecond)
-		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Should trigger on first run")
+		assert.GreaterOrEqual(t, exec.ExecCount(), 1, "Should trigger on first run")
 	})
 
 	t.Run("triggers after interval passed", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_interval2", "team_integ_clock", map[string]interface{}{
 			"mode":  "interval",
 			"every": "100ms", // Short interval for testing
 		})
 
-		config := &manager.Config{
-			TickInterval: 50 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 50*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -274,7 +280,7 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		err = m.Tick(ctx, now1)
 		assert.NoError(t, err)
 		time.Sleep(200 * time.Millisecond)
-		firstCount := m.Executor().ExecCount()
+		firstCount := exec.ExecCount()
 		assert.GreaterOrEqual(t, firstCount, 1, "First tick should trigger")
 
 		// Wait for interval to pass
@@ -287,26 +293,25 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		// Should have triggered again
-		assert.Greater(t, m.Executor().ExecCount(), firstCount, "Should trigger again after interval")
+		assert.Greater(t, exec.ExecCount(), firstCount, "Should trigger again after interval")
 	})
 
 	t.Run("does not trigger before interval passed", func(t *testing.T) {
+		// Clean up before each subtest to ensure isolation
+		cleanupIntegrationRobots(t)
+
 		setupClockTestRobot(t, "robot_integ_clock_interval3", "team_integ_clock", map[string]interface{}{
 			"mode":  "interval",
 			"every": "1h", // Long interval
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -315,7 +320,7 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		err = m.Tick(ctx, now1)
 		assert.NoError(t, err)
 		time.Sleep(200 * time.Millisecond)
-		firstCount := m.Executor().ExecCount()
+		firstCount := exec.ExecCount()
 		assert.GreaterOrEqual(t, firstCount, 1, "First tick should trigger")
 
 		// Second tick immediately (interval not passed)
@@ -325,7 +330,7 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		// Should not trigger again
-		assert.Equal(t, firstCount, m.Executor().ExecCount(), "Should not trigger before interval")
+		assert.Equal(t, firstCount, exec.ExecCount(), "Should not trigger before interval")
 	})
 }
 
@@ -349,24 +354,20 @@ func TestIntegrationClockDaemonMode(t *testing.T) {
 			"timeout": "5m",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 		err = m.Tick(ctx, time.Now())
 		assert.NoError(t, err)
 
 		time.Sleep(300 * time.Millisecond)
-		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Daemon should trigger when idle")
+		assert.GreaterOrEqual(t, exec.ExecCount(), 1, "Daemon should trigger when idle")
 	})
 
 	t.Run("respects quota limit", func(t *testing.T) {
@@ -378,17 +379,13 @@ func TestIntegrationClockDaemonMode(t *testing.T) {
 			},
 			1, 5, 5) // Max=1, Queue=5
 
-		config := &manager.Config{
-			TickInterval: 50 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 5, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 50*time.Millisecond, 5, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -430,17 +427,13 @@ func TestIntegrationClockTimezone(t *testing.T) {
 			"tz":    "Asia/Shanghai",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -452,7 +445,7 @@ func TestIntegrationClockTimezone(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(300 * time.Millisecond)
-		assert.GreaterOrEqual(t, m.Executor().ExecCount(), 1, "Should trigger at 09:00 Shanghai time")
+		assert.GreaterOrEqual(t, exec.ExecCount(), 1, "Should trigger at 09:00 Shanghai time")
 	})
 
 	t.Run("different timezone same UTC time", func(t *testing.T) {
@@ -472,17 +465,13 @@ func TestIntegrationClockTimezone(t *testing.T) {
 			"tz":    "America/New_York",
 		})
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		m := manager.NewWithConfig(config)
+		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
 
-		m.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -494,7 +483,7 @@ func TestIntegrationClockTimezone(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 
 		// Only Shanghai robot should trigger
-		execCount := m.Executor().ExecCount()
+		execCount := exec.ExecCount()
 		assert.GreaterOrEqual(t, execCount, 1, "Shanghai robot should trigger")
 		// New York robot should not trigger (it's 20:00 in NY)
 	})
@@ -548,17 +537,13 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		mgr := manager.NewWithConfig(config)
+		mgr, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err = mgr.Start()
 		require.NoError(t, err)
 		defer mgr.Stop()
 
-		mgr.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at matching time
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -569,7 +554,7 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(200 * time.Millisecond)
-		assert.Equal(t, 0, mgr.Executor().ExecCount(), "Clock disabled robot should not trigger")
+		assert.Equal(t, 0, exec.ExecCount(), "Clock disabled robot should not trigger")
 	})
 
 	t.Run("paused robot is skipped", func(t *testing.T) {
@@ -606,17 +591,13 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		mgr := manager.NewWithConfig(config)
+		mgr, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err = mgr.Start()
 		require.NoError(t, err)
 		defer mgr.Stop()
 
-		mgr.Executor().Reset()
+		exec.Reset()
 
 		// Trigger at matching time
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -627,7 +608,7 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 
 		time.Sleep(200 * time.Millisecond)
-		assert.Equal(t, 0, mgr.Executor().ExecCount(), "Paused robot should not trigger")
+		assert.Equal(t, 0, exec.ExecCount(), "Paused robot should not trigger")
 	})
 
 	t.Run("robot without clock config is skipped", func(t *testing.T) {
@@ -660,24 +641,20 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		})
 		require.NoError(t, err)
 
-		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
-			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 20},
-		}
-		mgr := manager.NewWithConfig(config)
+		mgr, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
 
 		err = mgr.Start()
 		require.NoError(t, err)
 		defer mgr.Stop()
 
-		mgr.Executor().Reset()
+		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
 		err = mgr.Tick(ctx, time.Now())
 		assert.NoError(t, err)
 
 		time.Sleep(200 * time.Millisecond)
-		assert.Equal(t, 0, mgr.Executor().ExecCount(), "Robot without clock config should not trigger")
+		assert.Equal(t, 0, exec.ExecCount(), "Robot without clock config should not trigger")
 	})
 }
 

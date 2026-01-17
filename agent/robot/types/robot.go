@@ -149,6 +149,16 @@ type Execution struct {
 	robot  *Robot             `json:"-"`
 }
 
+// GetRobot returns the robot associated with this execution
+func (e *Execution) GetRobot() *Robot {
+	return e.robot
+}
+
+// SetRobot sets the robot associated with this execution
+func (e *Execution) SetRobot(robot *Robot) {
+	e.robot = robot
+}
+
 // TriggerInput - stored trigger input for traceability
 type TriggerInput struct {
 	// For human intervention
@@ -172,7 +182,7 @@ type CurrentState struct {
 	Progress  string `json:"progress,omitempty"` // human-readable progress (e.g., "2/5 tasks")
 }
 
-// Goals - P1 output (markdown for LLM)
+// Goals - P1 output (markdown for LLM + structured metadata)
 // P1 Agent reads InspirationReport and generates goals as markdown
 // Example:
 // ## Goals
@@ -186,6 +196,18 @@ type CurrentState struct {
 //   - Reason: 3 pending leads from yesterday
 type Goals struct {
 	Content string `json:"content"` // markdown text
+
+	// Delivery for P4 (where to send results)
+	Delivery *DeliveryTarget `json:"delivery,omitempty"`
+}
+
+// DeliveryTarget - where to deliver results (defined in P1, used in P4)
+type DeliveryTarget struct {
+	Type       DeliveryType           `json:"type"`                 // email | webhook | report | notification
+	Recipients []string               `json:"recipients,omitempty"` // email addresses, webhook URLs, user IDs
+	Format     string                 `json:"format,omitempty"`     // markdown | html | json | text
+	Template   string                 `json:"template,omitempty"`   // template name or inline template
+	Options    map[string]interface{} `json:"options,omitempty"`    // channel-specific options
 }
 
 // Task - planned task (structured, for execution)
@@ -200,6 +222,12 @@ type Task struct {
 	ExecutorID   string       `json:"executor_id"`
 	Args         []any        `json:"args,omitempty"`
 
+	// Validation (defined in P2, used in P3)
+	// ExpectedOutput describes what the task should produce (for LLM semantic validation)
+	ExpectedOutput string `json:"expected_output,omitempty"` // e.g., "JSON with sales_total, growth_rate fields"
+	// ValidationRules are specific checks to perform (can be semantic or structural)
+	ValidationRules []string `json:"validation_rules,omitempty"` // e.g., ["output must be valid JSON", "sales_total > 0"]
+
 	// Runtime
 	Status    TaskStatus `json:"status"`
 	Order     int        `json:"order"` // execution order (0-based)
@@ -209,20 +237,34 @@ type Task struct {
 
 // TaskResult - task execution result
 type TaskResult struct {
-	TaskID    string      `json:"task_id"`
-	Success   bool        `json:"success"`
-	Output    interface{} `json:"output,omitempty"`
-	Error     string      `json:"error,omitempty"`
-	Duration  int64       `json:"duration_ms"`
-	Validated bool        `json:"validated"`
+	TaskID   string      `json:"task_id"`
+	Success  bool        `json:"success"`
+	Output   interface{} `json:"output,omitempty"`
+	Error    string      `json:"error,omitempty"`
+	Duration int64       `json:"duration_ms"`
+
+	// Validation result (populated by P3)
+	Validation *ValidationResult `json:"validation,omitempty"`
 }
 
-// DeliveryResult - delivery output
+// ValidationResult - P3 semantic validation result
+type ValidationResult struct {
+	Passed      bool     `json:"passed"`                // overall validation passed
+	Score       float64  `json:"score,omitempty"`       // 0-1 confidence score
+	Issues      []string `json:"issues,omitempty"`      // what failed
+	Suggestions []string `json:"suggestions,omitempty"` // how to improve
+	Details     string   `json:"details,omitempty"`     // detailed validation report (markdown)
+}
+
+// DeliveryResult - P4 delivery output
 type DeliveryResult struct {
-	Type    DeliveryType `json:"type"`
-	Success bool         `json:"success"`
-	Details interface{}  `json:"details,omitempty"`
-	Error   string       `json:"error,omitempty"`
+	Type       DeliveryType `json:"type"`
+	Success    bool         `json:"success"`
+	Recipients []string     `json:"recipients,omitempty"` // who received
+	Content    string       `json:"content,omitempty"`    // formatted content that was delivered
+	Details    interface{}  `json:"details,omitempty"`    // channel-specific response
+	Error      string       `json:"error,omitempty"`
+	SentAt     *time.Time   `json:"sent_at,omitempty"`
 }
 
 // LearningEntry - knowledge to save

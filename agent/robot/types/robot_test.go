@@ -2,6 +2,7 @@ package types_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/agent/robot/types"
@@ -397,6 +398,9 @@ func TestTaskStructure(t *testing.T) {
 		ExecutorID:   "assistant1",
 		Status:       types.TaskPending,
 		Order:        0,
+		// P3 validation fields
+		ExpectedOutput:  "JSON with sales_total and growth_rate fields",
+		ValidationRules: []string{"sales_total > 0", "growth_rate is a percentage"},
 	}
 
 	assert.Equal(t, "task1", task.ID)
@@ -406,46 +410,101 @@ func TestTaskStructure(t *testing.T) {
 	assert.Equal(t, "assistant1", task.ExecutorID)
 	assert.Equal(t, types.TaskPending, task.Status)
 	assert.Equal(t, 0, task.Order)
+	// Validation fields
+	assert.Contains(t, task.ExpectedOutput, "sales_total")
+	assert.Len(t, task.ValidationRules, 2)
 }
 
 func TestGoalsStructure(t *testing.T) {
 	goals := &types.Goals{
 		Content: "## Goals\n1. [High] Complete project\n2. [Normal] Review code",
+		Delivery: &types.DeliveryTarget{
+			Type:       types.DeliveryEmail,
+			Recipients: []string{"team@example.com"},
+			Format:     "markdown",
+		},
 	}
 
 	assert.Contains(t, goals.Content, "Goals")
 	assert.Contains(t, goals.Content, "Complete project")
+	assert.NotNil(t, goals.Delivery)
+	assert.Equal(t, types.DeliveryEmail, goals.Delivery.Type)
 }
 
 func TestTaskResultStructure(t *testing.T) {
 	result := &types.TaskResult{
-		TaskID:    "task1",
-		Success:   true,
-		Output:    "Task completed successfully",
-		Duration:  1500,
-		Validated: true,
+		TaskID:   "task1",
+		Success:  true,
+		Output:   "Task completed successfully",
+		Duration: 1500,
+		Validation: &types.ValidationResult{
+			Passed: true,
+			Score:  0.98,
+		},
 	}
 
 	assert.Equal(t, "task1", result.TaskID)
 	assert.True(t, result.Success)
 	assert.Equal(t, "Task completed successfully", result.Output)
 	assert.Equal(t, int64(1500), result.Duration)
-	assert.True(t, result.Validated)
+	assert.NotNil(t, result.Validation)
+	assert.True(t, result.Validation.Passed)
+	assert.Equal(t, 0.98, result.Validation.Score)
+}
+
+func TestValidationResultStructure(t *testing.T) {
+	validation := &types.ValidationResult{
+		Passed:      false,
+		Score:       0.45,
+		Issues:      []string{"Missing required field: sales_total", "Growth rate is negative"},
+		Suggestions: []string{"Add sales_total calculation", "Verify data source"},
+		Details:     "Detailed validation report...",
+	}
+
+	assert.False(t, validation.Passed)
+	assert.Equal(t, 0.45, validation.Score)
+	assert.Len(t, validation.Issues, 2)
+	assert.Contains(t, validation.Issues[0], "sales_total")
+	assert.Len(t, validation.Suggestions, 2)
 }
 
 func TestDeliveryResultStructure(t *testing.T) {
+	sentAt := time.Now()
 	delivery := &types.DeliveryResult{
-		Type:    types.DeliveryEmail,
-		Success: true,
+		Type:       types.DeliveryEmail,
+		Success:    true,
+		Recipients: []string{"user@example.com", "manager@example.com"},
+		Content:    "# Weekly Report\n\nSales increased by 20%...",
 		Details: map[string]interface{}{
-			"to":      "user@example.com",
-			"subject": "Daily Report",
+			"message_id": "msg-12345",
+			"subject":    "Daily Report",
 		},
+		SentAt: &sentAt,
 	}
 
 	assert.Equal(t, types.DeliveryEmail, delivery.Type)
 	assert.True(t, delivery.Success)
+	assert.Len(t, delivery.Recipients, 2)
+	assert.Contains(t, delivery.Content, "Weekly Report")
 	assert.NotNil(t, delivery.Details)
+	assert.NotNil(t, delivery.SentAt)
+}
+
+func TestDeliveryTargetStructure(t *testing.T) {
+	delivery := &types.DeliveryTarget{
+		Type:       types.DeliveryEmail,
+		Recipients: []string{"team@example.com"},
+		Format:     "markdown",
+		Template:   "weekly-report",
+		Options: map[string]interface{}{
+			"cc": []string{"manager@example.com"},
+		},
+	}
+
+	assert.Equal(t, types.DeliveryEmail, delivery.Type)
+	assert.Len(t, delivery.Recipients, 1)
+	assert.Equal(t, "markdown", delivery.Format)
+	assert.Equal(t, "weekly-report", delivery.Template)
 }
 
 func TestLearningEntryStructure(t *testing.T) {

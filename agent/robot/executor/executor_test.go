@@ -13,7 +13,7 @@ import (
 // Real integration tests are in manager_test.go and job_test.go
 
 func TestExecutorSmoke(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	robot := &types.Robot{
 		MemberID: "test-smoke",
 		TeamID:   "team-1",
@@ -38,7 +38,7 @@ func TestExecutorSmoke(t *testing.T) {
 }
 
 func TestExecutorHumanTriggerSkipsP0(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	robot := &types.Robot{
 		MemberID: "test-human",
 		TeamID:   "team-1",
@@ -58,7 +58,7 @@ func TestExecutorHumanTriggerSkipsP0(t *testing.T) {
 }
 
 func TestExecutorEventTriggerSkipsP0(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	robot := &types.Robot{
 		MemberID: "test-event",
 		TeamID:   "team-1",
@@ -74,7 +74,7 @@ func TestExecutorEventTriggerSkipsP0(t *testing.T) {
 }
 
 func TestExecutorNilRobot(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	ctx := types.NewContext(context.Background(), nil)
 
 	result, err := exec.Execute(ctx, nil, types.TriggerClock, nil)
@@ -85,7 +85,7 @@ func TestExecutorNilRobot(t *testing.T) {
 }
 
 func TestExecutorSimulatedFailure(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	robot := &types.Robot{
 		MemberID: "test-fail",
 		TeamID:   "team-1",
@@ -103,7 +103,7 @@ func TestExecutorSimulatedFailure(t *testing.T) {
 }
 
 func TestExecutorCounters(t *testing.T) {
-	exec := NewWithDelay(0)
+	exec := NewDryRunWithDelay(0)
 	robot := &types.Robot{
 		MemberID: "test-counter",
 		TeamID:   "team-1",

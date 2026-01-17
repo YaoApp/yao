@@ -7,16 +7,43 @@ import (
 
 // Config - robot_config in __yao.member
 type Config struct {
-	Triggers  *Triggers  `json:"triggers,omitempty"`
-	Clock     *Clock     `json:"clock,omitempty"`
-	Identity  *Identity  `json:"identity"`
-	Quota     *Quota     `json:"quota,omitempty"`
-	KB        *KB        `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
-	DB        *DB        `json:"db,omitempty"`    // shared database (same as assistant)
-	Learn     *Learn     `json:"learn,omitempty"` // learning config for private KB
-	Resources *Resources `json:"resources,omitempty"`
-	Delivery  *Delivery  `json:"delivery,omitempty"`
-	Events    []Event    `json:"events,omitempty"`
+	Triggers  *Triggers       `json:"triggers,omitempty"`
+	Clock     *Clock          `json:"clock,omitempty"`
+	Identity  *Identity       `json:"identity"`
+	Quota     *Quota          `json:"quota,omitempty"`
+	KB        *KB             `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
+	DB        *DB             `json:"db,omitempty"`    // shared database (same as assistant)
+	Learn     *Learn          `json:"learn,omitempty"` // learning config for private KB
+	Resources *Resources      `json:"resources,omitempty"`
+	Delivery  *Delivery       `json:"delivery,omitempty"`
+	Events    []Event         `json:"events,omitempty"`
+	Executor  *ExecutorConfig `json:"executor,omitempty"` // executor mode settings
+}
+
+// ExecutorConfig - executor settings
+type ExecutorConfig struct {
+	Mode        ExecutorMode `json:"mode,omitempty"`         // standard | dryrun | sandbox
+	MaxDuration string       `json:"max_duration,omitempty"` // max execution time (e.g., "30m")
+}
+
+// GetMode returns the executor mode (default: standard)
+func (e *ExecutorConfig) GetMode() ExecutorMode {
+	if e == nil || e.Mode == "" {
+		return ExecutorStandard
+	}
+	return e.Mode
+}
+
+// GetMaxDuration returns the max duration (default: 30m)
+func (e *ExecutorConfig) GetMaxDuration() time.Duration {
+	if e == nil || e.MaxDuration == "" {
+		return 30 * time.Minute
+	}
+	d, err := time.ParseDuration(e.MaxDuration)
+	if err != nil {
+		return 30 * time.Minute
+	}
+	return d
 }
 
 // Validate validates the config
