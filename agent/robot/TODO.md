@@ -663,60 +663,114 @@ Each phase test uses different expert combinations:
 
 ---
 
-## Phase 7: P1 Goals Implementation
+## Phase 7: P1 Goals Implementation ✅
 
 **Goal:** Implement P1 (Goal Generation Agent). P0 → P1 → stub P2-P5.
 
 **Depends on:** Phase 6 (P0 Inspiration)
 
+**Status:** COMPLETED
+
 ### 7.1 P1 Implementation
 
-- [ ] `executor/goals.go` - `RunGoals(ctx, exec, data)` - real implementation
-- [ ] `executor/goals.go` - build prompt with inspiration report
-- [ ] `executor/goals.go` - call Goals Agent
-- [ ] `executor/goals.go` - parse response to `Goals` struct
-- [ ] `executor/goals.go` - handle Human/Event trigger (skip P0, use input directly)
+- [x] `executor/goals.go` - `RunGoals(ctx, exec, data)` - real implementation
+- [x] `executor/goals.go` - build prompt with inspiration report (Clock trigger)
+- [x] `executor/goals.go` - build prompt with trigger input (Human/Event trigger)
+- [x] `executor/goals.go` - call Goals Agent using `AgentCaller`
+- [x] `executor/goals.go` - parse response to `Goals` struct (JSON with content + delivery)
+- [x] `executor/goals.go` - handle Human/Event trigger (skip P0, use input directly)
+- [x] `executor/goals.go` - include robot identity in prompt
+- [x] `executor/goals.go` - include available resources in prompt
+- [x] `executor/goals.go` - `ParseDelivery()` - parse delivery target from JSON
+- [x] `executor/goals.go` - `IsValidDeliveryType()` - validate delivery types
 
 ### 7.2 Tests
 
-- [ ] `executor/goals_test.go` - P1 with real LLM call
-- [ ] Test: inspiration report in prompt (Clock trigger)
-- [ ] Test: user input in prompt (Human trigger)
-- [ ] Test: goals markdown generated with priorities
-- [ ] Test: goals are actionable and measurable
+- [x] `executor/goals_test.go` - P1 with real LLM call (14 test cases)
+- [x] Test: inspiration report in prompt (Clock trigger)
+- [x] Test: user input in prompt (Human trigger)
+- [x] Test: event data in prompt (Event trigger)
+- [x] Test: goals markdown generated with priorities
+- [x] Test: delivery parsing from agent response
+- [x] Test: error handling (robot nil, agent not found, empty input)
+- [x] Test: fallback behavior (no inspiration → clock context)
+- [x] `ParseDelivery()` unit tests (8 test cases covering edge cases)
+- [x] `IsValidDeliveryType()` unit tests
+
+### 7.3 Notes
+
+- P1 uses `robot.goals` test agent from `yao-dev-app/assistants/robot/goals/`
+- Goals Agent returns JSON: `{ "content": "...", "delivery": {...} }`
+- Delivery is optional; if not present or invalid, `Goals.Delivery` is nil
+- Available resources (agents, MCP, KB, DB) are passed to agent for achievable goal generation
 
 ---
 
-## Phase 8: P2 Tasks Implementation
+## Phase 8: P2 Tasks Implementation ✅
 
 **Goal:** Implement P2 (Task Planning Agent). P1 → P2 → stub P3-P5.
 
 **Depends on:** Phase 7 (P1 Goals)
 
-### 8.1 P2 Implementation
+**Status:** COMPLETED
 
-- [ ] `executor/tasks.go` - `RunTasks(ctx, exec, data)` - real implementation
-- [ ] `executor/tasks.go` - build prompt with goals
-- [ ] `executor/tasks.go` - include available tools/agents in prompt
-- [ ] `executor/tasks.go` - call Tasks Agent
-- [ ] `executor/tasks.go` - parse response to `[]Task` (structured JSON)
-- [ ] `executor/tasks.go` - validate task structure
+### 8.1 Validation Agent Setup (Prerequisite for P3) ✅
 
-### 8.2 Tests
+> **Note:** Validation Agent was already set up in Phase 5.
 
-- [ ] `executor/tasks_test.go` - P2 with real LLM call
-- [ ] Test: goals included in prompt
-- [ ] Test: available tools listed in prompt
-- [ ] Test: structured tasks generated (2-3 tasks per goal)
-- [ ] Test: each task has valid executor type and ID
+- [x] `robot/validation/package.yao` - Validation Agent config (DeepSeek V3, temperature 0.2)
+- [x] `robot/validation/prompts.yml` - validation prompts
+  - Input: Task result, expected outcome, validation rules
+  - Output: Validation result (pass/fail, score, issues, suggestions)
+
+### 8.2 P2 Implementation ✅
+
+- [x] `executor/tasks.go` - `RunTasks(ctx, exec, data)` - real implementation
+- [x] `executor/tasks.go` - build prompt with goals (using `FormatGoals`)
+- [x] `executor/tasks.go` - include available tools/agents in prompt
+- [x] `executor/tasks.go` - include delivery target in prompt (for task output format)
+- [x] `executor/tasks.go` - call Tasks Agent using `AgentCaller`
+- [x] `executor/tasks.go` - parse response to `[]Task` (structured JSON)
+- [x] `executor/tasks.go` - validate task structure (executor type, ID, messages)
+- [x] `executor/tasks.go` - `ParseTasks()`, `ParseTask()`, `ParseMessages()` helpers
+- [x] `executor/tasks.go` - `SortTasksByOrder()` - ensure correct execution sequence
+- [x] `executor/tasks.go` - `ValidateExecutorExists()` - optional executor existence check
+- [x] `executor/tasks.go` - `ValidateTasksWithResources()` - validation with warnings
+- [x] `executor/input.go` - `FormatGoals()` updated to include Delivery Target
+
+### 8.3 Tests ✅
+
+- [x] `executor/tasks_test.go` - P2 with real LLM call (7 integration tests)
+- [x] Test: goals included in prompt
+- [x] Test: available tools listed in prompt
+- [x] Test: delivery target included in prompt
+- [x] Test: structured tasks generated
+- [x] Test: each task has valid executor type and ID
+- [x] Test: each task has expected output and validation rules
+- [x] `ParseTasks` unit tests (5 tests)
+- [x] `ValidateTasks` unit tests (5 tests)
+- [x] `SortTasksByOrder` unit tests (4 tests)
+- [x] `ValidateExecutorExists` unit tests (7 tests)
+- [x] `ValidateTasksWithResources` unit tests (3 tests)
+- [x] `ParseExecutorType` unit tests (5 tests)
+- [x] `IsValidExecutorType` unit tests (2 tests)
+- [x] `FormatGoals` with delivery target tests (4 tests)
+
+### 8.4 Notes
+
+- Tasks Agent returns JSON: `{ "tasks": [...] }`
+- Each task includes: id, executor_type, executor_id, messages, expected_output, validation_rules, order
+- Tasks are sorted by `order` field after parsing
+- Executor existence is optionally validated (warnings only, doesn't block)
+- Delivery target from P1 is passed to P2 so tasks can produce appropriate output format
 
 ---
 
 ## Phase 9: P3 Run Implementation
 
-**Goal:** Implement P3 (Task Execution). P2 → P3 → stub P4-P5.
+**Goal:** Implement P3 (Task Execution + Validation). P2 → P3 → stub P4-P5.
 
-**Depends on:** Phase 8 (P2 Tasks)
+**Depends on:** Phase 8 (P2 Tasks + Validation Agent)
 
 ### 9.1 Implementation
 
@@ -724,20 +778,17 @@ Each phase test uses different expert combinations:
 - [ ] `executor/run.go` - iterate tasks in order
 - [ ] `executor/run.go` - dispatch to correct executor (assistant/mcp/process)
 - [ ] `executor/run.go` - collect results with timing
-- [ ] `executor/run.go` - handle task failures gracefully
+- [ ] `executor/run.go` - call Validation Agent for each task result
+- [ ] `executor/run.go` - handle task failures gracefully (continue or abort based on config)
 - [ ] `executor/run.go` - support pause/resume during execution
 
-### 9.2 Validation Agent Setup
-
-- [ ] `robot/validation/package.yao` - Validation Agent config
-- [ ] `robot/validation/prompts.yml` - validation prompts
-
-### 9.3 Tests
+### 9.2 Tests
 
 - [ ] `executor/run_test.go` - P3 with real agent calls
 - [ ] Test: tasks executed in order
 - [ ] Test: results collected with correct structure
-- [ ] Test: task failure doesn't stop entire execution
+- [ ] Test: validation called for each task
+- [ ] Test: task failure doesn't stop entire execution (configurable)
 - [ ] Test: pause/resume works during task execution
 
 ---
@@ -976,8 +1027,8 @@ func TestWithLLM(t *testing.T) {
 | 4. Agent Infra        | ✅     | AgentCaller, InputFormatter, test assistants                                 |
 | 5. Test Scenarios     | ✅     | Phase agents (P0-P5), expert agents                                          |
 | 6. P0 Inspiration     | ✅     | Inspiration Agent integration                                                |
-| 7. P1 Goals           | ⬜     | Goal Generation Agent integration                                            |
-| 8. P2 Tasks           | ⬜     | Task Planning Agent integration                                              |
+| 7. P1 Goals           | ✅     | Goal Generation Agent integration                                            |
+| 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
 | 9. P3 Run             | ⬜     | Task execution (assistant/mcp/process)                                       |
 | 10. P4 Delivery       | ⬜     | Output delivery (email/file/webhook/notify)                                  |
 | 11. P5 Learning       | ⬜     | Learning Agent + KB save                                                     |
