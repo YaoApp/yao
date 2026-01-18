@@ -372,8 +372,9 @@ type Task struct {
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      run.go (P3 Entry)                       │
-│  - RunConfig: threshold, continue-on-failure, max-turns      │
-│  - RunExecution: main execution loop                         │
+│  - RunConfig: ContinueOnFailure, ValidationThreshold,        │
+│               MaxTurnsPerTask                                │
+│  - RunExecution: main loop with task dependency passing      │
 └─────────────────────┬───────────────────────────────────────┘
                       │
          ┌────────────┴────────────┐
@@ -381,23 +382,25 @@ type Task struct {
 ┌─────────────────┐      ┌─────────────────┐
 │   runner.go     │      │  validator.go   │
 │  - Runner       │      │  - Validator    │
-│  - Task exec    │      │  - Two-layer    │
-│  - Multi-turn   │      │  - Rule+Semantic│
-│    conversation │      │  - NeedReply    │
+│  - Multi-turn   │      │  - Two-layer    │
+│    conversation │      │  - Rule+Semantic│
+│  - Task context │      │  - NeedReply    │
+│    building     │      │  - ReplyContent │
 └────────┬────────┘      └────────┬────────┘
          │                        │
          │                        ▼
          │               ┌─────────────────┐
          │               │  yao/assert     │
-         │               │  - 8 assertion  │
-         │               │    types        │
+         │               │  - Asserter     │
+         │               │  - 8 types      │
+         │               │  - Extensible   │
          │               └─────────────────┘
          ▼
 ┌─────────────────────────────────────────┐
 │  Executor Types                          │
-│  - assistant: AI Agent (multi-turn)      │
-│  - mcp: MCP Tool (single-call)           │
-│  - process: Yao Process (single-call)    │
+│  - ExecutorAssistant → Multi-turn AI     │
+│  - ExecutorMCP → Single-call MCP tool    │
+│  - ExecutorProcess → Single-call Process │
 └─────────────────────────────────────────┘
 ```
 
