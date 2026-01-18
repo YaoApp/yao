@@ -321,6 +321,212 @@ func TestRunExecutionErrorHandling(t *testing.T) {
 	})
 }
 
+func TestRunExecutionContinueOnFailure(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	ctx := types.NewContext(context.Background(), testAuth())
+
+	t.Run("stops on first failure when ContinueOnFailure is false", func(t *testing.T) {
+		robot := createRunTestRobot(t)
+		exec := createRunTestExecution(robot)
+
+		// First task will fail (non-existent assistant), second should be skipped
+		exec.Tasks = []types.Task{
+			{
+				ID:           "task-001",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "non.existent.assistant.xyz123",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "This will fail"},
+				},
+				Order:  0,
+				Status: types.TaskPending,
+			},
+			{
+				ID:           "task-002",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "experts.text-writer",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Write a greeting"},
+				},
+				Order:  1,
+				Status: types.TaskPending,
+			},
+		}
+
+		// Use default config (ContinueOnFailure = false)
+		config := standard.DefaultRunConfig()
+		assert.False(t, config.ContinueOnFailure)
+
+		e := standard.New()
+		err := e.RunExecution(ctx, exec, config)
+
+		// Should return error
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "task-001")
+
+		// Only first task should have a result
+		assert.Len(t, exec.Results, 1)
+
+		// First task failed
+		assert.Equal(t, types.TaskFailed, exec.Tasks[0].Status)
+
+		// Second task should be skipped (not executed)
+		assert.Equal(t, types.TaskSkipped, exec.Tasks[1].Status)
+	})
+
+	t.Run("continues execution when ContinueOnFailure is true", func(t *testing.T) {
+		robot := createRunTestRobot(t)
+		exec := createRunTestExecution(robot)
+
+		// First task will fail, but second should still execute
+		exec.Tasks = []types.Task{
+			{
+				ID:           "task-001",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "non.existent.assistant.xyz123",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "This will fail"},
+				},
+				Order:  0,
+				Status: types.TaskPending,
+			},
+			{
+				ID:           "task-002",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "experts.text-writer",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Write a short greeting message"},
+				},
+				ExpectedOutput: "A greeting message",
+				Order:          1,
+				Status:         types.TaskPending,
+			},
+			{
+				ID:           "task-003",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "experts.text-writer",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Write a farewell message"},
+				},
+				ExpectedOutput: "A farewell message",
+				Order:          2,
+				Status:         types.TaskPending,
+			},
+		}
+
+		// Enable ContinueOnFailure
+		config := standard.DefaultRunConfig()
+		config.ContinueOnFailure = true
+
+		e := standard.New()
+		err := e.RunExecution(ctx, exec, config)
+
+		// Should NOT return error when ContinueOnFailure is true
+		assert.NoError(t, err)
+
+		// All tasks should have results
+		assert.Len(t, exec.Results, 3)
+
+		// First task failed
+		assert.Equal(t, types.TaskFailed, exec.Tasks[0].Status)
+		assert.False(t, exec.Results[0].Success)
+
+		// Second and third tasks should have executed and completed
+		assert.Equal(t, types.TaskCompleted, exec.Tasks[1].Status)
+		assert.True(t, exec.Results[1].Success)
+
+		assert.Equal(t, types.TaskCompleted, exec.Tasks[2].Status)
+		assert.True(t, exec.Results[2].Success)
+
+		t.Logf("Task 1 (failed): %v", exec.Results[0].Error)
+		t.Logf("Task 2 (success): %v", exec.Results[1].Output)
+		t.Logf("Task 3 (success): %v", exec.Results[2].Output)
+	})
+
+	t.Run("multiple failures with ContinueOnFailure", func(t *testing.T) {
+		robot := createRunTestRobot(t)
+		exec := createRunTestExecution(robot)
+
+		// Mix of failing and succeeding tasks
+		exec.Tasks = []types.Task{
+			{
+				ID:           "task-001",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "non.existent.assistant.1",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Fail 1"},
+				},
+				Order:  0,
+				Status: types.TaskPending,
+			},
+			{
+				ID:           "task-002",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "experts.text-writer",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Say hello"},
+				},
+				Order:  1,
+				Status: types.TaskPending,
+			},
+			{
+				ID:           "task-003",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "non.existent.assistant.2",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Fail 2"},
+				},
+				Order:  2,
+				Status: types.TaskPending,
+			},
+			{
+				ID:           "task-004",
+				ExecutorType: types.ExecutorAssistant,
+				ExecutorID:   "experts.text-writer",
+				Messages: []agentcontext.Message{
+					{Role: agentcontext.RoleUser, Content: "Say goodbye"},
+				},
+				Order:  3,
+				Status: types.TaskPending,
+			},
+		}
+
+		config := standard.DefaultRunConfig()
+		config.ContinueOnFailure = true
+
+		e := standard.New()
+		err := e.RunExecution(ctx, exec, config)
+
+		assert.NoError(t, err)
+		assert.Len(t, exec.Results, 4)
+
+		// Check status pattern: fail, success, fail, success
+		assert.Equal(t, types.TaskFailed, exec.Tasks[0].Status)
+		assert.Equal(t, types.TaskCompleted, exec.Tasks[1].Status)
+		assert.Equal(t, types.TaskFailed, exec.Tasks[2].Status)
+		assert.Equal(t, types.TaskCompleted, exec.Tasks[3].Status)
+
+		// Count successes and failures
+		successCount := 0
+		failCount := 0
+		for _, result := range exec.Results {
+			if result.Success {
+				successCount++
+			} else {
+				failCount++
+			}
+		}
+		assert.Equal(t, 2, successCount)
+		assert.Equal(t, 2, failCount)
+	})
+}
+
 func TestRunExecutionValidation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")

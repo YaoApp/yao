@@ -46,7 +46,7 @@ func DefaultRunConfig() *RunConfig {
 //  3. If validation.NeedReply, continue conversation with validation.ReplyContent
 //  4. Repeat until validation.Complete or max turns exceeded
 //  5. Pass previous task results as context to next task
-func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execution, _ interface{}) error {
+func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execution, data interface{}) error {
 	robot := exec.GetRobot()
 	if robot == nil {
 		return fmt.Errorf("robot not found in execution")
@@ -56,8 +56,13 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		return fmt.Errorf("no tasks to execute")
 	}
 
-	// Get run configuration
-	config := DefaultRunConfig()
+	// Get run configuration from data or use default
+	var config *RunConfig
+	if cfg, ok := data.(*RunConfig); ok && cfg != nil {
+		config = cfg
+	} else {
+		config = DefaultRunConfig()
+	}
 
 	// Initialize results slice
 	exec.Results = make([]robottypes.TaskResult, 0, len(exec.Tasks))
