@@ -875,7 +875,7 @@ Created new `yao/assert` package for universal assertion/validation:
 
 - [x] `yao/models/agent/execution.mod.yao` - Execution record model (`agent_execution` table)
   - [x] id, execution_id (unique)
-  - [x] robot_id, member_id, team_id, job_id
+  - [x] member_id (globally unique), team_id, job_id
   - [x] trigger_type (enum: clock, human, event)
   - [x] **Status tracking** (synced with runtime Execution):
     - [x] status (enum: pending, running, completed, failed, cancelled)
@@ -903,7 +903,12 @@ Created new `yao/assert` package for universal assertion/validation:
   - [x] `FromExecution(exec, robotID)` - convert runtime Execution to record
   - [x] `ToExecution()` - convert record to runtime Execution
 - [x] Tests: `agent/robot/store/execution_test.go` (9 test groups, all passing)
-- [ ] Integrate into Executor - call `UpdatePhase()` after each phase completes
+- [x] Integrate into Executor - call `UpdatePhase()` after each phase completes
+  - [x] Added `SkipPersistence` config option to `executor/types/Config`
+  - [x] Added `ExecutionStore` to `executor/standard/Executor`
+  - [x] Save execution record at start of `Execute()`
+  - [x] Call `UpdatePhase()` after each phase completes in `runPhase()`
+  - [x] Call `UpdateStatus()` on status changes (running, completed, failed)
 
 ### 10.2 Messenger Attachment Support ✅
 
@@ -979,8 +984,7 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`     // Robot config ID
-    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
+    MemberID    string      `json:"member_id"`    // Robot member ID (globally unique)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"` // clock | human | event
     TeamID      string      `json:"team_id"`

@@ -25,15 +25,6 @@
       "index": true
     },
     {
-      "name": "robot_id",
-      "type": "string",
-      "label": "Robot ID",
-      "comment": "Robot configuration ID (from robot_config)",
-      "length": 64,
-      "nullable": true,
-      "index": true
-    },
-    {
       "name": "member_id",
       "type": "string",
       "label": "Member ID",
@@ -197,10 +188,10 @@
       "comment": "Index for trigger type analysis"
     },
     {
-      "name": "idx_agent_execution_robot_start",
-      "columns": ["robot_id", "start_time"],
+      "name": "idx_agent_execution_member_start",
+      "columns": ["member_id", "start_time"],
       "type": "index",
-      "comment": "Index for robot execution history"
+      "comment": "Index for robot execution history by member"
     }
   ],
   "option": { "timestamps": true, "soft_deletes": false, "permission": true }

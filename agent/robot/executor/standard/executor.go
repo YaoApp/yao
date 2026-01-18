@@ -7,16 +7,19 @@ import (
 
 	"github.com/yaoapp/yao/agent/robot/executor/types"
 	"github.com/yaoapp/yao/agent/robot/job"
+	"github.com/yaoapp/yao/agent/robot/store"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
 
 // Executor implements the standard executor with real Agent calls
 // This is the production executor that:
 // - Creates Job records for tracking
+// - Persists execution history to database
 // - Calls real Agents via Assistant.Stream()
 // - Logs phase transitions and errors
 type Executor struct {
 	config       types.Config
+	store        *store.ExecutionStore
 	execCount    atomic.Int32
 	currentCount atomic.Int32
 	onStart      func()
@@ -25,13 +28,16 @@ type Executor struct {
 
 // New creates a new standard executor
 func New() *Executor {
-	return &Executor{}
+	return &Executor{
+		store: store.NewExecutionStore(),
+	}
 }
 
 // NewWithConfig creates a new standard executor with configuration
 func NewWithConfig(config types.Config) *Executor {
 	return &Executor{
 		config: config,
+		store:  store.NewExecutionStore(),
 	}
 }
 
@@ -76,6 +82,18 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	// Set robot reference for phase methods
 	exec.SetRobot(robot)
 
+	// Persist execution record to database
+	// Robot is identified by member_id (globally unique in __yao.member table)
+	if !e.config.SkipPersistence && e.store != nil {
+		record := store.FromExecution(exec)
+		if err := e.store.Save(ctx.Context, record); err != nil {
+			// Log warning but don't fail execution
+			if !e.config.SkipJobIntegration {
+				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist execution record: %v", err))
+			}
+		}
+	}
+
 	// Acquire execution slot
 	if !robot.TryAcquireSlot(exec) {
 		if !e.config.SkipJobIntegration && exec.JobID != "" {
@@ -105,6 +123,14 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 			_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to update status to running: %v", err))
 		}
 	}
+	// Persist running status
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecRunning, ""); err != nil {
+			if !e.config.SkipJobIntegration {
+				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist running status: %v", err))
+			}
+		}
+	}
 
 	// Check for simulated failure (for testing)
 	if dataStr, ok := data.(string); ok && dataStr == "simulate_failure" {
@@ -112,6 +138,10 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		exec.Error = "simulated failure"
 		if !e.config.SkipJobIntegration {
 			_ = job.FailExecution(ctx, exec, fmt.Errorf("simulated failure"))
+		}
+		// Persist failed status
+		if !e.config.SkipPersistence && e.store != nil {
+			_ = e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecFailed, "simulated failure")
 		}
 		return exec, nil
 	}
@@ -125,6 +155,10 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 			if !e.config.SkipJobIntegration {
 				_ = job.FailExecution(ctx, exec, err)
 			}
+			// Persist failed status
+			if !e.config.SkipPersistence && e.store != nil {
+				_ = e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecFailed, err.Error())
+			}
 			return exec, nil
 		}
 	}
@@ -137,6 +171,14 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	if !e.config.SkipJobIntegration {
 		if err := job.CompleteExecution(ctx, exec); err != nil {
 			_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to mark execution as completed: %v", err))
+		}
+	}
+	// Persist completed status
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecCompleted, ""); err != nil {
+			if !e.config.SkipJobIntegration {
+				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist completed status: %v", err))
+			}
 		}
 	}
 
@@ -183,6 +225,19 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 		return err
 	}
 
+	// Persist phase output to database
+	if !e.config.SkipPersistence && e.store != nil {
+		phaseData := e.getPhaseData(exec, phase)
+		if phaseData != nil {
+			if err := e.store.UpdatePhase(ctx.Context, exec.ID, phase, phaseData); err != nil {
+				// Log warning but don't fail execution
+				if !e.config.SkipJobIntegration {
+					_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist phase %s data: %v", phase, err))
+				}
+			}
+		}
+	}
+
 	if e.config.OnPhaseEnd != nil {
 		e.config.OnPhaseEnd(phase)
 	}
@@ -193,6 +248,26 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 	}
 
 	return nil
+}
+
+// getPhaseData extracts the output data for a specific phase from execution
+func (e *Executor) getPhaseData(exec *robottypes.Execution, phase robottypes.Phase) interface{} {
+	switch phase {
+	case robottypes.PhaseInspiration:
+		return exec.Inspiration
+	case robottypes.PhaseGoals:
+		return exec.Goals
+	case robottypes.PhaseTasks:
+		return exec.Tasks
+	case robottypes.PhaseRun:
+		return exec.Results
+	case robottypes.PhaseDelivery:
+		return exec.Delivery
+	case robottypes.PhaseLearning:
+		return exec.Learning
+	default:
+		return nil
+	}
 }
 
 // ExecCount returns total execution count

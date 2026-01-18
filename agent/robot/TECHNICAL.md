@@ -1237,8 +1237,7 @@ func (r *Robot) GetExecutions() []*Execution {
 // Relationship: 1 Execution = 1 job.Job
 type Execution struct {
     ID          string      `json:"id"`           // unique execution ID
-    RobotID     string      `json:"robot_id"`     // robot config ID
-    MemberID    string      `json:"member_id"`    // robot member ID (user identity)
+    MemberID    string      `json:"member_id"`    // robot member ID (globally unique)
     TeamID      string      `json:"team_id"`
     TriggerType TriggerType `json:"trigger_type"` // clock | human | event
     StartTime   time.Time   `json:"start_time"`
@@ -1426,8 +1425,7 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`     // Robot config ID
-    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
+    MemberID    string      `json:"member_id"`    // Robot member ID (globally unique)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`
@@ -2036,8 +2034,7 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`     // Robot config ID
-    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
+    MemberID    string      `json:"member_id"`    // Robot member ID (globally unique)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`
@@ -2054,7 +2051,6 @@ type DeliveryContext struct {
     "attachments": [{"title": "Report.pdf", "file": "__yao.attachment://abc123"}]
   },
   "context": {
-    "robot_id": "robot_sales_001",
     "member_id": "mem_abc123",
     "execution_id": "exec_xyz789",
     "trigger_type": "clock",
@@ -2182,7 +2178,7 @@ type DeliveryCenter struct {
 // Deliver - main entry point
 func (dc *DeliveryCenter) Deliver(ctx context.Context, req *DeliveryRequest) *DeliveryResult {
     requestID := generateID()
-    prefs := dc.getDeliveryPreferences(ctx, req.Context.RobotID)
+    prefs := dc.getDeliveryPreferences(ctx, req.Context.MemberID)
     
     var results []ChannelResult
     allSuccess := true
@@ -2355,8 +2351,7 @@ Robot execution history is stored in `__yao.agent_execution` table for UI displa
 type ExecutionRecord struct {
     ID          int64                  `json:"id,omitempty"`     // Auto-increment primary key
     ExecutionID string                 `json:"execution_id"`     // Unique execution identifier
-    RobotID     string                 `json:"robot_id"`         // Robot config ID
-    MemberID    string                 `json:"member_id"`        // Robot member ID (user identity)
+    MemberID    string                 `json:"member_id"`        // Robot member ID (globally unique)
     TeamID      string                 `json:"team_id"`          // Team ID
     JobID       string                 `json:"job_id,omitempty"` // Linked job.Job ID
     TriggerType TriggerType            `json:"trigger_type"`     // clock | human | event
@@ -2424,12 +2419,11 @@ func (s *ExecutionStore) UpdateCurrent(ctx context.Context, executionID string, 
 func (s *ExecutionStore) Delete(ctx context.Context, executionID string) error
 
 // Conversion helpers
-func FromExecution(exec *Execution, robotID string) *ExecutionRecord
+func FromExecution(exec *Execution) *ExecutionRecord
 func (r *ExecutionRecord) ToExecution() *Execution
 
 type ListOptions struct {
-    RobotID     string       // Filter by robot config ID
-    MemberID    string       // Filter by robot member ID
+    MemberID    string       // Filter by robot member ID (globally unique)
     TeamID      string       // Filter by team
     Status      ExecStatus   // Filter by status
     TriggerType TriggerType  // Filter by trigger

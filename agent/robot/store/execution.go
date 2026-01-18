@@ -15,8 +15,7 @@ import (
 type ExecutionRecord struct {
 	ID          int64             `json:"id,omitempty"`     // Auto-increment primary key
 	ExecutionID string            `json:"execution_id"`     // Unique execution identifier
-	RobotID     string            `json:"robot_id"`         // Robot config ID
-	MemberID    string            `json:"member_id"`        // Robot member ID (user identity)
+	MemberID    string            `json:"member_id"`        // Robot member ID (globally unique)
 	TeamID      string            `json:"team_id"`          // Team ID
 	JobID       string            `json:"job_id,omitempty"` // Linked job.Job ID
 	TriggerType types.TriggerType `json:"trigger_type"`     // clock | human | event
@@ -53,8 +52,7 @@ type CurrentState struct {
 
 // ListOptions - options for listing execution records
 type ListOptions struct {
-	RobotID     string            `json:"robot_id,omitempty"`
-	MemberID    string            `json:"member_id,omitempty"`
+	MemberID    string            `json:"member_id,omitempty"` // Filter by robot member ID
 	TeamID      string            `json:"team_id,omitempty"`
 	Status      types.ExecStatus  `json:"status,omitempty"`
 	TriggerType types.TriggerType `json:"trigger_type,omitempty"`
@@ -146,9 +144,6 @@ func (s *ExecutionStore) List(ctx context.Context, opts *ListOptions) ([]*Execut
 	// Build where conditions
 	var wheres []model.QueryWhere
 	if opts != nil {
-		if opts.RobotID != "" {
-			wheres = append(wheres, model.QueryWhere{Column: "robot_id", Value: opts.RobotID})
-		}
 		if opts.MemberID != "" {
 			wheres = append(wheres, model.QueryWhere{Column: "member_id", Value: opts.MemberID})
 		}
@@ -349,9 +344,6 @@ func (s *ExecutionStore) recordToMap(record *ExecutionRecord) map[string]interfa
 		"phase":        string(record.Phase),
 	}
 
-	if record.RobotID != "" {
-		data["robot_id"] = record.RobotID
-	}
 	if record.JobID != "" {
 		data["job_id"] = record.JobID
 	}
@@ -409,9 +401,6 @@ func (s *ExecutionStore) mapToRecord(row map[string]interface{}) (*ExecutionReco
 	}
 	if v, ok := row["execution_id"].(string); ok {
 		record.ExecutionID = v
-	}
-	if v, ok := row["robot_id"].(string); ok {
-		record.RobotID = v
 	}
 	if v, ok := row["member_id"].(string); ok {
 		record.MemberID = v
@@ -640,10 +629,9 @@ func (s *ExecutionStore) parseTime(v interface{}) *time.Time {
 }
 
 // FromExecution creates an ExecutionRecord from a runtime Execution
-func FromExecution(exec *types.Execution, robotID string) *ExecutionRecord {
+func FromExecution(exec *types.Execution) *ExecutionRecord {
 	record := &ExecutionRecord{
 		ExecutionID: exec.ID,
-		RobotID:     robotID,
 		MemberID:    exec.MemberID,
 		TeamID:      exec.TeamID,
 		JobID:       exec.JobID,

@@ -504,7 +504,7 @@ P4 generates delivery content and pushes to Delivery Center. **Agent only genera
 ┌─────────────────────────────────────────────────────────────┐
 │              DeliveryRequest                                 │
 │  - Content: Summary, Body, Attachments                       │
-│  - Context: robot_id, member_id, execution_id, trigger, team│
+│  - Context: member_id, execution_id, trigger, team           │
 │  (No Channels - Delivery Center decides)                     │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -554,8 +554,7 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`     // Robot config ID
-    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
+    MemberID    string      `json:"member_id"`    // Robot member ID (globally unique)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`

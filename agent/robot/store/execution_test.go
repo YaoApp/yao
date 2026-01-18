@@ -33,7 +33,6 @@ func TestExecutionStoreSave(t *testing.T) {
 		startTime := time.Now()
 		record := &store.ExecutionRecord{
 			ExecutionID: "exec_test_save_001",
-			RobotID:     "robot_config_001",
 			MemberID:    "member_test_001",
 			TeamID:      "team_test_001",
 			JobID:       "job_test_001",
@@ -52,7 +51,6 @@ func TestExecutionStoreSave(t *testing.T) {
 		require.NotNil(t, saved)
 
 		assert.Equal(t, "exec_test_save_001", saved.ExecutionID)
-		assert.Equal(t, "robot_config_001", saved.RobotID)
 		assert.Equal(t, "member_test_001", saved.MemberID)
 		assert.Equal(t, "team_test_001", saved.TeamID)
 		assert.Equal(t, "job_test_001", saved.JobID)
@@ -68,7 +66,6 @@ func TestExecutionStoreSave(t *testing.T) {
 		startTime := time.Now()
 		record := &store.ExecutionRecord{
 			ExecutionID: "exec_test_save_002",
-			RobotID:     "robot_config_002",
 			MemberID:    "member_test_002",
 			TeamID:      "team_test_002",
 			TriggerType: types.TriggerHuman,
@@ -124,7 +121,6 @@ func TestExecutionStoreGet(t *testing.T) {
 		require.NotNil(t, record)
 
 		assert.Equal(t, "exec_test_get_001", record.ExecutionID)
-		assert.Equal(t, "robot_config_get", record.RobotID)
 		assert.Equal(t, "member_test_get", record.MemberID)
 		assert.Equal(t, "team_test_get", record.TeamID)
 		assert.Equal(t, types.TriggerClock, record.TriggerType)
@@ -181,17 +177,6 @@ func TestExecutionStoreList(t *testing.T) {
 		assert.Equal(t, 2, len(records))
 		for _, r := range records {
 			assert.Equal(t, "member_list_001", r.MemberID)
-		}
-	})
-
-	t.Run("filters_by_robot_id", func(t *testing.T) {
-		records, err := s.List(ctx, &store.ListOptions{
-			RobotID: "robot_list_001",
-		})
-		require.NoError(t, err)
-		assert.Equal(t, 2, len(records))
-		for _, r := range records {
-			assert.Equal(t, "robot_list_001", r.RobotID)
 		}
 	})
 
@@ -269,7 +254,6 @@ func TestExecutionStoreUpdatePhase(t *testing.T) {
 	startTime := time.Now()
 	record := &store.ExecutionRecord{
 		ExecutionID: "exec_test_phase_001",
-		RobotID:     "robot_phase_001",
 		MemberID:    "member_phase_001",
 		TeamID:      "team_phase_001",
 		TriggerType: types.TriggerClock,
@@ -611,10 +595,9 @@ func TestExecutionRecordConversion(t *testing.T) {
 			},
 		}
 
-		record := store.FromExecution(exec, "robot_convert_001")
+		record := store.FromExecution(exec)
 
 		assert.Equal(t, "exec_convert_001", record.ExecutionID)
-		assert.Equal(t, "robot_convert_001", record.RobotID)
 		assert.Equal(t, "member_convert_001", record.MemberID)
 		assert.Equal(t, "team_convert_001", record.TeamID)
 		assert.Equal(t, "job_convert_001", record.JobID)
@@ -636,7 +619,6 @@ func TestExecutionRecordConversion(t *testing.T) {
 		endTime := now.Add(time.Hour)
 		record := &store.ExecutionRecord{
 			ExecutionID: "exec_convert_002",
-			RobotID:     "robot_convert_002",
 			MemberID:    "member_convert_002",
 			TeamID:      "team_convert_002",
 			JobID:       "job_convert_002",
@@ -702,7 +684,6 @@ func setupTestExecution(t *testing.T, s *store.ExecutionStore, ctx context.Conte
 
 	record := &store.ExecutionRecord{
 		ExecutionID: "exec_test_get_001",
-		RobotID:     "robot_config_get",
 		MemberID:    "member_test_get",
 		TeamID:      "team_test_get",
 		JobID:       "job_test_get",
@@ -743,7 +724,6 @@ func setupTestExecutionsForList(t *testing.T, s *store.ExecutionStore, ctx conte
 	records := []*store.ExecutionRecord{
 		{
 			ExecutionID: "exec_test_list_001",
-			RobotID:     "robot_list_001",
 			MemberID:    "member_list_001",
 			TeamID:      "team_list_001",
 			TriggerType: types.TriggerClock,
@@ -753,7 +733,6 @@ func setupTestExecutionsForList(t *testing.T, s *store.ExecutionStore, ctx conte
 		},
 		{
 			ExecutionID: "exec_test_list_002",
-			RobotID:     "robot_list_001",
 			MemberID:    "member_list_001",
 			TeamID:      "team_list_001",
 			TriggerType: types.TriggerClock,
@@ -763,7 +742,6 @@ func setupTestExecutionsForList(t *testing.T, s *store.ExecutionStore, ctx conte
 		},
 		{
 			ExecutionID: "exec_test_list_003",
-			RobotID:     "robot_list_002",
 			MemberID:    "member_list_002",
 			TeamID:      "team_list_001",
 			TriggerType: types.TriggerHuman,
@@ -773,7 +751,6 @@ func setupTestExecutionsForList(t *testing.T, s *store.ExecutionStore, ctx conte
 		},
 		{
 			ExecutionID: "exec_test_list_004",
-			RobotID:     "robot_list_002",
 			MemberID:    "member_list_002",
 			TeamID:      "team_list_002",
 			TriggerType: types.TriggerEvent,
