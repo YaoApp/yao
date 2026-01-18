@@ -262,7 +262,7 @@ Human/Event:       P1 → P2 → P3 → P4 → P5
 | P1    | Goal Gen    | Report + history    | Goals           | Always     |
 | P2    | Task Plan   | Goals + tools       | Tasks           | Always     |
 | P3    | Run + Valid | Tasks + Experts     | TaskResults     | Always     |
-| P4    | Delivery    | All results         | Email/Webhook   | Always     |
+| P4    | Delivery    | All results         | Email/Webhook/Process | Always |
 | P5    | Learning    | Summary             | KB entries      | Always     |
 
 ### 4.2 P0: Inspiration (Clock only)
@@ -514,7 +514,7 @@ P4 generates delivery content and pushes to Delivery Center. **Agent only genera
 │  Role:                                                       │
 │  1. Read Robot/User delivery preferences                     │
 │  2. Decide which channels to use                             │
-│  3. Execute delivery (email, webhook)                        │
+│  3. Execute delivery (email, webhook, process)               │
 │  4. Future: auto-notify based on user subscriptions          │
 │                                                              │
 │  (Current: internal, future: yao/delivery)                   │
@@ -571,11 +571,12 @@ Attachments use the standard `yao/attachment` wrapper format:
 
 **Delivery Channels (Delivery Center decides):**
 
-| Channel | Description | When |
-|---------|-------------|------|
-| `email` | Send via yao/messenger | If configured in preferences |
-| `webhook` | POST to URL (Slack, 飞书, etc.) | If configured, every execution |
-| `notify` | In-app push notification | Based on user subscriptions (future) |
+| Channel | Description | Multiple Targets |
+|---------|-------------|------------------|
+| `email` | Send via yao/messenger | ✅ Multiple recipients/emails |
+| `webhook` | POST to external URL | ✅ Multiple URLs |
+| `process` | Yao Process call | ✅ Multiple processes |
+| `notify` | In-app notification | Future (auto by subscriptions) |
 
 **Delivery Agent:**
 
@@ -625,12 +626,13 @@ type DeliveryResult struct {
     Error     string           `json:"error,omitempty"`
 }
 
-// ChannelResult - result for a single channel
+// ChannelResult - result for a single delivery target
 type ChannelResult struct {
-    Type       DeliveryType `json:"type"`
+    Type       DeliveryType `json:"type"`                 // email | webhook | process | notify
+    Target     string       `json:"target,omitempty"`     // Target identifier
     Success    bool         `json:"success"`
     Recipients []string     `json:"recipients,omitempty"` // For email
-    Details    interface{}  `json:"details,omitempty"`
+    Details    interface{}  `json:"details,omitempty"`    // Channel-specific response
     Error      string       `json:"error,omitempty"`
     SentAt     *time.Time   `json:"sent_at,omitempty"`
 }
@@ -638,21 +640,44 @@ type ChannelResult struct {
 
 **Config (Delivery Preferences):**
 
-Robot config defines delivery **preferences** (Delivery Center reads and executes):
+Robot config defines delivery **preferences** (Delivery Center reads and executes).
+Each channel supports **multiple targets**:
 
 ```yaml
 delivery:
   preferences:
     email:
       enabled: true
-      to: ["manager@company.com"]
-      cc: ["team@company.com"]
+      targets:  # Multiple email targets
+        - to: ["manager@company.com"]
+          cc: ["team@company.com"]
+        - to: ["ceo@company.com"]
+          subject_template: "Executive Summary"
+    
     webhook:
       enabled: true
-      url: "https://slack.com/webhook/reports"
-      # Every execution pushes to webhook automatically
+      targets:  # Multiple webhook URLs
+        - url: "https://slack.com/webhook/sales"
+        - url: "https://feishu.cn/webhook/reports"
+          headers: {"X-Custom": "value"}
+    
+    process:
+      enabled: true
+      targets:  # Multiple Yao Process calls
+        - name: "orders.UpdateStatus"
+          args: ["completed"]
+        - name: "audit.LogDelivery"
+
 # Note: notify handled by Delivery Center based on user subscriptions (future)
 ```
+
+**Use Cases:**
+
+| Scenario | Channels | Description |
+|----------|----------|-------------|
+| Event callback | `process` | DB change → Robot → Update data via Process |
+| Multi-channel notify | `email` + `webhook` | Send to multiple emails and Slack/飞书 |
+| Data pipeline | `process` | Robot result → Save to DB → Update dashboard |
 
 ### 4.7 P5: Learn
 
@@ -680,7 +705,7 @@ type Config struct {
     DB        *DB        `json:"db,omitempty"`        // shared DB (same as assistant)
     Learn     *Learn     `json:"learn,omitempty"`     // learning for private KB
     Resources *Resources `json:"resources"`
-    Delivery  *Delivery  `json:"delivery"`
+    Delivery  *DeliveryPreferences `json:"delivery,omitempty"`
     Events    []Event    `json:"events,omitempty"`
     Executor  *Executor  `json:"executor,omitempty"`  // executor mode settings
 }
@@ -721,7 +746,8 @@ type DeliveryType string
 
 const (
     DeliveryEmail   DeliveryType = "email"   // Email via yao/messenger
-    DeliveryWebhook DeliveryType = "webhook" // POST to URL
+    DeliveryWebhook DeliveryType = "webhook" // POST to external URL
+    DeliveryProcess DeliveryType = "process" // Yao Process call
     DeliveryNotify  DeliveryType = "notify"  // In-app notification (future)
 )
 
@@ -815,10 +841,44 @@ type MCP struct {
     Tools []string `json:"tools,omitempty"` // empty = all
 }
 
-// Delivery
-type Delivery struct {
-    Type DeliveryType           `json:"type"`
-    Opts map[string]interface{} `json:"opts"`
+// DeliveryPreferences - Robot delivery preferences (read by Delivery Center)
+// Each channel supports multiple targets
+type DeliveryPreferences struct {
+    Email   *EmailPreference   `json:"email,omitempty"`
+    Webhook *WebhookPreference `json:"webhook,omitempty"`
+    Process *ProcessPreference `json:"process,omitempty"`
+    // notify is handled automatically based on user subscriptions
+}
+
+type EmailPreference struct {
+    Enabled bool          `json:"enabled"`
+    Targets []EmailTarget `json:"targets"`
+}
+
+type EmailTarget struct {
+    To              []string `json:"to"`
+    CC              []string `json:"cc,omitempty"`
+    SubjectTemplate string   `json:"subject_template,omitempty"`
+}
+
+type WebhookPreference struct {
+    Enabled bool            `json:"enabled"`
+    Targets []WebhookTarget `json:"targets"`
+}
+
+type WebhookTarget struct {
+    URL     string            `json:"url"`
+    Headers map[string]string `json:"headers,omitempty"`
+}
+
+type ProcessPreference struct {
+    Enabled bool            `json:"enabled"`
+    Targets []ProcessTarget `json:"targets"`
+}
+
+type ProcessTarget struct {
+    Name string `json:"name"` // Process name, e.g., "orders.UpdateStatus"
+    Args []any  `json:"args,omitempty"`
 }
 
 // ExecutorMode - executor mode enum

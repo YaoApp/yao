@@ -855,7 +855,8 @@ type DeliveryType string
 
 const (
     DeliveryEmail   DeliveryType = "email"   // Email via yao/messenger
-    DeliveryWebhook DeliveryType = "webhook" // POST to URL
+    DeliveryWebhook DeliveryType = "webhook" // POST to external URL
+    DeliveryProcess DeliveryType = "process" // Yao Process call
     DeliveryNotify  DeliveryType = "notify"  // In-app notification (future)
 )
 
@@ -953,7 +954,7 @@ type Config struct {
     DB        *DB        `json:"db,omitempty"`        // shared database (same as assistant)
     Learn     *Learn     `json:"learn,omitempty"`     // learning config for private KB
     Resources *Resources `json:"resources,omitempty"`
-    Delivery  *Delivery  `json:"delivery,omitempty"`
+    Delivery  *DeliveryPreferences `json:"delivery,omitempty"` // see section 6.2
     Events    []Event    `json:"events,omitempty"`
 }
 
@@ -1133,11 +1134,7 @@ type MCPConfig struct {
     Tools []string `json:"tools,omitempty"` // empty = all
 }
 
-// Delivery - output delivery
-type Delivery struct {
-    Type DeliveryType           `json:"type"`
-    Opts map[string]interface{} `json:"opts,omitempty"`
-}
+// Note: Delivery preferences moved to DeliveryPreferences (see section 6.2)
 
 // Event - event trigger config
 type Event struct {
@@ -1435,22 +1432,46 @@ type DeliveryContext struct {
 }
 
 // DeliveryPreferences - Robot/User delivery preferences (read by Delivery Center)
+// Each channel supports multiple targets
 type DeliveryPreferences struct {
     Email   *EmailPreference   `json:"email,omitempty"`
     Webhook *WebhookPreference `json:"webhook,omitempty"`
+    Process *ProcessPreference `json:"process,omitempty"`
     // notify is handled automatically based on user subscriptions
 }
 
+// EmailPreference - multiple email targets
 type EmailPreference struct {
-    Enabled bool     `json:"enabled"`
-    To      []string `json:"to"`
-    CC      []string `json:"cc,omitempty"`
+    Enabled bool          `json:"enabled"`
+    Targets []EmailTarget `json:"targets"`
 }
 
+type EmailTarget struct {
+    To              []string `json:"to"`
+    CC              []string `json:"cc,omitempty"`
+    SubjectTemplate string   `json:"subject_template,omitempty"` // Optional, default: content.Summary
+}
+
+// WebhookPreference - multiple webhook targets
 type WebhookPreference struct {
-    Enabled bool   `json:"enabled"`
-    URL     string `json:"url"`
-    // If enabled, every execution pushes automatically
+    Enabled bool            `json:"enabled"`
+    Targets []WebhookTarget `json:"targets"`
+}
+
+type WebhookTarget struct {
+    URL     string            `json:"url"`
+    Headers map[string]string `json:"headers,omitempty"`
+}
+
+// ProcessPreference - multiple Yao Process targets
+type ProcessPreference struct {
+    Enabled bool            `json:"enabled"`
+    Targets []ProcessTarget `json:"targets"`
+}
+
+type ProcessTarget struct {
+    Name string `json:"name"` // Process name, e.g., "orders.UpdateStatus"
+    Args []any  `json:"args,omitempty"` // Additional args (DeliveryContent passed as first arg)
 }
 
 // DeliveryResult - P4 delivery output (returned by Delivery Center)
@@ -1462,9 +1483,10 @@ type DeliveryResult struct {
     Error     string           `json:"error,omitempty"`    // Overall error if any
 }
 
-// ChannelResult - result for a single delivery channel
+// ChannelResult - result for a single delivery target
 type ChannelResult struct {
-    Type       DeliveryType `json:"type"`                 // email | webhook | notify
+    Type       DeliveryType `json:"type"`                 // email | webhook | process | notify
+    Target     string       `json:"target,omitempty"`     // Target identifier (email, URL, process name)
     Success    bool         `json:"success"`
     Recipients []string     `json:"recipients,omitempty"` // Who received (for email)
     Details    interface{}  `json:"details,omitempty"`    // Channel-specific response
@@ -2040,25 +2062,29 @@ type DeliveryContext struct {
 
 **Channel Decision by Delivery Center:**
 
-Delivery Center reads Robot/User preferences and decides channels:
+Delivery Center reads Robot/User preferences and executes delivery to all enabled targets:
 
 ```go
-// DeliveryPreferences - from Robot config
+// DeliveryPreferences - from Robot config (each channel supports multiple targets)
 type DeliveryPreferences struct {
     Email   *EmailPreference   `json:"email,omitempty"`
     Webhook *WebhookPreference `json:"webhook,omitempty"`
+    Process *ProcessPreference `json:"process,omitempty"`
 }
 
 type EmailPreference struct {
-    Enabled bool     `json:"enabled"`
-    To      []string `json:"to"`
-    CC      []string `json:"cc,omitempty"`
+    Enabled bool          `json:"enabled"`
+    Targets []EmailTarget `json:"targets"` // Multiple email targets
 }
 
 type WebhookPreference struct {
-    Enabled bool   `json:"enabled"`
-    URL     string `json:"url"`
-    // If enabled, every execution pushes automatically
+    Enabled bool            `json:"enabled"`
+    Targets []WebhookTarget `json:"targets"` // Multiple webhook URLs
+}
+
+type ProcessPreference struct {
+    Enabled bool            `json:"enabled"`
+    Targets []ProcessTarget `json:"targets"` // Multiple Yao Process calls
 }
 ```
 
@@ -2139,57 +2165,59 @@ The agent focuses on content generation:
 
 ### 6.5 Delivery Center
 
-The Delivery Center receives `DeliveryRequest`, **decides channels based on preferences**, and executes delivery.
+The Delivery Center receives `DeliveryRequest`, reads preferences, and executes delivery to **all enabled targets**.
 
 **Current implementation:** Internal to P4 (in `executor/delivery.go`)
 **Future:** Can be extracted to standalone `yao/delivery` package
 
 ```go
-// DeliveryCenter - handles channel decision and delivery execution
+// DeliveryCenter - handles delivery execution to multiple targets
 type DeliveryCenter struct {
-    handlers map[DeliveryType]ChannelHandler
-}
-
-// ChannelHandler - interface for channel implementations
-type ChannelHandler interface {
-    Deliver(ctx context.Context, content *DeliveryContent, opts map[string]interface{}) (*ChannelResult, error)
+    messenger *messenger.Manager
 }
 
 // Deliver - main entry point
 func (dc *DeliveryCenter) Deliver(ctx context.Context, req *DeliveryRequest) *DeliveryResult {
     requestID := generateID()
-    
-    // 1. Get Robot/User delivery preferences
     prefs := dc.getDeliveryPreferences(ctx, req.Context.RobotID)
     
-    // 2. Decide channels based on preferences
-    channels := dc.decideChannels(prefs)
-    
-    // 3. Execute delivery to each channel
     var results []ChannelResult
     allSuccess := true
     
-    for _, ch := range channels {
-        handler, ok := dc.handlers[ch.Type]
-        if !ok {
-            results = append(results, ChannelResult{
-                Type:    ch.Type,
-                Success: false,
-                Error:   fmt.Sprintf("unsupported channel: %s", ch.Type),
-            })
-            allSuccess = false
-            continue
+    // Email - send to all targets
+    if prefs.Email != nil && prefs.Email.Enabled {
+        for _, target := range prefs.Email.Targets {
+            result := dc.sendEmail(ctx, req.Content, target)
+            results = append(results, result)
+            if !result.Success {
+                allSuccess = false
+            }
         }
-        
-        result, err := handler.Deliver(ctx, req.Content, ch.Options)
-        if err != nil {
-            result = &ChannelResult{Type: ch.Type, Success: false, Error: err.Error()}
-            allSuccess = false
-        }
-        results = append(results, *result)
     }
     
-    // 4. Future: check user subscriptions and send notifications
+    // Webhook - POST to all targets
+    if prefs.Webhook != nil && prefs.Webhook.Enabled {
+        for _, target := range prefs.Webhook.Targets {
+            result := dc.postWebhook(ctx, req.Content, target)
+            results = append(results, result)
+            if !result.Success {
+                allSuccess = false
+            }
+        }
+    }
+    
+    // Process - call all targets
+    if prefs.Process != nil && prefs.Process.Enabled {
+        for _, target := range prefs.Process.Targets {
+            result := dc.callProcess(ctx, req.Content, target)
+            results = append(results, result)
+            if !result.Success {
+                allSuccess = false
+            }
+        }
+    }
+    
+    // Future: auto-notify based on user subscriptions
     // dc.sendNotifications(ctx, req)
     
     return &DeliveryResult{
@@ -2199,40 +2227,15 @@ func (dc *DeliveryCenter) Deliver(ctx context.Context, req *DeliveryRequest) *De
         Results:   results,
     }
 }
-
-// decideChannels - decide which channels to use based on preferences
-func (dc *DeliveryCenter) decideChannels(prefs *DeliveryPreferences) []channelWithOpts {
-    var channels []channelWithOpts
-    
-    if prefs.Email != nil && prefs.Email.Enabled {
-        channels = append(channels, channelWithOpts{
-            Type:    DeliveryEmail,
-            Options: map[string]interface{}{"to": prefs.Email.To, "cc": prefs.Email.CC},
-        })
-    }
-    
-    if prefs.Webhook != nil && prefs.Webhook.Enabled {
-        channels = append(channels, channelWithOpts{
-            Type:    DeliveryWebhook,
-            Options: map[string]interface{}{"url": prefs.Webhook.URL},
-        })
-    }
-    
-    return channels
-}
 ```
 
 ### 6.6 Channel Handlers
 
-Each delivery channel has a dedicated handler implementing `ChannelHandler`:
+Each delivery channel is handled by dedicated methods in DeliveryCenter:
 
 ```go
-// EmailHandler - uses yao/messenger
-type EmailHandler struct {
-    messenger *messenger.Manager
-}
-
-func (h *EmailHandler) Deliver(ctx context.Context, content *DeliveryContent, opts map[string]interface{}) (*ChannelResult, error) {
+// sendEmail - send to a single email target
+func (dc *DeliveryCenter) sendEmail(ctx context.Context, content *DeliveryContent, target EmailTarget) ChannelResult {
     // Convert attachments to messenger format
     var attachments []messenger.Attachment
     for _, att := range content.Attachments {
@@ -2248,50 +2251,87 @@ func (h *EmailHandler) Deliver(ctx context.Context, content *DeliveryContent, op
         })
     }
     
-    to := opts["to"].([]string)
-    err := h.messenger.Send(ctx, &messenger.Message{
-        To:          to,
-        Subject:     content.Summary, // Use summary as subject
+    subject := content.Summary
+    if target.SubjectTemplate != "" {
+        subject = target.SubjectTemplate
+    }
+    
+    err := dc.messenger.Send(ctx, &messenger.Message{
+        To:          target.To,
+        CC:          target.CC,
+        Subject:     subject,
         Body:        content.Body,
         Attachments: attachments,
     })
     
     now := time.Now()
-    return &ChannelResult{
+    return ChannelResult{
         Type:       DeliveryEmail,
+        Target:     strings.Join(target.To, ","),
         Success:    err == nil,
-        Recipients: to,
+        Recipients: target.To,
         SentAt:     &now,
-    }, err
+        Error:      errStr(err),
+    }
 }
 
-// WebhookHandler - POST JSON to URL
-type WebhookHandler struct{}
-
-func (h *WebhookHandler) Deliver(ctx context.Context, content *DeliveryContent, opts map[string]interface{}) (*ChannelResult, error) {
+// postWebhook - POST to a single webhook target
+func (dc *DeliveryCenter) postWebhook(ctx context.Context, content *DeliveryContent, target WebhookTarget) ChannelResult {
     payload, _ := json.Marshal(content)
-    req, _ := http.NewRequestWithContext(ctx, "POST", opts["url"].(string), bytes.NewReader(payload))
+    req, _ := http.NewRequestWithContext(ctx, "POST", target.URL, bytes.NewReader(payload))
     req.Header.Set("Content-Type", "application/json")
     
+    // Add custom headers
+    for k, v := range target.Headers {
+        req.Header.Set(k, v)
+    }
+    
     resp, err := http.DefaultClient.Do(req)
+    now := time.Now()
+    
     if err != nil {
-        return &ChannelResult{Type: DeliveryWebhook, Success: false}, err
+        return ChannelResult{
+            Type:    DeliveryWebhook,
+            Target:  target.URL,
+            Success: false,
+            Error:   err.Error(),
+            SentAt:  &now,
+        }
     }
     defer resp.Body.Close()
     
-    if resp.StatusCode >= 400 {
-        return &ChannelResult{Type: DeliveryWebhook, Success: false}, fmt.Errorf("webhook failed: %d", resp.StatusCode)
-    }
-    
-    now := time.Now()
-    return &ChannelResult{
+    success := resp.StatusCode < 400
+    return ChannelResult{
         Type:    DeliveryWebhook,
-        Success: true,
+        Target:  target.URL,
+        Success: success,
         Details: map[string]interface{}{"status_code": resp.StatusCode},
+        Error:   ternary(!success, fmt.Sprintf("HTTP %d", resp.StatusCode), ""),
         SentAt:  &now,
-    }, nil
+    }
 }
 
+// callProcess - call a single Yao Process target
+func (dc *DeliveryCenter) callProcess(ctx context.Context, content *DeliveryContent, target ProcessTarget) ChannelResult {
+    // DeliveryContent as first arg, then additional args
+    args := append([]interface{}{content}, target.Args...)
+    
+    proc := process.Of(target.Name, args...)
+    result, err := proc.Execute()
+    
+    now := time.Now()
+    return ChannelResult{
+        Type:    DeliveryProcess,
+        Target:  target.Name,
+        Success: err == nil,
+        Details: map[string]interface{}{
+            "process": target.Name,
+            "result":  result,
+        },
+        Error:  errStr(err),
+        SentAt: &now,
+    }
+}
 ```
 
 **Note on Notifications:**

@@ -62,7 +62,7 @@
 - [x] `RobotStatus` - robot status (idle, working, paused, error, maintenance)
 - [x] `InterventionAction` - human actions (task.add, goal.adjust, etc.)
 - [x] `Priority` - priority levels (high, normal, low)
-- [x] `DeliveryType` - delivery types (email, webhook, notify)
+- [x] `DeliveryType` - delivery types (email, webhook, process, notify)
 - [x] `DedupResult` - dedup results (skip, merge, proceed)
 - [x] `EventSource` - event sources (webhook, database)
 - [x] `LearningType` - learning types (execution, feedback, insight)
@@ -916,16 +916,21 @@ Supported channels:
 
 ### 10.3 Type Updates (Prerequisite)
 
-- [ ] Update `types/enums.go` - Remove `DeliveryFile` from `DeliveryType`
+- [ ] Update `types/enums.go` - Update `DeliveryType` enum
+  - [ ] Remove `DeliveryFile`
+  - [ ] Add `DeliveryProcess`
 - [ ] Update `types/robot.go` - Delivery types for new architecture
   - [ ] `DeliveryResult` - update to new structure (RequestID, Content, Results[])
   - [ ] Add `DeliveryContent` struct
   - [ ] Add `DeliveryAttachment` struct
   - [ ] Add `DeliveryRequest` struct
   - [ ] Add `DeliveryContext` struct
-  - [ ] Add `DeliveryPreferences` struct
-  - [ ] Add `ChannelResult` struct
-- [ ] Update `types/enums_test.go` - Remove `DeliveryFile` test
+  - [ ] Add `DeliveryPreferences` struct (with Email, Webhook, Process)
+  - [ ] Add `EmailPreference`, `EmailTarget` structs
+  - [ ] Add `WebhookPreference`, `WebhookTarget` structs
+  - [ ] Add `ProcessPreference`, `ProcessTarget` structs
+  - [ ] Add `ChannelResult` struct (with Target field)
+- [ ] Update `types/enums_test.go` - Update DeliveryType tests
 - [ ] Update `types/robot_test.go` - Update delivery result tests
 
 ### 10.4 Delivery Agent Setup
@@ -980,12 +985,13 @@ type DeliveryContext struct {
 - Parse: `attachment.Parse(value)` → `(uploader, fileID, isWrapper)`
 - Read: `attachment.Base64(ctx, value)` → base64 content
 
-**Delivery Channels (Delivery Center decides):**
-| Channel | Description |
-|---------|-------------|
-| `email` | Send via yao/messenger (if configured in preferences) |
-| `webhook` | POST JSON to URL (if configured, every execution) |
-| `notify` | In-app notification based on user subscriptions (future) |
+**Delivery Channels (each supports multiple targets):**
+| Channel | Description | Multiple Targets |
+|---------|-------------|------------------|
+| `email` | Send via yao/messenger | ✅ Multiple recipients |
+| `webhook` | POST to external URL | ✅ Multiple URLs |
+| `process` | Yao Process call | ✅ Multiple processes |
+| `notify` | In-app notification | Future (auto by subscriptions) |
 
 ### 10.6 Implementation
 
@@ -999,30 +1005,36 @@ type DeliveryContext struct {
 **Delivery Center (executor/delivery.go, future: yao/delivery):**
 - [ ] `DeliveryCenter.Deliver(ctx, request)` - main entry
   - [ ] Read Robot/User delivery preferences
-  - [ ] Decide which channels to use based on preferences
-  - [ ] Call appropriate handler for each channel
+  - [ ] Iterate through all enabled targets for each channel
   - [ ] Aggregate ChannelResults into DeliveryResult
-- [ ] `ChannelHandler` interface
-  - [ ] `Deliver(ctx, content, opts) (*ChannelResult, error)`
 
-**Channel Handlers:**
-- [ ] `EmailHandler` - uses yao/messenger
+**Channel Handlers (each supports multiple targets):**
+- [ ] `sendEmail()` - uses yao/messenger
   - [ ] Convert DeliveryAttachment to messenger.Attachment
-  - [ ] Use Summary as email subject
-  - [ ] Support to, cc from preferences
-- [ ] `WebhookHandler` - POST JSON
+  - [ ] Support multiple EmailTarget
+  - [ ] Support custom subject_template per target
+- [ ] `postWebhook()` - POST JSON
   - [ ] POST DeliveryContent as JSON payload
-  - [ ] If enabled, every execution pushes automatically
+  - [ ] Support multiple WebhookTarget
+  - [ ] Support custom headers per target
+- [ ] `callProcess()` - Yao Process call
+  - [ ] DeliveryContent as first arg
+  - [ ] Support multiple ProcessTarget
+  - [ ] Support additional args per target
 
 ### 10.7 Tests
 
 - [ ] `executor/delivery_test.go` - P4 delivery
 - [ ] Test: Delivery Agent generates content (only content)
-- [ ] Test: DeliveryCenter reads preferences and decides channels
-- [ ] Test: DeliveryCenter dispatches to multiple channels
-- [ ] Test: EmailHandler with attachments
-- [ ] Test: WebhookHandler POST JSON
-- [ ] Test: Partial success (some channels fail)
+- [ ] Test: DeliveryCenter reads preferences
+- [ ] Test: Multiple email targets
+- [ ] Test: Multiple webhook targets
+- [ ] Test: Multiple process targets
+- [ ] Test: Mixed channels (email + webhook + process)
+- [ ] Test: sendEmail with attachments
+- [ ] Test: postWebhook with custom headers
+- [ ] Test: callProcess with args
+- [ ] Test: Partial success (some targets fail)
 - [ ] Test: DeliveryResult aggregation
 
 ---
@@ -1239,7 +1251,7 @@ func TestWithLLM(t *testing.T) {
 | 7. P1 Goals           | ✅     | Goal Generation Agent integration                                            |
 | 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
 | 9. P3 Run             | ✅     | Task execution + validation + yao/assert + multi-turn conversation           |
-| 10. P4 Delivery       | ⬜     | Output delivery (email/webhook, notify future)                               |
+| 10. P4 Delivery       | ⬜     | Output delivery (email/webhook/process, notify future)                       |
 | 11. API & Integration | ⬜     | Complete API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                   |
 | 12. Advanced          | ⬜     | P5 Learning, dedup, plan queue, Sandbox mode                                 |
 
