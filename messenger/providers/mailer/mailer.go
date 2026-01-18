@@ -3,6 +3,7 @@ package mailer
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"fmt"
 	"net"
 	"net/smtp"
@@ -370,6 +371,20 @@ func (p *Provider) buildMessage(message *types.Message) (string, error) {
 		}
 	}
 
+	// Check if we have attachments
+	hasAttachments := len(message.Attachments) > 0
+
+	if hasAttachments {
+		// Use multipart/mixed for attachments
+		return p.buildMessageWithAttachments(&content, message)
+	}
+
+	// No attachments - use simple format
+	return p.buildMessageSimple(&content, message)
+}
+
+// buildMessageSimple builds email without attachments
+func (p *Provider) buildMessageSimple(content *strings.Builder, message *types.Message) (string, error) {
 	// MIME headers for HTML content
 	if message.HTML != "" {
 		content.WriteString("MIME-Version: 1.0\r\n")
@@ -398,6 +413,107 @@ func (p *Provider) buildMessage(message *types.Message) (string, error) {
 		content.WriteString("\r\n")
 		content.WriteString(message.Body)
 	}
+
+	return content.String(), nil
+}
+
+// buildMessageWithAttachments builds email with attachments using multipart/mixed
+func (p *Provider) buildMessageWithAttachments(content *strings.Builder, message *types.Message) (string, error) {
+	// Use unique boundaries
+	mixedBoundary := fmt.Sprintf("mixed_%d", time.Now().UnixNano())
+	altBoundary := fmt.Sprintf("alt_%d", time.Now().UnixNano())
+
+	content.WriteString("MIME-Version: 1.0\r\n")
+	content.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=\"%s\"\r\n", mixedBoundary))
+	content.WriteString("\r\n")
+
+	// Start mixed boundary
+	content.WriteString(fmt.Sprintf("--%s\r\n", mixedBoundary))
+
+	// Add body content
+	if message.HTML != "" && message.Body != "" {
+		// Both text and HTML - use multipart/alternative
+		content.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=\"%s\"\r\n", altBoundary))
+		content.WriteString("\r\n")
+
+		// Plain text part
+		content.WriteString(fmt.Sprintf("--%s\r\n", altBoundary))
+		content.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+		content.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+		content.WriteString("\r\n")
+		content.WriteString(message.Body)
+		content.WriteString("\r\n")
+
+		// HTML part
+		content.WriteString(fmt.Sprintf("--%s\r\n", altBoundary))
+		content.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+		content.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+		content.WriteString("\r\n")
+		content.WriteString(message.HTML)
+		content.WriteString("\r\n")
+
+		// End alternative boundary
+		content.WriteString(fmt.Sprintf("--%s--\r\n", altBoundary))
+	} else if message.HTML != "" {
+		// HTML only
+		content.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+		content.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+		content.WriteString("\r\n")
+		content.WriteString(message.HTML)
+		content.WriteString("\r\n")
+	} else {
+		// Plain text only
+		content.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+		content.WriteString("Content-Transfer-Encoding: quoted-printable\r\n")
+		content.WriteString("\r\n")
+		content.WriteString(message.Body)
+		content.WriteString("\r\n")
+	}
+
+	// Add attachments
+	for _, attachment := range message.Attachments {
+		content.WriteString(fmt.Sprintf("--%s\r\n", mixedBoundary))
+
+		// Determine content type
+		contentType := attachment.ContentType
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+
+		// Determine disposition
+		disposition := "attachment"
+		if attachment.Inline {
+			disposition = "inline"
+		}
+
+		// Write attachment headers
+		content.WriteString(fmt.Sprintf("Content-Type: %s; name=\"%s\"\r\n", contentType, attachment.Filename))
+		content.WriteString("Content-Transfer-Encoding: base64\r\n")
+		content.WriteString(fmt.Sprintf("Content-Disposition: %s; filename=\"%s\"\r\n", disposition, attachment.Filename))
+
+		// Add Content-ID for inline attachments
+		if attachment.Inline && attachment.CID != "" {
+			content.WriteString(fmt.Sprintf("Content-ID: <%s>\r\n", attachment.CID))
+		}
+
+		content.WriteString("\r\n")
+
+		// Encode attachment content as base64
+		encoded := base64.StdEncoding.EncodeToString(attachment.Content)
+
+		// Split into 76-character lines (RFC 2045)
+		for i := 0; i < len(encoded); i += 76 {
+			end := i + 76
+			if end > len(encoded) {
+				end = len(encoded)
+			}
+			content.WriteString(encoded[i:end])
+			content.WriteString("\r\n")
+		}
+	}
+
+	// End mixed boundary
+	content.WriteString(fmt.Sprintf("--%s--\r\n", mixedBoundary))
 
 	return content.String(), nil
 }

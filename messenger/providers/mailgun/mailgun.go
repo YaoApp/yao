@@ -1,10 +1,13 @@
 package mailgun
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -218,6 +221,17 @@ func (p *Provider) Close() error {
 func (p *Provider) sendEmail(ctx context.Context, message *types.Message) error {
 	apiURL := fmt.Sprintf("%s/%s/messages", p.baseURL, p.domain)
 
+	// Check if we have attachments - use multipart/form-data if so
+	if len(message.Attachments) > 0 {
+		return p.sendEmailWithAttachments(ctx, apiURL, message)
+	}
+
+	// No attachments - use simple URL-encoded form
+	return p.sendEmailSimple(ctx, apiURL, message)
+}
+
+// sendEmailSimple sends email without attachments using URL-encoded form
+func (p *Provider) sendEmailSimple(ctx context.Context, apiURL string, message *types.Message) error {
 	// Prepare form data
 	data := url.Values{}
 
@@ -291,6 +305,137 @@ func (p *Provider) sendEmail(ctx context.Context, message *types.Message) error 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("Mailgun API error: %s - %s", resp.Status, string(body))
+	}
+
+	return nil
+}
+
+// sendEmailWithAttachments sends email with attachments using multipart/form-data
+func (p *Provider) sendEmailWithAttachments(ctx context.Context, apiURL string, message *types.Message) error {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	// From address
+	from := message.From
+	if from == "" {
+		from = p.from
+	}
+	if err := writer.WriteField("from", from); err != nil {
+		return fmt.Errorf("failed to write from field: %w", err)
+	}
+
+	// To addresses
+	for _, to := range message.To {
+		if err := writer.WriteField("to", to); err != nil {
+			return fmt.Errorf("failed to write to field: %w", err)
+		}
+	}
+
+	// Subject
+	if err := writer.WriteField("subject", message.Subject); err != nil {
+		return fmt.Errorf("failed to write subject field: %w", err)
+	}
+
+	// Text body
+	if message.Body != "" {
+		if err := writer.WriteField("text", message.Body); err != nil {
+			return fmt.Errorf("failed to write text field: %w", err)
+		}
+	}
+
+	// HTML body
+	if message.HTML != "" {
+		if err := writer.WriteField("html", message.HTML); err != nil {
+			return fmt.Errorf("failed to write html field: %w", err)
+		}
+	}
+
+	// Custom headers
+	if message.Headers != nil {
+		for key, value := range message.Headers {
+			if err := writer.WriteField("h:"+key, value); err != nil {
+				return fmt.Errorf("failed to write header field: %w", err)
+			}
+		}
+	}
+
+	// Custom variables (metadata)
+	if message.Metadata != nil {
+		for key, value := range message.Metadata {
+			if str, ok := value.(string); ok {
+				if err := writer.WriteField("v:"+key, str); err != nil {
+					return fmt.Errorf("failed to write metadata field: %w", err)
+				}
+			}
+		}
+	}
+
+	// Priority
+	if message.Priority > 0 {
+		if err := writer.WriteField("o:priority", fmt.Sprintf("%d", message.Priority)); err != nil {
+			return fmt.Errorf("failed to write priority field: %w", err)
+		}
+	}
+
+	// Scheduled sending
+	if message.ScheduledAt != nil {
+		if err := writer.WriteField("o:deliverytime", message.ScheduledAt.Format(time.RFC1123Z)); err != nil {
+			return fmt.Errorf("failed to write deliverytime field: %w", err)
+		}
+	}
+
+	// Add attachments
+	for _, attachment := range message.Attachments {
+		fieldName := "attachment"
+		if attachment.Inline {
+			fieldName = "inline"
+		}
+
+		// Create form file with proper headers
+		h := make(textproto.MIMEHeader)
+		h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, attachment.Filename))
+		if attachment.ContentType != "" {
+			h.Set("Content-Type", attachment.ContentType)
+		} else {
+			h.Set("Content-Type", "application/octet-stream")
+		}
+
+		part, err := writer.CreatePart(h)
+		if err != nil {
+			return fmt.Errorf("failed to create attachment part: %w", err)
+		}
+
+		if _, err := part.Write(attachment.Content); err != nil {
+			return fmt.Errorf("failed to write attachment content: %w", err)
+		}
+	}
+
+	// Close multipart writer
+	if err := writer.Close(); err != nil {
+		return fmt.Errorf("failed to close multipart writer: %w", err)
+	}
+
+	// Create request with context
+	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, &body)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set authentication and content type
+	req.SetBasicAuth("api", p.apiKey)
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	// Send request
+	resp, err := p.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Mailgun API error: %s - %s", resp.Status, string(respBody))
 	}
 
 	return nil

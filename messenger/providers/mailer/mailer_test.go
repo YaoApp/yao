@@ -768,3 +768,156 @@ func TestProvider_TriggerWebhook(t *testing.T) {
 	assert.Nil(t, msg)
 	assert.Contains(t, err.Error(), "TriggerWebhook not supported for SMTP/mailer provider")
 }
+
+// ============================================================================
+// Attachment Tests
+// ============================================================================
+
+func TestBuildMessage_WithAttachments(t *testing.T) {
+	config := types.ProviderConfig{
+		Name:      "test",
+		Connector: "mailer",
+		Options: map[string]interface{}{
+			"smtp": map[string]interface{}{
+				"host":     "smtp.example.com",
+				"port":     587,
+				"username": "test@example.com",
+				"password": "testpass",
+				"from":     "sender@example.com",
+			},
+		},
+	}
+
+	provider, err := NewMailerProvider(config)
+	require.NoError(t, err)
+
+	t.Run("single_attachment", func(t *testing.T) {
+		message := &types.Message{
+			Type:    types.MessageTypeEmail,
+			To:      []string{"test@example.com"},
+			Subject: "Test with Attachment",
+			Body:    "This is a test email with attachment",
+			Attachments: []types.Attachment{
+				{
+					Filename:    "test.txt",
+					ContentType: "text/plain",
+					Content:     []byte("Hello, this is test content!"),
+				},
+			},
+		}
+
+		content, err := provider.buildMessage(message)
+		require.NoError(t, err)
+
+		// Verify multipart/mixed boundary
+		assert.Contains(t, content, "multipart/mixed")
+		assert.Contains(t, content, "Content-Disposition: attachment")
+		assert.Contains(t, content, `filename="test.txt"`)
+		assert.Contains(t, content, "Content-Transfer-Encoding: base64")
+	})
+
+	t.Run("multiple_attachments", func(t *testing.T) {
+		message := &types.Message{
+			Type:    types.MessageTypeEmail,
+			To:      []string{"test@example.com"},
+			Subject: "Test with Multiple Attachments",
+			Body:    "This is a test email with multiple attachments",
+			HTML:    "<p>This is a test email with multiple attachments</p>",
+			Attachments: []types.Attachment{
+				{
+					Filename:    "doc1.txt",
+					ContentType: "text/plain",
+					Content:     []byte("Document 1 content"),
+				},
+				{
+					Filename:    "doc2.pdf",
+					ContentType: "application/pdf",
+					Content:     []byte("%PDF-1.4 fake pdf"),
+				},
+			},
+		}
+
+		content, err := provider.buildMessage(message)
+		require.NoError(t, err)
+
+		// Verify both attachments are present
+		assert.Contains(t, content, `filename="doc1.txt"`)
+		assert.Contains(t, content, `filename="doc2.pdf"`)
+		assert.Contains(t, content, "text/plain")
+		assert.Contains(t, content, "application/pdf")
+	})
+
+	t.Run("inline_attachment", func(t *testing.T) {
+		message := &types.Message{
+			Type:    types.MessageTypeEmail,
+			To:      []string{"test@example.com"},
+			Subject: "Test with Inline Image",
+			HTML:    `<p>Image: <img src="cid:logo123"></p>`,
+			Attachments: []types.Attachment{
+				{
+					Filename:    "logo.png",
+					ContentType: "image/png",
+					Content:     []byte{0x89, 0x50, 0x4E, 0x47}, // PNG magic bytes
+					Inline:      true,
+					CID:         "logo123",
+				},
+			},
+		}
+
+		content, err := provider.buildMessage(message)
+		require.NoError(t, err)
+
+		// Verify inline disposition and Content-ID
+		assert.Contains(t, content, "Content-Disposition: inline")
+		assert.Contains(t, content, "Content-ID: <logo123>")
+	})
+
+	t.Run("no_attachments", func(t *testing.T) {
+		message := &types.Message{
+			Type:    types.MessageTypeEmail,
+			To:      []string{"test@example.com"},
+			Subject: "Test without Attachment",
+			Body:    "This is a plain text email",
+		}
+
+		content, err := provider.buildMessage(message)
+		require.NoError(t, err)
+
+		// Should not contain multipart/mixed
+		assert.NotContains(t, content, "multipart/mixed")
+		assert.Contains(t, content, "text/plain")
+	})
+}
+
+func TestSend_EmailWithAttachments_RealAPI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping real API test in short mode")
+	}
+
+	config := loadPrimaryTestConfig(t)
+	provider, err := NewMailerProvider(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	emailMessage := &types.Message{
+		Type:    types.MessageTypeEmail,
+		To:      []string{TestEmailAgent},
+		Subject: "SMTP Test Email with Attachment - " + time.Now().Format("2006-01-02 15:04:05"),
+		Body:    "This is a test email with attachment sent via SMTP",
+		HTML:    "<h1>SMTP Test</h1><p>This email has an attachment.</p>",
+		Attachments: []types.Attachment{
+			{
+				Filename:    "test-attachment.txt",
+				ContentType: "text/plain",
+				Content:     []byte("This is a test attachment content.\nLine 2 of the attachment.\nLine 3."),
+			},
+		},
+	}
+
+	err = provider.Send(ctx, emailMessage)
+	if err != nil {
+		t.Logf("Real SMTP call with attachment failed (may be expected in CI): %v", err)
+	} else {
+		t.Log("Real SMTP call with attachment succeeded")
+	}
+}

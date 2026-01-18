@@ -28,7 +28,7 @@ func (p *Provider) TriggerWebhook(c interface{}) (*types.Message, error) {
 	// Extract common Mailgun webhook fields
 	event := ginCtx.Request.FormValue("event")
 	recipient := ginCtx.Request.FormValue("recipient")
-	messageId := ginCtx.Request.FormValue("message-id")
+	messageID := ginCtx.Request.FormValue("message-id")
 	timestamp := ginCtx.Request.FormValue("timestamp")
 	token := ginCtx.Request.FormValue("token")
 	signature := ginCtx.Request.FormValue("signature")
@@ -38,8 +38,8 @@ func (p *Provider) TriggerWebhook(c interface{}) (*types.Message, error) {
 	if recipient != "" {
 		message.To = []string{recipient}
 	}
-	if messageId != "" {
-		message.Metadata["message_id"] = messageId
+	if messageID != "" {
+		message.Metadata["message_id"] = messageID
 	}
 
 	// Store webhook-specific data
