@@ -536,23 +536,231 @@ func TestValidationResultMultiTurnFields(t *testing.T) {
 func TestDeliveryResultStructure(t *testing.T) {
 	sentAt := time.Now()
 	delivery := &types.DeliveryResult{
-		Type:       types.DeliveryEmail,
-		Success:    true,
-		Recipients: []string{"user@example.com", "manager@example.com"},
-		Content:    "# Weekly Report\n\nSales increased by 20%...",
-		Details: map[string]interface{}{
-			"message_id": "msg-12345",
-			"subject":    "Daily Report",
+		RequestID: "req-12345",
+		Content: &types.DeliveryContent{
+			Summary: "Weekly sales report completed",
+			Body:    "# Weekly Report\n\nSales increased by 20%...",
+			Attachments: []types.DeliveryAttachment{
+				{
+					Title:       "Sales Report",
+					Description: "Detailed sales analysis",
+					TaskID:      "task-1",
+					File:        "__s3://report-12345.pdf",
+				},
+			},
 		},
-		SentAt: &sentAt,
+		Results: []types.ChannelResult{
+			{
+				Type:    types.DeliveryEmail,
+				Target:  "user@example.com",
+				Success: true,
+				Details: map[string]interface{}{
+					"message_id": "msg-12345",
+				},
+			},
+			{
+				Type:    types.DeliveryWebhook,
+				Target:  "https://webhook.example.com/notify",
+				Success: true,
+			},
+		},
+		Success: true,
+		SentAt:  &sentAt,
 	}
 
-	assert.Equal(t, types.DeliveryEmail, delivery.Type)
+	assert.Equal(t, "req-12345", delivery.RequestID)
 	assert.True(t, delivery.Success)
-	assert.Len(t, delivery.Recipients, 2)
-	assert.Contains(t, delivery.Content, "Weekly Report")
-	assert.NotNil(t, delivery.Details)
+	assert.NotNil(t, delivery.Content)
+	assert.Equal(t, "Weekly sales report completed", delivery.Content.Summary)
+	assert.Contains(t, delivery.Content.Body, "Weekly Report")
+	assert.Len(t, delivery.Content.Attachments, 1)
+	assert.Equal(t, "__s3://report-12345.pdf", delivery.Content.Attachments[0].File)
+	assert.Len(t, delivery.Results, 2)
+	assert.Equal(t, types.DeliveryEmail, delivery.Results[0].Type)
 	assert.NotNil(t, delivery.SentAt)
+}
+
+func TestDeliveryContentStructure(t *testing.T) {
+	content := &types.DeliveryContent{
+		Summary: "Task execution completed successfully",
+		Body:    "# Execution Report\n\n## Summary\n- 3 tasks completed\n- 1 task failed",
+		Attachments: []types.DeliveryAttachment{
+			{
+				Title:       "Analysis Results",
+				Description: "JSON data from analysis task",
+				TaskID:      "task-analysis",
+				File:        "__local://files/analysis-result.json",
+			},
+			{
+				Title:  "Generated Chart",
+				TaskID: "task-chart",
+				File:   "__s3://charts/sales-chart.png",
+			},
+		},
+	}
+
+	assert.NotEmpty(t, content.Summary)
+	assert.Contains(t, content.Body, "Execution Report")
+	assert.Len(t, content.Attachments, 2)
+	assert.Equal(t, "Analysis Results", content.Attachments[0].Title)
+	assert.Equal(t, "task-analysis", content.Attachments[0].TaskID)
+}
+
+func TestDeliveryAttachmentStructure(t *testing.T) {
+	attachment := &types.DeliveryAttachment{
+		Title:       "Sales Report PDF",
+		Description: "Monthly sales analysis report",
+		TaskID:      "task-report",
+		File:        "__s3://reports/sales-2024-01.pdf",
+	}
+
+	assert.Equal(t, "Sales Report PDF", attachment.Title)
+	assert.Equal(t, "Monthly sales analysis report", attachment.Description)
+	assert.Equal(t, "task-report", attachment.TaskID)
+	assert.Contains(t, attachment.File, "__s3://")
+}
+
+func TestDeliveryRequestStructure(t *testing.T) {
+	request := &types.DeliveryRequest{
+		Content: &types.DeliveryContent{
+			Summary: "Report ready",
+			Body:    "# Report\n\nDetails...",
+		},
+		Context: &types.DeliveryContext{
+			MemberID:    "member-123",
+			ExecutionID: "exec-456",
+			TriggerType: types.TriggerClock,
+			TeamID:      "team-789",
+		},
+	}
+
+	assert.NotNil(t, request.Content)
+	assert.NotNil(t, request.Context)
+	assert.Equal(t, "member-123", request.Context.MemberID)
+	assert.Equal(t, "exec-456", request.Context.ExecutionID)
+	assert.Equal(t, types.TriggerClock, request.Context.TriggerType)
+}
+
+func TestDeliveryPreferencesStructure(t *testing.T) {
+	prefs := &types.DeliveryPreferences{
+		Email: &types.EmailPreference{
+			Enabled: true,
+			Targets: []types.EmailTarget{
+				{
+					To:       []string{"team@example.com"},
+					CC:       []string{"manager@example.com"},
+					Template: "weekly-report",
+					Subject:  "Weekly Report - {{.Date}}",
+				},
+				{
+					To: []string{"backup@example.com"},
+				},
+			},
+		},
+		Webhook: &types.WebhookPreference{
+			Enabled: true,
+			Targets: []types.WebhookTarget{
+				{
+					URL:    "https://api.example.com/webhook",
+					Method: "POST",
+					Headers: map[string]string{
+						"X-API-Key": "secret-key",
+					},
+					Secret: "signing-secret",
+				},
+			},
+		},
+		Process: &types.ProcessPreference{
+			Enabled: true,
+			Targets: []types.ProcessTarget{
+				{
+					Process: "scripts.notify.slack",
+					Args:    []any{"#general", "Report ready"},
+				},
+			},
+		},
+	}
+
+	// Email
+	assert.True(t, prefs.Email.Enabled)
+	assert.Len(t, prefs.Email.Targets, 2)
+	assert.Equal(t, "weekly-report", prefs.Email.Targets[0].Template)
+	assert.Len(t, prefs.Email.Targets[0].To, 1)
+	assert.Len(t, prefs.Email.Targets[0].CC, 1)
+
+	// Webhook
+	assert.True(t, prefs.Webhook.Enabled)
+	assert.Len(t, prefs.Webhook.Targets, 1)
+	assert.Equal(t, "https://api.example.com/webhook", prefs.Webhook.Targets[0].URL)
+	assert.Equal(t, "POST", prefs.Webhook.Targets[0].Method)
+
+	// Process
+	assert.True(t, prefs.Process.Enabled)
+	assert.Len(t, prefs.Process.Targets, 1)
+	assert.Equal(t, "scripts.notify.slack", prefs.Process.Targets[0].Process)
+	assert.Len(t, prefs.Process.Targets[0].Args, 2)
+}
+
+func TestChannelResultStructure(t *testing.T) {
+	t.Run("email result with recipients", func(t *testing.T) {
+		sentAt := time.Now()
+		result := &types.ChannelResult{
+			Type:       types.DeliveryEmail,
+			Target:     "user@example.com",
+			Success:    true,
+			Recipients: []string{"user@example.com", "manager@example.com"},
+			Details: map[string]interface{}{
+				"message_id": "msg-123",
+			},
+			SentAt: &sentAt,
+		}
+		assert.Equal(t, types.DeliveryEmail, result.Type)
+		assert.Equal(t, "user@example.com", result.Target)
+		assert.True(t, result.Success)
+		assert.Len(t, result.Recipients, 2)
+		assert.NotNil(t, result.SentAt)
+	})
+
+	t.Run("webhook result", func(t *testing.T) {
+		sentAt := time.Now()
+		result := &types.ChannelResult{
+			Type:    types.DeliveryWebhook,
+			Target:  "https://api.example.com/webhook",
+			Success: true,
+			Details: map[string]interface{}{
+				"status_code": 200,
+				"response":    "OK",
+			},
+			SentAt: &sentAt,
+		}
+		assert.Equal(t, types.DeliveryWebhook, result.Type)
+		assert.True(t, result.Success)
+		assert.NotNil(t, result.SentAt)
+	})
+
+	t.Run("process result", func(t *testing.T) {
+		result := &types.ChannelResult{
+			Type:    types.DeliveryProcess,
+			Target:  "scripts.notify.slack",
+			Success: true,
+			Details: map[string]interface{}{
+				"output": "Message sent",
+			},
+		}
+		assert.Equal(t, types.DeliveryProcess, result.Type)
+		assert.Equal(t, "scripts.notify.slack", result.Target)
+	})
+
+	t.Run("failed result", func(t *testing.T) {
+		result := &types.ChannelResult{
+			Type:    types.DeliveryWebhook,
+			Target:  "https://api.example.com/webhook",
+			Success: false,
+			Error:   "Connection refused",
+		}
+		assert.False(t, result.Success)
+		assert.Equal(t, "Connection refused", result.Error)
+	})
 }
 
 func TestDeliveryTargetStructure(t *testing.T) {

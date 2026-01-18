@@ -111,10 +111,10 @@ type DeliveryType string
 
 // DeliveryType constants define the output delivery types
 const (
-	DeliveryEmail   DeliveryType = "email"
-	DeliveryFile    DeliveryType = "file"
-	DeliveryWebhook DeliveryType = "webhook"
-	DeliveryNotify  DeliveryType = "notify"
+	DeliveryEmail   DeliveryType = "email"   // Send via yao/messenger
+	DeliveryWebhook DeliveryType = "webhook" // POST to external URL
+	DeliveryProcess DeliveryType = "process" // Call Yao Process
+	DeliveryNotify  DeliveryType = "notify"  // In-app notification (future, auto by subscriptions)
 )
 
 // DedupResult - deduplication result

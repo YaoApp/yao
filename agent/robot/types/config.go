@@ -7,17 +7,17 @@ import (
 
 // Config - robot_config in __yao.member
 type Config struct {
-	Triggers  *Triggers       `json:"triggers,omitempty"`
-	Clock     *Clock          `json:"clock,omitempty"`
-	Identity  *Identity       `json:"identity"`
-	Quota     *Quota          `json:"quota,omitempty"`
-	KB        *KB             `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
-	DB        *DB             `json:"db,omitempty"`    // shared database (same as assistant)
-	Learn     *Learn          `json:"learn,omitempty"` // learning config for private KB
-	Resources *Resources      `json:"resources,omitempty"`
-	Delivery  *Delivery       `json:"delivery,omitempty"`
-	Events    []Event         `json:"events,omitempty"`
-	Executor  *ExecutorConfig `json:"executor,omitempty"` // executor mode settings
+	Triggers  *Triggers            `json:"triggers,omitempty"`
+	Clock     *Clock               `json:"clock,omitempty"`
+	Identity  *Identity            `json:"identity"`
+	Quota     *Quota               `json:"quota,omitempty"`
+	KB        *KB                  `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
+	DB        *DB                  `json:"db,omitempty"`    // shared database (same as assistant)
+	Learn     *Learn               `json:"learn,omitempty"` // learning config for private KB
+	Resources *Resources           `json:"resources,omitempty"`
+	Delivery  *DeliveryPreferences `json:"delivery,omitempty"` // delivery preferences (see robot.go)
+	Events    []Event              `json:"events,omitempty"`
+	Executor  *ExecutorConfig      `json:"executor,omitempty"` // executor mode settings
 }
 
 // ExecutorConfig - executor settings
@@ -222,12 +222,6 @@ func (r *Resources) GetPhaseAgent(phase Phase) string {
 type MCPConfig struct {
 	ID    string   `json:"id"`
 	Tools []string `json:"tools,omitempty"` // empty = all
-}
-
-// Delivery - output delivery
-type Delivery struct {
-	Type DeliveryType           `json:"type"`
-	Opts map[string]interface{} `json:"opts,omitempty"`
 }
 
 // Event - event trigger config

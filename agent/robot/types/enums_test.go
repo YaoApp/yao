@@ -83,8 +83,8 @@ func TestPriorityEnum(t *testing.T) {
 
 func TestDeliveryTypeEnum(t *testing.T) {
 	assert.Equal(t, types.DeliveryType("email"), types.DeliveryEmail)
-	assert.Equal(t, types.DeliveryType("file"), types.DeliveryFile)
 	assert.Equal(t, types.DeliveryType("webhook"), types.DeliveryWebhook)
+	assert.Equal(t, types.DeliveryType("process"), types.DeliveryProcess)
 	assert.Equal(t, types.DeliveryType("notify"), types.DeliveryNotify)
 }
 

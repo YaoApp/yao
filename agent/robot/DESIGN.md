@@ -619,22 +619,23 @@ type DeliveryAgentOutput struct {
 ```go
 // DeliveryResult - returned by Delivery Center
 type DeliveryResult struct {
-    RequestID string           `json:"request_id"` // Delivery request ID
-    Content   *DeliveryContent `json:"content"`    // What was delivered
-    Success   bool             `json:"success"`    // All channels succeeded
-    Results   []ChannelResult  `json:"results"`    // Per-channel results
-    Error     string           `json:"error,omitempty"`
+    RequestID string           `json:"request_id"`          // Delivery request ID
+    Content   *DeliveryContent `json:"content"`             // Agent-generated content
+    Results   []ChannelResult  `json:"results,omitempty"`   // Results per channel
+    Success   bool             `json:"success"`             // Overall success
+    Error     string           `json:"error,omitempty"`     // Error if failed
+    SentAt    *time.Time       `json:"sent_at,omitempty"`   // When delivery completed
 }
 
 // ChannelResult - result for a single delivery target
 type ChannelResult struct {
-    Type       DeliveryType `json:"type"`                 // email | webhook | process | notify
-    Target     string       `json:"target,omitempty"`     // Target identifier
-    Success    bool         `json:"success"`
-    Recipients []string     `json:"recipients,omitempty"` // For email
+    Type       DeliveryType `json:"type"`                 // email | webhook | process
+    Target     string       `json:"target"`               // Target identifier (email, URL, process name)
+    Success    bool         `json:"success"`              // Whether delivery succeeded
+    Recipients []string     `json:"recipients,omitempty"` // Who received (for email)
     Details    interface{}  `json:"details,omitempty"`    // Channel-specific response
-    Error      string       `json:"error,omitempty"`
-    SentAt     *time.Time   `json:"sent_at,omitempty"`
+    Error      string       `json:"error,omitempty"`      // Error message if failed
+    SentAt     *time.Time   `json:"sent_at,omitempty"`    // When this target was delivered
 }
 ```
 
@@ -857,9 +858,10 @@ type EmailPreference struct {
 }
 
 type EmailTarget struct {
-    To              []string `json:"to"`
-    CC              []string `json:"cc,omitempty"`
-    SubjectTemplate string   `json:"subject_template,omitempty"`
+    To       []string `json:"to"`                 // Recipient addresses
+    CC       []string `json:"cc,omitempty"`       // CC addresses
+    Template string   `json:"template,omitempty"` // Email template ID
+    Subject  string   `json:"subject,omitempty"`  // Subject template
 }
 
 type WebhookPreference struct {
@@ -868,8 +870,10 @@ type WebhookPreference struct {
 }
 
 type WebhookTarget struct {
-    URL     string            `json:"url"`
-    Headers map[string]string `json:"headers,omitempty"`
+    URL     string            `json:"url"`               // Webhook URL
+    Method  string            `json:"method,omitempty"`  // HTTP method (default: POST)
+    Headers map[string]string `json:"headers,omitempty"` // Custom headers
+    Secret  string            `json:"secret,omitempty"`  // Signing secret
 }
 
 type ProcessPreference struct {
@@ -878,8 +882,8 @@ type ProcessPreference struct {
 }
 
 type ProcessTarget struct {
-    Name string `json:"name"` // Process name, e.g., "orders.UpdateStatus"
-    Args []any  `json:"args,omitempty"`
+    Process string `json:"process"`        // Yao Process name, e.g., "orders.UpdateStatus"
+    Args    []any  `json:"args,omitempty"` // Additional arguments
 }
 
 // ExecutorMode - executor mode enum

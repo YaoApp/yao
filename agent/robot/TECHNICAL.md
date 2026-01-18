@@ -1447,9 +1447,10 @@ type EmailPreference struct {
 }
 
 type EmailTarget struct {
-    To              []string `json:"to"`
-    CC              []string `json:"cc,omitempty"`
-    SubjectTemplate string   `json:"subject_template,omitempty"` // Optional, default: content.Summary
+    To       []string `json:"to"`                 // Recipient addresses
+    CC       []string `json:"cc,omitempty"`       // CC addresses
+    Template string   `json:"template,omitempty"` // Email template ID
+    Subject  string   `json:"subject,omitempty"`  // Subject template (default: content.Summary)
 }
 
 // WebhookPreference - multiple webhook targets
@@ -1459,8 +1460,10 @@ type WebhookPreference struct {
 }
 
 type WebhookTarget struct {
-    URL     string            `json:"url"`
-    Headers map[string]string `json:"headers,omitempty"`
+    URL     string            `json:"url"`               // Webhook URL
+    Method  string            `json:"method,omitempty"`  // HTTP method (default: POST)
+    Headers map[string]string `json:"headers,omitempty"` // Custom headers
+    Secret  string            `json:"secret,omitempty"`  // Signing secret
 }
 
 // ProcessPreference - multiple Yao Process targets
@@ -1470,28 +1473,29 @@ type ProcessPreference struct {
 }
 
 type ProcessTarget struct {
-    Name string `json:"name"` // Process name, e.g., "orders.UpdateStatus"
-    Args []any  `json:"args,omitempty"` // Additional args (DeliveryContent passed as first arg)
+    Process string `json:"process"`        // Yao Process name, e.g., "orders.UpdateStatus"
+    Args    []any  `json:"args,omitempty"` // Additional args (DeliveryContent passed as first arg)
 }
 
 // DeliveryResult - P4 delivery output (returned by Delivery Center)
 type DeliveryResult struct {
-    RequestID string           `json:"request_id"`         // Delivery request ID
-    Content   *DeliveryContent `json:"content,omitempty"`  // What was delivered
-    Success   bool             `json:"success"`            // All channels succeeded
-    Results   []ChannelResult  `json:"results,omitempty"`  // Per-channel results
-    Error     string           `json:"error,omitempty"`    // Overall error if any
+    RequestID string           `json:"request_id"`          // Delivery request ID
+    Content   *DeliveryContent `json:"content"`             // Agent-generated content
+    Results   []ChannelResult  `json:"results,omitempty"`   // Results per channel
+    Success   bool             `json:"success"`             // Overall success
+    Error     string           `json:"error,omitempty"`     // Error if failed
+    SentAt    *time.Time       `json:"sent_at,omitempty"`   // When delivery completed
 }
 
 // ChannelResult - result for a single delivery target
 type ChannelResult struct {
-    Type       DeliveryType `json:"type"`                 // email | webhook | process | notify
-    Target     string       `json:"target,omitempty"`     // Target identifier (email, URL, process name)
-    Success    bool         `json:"success"`
+    Type       DeliveryType `json:"type"`                 // email | webhook | process
+    Target     string       `json:"target"`               // Target identifier (email, URL, process name)
+    Success    bool         `json:"success"`              // Whether delivery succeeded
     Recipients []string     `json:"recipients,omitempty"` // Who received (for email)
     Details    interface{}  `json:"details,omitempty"`    // Channel-specific response
-    Error      string       `json:"error,omitempty"`
-    SentAt     *time.Time   `json:"sent_at,omitempty"`
+    Error      string       `json:"error,omitempty"`      // Error message if failed
+    SentAt     *time.Time   `json:"sent_at,omitempty"`    // When this target was delivered
 }
 
 // LearningEntry - knowledge to save
@@ -2315,16 +2319,16 @@ func (dc *DeliveryCenter) callProcess(ctx context.Context, content *DeliveryCont
     // DeliveryContent as first arg, then additional args
     args := append([]interface{}{content}, target.Args...)
     
-    proc := process.Of(target.Name, args...)
+    proc := process.Of(target.Process, args...)
     result, err := proc.Execute()
     
     now := time.Now()
     return ChannelResult{
         Type:    DeliveryProcess,
-        Target:  target.Name,
+        Target:  target.Process,
         Success: err == nil,
         Details: map[string]interface{}{
-            "process": target.Name,
+            "process": target.Process,
             "result":  result,
         },
         Error:  errStr(err),
