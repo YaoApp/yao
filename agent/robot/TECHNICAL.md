@@ -1169,6 +1169,7 @@ type Robot struct {
     SystemPrompt   string      `json:"system_prompt"`
     Status         RobotStatus `json:"robot_status"`
     AutonomousMode bool        `json:"autonomous_mode"`
+    RobotEmail     string      `json:"robot_email"` // Robot's email address for sending emails
 
     // Parsed config (from robot_config JSON field)
     Config *Config `json:"-"`
@@ -1448,7 +1449,6 @@ type EmailPreference struct {
 
 type EmailTarget struct {
     To       []string `json:"to"`                 // Recipient addresses
-    CC       []string `json:"cc,omitempty"`       // CC addresses
     Template string   `json:"template,omitempty"` // Email template ID
     Subject  string   `json:"subject,omitempty"`  // Subject template (default: content.Summary)
 }
@@ -2166,7 +2166,27 @@ The agent focuses on content generation:
 }
 ```
 
-### 6.5 Delivery Center
+### 6.5 Global Email Configuration
+
+Email delivery uses global configuration for channel selection and Robot-specific sender identity:
+
+```go
+// types/config_global.go
+
+// DefaultEmailChannel returns the default messenger channel name
+// Default: "email" (maps to messengers/channels.yao)
+func DefaultEmailChannel() string
+
+// SetDefaultEmailChannel sets the default channel (call during agent init)
+func SetDefaultEmailChannel(channel string)
+```
+
+**Usage:**
+- `DefaultEmailChannel()` - returns the messenger channel name for email delivery
+- `Robot.RobotEmail` - used as the `From` address when sending emails
+- If `RobotEmail` is empty, falls back to provider's default `from` address
+
+### 6.6 Delivery Center
 
 The Delivery Center receives `DeliveryRequest`, reads preferences, and executes delivery to **all enabled targets**.
 
@@ -2187,10 +2207,10 @@ func (dc *DeliveryCenter) Deliver(ctx context.Context, req *DeliveryRequest) *De
     var results []ChannelResult
     allSuccess := true
     
-    // Email - send to all targets
+    // Email - send to all targets (robot passed for From address)
     if prefs.Email != nil && prefs.Email.Enabled {
         for _, target := range prefs.Email.Targets {
-            result := dc.sendEmail(ctx, req.Content, target)
+            result := dc.sendEmail(ctx, req.Content, target, req.Context, robot)
             results = append(results, result)
             if !result.Success {
                 allSuccess = false
@@ -2232,13 +2252,20 @@ func (dc *DeliveryCenter) Deliver(ctx context.Context, req *DeliveryRequest) *De
 }
 ```
 
-### 6.6 Channel Handlers
+### 6.7 Channel Handlers
 
 Each delivery channel is handled by dedicated methods in DeliveryCenter:
 
 ```go
 // sendEmail - send to a single email target
-func (dc *DeliveryCenter) sendEmail(ctx context.Context, content *DeliveryContent, target EmailTarget) ChannelResult {
+// Uses Robot.RobotEmail as From address and global DefaultEmailChannel()
+func (dc *DeliveryCenter) sendEmail(
+    ctx context.Context,
+    content *DeliveryContent,
+    target EmailTarget,
+    deliveryCtx *DeliveryContext,
+    robot *Robot,
+) ChannelResult {
     // Convert attachments to messenger format
     var attachments []messenger.Attachment
     for _, att := range content.Attachments {
@@ -2255,17 +2282,25 @@ func (dc *DeliveryCenter) sendEmail(ctx context.Context, content *DeliveryConten
     }
     
     subject := content.Summary
-    if target.SubjectTemplate != "" {
-        subject = target.SubjectTemplate
+    if target.Subject != "" {
+        subject = target.Subject
     }
     
-    err := dc.messenger.Send(ctx, &messenger.Message{
+    msg := &messenger.Message{
         To:          target.To,
-        CC:          target.CC,
         Subject:     subject,
         Body:        content.Body,
         Attachments: attachments,
-    })
+    }
+    
+    // Set From address from Robot's email (if configured)
+    if robot != nil && robot.RobotEmail != "" {
+        msg.From = robot.RobotEmail
+    }
+    
+    // Use global default email channel
+    channel := DefaultEmailChannel() // from types/config_global.go
+    err := dc.messenger.Send(ctx, channel, msg)
     
     now := time.Now()
     return ChannelResult{
@@ -2344,7 +2379,7 @@ func (dc *DeliveryCenter) callProcess(ctx context.Context, content *DeliveryCont
 2. Automatically send in-app notifications to subscribed users
 3. This is transparent to P4 and Delivery Agent
 
-### 6.7 Execution Persistence
+### 6.8 Execution Persistence
 
 Robot execution history is stored in `__yao.agent_execution` table for UI display:
 

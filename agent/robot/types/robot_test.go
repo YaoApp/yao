@@ -648,7 +648,6 @@ func TestDeliveryPreferencesStructure(t *testing.T) {
 			Targets: []types.EmailTarget{
 				{
 					To:       []string{"team@example.com"},
-					CC:       []string{"manager@example.com"},
 					Template: "weekly-report",
 					Subject:  "Weekly Report - {{.Date}}",
 				},
@@ -686,7 +685,6 @@ func TestDeliveryPreferencesStructure(t *testing.T) {
 	assert.Len(t, prefs.Email.Targets, 2)
 	assert.Equal(t, "weekly-report", prefs.Email.Targets[0].Template)
 	assert.Len(t, prefs.Email.Targets[0].To, 1)
-	assert.Len(t, prefs.Email.Targets[0].CC, 1)
 
 	// Webhook
 	assert.True(t, prefs.Webhook.Enabled)

@@ -20,6 +20,7 @@ type Robot struct {
 	SystemPrompt   string      `json:"system_prompt"`
 	Status         RobotStatus `json:"robot_status"`
 	AutonomousMode bool        `json:"autonomous_mode"`
+	RobotEmail     string      `json:"robot_email"` // Robot's email address for sending emails
 
 	// Parsed config (from robot_config JSON field)
 	Config *Config `json:"-"`
@@ -317,7 +318,6 @@ type EmailPreference struct {
 // EmailTarget - Single email target
 type EmailTarget struct {
 	To       []string `json:"to"`                 // Recipient addresses
-	CC       []string `json:"cc,omitempty"`       // CC addresses
 	Template string   `json:"template,omitempty"` // Email template ID
 	Subject  string   `json:"subject,omitempty"`  // Subject template
 }
@@ -383,6 +383,7 @@ func NewRobotFromMap(m map[string]interface{}) (*Robot, error) {
 		DisplayName:    getString(m, "display_name"),
 		SystemPrompt:   getString(m, "system_prompt"),
 		AutonomousMode: getBool(m, "autonomous_mode"),
+		RobotEmail:     getString(m, "robot_email"),
 	}
 
 	// Parse robot_status

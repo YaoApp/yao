@@ -975,11 +975,11 @@ Supported channels:
 
 ### 10.4 Delivery Agent Setup
 
-- [ ] `robot/delivery/package.yao` - Delivery Agent config
-- [ ] `robot/delivery/prompts.yml` - delivery prompts
-  - [ ] Input: Full execution context (P0-P3 results)
-  - [ ] Output: DeliveryContent (Summary, Body, Attachments) - **only content, no channels**
-  - [ ] Agent focuses on content generation, NOT channel selection
+- [x] `robot/delivery/package.yao` - Delivery Agent config
+- [x] `robot/delivery/prompts.yml` - delivery prompts
+  - [x] Input: Full execution context (P0-P3 results)
+  - [x] Output: DeliveryContent (Summary, Body, Attachments) - **only content, no channels**
+  - [x] Agent focuses on content generation, NOT channel selection
 
 ### 10.5 Delivery Content Structure
 
@@ -1036,46 +1036,48 @@ type DeliveryContext struct {
 ### 10.6 Implementation
 
 **P4 Entry (executor/delivery.go):**
-- [ ] `RunDelivery(ctx, exec, data)` - P4 entry point
-  - [ ] Call Delivery Agent to generate content (only content, no channels)
-  - [ ] Build DeliveryRequest (Content + Context)
-  - [ ] Push to Delivery Center
-  - [ ] Store DeliveryResult in exec.Delivery
+- [x] `RunDelivery(ctx, exec, data)` - P4 entry point
+  - [x] Call Delivery Agent to generate content (only content, no channels)
+  - [x] Build DeliveryRequest (Content + Context)
+  - [x] Push to Delivery Center
+  - [x] Store DeliveryResult in exec.Delivery
 
-**Delivery Center (executor/delivery.go, future: yao/delivery):**
-- [ ] `DeliveryCenter.Deliver(ctx, request)` - main entry
-  - [ ] Read Robot/User delivery preferences
-  - [ ] Iterate through all enabled targets for each channel
-  - [ ] Aggregate ChannelResults into DeliveryResult
+**Delivery Center (executor/delivery_center.go):**
+- [x] `DeliveryCenter.Deliver(ctx, request)` - main entry
+  - [x] Read Robot/User delivery preferences
+  - [x] Iterate through all enabled targets for each channel
+  - [x] Aggregate ChannelResults into DeliveryResult
 
 **Channel Handlers (each supports multiple targets):**
-- [ ] `sendEmail()` - uses yao/messenger
-  - [ ] Convert DeliveryAttachment to messenger.Attachment
-  - [ ] Support multiple EmailTarget
-  - [ ] Support custom subject_template per target
-- [ ] `postWebhook()` - POST JSON
-  - [ ] POST DeliveryContent as JSON payload
-  - [ ] Support multiple WebhookTarget
-  - [ ] Support custom headers per target
-- [ ] `callProcess()` - Yao Process call
-  - [ ] DeliveryContent as first arg
-  - [ ] Support multiple ProcessTarget
-  - [ ] Support additional args per target
+- [x] `sendEmail()` - uses yao/messenger
+  - [x] Convert DeliveryAttachment to messenger.Attachment
+  - [x] Support multiple EmailTarget
+  - [x] Support custom subject_template per target
+  - [x] Use `Robot.RobotEmail` as From address (if configured)
+  - [x] Use global `DefaultEmailChannel()` for messenger channel selection
+- [x] `postWebhook()` - POST JSON
+  - [x] POST DeliveryContent as JSON payload
+  - [x] Support multiple WebhookTarget
+  - [x] Support custom headers per target
+- [x] `callProcess()` - Yao Process call
+  - [x] DeliveryContent as first arg
+  - [x] Support multiple ProcessTarget
+  - [x] Support additional args per target
 
 ### 10.7 Tests
 
-- [ ] `executor/delivery_test.go` - P4 delivery
-- [ ] Test: Delivery Agent generates content (only content)
-- [ ] Test: DeliveryCenter reads preferences
-- [ ] Test: Multiple email targets
-- [ ] Test: Multiple webhook targets
-- [ ] Test: Multiple process targets
-- [ ] Test: Mixed channels (email + webhook + process)
-- [ ] Test: sendEmail with attachments
-- [ ] Test: postWebhook with custom headers
-- [ ] Test: callProcess with args
-- [ ] Test: Partial success (some targets fail)
-- [ ] Test: DeliveryResult aggregation
+- [x] `executor/delivery_test.go` - P4 delivery
+- [x] Test: Delivery Agent generates content (only content)
+- [x] Test: DeliveryCenter reads preferences
+- [x] Test: Multiple email targets (TestDeliveryCenterEmail)
+- [x] Test: Multiple webhook targets
+- [x] Test: Multiple process targets (TestDeliveryCenterProcess)
+- [x] Test: Mixed channels (email + webhook + process) (TestDeliveryCenterAllChannels)
+- [x] Test: sendEmail with attachments (TestDeliveryCenterEmail)
+- [x] Test: postWebhook with custom headers
+- [x] Test: callProcess with args (TestDeliveryCenterProcess)
+- [x] Test: Partial success (some targets fail)
+- [x] Test: DeliveryResult aggregation
 
 ---
 
@@ -1291,7 +1293,7 @@ func TestWithLLM(t *testing.T) {
 | 7. P1 Goals           | ✅     | Goal Generation Agent integration                                            |
 | 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
 | 9. P3 Run             | ✅     | Task execution + validation + yao/assert + multi-turn conversation           |
-| 10. P4 Delivery       | ⬜     | Output delivery (email/webhook/process, notify future)                       |
+| 10. P4 Delivery       | ✅     | Output delivery (email/webhook/process, notify future)                       |
 | 11. API & Integration | ⬜     | Complete API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                   |
 | 12. Advanced          | ⬜     | P5 Learning, dedup, plan queue, Sandbox mode                                 |
 

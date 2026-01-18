@@ -138,6 +138,7 @@ Uses existing `__yao.member` model (`yao/models/member.mod.yao`):
 | `robot_config`    | JSON   | Agent configuration (see section 5)                         |
 | `robot_status`    | enum   | `idle` \| `working` \| `paused` \| `error` \| `maintenance` |
 | `system_prompt`   | text   | Identity & role prompt                                      |
+| `robot_email`     | string | Robot's email address for sending emails (From address)     |
 | `agents`          | JSON   | Accessible agents list                                      |
 | `mcp_servers`     | JSON   | Accessible MCP servers                                      |
 | `manager_id`      | string | Direct manager user ID                                      |
@@ -859,7 +860,6 @@ type EmailPreference struct {
 
 type EmailTarget struct {
     To       []string `json:"to"`                 // Recipient addresses
-    CC       []string `json:"cc,omitempty"`       // CC addresses
     Template string   `json:"template,omitempty"` // Email template ID
     Subject  string   `json:"subject,omitempty"`  // Subject template
 }
