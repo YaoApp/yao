@@ -22,6 +22,7 @@ import (
 var systemModels = map[string]string{
 	"__yao.agent.assistant":    "yao/models/agent/assistant.mod.yao",
 	"__yao.agent.chat":         "yao/models/agent/chat.mod.yao",
+	"__yao.agent.execution":    "yao/models/agent/execution.mod.yao",
 	"__yao.agent.message":      "yao/models/agent/message.mod.yao",
 	"__yao.agent.resume":       "yao/models/agent/resume.mod.yao",
 	"__yao.agent.search":       "yao/models/agent/search.mod.yao",

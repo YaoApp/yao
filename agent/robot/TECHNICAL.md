@@ -2353,63 +2353,88 @@ Robot execution history is stored in `__yao.agent_execution` table for UI displa
 // Table: __yao.agent_execution
 
 type ExecutionRecord struct {
-    ID          string                 `json:"id"`           // Execution ID
-    RobotID     string                 `json:"robot_id"`     // Robot config ID
-    MemberID    string                 `json:"member_id"`    // Robot member ID (user identity)
-    TeamID      string                 `json:"team_id"`      // Team ID
-    JobID       string                 `json:"job_id"`       // Linked job.Job ID
-    TriggerType TriggerType            `json:"trigger_type"` // clock | human | event
+    ID          int64                  `json:"id,omitempty"`     // Auto-increment primary key
+    ExecutionID string                 `json:"execution_id"`     // Unique execution identifier
+    RobotID     string                 `json:"robot_id"`         // Robot config ID
+    MemberID    string                 `json:"member_id"`        // Robot member ID (user identity)
+    TeamID      string                 `json:"team_id"`          // Team ID
+    JobID       string                 `json:"job_id,omitempty"` // Linked job.Job ID
+    TriggerType TriggerType            `json:"trigger_type"`     // clock | human | event
     
     // Status tracking (synced with runtime Execution)
-    Status      ExecStatus             `json:"status"`       // pending | running | completed | failed
-    Phase       Phase                  `json:"phase"`        // Current phase
-    Current     *CurrentState          `json:"current"`      // Current executing state (task index, progress)
-    Error       string                 `json:"error"`        // Error message if failed
+    Status      ExecStatus             `json:"status"`           // pending | running | completed | failed | cancelled
+    Phase       Phase                  `json:"phase"`            // Current phase
+    Current     *CurrentState          `json:"current,omitempty"`// Current executing state (task index, progress)
+    Error       string                 `json:"error,omitempty"`  // Error message if failed
     
     // Trigger input
-    Input       *TriggerInput          `json:"input"`        // Original trigger input
+    Input       *TriggerInput          `json:"input,omitempty"`  // Original trigger input
     
     // Phase outputs (P0-P5)
-    Inspiration *InspirationReport     `json:"inspiration"`  // P0 result
-    Goals       *Goals                 `json:"goals"`        // P1 result
-    Tasks       []Task                 `json:"tasks"`        // P2 result
-    Results     []TaskResult           `json:"results"`      // P3 results
-    Delivery    *DeliveryResult        `json:"delivery"`     // P4 result
-    Learning    []LearningEntry        `json:"learning"`     // P5 entries
+    Inspiration *InspirationReport     `json:"inspiration,omitempty"` // P0 result
+    Goals       *Goals                 `json:"goals,omitempty"`       // P1 result
+    Tasks       []Task                 `json:"tasks,omitempty"`       // P2 result
+    Results     []TaskResult           `json:"results,omitempty"`     // P3 results
+    Delivery    *DeliveryResult        `json:"delivery,omitempty"`    // P4 result
+    Learning    []LearningEntry        `json:"learning,omitempty"`    // P5 entries
     
     // Timestamps
-    StartTime   time.Time              `json:"start_time"`
-    EndTime     *time.Time             `json:"end_time"`
-    CreatedAt   time.Time              `json:"created_at"`
-    UpdatedAt   time.Time              `json:"updated_at"`
+    StartTime   *time.Time             `json:"start_time,omitempty"`
+    EndTime     *time.Time             `json:"end_time,omitempty"`
+    CreatedAt   *time.Time             `json:"created_at,omitempty"`
+    UpdatedAt   *time.Time             `json:"updated_at,omitempty"`
+}
+
+// CurrentState - current executing state (for JSON storage)
+type CurrentState struct {
+    TaskIndex int    `json:"task_index"`         // index in Tasks slice
+    Progress  string `json:"progress,omitempty"` // human-readable progress (e.g., "2/5 tasks")
 }
 ```
 
-**Store Interface:**
+**Store Implementation:**
 
 ```go
 // store/execution.go
-type ExecutionStore interface {
-    // Save creates or updates an execution record
-    Save(ctx context.Context, record *ExecutionRecord) error
-    
-    // Get retrieves an execution by ID
-    Get(ctx context.Context, execID string) (*ExecutionRecord, error)
-    
-    // List retrieves executions with filters
-    List(ctx context.Context, opts ListOptions) ([]*ExecutionRecord, int, error)
-    
-    // UpdatePhase updates the current phase
-    UpdatePhase(ctx context.Context, execID string, phase Phase, data interface{}) error
+type ExecutionStore struct {
+    modelID string // "__yao.agent.execution"
 }
 
+func NewExecutionStore() *ExecutionStore
+
+// Save creates or updates an execution record
+func (s *ExecutionStore) Save(ctx context.Context, record *ExecutionRecord) error
+
+// Get retrieves an execution by execution_id
+func (s *ExecutionStore) Get(ctx context.Context, executionID string) (*ExecutionRecord, error)
+
+// List retrieves executions with filters
+func (s *ExecutionStore) List(ctx context.Context, opts *ListOptions) ([]*ExecutionRecord, error)
+
+// UpdatePhase updates the current phase and its data
+func (s *ExecutionStore) UpdatePhase(ctx context.Context, executionID string, phase Phase, data interface{}) error
+
+// UpdateStatus updates the execution status
+func (s *ExecutionStore) UpdateStatus(ctx context.Context, executionID string, status ExecStatus, errorMsg string) error
+
+// UpdateCurrent updates the current executing state
+func (s *ExecutionStore) UpdateCurrent(ctx context.Context, executionID string, current *CurrentState) error
+
+// Delete removes an execution record
+func (s *ExecutionStore) Delete(ctx context.Context, executionID string) error
+
+// Conversion helpers
+func FromExecution(exec *Execution, robotID string) *ExecutionRecord
+func (r *ExecutionRecord) ToExecution() *Execution
+
 type ListOptions struct {
-    RobotID     string      // Filter by robot config ID
-    MemberID    string      // Filter by robot member ID
-    TeamID      string      // Filter by team
-    Status      ExecStatus  // Filter by status
-    TriggerType TriggerType // Filter by trigger
-    Page        int
-    PageSize    int
+    RobotID     string       // Filter by robot config ID
+    MemberID    string       // Filter by robot member ID
+    TeamID      string       // Filter by team
+    Status      ExecStatus   // Filter by status
+    TriggerType TriggerType  // Filter by trigger
+    Limit       int          // Max records to return (default: 100)
+    Offset      int          // Skip records for pagination
+    OrderBy     string       // e.g., "start_time desc"
 }
 ```

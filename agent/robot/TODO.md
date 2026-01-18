@@ -869,34 +869,40 @@ Created new `yao/assert` package for universal assertion/validation:
 
 **Depends on:** Phase 9 (P3 Run)
 
-### 10.1 Execution Persistence (Prerequisite)
+### 10.1 Execution Persistence (Prerequisite) ✅
 
 > **Background:** Each Robot execution (P0-P5) needs persistent storage for UI history queries.
 
-- [ ] `yao/models/agent/execution.mod.yao` - Execution record model (`agent_execution` table)
-  - [ ] id, execution_id (unique)
-  - [ ] robot_id, member_id, team_id, job_id
-  - [ ] trigger_type (enum: clock, human, event)
-  - [ ] **Status tracking** (synced with runtime Execution):
-    - [ ] status (enum: pending, running, completed, failed, cancelled)
-    - [ ] phase (enum: inspiration, goals, tasks, run, delivery, learning)
-    - [ ] current (JSON) - current executing state (task_index, progress)
-    - [ ] error - error message if failed
-  - [ ] input (JSON) - trigger input
-  - [ ] **Phase outputs** (P0-P5):
-    - [ ] inspiration (JSON) - P0 output
-    - [ ] goals (JSON) - P1 output
-    - [ ] tasks (JSON) - P2 output
-    - [ ] results (JSON) - P3 output
-    - [ ] delivery (JSON) - P4 output
-    - [ ] learning (JSON) - P5 output
-  - [ ] **Timestamps**: start_time, end_time, created_at, updated_at
-  - [ ] Relations: member (hasOne __yao.member)
-- [ ] `agent/robot/store/execution.go` - Execution record storage
-  - [ ] `Save(ctx, record)` - create or update execution record
-  - [ ] `Get(ctx, execID)` - get execution by ID
-  - [ ] `List(ctx, opts)` - query execution history with filters
-  - [ ] `UpdatePhase(ctx, execID, phase, data)` - update current phase and data
+- [x] `yao/models/agent/execution.mod.yao` - Execution record model (`agent_execution` table)
+  - [x] id, execution_id (unique)
+  - [x] robot_id, member_id, team_id, job_id
+  - [x] trigger_type (enum: clock, human, event)
+  - [x] **Status tracking** (synced with runtime Execution):
+    - [x] status (enum: pending, running, completed, failed, cancelled)
+    - [x] phase (enum: inspiration, goals, tasks, run, delivery, learning)
+    - [x] current (JSON) - current executing state (task_index, progress)
+    - [x] error - error message if failed
+  - [x] input (JSON) - trigger input
+  - [x] **Phase outputs** (P0-P5):
+    - [x] inspiration (JSON) - P0 output
+    - [x] goals (JSON) - P1 output
+    - [x] tasks (JSON) - P2 output
+    - [x] results (JSON) - P3 output
+    - [x] delivery (JSON) - P4 output
+    - [x] learning (JSON) - P5 output
+  - [x] **Timestamps**: start_time, end_time, created_at, updated_at
+  - [x] Relations: member (hasOne __yao.member)
+- [x] `agent/robot/store/execution.go` - Execution record storage
+  - [x] `Save(ctx, record)` - create or update execution record
+  - [x] `Get(ctx, execID)` - get execution by ID
+  - [x] `List(ctx, opts)` - query execution history with filters
+  - [x] `UpdatePhase(ctx, execID, phase, data)` - update current phase and data
+  - [x] `UpdateStatus(ctx, execID, status, error)` - update execution status
+  - [x] `UpdateCurrent(ctx, execID, current)` - update current executing state
+  - [x] `Delete(ctx, execID)` - delete execution record
+  - [x] `FromExecution(exec, robotID)` - convert runtime Execution to record
+  - [x] `ToExecution()` - convert record to runtime Execution
+- [x] Tests: `agent/robot/store/execution_test.go` (9 test groups, all passing)
 - [ ] Integrate into Executor - call `UpdatePhase()` after each phase completes
 
 ### 10.2 Messenger Attachment Support ✅
