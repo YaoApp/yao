@@ -1,0 +1,198 @@
+{
+  "name": "Execution",
+  "label": "Robot Execution",
+  "description": "Robot execution history for tracking P0-P5 phase outputs and status",
+  "tags": ["agent", "robot", "system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": { "name": "agent_execution", "comment": "Robot execution history table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "execution_id",
+      "type": "string",
+      "label": "Execution ID",
+      "comment": "Unique execution identifier",
+      "length": 64,
+      "nullable": false,
+      "unique": true,
+      "index": true
+    },
+    {
+      "name": "member_id",
+      "type": "string",
+      "label": "Member ID",
+      "comment": "Robot member ID (user identity from __yao.member)",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "team_id",
+      "type": "string",
+      "label": "Team ID",
+      "comment": "Team ID the robot belongs to",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "job_id",
+      "type": "string",
+      "label": "Job ID",
+      "comment": "Linked job.Job ID for monitoring",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "trigger_type",
+      "type": "enum",
+      "label": "Trigger Type",
+      "comment": "How this execution was triggered",
+      "option": ["clock", "human", "event"],
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Execution status",
+      "option": ["pending", "running", "completed", "failed", "cancelled"],
+      "default": "pending",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "phase",
+      "type": "enum",
+      "label": "Phase",
+      "comment": "Current execution phase",
+      "option": ["inspiration", "goals", "tasks", "run", "delivery", "learning"],
+      "default": "inspiration",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "current",
+      "type": "json",
+      "label": "Current State",
+      "comment": "Current executing state (task_index, progress)",
+      "nullable": true
+    },
+    {
+      "name": "error",
+      "type": "text",
+      "label": "Error",
+      "comment": "Error message if execution failed",
+      "nullable": true
+    },
+    {
+      "name": "input",
+      "type": "json",
+      "label": "Input",
+      "comment": "Original trigger input (TriggerInput)",
+      "nullable": true
+    },
+    {
+      "name": "inspiration",
+      "type": "json",
+      "label": "Inspiration",
+      "comment": "P0 output (InspirationReport)",
+      "nullable": true
+    },
+    {
+      "name": "goals",
+      "type": "json",
+      "label": "Goals",
+      "comment": "P1 output (Goals)",
+      "nullable": true
+    },
+    {
+      "name": "tasks",
+      "type": "json",
+      "label": "Tasks",
+      "comment": "P2 output ([]Task)",
+      "nullable": true
+    },
+    {
+      "name": "results",
+      "type": "json",
+      "label": "Results",
+      "comment": "P3 output ([]TaskResult)",
+      "nullable": true
+    },
+    {
+      "name": "delivery",
+      "type": "json",
+      "label": "Delivery",
+      "comment": "P4 output (DeliveryResult)",
+      "nullable": true
+    },
+    {
+      "name": "learning",
+      "type": "json",
+      "label": "Learning",
+      "comment": "P5 output ([]LearningEntry)",
+      "nullable": true
+    },
+    {
+      "name": "start_time",
+      "type": "timestamp",
+      "label": "Start Time",
+      "comment": "Execution start timestamp",
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "end_time",
+      "type": "timestamp",
+      "label": "End Time",
+      "comment": "Execution end timestamp",
+      "nullable": true,
+      "index": true
+    }
+  ],
+  "relations": {
+    "member": {
+      "type": "hasOne",
+      "model": "__yao.member",
+      "key": "member_id",
+      "foreign": "member_id"
+    }
+  },
+  "indexes": [
+    {
+      "name": "idx_agent_execution_member_status",
+      "columns": ["member_id", "status"],
+      "type": "index",
+      "comment": "Index for member execution queries with status filter"
+    },
+    {
+      "name": "idx_agent_execution_team_status",
+      "columns": ["team_id", "status"],
+      "type": "index",
+      "comment": "Index for team execution queries with status filter"
+    },
+    {
+      "name": "idx_agent_execution_trigger_start",
+      "columns": ["trigger_type", "start_time"],
+      "type": "index",
+      "comment": "Index for trigger type analysis"
+    },
+    {
+      "name": "idx_agent_execution_member_start",
+      "columns": ["member_id", "start_time"],
+      "type": "index",
+      "comment": "Index for robot execution history by member"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false, "permission": true }
+}

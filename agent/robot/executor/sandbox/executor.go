@@ -201,7 +201,11 @@ func (e *Executor) mockPhaseOutput(exec *robottypes.Execution, phase robottypes.
 		}
 	case robottypes.PhaseDelivery:
 		exec.Delivery = &robottypes.DeliveryResult{
-			Type:    robottypes.DeliveryNotify,
+			RequestID: "sandbox-" + exec.ID,
+			Content: &robottypes.DeliveryContent{
+				Summary: "Sandbox delivery completed",
+				Body:    "# Sandbox Delivery\n\nThis is a simulated sandbox delivery result.",
+			},
 			Success: true,
 		}
 	case robottypes.PhaseLearning:

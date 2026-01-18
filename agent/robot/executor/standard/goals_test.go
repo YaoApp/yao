@@ -334,7 +334,7 @@ func TestParseDeliveryFromGoalsResponse(t *testing.T) {
 			if exec.Goals.Delivery.Type != "" {
 				validTypes := []types.DeliveryType{
 					types.DeliveryEmail, types.DeliveryWebhook,
-					types.DeliveryFile, types.DeliveryNotify,
+					types.DeliveryProcess, types.DeliveryNotify,
 				}
 				found := false
 				for _, vt := range validTypes {
@@ -355,7 +355,7 @@ func TestDeliveryTypeValidation(t *testing.T) {
 		validTypes := []types.DeliveryType{
 			types.DeliveryEmail,
 			types.DeliveryWebhook,
-			types.DeliveryFile,
+			types.DeliveryProcess,
 			types.DeliveryNotify,
 		}
 
@@ -462,7 +462,7 @@ func TestParseDelivery(t *testing.T) {
 	})
 
 	t.Run("parses all valid delivery types", func(t *testing.T) {
-		validTypes := []string{"email", "webhook", "file", "notify"}
+		validTypes := []string{"email", "webhook", "process", "notify"}
 
 		for _, dt := range validTypes {
 			data := map[string]interface{}{

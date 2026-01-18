@@ -170,7 +170,7 @@ func ParseDelivery(data map[string]interface{}) *robottypes.DeliveryTarget {
 func IsValidDeliveryType(t robottypes.DeliveryType) bool {
 	switch t {
 	case robottypes.DeliveryEmail, robottypes.DeliveryWebhook,
-		robottypes.DeliveryFile, robottypes.DeliveryNotify:
+		robottypes.DeliveryProcess, robottypes.DeliveryNotify:
 		return true
 	default:
 		return false

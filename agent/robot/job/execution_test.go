@@ -278,8 +278,12 @@ func TestCompleteExecution(t *testing.T) {
 
 		// Simulate execution progress
 		exec.Delivery = &types.DeliveryResult{
+			RequestID: "test-delivery-001",
+			Content: &types.DeliveryContent{
+				Summary: "Test delivery completed",
+				Body:    "# Test Delivery\n\nThis is a test delivery result.",
+			},
 			Success: true,
-			Type:    types.DeliveryEmail,
 		}
 
 		err = job.CompleteExecution(ctx, exec)

@@ -455,7 +455,11 @@ func TestInputFormatterFormatExecutionSummary(t *testing.T) {
 				{TaskID: "t2", Success: true, Duration: 200},
 			},
 			Delivery: &types.DeliveryResult{
-				Type:    types.DeliveryEmail,
+				RequestID: "test-delivery-001",
+				Content: &types.DeliveryContent{
+					Summary: "Test delivery completed",
+					Body:    "# Test Delivery\n\nTest delivery body.",
+				},
 				Success: true,
 			},
 		}
@@ -476,7 +480,7 @@ func TestInputFormatterFormatExecutionSummary(t *testing.T) {
 		assert.Contains(t, result, "## Results (P3)")
 		assert.Contains(t, result, "✓ t1")
 		assert.Contains(t, result, "## Delivery (P4)")
-		assert.Contains(t, result, "email")
+		assert.Contains(t, result, "Test delivery completed")
 	})
 
 	t.Run("formats execution with error", func(t *testing.T) {

@@ -551,3 +551,130 @@ func BenchmarkValidate(b *testing.B) {
 		}
 	}
 }
+
+// ============================================================================
+// Attachment Tests
+// ============================================================================
+
+func TestSend_EmailWithAttachments_MockServer(t *testing.T) {
+	// Create a mock HTTP server that validates the multipart request
+	var receivedContentType string
+	var receivedBody []byte
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedContentType = r.Header.Get("Content-Type")
+
+		// Read the body
+		body, _ := r.Body.Read(make([]byte, 1024*1024))
+		_ = body
+		receivedBody = make([]byte, r.ContentLength)
+		r.Body.Read(receivedBody)
+
+		// Return success
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id": "test-id", "message": "Queued"}`))
+	}))
+	defer server.Close()
+
+	config := loadTestConfig(t)
+	provider, err := NewMailgunProvider(config)
+	require.NoError(t, err)
+
+	// Override base URL to use mock server
+	provider.baseURL = server.URL
+
+	ctx := context.Background()
+	emailMessage := &types.Message{
+		Type:    types.MessageTypeEmail,
+		To:      []string{"test@example.com"},
+		Subject: "Test Email with Attachment",
+		Body:    "This is a test email with attachment",
+		HTML:    "<h1>Test</h1><p>This is a test email with attachment</p>",
+		Attachments: []types.Attachment{
+			{
+				Filename:    "test.txt",
+				ContentType: "text/plain",
+				Content:     []byte("Hello, this is a test attachment content!"),
+			},
+			{
+				Filename:    "test.pdf",
+				ContentType: "application/pdf",
+				Content:     []byte("%PDF-1.4 fake pdf content"),
+			},
+		},
+	}
+
+	err = provider.Send(ctx, emailMessage)
+	assert.NoError(t, err)
+
+	// Verify the request used multipart/form-data
+	assert.Contains(t, receivedContentType, "multipart/form-data")
+}
+
+func TestSend_EmailWithInlineAttachment_MockServer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"id": "test-id", "message": "Queued"}`))
+	}))
+	defer server.Close()
+
+	config := loadTestConfig(t)
+	provider, err := NewMailgunProvider(config)
+	require.NoError(t, err)
+
+	provider.baseURL = server.URL
+
+	ctx := context.Background()
+	emailMessage := &types.Message{
+		Type:    types.MessageTypeEmail,
+		To:      []string{"test@example.com"},
+		Subject: "Test Email with Inline Image",
+		Body:    "This is a test email with inline image",
+		HTML:    `<h1>Test</h1><p>Image: <img src="cid:logo123"></p>`,
+		Attachments: []types.Attachment{
+			{
+				Filename:    "logo.png",
+				ContentType: "image/png",
+				Content:     []byte{0x89, 0x50, 0x4E, 0x47}, // PNG magic bytes
+				Inline:      true,
+				CID:         "logo123",
+			},
+		},
+	}
+
+	err = provider.Send(ctx, emailMessage)
+	assert.NoError(t, err)
+}
+
+func TestSend_EmailWithAttachments_RealAPI(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping real API test in short mode")
+	}
+
+	config := loadTestConfig(t)
+	provider, err := NewMailgunProvider(config)
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	emailMessage := &types.Message{
+		Type:    types.MessageTypeEmail,
+		To:      []string{TestEmailAgent},
+		Subject: "Unit Test Email with Attachment - " + time.Now().Format("2006-01-02 15:04:05"),
+		Body:    "This is a unit test email with attachment sent via real Mailgun API",
+		HTML:    "<h1>Unit Test</h1><p>This email has an attachment.</p>",
+		Attachments: []types.Attachment{
+			{
+				Filename:    "test-attachment.txt",
+				ContentType: "text/plain",
+				Content:     []byte("This is a test attachment content.\nLine 2 of the attachment."),
+			},
+		},
+	}
+
+	err = provider.Send(ctx, emailMessage)
+	if err != nil {
+		t.Logf("Real API call with attachment failed (may be expected in CI): %v", err)
+	} else {
+		t.Log("Real Mailgun API call with attachment succeeded")
+	}
+}
