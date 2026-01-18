@@ -511,11 +511,16 @@ func (f *InputFormatter) FormatExecutionSummary(exec *robottypes.Execution) stri
 	// Delivery (P4)
 	if exec.Delivery != nil {
 		sb.WriteString("## Delivery (P4)\n\n")
-		sb.WriteString(fmt.Sprintf("- **Type**: %s\n", exec.Delivery.Type))
+		if exec.Delivery.Content != nil {
+			sb.WriteString(fmt.Sprintf("- **Summary**: %s\n", exec.Delivery.Content.Summary))
+		}
 		if exec.Delivery.Success {
 			sb.WriteString("- **Status**: ✓ Success\n")
 		} else {
 			sb.WriteString(fmt.Sprintf("- **Status**: ✗ Failed (%s)\n", exec.Delivery.Error))
+		}
+		if len(exec.Delivery.Results) > 0 {
+			sb.WriteString(fmt.Sprintf("- **Channels**: %d\n", len(exec.Delivery.Results)))
 		}
 		sb.WriteString("\n")
 	}

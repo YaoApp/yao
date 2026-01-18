@@ -168,7 +168,11 @@ func (e *Executor) mockPhaseOutput(exec *robottypes.Execution, phase robottypes.
 		}
 	case robottypes.PhaseDelivery:
 		exec.Delivery = &robottypes.DeliveryResult{
-			Type:    robottypes.DeliveryNotify,
+			RequestID: "dryrun-" + exec.ID,
+			Content: &robottypes.DeliveryContent{
+				Summary: "Dry-run delivery completed",
+				Body:    "# Dry-run Delivery\n\nThis is a simulated delivery result.",
+			},
 			Success: true,
 		}
 	case robottypes.PhaseLearning:

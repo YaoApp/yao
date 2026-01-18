@@ -25,7 +25,11 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 	e.simulateStreamDelay()
 
 	exec.Delivery = &robottypes.DeliveryResult{
-		Type:    robottypes.DeliveryNotify,
+		RequestID: "delivery-" + exec.ID,
+		Content: &robottypes.DeliveryContent{
+			Summary: "Delivery completed (placeholder)",
+			Body:    "# Delivery\n\nTODO: Implement real delivery logic.",
+		},
 		Success: true,
 	}
 	return nil
