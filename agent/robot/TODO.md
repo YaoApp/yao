@@ -830,27 +830,33 @@ Created new `yao/assert` package for universal assertion/validation:
 - [x] `tasks_test.go` - ParseTasks with validation rules format
 - [x] Validation rules format aligned with `prompts.yml` guidelines
 
-**TODO (Next Iteration):**
-- [ ] `executor/standard/run_test.go` - P3 RunExecution tests
-  - [ ] Test: tasks executed in order
-  - [ ] Test: task status updates (Running → Completed/Failed/Skipped)
-  - [ ] Test: ContinueOnFailure option
-  - [ ] Test: remaining tasks marked as skipped on failure
-- [ ] `executor/standard/runner_test.go` - Runner tests
-  - [ ] Test: ExecuteWithRetry with multi-turn conversation flow
-  - [ ] Test: executeAssistantWithMultiTurn conversation continuation
-  - [ ] Test: ExecuteMCPTask with correct ID parsing
-  - [ ] Test: ExecuteProcessTask with Yao process
-  - [ ] Test: BuildTaskContext with previous results
-  - [ ] Test: FormatPreviousResultsAsContext formatting
-- [ ] `executor/standard/validator_test.go` - Validator tests
-  - [ ] Test: ValidateWithContext with multi-turn state
-  - [ ] Test: isComplete determination logic
-  - [ ] Test: checkNeedReply scenarios (clarification, feedback, incomplete)
-  - [ ] Test: convertStringRule for natural language rules
-  - [ ] Test: parseRules for JSON assertions
-  - [ ] Test: validateSemantic with Validation Agent
-  - [ ] Test: mergeResults logic
+**Completed Tests:**
+- [x] `executor/standard/run_test.go` - P3 RunExecution tests ✅
+  - [x] Test: tasks executed in order (`TestRunExecutionBasic`)
+  - [x] Test: task status updates (`TestRunExecutionTaskStatus`)
+  - [x] Test: remaining tasks marked as skipped on failure
+  - [x] Test: error handling (robot nil, no tasks, non-existent assistant)
+  - [x] Test: rule-based and semantic validation (`TestRunExecutionValidation`)
+  - [x] Test: previous results passed as context to subsequent tasks
+- [x] `executor/standard/runner_test.go` - Runner tests ✅
+  - [x] Test: ExecuteWithRetry with multi-turn conversation flow
+  - [x] Test: max turns limit enforcement
+  - [x] Test: BuildTaskContext with previous results
+  - [x] Test: FormatPreviousResultsAsContext formatting
+  - [x] Test: BuildAssistantMessages with task content
+  - [x] Test: FormatMessagesAsText (string, multipart, map)
+  - [x] Test: MCP and Process tasks (skipped - requires runtime)
+- [x] `executor/standard/validator_test.go` - Validator tests ✅
+  - [x] Test: ValidateWithContext with multi-turn state
+  - [x] Test: isComplete determination logic
+  - [x] Test: checkNeedReply scenarios
+  - [x] Test: convertStringRule for natural language rules
+  - [x] Test: parseRules for JSON assertions (equals, regex, json_path, type)
+  - [x] Test: validateSemantic with Validation Agent
+  - [x] Test: mergeResults logic (rule + semantic)
+
+**TODO (Future):**
+- [ ] Test: ContinueOnFailure option (run_test.go)
 
 ### 9.4 Architecture
 
