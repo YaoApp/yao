@@ -1237,7 +1237,8 @@ func (r *Robot) GetExecutions() []*Execution {
 // Relationship: 1 Execution = 1 job.Job
 type Execution struct {
     ID          string      `json:"id"`           // unique execution ID
-    MemberID    string      `json:"member_id"`    // robot member ID
+    RobotID     string      `json:"robot_id"`     // robot config ID
+    MemberID    string      `json:"member_id"`    // robot member ID (user identity)
     TeamID      string      `json:"team_id"`
     TriggerType TriggerType `json:"trigger_type"` // clock | human | event
     StartTime   time.Time   `json:"start_time"`
@@ -1425,7 +1426,8 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`
+    RobotID     string      `json:"robot_id"`     // Robot config ID
+    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`
@@ -1997,12 +1999,11 @@ P4 Delivery summarizes P3 execution results and delivers to configured channels.
          ┌────────────┴────────────┐
          ▼                         ▼
 ┌─────────────────┐      ┌─────────────────┐
-│ Delivery Agent  │      │ Channel Handlers │
-│  - Summarize    │      │  - Email         │
-│  - Format body  │      │  - Webhook       │
-│  - List files   │      │  - Notify        │
-└─────────────────┘      │  - File          │
-                         └─────────────────┘
+│ Delivery Agent  │      │ Delivery Center  │
+│  - Summarize    │      │  - sendEmail()   │
+│  - Format body  │      │  - postWebhook() │
+│  - List files   │      │  - callProcess() │
+└─────────────────┘      └─────────────────┘
 ```
 
 ### 6.2 Delivery Request Structure
@@ -2035,7 +2036,8 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`
+    RobotID     string      `json:"robot_id"`     // Robot config ID
+    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`
@@ -2052,7 +2054,8 @@ type DeliveryContext struct {
     "attachments": [{"title": "Report.pdf", "file": "__yao.attachment://abc123"}]
   },
   "context": {
-    "robot_id": "mem_abc123",
+    "robot_id": "robot_sales_001",
+    "member_id": "mem_abc123",
     "execution_id": "exec_xyz789",
     "trigger_type": "clock",
     "team_id": "team_123"
@@ -2351,20 +2354,30 @@ Robot execution history is stored in `__yao.agent_execution` table for UI displa
 
 type ExecutionRecord struct {
     ID          string                 `json:"id"`           // Execution ID
-    MemberID    string                 `json:"member_id"`    // Robot member ID
+    RobotID     string                 `json:"robot_id"`     // Robot config ID
+    MemberID    string                 `json:"member_id"`    // Robot member ID (user identity)
     TeamID      string                 `json:"team_id"`      // Team ID
     JobID       string                 `json:"job_id"`       // Linked job.Job ID
     TriggerType TriggerType            `json:"trigger_type"` // clock | human | event
+    
+    // Status tracking (synced with runtime Execution)
     Status      ExecStatus             `json:"status"`       // pending | running | completed | failed
     Phase       Phase                  `json:"phase"`        // Current phase
+    Current     *CurrentState          `json:"current"`      // Current executing state (task index, progress)
+    Error       string                 `json:"error"`        // Error message if failed
+    
+    // Trigger input
     Input       *TriggerInput          `json:"input"`        // Original trigger input
+    
+    // Phase outputs (P0-P5)
     Inspiration *InspirationReport     `json:"inspiration"`  // P0 result
     Goals       *Goals                 `json:"goals"`        // P1 result
     Tasks       []Task                 `json:"tasks"`        // P2 result
     Results     []TaskResult           `json:"results"`      // P3 results
     Delivery    *DeliveryResult        `json:"delivery"`     // P4 result
     Learning    []LearningEntry        `json:"learning"`     // P5 entries
-    Error       string                 `json:"error"`        // Error message if failed
+    
+    // Timestamps
     StartTime   time.Time              `json:"start_time"`
     EndTime     *time.Time             `json:"end_time"`
     CreatedAt   time.Time              `json:"created_at"`
@@ -2391,9 +2404,10 @@ type ExecutionStore interface {
 }
 
 type ListOptions struct {
-    MemberID    string     // Filter by robot
-    TeamID      string     // Filter by team
-    Status      ExecStatus // Filter by status
+    RobotID     string      // Filter by robot config ID
+    MemberID    string      // Filter by robot member ID
+    TeamID      string      // Filter by team
+    Status      ExecStatus  // Filter by status
     TriggerType TriggerType // Filter by trigger
     Page        int
     PageSize    int

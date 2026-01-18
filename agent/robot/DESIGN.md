@@ -504,7 +504,7 @@ P4 generates delivery content and pushes to Delivery Center. **Agent only genera
 ┌─────────────────────────────────────────────────────────────┐
 │              DeliveryRequest                                 │
 │  - Content: Summary, Body, Attachments                       │
-│  - Context: robot_id, exec_id, trigger_type, team_id        │
+│  - Context: robot_id, member_id, execution_id, trigger, team│
 │  (No Channels - Delivery Center decides)                     │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -554,7 +554,8 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking and audit info
 type DeliveryContext struct {
-    RobotID     string      `json:"robot_id"`
+    RobotID     string      `json:"robot_id"`     // Robot config ID
+    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
     ExecutionID string      `json:"execution_id"`
     TriggerType TriggerType `json:"trigger_type"`
     TeamID      string      `json:"team_id"`
@@ -759,6 +760,7 @@ const (
     ExecRunning   ExecStatus = "running"
     ExecCompleted ExecStatus = "completed"
     ExecFailed    ExecStatus = "failed"
+    ExecCancelled ExecStatus = "cancelled"
 )
 
 // RobotStatus - matches __yao.member.robot_status enum

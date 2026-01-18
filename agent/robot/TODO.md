@@ -875,24 +875,29 @@ Created new `yao/assert` package for universal assertion/validation:
 
 - [ ] `yao/models/agent/execution.mod.yao` - Execution record model (`agent_execution` table)
   - [ ] id, execution_id (unique)
-  - [ ] member_id, team_id, job_id
+  - [ ] robot_id, member_id, team_id, job_id
   - [ ] trigger_type (enum: clock, human, event)
-  - [ ] status (enum: pending, running, completed, failed, cancelled)
-  - [ ] phase (enum: inspiration, goals, tasks, run, delivery, learning)
-  - [ ] start_time, end_time, error
+  - [ ] **Status tracking** (synced with runtime Execution):
+    - [ ] status (enum: pending, running, completed, failed, cancelled)
+    - [ ] phase (enum: inspiration, goals, tasks, run, delivery, learning)
+    - [ ] current (JSON) - current executing state (task_index, progress)
+    - [ ] error - error message if failed
   - [ ] input (JSON) - trigger input
-  - [ ] inspiration (JSON) - P0 output
-  - [ ] goals (JSON) - P1 output
-  - [ ] tasks (JSON) - P2 output
-  - [ ] results (JSON) - P3 output
-  - [ ] delivery (JSON) - P4 output
-  - [ ] learning (JSON) - P5 output
+  - [ ] **Phase outputs** (P0-P5):
+    - [ ] inspiration (JSON) - P0 output
+    - [ ] goals (JSON) - P1 output
+    - [ ] tasks (JSON) - P2 output
+    - [ ] results (JSON) - P3 output
+    - [ ] delivery (JSON) - P4 output
+    - [ ] learning (JSON) - P5 output
+  - [ ] **Timestamps**: start_time, end_time, created_at, updated_at
   - [ ] Relations: member (hasOne __yao.member)
 - [ ] `agent/robot/store/execution.go` - Execution record storage
-  - [ ] `SaveExecution()` - save/update execution record
-  - [ ] `GetExecution()` - get execution by ID
-  - [ ] `ListExecutions()` - query execution history by member_id
-- [ ] Integrate into Executor - update record after each phase
+  - [ ] `Save(ctx, record)` - create or update execution record
+  - [ ] `Get(ctx, execID)` - get execution by ID
+  - [ ] `List(ctx, opts)` - query execution history with filters
+  - [ ] `UpdatePhase(ctx, execID, phase, data)` - update current phase and data
+- [ ] Integrate into Executor - call `UpdatePhase()` after each phase completes
 
 ### 10.2 Messenger Attachment Support ✅
 
@@ -968,10 +973,11 @@ type DeliveryAttachment struct {
 
 // DeliveryContext - tracking info
 type DeliveryContext struct {
-    RobotID     string `json:"robot_id"`
-    ExecutionID string `json:"execution_id"`
-    TriggerType string `json:"trigger_type"`
-    TeamID      string `json:"team_id"`
+    RobotID     string      `json:"robot_id"`     // Robot config ID
+    MemberID    string      `json:"member_id"`    // Robot member ID (user identity)
+    ExecutionID string      `json:"execution_id"`
+    TriggerType TriggerType `json:"trigger_type"` // clock | human | event
+    TeamID      string      `json:"team_id"`
 }
 ```
 
