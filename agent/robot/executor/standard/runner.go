@@ -61,7 +61,11 @@ func (r *Runner) BuildTaskContext(exec *robottypes.Execution, taskIndex int) *Ru
 	return ctx
 }
 
-// ExecuteWithRetry executes a task with retry mechanism
+// ExecuteWithRetry executes a task with the new multi-turn conversation flow:
+// 1. Call assistant and get result
+// 2. Validate result (determines: passed, complete, needReply, replyContent)
+// 3. If needReply, continue conversation with replyContent
+// 4. Repeat until complete or max turns exceeded
 func (r *Runner) ExecuteWithRetry(task *robottypes.Task, taskCtx *RunnerContext) *robottypes.TaskResult {
 	startTime := time.Now()
 
@@ -69,86 +73,74 @@ func (r *Runner) ExecuteWithRetry(task *robottypes.Task, taskCtx *RunnerContext)
 		TaskID: task.ID,
 	}
 
-	var lastOutput interface{}
-	var lastValidation *robottypes.ValidationResult
-	var allErrors []string // Collect all errors for debugging
-
-	for attempt := 0; attempt <= r.config.MaxRetries; attempt++ {
-		// Execute the task
-		output, err := r.ExecuteTask(task, taskCtx, lastValidation)
+	// For non-assistant tasks (MCP, Process), use simple single-call execution
+	if task.ExecutorType != robottypes.ExecutorAssistant {
+		output, err := r.executeNonAssistantTask(task, taskCtx)
 		if err != nil {
-			// Execution error - don't retry, return immediately
-			// (Retries are only for validation failures, not execution errors)
-			errMsg := fmt.Sprintf("execution failed on attempt %d: %s", attempt+1, err.Error())
-			allErrors = append(allErrors, errMsg)
 			result.Success = false
-			result.Error = strings.Join(allErrors, "; ")
+			result.Error = fmt.Sprintf("execution failed: %s", err.Error())
 			result.Duration = time.Since(startTime).Milliseconds()
 			return result
 		}
 
-		lastOutput = output
 		result.Output = output
-
-		// Validate the result (reuse validator instance)
-		validation := r.validator.Validate(task, output)
-		lastValidation = validation
+		validation := r.validator.ValidateWithContext(task, output, nil)
 		result.Validation = validation
+		// For non-assistant tasks (MCP, Process):
+		// - No multi-turn conversation, so Complete is determined by validation alone
+		// - Success if passed OR score meets threshold (for partial success scenarios)
+		result.Success = validation.Complete || (validation.Passed && validation.Score >= r.config.ValidationThreshold)
+		result.Duration = time.Since(startTime).Milliseconds()
 
-		// Check if validation passed (unified logic)
-		validationPassed := validation.Passed || validation.Score >= r.config.ValidationThreshold
-		if validationPassed {
-			result.Success = true
-			result.Duration = time.Since(startTime).Milliseconds()
-			return result
+		if !result.Success && validation != nil {
+			result.Error = fmt.Sprintf("validation failed: %v", validation.Issues)
 		}
-
-		// Validation failed - check if we should retry
-		if !r.config.RetryOnValidationFailure || attempt >= r.config.MaxRetries {
-			break
-		}
-
-		// Prepare for retry with validation feedback
-		// The next iteration will include validation issues in the context
+		return result
 	}
 
-	// All retries exhausted
-	result.Success = false
-	result.Output = lastOutput
-	result.Validation = lastValidation
+	// For assistant tasks, use multi-turn conversation flow
+	output, validation, err := r.executeAssistantWithMultiTurn(task, taskCtx)
+	if err != nil {
+		result.Success = false
+		result.Error = err.Error()
+		result.Output = output         // Preserve partial output for debugging
+		result.Validation = validation // Preserve validation result for debugging
+		result.Duration = time.Since(startTime).Milliseconds()
+		return result
+	}
+
+	result.Output = output
+	result.Validation = validation
+	result.Success = validation.Complete && validation.Passed
 	result.Duration = time.Since(startTime).Milliseconds()
 
-	if len(allErrors) > 0 {
-		result.Error = strings.Join(allErrors, "; ")
-	} else if lastValidation != nil {
-		result.Error = fmt.Sprintf("validation failed after %d attempts: %v",
-			r.config.MaxRetries+1, lastValidation.Issues)
+	if !result.Success && validation != nil {
+		result.Error = fmt.Sprintf("task incomplete: %v", validation.Issues)
 	}
 
 	return result
 }
 
-// ExecuteTask executes a single task based on its executor type
-func (r *Runner) ExecuteTask(task *robottypes.Task, taskCtx *RunnerContext, prevValidation *robottypes.ValidationResult) (interface{}, error) {
+// executeNonAssistantTask executes MCP or Process tasks (single-call, no multi-turn)
+func (r *Runner) executeNonAssistantTask(task *robottypes.Task, taskCtx *RunnerContext) (interface{}, error) {
 	switch task.ExecutorType {
-	case robottypes.ExecutorAssistant:
-		return r.ExecuteAssistantTask(task, taskCtx, prevValidation)
 	case robottypes.ExecutorMCP:
 		return r.ExecuteMCPTask(task, taskCtx)
 	case robottypes.ExecutorProcess:
 		return r.ExecuteProcessTask(task, taskCtx)
 	default:
-		return nil, fmt.Errorf("unknown executor type: %s", task.ExecutorType)
+		return nil, fmt.Errorf("unsupported executor type: %s (expected mcp or process)", task.ExecutorType)
 	}
 }
 
-// ExecuteAssistantTask executes a task using an AI assistant
-// Supports multi-turn conversation for complex tasks
-func (r *Runner) ExecuteAssistantTask(task *robottypes.Task, taskCtx *RunnerContext, prevValidation *robottypes.ValidationResult) (interface{}, error) {
-	// Build messages for the assistant
-	messages := r.BuildAssistantMessages(task, taskCtx, prevValidation)
-
-	// Create conversation for multi-turn support
+// executeAssistantWithMultiTurn executes an assistant task with multi-turn conversation support
+// This is the main execution flow for assistant tasks:
+// 1. Call assistant and get result
+// 2. Validate result (determines: passed, complete, needReply, replyContent)
+// 3. If needReply, continue conversation with replyContent
+// 4. Repeat until complete or max turns exceeded
+func (r *Runner) executeAssistantWithMultiTurn(task *robottypes.Task, taskCtx *RunnerContext) (interface{}, *robottypes.ValidationResult, error) {
+	// Create conversation for the entire task execution (shared across all turns)
 	chatID := fmt.Sprintf("robot-%s-task-%s", r.robot.MemberID, task.ID)
 	conv := NewConversation(task.ExecutorID, chatID, r.config.MaxTurnsPerTask)
 
@@ -157,55 +149,106 @@ func (r *Runner) ExecuteAssistantTask(task *robottypes.Task, taskCtx *RunnerCont
 		conv.WithSystemPrompt(taskCtx.SystemPrompt)
 	}
 
-	// First turn: send the task
-	firstInput := r.FormatMessagesAsText(messages)
-	turnResult, err := conv.Turn(r.ctx, firstInput)
-	if err != nil {
-		return nil, fmt.Errorf("assistant call failed: %w", err)
+	// Build initial messages
+	messages := r.BuildAssistantMessages(task, taskCtx)
+	input := r.FormatMessagesAsText(messages)
+
+	// Ensure we have valid input for the first turn
+	if strings.TrimSpace(input) == "" {
+		return nil, nil, fmt.Errorf("no valid input messages for task %s", task.ID)
 	}
 
-	// Check if the assistant needs more information (multi-turn)
-	// We detect this by checking if the response indicates incompleteness
-	// or if there are tool calls that need results
-	response := turnResult.Result
+	var lastOutput interface{}
+	var lastValidation *robottypes.ValidationResult
+	var lastCallResult *CallResult
 
-	// For simple tasks, return the result directly
-	if response.Response == nil || len(response.Response.Tools) == 0 {
-		// Try to extract structured output
-		if data, err := response.GetJSON(); err == nil {
-			return data, nil
-		}
-		// Return text content
-		return response.GetText(), nil
-	}
-
-	// Handle multi-turn conversation with auto-reply simulation
-	// Similar to the test framework's dynamic runner
-	for turn := 2; turn <= r.config.MaxTurnsPerTask; turn++ {
-		// Check if we have a complete response
-		if r.IsResponseComplete(response) {
-			break
-		}
-
-		// Generate auto-reply based on tool results or context
-		autoReply := r.GenerateAutoReply(response, task)
-		if autoReply == "" {
-			break // No more input needed
-		}
-
-		// Continue conversation
-		turnResult, err = conv.Turn(r.ctx, autoReply)
+	for turn := 1; turn <= r.config.MaxTurnsPerTask; turn++ {
+		// Phase 1: Call assistant
+		turnResult, err := conv.Turn(r.ctx, input)
 		if err != nil {
-			return nil, fmt.Errorf("assistant turn %d failed: %w", turn, err)
+			return lastOutput, lastValidation, fmt.Errorf("turn %d failed: %w", turn, err)
 		}
-		response = turnResult.Result
+
+		lastCallResult = turnResult.Result
+		lastOutput = r.extractOutput(lastCallResult)
+
+		// Phase 2: Validate result
+		lastValidation = r.validator.ValidateWithContext(task, lastOutput, lastCallResult)
+
+		// Check if complete
+		if lastValidation.Complete && lastValidation.Passed {
+			return lastOutput, lastValidation, nil // Success!
+		}
+
+		// Phase 3: Check if we should continue conversation
+		if !lastValidation.NeedReply {
+			// No need to continue, but not complete either
+			// This could be a validation failure that can't be fixed by conversation
+			if lastValidation.Passed {
+				// Passed but not complete (e.g., empty output)
+				return lastOutput, lastValidation, nil
+			}
+			// Failed and can't retry
+			return lastOutput, lastValidation, fmt.Errorf("validation failed: %v", lastValidation.Issues)
+		}
+
+		// Prepare next turn input
+		input = lastValidation.ReplyContent
+		if input == "" {
+			// Fallback: generate default reply
+			input = r.generateDefaultReply(lastValidation, task)
+		}
 	}
 
-	// Extract final output
-	if data, err := response.GetJSON(); err == nil {
-		return data, nil
+	// Max turns exceeded
+	if lastValidation == nil {
+		lastValidation = &robottypes.ValidationResult{
+			Passed:   false,
+			Complete: false,
+			Issues:   []string{fmt.Sprintf("max turns (%d) exceeded without completion", r.config.MaxTurnsPerTask)},
+		}
+	} else {
+		lastValidation.Issues = append(lastValidation.Issues,
+			fmt.Sprintf("max turns (%d) exceeded without completion", r.config.MaxTurnsPerTask))
 	}
-	return response.GetText(), nil
+
+	return lastOutput, lastValidation, fmt.Errorf("max turns (%d) exceeded without completion", r.config.MaxTurnsPerTask)
+}
+
+// extractOutput extracts the output from a CallResult
+func (r *Runner) extractOutput(result *CallResult) interface{} {
+	if result == nil {
+		return nil
+	}
+
+	// Try to extract structured JSON output
+	if data, err := result.GetJSON(); err == nil {
+		return data
+	}
+
+	// Fall back to text content
+	return result.GetText()
+}
+
+// generateDefaultReply generates a default reply when validation doesn't provide one
+func (r *Runner) generateDefaultReply(validation *robottypes.ValidationResult, task *robottypes.Task) string {
+	var sb strings.Builder
+
+	if len(validation.Issues) > 0 {
+		sb.WriteString("Please address the following issues:\n")
+		for _, issue := range validation.Issues {
+			sb.WriteString(fmt.Sprintf("- %s\n", issue))
+		}
+		sb.WriteString("\n")
+	}
+
+	if task.ExpectedOutput != "" {
+		sb.WriteString(fmt.Sprintf("Expected output: %s\n", task.ExpectedOutput))
+	}
+
+	sb.WriteString("\nPlease provide an improved response.")
+
+	return sb.String()
 }
 
 // ExecuteMCPTask executes a task using an MCP tool
@@ -269,7 +312,8 @@ func (r *Runner) ExecuteProcessTask(task *robottypes.Task, taskCtx *RunnerContex
 }
 
 // BuildAssistantMessages builds messages for an assistant task
-func (r *Runner) BuildAssistantMessages(task *robottypes.Task, taskCtx *RunnerContext, prevValidation *robottypes.ValidationResult) []agentcontext.Message {
+// Note: In the new multi-turn flow, validation feedback is handled via ValidateWithContext.ReplyContent
+func (r *Runner) BuildAssistantMessages(task *robottypes.Task, taskCtx *RunnerContext) []agentcontext.Message {
 	messages := make([]agentcontext.Message, 0)
 
 	// Add context from previous tasks if available
@@ -285,15 +329,6 @@ func (r *Runner) BuildAssistantMessages(task *robottypes.Task, taskCtx *RunnerCo
 
 	// Add task messages
 	messages = append(messages, task.Messages...)
-
-	// Add validation feedback if this is a retry
-	if prevValidation != nil && !prevValidation.Passed {
-		feedbackMsg := r.FormatValidationFeedback(prevValidation)
-		messages = append(messages, agentcontext.Message{
-			Role:    agentcontext.RoleUser,
-			Content: feedbackMsg,
-		})
-	}
 
 	return messages
 }
@@ -356,90 +391,4 @@ func (r *Runner) FormatPreviousResultsAsContext(results []robottypes.TaskResult)
 	}
 
 	return sb.String()
-}
-
-// FormatValidationFeedback formats validation feedback for retry
-func (r *Runner) FormatValidationFeedback(validation *robottypes.ValidationResult) string {
-	var sb strings.Builder
-	sb.WriteString("## Validation Feedback\n\n")
-	sb.WriteString("Your previous response did not pass validation. Please address the following issues:\n\n")
-
-	if len(validation.Issues) > 0 {
-		sb.WriteString("### Issues\n")
-		for _, issue := range validation.Issues {
-			sb.WriteString(fmt.Sprintf("- %s\n", issue))
-		}
-		sb.WriteString("\n")
-	}
-
-	if len(validation.Suggestions) > 0 {
-		sb.WriteString("### Suggestions\n")
-		for _, suggestion := range validation.Suggestions {
-			sb.WriteString(fmt.Sprintf("- %s\n", suggestion))
-		}
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString("Please provide an improved response that addresses these issues.\n")
-
-	return sb.String()
-}
-
-// IsResponseComplete checks if an assistant response is complete
-// (no pending tool calls, has content)
-func (r *Runner) IsResponseComplete(result *CallResult) bool {
-	if result == nil || result.Response == nil {
-		return true
-	}
-
-	// If there are tool calls, check if all have results
-	if len(result.Response.Tools) > 0 {
-		for _, tool := range result.Response.Tools {
-			if tool.Result == nil {
-				return false // Still waiting for tool results
-			}
-		}
-		// All tools have results - response is complete
-		return true
-	}
-
-	// No tools - check if there's content
-	return result.Content != "" || result.Next != nil
-}
-
-// GenerateAutoReply generates an automatic reply for multi-turn conversation
-// This simulates user responses when the assistant needs more information
-func (r *Runner) GenerateAutoReply(result *CallResult, task *robottypes.Task) string {
-	if result == nil || result.Response == nil {
-		return ""
-	}
-
-	// If there are tool results, format them as the reply
-	if len(result.Response.Tools) > 0 {
-		var replies []string
-		for _, tool := range result.Response.Tools {
-			if tool.Result != nil {
-				resultJSON, err := json.Marshal(tool.Result)
-				if err == nil {
-					replies = append(replies, fmt.Sprintf("Tool %s result: %s", tool.Tool, string(resultJSON)))
-				}
-			}
-		}
-		if len(replies) > 0 {
-			return fmt.Sprintf("Tool execution results:\n%s\n\nPlease continue with the task.", strings.Join(replies, "\n"))
-		}
-	}
-
-	// If the response asks for clarification, provide generic guidance
-	// Use case-insensitive matching
-	content := strings.ToLower(result.GetText())
-	clarificationKeywords := []string{"need more", "clarify", "please provide", "what", "which"}
-	for _, keyword := range clarificationKeywords {
-		if strings.Contains(content, keyword) {
-			return fmt.Sprintf("Please proceed with the task as best as you can based on the available information. "+
-				"The expected output is: %s", task.ExpectedOutput)
-		}
-	}
-
-	return ""
 }

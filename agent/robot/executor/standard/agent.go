@@ -178,6 +178,7 @@ func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages
 
 	// Convert robot context to agent context
 	agentCtx := c.buildAgentContext(ctx)
+	defer agentCtx.Release() // IMPORTANT: Release agent context to prevent resource leaks
 
 	// Call assistant with streaming
 	response, err := ast.Stream(agentCtx, messages, opts)

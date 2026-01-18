@@ -777,22 +777,30 @@ Each phase test uses different expert combinations:
 ### 9.1 Implementation ✅
 
 - [x] `executor/run.go` - `RunExecution(ctx, exec, data)` - real implementation
-  - [x] `RunConfig` - configuration for retries, validation threshold, etc.
+  - [x] `RunConfig` - configuration (ContinueOnFailure, ValidationThreshold, MaxTurnsPerTask)
   - [x] Sequential task execution with progress tracking
   - [x] Task status updates (Running → Completed/Failed/Skipped)
   - [x] `ContinueOnFailure` option for graceful failure handling
+  - [x] Previous task results passed as context to subsequent tasks
 - [x] `executor/runner.go` - `Runner` struct for task execution
-  - [x] `ExecuteWithRetry()` - retry mechanism for validation failures
-  - [x] `ExecuteTask()` - dispatch to correct executor type
-  - [x] `ExecuteAssistantTask()` - AI assistant execution with multi-turn support
+  - [x] `ExecuteWithRetry()` - multi-turn conversation flow for assistant tasks
+  - [x] `executeNonAssistantTask()` - single-call execution for MCP/Process
+  - [x] `executeAssistantWithMultiTurn()` - AI assistant with conversation support
   - [x] `ExecuteMCPTask()` - MCP tool execution (format: `clientID.toolName`)
   - [x] `ExecuteProcessTask()` - Yao process execution
   - [x] `BuildTaskContext()` - context with previous results
-  - [x] `GenerateAutoReply()` - auto-reply for multi-turn conversations
-  - [x] `FormatValidationFeedback()` - feedback for retry attempts
+  - [x] `BuildAssistantMessages()` - build messages for assistant
+  - [x] `FormatPreviousResultsAsContext()` - format previous results as context
+  - [x] `extractOutput()` - extract output from CallResult
+  - [x] `generateDefaultReply()` - fallback reply generation
 - [x] `executor/validator.go` - Two-layer validation system
   - [x] Layer 1: Rule-based validation using `yao/assert`
   - [x] Layer 2: Semantic validation using Validation Agent
+  - [x] `ValidateWithContext()` - validation with multi-turn support
+  - [x] `isComplete()` - determine if expected result is obtained
+  - [x] `checkNeedReply()` - determine if conversation should continue
+  - [x] `generateFeedbackReply()` - generate validation feedback for next turn
+  - [x] `detectNeedMoreInfo()` - detect if assistant needs clarification
   - [x] `convertStringRule()` - natural language rules to assertions
   - [x] `parseRules()` - JSON and string rule parsing
   - [x] `mergeResults()` - combine rule and semantic results
@@ -829,14 +837,16 @@ Created new `yao/assert` package for universal assertion/validation:
   - [ ] Test: ContinueOnFailure option
   - [ ] Test: remaining tasks marked as skipped on failure
 - [ ] `executor/standard/runner_test.go` - Runner tests
-  - [ ] Test: ExecuteWithRetry with validation failures
-  - [ ] Test: ExecuteAssistantTask with multi-turn conversation
+  - [ ] Test: ExecuteWithRetry with multi-turn conversation flow
+  - [ ] Test: executeAssistantWithMultiTurn conversation continuation
   - [ ] Test: ExecuteMCPTask with correct ID parsing
   - [ ] Test: ExecuteProcessTask with Yao process
   - [ ] Test: BuildTaskContext with previous results
-  - [ ] Test: GenerateAutoReply for tool results
+  - [ ] Test: FormatPreviousResultsAsContext formatting
 - [ ] `executor/standard/validator_test.go` - Validator tests
-  - [ ] Test: two-layer validation (rules + semantic)
+  - [ ] Test: ValidateWithContext with multi-turn state
+  - [ ] Test: isComplete determination logic
+  - [ ] Test: checkNeedReply scenarios (clarification, feedback, incomplete)
   - [ ] Test: convertStringRule for natural language rules
   - [ ] Test: parseRules for JSON assertions
   - [ ] Test: validateSemantic with Validation Agent
@@ -846,9 +856,10 @@ Created new `yao/assert` package for universal assertion/validation:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      run.go (P3 入口)                        │
-│  - RunConfig 配置                                            │
-│  - RunExecution 主循环                                       │
+│                      run.go (P3 Entry)                       │
+│  - RunConfig: ContinueOnFailure, ValidationThreshold,        │
+│               MaxTurnsPerTask                                │
+│  - RunExecution: main loop with task dependency passing      │
 └─────────────────────┬───────────────────────────────────────┘
                       │
          ┌────────────┴────────────┐
@@ -856,24 +867,49 @@ Created new `yao/assert` package for universal assertion/validation:
 ┌─────────────────┐      ┌─────────────────┐
 │   runner.go     │      │  validator.go   │
 │  - Runner       │      │  - Validator    │
-│  - 任务执行      │      │  - 两层验证      │
-│  - 多轮对话      │      │  - 规则 + 语义   │
+│  - Multi-turn   │      │  - Two-layer    │
+│    conversation │      │  - Rule+Semantic│
+│  - Task context │      │  - NeedReply    │
+│    building     │      │  - ReplyContent │
 └────────┬────────┘      └────────┬────────┘
          │                        │
          │                        ▼
          │               ┌─────────────────┐
          │               │  yao/assert     │
          │               │  - Asserter     │
-         │               │  - 8种断言类型   │
-         │               │  - 可扩展接口    │
+         │               │  - 8 types      │
+         │               │  - Extensible   │
          │               └─────────────────┘
          ▼
 ┌─────────────────────────────────────────┐
-│  执行器类型                               │
-│  - ExecutorAssistant → AI 助手           │
-│  - ExecutorMCP → MCP 工具                │
-│  - ExecutorProcess → Yao 进程            │
+│  Executor Types                          │
+│  - ExecutorAssistant → Multi-turn AI     │
+│  - ExecutorMCP → Single-call MCP tool    │
+│  - ExecutorProcess → Single-call Process │
 └─────────────────────────────────────────┘
+```
+
+**Multi-Turn Conversation Flow (Assistant Tasks):**
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   executeAssistantWithMultiTurn              │
+├──────────────────────────────────────────────────────────────┤
+│  1. Create Conversation (single instance for entire task)    │
+│  2. Build initial messages with task context                 │
+│                                                              │
+│  ┌─────────────────── Turn Loop ───────────────────────────┐ │
+│  │  Phase 1: Call assistant via conv.Turn()                │ │
+│  │  Phase 2: ValidateWithContext() determines:             │ │
+│  │           - Complete: task done?                        │ │
+│  │           - NeedReply: continue conversation?           │ │
+│  │           - ReplyContent: what to send next?            │ │
+│  │  Phase 3: If NeedReply, use ReplyContent as next input  │ │
+│  │  Break if: Complete && Passed, or !NeedReply            │ │
+│  └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│  3. Return output, validation, error                         │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ### 9.5 Notes
@@ -881,9 +917,16 @@ Created new `yao/assert` package for universal assertion/validation:
 - Validation rules support two formats:
   1. Natural language: `"output must be valid JSON"`, `"must contain 'field'"`
   2. Structured JSON: `{"type": "type", "path": "field", "value": "array"}`
-- Retry mechanism only triggers on validation failures, not execution errors
-- Multi-turn conversation uses auto-reply generation for tool results
+- Multi-turn conversation is validator-driven:
+  - `ValidateWithContext()` returns `NeedReply` and `ReplyContent`
+  - Conversation continues until `Complete && Passed` or `!NeedReply`
+  - Max turns controlled by `RunConfig.MaxTurnsPerTask`
+- Task dependencies handled automatically:
+  - `BuildTaskContext()` collects previous task results
+  - `FormatPreviousResultsAsContext()` formats them for assistant
+- MCP and Process tasks use single-call execution (no multi-turn)
 - `yao/assert` is a standalone package, can be used by other modules
+- Agent context is properly released via `defer agentCtx.Release()` in `AgentCaller.Call()`
 
 ---
 

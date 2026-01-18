@@ -249,11 +249,17 @@ type TaskResult struct {
 
 // ValidationResult - P3 semantic validation result
 type ValidationResult struct {
+	// Basic validation result
 	Passed      bool     `json:"passed"`                // overall validation passed
 	Score       float64  `json:"score,omitempty"`       // 0-1 confidence score
 	Issues      []string `json:"issues,omitempty"`      // what failed
 	Suggestions []string `json:"suggestions,omitempty"` // how to improve
 	Details     string   `json:"details,omitempty"`     // detailed validation report (markdown)
+
+	// Execution state (for multi-turn conversation control)
+	Complete     bool   `json:"complete"`                // whether expected result is obtained
+	NeedReply    bool   `json:"need_reply,omitempty"`    // whether to continue conversation
+	ReplyContent string `json:"reply_content,omitempty"` // content for next turn (if NeedReply)
 }
 
 // DeliveryResult - P4 delivery output

@@ -9,36 +9,30 @@ import (
 
 // RunConfig configures P3 execution behavior
 type RunConfig struct {
-	// MaxRetries is the maximum number of retry attempts per task (default: 3)
-	MaxRetries int
-
-	// RetryOnValidationFailure enables retry when validation fails (default: true)
-	RetryOnValidationFailure bool
-
 	// ContinueOnFailure continues to next task even if current task fails (default: false)
 	ContinueOnFailure bool
 
 	// ValidationThreshold is the minimum score to pass validation (default: 0.6)
 	ValidationThreshold float64
 
-	// MaxTurnsPerTask is the maximum conversation turns for multi-turn agents (default: 10)
+	// MaxTurnsPerTask is the maximum conversation turns for multi-turn tasks (default: 10)
+	// This controls how many times the assistant can be called for a single task
+	// (including retries with validation feedback)
 	MaxTurnsPerTask int
 }
 
 // DefaultRunConfig returns the default P3 configuration
 func DefaultRunConfig() *RunConfig {
 	return &RunConfig{
-		MaxRetries:               3,
-		RetryOnValidationFailure: true,
-		ContinueOnFailure:        false,
-		ValidationThreshold:      0.6,
-		MaxTurnsPerTask:          10,
+		ContinueOnFailure:   false,
+		ValidationThreshold: 0.6,
+		MaxTurnsPerTask:     10,
 	}
 }
 
 // RunExecution executes P3: Run phase
 // Executes each task using the appropriate executor (Assistant, MCP, Process)
-// with validation and retry mechanism
+// with multi-turn conversation and validation
 //
 // Input:
 //   - Tasks (from P2)
@@ -46,12 +40,12 @@ func DefaultRunConfig() *RunConfig {
 // Output:
 //   - TaskResult for each task with output and validation
 //
-// Features:
-//  1. Sequential task execution with progress tracking
-//  2. Validation after each task using Validation Agent
-//  3. Retry mechanism with feedback loop to expert agent
-//  4. Multi-turn conversation support for complex tasks
-//  5. Previous task results passed as context to next task
+// Execution Flow (per task):
+//  1. Call assistant/MCP/process and get result
+//  2. Validate result using two-layer validation (rule-based + semantic)
+//  3. If validation.NeedReply, continue conversation with validation.ReplyContent
+//  4. Repeat until validation.Complete or max turns exceeded
+//  5. Pass previous task results as context to next task
 func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execution, _ interface{}) error {
 	robot := exec.GetRobot()
 	if robot == nil {
@@ -90,13 +84,16 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		// Build task context with previous results
 		taskCtx := runner.BuildTaskContext(exec, i)
 
-		// Execute task with retry
+		// Execute task with multi-turn conversation support
 		result := runner.ExecuteWithRetry(task, taskCtx)
 
 		// Update task status based on result
 		endTime := time.Now()
 		task.EndTime = &endTime
-		if result.Success && (result.Validation == nil || result.Validation.Passed) {
+
+		// Determine task status from result
+		// Note: result.Success is already set to (validation.Complete && validation.Passed) in runner
+		if result.Success {
 			task.Status = robottypes.TaskCompleted
 		} else {
 			task.Status = robottypes.TaskFailed

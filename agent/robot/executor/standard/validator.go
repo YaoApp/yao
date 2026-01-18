@@ -36,15 +36,30 @@ func NewValidator(ctx *robottypes.Context, robot *robottypes.Robot, config *RunC
 	return v
 }
 
-// Validate validates task output using two-layer validation:
-// 1. First, run rule-based assertions (fast, deterministic)
-// 2. Then, if ExpectedOutput is set, run semantic validation via Agent
+// Validate validates task output using two-layer validation (without multi-turn context)
+// Equivalent to ValidateWithContext(task, output, nil)
+// Use ValidateWithContext when you have a CallResult for better multi-turn support
 func (v *Validator) Validate(task *robottypes.Task, output interface{}) *robottypes.ValidationResult {
-	// If no validation rules and no expected output, return passed
+	return v.ValidateWithContext(task, output, nil)
+}
+
+// ValidateWithContext validates task output and determines execution state for multi-turn conversation.
+// It extends basic validation with:
+// - Complete: whether expected result is obtained
+// - NeedReply: whether to continue conversation
+// - ReplyContent: content for next turn
+//
+// Parameters:
+// - task: the task being executed
+// - output: the output from assistant/mcp/process
+// - callResult: the full call result (for detecting assistant's need for more info)
+func (v *Validator) ValidateWithContext(task *robottypes.Task, output interface{}, callResult *CallResult) *robottypes.ValidationResult {
+	// If no validation rules and no expected output, return passed and complete
 	if task.ExpectedOutput == "" && len(task.ValidationRules) == 0 {
 		return &robottypes.ValidationResult{
-			Passed: true,
-			Score:  1.0,
+			Passed:   true,
+			Score:    1.0,
+			Complete: v.hasValidOutput(output),
 		}
 	}
 
@@ -57,6 +72,9 @@ func (v *Validator) Validate(task *robottypes.Task, output interface{}) *robotty
 	if len(task.ValidationRules) > 0 {
 		ruleResult := v.validateRules(task.ValidationRules, output)
 		if !ruleResult.Passed {
+			// Rule validation failed - check if we should retry with feedback
+			ruleResult.Complete = false
+			ruleResult.NeedReply, ruleResult.ReplyContent = v.checkNeedReplyOnFailure(task, ruleResult)
 			return ruleResult
 		}
 		// Merge rule validation results
@@ -71,7 +89,184 @@ func (v *Validator) Validate(task *robottypes.Task, output interface{}) *robotty
 		result = v.mergeResults(result, semanticResult)
 	}
 
+	// Determine execution state
+	result.Complete = v.isComplete(task, output, result)
+	result.NeedReply, result.ReplyContent = v.checkNeedReply(task, output, callResult, result)
+
 	return result
+}
+
+// hasValidOutput checks if output is non-empty and valid
+func (v *Validator) hasValidOutput(output interface{}) bool {
+	if output == nil {
+		return false
+	}
+	switch o := output.(type) {
+	case string:
+		return strings.TrimSpace(o) != ""
+	case []interface{}:
+		return len(o) > 0
+	case map[string]interface{}:
+		return len(o) > 0
+	default:
+		return true
+	}
+}
+
+// isComplete determines if the expected result has been obtained
+func (v *Validator) isComplete(task *robottypes.Task, output interface{}, result *robottypes.ValidationResult) bool {
+	// If validation failed, not complete
+	if !result.Passed {
+		return false
+	}
+
+	// Must have valid output
+	if !v.hasValidOutput(output) {
+		return false
+	}
+
+	// If score is below threshold, consider incomplete
+	if result.Score < v.config.ValidationThreshold {
+		return false
+	}
+
+	return true
+}
+
+// checkNeedReply determines if conversation should continue and generates reply content
+func (v *Validator) checkNeedReply(task *robottypes.Task, output interface{}, callResult *CallResult, result *robottypes.ValidationResult) (bool, string) {
+	// If already complete, no need to reply
+	if result.Complete {
+		return false, ""
+	}
+
+	// Scenario 1: Assistant explicitly asks for more information
+	if callResult != nil {
+		text := callResult.GetText()
+		if v.detectNeedMoreInfo(text) {
+			return true, v.generateClarificationReply(task, text)
+		}
+	}
+
+	// Scenario 2: Validation passed but output is incomplete/empty
+	if result.Passed && !v.hasValidOutput(output) {
+		return true, "Please continue and provide the complete result as specified in the task."
+	}
+
+	// Scenario 3: Validation failed with suggestions - can retry with feedback
+	if !result.Passed && len(result.Suggestions) > 0 {
+		return true, v.generateFeedbackReply(result)
+	}
+
+	// Scenario 4: Low confidence score - ask for improvement
+	if result.Passed && result.Score < v.config.ValidationThreshold {
+		return true, fmt.Sprintf("The result is partially correct (score: %.2f), but needs improvement. Please refine your response to better match the expected output: %s", result.Score, task.ExpectedOutput)
+	}
+
+	// No need to continue
+	return false, ""
+}
+
+// checkNeedReplyOnFailure handles the case when rule validation fails
+func (v *Validator) checkNeedReplyOnFailure(task *robottypes.Task, result *robottypes.ValidationResult) (bool, string) {
+	// If there are suggestions, we can try to fix
+	if len(result.Suggestions) > 0 {
+		return true, v.generateFeedbackReply(result)
+	}
+
+	// If there are issues, provide feedback
+	if len(result.Issues) > 0 {
+		var sb strings.Builder
+		sb.WriteString("Your response did not pass validation. Please fix the following issues:\n\n")
+		for _, issue := range result.Issues {
+			sb.WriteString(fmt.Sprintf("- %s\n", issue))
+		}
+		sb.WriteString(fmt.Sprintf("\nExpected output: %s", task.ExpectedOutput))
+		return true, sb.String()
+	}
+
+	return false, ""
+}
+
+// detectNeedMoreInfo checks if assistant's response indicates need for more information
+func (v *Validator) detectNeedMoreInfo(text string) bool {
+	if text == "" {
+		return false
+	}
+
+	textLower := strings.ToLower(text)
+	keywords := []string{
+		"need more information",
+		"please clarify",
+		"could you provide",
+		"can you specify",
+		"what is the",
+		"which one",
+		"please provide",
+		"i need to know",
+		"could you tell me",
+		"what do you mean",
+	}
+
+	for _, kw := range keywords {
+		if strings.Contains(textLower, kw) {
+			return true
+		}
+	}
+
+	// Check for question marks at the end (likely asking for clarification)
+	// Note: We require 2+ question marks to avoid false positives from rhetorical questions
+	// or questions that are part of the output (e.g., "How can I help you?")
+	// Single questions are often just conversational and don't need clarification
+	trimmed := strings.TrimSpace(text)
+	if strings.HasSuffix(trimmed, "?") {
+		if strings.Count(text, "?") >= 2 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// generateClarificationReply generates a reply when assistant asks for clarification
+func (v *Validator) generateClarificationReply(task *robottypes.Task, assistantText string) string {
+	var sb strings.Builder
+	sb.WriteString("Please proceed with the task based on the available information.\n\n")
+
+	if task.ExpectedOutput != "" {
+		sb.WriteString(fmt.Sprintf("**Expected Output**: %s\n\n", task.ExpectedOutput))
+	}
+
+	sb.WriteString("If you need to make assumptions, please state them clearly and proceed with the most reasonable interpretation.")
+
+	return sb.String()
+}
+
+// generateFeedbackReply generates a reply with validation feedback
+func (v *Validator) generateFeedbackReply(result *robottypes.ValidationResult) string {
+	var sb strings.Builder
+	sb.WriteString("## Validation Feedback\n\n")
+	sb.WriteString("Your previous response needs improvement. Please address the following:\n\n")
+
+	if len(result.Issues) > 0 {
+		sb.WriteString("### Issues\n")
+		for _, issue := range result.Issues {
+			sb.WriteString(fmt.Sprintf("- %s\n", issue))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(result.Suggestions) > 0 {
+		sb.WriteString("### Suggestions\n")
+		for _, suggestion := range result.Suggestions {
+			sb.WriteString(fmt.Sprintf("- %s\n", suggestion))
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("Please provide an improved response that addresses these points.")
+
+	return sb.String()
 }
 
 // validateRules validates output against rule-based assertions
@@ -233,16 +428,21 @@ func (v *Validator) validateSemantic(task *robottypes.Task, output interface{}) 
 }
 
 // BuildSemanticPrompt builds the prompt for semantic validation
+// Format matches the Validation Agent's expected input structure:
+// 1. Task: task definition with expected_output and validation_rules
+// 2. Result: actual output from task execution
+// 3. Success Criteria: overall criteria (optional)
 func (v *Validator) BuildSemanticPrompt(task *robottypes.Task, output interface{}) string {
 	var sb strings.Builder
 
-	sb.WriteString("## Task Definition\n\n")
+	// Section 1: Task (matches Agent's expected "Task" input)
+	sb.WriteString("## Task\n\n")
 	sb.WriteString(fmt.Sprintf("**Task ID**: %s\n", task.ID))
 	sb.WriteString(fmt.Sprintf("**Executor**: %s (%s)\n\n", task.ExecutorID, task.ExecutorType))
 
-	// Task description
+	// Task description (instructions)
 	if len(task.Messages) > 0 {
-		sb.WriteString("**Task Instructions**:\n")
+		sb.WriteString("**Instructions**:\n")
 		for _, msg := range task.Messages {
 			if content, ok := msg.Content.(string); ok {
 				sb.WriteString(content + "\n")
@@ -253,21 +453,21 @@ func (v *Validator) BuildSemanticPrompt(task *robottypes.Task, output interface{
 
 	// Expected output (primary criterion for semantic validation)
 	if task.ExpectedOutput != "" {
-		sb.WriteString(fmt.Sprintf("**Expected Output**: %s\n\n", task.ExpectedOutput))
+		sb.WriteString(fmt.Sprintf("**expected_output**: %s\n\n", task.ExpectedOutput))
 	}
 
-	// Semantic validation rules (rules that couldn't be converted to assertions)
+	// Validation rules
 	semanticRules := v.getSemanticRules(task.ValidationRules)
 	if len(semanticRules) > 0 {
-		sb.WriteString("**Validation Criteria**:\n")
+		sb.WriteString("**validation_rules**:\n")
 		for _, rule := range semanticRules {
 			sb.WriteString(fmt.Sprintf("- %s\n", rule))
 		}
 		sb.WriteString("\n")
 	}
 
-	// Actual output
-	sb.WriteString("## Actual Output\n\n")
+	// Section 2: Result (matches Agent's expected "Result" input)
+	sb.WriteString("## Result\n\n")
 	if output != nil {
 		outputJSON, err := json.MarshalIndent(output, "", "  ")
 		if err == nil {
@@ -279,10 +479,14 @@ func (v *Validator) BuildSemanticPrompt(task *robottypes.Task, output interface{
 		sb.WriteString("(no output)\n")
 	}
 
-	sb.WriteString("\n## Validation Request\n\n")
-	sb.WriteString("Please validate the actual output against the expected output and validation criteria. ")
-	sb.WriteString("Focus on semantic correctness and completeness. ")
-	sb.WriteString("Return a JSON object with: passed (bool), score (0-1), issues (array), suggestions (array), details (markdown report).\n")
+	// Section 3: Success Criteria (optional, from goals if available)
+	// Note: This could be extended to include criteria from exec.Goals if needed
+	sb.WriteString("\n## Success Criteria\n\n")
+	if task.ExpectedOutput != "" {
+		sb.WriteString(fmt.Sprintf("The task should produce: %s\n", task.ExpectedOutput))
+	} else {
+		sb.WriteString("Complete the task successfully with valid output.\n")
+	}
 
 	return sb.String()
 }

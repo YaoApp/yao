@@ -474,6 +474,65 @@ func TestValidationResultStructure(t *testing.T) {
 	assert.Len(t, validation.Suggestions, 2)
 }
 
+func TestValidationResultMultiTurnFields(t *testing.T) {
+	// Test new multi-turn conversation control fields
+	t.Run("complete and passed", func(t *testing.T) {
+		validation := &types.ValidationResult{
+			Passed:   true,
+			Score:    0.95,
+			Complete: true,
+		}
+		assert.True(t, validation.Passed)
+		assert.True(t, validation.Complete)
+		assert.False(t, validation.NeedReply)
+		assert.Empty(t, validation.ReplyContent)
+	})
+
+	t.Run("passed but not complete - needs reply", func(t *testing.T) {
+		validation := &types.ValidationResult{
+			Passed:       true,
+			Score:        0.7,
+			Complete:     false,
+			NeedReply:    true,
+			ReplyContent: "Please continue and provide the complete result.",
+		}
+		assert.True(t, validation.Passed)
+		assert.False(t, validation.Complete)
+		assert.True(t, validation.NeedReply)
+		assert.NotEmpty(t, validation.ReplyContent)
+	})
+
+	t.Run("failed with suggestions - needs reply", func(t *testing.T) {
+		validation := &types.ValidationResult{
+			Passed:       false,
+			Score:        0.3,
+			Complete:     false,
+			Issues:       []string{"Missing required field"},
+			Suggestions:  []string{"Add the field"},
+			NeedReply:    true,
+			ReplyContent: "## Validation Feedback\n\nPlease fix: Missing required field",
+		}
+		assert.False(t, validation.Passed)
+		assert.False(t, validation.Complete)
+		assert.True(t, validation.NeedReply)
+		assert.Contains(t, validation.ReplyContent, "Validation Feedback")
+	})
+
+	t.Run("failed without suggestions - no reply", func(t *testing.T) {
+		validation := &types.ValidationResult{
+			Passed:    false,
+			Score:     0.0,
+			Complete:  false,
+			Issues:    []string{"Critical error: invalid format"},
+			NeedReply: false,
+		}
+		assert.False(t, validation.Passed)
+		assert.False(t, validation.Complete)
+		assert.False(t, validation.NeedReply)
+		assert.Empty(t, validation.ReplyContent)
+	})
+}
+
 func TestDeliveryResultStructure(t *testing.T) {
 	sentAt := time.Now()
 	delivery := &types.DeliveryResult{

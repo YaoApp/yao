@@ -372,7 +372,7 @@ type Task struct {
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      run.go (P3 Entry)                       │
-│  - RunConfig: retries, threshold, continue-on-failure        │
+│  - RunConfig: threshold, continue-on-failure, max-turns      │
 │  - RunExecution: main execution loop                         │
 └─────────────────────┬───────────────────────────────────────┘
                       │
@@ -383,6 +383,7 @@ type Task struct {
 │  - Runner       │      │  - Validator    │
 │  - Task exec    │      │  - Two-layer    │
 │  - Multi-turn   │      │  - Rule+Semantic│
+│    conversation │      │  - NeedReply    │
 └────────┬────────┘      └────────┬────────┘
          │                        │
          │                        ▼
@@ -395,8 +396,8 @@ type Task struct {
 ┌─────────────────────────────────────────┐
 │  Executor Types                          │
 │  - assistant: AI Agent (multi-turn)      │
-│  - mcp: MCP Tool (clientID.toolName)     │
-│  - process: Yao Process                  │
+│  - mcp: MCP Tool (single-call)           │
+│  - process: Yao Process (single-call)    │
 └─────────────────────────────────────────┘
 ```
 
@@ -404,10 +405,15 @@ type Task struct {
 
 For each task:
 
-1. **Execute** via appropriate executor (Assistant/MCP/Process)
-2. **Validate** using two-layer validation
-3. **Retry** if validation fails (with feedback to expert agent)
-4. **Update** task status and store result
+1. **Build Context**: Include previous task results as context
+2. **Execute**: Call appropriate executor (Assistant/MCP/Process)
+3. **Validate**: Use two-layer validation (rule-based + semantic)
+4. **Continue or Complete**:
+   - For Assistant tasks: If `NeedReply`, continue conversation with `ReplyContent`
+   - For MCP/Process tasks: Single-call execution, no multi-turn
+5. **Update**: Set task status and store result
+
+**Task Dependency**: Previous task results are automatically passed as context to subsequent tasks via `Runner.BuildTaskContext()` and formatted using `FormatPreviousResultsAsContext()`.
 
 **Two-Layer Validation:**
 
@@ -424,27 +430,42 @@ For each task:
 | `mcp` | `clientID.toolName` | `filesystem.read_file` |
 | `process` | Process name | `models.user.Find` |
 
-**Retry Mechanism:**
+**Multi-Turn Conversation Flow:**
 
-- Retries only on validation failure (not execution error)
-- Validation feedback sent to expert agent on retry
-- Configurable: `MaxRetries`, `RetryOnValidationFailure`
+For assistant tasks, P3 uses a multi-turn conversation approach:
+1. **Call**: Call assistant and get result
+2. **Validate**: Validate result (determines: passed, complete, needReply, replyContent)
+3. **Reply**: If needReply, continue conversation with replyContent
+4. **Repeat**: Until complete or max turns exceeded
+
+The `Validator.ValidateWithContext()` method determines:
+- `Complete`: Whether the expected result is obtained
+- `NeedReply`: Whether to continue conversation
+- `ReplyContent`: What to send in the next turn (validation feedback, clarification request, etc.)
+
+This replaces the traditional retry mechanism with intelligent conversation continuation.
 
 ```go
+// RunConfig configures P3 execution behavior
 type RunConfig struct {
-    MaxRetries               int     // default: 3
-    RetryOnValidationFailure bool    // default: true
-    ContinueOnFailure        bool    // default: false
-    ValidationThreshold      float64 // default: 0.6
-    MaxTurnsPerTask          int     // default: 10
+    ContinueOnFailure   bool    // continue to next task even if current fails (default: false)
+    ValidationThreshold float64 // minimum score to pass validation (default: 0.6)
+    MaxTurnsPerTask     int     // max conversation turns per task (default: 10)
 }
 
+// ValidationResult with multi-turn conversation support
 type ValidationResult struct {
+    // Basic validation result
     Passed      bool     // overall validation passed
     Score       float64  // 0-1 confidence score
     Issues      []string // what failed
     Suggestions []string // how to improve
     Details     string   // detailed report (markdown)
+
+    // Execution state (for multi-turn conversation control)
+    Complete     bool   // whether expected result is obtained
+    NeedReply    bool   // whether to continue conversation
+    ReplyContent string // content for next turn (if NeedReply)
 }
 ```
 
