@@ -44,7 +44,9 @@ yao/agent/robot/
 │   │   ├── inspiration.go    # P0: Inspiration phase
 │   │   ├── goals.go          # P1: Goals phase
 │   │   ├── tasks.go          # P2: Tasks phase
-│   │   ├── run.go            # P3: Run phase
+│   │   ├── run.go            # P3: Run phase (main entry)
+│   │   ├── runner.go         # P3: Task Runner (execution logic)
+│   │   ├── validator.go      # P3: Validator (two-layer validation)
 │   │   ├── delivery.go       # P4: Delivery phase
 │   │   └── learning.go       # P5: Learning phase
 │   ├── dryrun/
@@ -88,6 +90,11 @@ yao/agent/robot/
 └── plan/                     # Plan queue (deferred tasks)
     ├── plan.go               # Plan queue struct
     └── schedule.go           # Schedule for later
+
+yao/assert/                       # Universal assertion library (global package)
+├── types.go                      # Assertion, Result, interfaces
+├── asserter.go                   # Asserter implementation (8 assertion types)
+└── helpers.go                    # Utility functions (ExtractPath, ToString, etc.)
 ```
 
 ### Dependency Graph (No Cycles)
@@ -140,7 +147,7 @@ yao/agent/robot/
 | `trigger/`  | `types/`                                                    |
 | `job/`      | `types/`, `yao/job`                                         |
 | `plan/`     | `types/`                                                    |
-| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`     |
+| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`, `yao/assert` |
 | `manager/`  | `types/`, `cache/`, `pool/`, `trigger/`, `executor/`        |
 |             | Manager handles all trigger logic (clock, intervene, event) |
 | `api/`      | `types/`, `manager/`                                        |
@@ -1325,6 +1332,9 @@ type Task struct {
 
     // Validation (defined in P2, used in P3)
     ExpectedOutput  string   `json:"expected_output,omitempty"`  // what the task should produce
+    // ValidationRules supports two formats:
+    // 1. Natural language: "output must be valid JSON", "must contain 'field'"
+    // 2. JSON assertions: `{"type": "type", "value": "object"}`, `{"type": "contains", "value": "success"}`
     ValidationRules []string `json:"validation_rules,omitempty"` // specific checks to perform
 
     // Runtime
@@ -1374,13 +1384,19 @@ type TaskResult struct {
     Validation *ValidationResult `json:"validation,omitempty"` // P3 validation result
 }
 
-// ValidationResult - P3 semantic validation result
+// ValidationResult - P3 validation result with multi-turn conversation support
 type ValidationResult struct {
+    // Basic validation result
     Passed      bool     `json:"passed"`                // overall validation passed
     Score       float64  `json:"score,omitempty"`       // 0-1 confidence score
     Issues      []string `json:"issues,omitempty"`      // what failed
     Suggestions []string `json:"suggestions,omitempty"` // how to improve
-    Details     string   `json:"details,omitempty"`     // detailed validation report
+    Details     string   `json:"details,omitempty"`     // detailed validation report (markdown)
+
+    // Execution state (for multi-turn conversation control)
+    Complete     bool   `json:"complete"`                // whether expected result is obtained
+    NeedReply    bool   `json:"need_reply,omitempty"`    // whether to continue conversation
+    ReplyContent string `json:"reply_content,omitempty"` // content for next turn (if NeedReply)
 }
 
 // DeliveryResult - P4 delivery output
@@ -1759,3 +1775,121 @@ var (
     ErrDeliveryFailed     = errors.New("delivery failed")
 )
 ```
+
+---
+
+## 5. P3 Implementation Details
+
+### 5.1 Multi-Turn Conversation Flow
+
+For assistant tasks, P3 uses a validator-driven multi-turn conversation:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   executeAssistantWithMultiTurn              │
+├──────────────────────────────────────────────────────────────┤
+│  1. Create Conversation (single instance for entire task)    │
+│  2. Build initial messages with task context                 │
+│                                                              │
+│  ┌─────────────────── Turn Loop ───────────────────────────┐ │
+│  │  Phase 1: Call assistant via conv.Turn()                │ │
+│  │  Phase 2: ValidateWithContext() determines:             │ │
+│  │           - Complete: task done?                        │ │
+│  │           - NeedReply: continue conversation?           │ │
+│  │           - ReplyContent: what to send next?            │ │
+│  │  Phase 3: If NeedReply, use ReplyContent as next input  │ │
+│  │  Break if: Complete && Passed, or !NeedReply            │ │
+│  └──────────────────────────────────────────────────────────┘ │
+│                                                              │
+│  3. Return output, validation, error                         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+Key points:
+- `ValidateWithContext()` returns `NeedReply` and `ReplyContent`
+- Conversation continues until `Complete && Passed` or `!NeedReply`
+- Max turns controlled by `RunConfig.MaxTurnsPerTask`
+
+### 5.2 Validation Rules Format
+
+Validation rules support two formats:
+
+1. **Natural language**: `"output must be valid JSON"`, `"must contain 'field'"`
+2. **Structured JSON**: `{"type": "type", "path": "field", "value": "array"}`
+
+Examples:
+```json
+// Natural language rules (converted to semantic validation)
+"output must be valid JSON"
+"must contain product name"
+
+// Structured JSON assertions
+{"type": "equals", "value": "success"}
+{"type": "contains", "value": "total"}
+{"type": "regex", "value": "^[A-Z].*"}
+{"type": "json_path", "path": "data.items", "value": 10}
+{"type": "type", "path": "result", "value": "object"}
+```
+
+### 5.3 Task Dependencies
+
+Task dependencies are handled automatically:
+
+1. `BuildTaskContext()` collects previous task results
+2. `FormatPreviousResultsAsContext()` formats them for assistant
+
+```go
+// Previous results are passed as context
+func (r *Runner) BuildTaskContext(exec *robottypes.Execution, taskIndex int) *RunnerContext {
+    ctx := &RunnerContext{}
+    if taskIndex > 0 {
+        ctx.PreviousResults = exec.Results[:taskIndex]
+    }
+    return ctx
+}
+```
+
+### 5.4 Resource Management
+
+Agent context is properly released to prevent resource leaks:
+
+```go
+func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages []agentcontext.Message) (*CallResult, error) {
+    agentCtx := c.buildAgentContext(ctx)
+    defer agentCtx.Release() // IMPORTANT: Release agent context
+    
+    response, err := ast.Stream(agentCtx, messages, opts)
+    // ...
+}
+```
+
+### 5.5 yao/assert Package
+
+The `yao/assert` package is a standalone universal assertion library that can be used by other modules:
+
+```go
+import "github.com/yaoapp/yao/assert"
+
+// Create asserter with optional callbacks
+asserter := assert.NewAsserter(assert.AssertionOptions{
+    AgentValidator:  myAgentValidator,  // for "agent" type assertions
+    ScriptRunner:    myScriptRunner,    // for "script" type assertions
+})
+
+// Run assertions
+results := asserter.Assert(output, []assert.Assertion{
+    {Type: "type", Value: "object"},
+    {Type: "contains", Value: "success"},
+    {Type: "json_path", Path: "data.count", Value: 10},
+})
+```
+
+Supported assertion types:
+- `equals` - exact match
+- `contains` - substring check
+- `not_contains` - negative substring check
+- `json_path` - JSON path extraction and comparison
+- `regex` - regex pattern matching
+- `type` - type checking (with optional path)
+- `script` - custom script validation
+- `agent` - AI agent validation

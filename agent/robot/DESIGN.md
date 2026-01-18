@@ -261,7 +261,7 @@ Human/Event:       P1 → P2 → P3 → P4 → P5
 | P0    | Inspiration | Clock + Data + News | Report          | Clock only |
 | P1    | Goal Gen    | Report + history    | Goals           | Always     |
 | P2    | Task Plan   | Goals + tools       | Tasks           | Always     |
-| P3    | Validator   | Results             | Checked results | Always     |
+| P3    | Run + Valid | Tasks + Experts     | TaskResults     | Always     |
 | P4    | Delivery    | All results         | Email/File      | Always     |
 | P5    | Learning    | Summary             | KB entries      | Always     |
 
@@ -367,21 +367,125 @@ type Task struct {
 
 ### 4.5 P3: Run
 
+**Architecture:** P3 uses a modular design with three components:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      run.go (P3 Entry)                       │
+│  - RunConfig: ContinueOnFailure, ValidationThreshold,        │
+│               MaxTurnsPerTask                                │
+│  - RunExecution: main loop with task dependency passing      │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+         ┌────────────┴────────────┐
+         ▼                         ▼
+┌─────────────────┐      ┌─────────────────┐
+│   runner.go     │      │  validator.go   │
+│  - Runner       │      │  - Validator    │
+│  - Multi-turn   │      │  - Two-layer    │
+│    conversation │      │  - Rule+Semantic│
+│  - Task context │      │  - NeedReply    │
+│    building     │      │  - ReplyContent │
+└────────┬────────┘      └────────┬────────┘
+         │                        │
+         │                        ▼
+         │               ┌─────────────────┐
+         │               │  yao/assert     │
+         │               │  - Asserter     │
+         │               │  - 8 types      │
+         │               │  - Extensible   │
+         │               └─────────────────┘
+         ▼
+┌─────────────────────────────────────────┐
+│  Executor Types                          │
+│  - ExecutorAssistant → Multi-turn AI     │
+│  - ExecutorMCP → Single-call MCP tool    │
+│  - ExecutorProcess → Single-call Process │
+└─────────────────────────────────────────┘
+```
+
+**Execution Flow:**
+
 For each task:
 
-1. Call Assistant or MCP Tool
-2. Get result
-3. Validate against `ExpectedOutput` and `ValidationRules`
-4. Update status
+1. **Build Context**: Include previous task results as context
+2. **Execute**: Call appropriate executor (Assistant/MCP/Process)
+3. **Validate**: Use two-layer validation (rule-based + semantic)
+4. **Continue or Complete**:
+   - For Assistant tasks: If `NeedReply`, continue conversation with `ReplyContent`
+   - For MCP/Process tasks: Single-call execution, no multi-turn
+5. **Update**: Set task status and store result
+
+**Task Dependency**: Previous task results are automatically passed as context to subsequent tasks via `Runner.BuildTaskContext()` and formatted using `FormatPreviousResultsAsContext()`.
+
+**Two-Layer Validation:**
+
+| Layer | Method | Speed | Use Case |
+|-------|--------|-------|----------|
+| 1. Rule-based | `yao/assert` | Fast | Type check, contains, regex, json_path |
+| 2. Semantic | Validation Agent | Slow | ExpectedOutput, complex criteria |
+
+**Executor Types:**
+
+| Type | ExecutorID Format | Example |
+|------|-------------------|---------|
+| `assistant` | Agent ID | `experts.text-writer` |
+| `mcp` | `clientID.toolName` | `filesystem.read_file` |
+| `process` | Process name | `models.user.Find` |
+
+**Multi-Turn Conversation Flow:**
+
+For assistant tasks, P3 uses a multi-turn conversation approach:
+1. **Call**: Call assistant and get result
+2. **Validate**: Validate result (determines: passed, complete, needReply, replyContent)
+3. **Reply**: If needReply, continue conversation with replyContent
+4. **Repeat**: Until complete or max turns exceeded
+
+The `Validator.ValidateWithContext()` method determines:
+- `Complete`: Whether the expected result is obtained
+- `NeedReply`: Whether to continue conversation
+- `ReplyContent`: What to send in the next turn (validation feedback, clarification request, etc.)
+
+This replaces the traditional retry mechanism with intelligent conversation continuation.
 
 ```go
+// RunConfig configures P3 execution behavior
+type RunConfig struct {
+    ContinueOnFailure   bool    // continue to next task even if current fails (default: false)
+    ValidationThreshold float64 // minimum score to pass validation (default: 0.6)
+    MaxTurnsPerTask     int     // max conversation turns per task (default: 10)
+}
+
+// ValidationResult with multi-turn conversation support
 type ValidationResult struct {
+    // Basic validation result
     Passed      bool     // overall validation passed
     Score       float64  // 0-1 confidence score
     Issues      []string // what failed
     Suggestions []string // how to improve
+    Details     string   // detailed report (markdown)
+
+    // Execution state (for multi-turn conversation control)
+    Complete     bool   // whether expected result is obtained
+    NeedReply    bool   // whether to continue conversation
+    ReplyContent string // content for next turn (if NeedReply)
 }
 ```
+
+**yao/assert Package:**
+
+Universal assertion library supporting 8 types:
+
+| Type | Description | Example |
+|------|-------------|---------|
+| `equals` | Exact match | `{"type": "equals", "value": "success"}` |
+| `contains` | Substring check | `{"type": "contains", "value": "total"}` |
+| `not_contains` | Negative check | `{"type": "not_contains", "value": "error"}` |
+| `json_path` | JSON path extraction | `{"type": "json_path", "path": "data.count", "value": 10}` |
+| `regex` | Pattern matching | `{"type": "regex", "value": "^[A-Z].*"}` |
+| `type` | Type checking | `{"type": "type", "value": "array"}` |
+| `script` | Custom script | `{"type": "script", "script": "scripts.validate"}` |
+| `agent` | AI validation | `{"type": "agent", "use": "validator"}` |
 
 ### 4.6 P4: Deliver
 
@@ -436,7 +540,7 @@ const (
     PhaseInspiration Phase = "inspiration" // P0: Clock only
     PhaseGoals       Phase = "goals"       // P1
     PhaseTasks       Phase = "tasks"       // P2
-    PhaseValidation  Phase = "validation"  // P3
+    PhaseRun         Phase = "run"         // P3 (execution + validation)
     PhaseDelivery    Phase = "delivery"    // P4
     PhaseLearning    Phase = "learning"    // P5
 )
@@ -444,7 +548,7 @@ const (
 // AllPhases for iteration
 var AllPhases = []Phase{
     PhaseInspiration, PhaseGoals, PhaseTasks,
-    PhaseValidation, PhaseDelivery, PhaseLearning,
+    PhaseRun, PhaseDelivery, PhaseLearning,
 }
 
 // ClockMode - clock trigger mode enum
