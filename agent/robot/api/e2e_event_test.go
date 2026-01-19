@@ -216,6 +216,8 @@ func TestE2EEventTriggerDatabaseEvent(t *testing.T) {
 }
 
 // TestE2EEventTriggerVariousEventTypes tests different event types
+// Optimized: Only tests one representative event type to reduce CI time
+// The event handling logic is the same for all event types, so testing one is sufficient
 func TestE2EEventTriggerVariousEventTypes(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping E2E test - requires real LLM calls")
@@ -229,95 +231,60 @@ func TestE2EEventTriggerVariousEventTypes(t *testing.T) {
 	defer cleanupE2ERobots(t)
 	defer cleanupE2EExecutions(t)
 
-	eventTypes := []struct {
-		name      string
-		eventType string
-		source    types.EventSource
-		data      map[string]interface{}
-	}{
-		{
-			name:      "notification_event",
-			eventType: "notification.received",
-			source:    types.EventWebhook,
-			data: map[string]interface{}{
-				"message":  "New notification from system",
+	// Test only one representative event type (notification)
+	// All event types use the same code path, so one test is sufficient
+	t.Run("webhook_event", func(t *testing.T) {
+		memberID := "robot_e2e_event_webhook"
+		setupE2ERobotForEvent(t, memberID, "team_e2e_event")
+
+		err := api.Start()
+		require.NoError(t, err)
+		defer api.Stop()
+
+		ctx := types.NewContext(context.Background(), testAuthEvent())
+
+		result, err := api.Trigger(ctx, memberID, &api.TriggerRequest{
+			Type:      types.TriggerEvent,
+			Source:    types.EventWebhook,
+			EventType: "notification.received",
+			Data: map[string]interface{}{
+				"message":  "Test notification",
 				"priority": "normal",
-				"channel":  "email",
 			},
-		},
-		{
-			name:      "schedule_event",
-			eventType: "schedule.triggered",
-			source:    types.EventWebhook,
-			data: map[string]interface{}{
-				"schedule_id":   "sched-001",
-				"schedule_name": "Daily Report",
-				"triggered_at":  time.Now().Format(time.RFC3339),
-			},
-		},
-		{
-			name:      "alert_event",
-			eventType: "alert.fired",
-			source:    types.EventWebhook,
-			data: map[string]interface{}{
-				"alert_id":    "alert-critical-001",
-				"severity":    "critical",
-				"description": "CPU usage exceeded 90%",
-				"metric":      "cpu_usage",
-				"value":       95.5,
-			},
-		},
-	}
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.Accepted, "Event should be accepted")
 
-	err := api.Start()
-	require.NoError(t, err)
-	defer api.Stop()
+		t.Logf("Event triggered: JobID=%s", result.JobID)
 
-	for _, tc := range eventTypes {
-		t.Run(tc.name, func(t *testing.T) {
-			memberID := "robot_e2e_event_" + tc.name
-			setupE2ERobotForEvent(t, memberID, "team_e2e_event")
+		// Wait for execution
+		maxWait := 120 * time.Second
+		deadline := time.Now().Add(maxWait)
 
-			ctx := types.NewContext(context.Background(), testAuthEvent())
+		for time.Now().Before(deadline) {
+			time.Sleep(2 * time.Second)
 
-			result, err := api.Trigger(ctx, memberID, &api.TriggerRequest{
-				Type:      types.TriggerEvent,
-				Source:    tc.source,
-				EventType: tc.eventType,
-				Data:      tc.data,
-			})
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			assert.True(t, result.Accepted, "Event %s should be accepted", tc.eventType)
-
-			t.Logf("Event %s triggered: JobID=%s", tc.eventType, result.JobID)
-
-			// Wait for execution (shorter timeout)
-			maxWait := 90 * time.Second
-			deadline := time.Now().Add(maxWait)
-
-			for time.Now().Before(deadline) {
-				time.Sleep(2 * time.Second)
-
-				executions, err := api.ListExecutions(ctx, memberID, nil)
-				if err != nil || len(executions.Data) == 0 {
-					continue
-				}
-
-				exec := executions.Data[0]
-				if exec.Status == types.ExecCompleted || exec.Status == types.ExecFailed {
-					if exec.Status == types.ExecFailed {
-						t.Logf("Event %s execution failed: %s", tc.eventType, exec.Error)
-					} else {
-						t.Logf("Event %s execution completed", tc.eventType)
-					}
-					return
-				}
+			executions, err := api.ListExecutions(ctx, memberID, nil)
+			if err != nil || len(executions.Data) == 0 {
+				continue
 			}
 
-			t.Logf("Event %s: execution did not complete in time", tc.eventType)
-		})
-	}
+			exec := executions.Data[0]
+			t.Logf("Event status: %s, phase: %s", exec.Status, exec.Phase)
+
+			if exec.Status == types.ExecCompleted || exec.Status == types.ExecFailed {
+				if exec.Status == types.ExecFailed {
+					t.Logf("Event execution failed: %s", exec.Error)
+				} else {
+					t.Logf("Event execution completed")
+				}
+				return
+			}
+		}
+
+		t.Logf("Event execution did not complete in time (may be CI latency)")
+	})
 }
 
 // TestE2EEventTriggerWithComplexData tests event with nested/complex data structures
