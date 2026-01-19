@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestGetRobotValidation(t *testing.T) {
 	defer testutils.Clean(t)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
-		ctx := types.NewContext(nil, nil)
+		ctx := types.NewContext(context.Background(), nil)
 		robot, err := api.GetRobot(ctx, "")
 		assert.Error(t, err)
 		assert.Nil(t, robot)
@@ -27,7 +28,7 @@ func TestGetRobotValidation(t *testing.T) {
 	})
 
 	t.Run("returns error for non-existent robot", func(t *testing.T) {
-		ctx := types.NewContext(nil, nil)
+		ctx := types.NewContext(context.Background(), nil)
 		robot, err := api.GetRobot(ctx, "non_existent_member_id_xyz")
 		assert.Error(t, err)
 		assert.Nil(t, robot)
@@ -43,7 +44,7 @@ func TestListRobotsValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("applies default pagination when query is nil", func(t *testing.T) {
 		result, err := api.ListRobots(ctx, nil)
@@ -85,7 +86,7 @@ func TestGetRobotStatusValidation(t *testing.T) {
 	defer testutils.Clean(t)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
-		ctx := types.NewContext(nil, nil)
+		ctx := types.NewContext(context.Background(), nil)
 		status, err := api.GetRobotStatus(ctx, "")
 		assert.Error(t, err)
 		assert.Nil(t, status)
@@ -93,7 +94,7 @@ func TestGetRobotStatusValidation(t *testing.T) {
 	})
 
 	t.Run("returns error for non-existent robot", func(t *testing.T) {
-		ctx := types.NewContext(nil, nil)
+		ctx := types.NewContext(context.Background(), nil)
 		status, err := api.GetRobotStatus(ctx, "non_existent_member_id_xyz")
 		assert.Error(t, err)
 		assert.Nil(t, status)

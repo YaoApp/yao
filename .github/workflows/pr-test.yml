@@ -564,6 +564,178 @@ jobs:
             });
 
   # =============================================================================
+  # Robot E2E Tests (agent/robot/api) - Run TestE2E* with real LLM calls
+  # =============================================================================
+  RobotE2ETest:
+    runs-on: ubuntu-latest
+    services:
+      mcp-everything:
+        image: yaoapp/mcp-everything:latest
+        ports:
+          - "3021:3021"
+          - "3022:3022"
+
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
+    strategy:
+      matrix:
+        go: ["1.25"]
+    if: >
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: "Download artifact"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }},
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "pr"
+            })[0];
+            var download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
+
+      - name: "Read NR & SHA"
+        run: |
+          unzip pr.zip
+          cat NR
+          cat SHA
+          echo HEAD=$(cat SHA) >> $GITHUB_ENV
+          echo NR=$(cat NR) >> $GITHUB_ENV
+
+      - name: "Comment on PR"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { NR } = process.env
+            var issue_number = NR;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: '🤖 Robot E2E Tests running with SQLite...'
+            });
+
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout pull request HEAD commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD }}
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Setup ENV (SQLite)
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+
+      - name: Run Robot E2E Tests
+        run: make unit-test-robot-e2e
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: "Comment on PR - Robot E2E Tests Done"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { NR } = process.env
+            var issue_number = NR;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: '✅ Robot E2E Tests passed!'
+            });
+
+  # =============================================================================
   # Benchmark & Memory Leak Tests - Run with MySQL8.0 and SQLite3
   # =============================================================================
   PerfTest:

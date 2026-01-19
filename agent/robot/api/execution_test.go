@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestGetExecutionValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty execution_id", func(t *testing.T) {
 		exec, err := api.GetExecution(ctx, "")
@@ -44,7 +45,7 @@ func TestListExecutionsValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
 		result, err := api.ListExecutions(ctx, "", nil)
@@ -81,7 +82,7 @@ func TestPauseExecutionValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty execution_id", func(t *testing.T) {
 		err := api.PauseExecution(ctx, "")
@@ -105,7 +106,7 @@ func TestResumeExecutionValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty execution_id", func(t *testing.T) {
 		err := api.ResumeExecution(ctx, "")
@@ -129,7 +130,7 @@ func TestStopExecutionValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty execution_id", func(t *testing.T) {
 		err := api.StopExecution(ctx, "")
@@ -153,7 +154,7 @@ func TestGetExecutionStatusValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty execution_id", func(t *testing.T) {
 		exec, err := api.GetExecutionStatus(ctx, "")
@@ -183,7 +184,7 @@ func TestExecutionControlWithManagerStarted(t *testing.T) {
 	require.NoError(t, err)
 	defer api.Stop()
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("pause returns error for non-existent execution", func(t *testing.T) {
 		err := api.PauseExecution(ctx, "non_existent_exec_id_xyz")

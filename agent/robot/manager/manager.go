@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/trigger"
 	"github.com/yaoapp/yao/agent/robot/types"
+	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 // Default configuration values
@@ -197,9 +198,8 @@ func (m *Manager) tickerLoop() {
 			m.ticker.Stop()
 			return
 		case now := <-m.ticker.C:
-			// Perform tick
-			ctx := types.NewContext(m.ctx, nil)
-			_ = m.Tick(ctx, now)
+			// Perform tick - context is created per-robot in Tick()
+			_ = m.Tick(m.ctx, now)
 		}
 	}
 }
@@ -208,8 +208,8 @@ func (m *Manager) tickerLoop() {
 // 1. Get all cached robots
 // 2. For each robot with clock trigger enabled
 // 3. Check if should execute based on clock config
-// 4. Submit to pool
-func (m *Manager) Tick(ctx *types.Context, now time.Time) error {
+// 4. Submit to pool with robot's own identity
+func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 	m.mu.RLock()
 	if !m.started {
 		m.mu.RUnlock()
@@ -250,6 +250,11 @@ func (m *Manager) Tick(ctx *types.Context, now time.Time) error {
 		//     continue
 		// }
 
+		// Create context with robot's own identity
+		// Clock-triggered executions run as the robot itself
+		robotAuth := m.buildRobotAuth(robot)
+		ctx := types.NewContext(parentCtx, robotAuth)
+
 		// Create clock context for P0 inspiration
 		clockCtx := types.NewClockContext(now, robot.Config.Clock.TZ)
 
@@ -266,6 +271,17 @@ func (m *Manager) Tick(ctx *types.Context, now time.Time) error {
 	}
 
 	return nil
+}
+
+// buildRobotAuth creates AuthorizedInfo for a robot's own identity
+// Used when robot executes autonomously (clock trigger)
+func (m *Manager) buildRobotAuth(robot *types.Robot) *oauthtypes.AuthorizedInfo {
+	return &oauthtypes.AuthorizedInfo{
+		UserID: robot.MemberID,
+		TeamID: robot.TeamID,
+		// ClientID could be set to a special "robot-agent" identifier if needed
+		ClientID: "robot-agent",
+	}
 }
 
 // shouldTrigger checks if a robot should be triggered based on its clock config

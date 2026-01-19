@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -19,7 +20,7 @@ func TestTriggerValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
 		result, err := api.Trigger(ctx, "", &api.TriggerRequest{
@@ -56,7 +57,7 @@ func TestTriggerManualValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
 		result, err := api.TriggerManual(ctx, "", types.TriggerClock, nil)
@@ -82,7 +83,7 @@ func TestInterveneValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
 		result, err := api.Intervene(ctx, "", &api.TriggerRequest{
@@ -111,7 +112,7 @@ func TestHandleEventValidation(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
 		result, err := api.HandleEvent(ctx, "", &api.TriggerRequest{
@@ -146,7 +147,7 @@ func TestTriggerWithManagerStarted(t *testing.T) {
 	require.NoError(t, err)
 	defer api.Stop()
 
-	ctx := types.NewContext(nil, nil)
+	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("returns not accepted for non-existent robot", func(t *testing.T) {
 		result, err := api.Trigger(ctx, "non_existent_robot_xyz", &api.TriggerRequest{
