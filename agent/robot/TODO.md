@@ -1116,26 +1116,47 @@ type DeliveryContext struct {
 
 ### 11.2 End-to-End Tests
 
-- [ ] Full clock trigger flow (P0 → P1 → P2 → P3 → P4)
-- [ ] Human intervention flow (P1 → P2 → P3 → P4)
-- [ ] Event trigger flow (P1 → P2 → P3 → P4)
-- [ ] Concurrent execution test
-- [ ] Pause/Resume/Stop test
-
-### 11.3 Integration with OpenAPI
-
-- [ ] HTTP endpoints for human intervention
-- [ ] Webhook endpoints for events
+- [x] Full clock trigger flow (P0 → P1 → P2 → P3 → P4) - `e2e_clock_test.go`
+- [x] Human intervention flow (P1 → P2 → P3 → P4) - `e2e_human_test.go`
+- [x] Event trigger flow (P1 → P2 → P3 → P4) - `e2e_event_test.go`
+- [x] Concurrent execution test - `e2e_concurrent_test.go`
+- [x] Pause/Resume/Stop test - `e2e_control_test.go`
 
 ---
 
-## Phase 12: Advanced Features
+## Phase 12: OpenAPI Integration
+
+**Goal:** HTTP endpoints for Robot Agent management and triggers.
+
+**Depends on:** Phase 11 (API & Integration), Frontend UI Design
+
+> **Note:** This phase will be planned in detail after frontend UI design is complete.
+> The API endpoints will be designed based on actual UI requirements.
+
+### 12.1 Planned Features
+
+- [ ] HTTP endpoints for robot management (CRUD)
+- [ ] HTTP endpoints for human intervention triggers
+- [ ] Webhook endpoints for external events
+- [ ] WebSocket for real-time execution status updates
+- [ ] Authentication and authorization integration
+
+### 12.2 Design Dependencies
+
+- Frontend dashboard design (robot list, status, controls)
+- Execution history UI design
+- Human intervention UI design
+- Real-time notification requirements
+
+---
+
+## Phase 13: Advanced Features
 
 **Goal:** P5 Learning, Process/JSAPI wrappers, dedup, plan queue.
 
 > **Note:** These are optional features. Main flow works without them.
 
-### 12.1 Process & JSAPI Wrappers
+### 13.1 Process & JSAPI Wrappers
 
 > **Note:** These are convenience wrappers around Go API for Yao ecosystem integration.
 
@@ -1148,37 +1169,37 @@ type DeliveryContext struct {
 - [ ] `api/jsapi.go` - implement JSAPI for JavaScript runtime
 - [ ] Tests for Process and JSAPI
 
-### 12.3 P5 Learning Implementation
+### 13.2 P5 Learning Implementation
 
 > **Background:** P5 Learning is async, runs after P4 Delivery completes.
 > User doesn't wait for it. Results stored in private KB for future reference.
 
-#### 12.3.1 Learning Agent Setup
+#### 13.2.1 Learning Agent Setup
 
 - [ ] `robot/learning/package.yao` - Learning Agent config
 - [ ] `robot/learning/prompts.yml` - learning prompts
 
-#### 12.3.2 Store Implementation
+#### 13.2.2 Store Implementation
 
 - [ ] `store/store.go` - Store interface and struct
 - [ ] `store/kb.go` - KB operations (create, save, search)
 - [ ] `store/learning.go` - save learning entries to private KB
 
-#### 12.3.3 Implementation
+#### 13.2.3 Implementation
 
 - [ ] `executor/learning.go` - `RunLearning(ctx, exec, data)` - real implementation
 - [ ] `executor/learning.go` - extract learnings from execution
 - [ ] `executor/learning.go` - call Learning Agent
 - [ ] `executor/learning.go` - save to private KB
 
-#### 12.3.4 Tests
+#### 13.2.4 Tests
 
 - [ ] `executor/learning_test.go` - P5 learning
 - [ ] Test: learnings extracted from execution
 - [ ] Test: learnings saved to KB
 - [ ] Test: KB can be queried for past learnings
 
-### 12.5 Fast Dedup (Time-Window)
+### 13.3 Fast Dedup (Time-Window)
 
 > **Note:** Manager has `// TODO: dedup check` comment placeholder. Integrate after implementation.
 
@@ -1190,13 +1211,13 @@ type DeliveryContext struct {
 - [ ] Integrate into Manager.Tick()
 - [ ] Test: dedup check/mark, window expiry
 
-### 12.6 Semantic Dedup
+### 13.4 Semantic Dedup
 
 - [ ] `dedup/semantic.go` - call Dedup Agent for goal/task level dedup
 - [ ] Dedup Agent setup (`assistants/robot/dedup/`)
 - [ ] Test: semantic dedup with real LLM
 
-### 12.7 Plan Queue
+### 13.5 Plan Queue
 
 - [ ] `plan/plan.go` - plan queue implementation
   - [ ] Store planned tasks/goals
@@ -1325,13 +1346,15 @@ func TestWithLLM(t *testing.T) {
 | 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
 | 9. P3 Run             | ✅     | Task execution + validation + yao/assert + multi-turn conversation           |
 | 10. P4 Delivery       | ✅     | Output delivery (email/webhook/process, notify future)                       |
-| 11. API & Integration | ⬜     | Go API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                         |
-| 12. Advanced          | ⬜     | Process/JSAPI, P5 Learning, dedup, plan queue, Sandbox                       |
+| 11. API & Integration | ✅     | Go API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                         |
+| 12. OpenAPI           | ⬜     | HTTP endpoints (depends on frontend UI design)                               |
+| 13. Advanced          | ⬜     | Process/JSAPI, P5 Learning, dedup, plan queue, Sandbox                       |
 
 Legend: ⬜ Not started | 🟡 In progress | ✅ Complete
 
-**Main Flow (MVP):** P0 Inspiration → P1 Goals → P2 Tasks → P3 Run → P4 Delivery
-**Advanced (Optional):** P5 Learning (async), Dedup, Plan Queue, Sandbox
+**Main Flow (MVP):** P0 Inspiration → P1 Goals → P2 Tasks → P3 Run → P4 Delivery ✅
+**OpenAPI (Phase 12):** HTTP endpoints - planned after frontend UI design
+**Advanced (Phase 13):** P5 Learning (async), Process/JSAPI, Dedup, Plan Queue, Sandbox
 
 ---
 

@@ -66,10 +66,14 @@ type TriggerRequest struct {
 type InsertPosition string
 
 const (
-	InsertFirst InsertPosition = "first" // insert at beginning (highest priority)
-	InsertLast  InsertPosition = "last"  // append at end (default)
-	InsertNext  InsertPosition = "next"  // insert after current task
-	InsertAt    InsertPosition = "at"    // insert at specific index (use AtIndex)
+	// InsertFirst inserts at beginning (highest priority)
+	InsertFirst InsertPosition = "first"
+	// InsertLast appends at end (default)
+	InsertLast InsertPosition = "last"
+	// InsertNext inserts after current task
+	InsertNext InsertPosition = "next"
+	// InsertAt inserts at specific index (use AtIndex)
+	InsertAt InsertPosition = "at"
 )
 
 // TriggerResult - result of Trigger()
