@@ -1081,20 +1081,38 @@ type DeliveryContext struct {
 
 ---
 
-## Phase 11: API & Integration
+## Phase 11: API & Integration (MVP)
 
-**Goal:** Complete API implementation, end-to-end tests. Main flow: P0 → P1 → P2 → P3 → P4.
+**Goal:** Complete Go API and end-to-end tests. Main flow: P0 → P1 → P2 → P3 → P4.
 
 **Depends on:** Phase 10 (P4 Delivery)
 
-> **Note:** P5 Learning is an advanced feature (async, background, user-invisible). 
-> Main flow works without it. Moved to Phase 12 (Advanced Features).
+> **Note:** Process handlers and JSAPI are optional wrappers, moved to Phase 12.
+> Go API is sufficient for MVP integration.
 
-### 11.1 API Implementation
+### 11.1 Go API Implementation
 
-- [ ] `api/api.go` - implement all Go API functions
-- [ ] `api/process.go` - implement all Process handlers
-- [ ] `api/jsapi.go` - implement JSAPI
+- [x] `api/types.go` - API request/response types
+- [x] `api/lifecycle.go` - manager lifecycle
+  - [x] `Start()` / `Stop()` - manager lifecycle
+  - [x] `StartWithConfig(config)` - start with custom config
+  - [x] `IsRunning()` - check if system is running
+- [x] `api/robot.go` - robot query functions
+  - [x] `GetRobot(memberID)` - get robot by member ID
+  - [x] `ListRobots(query)` - list robots with filtering
+  - [x] `GetRobotStatus(memberID)` - get robot runtime status
+- [x] `api/trigger.go` - trigger functions
+  - [x] `Trigger(memberID, request)` - main trigger entry point
+  - [x] `TriggerManual(memberID, triggerType, data)` - manual trigger for testing
+  - [x] `Intervene(memberID, request)` - human intervention
+  - [x] `HandleEvent(memberID, request)` - event trigger
+- [x] `api/execution.go` - execution query and control
+  - [x] `GetExecution(execID)` - get execution by ID
+  - [x] `ListExecutions(memberID, query)` - list executions
+  - [x] `GetExecutionStatus(execID)` - get execution with runtime status
+  - [x] `PauseExecution(execID)` / `ResumeExecution(execID)` / `StopExecution(execID)`
+- [x] `api/api.go` - package documentation
+- [x] Tests: `api/*_test.go` (black-box tests, 16 test cases)
 
 ### 11.2 End-to-End Tests
 
@@ -1113,41 +1131,54 @@ type DeliveryContext struct {
 
 ## Phase 12: Advanced Features
 
-**Goal:** Implement P5 Learning, dedup, semantic dedup, plan queue.
+**Goal:** P5 Learning, Process/JSAPI wrappers, dedup, plan queue.
 
-> **Note:** These are optional advanced features. Main flow works without them.
+> **Note:** These are optional features. Main flow works without them.
 
-### 12.1 P5 Learning Implementation
+### 12.1 Process & JSAPI Wrappers
+
+> **Note:** These are convenience wrappers around Go API for Yao ecosystem integration.
+
+- [ ] `api/process.go` - implement Process handlers
+  - [ ] `robot.Start` / `robot.Stop`
+  - [ ] `robot.Trigger` / `robot.Intervene` / `robot.HandleEvent`
+  - [ ] `robot.Pause` / `robot.Resume` / `robot.Stop`
+  - [ ] `robot.Get` / `robot.List`
+  - [ ] `robot.GetExecution` / `robot.ListExecutions`
+- [ ] `api/jsapi.go` - implement JSAPI for JavaScript runtime
+- [ ] Tests for Process and JSAPI
+
+### 12.3 P5 Learning Implementation
 
 > **Background:** P5 Learning is async, runs after P4 Delivery completes.
 > User doesn't wait for it. Results stored in private KB for future reference.
 
-#### 12.1.1 Learning Agent Setup
+#### 12.3.1 Learning Agent Setup
 
 - [ ] `robot/learning/package.yao` - Learning Agent config
 - [ ] `robot/learning/prompts.yml` - learning prompts
 
-#### 12.1.2 Store Implementation
+#### 12.3.2 Store Implementation
 
 - [ ] `store/store.go` - Store interface and struct
 - [ ] `store/kb.go` - KB operations (create, save, search)
 - [ ] `store/learning.go` - save learning entries to private KB
 
-#### 12.1.3 Implementation
+#### 12.3.3 Implementation
 
 - [ ] `executor/learning.go` - `RunLearning(ctx, exec, data)` - real implementation
 - [ ] `executor/learning.go` - extract learnings from execution
 - [ ] `executor/learning.go` - call Learning Agent
 - [ ] `executor/learning.go` - save to private KB
 
-#### 12.1.4 Tests
+#### 12.3.4 Tests
 
 - [ ] `executor/learning_test.go` - P5 learning
 - [ ] Test: learnings extracted from execution
 - [ ] Test: learnings saved to KB
 - [ ] Test: KB can be queried for past learnings
 
-### 12.2 Fast Dedup (Time-Window)
+### 12.5 Fast Dedup (Time-Window)
 
 > **Note:** Manager has `// TODO: dedup check` comment placeholder. Integrate after implementation.
 
@@ -1159,13 +1190,13 @@ type DeliveryContext struct {
 - [ ] Integrate into Manager.Tick()
 - [ ] Test: dedup check/mark, window expiry
 
-### 12.3 Semantic Dedup
+### 12.6 Semantic Dedup
 
 - [ ] `dedup/semantic.go` - call Dedup Agent for goal/task level dedup
 - [ ] Dedup Agent setup (`assistants/robot/dedup/`)
 - [ ] Test: semantic dedup with real LLM
 
-### 12.4 Plan Queue
+### 12.7 Plan Queue
 
 - [ ] `plan/plan.go` - plan queue implementation
   - [ ] Store planned tasks/goals
@@ -1294,8 +1325,8 @@ func TestWithLLM(t *testing.T) {
 | 8. P2 Tasks           | ✅     | Task Planning Agent integration                                              |
 | 9. P3 Run             | ✅     | Task execution + validation + yao/assert + multi-turn conversation           |
 | 10. P4 Delivery       | ✅     | Output delivery (email/webhook/process, notify future)                       |
-| 11. API & Integration | ⬜     | Complete API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                   |
-| 12. Advanced          | ⬜     | P5 Learning, dedup, plan queue, Sandbox mode                                 |
+| 11. API & Integration | ⬜     | Go API, end-to-end tests (main flow: P0→P1→P2→P3→P4)                         |
+| 12. Advanced          | ⬜     | Process/JSAPI, P5 Learning, dedup, plan queue, Sandbox                       |
 
 Legend: ⬜ Not started | 🟡 In progress | ✅ Complete
 
