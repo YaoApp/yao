@@ -128,6 +128,12 @@ var robotFields = []interface{}{
 	// Timestamps
 	"created_at",
 	"updated_at",
+
+	// Yao Permission Fields (for access control)
+	"__yao_created_by",
+	"__yao_updated_by",
+	"__yao_team_id",
+	"__yao_tenant_id",
 }
 
 // Save creates or updates a robot member record

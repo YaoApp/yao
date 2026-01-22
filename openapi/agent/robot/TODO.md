@@ -35,10 +35,11 @@
 
 ---
 
-## 🟢 Phase 1: Core CRUD 🟡 [Low Risk]
+## 🟢 Phase 1: Core CRUD ✅ [Low Risk]
 
 **Goal:** Basic robot management endpoints
 **Risk:** 🟢 Low - All new code, no changes to existing logic
+**Status:** ✅ Complete
 
 ### 1.1 Backend Prerequisites ✅
 
@@ -72,80 +73,103 @@
 - [x] Implement `Get<Type>` functions for map value extraction
 - [x] Add tests: `utils/convert_test.go`
 
-### 1.2 OpenAPI Setup ⬜ (Next Step)
+### 1.2 OpenAPI Setup ✅
 
-- [ ] Create `openapi/agent/robot/` directory (sub-package under agent)
-- [ ] Create `robot.go` - route registration with `Attach()` function
-- [ ] Register routes in `openapi/agent/agent.go` via `robot.Attach(group.Group("/robots"), oauth)`
-- [ ] Add OAuth guard middleware
+- [x] Create `openapi/agent/robot/` directory (sub-package under agent)
+- [x] Create `robot.go` - route registration with `Attach()` function
+- [x] Register routes in `openapi/agent/agent.go` via `robot.Attach(group.Group("/robots"), oauth)`
+- [x] Add OAuth guard middleware
 
-### 1.3 OpenAPI Types ⬜
+### 1.3 OpenAPI Types ✅
 
 > Note: Core types already exist in `agent/robot/api/types.go`. OpenAPI layer needs HTTP-specific types.
 
-- [ ] `types.go` - HTTP request/response types
-  - [ ] `RobotResponse` struct (with field mapping: `name` ← `member_id`, `description` ← `bio`)
-  - [ ] `ConfigResponse` struct (and sub-types)
-  - [ ] `ListRobotsResponse` struct
-  - [ ] `CreateRobotRequest` struct (HTTP binding)
-  - [ ] `UpdateRobotRequest` struct (HTTP binding)
-  - [ ] `NewRobotResponse()` - conversion from `api.RobotResponse`
-  - [ ] Error response types
+- [x] `types.go` - HTTP request/response types
+  - [x] `RobotResponse` struct (with field mapping: `name` ← `member_id`, `description` ← `bio`)
+  - [x] `RobotStatusResponse` struct
+  - [x] `ListRobotsResponse` struct
+  - [x] `CreateRobotRequest` struct (HTTP binding)
+  - [x] `UpdateRobotRequest` struct (HTTP binding)
+  - [x] `NewRobotResponse()` - conversion from `api.RobotResponse`
+  - [x] `NewRobotStatusResponse()` - conversion from `api.RobotState`
 
-### 1.4 List Robots ⬜
+### 1.4 List Robots ✅
 
-- [ ] `list.go` - GET /v1/agent/robots
-- [ ] Parse query params: `locale`, `status`, `keywords`, `page`, `pagesize`
-- [ ] Call `robot/api.ListRobots()`
-- [ ] Format response with localization
-- [ ] Test: `tests/robot/list_test.go`
+- [x] `list.go` - GET /v1/agent/robots
+- [x] Parse query params: `status`, `keywords`, `page`, `pagesize`, `team_id`
+- [x] Call `robot/api.ListRobots()`
+- [x] Team constraint from auth info
+- [x] Test: `tests/agent/robot_test.go#TestListRobots`
 
-### 1.5 Get Robot ⬜
+### 1.5 Get Robot ✅
 
-- [ ] `detail.go` - GET /v1/agent/robots/:id
-- [ ] Parse path param and `locale` query
-- [ ] Call `robot/api.GetRobot()` and `robot/api.GetRobotStatus()`
-- [ ] Format response with full config
-- [ ] Team access check
-- [ ] Test: `tests/robot/get_test.go`
+- [x] `detail.go` - GET /v1/agent/robots/:id
+- [x] Parse path param
+- [x] Call `robot/api.GetRobotResponse()`
+- [x] Team access check
+- [x] Test: `tests/agent/robot_test.go#TestGetRobot`
 
-### 1.6 Create Robot ⬜
+### 1.6 Create Robot ✅
 
-- [ ] POST /v1/agent/robots handler
-- [ ] Parse HTTP request to `api.CreateRobotRequest`
-- [ ] Apply `authInfo.WithCreateScope()` for permission fields
-- [ ] Call `robot/api.CreateRobot()`
-- [ ] Return created robot
-- [ ] Test: `tests/robot/create_test.go`
+- [x] POST /v1/agent/robots handler
+- [x] Parse HTTP request to `CreateRobotRequest`
+- [x] Apply `AuthScope` with permission fields (CreatedBy, TeamID, TenantID)
+- [x] Call `robot/api.CreateRobot()`
+- [x] Return created robot (201 Created)
+- [x] Handle duplicate (409 Conflict)
+- [x] Test: `tests/agent/robot_test.go#TestCreateRobot`
 
-### 1.7 Update Robot ⬜
+### 1.7 Update Robot ✅
 
-- [ ] PUT /v1/agent/robots/:id handler
-- [ ] Parse HTTP request to `api.UpdateRobotRequest`
-- [ ] Ownership/permission check
-- [ ] Apply `authInfo.WithUpdateScope()` for permission fields
-- [ ] Call `robot/api.UpdateRobot()`
-- [ ] Return updated robot
-- [ ] Test: `tests/robot/update_test.go`
+- [x] PUT /v1/agent/robots/:id handler
+- [x] Parse HTTP request to `UpdateRobotRequest`
+- [x] Team permission check
+- [x] Apply `AuthScope` with UpdatedBy
+- [x] Call `robot/api.UpdateRobot()`
+- [x] Return updated robot
+- [x] Test: `tests/agent/robot_test.go#TestUpdateRobot`
 
-### 1.8 Delete Robot ⬜
+### 1.8 Delete Robot ✅
 
-- [ ] DELETE /v1/agent/robots/:id handler
-- [ ] Ownership/permission check
-- [ ] Call `robot/api.RemoveRobot()`
-- [ ] Return success response
-- [ ] Test: `tests/robot/delete_test.go`
+- [x] DELETE /v1/agent/robots/:id handler
+- [x] Team permission check
+- [x] Call `robot/api.RemoveRobot()`
+- [x] Handle running executions (409 Conflict)
+- [x] Return success response
+- [x] Test: `tests/agent/robot_test.go#TestDeleteRobot`
 
-### 1.9 Utilities ⬜
+### 1.9 Status Endpoint ✅
 
-- [ ] `utils.go` - helper functions
-  - [ ] `getLocale(c *gin.Context)` - extract locale from query/header
-  - [ ] `formatTime(t *time.Time)` - format to ISO string
-  - [ ] `localizeString(value, locale)` - localization helper
-  - [ ] `applyAuthScope(authInfo, req)` - apply permission fields
-- [ ] `filter.go` - query filtering
-  - [ ] Parse query params to `api.ListQuery`
-  - [ ] Parse query params to `api.ExecutionQuery`
+- [x] GET /v1/agent/robots/:id/status handler
+- [x] Call `robot/api.GetRobotStatus()`
+- [x] Return runtime status (running count, max, last/next run)
+- [x] Test: `tests/agent/robot_test.go#TestGetRobotStatus`
+
+### 1.10 Utilities ✅
+
+- [x] `utils.go` - helper functions
+  - [x] `GetLocale(c *gin.Context)` - extract locale from query/header
+  - [x] `ParseBoolValue()` - parse bool from string
+
+### 1.11 Permission Logic ✅
+
+- [x] `permission.go` - permission check functions
+  - [x] `CanRead()` - read permission check (creator or team member)
+  - [x] `CanWrite()` - write permission check (creator only)
+  - [x] `GetEffectiveTeamID()` - get effective team_id (user_id for personal users)
+  - [x] `BuildListFilter()` - build list filter based on permissions
+- [x] Apply permission checks in handlers:
+  - [x] `GetRobot` - check `CanRead()` with `YaoTeamID` and `YaoCreatedBy`
+  - [x] `GetRobotStatus` - check `CanRead()`
+  - [x] `UpdateRobot` - check `CanWrite()`
+  - [x] `DeleteRobot` - check `CanWrite()`
+  - [x] `ListRobots` - use `BuildListFilter()` for team filtering
+  - [x] `CreateRobot` - auto-set `__yao_team_id` to `user_id` for personal users
+- [x] Add Yao permission fields to API layer:
+  - [x] `api/types.go` - add `YaoCreatedBy`, `YaoTeamID` to `RobotResponse` and `RobotState`
+  - [x] `api/robot.go` - populate permission fields in `recordToResponse()` and `GetRobotStatus()`
+  - [x] `store/robot.go` - add `__yao_*` fields to `robotFields`
+- [x] Permission tests in `tests/agent/robot_test.go#TestRobotPermissions`
 
 ---
 
@@ -467,7 +491,7 @@ yao/openapi/tests/robot/
 
 | Phase | Risk | Status | Description |
 |-------|------|--------|-------------|
-| 1. Core CRUD | 🟢 | 🟡 | Basic robot management (Backend ✅, OpenAPI ⬜) |
+| 1. Core CRUD | 🟢 | ✅ | Basic robot management (Backend ✅, OpenAPI ✅) |
 | 2. Execution | 🟢 | ⬜ | Execution listing, control, trigger/intervene |
 | 3. Results/Activities | 🟢 | ⬜ | Deliverables and activity feed |
 | 4. i18n | 🟢 | ⬜ | Locale parameter support |
@@ -489,7 +513,14 @@ Legend: ⬜ Not started | 🟡 In progress | ✅ Complete | 🟢 Low Risk | 🟡
 | `api/robot_test.go` | ✅ | API tests |
 | `utils/convert.go` | ✅ | Type conversion utilities |
 | `utils/convert_test.go` | ✅ | Unit tests |
-| `openapi/agent/robot/` | ⬜ | HTTP handlers (next step) |
+| `openapi/agent/robot/robot.go` | ✅ | Route registration with Attach() |
+| `openapi/agent/robot/types.go` | ✅ | HTTP request/response types |
+| `openapi/agent/robot/list.go` | ✅ | List robots handler with permission filter |
+| `openapi/agent/robot/detail.go` | ✅ | CRUD handlers with permission checks |
+| `openapi/agent/robot/permission.go` | ✅ | Permission check functions (CanRead/CanWrite) |
+| `openapi/agent/robot/utils.go` | ✅ | Helper functions |
+| `openapi/agent/agent.go` | ✅ | Robot routes registered |
+| `openapi/tests/agent/robot_test.go` | ✅ | Integration tests + Permission tests |
 
 ---
 
@@ -501,17 +532,18 @@ Legend: ⬜ Not started | 🟡 In progress | ✅ Complete | 🟢 Low Risk | 🟡
 yao/openapi/agent/robot/           # This directory (sub-package under agent)
 ├── DESIGN.md       # Design document ✅
 ├── TODO.md         # This file ✅
-├── robot.go        # Route registration (Attach function)
-├── types.go        # All request/response types
-├── list.go         # GET /v1/agent/robots
-├── detail.go       # GET/POST/PUT/DELETE /v1/agent/robots/:id
-├── execution.go    # Execution endpoints
-├── trigger.go      # Trigger/Intervene SSE
-├── results.go      # Results endpoints
-├── activities.go   # Activities endpoint
-├── stream.go       # Real-time streams
-├── filter.go       # Query filtering
-└── utils.go        # Utilities
+├── robot.go        # Route registration (Attach function) ✅
+├── types.go        # All request/response types ✅
+├── list.go         # GET /v1/agent/robots ✅
+├── detail.go       # GET/POST/PUT/DELETE /v1/agent/robots/:id ✅
+├── permission.go   # Permission check functions (CanRead/CanWrite) ✅
+├── utils.go        # Utilities ✅
+├── execution.go    # Execution endpoints (Phase 2)
+├── trigger.go      # Trigger/Intervene SSE (Phase 2)
+├── results.go      # Results endpoints (Phase 3)
+├── activities.go   # Activities endpoint (Phase 3)
+├── stream.go       # Real-time streams (Phase 6 - Deferred)
+└── filter.go       # Query filtering (optional)
 ```
 
 ### Parent Directory

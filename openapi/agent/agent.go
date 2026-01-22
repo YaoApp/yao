@@ -2,6 +2,7 @@ package agent
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/openapi/agent/robot"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -26,4 +27,8 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Assistant Actions
 	// group.POST("/assistants/:id/call", agent.HandleAssistantCall) // POST /assistants/:id/call - Execute assistant API
+
+	// Robot routes - Attach as sub-router
+	// Routes: GET/POST /robots, GET/PUT/DELETE /robots/:id, GET /robots/:id/status
+	robot.Attach(group.Group("/robots"), oauth)
 }

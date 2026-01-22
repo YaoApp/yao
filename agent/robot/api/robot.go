@@ -83,6 +83,9 @@ func GetRobotStatus(ctx *types.Context, memberID string) (*RobotState, error) {
 		return nil, err
 	}
 
+	// Get permission fields from store (for access control)
+	record, _ := robotStore.Get(context.Background(), memberID)
+
 	state := &RobotState{
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
@@ -91,6 +94,12 @@ func GetRobotStatus(ctx *types.Context, memberID string) (*RobotState, error) {
 		Status:      robot.Status,
 		Running:     robot.RunningCount(),
 		MaxRunning:  2, // default
+	}
+
+	// Add permission fields if available
+	if record != nil {
+		state.YaoCreatedBy = record.YaoCreatedBy
+		state.YaoTeamID = record.YaoTeamID
 	}
 
 	if robot.Config != nil && robot.Config.Quota != nil {
@@ -565,10 +574,12 @@ func recordToResponse(record *store.RobotRecord) *RobotResponse {
 		MCPServers:    record.MCPServers,
 		LanguageModel: record.LanguageModel,
 
-		CostLimit: record.CostLimit,
-		InvitedBy: record.InvitedBy,
-		JoinedAt:  record.JoinedAt,
-		CreatedAt: record.CreatedAt,
-		UpdatedAt: record.UpdatedAt,
+		CostLimit:    record.CostLimit,
+		InvitedBy:    record.InvitedBy,
+		JoinedAt:     record.JoinedAt,
+		YaoCreatedBy: record.YaoCreatedBy,
+		YaoTeamID:    record.YaoTeamID,
+		CreatedAt:    record.CreatedAt,
+		UpdatedAt:    record.UpdatedAt,
 	}
 }

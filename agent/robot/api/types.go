@@ -28,16 +28,18 @@ type ListResult struct {
 
 // RobotState - runtime state from Status()
 type RobotState struct {
-	MemberID    string            `json:"member_id"`
-	TeamID      string            `json:"team_id"`
-	DisplayName string            `json:"display_name"`
-	Bio         string            `json:"bio,omitempty"`
-	Status      types.RobotStatus `json:"status"`
-	Running     int               `json:"running"`
-	MaxRunning  int               `json:"max_running"`
-	LastRun     *time.Time        `json:"last_run,omitempty"`
-	NextRun     *time.Time        `json:"next_run,omitempty"`
-	RunningIDs  []string          `json:"running_ids,omitempty"`
+	MemberID     string            `json:"member_id"`
+	TeamID       string            `json:"team_id"`
+	DisplayName  string            `json:"display_name"`
+	Bio          string            `json:"bio,omitempty"`
+	Status       types.RobotStatus `json:"status"`
+	Running      int               `json:"running"`
+	MaxRunning   int               `json:"max_running"`
+	LastRun      *time.Time        `json:"last_run,omitempty"`
+	NextRun      *time.Time        `json:"next_run,omitempty"`
+	RunningIDs   []string          `json:"running_ids,omitempty"`
+	YaoCreatedBy string            `json:"__yao_created_by,omitempty"` // Creator user_id for permission check
+	YaoTeamID    string            `json:"__yao_team_id,omitempty"`    // Team ID for permission check
 }
 
 // ==================== Trigger Types ====================
@@ -224,8 +226,10 @@ type RobotResponse struct {
 	CostLimit float64 `json:"cost_limit,omitempty"`
 
 	// Ownership & Audit
-	InvitedBy string     `json:"invited_by,omitempty"`
-	JoinedAt  *time.Time `json:"joined_at,omitempty"`
+	InvitedBy    string     `json:"invited_by,omitempty"`
+	JoinedAt     *time.Time `json:"joined_at,omitempty"`
+	YaoCreatedBy string     `json:"__yao_created_by,omitempty"` // Creator user_id for permission check
+	YaoTeamID    string     `json:"__yao_team_id,omitempty"`    // Team ID for permission check
 
 	// Timestamps
 	CreatedAt *time.Time `json:"created_at,omitempty"`
