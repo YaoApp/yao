@@ -62,9 +62,11 @@ func ListRobots(ctx *types.Context, query *ListQuery) (*ListResult, error) {
 		return listRobotsFromDB(query)
 	}
 
-	// If only teamID specified (no other filters), use cache for faster lookup
-	// Note: Cache only contains autonomous_mode=true robots, so this is safe
-	if query.TeamID != "" && query.Status == "" && query.Keywords == "" && query.ClockMode == "" {
+	// If only teamID specified AND explicitly filtering for autonomous_mode=true, use cache
+	// Cache only contains autonomous_mode=true robots
+	// When autonomous_mode is not specified or false, must query database to include all robots
+	if query.TeamID != "" && query.Status == "" && query.Keywords == "" && query.ClockMode == "" &&
+		query.AutonomousMode != nil && *query.AutonomousMode == true {
 		robots := mgr.Cache().List(query.TeamID)
 		return paginateRobots(robots, query), nil
 	}
