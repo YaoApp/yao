@@ -174,7 +174,8 @@ const (
 // Used for filtering and pagination when retrieving assistant lists
 type AssistantFilter struct {
 	Tags         []string          `json:"tags,omitempty"`          // Filter by tags
-	Type         string            `json:"type,omitempty"`          // Filter by type
+	Type         string            `json:"type,omitempty"`          // Filter by type (single value)
+	Types        []string          `json:"types,omitempty"`         // Filter by types (multiple values, IN query)
 	Keywords     string            `json:"keywords,omitempty"`      // Search in name and description
 	Connector    string            `json:"connector,omitempty"`     // Filter by connector
 	AssistantID  string            `json:"assistant_id,omitempty"`  // Filter by assistant ID

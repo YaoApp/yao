@@ -49,7 +49,8 @@ type AssistantFilterParams struct {
 	Page         int
 	PageSize     int
 	Keywords     string
-	Type         string
+	Type         string   // Single type filter
+	Types        []string // Multiple types filter (IN query)
 	Connector    string
 	AssistantID  string
 	AssistantIDs []string
@@ -70,6 +71,7 @@ func BuildAssistantFilter(params AssistantFilterParams) agenttypes.AssistantFilt
 		Keywords:     params.Keywords,
 		Tags:         params.Tags,
 		Type:         params.Type,
+		Types:        params.Types,
 		Connector:    params.Connector,
 		AssistantID:  params.AssistantID,
 		AssistantIDs: params.AssistantIDs,
@@ -79,8 +81,8 @@ func BuildAssistantFilter(params AssistantFilterParams) agenttypes.AssistantFilt
 		Automated:    params.Automated,
 	}
 
-	// Set default type if not specified
-	if filter.Type == "" {
+	// Set default type if not specified (only when Types is also empty)
+	if filter.Type == "" && len(filter.Types) == 0 {
 		filter.Type = "assistant"
 	}
 
