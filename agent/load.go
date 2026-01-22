@@ -52,14 +52,19 @@ func Load(cfg config.Config) error {
 		setting.Uses = &types.Uses{Default: "mohe"} // Agent is the developer name, Mohe is the brand name of the assistant
 	}
 
-	// Title Assistant
+	// Title Assistant (default to system agent)
 	if setting.Uses.Title == "" {
-		setting.Uses.Title = setting.Uses.Default
+		setting.Uses.Title = "__yao.title"
 	}
 
-	// Prompt Assistant
+	// Prompt Assistant (default to system agent)
 	if setting.Uses.Prompt == "" {
-		setting.Uses.Prompt = setting.Uses.Default
+		setting.Uses.Prompt = "__yao.prompt"
+	}
+
+	// RobotPrompt Assistant (default to system agent)
+	if setting.Uses.RobotPrompt == "" {
+		setting.Uses.RobotPrompt = "__yao.robot_prompt"
 	}
 
 	agentDSL = &setting
