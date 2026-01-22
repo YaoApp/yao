@@ -120,9 +120,9 @@ type AuthScope struct {
 
 // CreateRobotRequest - request for CreateRobot()
 type CreateRobotRequest struct {
-	// Required fields
-	MemberID string `json:"member_id"` // Unique robot identifier
-	TeamID   string `json:"team_id"`   // Team ID
+	// Identity (member_id is optional - auto-generated if not provided)
+	MemberID string `json:"member_id,omitempty"` // Unique robot identifier (auto-generated if empty)
+	TeamID   string `json:"team_id"`             // Team ID (required)
 
 	// Profile
 	DisplayName string `json:"display_name,omitempty"` // Display name

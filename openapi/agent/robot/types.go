@@ -10,9 +10,9 @@ import (
 
 // CreateRobotRequest - HTTP request for creating a robot
 type CreateRobotRequest struct {
-	// Required fields
-	MemberID string `json:"member_id" binding:"required"` // Unique robot identifier
-	TeamID   string `json:"team_id" binding:"required"`   // Team ID
+	// Identity (member_id is optional - auto-generated if not provided)
+	MemberID string `json:"member_id,omitempty"` // Unique robot identifier (optional, auto-generated if empty)
+	TeamID   string `json:"team_id,omitempty"`   // Team ID (optional, defaults to auth team or user_id)
 
 	// Profile
 	DisplayName string `json:"display_name" binding:"required"` // Display name

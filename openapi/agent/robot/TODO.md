@@ -21,6 +21,14 @@
   └─ Page Integration (Robot list, detail, create, edit, delete) ✅
   └─ UI/UX (CreatureLoading, bubble animations) ✅
 
+✅ Phase 1.5: Robot Manager Lifecycle ✅ [Completed]
+  └─ Auto-start Manager on Yao startup (async)
+  └─ Auto-reload cache on robot update
+  └─ Auto-remove from cache on robot delete
+  └─ Graceful shutdown on Yao unload
+  └─ Lazy-load for non-autonomous robots (load on trigger, unload after execution)
+  └─ Unit tests: TestManagerLazyLoadNonAutonomous (6 test cases)
+
 🟢 Phase 2: Execution Management
   Backend → SDK → Page Integration
   └─ List, Get, Control executions, Trigger/Intervene
@@ -65,6 +73,7 @@
 
 #### API Layer (Thin wrappers calling store)
 - [x] Implement `api.CreateRobot()` - call `store.RobotStore.Save()` + cache refresh
+  - [x] Auto-generate `member_id` if not provided (12-digit numeric, matches existing pattern)
 - [x] Implement `api.UpdateRobot()` - partial update + cache refresh
 - [x] Implement `api.RemoveRobot()` - call `store.RobotStore.Delete()` + cache invalidate
 - [x] Implement `api.GetRobotResponse()` - get robot as API response
@@ -118,6 +127,7 @@
 
 - [x] POST /v1/agent/robots handler
 - [x] Parse HTTP request to `CreateRobotRequest`
+- [x] Auto-generate `member_id` if not provided (12-digit numeric, consistent with existing API)
 - [x] Apply `AuthScope` with permission fields (CreatedBy, TeamID, TenantID)
 - [x] Call `robot/api.CreateRobot()`
 - [x] Return created robot (201 Created)
@@ -621,6 +631,7 @@ yao/openapi/tests/robot/
 |-------|------|---------|----------|-------------|
 | 1. Core CRUD | 🟢 | ✅ | ✅ | Robot CRUD endpoints |
 | 1-FE Frontend Integration | 🟢 | - | ✅ | SDK ✅, Page Integration ✅, UI/UX ✅ |
+| 1.5 Manager Lifecycle | 🟢 | ✅ | - | Auto-start, auto-reload, graceful shutdown |
 | 2. Execution | 🟢 | ⬜ | ⬜ | Execution listing, control, trigger |
 | 3. Results/Activities | 🟢 | ⬜ | ⬜ | Deliverables and activity feed |
 | 4. i18n | 🟢 | ⬜ | ⬜ | Locale parameter support |

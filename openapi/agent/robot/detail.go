@@ -148,14 +148,6 @@ func CreateRobot(c *gin.Context) {
 	}
 
 	// Validate required fields
-	if req.MemberID == "" {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "member_id is required",
-		}
-		response.RespondWithError(c, response.StatusBadRequest, errorResp)
-		return
-	}
 	if req.DisplayName == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,
@@ -163,6 +155,21 @@ func CreateRobot(c *gin.Context) {
 		}
 		response.RespondWithError(c, response.StatusBadRequest, errorResp)
 		return
+	}
+
+	// Generate member_id if not provided (follows existing API pattern)
+	if req.MemberID == "" {
+		generatedID, err := GenerateMemberID(c.Request.Context())
+		if err != nil {
+			log.Error("Failed to generate member_id: %v", err)
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to generate member_id: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+			return
+		}
+		req.MemberID = generatedID
 	}
 
 	// Determine effective team_id:

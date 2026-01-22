@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/agent/robot/store"
@@ -282,16 +283,23 @@ func paginateRobots(robots []*types.Robot, query *ListQuery) *ListResult {
 
 // CreateRobot creates a new robot member
 // Calls store.RobotStore.Save() and refreshes cache
+// If member_id is not provided, it will be auto-generated
 func CreateRobot(ctx *types.Context, req *CreateRobotRequest) (*RobotResponse, error) {
 	// Validate required fields
-	if req.MemberID == "" {
-		return nil, fmt.Errorf("member_id is required")
-	}
 	if req.TeamID == "" {
 		return nil, fmt.Errorf("team_id is required")
 	}
 	if req.DisplayName == "" {
 		return nil, fmt.Errorf("display_name is required")
+	}
+
+	// Generate member_id if not provided
+	if req.MemberID == "" {
+		generatedID, err := generateMemberID(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate member_id: %w", err)
+		}
+		req.MemberID = generatedID
 	}
 
 	// Check if robot already exists
@@ -376,10 +384,12 @@ func CreateRobot(ctx *types.Context, req *CreateRobotRequest) (*RobotResponse, e
 	}
 
 	// Refresh cache if manager is running
+	// Use Refresh() which handles autonomous_mode correctly:
+	// - If autonomous_mode=true: adds to cache for scheduling
+	// - If autonomous_mode=false: does not add to cache
 	mgr, err := getManager()
 	if err == nil && mgr != nil {
-		// Load the new robot into cache
-		_, _ = mgr.Cache().LoadByID(ctx, req.MemberID)
+		_ = mgr.Cache().Refresh(ctx, req.MemberID)
 	}
 
 	// Return the created robot as response
@@ -486,11 +496,12 @@ func UpdateRobot(ctx *types.Context, memberID string, req *UpdateRobotRequest) (
 	}
 
 	// Refresh cache if manager is running
+	// Use Refresh() which handles autonomous_mode correctly:
+	// - If autonomous_mode=true: adds to cache for scheduling
+	// - If autonomous_mode=false: removes from cache
 	mgr, err := getManager()
 	if err == nil && mgr != nil {
-		// Remove old entry and reload
-		mgr.Cache().Remove(memberID)
-		_, _ = mgr.Cache().LoadByID(ctx, memberID)
+		_ = mgr.Cache().Refresh(ctx, memberID) // Ignore error, database is already saved
 	}
 
 	// Return the updated robot as response
@@ -584,4 +595,55 @@ func recordToResponse(record *store.RobotRecord) *RobotResponse {
 		CreatedAt:    record.CreatedAt,
 		UpdatedAt:    record.UpdatedAt,
 	}
+}
+
+// ==================== Member ID Generation ====================
+
+// generateMemberID generates a unique member_id with collision detection
+// Uses 12-digit numeric ID to match existing pattern in openapi/oauth/providers/user
+func generateMemberID(ctx context.Context) (string, error) {
+	const maxRetries = 10
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate 12-digit numeric ID
+		id, err := gonanoid.Generate("0123456789", 12)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate member_id: %w", err)
+		}
+
+		// Check if ID already exists
+		exists, err := memberIDExists(ctx, id)
+		if err != nil {
+			return "", fmt.Errorf("failed to check member_id existence: %w", err)
+		}
+
+		if !exists {
+			return id, nil
+		}
+		// ID exists, retry
+	}
+
+	return "", fmt.Errorf("failed to generate unique member_id after %d retries", maxRetries)
+}
+
+// memberIDExists checks if a member_id already exists in the database
+func memberIDExists(ctx context.Context, memberID string) (bool, error) {
+	m := model.Select(memberModel)
+	if m == nil {
+		return false, fmt.Errorf("model %s not found", memberModel)
+	}
+
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"},
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return len(members) > 0, nil
 }

@@ -115,16 +115,22 @@ func TestCreateRobotValidation(t *testing.T) {
 
 	ctx := types.NewContext(context.Background(), nil)
 
-	t.Run("returns_error_for_empty_member_id", func(t *testing.T) {
+	t.Run("auto_generates_member_id_when_empty", func(t *testing.T) {
 		req := &api.CreateRobotRequest{
 			MemberID:    "",
 			TeamID:      "team_001",
-			DisplayName: "Test Robot",
+			DisplayName: "Test Robot Auto ID",
 		}
 		result, err := api.CreateRobot(ctx, req)
-		assert.Error(t, err)
-		assert.Nil(t, result)
-		assert.Contains(t, err.Error(), "member_id is required")
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Verify member_id was auto-generated (12-digit numeric)
+		assert.NotEmpty(t, result.MemberID)
+		assert.Len(t, result.MemberID, 12, "Auto-generated member_id should be 12 digits")
+
+		// Cleanup
+		_ = api.RemoveRobot(ctx, result.MemberID)
 	})
 
 	t.Run("returns_error_for_empty_team_id", func(t *testing.T) {

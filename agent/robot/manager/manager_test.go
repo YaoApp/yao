@@ -1397,6 +1397,272 @@ func setupTestRobotsWithEventConfig(t *testing.T) {
 	}
 }
 
+// ==================== Lazy Load Tests for Non-Autonomous Robots ====================
+
+// TestManagerLazyLoadNonAutonomous tests that non-autonomous robots are lazy-loaded on demand
+// and automatically cleaned up after execution completes
+func TestManagerLazyLoadNonAutonomous(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestRobots(t)
+	setupTestRobotsWithNonAutonomous(t)
+	defer cleanupTestRobots(t)
+
+	t.Run("non-autonomous robot not in cache on startup", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		// Non-autonomous robot should NOT be in cache
+		robot := m.Cache().Get("robot_test_manager_on_demand")
+		assert.Nil(t, robot, "Non-autonomous robot should not be pre-loaded into cache")
+
+		// Autonomous robot SHOULD be in cache
+		autoRobot := m.Cache().Get("robot_test_manager_times")
+		assert.NotNil(t, autoRobot, "Autonomous robot should be in cache")
+	})
+
+	t.Run("TriggerManual lazy-loads non-autonomous robot", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Verify robot is NOT in cache before trigger
+		assert.Nil(t, m.Cache().Get("robot_test_manager_on_demand"))
+
+		// Trigger the non-autonomous robot manually
+		execID, err := m.TriggerManual(ctx, "robot_test_manager_on_demand", types.TriggerHuman, nil)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, execID)
+
+		// Robot should now be in cache (lazy-loaded)
+		robot := m.Cache().Get("robot_test_manager_on_demand")
+		assert.NotNil(t, robot, "Robot should be lazy-loaded into cache")
+		assert.Equal(t, "robot_test_manager_on_demand", robot.MemberID)
+		assert.False(t, robot.AutonomousMode)
+	})
+
+	t.Run("Intervene lazy-loads non-autonomous robot", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Verify robot is NOT in cache before trigger
+		assert.Nil(t, m.Cache().Get("robot_test_manager_on_demand_intervene"))
+
+		// Intervene on the non-autonomous robot
+		req := &types.InterveneRequest{
+			TeamID:   "team_test_manager",
+			MemberID: "robot_test_manager_on_demand_intervene",
+			Action:   types.ActionTaskAdd,
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Test lazy load via intervene"},
+			},
+		}
+
+		result, err := m.Intervene(ctx, req)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, result.ExecutionID)
+
+		// Robot should now be in cache (lazy-loaded)
+		robot := m.Cache().Get("robot_test_manager_on_demand_intervene")
+		assert.NotNil(t, robot, "Robot should be lazy-loaded into cache via Intervene")
+	})
+
+	t.Run("HandleEvent lazy-loads non-autonomous robot", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Verify robot is NOT in cache before trigger
+		assert.Nil(t, m.Cache().Get("robot_test_manager_on_demand_event"))
+
+		// Send event to the non-autonomous robot
+		req := &types.EventRequest{
+			MemberID:  "robot_test_manager_on_demand_event",
+			Source:    "webhook",
+			EventType: "data.updated",
+			Data:      map[string]interface{}{"test": true},
+		}
+
+		result, err := m.HandleEvent(ctx, req)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, result.ExecutionID)
+
+		// Robot should now be in cache (lazy-loaded)
+		robot := m.Cache().Get("robot_test_manager_on_demand_event")
+		assert.NotNil(t, robot, "Robot should be lazy-loaded into cache via HandleEvent")
+	})
+
+	t.Run("lazy-loaded robot is cleaned up after execution completes", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Trigger the non-autonomous robot
+		_, err = m.TriggerManual(ctx, "robot_test_manager_on_demand", types.TriggerHuman, nil)
+		assert.NoError(t, err)
+
+		// Robot should be in cache immediately after trigger
+		robot := m.Cache().Get("robot_test_manager_on_demand")
+		assert.NotNil(t, robot, "Robot should be in cache after trigger")
+
+		// Wait for execution to complete and cleanup to happen
+		// The stub executor completes quickly, and cleanup runs every 5 seconds
+		// We wait up to 10 seconds for the cleanup goroutine to remove the robot
+		var removed bool
+		for i := 0; i < 20; i++ {
+			time.Sleep(500 * time.Millisecond)
+			if m.Cache().Get("robot_test_manager_on_demand") == nil {
+				removed = true
+				break
+			}
+		}
+
+		assert.True(t, removed, "Non-autonomous robot should be removed from cache after execution completes")
+	})
+
+	t.Run("trigger non-existent robot returns error", func(t *testing.T) {
+		m := manager.New()
+		err := m.Start()
+		assert.NoError(t, err)
+		defer m.Stop()
+
+		ctx := types.NewContext(context.Background(), nil)
+
+		// Try to trigger a robot that doesn't exist in DB
+		_, err = m.TriggerManual(ctx, "robot_nonexistent_xyz", types.TriggerHuman, nil)
+		assert.Error(t, err)
+		assert.Equal(t, types.ErrRobotNotFound, err)
+	})
+}
+
+// setupTestRobotsWithNonAutonomous creates test robots including non-autonomous ones
+func setupTestRobotsWithNonAutonomous(t *testing.T) {
+	// First setup the autonomous robots
+	setupTestRobotsWithClockConfig(t)
+
+	// Add non-autonomous robots
+	qb := capsule.Query()
+	m := model.Select("__yao.member")
+	tableName := m.MetaData.Table.Name
+
+	// Non-autonomous robot 1: for TriggerManual test
+	robotConfigOnDemand := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "On-Demand Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock":     map[string]interface{}{"enabled": false},
+			"intervene": map[string]interface{}{"enabled": true},
+		},
+		"quota": map[string]interface{}{
+			"max":   2,
+			"queue": 5,
+		},
+	}
+	configOnDemandJSON, _ := json.Marshal(robotConfigOnDemand)
+
+	err := qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_on_demand",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test On-Demand Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": false, // Non-autonomous!
+			"robot_status":    "idle",
+			"robot_config":    string(configOnDemandJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_on_demand: %v", err)
+	}
+
+	// Non-autonomous robot 2: for Intervene test
+	robotConfigOnDemandIntervene := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "On-Demand Intervene Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock":     map[string]interface{}{"enabled": false},
+			"intervene": map[string]interface{}{"enabled": true},
+		},
+		"quota": map[string]interface{}{
+			"max": 2,
+		},
+	}
+	configOnDemandInterveneJSON, _ := json.Marshal(robotConfigOnDemandIntervene)
+
+	err = qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_on_demand_intervene",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test On-Demand Intervene Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": false, // Non-autonomous!
+			"robot_status":    "idle",
+			"robot_config":    string(configOnDemandInterveneJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_on_demand_intervene: %v", err)
+	}
+
+	// Non-autonomous robot 3: for HandleEvent test
+	robotConfigOnDemandEvent := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role": "On-Demand Event Robot",
+		},
+		"triggers": map[string]interface{}{
+			"clock": map[string]interface{}{"enabled": false},
+			"event": map[string]interface{}{"enabled": true},
+		},
+		"quota": map[string]interface{}{
+			"max": 2,
+		},
+	}
+	configOnDemandEventJSON, _ := json.Marshal(robotConfigOnDemandEvent)
+
+	err = qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       "robot_test_manager_on_demand_event",
+			"team_id":         "team_test_manager",
+			"member_type":     "robot",
+			"display_name":    "Test On-Demand Event Robot",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": false, // Non-autonomous!
+			"robot_status":    "idle",
+			"robot_config":    string(configOnDemandEventJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot_test_manager_on_demand_event: %v", err)
+	}
+}
+
 // cleanupTestRobots removes all test robot records
 func cleanupTestRobots(t *testing.T) {
 	qb := capsule.Query()
@@ -1417,6 +1683,10 @@ func cleanupTestRobots(t *testing.T) {
 		"robot_test_manager_intervene_disabled",
 		"robot_test_manager_event",
 		"robot_test_manager_event_disabled",
+		// Non-autonomous robots
+		"robot_test_manager_on_demand",
+		"robot_test_manager_on_demand_intervene",
+		"robot_test_manager_on_demand_event",
 	}
 
 	for _, id := range testRobotIDs {
