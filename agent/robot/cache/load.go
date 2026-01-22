@@ -18,10 +18,12 @@ var memberFields = []interface{}{
 	"member_id",
 	"team_id",
 	"display_name",
+	"bio",
 	"system_prompt",
 	"robot_status",
 	"autonomous_mode",
 	"robot_config",
+	"robot_email",
 }
 
 // SetMemberModel sets the member model name

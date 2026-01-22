@@ -35,100 +35,117 @@
 
 ---
 
-## 🟢 Phase 1: Core CRUD ⬜ [Low Risk]
+## 🟢 Phase 1: Core CRUD 🟡 [Low Risk]
 
 **Goal:** Basic robot management endpoints
 **Risk:** 🟢 Low - All new code, no changes to existing logic
 
-### 1.1 Backend Prerequisites ⬜
+### 1.1 Backend Prerequisites ✅
 
 #### Types & Cache
-- [ ] Add `Bio` field to `types.Robot` struct in `yao/agent/robot/types/robot.go`
-- [ ] Add `bio` to `memberFields` in `yao/agent/robot/cache/load.go`
+- [x] Add `Bio` field to `types.Robot` struct in `yao/agent/robot/types/robot.go`
+- [x] Add `bio` to `memberFields` in `yao/agent/robot/cache/load.go`
 
 #### Store Layer (Core CRUD - implement first)
-- [ ] Create `store/robot.go` with `RobotStore` struct
-- [ ] Implement `RobotStore.Save()` - create/update robot member
-- [ ] Implement `RobotStore.Get()` - get by member_id  
-- [ ] Implement `RobotStore.List()` - list with filters
-- [ ] Implement `RobotStore.Delete()` - delete robot member
-- [ ] Implement `RobotStore.UpdateConfig()` - update config only
+- [x] Create `store/robot.go` with `RobotStore` struct
+- [x] Implement `RobotStore.Save()` - create/update robot member
+- [x] Implement `RobotStore.Get()` - get by member_id  
+- [x] Implement `RobotStore.List()` - list with filters
+- [x] Implement `RobotStore.Delete()` - delete robot member
+- [x] Implement `RobotStore.UpdateConfig()` - update config only
+- [x] Implement `RobotStore.UpdateStatus()` - update status only
+- [x] Add Yao permission fields support (`__yao_created_by`, `__yao_team_id`, etc.)
+- [x] Add tests: `store/robot_test.go`
 
 #### API Layer (Thin wrappers calling store)
-- [ ] Implement `api.Create()` - call `store.RobotStore.Save()` + cache refresh
-- [ ] Implement `api.Update()` - call `store.RobotStore.UpdateConfig()` + cache refresh
-- [ ] Implement `api.Remove()` - call `store.RobotStore.Delete()` + cache invalidate
+- [x] Implement `api.CreateRobot()` - call `store.RobotStore.Save()` + cache refresh
+- [x] Implement `api.UpdateRobot()` - partial update + cache refresh
+- [x] Implement `api.RemoveRobot()` - call `store.RobotStore.Delete()` + cache invalidate
+- [x] Implement `api.GetRobotResponse()` - get robot as API response
+- [x] Add `AuthScope` for Yao permission fields
+- [x] Add request/response types in `api/types.go`
+- [x] Add tests: `api/robot_test.go`
 
-### 1.2 Setup ⬜
+#### Utils Layer
+- [x] Create `utils/convert.go` with unified type conversion functions
+- [x] Implement `To<Type>` functions (ToBool, ToInt, ToFloat64, ToTimestamp, ToJSONValue)
+- [x] Implement `Get<Type>` functions for map value extraction
+- [x] Add tests: `utils/convert_test.go`
+
+### 1.2 OpenAPI Setup ⬜ (Next Step)
 
 - [ ] Create `openapi/agent/robot/` directory (sub-package under agent)
 - [ ] Create `robot.go` - route registration with `Attach()` function
 - [ ] Register routes in `openapi/agent/agent.go` via `robot.Attach(group.Group("/robots"), oauth)`
 - [ ] Add OAuth guard middleware
 
-### 1.3 Types ⬜
+### 1.3 OpenAPI Types ⬜
 
-- [ ] `types.go` - request/response types
+> Note: Core types already exist in `agent/robot/api/types.go`. OpenAPI layer needs HTTP-specific types.
+
+- [ ] `types.go` - HTTP request/response types
   - [ ] `RobotResponse` struct (with field mapping: `name` ← `member_id`, `description` ← `bio`)
   - [ ] `ConfigResponse` struct (and sub-types)
   - [ ] `ListRobotsResponse` struct
-  - [ ] `CreateRobotRequest` struct
-  - [ ] `UpdateRobotRequest` struct
-  - [ ] `NewRobotResponse()` - conversion function
+  - [ ] `CreateRobotRequest` struct (HTTP binding)
+  - [ ] `UpdateRobotRequest` struct (HTTP binding)
+  - [ ] `NewRobotResponse()` - conversion from `api.RobotResponse`
   - [ ] Error response types
 
 ### 1.4 List Robots ⬜
 
-- [ ] `list.go` - GET /v1/robots
+- [ ] `list.go` - GET /v1/agent/robots
 - [ ] Parse query params: `locale`, `status`, `keywords`, `page`, `pagesize`
-- [ ] Call `robot/api.List()`
+- [ ] Call `robot/api.ListRobots()`
 - [ ] Format response with localization
 - [ ] Test: `tests/robot/list_test.go`
 
 ### 1.5 Get Robot ⬜
 
-- [ ] `detail.go` - GET /v1/robots/:id
+- [ ] `detail.go` - GET /v1/agent/robots/:id
 - [ ] Parse path param and `locale` query
-- [ ] Call `robot/api.Get()` and `robot/api.Status()`
+- [ ] Call `robot/api.GetRobot()` and `robot/api.GetRobotStatus()`
 - [ ] Format response with full config
 - [ ] Team access check
 - [ ] Test: `tests/robot/get_test.go`
 
 ### 1.6 Create Robot ⬜
 
-- [ ] POST /v1/robots handler
-- [ ] Parse `CreateRobotRequest`
-- [ ] Validate required fields
-- [ ] Call `robot/api.Create()`
+- [ ] POST /v1/agent/robots handler
+- [ ] Parse HTTP request to `api.CreateRobotRequest`
+- [ ] Apply `authInfo.WithCreateScope()` for permission fields
+- [ ] Call `robot/api.CreateRobot()`
 - [ ] Return created robot
 - [ ] Test: `tests/robot/create_test.go`
 
 ### 1.7 Update Robot ⬜
 
-- [ ] PUT /v1/robots/:id handler
-- [ ] Parse `UpdateRobotRequest`
+- [ ] PUT /v1/agent/robots/:id handler
+- [ ] Parse HTTP request to `api.UpdateRobotRequest`
 - [ ] Ownership/permission check
-- [ ] Call `robot/api.Update()`
+- [ ] Apply `authInfo.WithUpdateScope()` for permission fields
+- [ ] Call `robot/api.UpdateRobot()`
 - [ ] Return updated robot
 - [ ] Test: `tests/robot/update_test.go`
 
 ### 1.8 Delete Robot ⬜
 
-- [ ] DELETE /v1/robots/:id handler
+- [ ] DELETE /v1/agent/robots/:id handler
 - [ ] Ownership/permission check
-- [ ] Call `robot/api.Remove()`
+- [ ] Call `robot/api.RemoveRobot()`
 - [ ] Return success response
 - [ ] Test: `tests/robot/delete_test.go`
 
 ### 1.9 Utilities ⬜
 
 - [ ] `utils.go` - helper functions
-  - [ ] `getLocale(r *http.Request)` - extract locale
+  - [ ] `getLocale(c *gin.Context)` - extract locale from query/header
   - [ ] `formatTime(t *time.Time)` - format to ISO string
   - [ ] `localizeString(value, locale)` - localization helper
+  - [ ] `applyAuthScope(authInfo, req)` - apply permission fields
 - [ ] `filter.go` - query filtering
-  - [ ] Parse query params to `ListQuery`
-  - [ ] Parse query params to `ExecutionQuery`
+  - [ ] Parse query params to `api.ListQuery`
+  - [ ] Parse query params to `api.ExecutionQuery`
 
 ---
 
@@ -354,47 +371,56 @@ Need to add in `robot/`:
 > **Architecture:** Store layer handles CRUD, API layer handles business logic.
 > This enables reuse across Golang API, JSAPI, and Yao Process.
 
-### robot/store/ Extensions (Core CRUD - implement first)
+### robot/store/ Extensions (Core CRUD)
 
-| Function | Phase | Risk | Description |
-|----------|-------|------|-------------|
-| `RobotStore.Save()` | 1 | 🟢 Low | Create/update robot member |
-| `RobotStore.Get()` | 1 | 🟢 Low | Get robot by member_id |
-| `RobotStore.List()` | 1 | 🟢 Low | List robots with filters |
-| `RobotStore.Delete()` | 1 | 🟢 Low | Delete robot member |
-| `RobotStore.UpdateConfig()` | 1 | 🟢 Low | Update config only |
-| `ExecutionStore.ListResults()` | 3 | 🟢 Low | Query deliverables from executions |
-| `ExecutionStore.GetResult()` | 3 | 🟢 Low | Get single deliverable |
-| `ExecutionStore.ListActivities()` | 3 | 🟢 Low | Derive activities from history |
-| Conversation store | 5 | 🟡 Medium | Temporary chat history (Deferred) |
+| Function | Phase | Risk | Status | Description |
+|----------|-------|------|--------|-------------|
+| `RobotStore.Save()` | 1 | 🟢 Low | ✅ | Create/update robot member |
+| `RobotStore.Get()` | 1 | 🟢 Low | ✅ | Get robot by member_id |
+| `RobotStore.List()` | 1 | 🟢 Low | ✅ | List robots with filters |
+| `RobotStore.Delete()` | 1 | 🟢 Low | ✅ | Delete robot member |
+| `RobotStore.UpdateConfig()` | 1 | 🟢 Low | ✅ | Update config only |
+| `RobotStore.UpdateStatus()` | 1 | 🟢 Low | ✅ | Update status only |
+| `ExecutionStore.ListResults()` | 3 | 🟢 Low | ⬜ | Query deliverables from executions |
+| `ExecutionStore.GetResult()` | 3 | 🟢 Low | ⬜ | Get single deliverable |
+| `ExecutionStore.ListActivities()` | 3 | 🟢 Low | ⬜ | Derive activities from history |
+| Conversation store | 5 | 🟡 Medium | ⬜ | Temporary chat history (Deferred) |
 
 ### robot/types/ Extensions
 
-| Type/Field | Phase | Risk | Description |
-|------------|-------|------|-------------|
-| `Robot.Bio` | 1 | 🟢 Low | Add field, maps to `__yao.member.bio` |
-| Execution name derivation | 2 | 🟢 Low | Derive in OpenAPI layer from goals or input |
+| Type/Field | Phase | Risk | Status | Description |
+|------------|-------|------|--------|-------------|
+| `Robot.Bio` | 1 | 🟢 Low | ✅ | Add field, maps to `__yao.member.bio` |
+| Execution name derivation | 2 | 🟢 Low | ⬜ | Derive in OpenAPI layer from goals or input |
 
 > **Note:** `Robot.Name` is NOT needed. Frontend `name` maps to existing `Robot.MemberID`.
 
 ### robot/cache/ Extensions
 
-| File | Phase | Risk | Description |
-|------|-------|------|-------------|
-| `load.go` | 1 | 🟢 Low | Add `bio` to `memberFields` slice |
+| File | Phase | Risk | Status | Description |
+|------|-------|------|--------|-------------|
+| `load.go` | 1 | 🟢 Low | ✅ | Add `bio` to `memberFields` slice |
+
+### robot/utils/ Extensions
+
+| File | Phase | Risk | Status | Description |
+|------|-------|------|--------|-------------|
+| `convert.go` | 1 | 🟢 Low | ✅ | Unified type conversion utilities |
+| `convert_test.go` | 1 | 🟢 Low | ✅ | Tests for conversion utilities |
 
 ### robot/api/ Extensions (Thin wrappers calling store)
 
-| Function | Phase | Risk | Description |
-|----------|-------|------|-------------|
-| `Create()` | 1 | 🟢 Low | Call `store.RobotStore.Save()` + cache refresh |
-| `Update()` | 1 | 🟢 Low | Call `store.RobotStore.UpdateConfig()` + cache refresh |
-| `Remove()` | 1 | 🟢 Low | Call `store.RobotStore.Delete()` + cache invalidate |
-| `ListResults()` | 3 | 🟢 Low | Call `store.ExecutionStore.ListResults()` |
-| `GetResult()` | 3 | 🟢 Low | Call `store.ExecutionStore.GetResult()` |
-| `ListActivities()` | 3 | 🟢 Low | Call `store.ExecutionStore.ListActivities()` |
-| `RetryExecution()` | 2 | 🟢 Low | Re-trigger with same input |
-| `Chat()` | 5 | 🟡 Medium | Multi-turn conversation (Deferred) |
+| Function | Phase | Risk | Status | Description |
+|----------|-------|------|--------|-------------|
+| `CreateRobot()` | 1 | 🟢 Low | ✅ | Call `store.RobotStore.Save()` + cache refresh |
+| `UpdateRobot()` | 1 | 🟢 Low | ✅ | Partial update + cache refresh |
+| `RemoveRobot()` | 1 | 🟢 Low | ✅ | Call `store.RobotStore.Delete()` + cache invalidate |
+| `GetRobotResponse()` | 1 | 🟢 Low | ✅ | Get robot as API response |
+| `ListResults()` | 3 | 🟢 Low | ⬜ | Call `store.ExecutionStore.ListResults()` |
+| `GetResult()` | 3 | 🟢 Low | ⬜ | Call `store.ExecutionStore.GetResult()` |
+| `ListActivities()` | 3 | 🟢 Low | ⬜ | Call `store.ExecutionStore.ListActivities()` |
+| `RetryExecution()` | 2 | 🟢 Low | ⬜ | Re-trigger with same input |
+| `Chat()` | 5 | 🟡 Medium | ⬜ | Multi-turn conversation (Deferred) |
 
 ### Event System (Phase 6 - Deferred)
 
@@ -441,7 +467,7 @@ yao/openapi/tests/robot/
 
 | Phase | Risk | Status | Description |
 |-------|------|--------|-------------|
-| 1. Core CRUD | 🟢 | ⬜ | Basic robot management |
+| 1. Core CRUD | 🟢 | 🟡 | Basic robot management (Backend ✅, OpenAPI ⬜) |
 | 2. Execution | 🟢 | ⬜ | Execution listing, control, trigger/intervene |
 | 3. Results/Activities | 🟢 | ⬜ | Deliverables and activity feed |
 | 4. i18n | 🟢 | ⬜ | Locale parameter support |
@@ -449,6 +475,21 @@ yao/openapi/tests/robot/
 | 6. SSE Streams | 🟡 | ⬜ | Real-time status updates (Deferred) |
 
 Legend: ⬜ Not started | 🟡 In progress | ✅ Complete | 🟢 Low Risk | 🟡 Medium Risk
+
+### Phase 1 Detailed Status
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `types.Robot.Bio` | ✅ | Field added |
+| `cache/load.go` | ✅ | `bio` in memberFields |
+| `store/robot.go` | ✅ | Full CRUD with permission fields |
+| `store/robot_test.go` | ✅ | Integration tests |
+| `api/robot.go` | ✅ | Create/Update/Remove/GetResponse |
+| `api/types.go` | ✅ | Request/Response types, AuthScope |
+| `api/robot_test.go` | ✅ | API tests |
+| `utils/convert.go` | ✅ | Type conversion utilities |
+| `utils/convert_test.go` | ✅ | Unit tests |
+| `openapi/agent/robot/` | ⬜ | HTTP handlers (next step) |
 
 ---
 

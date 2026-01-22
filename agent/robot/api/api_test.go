@@ -462,8 +462,14 @@ func cleanupAPITestRobots(t *testing.T) {
 	tableName := m.MetaData.Table.Name
 	qb := capsule.Query()
 
-	// Delete all robots with member_id starting with "robot_api_"
+	// Delete all robots with member_id starting with "robot_api_" or "api_robot_"
 	_, err := qb.Table(tableName).Where("member_id", "like", "robot_api_%").Delete()
+	if err != nil {
+		t.Logf("Warning: cleanup robots error: %v", err)
+	}
+
+	// Also delete "api_robot_" prefixed robots (new tests)
+	_, err = qb.Table(tableName).Where("member_id", "like", "api_robot_%").Delete()
 	if err != nil {
 		t.Logf("Warning: cleanup robots error: %v", err)
 	}

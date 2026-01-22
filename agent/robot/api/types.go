@@ -31,6 +31,7 @@ type RobotState struct {
 	MemberID    string            `json:"member_id"`
 	TeamID      string            `json:"team_id"`
 	DisplayName string            `json:"display_name"`
+	Bio         string            `json:"bio,omitempty"`
 	Status      types.RobotStatus `json:"status"`
 	Running     int               `json:"running"`
 	MaxRunning  int               `json:"max_running"`
@@ -101,6 +102,134 @@ type ExecutionResult struct {
 	Total    int                `json:"total"`
 	Page     int                `json:"page"`
 	PageSize int                `json:"pagesize"`
+}
+
+// ==================== CRUD Types ====================
+
+// AuthScope contains Yao permission fields for data scoping
+// These fields are used by Yao's permission system (when model has permission: true)
+type AuthScope struct {
+	CreatedBy string `json:"__yao_created_by,omitempty"` // Creator user_id
+	UpdatedBy string `json:"__yao_updated_by,omitempty"` // Updater user_id
+	TeamID    string `json:"__yao_team_id,omitempty"`    // Permission team scope
+	TenantID  string `json:"__yao_tenant_id,omitempty"`  // Permission tenant scope
+}
+
+// CreateRobotRequest - request for CreateRobot()
+type CreateRobotRequest struct {
+	// Required fields
+	MemberID string `json:"member_id"` // Unique robot identifier
+	TeamID   string `json:"team_id"`   // Team ID
+
+	// Profile
+	DisplayName string `json:"display_name,omitempty"` // Display name
+	Bio         string `json:"bio,omitempty"`          // Robot description
+	Avatar      string `json:"avatar,omitempty"`       // Avatar URL
+
+	// Identity & Role
+	SystemPrompt string `json:"system_prompt,omitempty"` // System prompt
+	RoleID       string `json:"role_id,omitempty"`       // Role within team
+	ManagerID    string `json:"manager_id,omitempty"`    // Direct manager user_id
+
+	// Status
+	Status         string `json:"status,omitempty"`          // Member status: active | inactive | pending | suspended
+	RobotStatus    string `json:"robot_status,omitempty"`    // Robot status: idle | working | paused | error | maintenance
+	AutonomousMode *bool  `json:"autonomous_mode,omitempty"` // Whether autonomous mode is enabled
+
+	// Communication
+	RobotEmail        string      `json:"robot_email,omitempty"`        // Robot email address
+	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"` // Email whitelist (JSON array)
+	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"` // Email filter rules (JSON array)
+
+	// Capabilities
+	RobotConfig   interface{} `json:"robot_config,omitempty"`   // Robot config JSON
+	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents (JSON array)
+	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers (JSON array)
+	LanguageModel string      `json:"language_model,omitempty"` // Language model name
+
+	// Limits
+	CostLimit float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
+
+	// Auth scope (optional, used by OpenAPI layer via WithCreateScope)
+	AuthScope *AuthScope `json:"auth_scope,omitempty"`
+}
+
+// UpdateRobotRequest - request for UpdateRobot()
+type UpdateRobotRequest struct {
+	// Profile
+	DisplayName *string `json:"display_name,omitempty"` // Display name
+	Bio         *string `json:"bio,omitempty"`          // Robot description
+	Avatar      *string `json:"avatar,omitempty"`       // Avatar URL
+
+	// Identity & Role
+	SystemPrompt *string `json:"system_prompt,omitempty"` // System prompt
+	RoleID       *string `json:"role_id,omitempty"`       // Role within team
+	ManagerID    *string `json:"manager_id,omitempty"`    // Direct manager user_id
+
+	// Status
+	Status         *string `json:"status,omitempty"`          // Member status
+	RobotStatus    *string `json:"robot_status,omitempty"`    // Robot status
+	AutonomousMode *bool   `json:"autonomous_mode,omitempty"` // Autonomous mode
+
+	// Communication
+	RobotEmail        *string     `json:"robot_email,omitempty"`        // Robot email address
+	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"` // Email whitelist
+	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"` // Email filter rules
+
+	// Capabilities
+	RobotConfig   interface{} `json:"robot_config,omitempty"`   // Robot config JSON
+	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents
+	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers
+	LanguageModel *string     `json:"language_model,omitempty"` // Language model name
+
+	// Limits
+	CostLimit *float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
+
+	// Auth scope (optional, used by OpenAPI layer via WithUpdateScope)
+	AuthScope *AuthScope `json:"auth_scope,omitempty"`
+}
+
+// RobotResponse - response containing robot details for API
+type RobotResponse struct {
+	// Basic
+	ID             int64  `json:"id,omitempty"`
+	MemberID       string `json:"member_id"`
+	TeamID         string `json:"team_id"`
+	Status         string `json:"status"`
+	RobotStatus    string `json:"robot_status"`
+	AutonomousMode bool   `json:"autonomous_mode"`
+
+	// Profile
+	DisplayName string `json:"display_name"`
+	Bio         string `json:"bio,omitempty"`
+	Avatar      string `json:"avatar,omitempty"`
+
+	// Identity & Role
+	SystemPrompt string `json:"system_prompt,omitempty"`
+	RoleID       string `json:"role_id,omitempty"`
+	ManagerID    string `json:"manager_id,omitempty"`
+
+	// Communication
+	RobotEmail        string      `json:"robot_email,omitempty"`
+	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"`
+	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"`
+
+	// Capabilities
+	RobotConfig   interface{} `json:"robot_config,omitempty"`
+	Agents        interface{} `json:"agents,omitempty"`
+	MCPServers    interface{} `json:"mcp_servers,omitempty"`
+	LanguageModel string      `json:"language_model,omitempty"`
+
+	// Limits
+	CostLimit float64 `json:"cost_limit,omitempty"`
+
+	// Ownership & Audit
+	InvitedBy string     `json:"invited_by,omitempty"`
+	JoinedAt  *time.Time `json:"joined_at,omitempty"`
+
+	// Timestamps
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
 }
 
 // ==================== Helper Functions ====================

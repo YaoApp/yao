@@ -17,6 +17,7 @@ type Robot struct {
 	MemberID       string      `json:"member_id"`
 	TeamID         string      `json:"team_id"`
 	DisplayName    string      `json:"display_name"`
+	Bio            string      `json:"bio"` // Robot's description (from __yao.member.bio)
 	SystemPrompt   string      `json:"system_prompt"`
 	Status         RobotStatus `json:"robot_status"`
 	AutonomousMode bool        `json:"autonomous_mode"`
@@ -381,6 +382,7 @@ func NewRobotFromMap(m map[string]interface{}) (*Robot, error) {
 		MemberID:       memberID,
 		TeamID:         teamID,
 		DisplayName:    getString(m, "display_name"),
+		Bio:            getString(m, "bio"),
 		SystemPrompt:   getString(m, "system_prompt"),
 		AutonomousMode: getBool(m, "autonomous_mode"),
 		RobotEmail:     getString(m, "robot_email"),
