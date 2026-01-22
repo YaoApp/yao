@@ -42,11 +42,22 @@
 
 ### 1.1 Backend Prerequisites ⬜
 
+#### Types & Cache
 - [ ] Add `Bio` field to `types.Robot` struct in `yao/agent/robot/types/robot.go`
 - [ ] Add `bio` to `memberFields` in `yao/agent/robot/cache/load.go`
-- [ ] Implement `api.Create()` in `yao/agent/robot/api/robot.go`
-- [ ] Implement `api.Update()` in `yao/agent/robot/api/robot.go`
-- [ ] Implement `api.Remove()` in `yao/agent/robot/api/robot.go`
+
+#### Store Layer (Core CRUD - implement first)
+- [ ] Create `store/robot.go` with `RobotStore` struct
+- [ ] Implement `RobotStore.Save()` - create/update robot member
+- [ ] Implement `RobotStore.Get()` - get by member_id  
+- [ ] Implement `RobotStore.List()` - list with filters
+- [ ] Implement `RobotStore.Delete()` - delete robot member
+- [ ] Implement `RobotStore.UpdateConfig()` - update config only
+
+#### API Layer (Thin wrappers calling store)
+- [ ] Implement `api.Create()` - call `store.RobotStore.Save()` + cache refresh
+- [ ] Implement `api.Update()` - call `store.RobotStore.UpdateConfig()` + cache refresh
+- [ ] Implement `api.Remove()` - call `store.RobotStore.Delete()` + cache invalidate
 
 ### 1.2 Setup ⬜
 
@@ -199,16 +210,14 @@
 
 ### 3.1 Backend Prerequisites ⬜
 
-Need to add in `robot/api/`:
+#### Store Layer (Core implementation)
+- [ ] Add `ExecutionStore.ListResults()` - query deliverables from execution delivery data
+- [ ] Add `ExecutionStore.GetResult()` - get single deliverable detail
+- [ ] Add `ExecutionStore.ListActivities()` - derive activities from execution history
 
-- [ ] `ListResults(memberID, query)` function
-- [ ] `GetResult(resultID)` function
-- [ ] `ListActivities(query)` function
-
-Need to add in `robot/store/`:
-
-- [ ] Results store (query from execution delivery data)
-- [ ] Activities store (or derive from job logs)
+#### API Layer (Thin wrappers)
+- [ ] Create `api/results.go` with `ListResults()`, `GetResult()` - call store
+- [ ] Create `api/activities.go` with `ListActivities()` - call store
 
 ### 3.2 Results Endpoints ⬜
 
@@ -342,6 +351,23 @@ Need to add in `robot/`:
 
 ## Backend Extensions Required
 
+> **Architecture:** Store layer handles CRUD, API layer handles business logic.
+> This enables reuse across Golang API, JSAPI, and Yao Process.
+
+### robot/store/ Extensions (Core CRUD - implement first)
+
+| Function | Phase | Risk | Description |
+|----------|-------|------|-------------|
+| `RobotStore.Save()` | 1 | 🟢 Low | Create/update robot member |
+| `RobotStore.Get()` | 1 | 🟢 Low | Get robot by member_id |
+| `RobotStore.List()` | 1 | 🟢 Low | List robots with filters |
+| `RobotStore.Delete()` | 1 | 🟢 Low | Delete robot member |
+| `RobotStore.UpdateConfig()` | 1 | 🟢 Low | Update config only |
+| `ExecutionStore.ListResults()` | 3 | 🟢 Low | Query deliverables from executions |
+| `ExecutionStore.GetResult()` | 3 | 🟢 Low | Get single deliverable |
+| `ExecutionStore.ListActivities()` | 3 | 🟢 Low | Derive activities from history |
+| Conversation store | 5 | 🟡 Medium | Temporary chat history (Deferred) |
+
 ### robot/types/ Extensions
 
 | Type/Field | Phase | Risk | Description |
@@ -357,26 +383,18 @@ Need to add in `robot/`:
 |------|-------|------|-------------|
 | `load.go` | 1 | 🟢 Low | Add `bio` to `memberFields` slice |
 
-### robot/api/ Extensions
+### robot/api/ Extensions (Thin wrappers calling store)
 
 | Function | Phase | Risk | Description |
 |----------|-------|------|-------------|
-| `Create()` | 1 | 🟢 Low | Create robot member via model |
-| `Update()` | 1 | 🟢 Low | Update robot config via model |
-| `Remove()` | 1 | 🟢 Low | Delete robot member via model |
-| `ListResults()` | 3 | 🟢 Low | Query from execution delivery data |
-| `GetResult()` | 3 | 🟢 Low | Get deliverable detail |
-| `ListActivities()` | 3 | 🟢 Low | Derive from execution history |
+| `Create()` | 1 | 🟢 Low | Call `store.RobotStore.Save()` + cache refresh |
+| `Update()` | 1 | 🟢 Low | Call `store.RobotStore.UpdateConfig()` + cache refresh |
+| `Remove()` | 1 | 🟢 Low | Call `store.RobotStore.Delete()` + cache invalidate |
+| `ListResults()` | 3 | 🟢 Low | Call `store.ExecutionStore.ListResults()` |
+| `GetResult()` | 3 | 🟢 Low | Call `store.ExecutionStore.GetResult()` |
+| `ListActivities()` | 3 | 🟢 Low | Call `store.ExecutionStore.ListActivities()` |
 | `RetryExecution()` | 2 | 🟢 Low | Re-trigger with same input |
-| `Chat()` | 5 | 🟡 Medium | Multi-turn conversation handler |
-
-### robot/store/ Extensions
-
-| Store | Phase | Risk | Description |
-|-------|-------|------|-------------|
-| Results query | 3 | 🟢 Low | Query from execution delivery data |
-| Activities query | 3 | 🟢 Low | Derive from execution history |
-| Conversation store | 5 | 🟡 Medium | Temporary chat history (redis/memory) |
+| `Chat()` | 5 | 🟡 Medium | Multi-turn conversation (Deferred) |
 
 ### Event System (Phase 6 - Deferred)
 

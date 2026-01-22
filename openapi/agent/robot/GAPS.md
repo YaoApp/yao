@@ -306,21 +306,105 @@ Add `confirm` parameter to trigger:
 
 ---
 
-## 3. Backend API Gaps (`yao/agent/robot/api/`)
+## 3. Backend Architecture: Store + API Layers
 
-### 3.1 Missing Functions
+### 3.1 Architecture Decision
+
+> **Principle:** Store layer handles database CRUD, API layer handles business logic.
+> This enables reuse across Golang API, JSAPI, and Yao Process.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Consumers                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│  Golang API (robot/api)  │  JSAPI (JS Runtime)  │  Yao Process       │
+└──────────────────────────────┴───────────────────────┴───────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      API Layer (robot/api/)                          │
+│  Business logic, parameter validation, cache invalidation            │
+│  - Thin wrappers that call store layer                               │
+│  - Reusable across all consumers                                     │
+└──────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      Store Layer (robot/store/)                      │
+│  Pure database CRUD, no business logic                               │
+│  - RobotStore: Robot member CRUD (NEW)                               │
+│  - ExecutionStore: Execution records (EXISTS)                        │
+└──────────────────────────────────────────────────────────────────────┘
+                               │
+                               ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                      Model Layer (__yao.member, etc.)                │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+### 3.2 Store Layer: Missing Functions
+
+**File: `store/robot.go` (NEW)** - Core CRUD implementation
 
 | Function | Status | Description |
 |----------|--------|-------------|
-| `Create()` | ⬜ Missing | Create new robot member |
-| `Update()` | ⬜ Missing | Update robot config |
-| `Remove()` | ⬜ Missing | Delete robot member |
-| `ListResults()` | ⬜ Missing | Query deliverable files from executions |
-| `GetResult()` | ⬜ Missing | Get single deliverable detail |
-| `ListActivities()` | ⬜ Missing | Query activity feed |
-| `RetryExecution()` | ⬜ Missing | Retry a failed execution |
+| `RobotStore.Save()` | ⬜ Missing | Create or update robot member |
+| `RobotStore.Get()` | ⬜ Missing | Get robot by member_id |
+| `RobotStore.List()` | ⬜ Missing | List robots with filters |
+| `RobotStore.Delete()` | ⬜ Missing | Delete robot member |
+| `RobotStore.UpdateConfig()` | ⬜ Missing | Update robot config only |
 
-### 3.2 Existing Functions (API layer can call these)
+**File: `store/execution.go` (extend)**
+
+| Function | Status | Description |
+|----------|--------|-------------|
+| `ExecutionStore.ListResults()` | ⬜ Missing | Query deliverables from executions |
+| `ExecutionStore.GetResult()` | ⬜ Missing | Get single deliverable |
+| `ExecutionStore.ListActivities()` | ⬜ Missing | Derive activities from history |
+
+### 3.3 API Layer: Missing Functions
+
+**File: `api/robot.go` (extend)** - Thin wrappers calling store
+
+| Function | Status | Description |
+|----------|--------|-------------|
+| `Create()` | ⬜ Missing | Call `store.RobotStore.Save()` + cache refresh |
+| `Update()` | ⬜ Missing | Call `store.RobotStore.UpdateConfig()` + cache refresh |
+| `Remove()` | ⬜ Missing | Call `store.RobotStore.Delete()` + cache invalidate |
+
+**File: `api/results.go` (NEW)** - Thin wrappers
+
+| Function | Status | Description |
+|----------|--------|-------------|
+| `ListResults()` | ⬜ Missing | Call `store.ExecutionStore.ListResults()` |
+| `GetResult()` | ⬜ Missing | Call `store.ExecutionStore.GetResult()` |
+
+**File: `api/activities.go` (NEW)** - Thin wrappers
+
+| Function | Status | Description |
+|----------|--------|-------------|
+| `ListActivities()` | ⬜ Missing | Call `store.ExecutionStore.ListActivities()` |
+
+**File: `api/execution.go` (extend)**
+
+| Function | Status | Description |
+|----------|--------|-------------|
+| `RetryExecution()` | ⬜ Missing | Re-trigger with same input |
+
+### 3.4 Existing Functions (Already implemented)
+
+**Store Layer (`store/`):**
+
+| Function | File | Status |
+|----------|------|--------|
+| `ExecutionStore.Save()` | `execution.go` | ✅ Exists |
+| `ExecutionStore.Get()` | `execution.go` | ✅ Exists |
+| `ExecutionStore.List()` | `execution.go` | ✅ Exists |
+| `ExecutionStore.Delete()` | `execution.go` | ✅ Exists |
+| `ExecutionStore.UpdatePhase()` | `execution.go` | ✅ Exists |
+| `ExecutionStore.UpdateStatus()` | `execution.go` | ✅ Exists |
+
+**API Layer (`api/`):**
 
 | Function | File | Status |
 |----------|------|--------|
@@ -335,39 +419,56 @@ Add `confirm` parameter to trigger:
 | `ResumeExecution()` | `execution.go` | ✅ Exists |
 | `StopExecution()` | `execution.go` | ✅ Exists |
 
-### 3.3 Required API Extensions
+### 3.5 Code Examples
 
-**File: `api/robot.go`**
+**Store Layer (`store/robot.go`):**
 ```go
-// Create creates a new robot member
-func Create(ctx *types.Context, teamID string, req *CreateRobotRequest) (*types.Robot, error)
+// RobotStore - persistent storage for robot members
+type RobotStore struct {
+    modelID string
+}
 
-// Update updates robot config
-func Update(ctx *types.Context, memberID string, req *UpdateRobotRequest) (*types.Robot, error)
+func NewRobotStore() *RobotStore {
+    return &RobotStore{modelID: "__yao.member"}
+}
 
-// Remove deletes a robot member
-func Remove(ctx *types.Context, memberID string) error
+// Save creates or updates a robot member record
+func (s *RobotStore) Save(ctx context.Context, record *RobotRecord) error
+
+// Get retrieves a robot by member_id
+func (s *RobotStore) Get(ctx context.Context, memberID string) (*RobotRecord, error)
+
+// List retrieves robots with filters
+func (s *RobotStore) List(ctx context.Context, opts *ListOptions) ([]*RobotRecord, error)
+
+// Delete removes a robot member
+func (s *RobotStore) Delete(ctx context.Context, memberID string) error
 ```
 
-**File: `api/results.go` (NEW)**
+**API Layer (`api/robot.go`):**
 ```go
-// ListResults returns deliverable files for a robot
-func ListResults(ctx *types.Context, memberID string, query *ResultQuery) (*ResultsResult, error)
+// Create creates a new robot member (thin wrapper)
+func Create(ctx *types.Context, teamID string, req *CreateRobotRequest) (*types.Robot, error) {
+    // 1. Validate request
+    // 2. Call store.RobotStore.Save()
+    // 3. Refresh cache
+    // 4. Return robot
+}
 
-// GetResult returns a single deliverable detail
-func GetResult(ctx *types.Context, resultID string) (*types.ResultFile, error)
-```
+// Update updates robot config (thin wrapper)
+func Update(ctx *types.Context, memberID string, req *UpdateRobotRequest) (*types.Robot, error) {
+    // 1. Validate request
+    // 2. Call store.RobotStore.UpdateConfig()
+    // 3. Refresh cache
+    // 4. Return updated robot
+}
 
-**File: `api/activities.go` (NEW)**
-```go
-// ListActivities returns recent activities
-func ListActivities(ctx *types.Context, query *ActivityQuery) (*ActivitiesResult, error)
-```
-
-**File: `api/execution.go` (extend)**
-```go
-// RetryExecution retries a failed execution
-func RetryExecution(ctx *types.Context, execID string) (*TriggerResult, error)
+// Remove deletes a robot member (thin wrapper)
+func Remove(ctx *types.Context, memberID string) error {
+    // 1. Check permissions
+    // 2. Call store.RobotStore.Delete()
+    // 3. Invalidate cache
+}
 ```
 
 ---
@@ -672,20 +773,44 @@ type ActivityRecord struct {
 
 ### Backend (`yao/agent/robot/`)
 
+#### Store Layer (Core CRUD - implement first)
+
 | File | Action | Changes |
 |------|--------|---------|
-| `types/robot.go` | Modify | Add `Bio` field, optionally `Name`/`CurrentTaskName` for Execution |
-| `types/conversation.go` | Create | `Conversation`, `ChatRequest`, `ChatResponse` types |
-| `cache/load.go` | Modify | Add `bio` to `memberFields` slice |
-| `store/conversation.go` | Create | Temporary conversation storage (redis/memory) |
+| `store/robot.go` | **Create** | `RobotStore` - Robot member CRUD (Save, Get, List, Delete, UpdateConfig) |
+| `store/execution.go` | Modify | Add `ListResults()`, `GetResult()`, `ListActivities()` |
+| `store/conversation.go` | Create | Temporary conversation storage (Phase 5 - Deferred) |
+
+#### Types Layer
+
+| File | Action | Changes |
+|------|--------|---------|
+| `types/robot.go` | Modify | Add `Bio` field |
+| `types/conversation.go` | Create | `Conversation`, `ChatRequest`, `ChatResponse` types (Phase 5) |
 | `types/context.go` | Modify | Add `Locale` field |
-| `api/robot.go` | Modify | Add `Create()`, `Update()`, `Remove()` |
-| `api/chat.go` | Create | `Chat()` - multi-turn conversation handler |
-| `api/trigger.go` | Modify | Add `ConversationID` support |
+
+#### Cache Layer
+
+| File | Action | Changes |
+|------|--------|---------|
+| `cache/load.go` | Modify | Add `bio` to `memberFields` slice |
+
+#### API Layer (Thin wrappers calling store)
+
+| File | Action | Changes |
+|------|--------|---------|
+| `api/robot.go` | Modify | Add `Create()`, `Update()`, `Remove()` - call store.RobotStore |
+| `api/results.go` | Create | `ListResults()`, `GetResult()` - call store.ExecutionStore |
+| `api/activities.go` | Create | `ListActivities()` - call store.ExecutionStore |
 | `api/execution.go` | Modify | Add `RetryExecution()` |
-| `api/results.go` | Create | `ListResults()`, `GetResult()` - query from execution store |
-| `api/activities.go` | Create | `ListActivities()` - derive from execution history |
-| `events/bus.go` | Create | Event bus for SSE (Phase 5) |
+| `api/chat.go` | Create | `Chat()` - multi-turn conversation (Phase 5 - Deferred) |
+| `api/trigger.go` | Modify | Add `ConversationID` support (Phase 5 - Deferred) |
+
+#### Events Layer (Phase 6 - Deferred)
+
+| File | Action | Changes |
+|------|--------|---------|
+| `events/bus.go` | Create | Event bus for SSE |
 
 ### OpenAPI (`yao/openapi/agent/robot/`)
 

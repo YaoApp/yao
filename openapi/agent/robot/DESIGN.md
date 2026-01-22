@@ -549,6 +549,31 @@ func checkTeamAccess(ctx context.Context, memberID string) error {
 
 ## 10. File Structure
 
+### 10.1 Backend Store + API Layers
+
+```
+yao/agent/robot/
+├── store/                      # Store Layer (Core CRUD)
+│   ├── store.go               # Common interfaces
+│   ├── execution.go           # ExecutionStore (EXISTS)
+│   └── robot.go               # RobotStore (NEW)
+│
+├── api/                        # API Layer (Thin wrappers)
+│   ├── robot.go               # Get, List, Create, Update, Remove
+│   ├── execution.go           # Execution management
+│   ├── trigger.go             # Trigger, Intervene
+│   ├── results.go             # ListResults, GetResult (NEW)
+│   └── activities.go          # ListActivities (NEW)
+│
+├── types/                      # Type definitions
+│   └── robot.go               # Add Bio field
+│
+└── cache/                      # Cache Layer
+    └── load.go                # Add bio to memberFields
+```
+
+### 10.2 OpenAPI Layer
+
 **Decision: Sub-package under `openapi/agent/`**
 
 Robot logic is complex enough to warrant its own package. This keeps code organized and follows the pattern used by other complex modules.
@@ -564,6 +589,7 @@ yao/openapi/agent/
 └── robot/              # Robot sub-package (NEW)
     ├── DESIGN.md       # This document ✅
     ├── TODO.md         # Implementation plan ✅
+    ├── GAPS.md         # Gap analysis ✅
     │
     ├── robot.go        # Route registration (Attach function)
     ├── types.go        # Request/Response types
@@ -672,23 +698,89 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 ## 12. Implementation Notes
 
-### 12.1 Backend API Extension
+### 12.1 Backend Architecture: Store + API Layers
 
-The existing `robot/api/` package needs these additions:
+> **Principle:** Store layer handles database CRUD, API layer handles business logic.
+> This enables reuse across Golang API, JSAPI, and Yao Process.
 
-1. **Robot CRUD**: `Create()`, `Update()`, `Remove()` functions
-2. **Results API**: `ListResults()`, `GetResult()` functions
-3. **Activities API**: `ListActivities()` function
-4. **Localization**: Add `Locale` parameter support
+```
+Consumers (Golang API / JSAPI / Yao Process)
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│         API Layer (robot/api/)          │
+│  Thin wrappers: validation, cache ops   │
+└─────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│       Store Layer (robot/store/)        │
+│  Core CRUD: RobotStore, ExecutionStore  │
+└─────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────┐
+│       Model Layer (__yao.member)        │
+└─────────────────────────────────────────┘
+```
 
-### 12.2 Store Extension
+### 12.2 Store Layer Extensions
 
-The `robot/store/` package needs:
+**File: `store/robot.go` (NEW)** - Core Robot CRUD
 
-1. **Results Store**: Store and query deliverable files
-2. **Activities Store**: Store and query activities (or derive from job logs)
+```go
+type RobotStore struct {
+    modelID string  // "__yao.member"
+}
 
-### 12.3 SSE Implementation
+func (s *RobotStore) Save(ctx context.Context, record *RobotRecord) error
+func (s *RobotStore) Get(ctx context.Context, memberID string) (*RobotRecord, error)
+func (s *RobotStore) List(ctx context.Context, opts *ListOptions) ([]*RobotRecord, error)
+func (s *RobotStore) Delete(ctx context.Context, memberID string) error
+func (s *RobotStore) UpdateConfig(ctx context.Context, memberID string, config map[string]interface{}) error
+```
+
+**File: `store/execution.go` (extend)**
+
+```go
+func (s *ExecutionStore) ListResults(ctx context.Context, memberID string, opts *ResultsQuery) ([]*ResultRecord, error)
+func (s *ExecutionStore) GetResult(ctx context.Context, resultID string) (*ResultRecord, error)
+func (s *ExecutionStore) ListActivities(ctx context.Context, opts *ActivityQuery) ([]*ActivityRecord, error)
+```
+
+### 12.3 API Layer Extensions
+
+**File: `api/robot.go` (extend)** - Thin wrappers
+
+```go
+// Create - calls store.RobotStore.Save() + cache refresh
+func Create(ctx *types.Context, teamID string, req *CreateRobotRequest) (*types.Robot, error)
+
+// Update - calls store.RobotStore.UpdateConfig() + cache refresh
+func Update(ctx *types.Context, memberID string, req *UpdateRobotRequest) (*types.Robot, error)
+
+// Remove - calls store.RobotStore.Delete() + cache invalidate
+func Remove(ctx *types.Context, memberID string) error
+```
+
+**File: `api/results.go` (NEW)**
+
+```go
+func ListResults(ctx *types.Context, memberID string, query *ResultQuery) (*ResultsResult, error)
+func GetResult(ctx *types.Context, resultID string) (*ResultFile, error)
+```
+
+**File: `api/activities.go` (NEW)**
+
+```go
+func ListActivities(ctx *types.Context, query *ActivityQuery) (*ActivitiesResult, error)
+```
+
+### 12.4 Localization
+
+Add `Locale` parameter support for localized responses.
+
+### 12.5 SSE Implementation
 
 Use standard Go SSE pattern:
 
@@ -707,7 +799,7 @@ func streamHandler(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-### 12.4 Localization Strategy
+### 12.6 Localization Strategy
 
 - Store display names in `__yao.member.display_name` (single language) initially
 - Future: Add `display_name_cn`, `display_name_en` or use JSON `{"en": "...", "cn": "..."}`
