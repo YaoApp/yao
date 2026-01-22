@@ -205,6 +205,75 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 	})
 }
 
+// TestListRobotsAutonomousModeFilter tests the autonomous_mode filter
+func TestListRobotsAutonomousModeFilter(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupAPITestRobots(t)
+	defer cleanupAPITestRobots(t)
+
+	// Setup: Create robots with different autonomous_mode settings
+	setupAPITestRobotWithMode(t, "robot_api_auto_001", "team_api_mode", true)    // autonomous
+	setupAPITestRobotWithMode(t, "robot_api_auto_002", "team_api_mode", true)    // autonomous
+	setupAPITestRobotWithMode(t, "robot_api_demand_001", "team_api_mode", false) // on-demand
+
+	ctx := types.NewContext(context.Background(), nil)
+
+	t.Run("ListRobots returns all robots when autonomous_mode is nil", func(t *testing.T) {
+		result, err := api.ListRobots(ctx, &api.ListQuery{
+			TeamID:   "team_api_mode",
+			Page:     1,
+			PageSize: 10,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should have all 3 robots
+		assert.Equal(t, 3, result.Total)
+	})
+
+	t.Run("ListRobots filters by autonomous_mode=true", func(t *testing.T) {
+		autonomousMode := true
+		result, err := api.ListRobots(ctx, &api.ListQuery{
+			TeamID:         "team_api_mode",
+			AutonomousMode: &autonomousMode,
+			Page:           1,
+			PageSize:       10,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should have only 2 autonomous robots
+		assert.Equal(t, 2, result.Total)
+		for _, robot := range result.Data {
+			assert.True(t, robot.AutonomousMode, "All returned robots should be autonomous")
+		}
+	})
+
+	t.Run("ListRobots filters by autonomous_mode=false", func(t *testing.T) {
+		autonomousMode := false
+		result, err := api.ListRobots(ctx, &api.ListQuery{
+			TeamID:         "team_api_mode",
+			AutonomousMode: &autonomousMode,
+			Page:           1,
+			PageSize:       10,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+
+		// Should have only 1 on-demand robot
+		assert.Equal(t, 1, result.Total)
+		for _, robot := range result.Data {
+			assert.False(t, robot.AutonomousMode, "All returned robots should be on-demand")
+		}
+	})
+}
+
 // TestAPIExecutionQueryWithData tests execution query APIs with real data
 func TestAPIExecutionQueryWithData(t *testing.T) {
 	if testing.Short() {
@@ -376,6 +445,44 @@ func TestAPITriggerWithData(t *testing.T) {
 }
 
 // ==================== Helper Functions ====================
+
+// setupAPITestRobotWithMode creates a test robot with specific autonomous_mode setting
+func setupAPITestRobotWithMode(t *testing.T, memberID, teamID string, autonomousMode bool) {
+	m := model.Select("__yao.member")
+	tableName := m.MetaData.Table.Name
+	qb := capsule.Query()
+
+	robotConfig := map[string]interface{}{
+		"identity": map[string]interface{}{
+			"role":   "API Test Robot",
+			"duties": []string{"Testing API functions"},
+		},
+		"quota": map[string]interface{}{
+			"max":      5,
+			"queue":    20,
+			"priority": 5,
+		},
+	}
+	configJSON, _ := json.Marshal(robotConfig)
+
+	err := qb.Table(tableName).Insert([]map[string]interface{}{
+		{
+			"member_id":       memberID,
+			"team_id":         teamID,
+			"member_type":     "robot",
+			"display_name":    "API Test Robot " + memberID,
+			"system_prompt":   "You are an API test robot.",
+			"status":          "active",
+			"role_id":         "member",
+			"autonomous_mode": autonomousMode,
+			"robot_status":    "idle",
+			"robot_config":    string(configJSON),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to insert robot %s: %v", memberID, err)
+	}
+}
 
 // setupAPITestRobot creates a test robot in the database
 func setupAPITestRobot(t *testing.T, memberID, teamID string) {

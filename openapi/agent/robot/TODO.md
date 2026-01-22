@@ -16,9 +16,10 @@
   Backend → SDK → Page Integration
   └─ List, Get, Create, Update, Delete robots
 
-🟡 Phase 1-FE: Frontend Integration ⬜ [Current]
-  └─ Implement SDK (openapi/robot.ts)
-  └─ Page Integration (Robot list, detail, create, edit, delete)
+✅ Phase 1-FE: Frontend Integration ✅ [Completed]
+  └─ SDK (openapi/robot.ts) ✅
+  └─ Page Integration (Robot list, detail, create, edit, delete) ✅
+  └─ UI/UX (CreatureLoading, bubble animations) ✅
 
 🟢 Phase 2: Execution Management
   Backend → SDK → Page Integration
@@ -177,53 +178,92 @@
 
 ---
 
-## 🟡 Phase 1-FE: Frontend Integration ⬜ [Current]
+## ✅ Phase 1-FE: Frontend Integration ✅ [Completed]
 
 **Goal:** Implement frontend SDK and integrate pages to validate Phase 1 deliverables
-**Status:** ⬜ Not Started
+**Status:** ✅ Completed
 
-### 1-FE.1 SDK Implementation ⬜
+### 1-FE.1 SDK Implementation ✅
 
-> Location: `cui/packages/cui/openapi/robot.ts`
+> Location: `cui/packages/cui/openapi/agent/robot/`
 
-- [ ] Create `robot.ts` - Robot API SDK
-  - [ ] `listRobots(params)` - GET /v1/agent/robots
-  - [ ] `getRobot(id)` - GET /v1/agent/robots/:id
-  - [ ] `getRobotStatus(id)` - GET /v1/agent/robots/:id/status
-  - [ ] `createRobot(data)` - POST /v1/agent/robots
-  - [ ] `updateRobot(id, data)` - PUT /v1/agent/robots/:id
-  - [ ] `deleteRobot(id)` - DELETE /v1/agent/robots/:id
-- [ ] Add TypeScript types for request/response
-- [ ] Export from `openapi/index.ts`
+- [x] Create `robot/types.ts` - TypeScript types for Robot API
+  - [x] `RobotFilter` - filter options for listing (including `autonomous_mode`)
+  - [x] `Robot` - robot data structure
+  - [x] `RobotStatusResponse` - runtime status
+  - [x] `RobotCreateRequest` / `RobotUpdateRequest` - CRUD requests
+  - [x] `RobotDeleteResponse` - delete response
+- [x] Create `robot/robots.ts` - Robot API SDK class (`AgentRobots`)
+  - [x] `List(filter)` - GET /v1/agent/robots
+  - [x] `Get(id)` - GET /v1/agent/robots/:id
+  - [x] `GetStatus(id)` - GET /v1/agent/robots/:id/status
+  - [x] `Create(data)` - POST /v1/agent/robots
+  - [x] `Update(id, data)` - PUT /v1/agent/robots/:id
+  - [x] `Delete(id)` - DELETE /v1/agent/robots/:id
+- [x] Create `robot/index.ts` - exports
+- [x] Update `agent/api.ts` - add `robots` property to Agent class
+- [x] Update `agent/index.ts` - export robot module
+- [x] Linter check passed
 
-### 1-FE.2 Page Integration ⬜
+### 1-FE.2 Page Integration ✅
 
-> Location: `cui/packages/cui/pages/robot/`
+> Location: `cui/packages/cui/pages/mission-control/`
 
-- [ ] Robot List Page
-  - [ ] Replace mock data with `listRobots()` API
-  - [ ] Implement pagination
-  - [ ] Implement filters (status, keywords, team)
-- [ ] Robot Detail Page
-  - [ ] Fetch robot via `getRobot(id)`
-  - [ ] Display robot status via `getRobotStatus(id)`
-- [ ] Create Robot
-  - [ ] Form validation
-  - [ ] Call `createRobot()` API
-  - [ ] Handle success/error
-- [ ] Edit Robot
-  - [ ] Pre-populate form with existing data
-  - [ ] Call `updateRobot()` API
-- [ ] Delete Robot
-  - [ ] Confirmation dialog
-  - [ ] Call `deleteRobot()` API
-  - [ ] Handle running execution conflict (409)
+- [x] Create `useRobots` hook for API calls
+  - [x] `listRobots(filter)` - list robots with pagination
+  - [x] `getRobot(id)` - get single robot
+  - [x] `getRobotStatus(id)` - get runtime status
+  - [x] `createRobot(data)` - create robot
+  - [x] `updateRobot(id, data)` - update robot
+  - [x] `deleteRobot(id)` - delete robot
+  - [x] Error handling and loading state
+- [x] Robot List Page (`mission-control/index.tsx`)
+  - [x] Replace mock data with `listRobots()` API (fallback to mock)
+  - [x] Fetch status for each robot via `getRobotStatus()`
+  - [x] Refresh list after robot created/updated/deleted
+  - [x] Empty state with "Create Agent" button (with bubble animation)
+  - [ ] Implement pagination (TODO: Phase 2)
+  - [ ] Implement filters (status, keywords, team) (TODO: Phase 2)
+- [x] Robot Detail Modal (`AgentModal`)
+  - [x] Real-time status refresh via `getRobotStatus(id)`
+  - [x] Auto-refresh every 10 seconds while modal open
+  - [x] Merge real-time status with robot data
+- [x] Create Robot (`AddAgentModal`)
+  - [x] Call `createRobot()` API
+  - [x] Handle success/error messages
+  - [x] Form validation (existing)
+  - [x] Load email domains, managers, agents, MCP servers from API
+- [x] Edit Robot (`ConfigTab` in `AgentModal`)
+  - [x] Load robot data from API (`getRobot()`)
+  - [x] Load email domains, managers, roles from Team API
+  - [x] Load agents and MCP servers from API
+  - [x] Pre-populate form with existing data
+  - [x] Call `updateRobot()` API with `robot_config.clock` for schedule
+  - [x] Handle success/error messages
+  - [x] Work Schedule panel saves correctly
+- [x] Delete Robot (`AdvancedPanel` in `ConfigTab`)
+  - [x] Confirmation dialog with name input
+  - [x] Call `deleteRobot()` API
+  - [x] Handle running execution conflict (409)
+  - [x] Refresh list after deletion
 
-### 1-FE.3 Verification ⬜
+### 1-FE.3 UI/UX Enhancements ✅
 
-- [ ] E2E test: Create → List → Get → Update → Delete
-- [ ] Permission test: Personal user vs Team user
-- [ ] Error handling: 400, 403, 404, 409, 500
+- [x] `CreatureLoading` component with organic animations
+  - [x] Breathing aura, floating creature, orbit ring, particles
+  - [x] Three sizes: small, medium, large
+  - [x] Used in ConfigTab, ResultsTab, HistoryTab
+- [x] Empty state "Create Agent" button with bubble animation
+  - [x] Cyan, purple, pink glowing bubbles rising
+- [x] CSS variable compliance (`--color_mission_button_text`)
+- [x] Consistent loading animations across all tabs
+
+### 1-FE.4 Verification ✅
+
+- [x] Manual test: Create → List → Get → Update → Delete
+- [ ] E2E automated test (TODO: Phase 3)
+- [x] Permission test: Personal user vs Team user (manual tested)
+- [x] Error handling: 400, 403, 404, 409, 500
 
 ---
 
@@ -579,8 +619,8 @@ yao/openapi/tests/robot/
 
 | Phase | Risk | Backend | Frontend | Description |
 |-------|------|---------|----------|-------------|
-| 1. Core CRUD | 🟢 | ✅ | ⬜ | Robot CRUD endpoints |
-| 1-FE Frontend Integration | 🟢 | - | 🟡 | **Current**: SDK + Page Integration |
+| 1. Core CRUD | 🟢 | ✅ | ✅ | Robot CRUD endpoints |
+| 1-FE Frontend Integration | 🟢 | - | ✅ | SDK ✅, Page Integration ✅, UI/UX ✅ |
 | 2. Execution | 🟢 | ⬜ | ⬜ | Execution listing, control, trigger |
 | 3. Results/Activities | 🟢 | ⬜ | ⬜ | Deliverables and activity feed |
 | 4. i18n | 🟢 | ⬜ | ⬜ | Locale parameter support |
@@ -719,21 +759,36 @@ import (
 
 **Execute immediately after each phase backend completion:**
 
-1. **SDK Implementation** - `cui/packages/cui/openapi/robot.ts`
+1. **SDK Implementation** - `cui/packages/cui/openapi/agent/robot/`
 2. **Type Definitions** - TypeScript request/response types
-3. **Page Integration** - Replace mock data, call real APIs
-4. **E2E Verification** - Full flow testing
+3. **Hook Implementation** - `cui/packages/cui/hooks/useRobots.ts`
+4. **Page Integration** - Replace mock data, call real APIs
+5. **E2E Verification** - Full flow testing
 
 **File Locations:**
 ```
 cui/packages/cui/
 ├── openapi/
-│   ├── robot.ts          # Robot API SDK
-│   └── index.ts          # Export all APIs
-└── pages/robot/
-    ├── index.tsx         # Robot list page
-    ├── [id].tsx          # Robot detail page
-    └── components/       # Shared components
+│   └── agent/
+│       └── robot/
+│           ├── types.ts      # TypeScript types
+│           ├── robots.ts     # AgentRobots SDK class
+│           └── index.ts      # Exports
+├── hooks/
+│   └── useRobots.ts          # React hook for robot API calls
+├── styles/
+│   └── preset/
+│       └── vars.less         # CSS variables (--color_mission_button_text)
+└── pages/
+    └── mission-control/
+        ├── index.tsx         # Robot list (grid) page
+        ├── index.less        # Styles with bubble animations
+        └── components/
+            ├── AgentModal/           # Robot detail modal
+            ├── AddAgentModal/        # Create robot modal
+            └── CreatureLoading/      # Branded loading component
+                ├── index.tsx
+                └── index.less
 ```
 
 ### Incremental Deployment
@@ -742,7 +797,7 @@ Each phase independently deliverable:
 
 | Phase | Backend | Frontend | Verifiable Features |
 |-------|---------|----------|---------------------|
-| 1 | ✅ | 🟡 Current | Robot CRUD basic management |
+| 1 | ✅ | ✅ | Robot CRUD basic management |
 | 2 | ⬜ | ⬜ | Execution list/control/trigger |
 | 3 | ⬜ | ⬜ | Results/Activities viewing |
 | 4 | ⬜ | ⬜ | Multi-language support |

@@ -37,6 +37,7 @@ func ListRobots(c *gin.Context) {
 	requestedTeamID := strings.TrimSpace(c.Query("team_id"))
 	status := strings.TrimSpace(c.Query("status"))
 	keywords := strings.TrimSpace(c.Query("keywords"))
+	autonomousModeStr := strings.TrimSpace(c.Query("autonomous_mode"))
 
 	// Apply permission-based filtering
 	// This ensures users only see robots they have access to:
@@ -54,6 +55,14 @@ func ListRobots(c *gin.Context) {
 	}
 	if status != "" {
 		query.Status = robottypes.RobotStatus(status)
+	}
+	// Parse autonomous_mode filter: "true" or "false" to filter, empty/other to show all
+	if autonomousModeStr == "true" {
+		autonomousMode := true
+		query.AutonomousMode = &autonomousMode
+	} else if autonomousModeStr == "false" {
+		autonomousMode := false
+		query.AutonomousMode = &autonomousMode
 	}
 
 	// Create robot context

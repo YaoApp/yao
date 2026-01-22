@@ -168,7 +168,6 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 	// Build where conditions
 	wheres := []model.QueryWhere{
 		{Column: "member_type", Value: "robot"},
-		{Column: "autonomous_mode", Value: true},
 		{Column: "status", Value: "active"},
 	}
 
@@ -184,6 +183,9 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 			OP:     "like",
 			Value:  "%" + query.Keywords + "%",
 		})
+	}
+	if query.AutonomousMode != nil {
+		wheres = append(wheres, model.QueryWhere{Column: "autonomous_mode", Value: *query.AutonomousMode})
 	}
 
 	// Build order

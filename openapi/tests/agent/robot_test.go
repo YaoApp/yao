@@ -74,6 +74,68 @@ func TestListRobots(t *testing.T) {
 		assert.Equal(t, float64(5), response["pagesize"])
 	})
 
+	t.Run("ListRobotsWithAutonomousModeFilter", func(t *testing.T) {
+		// Test with autonomous_mode=true
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots?autonomous_mode=true", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify response structure
+		assert.Contains(t, response, "data")
+		assert.Contains(t, response, "total")
+
+		// If there are robots, verify they are all autonomous
+		if data, ok := response["data"].([]interface{}); ok && len(data) > 0 {
+			for _, item := range data {
+				if robot, ok := item.(map[string]interface{}); ok {
+					assert.True(t, robot["autonomous_mode"].(bool), "All robots should have autonomous_mode=true")
+				}
+			}
+		}
+	})
+
+	t.Run("ListRobotsWithAutonomousModeFalse", func(t *testing.T) {
+		// Test with autonomous_mode=false
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots?autonomous_mode=false", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify response structure
+		assert.Contains(t, response, "data")
+		assert.Contains(t, response, "total")
+
+		// If there are robots, verify they are all on-demand (not autonomous)
+		if data, ok := response["data"].([]interface{}); ok && len(data) > 0 {
+			for _, item := range data {
+				if robot, ok := item.(map[string]interface{}); ok {
+					assert.False(t, robot["autonomous_mode"].(bool), "All robots should have autonomous_mode=false")
+				}
+			}
+		}
+	})
+
 	t.Run("ListRobotsUnauthorized", func(t *testing.T) {
 		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots", nil)
 		require.NoError(t, err)

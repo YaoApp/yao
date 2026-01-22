@@ -9,13 +9,14 @@ import (
 
 // ListQuery - query options for List()
 type ListQuery struct {
-	TeamID    string            `json:"team_id,omitempty"`
-	Status    types.RobotStatus `json:"status,omitempty"`
-	Keywords  string            `json:"keywords,omitempty"`
-	ClockMode types.ClockMode   `json:"clock_mode,omitempty"`
-	Page      int               `json:"page,omitempty"`
-	PageSize  int               `json:"pagesize,omitempty"`
-	Order     string            `json:"order,omitempty"`
+	TeamID         string            `json:"team_id,omitempty"`
+	Status         types.RobotStatus `json:"status,omitempty"`
+	Keywords       string            `json:"keywords,omitempty"`
+	ClockMode      types.ClockMode   `json:"clock_mode,omitempty"`
+	AutonomousMode *bool             `json:"autonomous_mode,omitempty"` // nil=all, true=autonomous only, false=on-demand only
+	Page           int               `json:"page,omitempty"`
+	PageSize       int               `json:"pagesize,omitempty"`
+	Order          string            `json:"order,omitempty"`
 }
 
 // ListResult - result of List()
