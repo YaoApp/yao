@@ -8,29 +8,33 @@
 
 ## Implementation Strategy
 
-> **Low-risk phases first. Medium-risk features can be deferred.**
+> **Integrate frontend immediately after each phase to validate deliverables.**
 > Frontend has fallback mechanisms (polling, single-submit mode).
 
 ```
-🟢 Low Risk (Do First):
-  Phase 1: Core CRUD (MVP)
-    └─ List, Get, Create, Update, Delete robots
-  
-  Phase 2: Execution Management
-    └─ List, Get, Control executions, Trigger/Intervene (single-submit)
-  
-  Phase 3: Results & Activities
-    └─ List deliverables, Activity feed
-  
-  Phase 4: i18n
-    └─ Locale parameter support
+🟢 Phase 1: Core CRUD ✅
+  Backend → SDK → Page Integration
+  └─ List, Get, Create, Update, Delete robots
+
+🟡 Phase 1-FE: Frontend Integration ⬜ [Current]
+  └─ Implement SDK (openapi/robot.ts)
+  └─ Page Integration (Robot list, detail, create, edit, delete)
+
+🟢 Phase 2: Execution Management
+  Backend → SDK → Page Integration
+  └─ List, Get, Control executions, Trigger/Intervene
+
+🟢 Phase 3: Results & Activities
+  Backend → SDK → Page Integration
+  └─ List deliverables, Activity feed
+
+🟢 Phase 4: i18n
+  Backend → SDK → Page Integration
+  └─ Locale parameter support
 
 🟡 Medium Risk (Deferred):
   Phase 5: Multi-turn Chat API
-    └─ Conversation before execution (Frontend fallback: single-submit)
-  
   Phase 6: Real-time SSE Streams
-    └─ Robot status stream, Execution progress (Frontend fallback: polling)
 ```
 
 ---
@@ -39,7 +43,7 @@
 
 **Goal:** Basic robot management endpoints
 **Risk:** 🟢 Low - All new code, no changes to existing logic
-**Status:** ✅ Complete
+**Status:** ✅ Backend Complete → Proceed to Phase 1.5 Frontend Integration
 
 ### 1.1 Backend Prerequisites ✅
 
@@ -173,6 +177,56 @@
 
 ---
 
+## 🟡 Phase 1-FE: Frontend Integration ⬜ [Current]
+
+**Goal:** Implement frontend SDK and integrate pages to validate Phase 1 deliverables
+**Status:** ⬜ Not Started
+
+### 1-FE.1 SDK Implementation ⬜
+
+> Location: `cui/packages/cui/openapi/robot.ts`
+
+- [ ] Create `robot.ts` - Robot API SDK
+  - [ ] `listRobots(params)` - GET /v1/agent/robots
+  - [ ] `getRobot(id)` - GET /v1/agent/robots/:id
+  - [ ] `getRobotStatus(id)` - GET /v1/agent/robots/:id/status
+  - [ ] `createRobot(data)` - POST /v1/agent/robots
+  - [ ] `updateRobot(id, data)` - PUT /v1/agent/robots/:id
+  - [ ] `deleteRobot(id)` - DELETE /v1/agent/robots/:id
+- [ ] Add TypeScript types for request/response
+- [ ] Export from `openapi/index.ts`
+
+### 1-FE.2 Page Integration ⬜
+
+> Location: `cui/packages/cui/pages/robot/`
+
+- [ ] Robot List Page
+  - [ ] Replace mock data with `listRobots()` API
+  - [ ] Implement pagination
+  - [ ] Implement filters (status, keywords, team)
+- [ ] Robot Detail Page
+  - [ ] Fetch robot via `getRobot(id)`
+  - [ ] Display robot status via `getRobotStatus(id)`
+- [ ] Create Robot
+  - [ ] Form validation
+  - [ ] Call `createRobot()` API
+  - [ ] Handle success/error
+- [ ] Edit Robot
+  - [ ] Pre-populate form with existing data
+  - [ ] Call `updateRobot()` API
+- [ ] Delete Robot
+  - [ ] Confirmation dialog
+  - [ ] Call `deleteRobot()` API
+  - [ ] Handle running execution conflict (409)
+
+### 1-FE.3 Verification ⬜
+
+- [ ] E2E test: Create → List → Get → Update → Delete
+- [ ] Permission test: Personal user vs Team user
+- [ ] Error handling: 400, 403, 404, 409, 500
+
+---
+
 ## 🟢 Phase 2: Execution Management ⬜ [Low Risk]
 
 **Goal:** Execution listing, details, control, and trigger/intervene (single-submit mode)
@@ -242,6 +296,20 @@
   - [ ] `Message` struct
   - [ ] `Attachment` struct
 
+### 2.7 Frontend Integration ⬜
+
+> Integrate immediately after backend completion
+
+- [ ] SDK: Add execution methods to `robot.ts`
+  - [ ] `listExecutions(robotId, params)`
+  - [ ] `getExecution(robotId, execId)`
+  - [ ] `pauseExecution()`, `resumeExecution()`, `cancelExecution()`
+  - [ ] `triggerRobot(robotId, data)`
+  - [ ] `intervene(robotId, data)`
+- [ ] Page: Execution list/detail page integration
+- [ ] Page: Assign Task (trigger execution) integration
+- [ ] Verify: E2E testing
+
 ---
 
 ## 🟢 Phase 3: Results & Activities ⬜ [Low Risk]
@@ -295,6 +363,18 @@
   - [ ] `ActivityResponse` struct
   - [ ] `ActivityType` constants
 
+### 3.6 Frontend Integration ⬜
+
+> Integrate immediately after backend completion
+
+- [ ] SDK: Add results/activities methods to `robot.ts`
+  - [ ] `listResults(robotId, params)`
+  - [ ] `getResult(robotId, resultId)`
+  - [ ] `listActivities(params)`
+- [ ] Page: Results Tab integration
+- [ ] Page: Activity Feed integration
+- [ ] Verify: E2E testing
+
 ---
 
 ## 🟢 Phase 4: i18n ⬜ [Low Risk]
@@ -314,6 +394,14 @@
 - [ ] Localize `description` in RobotResponse
 - [ ] Localize `name` in ExecutionResponse (derive from goals/input)
 - [ ] Localize `current_task_name` in ExecutionResponse
+
+### 4.3 Frontend Integration ⬜
+
+> Integrate immediately after backend completion
+
+- [ ] SDK: Add `locale` parameter support to all API calls
+- [ ] Page: Use current language setting when calling APIs
+- [ ] Verify: Data correctly localized after language switch
 
 ---
 
@@ -489,16 +577,17 @@ yao/openapi/tests/robot/
 
 ## Progress Tracking
 
-| Phase | Risk | Status | Description |
-|-------|------|--------|-------------|
-| 1. Core CRUD | 🟢 | ✅ | Basic robot management (Backend ✅, OpenAPI ✅) |
-| 2. Execution | 🟢 | ⬜ | Execution listing, control, trigger/intervene |
-| 3. Results/Activities | 🟢 | ⬜ | Deliverables and activity feed |
-| 4. i18n | 🟢 | ⬜ | Locale parameter support |
-| 5. Chat API | 🟡 | ⬜ | Multi-turn conversation (Deferred) |
-| 6. SSE Streams | 🟡 | ⬜ | Real-time status updates (Deferred) |
+| Phase | Risk | Backend | Frontend | Description |
+|-------|------|---------|----------|-------------|
+| 1. Core CRUD | 🟢 | ✅ | ⬜ | Robot CRUD endpoints |
+| 1-FE Frontend Integration | 🟢 | - | 🟡 | **Current**: SDK + Page Integration |
+| 2. Execution | 🟢 | ⬜ | ⬜ | Execution listing, control, trigger |
+| 3. Results/Activities | 🟢 | ⬜ | ⬜ | Deliverables and activity feed |
+| 4. i18n | 🟢 | ⬜ | ⬜ | Locale parameter support |
+| 5. Chat API | 🟡 | ⬜ | ⬜ | Multi-turn conversation (Deferred) |
+| 6. SSE Streams | 🟡 | ⬜ | ⬜ | Real-time status updates (Deferred) |
 
-Legend: ⬜ Not started | 🟡 In progress | ✅ Complete | 🟢 Low Risk | 🟡 Medium Risk
+Legend: ⬜ Not started | 🟡 In progress | ✅ Complete
 
 ### Phase 1 Detailed Status
 
@@ -628,18 +717,34 @@ import (
 
 ### Frontend Integration
 
-After each phase:
-1. Test endpoints manually
-2. Update frontend `openapi/robot.ts` to use real API
-3. Remove mock data usage
-4. Test end-to-end flow
+**Execute immediately after each phase backend completion:**
+
+1. **SDK Implementation** - `cui/packages/cui/openapi/robot.ts`
+2. **Type Definitions** - TypeScript request/response types
+3. **Page Integration** - Replace mock data, call real APIs
+4. **E2E Verification** - Full flow testing
+
+**File Locations:**
+```
+cui/packages/cui/
+├── openapi/
+│   ├── robot.ts          # Robot API SDK
+│   └── index.ts          # Export all APIs
+└── pages/robot/
+    ├── index.tsx         # Robot list page
+    ├── [id].tsx          # Robot detail page
+    └── components/       # Shared components
+```
 
 ### Incremental Deployment
 
-Each phase can be deployed independently:
-- Phase 1: Basic management works
-- Phase 2: Execution history + trigger works
-- Phase 3: Results listing works
-- Phase 4: Multi-language works
-- Phase 5: Enhanced chat UX (optional)
-- Phase 6: Real-time updates (optional)
+Each phase independently deliverable:
+
+| Phase | Backend | Frontend | Verifiable Features |
+|-------|---------|----------|---------------------|
+| 1 | ✅ | 🟡 Current | Robot CRUD basic management |
+| 2 | ⬜ | ⬜ | Execution list/control/trigger |
+| 3 | ⬜ | ⬜ | Results/Activities viewing |
+| 4 | ⬜ | ⬜ | Multi-language support |
+| 5 | ⬜ | ⬜ | Multi-turn chat UX (optional) |
+| 6 | ⬜ | ⬜ | Real-time push (optional) |
