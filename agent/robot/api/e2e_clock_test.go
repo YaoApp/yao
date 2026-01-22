@@ -71,9 +71,9 @@ func TestE2EClockTriggerFullFlow(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, result)
 		assert.True(t, result.Accepted, "Clock trigger should be accepted: %s", result.Message)
-		assert.NotEmpty(t, result.JobID, "Should return job ID")
+		assert.NotEmpty(t, result.ExecutionID, "Should return execution ID")
 
-		t.Logf("Execution started: JobID=%s", result.JobID)
+		t.Logf("Execution started: ExecutionID=%s", result.ExecutionID)
 
 		// Wait for execution to complete (real LLM calls take time)
 		// P0→P4 typically takes 30-60 seconds with real LLM

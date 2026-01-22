@@ -82,11 +82,11 @@ const (
 
 // TriggerResult - result of Trigger()
 type TriggerResult struct {
-	Accepted  bool             `json:"accepted"`
-	Queued    bool             `json:"queued"`
-	Execution *types.Execution `json:"execution,omitempty"`
-	JobID     string           `json:"job_id,omitempty"`
-	Message   string           `json:"message,omitempty"`
+	Accepted    bool             `json:"accepted"`
+	Queued      bool             `json:"queued"`
+	Execution   *types.Execution `json:"execution,omitempty"`
+	ExecutionID string           `json:"execution_id,omitempty"` // Execution ID
+	Message     string           `json:"message,omitempty"`
 }
 
 // ==================== Execution Types ====================

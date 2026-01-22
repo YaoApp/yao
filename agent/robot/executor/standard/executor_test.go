@@ -34,10 +34,9 @@ func TestExecutorPersistence(t *testing.T) {
 
 		robot := createPersistenceTestRobot("member_persist_001", "team_persist_001")
 
-		// Create executor with persistence enabled but skip job integration
+		// Create executor with persistence enabled
 		e := standard.NewWithConfig(types.Config{
-			SkipJobIntegration: true,
-			SkipPersistence:    false,
+			SkipPersistence: false,
 		})
 
 		// Execute with simulated failure to ensure we get a result
@@ -71,8 +70,7 @@ func TestExecutorPersistence(t *testing.T) {
 		robot := createPersistenceTestRobot("member_persist_002", "team_persist_002")
 
 		e := standard.NewWithConfig(types.Config{
-			SkipJobIntegration: true,
-			SkipPersistence:    false,
+			SkipPersistence: false,
 		})
 
 		// Execute with simulated failure
@@ -104,8 +102,7 @@ func TestExecutorPersistence(t *testing.T) {
 
 		// Create executor with persistence disabled
 		e := standard.NewWithConfig(types.Config{
-			SkipJobIntegration: true,
-			SkipPersistence:    true,
+			SkipPersistence: true,
 		})
 
 		exec, err := e.Execute(ctx, robot, robottypes.TriggerHuman, "simulate_failure")

@@ -83,7 +83,7 @@ func TestE2EEventTriggerFullFlow(t *testing.T) {
 		require.NotNil(t, result)
 		assert.True(t, result.Accepted, "Event trigger should be accepted")
 
-		t.Logf("Event trigger result: Accepted=%v, JobID=%s", result.Accepted, result.JobID)
+		t.Logf("Event trigger result: Accepted=%v, ExecutionID=%s", result.Accepted, result.ExecutionID)
 
 		// Wait for execution to complete
 		var exec *types.Execution
@@ -256,7 +256,7 @@ func TestE2EEventTriggerVariousEventTypes(t *testing.T) {
 		require.NotNil(t, result)
 		assert.True(t, result.Accepted, "Event should be accepted")
 
-		t.Logf("Event triggered: JobID=%s", result.JobID)
+		t.Logf("Event triggered: ExecutionID=%s", result.ExecutionID)
 
 		// Wait for execution
 		maxWait := 120 * time.Second

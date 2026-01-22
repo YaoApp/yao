@@ -165,7 +165,6 @@ Create empty structs and stub methods that return nil/empty/success:
 - [x] `dedup/dedup.go` - Dedup struct, stub methods
 - [x] `store/store.go` - Store struct, stub methods
 - [x] `pool/pool.go` - Pool struct, stub methods
-- [x] `job/job.go` - job helper stubs
 - [x] `plan/plan.go` - Plan struct, stub methods
 - [x] `trigger/trigger.go` - trigger dispatcher stub
 - [x] `executor/executor.go` - Executor struct, stub `Execute()`
@@ -278,35 +277,16 @@ Trigger → Manager → Cache → Dedup → Pool → Worker → Executor(stub) �
   - [x] ExecutionController lifecycle tests
   - [x] Manager integration tests for Intervene/HandleEvent
 
-### ✅ 3.5 Job Integration (COMPLETE)
+### ✅ 3.5 Execution Storage (COMPLETE)
 
-- [x] `job/job.go` - create job
-  - [x] `job_id`: `robot_exec_{execID}`
-  - [x] `category_name`: `Autonomous Robot` / `自主机器人` (localized)
-  - [x] Metadata: member_id, team_id, trigger_type, exec_id, display_name
-  - [x] `Options` struct for extensibility (Priority, MaxRetryCount, DefaultTimeout, Metadata)
-  - [x] `Create()`, `Get()`, `Update()`, `Complete()`, `Fail()`, `Cancel()`
-  - [x] Status mapping: ExecPending→queued, ExecRunning→running, etc.
+- [x] ExecutionStore - execution record persistence
+  - [x] Execution data stored in `__yao.agent_execution` table
+  - [x] All phase outputs (Inspiration, Goals, Tasks, Results, Delivery, Learning)
+  - [x] Status and phase tracking
+  - [x] Logging via `kun/log` package
   - [x] Localization support (en-US, zh-CN)
-- [x] `job/execution.go` - execution lifecycle
-  - [x] `CreateOptions` struct for extensibility
-  - [x] `CreateExecution()` - create both robot Execution and job.Execution
-  - [x] `UpdatePhase()` - update phase with progress tracking (10%→25%→40%→60%→80%→95%)
-  - [x] `UpdateStatus()` - update execution status
-  - [x] `CompleteExecution()` / `FailExecution()` / `CancelExecution()`
-  - [x] TriggerType → TriggerCategory mapping (clock→scheduled, human→manual, event→event)
-  - [x] Duration calculation on completion/failure/cancellation
-- [x] `job/log.go` - write phase logs
-  - [x] `Log()` - base log function with context
-  - [x] `LogPhaseStart()` / `LogPhaseEnd()` / `LogPhaseError()`
-  - [x] `LogError()` / `LogInfo()` / `LogDebug()` / `LogWarn()`
-  - [x] `LogTaskStart()` / `LogTaskEnd()`
-  - [x] `LogDelivery()` / `LogLearning()`
-  - [x] Localization support for all log messages
-- [x] Test: job creation, execution tracking, log writing
-  - [x] `job/job_test.go` - 17 test cases
-  - [x] `job/execution_test.go` - 26 test cases
-  - [x] `job/log_test.go` - 24 test cases
+- [x] Test: execution storage, status tracking
+  - [x] `store/execution_test.go` - execution store tests
   - [x] All tests passing with real database
 
 ### ✅ 3.6 Executor Architecture (COMPLETE)
@@ -875,7 +855,7 @@ Created new `yao/assert` package for universal assertion/validation:
 
 - [x] `yao/models/agent/execution.mod.yao` - Execution record model (`agent_execution` table)
   - [x] id, execution_id (unique)
-  - [x] member_id (globally unique), team_id, job_id
+  - [x] member_id (globally unique), team_id
   - [x] trigger_type (enum: clock, human, event)
   - [x] **Status tracking** (synced with runtime Execution):
     - [x] status (enum: pending, running, completed, failed, cancelled)

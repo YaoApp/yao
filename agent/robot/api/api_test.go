@@ -102,7 +102,7 @@ func TestAPIFullLifecycle(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, triggerResult)
 		assert.True(t, triggerResult.Accepted)
-		assert.NotEmpty(t, triggerResult.JobID)
+		assert.NotEmpty(t, triggerResult.ExecutionID)
 
 		// 7. Wait for execution to complete
 		time.Sleep(500 * time.Millisecond)
@@ -402,7 +402,7 @@ func TestAPITriggerWithData(t *testing.T) {
 		require.NotNil(t, result)
 
 		assert.True(t, result.Accepted)
-		assert.NotEmpty(t, result.JobID)
+		assert.NotEmpty(t, result.ExecutionID)
 		assert.Contains(t, result.Message, "submitted")
 	})
 
@@ -542,7 +542,6 @@ func setupAPITestExecution(t *testing.T, execID, memberID string, triggerType ty
 		ExecutionID: execID,
 		MemberID:    memberID,
 		TeamID:      "team_api_exec",
-		JobID:       "job_" + execID,
 		TriggerType: triggerType,
 		Status:      status,
 		Phase:       types.PhaseDelivery,

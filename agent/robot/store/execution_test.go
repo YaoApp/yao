@@ -35,7 +35,6 @@ func TestExecutionStoreSave(t *testing.T) {
 			ExecutionID: "exec_test_save_001",
 			MemberID:    "member_test_001",
 			TeamID:      "team_test_001",
-			JobID:       "job_test_001",
 			TriggerType: types.TriggerClock,
 			Status:      types.ExecPending,
 			Phase:       types.PhaseInspiration,
@@ -53,7 +52,6 @@ func TestExecutionStoreSave(t *testing.T) {
 		assert.Equal(t, "exec_test_save_001", saved.ExecutionID)
 		assert.Equal(t, "member_test_001", saved.MemberID)
 		assert.Equal(t, "team_test_001", saved.TeamID)
-		assert.Equal(t, "job_test_001", saved.JobID)
 		assert.Equal(t, types.TriggerClock, saved.TriggerType)
 		assert.Equal(t, types.ExecPending, saved.Status)
 		assert.Equal(t, types.PhaseInspiration, saved.Phase)
@@ -574,7 +572,6 @@ func TestExecutionRecordConversion(t *testing.T) {
 			ID:          "exec_convert_001",
 			MemberID:    "member_convert_001",
 			TeamID:      "team_convert_001",
-			JobID:       "job_convert_001",
 			TriggerType: types.TriggerHuman,
 			Status:      types.ExecCompleted,
 			Phase:       types.PhaseDelivery,
@@ -600,7 +597,6 @@ func TestExecutionRecordConversion(t *testing.T) {
 		assert.Equal(t, "exec_convert_001", record.ExecutionID)
 		assert.Equal(t, "member_convert_001", record.MemberID)
 		assert.Equal(t, "team_convert_001", record.TeamID)
-		assert.Equal(t, "job_convert_001", record.JobID)
 		assert.Equal(t, types.TriggerHuman, record.TriggerType)
 		assert.Equal(t, types.ExecCompleted, record.Status)
 		assert.Equal(t, types.PhaseDelivery, record.Phase)
@@ -621,7 +617,6 @@ func TestExecutionRecordConversion(t *testing.T) {
 			ExecutionID: "exec_convert_002",
 			MemberID:    "member_convert_002",
 			TeamID:      "team_convert_002",
-			JobID:       "job_convert_002",
 			TriggerType: types.TriggerClock,
 			Status:      types.ExecRunning,
 			Phase:       types.PhaseRun,
@@ -646,7 +641,6 @@ func TestExecutionRecordConversion(t *testing.T) {
 		assert.Equal(t, "exec_convert_002", exec.ID)
 		assert.Equal(t, "member_convert_002", exec.MemberID)
 		assert.Equal(t, "team_convert_002", exec.TeamID)
-		assert.Equal(t, "job_convert_002", exec.JobID)
 		assert.Equal(t, types.TriggerClock, exec.TriggerType)
 		assert.Equal(t, types.ExecRunning, exec.Status)
 		assert.Equal(t, types.PhaseRun, exec.Phase)
@@ -686,7 +680,6 @@ func setupTestExecution(t *testing.T, s *store.ExecutionStore, ctx context.Conte
 		ExecutionID: "exec_test_get_001",
 		MemberID:    "member_test_get",
 		TeamID:      "team_test_get",
-		JobID:       "job_test_get",
 		TriggerType: types.TriggerClock,
 		Status:      types.ExecCompleted,
 		Phase:       types.PhaseDelivery,

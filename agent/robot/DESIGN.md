@@ -60,7 +60,6 @@ flowchart TB
     subgraph Storage["Storage"]
         KB[("KB")]
         DB[("DB")]
-        Job[("Job")]
     end
 
     WC --> TC
@@ -75,7 +74,7 @@ flowchart TB
     TT -->|Clock| P0
     TT -->|Human/Event| P1
     P0 --> P1 --> P2 --> P3 --> P4 --> P5
-    P5 --> KB & DB & Job
+    P5 --> KB & DB
     KB -.->|History| P0
 ```
 
@@ -89,7 +88,7 @@ Executor supports multiple execution modes for different use cases:
 | DryRun   | Tests, demos, preview without LLM calls | ✅ Implemented     |
 | Sandbox  | Container-isolated for untrusted code   | ⬜ Not Implemented |
 
-**Standard Mode:** Real execution with LLM calls, Job integration, full phase execution.
+**Standard Mode:** Real execution with LLM calls, full phase execution, logging via kun/log.
 
 **DryRun Mode:** Simulated execution without LLM calls. Used for:
 
@@ -1009,15 +1008,13 @@ stateDiagram-v2
 2. Generate member_id if missing
 3. Create KB: `robot_{team_id}_{member_id}_kb`
 4. Add to cache
-5. Create Job
-6. Set active
+5. Set active
 
 ### 6.3 On Delete
 
-1. Stop running jobs
+1. Stop running executions
 2. Remove from cache
-3. Delete Job
-4. Delete or archive KB
+3. Delete or archive KB
 5. Soft delete record
 
 ### 6.4 Execution Flow
@@ -1065,35 +1062,19 @@ stateDiagram-v2
 
 ## 7. Integrations
 
-### 7.1 Job System
+### 7.1 Execution Storage
 
-**Relationship:** 1 Robot : N Executions (concurrent), 1 Execution = 1 job.Job
+**Relationship:** 1 Robot : N Executions (concurrent)
 
-Each trigger creates a new Execution, mapped to a `job.Job` for monitoring.
+Each trigger creates a new Execution, stored in `ExecutionStore` (`__yao.agent_execution` table).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Activity Monitor (UI)                         │
-│  • List jobs                                                     │
-│  • See progress                                                  │
-│  • View logs                                                     │
-│  • Cancel/retry                                                  │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Job Framework                               │
-│  Job → Execution → Progress → Logs                               │
-└─────────────────────────────────────────────────────────────────┘
-```
+Execution data includes:
+- Status and phase tracking
+- All phase outputs (Inspiration, Goals, Tasks, Results, Delivery, Learning)
+- Error information
+- Timestamps and progress
 
-**Go APIs (yao/job package):**
-
-| Action       | API                                                      |
-| ------------ | -------------------------------------------------------- |
-| List Jobs    | `job.ListJobs(param, page, pagesize)`                    |
-| Get Job      | `job.GetJob(jobID, param)`                               |
-| Save Job     | `job.SaveJob(j)`                                         |
+Logging is handled by `kun/log` package for standard application logging.
 | List Execs   | `job.ListExecutions(param, page, pagesize)`              |
 | Get Exec     | `job.GetExecution(execID, param)`                        |
 | Save Exec    | `job.SaveExecution(exec)`                                |
@@ -1247,78 +1228,49 @@ type RobotState struct {
 }
 ```
 
-### 8.3 Execution (Uses Job System)
+### 8.3 Execution (Uses ExecutionStore)
 
-No separate `autonomous_executions` table. Uses existing Job system.
+Uses dedicated `__yao.agent_execution` table via ExecutionStore.
 
-**Each trigger creates a new job.Job:**
+**Each trigger creates a new Execution:**
 
 ```go
-// On each trigger (clock/human/event), create a new Job
-execID := gonanoid.Must()
-j, _ := job.Once(job.GOROUTINE, map[string]interface{}{
-    "job_id":      "robot_exec_" + execID,       // unique per execution
-    "category_id": "autonomous_robot",
-    "name":        fmt.Sprintf("%s - %s", member.DisplayName, triggerType),
-    "metadata": map[string]interface{}{
-        "member_id":    memberID,
-        "team_id":      teamID,
-        "trigger_type": triggerType,
-        "exec_id":      execID,
-    },
-})
-job.SaveJob(j)
-
-// Configure and start
-j.ExecutionConfig = &job.ExecutionConfig{
-    Type:        job.ExecutionTypeProcess,
-    ProcessName: "robot.Execute",
-    ProcessArgs: []interface{}{memberID, execID, triggerData},
+// On each trigger (clock/human/event), create a new Execution
+exec := &types.Execution{
+    ID:          utils.NewID(),
+    MemberID:    memberID,
+    TeamID:      teamID,
+    TriggerType: triggerType,
+    Status:      types.ExecStatusRunning,
+    Phase:       types.PhaseP0Init,
+    StartedAt:   time.Now(),
 }
-j.Push()
+
+// Save to ExecutionStore
+execStore.Save(exec)
 ```
 
 **Query executions for a robot:**
 
 ```go
 // List all executions for a robot member
-param := model.QueryParam{
-    Wheres: []model.QueryWhere{
-        {Column: "category_id", Value: "autonomous_robot"},
-        {Column: "metadata->member_id", Value: memberID},
-    },
-    Orders: []model.QueryOrder{{Column: "created_at", Option: "desc"}},
-}
-jobs, _ := job.ListJobs(param, 1, 10)
+executions, err := execStore.List(memberID, 1, 10)
 ```
 
 **Query examples:**
 
 ```go
-// List all robot jobs (all robots, all executions)
-param := model.QueryParam{
-    Wheres: []model.QueryWhere{
-        {Column: "category_id", Value: "autonomous_robot"},
-    },
-}
-jobs, _ := job.ListJobs(param, 1, 20)
+// Get execution by ID
+exec, err := execStore.Get(executionID)
 
-// Get executions for a robot
-execParam := model.QueryParam{
-    Wheres: []model.QueryWhere{
-        {Column: "job_id", Value: "robot_" + memberID},
-    },
-    Orders: []model.QueryOrder{{Column: "created_at", Option: "desc"}},
-}
-execs, _ := job.ListExecutions(execParam, 1, 10)
+// List executions for a robot
+executions, err := execStore.List(memberID, page, pageSize)
 
-// Get logs for an execution
-logParam := model.QueryParam{
-    Wheres: []model.QueryWhere{
-        {Column: "execution_id", Value: execID},
-    },
-}
-logs, _ := job.ListLogs(logParam, 1, 100)
+// Update execution status
+execStore.UpdateStatus(executionID, types.ExecStatusCompleted)
+
+// Logging via kun/log
+log.With(log.F{"execution_id": exec.ID, "phase": "P1"}).Info("Phase started")
 ```
 
 ---

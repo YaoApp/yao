@@ -362,7 +362,6 @@ func TestExecutionStructure(t *testing.T) {
 			TriggerType: types.TriggerClock,
 			Status:      types.ExecRunning,
 			Phase:       types.PhaseGoals,
-			JobID:       "job1",
 		}
 
 		assert.Equal(t, "exec1", exec.ID)
@@ -371,7 +370,6 @@ func TestExecutionStructure(t *testing.T) {
 		assert.Equal(t, types.TriggerClock, exec.TriggerType)
 		assert.Equal(t, types.ExecRunning, exec.Status)
 		assert.Equal(t, types.PhaseGoals, exec.Phase)
-		assert.Equal(t, "job1", exec.JobID)
 	})
 
 	t.Run("execution with trigger input", func(t *testing.T) {

@@ -5,18 +5,18 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/robot/executor/types"
-	"github.com/yaoapp/yao/agent/robot/job"
 	"github.com/yaoapp/yao/agent/robot/store"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
+	"github.com/yaoapp/yao/agent/robot/utils"
 )
 
 // Executor implements the standard executor with real Agent calls
 // This is the production executor that:
-// - Creates Job records for tracking
 // - Persists execution history to database
 // - Calls real Agents via Assistant.Stream()
-// - Logs phase transitions and errors
+// - Logs phase transitions and errors using kun/log
 type Executor struct {
 	config       types.Config
 	store        *store.ExecutionStore
@@ -47,36 +47,22 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		return nil, fmt.Errorf("robot cannot be nil")
 	}
 
-	var exec *robottypes.Execution
-	var err error
-
 	// Determine starting phase based on trigger type
 	startPhaseIndex := 0
 	if trigger == robottypes.TriggerHuman || trigger == robottypes.TriggerEvent {
 		startPhaseIndex = 1 // Skip P0 (Inspiration)
 	}
 
-	// Create execution with Job integration
-	if !e.config.SkipJobIntegration {
-		exec, err = job.CreateExecution(ctx, &job.CreateOptions{
-			Robot:       robot,
-			TriggerType: trigger,
-			Input:       types.BuildTriggerInput(trigger, data),
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create execution: %w", err)
-		}
-	} else {
-		exec = &robottypes.Execution{
-			ID:          fmt.Sprintf("exec_%d", time.Now().UnixNano()),
-			MemberID:    robot.MemberID,
-			TeamID:      robot.TeamID,
-			TriggerType: trigger,
-			StartTime:   time.Now(),
-			Status:      robottypes.ExecPending,
-			Phase:       robottypes.AllPhases[startPhaseIndex],
-			Input:       types.BuildTriggerInput(trigger, data),
-		}
+	// Create execution (Job system removed, using ExecutionStore only)
+	exec := &robottypes.Execution{
+		ID:          utils.NewID(),
+		MemberID:    robot.MemberID,
+		TeamID:      robot.TeamID,
+		TriggerType: trigger,
+		StartTime:   time.Now(),
+		Status:      robottypes.ExecPending,
+		Phase:       robottypes.AllPhases[startPhaseIndex],
+		Input:       types.BuildTriggerInput(trigger, data),
 	}
 
 	// Set robot reference for phase methods
@@ -88,17 +74,20 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		record := store.FromExecution(exec)
 		if err := e.store.Save(ctx.Context, record); err != nil {
 			// Log warning but don't fail execution
-			if !e.config.SkipJobIntegration {
-				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist execution record: %v", err))
-			}
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"member_id":    exec.MemberID,
+				"error":        err,
+			}).Warn("Failed to persist execution record: %v", err)
 		}
 	}
 
 	// Acquire execution slot
 	if !robot.TryAcquireSlot(exec) {
-		if !e.config.SkipJobIntegration && exec.JobID != "" {
-			_ = job.FailExecution(ctx, exec, robottypes.ErrQuotaExceeded)
-		}
+		log.With(log.F{
+			"execution_id": exec.ID,
+			"member_id":    exec.MemberID,
+		}).Warn("Execution quota exceeded")
 		return nil, robottypes.ErrQuotaExceeded
 	}
 	defer robot.RemoveExecution(exec.ID)
@@ -118,17 +107,19 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 
 	// Update status to running
 	exec.Status = robottypes.ExecRunning
-	if !e.config.SkipJobIntegration {
-		if err := job.UpdateStatus(ctx, exec, robottypes.ExecRunning); err != nil {
-			_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to update status to running: %v", err))
-		}
-	}
+	log.With(log.F{
+		"execution_id": exec.ID,
+		"member_id":    exec.MemberID,
+		"trigger_type": string(exec.TriggerType),
+	}).Info("Execution started")
+
 	// Persist running status
 	if !e.config.SkipPersistence && e.store != nil {
 		if err := e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecRunning, ""); err != nil {
-			if !e.config.SkipJobIntegration {
-				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist running status: %v", err))
-			}
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"error":        err,
+			}).Warn("Failed to persist running status: %v", err)
 		}
 	}
 
@@ -136,9 +127,10 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	if dataStr, ok := data.(string); ok && dataStr == "simulate_failure" {
 		exec.Status = robottypes.ExecFailed
 		exec.Error = "simulated failure"
-		if !e.config.SkipJobIntegration {
-			_ = job.FailExecution(ctx, exec, fmt.Errorf("simulated failure"))
-		}
+		log.With(log.F{
+			"execution_id": exec.ID,
+			"member_id":    exec.MemberID,
+		}).Warn("Simulated failure triggered")
 		// Persist failed status
 		if !e.config.SkipPersistence && e.store != nil {
 			_ = e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecFailed, "simulated failure")
@@ -152,9 +144,12 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		if err := e.runPhase(ctx, exec, phase, data); err != nil {
 			exec.Status = robottypes.ExecFailed
 			exec.Error = err.Error()
-			if !e.config.SkipJobIntegration {
-				_ = job.FailExecution(ctx, exec, err)
-			}
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"member_id":    exec.MemberID,
+				"phase":        string(phase),
+				"error":        err.Error(),
+			}).Error("Phase execution failed: %v", err)
 			// Persist failed status
 			if !e.config.SkipPersistence && e.store != nil {
 				_ = e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecFailed, err.Error())
@@ -168,17 +163,20 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	now := time.Now()
 	exec.EndTime = &now
 
-	if !e.config.SkipJobIntegration {
-		if err := job.CompleteExecution(ctx, exec); err != nil {
-			_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to mark execution as completed: %v", err))
-		}
-	}
+	duration := now.Sub(exec.StartTime)
+	log.With(log.F{
+		"execution_id": exec.ID,
+		"member_id":    exec.MemberID,
+		"duration_ms":  duration.Milliseconds(),
+	}).Info("Execution completed successfully")
+
 	// Persist completed status
 	if !e.config.SkipPersistence && e.store != nil {
 		if err := e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecCompleted, ""); err != nil {
-			if !e.config.SkipJobIntegration {
-				_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist completed status: %v", err))
-			}
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"error":        err,
+			}).Warn("Failed to persist completed status: %v", err)
 		}
 	}
 
@@ -189,11 +187,11 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution, phase robottypes.Phase, data interface{}) error {
 	exec.Phase = phase
 
-	if !e.config.SkipJobIntegration {
-		if err := job.UpdatePhase(ctx, exec, phase); err != nil {
-			_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to update phase to %s: %v", phase, err))
-		}
-	}
+	log.With(log.F{
+		"execution_id": exec.ID,
+		"member_id":    exec.MemberID,
+		"phase":        string(phase),
+	}).Info("Phase started: %s", phase)
 
 	if e.config.OnPhaseStart != nil {
 		e.config.OnPhaseStart(phase)
@@ -219,9 +217,12 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 	}
 
 	if err != nil {
-		if !e.config.SkipJobIntegration {
-			_ = job.LogPhaseError(ctx, exec, phase, err)
-		}
+		log.With(log.F{
+			"execution_id": exec.ID,
+			"member_id":    exec.MemberID,
+			"phase":        string(phase),
+			"error":        err.Error(),
+		}).Error("Phase failed: %s - %v", phase, err)
 		return err
 	}
 
@@ -231,9 +232,11 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 		if phaseData != nil {
 			if err := e.store.UpdatePhase(ctx.Context, exec.ID, phase, phaseData); err != nil {
 				// Log warning but don't fail execution
-				if !e.config.SkipJobIntegration {
-					_ = job.LogWarn(ctx, exec, fmt.Sprintf("Failed to persist phase %s data: %v", phase, err))
-				}
+				log.With(log.F{
+					"execution_id": exec.ID,
+					"phase":        string(phase),
+					"error":        err,
+				}).Warn("Failed to persist phase %s data: %v", phase, err)
 			}
 		}
 	}
@@ -242,10 +245,13 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 		e.config.OnPhaseEnd(phase)
 	}
 
-	if !e.config.SkipJobIntegration {
-		phaseDuration := time.Since(phaseStart).Milliseconds()
-		_ = job.LogPhaseEnd(ctx, exec, phase, phaseDuration)
-	}
+	phaseDuration := time.Since(phaseStart).Milliseconds()
+	log.With(log.F{
+		"execution_id": exec.ID,
+		"member_id":    exec.MemberID,
+		"phase":        string(phase),
+		"duration_ms":  phaseDuration,
+	}).Info("Phase completed: %s (took %dms)", phase, phaseDuration)
 
 	return nil
 }

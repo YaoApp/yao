@@ -11,7 +11,7 @@ import (
 
 // Robot - runtime representation of an autonomous robot (from __yao.member)
 // Relationship: 1 Robot : N Executions (concurrent)
-// Each trigger creates a new Execution (mapped to job.Job)
+// Each trigger creates a new Execution (stored in __yao.agent_execution)
 type Robot struct {
 	// From __yao.member
 	MemberID       string      `json:"member_id"`
@@ -117,8 +117,7 @@ func (r *Robot) GetExecutions() []*Execution {
 }
 
 // Execution - single execution instance
-// Each trigger creates a new Execution, mapped to a job.Job for monitoring
-// Relationship: 1 Execution = 1 job.Job
+// Each trigger creates a new Execution, stored in ExecutionStore
 type Execution struct {
 	ID          string      `json:"id"`        // unique execution ID
 	MemberID    string      `json:"member_id"` // robot member ID
@@ -129,9 +128,6 @@ type Execution struct {
 	Status      ExecStatus  `json:"status"`
 	Phase       Phase       `json:"phase"`
 	Error       string      `json:"error,omitempty"`
-
-	// Job integration (each Execution = 1 job.Job)
-	JobID string `json:"job_id"` // corresponding job.Job ID
 
 	// Trigger input (stored for traceability)
 	Input *TriggerInput `json:"input,omitempty"` // original trigger input

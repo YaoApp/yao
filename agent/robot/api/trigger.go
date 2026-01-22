@@ -57,9 +57,9 @@ func TriggerManual(ctx *types.Context, memberID string, triggerType types.Trigge
 	}
 
 	return &TriggerResult{
-		Accepted: true,
-		JobID:    execID,
-		Message:  fmt.Sprintf("Manual trigger (%s) submitted", triggerType),
+		Accepted:    true,
+		ExecutionID: execID,
+		Message:     fmt.Sprintf("Manual trigger (%s) submitted", triggerType),
 	}, nil
 }
 
@@ -123,9 +123,9 @@ func triggerHuman(ctx *types.Context, mgr managerInterface, memberID string, req
 	}
 
 	return &TriggerResult{
-		Accepted: true,
-		JobID:    result.ExecutionID,
-		Message:  result.Message,
+		Accepted:    true,
+		ExecutionID: result.ExecutionID,
+		Message:     result.Message,
 	}, nil
 }
 
@@ -150,9 +150,9 @@ func triggerEvent(ctx *types.Context, mgr managerInterface, memberID string, req
 	}
 
 	return &TriggerResult{
-		Accepted: true,
-		JobID:    result.ExecutionID,
-		Message:  result.Message,
+		Accepted:    true,
+		ExecutionID: result.ExecutionID,
+		Message:     result.Message,
 	}, nil
 }
 
@@ -173,9 +173,9 @@ func triggerManual(ctx *types.Context, mgr managerInterface, memberID string, re
 	}
 
 	return &TriggerResult{
-		Accepted: true,
-		JobID:    execID,
-		Message:  fmt.Sprintf("Trigger (%s) submitted", req.Type),
+		Accepted:    true,
+		ExecutionID: execID,
+		Message:     fmt.Sprintf("Trigger (%s) submitted", req.Type),
 	}, nil
 }
 

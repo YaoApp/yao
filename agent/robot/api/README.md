@@ -19,7 +19,7 @@ result, _ := api.Trigger(ctx, "member_123", &api.TriggerRequest{
 })
 
 // Check status
-exec, _ := api.GetExecution(ctx, result.JobID)
+exec, _ := api.GetExecution(ctx, result.ExecutionID)
 ```
 
 ## Lifecycle
@@ -148,11 +148,11 @@ type TriggerRequest struct {
 
 ```go
 type TriggerResult struct {
-    Accepted  bool             // Whether trigger was accepted
-    Queued    bool             // Whether queued (vs immediate)
-    Execution *types.Execution // Execution details
-    JobID     string           // Execution ID for tracking
-    Message   string           // Status message
+    Accepted    bool             // Whether trigger was accepted
+    Queued      bool             // Whether queued (vs immediate)
+    Execution   *types.Execution // Execution details
+    ExecutionID string           // Execution ID for tracking
+    Message     string           // Status message
 }
 ```
 

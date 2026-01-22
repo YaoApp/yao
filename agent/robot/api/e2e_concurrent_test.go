@@ -90,7 +90,7 @@ func TestE2EConcurrentMultipleRobots(t *testing.T) {
 
 				if result.Accepted {
 					acceptedCount.Add(1)
-					t.Logf("Robot %s accepted: JobID=%s", id, result.JobID)
+					t.Logf("Robot %s accepted: ExecutionID=%s", id, result.ExecutionID)
 				}
 			}(i, memberID)
 		}
@@ -176,7 +176,7 @@ func TestE2EConcurrentSameRobotMultipleTriggers(t *testing.T) {
 
 				if result.Accepted {
 					acceptedCount.Add(1)
-					t.Logf("Trigger %d accepted: JobID=%s", idx, result.JobID)
+					t.Logf("Trigger %d accepted: ExecutionID=%s", idx, result.ExecutionID)
 				} else {
 					t.Logf("Trigger %d rejected: %s", idx, result.Message)
 				}

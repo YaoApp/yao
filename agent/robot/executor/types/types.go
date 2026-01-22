@@ -50,9 +50,6 @@ type PhaseExecutor interface {
 
 // Config holds common executor configuration
 type Config struct {
-	// SkipJobIntegration skips job system integration (for testing)
-	SkipJobIntegration bool
-
 	// SkipPersistence skips execution record persistence (for testing)
 	SkipPersistence bool
 

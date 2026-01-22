@@ -61,7 +61,7 @@ func TestE2EControlPauseResume(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, result.Accepted)
 
-		t.Logf("Execution started: JobID=%s", result.JobID)
+		t.Logf("Execution started: ExecutionID=%s", result.ExecutionID)
 
 		// Wait for execution to start running
 		var execID string
@@ -166,7 +166,7 @@ func TestE2EControlStop(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, result.Accepted)
 
-		t.Logf("Execution started: JobID=%s", result.JobID)
+		t.Logf("Execution started: ExecutionID=%s", result.ExecutionID)
 
 		// Wait for execution to start running
 		var execID string
