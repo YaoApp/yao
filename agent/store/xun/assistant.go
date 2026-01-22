@@ -353,9 +353,14 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 		})
 	}
 
-	// Apply type filter if provided
+	// Apply type filter if provided (single value)
 	if filter.Type != "" {
 		qb.Where("type", filter.Type)
+	}
+
+	// Apply types filter if provided (multiple values, IN query)
+	if len(filter.Types) > 0 {
+		qb.WhereIn("type", filter.Types)
 	}
 
 	// Apply connector filter if provided

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"regexp"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent"
+	robotapi "github.com/yaoapp/yao/agent/robot/api"
 	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
@@ -355,6 +357,17 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Agent", Error: err})
 	}
 
+	// Start Robot Agent System (async, non-blocking)
+	// This starts the robot scheduler for autonomous mode robots
+	go func() {
+		if err := robotapi.Start(); err != nil {
+			// Log warning but don't block application startup
+			// The robot system can operate without the manager running
+			// (API calls will fall back to direct database queries)
+			log.Printf("[Robot Agent] Warning: failed to start robot agent system: %v", err)
+		}
+	}()
+
 	for name, hook := range LoadHooks {
 		err = hook(cfg)
 		if err != nil {
@@ -395,6 +408,13 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 // Unload application engine
 func Unload() (err error) {
 	defer func() { err = exception.Catch(recover()) }()
+
+	// Stop Robot Agent System
+	if robotapi.IsRunning() {
+		if stopErr := robotapi.Stop(); stopErr != nil {
+			log.Printf("[Robot Agent] Warning: failed to stop robot agent system: %v", stopErr)
+		}
+	}
 
 	// Stop Runtime
 	err = runtime.Stop()

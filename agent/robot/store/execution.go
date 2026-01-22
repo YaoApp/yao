@@ -13,12 +13,11 @@ import (
 // ExecutionRecord - persistent storage for robot execution history
 // Maps to __yao.agent_execution model
 type ExecutionRecord struct {
-	ID          int64             `json:"id,omitempty"`     // Auto-increment primary key
-	ExecutionID string            `json:"execution_id"`     // Unique execution identifier
-	MemberID    string            `json:"member_id"`        // Robot member ID (globally unique)
-	TeamID      string            `json:"team_id"`          // Team ID
-	JobID       string            `json:"job_id,omitempty"` // Linked job.Job ID
-	TriggerType types.TriggerType `json:"trigger_type"`     // clock | human | event
+	ID          int64             `json:"id,omitempty"` // Auto-increment primary key
+	ExecutionID string            `json:"execution_id"` // Unique execution identifier
+	MemberID    string            `json:"member_id"`    // Robot member ID (globally unique)
+	TeamID      string            `json:"team_id"`      // Team ID
+	TriggerType types.TriggerType `json:"trigger_type"` // clock | human | event
 
 	// Status tracking (synced with runtime Execution)
 	Status  types.ExecStatus `json:"status"` // pending | running | completed | failed | cancelled
@@ -344,9 +343,6 @@ func (s *ExecutionStore) recordToMap(record *ExecutionRecord) map[string]interfa
 		"phase":        string(record.Phase),
 	}
 
-	if record.JobID != "" {
-		data["job_id"] = record.JobID
-	}
 	if record.Error != "" {
 		data["error"] = record.Error
 	}
@@ -407,9 +403,6 @@ func (s *ExecutionStore) mapToRecord(row map[string]interface{}) (*ExecutionReco
 	}
 	if v, ok := row["team_id"].(string); ok {
 		record.TeamID = v
-	}
-	if v, ok := row["job_id"].(string); ok {
-		record.JobID = v
 	}
 	if v, ok := row["trigger_type"].(string); ok {
 		record.TriggerType = types.TriggerType(v)
@@ -634,7 +627,6 @@ func FromExecution(exec *types.Execution) *ExecutionRecord {
 		ExecutionID: exec.ID,
 		MemberID:    exec.MemberID,
 		TeamID:      exec.TeamID,
-		JobID:       exec.JobID,
 		TriggerType: exec.TriggerType,
 		Status:      exec.Status,
 		Phase:       exec.Phase,
@@ -673,7 +665,6 @@ func (r *ExecutionRecord) ToExecution() *types.Execution {
 		ID:          r.ExecutionID,
 		MemberID:    r.MemberID,
 		TeamID:      r.TeamID,
-		JobID:       r.JobID,
 		TriggerType: r.TriggerType,
 		Status:      r.Status,
 		Phase:       r.Phase,

@@ -78,11 +78,23 @@ func ListAssistants(c *gin.Context) {
 	// Parse filter parameters
 	keywords := strings.TrimSpace(c.Query("keywords"))
 	typeParam := strings.TrimSpace(c.Query("type"))
-	if typeParam == "" {
-		typeParam = "assistant" // Default type
-	}
 	connector := strings.TrimSpace(c.Query("connector"))
 	assistantID := strings.TrimSpace(c.Query("assistant_id"))
+
+	// Parse types (multiple, comma-separated for IN query)
+	var types []string
+	if typesParam := c.Query("types"); typesParam != "" {
+		types = strings.Split(typesParam, ",")
+		// Trim spaces
+		for i, t := range types {
+			types[i] = strings.TrimSpace(t)
+		}
+	}
+
+	// Set default type only if neither type nor types is specified
+	if typeParam == "" && len(types) == 0 {
+		typeParam = "assistant" // Default type
+	}
 
 	// Parse assistant IDs (multiple)
 	var assistantIDs []string
@@ -131,6 +143,7 @@ func ListAssistants(c *gin.Context) {
 		PageSize:     pagesize,
 		Keywords:     keywords,
 		Type:         typeParam,
+		Types:        types,
 		Connector:    connector,
 		AssistantID:  assistantID,
 		AssistantIDs: assistantIDs,

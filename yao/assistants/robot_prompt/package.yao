@@ -1,0 +1,9 @@
+{
+  "name": "Robot Prompt Generator",
+  "description": "Generate system prompts for autonomous robots",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {
+    "temperature": 0.7
+  }
+}

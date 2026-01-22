@@ -24,6 +24,7 @@ var systemAgents = []string{
 	"querydsl",
 	"title",
 	"prompt",
+	"robot_prompt",
 	"needsearch",
 	"entity",
 }
@@ -31,13 +32,14 @@ var systemAgents = []string{
 // SystemConfig holds the system agents connector configuration
 // This is set from agent.yml system block
 type SystemConfig struct {
-	Default    string // Default connector for all system agents
-	Keyword    string // Connector for __yao.keyword agent
-	QueryDSL   string // Connector for __yao.querydsl agent
-	Title      string // Connector for __yao.title agent
-	Prompt     string // Connector for __yao.prompt agent
-	NeedSearch string // Connector for __yao.needsearch agent
-	Entity     string // Connector for __yao.entity agent
+	Default     string // Default connector for all system agents
+	Keyword     string // Connector for __yao.keyword agent
+	QueryDSL    string // Connector for __yao.querydsl agent
+	Title       string // Connector for __yao.title agent
+	Prompt      string // Connector for __yao.prompt agent
+	RobotPrompt string // Connector for __yao.robot_prompt agent
+	NeedSearch  string // Connector for __yao.needsearch agent
+	Entity      string // Connector for __yao.entity agent
 }
 
 // systemConfig holds the system agents configuration (global variable like others in load.go)
@@ -222,6 +224,10 @@ func resolveSystemConnector(agentID string) string {
 		case "__yao.prompt":
 			if systemConfig.Prompt != "" {
 				return systemConfig.Prompt
+			}
+		case "__yao.robot_prompt":
+			if systemConfig.RobotPrompt != "" {
+				return systemConfig.RobotPrompt
 			}
 		case "__yao.needsearch":
 			if systemConfig.NeedSearch != "" {

@@ -82,11 +82,6 @@ yao/agent/robot/
 │   ├── db.go                 # Database queries
 │   └── learning.go           # Learning entry save (to KB)
 │
-├── job/                      # Job system integration
-│   ├── job.go                # Create/Get job for robot
-│   ├── execution.go          # Create/Update execution
-│   └── log.go                # Write execution logs
-│
 └── plan/                     # Plan queue (deferred tasks)
     ├── plan.go               # Plan queue struct
     └── schedule.go           # Schedule for later
@@ -111,7 +106,7 @@ yao/assert/                       # Universal assertion library (global package)
     │       │       │       │      │      │       │       │       │
     ▼       ▼       ▼       ▼      ▼      ▼       ▼       ▼       ▼
 ┌───────┐┌───────┐┌───────┐┌──────┐┌────┐┌──────┐┌───────┐┌─────────┐
-│ cache ││ dedup ││ store ││ pool ││job ││ plan ││ utils ││ trigger │
+│ cache ││ dedup ││ store ││ pool ││ plan ││ utils ││ trigger │
 └───┬───┘└───┬───┘└───┬───┘└──┬───┘└──┬─┘└──────┘└───────┘└────┬────┘
     │        │        │       │       │                        │
     └────────┴────────┴───────┴───────┴────────────────────────┘
@@ -145,9 +140,8 @@ yao/assert/                       # Universal assertion library (global package)
 | `store/`    | `types/`                                                    |
 | `pool/`     | `types/`                                                    |
 | `trigger/`  | `types/`                                                    |
-| `job/`      | `types/`, `yao/job`                                         |
 | `plan/`     | `types/`                                                    |
-| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `job/`, `yao/assert` |
+| `executor/` | `types/`, `cache/`, `dedup/`, `store/`, `pool/`, `yao/assert` |
 | `manager/`  | `types/`, `cache/`, `pool/`, `trigger/`, `executor/`        |
 |             | Manager handles all trigger logic (clock, intervene, event) |
 | `api/`      | `types/`, `manager/`                                        |
@@ -304,7 +298,6 @@ type TriggerResult struct {
     Accepted  bool             `json:"accepted"`            // whether trigger was accepted
     Queued    bool             `json:"queued"`              // true if queued (quota full)
     Execution *types.Execution `json:"execution,omitempty"` // execution info if started
-    JobID     string           `json:"job_id,omitempty"`    // job ID for tracking
     Message   string           `json:"message,omitempty"`   // status message
 }
 
@@ -524,7 +517,6 @@ interface TriggerResult {
   accepted: boolean;
   queued: boolean;
   execution?: Execution;
-  job_id?: string;
   message?: string;
 }
 
@@ -1160,7 +1152,7 @@ import (
 
 // Robot - runtime representation of an autonomous robot (from __yao.member)
 // Relationship: 1 Robot : N Executions (concurrent)
-// Each trigger creates a new Execution (mapped to job.Job)
+// Each trigger creates a new Execution (stored in ExecutionStore)
 type Robot struct {
     // From __yao.member
     MemberID       string      `json:"member_id"`
@@ -1234,8 +1226,7 @@ func (r *Robot) GetExecutions() []*Execution {
 }
 
 // Execution - single execution instance
-// Each trigger creates a new Execution, mapped to a job.Job for monitoring
-// Relationship: 1 Execution = 1 job.Job
+// Each trigger creates a new Execution, stored in ExecutionStore
 type Execution struct {
     ID          string      `json:"id"`           // unique execution ID
     MemberID    string      `json:"member_id"`    // robot member ID (globally unique)
@@ -1247,8 +1238,6 @@ type Execution struct {
     Phase       Phase       `json:"phase"`
     Error       string      `json:"error,omitempty"`
 
-    // Job integration (each Execution = 1 job.Job)
-    JobID string `json:"job_id"` // corresponding job.Job ID
 
     // Trigger input (stored for traceability)
     Input *TriggerInput `json:"input,omitempty"` // original trigger input
@@ -2392,7 +2381,6 @@ type ExecutionRecord struct {
     ExecutionID string                 `json:"execution_id"`     // Unique execution identifier
     MemberID    string                 `json:"member_id"`        // Robot member ID (globally unique)
     TeamID      string                 `json:"team_id"`          // Team ID
-    JobID       string                 `json:"job_id,omitempty"` // Linked job.Job ID
     TriggerType TriggerType            `json:"trigger_type"`     // clock | human | event
     
     // Status tracking (synced with runtime Execution)

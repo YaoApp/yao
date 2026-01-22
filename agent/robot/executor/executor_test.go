@@ -9,8 +9,7 @@ import (
 )
 
 // Smoke tests to verify basic flow works
-// These tests use SkipJobIntegration=true to avoid DB dependencies
-// Real integration tests are in manager_test.go and job_test.go
+// Real integration tests are in manager_test.go
 
 func TestExecutorSmoke(t *testing.T) {
 	exec := NewDryRunWithDelay(0)

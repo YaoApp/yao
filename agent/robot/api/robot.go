@@ -1,10 +1,14 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"time"
 
+	gonanoid "github.com/matoous/go-nanoid/v2"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/maps"
+	"github.com/yaoapp/yao/agent/robot/store"
 	"github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -13,6 +17,9 @@ import (
 
 // memberModel is the model name for member table
 const memberModel = "__yao.member"
+
+// robotStore is the shared robot store instance
+var robotStore = store.NewRobotStore()
 
 // GetRobot returns a robot by member ID
 // Returns the robot from cache if available, otherwise loads from database
@@ -77,13 +84,23 @@ func GetRobotStatus(ctx *types.Context, memberID string) (*RobotState, error) {
 		return nil, err
 	}
 
+	// Get permission fields from store (for access control)
+	record, _ := robotStore.Get(context.Background(), memberID)
+
 	state := &RobotState{
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
 		DisplayName: robot.DisplayName,
+		Bio:         robot.Bio,
 		Status:      robot.Status,
 		Running:     robot.RunningCount(),
 		MaxRunning:  2, // default
+	}
+
+	// Add permission fields if available
+	if record != nil {
+		state.YaoCreatedBy = record.YaoCreatedBy
+		state.YaoTeamID = record.YaoTeamID
 	}
 
 	if robot.Config != nil && robot.Config.Quota != nil {
@@ -121,7 +138,7 @@ func loadRobotFromDB(memberID string) (*types.Robot, error) {
 
 	records, err := m.Get(model.QueryParam{
 		Select: []interface{}{
-			"id", "member_id", "team_id", "display_name",
+			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
 			"robot_config", "robot_email",
 		},
@@ -152,7 +169,6 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 	// Build where conditions
 	wheres := []model.QueryWhere{
 		{Column: "member_type", Value: "robot"},
-		{Column: "autonomous_mode", Value: true},
 		{Column: "status", Value: "active"},
 	}
 
@@ -169,6 +185,9 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 			Value:  "%" + query.Keywords + "%",
 		})
 	}
+	if query.AutonomousMode != nil {
+		wheres = append(wheres, model.QueryWhere{Column: "autonomous_mode", Value: *query.AutonomousMode})
+	}
 
 	// Build order
 	orders := []model.QueryOrder{}
@@ -181,7 +200,7 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 	// Execute paginated query
 	result, err := m.Paginate(model.QueryParam{
 		Select: []interface{}{
-			"id", "member_id", "team_id", "display_name",
+			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
 			"robot_config", "robot_email",
 		},
@@ -255,4 +274,376 @@ func paginateRobots(robots []*types.Robot, query *ListQuery) *ListResult {
 		Page:     query.Page,
 		PageSize: query.PageSize,
 	}
+}
+
+// ==================== Robot CRUD API ====================
+// These functions create, update, and delete robots
+// They call store layer for persistence and manage cache
+// Request/Response types are defined in types.go
+
+// CreateRobot creates a new robot member
+// Calls store.RobotStore.Save() and refreshes cache
+// If member_id is not provided, it will be auto-generated
+func CreateRobot(ctx *types.Context, req *CreateRobotRequest) (*RobotResponse, error) {
+	// Validate required fields
+	if req.TeamID == "" {
+		return nil, fmt.Errorf("team_id is required")
+	}
+	if req.DisplayName == "" {
+		return nil, fmt.Errorf("display_name is required")
+	}
+
+	// Generate member_id if not provided
+	if req.MemberID == "" {
+		generatedID, err := generateMemberID(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate member_id: %w", err)
+		}
+		req.MemberID = generatedID
+	}
+
+	// Check if robot already exists
+	existing, err := robotStore.Get(context.Background(), req.MemberID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check existing robot: %w", err)
+	}
+	if existing != nil {
+		return nil, fmt.Errorf("robot with member_id '%s' already exists", req.MemberID)
+	}
+
+	// Determine autonomous_mode value
+	autonomousMode := false
+	if req.AutonomousMode != nil {
+		autonomousMode = *req.AutonomousMode
+	}
+
+	// Determine status values
+	status := "active"
+	if req.Status != "" {
+		status = req.Status
+	}
+	robotStatus := "idle"
+	if req.RobotStatus != "" {
+		robotStatus = req.RobotStatus
+	}
+
+	// Create store record with all fields
+	now := time.Now()
+	record := &store.RobotRecord{
+		// Required
+		MemberID:       req.MemberID,
+		TeamID:         req.TeamID,
+		MemberType:     "robot",
+		Status:         status,
+		RobotStatus:    robotStatus,
+		AutonomousMode: autonomousMode,
+
+		// Profile
+		DisplayName: req.DisplayName,
+		Bio:         req.Bio,
+		Avatar:      req.Avatar,
+
+		// Identity & Role
+		SystemPrompt: req.SystemPrompt,
+		RoleID:       req.RoleID,
+		ManagerID:    req.ManagerID,
+
+		// Communication
+		RobotEmail:        req.RobotEmail,
+		AuthorizedSenders: req.AuthorizedSenders,
+		EmailFilterRules:  req.EmailFilterRules,
+
+		// Capabilities
+		RobotConfig:   req.RobotConfig,
+		Agents:        req.Agents,
+		MCPServers:    req.MCPServers,
+		LanguageModel: req.LanguageModel,
+
+		// Limits
+		CostLimit: req.CostLimit,
+
+		// Timestamps
+		JoinedAt: &now,
+	}
+
+	// Apply Yao permission fields if provided
+	if req.AuthScope != nil {
+		record.YaoCreatedBy = req.AuthScope.CreatedBy
+		record.YaoTeamID = req.AuthScope.TeamID
+		record.YaoTenantID = req.AuthScope.TenantID
+		// Set invited_by from CreatedBy if not explicitly set
+		if record.InvitedBy == "" && req.AuthScope.CreatedBy != "" {
+			record.InvitedBy = req.AuthScope.CreatedBy
+		}
+	}
+
+	// Save to database
+	err = robotStore.Save(context.Background(), record)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create robot: %w", err)
+	}
+
+	// Refresh cache if manager is running
+	// Use Refresh() which handles autonomous_mode correctly:
+	// - If autonomous_mode=true: adds to cache for scheduling
+	// - If autonomous_mode=false: does not add to cache
+	mgr, err := getManager()
+	if err == nil && mgr != nil {
+		_ = mgr.Cache().Refresh(ctx, req.MemberID)
+	}
+
+	// Return the created robot as response
+	return GetRobotResponse(ctx, req.MemberID)
+}
+
+// UpdateRobot updates an existing robot member
+// Calls store.RobotStore.Save() and refreshes cache
+func UpdateRobot(ctx *types.Context, memberID string, req *UpdateRobotRequest) (*RobotResponse, error) {
+	if memberID == "" {
+		return nil, fmt.Errorf("member_id is required")
+	}
+
+	// Get existing record
+	existing, err := robotStore.Get(context.Background(), memberID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get robot: %w", err)
+	}
+	if existing == nil {
+		return nil, types.ErrRobotNotFound
+	}
+
+	// Apply updates - only non-nil fields are updated
+	// Profile
+	if req.DisplayName != nil {
+		existing.DisplayName = *req.DisplayName
+	}
+	if req.Bio != nil {
+		existing.Bio = *req.Bio
+	}
+	if req.Avatar != nil {
+		existing.Avatar = *req.Avatar
+	}
+
+	// Identity & Role
+	if req.SystemPrompt != nil {
+		existing.SystemPrompt = *req.SystemPrompt
+	}
+	if req.RoleID != nil {
+		existing.RoleID = *req.RoleID
+	}
+	if req.ManagerID != nil {
+		existing.ManagerID = *req.ManagerID
+	}
+
+	// Status
+	if req.Status != nil {
+		existing.Status = *req.Status
+	}
+	if req.RobotStatus != nil {
+		existing.RobotStatus = *req.RobotStatus
+	}
+	if req.AutonomousMode != nil {
+		existing.AutonomousMode = *req.AutonomousMode
+	}
+
+	// Communication
+	if req.RobotEmail != nil {
+		existing.RobotEmail = *req.RobotEmail
+	}
+	if req.AuthorizedSenders != nil {
+		existing.AuthorizedSenders = req.AuthorizedSenders
+	}
+	if req.EmailFilterRules != nil {
+		existing.EmailFilterRules = req.EmailFilterRules
+	}
+
+	// Capabilities
+	if req.RobotConfig != nil {
+		existing.RobotConfig = req.RobotConfig
+	}
+	if req.Agents != nil {
+		existing.Agents = req.Agents
+	}
+	if req.MCPServers != nil {
+		existing.MCPServers = req.MCPServers
+	}
+	if req.LanguageModel != nil {
+		existing.LanguageModel = *req.LanguageModel
+	}
+
+	// Limits
+	if req.CostLimit != nil {
+		existing.CostLimit = *req.CostLimit
+	}
+
+	// Apply Yao permission fields if provided (update scope)
+	if req.AuthScope != nil {
+		existing.YaoUpdatedBy = req.AuthScope.UpdatedBy
+		// Team and Tenant are typically set on create, not update
+		// But allow override if explicitly provided
+		if req.AuthScope.TeamID != "" {
+			existing.YaoTeamID = req.AuthScope.TeamID
+		}
+		if req.AuthScope.TenantID != "" {
+			existing.YaoTenantID = req.AuthScope.TenantID
+		}
+	}
+
+	// Save to database
+	err = robotStore.Save(context.Background(), existing)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update robot: %w", err)
+	}
+
+	// Refresh cache if manager is running
+	// Use Refresh() which handles autonomous_mode correctly:
+	// - If autonomous_mode=true: adds to cache for scheduling
+	// - If autonomous_mode=false: removes from cache
+	mgr, err := getManager()
+	if err == nil && mgr != nil {
+		_ = mgr.Cache().Refresh(ctx, memberID) // Ignore error, database is already saved
+	}
+
+	// Return the updated robot as response
+	return GetRobotResponse(ctx, memberID)
+}
+
+// RemoveRobot deletes a robot member
+// Calls store.RobotStore.Delete() and invalidates cache
+func RemoveRobot(ctx *types.Context, memberID string) error {
+	if memberID == "" {
+		return fmt.Errorf("member_id is required")
+	}
+
+	// Check if robot exists
+	existing, err := robotStore.Get(context.Background(), memberID)
+	if err != nil {
+		return fmt.Errorf("failed to get robot: %w", err)
+	}
+	if existing == nil {
+		return types.ErrRobotNotFound
+	}
+
+	// Check if robot has running executions
+	mgr, err := getManager()
+	if err == nil && mgr != nil {
+		robot := mgr.Cache().Get(memberID)
+		if robot != nil && robot.RunningCount() > 0 {
+			return fmt.Errorf("cannot delete robot with running executions")
+		}
+	}
+
+	// Delete from database
+	err = robotStore.Delete(context.Background(), memberID)
+	if err != nil {
+		return fmt.Errorf("failed to delete robot: %w", err)
+	}
+
+	// Invalidate cache if manager is running
+	if mgr != nil {
+		mgr.Cache().Remove(memberID)
+	}
+
+	return nil
+}
+
+// GetRobotResponse retrieves a robot and converts to API response format
+func GetRobotResponse(ctx *types.Context, memberID string) (*RobotResponse, error) {
+	record, err := robotStore.Get(context.Background(), memberID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get robot: %w", err)
+	}
+	if record == nil {
+		return nil, types.ErrRobotNotFound
+	}
+
+	return recordToResponse(record), nil
+}
+
+// recordToResponse converts a store.RobotRecord to API RobotResponse
+func recordToResponse(record *store.RobotRecord) *RobotResponse {
+	return &RobotResponse{
+		ID:             record.ID,
+		MemberID:       record.MemberID,
+		TeamID:         record.TeamID,
+		Status:         record.Status,
+		RobotStatus:    record.RobotStatus,
+		AutonomousMode: record.AutonomousMode,
+
+		DisplayName: record.DisplayName,
+		Bio:         record.Bio,
+		Avatar:      record.Avatar,
+
+		SystemPrompt: record.SystemPrompt,
+		RoleID:       record.RoleID,
+		ManagerID:    record.ManagerID,
+
+		RobotEmail:        record.RobotEmail,
+		AuthorizedSenders: record.AuthorizedSenders,
+		EmailFilterRules:  record.EmailFilterRules,
+
+		RobotConfig:   record.RobotConfig,
+		Agents:        record.Agents,
+		MCPServers:    record.MCPServers,
+		LanguageModel: record.LanguageModel,
+
+		CostLimit:    record.CostLimit,
+		InvitedBy:    record.InvitedBy,
+		JoinedAt:     record.JoinedAt,
+		YaoCreatedBy: record.YaoCreatedBy,
+		YaoTeamID:    record.YaoTeamID,
+		CreatedAt:    record.CreatedAt,
+		UpdatedAt:    record.UpdatedAt,
+	}
+}
+
+// ==================== Member ID Generation ====================
+
+// generateMemberID generates a unique member_id with collision detection
+// Uses 12-digit numeric ID to match existing pattern in openapi/oauth/providers/user
+func generateMemberID(ctx context.Context) (string, error) {
+	const maxRetries = 10
+
+	for i := 0; i < maxRetries; i++ {
+		// Generate 12-digit numeric ID
+		id, err := gonanoid.Generate("0123456789", 12)
+		if err != nil {
+			return "", fmt.Errorf("failed to generate member_id: %w", err)
+		}
+
+		// Check if ID already exists
+		exists, err := memberIDExists(ctx, id)
+		if err != nil {
+			return "", fmt.Errorf("failed to check member_id existence: %w", err)
+		}
+
+		if !exists {
+			return id, nil
+		}
+		// ID exists, retry
+	}
+
+	return "", fmt.Errorf("failed to generate unique member_id after %d retries", maxRetries)
+}
+
+// memberIDExists checks if a member_id already exists in the database
+func memberIDExists(ctx context.Context, memberID string) (bool, error) {
+	m := model.Select(memberModel)
+	if m == nil {
+		return false, fmt.Errorf("model %s not found", memberModel)
+	}
+
+	members, err := m.Get(model.QueryParam{
+		Select: []interface{}{"id"},
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: memberID},
+		},
+		Limit: 1,
+	})
+
+	if err != nil {
+		return false, err
+	}
+
+	return len(members) > 0, nil
 }
