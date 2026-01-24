@@ -1,6 +1,7 @@
 package robot
 
 import (
+	"fmt"
 	"time"
 
 	robotapi "github.com/yaoapp/yao/agent/robot/api"
@@ -420,6 +421,28 @@ func NewExecutionResponseBrief(exec *robottypes.Execution) *ExecutionResponse {
 		return nil
 	}
 
+	// Calculate current state for progress bar display
+	// If exec.Current is nil but we have tasks, calculate progress from tasks
+	var current interface{}
+	if exec.Current != nil {
+		current = exec.Current
+	} else if len(exec.Tasks) > 0 {
+		// Calculate completed count from tasks
+		completedCount := 0
+		for _, task := range exec.Tasks {
+			if task.Status == robottypes.TaskCompleted ||
+				task.Status == robottypes.TaskFailed ||
+				task.Status == robottypes.TaskSkipped {
+				completedCount++
+			}
+		}
+		// Create a synthetic current state for progress display
+		current = map[string]interface{}{
+			"task_index": len(exec.Tasks),
+			"progress":   fmt.Sprintf("%d/%d", completedCount, len(exec.Tasks)),
+		}
+	}
+
 	return &ExecutionResponse{
 		ID:          exec.ID,
 		MemberID:    exec.MemberID,
@@ -433,6 +456,8 @@ func NewExecutionResponseBrief(exec *robottypes.Execution) *ExecutionResponse {
 		// UI display fields - include in list view for display
 		Name:            exec.Name,
 		CurrentTaskName: exec.CurrentTaskName,
-		// Omit phase outputs for list view
+		// Include Current for progress bar display in list view
+		Current: current,
+		// Omit other phase outputs for list view (inspiration, goals, tasks, results, delivery, input)
 	}
 }
