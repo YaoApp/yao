@@ -216,10 +216,11 @@ type DeliveryTarget struct {
 
 // Task - planned task (structured, for execution)
 type Task struct {
-	ID       string                 `json:"id"`
-	Messages []agentcontext.Message `json:"messages"`           // original input (text, images, files)
-	GoalRef  string                 `json:"goal_ref,omitempty"` // reference to goal (e.g., "Goal 1")
-	Source   TaskSource             `json:"source"`             // auto | human | event
+	ID          string                 `json:"id"`
+	Description string                 `json:"description,omitempty"` // human-readable task description (for UI display)
+	Messages    []agentcontext.Message `json:"messages"`              // original input (text, images, files)
+	GoalRef     string                 `json:"goal_ref,omitempty"`    // reference to goal (e.g., "Goal 1")
+	Source      TaskSource             `json:"source"`                // auto | human | event
 
 	// Executor
 	ExecutorType ExecutorType `json:"executor_type"`

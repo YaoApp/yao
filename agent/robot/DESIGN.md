@@ -351,6 +351,7 @@ P2 Agent reads Goals markdown and breaks into executable tasks:
 ```go
 type Task struct {
     ID              string            // unique task ID
+    Description     string            // human-readable task description (for UI display)
     Messages        []context.Message // original input (text, images, files, audio)
     GoalRef         string            // reference to goal (e.g., "Goal 1")
     Source          TaskSource        // auto | human | event

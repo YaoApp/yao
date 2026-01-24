@@ -20,6 +20,7 @@ import (
 type Executor struct {
 	config       types.Config
 	store        *store.ExecutionStore
+	robotStore   *store.RobotStore
 	execCount    atomic.Int32
 	currentCount atomic.Int32
 	onStart      func()
@@ -29,15 +30,17 @@ type Executor struct {
 // New creates a new standard executor
 func New() *Executor {
 	return &Executor{
-		store: store.NewExecutionStore(),
+		store:      store.NewExecutionStore(),
+		robotStore: store.NewRobotStore(),
 	}
 }
 
 // NewWithConfig creates a new standard executor with configuration
 func NewWithConfig(config types.Config) *Executor {
 	return &Executor{
-		config: config,
-		store:  store.NewExecutionStore(),
+		config:     config,
+		store:      store.NewExecutionStore(),
+		robotStore: store.NewRobotStore(),
 	}
 }
 
@@ -94,7 +97,19 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		}).Warn("Execution quota exceeded")
 		return nil, robottypes.ErrQuotaExceeded
 	}
-	defer robot.RemoveExecution(exec.ID)
+	// Defer: remove execution from robot's tracking and update robot status if no more executions
+	defer func() {
+		robot.RemoveExecution(exec.ID)
+		// Update robot status to idle if no more running executions
+		if robot.RunningCount() == 0 && !e.config.SkipPersistence && e.robotStore != nil {
+			if err := e.robotStore.UpdateStatus(ctx.Context, robot.MemberID, robottypes.RobotIdle); err != nil {
+				log.With(log.F{
+					"member_id": robot.MemberID,
+					"error":     err,
+				}).Warn("Failed to update robot status to idle: %v", err)
+			}
+		}
+	}()
 
 	// Track execution count
 	e.execCount.Add(1)
@@ -124,6 +139,16 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 				"execution_id": exec.ID,
 				"error":        err,
 			}).Warn("Failed to persist running status: %v", err)
+		}
+	}
+
+	// Update robot status to working (when execution starts)
+	if !e.config.SkipPersistence && e.robotStore != nil {
+		if err := e.robotStore.UpdateStatus(ctx.Context, robot.MemberID, robottypes.RobotWorking); err != nil {
+			log.With(log.F{
+				"member_id": robot.MemberID,
+				"error":     err,
+			}).Warn("Failed to update robot status to working: %v", err)
 		}
 	}
 
@@ -210,6 +235,17 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 		"member_id":    exec.MemberID,
 		"phase":        string(phase),
 	}).Info("Phase started: %s", phase)
+
+	// Persist phase change immediately (so frontend sees current phase)
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdatePhase(ctx.Context, exec.ID, phase, nil); err != nil {
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"phase":        string(phase),
+				"error":        err,
+			}).Warn("Failed to persist phase start: %v", err)
+		}
+	}
 
 	if e.config.OnPhaseStart != nil {
 		e.config.OnPhaseStart(phase)
@@ -381,6 +417,9 @@ var uiMessages = map[string]map[string]string{
 		"analyzing_context":   "Analyzing context...",
 		"planning_goals":      "Planning goals...",
 		"breaking_down_tasks": "Breaking down tasks...",
+		"generating_delivery": "Generating delivery content...",
+		"sending_delivery":    "Sending delivery...",
+		"learning_from_exec":  "Learning from execution...",
 		"completed":           "Completed",
 		"failed_prefix":       "Failed at ",
 		"task_prefix":         "Task",
@@ -401,6 +440,9 @@ var uiMessages = map[string]map[string]string{
 		"analyzing_context":   "分析上下文...",
 		"planning_goals":      "规划目标...",
 		"breaking_down_tasks": "分解任务...",
+		"generating_delivery": "生成交付内容...",
+		"sending_delivery":    "正在发送...",
+		"learning_from_exec":  "学习执行经验...",
 		"completed":           "已完成",
 		"failed_prefix":       "失败于",
 		"task_prefix":         "任务",
@@ -448,6 +490,30 @@ func (e *Executor) updateUIFields(ctx *robottypes.Context, exec *robottypes.Exec
 				"error":        err,
 			}).Warn("Failed to update UI fields: %v", err)
 		}
+	}
+}
+
+// updateTasksState persists the current tasks array with status to database
+// This should be called after each task status change for real-time UI updates
+func (e *Executor) updateTasksState(ctx *robottypes.Context, exec *robottypes.Execution) {
+	if e.config.SkipPersistence || e.store == nil {
+		return
+	}
+
+	// Convert Current to store.CurrentState
+	var current *store.CurrentState
+	if exec.Current != nil {
+		current = &store.CurrentState{
+			TaskIndex: exec.Current.TaskIndex,
+			Progress:  exec.Current.Progress,
+		}
+	}
+
+	if err := e.store.UpdateTasks(ctx.Context, exec.ID, exec.Tasks, current); err != nil {
+		log.With(log.F{
+			"execution_id": exec.ID,
+			"error":        err,
+		}).Warn("Failed to update tasks state: %v", err)
 	}
 }
 

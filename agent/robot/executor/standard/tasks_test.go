@@ -309,7 +309,8 @@ func TestParseTasks(t *testing.T) {
 		// Second task
 		assert.Equal(t, "task-002", tasks[1].ID)
 		assert.Equal(t, "experts.text-writer", tasks[1].ExecutorID)
-		assert.Len(t, tasks[1].Messages, 1) // description converted to message
+		assert.Equal(t, "Generate report from analysis", tasks[1].Description) // description saved to field
+		assert.Len(t, tasks[1].Messages, 1)                                    // description also converted to message
 		assert.Equal(t, 1, tasks[1].Order)
 	})
 
@@ -327,6 +328,62 @@ func TestParseTasks(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, tasks, 1)
 		assert.Equal(t, "task-001", tasks[0].ID)
+	})
+
+	t.Run("saves description to field and preserves explicit messages", func(t *testing.T) {
+		data := []interface{}{
+			map[string]interface{}{
+				"id":            "task-001",
+				"executor_type": "agent",
+				"executor_id":   "experts.summarizer",
+				"description":   "Task description for UI",
+				"messages": []interface{}{
+					map[string]interface{}{
+						"role":    "user",
+						"content": "Explicit message content",
+					},
+				},
+			},
+		}
+
+		tasks, err := standard.ParseTasks(data)
+
+		require.NoError(t, err)
+		require.Len(t, tasks, 1)
+
+		// Description should be saved to field
+		assert.Equal(t, "Task description for UI", tasks[0].Description)
+
+		// Explicit messages should be preserved (not overwritten by description)
+		assert.Len(t, tasks[0].Messages, 1)
+		content, ok := tasks[0].Messages[0].GetContentAsString()
+		assert.True(t, ok)
+		assert.Equal(t, "Explicit message content", content)
+	})
+
+	t.Run("converts description to message when no messages provided", func(t *testing.T) {
+		data := []interface{}{
+			map[string]interface{}{
+				"id":            "task-001",
+				"executor_type": "agent",
+				"executor_id":   "experts.summarizer",
+				"description":   "Only description, no messages",
+			},
+		}
+
+		tasks, err := standard.ParseTasks(data)
+
+		require.NoError(t, err)
+		require.Len(t, tasks, 1)
+
+		// Description should be saved to field
+		assert.Equal(t, "Only description, no messages", tasks[0].Description)
+
+		// Description should also be converted to message for execution
+		assert.Len(t, tasks[0].Messages, 1)
+		content, ok := tasks[0].Messages[0].GetContentAsString()
+		assert.True(t, ok)
+		assert.Equal(t, "Only description, no messages", content)
 	})
 
 	t.Run("returns error for missing executor_type", func(t *testing.T) {

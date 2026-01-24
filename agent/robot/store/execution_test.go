@@ -604,6 +604,161 @@ func TestExecutionStoreUpdateUIFields(t *testing.T) {
 	})
 }
 
+// TestExecutionStoreUpdateTasks tests updating tasks array with status
+func TestExecutionStoreUpdateTasks(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestExecutions(t)
+	defer cleanupTestExecutions(t)
+
+	s := store.NewExecutionStore()
+	ctx := context.Background()
+
+	// Create a base record with initial tasks
+	startTime := time.Now()
+	record := &store.ExecutionRecord{
+		ExecutionID: "exec_test_tasks_001",
+		MemberID:    "member_tasks_001",
+		TeamID:      "team_tasks_001",
+		TriggerType: types.TriggerClock,
+		Status:      types.ExecRunning,
+		Phase:       types.PhaseRun,
+		StartTime:   &startTime,
+		Tasks: []types.Task{
+			{ID: "task_001", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 0},
+			{ID: "task_002", ExecutorType: types.ExecutorProcess, Status: types.TaskPending, Order: 1},
+			{ID: "task_003", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 2},
+		},
+	}
+	err := s.Save(ctx, record)
+	require.NoError(t, err)
+
+	t.Run("updates_task_status_to_running", func(t *testing.T) {
+		// Update first task to running
+		tasks := []types.Task{
+			{ID: "task_001", ExecutorType: types.ExecutorAssistant, Status: types.TaskRunning, Order: 0},
+			{ID: "task_002", ExecutorType: types.ExecutorProcess, Status: types.TaskPending, Order: 1},
+			{ID: "task_003", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 2},
+		}
+		current := &store.CurrentState{TaskIndex: 0, Progress: "1/3 tasks"}
+
+		err := s.UpdateTasks(ctx, "exec_test_tasks_001", tasks, current)
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_tasks_001")
+		require.NoError(t, err)
+		require.Len(t, saved.Tasks, 3)
+
+		assert.Equal(t, types.TaskRunning, saved.Tasks[0].Status)
+		assert.Equal(t, types.TaskPending, saved.Tasks[1].Status)
+		assert.Equal(t, types.TaskPending, saved.Tasks[2].Status)
+
+		assert.NotNil(t, saved.Current)
+		assert.Equal(t, 0, saved.Current.TaskIndex)
+	})
+
+	t.Run("updates_task_status_to_completed", func(t *testing.T) {
+		// First task completed, second running
+		tasks := []types.Task{
+			{ID: "task_001", ExecutorType: types.ExecutorAssistant, Status: types.TaskCompleted, Order: 0},
+			{ID: "task_002", ExecutorType: types.ExecutorProcess, Status: types.TaskRunning, Order: 1},
+			{ID: "task_003", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 2},
+		}
+		current := &store.CurrentState{TaskIndex: 1, Progress: "2/3 tasks"}
+
+		err := s.UpdateTasks(ctx, "exec_test_tasks_001", tasks, current)
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_tasks_001")
+		require.NoError(t, err)
+
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[0].Status)
+		assert.Equal(t, types.TaskRunning, saved.Tasks[1].Status)
+		assert.Equal(t, types.TaskPending, saved.Tasks[2].Status)
+		assert.Equal(t, 1, saved.Current.TaskIndex)
+	})
+
+	t.Run("updates_task_status_to_failed_with_skipped", func(t *testing.T) {
+		// Second task failed, third skipped
+		tasks := []types.Task{
+			{ID: "task_001", ExecutorType: types.ExecutorAssistant, Status: types.TaskCompleted, Order: 0},
+			{ID: "task_002", ExecutorType: types.ExecutorProcess, Status: types.TaskFailed, Order: 1},
+			{ID: "task_003", ExecutorType: types.ExecutorAssistant, Status: types.TaskSkipped, Order: 2},
+		}
+		current := &store.CurrentState{TaskIndex: 1, Progress: "Failed at 2/3"}
+
+		err := s.UpdateTasks(ctx, "exec_test_tasks_001", tasks, current)
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_tasks_001")
+		require.NoError(t, err)
+
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[0].Status)
+		assert.Equal(t, types.TaskFailed, saved.Tasks[1].Status)
+		assert.Equal(t, types.TaskSkipped, saved.Tasks[2].Status)
+	})
+
+	t.Run("updates_with_nil_current", func(t *testing.T) {
+		// All tasks completed, no current
+		tasks := []types.Task{
+			{ID: "task_001", ExecutorType: types.ExecutorAssistant, Status: types.TaskCompleted, Order: 0},
+			{ID: "task_002", ExecutorType: types.ExecutorProcess, Status: types.TaskCompleted, Order: 1},
+			{ID: "task_003", ExecutorType: types.ExecutorAssistant, Status: types.TaskCompleted, Order: 2},
+		}
+
+		err := s.UpdateTasks(ctx, "exec_test_tasks_001", tasks, nil)
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_tasks_001")
+		require.NoError(t, err)
+
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[0].Status)
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[1].Status)
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[2].Status)
+	})
+
+	t.Run("preserves_task_description", func(t *testing.T) {
+		// Create a new record with descriptions
+		record2 := &store.ExecutionRecord{
+			ExecutionID: "exec_test_tasks_002",
+			MemberID:    "member_tasks_002",
+			TeamID:      "team_tasks_002",
+			TriggerType: types.TriggerHuman,
+			Status:      types.ExecRunning,
+			Phase:       types.PhaseRun,
+			StartTime:   &startTime,
+			Tasks: []types.Task{
+				{ID: "task_d01", Description: "Analyze data", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 0},
+				{ID: "task_d02", Description: "Generate report", ExecutorType: types.ExecutorAssistant, Status: types.TaskPending, Order: 1},
+			},
+		}
+		err := s.Save(ctx, record2)
+		require.NoError(t, err)
+
+		// Update status preserving description
+		tasks := []types.Task{
+			{ID: "task_d01", Description: "Analyze data", ExecutorType: types.ExecutorAssistant, Status: types.TaskCompleted, Order: 0},
+			{ID: "task_d02", Description: "Generate report", ExecutorType: types.ExecutorAssistant, Status: types.TaskRunning, Order: 1},
+		}
+
+		err = s.UpdateTasks(ctx, "exec_test_tasks_002", tasks, &store.CurrentState{TaskIndex: 1})
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_tasks_002")
+		require.NoError(t, err)
+
+		assert.Equal(t, "Analyze data", saved.Tasks[0].Description)
+		assert.Equal(t, "Generate report", saved.Tasks[1].Description)
+		assert.Equal(t, types.TaskCompleted, saved.Tasks[0].Status)
+		assert.Equal(t, types.TaskRunning, saved.Tasks[1].Status)
+	})
+}
+
 // TestExecutionStoreDelete tests deleting execution records
 func TestExecutionStoreDelete(t *testing.T) {
 	if testing.Short() {

@@ -103,8 +103,9 @@ func TestGetLocalizedMessage(t *testing.T) {
 		keys := []string{
 			"preparing", "starting", "scheduled_execution",
 			"event_prefix", "event_triggered", "analyzing_context",
-			"planning_goals", "breaking_down_tasks", "completed",
-			"failed_prefix", "task_prefix",
+			"planning_goals", "breaking_down_tasks",
+			"generating_delivery", "sending_delivery", "learning_from_exec",
+			"completed", "failed_prefix", "task_prefix",
 			// Phase names for failure messages
 			"phase_inspiration", "phase_goals", "phase_tasks",
 			"phase_run", "phase_delivery", "phase_learning",
@@ -119,8 +120,9 @@ func TestGetLocalizedMessage(t *testing.T) {
 		keys := []string{
 			"preparing", "starting", "scheduled_execution",
 			"event_prefix", "event_triggered", "analyzing_context",
-			"planning_goals", "breaking_down_tasks", "completed",
-			"failed_prefix", "task_prefix",
+			"planning_goals", "breaking_down_tasks",
+			"generating_delivery", "sending_delivery", "learning_from_exec",
+			"completed", "failed_prefix", "task_prefix",
 			// Phase names for failure messages
 			"phase_inspiration", "phase_goals", "phase_tasks",
 			"phase_run", "phase_delivery", "phase_learning",
@@ -312,9 +314,26 @@ func TestExtractGoalName(t *testing.T) {
 // ============================================================================
 
 func TestFormatTaskProgressName(t *testing.T) {
-	t.Run("formats_with_task_description", func(t *testing.T) {
+	t.Run("prioritizes_description_field_over_messages", func(t *testing.T) {
 		task := &robottypes.Task{
 			ID:           "task-001",
+			Description:  "High-level task description for UI",
+			ExecutorType: robottypes.ExecutorAssistant,
+			ExecutorID:   "analyst",
+			Messages: []agentcontext.Message{
+				{Role: agentcontext.RoleUser, Content: "Detailed message content for execution"},
+			},
+		}
+
+		name := formatTaskProgressName(task, 0, 3, "en")
+		// Should use Description field, NOT the message content
+		assert.Equal(t, "Task 1/3: High-level task description for UI", name)
+	})
+
+	t.Run("falls_back_to_message_when_no_description", func(t *testing.T) {
+		task := &robottypes.Task{
+			ID:           "task-001",
+			Description:  "", // Empty description
 			ExecutorType: robottypes.ExecutorAssistant,
 			ExecutorID:   "analyst",
 			Messages: []agentcontext.Message{
@@ -340,14 +359,31 @@ func TestFormatTaskProgressName(t *testing.T) {
 		assert.Equal(t, "任务 2/5: 分析销售数据", name)
 	})
 
-	t.Run("truncates_long_description", func(t *testing.T) {
+	t.Run("truncates_long_description_field", func(t *testing.T) {
 		longDesc := "This is a very long task description that should be truncated because it exceeds 80 characters which is the maximum length allowed"
 		task := &robottypes.Task{
 			ID:           "task-001",
+			Description:  longDesc,
+			ExecutorType: robottypes.ExecutorAssistant,
+			ExecutorID:   "analyst",
+			Messages:     []agentcontext.Message{},
+		}
+
+		name := formatTaskProgressName(task, 0, 1, "en")
+		// Should be "Task 1/1: " (11 chars) + truncated content (83 chars max with "...")
+		assert.Contains(t, name, "...")
+		assert.LessOrEqual(t, len(name), 100)
+	})
+
+	t.Run("truncates_long_message_content", func(t *testing.T) {
+		longContent := "This is a very long message content that should be truncated because it exceeds 80 characters which is the maximum length allowed"
+		task := &robottypes.Task{
+			ID:           "task-001",
+			Description:  "", // No description, will use message
 			ExecutorType: robottypes.ExecutorAssistant,
 			ExecutorID:   "analyst",
 			Messages: []agentcontext.Message{
-				{Role: agentcontext.RoleUser, Content: longDesc},
+				{Role: agentcontext.RoleUser, Content: longContent},
 			},
 		}
 

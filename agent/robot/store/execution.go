@@ -317,6 +317,34 @@ func (s *ExecutionStore) UpdateCurrent(ctx context.Context, executionID string, 
 	return nil
 }
 
+// UpdateTasks updates the tasks array with current status
+// This should be called after each task completes to persist status changes
+func (s *ExecutionStore) UpdateTasks(ctx context.Context, executionID string, tasks []types.Task, current *CurrentState) error {
+	mod := model.Select(s.modelID)
+	if mod == nil {
+		return fmt.Errorf("model %s not found", s.modelID)
+	}
+
+	updateData := map[string]interface{}{
+		"tasks":   tasks,
+		"current": current,
+	}
+
+	_, err := mod.UpdateWhere(
+		model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "execution_id", Value: executionID},
+			},
+		},
+		updateData,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update tasks: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateUIFields updates the UI display fields (name and current_task_name)
 // These fields are updated by executor at each phase for frontend display
 func (s *ExecutionStore) UpdateUIFields(ctx context.Context, executionID string, name string, currentTaskName string) error {

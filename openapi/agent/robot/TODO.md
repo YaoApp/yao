@@ -45,6 +45,21 @@
 | `current_task_name` | `current_task_name` | ✅ Added |
 | - | `job_id` | 🗑️ **Dead field, to be removed** |
 
+### Task Fields ✅ Aligned
+
+| Backend (`types.go`) | Frontend (`types.ts`) | Status |
+|---------------------|----------------------|--------|
+| `id` | `id` | ✅ |
+| `description` | `description` | ✅ Added |
+| `goal_ref` | `goal_ref` | ✅ |
+| `source` | `source` | ✅ |
+| `executor_type` | `executor_type` | ✅ |
+| `executor_id` | `executor_id` | ✅ |
+| `status` | `status` | ✅ |
+| `order` | `order` | ✅ |
+| `start_time` | `start_time` | ✅ |
+| `end_time` | `end_time` | ✅ |
+
 **Action Items:**
 - [x] **Backend**: `Execution` struct - add `Name`, `CurrentTaskName` fields (see Improvement Plan below)
 - [x] **Backend**: `RobotConfig` struct - add `DefaultLocale` field (see Improvement Plan below)
@@ -53,6 +68,10 @@
 - [x] **Backend**: Executor - update `Name`, `CurrentTaskName` at each phase
 - [x] **Backend**: Store layer - add `UpdateUIFields()` method
 - [x] **Backend**: Unit tests for UI fields and i18n (executor/standard/ui_fields_test.go, store/execution_test.go)
+- [x] **Backend**: `Task` struct - add `Description` field for human-readable task description
+- [x] **Backend**: `ParseTask()` - save description from LLM output to `Task.Description`
+- [x] **Frontend**: `Task` type - add `description` field
+- [x] **Frontend**: Task list display - use `description` as primary title, fallback to `executor_id`
 - [ ] **Frontend**: Remove `job_id` field from `types.ts`
 - [ ] **Frontend**: Remove `job_id` mock data from `mock/data.ts`
 - [ ] **Frontend**: Use `name` and `current_task_name` directly from API response
@@ -606,44 +625,52 @@ var uiMessages = map[string]map[string]string{
 - [x] Store - add `UpdateUIFields()` method
 - [x] Unit tests for UI fields and i18n
 
-**Frontend Cleanup (Pending):**
+**Frontend Cleanup (Completed):**
 - [x] Components already use `exec.id` (no changes needed)
-- [ ] Remove `job_id` field from `types.ts`
-- [ ] Remove `job_id` from `mock/data.ts`
-- [ ] Use `name`/`current_task_name` directly from API response
+- [x] Remove `job_id` field from `types.ts`
+- [x] ~~Remove `job_id` from `mock/data.ts`~~ (mock kept for reference, not used)
+- [x] Use `name`/`current_task_name` directly from API response (string, not `{en, cn}`)
 
-#### 5.2 SDK Types (`types.ts`) ⬜
+#### 5.2 SDK Types (`types.ts`) ✅
 
-- [ ] `ExecutionFilter` interface
-- [ ] `Execution` interface (align with backend `ExecutionResponse`)
-- [ ] `ExecutionListResponse` interface
-- [ ] `ExecutionControlResponse` interface
+- [x] `ExecutionFilter` interface
+- [x] `ExecutionResponse` interface (align with backend)
+- [x] `ExecutionListResponse` interface
+- [x] `ExecutionControlResponse` interface
+- [x] `ExecStatus`, `TriggerType`, `Phase` type aliases
 
 **Deferred to Phase 5 (SSE):**
 - [ ] ~~`TriggerRequest` / `TriggerResponse` interfaces~~
 - [ ] ~~`InterveneRequest` / `InterveneResponse` interfaces~~
 
-#### 5.3 SDK Methods (`robots.ts`) ⬜
+#### 5.3 SDK Methods (`robots.ts`) ✅
 
-- [ ] `ListExecutions(robotId, filter)`
-- [ ] `GetExecution(robotId, execId)`
-- [ ] `PauseExecution(robotId, execId)`
-- [ ] `ResumeExecution(robotId, execId)`
-- [ ] `CancelExecution(robotId, execId)`
+- [x] `ListExecutions(robotId, filter)`
+- [x] `GetExecution(robotId, execId)`
+- [x] `PauseExecution(robotId, execId)`
+- [x] `ResumeExecution(robotId, execId)`
+- [x] `CancelExecution(robotId, execId)`
 
 **Deferred to Phase 5 (SSE):**
 - [ ] ~~`Trigger(robotId, data)`~~
 - [ ] ~~`Intervene(robotId, data)`~~
 
-#### 5.4 Page Integration ⬜
+#### 5.4 Page Integration ✅
 
-- [ ] ActiveTab: Replace mock with `ListExecutions()` API
-  - [ ] Filter: `status=running|pending`
-  - [ ] Polling: 1-minute interval (60000ms) - will switch to SSE in Phase 6
-- [ ] HistoryTab: Replace mock with `ListExecutions()` API
-  - [ ] Filter: `status` filter, `keyword` search
-  - [ ] Pagination: page/pagesize
-  - [ ] Polling: 1-minute interval for list refresh
+- [x] ActiveTab: Replace mock with `ListExecutions()` API
+  - [x] Filter: `status=running|pending`
+  - [x] Polling: 1-minute interval (60000ms) - will switch to SSE in Phase 6
+- [x] HistoryTab: Replace mock with `ListExecutions()` API
+  - [x] Filter: `status` filter, `keyword` search
+  - [x] Pagination: page/pagesize
+  - [x] Polling: 1-minute interval for list refresh
+- [x] Execution Detail: Call `GetExecution()` API
+  - [x] Display execution phases and outputs
+  - [x] Display `name` and `current_task_name` from API
+  - [x] Display `error` field for failed executions
+  - [x] Execution controls: Pause/Resume/Cancel buttons (call control APIs)
+  - [x] Auto-refresh while execution is running (5s for running)
+- [x] useRobots hook extended with execution methods
 
 **Deferred to Phase 5 (SSE):**
 - [ ] ~~Assign Task Modal: Call `Trigger()` API~~

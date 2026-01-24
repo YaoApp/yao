@@ -156,9 +156,11 @@ func ParseTask(data map[string]interface{}, index int) (*robottypes.Task, error)
 		task.Messages = ParseMessages(messages)
 	}
 
-	// Optional: description -> convert to message if no messages
-	if len(task.Messages) == 0 {
-		if desc, ok := data["description"].(string); ok && desc != "" {
+	// Optional: description - save to Description field and convert to message if no messages
+	if desc, ok := data["description"].(string); ok && desc != "" {
+		task.Description = desc
+		// Also convert to Messages for execution if no explicit messages provided
+		if len(task.Messages) == 0 {
 			task.Messages = []agentcontext.Message{
 				{Role: agentcontext.RoleUser, Content: desc},
 			}

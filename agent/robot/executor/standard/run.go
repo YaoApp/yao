@@ -93,6 +93,9 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		now := time.Now()
 		task.StartTime = &now
 
+		// Persist running state to database
+		e.updateTasksState(ctx, exec)
+
 		// Build task context with previous results
 		taskCtx := runner.BuildTaskContext(exec, i)
 
@@ -114,12 +117,17 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		// Store result
 		exec.Results = append(exec.Results, *result)
 
+		// Persist completed/failed state to database
+		e.updateTasksState(ctx, exec)
+
 		// Check if we should continue on failure
 		if !result.Success && !config.ContinueOnFailure {
 			// Mark remaining tasks as skipped
 			for j := i + 1; j < len(exec.Tasks); j++ {
 				exec.Tasks[j].Status = robottypes.TaskSkipped
 			}
+			// Persist skipped state to database
+			e.updateTasksState(ctx, exec)
 			return fmt.Errorf("task %s failed: %s", task.ID, result.Error)
 		}
 	}
@@ -135,7 +143,16 @@ func formatTaskProgressName(task *robottypes.Task, index int, total int, locale 
 	taskPrefix := getLocalizedMessage(locale, "task_prefix")
 	prefix := fmt.Sprintf("%s %d/%d: ", taskPrefix, index+1, total)
 
-	// Try to get description from first message
+	// Priority 1: Use Description field if available
+	if task.Description != "" {
+		desc := task.Description
+		if len(desc) > 80 {
+			desc = desc[:80] + "..."
+		}
+		return prefix + desc
+	}
+
+	// Priority 2: Try to get description from first message
 	if len(task.Messages) > 0 {
 		if content, ok := task.Messages[0].GetContentAsString(); ok && content != "" {
 			// Truncate if too long
