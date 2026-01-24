@@ -105,6 +105,9 @@ func TestGetLocalizedMessage(t *testing.T) {
 			"event_prefix", "event_triggered", "analyzing_context",
 			"planning_goals", "breaking_down_tasks", "completed",
 			"failed_prefix", "task_prefix",
+			// Phase names for failure messages
+			"phase_inspiration", "phase_goals", "phase_tasks",
+			"phase_run", "phase_delivery", "phase_learning",
 		}
 		for _, key := range keys {
 			msg := getLocalizedMessage("en", key)
@@ -118,11 +121,23 @@ func TestGetLocalizedMessage(t *testing.T) {
 			"event_prefix", "event_triggered", "analyzing_context",
 			"planning_goals", "breaking_down_tasks", "completed",
 			"failed_prefix", "task_prefix",
+			// Phase names for failure messages
+			"phase_inspiration", "phase_goals", "phase_tasks",
+			"phase_run", "phase_delivery", "phase_learning",
 		}
 		for _, key := range keys {
 			msg := getLocalizedMessage("zh", key)
 			assert.NotEqual(t, key, msg, "Chinese message should exist for key: %s", key)
 		}
+	})
+
+	t.Run("failure_message_is_concise", func(t *testing.T) {
+		// Test that failure messages use phase names, not full error text
+		enFailure := getLocalizedMessage("en", "failed_prefix") + getLocalizedMessage("en", "phase_inspiration")
+		assert.Equal(t, "Failed at inspiration", enFailure)
+
+		zhFailure := getLocalizedMessage("zh", "failed_prefix") + getLocalizedMessage("zh", "phase_inspiration")
+		assert.Equal(t, "失败于灵感阶段", zhFailure)
 	})
 }
 

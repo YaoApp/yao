@@ -153,11 +153,10 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 			exec.Error = err.Error()
 
 			// Update UI field for failure with i18n
+			// Use concise phase name, NOT the full error message (error is in exec.Error)
 			failedPrefix := getLocalizedMessage(locale, "failed_prefix")
-			failureMsg := failedPrefix + err.Error()
-			if len(failureMsg) > 100 {
-				failureMsg = failureMsg[:100] + "..."
-			}
+			phaseName := getLocalizedMessage(locale, "phase_"+string(phase))
+			failureMsg := failedPrefix + phaseName
 			e.updateUIFields(ctx, exec, "", failureMsg)
 
 			log.With(log.F{
@@ -383,8 +382,15 @@ var uiMessages = map[string]map[string]string{
 		"planning_goals":      "Planning goals...",
 		"breaking_down_tasks": "Breaking down tasks...",
 		"completed":           "Completed",
-		"failed_prefix":       "Failed: ",
+		"failed_prefix":       "Failed at ",
 		"task_prefix":         "Task",
+		// Phase names for failure messages
+		"phase_inspiration": "inspiration",
+		"phase_goals":       "goals",
+		"phase_tasks":       "tasks",
+		"phase_run":         "execution",
+		"phase_delivery":    "delivery",
+		"phase_learning":    "learning",
 	},
 	"zh": {
 		"preparing":           "准备中...",
@@ -396,8 +402,15 @@ var uiMessages = map[string]map[string]string{
 		"planning_goals":      "规划目标...",
 		"breaking_down_tasks": "分解任务...",
 		"completed":           "已完成",
-		"failed_prefix":       "失败: ",
+		"failed_prefix":       "失败于",
 		"task_prefix":         "任务",
+		// Phase names for failure messages
+		"phase_inspiration": "灵感阶段",
+		"phase_goals":       "目标阶段",
+		"phase_tasks":       "任务阶段",
+		"phase_run":         "执行阶段",
+		"phase_delivery":    "交付阶段",
+		"phase_learning":    "学习阶段",
 	},
 }
 
