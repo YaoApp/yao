@@ -3,6 +3,7 @@ package robot
 import (
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
@@ -80,11 +81,30 @@ func ListRobots(c *gin.Context) {
 		return
 	}
 
-	// Convert to HTTP response format
-	robots := make([]*Response, 0, len(result.Data))
-	for _, r := range result.Data {
-		robots = append(robots, newResponseFromRobot(r))
+	// Convert to HTTP response format with runtime status
+	robots := make([]*Response, len(result.Data))
+	var wg sync.WaitGroup
+
+	for i, r := range result.Data {
+		wg.Add(1)
+		go func(idx int, robot *robottypes.Robot) {
+			defer wg.Done()
+			resp := newResponseFromRobot(robot)
+
+			// Fetch runtime status for each robot
+			if status, err := robotapi.GetRobotStatus(ctx, robot.MemberID); err == nil && status != nil {
+				resp.Running = status.Running
+				resp.MaxRunning = status.MaxRunning
+				resp.LastRun = status.LastRun
+				resp.NextRun = status.NextRun
+				// Use runtime status instead of stored status
+				resp.RobotStatus = string(status.Status)
+			}
+
+			robots[idx] = resp
+		}(i, r)
 	}
+	wg.Wait()
 
 	resp := &ListResponse{
 		Data:     robots,

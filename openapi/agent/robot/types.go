@@ -126,6 +126,12 @@ type Response struct {
 	// Timestamps
 	CreatedAt *time.Time `json:"created_at,omitempty"`
 	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+
+	// Runtime Status (populated in list view for dashboard)
+	Running    int        `json:"running"`               // Current running executions count
+	MaxRunning int        `json:"max_running,omitempty"` // Maximum concurrent executions
+	LastRun    *time.Time `json:"last_run,omitempty"`    // Last execution time
+	NextRun    *time.Time `json:"next_run,omitempty"`    // Next scheduled run time
 }
 
 // StatusResponse - runtime status response
