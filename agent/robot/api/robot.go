@@ -21,6 +21,9 @@ const memberModel = "__yao.member"
 // robotStore is the shared robot store instance
 var robotStore = store.NewRobotStore()
 
+// executionStore is the shared execution store instance
+var executionStore = store.NewExecutionStore()
+
 // GetRobot returns a robot by member ID
 // Returns the robot from cache if available, otherwise loads from database
 func GetRobot(ctx *types.Context, memberID string) (*types.Robot, error) {
@@ -62,9 +65,11 @@ func ListRobots(ctx *types.Context, query *ListQuery) (*ListResult, error) {
 		return listRobotsFromDB(query)
 	}
 
-	// If only teamID specified (no other filters), use cache for faster lookup
-	// Note: Cache only contains autonomous_mode=true robots, so this is safe
-	if query.TeamID != "" && query.Status == "" && query.Keywords == "" && query.ClockMode == "" {
+	// If only teamID specified AND explicitly filtering for autonomous_mode=true, use cache
+	// Cache only contains autonomous_mode=true robots
+	// When autonomous_mode is not specified or false, must query database to include all robots
+	if query.TeamID != "" && query.Status == "" && query.Keywords == "" && query.ClockMode == "" &&
+		query.AutonomousMode != nil && *query.AutonomousMode == true {
 		robots := mgr.Cache().List(query.TeamID)
 		return paginateRobots(robots, query), nil
 	}
@@ -93,7 +98,6 @@ func GetRobotStatus(ctx *types.Context, memberID string) (*RobotState, error) {
 		DisplayName: robot.DisplayName,
 		Bio:         robot.Bio,
 		Status:      robot.Status,
-		Running:     robot.RunningCount(),
 		MaxRunning:  2, // default
 	}
 
@@ -107,11 +111,33 @@ func GetRobotStatus(ctx *types.Context, memberID string) (*RobotState, error) {
 		state.MaxRunning = robot.Config.Quota.GetMax()
 	}
 
-	// Get running execution IDs
-	executions := robot.GetExecutions()
-	state.RunningIDs = make([]string, 0, len(executions))
-	for _, exec := range executions {
-		state.RunningIDs = append(state.RunningIDs, exec.ID)
+	// Get running execution IDs from ExecutionStore (more reliable than in-memory)
+	// This ensures we get accurate status even when robot is loaded from database
+	runningExecs, err := executionStore.List(context.Background(), &store.ListOptions{
+		MemberID: memberID,
+		Status:   types.ExecRunning,
+		Limit:    100,
+	})
+	if err == nil && len(runningExecs) > 0 {
+		state.Running = len(runningExecs)
+		state.RunningIDs = make([]string, 0, len(runningExecs))
+		for _, exec := range runningExecs {
+			state.RunningIDs = append(state.RunningIDs, exec.ExecutionID)
+		}
+		// Update status based on running count
+		state.Status = types.RobotWorking
+	} else {
+		// No running executions from store, check in-memory
+		executions := robot.GetExecutions()
+		state.Running = len(executions)
+		state.RunningIDs = make([]string, 0, len(executions))
+		for _, exec := range executions {
+			state.RunningIDs = append(state.RunningIDs, exec.ID)
+		}
+		// If there are running executions in memory, update status
+		if state.Running > 0 {
+			state.Status = types.RobotWorking
+		}
 	}
 
 	// Set last run time

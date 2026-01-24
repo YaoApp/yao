@@ -20,6 +20,13 @@ import (
 //
 // TODO: Implement real learning extraction
 func (e *Executor) RunLearning(ctx *robottypes.Context, exec *robottypes.Execution, _ interface{}) error {
+	// Get robot for locale
+	robot := exec.GetRobot()
+
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "learning_from_exec"))
+
 	e.simulateStreamDelay()
 
 	exec.Learning = []robottypes.LearningEntry{

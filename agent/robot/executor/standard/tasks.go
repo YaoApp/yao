@@ -23,6 +23,10 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 		return fmt.Errorf("robot not found in execution")
 	}
 
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "breaking_down_tasks"))
+
 	// Validate: Goals must exist (from P1)
 	if exec.Goals == nil || exec.Goals.Content == "" {
 		return fmt.Errorf("goals not available for task planning")
@@ -152,9 +156,11 @@ func ParseTask(data map[string]interface{}, index int) (*robottypes.Task, error)
 		task.Messages = ParseMessages(messages)
 	}
 
-	// Optional: description -> convert to message if no messages
-	if len(task.Messages) == 0 {
-		if desc, ok := data["description"].(string); ok && desc != "" {
+	// Optional: description - save to Description field and convert to message if no messages
+	if desc, ok := data["description"].(string); ok && desc != "" {
+		task.Description = desc
+		// Also convert to Messages for execution if no explicit messages provided
+		if len(task.Messages) == 0 {
 			task.Messages = []agentcontext.Message{
 				{Role: agentcontext.RoleUser, Content: desc},
 			}

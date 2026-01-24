@@ -30,6 +30,10 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 		return fmt.Errorf("robot not found in execution")
 	}
 
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "generating_delivery"))
+
 	// Get agent ID for delivery phase
 	agentID := "__yao.delivery" // default
 	if robot.Config != nil && robot.Config.Resources != nil {
@@ -107,6 +111,10 @@ func (e *Executor) routeToDeliveryCenter(ctx *robottypes.Context, exec *robottyp
 		exec.Delivery.Success = true
 		return nil
 	}
+
+	// Update UI field to show delivery is in progress
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "sending_delivery"))
 
 	// Create Delivery Center and execute
 	center := NewDeliveryCenter()

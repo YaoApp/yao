@@ -25,6 +25,10 @@ type ExecutionRecord struct {
 	Current *CurrentState    `json:"current,omitempty"`
 	Error   string           `json:"error,omitempty"`
 
+	// UI display fields (updated by executor at each phase)
+	Name            string `json:"name,omitempty"`              // Execution title
+	CurrentTaskName string `json:"current_task_name,omitempty"` // Current task description
+
 	// Trigger input
 	Input *types.TriggerInput `json:"input,omitempty"`
 
@@ -313,6 +317,69 @@ func (s *ExecutionStore) UpdateCurrent(ctx context.Context, executionID string, 
 	return nil
 }
 
+// UpdateTasks updates the tasks array with current status
+// This should be called after each task completes to persist status changes
+func (s *ExecutionStore) UpdateTasks(ctx context.Context, executionID string, tasks []types.Task, current *CurrentState) error {
+	mod := model.Select(s.modelID)
+	if mod == nil {
+		return fmt.Errorf("model %s not found", s.modelID)
+	}
+
+	updateData := map[string]interface{}{
+		"tasks":   tasks,
+		"current": current,
+	}
+
+	_, err := mod.UpdateWhere(
+		model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "execution_id", Value: executionID},
+			},
+		},
+		updateData,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update tasks: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateUIFields updates the UI display fields (name and current_task_name)
+// These fields are updated by executor at each phase for frontend display
+func (s *ExecutionStore) UpdateUIFields(ctx context.Context, executionID string, name string, currentTaskName string) error {
+	mod := model.Select(s.modelID)
+	if mod == nil {
+		return fmt.Errorf("model %s not found", s.modelID)
+	}
+
+	updateData := map[string]interface{}{}
+	if name != "" {
+		updateData["name"] = name
+	}
+	if currentTaskName != "" {
+		updateData["current_task_name"] = currentTaskName
+	}
+
+	if len(updateData) == 0 {
+		return nil // Nothing to update
+	}
+
+	_, err := mod.UpdateWhere(
+		model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "execution_id", Value: executionID},
+			},
+		},
+		updateData,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update UI fields: %w", err)
+	}
+
+	return nil
+}
+
 // Delete removes an execution record by execution_id
 func (s *ExecutionStore) Delete(ctx context.Context, executionID string) error {
 	mod := model.Select(s.modelID)
@@ -345,6 +412,12 @@ func (s *ExecutionStore) recordToMap(record *ExecutionRecord) map[string]interfa
 
 	if record.Error != "" {
 		data["error"] = record.Error
+	}
+	if record.Name != "" {
+		data["name"] = record.Name
+	}
+	if record.CurrentTaskName != "" {
+		data["current_task_name"] = record.CurrentTaskName
 	}
 	if record.Current != nil {
 		data["current"] = record.Current
@@ -415,6 +488,12 @@ func (s *ExecutionStore) mapToRecord(row map[string]interface{}) (*ExecutionReco
 	}
 	if v, ok := row["error"].(string); ok {
 		record.Error = v
+	}
+	if v, ok := row["name"].(string); ok {
+		record.Name = v
+	}
+	if v, ok := row["current_task_name"].(string); ok {
+		record.CurrentTaskName = v
 	}
 
 	// JSON fields - need to unmarshal
@@ -624,20 +703,22 @@ func (s *ExecutionStore) parseTime(v interface{}) *time.Time {
 // FromExecution creates an ExecutionRecord from a runtime Execution
 func FromExecution(exec *types.Execution) *ExecutionRecord {
 	record := &ExecutionRecord{
-		ExecutionID: exec.ID,
-		MemberID:    exec.MemberID,
-		TeamID:      exec.TeamID,
-		TriggerType: exec.TriggerType,
-		Status:      exec.Status,
-		Phase:       exec.Phase,
-		Error:       exec.Error,
-		Input:       exec.Input,
-		Inspiration: exec.Inspiration,
-		Goals:       exec.Goals,
-		Tasks:       exec.Tasks,
-		Results:     exec.Results,
-		Delivery:    exec.Delivery,
-		Learning:    exec.Learning,
+		ExecutionID:     exec.ID,
+		MemberID:        exec.MemberID,
+		TeamID:          exec.TeamID,
+		TriggerType:     exec.TriggerType,
+		Status:          exec.Status,
+		Phase:           exec.Phase,
+		Error:           exec.Error,
+		Name:            exec.Name,
+		CurrentTaskName: exec.CurrentTaskName,
+		Input:           exec.Input,
+		Inspiration:     exec.Inspiration,
+		Goals:           exec.Goals,
+		Tasks:           exec.Tasks,
+		Results:         exec.Results,
+		Delivery:        exec.Delivery,
+		Learning:        exec.Learning,
 	}
 
 	// Convert timestamps
@@ -662,20 +743,22 @@ func FromExecution(exec *types.Execution) *ExecutionRecord {
 // ToExecution converts an ExecutionRecord to a runtime Execution
 func (r *ExecutionRecord) ToExecution() *types.Execution {
 	exec := &types.Execution{
-		ID:          r.ExecutionID,
-		MemberID:    r.MemberID,
-		TeamID:      r.TeamID,
-		TriggerType: r.TriggerType,
-		Status:      r.Status,
-		Phase:       r.Phase,
-		Error:       r.Error,
-		Input:       r.Input,
-		Inspiration: r.Inspiration,
-		Goals:       r.Goals,
-		Tasks:       r.Tasks,
-		Results:     r.Results,
-		Delivery:    r.Delivery,
-		Learning:    r.Learning,
+		ID:              r.ExecutionID,
+		MemberID:        r.MemberID,
+		TeamID:          r.TeamID,
+		TriggerType:     r.TriggerType,
+		Status:          r.Status,
+		Phase:           r.Phase,
+		Error:           r.Error,
+		Name:            r.Name,
+		CurrentTaskName: r.CurrentTaskName,
+		Input:           r.Input,
+		Inspiration:     r.Inspiration,
+		Goals:           r.Goals,
+		Tasks:           r.Tasks,
+		Results:         r.Results,
+		Delivery:        r.Delivery,
+		Learning:        r.Learning,
 	}
 
 	// Convert timestamps

@@ -20,6 +20,7 @@ import (
 type Executor struct {
 	config       types.Config
 	store        *store.ExecutionStore
+	robotStore   *store.RobotStore
 	execCount    atomic.Int32
 	currentCount atomic.Int32
 	onStart      func()
@@ -29,15 +30,17 @@ type Executor struct {
 // New creates a new standard executor
 func New() *Executor {
 	return &Executor{
-		store: store.NewExecutionStore(),
+		store:      store.NewExecutionStore(),
+		robotStore: store.NewRobotStore(),
 	}
 }
 
 // NewWithConfig creates a new standard executor with configuration
 func NewWithConfig(config types.Config) *Executor {
 	return &Executor{
-		config: config,
-		store:  store.NewExecutionStore(),
+		config:     config,
+		store:      store.NewExecutionStore(),
+		robotStore: store.NewRobotStore(),
 	}
 }
 
@@ -54,6 +57,7 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	}
 
 	// Create execution (Job system removed, using ExecutionStore only)
+	input := types.BuildTriggerInput(trigger, data)
 	exec := &robottypes.Execution{
 		ID:          utils.NewID(),
 		MemberID:    robot.MemberID,
@@ -62,8 +66,11 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		StartTime:   time.Now(),
 		Status:      robottypes.ExecPending,
 		Phase:       robottypes.AllPhases[startPhaseIndex],
-		Input:       types.BuildTriggerInput(trigger, data),
+		Input:       input,
 	}
+
+	// Initialize UI display fields (with i18n support)
+	exec.Name, exec.CurrentTaskName = e.initUIFields(trigger, input, robot)
 
 	// Set robot reference for phase methods
 	exec.SetRobot(robot)
@@ -90,7 +97,19 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		}).Warn("Execution quota exceeded")
 		return nil, robottypes.ErrQuotaExceeded
 	}
-	defer robot.RemoveExecution(exec.ID)
+	// Defer: remove execution from robot's tracking and update robot status if no more executions
+	defer func() {
+		robot.RemoveExecution(exec.ID)
+		// Update robot status to idle if no more running executions
+		if robot.RunningCount() == 0 && !e.config.SkipPersistence && e.robotStore != nil {
+			if err := e.robotStore.UpdateStatus(ctx.Context, robot.MemberID, robottypes.RobotIdle); err != nil {
+				log.With(log.F{
+					"member_id": robot.MemberID,
+					"error":     err,
+				}).Warn("Failed to update robot status to idle: %v", err)
+			}
+		}
+	}()
 
 	// Track execution count
 	e.execCount.Add(1)
@@ -123,6 +142,16 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		}
 	}
 
+	// Update robot status to working (when execution starts)
+	if !e.config.SkipPersistence && e.robotStore != nil {
+		if err := e.robotStore.UpdateStatus(ctx.Context, robot.MemberID, robottypes.RobotWorking); err != nil {
+			log.With(log.F{
+				"member_id": robot.MemberID,
+				"error":     err,
+			}).Warn("Failed to update robot status to working: %v", err)
+		}
+	}
+
 	// Check for simulated failure (for testing)
 	if dataStr, ok := data.(string); ok && dataStr == "simulate_failure" {
 		exec.Status = robottypes.ExecFailed
@@ -138,12 +167,23 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		return exec, nil
 	}
 
+	// Determine locale for UI messages
+	locale := getEffectiveLocale(robot, exec.Input)
+
 	// Execute phases
 	phases := robottypes.AllPhases[startPhaseIndex:]
 	for _, phase := range phases {
 		if err := e.runPhase(ctx, exec, phase, data); err != nil {
 			exec.Status = robottypes.ExecFailed
 			exec.Error = err.Error()
+
+			// Update UI field for failure with i18n
+			// Use concise phase name, NOT the full error message (error is in exec.Error)
+			failedPrefix := getLocalizedMessage(locale, "failed_prefix")
+			phaseName := getLocalizedMessage(locale, "phase_"+string(phase))
+			failureMsg := failedPrefix + phaseName
+			e.updateUIFields(ctx, exec, "", failureMsg)
+
 			log.With(log.F{
 				"execution_id": exec.ID,
 				"member_id":    exec.MemberID,
@@ -162,6 +202,9 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	exec.Status = robottypes.ExecCompleted
 	now := time.Now()
 	exec.EndTime = &now
+
+	// Update UI field for completion with i18n
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "completed"))
 
 	duration := now.Sub(exec.StartTime)
 	log.With(log.F{
@@ -192,6 +235,17 @@ func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution,
 		"member_id":    exec.MemberID,
 		"phase":        string(phase),
 	}).Info("Phase started: %s", phase)
+
+	// Persist phase change immediately (so frontend sees current phase)
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdatePhase(ctx.Context, exec.ID, phase, nil); err != nil {
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"phase":        string(phase),
+				"error":        err,
+			}).Warn("Failed to persist phase start: %v", err)
+		}
+	}
 
 	if e.config.OnPhaseStart != nil {
 		e.config.OnPhaseStart(phase)
@@ -299,6 +353,199 @@ const DefaultStreamDelay = 50 * time.Millisecond
 // simulateStreamDelay simulates the delay of an Agent Stream call
 func (e *Executor) simulateStreamDelay() {
 	time.Sleep(DefaultStreamDelay)
+}
+
+// initUIFields initializes UI display fields based on trigger type with i18n support
+// Returns (name, currentTaskName)
+func (e *Executor) initUIFields(trigger robottypes.TriggerType, input *robottypes.TriggerInput, robot *robottypes.Robot) (string, string) {
+	// Determine locale for UI messages
+	locale := getEffectiveLocale(robot, input)
+
+	// Get localized default messages
+	name := getLocalizedMessage(locale, "preparing")
+	currentTaskName := getLocalizedMessage(locale, "starting")
+
+	switch trigger {
+	case robottypes.TriggerHuman:
+		// For human trigger, extract name from first message
+		if input != nil && len(input.Messages) > 0 {
+			if content, ok := input.Messages[0].GetContentAsString(); ok && content != "" {
+				// Use first 100 chars of message as name
+				name = content
+				if len(name) > 100 {
+					name = name[:100] + "..."
+				}
+			}
+		}
+	case robottypes.TriggerClock:
+		name = getLocalizedMessage(locale, "scheduled_execution")
+	case robottypes.TriggerEvent:
+		if input != nil && input.EventType != "" {
+			name = getLocalizedMessage(locale, "event_prefix") + input.EventType
+		} else {
+			name = getLocalizedMessage(locale, "event_triggered")
+		}
+	}
+
+	return name, currentTaskName
+}
+
+// getEffectiveLocale determines the locale for UI display
+// Priority: input.Locale > robot.Config.DefaultLocale > "en"
+func getEffectiveLocale(robot *robottypes.Robot, input *robottypes.TriggerInput) string {
+	// 1. Human trigger with explicit locale
+	if input != nil && input.Locale != "" {
+		return input.Locale
+	}
+	// 2. Robot configured default
+	if robot != nil && robot.Config != nil {
+		return robot.Config.GetDefaultLocale()
+	}
+	// 3. System default
+	return "en"
+}
+
+// i18n message maps for UI display fields
+// Use simple locale codes (en, zh) as keys
+var uiMessages = map[string]map[string]string{
+	"en": {
+		"preparing":           "Preparing...",
+		"starting":            "Starting...",
+		"scheduled_execution": "Scheduled execution",
+		"event_prefix":        "Event: ",
+		"event_triggered":     "Event triggered",
+		"analyzing_context":   "Analyzing context...",
+		"planning_goals":      "Planning goals...",
+		"breaking_down_tasks": "Breaking down tasks...",
+		"generating_delivery": "Generating delivery content...",
+		"sending_delivery":    "Sending delivery...",
+		"learning_from_exec":  "Learning from execution...",
+		"completed":           "Completed",
+		"failed_prefix":       "Failed at ",
+		"task_prefix":         "Task",
+		// Phase names for failure messages
+		"phase_inspiration": "inspiration",
+		"phase_goals":       "goals",
+		"phase_tasks":       "tasks",
+		"phase_run":         "execution",
+		"phase_delivery":    "delivery",
+		"phase_learning":    "learning",
+	},
+	"zh": {
+		"preparing":           "准备中...",
+		"starting":            "启动中...",
+		"scheduled_execution": "定时执行",
+		"event_prefix":        "事件: ",
+		"event_triggered":     "事件触发",
+		"analyzing_context":   "分析上下文...",
+		"planning_goals":      "规划目标...",
+		"breaking_down_tasks": "分解任务...",
+		"generating_delivery": "生成交付内容...",
+		"sending_delivery":    "正在发送...",
+		"learning_from_exec":  "学习执行经验...",
+		"completed":           "已完成",
+		"failed_prefix":       "失败于",
+		"task_prefix":         "任务",
+		// Phase names for failure messages
+		"phase_inspiration": "灵感阶段",
+		"phase_goals":       "目标阶段",
+		"phase_tasks":       "任务阶段",
+		"phase_run":         "执行阶段",
+		"phase_delivery":    "交付阶段",
+		"phase_learning":    "学习阶段",
+	},
+}
+
+// getLocalizedMessage returns a localized message for the given key
+func getLocalizedMessage(locale string, key string) string {
+	if messages, ok := uiMessages[locale]; ok {
+		if msg, ok := messages[key]; ok {
+			return msg
+		}
+	}
+	// Fallback to English
+	if messages, ok := uiMessages["en"]; ok {
+		if msg, ok := messages[key]; ok {
+			return msg
+		}
+	}
+	return key // Return key as fallback
+}
+
+// updateUIFields updates UI display fields and persists to database
+func (e *Executor) updateUIFields(ctx *robottypes.Context, exec *robottypes.Execution, name string, currentTaskName string) {
+	// Update in-memory execution
+	if name != "" {
+		exec.Name = name
+	}
+	if currentTaskName != "" {
+		exec.CurrentTaskName = currentTaskName
+	}
+
+	// Persist to database
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdateUIFields(ctx.Context, exec.ID, name, currentTaskName); err != nil {
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"error":        err,
+			}).Warn("Failed to update UI fields: %v", err)
+		}
+	}
+}
+
+// updateTasksState persists the current tasks array with status to database
+// This should be called after each task status change for real-time UI updates
+func (e *Executor) updateTasksState(ctx *robottypes.Context, exec *robottypes.Execution) {
+	if e.config.SkipPersistence || e.store == nil {
+		return
+	}
+
+	// Convert Current to store.CurrentState
+	var current *store.CurrentState
+	if exec.Current != nil {
+		current = &store.CurrentState{
+			TaskIndex: exec.Current.TaskIndex,
+			Progress:  exec.Current.Progress,
+		}
+	}
+
+	if err := e.store.UpdateTasks(ctx.Context, exec.ID, exec.Tasks, current); err != nil {
+		log.With(log.F{
+			"execution_id": exec.ID,
+			"error":        err,
+		}).Warn("Failed to update tasks state: %v", err)
+	}
+}
+
+// extractGoalName extracts the execution name from goals output
+func extractGoalName(goals *robottypes.Goals) string {
+	if goals == nil || goals.Content == "" {
+		return ""
+	}
+
+	// Extract first line or first sentence as the goal name
+	content := goals.Content
+	// Find first newline
+	if idx := indexAny(content, "\n\r"); idx > 0 {
+		content = content[:idx]
+	}
+	// Limit length
+	if len(content) > 150 {
+		content = content[:150] + "..."
+	}
+	return content
+}
+
+// indexAny returns the index of the first occurrence of any char in chars
+func indexAny(s string, chars string) int {
+	for i, c := range s {
+		for _, ch := range chars {
+			if c == ch {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // Verify Executor implements types.Executor

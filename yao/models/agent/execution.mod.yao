@@ -95,6 +95,22 @@
       "nullable": true
     },
     {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Execution title for UI display (updated by executor at goals phase)",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "current_task_name",
+      "type": "string",
+      "label": "Current Task Name",
+      "comment": "Current task description for UI display (updated by executor at run phase)",
+      "length": 512,
+      "nullable": true
+    },
+    {
       "name": "input",
       "type": "json",
       "label": "Input",

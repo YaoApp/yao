@@ -23,6 +23,10 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 		return fmt.Errorf("robot not found in execution")
 	}
 
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "planning_goals"))
+
 	// Get agent ID for goals phase
 	agentID := "__yao.goals" // default
 	if robot.Config != nil && robot.Config.Resources != nil {
@@ -111,6 +115,11 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 	// Validate: content is required
 	if exec.Goals.Content == "" {
 		return fmt.Errorf("goals agent (%s) returned empty content", agentID)
+	}
+
+	// Update Name from goals content (extract first line as execution title)
+	if goalName := extractGoalName(exec.Goals); goalName != "" {
+		e.updateUIFields(ctx, exec, goalName, "")
 	}
 
 	return nil

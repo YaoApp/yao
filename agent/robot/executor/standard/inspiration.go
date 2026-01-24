@@ -23,6 +23,10 @@ func (e *Executor) RunInspiration(ctx *robottypes.Context, exec *robottypes.Exec
 		return fmt.Errorf("robot not found in execution")
 	}
 
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "analyzing_context"))
+
 	// Build clock context from trigger input or current time
 	var clock *robottypes.ClockContext
 	if exec.Input != nil && exec.Input.Clock != nil {

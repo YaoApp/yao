@@ -22,4 +22,15 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Robot Status
 	group.GET("/:id/status", GetRobotStatus) // GET /robots/:id/status - Get robot runtime status
+
+	// Execution Management
+	group.GET("/:id/executions", ListExecutions)                   // GET /robots/:id/executions - List robot executions
+	group.GET("/:id/executions/:exec_id", GetExecution)            // GET /robots/:id/executions/:exec_id - Get execution details
+	group.POST("/:id/executions/:exec_id/pause", PauseExecution)   // POST /robots/:id/executions/:exec_id/pause - Pause execution
+	group.POST("/:id/executions/:exec_id/resume", ResumeExecution) // POST /robots/:id/executions/:exec_id/resume - Resume execution
+	group.POST("/:id/executions/:exec_id/cancel", CancelExecution) // POST /robots/:id/executions/:exec_id/cancel - Cancel execution
+
+	// Trigger & Intervene
+	group.POST("/:id/trigger", TriggerRobot)     // POST /robots/:id/trigger - Trigger robot execution
+	group.POST("/:id/intervene", InterveneRobot) // POST /robots/:id/intervene - Human intervention
 }
