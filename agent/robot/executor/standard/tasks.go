@@ -23,6 +23,10 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 		return fmt.Errorf("robot not found in execution")
 	}
 
+	// Update UI field with i18n
+	locale := getEffectiveLocale(robot, exec.Input)
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "breaking_down_tasks"))
+
 	// Validate: Goals must exist (from P1)
 	if exec.Goals == nil || exec.Goals.Content == "" {
 		return fmt.Errorf("goals not available for task planning")

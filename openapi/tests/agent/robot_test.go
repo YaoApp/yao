@@ -214,11 +214,11 @@ func TestCreateRobot(t *testing.T) {
 		createdRobotIDs = append(createdRobotIDs, robotID)
 	})
 
-	t.Run("CreateRobotMissingRequiredFields", func(t *testing.T) {
-		// Missing member_id
+	t.Run("CreateRobotMissingDisplayName", func(t *testing.T) {
+		// Missing display_name (the only required field)
 		createData := map[string]interface{}{
-			"team_id":      "test_team_001",
-			"display_name": "Test Robot",
+			"team_id": "test_team_001",
+			// display_name is missing
 		}
 
 		body, _ := json.Marshal(createData)
@@ -233,6 +233,41 @@ func TestCreateRobot(t *testing.T) {
 		defer resp.Body.Close()
 
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
+	})
+
+	t.Run("CreateRobotAutoGenerateMemberID", func(t *testing.T) {
+		// member_id is optional - should be auto-generated
+		createData := map[string]interface{}{
+			"team_id":      "test_team_001",
+			"display_name": "Auto ID Robot",
+		}
+
+		body, _ := json.Marshal(createData)
+		req, err := http.NewRequest("POST", serverURL+baseURL+"/agent/robots", bytes.NewBuffer(body))
+		require.NoError(t, err)
+
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusCreated, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify member_id was auto-generated
+		memberID, ok := response["member_id"].(string)
+		assert.True(t, ok, "member_id should be a string")
+		assert.NotEmpty(t, memberID, "member_id should be auto-generated")
+		assert.Len(t, memberID, 12, "auto-generated member_id should be 12 digits")
+		t.Logf("Auto-generated member_id: %s", memberID)
+
+		// Cleanup
+		createdRobotIDs = append(createdRobotIDs, memberID)
 	})
 
 	t.Run("CreateRobotDuplicate", func(t *testing.T) {

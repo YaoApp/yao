@@ -698,17 +698,18 @@ Save to KB:
 
 ```go
 type Config struct {
-    Triggers  *Triggers  `json:"triggers,omitempty"`
-    Clock     *Clock     `json:"clock,omitempty"`
-    Identity  *Identity  `json:"identity"`
-    Quota     *Quota     `json:"quota"`
-    KB        *KB        `json:"kb,omitempty"`        // shared KB (same as assistant)
-    DB        *DB        `json:"db,omitempty"`        // shared DB (same as assistant)
-    Learn     *Learn     `json:"learn,omitempty"`     // learning for private KB
-    Resources *Resources `json:"resources"`
-    Delivery  *DeliveryPreferences `json:"delivery,omitempty"`
-    Events    []Event    `json:"events,omitempty"`
-    Executor  *Executor  `json:"executor,omitempty"`  // executor mode settings
+    Triggers      *Triggers            `json:"triggers,omitempty"`
+    Clock         *Clock               `json:"clock,omitempty"`
+    Identity      *Identity            `json:"identity"`
+    Quota         *Quota               `json:"quota"`
+    KB            *KB                  `json:"kb,omitempty"`        // shared KB (same as assistant)
+    DB            *DB                  `json:"db,omitempty"`        // shared DB (same as assistant)
+    Learn         *Learn               `json:"learn,omitempty"`     // learning for private KB
+    Resources     *Resources           `json:"resources"`
+    Delivery      *DeliveryPreferences `json:"delivery,omitempty"`
+    Events        []Event              `json:"events,omitempty"`
+    Executor      *Executor            `json:"executor,omitempty"`  // executor mode settings
+    DefaultLocale string               `json:"default_locale,omitempty"` // default language for clock/event triggers ("en-US", "zh-CN")
 }
 ```
 

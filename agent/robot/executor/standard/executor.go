@@ -54,6 +54,7 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	}
 
 	// Create execution (Job system removed, using ExecutionStore only)
+	input := types.BuildTriggerInput(trigger, data)
 	exec := &robottypes.Execution{
 		ID:          utils.NewID(),
 		MemberID:    robot.MemberID,
@@ -62,8 +63,11 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		StartTime:   time.Now(),
 		Status:      robottypes.ExecPending,
 		Phase:       robottypes.AllPhases[startPhaseIndex],
-		Input:       types.BuildTriggerInput(trigger, data),
+		Input:       input,
 	}
+
+	// Initialize UI display fields (with i18n support)
+	exec.Name, exec.CurrentTaskName = e.initUIFields(trigger, input, robot)
 
 	// Set robot reference for phase methods
 	exec.SetRobot(robot)
@@ -138,12 +142,24 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		return exec, nil
 	}
 
+	// Determine locale for UI messages
+	locale := getEffectiveLocale(robot, exec.Input)
+
 	// Execute phases
 	phases := robottypes.AllPhases[startPhaseIndex:]
 	for _, phase := range phases {
 		if err := e.runPhase(ctx, exec, phase, data); err != nil {
 			exec.Status = robottypes.ExecFailed
 			exec.Error = err.Error()
+
+			// Update UI field for failure with i18n
+			failedPrefix := getLocalizedMessage(locale, "failed_prefix")
+			failureMsg := failedPrefix + err.Error()
+			if len(failureMsg) > 100 {
+				failureMsg = failureMsg[:100] + "..."
+			}
+			e.updateUIFields(ctx, exec, "", failureMsg)
+
 			log.With(log.F{
 				"execution_id": exec.ID,
 				"member_id":    exec.MemberID,
@@ -162,6 +178,9 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	exec.Status = robottypes.ExecCompleted
 	now := time.Now()
 	exec.EndTime = &now
+
+	// Update UI field for completion with i18n
+	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "completed"))
 
 	duration := now.Sub(exec.StartTime)
 	log.With(log.F{
@@ -299,6 +318,155 @@ const DefaultStreamDelay = 50 * time.Millisecond
 // simulateStreamDelay simulates the delay of an Agent Stream call
 func (e *Executor) simulateStreamDelay() {
 	time.Sleep(DefaultStreamDelay)
+}
+
+// initUIFields initializes UI display fields based on trigger type with i18n support
+// Returns (name, currentTaskName)
+func (e *Executor) initUIFields(trigger robottypes.TriggerType, input *robottypes.TriggerInput, robot *robottypes.Robot) (string, string) {
+	// Determine locale for UI messages
+	locale := getEffectiveLocale(robot, input)
+
+	// Get localized default messages
+	name := getLocalizedMessage(locale, "preparing")
+	currentTaskName := getLocalizedMessage(locale, "starting")
+
+	switch trigger {
+	case robottypes.TriggerHuman:
+		// For human trigger, extract name from first message
+		if input != nil && len(input.Messages) > 0 {
+			if content, ok := input.Messages[0].GetContentAsString(); ok && content != "" {
+				// Use first 100 chars of message as name
+				name = content
+				if len(name) > 100 {
+					name = name[:100] + "..."
+				}
+			}
+		}
+	case robottypes.TriggerClock:
+		name = getLocalizedMessage(locale, "scheduled_execution")
+	case robottypes.TriggerEvent:
+		if input != nil && input.EventType != "" {
+			name = getLocalizedMessage(locale, "event_prefix") + input.EventType
+		} else {
+			name = getLocalizedMessage(locale, "event_triggered")
+		}
+	}
+
+	return name, currentTaskName
+}
+
+// getEffectiveLocale determines the locale for UI display
+// Priority: input.Locale > robot.Config.DefaultLocale > "en"
+func getEffectiveLocale(robot *robottypes.Robot, input *robottypes.TriggerInput) string {
+	// 1. Human trigger with explicit locale
+	if input != nil && input.Locale != "" {
+		return input.Locale
+	}
+	// 2. Robot configured default
+	if robot != nil && robot.Config != nil {
+		return robot.Config.GetDefaultLocale()
+	}
+	// 3. System default
+	return "en"
+}
+
+// i18n message maps for UI display fields
+// Use simple locale codes (en, zh) as keys
+var uiMessages = map[string]map[string]string{
+	"en": {
+		"preparing":           "Preparing...",
+		"starting":            "Starting...",
+		"scheduled_execution": "Scheduled execution",
+		"event_prefix":        "Event: ",
+		"event_triggered":     "Event triggered",
+		"analyzing_context":   "Analyzing context...",
+		"planning_goals":      "Planning goals...",
+		"breaking_down_tasks": "Breaking down tasks...",
+		"completed":           "Completed",
+		"failed_prefix":       "Failed: ",
+		"task_prefix":         "Task",
+	},
+	"zh": {
+		"preparing":           "准备中...",
+		"starting":            "启动中...",
+		"scheduled_execution": "定时执行",
+		"event_prefix":        "事件: ",
+		"event_triggered":     "事件触发",
+		"analyzing_context":   "分析上下文...",
+		"planning_goals":      "规划目标...",
+		"breaking_down_tasks": "分解任务...",
+		"completed":           "已完成",
+		"failed_prefix":       "失败: ",
+		"task_prefix":         "任务",
+	},
+}
+
+// getLocalizedMessage returns a localized message for the given key
+func getLocalizedMessage(locale string, key string) string {
+	if messages, ok := uiMessages[locale]; ok {
+		if msg, ok := messages[key]; ok {
+			return msg
+		}
+	}
+	// Fallback to English
+	if messages, ok := uiMessages["en"]; ok {
+		if msg, ok := messages[key]; ok {
+			return msg
+		}
+	}
+	return key // Return key as fallback
+}
+
+// updateUIFields updates UI display fields and persists to database
+func (e *Executor) updateUIFields(ctx *robottypes.Context, exec *robottypes.Execution, name string, currentTaskName string) {
+	// Update in-memory execution
+	if name != "" {
+		exec.Name = name
+	}
+	if currentTaskName != "" {
+		exec.CurrentTaskName = currentTaskName
+	}
+
+	// Persist to database
+	if !e.config.SkipPersistence && e.store != nil {
+		if err := e.store.UpdateUIFields(ctx.Context, exec.ID, name, currentTaskName); err != nil {
+			log.With(log.F{
+				"execution_id": exec.ID,
+				"error":        err,
+			}).Warn("Failed to update UI fields: %v", err)
+		}
+	}
+}
+
+// extractGoalName extracts the execution name from goals output
+func extractGoalName(goals *robottypes.Goals) string {
+	if goals == nil || goals.Content == "" {
+		return ""
+	}
+
+	// Extract first line or first sentence as the goal name
+	content := goals.Content
+	// Find first newline
+	if idx := indexAny(content, "\n\r"); idx > 0 {
+		content = content[:idx]
+	}
+	// Limit length
+	if len(content) > 150 {
+		content = content[:150] + "..."
+	}
+	return content
+}
+
+// indexAny returns the index of the first occurrence of any char in chars
+func indexAny(s string, chars string) int {
+	for i, c := range s {
+		for _, ch := range chars {
+			if c == ch {
+				return i
+			}
+		}
+	}
+	return -1
 }
 
 // Verify Executor implements types.Executor

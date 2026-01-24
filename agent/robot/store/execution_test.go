@@ -505,6 +505,105 @@ func TestExecutionStoreUpdateCurrent(t *testing.T) {
 	})
 }
 
+// TestExecutionStoreUpdateUIFields tests updating UI display fields
+func TestExecutionStoreUpdateUIFields(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestExecutions(t)
+	defer cleanupTestExecutions(t)
+
+	s := store.NewExecutionStore()
+	ctx := context.Background()
+
+	// Create a base record
+	startTime := time.Now()
+	record := &store.ExecutionRecord{
+		ExecutionID: "exec_test_uifields_001",
+		MemberID:    "member_uifields_001",
+		TeamID:      "team_uifields_001",
+		TriggerType: types.TriggerHuman,
+		Status:      types.ExecRunning,
+		Phase:       types.PhaseInspiration,
+		StartTime:   &startTime,
+	}
+	err := s.Save(ctx, record)
+	require.NoError(t, err)
+
+	t.Run("updates_name_only", func(t *testing.T) {
+		err := s.UpdateUIFields(ctx, "exec_test_uifields_001", "Analyze sales data", "")
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, "Analyze sales data", saved.Name)
+		assert.Equal(t, "", saved.CurrentTaskName)
+	})
+
+	t.Run("updates_current_task_name_only", func(t *testing.T) {
+		err := s.UpdateUIFields(ctx, "exec_test_uifields_001", "", "Analyzing context...")
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, "Analyze sales data", saved.Name) // Previous value retained
+		assert.Equal(t, "Analyzing context...", saved.CurrentTaskName)
+	})
+
+	t.Run("updates_both_fields", func(t *testing.T) {
+		err := s.UpdateUIFields(ctx, "exec_test_uifields_001", "Generate monthly report", "Task 1/3: Collect data")
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, "Generate monthly report", saved.Name)
+		assert.Equal(t, "Task 1/3: Collect data", saved.CurrentTaskName)
+	})
+
+	t.Run("does_nothing_when_both_empty", func(t *testing.T) {
+		// Get current values
+		before, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+
+		// Update with empty strings
+		err = s.UpdateUIFields(ctx, "exec_test_uifields_001", "", "")
+		require.NoError(t, err)
+
+		// Values should remain unchanged
+		after, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, before.Name, after.Name)
+		assert.Equal(t, before.CurrentTaskName, after.CurrentTaskName)
+	})
+
+	t.Run("handles_chinese_content", func(t *testing.T) {
+		err := s.UpdateUIFields(ctx, "exec_test_uifields_001", "生成月度报告", "任务 2/3: 分析数据")
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, "生成月度报告", saved.Name)
+		assert.Equal(t, "任务 2/3: 分析数据", saved.CurrentTaskName)
+	})
+
+	t.Run("handles_long_content", func(t *testing.T) {
+		longName := "This is a very long execution name that might come from a detailed user instruction about what they want the robot to accomplish in this particular run cycle"
+		longTask := "Task 1/5: Processing a complex multi-step operation with various sub-tasks that need to be completed..."
+
+		err := s.UpdateUIFields(ctx, "exec_test_uifields_001", longName, longTask)
+		require.NoError(t, err)
+
+		saved, err := s.Get(ctx, "exec_test_uifields_001")
+		require.NoError(t, err)
+		assert.Equal(t, longName, saved.Name)
+		assert.Equal(t, longTask, saved.CurrentTaskName)
+	})
+}
+
 // TestExecutionStoreDelete tests deleting execution records
 func TestExecutionStoreDelete(t *testing.T) {
 	if testing.Short() {
@@ -569,17 +668,19 @@ func TestExecutionRecordConversion(t *testing.T) {
 		now := time.Now()
 		endTime := now.Add(time.Hour)
 		exec := &types.Execution{
-			ID:          "exec_convert_001",
-			MemberID:    "member_convert_001",
-			TeamID:      "team_convert_001",
-			TriggerType: types.TriggerHuman,
-			Status:      types.ExecCompleted,
-			Phase:       types.PhaseDelivery,
-			StartTime:   now,
-			EndTime:     &endTime,
-			Error:       "",
-			Inspiration: &types.InspirationReport{Content: "Test inspiration"},
-			Goals:       &types.Goals{Content: "Test goals"},
+			ID:              "exec_convert_001",
+			MemberID:        "member_convert_001",
+			TeamID:          "team_convert_001",
+			TriggerType:     types.TriggerHuman,
+			Status:          types.ExecCompleted,
+			Phase:           types.PhaseDelivery,
+			StartTime:       now,
+			EndTime:         &endTime,
+			Error:           "",
+			Name:            "Analyze sales data",
+			CurrentTaskName: "Task 1/3: Processing",
+			Inspiration:     &types.InspirationReport{Content: "Test inspiration"},
+			Goals:           &types.Goals{Content: "Test goals"},
 			Tasks: []types.Task{
 				{ID: "task_001", ExecutorType: types.ExecutorAssistant},
 			},
@@ -608,22 +709,27 @@ func TestExecutionRecordConversion(t *testing.T) {
 		assert.Len(t, record.Results, 1)
 		assert.NotNil(t, record.Current)
 		assert.Equal(t, 1, record.Current.TaskIndex)
+		// Verify UI fields conversion
+		assert.Equal(t, "Analyze sales data", record.Name)
+		assert.Equal(t, "Task 1/3: Processing", record.CurrentTaskName)
 	})
 
 	t.Run("converts_to_execution", func(t *testing.T) {
 		now := time.Now()
 		endTime := now.Add(time.Hour)
 		record := &store.ExecutionRecord{
-			ExecutionID: "exec_convert_002",
-			MemberID:    "member_convert_002",
-			TeamID:      "team_convert_002",
-			TriggerType: types.TriggerClock,
-			Status:      types.ExecRunning,
-			Phase:       types.PhaseRun,
-			StartTime:   &now,
-			EndTime:     &endTime,
-			Inspiration: &types.InspirationReport{Content: "Test inspiration"},
-			Goals:       &types.Goals{Content: "Test goals"},
+			ExecutionID:     "exec_convert_002",
+			MemberID:        "member_convert_002",
+			TeamID:          "team_convert_002",
+			TriggerType:     types.TriggerClock,
+			Status:          types.ExecRunning,
+			Phase:           types.PhaseRun,
+			StartTime:       &now,
+			EndTime:         &endTime,
+			Name:            "定时执行",
+			CurrentTaskName: "任务 1/2: 数据分析",
+			Inspiration:     &types.InspirationReport{Content: "Test inspiration"},
+			Goals:           &types.Goals{Content: "Test goals"},
 			Tasks: []types.Task{
 				{ID: "task_002", ExecutorType: types.ExecutorProcess},
 			},
@@ -650,6 +756,9 @@ func TestExecutionRecordConversion(t *testing.T) {
 		assert.Len(t, exec.Results, 1)
 		assert.NotNil(t, exec.Current)
 		assert.Equal(t, 0, exec.Current.TaskIndex)
+		// Verify UI fields conversion
+		assert.Equal(t, "定时执行", exec.Name)
+		assert.Equal(t, "任务 1/2: 数据分析", exec.CurrentTaskName)
 	})
 }
 

@@ -6,6 +6,188 @@
 
 ---
 
+## Field Alignment Review Summary
+
+> Last reviewed: 2026-01-23
+
+### Robot Fields ✅ Fully Aligned
+
+| Backend (`types.go`) | Frontend (`types.ts`) | Status |
+|---------------------|----------------------|--------|
+| `member_id` | `member_id` | ✅ |
+| `team_id` | `team_id` | ✅ |
+| `display_name` | `display_name` | ✅ |
+| `bio` | `bio` / `description` | ✅ |
+| `name` (← member_id) | `name` | ✅ |
+| `description` (← bio) | `description` | ✅ |
+| `robot_status` | `robot_status` | ✅ |
+| `autonomous_mode` | `autonomous_mode` | ✅ |
+| `robot_config` | `robot_config` | ✅ |
+| `robot_email` | `robot_email` | ✅ |
+| All other fields | Same | ✅ |
+
+### Execution Fields ✅ Aligned
+
+| Backend (`types.go`) | Frontend (`types.ts`) | Status |
+|---------------------|----------------------|--------|
+| `id` | `id` | ✅ Aligned |
+| `member_id` | `member_id` | ✅ |
+| `team_id` | `team_id` | ✅ |
+| `trigger_type` | `trigger_type` | ✅ |
+| `status` | `status` | ✅ |
+| `phase` | `phase` | ✅ |
+| `start_time` | `start_time` | ✅ |
+| `end_time` | `end_time` | ✅ |
+| `error` | `error` | ✅ |
+| `input` | `input` | ✅ Optional |
+| Phase outputs | Same | ✅ Detail view |
+| `name` | `name` | ✅ Added |
+| `current_task_name` | `current_task_name` | ✅ Added |
+| - | `job_id` | 🗑️ **Dead field, to be removed** |
+
+**Action Items:**
+- [x] **Backend**: `Execution` struct - add `Name`, `CurrentTaskName` fields (see Improvement Plan below)
+- [x] **Backend**: `RobotConfig` struct - add `DefaultLocale` field (see Improvement Plan below)
+- [x] **Backend**: `TriggerInput` struct - add `Locale` field (see Improvement Plan below)
+- [x] **Backend**: Database model `execution.mod.yao` - add `name`, `current_task_name` columns
+- [x] **Backend**: Executor - update `Name`, `CurrentTaskName` at each phase
+- [x] **Backend**: Store layer - add `UpdateUIFields()` method
+- [x] **Backend**: Unit tests for UI fields and i18n (executor/standard/ui_fields_test.go, store/execution_test.go)
+- [ ] **Frontend**: Remove `job_id` field from `types.ts`
+- [ ] **Frontend**: Remove `job_id` mock data from `mock/data.ts`
+- [ ] **Frontend**: Use `name` and `current_task_name` directly from API response
+
+---
+
+### Improvement Plan: Execution UI Display Fields ✅ Implemented
+
+> **Problem:** Frontend needs to display "execution title" and "current task", which must be dynamically updated at different phases
+> **Solution:** Backend manages these fields centrally; `Execution` struct gets new fields, executor updates them at each phase
+
+**1. Execution struct fields (`agent/robot/types/robot.go`):** ✅
+```go
+type Execution struct {
+    // ... existing fields ...
+    
+    // UI display fields (updated by executor at each phase)
+    Name            string `json:"name,omitempty"`             // Execution title
+    CurrentTaskName string `json:"current_task_name,omitempty"` // Current task description
+}
+```
+
+**2. Update timeline:** ✅
+
+| Phase | `Name` | `CurrentTaskName` |
+|-------|--------|-------------------|
+| Created | Human: extract from `input.messages[0]`<br>Clock/Event: "Preparing..." (localized) | "Starting..." (localized) |
+| `inspiration` | - | "Analyzing context..." (localized) |
+| `goals` complete | Extract first line from `goals.content` | "Planning goals..." (localized) |
+| `tasks` | - | "Breaking down tasks..." (localized) |
+| `run` (each task) | - | Current `task` description (e.g., "Task 1/3: ...") |
+| Completed/Failed | - | "Completed" / "Failed: {error}" (localized) |
+
+**3. Implementation files:**
+- `agent/robot/types/robot.go` - Execution struct fields ✅
+- `agent/robot/store/execution.go` - UpdateUIFields() method ✅
+- `agent/robot/executor/standard/executor.go` - initUIFields(), updateUIFields(), i18n messages ✅
+- `agent/robot/executor/standard/inspiration.go` - Update CurrentTaskName ✅
+- `agent/robot/executor/standard/goals.go` - Update Name and CurrentTaskName ✅
+- `agent/robot/executor/standard/tasks.go` - Update CurrentTaskName ✅
+- `agent/robot/executor/standard/run.go` - Update CurrentTaskName for each task ✅
+- `yao/models/agent/execution.mod.yao` - Database columns ✅
+
+---
+
+### Improvement Plan: i18n Default Locale ✅ Implemented
+
+> **Problem:** Clock/Event triggers have no user context, unknown which language to use for generated content
+> **Solution:** `RobotConfig` gets a default locale configuration field
+
+**1. RobotConfig struct field (`agent/robot/types/config.go`):** ✅
+```go
+type Config struct {
+    // ... existing fields ...
+    DefaultLocale string `json:"default_locale,omitempty"` // "en" | "zh", default "en"
+}
+
+// GetDefaultLocale returns the default locale (default: "en")
+func (c *Config) GetDefaultLocale() string {
+    if c == nil || c.DefaultLocale == "" {
+        return "en"
+    }
+    return c.DefaultLocale
+}
+```
+
+**2. TriggerInput struct field (`agent/robot/types/robot.go`):** ✅
+```go
+type TriggerInput struct {
+    // ... existing fields ...
+    Locale string `json:"locale,omitempty"` // Language from human trigger
+}
+```
+
+**3. Locale determination logic (`agent/robot/executor/standard/executor.go`):** ✅
+```go
+func getEffectiveLocale(robot *Robot, input *TriggerInput) string {
+    // 1. Human trigger: use locale from request
+    if input != nil && input.Locale != "" {
+        return input.Locale
+    }
+    // 2. Clock/Event trigger: use Robot config
+    if robot != nil && robot.Config != nil {
+        return robot.Config.GetDefaultLocale()
+    }
+    // 3. System default
+    return "en"
+}
+```
+
+**4. Locale source priority:** ✅
+
+| Trigger Type | Locale Source |
+|--------------|---------------|
+| Human | Request `locale` → Robot `default_locale` → "en" |
+| Event | Robot `default_locale` → "en" |
+| Clock | Robot `default_locale` → "en" |
+
+**5. Localized messages (`executor.go`):** ✅
+```go
+var uiMessages = map[string]map[string]string{
+    "en": {
+        "preparing":           "Preparing...",
+        "starting":            "Starting...",
+        "scheduled_execution": "Scheduled execution",
+        "event_prefix":        "Event: ",
+        "event_triggered":     "Event triggered",
+        "analyzing_context":   "Analyzing context...",
+        "planning_goals":      "Planning goals...",
+        "breaking_down_tasks": "Breaking down tasks...",
+        "completed":           "Completed",
+        "failed_prefix":       "Failed: ",
+        "task_prefix":         "Task",
+    },
+    "zh": {
+        "preparing":           "准备中...",
+        "starting":            "启动中...",
+        "scheduled_execution": "定时执行",
+        // ... more Chinese messages
+    },
+}
+```
+
+> **Note:** User preference locale fallback deferred to future version
+
+### Deferred Features (Phase 5/6)
+
+| Feature | Current Status | Future Plan |
+|---------|---------------|-------------|
+| Trigger/Intervene UI | Backend done, frontend deferred | Phase 5 (requires SSE) |
+| Real-time refresh | Polling 60s | Phase 6 (SSE streams) |
+| Multi-turn chat | Not started | Phase 5 |
+
+---
+
 ## Implementation Strategy
 
 > **Integrate frontend immediately after each phase to validate deliverables.**
@@ -42,8 +224,8 @@
   └─ Locale parameter support
 
 🟡 Medium Risk (Deferred):
-  Phase 5: Multi-turn Chat API
-  Phase 6: Real-time SSE Streams
+  Phase 5: Multi-turn Chat API + Trigger/Intervene UI
+  Phase 6: Real-time SSE Streams (replace polling)
 ```
 
 ---
@@ -277,88 +459,207 @@
 
 ---
 
-## 🟢 Phase 2: Execution Management ⬜ [Low Risk]
+## 🟢 Phase 2: Execution Management [Backend ✅ | Frontend ⬜]
+
+> **Backend:** Steps 1-4 ✅ Complete (including UI fields and i18n)
+> **Frontend:** Step 5 ⬜ Pending
+> **Deferred:** Trigger/Intervene UI → Phase 5 (requires SSE)
 
 **Goal:** Execution listing, details, control, and trigger/intervene (single-submit mode)
-**Risk:** 🟢 Low - Wraps existing API functions
+**Risk:** 🟢 Low - Wraps existing `robot/api` functions
+**Workflow:** 1. Implement All Endpoints → 2. Linter Check → 3. Code Review → 4. Unit Tests → 5. Frontend Integration
 
-### 2.1 List Executions ⬜
+---
 
-- [ ] `execution.go` - GET /v1/robots/:id/executions
-- [ ] Parse query params: `status`, `trigger_type`, `keyword`, `page`, `pagesize`
-- [ ] Call `robot/api.GetExecutions()`
-- [ ] Add derived fields: `name`, `current_task_name`
-- [ ] Format response
-- [ ] Test: `tests/robot/execution_list_test.go`
+### Step 1: Implement All OpenAPI Endpoints ✅
 
-### 2.2 Get Execution ⬜
+> Location: `yao/openapi/agent/robot/`
+> Calls: `yao/agent/robot/api/` (existing functions)
 
-- [ ] GET /v1/robots/:id/executions/:exec_id
-- [ ] Call `robot/api.GetExecution()`
-- [ ] Full task details with localization
-- [ ] Test: `tests/robot/execution_get_test.go`
+#### 2.1.1 Types (`types.go`) ✅
 
-### 2.3 Execution Control ⬜
+- [x] `ExecutionFilter` - query params for listing
+- [x] `ExecutionResponse` - single execution response
+- [x] `ExecutionListResponse` - paginated list response
+- [x] `ExecutionControlResponse` - pause/resume/cancel response
+- [x] `TriggerRequest` - trigger execution request
+- [x] `TriggerResponse` - trigger result response
+- [x] `InterveneRequest` - human intervention request
+- [x] `InterveneResponse` - intervention result response
 
-- [ ] POST /v1/robots/:id/executions/:exec_id/pause
-  - [ ] Call `robot/api.Pause()`
-- [ ] POST /v1/robots/:id/executions/:exec_id/resume
-  - [ ] Call `robot/api.Resume()`
-- [ ] POST /v1/robots/:id/executions/:exec_id/cancel
-  - [ ] Call `robot/api.Stop()`
-- [ ] POST /v1/robots/:id/executions/:exec_id/retry
-  - [ ] Re-trigger with same input
-- [ ] Test: `tests/robot/execution_control_test.go`
+#### 2.1.2 Execution Handlers (`execution.go`) ✅
 
-### 2.4 Execution Types ⬜
+> **Permission Note:** Execution permissions are inherited from the parent robot.
+> Check robot's `__yao_team_id` and `__yao_created_by` for access control.
 
-- [ ] Add to `types.go`:
-  - [ ] `ExecutionResponse` struct
-  - [ ] `TaskResponse` struct
-  - [ ] `CurrentStateResponse` struct
-  - [ ] `GoalsResponse` struct
-  - [ ] `DeliveryResultResponse` struct
+- [x] `ListExecutions` - GET /v1/agent/robots/:id/executions
+  - Parse query: `status`, `trigger_type`, `keyword`, `page`, `pagesize`
+  - Call `robot/api.ListExecutions()`
+  - Permission: Check robot CanRead (via robot ID)
+- [x] `GetExecution` - GET /v1/agent/robots/:id/executions/:exec_id
+  - Call `robot/api.GetExecution()`
+  - Permission: Check robot CanRead (via robot ID)
+- [x] `PauseExecution` - POST /v1/agent/robots/:id/executions/:exec_id/pause
+  - Call `robot/api.PauseExecution()`
+  - Permission: Check robot CanWrite (via robot ID)
+- [x] `ResumeExecution` - POST /v1/agent/robots/:id/executions/:exec_id/resume
+  - Call `robot/api.ResumeExecution()`
+  - Permission: Check robot CanWrite (via robot ID)
+- [x] `CancelExecution` - POST /v1/agent/robots/:id/executions/:exec_id/cancel
+  - Call `robot/api.StopExecution()`
+  - Permission: Check robot CanWrite (via robot ID)
 
-### 2.5 Trigger & Intervene (Single-Submit Mode) ⬜
+#### 2.1.3 Trigger Handlers (`trigger.go`) ✅
 
-> **Note:** This is single-submit mode. Multi-turn chat is deferred to Phase 5.
+> **Permission Note:** Same as execution - check robot's permission.
 
-- [ ] `trigger.go` - POST /v1/robots/:id/trigger
-- [ ] Parse `TriggerRequest` (messages, attachments)
-- [ ] Call `robot/api.Trigger()` 
-- [ ] Return execution ID and status
-- [ ] Optional: Return SSE stream for progress
-- [ ] Test: `tests/robot/trigger_test.go`
+- [x] `TriggerRobot` - POST /v1/agent/robots/:id/trigger
+  - Parse `TriggerRequest` (messages, trigger_type)
+  - Call `robot/api.Trigger()`
+  - Return execution ID and status
+  - Permission: Check robot CanWrite (via robot ID)
+- [x] `InterveneRobot` - POST /v1/agent/robots/:id/intervene
+  - Parse `InterveneRequest` (action, messages)
+  - Call `robot/api.Intervene()`
+  - Return result
+  - Permission: Check robot CanWrite (via robot ID)
 
-- [ ] POST /v1/robots/:id/intervene
-- [ ] Parse `InterveneRequest`
-- [ ] Call `robot/api.Intervene()`
-- [ ] Return result
-- [ ] Test: `tests/robot/intervene_test.go`
+#### 2.1.4 Route Registration (`robot.go`) ✅
 
-### 2.6 Trigger Types ⬜
+- [x] Add execution routes to `Attach()`:
+  - `GET /:id/executions`
+  - `GET /:id/executions/:exec_id`
+  - `POST /:id/executions/:exec_id/pause`
+  - `POST /:id/executions/:exec_id/resume`
+  - `POST /:id/executions/:exec_id/cancel`
+  - `POST /:id/trigger`
+  - `POST /:id/intervene`
 
-- [ ] Add to `types.go`:
-  - [ ] `TriggerRequest` struct
-  - [ ] `TriggerResponse` struct
-  - [ ] `InterveneRequest` struct
-  - [ ] `InterveneResponse` struct
-  - [ ] `Message` struct
-  - [ ] `Attachment` struct
+---
 
-### 2.7 Frontend Integration ⬜
+### Step 2: Linter Check ✅
 
-> Integrate immediately after backend completion
+- [x] Run `ReadLints` on all modified files
+- [x] Fix any linter errors
+- [x] Verify imports are correct
+- [x] Build verification passed
 
-- [ ] SDK: Add execution methods to `robot.ts`
-  - [ ] `listExecutions(robotId, params)`
-  - [ ] `getExecution(robotId, execId)`
-  - [ ] `pauseExecution()`, `resumeExecution()`, `cancelExecution()`
-  - [ ] `triggerRobot(robotId, data)`
-  - [ ] `intervene(robotId, data)`
-- [ ] Page: Execution list/detail page integration
-- [ ] Page: Assign Task (trigger execution) integration
-- [ ] Verify: E2E testing
+---
+
+### Step 3: Code Review ✅
+
+- [x] Review type definitions (`types.go`)
+  - `ExecutionFilter`, `ExecutionResponse`, `ExecutionListResponse`, `ExecutionControlResponse`
+  - `TriggerRequest`, `TriggerResponse`, `InterveneRequest`, `InterveneResponse`
+  - Conversion functions: `NewExecutionListResponse`, `NewExecutionResponseFromExecution`, `NewExecutionResponseBrief`
+- [x] Review permission handling
+  - All execution/trigger handlers check robot permission first
+  - Read permission for listing and getting executions
+  - Write permission for control (pause/resume/cancel), trigger, and intervene
+  - Permission inherited from parent robot (check via `YaoTeamID` and `YaoCreatedBy`)
+- [x] Review error handling
+  - Fixed: Use `errors.Is()` instead of `==` for error comparison
+  - Proper HTTP status codes (400, 404, 403, 500)
+  - Consistent error response format
+- [x] Review response formats
+  - Brief format for list view (omits phase outputs)
+  - Full format for detail view (includes all fields)
+  - Consistent with existing robot responses
+
+---
+
+### Step 4: Unit Tests ✅
+
+> Location: `yao/openapi/tests/agent/`
+> Uses `testing.Short()` to skip AI/manager-dependent tests
+
+- [x] Create `robot_execution_test.go`
+  - [x] `TestListExecutions` - list executions with pagination/filters
+  - [x] `TestGetExecution` - get execution details, not found cases
+  - [x] `TestExecutionControl` - pause/resume/cancel endpoints
+  - [x] `TestExecutionPermissions` - permission inheritance from robot
+- [x] Create `robot_trigger_test.go`
+  - [x] `TestTriggerRobot` - trigger with messages, action, invalid body
+  - [x] `TestInterveneRobot` - intervene with action, missing action validation
+  - [x] `TestTriggerPermissions` - permission inheritance from robot
+- [x] All tests use `testing.Short()` to skip AI-dependent tests
+- [x] Tests compile successfully
+- [x] All tests pass (with manager not started gracefully handled)
+
+---
+
+### Step 5: Frontend Integration ⬜
+
+> Location: `cui/packages/cui/openapi/agent/robot/`
+> **Note:** Trigger/Intervene API deferred to Phase 5 (waiting for SSE support)
+> **Note:** Use 1-minute polling for execution list refresh (will switch to SSE in Phase 6)
+
+#### 5.1 Prerequisites ✅
+
+> **Dependency:** Backend improvement plans completed (see "Improvement Plan" sections above)
+
+**Backend (Completed):**
+- [x] `Execution` struct - add `Name`, `CurrentTaskName` fields
+- [x] `RobotConfig` struct - add `DefaultLocale` field
+- [x] `TriggerInput` struct - add `Locale` field
+- [x] Executor - update `Name`, `CurrentTaskName` at each phase
+- [x] Store - add `UpdateUIFields()` method
+- [x] Unit tests for UI fields and i18n
+
+**Frontend Cleanup (Pending):**
+- [x] Components already use `exec.id` (no changes needed)
+- [ ] Remove `job_id` field from `types.ts`
+- [ ] Remove `job_id` from `mock/data.ts`
+- [ ] Use `name`/`current_task_name` directly from API response
+
+#### 5.2 SDK Types (`types.ts`) ⬜
+
+- [ ] `ExecutionFilter` interface
+- [ ] `Execution` interface (align with backend `ExecutionResponse`)
+- [ ] `ExecutionListResponse` interface
+- [ ] `ExecutionControlResponse` interface
+
+**Deferred to Phase 5 (SSE):**
+- [ ] ~~`TriggerRequest` / `TriggerResponse` interfaces~~
+- [ ] ~~`InterveneRequest` / `InterveneResponse` interfaces~~
+
+#### 5.3 SDK Methods (`robots.ts`) ⬜
+
+- [ ] `ListExecutions(robotId, filter)`
+- [ ] `GetExecution(robotId, execId)`
+- [ ] `PauseExecution(robotId, execId)`
+- [ ] `ResumeExecution(robotId, execId)`
+- [ ] `CancelExecution(robotId, execId)`
+
+**Deferred to Phase 5 (SSE):**
+- [ ] ~~`Trigger(robotId, data)`~~
+- [ ] ~~`Intervene(robotId, data)`~~
+
+#### 5.4 Page Integration ⬜
+
+- [ ] ActiveTab: Replace mock with `ListExecutions()` API
+  - [ ] Filter: `status=running|pending`
+  - [ ] Polling: 1-minute interval (60000ms) - will switch to SSE in Phase 6
+- [ ] HistoryTab: Replace mock with `ListExecutions()` API
+  - [ ] Filter: `status` filter, `keyword` search
+  - [ ] Pagination: page/pagesize
+  - [ ] Polling: 1-minute interval for list refresh
+
+**Deferred to Phase 5 (SSE):**
+- [ ] ~~Assign Task Modal: Call `Trigger()` API~~
+- [ ] ~~GuideExecution: Call `Intervene()` API~~
+
+#### 5.5 Polling vs SSE Strategy
+
+**Current (Phase 2):** Polling
+- Refresh execution list every 60 seconds
+- Manual refresh button for immediate update
+- Acceptable latency for status display
+
+**Future (Phase 6):** SSE Real-time
+- `GET /robots/:id/executions/stream` - real-time execution updates
+- `GET /robots/stream` - robot status changes
+- Instant updates, no polling delay
 
 ---
 
@@ -455,12 +756,13 @@
 
 ---
 
-## 🟡 Phase 5: Multi-turn Chat API ⬜ [Medium Risk - Deferred]
+## 🟡 Phase 5: Multi-turn Chat API + Trigger/Intervene UI ⬜ [Medium Risk - Deferred]
 
 > **Frontend Fallback:** Single-submit mode (user input → immediate execution)
 > **Risk:** 🟡 Medium - New stateful component
+> **Dependency:** Requires SSE infrastructure (partially)
 
-**Goal:** Multi-turn conversation before execution
+**Goal:** Multi-turn conversation before execution + Human trigger/intervene UI
 
 ### 5.1 Backend Prerequisites ⬜
 
@@ -486,14 +788,36 @@
 - [ ] Use conversation history as execution input
 - [ ] Auto-cleanup conversation after execution starts
 
+### 5.4 Frontend Trigger/Intervene Integration (Deferred from Phase 2) ⬜
+
+> **Note:** These features require SSE for proper UX (streaming response)
+> Currently backend `/trigger` and `/intervene` endpoints exist but return immediately
+> Frontend needs streaming response to show assistant's reaction before confirming
+
+**SDK Types:**
+- [ ] `TriggerRequest` / `TriggerResponse` interfaces
+- [ ] `InterveneRequest` / `InterveneResponse` interfaces
+- [ ] `ChatMessage` interface for multi-turn
+
+**SDK Methods:**
+- [ ] `Trigger(robotId, data)` - with SSE support
+- [ ] `Intervene(robotId, data)` - with SSE support
+- [ ] `Chat(robotId, data)` - multi-turn conversation SSE
+
+**Page Integration:**
+- [ ] AssignTaskDrawer: Multi-turn chat before trigger
+- [ ] GuideExecutionDrawer: Multi-turn intervention
+- [ ] Real-time streaming response display
+
 ---
 
 ## 🟡 Phase 6: Real-time SSE Streams ⬜ [Medium Risk - Deferred]
 
-> **Frontend Fallback:** Polling (GET /executions every 3-5 seconds)
+> **Frontend Current:** Polling every 60 seconds (1 minute)
+> **Frontend Future:** SSE streams for instant updates
 > **Risk:** 🟡 Medium - Requires modification of executor/manager
 
-**Goal:** SSE streams for real-time status updates
+**Goal:** SSE streams for real-time status updates, replacing polling
 
 ### 6.1 Backend Event System ⬜
 
@@ -632,9 +956,9 @@ yao/openapi/tests/robot/
 | 1. Core CRUD | 🟢 | ✅ | ✅ | Robot CRUD endpoints |
 | 1-FE Frontend Integration | 🟢 | - | ✅ | SDK ✅, Page Integration ✅, UI/UX ✅ |
 | 1.5 Manager Lifecycle | 🟢 | ✅ | - | Auto-start, auto-reload, graceful shutdown |
-| 2. Execution | 🟢 | ⬜ | ⬜ | Execution listing, control, trigger |
+| 2. Execution | 🟢 | ✅ | ⬜ | Execution listing, control, trigger (backend complete with UI fields & i18n) |
 | 3. Results/Activities | 🟢 | ⬜ | ⬜ | Deliverables and activity feed |
-| 4. i18n | 🟢 | ⬜ | ⬜ | Locale parameter support |
+| 4. i18n | 🟢 | ✅ | ⬜ | Locale parameter support (backend executor i18n complete) |
 | 5. Chat API | 🟡 | ⬜ | ⬜ | Multi-turn conversation (Deferred) |
 | 6. SSE Streams | 🟡 | ⬜ | ⬜ | Real-time status updates (Deferred) |
 
@@ -809,8 +1133,8 @@ Each phase independently deliverable:
 | Phase | Backend | Frontend | Verifiable Features |
 |-------|---------|----------|---------------------|
 | 1 | ✅ | ✅ | Robot CRUD basic management |
-| 2 | ⬜ | ⬜ | Execution list/control/trigger |
+| 2 | ✅ | ⬜ | Execution list/control/trigger (backend with UI fields & i18n) |
 | 3 | ⬜ | ⬜ | Results/Activities viewing |
-| 4 | ⬜ | ⬜ | Multi-language support |
+| 4 | ✅ | ⬜ | Multi-language support (backend executor i18n) |
 | 5 | ⬜ | ⬜ | Multi-turn chat UX (optional) |
 | 6 | ⬜ | ⬜ | Real-time push (optional) |

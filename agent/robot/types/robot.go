@@ -129,6 +129,11 @@ type Execution struct {
 	Phase       Phase       `json:"phase"`
 	Error       string      `json:"error,omitempty"`
 
+	// UI display fields (updated by executor at each phase)
+	// These provide human-readable status for frontend display
+	Name            string `json:"name,omitempty"`              // Execution title (updated when goals complete)
+	CurrentTaskName string `json:"current_task_name,omitempty"` // Current task description (updated during run phase)
+
 	// Trigger input (stored for traceability)
 	Input *TriggerInput `json:"input,omitempty"` // original trigger input
 
@@ -163,6 +168,7 @@ type TriggerInput struct {
 	Action   InterventionAction     `json:"action,omitempty"`   // task.add, goal.adjust, etc.
 	Messages []agentcontext.Message `json:"messages,omitempty"` // user's input (text, images, files)
 	UserID   string                 `json:"user_id,omitempty"`  // who triggered
+	Locale   string                 `json:"locale,omitempty"`   // language for UI display (e.g., "en-US", "zh-CN")
 
 	// For event trigger
 	Source    EventSource            `json:"source,omitempty"`     // webhook | database

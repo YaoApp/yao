@@ -938,16 +938,17 @@ import "time"
 
 // Config - robot_config in __yao.member
 type Config struct {
-    Triggers  *Triggers  `json:"triggers,omitempty"`
-    Clock     *Clock     `json:"clock,omitempty"`
-    Identity  *Identity  `json:"identity"`
-    Quota     *Quota     `json:"quota,omitempty"`
-    KB        *KB        `json:"kb,omitempty"`        // shared knowledge base (same as assistant)
-    DB        *DB        `json:"db,omitempty"`        // shared database (same as assistant)
-    Learn     *Learn     `json:"learn,omitempty"`     // learning config for private KB
-    Resources *Resources `json:"resources,omitempty"`
-    Delivery  *DeliveryPreferences `json:"delivery,omitempty"` // see section 6.2
-    Events    []Event    `json:"events,omitempty"`
+    Triggers      *Triggers            `json:"triggers,omitempty"`
+    Clock         *Clock               `json:"clock,omitempty"`
+    Identity      *Identity            `json:"identity"`
+    Quota         *Quota               `json:"quota,omitempty"`
+    KB            *KB                  `json:"kb,omitempty"`        // shared knowledge base (same as assistant)
+    DB            *DB                  `json:"db,omitempty"`        // shared database (same as assistant)
+    Learn         *Learn               `json:"learn,omitempty"`     // learning config for private KB
+    Resources     *Resources           `json:"resources,omitempty"`
+    Delivery      *DeliveryPreferences `json:"delivery,omitempty"` // see section 6.2
+    Events        []Event              `json:"events,omitempty"`
+    DefaultLocale string               `json:"default_locale,omitempty"` // Default language for clock/event triggers (e.g., "en-US", "zh-CN")
 }
 
 // Validate validates the config
@@ -1238,6 +1239,10 @@ type Execution struct {
     Phase       Phase       `json:"phase"`
     Error       string      `json:"error,omitempty"`
 
+    // UI display fields (updated by executor at each phase)
+    // These provide human-readable status for frontend display
+    Name            string `json:"name,omitempty"`             // Execution title (updated when goals complete)
+    CurrentTaskName string `json:"current_task_name,omitempty"` // Current task description (updated during run phase)
 
     // Trigger input (stored for traceability)
     Input *TriggerInput `json:"input,omitempty"` // original trigger input
@@ -1263,6 +1268,7 @@ type TriggerInput struct {
     Action   InterventionAction `json:"action,omitempty"`   // task.add, goal.adjust, etc.
     Messages []context.Message  `json:"messages,omitempty"` // user's input (text, images, files)
     UserID   string             `json:"user_id,omitempty"`  // who triggered
+    Locale   string             `json:"locale,omitempty"`   // language for UI display (e.g., "en-US", "zh-CN")
 
     // For event trigger
     Source    EventSource            `json:"source,omitempty"`     // webhook | database

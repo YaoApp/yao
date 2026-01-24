@@ -64,6 +64,9 @@ type TriggerRequest struct {
 
 	// Executor mode (optional, overrides robot config)
 	ExecutorMode types.ExecutorMode `json:"executor_mode,omitempty"`
+
+	// i18n support
+	Locale string `json:"locale,omitempty"` // Locale for UI messages (e.g., "en", "zh")
 }
 
 // InsertPosition - where to insert task in queue

@@ -253,15 +253,30 @@ type ExecutionResponse struct {
     Status          string           `json:"status"`
     Phase           string           `json:"phase"`
     Error           *string          `json:"error,omitempty"`
-    JobID           string           `json:"job_id"`
-    Name            string           `json:"name,omitempty"`             // Localized execution name
-    CurrentTaskName string           `json:"current_task_name,omitempty"` // Localized current task
+
+    // UI display fields (from backend Execution)
+    // These are updated by executor at each phase for frontend display
+    Name            string           `json:"name,omitempty"`             // Execution title
+    CurrentTaskName string           `json:"current_task_name,omitempty"` // Current task description
+
+    // Phase outputs (for detail view)
     Goals           *GoalsResponse   `json:"goals,omitempty"`
     Tasks           []TaskResponse   `json:"tasks,omitempty"`
     Current         *CurrentState    `json:"current,omitempty"`
     Delivery        *DeliveryResult  `json:"delivery,omitempty"`
 }
 ```
+
+**UI Display Fields Update Timeline:**
+
+| Phase | `Name` | `CurrentTaskName` |
+|-------|--------|-------------------|
+| Created | Human: from `input.messages[0]`<br>Clock/Event: "Preparing..." | "Starting..." |
+| `inspiration` | - | "Analyzing context..." |
+| `goals` complete | Extracted from first goal in `goals.content` | "Planning goals..." |
+| `tasks` | - | "Breaking down tasks..." |
+| `run` (each task) | - | Current task description |
+| Completed/Failed | - | "Completed" / "Failed: {error}" |
 
 ### 4.4 ResultResponse
 
@@ -491,13 +506,50 @@ data: {"error": "Something went wrong", "phase": "run"}
 
 ### 8.1 Locale Detection
 
-Priority order:
-1. Query parameter: `?locale=zh-CN`
-2. Request body field: `locale: "zh-CN"`
-3. Accept-Language header
-4. Default: `en-US`
+**For API requests (Human trigger):**
 
-### 8.2 Localized Fields
+Priority order:
+1. Request body field: `locale: "zh-CN"` (in TriggerRequest)
+2. Query parameter: `?locale=zh-CN`
+3. Accept-Language header
+4. Robot's `default_locale` config
+5. System default: `en-US`
+
+**For Clock/Event triggers (no user context):**
+
+Priority order:
+1. Robot's `default_locale` config (from `robot_config.default_locale`)
+2. System default: `en-US`
+
+### 8.2 Robot Default Locale
+
+Robots can configure a default language for clock/event triggered executions:
+
+```go
+// In RobotConfig (robot_config field in __yao.member)
+type Config struct {
+    // ... other fields ...
+    DefaultLocale string `json:"default_locale,omitempty"` // "en-US", "zh-CN"
+}
+```
+
+**Language resolution:**
+```go
+func getLocale(robot *Robot, input *TriggerInput) string {
+    // 1. Human trigger with explicit locale
+    if input != nil && input.Locale != "" {
+        return input.Locale
+    }
+    // 2. Robot configured default
+    if robot.Config != nil && robot.Config.DefaultLocale != "" {
+        return robot.Config.DefaultLocale
+    }
+    // 3. System default
+    return "en-US"
+}
+```
+
+### 8.3 Localized Fields
 
 | Response Type | Localized Fields |
 |---------------|------------------|

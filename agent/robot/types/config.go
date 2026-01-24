@@ -7,17 +7,18 @@ import (
 
 // Config - robot_config in __yao.member
 type Config struct {
-	Triggers  *Triggers            `json:"triggers,omitempty"`
-	Clock     *Clock               `json:"clock,omitempty"`
-	Identity  *Identity            `json:"identity"`
-	Quota     *Quota               `json:"quota,omitempty"`
-	KB        *KB                  `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
-	DB        *DB                  `json:"db,omitempty"`    // shared database (same as assistant)
-	Learn     *Learn               `json:"learn,omitempty"` // learning config for private KB
-	Resources *Resources           `json:"resources,omitempty"`
-	Delivery  *DeliveryPreferences `json:"delivery,omitempty"` // delivery preferences (see robot.go)
-	Events    []Event              `json:"events,omitempty"`
-	Executor  *ExecutorConfig      `json:"executor,omitempty"` // executor mode settings
+	Triggers      *Triggers            `json:"triggers,omitempty"`
+	Clock         *Clock               `json:"clock,omitempty"`
+	Identity      *Identity            `json:"identity"`
+	Quota         *Quota               `json:"quota,omitempty"`
+	KB            *KB                  `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
+	DB            *DB                  `json:"db,omitempty"`    // shared database (same as assistant)
+	Learn         *Learn               `json:"learn,omitempty"` // learning config for private KB
+	Resources     *Resources           `json:"resources,omitempty"`
+	Delivery      *DeliveryPreferences `json:"delivery,omitempty"` // delivery preferences (see robot.go)
+	Events        []Event              `json:"events,omitempty"`
+	Executor      *ExecutorConfig      `json:"executor,omitempty"`       // executor mode settings
+	DefaultLocale string               `json:"default_locale,omitempty"` // default language for clock/event triggers ("en", "zh")
 }
 
 // ExecutorConfig - executor settings
@@ -57,6 +58,14 @@ func (c *Config) Validate() error {
 		}
 	}
 	return nil
+}
+
+// GetDefaultLocale returns the default locale (default: "en")
+func (c *Config) GetDefaultLocale() string {
+	if c == nil || c.DefaultLocale == "" {
+		return "en"
+	}
+	return c.DefaultLocale
 }
 
 // Triggers - trigger enable/disable

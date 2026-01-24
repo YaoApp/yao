@@ -4,6 +4,7 @@ import (
 	"time"
 
 	robotapi "github.com/yaoapp/yao/agent/robot/api"
+	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
 
 // ==================== Request Types ====================
@@ -251,5 +252,187 @@ func NewStatusResponse(s *robotapi.RobotState) *StatusResponse {
 		LastRun:     s.LastRun,
 		NextRun:     s.NextRun,
 		RunningIDs:  s.RunningIDs,
+	}
+}
+
+// ==================== Execution Types ====================
+
+// ExecutionFilter - query params for listing executions
+type ExecutionFilter struct {
+	Status      string `form:"status"`       // pending | running | paused | completed | failed | cancelled
+	TriggerType string `form:"trigger_type"` // clock | human | event
+	Keyword     string `form:"keyword"`      // search in execution details
+	Page        int    `form:"page"`
+	PageSize    int    `form:"pagesize"`
+}
+
+// ExecutionResponse - single execution response
+type ExecutionResponse struct {
+	ID          string     `json:"id"`
+	MemberID    string     `json:"member_id"`
+	TeamID      string     `json:"team_id"`
+	TriggerType string     `json:"trigger_type"`
+	Status      string     `json:"status"`
+	Phase       string     `json:"phase"`
+	StartTime   time.Time  `json:"start_time"`
+	EndTime     *time.Time `json:"end_time,omitempty"`
+	Error       string     `json:"error,omitempty"`
+
+	// UI display fields (updated by executor at each phase)
+	Name            string `json:"name,omitempty"`              // Execution title
+	CurrentTaskName string `json:"current_task_name,omitempty"` // Current task description
+
+	// Phase outputs (optional, included in detail view)
+	Inspiration interface{} `json:"inspiration,omitempty"`
+	Goals       interface{} `json:"goals,omitempty"`
+	Tasks       interface{} `json:"tasks,omitempty"`
+	Current     interface{} `json:"current,omitempty"`
+	Results     interface{} `json:"results,omitempty"`
+	Delivery    interface{} `json:"delivery,omitempty"`
+
+	// Input (optional, included in detail view)
+	Input interface{} `json:"input,omitempty"`
+}
+
+// ExecutionListResponse - paginated list response
+type ExecutionListResponse struct {
+	Data     []*ExecutionResponse `json:"data"`
+	Total    int                  `json:"total"`
+	Page     int                  `json:"page"`
+	PageSize int                  `json:"pagesize"`
+}
+
+// ExecutionControlResponse - response for pause/resume/cancel
+type ExecutionControlResponse struct {
+	ExecutionID string `json:"execution_id"`
+	Action      string `json:"action"` // paused | resumed | cancelled
+	Success     bool   `json:"success"`
+	Message     string `json:"message,omitempty"`
+}
+
+// ==================== Trigger Types ====================
+
+// TriggerRequest - HTTP request to trigger robot execution
+type TriggerRequest struct {
+	// Trigger type: human | event | clock (defaults to human)
+	TriggerType string `json:"trigger_type,omitempty"`
+
+	// Human intervention fields
+	Action   string        `json:"action,omitempty"`   // task.add, goal.adjust, etc.
+	Messages []MessageItem `json:"messages,omitempty"` // user's input
+
+	// Event fields
+	Source    string                 `json:"source,omitempty"`     // webhook | database
+	EventType string                 `json:"event_type,omitempty"` // lead.created, etc.
+	Data      map[string]interface{} `json:"data,omitempty"`       // event payload
+
+	// Executor mode (optional)
+	ExecutorMode string `json:"executor_mode,omitempty"` // standard | fast | careful
+
+	// i18n support
+	Locale string `json:"locale,omitempty"` // Locale for UI messages (e.g., "en", "zh")
+}
+
+// MessageItem - a single message in trigger request
+type MessageItem struct {
+	Role    string `json:"role"`              // user | assistant | system
+	Content string `json:"content"`           // message text
+	Name    string `json:"name,omitempty"`    // optional name
+	FileID  string `json:"file_id,omitempty"` // optional attachment
+}
+
+// TriggerResponse - response after triggering
+type TriggerResponse struct {
+	Accepted    bool   `json:"accepted"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	Queued      bool   `json:"queued,omitempty"`
+	Message     string `json:"message,omitempty"`
+}
+
+// InterveneRequest - HTTP request for human intervention
+type InterveneRequest struct {
+	Action   string        `json:"action"`             // task.add, goal.adjust, etc.
+	Messages []MessageItem `json:"messages,omitempty"` // user's input
+	PlanAt   *time.Time    `json:"plan_at,omitempty"`  // schedule for later
+}
+
+// InterveneResponse - response after intervention
+type InterveneResponse struct {
+	Accepted    bool   `json:"accepted"`
+	ExecutionID string `json:"execution_id,omitempty"`
+	Message     string `json:"message,omitempty"`
+}
+
+// ==================== Execution Conversion Functions ====================
+
+// NewExecutionListResponse creates an ExecutionListResponse from api.ExecutionResult
+func NewExecutionListResponse(e *robotapi.ExecutionResult) *ExecutionListResponse {
+	if e == nil {
+		return nil
+	}
+
+	data := make([]*ExecutionResponse, 0, len(e.Data))
+	for _, exec := range e.Data {
+		data = append(data, NewExecutionResponseFromExecution(exec))
+	}
+
+	return &ExecutionListResponse{
+		Data:     data,
+		Total:    e.Total,
+		Page:     e.Page,
+		PageSize: e.PageSize,
+	}
+}
+
+// NewExecutionResponseFromExecution converts types.Execution to ExecutionResponse
+func NewExecutionResponseFromExecution(exec *robottypes.Execution) *ExecutionResponse {
+	if exec == nil {
+		return nil
+	}
+
+	return &ExecutionResponse{
+		ID:          exec.ID,
+		MemberID:    exec.MemberID,
+		TeamID:      exec.TeamID,
+		TriggerType: string(exec.TriggerType),
+		Status:      string(exec.Status),
+		Phase:       string(exec.Phase),
+		StartTime:   exec.StartTime,
+		EndTime:     exec.EndTime,
+		Error:       exec.Error,
+		// UI display fields
+		Name:            exec.Name,
+		CurrentTaskName: exec.CurrentTaskName,
+		// Phase outputs - include in detail view
+		Inspiration: exec.Inspiration,
+		Goals:       exec.Goals,
+		Tasks:       exec.Tasks,
+		Current:     exec.Current,
+		Results:     exec.Results,
+		Delivery:    exec.Delivery,
+		Input:       exec.Input,
+	}
+}
+
+// NewExecutionResponseBrief creates a brief ExecutionResponse (for list view)
+func NewExecutionResponseBrief(exec *robottypes.Execution) *ExecutionResponse {
+	if exec == nil {
+		return nil
+	}
+
+	return &ExecutionResponse{
+		ID:          exec.ID,
+		MemberID:    exec.MemberID,
+		TeamID:      exec.TeamID,
+		TriggerType: string(exec.TriggerType),
+		Status:      string(exec.Status),
+		Phase:       string(exec.Phase),
+		StartTime:   exec.StartTime,
+		EndTime:     exec.EndTime,
+		Error:       exec.Error,
+		// UI display fields - include in list view for display
+		Name:            exec.Name,
+		CurrentTaskName: exec.CurrentTaskName,
+		// Omit phase outputs for list view
 	}
 }
