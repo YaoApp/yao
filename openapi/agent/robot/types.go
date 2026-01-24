@@ -548,6 +548,7 @@ func NewResultDetailResponse(detail *robotapi.ResultDetail) *ResultDetailRespons
 type ActivityFilter struct {
 	Limit int    `form:"limit"` // max number of activities
 	Since string `form:"since"` // ISO timestamp, only activities after this time
+	Type  string `form:"type"`  // activity type filter: execution.started, execution.completed, execution.failed, execution.cancelled
 }
 
 // ActivityResponse - activity item

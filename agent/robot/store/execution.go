@@ -897,9 +897,10 @@ type Activity struct {
 
 // ActivityListOptions - options for listing activities
 type ActivityListOptions struct {
-	TeamID string     `json:"team_id,omitempty"` // Filter by team ID
-	Since  *time.Time `json:"since,omitempty"`   // Only activities after this time
-	Limit  int        `json:"limit,omitempty"`
+	TeamID string       `json:"team_id,omitempty"` // Filter by team ID
+	Since  *time.Time   `json:"since,omitempty"`   // Only activities after this time
+	Limit  int          `json:"limit,omitempty"`
+	Type   ActivityType `json:"type,omitempty"` // Filter by activity type
 }
 
 // ListActivities derives activities from recent execution status changes
@@ -912,13 +913,31 @@ func (s *ExecutionStore) ListActivities(ctx context.Context, opts *ActivityListO
 	// Build where conditions
 	var wheres []model.QueryWhere
 
-	// Only completed, failed, or cancelled executions generate activities
-	// For started activities, we'd need running status
-	wheres = append(wheres, model.QueryWhere{
-		Column: "status",
-		OP:     "in",
-		Value:  []string{"completed", "failed", "cancelled", "running"},
-	})
+	// Filter by activity type if specified
+	// Map activity types to execution statuses
+	if opts != nil && opts.Type != "" {
+		switch opts.Type {
+		case ActivityExecutionStarted:
+			wheres = append(wheres, model.QueryWhere{Column: "status", Value: "running"})
+		case ActivityExecutionCompleted:
+			wheres = append(wheres, model.QueryWhere{Column: "status", Value: "completed"})
+		case ActivityExecutionFailed:
+			wheres = append(wheres, model.QueryWhere{Column: "status", Value: "failed"})
+		case ActivityExecutionCancelled:
+			wheres = append(wheres, model.QueryWhere{Column: "status", Value: "cancelled"})
+		default:
+			// Unknown type, return empty
+			return []*Activity{}, nil
+		}
+	} else {
+		// Only completed, failed, or cancelled executions generate activities
+		// For started activities, we'd need running status
+		wheres = append(wheres, model.QueryWhere{
+			Column: "status",
+			OP:     "in",
+			Value:  []string{"completed", "failed", "cancelled", "running"},
+		})
+	}
 
 	if opts != nil {
 		if opts.TeamID != "" {

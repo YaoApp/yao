@@ -301,6 +301,88 @@ func TestListActivities(t *testing.T) {
 		assert.Contains(t, response, "data")
 	})
 
+	t.Run("ListActivitiesWithTypeFilter", func(t *testing.T) {
+		// Test filtering by type: execution.completed
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots/activities?type=execution.completed", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		assert.Contains(t, response, "data")
+
+		// Verify all returned activities are of the specified type
+		data, ok := response["data"].([]interface{})
+		if ok && len(data) > 0 {
+			for _, item := range data {
+				activity := item.(map[string]interface{})
+				assert.Equal(t, "execution.completed", activity["type"])
+			}
+		}
+	})
+
+	t.Run("ListActivitiesWithTypeStarted", func(t *testing.T) {
+		// Test filtering by type: execution.started
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots/activities?type=execution.started", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		assert.Contains(t, response, "data")
+
+		// Verify all returned activities are of the specified type
+		data, ok := response["data"].([]interface{})
+		if ok && len(data) > 0 {
+			for _, item := range data {
+				activity := item.(map[string]interface{})
+				assert.Equal(t, "execution.started", activity["type"])
+			}
+		}
+	})
+
+	t.Run("ListActivitiesWithInvalidType", func(t *testing.T) {
+		// Test with an invalid/unknown type - should return empty data (not error)
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots/activities?type=invalid.type", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		assert.Contains(t, response, "data")
+		// Invalid type should return empty array
+		data, ok := response["data"].([]interface{})
+		assert.True(t, ok)
+		assert.Empty(t, data)
+	})
+
 	t.Run("ListActivitiesWithSince", func(t *testing.T) {
 		// Use a timestamp in the past - URL encode properly
 		since := time.Now().Add(-24 * time.Hour).UTC().Format(time.RFC3339)

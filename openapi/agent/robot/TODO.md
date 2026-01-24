@@ -785,8 +785,13 @@ var uiMessages = map[string]map[string]string{
 **OpenAPI Integration Tests:** `openapi/tests/agent/robot_results_activities_test.go` ✅
 - [x] `TestListResults` - test with filters, pagination, keyword search
 - [x] `TestGetResult` - test single result detail
-- [x] `TestListActivities` - test activity feed with `since` parameter
+- [x] `TestListActivities` - test activity feed with `since` and `type` parameters
 - [x] `TestResultsPermissions` - test permission checks
+
+**Store Layer Unit Tests:** `agent/robot/store/execution_test.go` ✅
+- [x] `filters_by_type_completed` - test filtering by completed type
+- [x] `filters_by_type_failed` - test filtering by failed type
+- [x] `filters_by_type_invalid_returns_empty` - test invalid type returns empty
 
 **Permissions:** ✅
 - [x] Added to `yaobots/openapi/scopes/agent/robots.yml`
@@ -834,9 +839,17 @@ var uiMessages = map[string]map[string]string{
 - [x] Updated to use `ResultDetail` type from API
 - [x] Displays delivery content (summary, body, attachments)
 
-**Activity Feed:**
-- [ ] Replace mock data with `listActivities()` API (TODO - not yet integrated in UI)
-- [ ] Implement auto-refresh (polling or SSE later)
+**Activity Feed:** ✅
+- [x] Replace mock data with `listActivities()` API
+- [x] Added `loadActivities()` function to fetch from API
+- [x] Periodic refresh (30s polling, same as robots)
+- [x] Updated Activity Banner to use API data format
+- [x] Updated Activity Modal to use API data format
+- [x] Added loading and empty states
+- [x] Added `type` filter parameter to API (full stack: store → API → OpenAPI → SDK → UI)
+- [x] Filter to show only `execution.completed` via API `type` param (not client-side)
+- [x] Reset carousel index on data refresh (show latest activity first)
+- [x] Click activity item to open result detail modal (overlays activity list)
 
 **Error Handling UI:** ✅
 - [x] Error state displays centered in content area (not in toolbar)
@@ -848,7 +861,15 @@ var uiMessages = map[string]map[string]string{
 - [x] Results display correctly with delivery content
 - [x] Attachments show properly
 - [x] Error state displays properly with retry option
-- [ ] Activity feed updates in real-time (pending - Activity UI not yet connected)
+- [x] Activity feed displays from API (30s polling refresh)
+- [x] Activity item click opens result detail
+
+---
+
+### Future Enhancements (Not in current scope)
+
+- [ ] Activity feed real-time updates via SSE/WebSocket
+- [ ] Push notifications for new results
 
 ---
 

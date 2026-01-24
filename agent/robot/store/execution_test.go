@@ -1221,6 +1221,45 @@ func TestExecutionStoreListActivities(t *testing.T) {
 		assert.Greater(t, typeCount[store.ActivityExecutionFailed], 0, "should have failed activities")
 	})
 
+	t.Run("filters_by_type_completed", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityExecutionCompleted,
+		})
+		require.NoError(t, err)
+
+		// All returned activities should be of type completed
+		for _, a := range activities {
+			assert.Equal(t, store.ActivityExecutionCompleted, a.Type, "all activities should be completed type")
+		}
+		assert.Greater(t, len(activities), 0, "should have at least one completed activity")
+	})
+
+	t.Run("filters_by_type_failed", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityExecutionFailed,
+		})
+		require.NoError(t, err)
+
+		// All returned activities should be of type failed
+		for _, a := range activities {
+			assert.Equal(t, store.ActivityExecutionFailed, a.Type, "all activities should be failed type")
+		}
+		assert.Greater(t, len(activities), 0, "should have at least one failed activity")
+	})
+
+	t.Run("filters_by_type_invalid_returns_empty", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityType("invalid.type"),
+		})
+		require.NoError(t, err)
+
+		// Invalid type should return empty result
+		assert.Equal(t, 0, len(activities), "invalid type should return empty result")
+	})
+
 	t.Run("includes_execution_name_in_message", func(t *testing.T) {
 		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
 			TeamID: "team_activity_001",

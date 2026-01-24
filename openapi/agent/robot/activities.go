@@ -65,6 +65,7 @@ func ListActivities(c *gin.Context) {
 	query := &robotapi.ActivityQuery{
 		TeamID: teamID,
 		Limit:  filter.Limit,
+		Type:   filter.Type, // Pass type filter
 	}
 
 	// Parse 'since' if provided

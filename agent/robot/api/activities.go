@@ -16,6 +16,7 @@ type ActivityQuery struct {
 	TeamID string     `json:"team_id,omitempty"` // Filter by team ID
 	Limit  int        `json:"limit,omitempty"`
 	Since  *time.Time `json:"since,omitempty"` // Only activities after this time
+	Type   string     `json:"type,omitempty"`  // Filter by activity type: execution.started, execution.completed, execution.failed, execution.cancelled
 }
 
 // Activity - activity item for feed
@@ -51,6 +52,11 @@ func ListActivities(ctx *types.Context, query *ActivityQuery) (*ActivityListResp
 
 	if query.TeamID != "" {
 		opts.TeamID = query.TeamID
+	}
+
+	// Pass type filter if provided
+	if query.Type != "" {
+		opts.Type = store.ActivityType(query.Type)
 	}
 
 	// Query from store
