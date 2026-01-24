@@ -52,6 +52,15 @@ func TestListRobots(t *testing.T) {
 		assert.Contains(t, response, "page")
 		assert.Contains(t, response, "pagesize")
 		assert.Contains(t, response, "total")
+
+		// Verify runtime status fields are included in robot items
+		if data, ok := response["data"].([]interface{}); ok && len(data) > 0 {
+			robot := data[0].(map[string]interface{})
+			// Runtime status fields should be present (added for dashboard optimization)
+			assert.Contains(t, robot, "running", "Robot should include running count")
+			assert.Contains(t, robot, "max_running", "Robot should include max_running")
+			// last_run and next_run are optional (omitempty)
+		}
 	})
 
 	t.Run("ListRobotsWithPagination", func(t *testing.T) {
@@ -132,6 +141,50 @@ func TestListRobots(t *testing.T) {
 				if robot, ok := item.(map[string]interface{}); ok {
 					assert.False(t, robot["autonomous_mode"].(bool), "All robots should have autonomous_mode=false")
 				}
+			}
+		}
+	})
+
+	t.Run("ListRobotsIncludesRuntimeStatus", func(t *testing.T) {
+		// Verify that list response includes runtime status fields for dashboard optimization
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/robots", nil)
+		require.NoError(t, err)
+
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		require.NoError(t, err)
+
+		// Verify we have robots to test
+		data, ok := response["data"].([]interface{})
+		require.True(t, ok, "Response should have data array")
+
+		if len(data) > 0 {
+			robot := data[0].(map[string]interface{})
+
+			// Runtime status fields (running is always present, defaults to 0)
+			_, hasRunning := robot["running"]
+			assert.True(t, hasRunning, "Robot should include 'running' field for dashboard")
+
+			// max_running should be present (with omitempty, only if > 0)
+			// The field is returned by GetRobotStatus, so it should be there
+			if maxRunning, ok := robot["max_running"]; ok {
+				assert.GreaterOrEqual(t, maxRunning.(float64), float64(0), "max_running should be >= 0")
+			}
+
+			// robot_status should reflect runtime status
+			robotStatus, hasStatus := robot["robot_status"]
+			assert.True(t, hasStatus, "Robot should include 'robot_status' field")
+			if hasStatus {
+				validStatuses := []string{"idle", "working", "paused", "error", "maintenance"}
+				assert.Contains(t, validStatuses, robotStatus.(string), "robot_status should be a valid status")
 			}
 		}
 	})
