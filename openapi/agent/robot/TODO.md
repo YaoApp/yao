@@ -690,68 +690,263 @@ var uiMessages = map[string]map[string]string{
 
 ---
 
-## 🟢 Phase 3: Results & Activities ⬜ [Low Risk]
+## 🟢 Phase 3: Results & Activities ✅ [Completed]
 
 **Goal:** Deliverables listing and activity feed
 **Risk:** 🟢 Low - Read-only queries, derived from existing data
+**Status:** ✅ Completed 2026-01-22
 
-### 3.1 Backend Prerequisites ⬜
+> **Implementation Pattern:** Follow Phase 2 approach - Store → API → OpenAPI → Frontend SDK → UI
 
-#### Store Layer (Core implementation)
-- [ ] Add `ExecutionStore.ListResults()` - query deliverables from execution delivery data
-- [ ] Add `ExecutionStore.GetResult()` - get single deliverable detail
-- [ ] Add `ExecutionStore.ListActivities()` - derive activities from execution history
+---
 
-#### API Layer (Thin wrappers)
-- [ ] Create `api/results.go` with `ListResults()`, `GetResult()` - call store
-- [ ] Create `api/activities.go` with `ListActivities()` - call store
+### Step 1: Store Layer ✅
 
-### 3.2 Results Endpoints ⬜
+> Location: `yao/agent/robot/store/execution.go`
+> Add methods to existing `ExecutionStore` - query from `delivery` field
 
-- [ ] `results.go` - results handlers
-- [ ] GET /v1/robots/:id/results
-  - [ ] Parse filters: `trigger_type`, `keyword`, `page`, `pagesize`
-  - [ ] Call `robot/api.ListResults()`
-  - [ ] Format response
-- [ ] GET /v1/robots/:id/results/:result_id
-  - [ ] Call `robot/api.GetResult()`
-  - [ ] Return full delivery content
-- [ ] Test: `tests/robot/results_test.go`
+- [x] `ListResults()` - query completed executions with delivery content
+  - Filter by: `member_id`, `team_id`, `trigger_type`, `keyword` (search in name)
+  - Only return executions where `delivery.content` is not null
+  - Return: `*ResultListResponse` with pagination info
+  - Order by: `end_time desc` (newest first)
+- [x] `CountResults()` - count total results for pagination
+- [x] `GetResult()` - get single execution by ID (reuse existing `Get()`)
+- [x] `ListActivities()` - derive activities from execution status changes
+  - Query recent executions across all robots (for team)
+  - Transform to activity format: `{type, robot_id, execution_id, message, timestamp}`
+  - Activity types: `execution.started`, `execution.completed`, `execution.failed`, `execution.cancelled`
+  - Filter by: `team_id`, `since` (timestamp), `limit`
 
-### 3.3 Results Types ⬜
+**Unit Tests:** `store/execution_test.go` ✅
+- [x] `TestListResults` - verify filtering and pagination
+- [x] `TestCountResults` - verify count accuracy
+- [x] `TestListActivities` - verify activity derivation
 
-- [ ] Add to `types.go`:
-  - [ ] `ResultResponse` struct
-  - [ ] `ResultDetailResponse` struct
-  - [ ] `DeliveryContentResponse` struct
-  - [ ] `DeliveryAttachmentResponse` struct
+---
 
-### 3.4 Activities Endpoints ⬜
+### Step 2: API Layer ✅
 
-- [ ] `activities.go` - activities handlers
-- [ ] GET /v1/robots/activities
-  - [ ] Parse: `limit`, `since`
-  - [ ] Call `robot/api.ListActivities()`
-  - [ ] Format response
-- [ ] Test: `tests/robot/activities_test.go`
+> Location: `yao/agent/robot/api/`
+> Thin wrappers calling store methods
 
-### 3.5 Activity Types ⬜
+**File: `api/results.go`** ✅
+- [x] `ResultQuery` struct - query parameters
+- [x] `ResultItem` struct - result list item (subset of execution)
+- [x] `ResultDetail` struct - full result with delivery content
+- [x] `ResultListResponse` struct - paginated response
+- [x] `ListResults(ctx, robotID, query)` - call store, transform to response
+- [x] `GetResult(ctx, resultID)` - call store, return detail
 
-- [ ] Add to `types.go`:
-  - [ ] `ActivityResponse` struct
-  - [ ] `ActivityType` constants
+**File: `api/activities.go`** ✅
+- [x] `ActivityQuery` struct - query parameters
+- [x] `Activity` struct - activity item
+- [x] `ActivityListResponse` struct - response with activities
+- [x] `ListActivities(ctx, query)` - call store, transform to response
 
-### 3.6 Frontend Integration ⬜
+---
 
-> Integrate immediately after backend completion
+### Step 3: OpenAPI Handlers ✅
 
-- [ ] SDK: Add results/activities methods to `robot.ts`
-  - [ ] `listResults(robotId, params)`
-  - [ ] `getResult(robotId, resultId)`
-  - [ ] `listActivities(params)`
-- [ ] Page: Results Tab integration
-- [ ] Page: Activity Feed integration
-- [ ] Verify: E2E testing
+> Location: `yao/openapi/agent/robot/`
+
+**File: `results.go`** ✅
+- [x] `ListResults` handler - GET /v1/agent/robots/:id/results
+  - Parse query params: `trigger_type`, `keyword`, `page`, `pagesize`
+  - Check robot permission (read)
+  - Call `robotapi.ListResults()`
+  - Return `ResultListResponse`
+- [x] `GetResult` handler - GET /v1/agent/robots/:id/results/:result_id
+  - Check robot permission (read)
+  - Call `robotapi.GetResult()`
+  - Return `ResultDetailResponse`
+
+**File: `activities.go`** ✅
+- [x] `ListActivities` handler - GET /v1/agent/robots/activities
+  - Parse query params: `limit`, `since`
+  - Use team_id from auth
+  - Call `robotapi.ListActivities()`
+  - Return `ActivityListResponse`
+
+**Types in `types.go`:** ✅
+- [x] `ResultFilter` struct - query params
+- [x] `ResultResponse` struct - list item
+- [x] `ResultDetailResponse` struct - full detail
+- [x] `ResultListResponse` struct - paginated list
+- [x] `ActivityResponse` struct - activity item
+- [x] `ActivityListResponse` struct - activity list
+- [x] Conversion functions: `NewResultResponse()`, `NewResultDetailResponse()`, `NewActivityResponse()`
+
+**Routes in `robot.go`:** ✅
+- [x] Register `GET /v1/agent/robots/:id/results` → `ListResults`
+- [x] Register `GET /v1/agent/robots/:id/results/:result_id` → `GetResult`
+- [x] Register `GET /v1/agent/robots/activities` → `ListActivities`
+
+**OpenAPI Integration Tests:** `openapi/tests/agent/robot_results_activities_test.go` ✅
+- [x] `TestListResults` - test with filters, pagination, keyword search
+- [x] `TestGetResult` - test single result detail
+- [x] `TestListActivities` - test activity feed with `since` and `type` parameters
+- [x] `TestResultsPermissions` - test permission checks
+
+**Store Layer Unit Tests:** `agent/robot/store/execution_test.go` ✅
+- [x] `filters_by_type_completed` - test filtering by completed type
+- [x] `filters_by_type_failed` - test filtering by failed type
+- [x] `filters_by_type_invalid_returns_empty` - test invalid type returns empty
+
+**Permissions:** ✅
+- [x] Added to `yaobots/openapi/scopes/agent/robots.yml`
+- [x] Added to `yaobots/openapi/scopes/alias.yml`
+- [x] Added to `yao-dev-app/openapi/scopes/agent/robots.yml`
+- [x] Added to `yao-dev-app/openapi/scopes/alias.yml`
+
+---
+
+### Step 4: Frontend SDK ✅
+
+> Location: `cui/packages/cui/openapi/agent/robot/`
+
+**Types in `types.ts`:** ✅
+- [x] `ResultFilter` interface
+- [x] `Result` interface
+- [x] `ResultDetail` interface
+- [x] `ResultListResponse` interface
+- [x] `Activity` interface
+- [x] `ActivityListResponse` interface
+
+**Methods in `robots.ts`:** ✅
+- [x] `ListResults(robotId: string, filter?: ResultFilter): Promise<ResultListResponse>`
+- [x] `GetResult(robotId: string, resultId: string): Promise<ResultDetail>`
+- [x] `ListActivities(params?: { limit?: number, since?: string }): Promise<ActivityListResponse>`
+
+**Hook in `hooks/useRobots.ts`:** ✅
+- [x] `listResults` - wrapper for API
+- [x] `getResult` - wrapper for API
+- [x] `listActivities` - wrapper for API
+
+---
+
+### Step 5: Frontend UI Integration ✅
+
+> Location: `cui/packages/cui/pages/mission-control/`
+
+**Results Tab (`ResultsTab.tsx`):** ✅
+- [x] Replace mock data with `listResults()` API
+- [x] Implement result detail modal/drawer with `getResult()` API
+- [x] Add filtering (trigger type, keyword search)
+- [x] Add pagination (infinite scroll)
+
+**Result Detail Modal (`ResultDetailModal/index.tsx`):** ✅
+- [x] Updated to use `ResultDetail` type from API
+- [x] Displays delivery content (summary, body, attachments)
+
+**Activity Feed:** ✅
+- [x] Replace mock data with `listActivities()` API
+- [x] Added `loadActivities()` function to fetch from API
+- [x] Periodic refresh (30s polling, same as robots)
+- [x] Updated Activity Banner to use API data format
+- [x] Updated Activity Modal to use API data format
+- [x] Added loading and empty states
+- [x] Added `type` filter parameter to API (full stack: store → API → OpenAPI → SDK → UI)
+- [x] Filter to show only `execution.completed` via API `type` param (not client-side)
+- [x] Reset carousel index on data refresh (show latest activity first)
+- [x] Click activity item to open result detail modal (overlays activity list)
+
+**Error Handling UI:** ✅
+- [x] Error state displays centered in content area (not in toolbar)
+- [x] Error state hides empty placeholder
+- [x] Retry button for reloading
+- [x] Uses CSS variable `--color_danger` (no hardcoded colors)
+
+**Verify:**
+- [x] Results display correctly with delivery content
+- [x] Attachments show properly
+- [x] Error state displays properly with retry option
+- [x] Activity feed displays from API (30s polling refresh)
+- [x] Activity item click opens result detail
+
+---
+
+### Future Enhancements (Not in current scope)
+
+- [ ] Activity feed real-time updates via SSE/WebSocket
+- [ ] Push notifications for new results
+
+---
+
+### API Reference
+
+**GET /v1/agent/robots/:id/results**
+```
+Query Params:
+  - trigger_type: string (clock|human|event)
+  - keyword: string (search in summary)
+  - page: number (default: 1)
+  - pagesize: number (default: 20, max: 100)
+
+Response:
+{
+  "data": [
+    {
+      "id": "exec-id",
+      "member_id": "robot-id",
+      "trigger_type": "clock",
+      "status": "completed",
+      "name": "Execution title",
+      "summary": "Delivery summary...",
+      "start_time": "2026-01-24T10:00:00Z",
+      "end_time": "2026-01-24T10:05:00Z",
+      "has_attachments": true
+    }
+  ],
+  "total": 50,
+  "page": 1,
+  "pagesize": 20
+}
+```
+
+**GET /v1/agent/robots/:id/results/:result_id**
+```
+Response:
+{
+  "id": "exec-id",
+  "member_id": "robot-id",
+  "trigger_type": "clock",
+  "status": "completed",
+  "name": "Execution title",
+  "delivery": {
+    "content": {
+      "summary": "...",
+      "body": "...",
+      "attachments": [...]
+    },
+    "success": true,
+    "sent_at": "2026-01-24T10:05:00Z"
+  },
+  "start_time": "2026-01-24T10:00:00Z",
+  "end_time": "2026-01-24T10:05:00Z"
+}
+```
+
+**GET /v1/agent/robots/activities**
+```
+Query Params:
+  - limit: number (default: 20, max: 100)
+  - since: string (ISO timestamp, optional)
+
+Response:
+{
+  "data": [
+    {
+      "type": "execution.completed",
+      "robot_id": "robot-id",
+      "robot_name": "Sales Robot",
+      "execution_id": "exec-id",
+      "message": "Completed: Weekly report generation",
+      "timestamp": "2026-01-24T10:05:00Z"
+    }
+  ]
+}
+```
 
 ---
 

@@ -461,3 +461,123 @@ func NewExecutionResponseBrief(exec *robottypes.Execution) *ExecutionResponse {
 		// Omit other phase outputs for list view (inspiration, goals, tasks, results, delivery, input)
 	}
 }
+
+// ==================== Results Types ====================
+
+// ResultFilter - query params for listing results
+type ResultFilter struct {
+	TriggerType string `form:"trigger_type"` // clock | human | event
+	Keyword     string `form:"keyword"`      // search in name/summary
+	Page        int    `form:"page"`
+	PageSize    int    `form:"pagesize"`
+}
+
+// ResultResponse - result list item
+type ResultResponse struct {
+	ID             string     `json:"id"`
+	MemberID       string     `json:"member_id"`
+	TriggerType    string     `json:"trigger_type"`
+	Status         string     `json:"status"`
+	Name           string     `json:"name"`
+	Summary        string     `json:"summary"`
+	StartTime      time.Time  `json:"start_time"`
+	EndTime        *time.Time `json:"end_time,omitempty"`
+	HasAttachments bool       `json:"has_attachments"`
+}
+
+// ResultDetailResponse - full result with delivery content
+type ResultDetailResponse struct {
+	ID          string      `json:"id"`
+	MemberID    string      `json:"member_id"`
+	TriggerType string      `json:"trigger_type"`
+	Status      string      `json:"status"`
+	Name        string      `json:"name"`
+	Delivery    interface{} `json:"delivery,omitempty"`
+	StartTime   time.Time   `json:"start_time"`
+	EndTime     *time.Time  `json:"end_time,omitempty"`
+}
+
+// ResultListResponse - paginated list response
+type ResultListResponse struct {
+	Data     []*ResultResponse `json:"data"`
+	Total    int               `json:"total"`
+	Page     int               `json:"page"`
+	PageSize int               `json:"pagesize"`
+}
+
+// NewResultResponse creates a ResultResponse from api.ResultItem
+func NewResultResponse(item *robotapi.ResultItem) *ResultResponse {
+	if item == nil {
+		return nil
+	}
+
+	return &ResultResponse{
+		ID:             item.ID,
+		MemberID:       item.MemberID,
+		TriggerType:    string(item.TriggerType),
+		Status:         string(item.Status),
+		Name:           item.Name,
+		Summary:        item.Summary,
+		StartTime:      item.StartTime,
+		EndTime:        item.EndTime,
+		HasAttachments: item.HasAttachments,
+	}
+}
+
+// NewResultDetailResponse creates a ResultDetailResponse from api.ResultDetail
+func NewResultDetailResponse(detail *robotapi.ResultDetail) *ResultDetailResponse {
+	if detail == nil {
+		return nil
+	}
+
+	return &ResultDetailResponse{
+		ID:          detail.ID,
+		MemberID:    detail.MemberID,
+		TriggerType: string(detail.TriggerType),
+		Status:      string(detail.Status),
+		Name:        detail.Name,
+		Delivery:    detail.Delivery,
+		StartTime:   detail.StartTime,
+		EndTime:     detail.EndTime,
+	}
+}
+
+// ==================== Activities Types ====================
+
+// ActivityFilter - query params for listing activities
+type ActivityFilter struct {
+	Limit int    `form:"limit"` // max number of activities
+	Since string `form:"since"` // ISO timestamp, only activities after this time
+	Type  string `form:"type"`  // activity type filter: execution.started, execution.completed, execution.failed, execution.cancelled
+}
+
+// ActivityResponse - activity item
+type ActivityResponse struct {
+	Type        string    `json:"type"` // execution.started, execution.completed, etc.
+	RobotID     string    `json:"robot_id"`
+	RobotName   string    `json:"robot_name,omitempty"`
+	ExecutionID string    `json:"execution_id"`
+	Message     string    `json:"message"`
+	Timestamp   time.Time `json:"timestamp"`
+}
+
+// ActivityListResponse - activity list response
+type ActivityListResponse struct {
+	Data []*ActivityResponse `json:"data"`
+}
+
+// NewActivityResponse creates an ActivityResponse from api.Activity
+func NewActivityResponse(activity *robotapi.Activity) *ActivityResponse {
+	if activity == nil {
+		return nil
+	}
+
+	return &ActivityResponse{
+		Type:        string(activity.Type),
+		RobotID:     activity.RobotID,
+		RobotName:   activity.RobotName,
+		ExecutionID: activity.ExecutionID,
+		Message:     activity.Message,
+		Timestamp:   activity.Timestamp,
+	}
+}

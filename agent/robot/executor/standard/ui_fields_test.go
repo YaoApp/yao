@@ -307,6 +307,137 @@ func TestExtractGoalName(t *testing.T) {
 		name := extractGoalName(goals)
 		assert.Equal(t, "First goal", name)
 	})
+
+	t.Run("skips_markdown_h1_header", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "# Goals\nSystem optimization and monitoring",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "System optimization and monitoring", name)
+	})
+
+	t.Run("skips_markdown_h2_header", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "## Goals\n\nPerform system maintenance tasks",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Perform system maintenance tasks", name)
+	})
+
+	t.Run("skips_multiple_markdown_headers", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "## Goals\n### 1. [High] First Goal\nActual description here",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Actual description here", name)
+	})
+
+	t.Run("strips_bold_formatting", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "**Important** task to complete",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Important task to complete", name)
+	})
+
+	t.Run("strips_italic_formatting", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "*Urgent* system update needed",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Urgent system update needed", name)
+	})
+
+	t.Run("strips_inline_code", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "Run `npm install` command",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Run npm install command", name)
+	})
+
+	t.Run("skips_empty_lines", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "\n\n\nFirst real content\nSecond line",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "First real content", name)
+	})
+
+	t.Run("fallback_to_header_content_if_only_headers", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "## Goals\n### Tasks",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Goals", name)
+	})
+
+	t.Run("skips_horizontal_rules", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "---\nActual content here",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Actual content here", name)
+	})
+
+	t.Run("handles_complex_markdown_content", func(t *testing.T) {
+		goals := &robottypes.Goals{
+			Content: "## Goals\n\n### 1. [High] System Maintenance\n**Description**: Perform system optimization based on diagnostic results\n**Reason**: Time-sensitive maintenance",
+		}
+
+		name := extractGoalName(goals)
+		assert.Equal(t, "Description: Perform system optimization based on diagnostic results", name)
+	})
+}
+
+// ============================================================================
+// stripMarkdownFormatting Tests
+// ============================================================================
+
+func TestStripMarkdownFormatting(t *testing.T) {
+	t.Run("strips_bold", func(t *testing.T) {
+		result := stripMarkdownFormatting("**bold text**")
+		assert.Equal(t, "bold text", result)
+	})
+
+	t.Run("strips_italic_asterisk", func(t *testing.T) {
+		result := stripMarkdownFormatting("*italic text*")
+		assert.Equal(t, "italic text", result)
+	})
+
+	t.Run("strips_italic_underscore", func(t *testing.T) {
+		result := stripMarkdownFormatting("_italic text_")
+		assert.Equal(t, "italic text", result)
+	})
+
+	t.Run("strips_inline_code", func(t *testing.T) {
+		result := stripMarkdownFormatting("`code`")
+		assert.Equal(t, "code", result)
+	})
+
+	t.Run("strips_link_syntax", func(t *testing.T) {
+		result := stripMarkdownFormatting("[link text](https://example.com)")
+		assert.Equal(t, "link text", result)
+	})
+
+	t.Run("preserves_plain_text", func(t *testing.T) {
+		result := stripMarkdownFormatting("plain text without formatting")
+		assert.Equal(t, "plain text without formatting", result)
+	})
+
+	t.Run("handles_mixed_formatting", func(t *testing.T) {
+		result := stripMarkdownFormatting("**bold** and *italic* and `code`")
+		assert.Equal(t, "bold and italic and code", result)
+	})
 }
 
 // ============================================================================

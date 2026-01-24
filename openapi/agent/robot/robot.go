@@ -14,8 +14,12 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	// Robot CRUD - Standard REST endpoints
-	group.GET("", ListRobots)         // GET /robots - List robots with pagination and filtering
-	group.POST("", CreateRobot)       // POST /robots - Create a new robot
+	group.GET("", ListRobots)   // GET /robots - List robots with pagination and filtering
+	group.POST("", CreateRobot) // POST /robots - Create a new robot
+
+	// Activities - Cross-robot activity feed for team (must be before /:id to avoid conflict)
+	group.GET("/activities", ListActivities) // GET /robots/activities - List team activities
+
 	group.GET("/:id", GetRobot)       // GET /robots/:id - Get robot details
 	group.PUT("/:id", UpdateRobot)    // PUT /robots/:id - Update robot
 	group.DELETE("/:id", DeleteRobot) // DELETE /robots/:id - Delete robot
@@ -29,6 +33,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/:id/executions/:exec_id/pause", PauseExecution)   // POST /robots/:id/executions/:exec_id/pause - Pause execution
 	group.POST("/:id/executions/:exec_id/resume", ResumeExecution) // POST /robots/:id/executions/:exec_id/resume - Resume execution
 	group.POST("/:id/executions/:exec_id/cancel", CancelExecution) // POST /robots/:id/executions/:exec_id/cancel - Cancel execution
+
+	// Results (Deliveries) - Completed executions with delivery content
+	group.GET("/:id/results", ListResults)          // GET /robots/:id/results - List robot results
+	group.GET("/:id/results/:result_id", GetResult) // GET /robots/:id/results/:result_id - Get result details
 
 	// Trigger & Intervene
 	group.POST("/:id/trigger", TriggerRobot)     // POST /robots/:id/trigger - Trigger robot execution

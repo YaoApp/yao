@@ -2,6 +2,7 @@ package standard
 
 import (
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -523,29 +524,88 @@ func extractGoalName(goals *robottypes.Goals) string {
 		return ""
 	}
 
-	// Extract first line or first sentence as the goal name
+	// Extract first non-empty, non-markdown-header line as the goal name
 	content := goals.Content
-	// Find first newline
-	if idx := indexAny(content, "\n\r"); idx > 0 {
-		content = content[:idx]
-	}
-	// Limit length
-	if len(content) > 150 {
-		content = content[:150] + "..."
-	}
-	return content
-}
+	lines := strings.Split(content, "\n")
 
-// indexAny returns the index of the first occurrence of any char in chars
-func indexAny(s string, chars string) int {
-	for i, c := range s {
-		for _, ch := range chars {
-			if c == ch {
-				return i
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Skip markdown headers (# ## ### etc.)
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		// Skip markdown horizontal rules (--- or ***)
+		if strings.HasPrefix(line, "---") || strings.HasPrefix(line, "***") {
+			continue
+		}
+		// Found a content line - strip markdown formatting
+		line = stripMarkdownFormatting(line)
+		// Limit length
+		if len(line) > 150 {
+			line = line[:150] + "..."
+		}
+		return line
+	}
+
+	// Fallback: if all lines are headers, use first header without # prefix
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		// Strip leading # symbols
+		line = strings.TrimLeft(line, "#")
+		line = strings.TrimSpace(line)
+		line = stripMarkdownFormatting(line)
+		if line != "" {
+			if len(line) > 150 {
+				line = line[:150] + "..."
 			}
+			return line
 		}
 	}
-	return -1
+
+	return ""
+}
+
+// stripMarkdownFormatting removes common markdown formatting from text
+func stripMarkdownFormatting(s string) string {
+	// Remove bold/italic markers
+	s = strings.ReplaceAll(s, "**", "")
+	s = strings.ReplaceAll(s, "__", "")
+	s = strings.ReplaceAll(s, "*", "")
+	s = strings.ReplaceAll(s, "_", "")
+	// Remove inline code
+	s = strings.ReplaceAll(s, "`", "")
+	// Remove link syntax [text](url) -> text
+	// Simple approach: just remove brackets and parentheses content
+	for {
+		start := strings.Index(s, "[")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(s[start:], "]")
+		if end == -1 {
+			break
+		}
+		linkEnd := start + end
+		// Check if followed by (url)
+		if linkEnd+1 < len(s) && s[linkEnd+1] == '(' {
+			parenEnd := strings.Index(s[linkEnd+1:], ")")
+			if parenEnd != -1 {
+				// Extract just the link text
+				linkText := s[start+1 : linkEnd]
+				s = s[:start] + linkText + s[linkEnd+1+parenEnd+1:]
+				continue
+			}
+		}
+		// Just remove brackets
+		s = s[:start] + s[start+1:linkEnd] + s[linkEnd+1:]
+	}
+	return strings.TrimSpace(s)
 }
 
 // Verify Executor implements types.Executor

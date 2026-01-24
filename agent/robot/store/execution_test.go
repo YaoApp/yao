@@ -1023,3 +1023,396 @@ func setupTestExecutionsForList(t *testing.T, s *store.ExecutionStore, ctx conte
 		require.NoError(t, err)
 	}
 }
+
+// ==================== Results & Activities Tests ====================
+
+// TestExecutionStoreListResults tests listing execution results (deliveries)
+func TestExecutionStoreListResults(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestExecutions(t)
+	defer cleanupTestExecutions(t)
+
+	s := store.NewExecutionStore()
+	ctx := context.Background()
+
+	// Setup test data with delivery content
+	setupTestResultsData(t, s, ctx)
+
+	t.Run("lists_results_without_filters", func(t *testing.T) {
+		result, err := s.ListResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_001",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 2, result.Total)
+		assert.Len(t, result.Data, 2)
+		// Should be ordered by end_time desc
+		for _, r := range result.Data {
+			assert.NotNil(t, r.Delivery)
+			assert.NotNil(t, r.Delivery.Content)
+		}
+	})
+
+	t.Run("filters_by_trigger_type", func(t *testing.T) {
+		result, err := s.ListResults(ctx, &store.ResultListOptions{
+			MemberID:    "member_result_001",
+			TriggerType: types.TriggerClock,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 1, result.Total)
+		assert.Len(t, result.Data, 1)
+		assert.Equal(t, types.TriggerClock, result.Data[0].TriggerType)
+	})
+
+	t.Run("filters_by_keyword", func(t *testing.T) {
+		result, err := s.ListResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_001",
+			Keyword:  "Weekly",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// Should match "Weekly Sales Report"
+		assert.GreaterOrEqual(t, result.Total, 1)
+	})
+
+	t.Run("respects_pagination", func(t *testing.T) {
+		result, err := s.ListResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_001",
+			Limit:    1,
+			Offset:   0,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 1, len(result.Data))
+		assert.Equal(t, 2, result.Total)
+		assert.Equal(t, 1, result.Page)
+	})
+
+	t.Run("excludes_executions_without_delivery", func(t *testing.T) {
+		result, err := s.ListResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_002", // Has no delivery content
+		})
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.Equal(t, 0, result.Total)
+		assert.Empty(t, result.Data)
+	})
+}
+
+// TestExecutionStoreCountResults tests counting results
+func TestExecutionStoreCountResults(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestExecutions(t)
+	defer cleanupTestExecutions(t)
+
+	s := store.NewExecutionStore()
+	ctx := context.Background()
+
+	// Setup test data with delivery content
+	setupTestResultsData(t, s, ctx)
+
+	t.Run("counts_all_results_for_member", func(t *testing.T) {
+		count, err := s.CountResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_001",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+
+	t.Run("counts_filtered_results", func(t *testing.T) {
+		count, err := s.CountResults(ctx, &store.ResultListOptions{
+			MemberID:    "member_result_001",
+			TriggerType: types.TriggerHuman,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, count)
+	})
+
+	t.Run("returns_zero_for_no_results", func(t *testing.T) {
+		count, err := s.CountResults(ctx, &store.ResultListOptions{
+			MemberID: "member_result_002",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
+}
+
+// TestExecutionStoreListActivities tests listing activities
+func TestExecutionStoreListActivities(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	cleanupTestExecutions(t)
+	defer cleanupTestExecutions(t)
+
+	s := store.NewExecutionStore()
+	ctx := context.Background()
+
+	// Setup test data
+	setupTestActivitiesData(t, s, ctx)
+
+	t.Run("lists_activities_for_team", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+		})
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, len(activities), 3)
+	})
+
+	t.Run("respects_limit", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Limit:  2,
+		})
+		require.NoError(t, err)
+		assert.LessOrEqual(t, len(activities), 2)
+	})
+
+	t.Run("filters_by_since", func(t *testing.T) {
+		// Without since, should get all activities
+		activitiesAll, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+		})
+		require.NoError(t, err)
+		allCount := len(activitiesAll)
+		assert.GreaterOrEqual(t, allCount, 3, "should have at least 3 activities without filter")
+
+		// Use a time in the future to ensure we get no results
+		future := time.Now().Add(24 * time.Hour)
+		activitiesFuture, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Since:  &future,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 0, len(activitiesFuture), "should get no results with future since time")
+	})
+
+	t.Run("generates_correct_activity_types", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+		})
+		require.NoError(t, err)
+
+		// Should have activities of different types
+		typeCount := make(map[store.ActivityType]int)
+		for _, a := range activities {
+			typeCount[a.Type]++
+		}
+
+		// We should have at least completed and failed types
+		assert.Greater(t, typeCount[store.ActivityExecutionCompleted], 0, "should have completed activities")
+		assert.Greater(t, typeCount[store.ActivityExecutionFailed], 0, "should have failed activities")
+	})
+
+	t.Run("filters_by_type_completed", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityExecutionCompleted,
+		})
+		require.NoError(t, err)
+
+		// All returned activities should be of type completed
+		for _, a := range activities {
+			assert.Equal(t, store.ActivityExecutionCompleted, a.Type, "all activities should be completed type")
+		}
+		assert.Greater(t, len(activities), 0, "should have at least one completed activity")
+	})
+
+	t.Run("filters_by_type_failed", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityExecutionFailed,
+		})
+		require.NoError(t, err)
+
+		// All returned activities should be of type failed
+		for _, a := range activities {
+			assert.Equal(t, store.ActivityExecutionFailed, a.Type, "all activities should be failed type")
+		}
+		assert.Greater(t, len(activities), 0, "should have at least one failed activity")
+	})
+
+	t.Run("filters_by_type_invalid_returns_empty", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+			Type:   store.ActivityType("invalid.type"),
+		})
+		require.NoError(t, err)
+
+		// Invalid type should return empty result
+		assert.Equal(t, 0, len(activities), "invalid type should return empty result")
+	})
+
+	t.Run("includes_execution_name_in_message", func(t *testing.T) {
+		activities, err := s.ListActivities(ctx, &store.ActivityListOptions{
+			TeamID: "team_activity_001",
+		})
+		require.NoError(t, err)
+
+		// Find a completed activity
+		var completedActivity *store.Activity
+		for _, a := range activities {
+			if a.Type == store.ActivityExecutionCompleted && a.Message != "" {
+				completedActivity = a
+				break
+			}
+		}
+
+		require.NotNil(t, completedActivity, "should find a completed activity")
+		assert.Contains(t, completedActivity.Message, "Completed")
+	})
+}
+
+// Helper function to setup test results data
+func setupTestResultsData(t *testing.T, s *store.ExecutionStore, ctx context.Context) {
+	startTime := time.Now().Add(-2 * time.Hour)
+	endTime := time.Now().Add(-1 * time.Hour)
+	endTime2 := time.Now().Add(-30 * time.Minute)
+
+	records := []*store.ExecutionRecord{
+		{
+			ExecutionID: "exec_test_result_001",
+			MemberID:    "member_result_001",
+			TeamID:      "team_result_001",
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecCompleted,
+			Phase:       types.PhaseDelivery,
+			Name:        "Weekly Sales Report",
+			StartTime:   &startTime,
+			EndTime:     &endTime,
+			Delivery: &types.DeliveryResult{
+				Success: true,
+				Content: &types.DeliveryContent{
+					Summary: "Weekly sales report generated successfully",
+					Body:    "## Weekly Sales Report\n\nTotal sales: $50,000",
+				},
+			},
+		},
+		{
+			ExecutionID: "exec_test_result_002",
+			MemberID:    "member_result_001",
+			TeamID:      "team_result_001",
+			TriggerType: types.TriggerHuman,
+			Status:      types.ExecCompleted,
+			Phase:       types.PhaseDelivery,
+			Name:        "Custom Analysis",
+			StartTime:   &startTime,
+			EndTime:     &endTime2,
+			Delivery: &types.DeliveryResult{
+				Success: true,
+				Content: &types.DeliveryContent{
+					Summary: "Custom analysis completed",
+					Body:    "## Analysis Results\n\nFindings...",
+					Attachments: []types.DeliveryAttachment{
+						{Title: "Report.pdf", File: "__attachment://file_001"},
+					},
+				},
+			},
+		},
+		{
+			// Completed but no delivery content - should be excluded
+			ExecutionID: "exec_test_result_003",
+			MemberID:    "member_result_002",
+			TeamID:      "team_result_001",
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecCompleted,
+			Phase:       types.PhaseDelivery,
+			Name:        "No Delivery Content",
+			StartTime:   &startTime,
+			EndTime:     &endTime,
+			// No Delivery field
+		},
+		{
+			// Running - should be excluded from results
+			ExecutionID: "exec_test_result_004",
+			MemberID:    "member_result_001",
+			TeamID:      "team_result_001",
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecRunning,
+			Phase:       types.PhaseRun,
+			Name:        "Running Task",
+			StartTime:   &startTime,
+		},
+	}
+
+	for _, record := range records {
+		err := s.Save(ctx, record)
+		require.NoError(t, err)
+	}
+}
+
+// Helper function to setup test activities data
+func setupTestActivitiesData(t *testing.T, s *store.ExecutionStore, ctx context.Context) {
+	startTime := time.Now().Add(-2 * time.Hour)
+	endTime := time.Now().Add(-1 * time.Hour)
+	endTimeFailed := time.Now().Add(-45 * time.Minute)
+
+	records := []*store.ExecutionRecord{
+		{
+			ExecutionID: "exec_test_activity_001",
+			MemberID:    "member_activity_001",
+			TeamID:      "team_activity_001",
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecCompleted,
+			Phase:       types.PhaseDelivery,
+			Name:        "Daily Report",
+			StartTime:   &startTime,
+			EndTime:     &endTime,
+		},
+		{
+			ExecutionID: "exec_test_activity_002",
+			MemberID:    "member_activity_001",
+			TeamID:      "team_activity_001",
+			TriggerType: types.TriggerHuman,
+			Status:      types.ExecFailed,
+			Phase:       types.PhaseRun,
+			Name:        "Custom Task",
+			StartTime:   &startTime,
+			EndTime:     &endTimeFailed,
+			Error:       "Task timeout",
+		},
+		{
+			ExecutionID: "exec_test_activity_003",
+			MemberID:    "member_activity_002",
+			TeamID:      "team_activity_001",
+			TriggerType: types.TriggerEvent,
+			Status:      types.ExecCancelled,
+			Phase:       types.PhaseTasks,
+			Name:        "Lead Processing",
+			StartTime:   &startTime,
+			EndTime:     &endTime,
+		},
+		{
+			ExecutionID: "exec_test_activity_004",
+			MemberID:    "member_activity_002",
+			TeamID:      "team_activity_001",
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecRunning,
+			Phase:       types.PhaseRun,
+			Name:        "Data Analysis",
+			StartTime:   &startTime,
+		},
+	}
+
+	for _, record := range records {
+		err := s.Save(ctx, record)
+		require.NoError(t, err)
+	}
+}
