@@ -1034,18 +1034,17 @@ func TestParseDataURI(t *testing.T) {
 		}
 	})
 
-	// Test 2: Plain base64 (no data URI header)
-	t.Run("PlainBase64", func(t *testing.T) {
-		content := "Plain base64"
-		base64Content := base64.StdEncoding.EncodeToString([]byte(content))
+	// Test 2: Plain text (no data URI header) - treated as plain text, not base64
+	t.Run("PlainText", func(t *testing.T) {
+		content := "Plain text content"
 
-		contentType, data, err := parseDataURI(base64Content)
+		contentType, data, err := parseDataURI(content)
 		if err != nil {
-			t.Fatalf("Failed to parse plain base64: %v", err)
+			t.Fatalf("Failed to parse plain text: %v", err)
 		}
 
-		if contentType != "application/octet-stream" {
-			t.Errorf("Expected content type 'application/octet-stream', got '%s'", contentType)
+		if contentType != "text/plain" {
+			t.Errorf("Expected content type 'text/plain', got '%s'", contentType)
 		}
 
 		if string(data) != content {

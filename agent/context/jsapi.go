@@ -71,6 +71,9 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 	// Set agent object for calling other agents
 	jsObject.Set("agent", ctx.newAgentObject(v8ctx.Isolate()))
 
+	// Set llm object for direct LLM calls
+	jsObject.Set("llm", ctx.newLlmObject(v8ctx.Isolate()))
+
 	// Note: Space object will be set after instance creation (requires v8ctx)
 
 	// Create instance

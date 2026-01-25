@@ -132,6 +132,62 @@ func (ctx *Context) GetAuthorizedMap() map[string]interface{} {
 	return ctx.Authorized.AuthorizedToMap()
 }
 
+// Fork creates a child context for concurrent agent/LLM calls
+// The forked context shares read-only resources (Memory, Authorized, Cache, Writer)
+// but has its own independent Stack and Logger to avoid race conditions
+//
+// This is essential for batch operations (All/Any/Race) where multiple goroutines
+// need to execute concurrently without interfering with each other's Stack state.
+//
+// The forked context does NOT need to be released separately - the parent context
+// manages shared resources. However, the child's Stack will be collected in parent's Stacks map.
+func (ctx *Context) Fork() *Context {
+	childID := generateContextID()
+
+	child := &Context{
+		// Inherit parent's standard context
+		Context: ctx.Context,
+
+		// New unique ID for this forked context
+		ID: childID,
+
+		// Share read-only/thread-safe resources with parent
+		Memory:       ctx.Memory,       // Memory is designed to be shared
+		Cache:        ctx.Cache,        // Cache store is thread-safe
+		Writer:       ctx.Writer,       // Output writer is thread-safe (output module handles concurrency)
+		Authorized:   ctx.Authorized,   // Read-only auth info
+		Capabilities: ctx.Capabilities, // Read-only model capabilities
+
+		// Share reference to parent's Stacks map for trace collection
+		// Child stacks will be added here by EnterStack
+		Stacks: ctx.Stacks,
+
+		// Create independent resources to avoid race conditions
+		Stack:           nil, // Will be set by EnterStack
+		IDGenerator:     message.NewIDGenerator(),
+		Logger:          NewRequestLogger(ctx.AssistantID, ctx.ChatID, childID),
+		messageMetadata: newMessageMetadataStore(),
+
+		// Inherit context metadata
+		ChatID:      ctx.ChatID,
+		AssistantID: ctx.AssistantID,
+		Locale:      ctx.Locale,
+		Theme:       ctx.Theme,
+		Client:      ctx.Client,
+		Referer:     ctx.Referer,
+		Accept:      ctx.Accept,
+		Route:       ctx.Route,
+		Metadata:    ctx.Metadata,
+
+		// Don't inherit these - they are request-specific
+		Buffer:    nil, // Buffer belongs to root context
+		Interrupt: nil, // Interrupt controller belongs to root context
+		trace:     nil, // Trace will be inherited via TraceID in Stack
+	}
+
+	return child
+}
+
 // Send sends data to the context's writer
 // This is used by the output module to send messages to the client
 // func (ctx *Context) Send(data []byte) error {

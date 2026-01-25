@@ -25,6 +25,7 @@ type callResult struct {
 
 // All executes all agent calls and waits for all to complete (like Promise.all)
 // Returns results in the same order as requests, regardless of completion order
+// Each call uses a forked context to avoid race conditions on shared state
 func (o *Orchestrator) All(reqs []*Request) []*Result {
 	if len(reqs) == 0 {
 		return []*Result{}
@@ -49,7 +50,8 @@ func (o *Orchestrator) All(reqs []*Request) []*Result {
 				}
 			}()
 
-			result := o.callAgent(r)
+			// Use forked context to avoid race conditions
+			result := o.callAgentWithForkedContext(r)
 			mu.Lock()
 			results[idx] = result
 			mu.Unlock()
@@ -63,6 +65,7 @@ func (o *Orchestrator) All(reqs []*Request) []*Result {
 // Any returns as soon as any agent call succeeds (has non-error result) (like Promise.any)
 // Other calls continue in background but results are discarded after first success
 // Returns all results received so far when first success is found
+// Each call uses a forked context to avoid race conditions on shared state
 func (o *Orchestrator) Any(reqs []*Request) []*Result {
 	if len(reqs) == 0 {
 		return []*Result{}
@@ -98,7 +101,8 @@ func (o *Orchestrator) Any(reqs []*Request) []*Result {
 			default:
 			}
 
-			result := o.callAgent(r)
+			// Use forked context to avoid race conditions
+			result := o.callAgentWithForkedContext(r)
 
 			// Try to send result
 			select {
@@ -132,6 +136,7 @@ func (o *Orchestrator) Any(reqs []*Request) []*Result {
 // Race returns as soon as any agent call completes (like Promise.race)
 // Returns immediately when first result arrives, regardless of success/failure
 // Note: Still waits for all goroutines to complete before returning to avoid resource leaks
+// Each call uses a forked context to avoid race conditions on shared state
 func (o *Orchestrator) Race(reqs []*Request) []*Result {
 	if len(reqs) == 0 {
 		return []*Result{}
@@ -167,7 +172,8 @@ func (o *Orchestrator) Race(reqs []*Request) []*Result {
 			default:
 			}
 
-			result := o.callAgent(r)
+			// Use forked context to avoid race conditions
+			result := o.callAgentWithForkedContext(r)
 
 			// Try to send result
 			select {
@@ -200,6 +206,21 @@ func (o *Orchestrator) Race(reqs []*Request) []*Result {
 // callAgent executes a single agent call using the AgentGetterFunc
 // This method handles context sharing and result extraction
 func (o *Orchestrator) callAgent(req *Request) *Result {
+	return o.callAgentWithContext(o.ctx, req)
+}
+
+// callAgentWithForkedContext executes a single agent call with a forked context
+// This is used by batch operations (All/Any/Race) to avoid race conditions
+// when multiple goroutines modify shared context state (Stack, Logger, etc.)
+func (o *Orchestrator) callAgentWithForkedContext(req *Request) *Result {
+	// Fork the context to get independent Stack and Logger
+	forkedCtx := o.ctx.Fork()
+	return o.callAgentWithContext(forkedCtx, req)
+}
+
+// callAgentWithContext executes a single agent call with the given context
+// This is the core implementation used by both callAgent and callAgentWithForkedContext
+func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Request) *Result {
 	if req == nil {
 		return &Result{Error: "nil request"}
 	}
@@ -237,9 +258,9 @@ func (o *Orchestrator) callAgent(req *Request) *Result {
 		ctxOpts.OnMessage = req.Handler
 	}
 
-	// Execute the agent call with shared context
-	// The agent.Stream method will use the parent context's Writer for output
-	resp, err := agent.Stream(o.ctx, req.Messages, ctxOpts)
+	// Execute the agent call with the provided context
+	// The agent.Stream method will use the context's Writer for output
+	resp, err := agent.Stream(ctx, req.Messages, ctxOpts)
 	if err != nil {
 		result.Error = "agent call failed: " + err.Error()
 		return result
