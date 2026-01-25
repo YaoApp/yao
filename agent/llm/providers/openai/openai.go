@@ -1211,12 +1211,6 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 	// Add thinking parameter for models that support reasoning/thinking mode
 	if thinkingSetting != nil {
 		body["thinking"] = thinkingSetting
-		fmt.Printf("[DEBUG] Adding thinking parameter to request: %+v\n", thinkingSetting)
-	}
-
-	// Debug: Print full request body
-	if bodyJSON, err := jsoniter.MarshalIndent(body, "", "  "); err == nil {
-		fmt.Printf("[DEBUG] Request body:\n%s\n", string(bodyJSON))
 	}
 
 	return body, nil
