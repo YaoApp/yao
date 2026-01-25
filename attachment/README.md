@@ -790,3 +790,252 @@ fmt.Printf("Retrieved text: %s\n", savedText)
 #### `RegisterDefault(name string) (*Manager, error)`
 
 Registers a default attachment manager with sensible defaults for common file types.
+
+## Process API
+
+The attachment package provides a set of Yao Process APIs for file management with built-in permission support.
+
+### Available Processes
+
+| Process | Description |
+|---------|-------------|
+| `attachment.Save` | Save a file from base64 data URI |
+| `attachment.Read` | Read file content as base64 data URI |
+| `attachment.Info` | Get file metadata |
+| `attachment.List` | List files with pagination and filtering |
+| `attachment.Delete` | Delete a file |
+| `attachment.Exists` | Check if file exists |
+| `attachment.URL` | Get file URL |
+| `attachment.SaveText` | Save parsed text content for a file |
+| `attachment.GetText` | Get parsed text content for a file |
+
+### Permission Model
+
+The Process API integrates with Yao's `process.Authorized` mechanism:
+
+- **Authorized Info**: Reads `UserID`, `TeamID`, `TenantID` from `process.Authorized` (set by OAuth guard)
+- **Auto Permission Storage**: On save, automatically stores `__yao_created_by`, `__yao_team_id`, `__yao_tenant_id` from `process.Authorized`
+- **Data Constraints**: Respects `Constraints.OwnerOnly` and `Constraints.TeamOnly` from ACL enforcement
+- **Owner Access**: When `OwnerOnly` is set, only file creator (`__yao_created_by`) can access their files
+- **Team Access**: When `TeamOnly` is set, team members can access files with `share: "team"`
+- **Public Access**: Files with `public: true` are readable by everyone regardless of constraints
+- **No Constraints**: If no constraints are set, all authenticated users can access all files
+
+### Usage Examples
+
+#### JavaScript (Yao Scripts)
+
+```javascript
+// Save a file from base64 data URI
+const file = Process("attachment.Save", "default", 
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...", 
+  "photo.png",
+  { share: "team" }
+);
+console.log("Saved file ID:", file.file_id);
+
+// Save text file
+const textFile = Process("attachment.Save", "default",
+  "data:text/plain;base64,SGVsbG8gV29ybGQh",
+  "hello.txt"
+);
+
+// Read file content as data URI
+const dataURI = Process("attachment.Read", "default", file.file_id);
+// Returns: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA..."
+
+// Get file info
+const info = Process("attachment.Info", "default", file.file_id);
+
+// List files with pagination
+const result = Process("attachment.List", "default", {
+  page: 1,
+  page_size: 20,
+  filters: { status: "uploaded", content_type: "image/*" },
+  order_by: "created_at desc"
+});
+
+// Check if file exists
+const exists = Process("attachment.Exists", "default", file.file_id);
+
+// Get file URL
+const url = Process("attachment.URL", "default", file.file_id);
+
+// Save parsed text content (e.g., OCR result, PDF text)
+Process("attachment.SaveText", "default", file.file_id, "Extracted text content...");
+
+// Get text content (preview by default)
+const preview = Process("attachment.GetText", "default", file.file_id);
+
+// Get full text content
+const fullText = Process("attachment.GetText", "default", file.file_id, true);
+
+// Delete file
+Process("attachment.Delete", "default", file.file_id);
+```
+
+#### Flow DSL
+
+```json
+{
+  "name": "Save Image",
+  "nodes": [
+    {
+      "name": "save",
+      "process": "attachment.Save",
+      "args": [
+        "default",
+        "{{$in.dataURI}}",
+        "{{$in.filename}}",
+        { "share": "team" }
+      ]
+    }
+  ],
+  "output": "{{$res.save}}"
+}
+```
+
+### Process Reference
+
+#### `attachment.Save`
+
+Save a file from base64 data URI. Automatically parses content type from data URI header and stores permission fields from `process.Authorized`.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `content` (string) - Base64 data URI (e.g., `"data:image/png;base64,xxxx"`) or plain base64
+3. `filename` (string, optional) - Original filename (auto-generated if not provided)
+4. `option` (map, optional) - Upload options:
+   - `groups` ([]string) - Directory groups for organization
+   - `gzip` (bool) - Enable gzip compression
+   - `compress_image` (bool) - Enable image compression
+   - `compress_size` (int) - Target image size in pixels
+   - `public` (bool) - Make file publicly accessible
+   - `share` (string) - Share scope: "private" or "team"
+
+**Returns:** `*File` - Saved file information
+
+**Example:**
+```javascript
+// With data URI (auto-detect content type)
+Process("attachment.Save", "default", "data:image/png;base64,iVBORw0KGgo...", "photo.png")
+
+// With plain base64 (defaults to application/octet-stream)
+Process("attachment.Save", "default", "SGVsbG8gV29ybGQh", "hello.txt")
+
+// With options
+Process("attachment.Save", "default", "data:application/pdf;base64,...", "doc.pdf", {
+  groups: ["documents"],
+  share: "team",
+  public: false
+})
+```
+
+---
+
+#### `attachment.Read`
+
+Read file content as base64 data URI.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+
+**Returns:** `string` - Base64 data URI (e.g., `"data:image/png;base64,xxxx"`)
+
+**Example:**
+```javascript
+const dataURI = Process("attachment.Read", "default", "abc123")
+// Returns: "data:image/png;base64,iVBORw0KGgo..."
+```
+
+---
+
+#### `attachment.Info`
+
+Get file metadata.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+
+**Returns:** `*File` - File metadata
+
+---
+
+#### `attachment.List`
+
+List files with pagination and filtering.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `option` (map, optional) - List options:
+   - `page` (int) - Page number (default: 1)
+   - `page_size` (int) - Items per page (default: 20, max: 100)
+   - `filters` (map) - Filter conditions (e.g., `{"status": "uploaded"}`)
+   - `order_by` (string) - Sort order (e.g., "created_at desc")
+   - `select` ([]string) - Fields to return
+
+**Returns:** `*ListResult` - Paginated file list
+
+---
+
+#### `attachment.Delete`
+
+Delete a file. Requires write permission (owner only).
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+
+**Returns:** `bool` - Success status
+
+---
+
+#### `attachment.Exists`
+
+Check if a file exists.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+
+**Returns:** `bool` - Whether file exists
+
+---
+
+#### `attachment.URL`
+
+Get the URL of a file.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+
+**Returns:** `string` - File URL
+
+---
+
+#### `attachment.SaveText`
+
+Save parsed text content for a file (e.g., OCR result, PDF extracted text).
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+3. `text` (string) - Text content to save
+
+**Returns:** `bool` - Success status
+
+---
+
+#### `attachment.GetText`
+
+Get parsed text content for a file.
+
+**Arguments:**
+1. `uploaderID` (string) - The uploader/manager ID
+2. `fileID` (string) - The file ID
+3. `fullContent` (bool, optional) - Whether to get full content (default: false, returns preview)
+
+**Returns:** `string` - Text content
