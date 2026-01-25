@@ -25,6 +25,9 @@ func init() {
 		return &agentCallerWrapper{ast: ast}, nil
 	}
 
+	// Initialize Agent JSAPI factory for ctx.agent.* methods
+	caller.SetJSAPIFactory()
+
 	// Initialize Search JSAPI factory with config getter
 	search.SetJSAPIFactory(func(assistantID string) (*searchTypes.Config, *search.Uses) {
 		ast, err := Get(assistantID)
