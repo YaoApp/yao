@@ -10,9 +10,14 @@ import (
 	_ "github.com/yaoapp/gou/text"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent"
+	"github.com/yaoapp/yao/agent/caller"
+	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/test"
+
+	// Import assistant to trigger init() which registers AgentGetterFunc
+	_ "github.com/yaoapp/yao/agent/assistant"
 )
 
 // Prepare prepare the test environment with optional V8 mode configuration
@@ -34,6 +39,11 @@ func Prepare(t *testing.T, opts ...interface{}) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	// Ensure JSAPI factories are registered (may be called multiple times, idempotent)
+	// This is needed because Go's init() order is not guaranteed across packages
+	caller.SetJSAPIFactory()
+	llm.SetJSAPIFactory()
 
 	// Register default query engine (required for DB search)
 	// capsule.Global is initialized by test.Prepare

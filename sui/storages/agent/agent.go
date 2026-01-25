@@ -150,37 +150,92 @@ func (agent *Agent) WithSid(sid string) {
 	agent.DSL.Sid = sid
 }
 
-// getAssistants get all assistant directories that have pages
+// getAssistants get all assistant directories that have pages (supports nested assistants)
+// Returns assistant IDs like: ["expense", "tasks", "tests.nested.demo"]
+// Nested paths are joined with "." to form the assistant ID
 func (agent *Agent) getAssistants() ([]string, error) {
 	if !agent.fs.IsDir(agent.assistantsRoot) {
 		return []string{}, nil
 	}
 
-	dirs, err := agent.fs.ReadDir(agent.assistantsRoot, false)
+	assistants := []string{}
+	err := agent.scanAssistantsRecursive(agent.assistantsRoot, "", &assistants)
 	if err != nil {
 		return nil, err
-	}
-
-	assistants := []string{}
-	for _, dir := range dirs {
-		if !agent.fs.IsDir(dir) {
-			continue
-		}
-
-		// Check if this assistant has a pages directory
-		pagesDir := filepath.Join(dir, "pages")
-		if agent.fs.IsDir(pagesDir) {
-			name := filepath.Base(dir)
-			assistants = append(assistants, name)
-		}
 	}
 
 	return assistants, nil
 }
 
+// scanAssistantsRecursive recursively scans directories for assistants with pages
+// prefix is the accumulated path prefix (e.g., "tests.nested")
+func (agent *Agent) scanAssistantsRecursive(dir string, prefix string, assistants *[]string) error {
+	dirs, err := agent.fs.ReadDir(dir, false)
+	if err != nil {
+		return err
+	}
+
+	for _, subdir := range dirs {
+		if !agent.fs.IsDir(subdir) {
+			continue
+		}
+
+		name := filepath.Base(subdir)
+		// Skip hidden directories and special directories
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "__") {
+			continue
+		}
+
+		// Build the assistant ID with prefix
+		assistantID := name
+		if prefix != "" {
+			assistantID = prefix + "." + name
+		}
+
+		// Check if this directory has a pages subdirectory
+		pagesDir := filepath.Join(subdir, "pages")
+		if agent.fs.IsDir(pagesDir) {
+			*assistants = append(*assistants, assistantID)
+		}
+
+		// Recursively scan subdirectories for nested assistants
+		// Only scan if there's no pages directory (to avoid scanning inside pages/)
+		// or if there are other subdirectories that might contain nested assistants
+		if !agent.fs.IsDir(pagesDir) {
+			err := agent.scanAssistantsRecursive(subdir, assistantID, assistants)
+			if err != nil {
+				log.Warn("[Agent] Error scanning subdirectory %s: %v", subdir, err)
+				continue
+			}
+		} else {
+			// Even if this has pages, check for nested assistants in other subdirectories
+			subdirs, _ := agent.fs.ReadDir(subdir, false)
+			for _, nested := range subdirs {
+				nestedName := filepath.Base(nested)
+				if agent.fs.IsDir(nested) && nestedName != "pages" &&
+					!strings.HasPrefix(nestedName, ".") &&
+					!strings.HasPrefix(nestedName, "__") {
+					err := agent.scanAssistantsRecursive(nested, assistantID+"."+nestedName, assistants)
+					if err != nil {
+						log.Warn("[Agent] Error scanning nested directory %s: %v", nested, err)
+						continue
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // getAssistantPagesRoot get the pages root for an assistant
+// assistantID can be "expense" or "tests.nested.demo"
+// Returns the actual filesystem path like "/assistants/tests/nested/demo/pages"
 func (agent *Agent) getAssistantPagesRoot(assistantID string) string {
-	return filepath.Join(agent.assistantsRoot, assistantID, "pages")
+	// Convert dot notation to path: "tests.nested.demo" -> "tests/nested/demo"
+	pathParts := strings.Split(assistantID, ".")
+	assistantPath := filepath.Join(pathParts...)
+	return filepath.Join(agent.assistantsRoot, assistantPath, "pages")
 }
 
 // Exists check if the agent storage is available
@@ -192,7 +247,7 @@ func Exists() bool {
 	return appFS.IsDir("/agent/template")
 }
 
-// HasAssistantPages check if any assistant has pages
+// HasAssistantPages check if any assistant has pages (supports nested assistants)
 func HasAssistantPages() bool {
 	appFS, err := fs.Get("app")
 	if err != nil {
@@ -203,17 +258,35 @@ func HasAssistantPages() bool {
 		return false
 	}
 
-	dirs, err := appFS.ReadDir("/assistants", false)
+	return hasAssistantPagesRecursive(appFS, "/assistants")
+}
+
+// hasAssistantPagesRecursive recursively checks for assistants with pages
+func hasAssistantPagesRecursive(appFS fs.FileSystem, dir string) bool {
+	dirs, err := appFS.ReadDir(dir, false)
 	if err != nil {
 		return false
 	}
 
-	for _, dir := range dirs {
-		if !appFS.IsDir(dir) {
+	for _, subdir := range dirs {
+		if !appFS.IsDir(subdir) {
 			continue
 		}
-		pagesDir := filepath.Join(dir, "pages")
+
+		name := filepath.Base(subdir)
+		// Skip hidden directories and special directories
+		if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "__") {
+			continue
+		}
+
+		// Check if this directory has a pages subdirectory
+		pagesDir := filepath.Join(subdir, "pages")
 		if appFS.IsDir(pagesDir) {
+			return true
+		}
+
+		// Recursively check subdirectories
+		if hasAssistantPagesRecursive(appFS, subdir) {
 			return true
 		}
 	}

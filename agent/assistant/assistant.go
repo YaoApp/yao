@@ -8,6 +8,7 @@ import (
 	"github.com/yaoapp/yao/agent/caller"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/search"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
@@ -24,6 +25,12 @@ func init() {
 		// Return a wrapper that implements AgentCaller interface
 		return &agentCallerWrapper{ast: ast}, nil
 	}
+
+	// Initialize Agent JSAPI factory for ctx.agent.* methods
+	caller.SetJSAPIFactory()
+
+	// Initialize LLM JSAPI factory for ctx.llm.* methods
+	llm.SetJSAPIFactory()
 
 	// Initialize Search JSAPI factory with config getter
 	search.SetJSAPIFactory(func(assistantID string) (*searchTypes.Config, *search.Uses) {

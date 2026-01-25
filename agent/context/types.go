@@ -308,7 +308,17 @@ type Options struct {
 
 	// Metadata for passing custom data to hooks (e.g., scenario selection)
 	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks
+
+	// OnMessage is called for each message sent via ctx.Send()
+	// Used by ctx.agent.Call with onChunk callback to receive SSE messages
+	// Returns: 0 = continue, non-zero = stop
+	OnMessage OnMessageFunc `json:"-"`
 }
+
+// OnMessageFunc is a callback function for receiving output messages
+// Called for each message sent via ctx.Send() - same as SSE messages to client
+// Returns: 0 = continue, non-zero = stop sending
+type OnMessageFunc func(msg *message.Message) int
 
 // Stack represents the call stack node for tracing agent-to-agent calls
 // Uses a flat structure to avoid circular references and memory overhead

@@ -18,6 +18,9 @@ var systemUploaders = map[string]string{
 
 // Load load uploaders
 func Load(cfg config.Config) error {
+	// Register attachment processes
+	Init()
+
 	messages := []string{}
 
 	// Load system uploaders

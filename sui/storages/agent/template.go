@@ -142,6 +142,11 @@ func (tmpl *Template) getPageBase(route string) string {
 }
 
 // Page get a specific page by route
+// Route format: "/assistant-id/page-path" where assistant-id can contain dots for nested assistants
+// Examples:
+//   - "/expense/test" -> assistant "expense", page "/test"
+//   - "/tests.nested.demo/article" -> assistant "tests.nested.demo", page "/article"
+//   - "/index" -> agent page (no assistant prefix)
 func (tmpl *Template) Page(route string) (core.IPage, error) {
 	// Parse the route to determine if it's an assistant page or agent page
 	parts := strings.Split(strings.Trim(route, "/"), "/")
@@ -150,7 +155,7 @@ func (tmpl *Template) Page(route string) (core.IPage, error) {
 		return nil, fmt.Errorf("Invalid route: %s", route)
 	}
 
-	// Check if first part is an assistant ID
+	// Check if first part is an assistant ID (may contain dots for nested assistants)
 	assistants, err := tmpl.agent.getAssistants()
 	if err != nil {
 		return nil, err
@@ -160,6 +165,8 @@ func (tmpl *Template) Page(route string) (core.IPage, error) {
 	pageRoute := route
 	pagesRoot := filepath.Join(tmpl.agent.root, "pages")
 
+	// The first part of the route might be an assistant ID
+	// Assistant IDs can contain dots (e.g., "tests.nested.demo")
 	for _, ast := range assistants {
 		if parts[0] == ast {
 			assistantID = ast

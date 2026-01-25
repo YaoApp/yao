@@ -15,6 +15,13 @@ import (
 // - Sends block_start event when a new BlockID is first encountered
 // - Records metadata for all sent messages to enable delta inheritance
 func (ctx *Context) Send(msg *message.Message) error {
+	// Call OnMessage callback if provided (for ctx.agent.Call with onChunk)
+	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.OnMessage != nil {
+		if ret := ctx.Stack.Options.OnMessage(msg); ret != 0 {
+			return nil // Callback requested stop
+		}
+	}
+
 	out, err := ctx.getOutput()
 	if err != nil {
 		return err

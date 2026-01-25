@@ -1039,11 +1039,17 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 		return nil, fmt.Errorf("options are required")
 	}
 
-	// Get model from connector settings
+	// Get model and other settings from connector
 	setting := p.Connector.Setting()
 	model, ok := setting["model"].(string)
 	if !ok || model == "" {
 		return nil, fmt.Errorf("model is not set in connector")
+	}
+
+	// Get thinking setting from connector (for models that support reasoning/thinking mode)
+	var thinkingSetting interface{}
+	if thinking, exists := setting["thinking"]; exists {
+		thinkingSetting = thinking
 	}
 
 	// Convert messages to API format
@@ -1200,6 +1206,11 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 
 	if options.Audio != nil {
 		body["audio"] = options.Audio
+	}
+
+	// Add thinking parameter for models that support reasoning/thinking mode
+	if thinkingSetting != nil {
+		body["thinking"] = thinkingSetting
 	}
 
 	return body, nil
