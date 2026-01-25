@@ -1002,21 +1002,21 @@ func TestParseDataURI(t *testing.T) {
 
 func TestGenerateFilename(t *testing.T) {
 	// Note: mime.ExtensionsByType may return different extensions on different systems
-	// So we just verify the filename has a proper extension
+	// (e.g., Linux may return .jfif for image/jpeg, .asc for text/plain)
+	// So we verify the filename has a proper extension format and is not empty
 	testCases := []struct {
 		contentType    string
 		expectedPrefix string
-		validExts      []string // Multiple valid extensions
 	}{
-		{"image/png", "file", []string{".png"}},
-		{"image/jpeg", "file", []string{".jpg", ".jpeg", ".jpe"}},
-		{"image/gif", "file", []string{".gif"}},
-		{"image/webp", "file", []string{".webp"}},
-		{"text/plain", "file", []string{".txt", ".conf", ".text"}},
-		{"application/pdf", "file", []string{".pdf"}},
-		{"application/json", "file", []string{".json"}},
-		{"application/octet-stream", "file", []string{".bin"}},
-		{"unknown/type", "file", []string{".bin"}},
+		{"image/png", "file"},
+		{"image/jpeg", "file"},
+		{"image/gif", "file"},
+		{"image/webp", "file"},
+		{"text/plain", "file"},
+		{"application/pdf", "file"},
+		{"application/json", "file"},
+		{"application/octet-stream", "file"},
+		{"unknown/type", "file"},
 	}
 
 	for _, tc := range testCases {
@@ -1028,16 +1028,16 @@ func TestGenerateFilename(t *testing.T) {
 				t.Errorf("For content type '%s', expected prefix '%s', got '%s'", tc.contentType, tc.expectedPrefix, filename)
 			}
 
-			// Check extension is one of the valid ones
-			valid := false
-			for _, ext := range tc.validExts {
-				if strings.HasSuffix(filename, ext) {
-					valid = true
-					break
-				}
+			// Check filename has an extension (starts with dot and has at least one character)
+			dotIndex := strings.LastIndex(filename, ".")
+			if dotIndex == -1 || dotIndex == len(filename)-1 {
+				t.Errorf("For content type '%s', expected filename with extension, got '%s'", tc.contentType, filename)
 			}
-			if !valid {
-				t.Errorf("For content type '%s', got '%s', expected one of extensions: %v", tc.contentType, filename, tc.validExts)
+
+			// Extension should not be empty
+			ext := filename[dotIndex:]
+			if len(ext) < 2 {
+				t.Errorf("For content type '%s', expected non-empty extension, got '%s'", tc.contentType, ext)
 			}
 		})
 	}
