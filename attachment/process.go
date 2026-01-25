@@ -408,11 +408,12 @@ func processGetText(p *process.Process) interface{} {
 
 // ============ Helper Functions ============
 
-// parseDataURI parses a data URI or plain base64 string
-// Returns content type, decoded data, and error
+// parseDataURI parses content as either:
+// 1. Data URI format: data:image/png;base64,xxxxx (decoded from base64)
+// 2. Plain text: stored as-is with text/plain content type
+//
+// Returns content type, data bytes, and error
 func parseDataURI(content string) (string, []byte, error) {
-	contentType := "application/octet-stream"
-
 	// Handle data URI format: data:image/png;base64,xxxxx
 	if strings.HasPrefix(content, "data:") {
 		// Split by comma to get the data part
@@ -423,23 +424,27 @@ func parseDataURI(content string) (string, []byte, error) {
 
 		// Parse the header: data:image/png;base64
 		header := parts[0]
-		content = parts[1]
+		base64Content := parts[1]
 
 		// Extract content type from header
+		contentType := "application/octet-stream"
 		header = strings.TrimPrefix(header, "data:")
 		headerParts := strings.Split(header, ";")
 		if len(headerParts) > 0 && headerParts[0] != "" {
 			contentType = headerParts[0]
 		}
+
+		// Decode base64
+		data, err := base64.StdEncoding.DecodeString(base64Content)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to decode base64: %v", err)
+		}
+
+		return contentType, data, nil
 	}
 
-	// Decode base64
-	data, err := base64.StdEncoding.DecodeString(content)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to decode base64: %v", err)
-	}
-
-	return contentType, data, nil
+	// Plain text content - store as-is
+	return "text/plain", []byte(content), nil
 }
 
 // generateFilename generates a filename based on content type

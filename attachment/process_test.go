@@ -214,6 +214,95 @@ func TestProcessSave(t *testing.T) {
 			t.Fatal("Expected error for invalid base64")
 		}
 	})
+
+	// Test 8: Save plain text directly (no data URI)
+	t.Run("SavePlainText", func(t *testing.T) {
+		content := "This is plain text content without data URI encoding."
+
+		p := process.New("attachment.Save", "data.local", content, "plain-text.txt")
+		result := processSave(p)
+
+		if err, ok := result.(error); ok {
+			t.Fatalf("Failed to save plain text: %v", err)
+		}
+
+		file, ok := result.(*File)
+		if !ok {
+			t.Fatalf("Expected *File, got %T", result)
+		}
+
+		if file.ID == "" {
+			t.Error("File ID should not be empty")
+		}
+
+		// Content type should be text/plain for plain text
+		if !strings.HasPrefix(file.ContentType, "text/plain") {
+			t.Errorf("Expected content type 'text/plain', got '%s'", file.ContentType)
+		}
+
+		// Read back and verify content
+		readP := process.New("attachment.Read", "data.local", file.ID)
+		readResult := processRead(readP)
+
+		dataURI, ok := readResult.(string)
+		if !ok {
+			t.Fatalf("Expected string, got %T: %v", readResult, readResult)
+		}
+
+		// Decode from data URI
+		parts := strings.SplitN(dataURI, ",", 2)
+		if len(parts) != 2 {
+			t.Fatalf("Invalid data URI format")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			t.Fatalf("Failed to decode: %v", err)
+		}
+
+		if string(decoded) != content {
+			t.Errorf("Content mismatch: expected %q, got %q", content, string(decoded))
+		}
+	})
+
+	// Test 9: Save Chinese text directly (UTF-8)
+	t.Run("SaveChineseText", func(t *testing.T) {
+		content := "这是一段中文内容，测试UTF-8编码。\n第二行内容。"
+
+		p := process.New("attachment.Save", "data.local", content, "chinese.txt")
+		result := processSave(p)
+
+		if err, ok := result.(error); ok {
+			t.Fatalf("Failed to save Chinese text: %v", err)
+		}
+
+		file, ok := result.(*File)
+		if !ok {
+			t.Fatalf("Expected *File, got %T", result)
+		}
+
+		// Read back and verify content
+		readP := process.New("attachment.Read", "data.local", file.ID)
+		readResult := processRead(readP)
+
+		dataURI, ok := readResult.(string)
+		if !ok {
+			t.Fatalf("Expected string, got %T: %v", readResult, readResult)
+		}
+
+		// Decode from data URI
+		parts := strings.SplitN(dataURI, ",", 2)
+		if len(parts) != 2 {
+			t.Fatalf("Invalid data URI format")
+		}
+		decoded, err := base64.StdEncoding.DecodeString(parts[1])
+		if err != nil {
+			t.Fatalf("Failed to decode: %v", err)
+		}
+
+		if string(decoded) != content {
+			t.Errorf("Chinese content mismatch: expected %q, got %q", content, string(decoded))
+		}
+	})
 }
 
 func TestProcessRead(t *testing.T) {
