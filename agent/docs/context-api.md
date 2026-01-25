@@ -19,6 +19,8 @@ interface Context {
   trace: Trace;              // Tracing API
   mcp: MCP;                  // MCP operations
   search: Search;            // Search API
+  agent: Agent;              // Agent-to-Agent calls (A2A)
+  llm: LLM;                  // Direct LLM calls
 }
 ```
 
@@ -312,3 +314,188 @@ interface SearchResult {
   error?: string;
 }
 ```
+
+## Agent API
+
+The `ctx.agent` object provides methods to call other agents from within hooks, enabling agent-to-agent communication (A2A).
+
+### Single Agent Call
+
+```typescript
+// Basic call
+const result = ctx.agent.Call("assistant-id", messages);
+
+// With options and callback
+const result = ctx.agent.Call("assistant-id", messages, {
+  connector: "gpt-4o",
+  mode: "chat",
+  metadata: { source: "hook" },
+  skip: { history: false, trace: false, output: false },
+  onChunk: (msg) => {
+    console.log("Received:", msg.type, msg.props);
+    return 0; // 0 = continue, non-zero = stop
+  }
+});
+```
+
+### Agent Options
+
+```typescript
+interface AgentCallOptions {
+  connector?: string;            // Override LLM connector
+  mode?: string;                 // Agent mode ("chat", "task")
+  metadata?: Record<string, any>; // Custom metadata passed to hooks
+  skip?: {
+    history?: boolean;           // Skip loading chat history
+    trace?: boolean;             // Skip trace recording
+    output?: boolean;            // Skip output to client
+    keyword?: boolean;           // Skip keyword extraction
+    search?: boolean;            // Skip search
+    content_parsing?: boolean;   // Skip content parsing
+  };
+  onChunk?: (msg: Message) => number; // Callback (0=continue, non-zero=stop)
+}
+```
+
+### Parallel Agent Calls
+
+```typescript
+// Wait for all agents to complete (like Promise.all)
+const results = ctx.agent.All([
+  { agent: "agent-1", messages: [...] },
+  { agent: "agent-2", messages: [...] }
+]);
+
+// Return first successful result (like Promise.any)
+const results = ctx.agent.Any([
+  { agent: "agent-1", messages: [...] },
+  { agent: "agent-2", messages: [...] }
+]);
+
+// Return first completed result (like Promise.race)
+const results = ctx.agent.Race([
+  { agent: "agent-1", messages: [...] },
+  { agent: "agent-2", messages: [...] }
+]);
+
+// With global callback for all responses
+const results = ctx.agent.All([
+  { agent: "agent-1", messages: [...] },
+  { agent: "agent-2", messages: [...] }
+], {
+  onChunk: (agentId, index, msg) => {
+    console.log(`Agent ${agentId} [${index}]:`, msg.type);
+    return 0;
+  }
+});
+```
+
+### Result Structure
+
+```typescript
+interface AgentResult {
+  agent_id: string;
+  response?: Response;
+  content?: string;
+  error?: string;
+}
+```
+
+### Message Object (onChunk callback)
+
+```typescript
+interface Message {
+  type: string;                // "text", "thinking", "tool_call", "error"
+  props?: Record<string, any>; // e.g., { content: "Hello" }
+  chunk_id?: string;           // C1, C2, ...
+  message_id?: string;         // M1, M2, ...
+  delta?: boolean;             // Incremental update flag
+}
+```
+
+## LLM API
+
+The `ctx.llm` object provides direct access to LLM connectors for streaming completions.
+
+### Single LLM Call
+
+```typescript
+// Basic streaming call
+const result = ctx.llm.Stream("gpt-4o", [
+  { role: "user", content: "Hello" }
+]);
+
+// With options and callback
+const result = ctx.llm.Stream("gpt-4o", messages, {
+  temperature: 0.7,
+  max_tokens: 2000,
+  onChunk: (msg) => {
+    console.log("Chunk:", msg.props?.content);
+    return 0;
+  }
+});
+```
+
+### Parallel LLM Calls
+
+```typescript
+// Wait for all LLM calls (like Promise.all)
+const results = ctx.llm.All([
+  { connector: "gpt-4o", messages: [...] },
+  { connector: "claude-3", messages: [...] }
+]);
+
+// Return first successful result (like Promise.any)
+const results = ctx.llm.Any([
+  { connector: "gpt-4o", messages: [...] },
+  { connector: "claude-3", messages: [...] }
+]);
+
+// Return first completed result (like Promise.race)
+const results = ctx.llm.Race([
+  { connector: "gpt-4o", messages: [...] },
+  { connector: "claude-3", messages: [...] }
+]);
+
+// With global callback
+const results = ctx.llm.All([
+  { connector: "gpt-4o", messages: [...] },
+  { connector: "claude-3", messages: [...] }
+], {
+  onChunk: (connectorId, index, msg) => {
+    console.log(`LLM ${connectorId} [${index}]:`, msg.type);
+    return 0;
+  }
+});
+```
+
+### LLM Options
+
+```typescript
+interface LlmOptions {
+  temperature?: number;
+  max_tokens?: number;
+  max_completion_tokens?: number;
+  top_p?: number;
+  presence_penalty?: number;
+  frequency_penalty?: number;
+  stop?: string | string[];
+  user?: string;
+  seed?: number;
+  tools?: object[];
+  tool_choice?: string | object;
+  response_format?: { type: string; json_schema?: object };
+  reasoning_effort?: string;
+  onChunk?: (msg: Message) => number;
+}
+```
+
+### Result Structure
+
+```typescript
+interface LlmResult {
+  connector: string;
+  response?: CompletionResponse;
+  content?: string;
+  error?: string;
+}
