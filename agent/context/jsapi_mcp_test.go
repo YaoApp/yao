@@ -142,16 +142,16 @@ func TestMCPCallTool(t *testing.T) {
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
-			// Call ping tool
+			// Call ping tool - returns parsed result directly
 			const result = ctx.mcp.CallTool("echo", "ping", { count: 3, message: "test" })
 			
-			if (!result || !result.content) {
-				throw new Error("Expected content")
+			if (result === undefined || result === null) {
+				throw new Error("Expected result")
 			}
 			
 			return {
-				has_content: result.content.length > 0,
-				is_error: result.isError || false
+				has_result: true,
+				message: result.message
 			}
 		}`, ctx)
 
@@ -164,8 +164,8 @@ func TestMCPCallTool(t *testing.T) {
 		t.Fatalf("Expected map result, got %T", res)
 	}
 
-	assert.Equal(t, true, result["has_content"], "should have content")
-	assert.Equal(t, false, result["is_error"], "should not be error")
+	assert.Equal(t, true, result["has_result"], "should have result")
+	assert.Equal(t, "test", result["message"], "should have message")
 }
 
 // TestMCPCallTools tests MCP.CallTools from JavaScript
@@ -177,21 +177,22 @@ func TestMCPCallTools(t *testing.T) {
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
-			// Call multiple tools sequentially
+			// Call multiple tools sequentially - returns array of parsed results
 			const tools = [
 				{ name: "ping", arguments: { count: 1 } },
 				{ name: "status", arguments: { verbose: false } }
 			]
 			
-			const result = ctx.mcp.CallTools("echo", tools)
+			const results = ctx.mcp.CallTools("echo", tools)
 			
-			if (!result || !result.results) {
-				throw new Error("Expected results")
+			if (!Array.isArray(results)) {
+				throw new Error("Expected array of results")
 			}
 			
 			return {
-				count: result.results.length,
-				all_success: result.results.every(r => !r.isError)
+				count: results.length,
+				ping_message: results[0]?.message,
+				status_online: results[1]?.status === "online"
 			}
 		}`, ctx)
 
@@ -205,7 +206,8 @@ func TestMCPCallTools(t *testing.T) {
 	}
 
 	assert.Equal(t, float64(2), result["count"], "should have 2 results")
-	assert.Equal(t, true, result["all_success"], "all calls should succeed")
+	assert.Equal(t, "pong", result["ping_message"], "ping should return pong")
+	assert.Equal(t, true, result["status_online"], "status should be online")
 }
 
 // TestMCPCallToolsParallel tests MCP.CallToolsParallel from JavaScript
@@ -217,21 +219,22 @@ func TestMCPCallToolsParallel(t *testing.T) {
 
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
-			// Call multiple tools in parallel
+			// Call multiple tools in parallel - returns array of parsed results
 			const tools = [
 				{ name: "ping", arguments: { count: 1 } },
 				{ name: "status", arguments: { verbose: true } }
 			]
 			
-			const result = ctx.mcp.CallToolsParallel("echo", tools)
+			const results = ctx.mcp.CallToolsParallel("echo", tools)
 			
-			if (!result || !result.results) {
-				throw new Error("Expected results")
+			if (!Array.isArray(results)) {
+				throw new Error("Expected array of results")
 			}
 			
 			return {
-				count: result.results.length,
-				all_success: result.results.every(r => !r.isError)
+				count: results.length,
+				ping_message: results[0]?.message,
+				status_online: results[1]?.status === "online"
 			}
 		}`, ctx)
 
@@ -245,7 +248,8 @@ func TestMCPCallToolsParallel(t *testing.T) {
 	}
 
 	assert.Equal(t, float64(2), result["count"], "should have 2 results")
-	assert.Equal(t, true, result["all_success"], "all calls should succeed")
+	assert.Equal(t, "pong", result["ping_message"], "ping should return pong")
+	assert.Equal(t, true, result["status_online"], "status should be online")
 }
 
 // TestMCPListPrompts tests MCP.ListPrompts from JavaScript
@@ -404,14 +408,14 @@ func TestMCPJsApiWithTrace(t *testing.T) {
 			// Get trace (property, not method call)
 			const trace = ctx.trace
 			
-			// Call MCP tool - should create trace node
+			// Call MCP tool - returns parsed result directly
 			const result = ctx.mcp.CallTool("echo", "ping", { count: 5 })
 			
 			// Verify trace and result exist
 			return {
 				has_trace: !!trace,
-				has_result: !!result,
-				has_content: result.content && result.content.length > 0
+				has_result: result !== undefined && result !== null,
+				ping_message: result?.message
 			}
 		}`, ctx)
 
@@ -426,5 +430,5 @@ func TestMCPJsApiWithTrace(t *testing.T) {
 
 	assert.Equal(t, true, result["has_trace"], "should have trace")
 	assert.Equal(t, true, result["has_result"], "should have result")
-	assert.Equal(t, true, result["has_content"], "should have content")
+	assert.Equal(t, "pong", result["ping_message"], "should have ping response")
 }
