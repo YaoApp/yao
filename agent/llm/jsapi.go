@@ -674,6 +674,15 @@ func (api *JSAPI) executeAny(requests []*Request) []interface{} {
 		errors = append(errors, &ir)
 	}
 
+	// Drain remaining results in background (don't block)
+	if remaining > 0 {
+		go func(count int) {
+			for i := 0; i < count; i++ {
+				<-resultChan
+			}
+		}(remaining)
+	}
+
 	if firstSuccess != nil {
 		return []interface{}{firstSuccess.result}
 	}
@@ -714,6 +723,17 @@ func (api *JSAPI) executeRace(requests []*Request) []interface{} {
 
 	// Return first result
 	result := <-resultChan
+
+	// Drain remaining results in background (don't block)
+	remaining := len(requests) - 1
+	if remaining > 0 {
+		go func(count int) {
+			for i := 0; i < count; i++ {
+				<-resultChan
+			}
+		}(remaining)
+	}
+
 	return []interface{}{result}
 }
 

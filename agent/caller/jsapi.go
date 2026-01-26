@@ -27,8 +27,12 @@ func NewJSAPI(ctx *agentContext.Context) *JSAPI {
 // Call executes a single agent call
 // Usage: ctx.agent.Call("assistant-id", messages, options?)
 // Returns: { agent_id, response, content, error }
+// Note: SSE output is automatically disabled to prevent sub-agent from writing to
+// the same SSE stream as the parent agent, which would cause client issues.
 func (api *JSAPI) Call(agentID string, messages []interface{}, opts map[string]interface{}) interface{} {
 	req := api.buildRequest(agentID, messages, opts)
+	// Force skip.output = true for sub-agent calls
+	api.forceSkipOutput(req)
 	result := api.orchestrator.callAgent(req)
 	return result
 }
@@ -71,9 +75,12 @@ func (api *JSAPI) Race(requests []interface{}) []interface{} {
 // ============================================================================
 
 // CallWithHandler executes a single agent call with an OnMessage handler
+// Note: SSE output is automatically disabled; use the handler callback to receive messages.
 func (api *JSAPI) CallWithHandler(agentID string, messages []interface{}, opts map[string]interface{}, handler agentContext.OnMessageFunc) interface{} {
 	req := api.buildRequest(agentID, messages, opts)
 	req.Handler = handler
+	// Force skip.output = true for sub-agent calls
+	api.forceSkipOutput(req)
 	result := api.orchestrator.callAgent(req)
 	return result
 }
@@ -99,8 +106,24 @@ func (api *JSAPI) RaceWithHandler(requests []interface{}, globalHandler agentCon
 	return api.convertResults(results)
 }
 
+// forceSkipOutput ensures SSE output is disabled for sub-agent calls
+// This prevents sub-agents from writing to the same SSE stream as the parent,
+// which would cause client disconnection and message corruption.
+// Users can use the onChunk callback to receive streaming messages if needed.
+func (api *JSAPI) forceSkipOutput(req *Request) {
+	if req.Options == nil {
+		req.Options = &CallOptions{}
+	}
+	if req.Options.Skip == nil {
+		req.Options.Skip = &agentContext.Skip{}
+	}
+	req.Options.Skip.Output = true
+}
+
 // parseRequestsWithHandlers parses requests and attaches handlers
 // It checks for per-request _handler fields and wraps globalHandler with agentID/index
+// For all calls, this automatically sets skip.output = true to prevent sub-agents
+// from writing to the same SSE stream as the parent, which would cause client issues.
 func (api *JSAPI) parseRequestsWithHandlers(requests []interface{}, globalHandler agentContext.BatchOnMessageFunc) []*Request {
 	reqs := make([]*Request, 0, len(requests))
 
@@ -129,6 +152,9 @@ func (api *JSAPI) parseRequestsWithHandlers(requests []interface{}, globalHandle
 		}
 
 		req := api.buildRequest(agentID, messages, opts)
+
+		// Force skip.output = true for all sub-agent calls
+		api.forceSkipOutput(req)
 
 		// Check for per-request handler first (takes precedence)
 		if handler, ok := reqMap["_handler"].(agentContext.OnMessageFunc); ok && handler != nil {

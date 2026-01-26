@@ -1631,6 +1631,9 @@ The `ctx.mcp` object provides access to Model Context Protocol operations for in
 | `CallTool(client, name, args?)`      | Call a single tool               |
 | `CallTools(client, tools)`           | Call multiple tools sequentially |
 | `CallToolsParallel(client, tools)`   | Call multiple tools in parallel  |
+| `All(requests)`                      | Call tools across servers, wait for all |
+| `Any(requests)`                      | Call tools across servers, first success wins |
+| `Race(requests)`                     | Call tools across servers, first complete wins |
 | `ListPrompts(client, cursor?)`       | List available prompts           |
 | `GetPrompt(client, name, args?)`     | Get a specific prompt            |
 | `ListSamples(client, type, name)`    | List samples for a tool/resource |
@@ -1684,7 +1687,7 @@ console.log(tools.tools); // Array of tools
 
 #### `ctx.mcp.CallTool(client, name, arguments?)`
 
-Calls a single tool.
+Calls a single tool and returns the parsed result directly.
 
 **Parameters:**
 
@@ -1692,43 +1695,61 @@ Calls a single tool.
 - `name`: String - Tool name
 - `arguments`: Object (optional) - Tool arguments
 
+**Returns:** Parsed result directly (automatically extracts and parses JSON from tool response)
+
 ```javascript
-const result = ctx.mcp.CallTool("echo", "ping", { count: 3 });
-console.log(result.content); // Tool result content
+// Result is returned directly - no wrapper object needed
+const result = ctx.mcp.CallTool("echo", "echo", { message: "hello" });
+console.log(result.echo);  // "hello" - directly access parsed data!
+
+// Another example
+const status = ctx.mcp.CallTool("echo", "status", { verbose: true });
+console.log(status.status);  // "online"
+console.log(status.uptime);  // 3600
 ```
 
 #### `ctx.mcp.CallTools(client, tools)`
 
-Calls multiple tools sequentially.
+Calls multiple tools sequentially and returns array of parsed results.
 
 **Parameters:**
 
 - `client`: String - MCP client ID
 - `tools`: Array - Array of tool call objects
+
+**Returns:** Array of parsed results (same order as input tools)
 
 ```javascript
 const results = ctx.mcp.CallTools("echo", [
   { name: "ping", arguments: { count: 1 } },
-  { name: "status", arguments: { verbose: true } },
+  { name: "echo", arguments: { message: "hello" } },
 ]);
-console.log(results.results); // Array of results
+
+// Results are directly accessible
+console.log(results[0].message);  // "pong"
+console.log(results[1].echo);     // "hello"
 ```
 
 #### `ctx.mcp.CallToolsParallel(client, tools)`
 
-Calls multiple tools in parallel.
+Calls multiple tools in parallel and returns array of parsed results.
 
 **Parameters:**
 
 - `client`: String - MCP client ID
 - `tools`: Array - Array of tool call objects
 
+**Returns:** Array of parsed results (same order as input tools)
+
 ```javascript
 const results = ctx.mcp.CallToolsParallel("echo", [
   { name: "ping", arguments: { count: 1 } },
-  { name: "status", arguments: { verbose: false } },
+  { name: "echo", arguments: { message: "hello" } },
 ]);
-console.log(results.results); // Array of results (order may vary)
+
+// Results are directly accessible (order matches input order)
+console.log(results[0].message);  // "pong" (ping result)
+console.log(results[1].echo);     // "hello" (echo result)
 ```
 
 ### Prompt Operations
@@ -1795,6 +1816,127 @@ Gets a specific sample by index.
 ```javascript
 const sample = ctx.mcp.GetSample("echo", "tool", "ping", 0);
 console.log(sample.name, sample.input); // Sample name and input data
+```
+
+### Cross-Server Tool Operations
+
+These methods enable calling tools across multiple MCP servers concurrently, similar to JavaScript Promise patterns. This is useful for:
+
+- **Parallel data fetching**: Query multiple data sources simultaneously
+- **Redundancy/Fallback**: Try multiple servers, use first successful result
+- **Load balancing**: Distribute load across servers
+
+#### `ctx.mcp.All(requests)`
+
+Calls tools on multiple MCP servers concurrently and waits for all to complete (like `Promise.all`).
+
+**Parameters:**
+
+- `requests`: Array of request objects with `mcp`, `tool`, and optional `arguments`
+
+**Returns:** Array of `MCPToolResult` objects in the same order as requests
+
+```javascript
+const results = ctx.mcp.All([
+  { mcp: "server1", tool: "search", arguments: { query: "topic" } },
+  { mcp: "server2", tool: "fetch", arguments: { id: 123 } },
+  { mcp: "server3", tool: "analyze", arguments: { data: "input" } }
+]);
+
+// Process all results
+results.forEach((r, i) => {
+  if (r.error) {
+    console.log(`Request ${i} failed: ${r.error}`);
+  } else {
+    console.log(`Request ${i} result:`, r.result);
+  }
+});
+```
+
+#### `ctx.mcp.Any(requests)`
+
+Calls tools on multiple MCP servers concurrently and returns when any succeeds (like `Promise.any`). Useful for redundancy/fallback scenarios.
+
+**Parameters:**
+
+- `requests`: Array of request objects
+
+**Returns:** Array of `MCPToolResult` objects (only contains results received before first success)
+
+```javascript
+// Try multiple search providers, use first successful result
+const results = ctx.mcp.Any([
+  { mcp: "search-primary", tool: "search", arguments: { q: "query" } },
+  { mcp: "search-backup", tool: "search", arguments: { q: "query" } }
+]);
+
+const success = results.find(r => r && !r.error);
+if (success) {
+  console.log("Search result:", success.result);
+}
+```
+
+#### `ctx.mcp.Race(requests)`
+
+Calls tools on multiple MCP servers concurrently and returns when any completes (like `Promise.race`). Returns immediately with first completion, regardless of success or failure.
+
+**Parameters:**
+
+- `requests`: Array of request objects
+
+**Returns:** Array of `MCPToolResult` objects (only first completed result is populated)
+
+```javascript
+// Get fastest response
+const results = ctx.mcp.Race([
+  { mcp: "region-us", tool: "ping", arguments: {} },
+  { mcp: "region-eu", tool: "ping", arguments: {} },
+  { mcp: "region-asia", tool: "ping", arguments: {} }
+]);
+
+const first = results.find(r => r !== undefined && r !== null);
+console.log(`Fastest server: ${first.mcp}`);
+```
+
+#### MCPToolRequest Structure
+
+```typescript
+interface MCPToolRequest {
+  mcp: string;        // MCP server ID (required)
+  tool: string;       // Tool name (required)
+  arguments?: any;    // Tool arguments (optional)
+}
+```
+
+#### MCPToolResult Structure
+
+```typescript
+interface MCPToolResult {
+  mcp: string;     // MCP server ID
+  tool: string;    // Tool name
+  result?: any;    // Parsed result content (directly usable)
+  error?: string;  // Error message (on failure)
+}
+```
+
+The `result` field contains the automatically parsed content from the MCP response:
+- For text content: JSON parsed if valid JSON, otherwise plain string
+- For image content: `{ type: "image", data: "...", mimeType: "..." }`
+- For resource content: The resource object directly
+- If only one content item exists, returns it directly (not as array)
+
+**Example using parsed result:**
+
+```javascript
+// Single server - direct result
+const result = ctx.mcp.CallTool("echo", "echo", { message: "hello" });
+console.log(result.echo);  // Directly access parsed data
+
+// Cross-server - results array with MCPToolResult objects
+const results = ctx.mcp.All([
+  { mcp: "echo", tool: "echo", arguments: { message: "hello" } }
+]);
+console.log(results[0].result.echo);  // Access via .result field
 ```
 
 ## Agent API
@@ -1902,6 +2044,13 @@ Common message types:
 
 The parallel methods allow calling multiple agents concurrently, similar to JavaScript Promise patterns.
 
+> **Important: SSE Output is Automatically Disabled**
+>
+> For all batch calls (`All`, `Any`, `Race`), SSE output is **automatically disabled** (`skip.output = true`).
+> This prevents multiple agents from writing to the same SSE stream simultaneously, which would cause
+> client disconnection and message corruption. Use the `onChunk` callback to receive streaming messages
+> if needed.
+
 #### `ctx.agent.All(requests, options?)`
 
 Executes all agent calls and waits for all to complete (like `Promise.all`).
@@ -1922,6 +2071,7 @@ interface AgentRequest {
 
 // Note: Per-request onChunk is NOT supported in batch calls.
 // Use the global onChunk callback in the second argument instead.
+// Note: skip.output is automatically set to true for all batch calls.
 ```
 
 **Example:**

@@ -133,16 +133,33 @@ func (ctx *Context) GetAuthorizedMap() map[string]interface{} {
 }
 
 // Fork creates a child context for concurrent agent/LLM calls
-// The forked context shares read-only resources (Memory, Authorized, Cache, Writer)
-// but has its own independent Stack and Logger to avoid race conditions
+// The forked context shares read-only resources (Authorized, Cache, Writer)
+// but has its own independent Stack, Logger, and Memory.Context namespace
+// to avoid race conditions and state sharing issues.
 //
 // This is essential for batch operations (All/Any/Race) where multiple goroutines
-// need to execute concurrently without interfering with each other's Stack state.
+// need to execute concurrently without interfering with each other's state.
+//
+// Key behavior:
+// - Memory.User, Memory.Team, Memory.Chat are shared (cross-request state)
+// - Memory.Context is INDEPENDENT (request-scoped state, isolated per fork)
 //
 // The forked context does NOT need to be released separately - the parent context
 // manages shared resources. However, the child's Stack will be collected in parent's Stacks map.
 func (ctx *Context) Fork() *Context {
 	childID := generateContextID()
+
+	// Fork memory with independent Context namespace
+	// This prevents parallel sub-agents from sharing ctx.memory.context state
+	var forkedMemory *memory.Memory
+	if ctx.Memory != nil {
+		var err error
+		forkedMemory, err = ctx.Memory.Fork(childID)
+		if err != nil {
+			// Fallback to shared memory if fork fails (log warning)
+			forkedMemory = ctx.Memory
+		}
+	}
 
 	child := &Context{
 		// Inherit parent's standard context
@@ -151,8 +168,10 @@ func (ctx *Context) Fork() *Context {
 		// New unique ID for this forked context
 		ID: childID,
 
+		// Memory with independent Context namespace (see above)
+		Memory: forkedMemory,
+
 		// Share read-only/thread-safe resources with parent
-		Memory:       ctx.Memory,       // Memory is designed to be shared
 		Cache:        ctx.Cache,        // Cache store is thread-safe
 		Writer:       ctx.Writer,       // Output writer is thread-safe (output module handles concurrency)
 		Authorized:   ctx.Authorized,   // Read-only auth info

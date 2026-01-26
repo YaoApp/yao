@@ -152,27 +152,30 @@ const tools = ctx.mcp.ListTools("server-id");
 ### Call Tool
 
 ```typescript
+// Returns parsed result directly - no wrapper object
 const result = ctx.mcp.CallTool("server-id", "search", {
   query: "example",
   limit: 10,
 });
-// { content: [{ type: "text", text: "..." }] }
+console.log(result.items);  // Direct access to parsed data
 ```
 
 ### Batch Tool Calls
 
 ```typescript
-// Sequential
+// Sequential - returns array of parsed results
 const results = ctx.mcp.CallTools("server-id", [
   { name: "step1", arguments: { input: "a" } },
   { name: "step2", arguments: { input: "b" } },
 ]);
+results.forEach(r => console.log(r));
 
-// Parallel
+// Parallel - returns array of parsed results
 const results = ctx.mcp.CallToolsParallel("server-id", [
   { name: "api1", arguments: {} },
   { name: "api2", arguments: {} },
 ]);
+results.forEach(r => console.log(r));
 ```
 
 ### Read Resources
@@ -187,6 +190,39 @@ const data = ctx.mcp.ReadResource("server-id", "data://users/123");
 ```typescript
 const prompts = ctx.mcp.ListPrompts("server-id");
 const prompt = ctx.mcp.GetPrompt("server-id", "system", { role: "helper" });
+```
+
+### Cross-Server Tool Calls
+
+Call tools across multiple MCP servers concurrently:
+
+```typescript
+// Wait for all (like Promise.all)
+const results = ctx.mcp.All([
+  { mcp: "server1", tool: "search", arguments: { q: "query" } },
+  { mcp: "server2", tool: "analyze", arguments: { data: "input" } }
+]);
+
+// First success (like Promise.any) - good for fallback
+const results = ctx.mcp.Any([
+  { mcp: "primary", tool: "fetch", arguments: { id: 1 } },
+  { mcp: "backup", tool: "fetch", arguments: { id: 1 } }
+]);
+
+// First complete (like Promise.race) - good for latency
+const results = ctx.mcp.Race([
+  { mcp: "region-us", tool: "ping", arguments: {} },
+  { mcp: "region-eu", tool: "ping", arguments: {} }
+]);
+
+// Access results
+results.forEach(r => {
+  if (r.error) {
+    console.log(`${r.mcp}/${r.tool} failed: ${r.error}`);
+  } else {
+    console.log(`${r.mcp}/${r.tool} result:`, r.result);
+  }
+});
 ```
 
 ## Tool Schema Mapping

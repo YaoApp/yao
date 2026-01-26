@@ -1,10 +1,15 @@
 package context
 
 import (
+	"fmt"
+
 	"github.com/yaoapp/gou/mcp/types"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"rogchap.com/v8go"
 )
+
+// Suppress unused import warning - types is used in other functions
+var _ = types.ToolCall{}
 
 // MCP JavaScript API methods
 // These methods expose MCP functionality to JavaScript runtime
@@ -101,6 +106,7 @@ func (ctx *Context) mcpListToolsMethod(iso *v8go.Isolate) *v8go.FunctionTemplate
 
 // mcpCallToolMethod implements ctx.MCP.CallTool(mcp, name, args)
 // Calls a specific tool from an MCP client
+// Returns CallToolResult with parsed 'result' field for convenience
 func (ctx *Context) mcpCallToolMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -125,10 +131,13 @@ func (ctx *Context) mcpCallToolMethod(iso *v8go.Isolate) *v8go.FunctionTemplate 
 			}
 		}
 
-		result, err := ctx.CallTool(mcpID, toolName, toolArgs)
+		response, err := ctx.CallTool(mcpID, toolName, toolArgs)
 		if err != nil {
 			return bridge.JsException(v8ctx, err.Error())
 		}
+
+		// Return parsed result directly
+		result := parseCallToolResponse(response)
 
 		jsVal, err := bridge.JsValue(v8ctx, result)
 		if err != nil {
@@ -141,6 +150,7 @@ func (ctx *Context) mcpCallToolMethod(iso *v8go.Isolate) *v8go.FunctionTemplate 
 
 // mcpCallToolsMethod implements ctx.MCP.CallTools(mcp, tools)
 // Calls multiple tools sequentially from an MCP client
+// Returns CallToolsResult with parsed 'result' field in each item
 func (ctx *Context) mcpCallToolsMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -192,10 +202,13 @@ func (ctx *Context) mcpCallToolsMethod(iso *v8go.Isolate) *v8go.FunctionTemplate
 			_ = i
 		}
 
-		result, err := ctx.CallTools(mcpID, tools)
+		response, err := ctx.CallTools(mcpID, tools)
 		if err != nil {
 			return bridge.JsException(v8ctx, err.Error())
 		}
+
+		// Return parsed results directly as array
+		result := parseCallToolsResponse(response)
 
 		jsVal, err := bridge.JsValue(v8ctx, result)
 		if err != nil {
@@ -208,6 +221,7 @@ func (ctx *Context) mcpCallToolsMethod(iso *v8go.Isolate) *v8go.FunctionTemplate
 
 // mcpCallToolsParallelMethod implements ctx.MCP.CallToolsParallel(mcp, tools)
 // Calls multiple tools in parallel from an MCP client
+// Returns CallToolsResult with parsed 'result' field in each item
 func (ctx *Context) mcpCallToolsParallelMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		v8ctx := info.Context()
@@ -259,10 +273,13 @@ func (ctx *Context) mcpCallToolsParallelMethod(iso *v8go.Isolate) *v8go.Function
 			_ = i
 		}
 
-		result, err := ctx.CallToolsParallel(mcpID, tools)
+		response, err := ctx.CallToolsParallel(mcpID, tools)
 		if err != nil {
 			return bridge.JsException(v8ctx, err.Error())
 		}
+
+		// Return parsed results directly as array
+		result := parseCallToolsResponse(response)
 
 		jsVal, err := bridge.JsValue(v8ctx, result)
 		if err != nil {
@@ -422,6 +439,146 @@ func (ctx *Context) mcpGetSampleMethod(iso *v8go.Isolate) *v8go.FunctionTemplate
 	})
 }
 
+// mcpAllMethod implements ctx.mcp.All(requests)
+// Calls tools on multiple MCP servers concurrently and waits for all to complete (like Promise.all)
+// Each request should have: { mcp: string, tool: string, arguments?: object }
+func (ctx *Context) mcpAllMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "All requires requests parameter")
+		}
+
+		// Parse requests array
+		requests, err := ctx.parseMCPToolRequests(args[0], v8ctx)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		// Execute all requests
+		results := ctx.CallToolAll(requests)
+
+		// Convert results to JS value
+		jsVal, err := bridge.JsValue(v8ctx, results)
+		if err != nil {
+			return bridge.JsException(v8ctx, "failed to convert results: "+err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// mcpAnyMethod implements ctx.mcp.Any(requests)
+// Calls tools on multiple MCP servers concurrently and returns when any succeeds (like Promise.any)
+// Each request should have: { mcp: string, tool: string, arguments?: object }
+func (ctx *Context) mcpAnyMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "Any requires requests parameter")
+		}
+
+		// Parse requests array
+		requests, err := ctx.parseMCPToolRequests(args[0], v8ctx)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		// Execute requests until any succeeds
+		results := ctx.CallToolAny(requests)
+
+		// Convert results to JS value
+		jsVal, err := bridge.JsValue(v8ctx, results)
+		if err != nil {
+			return bridge.JsException(v8ctx, "failed to convert results: "+err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// mcpRaceMethod implements ctx.mcp.Race(requests)
+// Calls tools on multiple MCP servers concurrently and returns when any completes (like Promise.race)
+// Each request should have: { mcp: string, tool: string, arguments?: object }
+func (ctx *Context) mcpRaceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 1 {
+			return bridge.JsException(v8ctx, "Race requires requests parameter")
+		}
+
+		// Parse requests array
+		requests, err := ctx.parseMCPToolRequests(args[0], v8ctx)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		// Execute requests and return first completion
+		results := ctx.CallToolRace(requests)
+
+		// Convert results to JS value
+		jsVal, err := bridge.JsValue(v8ctx, results)
+		if err != nil {
+			return bridge.JsException(v8ctx, "failed to convert results: "+err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// parseMCPToolRequests parses JS requests array into MCPToolRequest slice
+func (ctx *Context) parseMCPToolRequests(arg *v8go.Value, v8ctx *v8go.Context) ([]*MCPToolRequest, error) {
+	goVal, err := bridge.GoValue(arg, v8ctx)
+	if err != nil {
+		return nil, fmt.Errorf("invalid requests: %w", err)
+	}
+
+	requestsArray, ok := goVal.([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("requests must be an array")
+	}
+
+	requests := make([]*MCPToolRequest, 0, len(requestsArray))
+	for _, item := range requestsArray {
+		reqMap, ok := item.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("each request must be an object")
+		}
+
+		// Required: mcp
+		mcpID, ok := reqMap["mcp"].(string)
+		if !ok || mcpID == "" {
+			return nil, fmt.Errorf("request.mcp is required and must be a string")
+		}
+
+		// Required: tool
+		tool, ok := reqMap["tool"].(string)
+		if !ok || tool == "" {
+			return nil, fmt.Errorf("request.tool is required and must be a string")
+		}
+
+		req := &MCPToolRequest{
+			MCP:  mcpID,
+			Tool: tool,
+		}
+
+		// Optional: arguments
+		if args, exists := reqMap["arguments"]; exists && args != nil {
+			req.Arguments = args
+		}
+
+		requests = append(requests, req)
+	}
+
+	return requests, nil
+}
+
 // newMCPObject creates a new MCP object with all MCP methods
 func (ctx *Context) newMCPObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	mcpObj := v8go.NewObjectTemplate(iso)
@@ -435,6 +592,11 @@ func (ctx *Context) newMCPObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	mcpObj.Set("CallTool", ctx.mcpCallToolMethod(iso))
 	mcpObj.Set("CallTools", ctx.mcpCallToolsMethod(iso))
 	mcpObj.Set("CallToolsParallel", ctx.mcpCallToolsParallelMethod(iso))
+
+	// Cross-server parallel tool operations (Promise-like patterns)
+	mcpObj.Set("All", ctx.mcpAllMethod(iso))
+	mcpObj.Set("Any", ctx.mcpAnyMethod(iso))
+	mcpObj.Set("Race", ctx.mcpRaceMethod(iso))
 
 	// Prompt operations
 	mcpObj.Set("ListPrompts", ctx.mcpListPromptsMethod(iso))

@@ -218,20 +218,53 @@ const child = parent.Add({}, { label: "Child" });
 // List tools
 const tools = ctx.mcp.ListTools("server-id");
 
-// Call single tool
+// Call single tool - returns parsed result directly
 const result = ctx.mcp.CallTool("server-id", "tool-name", { arg: "value" });
+console.log(result.field);  // Direct access to parsed data
 
-// Call multiple sequentially
+// Call multiple sequentially - returns array of parsed results
 const results = ctx.mcp.CallTools("server-id", [
   { name: "tool1", arguments: { a: 1 } },
   { name: "tool2", arguments: { b: 2 } }
 ]);
+results.forEach(r => console.log(r));
 
-// Call multiple in parallel
+// Call multiple in parallel - returns array of parsed results
 const results = ctx.mcp.CallToolsParallel("server-id", [
   { name: "tool1", arguments: {} },
   { name: "tool2", arguments: {} }
 ]);
+results.forEach(r => console.log(r));
+```
+
+### Cross-Server Tool Calls
+
+```typescript
+// Call tools across multiple MCP servers (like Promise.all)
+const results = ctx.mcp.All([
+  { mcp: "server1", tool: "search", arguments: { q: "query" } },
+  { mcp: "server2", tool: "fetch", arguments: { id: 123 } }
+]);
+
+// First success wins (like Promise.any)
+const results = ctx.mcp.Any([
+  { mcp: "primary", tool: "search", arguments: { q: "query" } },
+  { mcp: "backup", tool: "search", arguments: { q: "query" } }
+]);
+
+// First complete wins (like Promise.race)
+const results = ctx.mcp.Race([
+  { mcp: "region-us", tool: "ping", arguments: {} },
+  { mcp: "region-eu", tool: "ping", arguments: {} }
+]);
+
+// Result structure
+interface MCPToolResult {
+  mcp: string;      // Server ID
+  tool: string;     // Tool name
+  result?: any;     // Parsed result content
+  error?: string;   // Error if failed
+}
 ```
 
 ### Resources
