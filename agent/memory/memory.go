@@ -183,3 +183,57 @@ func (m *Memory) Clear() {
 		m.Context.Clear()
 	}
 }
+
+// Fork creates a new Memory instance with an independent Context namespace
+// but sharing the User, Team, and Chat namespaces with the parent.
+// This is used for parallel agent calls (ctx.agent.All/Any/Race) to prevent
+// context state from being shared between concurrent sub-agent executions.
+//
+// The new Context namespace uses the provided newContextID.
+// If newContextID is empty, returns a shallow copy with shared Context.
+func (m *Memory) Fork(newContextID string) (*Memory, error) {
+	if m == nil {
+		return nil, nil
+	}
+
+	// If no new context ID provided, share everything (shallow copy)
+	if newContextID == "" {
+		return &Memory{
+			UserID:    m.UserID,
+			TeamID:    m.TeamID,
+			ChatID:    m.ChatID,
+			ContextID: m.ContextID,
+			User:      m.User,
+			Team:      m.Team,
+			Chat:      m.Chat,
+			Context:   m.Context,
+			Config:    m.Config,
+		}, nil
+	}
+
+	// Create new Memory with independent Context namespace
+	forked := &Memory{
+		UserID:    m.UserID,
+		TeamID:    m.TeamID,
+		ChatID:    m.ChatID,
+		ContextID: newContextID,
+		User:      m.User, // Shared
+		Team:      m.Team, // Shared
+		Chat:      m.Chat, // Shared
+		Context:   nil,    // Will be created below
+		Config:    m.Config,
+	}
+
+	// Create new Context namespace with independent ID
+	storeID := ""
+	if m.Config != nil {
+		storeID = m.Config.Context
+	}
+	ns, err := newNamespace(SpaceContext, newContextID, storeID, DefaultContextTTL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create forked context namespace: %w", err)
+	}
+	forked.Context = ns
+
+	return forked, nil
+}

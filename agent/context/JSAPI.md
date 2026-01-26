@@ -2044,6 +2044,13 @@ Common message types:
 
 The parallel methods allow calling multiple agents concurrently, similar to JavaScript Promise patterns.
 
+> **Important: SSE Output is Automatically Disabled**
+>
+> For all batch calls (`All`, `Any`, `Race`), SSE output is **automatically disabled** (`skip.output = true`).
+> This prevents multiple agents from writing to the same SSE stream simultaneously, which would cause
+> client disconnection and message corruption. Use the `onChunk` callback to receive streaming messages
+> if needed.
+
 #### `ctx.agent.All(requests, options?)`
 
 Executes all agent calls and waits for all to complete (like `Promise.all`).
@@ -2064,6 +2071,7 @@ interface AgentRequest {
 
 // Note: Per-request onChunk is NOT supported in batch calls.
 // Use the global onChunk callback in the second argument instead.
+// Note: skip.output is automatically set to true for all batch calls.
 ```
 
 **Example:**
