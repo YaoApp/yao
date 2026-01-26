@@ -39,6 +39,10 @@ func TestMessageLifecycleEvents(t *testing.T) {
 	// Flush to ensure all messages are written
 	ctx.Flush()
 
+	// Close SafeWriter to wait for all async writes to complete
+	// SafeWriter uses a channel-based queue, so we must close it before reading buffer
+	ctx.CloseSafeWriter()
+
 	// Parse output to find events
 	output := buf.String()
 	t.Logf("Output:\n%s", output)

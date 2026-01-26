@@ -771,6 +771,9 @@ func TestJsValueEndBlock(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "EndBlock should work correctly")
 
+	// Close SafeWriter to wait for all async writes to complete
+	cxt.CloseSafeWriter()
+
 	// Verify that block_end event was sent
 	output := mockWriter.buffer.String()
 	assert.Contains(t, output, "block_end", "Output should contain block_end event")
@@ -825,6 +828,9 @@ func TestJsValueSendStream(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "SendStream should work correctly")
 
+	// Close SafeWriter to wait for all async writes to complete
+	cxt.CloseSafeWriter()
+
 	// Verify message_start was sent but NOT message_end
 	output := mockWriter.buffer.String()
 	assert.Contains(t, output, "message_start", "Output should contain message_start event")
@@ -872,6 +878,9 @@ func TestJsValueSendStreamWithBlockID(t *testing.T) {
 		t.Fatalf("Expected map result, got %T", res)
 	}
 	assert.Equal(t, true, result["success"], "SendStream with blockId should succeed")
+
+	// Close SafeWriter to wait for all async writes to complete
+	cxt.CloseSafeWriter()
 
 	// Verify block_start was also sent
 	output := mockWriter.buffer.String()
@@ -922,6 +931,9 @@ func TestJsValueEnd(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "End should work correctly")
 
+	// Close SafeWriter to wait for all async writes to complete
+	cxt.CloseSafeWriter()
+
 	// Verify message_end was sent
 	output := mockWriter.buffer.String()
 	assert.Contains(t, output, "message_end", "Output should contain message_end event after End()")
@@ -970,6 +982,9 @@ func TestJsValueEndWithFinalContent(t *testing.T) {
 		t.Logf("Error: %v", result["error"])
 	}
 	assert.Equal(t, true, result["success"], "End with final content should work correctly")
+
+	// Close SafeWriter to wait for all async writes to complete
+	cxt.CloseSafeWriter()
 
 	// Verify message_end was sent
 	output := mockWriter.buffer.String()
