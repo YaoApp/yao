@@ -51,6 +51,9 @@ func (ast *Assistant) handleDelegation(
 		return nil, fmt.Errorf("failed to load delegated assistant '%s': %w", delegate.AgentID, err)
 	}
 
+	// Mark this as an agent-to-agent call for proper source tracking
+	ctx.Referer = agentContext.RefererAgent
+
 	// Call the delegated assistant with the same context
 	// The delegated assistant's Stream method will:
 	// 1. Call EnterStack() to push itself onto the Stack (creating parent-child relationship)

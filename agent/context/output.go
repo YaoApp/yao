@@ -516,6 +516,8 @@ func (ctx *Context) sendRaw(msg *message.Message) error {
 
 // getWriter gets the effective Writer for the current context
 // Priority: Skip.Output > Stack.Options.Writer > ctx.Writer
+// Note: The Writer returned is always a SafeWriter (wrapped at context creation)
+// to ensure thread-safe concurrent writes for SSE streaming.
 func (ctx *Context) getWriter() Writer {
 	// Check if output is explicitly skipped (for internal A2A calls)
 	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Skip != nil && ctx.Stack.Options.Skip.Output {
@@ -537,10 +539,33 @@ func (ctx *Context) getOutput() (*output.Output, error) {
 		return ctx.Stack.output, nil
 	}
 
+	// Ensure Writer is wrapped in SafeWriter for concurrent-safe SSE writes
+	// This is essential for ctx.agent.All where multiple sub-agents
+	// write to the same SSE stream concurrently.
+	// We wrap once at the context level so all forked contexts share the same SafeWriter.
+	writer := ctx.getWriter()
+	if writer != nil {
+		// Check if it's already a SafeWriter
+		if _, ok := writer.(*output.SafeWriter); !ok {
+			// Wrap in SafeWriter with context for automatic cleanup on client disconnect
+			// This prevents goroutine leaks in enterprise applications
+			var safeWriter *output.SafeWriter
+			if ctx.Context != nil {
+				// Use request context to detect client disconnection
+				safeWriter = output.NewSafeWriterWithContext(ctx.Context, writer)
+			} else {
+				// Fallback to basic SafeWriter if no context available
+				safeWriter = output.NewSafeWriter(writer)
+			}
+			ctx.Writer = safeWriter
+			writer = safeWriter
+		}
+	}
+
 	trace, _ := ctx.Trace()
 	var options message.Options = message.Options{
 		BaseURL: "/",
-		Writer:  ctx.getWriter(), // Use getWriter() to resolve Writer priority
+		Writer:  writer,
 		Trace:   trace,
 		Locale:  ctx.Locale,
 		Accept:  string(ctx.Accept),
@@ -563,4 +588,16 @@ func (ctx *Context) getOutput() (*output.Output, error) {
 	}
 
 	return out, nil
+}
+
+// CloseSafeWriter closes the SafeWriter if one was created
+// This should be called at the end of the root request to flush any pending writes
+// and stop the background goroutine.
+func (ctx *Context) CloseSafeWriter() {
+	if ctx.Writer == nil {
+		return
+	}
+	if sw, ok := ctx.Writer.(*output.SafeWriter); ok {
+		sw.Close()
+	}
 }

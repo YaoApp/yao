@@ -62,8 +62,11 @@ const (
 	// RefererJSSDK request from JavaScript SDK
 	RefererJSSDK = "jssdk"
 
-	// RefererAgent request from agent-to-agent recursive call (assistant calling another assistant)
+	// RefererAgent request from agent-to-agent delegate call (same context, saves history)
 	RefererAgent = "agent"
+
+	// RefererAgentFork request from agent-to-agent fork call (ctx.agent.Call/All/Any/Race, skips history)
+	RefererAgentFork = "agent_fork"
 
 	// RefererTool request from tool/function execution
 	RefererTool = "tool"
@@ -83,16 +86,17 @@ const (
 
 // ValidReferers is the map of valid referer types
 var ValidReferers = map[string]bool{
-	RefererAPI:      true,
-	RefererProcess:  true,
-	RefererMCP:      true,
-	RefererJSSDK:    true,
-	RefererAgent:    true,
-	RefererTool:     true,
-	RefererHook:     true,
-	RefererSchedule: true,
-	RefererScript:   true,
-	RefererInternal: true,
+	RefererAPI:       true,
+	RefererProcess:   true,
+	RefererMCP:       true,
+	RefererJSSDK:     true,
+	RefererAgent:     true,
+	RefererAgentFork: true,
+	RefererTool:      true,
+	RefererHook:      true,
+	RefererSchedule:  true,
+	RefererScript:    true,
+	RefererInternal:  true,
 }
 
 const (
@@ -235,6 +239,11 @@ type Context struct {
 	IDGenerator *message.IDGenerator `json:"-"`  // ID generator for this context (chunk, message, block, thread IDs)
 	Logger      *RequestLogger       `json:"-"`  // Request-scoped async logger
 
+	// ForkParent stores parent stack info for forked contexts (set by Fork())
+	// This allows EnterStack to create a child stack instead of root stack
+	// without sharing the actual Stack reference (which would cause race conditions)
+	ForkParent *ForkParentInfo `json:"-"`
+
 	// Chat buffer for batch saving messages and resume steps
 	Buffer *ChatBuffer `json:"-"` // Chat buffer for batch saving at end of Stream()
 
@@ -315,10 +324,33 @@ type Options struct {
 	OnMessage OnMessageFunc `json:"-"`
 }
 
+// ForceA2A sets the options for Agent-to-Agent (A2A) calls.
+// For A2A calls:
+// - Output is NOT skipped - sub-agents output normally with ThreadID
+// - History IS skipped - A2A messages should not be saved to chat history
+// If Skip is nil, it creates a new Skip instance.
+func (opts *Options) ForceA2A() {
+	if opts.Skip == nil {
+		opts.Skip = &Skip{}
+	}
+	opts.Skip.History = true
+	// Note: skip.output is NOT set - sub-agents output normally with ThreadID
+}
+
 // OnMessageFunc is a callback function for receiving output messages
 // Called for each message sent via ctx.Send() - same as SSE messages to client
 // Returns: 0 = continue, non-zero = stop sending
 type OnMessageFunc func(msg *message.Message) int
+
+// ForkParentInfo stores parent stack information for forked contexts
+// This is used by EnterStack to create a child stack with proper inheritance
+// without sharing the actual Stack reference (which would cause race conditions in parallel calls)
+type ForkParentInfo struct {
+	StackID string   // Parent stack ID (used as ParentID for child stack)
+	TraceID string   // Parent trace ID (inherited by child stack)
+	Depth   int      // Parent depth (child depth = parent depth + 1)
+	Path    []string // Parent path (child path = parent path + child ID)
+}
 
 // Stack represents the call stack node for tracing agent-to-agent calls
 // Uses a flat structure to avoid circular references and memory overhead

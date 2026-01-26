@@ -254,6 +254,10 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 			}
 		}
 	}
+
+	// 4. Close SafeWriter to flush remaining writes (root stack only)
+	// This ensures all pending SSE messages are sent before the response completes
+	ctx.CloseSafeWriter()
 }
 
 // convertBufferedMessages converts BufferedMessage slice to store Message slice

@@ -18,6 +18,8 @@ type Writer struct {
 }
 
 // NewWriter creates a new CUI writer
+// The Writer should already be wrapped in SafeWriter by the context layer
+// to ensure thread-safe concurrent writes for SSE streaming.
 func NewWriter(options message.Options) (*Writer, error) {
 	return &Writer{
 		Writer:  options.Writer,
@@ -83,6 +85,7 @@ func (w *Writer) Flush() error {
 // Close closes the writer and cleans up resources
 func (w *Writer) Close() error {
 	// Nothing to clean up for CUI writer
+	// SafeWriter cleanup is handled by the context layer
 	return nil
 }
 

@@ -112,6 +112,10 @@ func (ctx *Context) Release() {
 	// Clear current stack reference
 	ctx.Stack = nil
 
+	// Close SafeWriter if exists (must be before setting Writer to nil)
+	// This ensures the background goroutine is properly stopped
+	ctx.CloseSafeWriter()
+
 	// Clear writer reference
 	ctx.Writer = nil
 
@@ -181,8 +185,11 @@ func (ctx *Context) Fork() *Context {
 		// Child stacks will be added here by EnterStack
 		Stacks: ctx.Stacks,
 
+		// Stack is nil for forked contexts - will be set by EnterStack
+		// ForkParent stores parent stack info so EnterStack can create child stack
+		Stack: nil,
+
 		// Create independent resources to avoid race conditions
-		Stack:           nil, // Will be set by EnterStack
 		IDGenerator:     message.NewIDGenerator(),
 		Logger:          NewRequestLogger(ctx.AssistantID, ctx.ChatID, childID),
 		messageMetadata: newMessageMetadataStore(),
@@ -202,6 +209,17 @@ func (ctx *Context) Fork() *Context {
 		Buffer:    nil, // Buffer belongs to root context
 		Interrupt: nil, // Interrupt controller belongs to root context
 		trace:     nil, // Trace will be inherited via TraceID in Stack
+	}
+
+	// Set ForkParent info if parent has a Stack
+	// This allows EnterStack to create a child stack instead of root stack
+	if ctx.Stack != nil {
+		child.ForkParent = &ForkParentInfo{
+			StackID: ctx.Stack.ID,
+			TraceID: ctx.Stack.TraceID,
+			Depth:   ctx.Stack.Depth,
+			Path:    append([]string{}, ctx.Stack.Path...), // Copy path slice
+		}
 	}
 
 	return child
@@ -506,4 +524,20 @@ func (ctx *Context) shouldSkipHistory() bool {
 		return false
 	}
 	return ctx.Stack.Options.Skip.History
+}
+
+// IsA2ACall returns true if this is any Agent-to-Agent call (delegate or fork)
+// A2A calls are identified by Referer being "agent" or "agent_fork":
+// - ctx.agent.Call/All/Any/Race uses RefererAgentFork (forked context, skips history)
+// - delegate uses RefererAgent (same context flow, saves history)
+func (ctx *Context) IsA2ACall() bool {
+	return ctx.Referer == RefererAgent || ctx.Referer == RefererAgentFork
+}
+
+// IsForkedA2ACall returns true if this is a forked A2A call (ctx.agent.Call/All/Any/Race)
+// Forked calls use RefererAgentFork, while delegate calls use RefererAgent.
+// This is used to skip history saving for forked sub-agent calls,
+// while allowing delegate calls to save history normally.
+func (ctx *Context) IsForkedA2ACall() bool {
+	return ctx.Referer == RefererAgentFork
 }
