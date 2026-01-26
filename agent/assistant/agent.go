@@ -58,6 +58,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	_, _, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
 
+	// Auto-skip history for forked Agent-to-Agent calls (ctx.agent.Call/All/Any/Race)
+	// This ensures forked A2A messages don't pollute chat history.
+	// Delegate calls (RefererAgent) still save history as they are part of the main conversation flow.
+	// Note: Output is NOT skipped - sub-agents output normally with ThreadID for UI separation.
+	if ctx.IsForkedA2ACall() {
+		if opts == nil {
+			opts = &context.Options{}
+		}
+		opts.ForceA2A()
+	}
+
 	// ================================================
 	// Initialize Chat Buffer (for root stack only)
 	// Buffer is flushed in defer block at the end
@@ -133,6 +144,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 	// Buffer user input messages (use cleaned input without overlap)
 	// Skip if History is disabled in options (for internal calls like needsearch)
+	// Note: For A2A calls, ForceA2A() sets skip.history = true, so this will be skipped
 	if opts == nil || opts.Skip == nil || !opts.Skip.History {
 		ast.BufferUserInput(ctx, historyResult.InputMessages)
 	}

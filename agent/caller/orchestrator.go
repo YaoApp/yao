@@ -241,6 +241,10 @@ func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Requ
 		return result
 	}
 
+	// Mark this as an agent-to-agent fork call for proper source tracking
+	// RefererAgentFork distinguishes ctx.agent.Call from delegate calls
+	ctx.Referer = agentContext.RefererAgentFork
+
 	// Build context options for the call
 	var ctxOpts *agentContext.Options
 	if req.Options != nil {

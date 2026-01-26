@@ -55,6 +55,32 @@ func (s *Stack) NewChildStack(assistantID, referer string, opts *Options) *Stack
 	}
 }
 
+// NewChildStackFromForkParent creates a child stack from ForkParentInfo
+// This is used by forked contexts (ctx.agent.Call) to create a child stack
+// without sharing the actual Stack reference (which would cause race conditions)
+func NewChildStackFromForkParent(parent *ForkParentInfo, assistantID, referer string, opts *Options) *Stack {
+	stackID := uuid.New().String()
+	now := time.Now().UnixMilli()
+
+	// Build path by appending parent's path with new ID
+	path := make([]string, len(parent.Path)+1)
+	copy(path, parent.Path)
+	path[len(parent.Path)] = stackID
+
+	return &Stack{
+		ID:          stackID,
+		TraceID:     parent.TraceID, // Inherit trace ID from parent
+		AssistantID: assistantID,
+		Referer:     referer,
+		Depth:       parent.Depth + 1,
+		ParentID:    parent.StackID, // Use parent's stack ID
+		Path:        path,
+		Options:     opts,
+		CreatedAt:   now,
+		Status:      StackStatusRunning,
+	}
+}
+
 // Complete marks the stack as completed and calculates duration
 func (s *Stack) Complete() {
 	now := time.Now().UnixMilli()
@@ -185,13 +211,22 @@ func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string
 	}
 
 	if ctx.Stack == nil {
-		// Create root stack for this assistant call (entry point)
-		// Generate a new trace ID for root
-		traceID = trace.GenTraceID()
-		stack = NewStack(traceID, assistantID, referer, opts)
-		ctx.Stack = stack
+		// Check if this is a forked context with parent stack info
+		if ctx.ForkParent != nil {
+			// Create child stack using ForkParent info
+			// This is for forked contexts (ctx.agent.Call) to have proper ThreadID
+			traceID = ctx.ForkParent.TraceID
+			stack = NewChildStackFromForkParent(ctx.ForkParent, assistantID, referer, opts)
+			ctx.Stack = stack
+		} else {
+			// Create root stack for this assistant call (entry point)
+			// Generate a new trace ID for root
+			traceID = trace.GenTraceID()
+			stack = NewStack(traceID, assistantID, referer, opts)
+			ctx.Stack = stack
+		}
 	} else {
-		// Create child stack for nested agent call
+		// Create child stack for nested agent call (delegate)
 		// Inherit trace ID from parent
 		parentStack = ctx.Stack
 		traceID = parentStack.TraceID

@@ -27,12 +27,13 @@ func NewJSAPI(ctx *agentContext.Context) *JSAPI {
 // Call executes a single agent call
 // Usage: ctx.agent.Call("assistant-id", messages, options?)
 // Returns: { agent_id, response, content, error }
-// Note: SSE output is automatically disabled to prevent sub-agent from writing to
-// the same SSE stream as the parent agent, which would cause client issues.
+// Note: For sub-agent calls, skip.history = true is automatically set
+// to prevent A2A messages from being saved to chat history.
+// Sub-agents output normally with ThreadID for SSE stream isolation.
 func (api *JSAPI) Call(agentID string, messages []interface{}, opts map[string]interface{}) interface{} {
 	req := api.buildRequest(agentID, messages, opts)
-	// Force skip.output = true for sub-agent calls
-	api.forceSkipOutput(req)
+	// Force skip options for sub-agent calls
+	api.forceSkipForSubAgent(req)
 	result := api.orchestrator.callAgent(req)
 	return result
 }
@@ -75,12 +76,14 @@ func (api *JSAPI) Race(requests []interface{}) []interface{} {
 // ============================================================================
 
 // CallWithHandler executes a single agent call with an OnMessage handler
-// Note: SSE output is automatically disabled; use the handler callback to receive messages.
+// Note: For sub-agent calls, skip.history = true is automatically set.
+// Sub-agents output normally with ThreadID. Use the handler callback
+// to receive streaming messages.
 func (api *JSAPI) CallWithHandler(agentID string, messages []interface{}, opts map[string]interface{}, handler agentContext.OnMessageFunc) interface{} {
 	req := api.buildRequest(agentID, messages, opts)
 	req.Handler = handler
-	// Force skip.output = true for sub-agent calls
-	api.forceSkipOutput(req)
+	// Force skip options for sub-agent calls
+	api.forceSkipForSubAgent(req)
 	result := api.orchestrator.callAgent(req)
 	return result
 }
@@ -106,24 +109,31 @@ func (api *JSAPI) RaceWithHandler(requests []interface{}, globalHandler agentCon
 	return api.convertResults(results)
 }
 
-// forceSkipOutput ensures SSE output is disabled for sub-agent calls
-// This prevents sub-agents from writing to the same SSE stream as the parent,
-// which would cause client disconnection and message corruption.
+// forceSkipForSubAgent ensures proper A2A call behavior:
+// - skip.history = true: A2A messages are not saved to chat history
+// - skip.output = false: Sub-agents output normally with ThreadID for SSE stream isolation
+//
+// IMPORTANT: skip.output is explicitly set to false to override any user settings.
+// This ensures ThreadID mechanism works correctly for concurrent sub-agent calls.
 // Users can use the onChunk callback to receive streaming messages if needed.
-func (api *JSAPI) forceSkipOutput(req *Request) {
+func (api *JSAPI) forceSkipForSubAgent(req *Request) {
 	if req.Options == nil {
 		req.Options = &CallOptions{}
 	}
 	if req.Options.Skip == nil {
 		req.Options.Skip = &agentContext.Skip{}
 	}
-	req.Options.Skip.Output = true
+	req.Options.Skip.History = true
+	// Force output to be enabled - this overrides any user settings
+	// Sub-agents MUST output with ThreadID for proper SSE stream isolation
+	req.Options.Skip.Output = false
 }
 
 // parseRequestsWithHandlers parses requests and attaches handlers
 // It checks for per-request _handler fields and wraps globalHandler with agentID/index
-// For all calls, this automatically sets skip.output = true to prevent sub-agents
-// from writing to the same SSE stream as the parent, which would cause client issues.
+// For all calls, this automatically sets:
+// - skip.history = true: prevents A2A messages from being saved to chat history
+// - skip.output = false: ensures sub-agents output with ThreadID (overrides user settings)
 func (api *JSAPI) parseRequestsWithHandlers(requests []interface{}, globalHandler agentContext.BatchOnMessageFunc) []*Request {
 	reqs := make([]*Request, 0, len(requests))
 
@@ -154,7 +164,7 @@ func (api *JSAPI) parseRequestsWithHandlers(requests []interface{}, globalHandle
 		req := api.buildRequest(agentID, messages, opts)
 
 		// Force skip.output = true for all sub-agent calls
-		api.forceSkipOutput(req)
+		api.forceSkipForSubAgent(req)
 
 		// Check for per-request handler first (takes precedence)
 		if handler, ok := reqMap["_handler"].(agentContext.OnMessageFunc); ok && handler != nil {
