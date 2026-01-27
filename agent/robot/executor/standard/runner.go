@@ -84,9 +84,24 @@ func (r *Runner) ExecuteWithRetry(task *robottypes.Task, taskCtx *RunnerContext)
 		}
 
 		result.Output = output
+
+		// For MCP tasks: only validate structure (no semantic validation needed)
+		// MCP tools return structured data - if execution succeeded, the result is valid
+		if task.ExecutorType == robottypes.ExecutorMCP {
+			validation := r.validateMCPOutput(task, output)
+			result.Validation = validation
+			result.Success = validation.Passed
+			result.Duration = time.Since(startTime).Milliseconds()
+			if !result.Success && validation != nil {
+				result.Error = fmt.Sprintf("validation failed: %v", validation.Issues)
+			}
+			return result
+		}
+
+		// For Process tasks: use full validation (semantic validation may still be useful)
 		validation := r.validator.ValidateWithContext(task, output, nil)
 		result.Validation = validation
-		// For non-assistant tasks (MCP, Process):
+		// For Process tasks:
 		// - No multi-turn conversation, so Complete is determined by validation alone
 		// - Success if passed OR score meets threshold (for partial success scenarios)
 		result.Success = validation.Complete || (validation.Passed && validation.Score >= r.config.ValidationThreshold)
@@ -389,4 +404,57 @@ func (r *Runner) FormatPreviousResultsAsContext(results []robottypes.TaskResult)
 	}
 
 	return sb.String()
+}
+
+// validateMCPOutput performs simple structure validation for MCP task output
+// MCP tools return structured data - if execution succeeded, the result is valid
+// Only validates that output is non-empty and has expected structure
+// Does NOT perform semantic validation (that's for Agent tasks only)
+func (r *Runner) validateMCPOutput(task *robottypes.Task, output interface{}) *robottypes.ValidationResult {
+	result := &robottypes.ValidationResult{
+		Passed:   true,
+		Score:    1.0,
+		Complete: true,
+	}
+
+	// Check if output is nil or empty
+	if output == nil {
+		result.Passed = false
+		result.Score = 0
+		result.Complete = false
+		result.Issues = append(result.Issues, "MCP tool returned nil output")
+		return result
+	}
+
+	// Check for empty output based on type
+	switch o := output.(type) {
+	case string:
+		if strings.TrimSpace(o) == "" {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty string")
+			return result
+		}
+	case map[string]interface{}:
+		if len(o) == 0 {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty object")
+			return result
+		}
+	case []interface{}:
+		if len(o) == 0 {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty array")
+			return result
+		}
+	}
+
+	// MCP execution succeeded with non-empty output - validation passed
+	// No semantic validation needed for MCP tools
+	return result
 }

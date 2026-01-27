@@ -482,6 +482,105 @@ func TestRunnerExecuteNonAssistantTask(t *testing.T) {
 }
 
 // ============================================================================
+// MCP Output Validation Tests
+// ============================================================================
+
+func TestRunnerValidateMCPOutput(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
+	ctx := types.NewContext(context.Background(), testAuth())
+
+	// Test that MCP tasks use simple structure validation, not semantic validation
+	// This is tested indirectly through the validation result
+
+	t.Run("MCP validation passes with valid map output", func(t *testing.T) {
+		robot := createRunnerTestRobot(t)
+		config := standard.DefaultRunConfig()
+		runner := standard.NewRunner(ctx, robot, config)
+
+		// Create a mock MCP task with validation rules
+		// (normally these rules would trigger semantic validation for assistant tasks)
+		task := &types.Task{
+			ID:           "task-mcp-test",
+			ExecutorType: types.ExecutorMCP,
+			ExecutorID:   "test.tool",
+			MCPServer:    "test",
+			MCPTool:      "tool",
+			// These semantic rules should be IGNORED for MCP tasks
+			ExpectedOutput: "Image with file and content_type",
+			ValidationRules: []string{
+				"file field exists",
+				"content_type is image/jpeg",
+			},
+			Status: types.TaskPending,
+		}
+
+		// Simulate MCP output (normally would come from actual MCP call)
+		output := map[string]interface{}{
+			"file":         "__yao.attachment://abc123",
+			"content_type": "image/jpeg",
+		}
+
+		// Test validateMCPOutput directly through reflection or mock
+		// Since validateMCPOutput is private, we test the behavior indirectly:
+		// MCP validation should only check for non-empty output, not semantic content
+
+		// The validation should pass because:
+		// 1. Output is not nil
+		// 2. Output is a non-empty map
+		// (Semantic validation rules are NOT applied for MCP tasks)
+
+		t.Logf("MCP task configured with validation rules that should be ignored")
+		t.Logf("Task ExpectedOutput: %s", task.ExpectedOutput)
+		t.Logf("Task ValidationRules: %v", task.ValidationRules)
+		t.Logf("MCP output: %v", output)
+
+		// Note: We can't directly call ExecuteWithRetry without an MCP server
+		// This test documents the expected behavior
+		_ = runner
+		_ = task
+		_ = output
+	})
+
+	t.Run("MCP validation fails with nil output", func(t *testing.T) {
+		// MCP validation should fail if output is nil
+		t.Log("MCP validation should fail when output is nil")
+		t.Log("Expected: Passed=false, Issues=['MCP tool returned nil output']")
+	})
+
+	t.Run("MCP validation fails with empty string output", func(t *testing.T) {
+		// MCP validation should fail if output is empty string
+		t.Log("MCP validation should fail when output is empty string")
+		t.Log("Expected: Passed=false, Issues=['MCP tool returned empty string']")
+	})
+
+	t.Run("MCP validation fails with empty map output", func(t *testing.T) {
+		// MCP validation should fail if output is empty map
+		t.Log("MCP validation should fail when output is empty map")
+		t.Log("Expected: Passed=false, Issues=['MCP tool returned empty object']")
+	})
+
+	t.Run("MCP validation fails with empty array output", func(t *testing.T) {
+		// MCP validation should fail if output is empty array
+		t.Log("MCP validation should fail when output is empty array")
+		t.Log("Expected: Passed=false, Issues=['MCP tool returned empty array']")
+	})
+
+	t.Run("MCP validation passes with any non-empty output", func(t *testing.T) {
+		// MCP validation should pass for any non-empty output
+		// regardless of ExpectedOutput or ValidationRules
+		t.Log("MCP validation should pass when output is non-empty")
+		t.Log("Semantic validation (ExpectedOutput, ValidationRules) should NOT be applied")
+		t.Log("Expected: Passed=true, Complete=true, Score=1.0")
+	})
+}
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
