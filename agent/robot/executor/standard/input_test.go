@@ -28,7 +28,23 @@ func TestInputFormatterFormatClockContext(t *testing.T) {
 		assert.Contains(t, result, "2024-01-15 09:30:00")
 		assert.Contains(t, result, "Monday")
 		assert.Contains(t, result, "UTC")
+		assert.Contains(t, result, "**Hour**: 9")
 		assert.Contains(t, result, "### Time Markers")
+	})
+
+	t.Run("shows all time markers with check/cross", func(t *testing.T) {
+		// Regular weekday, not month start/end
+		now := time.Date(2024, 1, 15, 14, 0, 0, 0, time.UTC)
+		clock := types.NewClockContext(now, "UTC")
+
+		result := formatter.FormatClockContext(clock, nil)
+
+		// Should show all markers, even when false
+		assert.Contains(t, result, "✗ Weekend")
+		assert.Contains(t, result, "✗ Month Start")
+		assert.Contains(t, result, "✗ Month End")
+		assert.Contains(t, result, "✗ Quarter End")
+		assert.Contains(t, result, "✗ Year End")
 	})
 
 	t.Run("includes robot identity when provided", func(t *testing.T) {
@@ -56,6 +72,26 @@ func TestInputFormatterFormatClockContext(t *testing.T) {
 	t.Run("returns empty for nil clock", func(t *testing.T) {
 		result := formatter.FormatClockContext(nil, nil)
 		assert.Empty(t, result)
+	})
+
+	t.Run("uses DisplayName/Bio/SystemPrompt when Identity is nil", func(t *testing.T) {
+		now := time.Now()
+		clock := types.NewClockContext(now, "UTC")
+		robot := &types.Robot{
+			MemberID:     "test-robot",
+			DisplayName:  "SEO Specialist",
+			Bio:          "Focuses on content optimization",
+			SystemPrompt: "You are an SEO assistant.\n\n## Core Duties\n- Analyze keywords",
+			Config:       &types.Config{}, // Identity is nil
+		}
+
+		result := formatter.FormatClockContext(clock, robot)
+
+		assert.Contains(t, result, "## Robot Identity")
+		assert.Contains(t, result, "SEO Specialist")
+		assert.Contains(t, result, "Focuses on content optimization")
+		assert.Contains(t, result, "SEO assistant")
+		assert.Contains(t, result, "Analyze keywords")
 	})
 
 	t.Run("marks weekend correctly", func(t *testing.T) {

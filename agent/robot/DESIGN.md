@@ -431,8 +431,15 @@ For each task:
 | Type | ExecutorID Format | Example |
 |------|-------------------|---------|
 | `assistant` | Agent ID | `experts.text-writer` |
-| `mcp` | `clientID.toolName` | `filesystem.read_file` |
+| `mcp` | `mcp_server.mcp_tool` | `ark.image.text2img.generate` |
 | `process` | Process name | `models.user.Find` |
+
+**MCP Task Fields:**
+
+For MCP tasks, three fields are required:
+- `executor_id`: Combined format `mcp_server.mcp_tool`
+- `mcp_server`: MCP server/client ID (e.g., `ark.image.text2img`)
+- `mcp_tool`: Tool name within the server (e.g., `generate`)
 
 **Multi-Turn Conversation Flow:**
 

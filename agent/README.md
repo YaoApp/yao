@@ -69,7 +69,14 @@ function Next(ctx: agent.Context, payload: agent.Payload): agent.Next {
 ### 3. Test (Optional)
 
 ```bash
+# Run tests
 yao agent test -i "Hello, how are you?"
+
+# Run tests from JSONL file
+yao agent test -i tests/inputs.jsonl -v
+
+# Extract results for review
+yao agent extract output-*.jsonl
 ```
 
 ### 4. Run

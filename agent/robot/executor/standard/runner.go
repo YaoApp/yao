@@ -84,9 +84,24 @@ func (r *Runner) ExecuteWithRetry(task *robottypes.Task, taskCtx *RunnerContext)
 		}
 
 		result.Output = output
+
+		// For MCP tasks: only validate structure (no semantic validation needed)
+		// MCP tools return structured data - if execution succeeded, the result is valid
+		if task.ExecutorType == robottypes.ExecutorMCP {
+			validation := r.validateMCPOutput(task, output)
+			result.Validation = validation
+			result.Success = validation.Passed
+			result.Duration = time.Since(startTime).Milliseconds()
+			if !result.Success && validation != nil {
+				result.Error = fmt.Sprintf("validation failed: %v", validation.Issues)
+			}
+			return result
+		}
+
+		// For Process tasks: use full validation (semantic validation may still be useful)
 		validation := r.validator.ValidateWithContext(task, output, nil)
 		result.Validation = validation
-		// For non-assistant tasks (MCP, Process):
+		// For Process tasks:
 		// - No multi-turn conversation, so Complete is determined by validation alone
 		// - Success if passed OR score meets threshold (for partial success scenarios)
 		result.Success = validation.Complete || (validation.Passed && validation.Score >= r.config.ValidationThreshold)
@@ -252,20 +267,18 @@ func (r *Runner) generateDefaultReply(validation *robottypes.ValidationResult, t
 }
 
 // ExecuteMCPTask executes a task using an MCP tool
-// ExecutorID format: "mcpClientID.toolName" (e.g., "filesystem.read_file")
+// Requires task.MCPServer and task.MCPTool fields to be set
+// executor_id is the combined form: "mcp_server.mcp_tool" (e.g., "ark.image.text2img.generate")
 func (r *Runner) ExecuteMCPTask(task *robottypes.Task, taskCtx *RunnerContext) (interface{}, error) {
-	// Parse MCP executor ID (format: clientID.toolName)
-	parts := strings.SplitN(task.ExecutorID, ".", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid MCP executor ID: %s (expected format: clientID.toolName)", task.ExecutorID)
+	// Validate MCP-specific fields
+	if task.MCPServer == "" || task.MCPTool == "" {
+		return nil, fmt.Errorf("MCP task requires mcp_server and mcp_tool fields (executor_id: %s)", task.ExecutorID)
 	}
 
-	clientID, toolName := parts[0], parts[1]
-
 	// Get MCP client
-	client, err := mcp.Select(clientID)
+	client, err := mcp.Select(task.MCPServer)
 	if err != nil {
-		return nil, fmt.Errorf("MCP client not found: %s: %w", clientID, err)
+		return nil, fmt.Errorf("MCP server not found: %s: %w", task.MCPServer, err)
 	}
 
 	// Build arguments map from task.Args
@@ -281,9 +294,9 @@ func (r *Runner) ExecuteMCPTask(task *robottypes.Task, taskCtx *RunnerContext) (
 	}
 
 	// Call MCP tool
-	result, err := client.CallTool(r.ctx.Context, toolName, args)
+	result, err := client.CallTool(r.ctx.Context, task.MCPTool, args)
 	if err != nil {
-		return nil, fmt.Errorf("MCP tool call failed: %w", err)
+		return nil, fmt.Errorf("MCP tool call failed (%s.%s): %w", task.MCPServer, task.MCPTool, err)
 	}
 
 	return result, nil
@@ -391,4 +404,57 @@ func (r *Runner) FormatPreviousResultsAsContext(results []robottypes.TaskResult)
 	}
 
 	return sb.String()
+}
+
+// validateMCPOutput performs simple structure validation for MCP task output
+// MCP tools return structured data - if execution succeeded, the result is valid
+// Only validates that output is non-empty and has expected structure
+// Does NOT perform semantic validation (that's for Agent tasks only)
+func (r *Runner) validateMCPOutput(task *robottypes.Task, output interface{}) *robottypes.ValidationResult {
+	result := &robottypes.ValidationResult{
+		Passed:   true,
+		Score:    1.0,
+		Complete: true,
+	}
+
+	// Check if output is nil or empty
+	if output == nil {
+		result.Passed = false
+		result.Score = 0
+		result.Complete = false
+		result.Issues = append(result.Issues, "MCP tool returned nil output")
+		return result
+	}
+
+	// Check for empty output based on type
+	switch o := output.(type) {
+	case string:
+		if strings.TrimSpace(o) == "" {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty string")
+			return result
+		}
+	case map[string]interface{}:
+		if len(o) == 0 {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty object")
+			return result
+		}
+	case []interface{}:
+		if len(o) == 0 {
+			result.Passed = false
+			result.Score = 0
+			result.Complete = false
+			result.Issues = append(result.Issues, "MCP tool returned empty array")
+			return result
+		}
+	}
+
+	// MCP execution succeeded with non-empty output - validation passed
+	// No semantic validation needed for MCP tools
+	return result
 }

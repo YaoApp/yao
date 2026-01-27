@@ -1322,8 +1322,12 @@ type Task struct {
 
     // Executor
     ExecutorType ExecutorType `json:"executor_type"`
-    ExecutorID   string       `json:"executor_id"`
+    ExecutorID   string       `json:"executor_id"` // unified ID: agent/assistant/process ID, or "mcp_server.mcp_tool" for MCP
     Args         []any        `json:"args,omitempty"`
+
+    // MCP-specific fields (required when executor_type is "mcp")
+    MCPServer string `json:"mcp_server,omitempty"` // MCP server/client ID (e.g., "ark.image.text2img")
+    MCPTool   string `json:"mcp_tool,omitempty"`   // MCP tool name (e.g., "generate")
 
     // Validation (defined in P2, used in P3)
     ExpectedOutput  string   `json:"expected_output,omitempty"`  // what the task should produce

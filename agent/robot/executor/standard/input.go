@@ -1,11 +1,15 @@
 package standard
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/yaoapp/gou/mcp"
+	"github.com/yaoapp/yao/agent/assistant"
 	agentcontext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -39,45 +43,60 @@ func (f *InputFormatter) FormatClockContext(clock *robottypes.ClockContext, robo
 	sb.WriteString(fmt.Sprintf("- **Day**: %s\n", clock.DayOfWeek))
 	sb.WriteString(fmt.Sprintf("- **Date**: %d/%d/%d\n", clock.Year, clock.Month, clock.DayOfMonth))
 	sb.WriteString(fmt.Sprintf("- **Week**: %d of year\n", clock.WeekOfYear))
+	sb.WriteString(fmt.Sprintf("- **Hour**: %d\n", clock.Hour))
 	sb.WriteString(fmt.Sprintf("- **Timezone**: %s\n", clock.TZ))
 
-	// Time markers
+	// Time markers - show all markers with check/cross for context awareness
 	sb.WriteString("\n### Time Markers\n")
-	if clock.IsWeekend {
-		sb.WriteString("- ✓ Weekend\n")
-	}
-	if clock.IsMonthStart {
-		sb.WriteString("- ✓ Month Start (1st-3rd)\n")
-	}
-	if clock.IsMonthEnd {
-		sb.WriteString("- ✓ Month End (last 3 days)\n")
-	}
-	if clock.IsQuarterEnd {
-		sb.WriteString("- ✓ Quarter End\n")
-	}
-	if clock.IsYearEnd {
-		sb.WriteString("- ✓ Year End\n")
-	}
+	sb.WriteString(fmt.Sprintf("- %s Weekend\n", boolMark(clock.IsWeekend)))
+	sb.WriteString(fmt.Sprintf("- %s Month Start (1st-3rd)\n", boolMark(clock.IsMonthStart)))
+	sb.WriteString(fmt.Sprintf("- %s Month End (last 3 days)\n", boolMark(clock.IsMonthEnd)))
+	sb.WriteString(fmt.Sprintf("- %s Quarter End\n", boolMark(clock.IsQuarterEnd)))
+	sb.WriteString(fmt.Sprintf("- %s Year End\n", boolMark(clock.IsYearEnd)))
 
-	// Robot identity section (if available)
-	if robot != nil && robot.Config != nil && robot.Config.Identity != nil {
-		sb.WriteString("\n## Robot Identity\n\n")
-		sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.Config.Identity.Role))
-		if len(robot.Config.Identity.Duties) > 0 {
-			sb.WriteString("- **Duties**:\n")
-			for _, duty := range robot.Config.Identity.Duties {
-				sb.WriteString(fmt.Sprintf("  - %s\n", duty))
+	// Robot identity section
+	// Priority: Config.Identity > Robot fields (DisplayName, Bio, SystemPrompt)
+	if robot != nil {
+		if robot.Config != nil && robot.Config.Identity != nil {
+			// Use structured identity from config
+			sb.WriteString("\n## Robot Identity\n\n")
+			sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.Config.Identity.Role))
+			if len(robot.Config.Identity.Duties) > 0 {
+				sb.WriteString("- **Duties**:\n")
+				for _, duty := range robot.Config.Identity.Duties {
+					sb.WriteString(fmt.Sprintf("  - %s\n", duty))
+				}
 			}
-		}
-		if len(robot.Config.Identity.Rules) > 0 {
-			sb.WriteString("- **Rules**:\n")
-			for _, rule := range robot.Config.Identity.Rules {
-				sb.WriteString(fmt.Sprintf("  - %s\n", rule))
+			if len(robot.Config.Identity.Rules) > 0 {
+				sb.WriteString("- **Rules**:\n")
+				for _, rule := range robot.Config.Identity.Rules {
+					sb.WriteString(fmt.Sprintf("  - %s\n", rule))
+				}
+			}
+		} else if robot.DisplayName != "" || robot.Bio != "" || robot.SystemPrompt != "" {
+			// Fallback: build identity from Robot fields (from __yao.member table)
+			sb.WriteString("\n## Robot Identity\n\n")
+			if robot.DisplayName != "" {
+				sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.DisplayName))
+			}
+			if robot.Bio != "" {
+				sb.WriteString(fmt.Sprintf("- **Description**: %s\n", robot.Bio))
+			}
+			if robot.SystemPrompt != "" {
+				sb.WriteString(fmt.Sprintf("- **Instructions**:\n%s\n", robot.SystemPrompt))
 			}
 		}
 	}
 
 	return sb.String()
+}
+
+// boolMark returns ✓ for true and ✗ for false
+func boolMark(v bool) string {
+	if v {
+		return "✓"
+	}
+	return "✗"
 }
 
 // FormatRobotIdentity formats robot identity as user message content
@@ -115,6 +134,15 @@ func (f *InputFormatter) FormatRobotIdentity(robot *robottypes.Robot) string {
 // This is critical for generating achievable goals - without knowing available tools,
 // the agent might generate goals that cannot be accomplished
 func (f *InputFormatter) FormatAvailableResources(robot *robottypes.Robot) string {
+	locale := "en" // default locale
+	if robot != nil && robot.Config != nil {
+		locale = robot.Config.GetDefaultLocale()
+	}
+	return f.FormatAvailableResourcesWithLocale(robot, locale)
+}
+
+// FormatAvailableResourcesWithLocale formats available resources with specific locale for i18n support
+func (f *InputFormatter) FormatAvailableResourcesWithLocale(robot *robottypes.Robot, locale string) string {
 	if robot == nil || robot.Config == nil {
 		return ""
 	}
@@ -122,36 +150,152 @@ func (f *InputFormatter) FormatAvailableResources(robot *robottypes.Robot) strin
 	var sb strings.Builder
 	hasContent := false
 
-	// Available Agents
+	// Available Agents - with detailed information (name, description)
 	if robot.Config.Resources != nil && len(robot.Config.Resources.Agents) > 0 {
 		if !hasContent {
 			sb.WriteString("## Available Resources\n\n")
 			hasContent = true
 		}
 		sb.WriteString("### Agents\n")
-		sb.WriteString("These are the AI assistants you can delegate tasks to:\n")
-		for _, agent := range robot.Config.Resources.Agents {
-			sb.WriteString(fmt.Sprintf("- **%s**\n", agent))
+		sb.WriteString("These are the AI assistants you can delegate tasks to:\n\n")
+		for _, agentID := range robot.Config.Resources.Agents {
+			// Try to get agent details
+			ast, err := assistant.Get(agentID)
+			if err != nil {
+				// Fallback to just ID if agent not found
+				sb.WriteString(fmt.Sprintf("- **%s**\n", agentID))
+				continue
+			}
+
+			// Get localized name and description
+			name := i18n.Translate(agentID, locale, ast.Name).(string)
+			description := ""
+			if ast.Description != "" {
+				description = i18n.Translate(agentID, locale, ast.Description).(string)
+			}
+
+			// Format agent info
+			sb.WriteString(fmt.Sprintf("- **%s** (`%s`)\n", name, agentID))
+			if description != "" {
+				sb.WriteString(fmt.Sprintf("  - %s\n", description))
+			}
 		}
 		sb.WriteString("\n")
 	}
 
-	// Available MCP Tools
+	// Available MCP Tools - with detailed tool information
 	if robot.Config.Resources != nil && len(robot.Config.Resources.MCP) > 0 {
 		if !hasContent {
 			sb.WriteString("## Available Resources\n\n")
 			hasContent = true
 		}
 		sb.WriteString("### MCP Tools\n")
-		sb.WriteString("These are the external tools and services you can use:\n")
-		for _, mcp := range robot.Config.Resources.MCP {
-			if len(mcp.Tools) > 0 {
-				sb.WriteString(fmt.Sprintf("- **%s**: %s\n", mcp.ID, strings.Join(mcp.Tools, ", ")))
-			} else {
-				sb.WriteString(fmt.Sprintf("- **%s**: all tools available\n", mcp.ID))
+		sb.WriteString("These are the external tools and services you can use:\n\n")
+		for _, mcpConfig := range robot.Config.Resources.MCP {
+			// Try to get MCP client and list tools
+			client, err := mcp.Select(mcpConfig.ID)
+			if err != nil {
+				// Fallback to basic info if client not found
+				if len(mcpConfig.Tools) > 0 {
+					sb.WriteString(fmt.Sprintf("- **%s**: %s\n", mcpConfig.ID, strings.Join(mcpConfig.Tools, ", ")))
+				} else {
+					sb.WriteString(fmt.Sprintf("- **%s**: all tools available\n", mcpConfig.ID))
+				}
+				continue
 			}
+
+			// Get client info for name and description
+			clientInfo := client.Info()
+			clientName := mcpConfig.ID
+			clientDesc := ""
+			if clientInfo != nil {
+				if clientInfo.Name != "" {
+					clientName = clientInfo.Name
+				}
+				if clientInfo.Description != "" {
+					clientDesc = clientInfo.Description
+				}
+			}
+
+			// Write MCP header
+			if clientDesc != "" {
+				sb.WriteString(fmt.Sprintf("#### %s (`%s`)\n", clientName, mcpConfig.ID))
+				sb.WriteString(fmt.Sprintf("%s\n\n", clientDesc))
+			} else {
+				sb.WriteString(fmt.Sprintf("#### %s (`%s`)\n\n", clientName, mcpConfig.ID))
+			}
+
+			// Try to list tools with context
+			ctx := context.Background()
+			toolsResp, err := client.ListTools(ctx, "")
+			if err != nil || toolsResp == nil {
+				// Fallback to configured tools
+				if len(mcpConfig.Tools) > 0 {
+					sb.WriteString("Available tools: ")
+					sb.WriteString(strings.Join(mcpConfig.Tools, ", "))
+					sb.WriteString("\n\n")
+				} else {
+					sb.WriteString("All tools available\n\n")
+				}
+				continue
+			}
+
+			// Filter tools if specific tools are configured
+			toolsToShow := toolsResp.Tools
+			if len(mcpConfig.Tools) > 0 {
+				// Create a map for quick lookup
+				allowedTools := make(map[string]bool)
+				for _, t := range mcpConfig.Tools {
+					allowedTools[t] = true
+				}
+				// Filter tools
+				var filteredTools []struct {
+					Name        string
+					Description string
+				}
+				for _, tool := range toolsResp.Tools {
+					if allowedTools[tool.Name] {
+						filteredTools = append(filteredTools, struct {
+							Name        string
+							Description string
+						}{tool.Name, tool.Description})
+					}
+				}
+				// Write filtered tools
+				if len(filteredTools) > 0 {
+					sb.WriteString("| Tool | Description |\n")
+					sb.WriteString("|------|-------------|\n")
+					for _, tool := range filteredTools {
+						desc := tool.Description
+						if len(desc) > 100 {
+							desc = desc[:97] + "..."
+						}
+						// Escape pipe characters in description
+						desc = strings.ReplaceAll(desc, "|", "\\|")
+						sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", tool.Name, desc))
+					}
+				} else {
+					sb.WriteString("Configured tools: ")
+					sb.WriteString(strings.Join(mcpConfig.Tools, ", "))
+				}
+			} else if len(toolsToShow) > 0 {
+				// Show all available tools
+				sb.WriteString("| Tool | Description |\n")
+				sb.WriteString("|------|-------------|\n")
+				for _, tool := range toolsToShow {
+					desc := tool.Description
+					if len(desc) > 100 {
+						desc = desc[:97] + "..."
+					}
+					// Escape pipe characters in description
+					desc = strings.ReplaceAll(desc, "|", "\\|")
+					sb.WriteString(fmt.Sprintf("| `%s` | %s |\n", tool.Name, desc))
+				}
+			} else {
+				sb.WriteString("No tools available\n")
+			}
+			sb.WriteString("\n")
 		}
-		sb.WriteString("\n")
 	}
 
 	// Available Knowledge Base
