@@ -152,6 +152,7 @@ func init() {
 
 	// Agent
 	agentCmd.AddCommand(agent.TestCmd)
+	agentCmd.AddCommand(agent.ExtractCmd)
 
 	rootCmd.AddCommand(
 		versionCmd,

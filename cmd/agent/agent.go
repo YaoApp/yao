@@ -35,6 +35,11 @@ var langs = map[string]string{
 	"Error: agent (-n) is required when using direct message input and not in an agent directory": "错误: 使用直接消息输入且不在智能体目录时需要指定 -n 参数",
 	"Hint: Make sure you're in a Yao application directory or specify --app flag":                 "提示: 确保在 Yao 应用目录中或使用 --app 参数指定",
 	"Error: invalid timeout format": "错误: 无效的超时格式",
+	// Extract command
+	"Extract test results to individual files for review":                              "提取测试结果到单独的文件供审查",
+	"Extract test results from output JSONL file to individual Markdown or JSON files": "从输出 JSONL 文件中提取测试结果到单独的 Markdown 或 JSON 文件",
+	"Output directory (default: same as input file)":                                   "输出目录 (默认: 与输入文件相同)",
+	"Output format: markdown, json":                                                    "输出格式: markdown, json",
 }
 
 // L Language switch

@@ -1428,6 +1428,51 @@ Simulates user behavior for dynamic mode testing.
 yao agent test -i tests/dynamic.jsonl --simulator tests.simulator-agent
 ```
 
+## Extract Command
+
+Extract test results from output JSONL file to individual Markdown or JSON files for human review:
+
+```bash
+# Extract to Markdown files (default)
+yao agent extract output-20260127104118.jsonl
+
+# Specify output directory
+yao agent extract output.jsonl -o ./reports/
+
+# Extract to JSON format
+yao agent extract output.jsonl --format json
+```
+
+### Extract Command Options
+
+| Flag       | Description                              | Default    |
+| ---------- | ---------------------------------------- | ---------- |
+| `-o`       | Output directory                         | same as input |
+| `--format` | Output format: `markdown`, `json`        | `markdown` |
+
+### Output Format (Markdown)
+
+Each test result is extracted to a separate file:
+
+```markdown
+# T001-销售分析师-月末周五
+
+**Status**: ✅ PASSED
+
+**Duration**: 16743ms
+
+## Input
+(Full input content in markdown code block)
+
+## Output
+(Agent's response content)
+```
+
+This is useful for:
+- Human review of agent outputs
+- Comparing results across test runs
+- Documentation and reporting
+
 ## Exit Codes
 
 | Code | Description                                         |
