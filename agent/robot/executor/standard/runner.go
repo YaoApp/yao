@@ -252,20 +252,18 @@ func (r *Runner) generateDefaultReply(validation *robottypes.ValidationResult, t
 }
 
 // ExecuteMCPTask executes a task using an MCP tool
-// ExecutorID format: "mcpClientID.toolName" (e.g., "filesystem.read_file")
+// Requires task.MCPServer and task.MCPTool fields to be set
+// executor_id is the combined form: "mcp_server.mcp_tool" (e.g., "ark.image.text2img.generate")
 func (r *Runner) ExecuteMCPTask(task *robottypes.Task, taskCtx *RunnerContext) (interface{}, error) {
-	// Parse MCP executor ID (format: clientID.toolName)
-	parts := strings.SplitN(task.ExecutorID, ".", 2)
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid MCP executor ID: %s (expected format: clientID.toolName)", task.ExecutorID)
+	// Validate MCP-specific fields
+	if task.MCPServer == "" || task.MCPTool == "" {
+		return nil, fmt.Errorf("MCP task requires mcp_server and mcp_tool fields (executor_id: %s)", task.ExecutorID)
 	}
 
-	clientID, toolName := parts[0], parts[1]
-
 	// Get MCP client
-	client, err := mcp.Select(clientID)
+	client, err := mcp.Select(task.MCPServer)
 	if err != nil {
-		return nil, fmt.Errorf("MCP client not found: %s: %w", clientID, err)
+		return nil, fmt.Errorf("MCP server not found: %s: %w", task.MCPServer, err)
 	}
 
 	// Build arguments map from task.Args
@@ -281,9 +279,9 @@ func (r *Runner) ExecuteMCPTask(task *robottypes.Task, taskCtx *RunnerContext) (
 	}
 
 	// Call MCP tool
-	result, err := client.CallTool(r.ctx.Context, toolName, args)
+	result, err := client.CallTool(r.ctx.Context, task.MCPTool, args)
 	if err != nil {
-		return nil, fmt.Errorf("MCP tool call failed: %w", err)
+		return nil, fmt.Errorf("MCP tool call failed (%s.%s): %w", task.MCPServer, task.MCPTool, err)
 	}
 
 	return result, nil
