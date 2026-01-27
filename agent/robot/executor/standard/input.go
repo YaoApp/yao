@@ -43,45 +43,60 @@ func (f *InputFormatter) FormatClockContext(clock *robottypes.ClockContext, robo
 	sb.WriteString(fmt.Sprintf("- **Day**: %s\n", clock.DayOfWeek))
 	sb.WriteString(fmt.Sprintf("- **Date**: %d/%d/%d\n", clock.Year, clock.Month, clock.DayOfMonth))
 	sb.WriteString(fmt.Sprintf("- **Week**: %d of year\n", clock.WeekOfYear))
+	sb.WriteString(fmt.Sprintf("- **Hour**: %d\n", clock.Hour))
 	sb.WriteString(fmt.Sprintf("- **Timezone**: %s\n", clock.TZ))
 
-	// Time markers
+	// Time markers - show all markers with check/cross for context awareness
 	sb.WriteString("\n### Time Markers\n")
-	if clock.IsWeekend {
-		sb.WriteString("- ✓ Weekend\n")
-	}
-	if clock.IsMonthStart {
-		sb.WriteString("- ✓ Month Start (1st-3rd)\n")
-	}
-	if clock.IsMonthEnd {
-		sb.WriteString("- ✓ Month End (last 3 days)\n")
-	}
-	if clock.IsQuarterEnd {
-		sb.WriteString("- ✓ Quarter End\n")
-	}
-	if clock.IsYearEnd {
-		sb.WriteString("- ✓ Year End\n")
-	}
+	sb.WriteString(fmt.Sprintf("- %s Weekend\n", boolMark(clock.IsWeekend)))
+	sb.WriteString(fmt.Sprintf("- %s Month Start (1st-3rd)\n", boolMark(clock.IsMonthStart)))
+	sb.WriteString(fmt.Sprintf("- %s Month End (last 3 days)\n", boolMark(clock.IsMonthEnd)))
+	sb.WriteString(fmt.Sprintf("- %s Quarter End\n", boolMark(clock.IsQuarterEnd)))
+	sb.WriteString(fmt.Sprintf("- %s Year End\n", boolMark(clock.IsYearEnd)))
 
-	// Robot identity section (if available)
-	if robot != nil && robot.Config != nil && robot.Config.Identity != nil {
-		sb.WriteString("\n## Robot Identity\n\n")
-		sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.Config.Identity.Role))
-		if len(robot.Config.Identity.Duties) > 0 {
-			sb.WriteString("- **Duties**:\n")
-			for _, duty := range robot.Config.Identity.Duties {
-				sb.WriteString(fmt.Sprintf("  - %s\n", duty))
+	// Robot identity section
+	// Priority: Config.Identity > Robot fields (DisplayName, Bio, SystemPrompt)
+	if robot != nil {
+		if robot.Config != nil && robot.Config.Identity != nil {
+			// Use structured identity from config
+			sb.WriteString("\n## Robot Identity\n\n")
+			sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.Config.Identity.Role))
+			if len(robot.Config.Identity.Duties) > 0 {
+				sb.WriteString("- **Duties**:\n")
+				for _, duty := range robot.Config.Identity.Duties {
+					sb.WriteString(fmt.Sprintf("  - %s\n", duty))
+				}
 			}
-		}
-		if len(robot.Config.Identity.Rules) > 0 {
-			sb.WriteString("- **Rules**:\n")
-			for _, rule := range robot.Config.Identity.Rules {
-				sb.WriteString(fmt.Sprintf("  - %s\n", rule))
+			if len(robot.Config.Identity.Rules) > 0 {
+				sb.WriteString("- **Rules**:\n")
+				for _, rule := range robot.Config.Identity.Rules {
+					sb.WriteString(fmt.Sprintf("  - %s\n", rule))
+				}
+			}
+		} else if robot.DisplayName != "" || robot.Bio != "" || robot.SystemPrompt != "" {
+			// Fallback: build identity from Robot fields (from __yao.member table)
+			sb.WriteString("\n## Robot Identity\n\n")
+			if robot.DisplayName != "" {
+				sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.DisplayName))
+			}
+			if robot.Bio != "" {
+				sb.WriteString(fmt.Sprintf("- **Description**: %s\n", robot.Bio))
+			}
+			if robot.SystemPrompt != "" {
+				sb.WriteString(fmt.Sprintf("- **Instructions**:\n%s\n", robot.SystemPrompt))
 			}
 		}
 	}
 
 	return sb.String()
+}
+
+// boolMark returns ✓ for true and ✗ for false
+func boolMark(v bool) string {
+	if v {
+		return "✓"
+	}
+	return "✗"
 }
 
 // FormatRobotIdentity formats robot identity as user message content

@@ -407,7 +407,55 @@ func NewRobotFromMap(m map[string]interface{}) (*Robot, error) {
 		robot.Config = config
 	}
 
+	// Ensure Config exists for merging agents/mcp_servers
+	if robot.Config == nil {
+		robot.Config = &Config{}
+	}
+	if robot.Config.Resources == nil {
+		robot.Config.Resources = &Resources{}
+	}
+
+	// Merge agents from member table into Config.Resources.Agents
+	if agentsData, ok := m["agents"]; ok && agentsData != nil {
+		agents := getStringSlice(agentsData)
+		if len(agents) > 0 {
+			robot.Config.Resources.Agents = agents
+		}
+	}
+
+	// Merge mcp_servers from member table into Config.Resources.MCP
+	if mcpData, ok := m["mcp_servers"]; ok && mcpData != nil {
+		mcpServers := getStringSlice(mcpData)
+		if len(mcpServers) > 0 {
+			for _, serverID := range mcpServers {
+				robot.Config.Resources.MCP = append(robot.Config.Resources.MCP, MCPConfig{
+					ID: serverID,
+				})
+			}
+		}
+	}
+
 	return robot, nil
+}
+
+// getStringSlice converts interface{} to []string
+func getStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case []string:
+		return val
+	case []interface{}:
+		result := make([]string, 0, len(val))
+		for _, item := range val {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	}
+	return nil
 }
 
 // getString safely gets a string value from map

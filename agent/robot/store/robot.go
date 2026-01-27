@@ -614,7 +614,57 @@ func (r *RobotRecord) ToRobot() (*types.Robot, error) {
 		robot.Config = config
 	}
 
+	// Ensure Config exists for merging agents/mcp_servers
+	if robot.Config == nil {
+		robot.Config = &types.Config{}
+	}
+	if robot.Config.Resources == nil {
+		robot.Config.Resources = &types.Resources{}
+	}
+
+	// Merge agents from member table into Config.Resources.Agents
+	if r.Agents != nil {
+		agents := parseStringSlice(r.Agents)
+		if len(agents) > 0 {
+			robot.Config.Resources.Agents = agents
+		}
+	}
+
+	// Merge mcp_servers from member table into Config.Resources.MCP
+	if r.MCPServers != nil {
+		mcpServers := parseStringSlice(r.MCPServers)
+		if len(mcpServers) > 0 {
+			// Convert string slice to MCPConfig slice (each server ID becomes an MCPConfig)
+			for _, serverID := range mcpServers {
+				robot.Config.Resources.MCP = append(robot.Config.Resources.MCP, types.MCPConfig{
+					ID: serverID,
+					// Tools empty means all tools available
+				})
+			}
+		}
+	}
+
 	return robot, nil
+}
+
+// parseStringSlice converts interface{} to []string
+func parseStringSlice(v interface{}) []string {
+	if v == nil {
+		return nil
+	}
+	switch val := v.(type) {
+	case []string:
+		return val
+	case []interface{}:
+		result := make([]string, 0, len(val))
+		for _, item := range val {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	}
+	return nil
 }
 
 // FromRobot creates a RobotRecord from types.Robot

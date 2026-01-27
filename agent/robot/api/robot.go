@@ -166,7 +166,7 @@ func loadRobotFromDB(memberID string) (*types.Robot, error) {
 		Select: []interface{}{
 			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
-			"robot_config", "robot_email",
+			"robot_config", "robot_email", "agents", "mcp_servers",
 		},
 		Wheres: []model.QueryWhere{
 			{Column: "member_id", Value: memberID},
@@ -228,7 +228,7 @@ func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
 		Select: []interface{}{
 			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
-			"robot_config", "robot_email",
+			"robot_config", "robot_email", "agents", "mcp_servers",
 		},
 		Wheres: wheres,
 		Orders: orders,
