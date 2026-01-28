@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/text"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/messenger"
@@ -119,11 +120,13 @@ func (dc *DeliveryCenter) sendEmail(
 		return result
 	}
 
-	// Build email message
+	// Build email message with HTML content
+	htmlBody, plainBody := buildEmailBody(target.Template, content)
 	msg := &messengerTypes.Message{
 		To:      target.To,
 		Subject: buildEmailSubject(target.Subject, target.Template, content, deliveryCtx),
-		Body:    buildEmailBody(target.Template, content),
+		Body:    plainBody, // Plain text fallback
+		HTML:    htmlBody,  // HTML content for rich email display
 		Type:    messengerTypes.MessageTypeEmail,
 	}
 
@@ -345,13 +348,24 @@ func buildEmailSubject(subject, template string, content *robottypes.DeliveryCon
 }
 
 // buildEmailBody builds the email body content
-func buildEmailBody(template string, content *robottypes.DeliveryContent) string {
+// buildEmailBody returns HTML and plain text versions of the email body
+// Returns: (htmlBody, plainBody)
+func buildEmailBody(template string, content *robottypes.DeliveryContent) (string, string) {
 	// TODO: Implement template rendering
-	// For now, just use the body directly
-	if content.Body != "" {
-		return content.Body
+	// Get markdown content (used as plain text fallback)
+	markdown := content.Body
+	if markdown == "" {
+		markdown = content.Summary
 	}
-	return content.Summary
+
+	// Convert Markdown to HTML for rich email display
+	html, err := text.MarkdownToHTML(markdown)
+	if err != nil {
+		// Fallback: use markdown as both HTML and plain text
+		return markdown, markdown
+	}
+
+	return html, markdown
 }
 
 // convertAttachments converts DeliveryAttachment to messenger Attachment format
