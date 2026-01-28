@@ -3,6 +3,9 @@ package standard
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -217,10 +220,11 @@ func (dc *DeliveryCenter) postWebhook(
 		req.Header.Set(key, value)
 	}
 
-	// Add secret if configured (for signature verification)
+	// Add HMAC signature if secret is configured
 	if target.Secret != "" {
-		// TODO: Implement HMAC signature
-		req.Header.Set("X-Webhook-Secret", target.Secret)
+		signature := computeHMACSignature(payloadBytes, target.Secret)
+		req.Header.Set("X-Yao-Signature", signature)
+		req.Header.Set("X-Yao-Signature-Algorithm", "HMAC-SHA256")
 	}
 
 	// Send request
@@ -394,4 +398,27 @@ func convertAttachments(ctx context.Context, attachments []robottypes.DeliveryAt
 	}
 
 	return result
+}
+
+// ============================================================================
+// Webhook Signature
+// ============================================================================
+
+// computeHMACSignature computes HMAC-SHA256 signature for webhook payload
+// Returns hex-encoded signature string
+func computeHMACSignature(payload []byte, secret string) string {
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write(payload)
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// VerifyHMACSignature verifies the HMAC-SHA256 signature of a webhook payload
+// Headers:
+//   - X-Yao-Signature: hex-encoded HMAC-SHA256 signature
+//   - X-Yao-Signature-Algorithm: "HMAC-SHA256"
+//
+// Returns true if the signature is valid
+func VerifyHMACSignature(payload []byte, secret, signature string) bool {
+	expected := computeHMACSignature(payload, secret)
+	return hmac.Equal([]byte(expected), []byte(signature))
 }
