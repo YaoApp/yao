@@ -439,8 +439,8 @@ func TestDeliveryCenterMixedChannels(t *testing.T) {
 
 func TestDefaultEmailChannel(t *testing.T) {
 	t.Run("returns default email channel", func(t *testing.T) {
-		// Default should be "email"
-		assert.Equal(t, "email", types.DefaultEmailChannel())
+		// Default should be "default"
+		assert.Equal(t, "default", types.DefaultEmailChannel())
 	})
 
 	t.Run("can set custom email channel", func(t *testing.T) {
