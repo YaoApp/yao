@@ -93,9 +93,10 @@ func (m *manager) addUpdateAndBroadcast(update *types.TraceUpdate) {
 	// Persist to driver (synchronous - no race)
 	if err := m.driver.SaveUpdate(context.Background(), m.traceID, update); err != nil {
 		log.Trace("[MANAGER] addUpdateAndBroadcast: failed to save update type=%s for trace %s: %v", update.Type, m.traceID, err)
-	} else {
-		log.Trace("[MANAGER] addUpdateAndBroadcast: successfully saved update type=%s for trace %s", update.Type, m.traceID)
 	}
+	// else {
+	// log.Trace("[MANAGER] addUpdateAndBroadcast: successfully saved update type=%s for trace %s", update.Type, m.traceID)
+	// }
 
 	// Add to in-memory history
 	m.stateAddUpdate(update)

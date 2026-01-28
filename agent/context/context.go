@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -411,12 +410,12 @@ func SendInterrupt(contextID string, signal *InterruptSignal) error {
 
 // generateContextID generates a unique context ID
 func generateContextID() string {
-	return fmt.Sprintf("ctx-%d", time.Now().UnixNano())
+	return message.GenerateNanoID()
 }
 
-// RequestID returns the request ID for the context
+// RequestID returns a unique request ID using NanoID
 func (ctx *Context) RequestID() string {
-	return fmt.Sprintf("%s", ctx.ID)
+	return message.GenerateNanoID()
 }
 
 // TraceID returns the trace ID for the context

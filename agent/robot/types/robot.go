@@ -23,6 +23,10 @@ type Robot struct {
 	AutonomousMode bool        `json:"autonomous_mode"`
 	RobotEmail     string      `json:"robot_email"` // Robot's email address for sending emails
 
+	// Manager info (from __yao.member)
+	ManagerID    string `json:"manager_id"`    // Direct manager user_id (who manages this robot)
+	ManagerEmail string `json:"manager_email"` // Manager's email address (for default delivery)
+
 	// Parsed config (from robot_config JSON field)
 	Config *Config `json:"-"`
 
@@ -393,6 +397,8 @@ func NewRobotFromMap(m map[string]interface{}) (*Robot, error) {
 		SystemPrompt:   getString(m, "system_prompt"),
 		AutonomousMode: getBool(m, "autonomous_mode"),
 		RobotEmail:     getString(m, "robot_email"),
+		ManagerID:      getString(m, "manager_id"),
+		ManagerEmail:   getString(m, "manager_email"),
 	}
 
 	// Parse robot_status

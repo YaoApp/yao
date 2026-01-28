@@ -295,9 +295,28 @@ func (dc *DeliveryCenter) callProcess(
 	}
 
 	result.Success = true
-	result.Details = proc.Value
+	// Convert proc.Value to JSON-serializable format to avoid func type issues
+	result.Details = toJSONSerializable(proc.Value)
 
 	return result
+}
+
+// toJSONSerializable ensures the value can be JSON serialized
+// Returns the original value if serializable, or a string fallback if not
+func toJSONSerializable(v interface{}) interface{} {
+	if v == nil {
+		return nil
+	}
+
+	// Try to marshal to check if it's JSON serializable
+	_, err := json.Marshal(v)
+	if err != nil {
+		// If it can't be serialized (e.g., contains func), return a string representation
+		return fmt.Sprintf("%v", v)
+	}
+
+	// Return original value if it's serializable
+	return v
 }
 
 // buildEmailSubject builds the email subject line

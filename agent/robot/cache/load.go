@@ -26,6 +26,7 @@ var memberFields = []interface{}{
 	"robot_email",
 	"agents",
 	"mcp_servers",
+	"manager_id",
 }
 
 // SetMemberModel sets the member model name

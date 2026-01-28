@@ -167,6 +167,7 @@ func loadRobotFromDB(memberID string) (*types.Robot, error) {
 			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
 			"robot_config", "robot_email", "agents", "mcp_servers",
+			"manager_id",
 		},
 		Wheres: []model.QueryWhere{
 			{Column: "member_id", Value: memberID},
