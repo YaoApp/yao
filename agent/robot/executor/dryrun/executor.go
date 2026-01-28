@@ -42,8 +42,18 @@ func NewWithConfig(config types.DryRunConfig) *Executor {
 	}
 }
 
-// Execute simulates robot execution without real Agent calls
+// Execute simulates robot execution without real Agent calls (auto-generates ID)
 func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+// ExecuteWithID simulates robot execution with a pre-generated execution ID (no control)
+func (e *Executor) ExecuteWithID(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+// ExecuteWithControl simulates robot execution with execution control
+func (e *Executor) ExecuteWithControl(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string, control robottypes.ExecutionControl) (*robottypes.Execution, error) {
 	if robot == nil {
 		return nil, fmt.Errorf("robot cannot be nil")
 	}
@@ -54,9 +64,14 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		startPhaseIndex = 1 // Skip P0
 	}
 
+	// Use provided execID or generate new one
+	if execID == "" {
+		execID = fmt.Sprintf("dryrun_%d", time.Now().UnixNano())
+	}
+
 	// Create execution record
 	exec := &robottypes.Execution{
-		ID:          fmt.Sprintf("dryrun_%d", time.Now().UnixNano()),
+		ID:          execID,
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
 		TriggerType: trigger,
@@ -106,6 +121,24 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	// Execute phases with mock data
 	phases := robottypes.AllPhases[startPhaseIndex:]
 	for _, phase := range phases {
+		// Check if cancelled
+		select {
+		case <-ctx.Context.Done():
+			exec.Status = robottypes.ExecCancelled
+			exec.Error = "execution cancelled"
+			return exec, nil
+		default:
+		}
+
+		// Wait if paused
+		if control != nil {
+			if err := control.WaitIfPaused(); err != nil {
+				exec.Status = robottypes.ExecCancelled
+				exec.Error = "execution cancelled while paused"
+				return exec, nil
+			}
+		}
+
 		exec.Phase = phase
 
 		// Phase start callback

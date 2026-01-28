@@ -79,9 +79,10 @@ func (w *Worker) execute(item *QueueItem) {
 	// Get executor based on mode (uses factory if available, otherwise default)
 	exec := w.pool.GetExecutor(item.ExecutorMode)
 
-	// Execute via Executor interface
-	// Note: Executor.Execute() does atomic quota check via TryAcquireSlot()
-	execution, err := exec.Execute(item.Ctx, item.Robot, item.Trigger, item.Data)
+	// Execute via Executor interface with pre-generated ID and control
+	// Note: Executor.ExecuteWithControl() does atomic quota check via TryAcquireSlot()
+	// The control parameter allows executor to check pause state during execution
+	execution, err := exec.ExecuteWithControl(item.Ctx, item.Robot, item.Trigger, item.Data, item.ExecID, item.Control)
 
 	if err != nil {
 		// Check if it's a quota error (race condition - another worker got the slot)

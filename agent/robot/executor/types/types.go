@@ -12,12 +12,22 @@ import (
 //   - DryRun:   Plan-only mode, simulates execution without Agent calls
 //   - Sandbox:  Isolated execution with resource limits and safety controls
 type Executor interface {
-	// Execute runs a robot through all applicable phases
+	// ExecuteWithControl runs a robot through all applicable phases with execution control
 	// ctx: Execution context with auth and logging
 	// robot: Robot configuration and state
 	// trigger: What triggered this execution (clock, human, event)
 	// data: Trigger-specific data (human input, event payload, etc.)
+	// execID: Pre-generated execution ID (empty string to auto-generate)
+	// control: Optional execution control for pause/resume functionality
 	// Returns: Execution record with all phase outputs
+	ExecuteWithControl(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string, control robottypes.ExecutionControl) (*robottypes.Execution, error)
+
+	// ExecuteWithID runs a robot through all applicable phases with a pre-generated execution ID
+	// This is a convenience wrapper around ExecuteWithControl without control
+	ExecuteWithID(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string) (*robottypes.Execution, error)
+
+	// Execute runs a robot through all applicable phases (auto-generates execution ID)
+	// This is a convenience wrapper around ExecuteWithControl
 	Execute(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}) (*robottypes.Execution, error)
 
 	// Metrics and control

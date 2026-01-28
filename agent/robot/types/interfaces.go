@@ -7,6 +7,19 @@ import "time"
 // External API is defined in api/api.go
 // All interfaces use *Context (not context.Context) for consistency.
 
+// ExecutionControl provides pause/resume/stop control for running executions
+// This interface is implemented by trigger.ControlledExecution
+type ExecutionControl interface {
+	// IsPaused returns true if execution is paused
+	IsPaused() bool
+	// IsCancelled returns true if execution is cancelled
+	IsCancelled() bool
+	// WaitIfPaused blocks until resumed or cancelled, returns error if cancelled
+	WaitIfPaused() error
+	// CheckCancelled returns ErrExecutionCancelled if cancelled
+	CheckCancelled() error
+}
+
 // Manager - robot lifecycle and clock trigger management
 type Manager interface {
 	Start() error
@@ -16,6 +29,14 @@ type Manager interface {
 
 // Executor - executes robot phases
 type Executor interface {
+	// ExecuteWithControl runs execution with pre-generated ID and execution control (used by pool)
+	// control: optional, allows pause/resume functionality
+	ExecuteWithControl(ctx *Context, robot *Robot, trigger TriggerType, data interface{}, execID string, control ExecutionControl) (*Execution, error)
+
+	// ExecuteWithID runs execution with a pre-generated ID but no control (for backward compatibility)
+	ExecuteWithID(ctx *Context, robot *Robot, trigger TriggerType, data interface{}, execID string) (*Execution, error)
+
+	// Execute runs execution with auto-generated ID (for direct calls)
 	Execute(ctx *Context, robot *Robot, trigger TriggerType, data interface{}) (*Execution, error)
 
 	// Metrics and control (for monitoring and testing)

@@ -495,12 +495,24 @@ type slowExecutor struct {
 }
 
 func (e *slowExecutor) Execute(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+func (e *slowExecutor) ExecuteWithID(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+func (e *slowExecutor) ExecuteWithControl(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string, control types.ExecutionControl) (*types.Execution, error) {
 	if robot == nil {
 		return nil, types.ErrRobotNotFound
 	}
 
+	// Use provided execID or generate one
+	if execID == "" {
+		execID = "exec_slow_" + robot.MemberID
+	}
 	exec := &types.Execution{
-		ID:          "exec_slow_" + robot.MemberID,
+		ID:          execID,
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
 		TriggerType: trigger,

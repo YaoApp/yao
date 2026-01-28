@@ -41,6 +41,7 @@ func TestTriggerTypeEnum(t *testing.T) {
 func TestExecStatusEnum(t *testing.T) {
 	assert.Equal(t, types.ExecStatus("pending"), types.ExecPending)
 	assert.Equal(t, types.ExecStatus("running"), types.ExecRunning)
+	assert.Equal(t, types.ExecStatus("paused"), types.ExecPaused)
 	assert.Equal(t, types.ExecStatus("completed"), types.ExecCompleted)
 	assert.Equal(t, types.ExecStatus("failed"), types.ExecFailed)
 	assert.Equal(t, types.ExecStatus("cancelled"), types.ExecCancelled)

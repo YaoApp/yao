@@ -48,8 +48,18 @@ func NewWithConfig(config types.SandboxConfig) *Executor {
 	}
 }
 
-// Execute runs robot execution within sandbox constraints
+// Execute runs robot execution within sandbox constraints (auto-generates ID)
 func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+// ExecuteWithID runs robot execution within sandbox constraints with a pre-generated execution ID (no control)
+func (e *Executor) ExecuteWithID(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+// ExecuteWithControl runs robot execution within sandbox constraints with execution control
+func (e *Executor) ExecuteWithControl(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string, control robottypes.ExecutionControl) (*robottypes.Execution, error) {
 	if robot == nil {
 		return nil, fmt.Errorf("robot cannot be nil")
 	}
@@ -67,9 +77,14 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		startPhaseIndex = 1
 	}
 
+	// Use provided execID or generate new one
+	if execID == "" {
+		execID = fmt.Sprintf("sandbox_%d", time.Now().UnixNano())
+	}
+
 	// Create execution record
 	exec := &robottypes.Execution{
-		ID:          fmt.Sprintf("sandbox_%d", time.Now().UnixNano()),
+		ID:          execID,
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
 		TriggerType: trigger,
@@ -99,13 +114,22 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	// Execute phases with sandbox constraints
 	phases := robottypes.AllPhases[startPhaseIndex:]
 	for _, phase := range phases {
-		// Check timeout
+		// Check timeout or cancellation
 		select {
 		case <-execCtx.Done():
 			exec.Status = robottypes.ExecFailed
 			exec.Error = "execution timeout exceeded"
 			return exec, nil
 		default:
+		}
+
+		// Wait if paused
+		if control != nil {
+			if err := control.WaitIfPaused(); err != nil {
+				exec.Status = robottypes.ExecCancelled
+				exec.Error = "execution cancelled while paused"
+				return exec, nil
+			}
 		}
 
 		exec.Phase = phase
