@@ -92,12 +92,25 @@ func (w *Worker) execute(item *QueueItem) {
 		}
 		fmt.Printf("Worker %d: Execution failed for robot %s: %v\n",
 			w.id, item.Robot.MemberID, err)
+		// Notify completion callback with appropriate status
+		if w.pool.onComplete != nil {
+			// Determine status based on error type
+			status := types.ExecFailed
+			if err == types.ErrExecutionCancelled {
+				status = types.ExecCancelled
+			}
+			w.pool.onComplete(item.ExecID, item.Robot.MemberID, status)
+		}
 		return
 	}
 
 	if execution != nil {
 		fmt.Printf("Worker %d: Execution %s completed for robot %s (status: %s)\n",
 			w.id, execution.ID, item.Robot.MemberID, execution.Status)
+		// Notify completion callback
+		if w.pool.onComplete != nil {
+			w.pool.onComplete(execution.ID, item.Robot.MemberID, execution.Status)
+		}
 	}
 }
 

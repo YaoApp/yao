@@ -138,6 +138,16 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("failed to load robots: %w", err)
 	}
 
+	// Set completion callback to clean up ExecutionController when execution finishes
+	m.pool.SetOnComplete(func(execID, memberID string, status types.ExecStatus) {
+		// Remove from ExecutionController (cleans up in-memory tracking)
+		m.execController.Untrack(execID)
+		// Remove from robot's in-memory execution list
+		if robot := m.cache.Get(memberID); robot != nil {
+			robot.RemoveExecution(execID)
+		}
+	})
+
 	// Start worker pool
 	if err := m.pool.Start(); err != nil {
 		return fmt.Errorf("failed to start pool: %w", err)

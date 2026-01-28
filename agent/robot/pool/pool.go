@@ -32,18 +32,23 @@ func DefaultConfig() *Config {
 // ExecutorFactory creates an executor based on the mode
 type ExecutorFactory func(mode types.ExecutorMode) types.Executor
 
+// OnCompleteCallback is called when an execution completes (success or failure)
+// Parameters: execID, memberID, status
+type OnCompleteCallback func(execID, memberID string, status types.ExecStatus)
+
 // Pool implements types.Pool interface
 // Manages a pool of workers that execute robot jobs from a priority queue
 type Pool struct {
-	size            int             // number of workers
-	queue           *PriorityQueue  // priority queue for pending jobs
-	executor        types.Executor  // default executor for running jobs
-	executorFactory ExecutorFactory // optional: factory for mode-specific executors
-	workers         []*Worker       // worker goroutines
-	running         atomic.Int32    // number of currently running jobs
-	wg              sync.WaitGroup  // wait group for graceful shutdown
-	started         bool            // whether pool has been started
-	mu              sync.RWMutex    // protects started flag
+	size            int                // number of workers
+	queue           *PriorityQueue     // priority queue for pending jobs
+	executor        types.Executor     // default executor for running jobs
+	executorFactory ExecutorFactory    // optional: factory for mode-specific executors
+	onComplete      OnCompleteCallback // optional: callback when execution completes
+	workers         []*Worker          // worker goroutines
+	running         atomic.Int32       // number of currently running jobs
+	wg              sync.WaitGroup     // wait group for graceful shutdown
+	started         bool               // whether pool has been started
+	mu              sync.RWMutex       // protects started flag
 }
 
 // New creates a new pool instance with default configuration
@@ -84,6 +89,12 @@ func (p *Pool) SetExecutor(executor types.Executor) {
 // If set, the factory is used to create executors based on ExecutorMode
 func (p *Pool) SetExecutorFactory(factory ExecutorFactory) {
 	p.executorFactory = factory
+}
+
+// SetOnComplete sets the callback for execution completion
+// Called when an execution finishes (completed, failed, or cancelled)
+func (p *Pool) SetOnComplete(callback OnCompleteCallback) {
+	p.onComplete = callback
 }
 
 // GetExecutor returns the appropriate executor for the given mode
