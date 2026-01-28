@@ -124,7 +124,7 @@ func (dc *DeliveryCenter) sendEmail(
 	htmlBody, plainBody := buildEmailBody(target.Template, content)
 	msg := &messengerTypes.Message{
 		To:      target.To,
-		Subject: buildEmailSubject(target.Subject, target.Template, content, deliveryCtx),
+		Subject: buildEmailSubject(target.Subject, target.Template, content, deliveryCtx, robotInstance),
 		Body:    plainBody, // Plain text fallback
 		HTML:    htmlBody,  // HTML content for rich email display
 		Type:    messengerTypes.MessageTypeEmail,
@@ -327,24 +327,30 @@ func toJSONSerializable(v interface{}) interface{} {
 }
 
 // buildEmailSubject builds the email subject line
-func buildEmailSubject(subject, template string, content *robottypes.DeliveryContent, ctx *robottypes.DeliveryContext) string {
+func buildEmailSubject(subject, template string, content *robottypes.DeliveryContent, ctx *robottypes.DeliveryContext, robot *robottypes.Robot) string {
 	// Use explicit subject if provided
 	if subject != "" {
 		return subject
 	}
 
+	// Get robot display name for subject prefix
+	robotName := "Robot"
+	if robot != nil && robot.DisplayName != "" {
+		robotName = robot.DisplayName
+	}
+
 	// Use template-based subject if template is specified
 	// TODO: Implement template rendering
 	if template != "" {
-		return fmt.Sprintf("[Robot] %s", content.Summary)
+		return fmt.Sprintf("[%s] %s", robotName, content.Summary)
 	}
 
 	// Default: use summary
 	if content.Summary != "" {
-		return fmt.Sprintf("[Robot] %s", content.Summary)
+		return fmt.Sprintf("[%s] %s", robotName, content.Summary)
 	}
 
-	return fmt.Sprintf("[Robot] Execution %s Complete", ctx.ExecutionID)
+	return fmt.Sprintf("[%s] Execution %s Complete", robotName, ctx.ExecutionID)
 }
 
 // buildEmailBody builds the email body content
