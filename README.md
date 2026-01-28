@@ -1,8 +1,8 @@
-# Yao
-
-**Build Autonomous Agents. Just Define the Role.**
+# Yao — Build Autonomous Agents. Just Define the Role.
 
 Yao is an open-source engine for autonomous agents — event-driven, proactive, and self-scheduling.
+
+![Mission Control](docs/mission-control.png)
 
 **Quick Links:**
 
