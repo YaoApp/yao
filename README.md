@@ -1,8 +1,8 @@
-## What is Yao?
+# Yao
 
-Yao is an all-in-one application engine that enables developers to create web apps, REST APIs, business applications, and more, with AI as a development partner.
+**Build Autonomous Agents. Just Define the Role.**
 
-Yao lets you create apps using AI, a visual interface, or by writing them yourself. Its DSL (Domain-Specific Language) is easy to read and write, and it works well with AI. With full programming capabilities and a single command-line tool to handle everything, you can switch smoothly between manual coding and AI assistance, making web app development fast and flexible.
+Yao is an open-source engine for autonomous agents — event-driven, proactive, and self-scheduling.
 
 **Quick Links:**
 
@@ -16,38 +16,50 @@ Yao lets you create apps using AI, a visual interface, or by writing them yourse
 
 **🤖 Yao Agents:** [https://github.com/YaoAgents/awesome](https://github.com/YaoAgents/awesome) ( Preview )
 
+---
+
+## What Makes Yao Different?
+
+| Traditional AI Assistants     | Yao Autonomous Agents                 |
+| ----------------------------- | ------------------------------------- |
+| Entry point: Chatbox          | Entry point: Email, Events, Schedules |
+| Passive: You ask, they answer | Proactive: They work autonomously     |
+| Role: Tool                    | Role: Team member                     |
+
+> The entry point is not a chatbox — it's email, events, and scheduled tasks.
+
+---
+
 ## Features
 
-Yao is effective in both human and machine programming, with each being independent, allowing for seamless switching between the two.
+### Autonomous Agent Framework
 
-### 🔮 AI First
+Build agents that work like real team members:
 
-We have designed a human-machine-friendly DSL (Domain-Specific Language) that makes both AI-generated and manually written code more efficient, enabling easy transitions between the two.
+- **Three Trigger Modes** — Clock (scheduled), Human (email/message), Event (webhook/database)
+- **Six-Phase Execution** — Inspiration → Goals → Tasks → Run → Deliver → Learn
+- **Multi-Agent Orchestration** — Agents delegate, collaborate, and compose dynamically
+- **Continuous Learning** — Agents accumulate experience in private knowledge bases
 
-Typically, AI generates the initial code, and developers make modifications, significantly boosting development efficiency. In practice, AI can handle 80% to 90% of the work, allowing developers to focus on the remaining 10% to 20%.
+### Native MCP Support
 
-### 🔮 All-in-One
+Integrate tools without writing adapters:
 
-Yao is an all-in-one solution for web development, requiring no additional packages or toolchain dependencies. It ships as a single executable file that includes everything you need to get started.
+- **Process Transport** — Map Yao processes directly to MCP tools
+- **External Servers** — Connect via SSE or STDIO
+- **Schema Mapping** — Declarative input/output schemas
 
-This greatly reduces the complexity of interacting with AI, significantly improving both the efficiency and quality of the generated code. It also eliminates many unnecessary tasks, allowing developers to focus on more important aspects.
+### Built-in GraphRAG
 
-### 🔮 Native TypeScript Support
+- **Vector Search** — Embeddings with OpenAI/FastEmbed
+- **Knowledge Graph** — Entity-relationship retrieval
+- **Hybrid Search** — Combine vector similarity with graph traversal
 
-Yao includes a built-in V8 engine with TypeScript support, allowing direct code execution and providing hundreds of APIs for databases, files, caching, and more, with multiple ways to add extensions.
+### Full-Stack Runtime
 
-Yao offers comprehensive programming capabilities, so you don’t have to worry about being unable to implement certain features.
+Everything in a single executable:
 
-### 🔮 Multiple Coding Approaches
-
-Combine AI-generated code, visual editing, and manual coding within the same project, with generated code that is easy to read and manually modify.
-
-Once you understand how Yao works and its DSL, you can easily develop a code generator or AI agent tailored to your business needs.
-
-### 🔮 Serverless
-
-Launch in seconds with built-in cloud functions and API gateways to easily create server-side apps. Integrate seamlessly with the DevOps ecosystem for one-click deployment.
-
-### 🔮 Edge Devices Support
-
-Yao apps also support running on edge devices equipped with arm64 or x64 chips, suitable for various scenarios in IoT applications.
+- **All-in-One** — Data, API, Agent, UI in one engine
+- **TypeScript Support** — Built-in V8 engine
+- **Single Binary** — No Node.js, Python, or containers required
+- **Edge-Ready** — Runs on ARM64/x64 devices
