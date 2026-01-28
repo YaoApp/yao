@@ -8,8 +8,8 @@ import "sync"
 var (
 	// defaultEmailChannel - default messenger channel name for sending emails
 	// Can be configured via SetDefaultEmailChannel()
-	// Default: "email" (maps to messengers/channels.yao configuration)
-	defaultEmailChannel = "email"
+	// Default: "default" (maps to messengers/channels.yao configuration)
+	defaultEmailChannel = "default"
 
 	// configMu protects global configuration
 	configMu sync.RWMutex

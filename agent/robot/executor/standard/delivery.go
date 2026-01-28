@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yaoapp/gou/model"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -94,20 +95,18 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 
 // routeToDeliveryCenter sends content to the Delivery Center for actual delivery
 // The Delivery Center decides which channels to use based on robot/user preferences
+//
+// Delivery logic:
+// 1. Manager email: ALWAYS send to manager if manager_id is set (mandatory)
+// 2. Additional targets: Append configured email/webhook/process targets
 func (e *Executor) routeToDeliveryCenter(ctx *robottypes.Context, exec *robottypes.Execution, robot *robottypes.Robot) error {
 	if exec.Delivery == nil || exec.Delivery.Content == nil {
 		return fmt.Errorf("no delivery content to route")
 	}
 
-	// Get delivery preferences from robot config
-	var prefs *robottypes.DeliveryPreferences
-	if robot.Config != nil {
-		prefs = robot.Config.Delivery
-	}
-
-	// If no preferences configured, skip delivery (content is still saved in exec.Delivery)
+	// Build final delivery preferences by merging manager email + configured targets
+	prefs := buildDeliveryPreferences(robot)
 	if prefs == nil || !hasActiveChannels(prefs) {
-		// No channels configured - mark as success but with no results
 		exec.Delivery.Success = true
 		return nil
 	}
@@ -281,6 +280,98 @@ func hasActiveChannels(prefs *robottypes.DeliveryPreferences) bool {
 		return true
 	}
 	return false
+}
+
+// buildDeliveryPreferences builds the final delivery preferences by:
+// 1. Always including manager email if manager_id is set (mandatory)
+// 2. Appending all configured email/webhook/process targets
+func buildDeliveryPreferences(robot *robottypes.Robot) *robottypes.DeliveryPreferences {
+	if robot == nil {
+		return nil
+	}
+
+	prefs := &robottypes.DeliveryPreferences{}
+
+	// Step 1: Get manager email (mandatory if manager_id is set)
+	managerEmail := robot.ManagerEmail
+	if managerEmail == "" && robot.ManagerID != "" {
+		managerEmail = getManagerEmail(robot.ManagerID)
+		if managerEmail != "" {
+			robot.ManagerEmail = managerEmail // Cache for future use
+		}
+	}
+
+	// Step 2: Build email targets (manager first, then configured targets)
+	var emailTargets []robottypes.EmailTarget
+
+	// Add manager email as first target (mandatory)
+	if managerEmail != "" {
+		emailTargets = append(emailTargets, robottypes.EmailTarget{
+			To: []string{managerEmail},
+		})
+	}
+
+	// Append configured email targets
+	if robot.Config != nil && robot.Config.Delivery != nil && robot.Config.Delivery.Email != nil {
+		for _, target := range robot.Config.Delivery.Email.Targets {
+			if len(target.To) > 0 {
+				emailTargets = append(emailTargets, target)
+			}
+		}
+	}
+
+	// Set email preference if we have any targets
+	if len(emailTargets) > 0 {
+		prefs.Email = &robottypes.EmailPreference{
+			Enabled: true,
+			Targets: emailTargets,
+		}
+	}
+
+	// Step 3: Copy webhook preferences from config (if enabled)
+	if robot.Config != nil && robot.Config.Delivery != nil && robot.Config.Delivery.Webhook != nil {
+		if robot.Config.Delivery.Webhook.Enabled && len(robot.Config.Delivery.Webhook.Targets) > 0 {
+			prefs.Webhook = robot.Config.Delivery.Webhook
+		}
+	}
+
+	// Step 4: Copy process preferences from config (if enabled)
+	if robot.Config != nil && robot.Config.Delivery != nil && robot.Config.Delivery.Process != nil {
+		if robot.Config.Delivery.Process.Enabled && len(robot.Config.Delivery.Process.Targets) > 0 {
+			prefs.Process = robot.Config.Delivery.Process
+		}
+	}
+
+	return prefs
+}
+
+// getManagerEmail retrieves the manager's email from __yao.member table by member_id
+// manager_id in Robot refers to a member_id in __yao.member table
+func getManagerEmail(managerID string) string {
+	if managerID == "" {
+		return ""
+	}
+
+	m := model.Select("__yao.member")
+	if m == nil {
+		return ""
+	}
+
+	records, err := m.Get(model.QueryParam{
+		Select: []interface{}{"email"},
+		Wheres: []model.QueryWhere{
+			{Column: "member_id", Value: managerID},
+		},
+		Limit: 1,
+	})
+	if err != nil || len(records) == 0 {
+		return ""
+	}
+
+	if email, ok := records[0]["email"].(string); ok {
+		return email
+	}
+	return ""
 }
 
 // FormatDeliveryInput formats the full execution context for the Delivery Agent
