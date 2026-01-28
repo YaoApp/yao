@@ -2,6 +2,7 @@ package robot
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
@@ -320,10 +321,10 @@ func handleExecutionControl(c *gin.Context, action string) {
 
 		// Check for common errors
 		errMsg := controlErr.Error()
-		if errMsg == "execution_id is required" || errMsg == "execution not found" {
+		if errMsg == "execution_id is required" || strings.Contains(errMsg, "execution not found") {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
-				ErrorDescription: "Execution not found: " + execID,
+				ErrorDescription: "Execution not found or not running: " + execID,
 			}
 			response.RespondWithError(c, response.StatusNotFound, errorResp)
 			return

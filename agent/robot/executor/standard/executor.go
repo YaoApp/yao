@@ -45,8 +45,19 @@ func NewWithConfig(config types.Config) *Executor {
 	}
 }
 
-// Execute runs a robot through all applicable phases with real Agent calls
+// Execute runs a robot through all applicable phases with real Agent calls (auto-generates ID)
 func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+// ExecuteWithID runs a robot through all applicable phases with a pre-generated execution ID (no control)
+func (e *Executor) ExecuteWithID(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string) (*robottypes.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+// ExecuteWithControl runs a robot through all applicable phases with execution control
+// control: optional, allows pause/resume functionality during execution
+func (e *Executor) ExecuteWithControl(ctx *robottypes.Context, robot *robottypes.Robot, trigger robottypes.TriggerType, data interface{}, execID string, control robottypes.ExecutionControl) (*robottypes.Execution, error) {
 	if robot == nil {
 		return nil, fmt.Errorf("robot cannot be nil")
 	}
@@ -57,10 +68,15 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 		startPhaseIndex = 1 // Skip P0 (Inspiration)
 	}
 
+	// Use provided execID or generate new one
+	if execID == "" {
+		execID = utils.NewID()
+	}
+
 	// Create execution (Job system removed, using ExecutionStore only)
 	input := types.BuildTriggerInput(trigger, data)
 	exec := &robottypes.Execution{
-		ID:          utils.NewID(),
+		ID:          execID,
 		MemberID:    robot.MemberID,
 		TeamID:      robot.TeamID,
 		TriggerType: trigger,
@@ -174,7 +190,31 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 	// Execute phases
 	phases := robottypes.AllPhases[startPhaseIndex:]
 	for _, phase := range phases {
-		if err := e.runPhase(ctx, exec, phase, data); err != nil {
+		if err := e.runPhase(ctx, exec, phase, data, control); err != nil {
+			// Check if execution was cancelled
+			if err == robottypes.ErrExecutionCancelled {
+				exec.Status = robottypes.ExecCancelled
+				exec.Error = "execution cancelled by user"
+				now := time.Now()
+				exec.EndTime = &now
+
+				// Update UI field for cancellation with i18n
+				e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "cancelled"))
+
+				log.With(log.F{
+					"execution_id": exec.ID,
+					"member_id":    exec.MemberID,
+					"phase":        string(phase),
+				}).Info("Execution cancelled by user")
+
+				// Persist cancelled status
+				if !e.config.SkipPersistence && e.store != nil {
+					_ = e.store.UpdateStatus(ctx.Context, exec.ID, robottypes.ExecCancelled, "execution cancelled by user")
+				}
+				return exec, nil
+			}
+
+			// Normal failure case
 			exec.Status = robottypes.ExecFailed
 			exec.Error = err.Error()
 
@@ -228,7 +268,21 @@ func (e *Executor) Execute(ctx *robottypes.Context, robot *robottypes.Robot, tri
 }
 
 // runPhase executes a single phase
-func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution, phase robottypes.Phase, data interface{}) error {
+func (e *Executor) runPhase(ctx *robottypes.Context, exec *robottypes.Execution, phase robottypes.Phase, data interface{}, control robottypes.ExecutionControl) error {
+	// Check if context is cancelled before starting this phase
+	select {
+	case <-ctx.Context.Done():
+		return robottypes.ErrExecutionCancelled
+	default:
+	}
+
+	// Wait if execution is paused (blocks until resumed or cancelled)
+	if control != nil {
+		if err := control.WaitIfPaused(); err != nil {
+			return err // Returns ErrExecutionCancelled if cancelled while paused
+		}
+	}
+
 	exec.Phase = phase
 
 	log.With(log.F{
@@ -422,6 +476,7 @@ var uiMessages = map[string]map[string]string{
 		"sending_delivery":    "Sending delivery...",
 		"learning_from_exec":  "Learning from execution...",
 		"completed":           "Completed",
+		"cancelled":           "Cancelled",
 		"failed_prefix":       "Failed at ",
 		"task_prefix":         "Task",
 		// Phase names for failure messages
@@ -445,6 +500,7 @@ var uiMessages = map[string]map[string]string{
 		"sending_delivery":    "正在发送...",
 		"learning_from_exec":  "学习执行经验...",
 		"completed":           "已完成",
+		"cancelled":           "已取消",
 		"failed_prefix":       "失败于",
 		"task_prefix":         "任务",
 		// Phase names for failure messages

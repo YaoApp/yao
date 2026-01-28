@@ -138,6 +138,16 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("failed to load robots: %w", err)
 	}
 
+	// Set completion callback to clean up ExecutionController when execution finishes
+	m.pool.SetOnComplete(func(execID, memberID string, status types.ExecStatus) {
+		// Remove from ExecutionController (cleans up in-memory tracking)
+		m.execController.Untrack(execID)
+		// Remove from robot's in-memory execution list
+		if robot := m.cache.Get(memberID); robot != nil {
+			robot.RemoveExecution(execID)
+		}
+	})
+
 	// Start worker pool
 	if err := m.pool.Start(); err != nil {
 		return fmt.Errorf("failed to start pool: %w", err)
@@ -250,17 +260,24 @@ func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 		//     continue
 		// }
 
-		// Create context with robot's own identity
+		// Pre-generate execution ID and track for pause/resume/stop
+		// We need to track BEFORE submit so we can pass the cancellable context to the executor
+		execID := pool.GenerateExecID()
+		ctrlExec := m.execController.Track(execID, robot.MemberID, robot.TeamID)
+
+		// Create context with robot's own identity and cancellable context
 		// Clock-triggered executions run as the robot itself
 		robotAuth := m.buildRobotAuth(robot)
-		ctx := types.NewContext(parentCtx, robotAuth)
+		execCtx := types.NewContext(ctrlExec.Context(), robotAuth)
 
 		// Create clock context for P0 inspiration
 		clockCtx := types.NewClockContext(now, robot.Config.Clock.TZ)
 
-		// Submit to pool
-		_, err := m.pool.Submit(ctx, robot, types.TriggerClock, clockCtx)
+		// Submit to pool with the cancellable context and execution control
+		_, err := m.pool.SubmitWithID(execCtx, robot, types.TriggerClock, clockCtx, execID, ctrlExec)
 		if err != nil {
+			// If submission failed, untrack the execution
+			m.execController.Untrack(execID)
 			// Log error but continue with other robots
 			// In production, this would be logged properly
 			continue
@@ -408,9 +425,21 @@ func (m *Manager) TriggerManual(ctx *types.Context, memberID string, trigger typ
 		}
 	}
 
-	// Submit to pool
-	execID, err := m.pool.Submit(ctx, robot, trigger, data)
+	// Pre-generate execution ID and track for pause/resume/stop
+	// We need to track BEFORE submit so we can pass the cancellable context to the executor
+	execID := pool.GenerateExecID()
+	ctrlExec := m.execController.Track(execID, memberID, robot.TeamID)
+
+	// Create a new context with the cancellable context from ExecutionController
+	// This allows Stop() to propagate cancellation to the executor
+	execCtx := types.NewContext(ctrlExec.Context(), ctx.Auth)
+
+	// Submit to pool with the cancellable context and execution control
+	// The control interface allows executor to check pause state and wait if paused
+	_, err = m.pool.SubmitWithID(execCtx, robot, trigger, data, execID, ctrlExec)
 	if err != nil {
+		// If submission failed, untrack the execution
+		m.execController.Untrack(execID)
 		// If lazy-loaded and submission failed, remove from cache
 		if lazyLoaded {
 			m.cache.Remove(memberID)
@@ -579,17 +608,70 @@ func (m *Manager) HandleEvent(ctx *types.Context, req *types.EventRequest) (*typ
 
 // PauseExecution pauses a running execution
 func (m *Manager) PauseExecution(ctx *types.Context, execID string) error {
-	return m.execController.Pause(execID)
+	// Get execution info before pausing
+	exec := m.execController.Get(execID)
+	if exec == nil {
+		return fmt.Errorf("execution not found: %s", execID)
+	}
+
+	// Pause the execution
+	if err := m.execController.Pause(execID); err != nil {
+		return err
+	}
+
+	// Remove from robot's in-memory execution list (paused doesn't count as running)
+	if robot := m.cache.Get(exec.MemberID); robot != nil {
+		robot.RemoveExecution(execID)
+	}
+
+	return nil
 }
 
 // ResumeExecution resumes a paused execution
 func (m *Manager) ResumeExecution(ctx *types.Context, execID string) error {
-	return m.execController.Resume(execID)
+	// Get execution info before resuming
+	exec := m.execController.Get(execID)
+	if exec == nil {
+		return fmt.Errorf("execution not found: %s", execID)
+	}
+
+	// Resume the execution
+	if err := m.execController.Resume(execID); err != nil {
+		return err
+	}
+
+	// Add back to robot's in-memory execution list
+	if robot := m.cache.Get(exec.MemberID); robot != nil {
+		robot.AddExecution(&types.Execution{
+			ID:       execID,
+			MemberID: exec.MemberID,
+			TeamID:   exec.TeamID,
+			Status:   types.ExecRunning,
+		})
+	}
+
+	return nil
 }
 
 // StopExecution stops a running execution
 func (m *Manager) StopExecution(ctx *types.Context, execID string) error {
-	return m.execController.Stop(execID)
+	// Get execution info before stopping
+	exec := m.execController.Get(execID)
+	if exec == nil {
+		return fmt.Errorf("execution not found: %s", execID)
+	}
+
+	// Stop the execution
+	if err := m.execController.Stop(execID); err != nil {
+		return err
+	}
+
+	// Remove from robot's in-memory execution list
+	if robot := m.cache.Get(exec.MemberID); robot != nil {
+		robot.RemoveExecution(execID)
+	}
+
+	return nil
 }
 
 // GetExecutionStatus returns the status of an execution

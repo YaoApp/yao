@@ -79,9 +79,10 @@ func (w *Worker) execute(item *QueueItem) {
 	// Get executor based on mode (uses factory if available, otherwise default)
 	exec := w.pool.GetExecutor(item.ExecutorMode)
 
-	// Execute via Executor interface
-	// Note: Executor.Execute() does atomic quota check via TryAcquireSlot()
-	execution, err := exec.Execute(item.Ctx, item.Robot, item.Trigger, item.Data)
+	// Execute via Executor interface with pre-generated ID and control
+	// Note: Executor.ExecuteWithControl() does atomic quota check via TryAcquireSlot()
+	// The control parameter allows executor to check pause state during execution
+	execution, err := exec.ExecuteWithControl(item.Ctx, item.Robot, item.Trigger, item.Data, item.ExecID, item.Control)
 
 	if err != nil {
 		// Check if it's a quota error (race condition - another worker got the slot)
@@ -91,12 +92,25 @@ func (w *Worker) execute(item *QueueItem) {
 		}
 		fmt.Printf("Worker %d: Execution failed for robot %s: %v\n",
 			w.id, item.Robot.MemberID, err)
+		// Notify completion callback with appropriate status
+		if w.pool.onComplete != nil {
+			// Determine status based on error type
+			status := types.ExecFailed
+			if err == types.ErrExecutionCancelled {
+				status = types.ExecCancelled
+			}
+			w.pool.onComplete(item.ExecID, item.Robot.MemberID, status)
+		}
 		return
 	}
 
 	if execution != nil {
 		fmt.Printf("Worker %d: Execution %s completed for robot %s (status: %s)\n",
 			w.id, execution.ID, item.Robot.MemberID, execution.Status)
+		// Notify completion callback
+		if w.pool.onComplete != nil {
+			w.pool.onComplete(execution.ID, item.Robot.MemberID, execution.Status)
+		}
 	}
 }
 

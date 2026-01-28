@@ -130,7 +130,12 @@ func PauseExecution(ctx *types.Context, execID string) error {
 		return err
 	}
 
-	return mgr.PauseExecution(ctx, execID)
+	if err := mgr.PauseExecution(ctx, execID); err != nil {
+		return err
+	}
+
+	// Update database status to paused
+	return getExecutionStore().UpdateStatus(context.Background(), execID, types.ExecPaused, "")
 }
 
 // ResumeExecution resumes a paused execution
@@ -144,7 +149,12 @@ func ResumeExecution(ctx *types.Context, execID string) error {
 		return err
 	}
 
-	return mgr.ResumeExecution(ctx, execID)
+	if err := mgr.ResumeExecution(ctx, execID); err != nil {
+		return err
+	}
+
+	// Update database status back to running
+	return getExecutionStore().UpdateStatus(context.Background(), execID, types.ExecRunning, "")
 }
 
 // StopExecution stops a running execution
@@ -158,7 +168,12 @@ func StopExecution(ctx *types.Context, execID string) error {
 		return err
 	}
 
-	return mgr.StopExecution(ctx, execID)
+	if err := mgr.StopExecution(ctx, execID); err != nil {
+		return err
+	}
+
+	// Update database status to cancelled
+	return getExecutionStore().UpdateStatus(context.Background(), execID, types.ExecCancelled, "User cancelled")
 }
 
 // ==================== Execution Status API ====================

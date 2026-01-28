@@ -46,6 +46,7 @@ type ExecStatus string
 const (
 	ExecPending   ExecStatus = "pending"
 	ExecRunning   ExecStatus = "running"
+	ExecPaused    ExecStatus = "paused"
 	ExecCompleted ExecStatus = "completed"
 	ExecFailed    ExecStatus = "failed"
 	ExecCancelled ExecStatus = "cancelled"

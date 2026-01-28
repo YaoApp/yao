@@ -14,7 +14,9 @@ type QueueItem struct {
 	Ctx          *types.Context
 	Trigger      types.TriggerType
 	Data         interface{}
-	ExecutorMode types.ExecutorMode // optional: override robot's executor mode
+	ExecutorMode types.ExecutorMode     // optional: override robot's executor mode
+	ExecID       string                 // pre-generated execution ID for tracking
+	Control      types.ExecutionControl // execution control for pause/resume/stop
 	EnqueueTime  time.Time
 	Priority     int // calculated priority for sorting
 	Index        int // index in heap (managed by container/heap)

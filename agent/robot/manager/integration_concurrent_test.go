@@ -545,12 +545,22 @@ type trackingExecutor struct {
 }
 
 func (e *trackingExecutor) Execute(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+func (e *trackingExecutor) ExecuteWithID(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+func (e *trackingExecutor) ExecuteWithControl(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string, control types.ExecutionControl) (*types.Execution, error) {
 	if robot == nil {
 		return nil, types.ErrRobotNotFound
 	}
 
-	// Use unique ID for each execution to properly track quota
-	execID := fmt.Sprintf("exec_%d", time.Now().UnixNano())
+	// Use provided execID or generate unique ID for each execution to properly track quota
+	if execID == "" {
+		execID = fmt.Sprintf("exec_%d", time.Now().UnixNano())
+	}
 	exec := &types.Execution{
 		ID:          execID,
 		MemberID:    robot.MemberID,
@@ -604,12 +614,22 @@ type triggerTrackingExecutor struct {
 }
 
 func (e *triggerTrackingExecutor) Execute(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, "", nil)
+}
+
+func (e *triggerTrackingExecutor) ExecuteWithID(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string) (*types.Execution, error) {
+	return e.ExecuteWithControl(ctx, robot, trigger, data, execID, nil)
+}
+
+func (e *triggerTrackingExecutor) ExecuteWithControl(ctx *types.Context, robot *types.Robot, trigger types.TriggerType, data interface{}, execID string, control types.ExecutionControl) (*types.Execution, error) {
 	if robot == nil {
 		return nil, types.ErrRobotNotFound
 	}
 
-	// Use unique ID for each execution to properly track quota
-	execID := fmt.Sprintf("exec_trigger_%s_%d", string(trigger), time.Now().UnixNano())
+	// Use provided execID or generate unique ID for each execution to properly track quota
+	if execID == "" {
+		execID = fmt.Sprintf("exec_trigger_%s_%d", string(trigger), time.Now().UnixNano())
+	}
 	exec := &types.Execution{
 		ID:          execID,
 		MemberID:    robot.MemberID,
