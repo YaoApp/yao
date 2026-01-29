@@ -13,20 +13,46 @@ import (
 	"github.com/yaoapp/yao/test"
 )
 
+// getTestDirs returns workspace and IPC directories for testing.
+// Uses environment variables if set (for CI), otherwise creates temp directories.
+// Returns workspaceRoot, ipcDir, tmpDir (empty if using env vars), error
+func getTestDirs(prefix string) (string, string, string, error) {
+	workspaceRoot := os.Getenv("YAO_SANDBOX_WORKSPACE")
+	ipcDir := os.Getenv("YAO_SANDBOX_IPC")
+
+	var tmpDir string
+	var err error
+
+	if workspaceRoot == "" || ipcDir == "" {
+		// Create temporary directories for test
+		tmpDir, err = os.MkdirTemp("", prefix)
+		if err != nil {
+			return "", "", "", err
+		}
+		if workspaceRoot == "" {
+			workspaceRoot = filepath.Join(tmpDir, "workspace")
+		}
+		if ipcDir == "" {
+			ipcDir = filepath.Join(tmpDir, "ipc")
+		}
+	}
+
+	return workspaceRoot, ipcDir, tmpDir, nil
+}
+
 // skipIfNoDocker skips the test if Docker is not available
 func skipIfNoDocker(t *testing.T) *Manager {
 	t.Helper()
 
-	// Create temporary directories for test
-	tmpDir, err := os.MkdirTemp("", "sandbox-test-*")
+	workspaceRoot, ipcDir, tmpDir, err := getTestDirs("sandbox-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 
 	cfg := &Config{
 		Image:         "yaoapp/sandbox-claude:latest",
-		WorkspaceRoot: filepath.Join(tmpDir, "workspace"),
-		IPCDir:        filepath.Join(tmpDir, "ipc"),
+		WorkspaceRoot: workspaceRoot,
+		IPCDir:        ipcDir,
 		MaxContainers: 5,
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "512m",
@@ -36,7 +62,9 @@ func skipIfNoDocker(t *testing.T) *Manager {
 	m, err := NewManager(cfg)
 	if err != nil {
 		// Clean up temp dir
-		os.RemoveAll(tmpDir)
+		if tmpDir != "" {
+			os.RemoveAll(tmpDir)
+		}
 		if strings.Contains(err.Error(), "Docker not available") ||
 			strings.Contains(err.Error(), "Cannot connect to the Docker daemon") {
 			t.Skipf("Skipping test: %v", err)
@@ -47,7 +75,9 @@ func skipIfNoDocker(t *testing.T) *Manager {
 	// Store tmpDir in test cleanup
 	t.Cleanup(func() {
 		m.Close()
-		os.RemoveAll(tmpDir)
+		if tmpDir != "" {
+			os.RemoveAll(tmpDir)
+		}
 	})
 
 	return m
@@ -499,16 +529,18 @@ func TestListContainers(t *testing.T) {
 
 // TestConcurrencyLimit tests the max containers limit
 func TestConcurrencyLimit(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "sandbox-concurrency-*")
+	workspaceRoot, ipcDir, tmpDir, err := getTestDirs("sandbox-concurrency-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	if tmpDir != "" {
+		defer os.RemoveAll(tmpDir)
+	}
 
 	cfg := &Config{
 		Image:         "yaoapp/sandbox-claude:latest",
-		WorkspaceRoot: filepath.Join(tmpDir, "workspace"),
-		IPCDir:        filepath.Join(tmpDir, "ipc"),
+		WorkspaceRoot: workspaceRoot,
+		IPCDir:        ipcDir,
 		MaxContainers: 2, // Low limit for testing
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "256m",
@@ -626,16 +658,18 @@ func TestContainerNotFound(t *testing.T) {
 
 // TestCleanup tests the cleanup function
 func TestCleanup(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "sandbox-cleanup-*")
+	workspaceRoot, ipcDir, tmpDir, err := getTestDirs("sandbox-cleanup-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	if tmpDir != "" {
+		defer os.RemoveAll(tmpDir)
+	}
 
 	cfg := &Config{
 		Image:         "yaoapp/sandbox-claude:latest",
-		WorkspaceRoot: filepath.Join(tmpDir, "workspace"),
-		IPCDir:        filepath.Join(tmpDir, "ipc"),
+		WorkspaceRoot: workspaceRoot,
+		IPCDir:        ipcDir,
 		MaxContainers: 10,
 		IdleTimeout:   100 * time.Millisecond, // Very short for testing
 		MaxMemory:     "256m",
@@ -698,16 +732,18 @@ func TestManagerWithYaoApp(t *testing.T) {
 	defer test.Clean()
 
 	// Now test with the Yao environment loaded
-	tmpDir, err := os.MkdirTemp("", "sandbox-yao-*")
+	workspaceRoot, ipcDir, tmpDir, err := getTestDirs("sandbox-yao-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	if tmpDir != "" {
+		defer os.RemoveAll(tmpDir)
+	}
 
 	cfg := &Config{
 		Image:         "yaoapp/sandbox-claude:latest",
-		WorkspaceRoot: filepath.Join(tmpDir, "workspace"),
-		IPCDir:        filepath.Join(tmpDir, "ipc"),
+		WorkspaceRoot: workspaceRoot,
+		IPCDir:        ipcDir,
 		MaxContainers: 5,
 		IdleTimeout:   5 * time.Minute,
 		MaxMemory:     "1g",
@@ -783,17 +819,19 @@ func TestGetAccessors(t *testing.T) {
 
 // TestEnsureImageAutoPull tests that missing images are automatically pulled
 func TestEnsureImageAutoPull(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "sandbox-autopull-*")
+	workspaceRoot, ipcDir, tmpDir, err := getTestDirs("sandbox-autopull-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	if tmpDir != "" {
+		defer os.RemoveAll(tmpDir)
+	}
 
 	// Use a small known image for testing
 	cfg := &Config{
 		Image:         "alpine:latest",
-		WorkspaceRoot: filepath.Join(tmpDir, "workspace"),
-		IPCDir:        filepath.Join(tmpDir, "ipc"),
+		WorkspaceRoot: workspaceRoot,
+		IPCDir:        ipcDir,
 		MaxContainers: 2,
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "128m",

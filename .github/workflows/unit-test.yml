@@ -656,6 +656,9 @@ jobs:
           docker pull yaoapp/sandbox-claude:latest || true
 
       - name: Run Sandbox Tests
+        env:
+          YAO_SANDBOX_WORKSPACE: ${{ runner.temp }}/sandbox/workspace
+          YAO_SANDBOX_IPC: ${{ runner.temp }}/sandbox/ipc
         run: make unit-test-sandbox
 
       - name: Codecov Report
