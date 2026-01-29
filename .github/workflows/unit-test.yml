@@ -659,7 +659,10 @@ jobs:
         env:
           YAO_SANDBOX_WORKSPACE: ${{ runner.temp }}/sandbox/workspace
           YAO_SANDBOX_IPC: ${{ runner.temp }}/sandbox/ipc
-        run: make unit-test-sandbox
+        run: |
+          # Use runner's UID:GID to match host permissions
+          export YAO_SANDBOX_CONTAINER_USER="$(id -u):$(id -g)"
+          make unit-test-sandbox
 
       - name: Codecov Report
         uses: codecov/codecov-action@v4

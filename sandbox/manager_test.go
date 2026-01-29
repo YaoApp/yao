@@ -40,6 +40,11 @@ func getTestDirs(prefix string) (string, string, string, error) {
 	return workspaceRoot, ipcDir, tmpDir, nil
 }
 
+// getContainerUser returns the container user from environment variable
+func getContainerUser() string {
+	return os.Getenv("YAO_SANDBOX_CONTAINER_USER")
+}
+
 // skipIfNoDocker skips the test if Docker is not available
 func skipIfNoDocker(t *testing.T) *Manager {
 	t.Helper()
@@ -57,6 +62,7 @@ func skipIfNoDocker(t *testing.T) *Manager {
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "512m",
 		MaxCPU:        0.5,
+		ContainerUser: getContainerUser(),
 	}
 
 	m, err := NewManager(cfg)
@@ -545,6 +551,7 @@ func TestConcurrencyLimit(t *testing.T) {
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "256m",
 		MaxCPU:        0.25,
+		ContainerUser: getContainerUser(),
 	}
 
 	m, err := NewManager(cfg)
@@ -674,6 +681,7 @@ func TestCleanup(t *testing.T) {
 		IdleTimeout:   100 * time.Millisecond, // Very short for testing
 		MaxMemory:     "256m",
 		MaxCPU:        0.25,
+		ContainerUser: getContainerUser(),
 	}
 
 	m, err := NewManager(cfg)
@@ -748,6 +756,7 @@ func TestManagerWithYaoApp(t *testing.T) {
 		IdleTimeout:   5 * time.Minute,
 		MaxMemory:     "1g",
 		MaxCPU:        1.0,
+		ContainerUser: getContainerUser(),
 	}
 
 	m, err := NewManager(cfg)
@@ -836,6 +845,7 @@ func TestEnsureImageAutoPull(t *testing.T) {
 		IdleTimeout:   1 * time.Minute,
 		MaxMemory:     "128m",
 		MaxCPU:        0.25,
+		ContainerUser: getContainerUser(),
 	}
 
 	m, err := NewManager(cfg)

@@ -162,6 +162,7 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 		Image:      m.config.Image,
 		Cmd:        []string{"sleep", "infinity"},
 		WorkingDir: m.config.ContainerWorkDir,
+		User:       m.config.ContainerUser, // Empty string uses image default
 		Env: []string{
 			"YAO_IPC_SOCKET=" + m.config.ContainerIPCSocket,
 		},

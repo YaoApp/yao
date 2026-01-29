@@ -20,6 +20,7 @@ type Config struct {
 	// Container internal paths
 	ContainerWorkDir   string `json:"container_workdir,omitempty"`    // Container working directory, default: /workspace
 	ContainerIPCSocket string `json:"container_ipc_socket,omitempty"` // Container IPC socket path, default: /tmp/yao.sock
+	ContainerUser      string `json:"container_user,omitempty"`       // Container user, default: "" (use image default). Set to "0" for root.
 }
 
 // DefaultConfig returns a Config with default values
@@ -109,5 +110,10 @@ func (c *Config) Init(dataRoot string) {
 		c.ContainerIPCSocket = env
 	} else if c.ContainerIPCSocket == "" {
 		c.ContainerIPCSocket = "/tmp/yao.sock"
+	}
+
+	// Container user (for CI environments with UID mismatch)
+	if env := os.Getenv("YAO_SANDBOX_CONTAINER_USER"); env != "" {
+		c.ContainerUser = env
 	}
 }

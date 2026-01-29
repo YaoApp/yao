@@ -27,6 +27,10 @@ func TestDefaultConfig(t *testing.T) {
 }
 
 func TestConfigInit(t *testing.T) {
+	// Clear any existing environment variables that might interfere
+	os.Unsetenv("YAO_SANDBOX_WORKSPACE")
+	os.Unsetenv("YAO_SANDBOX_IPC")
+
 	// Test with dataRoot
 	cfg := &Config{}
 	cfg.Init("/tmp/yao-test")
