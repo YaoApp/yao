@@ -325,18 +325,62 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 		defer cancel()
 	}
 
-	reader, err := m.Stream(ctx, name, cmd, opts)
-	if err != nil {
+	// Ensure container is running
+	if err := m.ensureRunning(ctx, name); err != nil {
 		return nil, err
 	}
-	defer reader.Close()
+
+	// Get container
+	c, ok := m.containers.Load(name)
+	if !ok {
+		return nil, ErrContainerNotFound
+	}
+	cont := c.(*Container)
+
+	// Update last used time
+	cont.LastUsedAt = time.Now()
+
+	// Default options
+	if opts.WorkDir == "" {
+		opts.WorkDir = "/workspace"
+	}
+
+	// Create exec instance
+	execConfig := container.ExecOptions{
+		Cmd:          cmd,
+		WorkingDir:   opts.WorkDir,
+		Env:          mapToSlice(opts.Env),
+		AttachStdout: true,
+		AttachStderr: true,
+		AttachStdin:  opts.Stdin != nil,
+	}
+
+	execResp, err := m.dockerClient.ContainerExecCreate(ctx, cont.ID, execConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create exec: %w", err)
+	}
+
+	// Attach to exec
+	attachResp, err := m.dockerClient.ContainerExecAttach(ctx, execResp.ID, container.ExecStartOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to attach to exec: %w", err)
+	}
+	defer attachResp.Close()
+
+	// Handle stdin if provided
+	if opts.Stdin != nil {
+		go func() {
+			io.Copy(attachResp.Conn, opts.Stdin)
+			attachResp.CloseWrite()
+		}()
+	}
 
 	// Read output with context awareness
 	outputCh := make(chan []byte, 1)
 	errCh := make(chan error, 1)
 
 	go func() {
-		output, err := io.ReadAll(reader)
+		output, err := io.ReadAll(attachResp.Reader)
 		if err != nil {
 			errCh <- err
 			return
@@ -344,22 +388,39 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 		outputCh <- output
 	}()
 
+	var output []byte
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case err := <-errCh:
 		return nil, fmt.Errorf("failed to read output: %w", err)
-	case output := <-outputCh:
-		// Parse Docker multiplexed stream
-		// TODO: Properly demux stdout/stderr from Docker stream
-		stdout := string(output)
-
-		return &ExecResult{
-			ExitCode: 0,
-			Stdout:   stdout,
-			Stderr:   "",
-		}, nil
+	case output = <-outputCh:
+		// Output received
 	}
+
+	// Wait for exec to complete and get exit code
+	var exitCode int
+	for i := 0; i < 100; i++ { // Max 10 seconds wait
+		inspect, err := m.dockerClient.ContainerExecInspect(ctx, execResp.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect exec: %w", err)
+		}
+		if !inspect.Running {
+			exitCode = inspect.ExitCode
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	// Parse Docker multiplexed stream
+	// TODO: Properly demux stdout/stderr from Docker stream
+	stdout := string(output)
+
+	return &ExecResult{
+		ExitCode: exitCode,
+		Stdout:   stdout,
+		Stderr:   "",
+	}, nil
 }
 
 // Start starts a stopped container
