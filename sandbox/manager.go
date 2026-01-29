@@ -231,6 +231,18 @@ func (m *Manager) ensureRunning(ctx context.Context, name string) error {
 		return fmt.Errorf("failed to start container: %w", err)
 	}
 
+	// Wait for container to be ready (inspect until running)
+	for i := 0; i < 30; i++ {
+		info, err := m.dockerClient.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			return fmt.Errorf("failed to inspect container: %w", err)
+		}
+		if info.State.Running {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
 	m.mu.Lock()
 	cont.Status = StatusRunning
 	cont.LastUsedAt = time.Now()
