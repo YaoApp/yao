@@ -319,21 +319,35 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 	}
 	defer reader.Close()
 
-	// Read all output
-	output, err := io.ReadAll(reader)
-	if err != nil {
+	// Read output with context awareness
+	outputCh := make(chan []byte, 1)
+	errCh := make(chan error, 1)
+
+	go func() {
+		output, err := io.ReadAll(reader)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		outputCh <- output
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case err := <-errCh:
 		return nil, fmt.Errorf("failed to read output: %w", err)
+	case output := <-outputCh:
+		// Parse Docker multiplexed stream
+		// TODO: Properly demux stdout/stderr from Docker stream
+		stdout := string(output)
+
+		return &ExecResult{
+			ExitCode: 0,
+			Stdout:   stdout,
+			Stderr:   "",
+		}, nil
 	}
-
-	// Parse Docker multiplexed stream
-	// TODO: Properly demux stdout/stderr from Docker stream
-	stdout := string(output)
-
-	return &ExecResult{
-		ExitCode: 0,
-		Stdout:   stdout,
-		Stderr:   "",
-	}, nil
 }
 
 // Start starts a stopped container
@@ -454,6 +468,14 @@ func (m *Manager) WriteFile(ctx context.Context, name, path string, content []by
 	}
 	cont := c.(*Container)
 
+	// Ensure parent directory exists
+	dir := filepath.Dir(path)
+	if dir != "/" && dir != "." {
+		if _, err := m.Exec(ctx, name, []string{"mkdir", "-p", dir}, nil); err != nil {
+			return fmt.Errorf("failed to create parent directory: %w", err)
+		}
+	}
+
 	// Create a tar archive with the file
 	var buf bytes.Buffer
 	tw := tar.NewWriter(&buf)
@@ -474,7 +496,7 @@ func (m *Manager) WriteFile(ctx context.Context, name, path string, content []by
 	}
 
 	// Copy to container
-	return m.dockerClient.CopyToContainer(ctx, cont.ID, filepath.Dir(path), &buf, container.CopyToContainerOptions{})
+	return m.dockerClient.CopyToContainer(ctx, cont.ID, dir, &buf, container.CopyToContainerOptions{})
 }
 
 // ReadFile reads content from a file in container

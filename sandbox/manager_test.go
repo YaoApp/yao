@@ -271,15 +271,26 @@ func TestExecWithTimeout(t *testing.T) {
 	}
 	defer m.Remove(ctx, container.Name)
 
-	// Execute command with very short timeout
+	// Execute command with short timeout (sleep 10s but timeout after 500ms)
+	start := time.Now()
 	_, err = m.Exec(ctx, container.Name, []string{"sleep", "10"}, &ExecOptions{
-		Timeout: 100 * time.Millisecond,
+		Timeout: 500 * time.Millisecond,
 	})
+	elapsed := time.Since(start)
 
-	// Should timeout
+	// Should timeout with context deadline exceeded
 	if err == nil {
-		t.Log("Expected timeout error, but command completed (may be fast system)")
+		t.Error("Expected timeout error, but command completed without error")
+	} else if err != context.DeadlineExceeded {
+		t.Logf("Got error (expected context.DeadlineExceeded): %v", err)
 	}
+
+	// Verify it didn't wait the full 10 seconds
+	if elapsed > 5*time.Second {
+		t.Errorf("Timeout took too long: %v (expected < 5s)", elapsed)
+	}
+
+	t.Logf("Timeout completed in %v", elapsed)
 }
 
 // TestFileOperations tests filesystem operations
