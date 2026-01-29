@@ -16,16 +16,22 @@ type Config struct {
 	IdleTimeout   time.Duration `json:"idle_timeout,omitempty"`   // Idle timeout before stopping container
 	MaxMemory     string        `json:"max_memory,omitempty"`     // Memory limit, e.g., "2g"
 	MaxCPU        float64       `json:"max_cpu,omitempty"`        // CPU limit, e.g., 1.0
+
+	// Container internal paths
+	ContainerWorkDir   string `json:"container_workdir,omitempty"`    // Container working directory, default: /workspace
+	ContainerIPCSocket string `json:"container_ipc_socket,omitempty"` // Container IPC socket path, default: /tmp/yao.sock
 }
 
 // DefaultConfig returns a Config with default values
 func DefaultConfig() *Config {
 	return &Config{
-		Image:         "yaoapp/sandbox-claude:latest",
-		MaxContainers: 100,
-		IdleTimeout:   30 * time.Minute,
-		MaxMemory:     "2g",
-		MaxCPU:        1.0,
+		Image:              "yaoapp/sandbox-claude:latest",
+		MaxContainers:      100,
+		IdleTimeout:        30 * time.Minute,
+		MaxMemory:          "2g",
+		MaxCPU:             1.0,
+		ContainerWorkDir:   "/workspace",
+		ContainerIPCSocket: "/tmp/yao.sock",
 	}
 }
 
@@ -90,5 +96,18 @@ func (c *Config) Init(dataRoot string) {
 			c.MaxCPU = v
 		}
 		// Invalid env value: keep existing/default value
+	}
+
+	// Container internal paths
+	if env := os.Getenv("YAO_SANDBOX_CONTAINER_WORKDIR"); env != "" {
+		c.ContainerWorkDir = env
+	} else if c.ContainerWorkDir == "" {
+		c.ContainerWorkDir = "/workspace"
+	}
+
+	if env := os.Getenv("YAO_SANDBOX_CONTAINER_IPC"); env != "" {
+		c.ContainerIPCSocket = env
+	} else if c.ContainerIPCSocket == "" {
+		c.ContainerIPCSocket = "/tmp/yao.sock"
 	}
 }

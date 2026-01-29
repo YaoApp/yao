@@ -48,6 +48,14 @@ func NewManager(config *Config) (*Manager, error) {
 		config = DefaultConfig()
 	}
 
+	// Apply defaults for missing container paths
+	if config.ContainerWorkDir == "" {
+		config.ContainerWorkDir = "/workspace"
+	}
+	if config.ContainerIPCSocket == "" {
+		config.ContainerIPCSocket = "/tmp/yao.sock"
+	}
+
 	// Initialize Docker client
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
@@ -153,18 +161,23 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 	containerConfig := &container.Config{
 		Image:      m.config.Image,
 		Cmd:        []string{"sleep", "infinity"},
-		WorkingDir: "/workspace",
+		WorkingDir: m.config.ContainerWorkDir,
 		Env: []string{
-			"YAO_IPC_SOCKET=/tmp/yao.sock",
+			"YAO_IPC_SOCKET=" + m.config.ContainerIPCSocket,
 		},
 	}
 
-	// Host configuration
+	// Host configuration - only mount IPC socket if it exists
+	binds := []string{
+		workspaceHost + ":" + m.config.ContainerWorkDir,
+	}
+	// Only mount IPC socket if the file exists (it's created by IPC manager)
+	if _, err := os.Stat(ipcSocketHost); err == nil {
+		binds = append(binds, ipcSocketHost+":"+m.config.ContainerIPCSocket)
+	}
+
 	hostConfig := &container.HostConfig{
-		Binds: []string{
-			workspaceHost + ":/workspace",
-			ipcSocketHost + ":/tmp/yao.sock",
-		},
+		Binds: binds,
 		Resources: container.Resources{
 			Memory:   parseMemory(m.config.MaxMemory),
 			NanoCPUs: int64(m.config.MaxCPU * 1e9),
@@ -342,7 +355,7 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 
 	// Default options
 	if opts.WorkDir == "" {
-		opts.WorkDir = "/workspace"
+		opts.WorkDir = m.config.ContainerWorkDir
 	}
 
 	// Create exec instance
@@ -544,8 +557,21 @@ func (m *Manager) WriteFile(ctx context.Context, name, path string, content []by
 	// Ensure parent directory exists
 	dir := filepath.Dir(path)
 	if dir != "/" && dir != "." {
-		if _, err := m.Exec(ctx, name, []string{"mkdir", "-p", dir}, nil); err != nil {
+		result, err := m.Exec(ctx, name, []string{"mkdir", "-p", dir}, nil)
+		if err != nil {
 			return fmt.Errorf("failed to create parent directory: %w", err)
+		}
+		if result.ExitCode != 0 {
+			return fmt.Errorf("mkdir failed with exit code %d: %s", result.ExitCode, result.Stdout)
+		}
+
+		// Verify directory was created
+		verifyResult, err := m.Exec(ctx, name, []string{"test", "-d", dir}, nil)
+		if err != nil {
+			return fmt.Errorf("failed to verify directory: %w", err)
+		}
+		if verifyResult.ExitCode != 0 {
+			return fmt.Errorf("directory %s was not created", dir)
 		}
 	}
 
