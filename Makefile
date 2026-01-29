@@ -11,14 +11,16 @@ OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*' | awk '!/\/tests\// || /openapi\/tests/')
-# Core tests (exclude AI-related: agent, aigc, openai, and KB)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb' | awk '!/\/tests\// || /openapi\/tests/')
+# Core tests (exclude AI-related: agent, aigc, openai, KB, and sandbox which requires Docker)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox' | awk '!/\/tests\// || /openapi\/tests/')
 # AI tests (agent, aigc) - exclude agent/search/handlers/web (requires external API keys) and robot/api E2E tests
 TESTFOLDER_AI := $(shell $(GO) list ./agent/... ./aigc/... | grep -v 'agent/search/handlers/web')
 # KB tests (kb)
 TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
 # Robot E2E tests (agent/robot/api) - runs TestE2E* tests with real LLM calls
 TESTFOLDER_ROBOT_E2E := $(shell $(GO) list ./agent/robot/api/...)
+# Sandbox tests (requires Docker)
+TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/...)
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
@@ -171,6 +173,51 @@ unit-test-robot-e2e:
 			rm profile.out; \
 		fi; \
 	done
+
+# Sandbox Unit Test (requires Docker)
+.PHONY: unit-test-sandbox
+unit-test-sandbox:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Sandbox Tests (requires Docker)..."
+	@echo "============================================="
+	@echo "Pulling sandbox test images..."
+	docker pull alpine:latest || true
+	docker pull yaoapp/sandbox-base:latest || true
+	docker pull yaoapp/sandbox-claude:latest || true
+	@echo ""
+	echo "mode: count" > coverage.out
+	for d in $(TESTFOLDER_SANDBOX); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=10m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal' $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+	@echo ""
+	@echo "============================================="
+	@echo "✅ All sandbox tests passed"
+	@echo "============================================="
 
 # Benchmark Test
 .PHONY: benchmark

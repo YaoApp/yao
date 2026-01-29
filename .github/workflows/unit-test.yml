@@ -104,8 +104,6 @@ env:
   S3_BUCKET: ${{ secrets.S3_BUCKET }}
   S3_PUBLIC_URL: ${{ secrets.S3_PUBLIC_URL }}
 
-  
-
   # === Openapi Signin Configs ===
   SIGNIN_CLIENT_ID: "kiCeR88kDwHBDuNHvN51cZgmpp3tmF6Z"
 
@@ -157,7 +155,6 @@ env:
   RELIABLE_IMAP_USERNAME: ${{ secrets.RELIABLE_SMTP_USERNAME }}
   RELIABLE_IMAP_PASSWORD: ${{ secrets.RELIABLE_SMTP_PASSWORD }}
   RELIABLE_IMAP_MAILBOX: "INBOX"
-
 
   ## Twilio
   TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
@@ -550,6 +547,116 @@ jobs:
 
       - name: Run Robot E2E Tests
         run: make unit-test-robot-e2e
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  # =============================================================================
+  # Sandbox Tests (requires Docker) - Run with Docker-in-Docker
+  # =============================================================================
+  sandbox-test:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        uses: supercharge/redis-github-action@1.4.0
+        with:
+          redis-version: 6
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Setup ENV (SQLite)
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+
+      - name: Pull Sandbox Test Images
+        run: |
+          docker pull alpine:latest
+          docker pull yaoapp/sandbox-base:latest || true
+          docker pull yaoapp/sandbox-claude:latest || true
+
+      - name: Run Sandbox Tests
+        run: make unit-test-sandbox
 
       - name: Codecov Report
         uses: codecov/codecov-action@v4

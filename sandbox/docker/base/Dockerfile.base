@@ -1,0 +1,33 @@
+# Base image for Yao sandbox containers
+# Supports both amd64 and arm64 architectures
+FROM ubuntu:22.04
+
+# Avoid interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Base tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    wget \
+    git \
+    ca-certificates \
+    gnupg \
+    lsb-release \
+    && rm -rf /var/lib/apt/lists/*
+
+# yao-bridge (architecture-specific binary)
+# The build script copies the correct binary based on target architecture
+ARG TARGETARCH
+COPY yao-bridge-${TARGETARCH} /usr/local/bin/yao-bridge
+RUN chmod +x /usr/local/bin/yao-bridge
+
+# Working directory
+WORKDIR /workspace
+
+# Non-root user
+RUN useradd -m -s /bin/bash sandbox && \
+    chown -R sandbox:sandbox /workspace
+
+USER sandbox
+
+CMD ["sleep", "infinity"]
