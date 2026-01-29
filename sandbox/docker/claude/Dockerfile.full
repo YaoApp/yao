@@ -1,0 +1,33 @@
+# Full Claude sandbox image: + Go
+# Supports both amd64 and arm64 architectures
+ARG REGISTRY=yaoapp
+FROM ${REGISTRY}/sandbox-claude:latest
+
+USER root
+
+# Go 1.23 - detect architecture and download appropriate version
+RUN ARCH=$(dpkg --print-architecture) && \
+    case "$ARCH" in \
+        amd64) GOARCH="amd64" ;; \
+        arm64) GOARCH="arm64" ;; \
+        *) echo "Unsupported architecture: $ARCH" && exit 1 ;; \
+    esac && \
+    curl -fsSL "https://go.dev/dl/go1.23.0.linux-${GOARCH}.tar.gz" | tar -C /usr/local -xzf - && \
+    ln -s /usr/local/go/bin/go /usr/local/bin/go && \
+    ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt
+
+# Set up Go environment for sandbox user
+RUN mkdir -p /home/sandbox/go && \
+    chown -R sandbox:sandbox /home/sandbox/go
+
+USER sandbox
+
+ENV GOPATH="/home/sandbox/go"
+ENV PATH="${GOPATH}/bin:/usr/local/go/bin:${PATH}"
+
+# Verify Go installation
+RUN go version
+
+WORKDIR /workspace
+
+CMD ["sleep", "infinity"]
