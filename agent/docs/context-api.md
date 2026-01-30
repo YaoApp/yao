@@ -21,6 +21,7 @@ interface Context {
   search: Search;            // Search API
   agent: Agent;              // Agent-to-Agent calls (A2A)
   llm: LLM;                  // Direct LLM calls
+  sandbox?: Sandbox;         // Sandbox operations (optional)
 }
 ```
 
@@ -443,6 +444,75 @@ interface Message {
   chunk_id?: string;           // C1, C2, ...
   message_id?: string;         // M1, M2, ...
   delta?: boolean;             // Incremental update flag
+}
+```
+
+## Sandbox API
+
+The `ctx.sandbox` object provides access to sandbox operations when the assistant is configured with a sandbox executor (e.g., Claude CLI). Only available when `sandbox` is configured in `package.yao`.
+
+### Properties
+
+```typescript
+ctx.sandbox.workdir  // Workspace directory path (e.g., "/workspace")
+```
+
+### File Operations
+
+```typescript
+// Read file
+const content = ctx.sandbox.ReadFile("config.json");
+
+// Write file
+ctx.sandbox.WriteFile("output.txt", "Hello World");
+
+// List directory
+const files = ctx.sandbox.ListDir("src");
+files.forEach(f => console.log(f.name, f.is_dir, f.size));
+```
+
+### Command Execution
+
+```typescript
+// Execute command (returns stdout)
+const output = ctx.sandbox.Exec(["npm", "test"]);
+
+// Handle errors
+try {
+  ctx.sandbox.Exec(["git", "commit", "-m", "fix"]);
+} catch (e) {
+  console.error("Command failed:", e.message);
+}
+```
+
+### FileInfo Structure
+
+```typescript
+interface FileInfo {
+  name: string;      // File/directory name
+  size: number;      // Size in bytes
+  is_dir: boolean;   // True if directory
+}
+```
+
+### Use Cases
+
+```typescript
+// Prepare workspace before execution
+function Create(ctx, messages) {
+  if (ctx.sandbox) {
+    ctx.sandbox.WriteFile("config.json", JSON.stringify({ debug: true }));
+  }
+  return { messages };
+}
+
+// Post-process results
+function Next(ctx, payload) {
+  if (ctx.sandbox && !payload.error) {
+    const files = ctx.sandbox.ListDir("output");
+    return { data: { generated: files.map(f => f.name) } };
+  }
+  return null;
 }
 ```
 

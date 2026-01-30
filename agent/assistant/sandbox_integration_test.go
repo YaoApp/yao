@@ -111,10 +111,14 @@ func TestClaudeCCRConfigBuilding(t *testing.T) {
 
 	t.Logf("CCR config: %s", string(configJSON))
 
-	// Verify the JSON contains expected fields
-	assert.Contains(t, string(configJSON), "baseUrl")
-	assert.Contains(t, string(configJSON), "apiKey")
-	assert.Contains(t, string(configJSON), "model")
+	// Verify the JSON contains expected fields (CCR uses snake_case)
+	assert.Contains(t, string(configJSON), "api_base_url")
+	assert.Contains(t, string(configJSON), "api_key")
+	assert.Contains(t, string(configJSON), "models")
+	// Verify CCR format fields
+	assert.Contains(t, string(configJSON), "Providers")
+	assert.Contains(t, string(configJSON), "Router")
+	assert.Contains(t, string(configJSON), "volcengine")
 }
 
 // TestDefaultImageSelection tests that default images are correctly selected
