@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
+	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 )
 
 // Stream stream the agent
@@ -151,6 +152,33 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	ctx.Logger.PhaseComplete("History")
 
 	// ================================================
+	// Initialize Sandbox (if configured)
+	// ================================================
+	// Sandbox must be created BEFORE hooks so that hooks can access ctx.sandbox
+	var sandboxExecutor agentsandbox.Executor
+	var sandboxCleanup func()
+	if ast.HasSandbox() {
+		ctx.Logger.Phase("Sandbox")
+		var err error
+		sandboxExecutor, sandboxCleanup, err = ast.initSandbox(ctx, opts)
+		if err != nil {
+			ast.traceAgentFail(agentNode, err)
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			return nil, err
+		}
+		// Set sandbox executor in context so hooks can access ctx.sandbox
+		// The executor implements both agentsandbox.Executor and context.SandboxExecutor
+		ctx.SetSandboxExecutor(sandboxExecutor)
+		ctx.Logger.PhaseComplete("Sandbox")
+	}
+	// Ensure sandbox cleanup on exit
+	defer func() {
+		if sandboxCleanup != nil {
+			sandboxCleanup()
+		}
+	}()
+
+	// ================================================
 	//  Execute Create Hook
 	// ================================================
 	// Request Create hook ( Optional )
@@ -254,7 +282,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		})
 
 		// Execute the LLM streaming call
-		completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
+		// Choose between sandbox execution or direct LLM execution
+		if ast.HasSandbox() {
+			// Sandbox execution path (Claude CLI, Cursor CLI, etc.)
+			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor)
+		} else {
+			// Direct LLM execution path
+			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
+		}
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err

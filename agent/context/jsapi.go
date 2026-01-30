@@ -152,6 +152,15 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		memoryObj.Release()
 	}
 
+	// Sandbox object - only set if sandbox executor is available
+	if ctx.sandboxExecutor != nil {
+		sandboxObj := ctx.createSandboxInstance(v8ctx)
+		if sandboxObj != nil {
+			obj.Set("sandbox", sandboxObj)
+			sandboxObj.Release()
+		}
+	}
+
 	return instance.Value, nil
 }
 

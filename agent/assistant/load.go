@@ -714,6 +714,15 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Workflow = wf
 	}
 
+	// sandbox (for coding agents like Claude CLI, Cursor CLI)
+	if sandbox, has := data["sandbox"]; has {
+		sb, err := store.ToSandbox(sandbox)
+		if err != nil {
+			return nil, err
+		}
+		assistant.Sandbox = sb
+	}
+
 	// uses (wrapper configurations for vision, audio, etc.)
 	// Merge hierarchy: global uses < assistant uses
 	if uses, has := data["uses"]; has {

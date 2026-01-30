@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
@@ -30,6 +31,60 @@ func (e *execReadCloser) Close() error {
 		return e.closer.Close()
 	}
 	return nil
+}
+
+// demuxReadCloser wraps Docker multiplexed stream and demuxes it to stdout only
+// It uses a pipe to feed demuxed stdout to the reader
+type demuxReadCloser struct {
+	reader     io.Reader
+	pipeReader *io.PipeReader
+	pipeWriter *io.PipeWriter
+	closer     io.Closer
+	done       chan struct{}
+	err        error
+}
+
+// newDemuxReadCloser creates a new demuxed reader from Docker multiplexed stream
+func newDemuxReadCloser(src io.Reader, closer io.Closer) *demuxReadCloser {
+	pr, pw := io.Pipe()
+	d := &demuxReadCloser{
+		reader:     src,
+		pipeReader: pr,
+		pipeWriter: pw,
+		closer:     closer,
+		done:       make(chan struct{}),
+	}
+
+	// Start demux goroutine
+	go func() {
+		defer close(d.done)
+		defer pw.Close()
+
+		// Use stdcopy to demux stdout and stderr
+		// We only care about stdout here, stderr goes to a discard writer
+		_, err := stdcopy.StdCopy(pw, io.Discard, src)
+		if err != nil && err != io.EOF {
+			d.err = err
+		}
+	}()
+
+	return d
+}
+
+func (d *demuxReadCloser) Read(p []byte) (int, error) {
+	return d.pipeReader.Read(p)
+}
+
+func (d *demuxReadCloser) Close() error {
+	// Close the source to stop the demux goroutine
+	if d.closer != nil {
+		d.closer.Close()
+	}
+	// Close the pipe reader to unblock any pending reads
+	d.pipeReader.Close()
+	// Wait for demux goroutine to finish
+	<-d.done
+	return d.err
 }
 
 // Manager manages sandbox containers
@@ -319,11 +374,9 @@ func (m *Manager) Stream(ctx context.Context, name string, cmd []string, opts *E
 		}()
 	}
 
-	// Wrap in a ReadCloser
-	return &execReadCloser{
-		Reader: attachResp.Reader,
-		closer: attachResp.Conn,
-	}, nil
+	// Return demuxed reader that properly handles Docker multiplexed stream
+	// This removes the 8-byte header from each frame and separates stdout from stderr
+	return newDemuxReadCloser(attachResp.Reader, attachResp.Conn), nil
 }
 
 // Exec executes command and waits for completion
@@ -393,22 +446,25 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 	outputCh := make(chan []byte, 1)
 	errCh := make(chan error, 1)
 
+	// Buffers for demuxed stdout and stderr
+	var stdoutBuf, stderrBuf bytes.Buffer
+
 	go func() {
-		output, err := io.ReadAll(attachResp.Reader)
-		if err != nil {
+		// Use stdcopy to properly demux Docker multiplexed stream
+		_, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, attachResp.Reader)
+		if err != nil && err != io.EOF {
 			errCh <- err
 			return
 		}
-		outputCh <- output
+		outputCh <- nil
 	}()
 
-	var output []byte
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case err := <-errCh:
 		return nil, fmt.Errorf("failed to read output: %w", err)
-	case output = <-outputCh:
+	case <-outputCh:
 		// Output received
 	}
 
@@ -426,14 +482,10 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Parse Docker multiplexed stream
-	// TODO: Properly demux stdout/stderr from Docker stream
-	stdout := string(output)
-
 	return &ExecResult{
 		ExitCode: exitCode,
-		Stdout:   stdout,
-		Stderr:   "",
+		Stdout:   stdoutBuf.String(),
+		Stderr:   stderrBuf.String(),
 	}, nil
 }
 
