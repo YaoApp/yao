@@ -24,8 +24,10 @@ func TestBuildCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify command structure
-	assert.Equal(t, "ccr-run", cmd[0])
-	assert.Contains(t, cmd, "Hello") // User prompt should be in command
+	// Command is now: ["bash", "-c", "nohup ccr start ... ; ccr code ... -p \"prompt\""]
+	assert.Equal(t, "bash", cmd[0])
+	assert.Equal(t, "-c", cmd[1])
+	assert.Contains(t, cmd[2], "Hello") // User prompt should be in bash command
 
 	// Verify environment variables
 	assert.Equal(t, "https://api.example.com", env["CCR_API_BASE"])
