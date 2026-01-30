@@ -1,18 +1,47 @@
 # Base image for Yao sandbox containers
 # Supports both amd64 and arm64 architectures
-FROM ubuntu:22.04
+# Ubuntu 24.04 LTS (Noble Numbat) - supported until April 2029
+FROM ubuntu:24.04
 
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
+# Use MIT mirror (USA) for ARM64 - much faster than default ports.ubuntu.com
+RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu-ports|g' /etc/apt/sources.list.d/ubuntu.sources 2>/dev/null || \
+    sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu-ports|g' /etc/apt/sources.list 2>/dev/null || true
+
 # Base tools
 RUN apt-get update && apt-get install -y \
+    # Essential
     curl \
     wget \
     git \
     ca-certificates \
     gnupg \
     lsb-release \
+    jq \
+    # Editors & viewers
+    vim \
+    less \
+    tree \
+    # Network tools
+    iputils-ping \
+    net-tools \
+    dnsutils \
+    telnet \
+    netcat-openbsd \
+    # Compression
+    zip \
+    unzip \
+    tar \
+    gzip \
+    # Process & system
+    htop \
+    procps \
+    # Text processing
+    sed \
+    gawk \
+    grep \
     && rm -rf /var/lib/apt/lists/*
 
 # yao-bridge (architecture-specific binary)
