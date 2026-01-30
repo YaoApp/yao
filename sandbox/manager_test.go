@@ -25,12 +25,13 @@ func getTestDirs(prefix string) (string, string, string, error) {
 
 	if workspaceRoot == "" || ipcDir == "" {
 		// Create temporary directories for test
-		tmpDir, err = os.MkdirTemp("", prefix)
+		// Use /tmp directly to avoid long paths (Unix socket path limit ~104 bytes)
+		tmpDir, err = os.MkdirTemp("/tmp", prefix)
 		if err != nil {
 			return "", "", "", err
 		}
 		if workspaceRoot == "" {
-			workspaceRoot = filepath.Join(tmpDir, "workspace")
+			workspaceRoot = filepath.Join(tmpDir, "ws")
 		}
 		if ipcDir == "" {
 			ipcDir = filepath.Join(tmpDir, "ipc")

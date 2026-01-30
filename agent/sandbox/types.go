@@ -7,6 +7,7 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
+	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
 // Executor executes LLM requests in sandbox
@@ -66,6 +67,9 @@ type Options struct {
 
 	// MCP configuration - auto-loaded from assistants/{name}/mcps/
 	MCPConfig []byte `json:"-"`
+
+	// MCPTools - MCP tools to expose via IPC (tool name → tool definition)
+	MCPTools map[string]*ipc.MCPTool `json:"-"`
 
 	// Skills directory - auto-resolved to assistants/{name}/skills/
 	SkillsDir string `json:"-"`

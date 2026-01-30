@@ -102,13 +102,35 @@ Use `deepseek.v3` as the default connector (via Volcengine API).
 - [x] Container cleanup on request completion (`defer sandboxCleanup()`)
 - [x] Unique chatID in tests to avoid conflicts
 
-### Phase 7: Workspace Management ⏳ PENDING
+### Phase 7: MCP & Skills Integration ✅ COMPLETED
+
+- [x] Build MCP config from assistant's `mcp.servers` configuration
+- [x] Write MCP config to container workspace (`.mcp.json`)
+- [x] Resolve skills directory from `assistants/{name}/skills/`
+- [x] Copy skills to container (`/workspace/.claude/skills/`)
+- [x] Skip MCP tool execution in `agent.go` for sandbox mode (Claude CLI handles internally)
+- [x] Add unit tests for MCP config building (`TestBuildMCPConfigForSandbox`)
+- [x] Add unit tests for skills directory resolution (`TestSandboxMCPAndSkillsOptions`)
+
+### Phase 8: MCP IPC Bridge ✅ COMPLETED
+
+- [x] Modify `BuildMCPConfigForSandbox` to use `yao-bridge` command for IPC
+- [x] Create IPC session in `sandbox/manager.createContainer()` (socket created before container)
+- [x] Bind mount IPC socket to container at `/tmp/yao.sock`
+- [x] Add `SetMCPTools()` method to `ipc.Session` for runtime tool configuration
+- [x] Set MCP tools dynamically in `claude.Executor.Stream()` before execution
+- [x] IPC session lifecycle managed by `sandbox.Manager` (create on container create, close on remove)
+- [x] Load MCP tool definitions from gou/mcp and pass to IPC session
+- [x] Add `TestClaudeExecutorIPCSocketMount` to verify socket bind mount
+- [x] Verify E2E test shows "Loaded X MCP tools for IPC"
+
+### Phase 9: Workspace Management ⏳ PENDING
 
 - [ ] Implement workspace cleanup configuration
 - [ ] Implement stale workspace detection
 - [ ] Implement cleanup scheduler
 
-### Phase 8: Cursor Placeholder ⏳ PENDING
+### Phase 9: Cursor Placeholder ⏳ PENDING
 
 - [ ] Create `cursor/README.md` placeholder
 
@@ -151,6 +173,8 @@ Use `deepseek.v3` as the default connector (via Volcengine API).
 | `agent/assistant` | `TestSandboxFullE2E` | ✅ PASS |
 | `agent/assistant` | `TestSandboxContextAccess` | ✅ PASS |
 | `agent/assistant` | `TestSandboxLoadConfiguration` | ✅ PASS |
+| `agent/assistant` | `TestSandboxMCPToolCall` | ✅ PASS |
+| `agent/assistant` | `TestSandboxMCPEchoTool` | ✅ PASS |
 
 ### Running Tests
 
@@ -235,14 +259,35 @@ Auto-detection of provider type based on host URL.
 
 ### 4. Resource Cleanup
 
-- `executor.Close()` removes the container
+- `executor.Close()` removes the container and closes IPC session
 - `defer sandboxCleanup()` in `agent.go` ensures cleanup
 - Tests use unique chatID (timestamp) to avoid conflicts
 
+### 5. MCP IPC Architecture
+
+```
+Host (Yao)                              Container (Claude CLI)
+┌────────────────────────┐              ┌────────────────────────┐
+│ IPC Manager            │              │ yao-bridge             │
+│   └─ Session           │◄─────────────│   (stdio ↔ socket)     │
+│       └─ MCPTools      │  Unix Socket │                        │
+│           └─ Process   │   (/tmp/     │ Claude CLI reads       │
+│              executor  │    yao.sock) │ .mcp.json and calls    │
+└────────────────────────┘              │ yao-bridge for tools   │
+                                        └────────────────────────┘
+```
+
+- `.mcp.json` points to single "yao" server using `yao-bridge /tmp/yao.sock`
+- IPC session created with authorized MCP tools from assistant config
+- Tools executed via `process.New()` in IPC session handler
+
 ## Known Issues
 
-1. **MCP config building**: TODO in `buildSandboxOptions` - MCP configuration not yet passed to sandbox
-2. **Skills mounting**: Skills directory path is set but not mounted into container
+### macOS Docker Desktop Socket Permissions
+
+On macOS with Docker Desktop (gRPC-FUSE), Unix socket permissions are not properly preserved when bind mounting from the host. The IPC socket created on the host with `0666` permissions appears as `0660` inside the container.
+
+**Solution**: After container start, we execute `chmod 666 /tmp/yao.sock` as root inside the container to fix permissions. This is handled automatically by `sandbox.Manager.fixIPCSocketPermissions()`.
 
 ## Notes
 

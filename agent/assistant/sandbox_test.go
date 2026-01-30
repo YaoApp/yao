@@ -1,6 +1,8 @@
 package assistant_test
 
 import (
+	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
+	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -222,4 +225,95 @@ func TestMCPConfiguration(t *testing.T) {
 	assert.Contains(t, echoServer.Tools, "ping")
 	assert.Contains(t, echoServer.Tools, "echo")
 	assert.Contains(t, echoServer.Tools, "status")
+}
+
+// TestBuildMCPConfigForSandbox tests that MCP configuration is correctly built for sandbox
+func TestBuildMCPConfigForSandbox(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Load agent to ensure MCPs are available
+	err := agent.Load(config.Conf)
+	require.NoError(t, err, "agent.Load should succeed")
+
+	ast, err := assistant.LoadPath("/assistants/tests/sandbox/full")
+	require.NoError(t, err)
+	require.NotNil(t, ast)
+	require.NotNil(t, ast.MCP, "MCP configuration should exist")
+
+	// Create a mock context for the test
+	ctx := agentContext.New(context.Background(), nil, "test-mcp-config-build")
+
+	// Call BuildMCPConfigForSandbox and verify the result
+	mcpConfig, err := ast.BuildMCPConfigForSandbox(ctx)
+	require.NoError(t, err, "BuildMCPConfigForSandbox should not error")
+	require.NotEmpty(t, mcpConfig, "MCP config should not be empty")
+
+	t.Logf("MCP config JSON: %s", string(mcpConfig))
+
+	// Parse and verify the JSON structure
+	var config map[string]interface{}
+	err = json.Unmarshal(mcpConfig, &config)
+	require.NoError(t, err, "MCP config should be valid JSON")
+
+	// Verify mcpServers key exists
+	mcpServers, ok := config["mcpServers"].(map[string]interface{})
+	require.True(t, ok, "mcpServers should be a map")
+	require.NotEmpty(t, mcpServers, "mcpServers should not be empty")
+
+	// Verify "yao" server exists (single server using yao-bridge for IPC)
+	yaoServer, ok := mcpServers["yao"].(map[string]interface{})
+	require.True(t, ok, "yao server should exist in mcpServers")
+
+	// Verify server structure - uses yao-bridge to connect to IPC socket
+	assert.Equal(t, "yao-bridge", yaoServer["command"], "command should be yao-bridge")
+
+	args, ok := yaoServer["args"].([]interface{})
+	require.True(t, ok, "args should be an array")
+	require.Len(t, args, 1, "args should have 1 element")
+	assert.Equal(t, "/tmp/yao.sock", args[0], "first arg should be IPC socket path")
+
+	t.Logf("✓ MCP config verified: uses yao-bridge with IPC socket /tmp/yao.sock")
+}
+
+// TestSandboxMCPAndSkillsOptions tests that sandbox options include MCP and Skills
+func TestSandboxMCPAndSkillsOptions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	// Load agent to ensure MCPs are available
+	err := agent.Load(config.Conf)
+	require.NoError(t, err, "agent.Load should succeed")
+
+	ast, err := assistant.LoadPath("/assistants/tests/sandbox/full")
+	require.NoError(t, err)
+	require.NotNil(t, ast)
+
+	// Verify sandbox configuration is present
+	require.NotNil(t, ast.Sandbox, "Sandbox should be configured")
+	assert.Equal(t, "claude", ast.Sandbox.Command)
+
+	// Verify MCP is configured (will be passed to sandbox)
+	require.NotNil(t, ast.MCP, "MCP should be configured")
+	assert.Len(t, ast.MCP.Servers, 1, "Should have 1 MCP server")
+
+	// Verify skills directory exists
+	appRoot := os.Getenv("YAO_ROOT")
+	require.NotEmpty(t, appRoot, "YAO_ROOT should be set")
+
+	skillsDir := filepath.Join(appRoot, ast.Path, "skills")
+	info, err := os.Stat(skillsDir)
+	require.NoError(t, err, "Skills directory should exist")
+	assert.True(t, info.IsDir(), "Skills should be a directory")
+
+	// Verify echo-test skill exists
+	echoTestDir := filepath.Join(skillsDir, "echo-test")
+	info, err = os.Stat(echoTestDir)
+	require.NoError(t, err, "echo-test skill should exist")
+	assert.True(t, info.IsDir(), "echo-test should be a directory")
+
+	// Verify SKILL.md exists
+	skillMd := filepath.Join(echoTestDir, "SKILL.md")
+	_, err = os.Stat(skillMd)
+	require.NoError(t, err, "SKILL.md should exist")
 }

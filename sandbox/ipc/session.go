@@ -11,6 +11,17 @@ import (
 	"github.com/yaoapp/gou/process"
 )
 
+// SetMCPTools dynamically updates the MCP tools for this session
+// Called at runtime before executing requests
+func (s *Session) SetMCPTools(tools map[string]*MCPTool) {
+	s.MCPTools = tools
+}
+
+// SetContext dynamically updates the agent context
+func (s *Session) SetContext(ctx *AgentContext) {
+	s.Context = ctx
+}
+
 // Close closes the session and cleans up resources
 func (s *Session) Close() error {
 	if s.cancel != nil {

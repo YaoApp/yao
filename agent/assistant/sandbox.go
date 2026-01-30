@@ -1,16 +1,22 @@
 package assistant
 
 import (
+	stdContext "context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sync"
 	"time"
 
+	gouMCP "github.com/yaoapp/gou/mcp"
+	mcpProcess "github.com/yaoapp/gou/mcp/process"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 	"github.com/yaoapp/yao/config"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
+	"github.com/yaoapp/yao/sandbox/ipc"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
@@ -182,8 +188,14 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 	execOpts.ChatID = ctx.ChatID
 
 	// Set skills directory (auto-resolved from assistant path)
+	// Only set if the directory actually exists
 	if ast.Path != "" {
-		execOpts.SkillsDir = filepath.Join(ast.Path, "skills")
+		appRoot := config.Conf.AppSource
+		skillsDir := filepath.Join(appRoot, ast.Path, "skills")
+		if info, err := os.Stat(skillsDir); err == nil && info.IsDir() {
+			execOpts.SkillsDir = skillsDir
+			ctx.Logger.Debug("Skills directory found: %s", skillsDir)
+		}
 	}
 
 	// Resolve connector settings
@@ -203,8 +215,142 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 		execOpts.Model = model
 	}
 
-	// Build MCP config if needed
-	// TODO: implement MCP config building for sandbox
+	// Build MCP config and load tools if the assistant has MCP servers configured
+	if ast.MCP != nil && len(ast.MCP.Servers) > 0 {
+		// Build MCP config for Claude CLI
+		mcpConfig, err := ast.BuildMCPConfigForSandbox(ctx)
+		if err != nil {
+			ctx.Logger.Warn("Failed to build MCP config for sandbox: %v", err)
+			// Non-fatal: sandbox can work without MCP
+		} else {
+			execOpts.MCPConfig = mcpConfig
+			ctx.Logger.Debug("MCP config built for sandbox (%d bytes)", len(mcpConfig))
+		}
+
+		// Load MCP tools for IPC session
+		mcpTools, err := ast.loadMCPToolsForIPC(ctx)
+		if err != nil {
+			ctx.Logger.Warn("Failed to load MCP tools for IPC: %v", err)
+			// Non-fatal: IPC will have no tools
+		} else if len(mcpTools) > 0 {
+			execOpts.MCPTools = mcpTools
+			ctx.Logger.Debug("Loaded %d MCP tools for IPC", len(mcpTools))
+		}
+	}
 
 	return execOpts, nil
+}
+
+// loadMCPToolsForIPC loads MCP tools from configured servers and converts them to IPC format
+func (ast *Assistant) loadMCPToolsForIPC(ctx *context.Context) (map[string]*ipc.MCPTool, error) {
+	if ast.MCP == nil || len(ast.MCP.Servers) == 0 {
+		return nil, nil
+	}
+
+	tools := make(map[string]*ipc.MCPTool)
+	stdCtx := ctx.Context
+	if stdCtx == nil {
+		stdCtx = stdContext.Background()
+	}
+
+	for _, serverConfig := range ast.MCP.Servers {
+		if serverConfig.ServerID == "" {
+			continue
+		}
+
+		// Get MCP client
+		client, err := gouMCP.Select(serverConfig.ServerID)
+		if err != nil {
+			ctx.Logger.Warn("MCP server '%s' not found: %v", serverConfig.ServerID, err)
+			continue
+		}
+
+		// List tools from the MCP client
+		toolsResp, err := client.ListTools(stdCtx, "")
+		if err != nil {
+			ctx.Logger.Warn("Failed to list tools from MCP server '%s': %v", serverConfig.ServerID, err)
+			continue
+		}
+
+		// Get tool mapping for process names
+		mapping, ok := mcpProcess.GetMapping(serverConfig.ServerID)
+		if !ok {
+			ctx.Logger.Warn("No mapping found for MCP server '%s'", serverConfig.ServerID)
+			continue
+		}
+
+		// Filter tools if specified in config
+		toolFilter := make(map[string]bool)
+		if len(serverConfig.Tools) > 0 {
+			for _, t := range serverConfig.Tools {
+				toolFilter[t] = true
+			}
+		}
+
+		// Convert tools to IPC format
+		// Tool names are prefixed with server ID to avoid conflicts
+		// e.g., "echo" server's "ping" tool becomes "echo__ping"
+		for _, tool := range toolsResp.Tools {
+			// Apply tool filter if specified
+			if len(toolFilter) > 0 && !toolFilter[tool.Name] {
+				continue
+			}
+
+			// Find the process name from mapping
+			processName := ""
+			if toolSchema, ok := mapping.Tools[tool.Name]; ok {
+				processName = toolSchema.Process
+			}
+			if processName == "" {
+				ctx.Logger.Warn("No process mapping for tool '%s' in server '%s'", tool.Name, serverConfig.ServerID)
+				continue
+			}
+
+			// Prefixed tool name: serverID__toolName
+			// This matches Claude's MCP naming: mcp__yao__serverID__toolName
+			prefixedName := serverConfig.ServerID + "__" + tool.Name
+
+			// Create IPC tool entry with prefixed name
+			ipcTool := &ipc.MCPTool{
+				Name:        prefixedName,
+				Description: tool.Description,
+				Process:     processName,
+				InputSchema: tool.InputSchema,
+			}
+
+			tools[prefixedName] = ipcTool
+		}
+	}
+
+	return tools, nil
+}
+
+// BuildMCPConfigForSandbox builds the MCP configuration JSON for sandbox
+// This creates a .mcp.json format that Claude CLI can understand
+// Exported for testing
+func (ast *Assistant) BuildMCPConfigForSandbox(ctx *context.Context) ([]byte, error) {
+	if ast.MCP == nil || len(ast.MCP.Servers) == 0 {
+		return nil, nil
+	}
+
+	// Build MCP config in Claude CLI format
+	// Claude CLI expects: { "mcpServers": { "server_id": { "command": "...", "args": [...] } } }
+	//
+	// For Yao's MCP servers, we use yao-bridge to connect to the IPC socket.
+	// yao-bridge bridges stdio to Unix socket, allowing Claude CLI to communicate
+	// with Yao's IPC server running on the host.
+	//
+	// Architecture:
+	//   Claude CLI → yao-bridge → Unix Socket → IPC Session → Yao Process
+	config := map[string]interface{}{
+		"mcpServers": map[string]interface{}{
+			// Single "yao" server that handles all MCP tools via IPC
+			"yao": map[string]interface{}{
+				"command": "yao-bridge",
+				"args":    []string{"/tmp/yao.sock"}, // ContainerIPCSocket from sandbox config
+			},
+		},
+	}
+
+	return json.Marshal(config)
 }

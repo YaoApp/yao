@@ -317,8 +317,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Execute tool calls with retry
 	// ================================================
+	// Note: Skip MCP tool calls execution for sandbox mode - Claude CLI handles them internally
 	var toolCallResponses []context.ToolCallResponse = nil
-	if completionResponse != nil && completionResponse.ToolCalls != nil {
+	if completionResponse != nil && completionResponse.ToolCalls != nil && !ast.HasSandbox() {
 
 		maxToolRetries := 3
 		currentMessages := completionMessages

@@ -35,6 +35,7 @@ func New(manager *infraSandbox.Manager, opts *Options) (Executor, error) {
 			UserID:        opts.UserID,
 			ChatID:        opts.ChatID,
 			MCPConfig:     opts.MCPConfig,
+			MCPTools:      opts.MCPTools, // MCP tools to expose via IPC
 			SkillsDir:     opts.SkillsDir,
 			ConnectorHost: opts.ConnectorHost,
 			ConnectorKey:  opts.ConnectorKey,

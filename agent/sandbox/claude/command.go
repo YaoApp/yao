@@ -13,13 +13,39 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	// Build system prompt from conversation history
 	systemPrompt, userPrompt := buildPrompts(messages)
 
-	// Start with ccr-run if available, otherwise fall back to claude directly
-	cmd := []string{"ccr-run"}
+	// Build the ccr code command with all arguments
+	// We use bash -c to ensure CCR is started first, then run ccr code with proper argument handling
+	var ccrArgs []string
 
-	// Add the prompt
-	if userPrompt != "" {
-		cmd = append(cmd, userPrompt)
+	// Add permission mode (required for MCP tools to work)
+	permMode := "acceptEdits" // default
+	if opts != nil && opts.Arguments != nil {
+		if mode, ok := opts.Arguments["permission_mode"].(string); ok && mode != "" {
+			permMode = mode
+		}
 	}
+	ccrArgs = append(ccrArgs, "--permission-mode", permMode)
+
+	// Add MCP config if available
+	if opts != nil && len(opts.MCPConfig) > 0 {
+		ccrArgs = append(ccrArgs, "--mcp-config", "/workspace/.mcp.json")
+		// Allow all tools from the "yao" MCP server
+		ccrArgs = append(ccrArgs, "--allowedTools", "mcp__yao__*")
+	}
+
+	// Build the full bash command
+	// Start CCR daemon, wait, then run ccr code with arguments
+	bashCmd := "nohup ccr start >/dev/null 2>&1 & sleep 2; ccr code"
+	for _, arg := range ccrArgs {
+		// Quote arguments that might contain special characters
+		bashCmd += fmt.Sprintf(" %q", arg)
+	}
+	bashCmd += " -p"
+	if userPrompt != "" {
+		bashCmd += fmt.Sprintf(" %q", userPrompt)
+	}
+
+	cmd := []string{"bash", "-c", bashCmd}
 
 	// Build environment variables
 	env := buildEnvironment(opts, systemPrompt)

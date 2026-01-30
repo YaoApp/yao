@@ -12,6 +12,7 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
+	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
 // Options for Claude executor (copied from parent package to avoid import cycle)
@@ -25,6 +26,7 @@ type Options struct {
 	UserID        string
 	ChatID        string
 	MCPConfig     []byte
+	MCPTools      map[string]*ipc.MCPTool // MCP tools to expose via IPC
 	SkillsDir     string
 	ConnectorHost string
 	ConnectorKey  string
@@ -66,6 +68,7 @@ func NewExecutor(manager *infraSandbox.Manager, opts interface{}) (*Executor, er
 	}
 
 	// Create or get container
+	// Note: IPC session is created by manager.createContainer, socket is already bind mounted
 	ctx := context.Background()
 	container, err := manager.GetOrCreate(ctx, execOpts.UserID, execOpts.ChatID)
 	if err != nil {
@@ -94,9 +97,19 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 		stdCtx = ctx.Context
 	}
 
-	// Write CCR config file to container before executing
-	if err := e.writeCCRConfig(stdCtx); err != nil {
-		return nil, fmt.Errorf("failed to write CCR config: %w", err)
+	// Set MCP tools for this request (dynamic, runtime configuration)
+	if len(e.opts.MCPTools) > 0 {
+		ipcManager := e.manager.GetIPCManager()
+		if ipcManager != nil {
+			if session, ok := ipcManager.Get(e.opts.ChatID); ok {
+				session.SetMCPTools(e.opts.MCPTools)
+			}
+		}
+	}
+
+	// Prepare environment: write configs and copy skills
+	if err := e.prepareEnvironment(stdCtx); err != nil {
+		return nil, fmt.Errorf("failed to prepare environment: %w", err)
 	}
 
 	// Build Claude CLI command using stored options
@@ -125,6 +138,33 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 	return e.parseStream(reader, handler)
 }
 
+// prepareEnvironment prepares the container environment before execution
+// This includes: CCR config, MCP config, and Skills directory
+func (e *Executor) prepareEnvironment(ctx context.Context) error {
+	// 1. Write CCR config (Claude Code Router configuration)
+	if err := e.writeCCRConfig(ctx); err != nil {
+		return fmt.Errorf("failed to write CCR config: %w", err)
+	}
+
+	// 2. Write MCP config if provided
+	if len(e.opts.MCPConfig) > 0 {
+		if err := e.writeMCPConfig(ctx); err != nil {
+			return fmt.Errorf("failed to write MCP config: %w", err)
+		}
+	}
+
+	// 3. Copy Skills directory if provided
+	if e.opts.SkillsDir != "" {
+		if err := e.copySkillsDirectory(ctx); err != nil {
+			// Non-fatal: log warning but continue
+			// Skills might not exist or be optional
+			_ = err // Ignore error, skills are optional
+		}
+	}
+
+	return nil
+}
+
 // writeCCRConfig writes the CCR configuration file to the container
 func (e *Executor) writeCCRConfig(ctx context.Context) error {
 	// Build CCR config
@@ -137,6 +177,48 @@ func (e *Executor) writeCCRConfig(ctx context.Context) error {
 	configPath := "/home/sandbox/.claude-code-router/config.json"
 	if err := e.manager.WriteFile(ctx, e.containerName, configPath, configJSON); err != nil {
 		return fmt.Errorf("failed to write config to %s: %w", configPath, err)
+	}
+
+	return nil
+}
+
+// writeMCPConfig writes the MCP configuration file to the container workspace
+func (e *Executor) writeMCPConfig(ctx context.Context) error {
+	if len(e.opts.MCPConfig) == 0 {
+		return nil
+	}
+
+	// Write MCP config to workspace (.mcp.json)
+	mcpPath := e.workDir + "/.mcp.json"
+	if err := e.manager.WriteFile(ctx, e.containerName, mcpPath, e.opts.MCPConfig); err != nil {
+		return fmt.Errorf("failed to write MCP config to %s: %w", mcpPath, err)
+	}
+
+	return nil
+}
+
+// copySkillsDirectory copies the skills directory to the container
+func (e *Executor) copySkillsDirectory(ctx context.Context) error {
+	if e.opts.SkillsDir == "" {
+		return nil
+	}
+
+	// Target path in container: /workspace/.claude/skills/
+	// This follows Claude CLI's expected skills location
+	claudeDir := e.workDir + "/.claude"
+
+	// Create .claude directory first
+	if _, err := e.manager.Exec(ctx, e.containerName, []string{"mkdir", "-p", claudeDir}, nil); err != nil {
+		return fmt.Errorf("failed to create .claude directory: %w", err)
+	}
+
+	// Copy skills from host to container
+	// CopyToContainer extracts tar to containerPath, and createTarFromPath uses
+	// filepath.Dir(hostPath) as base, so if hostPath is /path/to/skills,
+	// tar entries are like "skills/skill-name/SKILL.md"
+	// Extracting to /workspace/.claude/ gives us /workspace/.claude/skills/skill-name/SKILL.md
+	if err := e.manager.CopyToContainer(ctx, e.containerName, e.opts.SkillsDir, claudeDir); err != nil {
+		return fmt.Errorf("failed to copy skills to container: %w", err)
 	}
 
 	return nil
@@ -313,6 +395,7 @@ func (e *Executor) GetWorkDir() string {
 }
 
 // Close releases the executor resources and removes the container
+// Note: IPC session is managed by sandbox.Manager.Remove()
 func (e *Executor) Close() error {
 	if e.manager != nil && e.containerName != "" {
 		ctx := context.Background()

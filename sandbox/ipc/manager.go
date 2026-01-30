@@ -2,6 +2,8 @@ package ipc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"net"
 	"os"
@@ -27,8 +29,9 @@ func (m *Manager) Create(ctx context.Context, sessionID string, agentCtx *AgentC
 	// Close existing session if any
 	m.Close(sessionID)
 
-	// Create socket path
-	socketPath := filepath.Join(m.sockDir, sessionID+".sock")
+	// Create socket path using hash to avoid path length issues
+	// Unix socket paths are limited to ~104-108 bytes
+	socketPath := m.socketPath(sessionID)
 
 	// Ensure directory exists
 	if err := os.MkdirAll(m.sockDir, 0755); err != nil {
@@ -44,8 +47,9 @@ func (m *Manager) Create(ctx context.Context, sessionID string, agentCtx *AgentC
 		return nil, fmt.Errorf("failed to create Unix socket: %w", err)
 	}
 
-	// Set socket permissions (readable/writable by owner and group)
-	if err := os.Chmod(socketPath, 0660); err != nil {
+	// Set socket permissions (readable/writable by all users)
+	// This allows container processes running as non-root to connect
+	if err := os.Chmod(socketPath, 0666); err != nil {
 		listener.Close()
 		os.Remove(socketPath)
 		return nil, fmt.Errorf("failed to set socket permissions: %w", err)
@@ -97,4 +101,17 @@ func (m *Manager) CloseAll() {
 		m.sessions.Delete(key)
 		return true
 	})
+}
+
+// socketPath generates a short socket path using hash
+// Unix socket paths are limited to ~104-108 bytes on most systems
+func (m *Manager) socketPath(sessionID string) string {
+	hash := sha256.Sum256([]byte(sessionID))
+	shortHash := hex.EncodeToString(hash[:8]) // 16 chars
+	return filepath.Join(m.sockDir, shortHash+".sock")
+}
+
+// GetSocketPath returns the socket path for a session ID (for external use)
+func (m *Manager) GetSocketPath(sessionID string) string {
+	return m.socketPath(sessionID)
 }
