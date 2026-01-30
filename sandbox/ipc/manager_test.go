@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -14,7 +14,7 @@ import (
 
 // TestNewManager tests IPC manager creation
 func TestNewManager(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-manager-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-manager-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -32,7 +32,8 @@ func TestNewManager(t *testing.T) {
 
 // TestCreateSession tests creating an IPC session
 func TestCreateSession(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-session-test-*")
+	// Use /tmp directly to avoid long paths (Unix socket path limit ~104 bytes)
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -68,9 +69,12 @@ func TestCreateSession(t *testing.T) {
 		t.Errorf("Expected session ID %s, got %s", sessionID, session.ID)
 	}
 
-	expectedSocketPath := filepath.Join(tmpDir, sessionID+".sock")
-	if session.SocketPath != expectedSocketPath {
-		t.Errorf("Expected socket path %s, got %s", expectedSocketPath, session.SocketPath)
+	// Socket path uses hash now, just verify it's in the right directory and ends with .sock
+	if !strings.HasPrefix(session.SocketPath, tmpDir) {
+		t.Errorf("Socket path should be in %s, got %s", tmpDir, session.SocketPath)
+	}
+	if !strings.HasSuffix(session.SocketPath, ".sock") {
+		t.Errorf("Socket path should end with .sock, got %s", session.SocketPath)
 	}
 
 	if session.Context.UserID != "user1" {
@@ -89,7 +93,7 @@ func TestCreateSession(t *testing.T) {
 
 // TestGetSession tests retrieving a session
 func TestGetSession(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-get-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-get-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -127,7 +131,7 @@ func TestGetSession(t *testing.T) {
 
 // TestCloseSession tests closing a session
 func TestCloseSession(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-close-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-close-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -167,7 +171,7 @@ func TestCloseSession(t *testing.T) {
 
 // TestCloseNonExistentSession tests closing a non-existent session
 func TestCloseNonExistentSession(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-close-nonexist-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-close-nonexist-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -184,7 +188,7 @@ func TestCloseNonExistentSession(t *testing.T) {
 
 // TestCloseAllSessions tests closing all sessions
 func TestCloseAllSessions(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-closeall-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-closeall-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -223,7 +227,7 @@ func TestCloseAllSessions(t *testing.T) {
 
 // TestSessionReplace tests that creating a session with existing ID replaces it
 func TestSessionReplace(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-replace-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-replace-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -321,7 +325,7 @@ func TestConcurrentSessionAccess(t *testing.T) {
 
 // TestSessionConnection tests connecting to a session socket
 func TestSessionConnection(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-connect-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-connect-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -396,7 +400,7 @@ func TestSessionConnection(t *testing.T) {
 
 // TestToolsList tests the tools/list method
 func TestToolsList(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-tools-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-tools-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -489,7 +493,7 @@ func TestToolsList(t *testing.T) {
 
 // TestMethodNotFound tests handling of unknown methods
 func TestMethodNotFound(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-notfound-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-notfound-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -545,7 +549,7 @@ func TestMethodNotFound(t *testing.T) {
 
 // TestParseError tests handling of invalid JSON
 func TestParseError(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-parse-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-parse-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -595,7 +599,7 @@ func TestParseError(t *testing.T) {
 
 // TestInitializedNotification tests that initialized notification doesn't return response
 func TestInitializedNotification(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "ipc-initialized-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-initialized-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

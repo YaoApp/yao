@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 
 // TestSessionHandleInitialize tests the initialize handler
 func TestSessionHandleInitialize(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-init-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-init-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -93,7 +94,7 @@ func TestSessionHandleInitialize(t *testing.T) {
 
 // TestSessionHandleResourcesList tests the resources/list handler
 func TestSessionHandleResourcesList(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-resources-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-resources-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -161,7 +162,7 @@ func TestSessionHandleResourcesList(t *testing.T) {
 
 // TestSessionHandleResourcesRead tests the resources/read handler
 func TestSessionHandleResourcesRead(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-read-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-read-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -360,7 +361,7 @@ func TestSessionToolsCallWithYaoApp(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
-	tmpDir, err := os.MkdirTemp("", "session-yao-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-yao-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -444,6 +445,247 @@ func TestSessionToolsCallWithYaoApp(t *testing.T) {
 	t.Logf("Tool result: %v", toolResult.Content)
 }
 
+// TestSessionToolsCallEcho tests the echo MCP tool specifically
+// This verifies the full MCP → IPC → Yao Process chain works
+func TestSessionToolsCallEcho(t *testing.T) {
+	// Prepare Yao test environment
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	tmpDir, err := os.MkdirTemp("/tmp", "ipc-echo-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	m := NewManager(tmpDir)
+	ctx := context.Background()
+
+	// Create session with echo tool (matches mcps/echo.mcp.yao)
+	mcpTools := map[string]*MCPTool{
+		"echo": {
+			Name:        "echo",
+			Description: "Echo back a message",
+			Process:     "scripts.tests.mcp.Echo",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"message": {"type": "string", "description": "Message to echo"},
+					"uppercase": {"type": "boolean", "description": "Convert to uppercase"}
+				},
+				"required": ["message"]
+			}`),
+		},
+		"ping": {
+			Name:        "ping",
+			Description: "Simple ping tool",
+			Process:     "scripts.tests.mcp.Ping",
+			InputSchema: json.RawMessage(`{
+				"type": "object",
+				"properties": {
+					"count": {"type": "number"},
+					"message": {"type": "string"}
+				}
+			}`),
+		},
+	}
+
+	session, err := m.Create(ctx, "echo-test", &AgentContext{
+		UserID: "test-user",
+		ChatID: "test-chat",
+		Locale: "en-US",
+	}, mcpTools)
+	if err != nil {
+		t.Fatalf("Create session failed: %v", err)
+	}
+	defer m.Close("echo-test")
+
+	time.Sleep(50 * time.Millisecond)
+
+	conn, err := net.Dial("unix", session.SocketPath)
+	if err != nil {
+		t.Fatalf("Failed to connect to IPC socket: %v", err)
+	}
+	defer conn.Close()
+
+	// Test 1: tools/list should return our registered tools
+	t.Run("tools/list", func(t *testing.T) {
+		req := JSONRPCRequest{
+			JSONRPC: "2.0",
+			ID:      1,
+			Method:  "tools/list",
+		}
+		data, _ := json.Marshal(req)
+		conn.Write(append(data, '\n'))
+
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		buf := make([]byte, 8192)
+		n, err := conn.Read(buf)
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+
+		var resp JSONRPCResponse
+		if err := json.Unmarshal(buf[:n], &resp); err != nil {
+			t.Fatalf("Unmarshal failed: %v", err)
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("tools/list returned error: %v", resp.Error)
+		}
+
+		resultBytes, _ := json.Marshal(resp.Result)
+		var listResult ToolsListResult
+		json.Unmarshal(resultBytes, &listResult)
+
+		if len(listResult.Tools) != 2 {
+			t.Errorf("Expected 2 tools, got %d", len(listResult.Tools))
+		}
+
+		// Check tool names
+		toolNames := make(map[string]bool)
+		for _, tool := range listResult.Tools {
+			toolNames[tool.Name] = true
+			t.Logf("✓ Tool available: %s", tool.Name)
+		}
+		if !toolNames["echo"] {
+			t.Error("echo tool not found in tools/list")
+		}
+		if !toolNames["ping"] {
+			t.Error("ping tool not found in tools/list")
+		}
+	})
+
+	// Test 2: Call ping tool
+	t.Run("tools/call ping", func(t *testing.T) {
+		req := JSONRPCRequest{
+			JSONRPC: "2.0",
+			ID:      2,
+			Method:  "tools/call",
+			Params:  json.RawMessage(`{"name": "ping", "arguments": {"count": 3, "message": "hello"}}`),
+		}
+		data, _ := json.Marshal(req)
+		conn.Write(append(data, '\n'))
+
+		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		buf := make([]byte, 8192)
+		n, err := conn.Read(buf)
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+
+		var resp JSONRPCResponse
+		if err := json.Unmarshal(buf[:n], &resp); err != nil {
+			t.Fatalf("Unmarshal failed: %v (raw: %s)", err, string(buf[:n]))
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("ping tool call failed: code=%d, message=%s", resp.Error.Code, resp.Error.Message)
+		}
+
+		resultBytes, _ := json.Marshal(resp.Result)
+		var toolResult ToolResult
+		json.Unmarshal(resultBytes, &toolResult)
+
+		if toolResult.IsError {
+			t.Errorf("ping returned error: %v", toolResult.Content)
+		}
+
+		// Parse the content
+		if len(toolResult.Content) > 0 {
+			text := toolResult.Content[0].Text
+			t.Logf("✓ ping response: %s", text)
+
+			// Verify response contains expected fields
+			if !strings.Contains(text, "hello") {
+				t.Error("ping response should contain the message 'hello'")
+			}
+			if !strings.Contains(text, "count") {
+				t.Error("ping response should contain 'count'")
+			}
+		}
+	})
+
+	// Test 3: Call echo tool
+	t.Run("tools/call echo", func(t *testing.T) {
+		req := JSONRPCRequest{
+			JSONRPC: "2.0",
+			ID:      3,
+			Method:  "tools/call",
+			Params:  json.RawMessage(`{"name": "echo", "arguments": {"message": "Hello from IPC test!", "uppercase": true}}`),
+		}
+		data, _ := json.Marshal(req)
+		conn.Write(append(data, '\n'))
+
+		conn.SetReadDeadline(time.Now().Add(10 * time.Second))
+		buf := make([]byte, 8192)
+		n, err := conn.Read(buf)
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+
+		var resp JSONRPCResponse
+		if err := json.Unmarshal(buf[:n], &resp); err != nil {
+			t.Fatalf("Unmarshal failed: %v (raw: %s)", err, string(buf[:n]))
+		}
+
+		if resp.Error != nil {
+			t.Fatalf("echo tool call failed: code=%d, message=%s", resp.Error.Code, resp.Error.Message)
+		}
+
+		resultBytes, _ := json.Marshal(resp.Result)
+		var toolResult ToolResult
+		json.Unmarshal(resultBytes, &toolResult)
+
+		if toolResult.IsError {
+			t.Errorf("echo returned error: %v", toolResult.Content)
+		}
+
+		// Parse and verify the content
+		if len(toolResult.Content) > 0 {
+			text := toolResult.Content[0].Text
+			t.Logf("✓ echo response: %s", text)
+
+			// The echo should be uppercase
+			if !strings.Contains(text, "HELLO FROM IPC TEST!") {
+				t.Errorf("echo response should contain uppercase message, got: %s", text)
+			}
+		} else {
+			t.Error("echo response has no content")
+		}
+	})
+
+	// Test 4: Call unauthorized tool should fail
+	t.Run("tools/call unauthorized", func(t *testing.T) {
+		req := JSONRPCRequest{
+			JSONRPC: "2.0",
+			ID:      4,
+			Method:  "tools/call",
+			Params:  json.RawMessage(`{"name": "not_registered_tool", "arguments": {}}`),
+		}
+		data, _ := json.Marshal(req)
+		conn.Write(append(data, '\n'))
+
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		buf := make([]byte, 4096)
+		n, err := conn.Read(buf)
+		if err != nil {
+			t.Fatalf("Read failed: %v", err)
+		}
+
+		var resp JSONRPCResponse
+		json.Unmarshal(buf[:n], &resp)
+
+		if resp.Error == nil {
+			t.Error("Expected error for unauthorized tool")
+		} else {
+			t.Logf("✓ Unauthorized tool correctly rejected: %s", resp.Error.Message)
+		}
+	})
+
+	t.Log("✓ All echo MCP tool tests passed - IPC → Yao Process chain verified")
+}
+
 // TestSessionMultipleRequests tests multiple requests over single connection
 func TestSessionMultipleRequests(t *testing.T) {
 	// Use /tmp for shorter socket path
@@ -522,7 +764,7 @@ func TestSessionMultipleRequests(t *testing.T) {
 
 // TestSessionClose tests session close behavior
 func TestSessionClose(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-close-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-close-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
@@ -574,7 +816,7 @@ func TestSessionClose(t *testing.T) {
 
 // TestSessionEmptyLines tests handling of empty lines
 func TestSessionEmptyLines(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "session-empty-test-*")
+	tmpDir, err := os.MkdirTemp("/tmp", "session-empty-test-*")
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}

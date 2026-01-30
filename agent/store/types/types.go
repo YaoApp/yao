@@ -362,6 +362,16 @@ type Workflow struct {
 	Options   map[string]interface{} `json:"options,omitempty"`   // Additional workflow options
 }
 
+// Sandbox the sandbox configuration for coding agents (Claude CLI, Cursor CLI)
+type Sandbox struct {
+	Command   string                 `json:"command"`              // Command type: "claude" or "cursor"
+	Image     string                 `json:"image,omitempty"`      // Docker image (optional, auto-selected by command)
+	MaxMemory string                 `json:"max_memory,omitempty"` // Memory limit (e.g., "4g")
+	MaxCPU    float64                `json:"max_cpu,omitempty"`    // CPU limit (e.g., 2.0)
+	Timeout   string                 `json:"timeout,omitempty"`    // Execution timeout (e.g., "10m")
+	Arguments map[string]interface{} `json:"arguments,omitempty"`  // Command-specific arguments
+}
+
 // Tool represents a tool configuration for storage
 type Tool struct {
 	Type        string                 `json:"type,omitempty"`
@@ -434,6 +444,7 @@ type AssistantModel struct {
 	DB                   *Database              `json:"db,omitempty"`                     // Database configuration
 	MCP                  *MCPServers            `json:"mcp,omitempty"`                    // MCP servers configuration
 	Workflow             *Workflow              `json:"workflow,omitempty"`               // Workflow configuration
+	Sandbox              *Sandbox               `json:"sandbox,omitempty"`                // Sandbox configuration for coding agents
 	Placeholder          *Placeholder           `json:"placeholder,omitempty"`            // Assistant Placeholder
 	Source               string                 `json:"source,omitempty"`                 // Hook script source code
 	Locales              i18n.Map               `json:"locales,omitempty"`                // Assistant Locales

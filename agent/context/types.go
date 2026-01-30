@@ -250,6 +250,7 @@ type Context struct {
 	// Internal
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
+	sandboxExecutor SandboxExecutor       `json:"-"` // Sandbox executor for hooks (set by assistant when sandbox is configured)
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *openai.Capabilities `json:"-"` // Model capabilities for the current connector

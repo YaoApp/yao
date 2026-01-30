@@ -158,6 +158,34 @@ func ToWorkflow(v interface{}) (*Workflow, error) {
 	}
 }
 
+// ToSandbox converts various types to Sandbox
+func ToSandbox(v interface{}) (*Sandbox, error) {
+	if v == nil {
+		return nil, nil
+	}
+
+	switch sandbox := v.(type) {
+	case *Sandbox:
+		return sandbox, nil
+
+	case Sandbox:
+		return &sandbox, nil
+
+	default:
+		raw, err := jsoniter.Marshal(sandbox)
+		if err != nil {
+			return nil, fmt.Errorf("sandbox format error: %s", err.Error())
+		}
+
+		var sb Sandbox
+		err = jsoniter.Unmarshal(raw, &sb)
+		if err != nil {
+			return nil, fmt.Errorf("sandbox format error: %s", err.Error())
+		}
+		return &sb, nil
+	}
+}
+
 // ToMySQLTime converts various types to MySQL datetime format
 func ToMySQLTime(v interface{}) string {
 	switch val := v.(type) {

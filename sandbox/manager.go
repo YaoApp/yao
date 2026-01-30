@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
@@ -30,6 +31,60 @@ func (e *execReadCloser) Close() error {
 		return e.closer.Close()
 	}
 	return nil
+}
+
+// demuxReadCloser wraps Docker multiplexed stream and demuxes it to stdout only
+// It uses a pipe to feed demuxed stdout to the reader
+type demuxReadCloser struct {
+	reader     io.Reader
+	pipeReader *io.PipeReader
+	pipeWriter *io.PipeWriter
+	closer     io.Closer
+	done       chan struct{}
+	err        error
+}
+
+// newDemuxReadCloser creates a new demuxed reader from Docker multiplexed stream
+func newDemuxReadCloser(src io.Reader, closer io.Closer) *demuxReadCloser {
+	pr, pw := io.Pipe()
+	d := &demuxReadCloser{
+		reader:     src,
+		pipeReader: pr,
+		pipeWriter: pw,
+		closer:     closer,
+		done:       make(chan struct{}),
+	}
+
+	// Start demux goroutine
+	go func() {
+		defer close(d.done)
+		defer pw.Close()
+
+		// Use stdcopy to demux stdout and stderr
+		// We only care about stdout here, stderr goes to a discard writer
+		_, err := stdcopy.StdCopy(pw, io.Discard, src)
+		if err != nil && err != io.EOF {
+			d.err = err
+		}
+	}()
+
+	return d
+}
+
+func (d *demuxReadCloser) Read(p []byte) (int, error) {
+	return d.pipeReader.Read(p)
+}
+
+func (d *demuxReadCloser) Close() error {
+	// Close the source to stop the demux goroutine
+	if d.closer != nil {
+		d.closer.Close()
+	}
+	// Close the pipe reader to unblock any pending reads
+	d.pipeReader.Close()
+	// Wait for demux goroutine to finish
+	<-d.done
+	return d.err
 }
 
 // Manager manages sandbox containers
@@ -106,6 +161,8 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
+		// Ensure IPC session exists (may have been closed)
+		m.ensureIPCSession(ctx, userID, chatID)
 		return cont, nil
 	}
 
@@ -117,6 +174,8 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
+		// Ensure IPC session exists (may have been closed)
+		m.ensureIPCSession(ctx, userID, chatID)
 		return cont, nil
 	}
 
@@ -153,9 +212,16 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	// IPC socket path
+	// Create IPC session BEFORE container creation
+	// This creates the socket file so it can be bind mounted
 	sessionID := chatID
-	ipcSocketHost := filepath.Join(m.config.IPCDir, sessionID+".sock")
+	agentCtx := &ipc.AgentContext{UserID: userID, ChatID: chatID}
+	if _, err := m.ipcManager.Create(ctx, sessionID, agentCtx, nil); err != nil {
+		return nil, fmt.Errorf("failed to create IPC session: %w", err)
+	}
+
+	// Get socket path (uses hash to avoid path length issues)
+	ipcSocketHost := m.ipcManager.GetSocketPath(sessionID)
 
 	// Container configuration
 	containerConfig := &container.Config{
@@ -168,13 +234,10 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 		},
 	}
 
-	// Host configuration - only mount IPC socket if it exists
+	// Host configuration - mount IPC socket (now exists after ipcManager.Create)
 	binds := []string{
 		workspaceHost + ":" + m.config.ContainerWorkDir,
-	}
-	// Only mount IPC socket if the file exists (it's created by IPC manager)
-	if _, err := os.Stat(ipcSocketHost); err == nil {
-		binds = append(binds, ipcSocketHost+":"+m.config.ContainerIPCSocket)
+		ipcSocketHost + ":" + m.config.ContainerIPCSocket,
 	}
 
 	hostConfig := &container.HostConfig{
@@ -257,6 +320,11 @@ func (m *Manager) ensureRunning(ctx context.Context, name string) error {
 		time.Sleep(100 * time.Millisecond)
 	}
 
+	// Fix IPC socket permissions inside container
+	// This is needed because macOS Docker Desktop doesn't properly preserve
+	// Unix socket permissions when bind mounting from host
+	m.fixIPCSocketPermissions(ctx, cont.ID)
+
 	m.mu.Lock()
 	cont.Status = StatusRunning
 	cont.LastUsedAt = time.Now()
@@ -319,11 +387,9 @@ func (m *Manager) Stream(ctx context.Context, name string, cmd []string, opts *E
 		}()
 	}
 
-	// Wrap in a ReadCloser
-	return &execReadCloser{
-		Reader: attachResp.Reader,
-		closer: attachResp.Conn,
-	}, nil
+	// Return demuxed reader that properly handles Docker multiplexed stream
+	// This removes the 8-byte header from each frame and separates stdout from stderr
+	return newDemuxReadCloser(attachResp.Reader, attachResp.Conn), nil
 }
 
 // Exec executes command and waits for completion
@@ -393,22 +459,25 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 	outputCh := make(chan []byte, 1)
 	errCh := make(chan error, 1)
 
+	// Buffers for demuxed stdout and stderr
+	var stdoutBuf, stderrBuf bytes.Buffer
+
 	go func() {
-		output, err := io.ReadAll(attachResp.Reader)
-		if err != nil {
+		// Use stdcopy to properly demux Docker multiplexed stream
+		_, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, attachResp.Reader)
+		if err != nil && err != io.EOF {
 			errCh <- err
 			return
 		}
-		outputCh <- output
+		outputCh <- nil
 	}()
 
-	var output []byte
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	case err := <-errCh:
 		return nil, fmt.Errorf("failed to read output: %w", err)
-	case output = <-outputCh:
+	case <-outputCh:
 		// Output received
 	}
 
@@ -426,14 +495,10 @@ func (m *Manager) Exec(ctx context.Context, name string, cmd []string, opts *Exe
 		time.Sleep(100 * time.Millisecond)
 	}
 
-	// Parse Docker multiplexed stream
-	// TODO: Properly demux stdout/stderr from Docker stream
-	stdout := string(output)
-
 	return &ExecResult{
 		ExitCode: exitCode,
-		Stdout:   stdout,
-		Stderr:   "",
+		Stdout:   stdoutBuf.String(),
+		Stderr:   stderrBuf.String(),
 	}, nil
 }
 
@@ -697,4 +762,47 @@ func (m *Manager) GetIPCManager() *ipc.Manager {
 // GetConfig returns the configuration
 func (m *Manager) GetConfig() *Config {
 	return m.config
+}
+
+// ensureIPCSession ensures IPC session exists for the given chatID
+// This is called when reusing an existing container to handle cases where
+// the IPC session was closed but the container still exists
+func (m *Manager) ensureIPCSession(ctx context.Context, userID, chatID string) {
+	sessionID := chatID
+	// Check if session already exists
+	if _, ok := m.ipcManager.Get(sessionID); ok {
+		return
+	}
+	// Create new session (ignore error - container can work without IPC)
+	agentCtx := &ipc.AgentContext{UserID: userID, ChatID: chatID}
+	m.ipcManager.Create(ctx, sessionID, agentCtx, nil)
+}
+
+// fixIPCSocketPermissions fixes IPC socket permissions inside the container
+// This is needed because macOS Docker Desktop with gRPC-FUSE doesn't properly
+// preserve Unix socket permissions when bind mounting from host.
+// We run chmod as root (using container exec with User override) to make the
+// socket accessible to the sandbox user.
+func (m *Manager) fixIPCSocketPermissions(ctx context.Context, containerID string) {
+	// Execute chmod as root to fix socket permissions
+	execConfig := container.ExecOptions{
+		Cmd:  []string{"chmod", "666", m.config.ContainerIPCSocket},
+		User: "root", // Run as root to be able to change permissions
+	}
+
+	execResp, err := m.dockerClient.ContainerExecCreate(ctx, containerID, execConfig)
+	if err != nil {
+		// Log but don't fail - container can work without proper IPC
+		return
+	}
+
+	// Start the exec and wait for completion
+	err = m.dockerClient.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{})
+	if err != nil {
+		// Log but don't fail
+		return
+	}
+
+	// Wait briefly for the chmod to complete
+	time.Sleep(50 * time.Millisecond)
 }

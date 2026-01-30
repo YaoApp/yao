@@ -435,8 +435,19 @@ jobs:
           echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
           echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
 
+      - name: Pull Sandbox Test Images
+        run: |
+          docker pull alpine:latest
+          docker pull yaoapp/sandbox-base:latest || true
+          docker pull yaoapp/sandbox-claude:latest || true
+
       - name: Run AI Tests (agent, aigc)
-        run: make unit-test-ai
+        env:
+          YAO_SANDBOX_WORKSPACE: ${{ runner.temp }}/sandbox/workspace
+          YAO_SANDBOX_IPC: ${{ runner.temp }}/sandbox/ipc
+        run: |
+          export YAO_SANDBOX_CONTAINER_USER="$(id -u):$(id -g)"
+          make unit-test-ai
 
       - name: Codecov Report
         uses: codecov/codecov-action@v4

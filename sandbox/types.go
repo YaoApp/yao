@@ -45,6 +45,21 @@ type FileInfo struct {
 	IsDir   bool        // Is directory
 }
 
+// GetName returns the file name (implements context.SandboxFileInfo)
+func (f FileInfo) GetName() string {
+	return f.Name
+}
+
+// GetSize returns the file size (implements context.SandboxFileInfo)
+func (f FileInfo) GetSize() int64 {
+	return f.Size
+}
+
+// GetIsDir returns whether this is a directory (implements context.SandboxFileInfo)
+func (f FileInfo) GetIsDir() bool {
+	return f.IsDir
+}
+
 // ContainerStatus constants
 const (
 	StatusCreated = "created"

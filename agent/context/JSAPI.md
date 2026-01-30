@@ -40,6 +40,7 @@ interface Context {
   mcp: MCP; // MCP object for external tool/resource access
   agent: Agent; // Agent-to-Agent calls (A2A)
   llm: LLM; // Direct LLM connector calls
+  sandbox?: Sandbox; // Sandbox operations (only when sandbox configured)
 }
 ```
 
@@ -2210,6 +2211,251 @@ function Next(ctx, payload) {
   return null;
 }
 ```
+
+## Sandbox API
+
+The `ctx.sandbox` object provides access to sandbox operations when the assistant is configured with a sandbox executor (e.g., Claude CLI, Cursor CLI). The sandbox allows hooks to interact with an isolated Docker container environment for file operations and command execution.
+
+> **Note:** `ctx.sandbox` is only available when the assistant has `sandbox` configuration in `package.yao`. If no sandbox is configured, `ctx.sandbox` will be `null`.
+
+### Properties
+
+- `ctx.sandbox.workdir`: String - The workspace directory path inside the container (e.g., `/workspace`)
+
+### Methods Summary
+
+| Method                        | Description                              |
+| ----------------------------- | ---------------------------------------- |
+| `ReadFile(path)`              | Read a file from the container           |
+| `WriteFile(path, content)`    | Write content to a file in the container |
+| `ListDir(path)`               | List directory contents                  |
+| `Exec(command)`               | Execute a command in the container       |
+
+### File Operations
+
+#### `ctx.sandbox.ReadFile(path): string`
+
+Reads a file from the sandbox container.
+
+**Parameters:**
+
+- `path`: String - File path (relative to workdir or absolute)
+
+**Returns:**
+
+- `string`: File contents as string
+
+**Example:**
+
+```javascript
+// Read a file from workspace
+const content = ctx.sandbox.ReadFile("config.json");
+console.log(content);
+
+// Read with absolute path
+const readme = ctx.sandbox.ReadFile("/workspace/README.md");
+```
+
+#### `ctx.sandbox.WriteFile(path, content): void`
+
+Writes content to a file in the sandbox container.
+
+**Parameters:**
+
+- `path`: String - File path (relative to workdir or absolute)
+- `content`: String - Content to write
+
+**Example:**
+
+```javascript
+// Write a configuration file
+ctx.sandbox.WriteFile("config.json", JSON.stringify({ debug: true }));
+
+// Write a script
+ctx.sandbox.WriteFile("script.sh", "#!/bin/bash\necho 'Hello'");
+```
+
+#### `ctx.sandbox.ListDir(path): FileInfo[]`
+
+Lists the contents of a directory in the sandbox container.
+
+**Parameters:**
+
+- `path`: String - Directory path (relative to workdir or absolute)
+
+**Returns:**
+
+- `FileInfo[]`: Array of file information objects
+
+**FileInfo Structure:**
+
+```typescript
+interface FileInfo {
+  name: string;      // File or directory name
+  size: number;      // Size in bytes
+  is_dir: boolean;   // True if directory
+}
+```
+
+**Example:**
+
+```javascript
+// List workspace contents
+const files = ctx.sandbox.ListDir(".");
+files.forEach(f => {
+  console.log(`${f.is_dir ? "DIR" : "FILE"} ${f.name} (${f.size} bytes)`);
+});
+
+// List specific directory
+const srcFiles = ctx.sandbox.ListDir("src");
+```
+
+### Command Execution
+
+#### `ctx.sandbox.Exec(command): string`
+
+Executes a command in the sandbox container and returns the output.
+
+**Parameters:**
+
+- `command`: String[] - Command and arguments as an array
+
+**Returns:**
+
+- `string`: Command stdout output
+
+**Throws:**
+
+- Error if command exits with non-zero code (includes stderr in error message)
+
+**Example:**
+
+```javascript
+// Run a simple command
+const output = ctx.sandbox.Exec(["echo", "Hello, World!"]);
+console.log(output); // "Hello, World!\n"
+
+// Run git commands
+const status = ctx.sandbox.Exec(["git", "status"]);
+console.log(status);
+
+// Run npm install
+try {
+  const result = ctx.sandbox.Exec(["npm", "install"]);
+  console.log("Install complete:", result);
+} catch (e) {
+  console.error("Install failed:", e.message);
+}
+
+// Run shell script
+ctx.sandbox.WriteFile("test.sh", "#!/bin/bash\necho 'Running script'\nls -la");
+ctx.sandbox.Exec(["chmod", "+x", "test.sh"]);
+const scriptOutput = ctx.sandbox.Exec(["./test.sh"]);
+```
+
+### Use Cases
+
+```javascript
+// Use case 1: Prepare workspace before Claude CLI execution
+function Create(ctx, messages) {
+  if (ctx.sandbox) {
+    // Create project structure
+    ctx.sandbox.WriteFile("package.json", JSON.stringify({
+      name: "project",
+      version: "1.0.0"
+    }, null, 2));
+    
+    // Write initial code
+    ctx.sandbox.WriteFile("src/index.ts", "console.log('Hello');");
+    
+    ctx.trace.Info("Workspace prepared");
+  }
+  return { messages };
+}
+
+// Use case 2: Post-process sandbox results
+function Next(ctx, payload) {
+  if (ctx.sandbox && !payload.error) {
+    // Read generated files
+    try {
+      const files = ctx.sandbox.ListDir("output");
+      const results = files.map(f => ({
+        name: f.name,
+        content: ctx.sandbox.ReadFile(`output/${f.name}`)
+      }));
+      
+      return {
+        data: {
+          status: "success",
+          generated_files: results
+        }
+      };
+    } catch (e) {
+      ctx.trace.Warn("No output directory found");
+    }
+  }
+  return null;
+}
+
+// Use case 3: Run tests after code generation
+function Next(ctx, payload) {
+  if (ctx.sandbox && payload.completion) {
+    try {
+      // Run tests
+      const testOutput = ctx.sandbox.Exec(["npm", "test"]);
+      ctx.trace.Info("Tests passed");
+      
+      return {
+        data: {
+          status: "success",
+          test_output: testOutput
+        }
+      };
+    } catch (e) {
+      ctx.trace.Error("Tests failed: " + e.message);
+      return {
+        data: {
+          status: "test_failed",
+          error: e.message
+        }
+      };
+    }
+  }
+  return null;
+}
+```
+
+### Sandbox Configuration
+
+The sandbox is configured in the assistant's `package.yao`:
+
+```jsonc
+{
+  "name": "Coder Assistant",
+  "connector": "deepseek.v3",
+  "sandbox": {
+    "command": "claude",           // claude | cursor (future)
+    "image": "yaoapp/sandbox-claude:latest",  // Optional, auto-selected by command
+    "max_memory": "4g",            // Memory limit (optional)
+    "max_cpu": 2.0,                // CPU limit (optional)
+    "timeout": "10m",              // Execution timeout
+    "arguments": {                 // Command-specific arguments
+      "max_turns": 20,
+      "permission_mode": "acceptEdits"
+    }
+  }
+}
+```
+
+### Notes
+
+- Sandbox operations are **synchronous** - they block until complete
+- File paths can be relative (to workdir) or absolute
+- Relative paths are resolved against the `workdir` directory
+- The sandbox container is created at the start of the request and removed when the request completes
+- Commands are executed with the sandbox user's permissions
+- Errors throw JavaScript exceptions - use try/catch for error handling
+- Large file operations may timeout - use appropriate timeout settings
 
 ## LLM API
 
