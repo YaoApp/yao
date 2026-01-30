@@ -78,8 +78,12 @@ func TestClaudeCommandBuilding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify command structure
+	// Command is now: ["bash", "-c", "nohup ccr start ... && ccr code ..."]
 	assert.NotEmpty(t, cmd)
-	assert.Equal(t, "ccr-run", cmd[0], "Command should start with ccr-run")
+	assert.Equal(t, "bash", cmd[0], "Command should start with bash")
+	assert.Equal(t, "-c", cmd[1], "Second arg should be -c")
+	assert.Contains(t, cmd[2], "ccr code", "Bash command should contain ccr code")
+	assert.Contains(t, cmd[2], "--permission-mode", "Should include permission mode")
 	t.Logf("Built command: %v", cmd)
 
 	// Verify environment variables
