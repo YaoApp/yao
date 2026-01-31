@@ -13,34 +13,33 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	// Build system prompt from conversation history
 	systemPrompt, userPrompt := buildPrompts(messages)
 
-	// Build the ccr code command with all arguments
-	// We use bash -c to ensure CCR is started first, then run ccr code with proper argument handling
-	var ccrArgs []string
+	// Build Claude CLI arguments
+	var claudeArgs []string
 
 	// Add permission mode (required for MCP tools to work)
-	permMode := "acceptEdits" // default
+	permMode := "bypassPermissions" // default for sandbox
 	if opts != nil && opts.Arguments != nil {
 		if mode, ok := opts.Arguments["permission_mode"].(string); ok && mode != "" {
 			permMode = mode
 		}
 	}
-	ccrArgs = append(ccrArgs, "--permission-mode", permMode)
+	claudeArgs = append(claudeArgs, "--dangerously-skip-permissions")
+	claudeArgs = append(claudeArgs, "--permission-mode", permMode)
 
 	// Add MCP config if available
 	if opts != nil && len(opts.MCPConfig) > 0 {
-		ccrArgs = append(ccrArgs, "--mcp-config", "/workspace/.mcp.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "/workspace/.mcp.json")
 		// Allow all tools from the "yao" MCP server
-		ccrArgs = append(ccrArgs, "--allowedTools", "mcp__yao__*")
+		claudeArgs = append(claudeArgs, "--allowedTools", "mcp__yao__*")
 	}
 
 	// Build the full bash command
-	// Start CCR daemon, wait, then run ccr code with arguments
-	bashCmd := "nohup ccr start >/dev/null 2>&1 & sleep 2; ccr code"
-	for _, arg := range ccrArgs {
+	// claude-proxy is already started by prepareEnvironment
+	bashCmd := "claude -p"
+	for _, arg := range claudeArgs {
 		// Quote arguments that might contain special characters
 		bashCmd += fmt.Sprintf(" %q", arg)
 	}
-	bashCmd += " -p"
 	if userPrompt != "" {
 		bashCmd += fmt.Sprintf(" %q", userPrompt)
 	}
@@ -123,20 +122,9 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 		return env
 	}
 
-	// CCR configuration via environment
-	// CCR (Claude Code Router) transforms OpenAI-compatible API to Anthropic API format
-	if opts.ConnectorHost != "" {
-		// CCR expects ANTHROPIC_BASE_URL but will proxy through its own router
-		env["CCR_API_BASE"] = opts.ConnectorHost
-	}
-
-	if opts.ConnectorKey != "" {
-		env["CCR_API_KEY"] = opts.ConnectorKey
-	}
-
-	if opts.Model != "" {
-		env["CCR_MODEL"] = opts.Model
-	}
+	// claude-proxy runs on localhost:3456, Claude CLI connects to it
+	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
+	env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
 
 	// Set system prompt via environment (Claude CLI supports this)
 	if systemPrompt != "" {
@@ -148,11 +136,6 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 		// max_turns
 		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
 			env["CLAUDE_MAX_TURNS"] = fmt.Sprintf("%v", maxTurns)
-		}
-
-		// permission_mode
-		if permMode, ok := opts.Arguments["permission_mode"].(string); ok {
-			env["CLAUDE_PERMISSION_MODE"] = permMode
 		}
 
 		// output_format (default to stream-json for streaming)
@@ -168,73 +151,30 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 	return env
 }
 
-// BuildCCRConfig builds the CCR (Claude Code Router) configuration JSON
-// CCR requires a specific format with Providers array and Router configuration
-func BuildCCRConfig(opts *Options) ([]byte, error) {
+// BuildProxyConfig builds the claude-proxy configuration JSON
+// This config file is read by start-claude-proxy script in the container
+func BuildProxyConfig(opts *Options) ([]byte, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("options is required")
 	}
 
-	// Determine provider name based on host
-	providerName := "custom"
-	apiBaseURL := opts.ConnectorHost
-	needsTransformer := false
-
-	if strings.Contains(opts.ConnectorHost, "volces.com") || strings.Contains(opts.ConnectorHost, "volcengine") {
-		providerName = "volcengine"
-		needsTransformer = true
-		// Ensure URL ends with chat/completions
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "deepseek") {
-		providerName = "deepseek"
-		needsTransformer = true
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "openai.com") {
-		providerName = "openai"
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/v1/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "anthropic.com") {
-		providerName = "claude"
+	// Build backend URL - ensure it ends with /chat/completions
+	backendURL := opts.ConnectorHost
+	if !strings.HasSuffix(backendURL, "/chat/completions") {
+		backendURL = strings.TrimSuffix(backendURL, "/") + "/chat/completions"
 	}
 
-	// Build provider configuration
-	provider := map[string]interface{}{
-		"name":         providerName,
-		"api_base_url": apiBaseURL,
-		"api_key":      opts.ConnectorKey,
-		"models":       []string{opts.Model},
-	}
-
-	// Add transformer for providers that need it (DeepSeek, Volcengine)
-	if needsTransformer {
-		provider["transformer"] = map[string]interface{}{
-			"use": []interface{}{
-				[]interface{}{"maxtoken", map[string]interface{}{"max_tokens": 16384}},
-			},
-		}
-	}
-
-	// Build router configuration
-	routerKey := fmt.Sprintf("%s,%s", providerName, opts.Model)
-	router := map[string]interface{}{
-		"default":    routerKey,
-		"background": routerKey,
-		"think":      routerKey,
-	}
-
-	// Build full config
 	config := map[string]interface{}{
-		"LOG":                  true,
-		"API_TIMEOUT_MS":       600000,
-		"NON_INTERACTIVE_MODE": true,
-		"Providers":            []interface{}{provider},
-		"Router":               router,
+		"backend": backendURL,
+		"api_key": opts.ConnectorKey,
+		"model":   opts.Model,
 	}
 
 	return json.MarshalIndent(config, "", "  ")
+}
+
+// BuildCCRConfig is deprecated, kept for backward compatibility
+// Use BuildProxyConfig instead
+func BuildCCRConfig(opts *Options) ([]byte, error) {
+	return BuildProxyConfig(opts)
 }

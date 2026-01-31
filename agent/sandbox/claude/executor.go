@@ -139,11 +139,11 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 }
 
 // prepareEnvironment prepares the container environment before execution
-// This includes: CCR config, MCP config, and Skills directory
+// This includes: claude-proxy config, MCP config, and Skills directory
 func (e *Executor) prepareEnvironment(ctx context.Context) error {
-	// 1. Write CCR config (Claude Code Router configuration)
-	if err := e.writeCCRConfig(ctx); err != nil {
-		return fmt.Errorf("failed to write CCR config: %w", err)
+	// 1. Write claude-proxy config and start the proxy
+	if err := e.startClaudeProxy(ctx); err != nil {
+		return fmt.Errorf("failed to start claude-proxy: %w", err)
 	}
 
 	// 2. Write MCP config if provided
@@ -165,18 +165,32 @@ func (e *Executor) prepareEnvironment(ctx context.Context) error {
 	return nil
 }
 
-// writeCCRConfig writes the CCR configuration file to the container
-func (e *Executor) writeCCRConfig(ctx context.Context) error {
-	// Build CCR config
-	configJSON, err := BuildCCRConfig(e.opts)
+// startClaudeProxy writes proxy config and starts claude-proxy
+func (e *Executor) startClaudeProxy(ctx context.Context) error {
+	// Build proxy config
+	configJSON, err := BuildProxyConfig(e.opts)
 	if err != nil {
-		return fmt.Errorf("failed to build CCR config: %w", err)
+		return fmt.Errorf("failed to build proxy config: %w", err)
 	}
 
-	// Write config to container's CCR directory
-	configPath := "/home/sandbox/.claude-code-router/config.json"
+	// Write config to workspace
+	configPath := e.workDir + "/.claude-proxy.json"
 	if err := e.manager.WriteFile(ctx, e.containerName, configPath, configJSON); err != nil {
 		return fmt.Errorf("failed to write config to %s: %w", configPath, err)
+	}
+
+	// Start the proxy
+	result, err := e.manager.Exec(ctx, e.containerName, []string{"start-claude-proxy"}, &infraSandbox.ExecOptions{
+		WorkDir: e.workDir,
+		Env: map[string]string{
+			"WORKSPACE": e.workDir,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to start claude-proxy: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return fmt.Errorf("claude-proxy failed to start: %s", result.Stderr)
 	}
 
 	return nil

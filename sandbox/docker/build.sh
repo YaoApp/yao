@@ -30,6 +30,21 @@ echo "Built: yao-bridge-amd64, yao-bridge-arm64"
 
 cd "$SCRIPT_DIR"
 
+# Build claude-proxy for both architectures
+echo ""
+echo "=== Building claude-proxy (multi-arch) ==="
+cd "$SCRIPT_DIR/../proxy/cmd/claude-proxy"
+
+echo "Building for linux/amd64..."
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/claude-proxy-amd64" .
+
+echo "Building for linux/arm64..."
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/claude-proxy-arm64" .
+
+echo "Built: claude-proxy-amd64, claude-proxy-arm64"
+
+cd "$SCRIPT_DIR"
+
 # Check if buildx is available and set up
 setup_buildx() {
     echo ""
@@ -141,4 +156,5 @@ docker images | grep -E "(sandbox-base|sandbox-claude|sandbox-cursor)" | head -1
 echo ""
 echo "=== Cleanup ==="
 rm -f "$SCRIPT_DIR/yao-bridge-amd64" "$SCRIPT_DIR/yao-bridge-arm64"
+rm -f "$SCRIPT_DIR/claude-proxy-amd64" "$SCRIPT_DIR/claude-proxy-arm64"
 echo "Removed temporary binary files"
