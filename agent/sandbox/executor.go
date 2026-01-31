@@ -35,8 +35,9 @@ func New(manager *infraSandbox.Manager, opts *Options) (Executor, error) {
 			UserID:        opts.UserID,
 			ChatID:        opts.ChatID,
 			MCPConfig:     opts.MCPConfig,
-			MCPTools:      opts.MCPTools, // MCP tools to expose via IPC
+			MCPTools:      opts.MCPTools,
 			SkillsDir:     opts.SkillsDir,
+			SystemPrompt:  opts.SystemPrompt, // Required for Claude CLI execution
 			ConnectorHost: opts.ConnectorHost,
 			ConnectorKey:  opts.ConnectorKey,
 			Model:         opts.Model,

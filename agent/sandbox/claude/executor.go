@@ -283,7 +283,11 @@ func (e *Executor) Execute(ctx *agentContext.Context, messages []agentContext.Me
 	return e.Stream(ctx, messages, nil)
 }
 
-// parseStream parses Claude CLI streaming output
+// parseStream parses Claude CLI streaming output (stream-json format)
+// Claude CLI output format:
+// - {"type":"system","subtype":"init",...} - initialization
+// - {"type":"assistant","message":{...,"content":[{"type":"text","text":"..."}],...}} - assistant messages
+// - {"type":"result","subtype":"success",...,"result":"..."} - final result
 func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*agentContext.CompletionResponse, error) {
 	scanner := bufio.NewScanner(reader)
 	// Increase buffer size for potentially large outputs
@@ -294,6 +298,7 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 	var toolCalls []agentContext.ToolCall
 	var model string
 	var usage *message.UsageInfo
+	var finalResult string
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -301,11 +306,8 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 			continue
 		}
 
-		// Note: Docker stream demuxing is handled by sandbox.Manager.Stream()
-		// which uses stdcopy.StdCopy to properly separate stdout/stderr
-
 		// Try to parse as JSON (Claude CLI --output-format stream-json)
-		var msg StreamMessage
+		var msg map[string]interface{}
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			// Not JSON, might be plain text output
 			textContent.WriteString(line)
@@ -313,24 +315,65 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 			continue
 		}
 
-		// Process different message types
-		switch msg.Type {
-		case "content_block_delta":
-			// Streaming text content
-			if delta, ok := msg.Content.(map[string]interface{}); ok {
-				if text, ok := delta["text"].(string); ok {
-					textContent.WriteString(text)
-					// Send to stream handler if available
-					if handler != nil {
-						handler(message.ChunkText, []byte(text))
-					}
-				}
+		msgType, _ := msg["type"].(string)
+
+		// Process Claude CLI stream-json message types
+		switch msgType {
+		case "system":
+			// Initialization message - extract model if available
+			if m, ok := msg["model"].(string); ok {
+				model = m
 			}
 
-		case "message_delta":
-			// Message completion with usage
-			if content, ok := msg.Content.(map[string]interface{}); ok {
-				if usageData, ok := content["usage"].(map[string]interface{}); ok {
+		case "assistant":
+			// Assistant message - extract content
+			if msgData, ok := msg["message"].(map[string]interface{}); ok {
+				// Get model from message
+				if m, ok := msgData["model"].(string); ok && model == "" {
+					model = m
+				}
+
+				// Extract content array
+				if contentArr, ok := msgData["content"].([]interface{}); ok {
+					for _, item := range contentArr {
+						if contentItem, ok := item.(map[string]interface{}); ok {
+							itemType, _ := contentItem["type"].(string)
+
+							switch itemType {
+							case "text":
+								if text, ok := contentItem["text"].(string); ok {
+									// Only write if this is new content (avoid duplicates)
+									if textContent.Len() == 0 || !strings.HasSuffix(textContent.String(), text) {
+										textContent.WriteString(text)
+									}
+									// Send to stream handler if available
+									if handler != nil {
+										handler(message.ChunkText, []byte(text))
+									}
+								}
+
+							case "tool_use":
+								toolCall := agentContext.ToolCall{
+									ID:   getString(contentItem, "id"),
+									Type: agentContext.ToolTypeFunction,
+									Function: agentContext.Function{
+										Name: getString(contentItem, "name"),
+									},
+								}
+								// Get input as JSON string
+								if input, ok := contentItem["input"]; ok {
+									if inputJSON, err := json.Marshal(input); err == nil {
+										toolCall.Function.Arguments = string(inputJSON)
+									}
+								}
+								toolCalls = append(toolCalls, toolCall)
+							}
+						}
+					}
+				}
+
+				// Extract usage
+				if usageData, ok := msgData["usage"].(map[string]interface{}); ok {
 					usage = &message.UsageInfo{}
 					if v, ok := usageData["input_tokens"].(float64); ok {
 						usage.PromptTokens = int(v)
@@ -342,37 +385,37 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 				}
 			}
 
-		case "message_start":
-			// Extract model from message_start
-			if content, ok := msg.Content.(map[string]interface{}); ok {
-				if m, ok := content["model"].(string); ok {
-					model = m
-				}
+		case "result":
+			// Final result message
+			if result, ok := msg["result"].(string); ok {
+				finalResult = result
 			}
-
-		case "content_block_start":
-			// Might contain tool use blocks
-			if block, ok := msg.Content.(map[string]interface{}); ok {
-				if block["type"] == "tool_use" {
-					toolCall := agentContext.ToolCall{
-						ID:   getString(block, "id"),
-						Type: agentContext.ToolTypeFunction,
-						Function: agentContext.Function{
-							Name:      getString(block, "name"),
-							Arguments: "{}",
-						},
-					}
-					toolCalls = append(toolCalls, toolCall)
-				}
+			// Send done signal to handler
+			if handler != nil {
+				handler(message.ChunkMessageEnd, nil)
 			}
 
 		case "error":
-			return nil, fmt.Errorf("Claude CLI error: %s", msg.Error)
+			// Error message
+			if errMsg, ok := msg["error"].(string); ok {
+				return nil, fmt.Errorf("Claude CLI error: %s", errMsg)
+			}
+			if errObj, ok := msg["error"].(map[string]interface{}); ok {
+				if errMsg, ok := errObj["message"].(string); ok {
+					return nil, fmt.Errorf("Claude CLI error: %s", errMsg)
+				}
+			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading stream: %w", err)
+	}
+
+	// Use final result if available, otherwise use accumulated text content
+	content := textContent.String()
+	if finalResult != "" && content == "" {
+		content = finalResult
 	}
 
 	// Build response
@@ -381,7 +424,7 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 		Model:        model,
 		Created:      time.Now().Unix(),
 		Role:         "assistant",
-		Content:      textContent.String(),
+		Content:      content,
 		FinishReason: agentContext.FinishReasonStop,
 	}
 
