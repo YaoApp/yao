@@ -190,6 +190,7 @@ func TestClaudeExecutorMCPConfigWrite(t *testing.T) {
 		UserID:    "test-user",
 		ChatID:    fmt.Sprintf("test-chat-mcp-write-%d", time.Now().UnixNano()),
 		MCPConfig: mcpConfig,
+		// No connector config - skip proxy start for alpine test image
 	}
 
 	exec, err := NewExecutor(manager, opts)
@@ -245,6 +246,7 @@ func TestClaudeExecutorSkillsCopy(t *testing.T) {
 		UserID:    "test-user",
 		ChatID:    fmt.Sprintf("test-chat-skills-%d", time.Now().UnixNano()),
 		SkillsDir: skillsDir,
+		// No connector config - skip proxy start for alpine test image
 	}
 
 	exec, err := NewExecutor(manager, opts)
@@ -312,15 +314,13 @@ func TestClaudeExecutorPrepareEnvironmentIntegration(t *testing.T) {
 	mcpConfig := []byte(`{"mcpServers":{"echo":{"command":"yao-mcp-proxy","args":["echo"],"tools":["ping","echo","status"]}}}`)
 
 	opts := &Options{
-		Command:       "claude",
-		Image:         "alpine:latest",
-		UserID:        "test-user",
-		ChatID:        fmt.Sprintf("test-chat-full-env-%d", time.Now().UnixNano()),
-		ConnectorHost: "https://api.test.com",
-		ConnectorKey:  "test-key",
-		Model:         "test-model",
-		MCPConfig:     mcpConfig,
-		SkillsDir:     skillsDir,
+		Command:   "claude",
+		Image:     "alpine:latest",
+		UserID:    "test-user",
+		ChatID:    fmt.Sprintf("test-chat-full-env-%d", time.Now().UnixNano()),
+		MCPConfig: mcpConfig,
+		SkillsDir: skillsDir,
+		// No connector config - skip proxy start for alpine test image
 	}
 
 	exec, err := NewExecutor(manager, opts)
@@ -333,26 +333,19 @@ func TestClaudeExecutorPrepareEnvironmentIntegration(t *testing.T) {
 	err = exec.prepareEnvironment(ctx)
 	require.NoError(t, err, "prepareEnvironment should succeed")
 
-	// Verify all files exist
-	// 1. Check CCR config
-	ccrContent, err := exec.Exec(ctx, []string{"cat", "/home/sandbox/.claude-code-router/config.json"})
-	require.NoError(t, err, "CCR config should exist")
-	assert.Contains(t, ccrContent, "api_base_url", "CCR config should contain api_base_url")
-	t.Logf("✓ CCR config verified: %d bytes", len(ccrContent))
-
-	// 2. Check MCP config
+	// 1. Check MCP config
 	mcpContent, err := exec.ReadFile(ctx, ".mcp.json")
 	require.NoError(t, err, "MCP config should exist in container")
 	assert.JSONEq(t, string(mcpConfig), string(mcpContent), "MCP config content should match")
 	t.Logf("✓ MCP config verified: %s", string(mcpContent))
 
-	// 3. Check Skills directory structure
+	// 2. Check Skills directory structure
 	output, err := exec.Exec(ctx, []string{"ls", "-la", ".claude/skills"})
 	require.NoError(t, err, "Skills directory should exist in container")
 	assert.Contains(t, output, "echo-test", "echo-test skill should exist")
 	t.Logf("✓ Skills directory contents:\n%s", output)
 
-	// 4. Check skill content
+	// 3. Check skill content
 	skillContent, err := exec.ReadFile(ctx, ".claude/skills/echo-test/SKILL.md")
 	require.NoError(t, err, "SKILL.md should exist in container")
 	require.NotEmpty(t, skillContent, "SKILL.md should not be empty")

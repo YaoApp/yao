@@ -74,6 +74,10 @@ type Options struct {
 	// Skills directory - auto-resolved to assistants/{name}/skills/
 	SkillsDir string `json:"-"`
 
+	// SystemPrompt - extracted from assistant prompts.yml
+	// Used to determine if Claude CLI should be called
+	SystemPrompt string `json:"-"`
+
 	// Connector settings - auto-resolved from connector config file
 	// e.g., connectors/deepseek/v3.conn.yao → host, key, model
 	ConnectorHost string `json:"-"`

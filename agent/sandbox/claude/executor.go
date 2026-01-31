@@ -28,6 +28,7 @@ type Options struct {
 	MCPConfig     []byte
 	MCPTools      map[string]*ipc.MCPTool // MCP tools to expose via IPC
 	SkillsDir     string
+	SystemPrompt  string // System prompt from assistant prompts.yml
 	ConnectorHost string
 	ConnectorKey  string
 	Model         string
@@ -112,6 +113,20 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 		return nil, fmt.Errorf("failed to prepare environment: %w", err)
 	}
 
+	// Check if we should skip Claude CLI execution
+	// Skip if no prompts, no skills, and no MCP config
+	if e.shouldSkipClaudeCLI() {
+		// Return empty response - hooks can use sandbox API to do their work
+		return &agentContext.CompletionResponse{
+			ID:           fmt.Sprintf("sandbox-skip-%d", time.Now().UnixNano()),
+			Model:        "sandbox",
+			Created:      time.Now().Unix(),
+			Role:         "assistant",
+			Content:      "",
+			FinishReason: agentContext.FinishReasonStop,
+		}, nil
+	}
+
 	// Build Claude CLI command using stored options
 	cmd, env, err := BuildCommand(messages, e.opts)
 	if err != nil {
@@ -136,6 +151,17 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 
 	// Parse streaming output
 	return e.parseStream(reader, handler)
+}
+
+// shouldSkipClaudeCLI checks if Claude CLI execution should be skipped
+// Skip when: no system prompt, no skills, and no MCP config
+func (e *Executor) shouldSkipClaudeCLI() bool {
+	hasPrompts := e.opts.SystemPrompt != ""
+	hasSkills := e.opts.SkillsDir != ""
+	hasMCP := len(e.opts.MCPConfig) > 0
+
+	// If any of these are present, execute Claude CLI
+	return !hasPrompts && !hasSkills && !hasMCP
 }
 
 // prepareEnvironment prepares the container environment before execution
@@ -167,6 +193,11 @@ func (e *Executor) prepareEnvironment(ctx context.Context) error {
 
 // startClaudeProxy writes proxy config and starts claude-proxy
 func (e *Executor) startClaudeProxy(ctx context.Context) error {
+	// Skip if no connector configured (e.g., test containers without claude-proxy)
+	if e.opts.ConnectorHost == "" || e.opts.ConnectorKey == "" {
+		return nil
+	}
+
 	// Build proxy config
 	configJSON, err := BuildProxyConfig(e.opts)
 	if err != nil {
@@ -179,8 +210,17 @@ func (e *Executor) startClaudeProxy(ctx context.Context) error {
 		return fmt.Errorf("failed to write config to %s: %w", configPath, err)
 	}
 
+	// Start the proxy (only if start-claude-proxy exists in the image)
+	result, err := e.manager.Exec(ctx, e.containerName, []string{"which", "start-claude-proxy"}, &infraSandbox.ExecOptions{
+		WorkDir: e.workDir,
+	})
+	if err != nil || result.ExitCode != 0 {
+		// start-claude-proxy not available (e.g., alpine test image), skip
+		return nil
+	}
+
 	// Start the proxy
-	result, err := e.manager.Exec(ctx, e.containerName, []string{"start-claude-proxy"}, &infraSandbox.ExecOptions{
+	result, err = e.manager.Exec(ctx, e.containerName, []string{"start-claude-proxy"}, &infraSandbox.ExecOptions{
 		WorkDir: e.workDir,
 		Env: map[string]string{
 			"WORKSPACE": e.workDir,

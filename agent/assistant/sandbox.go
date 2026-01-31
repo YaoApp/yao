@@ -198,6 +198,18 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 		}
 	}
 
+	// Check if assistant has prompts (from prompts.yml)
+	// If prompts are configured, we need to call Claude CLI
+	if len(ast.Prompts) > 0 {
+		// Extract system prompt from prompts
+		for _, prompt := range ast.Prompts {
+			if prompt.Role == "system" && prompt.Content != "" {
+				execOpts.SystemPrompt = prompt.Content
+				break
+			}
+		}
+	}
+
 	// Resolve connector settings
 	conn, _, err := ast.GetConnector(ctx, opts)
 	if err != nil {

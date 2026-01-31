@@ -9,9 +9,16 @@ import (
 )
 
 // BuildCommand builds the Claude CLI command and environment variables
+// Uses stdin with --input-format stream-json for unlimited prompt length
 func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map[string]string, error) {
 	// Build system prompt from conversation history
-	systemPrompt, userPrompt := buildPrompts(messages)
+	systemPrompt, _ := buildPrompts(messages)
+
+	// Build input JSONL for Claude CLI (stream-json format)
+	inputJSONL, err := BuildInputJSONL(messages)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build input JSONL: %w", err)
+	}
 
 	// Build Claude CLI arguments
 	var claudeArgs []string
@@ -26,6 +33,11 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	claudeArgs = append(claudeArgs, "--dangerously-skip-permissions")
 	claudeArgs = append(claudeArgs, "--permission-mode", permMode)
 
+	// Add streaming format flags (required for proper streaming output)
+	claudeArgs = append(claudeArgs, "--input-format", "stream-json")
+	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
+	claudeArgs = append(claudeArgs, "--verbose")
+
 	// Add MCP config if available
 	if opts != nil && len(opts.MCPConfig) > 0 {
 		claudeArgs = append(claudeArgs, "--mcp-config", "/workspace/.mcp.json")
@@ -34,15 +46,14 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	}
 
 	// Build the full bash command
+	// Use heredoc to pass input JSONL via stdin (no length limit)
 	// claude-proxy is already started by prepareEnvironment
-	bashCmd := "claude -p"
+	bashCmd := "cat << 'INPUTEOF' | claude -p"
 	for _, arg := range claudeArgs {
 		// Quote arguments that might contain special characters
 		bashCmd += fmt.Sprintf(" %q", arg)
 	}
-	if userPrompt != "" {
-		bashCmd += fmt.Sprintf(" %q", userPrompt)
-	}
+	bashCmd += "\n" + string(inputJSONL) + "\nINPUTEOF"
 
 	cmd := []string{"bash", "-c", bashCmd}
 
@@ -50,6 +61,44 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	env := buildEnvironment(opts, systemPrompt)
 
 	return cmd, env, nil
+}
+
+// BuildInputJSONL converts messages to Claude CLI stream-json input format
+// Each message becomes a line in JSONL format
+func BuildInputJSONL(messages []agentContext.Message) ([]byte, error) {
+	var lines []string
+
+	for _, msg := range messages {
+		// Skip system messages (handled via --system-prompt or env var)
+		if msg.Role == "system" {
+			continue
+		}
+
+		// Build the message content
+		var content interface{}
+		if msg.Content != nil {
+			content = msg.Content
+		} else {
+			content = ""
+		}
+
+		// Create stream-json message
+		streamMsg := map[string]interface{}{
+			"type": msg.Role, // "user" or "assistant"
+			"message": map[string]interface{}{
+				"role":    msg.Role,
+				"content": content,
+			},
+		}
+
+		jsonBytes, err := json.Marshal(streamMsg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal message: %w", err)
+		}
+		lines = append(lines, string(jsonBytes))
+	}
+
+	return []byte(strings.Join(lines, "\n")), nil
 }
 
 // buildPrompts extracts system prompt and user prompt from messages
@@ -137,15 +186,6 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
 			env["CLAUDE_MAX_TURNS"] = fmt.Sprintf("%v", maxTurns)
 		}
-
-		// output_format (default to stream-json for streaming)
-		if outputFormat, ok := opts.Arguments["output_format"].(string); ok {
-			env["CLAUDE_OUTPUT_FORMAT"] = outputFormat
-		} else {
-			env["CLAUDE_OUTPUT_FORMAT"] = "stream-json"
-		}
-	} else {
-		env["CLAUDE_OUTPUT_FORMAT"] = "stream-json"
 	}
 
 	return env
