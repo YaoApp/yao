@@ -64,6 +64,9 @@ func TestRealClaudeCLIExecution(t *testing.T) {
 		Model:         model,
 		SystemPrompt:  "You are a helpful assistant. Reply concisely.",
 		Timeout:       3 * time.Minute,
+		ConnectorOptions: map[string]interface{}{
+			"max_tokens": 4096, // Limit max_tokens to avoid backend API limits
+		},
 	}
 
 	t.Logf("Creating executor with options:")
@@ -227,6 +230,9 @@ func TestClaudeCLIDirectExecution(t *testing.T) {
 		ConnectorKey:  apiKey,
 		Model:         model,
 		Timeout:       3 * time.Minute,
+		ConnectorOptions: map[string]interface{}{
+			"max_tokens": 4096, // Limit max_tokens to avoid backend API limits
+		},
 	}
 
 	exec, err := NewExecutor(manager, opts)
