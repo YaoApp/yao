@@ -26,6 +26,7 @@ type Config struct {
 	Timeout int
 	Verbose bool
 	LogFile string
+	Options map[string]interface{} // Extra options to pass to backend (e.g., thinking, max_tokens)
 }
 
 // Server is the API proxy server
@@ -58,6 +59,10 @@ func Main() {
 	log.Printf("Claude API Proxy starting on %s", addr)
 	log.Printf("Backend: %s", config.Backend)
 	log.Printf("Model: %s", config.Model)
+	if len(config.Options) > 0 {
+		optBytes, _ := json.Marshal(config.Options)
+		log.Printf("Options: %s", string(optBytes))
+	}
 
 	http.HandleFunc("/v1/messages", server.handleMessages)
 	http.HandleFunc("/health", server.handleHealth)
@@ -116,6 +121,17 @@ func parseFlags() *Config {
 	}
 	if config.Timeout == 0 {
 		config.Timeout = 300
+	}
+
+	// Parse extra options from environment variable (JSON format)
+	// Example: CLAUDE_PROXY_OPTIONS='{"thinking":{"type":"enabled"},"max_tokens":65536}'
+	if optionsStr := os.Getenv("CLAUDE_PROXY_OPTIONS"); optionsStr != "" {
+		var options map[string]interface{}
+		if err := json.Unmarshal([]byte(optionsStr), &options); err != nil {
+			log.Printf("Warning: failed to parse CLAUDE_PROXY_OPTIONS: %v", err)
+		} else {
+			config.Options = options
+		}
 	}
 
 	return config

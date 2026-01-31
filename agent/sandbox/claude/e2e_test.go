@@ -258,8 +258,10 @@ func TestE2EBuildCommand(t *testing.T) {
 	assert.Equal(t, "http://127.0.0.1:3456", env["ANTHROPIC_BASE_URL"])
 	assert.Equal(t, "dummy", env["ANTHROPIC_API_KEY"])
 
-	// System prompt should be in environment
-	assert.Contains(t, env["CLAUDE_SYSTEM_PROMPT"], "You are helpful", "System prompt should be in env")
+	// System prompt should be passed via CLI argument, not environment variable
+	// CLAUDE_SYSTEM_PROMPT env var is NOT supported by Claude CLI
+	assert.Contains(t, bashCmd, "--append-system-prompt", "Should have append-system-prompt flag")
+	assert.Contains(t, bashCmd, "You are helpful", "System prompt should be in CLI args")
 
 	t.Log("✓ Command building verified")
 }

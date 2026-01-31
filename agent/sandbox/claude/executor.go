@@ -6,10 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
+	goujson "github.com/yaoapp/gou/json"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
 	"github.com/yaoapp/yao/sandbox/ipc"
@@ -17,21 +22,23 @@ import (
 
 // Options for Claude executor (copied from parent package to avoid import cycle)
 type Options struct {
-	Command       string
-	Image         string
-	MaxMemory     string
-	MaxCPU        float64
-	Timeout       time.Duration
-	Arguments     map[string]interface{}
-	UserID        string
-	ChatID        string
-	MCPConfig     []byte
-	MCPTools      map[string]*ipc.MCPTool // MCP tools to expose via IPC
-	SkillsDir     string
-	SystemPrompt  string // System prompt from assistant prompts.yml
-	ConnectorHost string
-	ConnectorKey  string
-	Model         string
+	Command          string
+	Image            string
+	MaxMemory        string
+	MaxCPU           float64
+	Timeout          time.Duration
+	Arguments        map[string]interface{}
+	UserID           string
+	ChatID           string
+	MCPConfig        []byte
+	MCPTools         map[string]*ipc.MCPTool // MCP tools to expose via IPC
+	SkillsDir        string
+	SystemPrompt     string // System prompt from assistant prompts.yml
+	ConnectorHost    string
+	ConnectorKey     string
+	Model            string
+	ConnectorOptions map[string]interface{} // Extra connector options (e.g., thinking, max_tokens)
+	Secrets          map[string]string      // Secrets to pass to container (e.g., GITHUB_TOKEN)
 }
 
 // Executor implements the sandbox.Executor interface for Claude CLI
@@ -40,6 +47,7 @@ type Executor struct {
 	containerName string
 	opts          *Options
 	workDir       string
+	loadingMsgID  string // Loading message ID for tool execution updates
 }
 
 // NewExecutor creates a new Claude executor
@@ -91,12 +99,61 @@ func NewExecutor(manager *infraSandbox.Manager, opts interface{}) (*Executor, er
 	}, nil
 }
 
+// SetLoadingMsgID sets the loading message ID for tool execution updates
+func (e *Executor) SetLoadingMsgID(id string) {
+	e.loadingMsgID = id
+}
+
 // Stream runs the Claude CLI with streaming output
 func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Message, handler message.StreamFunc) (*agentContext.CompletionResponse, error) {
-	stdCtx := context.Background()
-	if ctx != nil && ctx.Context != nil {
-		stdCtx = ctx.Context
-	}
+	// Create a cancellable context for this stream operation
+	// We need to handle both:
+	// 1. HTTP context cancellation (client disconnect)
+	// 2. InterruptController cancellation (user clicks "stop" button)
+	//
+	// Note on InterruptController:
+	// - ctx.Interrupt.Context() is only cancelled when InterruptForce && len(Messages) == 0
+	// - When user sends messages with the interrupt, the context is NOT cancelled
+	// - We use ctx.Interrupt.IsInterrupted() to check for any interrupt signal
+	stdCtx, cancelFunc := context.WithCancel(context.Background())
+	defer cancelFunc()
+
+	// Start a goroutine to monitor for interrupts and HTTP context cancellation
+	go func() {
+		ticker := time.NewTicker(500 * time.Millisecond)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stdCtx.Done():
+				// Already cancelled, exit
+				return
+			case <-ticker.C:
+				// Check if there's a pending interrupt signal using Peek()
+				// This works even when Messages are included (which doesn't cancel the context)
+				if ctx != nil && ctx.Interrupt != nil {
+					if signal := ctx.Interrupt.Peek(); signal != nil {
+						cancelFunc()
+						return
+					}
+				}
+				// Check InterruptController.IsInterrupted() (for context-cancelled interrupts)
+				if ctx != nil && ctx.Interrupt != nil && ctx.Interrupt.IsInterrupted() {
+					cancelFunc()
+					return
+				}
+				// Check HTTP context
+				if ctx != nil && ctx.Context != nil {
+					select {
+					case <-ctx.Context.Done():
+						cancelFunc()
+						return
+					default:
+					}
+				}
+			}
+		}
+	}()
 
 	// Set MCP tools for this request (dynamic, runtime configuration)
 	if len(e.opts.MCPTools) > 0 {
@@ -147,10 +204,51 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute command: %w", err)
 	}
-	defer reader.Close()
 
-	// Parse streaming output
-	return e.parseStream(reader, handler)
+	// Ensure reader is closed when context is cancelled or function returns
+	// This is important for cleanup when user clicks "stop"
+	done := make(chan struct{})
+	defer func() {
+		close(done)
+		reader.Close()
+	}()
+
+	// Monitor for context cancellation and forcefully kill Claude CLI process
+	go func() {
+		// Also start a ticker to periodically check context status for debugging
+		ticker := time.NewTicker(10 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-stdCtx.Done():
+				// First, kill the Claude CLI process inside the container
+				// This is important because closing the reader/connection alone may not stop the process
+				// Use a background context since stdCtx is already cancelled
+				killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+
+				// Kill claude process (the Claude CLI binary)
+				e.manager.KillProcess(killCtx, e.containerName, "claude")
+
+				// Also close the reader to unblock any pending reads
+				reader.Close()
+				return
+			case <-done:
+				// Normal completion, nothing to do
+				return
+			case <-ticker.C:
+				// Periodic check - no action needed
+			}
+		}
+	}()
+
+	// DEBUG: Tee the reader to write raw output to a log file for debugging
+	debugLogPath := e.workDir + "/claude-cli-raw.log"
+	debugReader := e.createDebugReader(stdCtx, reader, debugLogPath)
+
+	// Parse streaming output (uses e.loadingMsgID set via SetLoadingMsgID)
+	return e.parseStream(ctx, debugReader, handler)
 }
 
 // shouldSkipClaudeCLI checks if Claude CLI execution should be skipped
@@ -204,8 +302,15 @@ func (e *Executor) startClaudeProxy(ctx context.Context) error {
 		return fmt.Errorf("failed to build proxy config: %w", err)
 	}
 
-	// Write config to workspace
-	configPath := e.workDir + "/.claude-proxy.json"
+	// Create config directory (outside workspace for security - user can't see api_key/secrets)
+	// /tmp/.yao/ is not visible to user's file manager
+	configDir := "/tmp/.yao"
+	if _, err := e.manager.Exec(ctx, e.containerName, []string{"mkdir", "-p", configDir}, nil); err != nil {
+		return fmt.Errorf("failed to create config directory %s: %w", configDir, err)
+	}
+
+	// Write config to secure location (not in /workspace/)
+	configPath := configDir + "/proxy.json"
 	if err := e.manager.WriteFile(ctx, e.containerName, configPath, configJSON); err != nil {
 		return fmt.Errorf("failed to write config to %s: %w", configPath, err)
 	}
@@ -283,12 +388,62 @@ func (e *Executor) Execute(ctx *agentContext.Context, messages []agentContext.Me
 	return e.Stream(ctx, messages, nil)
 }
 
+// debugWriter wraps an io.Reader to write all data to a debug log file
+type debugWriter struct {
+	reader  io.Reader
+	logFile *os.File
+	buffer  []byte
+}
+
+func (d *debugWriter) Read(p []byte) (n int, err error) {
+	n, err = d.reader.Read(p)
+	if n > 0 && d.logFile != nil {
+		// Write raw bytes to log file
+		d.logFile.Write(p[:n])
+		d.logFile.Sync()
+	}
+	return n, err
+}
+
+func (d *debugWriter) Close() error {
+	if d.logFile != nil {
+		d.logFile.Close()
+	}
+	return nil
+}
+
+// createDebugReader creates a tee reader that writes to a debug log file
+// The log file is written to the container's workspace for inspection
+func (e *Executor) createDebugReader(ctx context.Context, reader io.ReadCloser, logPath string) io.Reader {
+	// Create a local temp file for debug logging
+	// We write to a local file first, then copy to container when done
+	localLogPath := "/tmp/claude-cli-debug-" + e.containerName + ".log"
+	logFile, err := os.Create(localLogPath)
+	if err != nil {
+		return reader
+	}
+
+	// Write header
+	logFile.WriteString("=== Claude CLI Raw Output Debug Log ===\n")
+	logFile.WriteString(fmt.Sprintf("Container: %s\n", e.containerName))
+	logFile.WriteString(fmt.Sprintf("Time: %s\n", time.Now().Format(time.RFC3339)))
+	logFile.WriteString(fmt.Sprintf("WorkDir: %s\n", e.workDir))
+	logFile.WriteString("=== BEGIN OUTPUT ===\n")
+	logFile.Sync()
+
+	return &debugWriter{
+		reader:  reader,
+		logFile: logFile,
+	}
+}
+
 // parseStream parses Claude CLI streaming output (stream-json format)
-// Claude CLI output format:
+// Claude CLI output format with --include-partial-messages:
 // - {"type":"system","subtype":"init",...} - initialization
-// - {"type":"assistant","message":{...,"content":[{"type":"text","text":"..."}],...}} - assistant messages
+// - {"type":"stream_event","event":{"delta":{"type":"text_delta","text":"..."}}} - real-time text deltas
+// - {"type":"assistant","message":{...,"content":[{"type":"text","text":"..."}],...}} - complete messages
 // - {"type":"result","subtype":"success",...,"result":"..."} - final result
-func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*agentContext.CompletionResponse, error) {
+func (e *Executor) parseStream(ctx *agentContext.Context, reader io.Reader, handler message.StreamFunc) (*agentContext.CompletionResponse, error) {
 	scanner := bufio.NewScanner(reader)
 	// Increase buffer size for potentially large outputs
 	buf := make([]byte, 0, 64*1024)
@@ -299,10 +454,58 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 	var model string
 	var usage *message.UsageInfo
 	var finalResult string
-	messageStarted := false // Track if we've sent ChunkMessageStart
+	messageStarted := false    // Track if we've sent ChunkMessageStart
+	prepLoadingClosed := false // Track if "preparing sandbox" loading has been closed
+
+	// Tool input accumulation state
+	type toolState struct {
+		name      string
+		index     int
+		inputJSON strings.Builder
+		loadingID string // Each tool has its own loading message
+	}
+	var currentTool *toolState
+	var lastToolLoadingID string // Track the last tool loading ID to close it
+
+	// Helper function to close "preparing sandbox" loading on first output
+	closePrepLoading := func() {
+		if !prepLoadingClosed && e.loadingMsgID != "" && ctx != nil {
+			doneMsg := &message.Message{
+				MessageID:   e.loadingMsgID,
+				Delta:       true,
+				DeltaAction: message.DeltaReplace,
+				Type:        message.TypeLoading,
+				Props: map[string]interface{}{
+					"message": "",
+					"done":    true,
+				},
+			}
+			ctx.Send(doneMsg)
+			prepLoadingClosed = true
+		}
+	}
+
+	lineCount := 0
+
+	// Get the underlying context for cancellation checks
+	var stdCtx context.Context
+	if ctx != nil && ctx.Context != nil {
+		stdCtx = ctx.Context
+	} else {
+		stdCtx = context.Background()
+	}
 
 	for scanner.Scan() {
+		// Check for context cancellation on each iteration
+		select {
+		case <-stdCtx.Done():
+			return nil, stdCtx.Err()
+		default:
+			// Continue processing
+		}
+
 		line := scanner.Text()
+		lineCount++
 		if line == "" {
 			continue
 		}
@@ -326,10 +529,137 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 				model = m
 			}
 
+		case "stream_event":
+			// Real-time streaming event (from --include-partial-messages)
+			// Format: {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"..."}}}
+			if event, ok := msg["event"].(map[string]interface{}); ok {
+				eventType, _ := event["type"].(string)
+
+				switch eventType {
+				case "content_block_start":
+					// Check if this is a tool_use block starting
+					// Format: {"event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"...","name":"Write","input":{}}}}
+					if contentBlock, ok := event["content_block"].(map[string]interface{}); ok {
+						blockType, _ := contentBlock["type"].(string)
+						if blockType == "tool_use" {
+							toolName, _ := contentBlock["name"].(string)
+							blockIndex := 0
+							if idx, ok := event["index"].(float64); ok {
+								blockIndex = int(idx)
+							}
+							if toolName != "" && ctx != nil {
+								// Close "preparing sandbox" loading on first tool
+								closePrepLoading()
+
+								// Close previous tool loading if exists
+								if lastToolLoadingID != "" {
+									doneMsg := &message.Message{
+										MessageID:   lastToolLoadingID,
+										Delta:       true,
+										DeltaAction: message.DeltaReplace,
+										Type:        message.TypeLoading,
+										Props: map[string]interface{}{
+											"message": "",
+											"done":    true,
+										},
+									}
+									ctx.Send(doneMsg)
+								}
+
+								// Create new loading message for this tool
+								locale := ctx.Locale
+								toolLoadingMsg := &message.Message{
+									Type: message.TypeLoading,
+									Props: map[string]interface{}{
+										"message": getToolDescription(toolName, locale),
+									},
+								}
+								newLoadingID, _ := ctx.SendStream(toolLoadingMsg)
+
+								// Initialize tool state for input accumulation
+								currentTool = &toolState{
+									name:      toolName,
+									index:     blockIndex,
+									loadingID: newLoadingID,
+								}
+								lastToolLoadingID = newLoadingID
+
+								log.Printf("[Sandbox] Tool started: %s", toolName)
+							}
+						}
+					}
+
+				case "content_block_delta":
+					if delta, ok := event["delta"].(map[string]interface{}); ok {
+						deltaType, _ := delta["type"].(string)
+						switch deltaType {
+						case "text_delta":
+							if text, ok := delta["text"].(string); ok && text != "" {
+								// Close "preparing sandbox" loading on first text output
+								closePrepLoading()
+
+								// Send to stream handler for real-time output
+								if handler != nil {
+									// Send ChunkMessageStart first if not already started
+									if !messageStarted {
+										startData := message.EventMessageStartData{
+											MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
+											Type:      "text",
+											Timestamp: time.Now().UnixMilli(),
+										}
+										startDataJSON, _ := json.Marshal(startData)
+										handler(message.ChunkMessageStart, startDataJSON)
+										messageStarted = true
+									}
+									handler(message.ChunkText, []byte(text))
+								}
+								// Also accumulate for final response
+								textContent.WriteString(text)
+							}
+
+						case "input_json_delta":
+							// Accumulate tool input JSON fragments
+							if currentTool != nil {
+								if partialJSON, ok := delta["partial_json"].(string); ok {
+									currentTool.inputJSON.WriteString(partialJSON)
+								}
+							}
+						}
+					}
+
+				case "content_block_stop":
+					// Tool input complete - parse and update loading with detailed info
+					if currentTool != nil && currentTool.loadingID != "" && ctx != nil {
+						inputStr := currentTool.inputJSON.String()
+						if inputStr != "" {
+							// Use gou/json.Parse for fault-tolerant parsing
+							locale := ctx.Locale
+							detailedMsg := getToolDetailedDescription(currentTool.name, inputStr, locale)
+							if detailedMsg != "" {
+								toolMsg := &message.Message{
+									MessageID:   currentTool.loadingID,
+									Delta:       true,
+									DeltaAction: message.DeltaReplace,
+									Type:        message.TypeLoading,
+									Props: map[string]interface{}{
+										"message": detailedMsg,
+									},
+								}
+								ctx.Send(toolMsg)
+								log.Printf("[Sandbox] Tool: %s -> %s", currentTool.name, detailedMsg)
+							}
+						}
+						// Note: Don't close loading here - it will be closed when next tool starts or at end
+						// Reset tool state but keep lastToolLoadingID to close it later
+						currentTool = nil
+					}
+				}
+			}
+
 		case "assistant":
 			// Assistant message - extract content
-			// Note: Claude CLI sends multiple assistant messages, each with cumulative content.
-			// We only process the final one (with stop_reason) to avoid duplicates.
+			// With --include-partial-messages, we receive real-time text via stream_event
+			// The assistant message contains the full accumulated content
 			if msgData, ok := msg["message"].(map[string]interface{}); ok {
 				// Get model from message
 				if m, ok := msgData["model"].(string); ok && model == "" {
@@ -340,7 +670,8 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 				stopReason, hasStopReason := msgData["stop_reason"].(string)
 				isFinalMessage := hasStopReason && stopReason != ""
 
-				// Extract content array - only from final message to avoid duplicates
+				// Extract content from final message
+				// This serves as a fallback if stream_event wasn't received
 				if isFinalMessage {
 					if contentArr, ok := msgData["content"].([]interface{}); ok {
 						for _, item := range contentArr {
@@ -349,41 +680,79 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 
 								switch itemType {
 								case "text":
-									if text, ok := contentItem["text"].(string); ok {
-										textContent.WriteString(text)
-										// Send to stream handler if available
-										if handler != nil {
-											// Send ChunkMessageStart first if not already started
-											// This initializes the stream state (inGroup=true) required for Buffer.AddAssistantMessage
-											if !messageStarted {
-												startData := message.EventMessageStartData{
-													MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
-													Type:      "text",
-													Timestamp: time.Now().UnixMilli(),
+									// Only use this if we haven't already accumulated text from stream_event
+									if textContent.Len() == 0 {
+										if text, ok := contentItem["text"].(string); ok && text != "" {
+											textContent.WriteString(text)
+											// Send to stream handler if available
+											if handler != nil {
+												if !messageStarted {
+													startData := message.EventMessageStartData{
+														MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
+														Type:      "text",
+														Timestamp: time.Now().UnixMilli(),
+													}
+													startDataJSON, _ := json.Marshal(startData)
+													handler(message.ChunkMessageStart, startDataJSON)
+													messageStarted = true
 												}
-												startDataJSON, _ := json.Marshal(startData)
-												handler(message.ChunkMessageStart, startDataJSON)
-												messageStarted = true
+												handler(message.ChunkText, []byte(text))
 											}
-											handler(message.ChunkText, []byte(text))
 										}
 									}
 
 								case "tool_use":
+									toolName := getString(contentItem, "name")
 									toolCall := agentContext.ToolCall{
 										ID:   getString(contentItem, "id"),
 										Type: agentContext.ToolTypeFunction,
 										Function: agentContext.Function{
-											Name: getString(contentItem, "name"),
+											Name: toolName,
 										},
 									}
 									// Get input as JSON string
+									var inputJSONStr string
 									if input, ok := contentItem["input"]; ok {
 										if inputJSON, err := json.Marshal(input); err == nil {
-											toolCall.Function.Arguments = string(inputJSON)
+											inputJSONStr = string(inputJSON)
+											toolCall.Function.Arguments = inputJSONStr
 										}
 									}
 									toolCalls = append(toolCalls, toolCall)
+
+									// Create tool loading message (from complete assistant message)
+									// This is a fallback for when stream_event wasn't received
+									if toolName != "" && ctx != nil {
+										// Close previous tool loading if exists
+										if lastToolLoadingID != "" {
+											doneMsg := &message.Message{
+												MessageID:   lastToolLoadingID,
+												Delta:       true,
+												DeltaAction: message.DeltaReplace,
+												Type:        message.TypeLoading,
+												Props: map[string]interface{}{
+													"message": "",
+													"done":    true,
+												},
+											}
+											ctx.Send(doneMsg)
+										}
+
+										// Create new loading for this tool
+										locale := ctx.Locale
+										detailedMsg := getToolDetailedDescription(toolName, inputJSONStr, locale)
+										if detailedMsg != "" {
+											toolLoadingMsg := &message.Message{
+												Type: message.TypeLoading,
+												Props: map[string]interface{}{
+													"message": detailedMsg,
+												},
+											}
+											newLoadingID, _ := ctx.SendStream(toolLoadingMsg)
+											lastToolLoadingID = newLoadingID
+											log.Printf("[Sandbox] Tool: %s -> %s", toolName, detailedMsg)
+										}
+									}
 								}
 							}
 						}
@@ -405,11 +774,17 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 
 		case "result":
 			// Final result message
+			// Check if this is an error result (is_error: true)
+			isError, _ := msg["is_error"].(bool)
 			if result, ok := msg["result"].(string); ok {
+				if isError {
+					// This is an error - return it as an error
+					return nil, fmt.Errorf("Claude CLI error: %s", result)
+				}
 				finalResult = result
 			}
-			// Send done signal to handler (only if message was started)
-			if handler != nil && messageStarted {
+			// Send done signal to handler (only if message was started and not an error)
+			if handler != nil && messageStarted && !isError {
 				handler(message.ChunkMessageEnd, nil)
 			}
 
@@ -428,6 +803,21 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading stream: %w", err)
+	}
+
+	// Close the last tool loading message if exists
+	if lastToolLoadingID != "" && ctx != nil {
+		doneMsg := &message.Message{
+			MessageID:   lastToolLoadingID,
+			Delta:       true,
+			DeltaAction: message.DeltaReplace,
+			Type:        message.TypeLoading,
+			Props: map[string]interface{}{
+				"message": "",
+				"done":    true,
+			},
+		}
+		ctx.Send(doneMsg)
 	}
 
 	// Use final result if available, otherwise use accumulated text content
@@ -458,6 +848,161 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 	}
 
 	return response, nil
+}
+
+// truncateStr truncates a string to maxLen characters
+func truncateStr(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}
+
+// getToolDescription returns a human-readable, localized description for a Claude CLI tool
+func getToolDescription(toolName string, locale string) string {
+	// Map tool names to i18n keys
+	toolKeys := map[string]string{
+		"Read":         "sandbox.tool.read",
+		"Write":        "sandbox.tool.write",
+		"Edit":         "sandbox.tool.edit",
+		"StrReplace":   "sandbox.tool.edit",
+		"Bash":         "sandbox.tool.bash",
+		"Shell":        "sandbox.tool.bash",
+		"Glob":         "sandbox.tool.glob",
+		"Grep":         "sandbox.tool.grep",
+		"LS":           "sandbox.tool.ls",
+		"Task":         "sandbox.tool.task",
+		"WebSearch":    "sandbox.tool.web_search",
+		"WebFetch":     "sandbox.tool.web_fetch",
+		"TodoWrite":    "sandbox.tool.todo_write",
+		"AskQuestion":  "sandbox.tool.ask_question",
+		"SwitchMode":   "sandbox.tool.switch_mode",
+		"ReadLints":    "sandbox.tool.read_lints",
+		"EditNotebook": "sandbox.tool.edit_notebook",
+	}
+
+	if key, ok := toolKeys[toolName]; ok {
+		return i18n.T(locale, key)
+	}
+	// For unknown tools, use the unknown key and replace {{name}} manually
+	template := i18n.T(locale, "sandbox.tool.unknown")
+	return strings.Replace(template, "{{name}}", toolName, 1)
+}
+
+// getToolDetailedDescription returns a detailed description with specific parameters
+// It parses the tool input JSON and extracts key information to show users
+func getToolDetailedDescription(toolName string, inputJSON string, locale string) string {
+	// Parse the input JSON using fault-tolerant parser
+	parsed, err := goujson.Parse(inputJSON)
+	if err != nil {
+		// Fall back to basic description if parsing fails
+		return getToolDescription(toolName, locale)
+	}
+
+	input, ok := parsed.(map[string]interface{})
+	if !ok {
+		return getToolDescription(toolName, locale)
+	}
+
+	// Extract key information based on tool type
+	var detail string
+	switch toolName {
+	case "Bash", "Shell":
+		// Show the command being executed
+		if cmd, ok := input["command"].(string); ok && cmd != "" {
+			// Truncate long commands
+			if len(cmd) > 50 {
+				cmd = cmd[:47] + "..."
+			}
+			detail = cmd
+		}
+
+	case "Read":
+		// Show the file being read
+		if path, ok := input["path"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		}
+
+	case "Write":
+		// Show the file being written
+		// Note: Claude CLI uses "file_path" for Write tool, not "path"
+		if path, ok := input["file_path"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		} else if path, ok := input["path"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		}
+
+	case "Edit", "StrReplace":
+		// Show the file being edited
+		if path, ok := input["path"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		}
+
+	case "Glob":
+		// Show the glob pattern
+		if pattern, ok := input["glob_pattern"].(string); ok && pattern != "" {
+			detail = pattern
+		} else if pattern, ok := input["pattern"].(string); ok && pattern != "" {
+			detail = pattern
+		}
+
+	case "Grep":
+		// Show the search pattern
+		if pattern, ok := input["pattern"].(string); ok && pattern != "" {
+			if len(pattern) > 30 {
+				pattern = pattern[:27] + "..."
+			}
+			detail = pattern
+		}
+
+	case "LS":
+		// Show the directory
+		if path, ok := input["target_directory"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		} else if path, ok := input["path"].(string); ok && path != "" {
+			detail = filepath.Base(path)
+		}
+
+	case "WebSearch":
+		// Show the search query
+		if query, ok := input["search_term"].(string); ok && query != "" {
+			if len(query) > 40 {
+				query = query[:37] + "..."
+			}
+			detail = query
+		} else if query, ok := input["query"].(string); ok && query != "" {
+			if len(query) > 40 {
+				query = query[:37] + "..."
+			}
+			detail = query
+		}
+
+	case "WebFetch":
+		// Show the URL
+		if url, ok := input["url"].(string); ok && url != "" {
+			// Extract domain from URL
+			if len(url) > 50 {
+				url = url[:47] + "..."
+			}
+			detail = url
+		}
+
+	case "Task":
+		// Show the task description
+		if desc, ok := input["description"].(string); ok && desc != "" {
+			if len(desc) > 40 {
+				desc = desc[:37] + "..."
+			}
+			detail = desc
+		}
+	}
+
+	// Build the message with detail
+	baseMsg := getToolDescription(toolName, locale)
+	if detail != "" {
+		return baseMsg + ": " + detail
+	}
+	return baseMsg
 }
 
 // ReadFile reads a file from the container

@@ -3,23 +3,56 @@ package proxy
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 // convertRequest converts an Anthropic request to OpenAI format
 func (s *Server) convertRequest(req *AnthropicRequest) *OpenAIRequest {
-	// Limit max_tokens to backend's maximum (most models support 16384)
+	// Get max_tokens from options if specified, otherwise use request value
 	maxTokens := req.MaxTokens
-	if maxTokens > 16384 {
-		maxTokens = 16384
+	if s.config.Options != nil {
+		if mt, ok := s.config.Options["max_tokens"]; ok {
+			switch v := mt.(type) {
+			case float64:
+				maxTokens = int(v)
+			case int:
+				maxTokens = v
+			}
+		}
+	}
+
+	// Get temperature from options if specified
+	temperature := req.Temperature
+	if s.config.Options != nil {
+		if temp, ok := s.config.Options["temperature"]; ok {
+			if v, ok := temp.(float64); ok {
+				temperature = &v
+			}
+		}
 	}
 
 	openaiReq := &OpenAIRequest{
 		Model:       s.config.Model,
 		MaxTokens:   maxTokens,
 		Stream:      req.Stream,
-		Temperature: req.Temperature,
+		Temperature: temperature,
 		TopP:        req.TopP,
 		Stop:        req.StopSequences,
+	}
+
+	// Pass through extra options (e.g., thinking, reasoning_effort, etc.)
+	// These are backend-specific parameters that will be merged into the request
+	if s.config.Options != nil {
+		openaiReq.ExtraOptions = make(map[string]interface{})
+		for k, v := range s.config.Options {
+			// Skip standard fields that are already handled
+			switch k {
+			case "max_tokens", "temperature", "model", "key", "proxy":
+				continue
+			default:
+				openaiReq.ExtraOptions[k] = v
+			}
+		}
 	}
 
 	// Convert messages
@@ -302,12 +335,17 @@ func extractSystemText(system interface{}) string {
 		for _, item := range s {
 			if block, ok := item.(map[string]interface{}); ok {
 				if text, ok := block["text"].(string); ok {
+					// Skip billing headers and other metadata
+					if strings.HasPrefix(text, "x-anthropic-") {
+						continue
+					}
 					texts = append(texts, text)
 				}
 			}
 		}
+		// Concatenate all system texts with newlines
 		if len(texts) > 0 {
-			return texts[0] // Return first system text
+			return strings.Join(texts, "\n\n")
 		}
 	}
 	return ""

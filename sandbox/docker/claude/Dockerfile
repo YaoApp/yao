@@ -25,6 +25,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# GitHub CLI (gh) for repository operations
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
 # npm global packages directory for sandbox user
 RUN mkdir -p /home/sandbox/.npm-global && \
     chown -R sandbox:sandbox /home/sandbox/.npm-global
@@ -38,6 +46,21 @@ ENV PATH="/home/sandbox/.npm-global/bin:${PATH}"
 # Install Claude CLI
 RUN npm install -g @anthropic-ai/claude-code || \
     echo "Claude CLI installation skipped (may not be available yet)"
+
+# Create Claude CLI configuration for auto-approve all operations
+# This is CRITICAL for non-interactive sandbox usage
+# The --dangerously-skip-permissions flag alone is not enough;
+# we also need the settings.json to fully bypass permission prompts
+RUN mkdir -p /home/sandbox/.claude && \
+    cat > /home/sandbox/.claude/settings.json << 'EOF'
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": ["*"],
+    "deny": []
+  }
+}
+EOF
 
 USER root
 
@@ -140,14 +163,14 @@ SCRIPT
 RUN chmod +x /usr/local/bin/claude-run
 
 # Create start-claude-proxy script for programmatic use (called by Yao)
-# This reads proxy config from /workspace/.claude-proxy.json if exists
+# Config is read from /tmp/.yao/proxy.json (NOT /workspace/ for security - api_key/secrets hidden from user)
 RUN cat > /usr/local/bin/start-claude-proxy << 'SCRIPT'
 #!/bin/bash
 # Start claude-proxy from config file or environment variables
-# Config file: /workspace/.claude-proxy.json
-# Format: {"backend": "...", "api_key": "...", "model": "..."}
+# Config file: /tmp/.yao/proxy.json (secure location, not visible to user file manager)
+# Format: {"backend": "...", "api_key": "...", "model": "...", "options": {...}, "secrets": {...}}
 
-CONFIG_FILE="${WORKSPACE:-/workspace}/.claude-proxy.json"
+CONFIG_FILE="/tmp/.yao/proxy.json"
 LOG_FILE="${WORKSPACE:-/workspace}/proxy.log"
 PORT="${CLAUDE_PROXY_PORT:-3456}"
 
@@ -156,6 +179,8 @@ if [ -f "$CONFIG_FILE" ]; then
     BACKEND=$(jq -r '.backend // empty' "$CONFIG_FILE" 2>/dev/null)
     API_KEY=$(jq -r '.api_key // empty' "$CONFIG_FILE" 2>/dev/null)
     MODEL=$(jq -r '.model // empty' "$CONFIG_FILE" 2>/dev/null)
+    # Read extra options as JSON string (e.g., {"thinking":{"type":"enabled"}})
+    OPTIONS=$(jq -c '.options // empty' "$CONFIG_FILE" 2>/dev/null)
     
     if [ -n "$BACKEND" ]; then
         export CLAUDE_PROXY_BACKEND="$BACKEND"
@@ -165,6 +190,23 @@ if [ -f "$CONFIG_FILE" ]; then
     fi
     if [ -n "$MODEL" ]; then
         export CLAUDE_PROXY_MODEL="$MODEL"
+    fi
+    # Only set options if it's a valid non-empty JSON object
+    if [ -n "$OPTIONS" ] && [ "$OPTIONS" != "null" ] && [ "$OPTIONS" != "" ]; then
+        export CLAUDE_PROXY_OPTIONS="$OPTIONS"
+    fi
+    
+    # Export secrets as environment variables for Claude CLI to use
+    # e.g., {"GITHUB_TOKEN": "ghp_xxx"} -> export GITHUB_TOKEN=ghp_xxx
+    SECRETS=$(jq -c '.secrets // empty' "$CONFIG_FILE" 2>/dev/null)
+    if [ -n "$SECRETS" ] && [ "$SECRETS" != "null" ] && [ "$SECRETS" != "" ] && [ "$SECRETS" != "{}" ]; then
+        # Parse each key-value pair and export
+        for key in $(echo "$SECRETS" | jq -r 'keys[]' 2>/dev/null); do
+            value=$(echo "$SECRETS" | jq -r --arg k "$key" '.[$k]' 2>/dev/null)
+            if [ -n "$value" ] && [ "$value" != "null" ]; then
+                export "$key"="$value"
+            fi
+        done
     fi
 fi
 
@@ -181,9 +223,14 @@ if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
     exit 0
 fi
 
-# Start proxy
+# Start proxy with environment variables explicitly passed
 mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
-nohup /usr/local/bin/claude-proxy -v -l "$LOG_FILE" > /dev/null 2>&1 &
+nohup env \
+    CLAUDE_PROXY_BACKEND="$CLAUDE_PROXY_BACKEND" \
+    CLAUDE_PROXY_API_KEY="$CLAUDE_PROXY_API_KEY" \
+    CLAUDE_PROXY_MODEL="$CLAUDE_PROXY_MODEL" \
+    CLAUDE_PROXY_OPTIONS="$CLAUDE_PROXY_OPTIONS" \
+    /usr/local/bin/claude-proxy -v -l "$LOG_FILE" > /dev/null 2>&1 &
 
 # Wait for startup
 for i in {1..20}; do

@@ -18,6 +18,9 @@ type Executor interface {
 	// Stream runs the request with streaming output (uses options set at creation time)
 	Stream(ctx *agentContext.Context, messages []agentContext.Message, handler message.StreamFunc) (*agentContext.CompletionResponse, error)
 
+	// SetLoadingMsgID sets the loading message ID for tool execution status updates
+	SetLoadingMsgID(id string)
+
 	// Filesystem operations (for Hooks)
 	ReadFile(ctx context.Context, path string) ([]byte, error)
 	WriteFile(ctx context.Context, path string, content []byte) error
@@ -83,6 +86,14 @@ type Options struct {
 	ConnectorHost string `json:"-"`
 	ConnectorKey  string `json:"-"`
 	Model         string `json:"-"`
+
+	// ConnectorOptions - extra options from connector config (e.g., thinking, max_tokens, temperature)
+	// These are backend-specific parameters passed to the proxy
+	ConnectorOptions map[string]interface{} `json:"-"`
+
+	// Secrets - sensitive values from sandbox.secrets config (e.g., GITHUB_TOKEN)
+	// Resolved from $ENV.XXX references, exported as env vars in container
+	Secrets map[string]string `json:"-"`
 }
 
 // SandboxConfig represents the sandbox configuration in assistant package.yao

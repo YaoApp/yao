@@ -153,13 +153,13 @@ claude --dangerously-skip-permissions "your task"
 
 ### Option Reference
 
-| Option | Description |
-|--------|-------------|
-| `-p, --print` | Print mode, exit after output |
-| `--dangerously-skip-permissions` | Skip all permission checks |
-| `--permission-mode bypassPermissions` | Bypass permission mode |
-| `--output-format stream-json` | Output JSON stream |
-| `--verbose` | Verbose output (required for stream-json) |
+| Option                                | Description                               |
+| ------------------------------------- | ----------------------------------------- |
+| `-p, --print`                         | Print mode, exit after output             |
+| `--dangerously-skip-permissions`      | Skip all permission checks                |
+| `--permission-mode bypassPermissions` | Bypass permission mode                    |
+| `--output-format stream-json`         | Output JSON stream                        |
+| `--verbose`                           | Verbose output (required for stream-json) |
 
 ## Viewing Logs
 
@@ -173,13 +173,13 @@ curl http://127.0.0.1:3456/health
 
 ## Supported Backends
 
-| Backend | API URL |
-|---------|---------|
-| Volcengine GLM | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` |
-| Volcengine DeepSeek | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` |
-| DeepSeek Official | `https://api.deepseek.com/chat/completions` |
-| OpenAI | `https://api.openai.com/v1/chat/completions` |
-| Other OpenAI-compatible APIs | Custom URL |
+| Backend                      | API URL                                                     |
+| ---------------------------- | ----------------------------------------------------------- |
+| Volcengine GLM               | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` |
+| Volcengine DeepSeek          | `https://ark.cn-beijing.volces.com/api/v3/chat/completions` |
+| DeepSeek Official            | `https://api.deepseek.com/chat/completions`                 |
+| OpenAI                       | `https://api.openai.com/v1/chat/completions`                |
+| Other OpenAI-compatible APIs | Custom URL                                                  |
 
 ## API Endpoints
 

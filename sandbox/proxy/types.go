@@ -1,5 +1,7 @@
 package proxy
 
+import "encoding/json"
+
 // ============================================
 // Anthropic API Types
 // ============================================
@@ -126,6 +128,54 @@ type OpenAIRequest struct {
 	Stop          []string       `json:"stop,omitempty"`
 	Tools         []OpenAITool   `json:"tools,omitempty"`
 	ToolChoice    interface{}    `json:"tool_choice,omitempty"` // "auto", "none", "required", or object
+
+	// Extra options for backend-specific parameters (e.g., thinking for GLM-4)
+	// These are merged into the final JSON request
+	ExtraOptions map[string]interface{} `json:"-"`
+}
+
+// MarshalJSON custom marshaler to merge ExtraOptions into the request
+func (r OpenAIRequest) MarshalJSON() ([]byte, error) {
+	// Create a map with standard fields
+	m := map[string]interface{}{
+		"model":    r.Model,
+		"messages": r.Messages,
+	}
+
+	if r.MaxTokens > 0 {
+		m["max_tokens"] = r.MaxTokens
+	}
+	if r.Stream {
+		m["stream"] = r.Stream
+	}
+	if r.StreamOptions != nil {
+		m["stream_options"] = r.StreamOptions
+	}
+	if r.Temperature != nil {
+		m["temperature"] = *r.Temperature
+	}
+	if r.TopP != nil {
+		m["top_p"] = *r.TopP
+	}
+	if len(r.Stop) > 0 {
+		m["stop"] = r.Stop
+	}
+	if len(r.Tools) > 0 {
+		m["tools"] = r.Tools
+	}
+	if r.ToolChoice != nil {
+		m["tool_choice"] = r.ToolChoice
+	}
+
+	// Merge extra options (backend-specific parameters like thinking, etc.)
+	for k, v := range r.ExtraOptions {
+		// Don't override standard fields
+		if _, exists := m[k]; !exists {
+			m[k] = v
+		}
+	}
+
+	return json.Marshal(m)
 }
 
 // StreamOptions represents stream options in OpenAI format

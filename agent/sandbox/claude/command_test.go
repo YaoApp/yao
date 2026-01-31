@@ -33,6 +33,7 @@ func TestBuildCommand(t *testing.T) {
 	// Should have stream-json flags
 	assert.Contains(t, cmd[2], "--input-format")
 	assert.Contains(t, cmd[2], "--output-format")
+	assert.Contains(t, cmd[2], "--include-partial-messages")
 	assert.Contains(t, cmd[2], "--verbose")
 	assert.Contains(t, cmd[2], "stream-json")
 
@@ -51,12 +52,35 @@ func TestBuildCommandWithSystemPrompt(t *testing.T) {
 
 	opts := &Options{}
 
-	_, env, err := BuildCommand(messages, opts)
+	cmd, _, err := BuildCommand(messages, opts)
 	require.NoError(t, err)
 
-	// System prompt should include conversation history
-	assert.Contains(t, env["CLAUDE_SYSTEM_PROMPT"], "You are a code reviewer")
-	assert.Contains(t, env["CLAUDE_SYSTEM_PROMPT"], "Conversation History")
+	// System prompt should be written to file via heredoc, then passed via --append-system-prompt-file
+	bashCmd := cmd[2] // The bash -c command string
+	assert.Contains(t, bashCmd, "cat << 'PROMPTEOF' > /tmp/.system-prompt.txt")
+	assert.Contains(t, bashCmd, "You are a code reviewer")
+	assert.Contains(t, bashCmd, "PROMPTEOF")
+	assert.Contains(t, bashCmd, "--append-system-prompt-file")
+	assert.Contains(t, bashCmd, "/tmp/.system-prompt.txt")
+}
+
+func TestBuildCommandWithSpecialCharsInPrompt(t *testing.T) {
+	// Test that special characters in prompts are handled correctly
+	messages := []agentContext.Message{
+		{Role: "system", Content: "You are a helper.\n\n## Rules\n- Rule 1: Don't use \"quotes\" wrongly\n- Rule 2: Handle 'single quotes' too\n- Rule 3: Special chars like $VAR and `backticks`"},
+		{Role: "user", Content: "Hello"},
+	}
+
+	opts := &Options{}
+
+	cmd, _, err := BuildCommand(messages, opts)
+	require.NoError(t, err)
+
+	bashCmd := cmd[2]
+	// The heredoc approach should preserve all special characters
+	assert.Contains(t, bashCmd, "## Rules")
+	assert.Contains(t, bashCmd, `Don't use "quotes" wrongly`)
+	assert.Contains(t, bashCmd, "'single quotes'")
 }
 
 func TestBuildCommandWithArguments(t *testing.T) {
@@ -71,12 +95,15 @@ func TestBuildCommandWithArguments(t *testing.T) {
 		},
 	}
 
-	cmd, env, err := BuildCommand(messages, opts)
+	cmd, _, err := BuildCommand(messages, opts)
 	require.NoError(t, err)
 
-	assert.Equal(t, "20", env["CLAUDE_MAX_TURNS"])
-	// permission_mode should be in command args, not env
-	assert.Contains(t, cmd[2], "acceptEdits")
+	bashCmd := cmd[2] // The bash -c command string
+	// max_turns should be in command args via --max-turns
+	assert.Contains(t, bashCmd, "--max-turns")
+	assert.Contains(t, bashCmd, "20")
+	// permission_mode should be in command args
+	assert.Contains(t, bashCmd, "acceptEdits")
 }
 
 func TestBuildProxyConfig(t *testing.T) {

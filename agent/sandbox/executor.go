@@ -26,21 +26,23 @@ func New(manager *infraSandbox.Manager, opts *Options) (Executor, error) {
 	case "claude":
 		// Convert to claude.Options
 		claudeOpts := &claude.Options{
-			Command:       opts.Command,
-			Image:         opts.Image,
-			MaxMemory:     opts.MaxMemory,
-			MaxCPU:        opts.MaxCPU,
-			Timeout:       opts.Timeout,
-			Arguments:     opts.Arguments,
-			UserID:        opts.UserID,
-			ChatID:        opts.ChatID,
-			MCPConfig:     opts.MCPConfig,
-			MCPTools:      opts.MCPTools,
-			SkillsDir:     opts.SkillsDir,
-			SystemPrompt:  opts.SystemPrompt, // Required for Claude CLI execution
-			ConnectorHost: opts.ConnectorHost,
-			ConnectorKey:  opts.ConnectorKey,
-			Model:         opts.Model,
+			Command:          opts.Command,
+			Image:            opts.Image,
+			MaxMemory:        opts.MaxMemory,
+			MaxCPU:           opts.MaxCPU,
+			Timeout:          opts.Timeout,
+			Arguments:        opts.Arguments,
+			UserID:           opts.UserID,
+			ChatID:           opts.ChatID,
+			MCPConfig:        opts.MCPConfig,
+			MCPTools:         opts.MCPTools,
+			SkillsDir:        opts.SkillsDir,
+			SystemPrompt:     opts.SystemPrompt, // Required for Claude CLI execution
+			ConnectorHost:    opts.ConnectorHost,
+			ConnectorKey:     opts.ConnectorKey,
+			Model:            opts.Model,
+			ConnectorOptions: opts.ConnectorOptions, // Extra options like thinking, max_tokens
+			Secrets:          opts.Secrets,          // Secrets for container env vars
 		}
 		return claude.NewExecutor(manager, claudeOpts)
 	case "cursor":

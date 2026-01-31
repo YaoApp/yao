@@ -8,11 +8,52 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
 
+// sandboxEnvPrompt is the system prompt injected for sandbox environment
+// This tells Claude CLI about the workspace and project structure
+const sandboxEnvPrompt = `## Sandbox Environment
+
+You are running in a sandboxed environment with the following setup:
+
+- **Working Directory**: /workspace
+- **Project Structure**: If this is a new project, create a dedicated project folder (e.g., /workspace/my-project/) and work inside it
+- **File Access**: You have full read/write access to /workspace
+- **Output Files**: Save all output files to the working directory
+
+When creating new projects:
+1. Create a project directory with a descriptive name
+2. Initialize the project structure inside that directory
+3. Keep all related files organized within the project folder
+
+## IMPORTANT: Restricted Tools
+
+The following tools are NOT available in this environment and you must NOT use them:
+- EnterPlanMode, ExitPlanMode (use regular text to explain plans instead)
+- Task, TaskOutput, TaskStop (complete tasks directly without delegation)
+- AskUserQuestion (make reasonable assumptions instead of asking)
+- Skill, ToolSearch (not supported)
+
+Focus on using the core tools: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch.
+
+## GitHub CLI (gh) Usage
+
+When working with GitHub and a token is provided:
+1. First authenticate gh CLI using the token: echo "TOKEN" | gh auth login --with-token
+2. Then use gh commands normally (gh repo create, gh pr create, etc.)
+3. Do NOT use curl to call GitHub API directly - always prefer gh CLI
+`
+
 // BuildCommand builds the Claude CLI command and environment variables
 // Uses stdin with --input-format stream-json for unlimited prompt length
 func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map[string]string, error) {
 	// Build system prompt from conversation history
 	systemPrompt, _ := buildPrompts(messages)
+
+	// Inject sandbox environment prompt
+	if systemPrompt != "" {
+		systemPrompt = systemPrompt + "\n\n" + sandboxEnvPrompt
+	} else {
+		systemPrompt = sandboxEnvPrompt
+	}
 
 	// Build input JSONL for Claude CLI (stream-json format)
 	inputJSONL, err := BuildInputJSONL(messages)
@@ -36,7 +77,15 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	// Add streaming format flags (required for proper streaming output)
 	claudeArgs = append(claudeArgs, "--input-format", "stream-json")
 	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
+	claudeArgs = append(claudeArgs, "--include-partial-messages") // Enable realtime streaming
 	claudeArgs = append(claudeArgs, "--verbose")
+
+	// Add max_turns if specified
+	if opts != nil && opts.Arguments != nil {
+		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
+			claudeArgs = append(claudeArgs, "--max-turns", fmt.Sprintf("%v", maxTurns))
+		}
+	}
 
 	// Add MCP config if available
 	if opts != nil && len(opts.MCPConfig) > 0 {
@@ -46,16 +95,30 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	}
 
 	// Build the full bash command
-	// Use heredoc to pass input JSONL via stdin (no length limit)
-	// claude-proxy is already started by prepareEnvironment
-	bashCmd := "cat << 'INPUTEOF' | claude -p"
+	// Use heredoc for both system prompt and input JSONL to avoid shell escaping issues
+	// System prompt may contain quotes, newlines, special characters that break shell quoting
+	var bashCmd strings.Builder
+
+	// If we have a system prompt, write it to a temp file via heredoc first
+	// then use --append-system-prompt-file
+	if systemPrompt != "" {
+		bashCmd.WriteString("cat << 'PROMPTEOF' > /tmp/.system-prompt.txt\n")
+		bashCmd.WriteString(systemPrompt)
+		bashCmd.WriteString("\nPROMPTEOF\n")
+		claudeArgs = append(claudeArgs, "--append-system-prompt-file", "/tmp/.system-prompt.txt")
+	}
+
+	// Build claude command with all arguments
+	bashCmd.WriteString("cat << 'INPUTEOF' | claude -p")
 	for _, arg := range claudeArgs {
 		// Quote arguments that might contain special characters
-		bashCmd += fmt.Sprintf(" %q", arg)
+		bashCmd.WriteString(fmt.Sprintf(" %q", arg))
 	}
-	bashCmd += "\n" + string(inputJSONL) + "\nINPUTEOF"
+	bashCmd.WriteString("\n")
+	bashCmd.WriteString(string(inputJSONL))
+	bashCmd.WriteString("\nINPUTEOF")
 
-	cmd := []string{"bash", "-c", bashCmd}
+	cmd := []string{"bash", "-c", bashCmd.String()}
 
 	// Build environment variables
 	env := buildEnvironment(opts, systemPrompt)
@@ -175,24 +238,16 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
 	env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
 
-	// Set system prompt via environment (Claude CLI supports this)
-	if systemPrompt != "" {
-		env["CLAUDE_SYSTEM_PROMPT"] = systemPrompt
-	}
-
-	// Additional Claude CLI options from Arguments
-	if opts.Arguments != nil {
-		// max_turns
-		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
-			env["CLAUDE_MAX_TURNS"] = fmt.Sprintf("%v", maxTurns)
-		}
-	}
+	// Note: System prompt and max_turns are passed via CLI flags in BuildCommand
+	// CLAUDE_SYSTEM_PROMPT environment variable is NOT supported by Claude CLI
+	// --append-system-prompt or --system-prompt flags must be used instead
 
 	return env
 }
 
 // BuildProxyConfig builds the claude-proxy configuration JSON
 // This config file is read by start-claude-proxy script in the container
+// Config is written to /tmp/.yao/proxy.json (not /workspace/) for security
 func BuildProxyConfig(opts *Options) ([]byte, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("options is required")
@@ -208,6 +263,18 @@ func BuildProxyConfig(opts *Options) ([]byte, error) {
 		"backend": backendURL,
 		"api_key": opts.ConnectorKey,
 		"model":   opts.Model,
+	}
+
+	// Add extra connector options if present (e.g., thinking, max_tokens, temperature)
+	// These will be passed to the proxy via CLAUDE_PROXY_OPTIONS environment variable
+	if len(opts.ConnectorOptions) > 0 {
+		config["options"] = opts.ConnectorOptions
+	}
+
+	// Add secrets if present (e.g., GITHUB_TOKEN, AWS_ACCESS_KEY)
+	// These will be exported as environment variables for Claude CLI to use
+	if len(opts.Secrets) > 0 {
+		config["secrets"] = opts.Secrets
 	}
 
 	return json.MarshalIndent(config, "", "  ")

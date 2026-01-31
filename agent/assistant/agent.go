@@ -157,10 +157,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Sandbox must be created BEFORE hooks so that hooks can access ctx.sandbox
 	var sandboxExecutor agentsandbox.Executor
 	var sandboxCleanup func()
+	var sandboxLoadingMsgID string
 	if ast.HasSandbox() {
 		ctx.Logger.Phase("Sandbox")
 		var err error
-		sandboxExecutor, sandboxCleanup, err = ast.initSandbox(ctx, opts)
+		sandboxExecutor, sandboxCleanup, sandboxLoadingMsgID, err = ast.initSandbox(ctx, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -285,7 +286,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Choose between sandbox execution or direct LLM execution
 		if ast.HasSandbox() {
 			// Sandbox execution path (Claude CLI, Cursor CLI, etc.)
-			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor)
+			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor, sandboxLoadingMsgID)
 		} else {
 			// Direct LLM execution path
 			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)

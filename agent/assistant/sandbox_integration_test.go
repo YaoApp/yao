@@ -95,8 +95,13 @@ func TestClaudeCommandBuilding(t *testing.T) {
 	assert.NotEmpty(t, env)
 	assert.Equal(t, "http://127.0.0.1:3456", env["ANTHROPIC_BASE_URL"], "Should set proxy base URL")
 	assert.Equal(t, "dummy", env["ANTHROPIC_API_KEY"], "Should set dummy API key for proxy")
-	assert.Equal(t, "10", env["CLAUDE_MAX_TURNS"])
-	assert.Contains(t, env["CLAUDE_SYSTEM_PROMPT"], "You are a helpful coding assistant")
+
+	// max_turns is passed via CLI flag
+	// system prompt is written to file via heredoc, then referenced via --append-system-prompt-file
+	assert.Contains(t, cmd[2], "--max-turns", "Should include max-turns flag")
+	assert.Contains(t, cmd[2], "cat << 'PROMPTEOF' > /tmp/.system-prompt.txt", "Should use heredoc for system prompt")
+	assert.Contains(t, cmd[2], "--append-system-prompt-file", "Should include append-system-prompt-file flag")
+	assert.Contains(t, cmd[2], "You are a helpful coding assistant", "Command should contain system prompt")
 	t.Logf("Built environment: %v", env)
 }
 
