@@ -62,15 +62,9 @@ func newDemuxReadCloser(src io.Reader, closer io.Closer) *demuxReadCloser {
 		defer close(d.done)
 		defer pw.Close()
 
-		fmt.Printf("[DEBUG demux] Starting stdcopy.StdCopy\n")
-		startTime := time.Now()
-
 		// Use stdcopy to demux stdout and stderr
 		// We only care about stdout here, stderr goes to a discard writer
-		n, err := stdcopy.StdCopy(pw, io.Discard, src)
-		elapsed := time.Since(startTime)
-
-		fmt.Printf("[DEBUG demux] stdcopy.StdCopy returned: bytes=%d, err=%v, elapsed=%v\n", n, err, elapsed)
+		_, err := stdcopy.StdCopy(pw, io.Discard, src)
 
 		if err != nil && err != io.EOF {
 			d.mu.Lock()
@@ -113,7 +107,7 @@ func (d *demuxReadCloser) Close() error {
 	case <-d.done:
 		// Normal completion
 	case <-time.After(5 * time.Second):
-		fmt.Printf("[DEBUG demux] Timeout waiting for demux goroutine to finish\n")
+		// Timeout - goroutine may be stuck, but we've done cleanup
 	}
 
 	d.mu.Lock()
