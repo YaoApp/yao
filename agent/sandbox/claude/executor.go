@@ -327,52 +327,57 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 
 		case "assistant":
 			// Assistant message - extract content
+			// Note: Claude CLI sends multiple assistant messages, each with cumulative content.
+			// We only process the final one (with stop_reason) to avoid duplicates.
 			if msgData, ok := msg["message"].(map[string]interface{}); ok {
 				// Get model from message
 				if m, ok := msgData["model"].(string); ok && model == "" {
 					model = m
 				}
 
-				// Extract content array
-				if contentArr, ok := msgData["content"].([]interface{}); ok {
-					for _, item := range contentArr {
-						if contentItem, ok := item.(map[string]interface{}); ok {
-							itemType, _ := contentItem["type"].(string)
+				// Check if this is the final message (has stop_reason)
+				stopReason, hasStopReason := msgData["stop_reason"].(string)
+				isFinalMessage := hasStopReason && stopReason != ""
 
-							switch itemType {
-							case "text":
-								if text, ok := contentItem["text"].(string); ok {
-									// Only write if this is new content (avoid duplicates)
-									if textContent.Len() == 0 || !strings.HasSuffix(textContent.String(), text) {
+				// Extract content array - only from final message to avoid duplicates
+				if isFinalMessage {
+					if contentArr, ok := msgData["content"].([]interface{}); ok {
+						for _, item := range contentArr {
+							if contentItem, ok := item.(map[string]interface{}); ok {
+								itemType, _ := contentItem["type"].(string)
+
+								switch itemType {
+								case "text":
+									if text, ok := contentItem["text"].(string); ok {
 										textContent.WriteString(text)
+										// Send to stream handler if available
+										if handler != nil {
+											handler(message.ChunkText, []byte(text))
+										}
 									}
-									// Send to stream handler if available
-									if handler != nil {
-										handler(message.ChunkText, []byte(text))
-									}
-								}
 
-							case "tool_use":
-								toolCall := agentContext.ToolCall{
-									ID:   getString(contentItem, "id"),
-									Type: agentContext.ToolTypeFunction,
-									Function: agentContext.Function{
-										Name: getString(contentItem, "name"),
-									},
-								}
-								// Get input as JSON string
-								if input, ok := contentItem["input"]; ok {
-									if inputJSON, err := json.Marshal(input); err == nil {
-										toolCall.Function.Arguments = string(inputJSON)
+								case "tool_use":
+									toolCall := agentContext.ToolCall{
+										ID:   getString(contentItem, "id"),
+										Type: agentContext.ToolTypeFunction,
+										Function: agentContext.Function{
+											Name: getString(contentItem, "name"),
+										},
 									}
+									// Get input as JSON string
+									if input, ok := contentItem["input"]; ok {
+										if inputJSON, err := json.Marshal(input); err == nil {
+											toolCall.Function.Arguments = string(inputJSON)
+										}
+									}
+									toolCalls = append(toolCalls, toolCall)
 								}
-								toolCalls = append(toolCalls, toolCall)
 							}
 						}
 					}
 				}
 
-				// Extract usage
+				// Extract usage (from any message that has it)
 				if usageData, ok := msgData["usage"].(map[string]interface{}); ok {
 					usage = &message.UsageInfo{}
 					if v, ok := usageData["input_tokens"].(float64); ok {

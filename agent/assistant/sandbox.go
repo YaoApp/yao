@@ -86,7 +86,7 @@ func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (
 	loadingMsg := &message.Message{
 		Type: message.TypeLoading,
 		Props: map[string]interface{}{
-			"message": "Preparing sandbox environment...",
+			"message": "Preparing sandbox environment",
 		},
 	}
 	loadingMsgID, _ := ctx.SendStream(loadingMsg)
