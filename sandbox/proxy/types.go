@@ -6,18 +6,18 @@ package proxy
 
 // AnthropicRequest represents a request to the Anthropic Messages API
 type AnthropicRequest struct {
-	Model         string            `json:"model"`
-	Messages      []AnthropicMsg    `json:"messages"`
-	System        interface{}       `json:"system,omitempty"` // string or []SystemBlock
-	MaxTokens     int               `json:"max_tokens"`
-	Stream        bool              `json:"stream,omitempty"`
-	Temperature   *float64          `json:"temperature,omitempty"`
-	TopP          *float64          `json:"top_p,omitempty"`
-	TopK          *int              `json:"top_k,omitempty"`
-	StopSequences []string          `json:"stop_sequences,omitempty"`
-	Tools         []AnthropicTool   `json:"tools,omitempty"`
+	Model         string               `json:"model"`
+	Messages      []AnthropicMsg       `json:"messages"`
+	System        interface{}          `json:"system,omitempty"` // string or []SystemBlock
+	MaxTokens     int                  `json:"max_tokens"`
+	Stream        bool                 `json:"stream,omitempty"`
+	Temperature   *float64             `json:"temperature,omitempty"`
+	TopP          *float64             `json:"top_p,omitempty"`
+	TopK          *int                 `json:"top_k,omitempty"`
+	StopSequences []string             `json:"stop_sequences,omitempty"`
+	Tools         []AnthropicTool      `json:"tools,omitempty"`
 	ToolChoice    *AnthropicToolChoice `json:"tool_choice,omitempty"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	Metadata      map[string]string    `json:"metadata,omitempty"`
 }
 
 // AnthropicMsg represents a message in Anthropic format
@@ -42,14 +42,14 @@ type ContentBlock struct {
 	Input interface{} `json:"input,omitempty"`
 
 	// For tool_result blocks
-	ToolUseID string `json:"tool_use_id,omitempty"`
+	ToolUseID string      `json:"tool_use_id,omitempty"`
 	Content   interface{} `json:"content,omitempty"` // string or []ContentBlock
-	IsError   bool   `json:"is_error,omitempty"`
+	IsError   bool        `json:"is_error,omitempty"`
 }
 
 // ImageSource represents an image source in Anthropic format
 type ImageSource struct {
-	Type      string `json:"type"`       // "base64" or "url"
+	Type      string `json:"type"`                 // "base64" or "url"
 	MediaType string `json:"media_type,omitempty"` // e.g., "image/jpeg"
 	Data      string `json:"data,omitempty"`       // base64 encoded data
 	URL       string `json:"url,omitempty"`        // URL for url type
@@ -94,12 +94,12 @@ type Usage struct {
 
 // AnthropicStreamEvent represents an SSE event in Anthropic format
 type AnthropicStreamEvent struct {
-	Type         string           `json:"type"`
-	Index        int              `json:"index,omitempty"`
+	Type         string             `json:"type"`
+	Index        int                `json:"index,omitempty"`
 	Message      *AnthropicResponse `json:"message,omitempty"`
-	ContentBlock *ContentBlock    `json:"content_block,omitempty"`
-	Delta        *DeltaContent    `json:"delta,omitempty"`
-	Usage        *Usage           `json:"usage,omitempty"`
+	ContentBlock *ContentBlock      `json:"content_block,omitempty"`
+	Delta        *DeltaContent      `json:"delta,omitempty"`
+	Usage        *Usage             `json:"usage,omitempty"`
 }
 
 // DeltaContent represents delta content in streaming
@@ -116,16 +116,16 @@ type DeltaContent struct {
 
 // OpenAIRequest represents a request to OpenAI Chat Completions API
 type OpenAIRequest struct {
-	Model         string          `json:"model"`
-	Messages      []OpenAIMsg     `json:"messages"`
-	MaxTokens     int             `json:"max_tokens,omitempty"`
-	Stream        bool            `json:"stream,omitempty"`
-	StreamOptions *StreamOptions  `json:"stream_options,omitempty"`
-	Temperature   *float64        `json:"temperature,omitempty"`
-	TopP          *float64        `json:"top_p,omitempty"`
-	Stop          []string        `json:"stop,omitempty"`
-	Tools         []OpenAITool    `json:"tools,omitempty"`
-	ToolChoice    interface{}     `json:"tool_choice,omitempty"` // "auto", "none", "required", or object
+	Model         string         `json:"model"`
+	Messages      []OpenAIMsg    `json:"messages"`
+	MaxTokens     int            `json:"max_tokens,omitempty"`
+	Stream        bool           `json:"stream,omitempty"`
+	StreamOptions *StreamOptions `json:"stream_options,omitempty"`
+	Temperature   *float64       `json:"temperature,omitempty"`
+	TopP          *float64       `json:"top_p,omitempty"`
+	Stop          []string       `json:"stop,omitempty"`
+	Tools         []OpenAITool   `json:"tools,omitempty"`
+	ToolChoice    interface{}    `json:"tool_choice,omitempty"` // "auto", "none", "required", or object
 }
 
 // StreamOptions represents stream options in OpenAI format
@@ -144,8 +144,8 @@ type OpenAIMsg struct {
 
 // OpenAIContent represents content in OpenAI messages (for multimodal)
 type OpenAIContent struct {
-	Type     string         `json:"type"`
-	Text     string         `json:"text,omitempty"`
+	Type     string          `json:"type"`
+	Text     string          `json:"text,omitempty"`
 	ImageURL *OpenAIImageURL `json:"image_url,omitempty"`
 }
 
@@ -170,10 +170,10 @@ type OpenAIFunction struct {
 
 // OpenAIToolCall represents a tool call in OpenAI format
 type OpenAIToolCall struct {
-	ID       string              `json:"id"`
-	Type     string              `json:"type"`
-	Function OpenAIFunctionCall  `json:"function"`
-	Index    *int                `json:"index,omitempty"` // For streaming
+	ID       string             `json:"id"`
+	Type     string             `json:"type"`
+	Function OpenAIFunctionCall `json:"function"`
+	Index    *int               `json:"index,omitempty"` // For streaming
 }
 
 // OpenAIFunctionCall represents a function call in OpenAI format
@@ -194,9 +194,9 @@ type OpenAIResponse struct {
 
 // OpenAIChoice represents a choice in OpenAI response
 type OpenAIChoice struct {
-	Index        int            `json:"index"`
-	Message      OpenAIMsg      `json:"message"`
-	FinishReason string         `json:"finish_reason"`
+	Index        int       `json:"index"`
+	Message      OpenAIMsg `json:"message"`
+	FinishReason string    `json:"finish_reason"`
 }
 
 // OpenAIUsage represents usage statistics in OpenAI format
@@ -218,9 +218,9 @@ type OpenAIStreamChunk struct {
 
 // OpenAIStreamChoice represents a choice in OpenAI streaming response
 type OpenAIStreamChoice struct {
-	Index        int                `json:"index"`
-	Delta        OpenAIStreamDelta  `json:"delta"`
-	FinishReason string             `json:"finish_reason,omitempty"`
+	Index        int               `json:"index"`
+	Delta        OpenAIStreamDelta `json:"delta"`
+	FinishReason string            `json:"finish_reason,omitempty"`
 }
 
 // OpenAIStreamDelta represents delta content in OpenAI streaming

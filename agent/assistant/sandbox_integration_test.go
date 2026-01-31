@@ -78,28 +78,30 @@ func TestClaudeCommandBuilding(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify command structure
-	// Command is now: ["bash", "-c", "nohup ccr start ... && ccr code ..."]
+	// Command is now: ["bash", "-c", "cat << 'INPUTEOF' | claude -p ... INPUTEOF"]
 	assert.NotEmpty(t, cmd)
 	assert.Equal(t, "bash", cmd[0], "Command should start with bash")
 	assert.Equal(t, "-c", cmd[1], "Second arg should be -c")
-	assert.Contains(t, cmd[2], "ccr code", "Bash command should contain ccr code")
+	assert.Contains(t, cmd[2], "claude -p", "Bash command should contain claude -p")
 	assert.Contains(t, cmd[2], "--permission-mode", "Should include permission mode")
+	assert.Contains(t, cmd[2], "--input-format", "Should include input-format flag")
+	assert.Contains(t, cmd[2], "--output-format", "Should include output-format flag")
+	assert.Contains(t, cmd[2], "--verbose", "Should include verbose flag")
+	assert.Contains(t, cmd[2], "stream-json", "Should use stream-json format")
+	assert.Contains(t, cmd[2], "INPUTEOF", "Should use heredoc for input")
 	t.Logf("Built command: %v", cmd)
 
-	// Verify environment variables
+	// Verify environment variables (claude-proxy mode)
 	assert.NotEmpty(t, env)
-	assert.Equal(t, "https://ark.cn-beijing.volces.com/api/v3", env["CCR_API_BASE"])
-	assert.Equal(t, "test-api-key", env["CCR_API_KEY"])
-	assert.Equal(t, "ep-xxxxx", env["CCR_MODEL"])
+	assert.Equal(t, "http://127.0.0.1:3456", env["ANTHROPIC_BASE_URL"], "Should set proxy base URL")
+	assert.Equal(t, "dummy", env["ANTHROPIC_API_KEY"], "Should set dummy API key for proxy")
 	assert.Equal(t, "10", env["CLAUDE_MAX_TURNS"])
-	assert.Equal(t, "acceptEdits", env["CLAUDE_PERMISSION_MODE"])
-	assert.Equal(t, "stream-json", env["CLAUDE_OUTPUT_FORMAT"])
 	assert.Contains(t, env["CLAUDE_SYSTEM_PROMPT"], "You are a helpful coding assistant")
 	t.Logf("Built environment: %v", env)
 }
 
-// TestClaudeCCRConfigBuilding tests that CCR config is correctly built
-func TestClaudeCCRConfigBuilding(t *testing.T) {
+// TestClaudeProxyConfigBuilding tests that claude-proxy config is correctly built
+func TestClaudeProxyConfigBuilding(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -109,20 +111,20 @@ func TestClaudeCCRConfigBuilding(t *testing.T) {
 		Model:         "ep-xxxxx",
 	}
 
-	configJSON, err := claude.BuildCCRConfig(opts)
+	configJSON, err := claude.BuildProxyConfig(opts)
 	require.NoError(t, err)
 	require.NotEmpty(t, configJSON)
 
-	t.Logf("CCR config: %s", string(configJSON))
+	t.Logf("Proxy config: %s", string(configJSON))
 
-	// Verify the JSON contains expected fields (CCR uses snake_case)
-	assert.Contains(t, string(configJSON), "api_base_url")
+	// Verify the JSON contains expected fields for claude-proxy
+	assert.Contains(t, string(configJSON), "backend")
 	assert.Contains(t, string(configJSON), "api_key")
-	assert.Contains(t, string(configJSON), "models")
-	// Verify CCR format fields
-	assert.Contains(t, string(configJSON), "Providers")
-	assert.Contains(t, string(configJSON), "Router")
-	assert.Contains(t, string(configJSON), "volcengine")
+	assert.Contains(t, string(configJSON), "model")
+	assert.Contains(t, string(configJSON), "test-api-key")
+	assert.Contains(t, string(configJSON), "ep-xxxxx")
+	// Backend URL should end with /chat/completions
+	assert.Contains(t, string(configJSON), "/chat/completions")
 }
 
 // TestDefaultImageSelection tests that default images are correctly selected
