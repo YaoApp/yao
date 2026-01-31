@@ -299,6 +299,7 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 	var model string
 	var usage *message.UsageInfo
 	var finalResult string
+	messageStarted := false // Track if we've sent ChunkMessageStart
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -352,6 +353,18 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 										textContent.WriteString(text)
 										// Send to stream handler if available
 										if handler != nil {
+											// Send ChunkMessageStart first if not already started
+											// This initializes the stream state (inGroup=true) required for Buffer.AddAssistantMessage
+											if !messageStarted {
+												startData := message.EventMessageStartData{
+													MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
+													Type:      "text",
+													Timestamp: time.Now().UnixMilli(),
+												}
+												startDataJSON, _ := json.Marshal(startData)
+												handler(message.ChunkMessageStart, startDataJSON)
+												messageStarted = true
+											}
 											handler(message.ChunkText, []byte(text))
 										}
 									}
@@ -395,8 +408,8 @@ func (e *Executor) parseStream(reader io.Reader, handler message.StreamFunc) (*a
 			if result, ok := msg["result"].(string); ok {
 				finalResult = result
 			}
-			// Send done signal to handler
-			if handler != nil {
+			// Send done signal to handler (only if message was started)
+			if handler != nil && messageStarted {
 				handler(message.ChunkMessageEnd, nil)
 			}
 
