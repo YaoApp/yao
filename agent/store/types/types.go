@@ -370,6 +370,7 @@ type Sandbox struct {
 	MaxCPU    float64                `json:"max_cpu,omitempty"`    // CPU limit (e.g., 2.0)
 	Timeout   string                 `json:"timeout,omitempty"`    // Execution timeout (e.g., "10m")
 	Arguments map[string]interface{} `json:"arguments,omitempty"`  // Command-specific arguments
+	Secrets   map[string]string      `json:"secrets,omitempty"`    // Secrets to pass to container (e.g., GITHUB_TOKEN: "$ENV.GITHUB_TOKEN")
 }
 
 // Tool represents a tool configuration for storage

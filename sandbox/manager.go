@@ -42,6 +42,8 @@ type demuxReadCloser struct {
 	closer     io.Closer
 	done       chan struct{}
 	err        error
+	closed     bool
+	mu         sync.Mutex
 }
 
 // newDemuxReadCloser creates a new demuxed reader from Docker multiplexed stream
@@ -60,11 +62,20 @@ func newDemuxReadCloser(src io.Reader, closer io.Closer) *demuxReadCloser {
 		defer close(d.done)
 		defer pw.Close()
 
+		fmt.Printf("[DEBUG demux] Starting stdcopy.StdCopy\n")
+		startTime := time.Now()
+
 		// Use stdcopy to demux stdout and stderr
 		// We only care about stdout here, stderr goes to a discard writer
-		_, err := stdcopy.StdCopy(pw, io.Discard, src)
+		n, err := stdcopy.StdCopy(pw, io.Discard, src)
+		elapsed := time.Since(startTime)
+
+		fmt.Printf("[DEBUG demux] stdcopy.StdCopy returned: bytes=%d, err=%v, elapsed=%v\n", n, err, elapsed)
+
 		if err != nil && err != io.EOF {
+			d.mu.Lock()
 			d.err = err
+			d.mu.Unlock()
 		}
 	}()
 
@@ -76,15 +87,39 @@ func (d *demuxReadCloser) Read(p []byte) (int, error) {
 }
 
 func (d *demuxReadCloser) Close() error {
-	// Close the source to stop the demux goroutine
+	d.mu.Lock()
+	if d.closed {
+		d.mu.Unlock()
+		return nil
+	}
+	d.closed = true
+	d.mu.Unlock()
+
+	// Close the pipe writer first to signal EOF to any readers
+	// This will cause pipeReader.Read() to return io.EOF
+	d.pipeWriter.CloseWithError(io.EOF)
+
+	// Close the source connection to interrupt stdcopy.StdCopy
 	if d.closer != nil {
 		d.closer.Close()
 	}
+
 	// Close the pipe reader to unblock any pending reads
 	d.pipeReader.Close()
-	// Wait for demux goroutine to finish
-	<-d.done
-	return d.err
+
+	// Wait for demux goroutine to finish with a timeout
+	// Don't block forever if stdcopy.StdCopy is stuck
+	select {
+	case <-d.done:
+		// Normal completion
+	case <-time.After(5 * time.Second):
+		fmt.Printf("[DEBUG demux] Timeout waiting for demux goroutine to finish\n")
+	}
+
+	d.mu.Lock()
+	err := d.err
+	d.mu.Unlock()
+	return err
 }
 
 // Manager manages sandbox containers
@@ -558,6 +593,39 @@ func (m *Manager) Remove(ctx context.Context, name string) error {
 
 	// Remove from map
 	m.containers.Delete(name)
+
+	return nil
+}
+
+// KillProcess kills a process inside the container by name pattern
+// This is used to forcefully stop long-running processes like Claude CLI
+func (m *Manager) KillProcess(ctx context.Context, name string, processPattern string) error {
+	c, ok := m.containers.Load(name)
+	if !ok {
+		return ErrContainerNotFound
+	}
+	cont := c.(*Container)
+
+	// Use pkill to kill processes matching the pattern
+	// -f matches against the full command line
+	// Use SIGKILL (-9) to ensure the process is killed immediately
+	cmd := []string{"pkill", "-9", "-f", processPattern}
+
+	execConfig := container.ExecOptions{
+		Cmd:          cmd,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execResp, err := m.dockerClient.ContainerExecCreate(ctx, cont.ID, execConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create exec for kill: %w", err)
+	}
+
+	// Start the exec
+	if err := m.dockerClient.ContainerExecStart(ctx, execResp.ID, container.ExecStartOptions{}); err != nil {
+		return fmt.Errorf("failed to start exec for kill: %w", err)
+	}
 
 	return nil
 }

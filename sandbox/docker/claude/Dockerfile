@@ -1,4 +1,4 @@
-# Claude sandbox image: Claude CLI + Node.js + Python + CCR
+# Claude sandbox image: Claude CLI + Node.js + Python + claude-proxy
 # Supports both amd64 and arm64 architectures
 # Base: Ubuntu 24.04 LTS
 ARG REGISTRY=yaoapp
@@ -25,6 +25,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
+# GitHub CLI (gh) for repository operations
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y gh \
+    && rm -rf /var/lib/apt/lists/*
+
 # npm global packages directory for sandbox user
 RUN mkdir -p /home/sandbox/.npm-global && \
     chown -R sandbox:sandbox /home/sandbox/.npm-global
@@ -39,54 +47,262 @@ ENV PATH="/home/sandbox/.npm-global/bin:${PATH}"
 RUN npm install -g @anthropic-ai/claude-code || \
     echo "Claude CLI installation skipped (may not be available yet)"
 
-# Install Claude Code Router (CCR) for third-party LLM support
-# Supports: DeepSeek, GLM, Volcengine, OpenRouter, etc.
-RUN npm install -g @musistudio/claude-code-router
+# Create Claude CLI configuration for auto-approve all operations
+# This is CRITICAL for non-interactive sandbox usage
+# The --dangerously-skip-permissions flag alone is not enough;
+# we also need the settings.json to fully bypass permission prompts
+RUN mkdir -p /home/sandbox/.claude && \
+    cat > /home/sandbox/.claude/settings.json << 'EOF'
+{
+  "permissions": {
+    "defaultMode": "bypassPermissions",
+    "allow": ["*"],
+    "deny": []
+  }
+}
+EOF
 
-# Create CCR config directory
-RUN mkdir -p /home/sandbox/.claude-code-router
-
-# Create entrypoint script for CCR daemon mode
 USER root
-RUN cat > /usr/local/bin/ccr-run << 'SCRIPT'
+
+# Install claude-proxy (architecture-specific binary)
+ARG TARGETARCH
+COPY claude-proxy-${TARGETARCH} /usr/local/bin/claude-proxy
+RUN chmod +x /usr/local/bin/claude-proxy
+
+# Create claude-proxy startup script
+RUN cat > /usr/local/bin/start-proxy << 'SCRIPT'
 #!/bin/bash
-# CCR wrapper: starts CCR daemon and runs ccr code
-# Usage: ccr-run "prompt" or ccr-run -c /path/to/config.json "prompt"
+# Claude Proxy startup script
+# Usage: start-proxy [options]
+# Options are passed directly to claude-proxy
 
-CONFIG=""
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -c|--config)
-            CONFIG="$2"
-            shift 2
-            ;;
-        *)
-            break
-            ;;
-    esac
-done
+LOG_DIR="${WORKSPACE:-/workspace}"
+LOG_FILE="${LOG_DIR}/proxy.log"
 
-# Apply config if provided
-if [ -n "$CONFIG" ] && [ -f "$CONFIG" ]; then
-    cp "$CONFIG" ~/.claude-code-router/config.json
+# Ensure log directory exists
+mkdir -p "$LOG_DIR" 2>/dev/null || true
+
+# Default environment variables (can be overridden)
+export CLAUDE_PROXY_PORT="${CLAUDE_PROXY_PORT:-3456}"
+
+# Start proxy with logging
+exec /usr/local/bin/claude-proxy -v -l "$LOG_FILE" "$@"
+SCRIPT
+RUN chmod +x /usr/local/bin/start-proxy
+
+# Create claude-run wrapper for easy usage (manual mode)
+RUN cat > /usr/local/bin/claude-run << 'SCRIPT'
+#!/bin/bash
+# Claude CLI wrapper with proxy auto-start
+# Usage: claude-run [claude options] "prompt"
+#
+# Environment variables:
+#   CLAUDE_PROXY_BACKEND  - Backend API URL (required)
+#   CLAUDE_PROXY_API_KEY  - Backend API Key (required)
+#   CLAUDE_PROXY_MODEL    - Backend model name (required)
+#   CLAUDE_PROXY_PORT     - Proxy port (default: 3456)
+#   WORKSPACE             - Working directory (default: /workspace)
+
+set -e
+
+# Check required environment variables
+if [ -z "$CLAUDE_PROXY_BACKEND" ]; then
+    echo "Error: CLAUDE_PROXY_BACKEND is not set"
+    echo "Example: export CLAUDE_PROXY_BACKEND=https://ark.cn-beijing.volces.com/api/v3/chat/completions"
+    exit 1
 fi
 
-# Start CCR daemon (nohup because ccr start -d doesn't work in containers)
-nohup ccr start >/dev/null 2>&1 &
-sleep 2
+if [ -z "$CLAUDE_PROXY_API_KEY" ]; then
+    echo "Error: CLAUDE_PROXY_API_KEY is not set"
+    exit 1
+fi
 
-# Run ccr code
-exec ccr code -p "$*"
+if [ -z "$CLAUDE_PROXY_MODEL" ]; then
+    echo "Error: CLAUDE_PROXY_MODEL is not set"
+    echo "Example: export CLAUDE_PROXY_MODEL=glm-4-7-251222"
+    exit 1
+fi
+
+PORT="${CLAUDE_PROXY_PORT:-3456}"
+WORKSPACE="${WORKSPACE:-/workspace}"
+LOG_FILE="${WORKSPACE}/proxy.log"
+
+# Check if proxy is already running
+if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+    echo "Proxy already running on port $PORT"
+else
+    echo "Starting claude-proxy..."
+    mkdir -p "$WORKSPACE" 2>/dev/null || true
+    nohup /usr/local/bin/claude-proxy -v -l "$LOG_FILE" > /dev/null 2>&1 &
+    
+    # Wait for proxy to start
+    for i in {1..10}; do
+        if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+            echo "Proxy started successfully"
+            break
+        fi
+        sleep 0.5
+    done
+    
+    if ! curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+        echo "Error: Failed to start proxy"
+        exit 1
+    fi
+fi
+
+# Set Claude CLI environment
+export ANTHROPIC_BASE_URL="http://127.0.0.1:${PORT}"
+export ANTHROPIC_API_KEY="dummy"
+
+# Change to workspace directory
+cd "$WORKSPACE"
+
+# Run Claude CLI with all arguments
+exec claude "$@"
 SCRIPT
-RUN chmod +x /usr/local/bin/ccr-run
+RUN chmod +x /usr/local/bin/claude-run
+
+# Create start-claude-proxy script for programmatic use (called by Yao)
+# Config is read from /tmp/.yao/proxy.json (NOT /workspace/ for security - api_key/secrets hidden from user)
+RUN cat > /usr/local/bin/start-claude-proxy << 'SCRIPT'
+#!/bin/bash
+# Start claude-proxy from config file or environment variables
+# Config file: /tmp/.yao/proxy.json (secure location, not visible to user file manager)
+# Format: {"backend": "...", "api_key": "...", "model": "...", "options": {...}, "secrets": {...}}
+
+CONFIG_FILE="/tmp/.yao/proxy.json"
+LOG_FILE="${WORKSPACE:-/workspace}/proxy.log"
+PORT="${CLAUDE_PROXY_PORT:-3456}"
+
+# Try to read from config file first
+if [ -f "$CONFIG_FILE" ]; then
+    BACKEND=$(jq -r '.backend // empty' "$CONFIG_FILE" 2>/dev/null)
+    API_KEY=$(jq -r '.api_key // empty' "$CONFIG_FILE" 2>/dev/null)
+    MODEL=$(jq -r '.model // empty' "$CONFIG_FILE" 2>/dev/null)
+    # Read extra options as JSON string (e.g., {"thinking":{"type":"enabled"}})
+    OPTIONS=$(jq -c '.options // empty' "$CONFIG_FILE" 2>/dev/null)
+    
+    if [ -n "$BACKEND" ]; then
+        export CLAUDE_PROXY_BACKEND="$BACKEND"
+    fi
+    if [ -n "$API_KEY" ]; then
+        export CLAUDE_PROXY_API_KEY="$API_KEY"
+    fi
+    if [ -n "$MODEL" ]; then
+        export CLAUDE_PROXY_MODEL="$MODEL"
+    fi
+    # Only set options if it's a valid non-empty JSON object
+    if [ -n "$OPTIONS" ] && [ "$OPTIONS" != "null" ] && [ "$OPTIONS" != "" ]; then
+        export CLAUDE_PROXY_OPTIONS="$OPTIONS"
+    fi
+    
+    # Export secrets as environment variables for Claude CLI to use
+    # e.g., {"GITHUB_TOKEN": "ghp_xxx"} -> export GITHUB_TOKEN=ghp_xxx
+    SECRETS=$(jq -c '.secrets // empty' "$CONFIG_FILE" 2>/dev/null)
+    if [ -n "$SECRETS" ] && [ "$SECRETS" != "null" ] && [ "$SECRETS" != "" ] && [ "$SECRETS" != "{}" ]; then
+        # Parse each key-value pair and export
+        for key in $(echo "$SECRETS" | jq -r 'keys[]' 2>/dev/null); do
+            value=$(echo "$SECRETS" | jq -r --arg k "$key" '.[$k]' 2>/dev/null)
+            if [ -n "$value" ] && [ "$value" != "null" ]; then
+                export "$key"="$value"
+            fi
+        done
+    fi
+fi
+
+# Check if we have the required config
+if [ -z "$CLAUDE_PROXY_BACKEND" ] || [ -z "$CLAUDE_PROXY_API_KEY" ] || [ -z "$CLAUDE_PROXY_MODEL" ]; then
+    echo "Error: Missing proxy configuration"
+    echo "Either set environment variables or create $CONFIG_FILE"
+    exit 1
+fi
+
+# Check if already running
+if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+    echo "claude-proxy already running"
+    exit 0
+fi
+
+# Start proxy with environment variables explicitly passed
+mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null || true
+nohup env \
+    CLAUDE_PROXY_BACKEND="$CLAUDE_PROXY_BACKEND" \
+    CLAUDE_PROXY_API_KEY="$CLAUDE_PROXY_API_KEY" \
+    CLAUDE_PROXY_MODEL="$CLAUDE_PROXY_MODEL" \
+    CLAUDE_PROXY_OPTIONS="$CLAUDE_PROXY_OPTIONS" \
+    /usr/local/bin/claude-proxy -v -l "$LOG_FILE" > /dev/null 2>&1 &
+
+# Wait for startup
+for i in {1..20}; do
+    if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+        echo "claude-proxy started on port $PORT"
+        exit 0
+    fi
+    sleep 0.5
+done
+
+echo "Error: claude-proxy failed to start"
+exit 1
+SCRIPT
+RUN chmod +x /usr/local/bin/start-claude-proxy
+
+# Create entrypoint script
+# Note: claude-proxy is started on-demand by Yao (via start-claude-proxy)
+# or manually by user (via claude-run)
+RUN cat > /usr/local/bin/entrypoint.sh << 'SCRIPT'
+#!/bin/bash
+# Container entrypoint
+# claude-proxy is NOT auto-started here - it's started by:
+# 1. Yao's sandbox executor (writes config to .claude-proxy.json, calls start-claude-proxy)
+# 2. Manual usage via claude-run command
+# 3. Direct invocation of start-claude-proxy
+
+WORKSPACE="${WORKSPACE:-/workspace}"
+PORT="${CLAUDE_PROXY_PORT:-3456}"
+ENV_FILE="/tmp/claude-proxy-env"
+
+# If proxy env vars are set AND proxy is not running, start it
+# This supports docker run -e CLAUDE_PROXY_BACKEND=... usage
+if [ -n "$CLAUDE_PROXY_BACKEND" ] && [ -n "$CLAUDE_PROXY_API_KEY" ] && [ -n "$CLAUDE_PROXY_MODEL" ]; then
+    if ! curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+        /usr/local/bin/start-claude-proxy
+    fi
+    
+    # Write env vars to a file that can be sourced
+    if curl -s "http://127.0.0.1:${PORT}/health" > /dev/null 2>&1; then
+        echo "export ANTHROPIC_BASE_URL=http://127.0.0.1:${PORT}" > "$ENV_FILE"
+        echo "export ANTHROPIC_API_KEY=dummy" >> "$ENV_FILE"
+        chmod 644 "$ENV_FILE"
+    fi
+fi
+
+# Execute the command passed to docker run
+exec "$@"
+SCRIPT
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Create a wrapper that sources the env file
+RUN cat > /usr/local/bin/claude-env << 'SCRIPT'
+#!/bin/bash
+# Source claude-proxy environment if available
+if [ -f /tmp/claude-proxy-env ]; then
+    source /tmp/claude-proxy-env
+fi
+exec "$@"
+SCRIPT
+RUN chmod +x /usr/local/bin/claude-env
+
+# Add sourcing to global bashrc so docker exec gets the vars
+RUN echo '[ -f /tmp/claude-proxy-env ] && source /tmp/claude-proxy-env' >> /etc/bash.bashrc
 
 USER sandbox
 
 # Verify installations
 RUN node --version && npm --version && python3 --version && \
     claude --version || true && \
-    ccr --version || true
+    claude-proxy --help 2>&1 | head -1 || true
 
 WORKDIR /workspace
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["sleep", "infinity"]

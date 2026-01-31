@@ -12,6 +12,7 @@ import (
 	gouMCP "github.com/yaoapp/gou/mcp"
 	mcpProcess "github.com/yaoapp/gou/mcp/process"
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 	"github.com/yaoapp/yao/config"
@@ -55,22 +56,22 @@ func (ast *Assistant) HasSandbox() bool {
 // Returns the full Executor (for LLM calls), cleanup function, and any error
 // This is called BEFORE hooks so that hooks can access ctx.sandbox
 // The executor implements both agentsandbox.Executor and context.SandboxExecutor interfaces
-func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (agentsandbox.Executor, func(), error) {
+func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (agentsandbox.Executor, func(), string, error) {
 	// Get sandbox manager (singleton)
 	manager, err := GetSandboxManager()
 	if err != nil {
 		ctx.Logger.Error("Sandbox manager initialization failed: %v", err)
-		return nil, nil, fmt.Errorf("sandbox manager not available: %w", err)
+		return nil, nil, "", fmt.Errorf("sandbox manager not available: %w", err)
 	}
 	if manager == nil {
-		return nil, nil, fmt.Errorf("sandbox manager not initialized")
+		return nil, nil, "", fmt.Errorf("sandbox manager not initialized")
 	}
 
 	// Build executor options from assistant config
 	execOpts, err := ast.buildSandboxOptions(ctx, opts)
 	if err != nil {
 		ctx.Logger.Error("Failed to build sandbox options: %v", err)
-		return nil, nil, fmt.Errorf("failed to build sandbox options: %w", err)
+		return nil, nil, "", fmt.Errorf("failed to build sandbox options: %w", err)
 	}
 
 	// Log sandbox creation
@@ -86,7 +87,7 @@ func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (
 	loadingMsg := &message.Message{
 		Type: message.TypeLoading,
 		Props: map[string]interface{}{
-			"message": "Preparing sandbox environment...",
+			"message": i18n.T(ctx.Locale, "sandbox.preparing"),
 		},
 	}
 	loadingMsgID, _ := ctx.SendStream(loadingMsg)
@@ -98,22 +99,27 @@ func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (
 		if traceErr == nil && trace != nil {
 			trace.Error("Sandbox creation failed: %v", err)
 		}
-		// End loading message
+		// End loading message with done:true
 		if loadingMsgID != "" {
-			ctx.End(loadingMsgID)
+			doneMsg := &message.Message{
+				MessageID:   loadingMsgID,
+				Delta:       true,
+				DeltaAction: message.DeltaReplace,
+				Type:        message.TypeLoading,
+				Props: map[string]interface{}{
+					"message": i18n.T(ctx.Locale, "sandbox.failed"),
+					"done":    true,
+				},
+			}
+			ctx.Send(doneMsg)
 		}
-		return nil, nil, fmt.Errorf("failed to create sandbox executor: %w", err)
+		return nil, nil, "", fmt.Errorf("failed to create sandbox executor: %w", err)
 	}
 
 	// Log sandbox ready
 	ctx.Logger.Info("Sandbox container ready")
 	if traceErr == nil && trace != nil {
 		trace.Info("Sandbox container ready")
-	}
-
-	// End loading message
-	if loadingMsgID != "" {
-		ctx.End(loadingMsgID)
 	}
 
 	// Return cleanup function
@@ -123,7 +129,9 @@ func (ast *Assistant) initSandbox(ctx *context.Context, opts *context.Options) (
 		}
 	}
 
-	return executor, cleanup, nil
+	// Keep loadingMsgID open - it will be closed when first output is received
+	// This provides better UX: user sees "Preparing..." until actual content appears
+	return executor, cleanup, loadingMsgID, nil
 }
 
 // executeSandboxStream executes the request using sandbox (Claude CLI, etc.)
@@ -135,6 +143,7 @@ func (ast *Assistant) executeSandboxStream(
 	agentNode traceTypes.Node,
 	streamHandler message.StreamFunc,
 	executor agentsandbox.Executor,
+	loadingMsgID string,
 ) (*context.CompletionResponse, error) {
 
 	// Mark the agentNode as used to avoid unused variable error
@@ -147,9 +156,41 @@ func (ast *Assistant) executeSandboxStream(
 	// Log sandbox execution
 	ctx.Logger.Info("Executing via sandbox (command: %s)", ast.Sandbox.Command)
 
+	// Pass the "preparing sandbox" loading message ID to executor
+	// It will be closed when first output (text or tool) is received
+	if loadingMsgID != "" {
+		executor.SetLoadingMsgID(loadingMsgID)
+	}
+
 	// Execute LLM call via sandbox
+	// The loadingMsgID will be closed when first output is received
+	// Tool calls will create their own loading messages below the text
 	resp, err := executor.Stream(ctx, completionMessages, streamHandler)
+
 	if err != nil {
+		// Close loading message on error
+		if loadingMsgID != "" {
+			doneMsg := &message.Message{
+				MessageID:   loadingMsgID,
+				Delta:       true,
+				DeltaAction: message.DeltaReplace,
+				Type:        message.TypeLoading,
+				Props: map[string]interface{}{
+					"message": i18n.T(ctx.Locale, "sandbox.failed"),
+					"done":    true,
+				},
+			}
+			ctx.Send(doneMsg)
+		}
+
+		// Send error message to client
+		errMsg := &message.Message{
+			Type: message.TypeError,
+			Props: map[string]interface{}{
+				"message": err.Error(),
+			},
+		}
+		ctx.Send(errMsg)
 		return nil, fmt.Errorf("sandbox execution failed: %w", err)
 	}
 
@@ -198,6 +239,18 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 		}
 	}
 
+	// Check if assistant has prompts (from prompts.yml)
+	// If prompts are configured, we need to call Claude CLI
+	if len(ast.Prompts) > 0 {
+		// Extract system prompt from prompts
+		for _, prompt := range ast.Prompts {
+			if prompt.Role == "system" && prompt.Content != "" {
+				execOpts.SystemPrompt = prompt.Content
+				break
+			}
+		}
+	}
+
 	// Resolve connector settings
 	conn, _, err := ast.GetConnector(ctx, opts)
 	if err != nil {
@@ -213,6 +266,40 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 	}
 	if model, ok := setting["model"].(string); ok {
 		execOpts.Model = model
+	}
+
+	// Extract extra connector options (thinking, max_tokens, temperature, etc.)
+	// These are backend-specific parameters that need to be passed through to the proxy
+	connectorOptions := make(map[string]interface{})
+	for k, v := range setting {
+		// Skip standard fields that are already handled
+		switch k {
+		case "host", "key", "model", "azure", "capabilities":
+			continue
+		default:
+			// Include all other fields as extra options
+			connectorOptions[k] = v
+		}
+	}
+	if len(connectorOptions) > 0 {
+		execOpts.ConnectorOptions = connectorOptions
+		ctx.Logger.Debug("Connector options extracted: %v", connectorOptions)
+	}
+
+	// Extract secrets from sandbox config (e.g., GITHUB_TOKEN: "$ENV.GITHUB_TOKEN")
+	if ast.Sandbox != nil && len(ast.Sandbox.Secrets) > 0 {
+		secrets := make(map[string]string)
+		for k, v := range ast.Sandbox.Secrets {
+			// Resolve $ENV.XXX references
+			resolved := resolveEnvValue(v)
+			if resolved != "" {
+				secrets[k] = resolved
+			}
+		}
+		if len(secrets) > 0 {
+			execOpts.Secrets = secrets
+			ctx.Logger.Debug("Secrets extracted: %d items", len(secrets))
+		}
 	}
 
 	// Build MCP config and load tools if the assistant has MCP servers configured
@@ -353,4 +440,22 @@ func (ast *Assistant) BuildMCPConfigForSandbox(ctx *context.Context) ([]byte, er
 	}
 
 	return json.Marshal(config)
+}
+
+// resolveEnvValue resolves environment variable references in a string
+// Supports format: $ENV.VAR_NAME or plain value
+// Returns empty string if the variable is not set
+func resolveEnvValue(value string) string {
+	if value == "" {
+		return ""
+	}
+
+	// Check for $ENV.XXX format
+	if len(value) > 5 && value[:5] == "$ENV." {
+		envName := value[5:]
+		return os.Getenv(envName)
+	}
+
+	// Return as-is if not an env reference
+	return value
 }

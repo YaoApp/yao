@@ -8,49 +8,160 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
 
+// sandboxEnvPrompt is the system prompt injected for sandbox environment
+// This tells Claude CLI about the workspace and project structure
+const sandboxEnvPrompt = `## Sandbox Environment
+
+You are running in a sandboxed environment with the following setup:
+
+- **Working Directory**: /workspace
+- **Project Structure**: If this is a new project, create a dedicated project folder (e.g., /workspace/my-project/) and work inside it
+- **File Access**: You have full read/write access to /workspace
+- **Output Files**: Save all output files to the working directory
+
+When creating new projects:
+1. Create a project directory with a descriptive name
+2. Initialize the project structure inside that directory
+3. Keep all related files organized within the project folder
+
+## IMPORTANT: Restricted Tools
+
+The following tools are NOT available in this environment and you must NOT use them:
+- EnterPlanMode, ExitPlanMode (use regular text to explain plans instead)
+- Task, TaskOutput, TaskStop (complete tasks directly without delegation)
+- AskUserQuestion (make reasonable assumptions instead of asking)
+- Skill, ToolSearch (not supported)
+
+Focus on using the core tools: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch.
+
+## GitHub CLI (gh) Usage
+
+When working with GitHub and a token is provided:
+1. First authenticate gh CLI using the token: echo "TOKEN" | gh auth login --with-token
+2. Then use gh commands normally (gh repo create, gh pr create, etc.)
+3. Do NOT use curl to call GitHub API directly - always prefer gh CLI
+`
+
 // BuildCommand builds the Claude CLI command and environment variables
+// Uses stdin with --input-format stream-json for unlimited prompt length
 func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map[string]string, error) {
 	// Build system prompt from conversation history
-	systemPrompt, userPrompt := buildPrompts(messages)
+	systemPrompt, _ := buildPrompts(messages)
 
-	// Build the ccr code command with all arguments
-	// We use bash -c to ensure CCR is started first, then run ccr code with proper argument handling
-	var ccrArgs []string
+	// Inject sandbox environment prompt
+	if systemPrompt != "" {
+		systemPrompt = systemPrompt + "\n\n" + sandboxEnvPrompt
+	} else {
+		systemPrompt = sandboxEnvPrompt
+	}
+
+	// Build input JSONL for Claude CLI (stream-json format)
+	inputJSONL, err := BuildInputJSONL(messages)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to build input JSONL: %w", err)
+	}
+
+	// Build Claude CLI arguments
+	var claudeArgs []string
 
 	// Add permission mode (required for MCP tools to work)
-	permMode := "acceptEdits" // default
+	permMode := "bypassPermissions" // default for sandbox
 	if opts != nil && opts.Arguments != nil {
 		if mode, ok := opts.Arguments["permission_mode"].(string); ok && mode != "" {
 			permMode = mode
 		}
 	}
-	ccrArgs = append(ccrArgs, "--permission-mode", permMode)
+	claudeArgs = append(claudeArgs, "--dangerously-skip-permissions")
+	claudeArgs = append(claudeArgs, "--permission-mode", permMode)
+
+	// Add streaming format flags (required for proper streaming output)
+	claudeArgs = append(claudeArgs, "--input-format", "stream-json")
+	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
+	claudeArgs = append(claudeArgs, "--include-partial-messages") // Enable realtime streaming
+	claudeArgs = append(claudeArgs, "--verbose")
+
+	// Add max_turns if specified
+	if opts != nil && opts.Arguments != nil {
+		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
+			claudeArgs = append(claudeArgs, "--max-turns", fmt.Sprintf("%v", maxTurns))
+		}
+	}
 
 	// Add MCP config if available
 	if opts != nil && len(opts.MCPConfig) > 0 {
-		ccrArgs = append(ccrArgs, "--mcp-config", "/workspace/.mcp.json")
+		claudeArgs = append(claudeArgs, "--mcp-config", "/workspace/.mcp.json")
 		// Allow all tools from the "yao" MCP server
-		ccrArgs = append(ccrArgs, "--allowedTools", "mcp__yao__*")
+		claudeArgs = append(claudeArgs, "--allowedTools", "mcp__yao__*")
 	}
 
 	// Build the full bash command
-	// Start CCR daemon, wait, then run ccr code with arguments
-	bashCmd := "nohup ccr start >/dev/null 2>&1 & sleep 2; ccr code"
-	for _, arg := range ccrArgs {
-		// Quote arguments that might contain special characters
-		bashCmd += fmt.Sprintf(" %q", arg)
-	}
-	bashCmd += " -p"
-	if userPrompt != "" {
-		bashCmd += fmt.Sprintf(" %q", userPrompt)
+	// Use heredoc for both system prompt and input JSONL to avoid shell escaping issues
+	// System prompt may contain quotes, newlines, special characters that break shell quoting
+	var bashCmd strings.Builder
+
+	// If we have a system prompt, write it to a temp file via heredoc first
+	// then use --append-system-prompt-file
+	if systemPrompt != "" {
+		bashCmd.WriteString("cat << 'PROMPTEOF' > /tmp/.system-prompt.txt\n")
+		bashCmd.WriteString(systemPrompt)
+		bashCmd.WriteString("\nPROMPTEOF\n")
+		claudeArgs = append(claudeArgs, "--append-system-prompt-file", "/tmp/.system-prompt.txt")
 	}
 
-	cmd := []string{"bash", "-c", bashCmd}
+	// Build claude command with all arguments
+	bashCmd.WriteString("cat << 'INPUTEOF' | claude -p")
+	for _, arg := range claudeArgs {
+		// Quote arguments that might contain special characters
+		bashCmd.WriteString(fmt.Sprintf(" %q", arg))
+	}
+	bashCmd.WriteString("\n")
+	bashCmd.WriteString(string(inputJSONL))
+	bashCmd.WriteString("\nINPUTEOF")
+
+	cmd := []string{"bash", "-c", bashCmd.String()}
 
 	// Build environment variables
 	env := buildEnvironment(opts, systemPrompt)
 
 	return cmd, env, nil
+}
+
+// BuildInputJSONL converts messages to Claude CLI stream-json input format
+// Each message becomes a line in JSONL format
+func BuildInputJSONL(messages []agentContext.Message) ([]byte, error) {
+	var lines []string
+
+	for _, msg := range messages {
+		// Skip system messages (handled via --system-prompt or env var)
+		if msg.Role == "system" {
+			continue
+		}
+
+		// Build the message content
+		var content interface{}
+		if msg.Content != nil {
+			content = msg.Content
+		} else {
+			content = ""
+		}
+
+		// Create stream-json message
+		streamMsg := map[string]interface{}{
+			"type": msg.Role, // "user" or "assistant"
+			"message": map[string]interface{}{
+				"role":    msg.Role,
+				"content": content,
+			},
+		}
+
+		jsonBytes, err := json.Marshal(streamMsg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal message: %w", err)
+		}
+		lines = append(lines, string(jsonBytes))
+	}
+
+	return []byte(strings.Join(lines, "\n")), nil
 }
 
 // buildPrompts extracts system prompt and user prompt from messages
@@ -123,118 +234,54 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 		return env
 	}
 
-	// CCR configuration via environment
-	// CCR (Claude Code Router) transforms OpenAI-compatible API to Anthropic API format
-	if opts.ConnectorHost != "" {
-		// CCR expects ANTHROPIC_BASE_URL but will proxy through its own router
-		env["CCR_API_BASE"] = opts.ConnectorHost
-	}
+	// claude-proxy runs on localhost:3456, Claude CLI connects to it
+	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
+	env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
 
-	if opts.ConnectorKey != "" {
-		env["CCR_API_KEY"] = opts.ConnectorKey
-	}
-
-	if opts.Model != "" {
-		env["CCR_MODEL"] = opts.Model
-	}
-
-	// Set system prompt via environment (Claude CLI supports this)
-	if systemPrompt != "" {
-		env["CLAUDE_SYSTEM_PROMPT"] = systemPrompt
-	}
-
-	// Additional Claude CLI options from Arguments
-	if opts.Arguments != nil {
-		// max_turns
-		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
-			env["CLAUDE_MAX_TURNS"] = fmt.Sprintf("%v", maxTurns)
-		}
-
-		// permission_mode
-		if permMode, ok := opts.Arguments["permission_mode"].(string); ok {
-			env["CLAUDE_PERMISSION_MODE"] = permMode
-		}
-
-		// output_format (default to stream-json for streaming)
-		if outputFormat, ok := opts.Arguments["output_format"].(string); ok {
-			env["CLAUDE_OUTPUT_FORMAT"] = outputFormat
-		} else {
-			env["CLAUDE_OUTPUT_FORMAT"] = "stream-json"
-		}
-	} else {
-		env["CLAUDE_OUTPUT_FORMAT"] = "stream-json"
-	}
+	// Note: System prompt and max_turns are passed via CLI flags in BuildCommand
+	// CLAUDE_SYSTEM_PROMPT environment variable is NOT supported by Claude CLI
+	// --append-system-prompt or --system-prompt flags must be used instead
 
 	return env
 }
 
-// BuildCCRConfig builds the CCR (Claude Code Router) configuration JSON
-// CCR requires a specific format with Providers array and Router configuration
-func BuildCCRConfig(opts *Options) ([]byte, error) {
+// BuildProxyConfig builds the claude-proxy configuration JSON
+// This config file is read by start-claude-proxy script in the container
+// Config is written to /tmp/.yao/proxy.json (not /workspace/) for security
+func BuildProxyConfig(opts *Options) ([]byte, error) {
 	if opts == nil {
 		return nil, fmt.Errorf("options is required")
 	}
 
-	// Determine provider name based on host
-	providerName := "custom"
-	apiBaseURL := opts.ConnectorHost
-	needsTransformer := false
-
-	if strings.Contains(opts.ConnectorHost, "volces.com") || strings.Contains(opts.ConnectorHost, "volcengine") {
-		providerName = "volcengine"
-		needsTransformer = true
-		// Ensure URL ends with chat/completions
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "deepseek") {
-		providerName = "deepseek"
-		needsTransformer = true
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "openai.com") {
-		providerName = "openai"
-		if !strings.HasSuffix(apiBaseURL, "/chat/completions") {
-			apiBaseURL = strings.TrimSuffix(apiBaseURL, "/") + "/v1/chat/completions"
-		}
-	} else if strings.Contains(opts.ConnectorHost, "anthropic.com") {
-		providerName = "claude"
+	// Build backend URL - ensure it ends with /chat/completions
+	backendURL := opts.ConnectorHost
+	if !strings.HasSuffix(backendURL, "/chat/completions") {
+		backendURL = strings.TrimSuffix(backendURL, "/") + "/chat/completions"
 	}
 
-	// Build provider configuration
-	provider := map[string]interface{}{
-		"name":         providerName,
-		"api_base_url": apiBaseURL,
-		"api_key":      opts.ConnectorKey,
-		"models":       []string{opts.Model},
-	}
-
-	// Add transformer for providers that need it (DeepSeek, Volcengine)
-	if needsTransformer {
-		provider["transformer"] = map[string]interface{}{
-			"use": []interface{}{
-				[]interface{}{"maxtoken", map[string]interface{}{"max_tokens": 16384}},
-			},
-		}
-	}
-
-	// Build router configuration
-	routerKey := fmt.Sprintf("%s,%s", providerName, opts.Model)
-	router := map[string]interface{}{
-		"default":    routerKey,
-		"background": routerKey,
-		"think":      routerKey,
-	}
-
-	// Build full config
 	config := map[string]interface{}{
-		"LOG":                  true,
-		"API_TIMEOUT_MS":       600000,
-		"NON_INTERACTIVE_MODE": true,
-		"Providers":            []interface{}{provider},
-		"Router":               router,
+		"backend": backendURL,
+		"api_key": opts.ConnectorKey,
+		"model":   opts.Model,
+	}
+
+	// Add extra connector options if present (e.g., thinking, max_tokens, temperature)
+	// These will be passed to the proxy via CLAUDE_PROXY_OPTIONS environment variable
+	if len(opts.ConnectorOptions) > 0 {
+		config["options"] = opts.ConnectorOptions
+	}
+
+	// Add secrets if present (e.g., GITHUB_TOKEN, AWS_ACCESS_KEY)
+	// These will be exported as environment variables for Claude CLI to use
+	if len(opts.Secrets) > 0 {
+		config["secrets"] = opts.Secrets
 	}
 
 	return json.MarshalIndent(config, "", "  ")
+}
+
+// BuildCCRConfig is deprecated, kept for backward compatibility
+// Use BuildProxyConfig instead
+func BuildCCRConfig(opts *Options) ([]byte, error) {
+	return BuildProxyConfig(opts)
 }

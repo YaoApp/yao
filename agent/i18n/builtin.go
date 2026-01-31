@@ -99,14 +99,39 @@ func init() {
 			"kb.chat.name":        "Chat Knowledge Base",
 			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
 
+			// Sandbox: assistant/sandbox.go - Sandbox status messages
+			"sandbox.preparing": "Preparing sandbox environment",
+			"sandbox.ready":     "Sandbox ready",
+			"sandbox.working":   "Working on your request",
+			"sandbox.completed": "Completed",
+			"sandbox.failed":    "Execution failed",
+
+			// Sandbox: claude/executor.go - Tool execution messages
+			"sandbox.tool.read":          "Reading file",
+			"sandbox.tool.write":         "Writing file",
+			"sandbox.tool.edit":          "Editing file",
+			"sandbox.tool.bash":          "Running command",
+			"sandbox.tool.glob":          "Finding files",
+			"sandbox.tool.grep":          "Searching code",
+			"sandbox.tool.ls":            "Listing directory",
+			"sandbox.tool.task":          "Running subtask",
+			"sandbox.tool.web_search":    "Searching web",
+			"sandbox.tool.web_fetch":     "Fetching URL",
+			"sandbox.tool.todo_write":    "Managing tasks",
+			"sandbox.tool.ask_question":  "Asking question",
+			"sandbox.tool.switch_mode":   "Switching mode",
+			"sandbox.tool.read_lints":    "Checking lints",
+			"sandbox.tool.edit_notebook": "Editing notebook",
+			"sandbox.tool.unknown":       "Executing {{name}}",
+
 			// Content: content/image/image.go - Image processing messages
-			"content.image.analyzing": "Analyzing image...",
+			"content.image.analyzing": "Analyzing image",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
-			"content.pdf.analyzing_page": "Analyzing PDF page %d/%d...",
+			"content.pdf.analyzing_page": "Analyzing PDF page %d/%d",
 
 			// Search: assistant/search.go - Output messages
-			"search.loading":     "Searching...",
+			"search.loading":     "Searching",
 			"search.success":     "Found %d references",
 			"search.success.one": "Found 1 reference",
 			"search.partial":     "Found %d references (some sources failed)",
@@ -114,12 +139,12 @@ func init() {
 			"search.no_results":  "No references found",
 
 			// Search Intent: assistant/search.go - Intent detection messages
-			"search.intent.loading":     "Checking if references are needed...",
-			"search.intent.need_search": "Searching for references...",
+			"search.intent.loading":     "Checking if references are needed",
+			"search.intent.need_search": "Searching for references",
 			"search.intent.no_search":   "No references needed",
 
 			// Keyword Extraction: assistant/search.go - Keyword extraction messages
-			"search.keyword.loading": "Analyzing conversation...",
+			"search.keyword.loading": "Analyzing conversation",
 			"search.keyword.done":    "Analysis complete",
 
 			// Search: assistant/search.go - Trace labels
@@ -198,14 +223,39 @@ func init() {
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
+			// Sandbox: assistant/sandbox.go - Sandbox status messages
+			"sandbox.preparing": "正在准备沙箱环境",
+			"sandbox.ready":     "沙箱环境就绪",
+			"sandbox.working":   "正在处理您的请求",
+			"sandbox.completed": "处理完成",
+			"sandbox.failed":    "执行失败",
+
+			// Sandbox: claude/executor.go - Tool execution messages
+			"sandbox.tool.read":          "正在读取文件",
+			"sandbox.tool.write":         "正在写入文件",
+			"sandbox.tool.edit":          "正在编辑文件",
+			"sandbox.tool.bash":          "正在执行命令",
+			"sandbox.tool.glob":          "正在查找文件",
+			"sandbox.tool.grep":          "正在搜索代码",
+			"sandbox.tool.ls":            "正在列出目录",
+			"sandbox.tool.task":          "正在执行子任务",
+			"sandbox.tool.web_search":    "正在搜索网页",
+			"sandbox.tool.web_fetch":     "正在获取网页",
+			"sandbox.tool.todo_write":    "正在管理任务",
+			"sandbox.tool.ask_question":  "正在询问问题",
+			"sandbox.tool.switch_mode":   "正在切换模式",
+			"sandbox.tool.read_lints":    "正在检查代码",
+			"sandbox.tool.edit_notebook": "正在编辑笔记本",
+			"sandbox.tool.unknown":       "正在执行 {{name}}",
+
 			// Content: content/image/image.go - Image processing messages
-			"content.image.analyzing": "正在分析图片...",
+			"content.image.analyzing": "正在分析图片",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
-			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页...",
+			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",
 
 			// Search: assistant/search.go - Output messages
-			"search.loading":     "正在搜索...",
+			"search.loading":     "正在搜索",
 			"search.success":     "找到 %d 条参考资料",
 			"search.success.one": "找到 1 条参考资料",
 			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
@@ -213,12 +263,12 @@ func init() {
 			"search.no_results":  "未找到相关资料",
 
 			// Search Intent: assistant/search.go - Intent detection messages
-			"search.intent.loading":     "检查是否需要查询资料...",
-			"search.intent.need_search": "正在查询相关资料...",
+			"search.intent.loading":     "检查是否需要查询资料",
+			"search.intent.need_search": "正在查询相关资料",
 			"search.intent.no_search":   "无需查询资料",
 
 			// Keyword Extraction: assistant/search.go - Keyword extraction messages
-			"search.keyword.loading": "正在分析对话内容...",
+			"search.keyword.loading": "正在分析对话内容",
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
@@ -325,14 +375,39 @@ func init() {
 			"kb.chat.name":        "聊天知识库",
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
+			// Sandbox: assistant/sandbox.go - Sandbox status messages
+			"sandbox.preparing": "正在准备沙箱环境",
+			"sandbox.ready":     "沙箱环境就绪",
+			"sandbox.working":   "正在处理您的请求",
+			"sandbox.completed": "处理完成",
+			"sandbox.failed":    "执行失败",
+
+			// Sandbox: claude/executor.go - Tool execution messages
+			"sandbox.tool.read":          "正在读取文件",
+			"sandbox.tool.write":         "正在写入文件",
+			"sandbox.tool.edit":          "正在编辑文件",
+			"sandbox.tool.bash":          "正在执行命令",
+			"sandbox.tool.glob":          "正在查找文件",
+			"sandbox.tool.grep":          "正在搜索代码",
+			"sandbox.tool.ls":            "正在列出目录",
+			"sandbox.tool.task":          "正在执行子任务",
+			"sandbox.tool.web_search":    "正在搜索网页",
+			"sandbox.tool.web_fetch":     "正在获取网页",
+			"sandbox.tool.todo_write":    "正在管理任务",
+			"sandbox.tool.ask_question":  "正在询问问题",
+			"sandbox.tool.switch_mode":   "正在切换模式",
+			"sandbox.tool.read_lints":    "正在检查代码",
+			"sandbox.tool.edit_notebook": "正在编辑笔记本",
+			"sandbox.tool.unknown":       "正在执行 {{name}}",
+
 			// Content: content/image/image.go - Image processing messages
-			"content.image.analyzing": "正在分析图片...",
+			"content.image.analyzing": "正在分析图片",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
-			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页...",
+			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",
 
 			// Search: assistant/search.go - Output messages
-			"search.loading":     "正在搜索...",
+			"search.loading":     "正在搜索",
 			"search.success":     "找到 %d 条参考资料",
 			"search.success.one": "找到 1 条参考资料",
 			"search.partial":     "找到 %d 条参考资料（部分来源失败）",
@@ -340,12 +415,12 @@ func init() {
 			"search.no_results":  "未找到相关资料",
 
 			// Search Intent: assistant/search.go - Intent detection messages
-			"search.intent.loading":     "检查是否需要查询资料...",
-			"search.intent.need_search": "正在查询相关资料...",
+			"search.intent.loading":     "检查是否需要查询资料",
+			"search.intent.need_search": "正在查询相关资料",
 			"search.intent.no_search":   "无需查询资料",
 
 			// Keyword Extraction: assistant/search.go - Keyword extraction messages
-			"search.keyword.loading": "正在分析对话内容...",
+			"search.keyword.loading": "正在分析对话内容",
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
