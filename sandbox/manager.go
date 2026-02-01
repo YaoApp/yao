@@ -190,9 +190,24 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
-		// Ensure IPC session exists (may have been closed)
-		m.ensureIPCSession(ctx, userID, chatID)
-		return cont, nil
+
+		// Verify container actually exists in Docker
+		// (container may have been removed externally or Docker restarted)
+		_, err := m.dockerClient.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			// Container no longer exists in Docker, remove from cache and recreate
+			m.containers.Delete(name)
+			m.mu.Lock()
+			if m.running > 0 {
+				m.running--
+			}
+			m.mu.Unlock()
+			// Fall through to create new container
+		} else {
+			// Container exists, ensure IPC session exists (may have been closed)
+			m.ensureIPCSession(ctx, userID, chatID)
+			return cont, nil
+		}
 	}
 
 	// Use mutex for creation to avoid race condition
@@ -203,9 +218,21 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
-		// Ensure IPC session exists (may have been closed)
-		m.ensureIPCSession(ctx, userID, chatID)
-		return cont, nil
+
+		// Verify container actually exists in Docker
+		_, err := m.dockerClient.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			// Container no longer exists in Docker, remove from cache
+			m.containers.Delete(name)
+			if m.running > 0 {
+				m.running--
+			}
+			// Fall through to create new container
+		} else {
+			// Container exists, ensure IPC session exists (may have been closed)
+			m.ensureIPCSession(ctx, userID, chatID)
+			return cont, nil
+		}
 	}
 
 	// Check running container limit
@@ -648,8 +675,10 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 		name := key.(string)
 		c := value.(*Container)
 
+		idleTime := now.Sub(c.LastUsedAt)
+
 		// Stop idle containers
-		if c.Status == StatusRunning && now.Sub(c.LastUsedAt) > m.config.IdleTimeout {
+		if c.Status == StatusRunning && idleTime > m.config.IdleTimeout {
 			m.Stop(ctx, name)
 		}
 
@@ -727,6 +756,7 @@ func (m *Manager) WriteFile(ctx context.Context, name, path string, content []by
 }
 
 // ReadFile reads content from a file in container
+// Since workspace is bind-mounted, we read directly from host for better performance
 func (m *Manager) ReadFile(ctx context.Context, name, path string) ([]byte, error) {
 	c, ok := m.containers.Load(name)
 	if !ok {
@@ -734,20 +764,13 @@ func (m *Manager) ReadFile(ctx context.Context, name, path string) ([]byte, erro
 	}
 	cont := c.(*Container)
 
-	reader, _, err := m.dockerClient.CopyFromContainer(ctx, cont.ID, path)
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-
-	// Extract from tar
-	tr := tar.NewReader(reader)
-	_, err = tr.Next()
-	if err != nil {
-		return nil, err
+	// Read directly from host bind mount
+	hostPath := m.containerPathToHost(cont, path)
+	if hostPath == "" {
+		return nil, fmt.Errorf("path %s is not within workspace", path)
 	}
 
-	return io.ReadAll(tr)
+	return os.ReadFile(hostPath)
 }
 
 // ListDir lists directory contents in container
@@ -838,6 +861,20 @@ func (m *Manager) ensureIPCSession(ctx context.Context, userID, chatID string) {
 	// Create new session (ignore error - container can work without IPC)
 	agentCtx := &ipc.AgentContext{UserID: userID, ChatID: chatID}
 	m.ipcManager.Create(ctx, sessionID, agentCtx, nil)
+}
+
+// containerPathToHost converts a container path to the corresponding host path
+// Returns empty string if the path is not within a bind-mounted directory
+func (m *Manager) containerPathToHost(cont *Container, containerPath string) string {
+	// Container workspace is mounted at ContainerWorkDir (e.g., /workspace)
+	// Host path is WorkspaceRoot/{userID}/{chatID}
+	workDir := m.config.ContainerWorkDir
+	if strings.HasPrefix(containerPath, workDir) {
+		relativePath := strings.TrimPrefix(containerPath, workDir)
+		relativePath = strings.TrimPrefix(relativePath, "/")
+		return filepath.Join(m.config.WorkspaceRoot, cont.UserID, cont.ChatID, relativePath)
+	}
+	return ""
 }
 
 // fixIPCSocketPermissions fixes IPC socket permissions inside the container

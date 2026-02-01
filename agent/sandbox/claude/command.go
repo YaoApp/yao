@@ -44,19 +44,35 @@ When working with GitHub and a token is provided:
 
 // BuildCommand builds the Claude CLI command and environment variables
 // Uses stdin with --input-format stream-json for unlimited prompt length
+// isContinuation: if true, uses --continue to resume previous session (only sends last user message)
 func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map[string]string, error) {
-	// Build system prompt from conversation history
-	systemPrompt, _ := buildPrompts(messages)
+	return BuildCommandWithContinuation(messages, opts, false)
+}
 
-	// Inject sandbox environment prompt
-	if systemPrompt != "" {
-		systemPrompt = systemPrompt + "\n\n" + sandboxEnvPrompt
-	} else {
-		systemPrompt = sandboxEnvPrompt
+// BuildCommandWithContinuation builds the Claude CLI command with continuation support
+// isContinuation: if true, uses --continue to resume previous session
+func BuildCommandWithContinuation(messages []agentContext.Message, opts *Options, isContinuation bool) ([]string, map[string]string, error) {
+	// Build system prompt from conversation history (only for first request)
+	var systemPrompt string
+	if !isContinuation {
+		systemPrompt, _ = buildPrompts(messages)
+		// Inject sandbox environment prompt
+		if systemPrompt != "" {
+			systemPrompt = systemPrompt + "\n\n" + sandboxEnvPrompt
+		} else {
+			systemPrompt = sandboxEnvPrompt
+		}
 	}
 
 	// Build input JSONL for Claude CLI (stream-json format)
-	inputJSONL, err := BuildInputJSONL(messages)
+	// For continuation, only send the last user message
+	var inputJSONL []byte
+	var err error
+	if isContinuation {
+		inputJSONL, err = BuildLastUserMessageJSONL(messages)
+	} else {
+		inputJSONL, err = BuildFirstRequestJSONL(messages)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to build input JSONL: %w", err)
 	}
@@ -80,6 +96,12 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	claudeArgs = append(claudeArgs, "--include-partial-messages") // Enable realtime streaming
 	claudeArgs = append(claudeArgs, "--verbose")
 
+	// For continuation, use --continue to resume the previous session
+	// Claude CLI will read session data from $HOME/.claude/ (which is /workspace/.claude/)
+	if isContinuation {
+		claudeArgs = append(claudeArgs, "--continue")
+	}
+
 	// Add max_turns if specified
 	if opts != nil && opts.Arguments != nil {
 		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
@@ -99,7 +121,7 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 	// System prompt may contain quotes, newlines, special characters that break shell quoting
 	var bashCmd strings.Builder
 
-	// If we have a system prompt, write it to a temp file via heredoc first
+	// If we have a system prompt (first request only), write it to a temp file via heredoc first
 	// then use --append-system-prompt-file
 	if systemPrompt != "" {
 		bashCmd.WriteString("cat << 'PROMPTEOF' > /tmp/.system-prompt.txt\n")
@@ -127,12 +149,18 @@ func BuildCommand(messages []agentContext.Message, opts *Options) ([]string, map
 }
 
 // BuildInputJSONL converts messages to Claude CLI stream-json input format
-// Each message becomes a line in JSONL format
+// Deprecated: Use BuildFirstRequestJSONL or BuildLastUserMessageJSONL instead
 func BuildInputJSONL(messages []agentContext.Message) ([]byte, error) {
+	return BuildFirstRequestJSONL(messages)
+}
+
+// BuildFirstRequestJSONL builds JSONL for the first request (all messages)
+// Sends all user and assistant messages to establish context
+func BuildFirstRequestJSONL(messages []agentContext.Message) ([]byte, error) {
 	var lines []string
 
 	for _, msg := range messages {
-		// Skip system messages (handled via --system-prompt or env var)
+		// Skip system messages (handled via --system-prompt)
 		if msg.Role == "system" {
 			continue
 		}
@@ -147,9 +175,9 @@ func BuildInputJSONL(messages []agentContext.Message) ([]byte, error) {
 
 		// Create stream-json message
 		streamMsg := map[string]interface{}{
-			"type": msg.Role, // "user" or "assistant"
+			"type": string(msg.Role), // "user" or "assistant"
 			"message": map[string]interface{}{
-				"role":    msg.Role,
+				"role":    string(msg.Role),
 				"content": content,
 			},
 		}
@@ -162,6 +190,45 @@ func BuildInputJSONL(messages []agentContext.Message) ([]byte, error) {
 	}
 
 	return []byte(strings.Join(lines, "\n")), nil
+}
+
+// BuildLastUserMessageJSONL builds JSONL with only the last user message
+// Used for continuation requests where Claude CLI manages history via --continue
+func BuildLastUserMessageJSONL(messages []agentContext.Message) ([]byte, error) {
+	// Find the last user message
+	var lastUserMessage *agentContext.Message
+	for i := len(messages) - 1; i >= 0; i-- {
+		if messages[i].Role == "user" {
+			lastUserMessage = &messages[i]
+			break
+		}
+	}
+
+	if lastUserMessage == nil {
+		return nil, fmt.Errorf("no user message found")
+	}
+
+	var content interface{}
+	if lastUserMessage.Content != nil {
+		content = lastUserMessage.Content
+	} else {
+		content = ""
+	}
+
+	userMsg := map[string]interface{}{
+		"type": "user",
+		"message": map[string]interface{}{
+			"role":    "user",
+			"content": content,
+		},
+	}
+
+	jsonBytes, err := json.Marshal(userMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal user message: %w", err)
+	}
+
+	return jsonBytes, nil
 }
 
 // buildPrompts extracts system prompt and user prompt from messages
@@ -233,6 +300,11 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 	if opts == nil {
 		return env
 	}
+
+	// Set HOME to /workspace so Claude CLI stores session data in the workspace
+	// This allows session persistence across requests for the same chat
+	// Session data is stored in $HOME/.claude/ (i.e., /workspace/.claude/)
+	env["HOME"] = "/workspace"
 
 	// claude-proxy runs on localhost:3456, Claude CLI connects to it
 	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
