@@ -184,8 +184,11 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 		}, nil
 	}
 
+	// Check if this is a continuation (Claude CLI session exists in workspace)
+	isContinuation := e.hasExistingSession(stdCtx)
+
 	// Build Claude CLI command using stored options
-	cmd, env, err := BuildCommand(messages, e.opts)
+	cmd, env, err := BuildCommandWithContinuation(messages, e.opts, isContinuation)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build command: %w", err)
 	}
@@ -260,6 +263,22 @@ func (e *Executor) shouldSkipClaudeCLI() bool {
 
 	// If any of these are present, execute Claude CLI
 	return !hasPrompts && !hasSkills && !hasMCP
+}
+
+// hasExistingSession checks if Claude CLI has an existing session in the workspace
+// Claude CLI stores session data in $HOME/.claude/projects/ (which is /workspace/.claude/projects/)
+// If session data exists, we should use --continue to resume the session
+func (e *Executor) hasExistingSession(ctx context.Context) bool {
+	// Check if /workspace/.claude/projects/ directory has any content
+	// This indicates a previous session exists
+	sessionDir := e.workDir + "/.claude/projects"
+	files, err := e.manager.ListDir(ctx, e.containerName, sessionDir)
+	if err != nil {
+		// Directory doesn't exist or error reading - no existing session
+		return false
+	}
+	// If there are any files/directories in the projects folder, session exists
+	return len(files) > 0
 }
 
 // prepareEnvironment prepares the container environment before execution

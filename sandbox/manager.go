@@ -190,9 +190,24 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
-		// Ensure IPC session exists (may have been closed)
-		m.ensureIPCSession(ctx, userID, chatID)
-		return cont, nil
+
+		// Verify container actually exists in Docker
+		// (container may have been removed externally or Docker restarted)
+		_, err := m.dockerClient.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			// Container no longer exists in Docker, remove from cache and recreate
+			m.containers.Delete(name)
+			m.mu.Lock()
+			if m.running > 0 {
+				m.running--
+			}
+			m.mu.Unlock()
+			// Fall through to create new container
+		} else {
+			// Container exists, ensure IPC session exists (may have been closed)
+			m.ensureIPCSession(ctx, userID, chatID)
+			return cont, nil
+		}
 	}
 
 	// Use mutex for creation to avoid race condition
@@ -203,9 +218,21 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	if c, ok := m.containers.Load(name); ok {
 		cont := c.(*Container)
 		cont.LastUsedAt = time.Now()
-		// Ensure IPC session exists (may have been closed)
-		m.ensureIPCSession(ctx, userID, chatID)
-		return cont, nil
+
+		// Verify container actually exists in Docker
+		_, err := m.dockerClient.ContainerInspect(ctx, cont.ID)
+		if err != nil {
+			// Container no longer exists in Docker, remove from cache
+			m.containers.Delete(name)
+			if m.running > 0 {
+				m.running--
+			}
+			// Fall through to create new container
+		} else {
+			// Container exists, ensure IPC session exists (may have been closed)
+			m.ensureIPCSession(ctx, userID, chatID)
+			return cont, nil
+		}
 	}
 
 	// Check running container limit
