@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/config"
@@ -410,12 +411,12 @@ func SendInterrupt(contextID string, signal *InterruptSignal) error {
 
 // generateContextID generates a unique context ID
 func generateContextID() string {
-	return message.GenerateNanoID()
+	return uuid.New().String()
 }
 
 // RequestID returns a unique request ID using NanoID
 func (ctx *Context) RequestID() string {
-	return message.GenerateNanoID()
+	return ctx.ID
 }
 
 // TraceID returns the trace ID for the context
