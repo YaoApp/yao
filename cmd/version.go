@@ -41,6 +41,11 @@ var versionCmd = &cobra.Command{
 			fmt.Printf("%s", color.WhiteString("Built:          "))
 			fmt.Printf("%s\n", color.BlueString(buildTime))
 
+			if share.BUILDOPTIONS != "" {
+				fmt.Printf("%s", color.WhiteString("Build options:  "))
+				fmt.Printf("%s\n", color.CyanString(share.BUILDOPTIONS))
+			}
+
 			fmt.Printf("%s", color.WhiteString("OS/Arch:        "))
 			fmt.Printf("%s\n", color.MagentaString("%s/%s", runtime.GOOS, runtime.GOARCH))
 
