@@ -27,7 +27,8 @@ RUN apt-get update && \
     apt-get install -y wget  && \
     apt-get install -y curl  && \
     apt-get install -y git && \
-    apt-get install -y unzip 
+    apt-get install -y unzip && \
+    apt-get install -y upx 
 
 # Install Go 1.25.0 
 RUN wget https://golang.org/dl/go1.25.0.linux-amd64.tar.gz && \

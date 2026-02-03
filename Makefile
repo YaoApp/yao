@@ -400,10 +400,29 @@ artifacts-linux: clean
 	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
 	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
-#   Making artifacts
+#   Making artifacts - dev builds (full debug symbols, ~158M)
 	mkdir -p dist
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-unstable-linux-amd64
 	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -o dist/yao-${VERSION}-unstable-linux-arm64
+
+#   Making artifacts - prod builds (stripped, ~111M)
+	sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-amd64-prod
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-arm64-prod
+
+#   Making artifacts - prod-upx builds (stripped + compressed, ~45-55M)
+	sed -i.tmp 's/const BUILDOPTIONS = "-s -w (production, stripped)"/const BUILDOPTIONS = "-s -w +upx (production, compressed)"/g' share/const.go && rm -f share/const.go.tmp
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-amd64-prod-upx
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-arm64-prod-upx
+
+#   UPX compression for prod-upx builds
+	@if command -v upx > /dev/null 2>&1; then \
+		echo "Compressing with UPX..."; \
+		upx --best dist/yao-${VERSION}-unstable-linux-amd64-prod-upx; \
+		upx --best dist/yao-${VERSION}-unstable-linux-arm64-prod-upx; \
+	else \
+		echo "WARNING: UPX not found, skipping compression"; \
+	fi
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
@@ -484,8 +503,9 @@ debug: clean
 	cp -f share/const.goe share/const.go
 	rm -f share/const.goe
 
-.PHONY: release
-release: clean
+# make prepare (build CUI, yao-init, bindata - shared by release and prod)
+.PHONY: prepare
+prepare: clean
 	mkdir -p dist/release
 	mkdir .tmp
 
@@ -528,13 +548,15 @@ release: clean
 	cp -r .tmp/yao-init .tmp/data/init
 	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
 
-
 #	Replace PRVERSION
 	cp -f share/const.go share/const.go.bak
 	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
 	@CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
 	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
+# make release (development build, ~158M)
+.PHONY: release
+release: prepare
 #   Making artifacts
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao
@@ -551,6 +573,52 @@ release: clean
 	@if [ "$(OS)" = "Darwin" ]; then \
 	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
 	fi
+
+# make prod (production build with -s -w, ~111M on macOS, ~45-55M on Linux with UPX)
+.PHONY: prod
+prod: prepare
+#	Set BUILDOPTIONS
+	@if [ "$$(uname)" = "Linux" ]; then \
+		sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w +upx (production, compressed)"/g' share/const.go && rm -f share/const.go.tmp; \
+	else \
+		sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp; \
+	fi
+
+#   Making artifacts
+	mkdir -p dist
+	CGO_ENABLED=1 go build -v -ldflags="-s -w" -o dist/release/yao-prod
+	chmod +x dist/release/yao-prod
+
+#	UPX compression (Linux only)
+	@if [ "$$(uname)" = "Linux" ]; then \
+		echo "Compressing with UPX..."; \
+		if command -v upx > /dev/null 2>&1; then \
+			upx --best dist/release/yao-prod; \
+		else \
+			echo "WARNING: UPX not found. Install with: apt install upx"; \
+			echo "Skipping compression."; \
+		fi; \
+	else \
+		echo "Note: UPX compression skipped on macOS (not supported)"; \
+	fi
+
+# 	Clean up and restore bindata.go and const.go
+	cp data/bindata.go.bak data/bindata.go
+	cp share/const.go.bak share/const.go
+	rm data/bindata.go.bak
+	rm share/const.go.bak
+	rm -rf .tmp
+
+#   MacOS Application Signing
+	@if [ "$(OS)" = "Darwin" ]; then \
+	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
+	fi
+
+	@echo ""
+	@echo "Done! Production binary:"
+	@ls -lh dist/release/yao-prod
+	@echo ""
+	@echo "Test with: dist/release/yao-prod version --all"
 
 
 .PHONY: linux-release

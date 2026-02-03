@@ -60,3 +60,4 @@ sandbox/docker/yao-bridge-*
 sandbox/docker/claude-proxy-*
 sandbox/docker/claude/claude-proxy-*
 sandbox/proxy/claude-proxy-linux-*
+release/*

@@ -12,6 +12,9 @@ const CUI = "1.0.0"
 // PRCUI CUI PR Commit
 const PRCUI = "DEV"
 
+// BUILDOPTIONS Build options (e.g., "-s -w", "-s -w +upx")
+const BUILDOPTIONS = ""
+
 // BUILDIN If true, the application will be built into a single artifact
 const BUILDIN = false
 
