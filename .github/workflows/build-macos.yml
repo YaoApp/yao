@@ -114,8 +114,6 @@ jobs:
       - name: Make Artifacts MacOS
         run: |
           make artifacts-macos
-          mv dist/release/yao-$VERSION-dev-darwin-arm64 dist/release/yao-$VERSION-unstable-darwin-arm64
-          mv dist/release/yao-$VERSION-dev-darwin-amd64 dist/release/yao-$VERSION-unstable-darwin-amd64
 
       - name: Install Certificates
         env:
@@ -150,21 +148,31 @@ jobs:
       - name: Sign Artifacts
         run: |
           codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64
-          codesign --deep --force --verbose --timestamp --options runtime --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
+          codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64
+          codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-arm64-prod
+          codesign --deep --force --verbose --timestamp --sign "Developer ID Application: ${{ secrets.APPLE_SIGN }}" dist/release/yao-$VERSION-unstable-darwin-amd64-prod
 
       - name: Verify Signature
         run: |
           codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-arm64
           codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-amd64
+          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-arm64-prod
+          codesign --verify --deep --strict --verbose=2 dist/release/yao-$VERSION-unstable-darwin-amd64-prod
 
       - name: Send to Apple Notary Service
         run: |
           zip -r dist/release/yao-$VERSION-unstable-darwin-arm64.zip dist/release/yao-$VERSION-unstable-darwin-arm64
           zip -r dist/release/yao-$VERSION-unstable-darwin-amd64.zip dist/release/yao-$VERSION-unstable-darwin-amd64
+          zip -r dist/release/yao-$VERSION-unstable-darwin-arm64-prod.zip dist/release/yao-$VERSION-unstable-darwin-arm64-prod
+          zip -r dist/release/yao-$VERSION-unstable-darwin-amd64-prod.zip dist/release/yao-$VERSION-unstable-darwin-amd64-prod
           xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
           xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-arm64-prod.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
+          xcrun notarytool submit dist/release/yao-$VERSION-unstable-darwin-amd64-prod.zip --apple-id "${{ secrets.APPLE_ID }}" --team-id "${{ secrets.APPLE_TEAME_ID }}" --password "${{ secrets.APPLE_APP_SPEC_PASS }}" --output-format json
           rm -f dist/release/yao-$VERSION-unstable-darwin-arm64.zip
           rm -f dist/release/yao-$VERSION-unstable-darwin-amd64.zip
+          rm -f dist/release/yao-$VERSION-unstable-darwin-arm64-prod.zip
+          rm -f dist/release/yao-$VERSION-unstable-darwin-amd64-prod.zip
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
