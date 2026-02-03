@@ -1,0 +1,31 @@
+# ===========================================
+#  Yao Production Slim (UPX compressed)
+#  docker build \
+#    --build-arg VERSION="${VERSION}"  \
+#    --build-arg ARCH="${ARCH}"  \
+#    -t yaoapp/yao:${VERSION}-${ARCH}-slim .
+#
+#  Build:
+#  docker build --platform linux/amd64 --build-arg VERSION=1.0.0 --build-arg ARCH=amd64 -t yaoapp/yao:1.0.0-amd64-slim .
+#  docker build --platform linux/arm64 --build-arg VERSION=1.0.0 --build-arg ARCH=arm64 -t yaoapp/yao:1.0.0-arm64-slim .
+#
+#  Tests:
+#  docker run --rm yaoapp/yao:1.0.0-amd64-slim yao version
+#  docker run -d -p 5099:5099 yaoapp/yao:1.0.0-amd64-slim
+#
+# ===========================================
+FROM alpine:latest
+ARG VERSION
+ARG ARCH
+RUN apk --no-cache add curl 
+RUN curl -fsSL "https://pub-80136338e60643edbb55c6ca8a689cf8.r2.dev/archives/yao-${VERSION}-linux-${ARCH}-prod-upx" > /usr/local/bin/yao && \
+    chmod +x /usr/local/bin/yao && \
+    addgroup -S yao && adduser -S -G yao yao && \
+    mkdir -p /data/app && \
+    chown -R yao:yao /data/app
+
+USER yao
+VOLUME /data/app
+WORKDIR /data/app
+EXPOSE 5099
+CMD ["/usr/local/bin/yao", "start"]

@@ -90,3 +90,29 @@ jobs:
             ARCH=arm64
           push: true
           tags: yaoapp/yao:${{ env.VERSION }}-arm64
+
+      - name: Build Production Slim
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_CONTENT_TRUST: 1
+        with:
+          context: ./docker/production-slim
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ env.VERSION }} 
+            ARCH=amd64
+          push: true
+          tags: yaoapp/yao:${{ env.VERSION }}-amd64-slim
+
+      - name: Build Production Slim Arm64
+        uses: docker/build-push-action@v6
+        env:
+          DOCKER_CONTENT_TRUST: 1
+        with:
+          context: ./docker/production-slim
+          platforms: linux/arm64
+          build-args: |
+            VERSION=${{ env.VERSION }} 
+            ARCH=arm64
+          push: true
+          tags: yaoapp/yao:${{ env.VERSION }}-arm64-slim

@@ -467,16 +467,21 @@ artifacts-macos: clean
 	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
 	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
-#   Making artifacts
+#   Making artifacts - dev builds (full debug symbols)
 	mkdir -p dist
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-dev-darwin-amd64
-	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-dev-darwin-arm64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-unstable-darwin-amd64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-unstable-darwin-arm64
+
+#   Making artifacts - prod builds (stripped, no UPX on macOS)
+	sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-darwin-amd64-prod
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-darwin-arm64-prod
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-dev-darwin-amd64 version
+	dist/release/yao-${VERSION}-unstable-darwin-amd64 version
 
 
 .PHONY: debug
@@ -554,10 +559,10 @@ prepare: clean
 	@CUI_COMMIT=$$(cd .tmp/cui/v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
 	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
 
-# make release (development build, ~158M)
+# make release (development build only, ~158M)
 .PHONY: release
 release: prepare
-#   Making artifacts
+#   Making artifacts - dev build
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -o dist/release/yao
 	chmod +x  dist/release/yao
@@ -574,7 +579,7 @@ release: prepare
 	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
 	fi
 
-# make prod (production build with -s -w, ~111M on macOS, ~45-55M on Linux with UPX)
+# make prod (production build only, ~111M on macOS)
 .PHONY: prod
 prod: prepare
 #	Set BUILDOPTIONS
@@ -584,7 +589,7 @@ prod: prepare
 		sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp; \
 	fi
 
-#   Making artifacts
+#   Making artifacts - prod build
 	mkdir -p dist
 	CGO_ENABLED=1 go build -v -ldflags="-s -w" -o dist/release/yao-prod
 	chmod +x dist/release/yao-prod
@@ -619,6 +624,59 @@ prod: prepare
 	@ls -lh dist/release/yao-prod
 	@echo ""
 	@echo "Test with: dist/release/yao-prod version --all"
+
+# make release-all (build both dev and prod in one go)
+.PHONY: release-all
+release-all: prepare
+#   Making artifacts - dev build (~158M)
+	@echo "Building dev binary..."
+	mkdir -p dist
+	CGO_ENABLED=1 go build -v -o dist/release/yao
+	chmod +x dist/release/yao
+
+#   Making artifacts - prod build (~111M on macOS)
+	@echo "Building prod binary..."
+	@if [ "$$(uname)" = "Linux" ]; then \
+		sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w +upx (production, compressed)"/g' share/const.go && rm -f share/const.go.tmp; \
+	else \
+		sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp; \
+	fi
+	CGO_ENABLED=1 go build -v -ldflags="-s -w" -o dist/release/yao-prod
+	chmod +x dist/release/yao-prod
+
+#	UPX compression (Linux only)
+	@if [ "$$(uname)" = "Linux" ]; then \
+		echo "Compressing with UPX..."; \
+		if command -v upx > /dev/null 2>&1; then \
+			upx --best dist/release/yao-prod; \
+		else \
+			echo "WARNING: UPX not found. Install with: apt install upx"; \
+			echo "Skipping compression."; \
+		fi; \
+	else \
+		echo "Note: UPX compression skipped on macOS (not supported)"; \
+	fi
+
+# 	Clean up and restore bindata.go and const.go
+	cp data/bindata.go.bak data/bindata.go
+	cp share/const.go.bak share/const.go
+	rm data/bindata.go.bak
+	rm share/const.go.bak
+	rm -rf .tmp
+
+#   MacOS Application Signing
+	@if [ "$(OS)" = "Darwin" ]; then \
+	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
+	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
+	fi
+
+	@echo ""
+	@echo "Done! Binaries:"
+	@ls -lh dist/release/yao dist/release/yao-prod
+	@echo ""
+	@echo "Test with:"
+	@echo "  dist/release/yao version --all"
+	@echo "  dist/release/yao-prod version --all"
 
 
 .PHONY: linux-release
