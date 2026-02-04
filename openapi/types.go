@@ -92,6 +92,7 @@ type TempSecurityConfig struct {
 	IPBlacklist                 []string `json:"ip_blacklist,omitempty"`
 	RequireHTTPS                bool     `json:"require_https"`
 	DisableUnsecureEndpoints    bool     `json:"disable_unsecure_endpoints"`
+	SecureCookie                *bool    `json:"secure_cookie,omitempty"`
 }
 
 // TempClientConfig represents client configuration with string duration fields

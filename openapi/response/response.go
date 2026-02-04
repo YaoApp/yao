@@ -8,6 +8,23 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
+// secureCookieEnabled is the global setting for secure cookie behavior
+// Default is nil (meaning true/enabled). Set to false to disable __Host- prefix and Secure flag.
+// This is set during OAuth initialization based on the secure_cookie config.
+var secureCookieEnabled *bool
+
+// SetSecureCookieEnabled sets the global secure cookie setting
+// This should be called during OAuth initialization
+func SetSecureCookieEnabled(enabled *bool) {
+	secureCookieEnabled = enabled
+}
+
+// IsSecureCookieEnabled returns whether secure cookie is enabled
+// Returns true if secureCookieEnabled is nil or true
+func IsSecureCookieEnabled() bool {
+	return secureCookieEnabled == nil || *secureCookieEnabled
+}
+
 // Type aliases for OAuth types to simplify usage
 type (
 	// Core response types
@@ -202,13 +219,14 @@ type SecureCookieOptions struct {
 }
 
 // NewSecureCookieOptions creates a new SecureCookieOptions with secure defaults
+// The UseHostPrefix is determined by the secure_cookie configuration in openapi.yao
 func NewSecureCookieOptions() *SecureCookieOptions {
 	return &SecureCookieOptions{
-		MaxAge:        0,     // Session cookie by default
-		Path:          "/",   // Root path
-		Domain:        "",    // Current domain
-		SameSite:      "Lax", // Default SameSite policy
-		UseHostPrefix: true,  // Use most secure __Host- prefix
+		MaxAge:        0,                       // Session cookie by default
+		Path:          "/",                     // Root path
+		Domain:        "",                      // Current domain
+		SameSite:      "Lax",                   // Default SameSite policy
+		UseHostPrefix: IsSecureCookieEnabled(), // Determined by secure_cookie config
 	}
 }
 
@@ -284,12 +302,15 @@ func SendSecureCookieWithOptions(c *gin.Context, key string, value string, optio
 	cookiePath := options.Path
 	cookieDomain := options.Domain
 
-	if options.UseHostPrefix {
+	// Use the global secure cookie setting
+	useSecureCookie := IsSecureCookieEnabled()
+
+	if options.UseHostPrefix && useSecureCookie {
 		// __Host- prefix: Requires Secure flag, no Domain attribute, Path=/
 		cookieName = "__Host-" + key
 		cookiePath = "/"  // Must be "/" for __Host- prefix
 		cookieDomain = "" // Must be empty for __Host- prefix
-	} else if options.UseSecurePrefix {
+	} else if options.UseSecurePrefix && useSecureCookie {
 		// __Secure- prefix: Requires Secure flag, allows Domain and Path
 		cookieName = "__Secure-" + key
 	}
@@ -319,7 +340,7 @@ func SendSecureCookieWithOptions(c *gin.Context, key string, value string, optio
 		effectiveMaxAge, // maxAge (calculated from Expires if needed)
 		cookiePath,      // path
 		cookieDomain,    // domain
-		true,            // secure (HTTPS only) - required for security prefixes
+		useSecureCookie, // secure (HTTPS only) - based on secure_cookie config
 		true,            // httpOnly (prevent XSS access)
 	)
 

@@ -575,6 +575,9 @@ type SecurityConfig struct {
 	IPBlacklist              []string `json:"ip_blacklist,omitempty"`     // Optional: IP addresses blocked from access (default: [])
 	RequireHTTPS             bool     `json:"require_https"`              // Optional: Require HTTPS for all endpoints (default: true)
 	DisableUnsecureEndpoints bool     `json:"disable_unsecure_endpoints"` // Optional: Disable non-HTTPS endpoints (default: false)
+
+	// Cookie security settings
+	SecureCookie *bool `json:"secure_cookie,omitempty"` // Optional: Use __Host- prefix and Secure flag for cookies (default: true). Set to false for non-HTTPS dev environments with non-localhost IPs.
 }
 
 // TokenClaims represents decoded token claims for both JWT and opaque tokens

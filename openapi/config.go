@@ -93,6 +93,7 @@ func (config *Config) MarshalJSON() ([]byte, error) {
 				IPBlacklist:                 config.OAuth.Security.IPBlacklist,
 				RequireHTTPS:                config.OAuth.Security.RequireHTTPS,
 				DisableUnsecureEndpoints:    config.OAuth.Security.DisableUnsecureEndpoints,
+				SecureCookie:                config.OAuth.Security.SecureCookie,
 			},
 			Client: TempClientConfig{
 				DefaultClientType:              config.OAuth.Client.DefaultClientType,
@@ -215,6 +216,7 @@ func (config *Config) UnmarshalJSON(data []byte) error {
 			IPBlacklist:                 tempConfig.OAuth.Security.IPBlacklist,
 			RequireHTTPS:                tempConfig.OAuth.Security.RequireHTTPS,
 			DisableUnsecureEndpoints:    tempConfig.OAuth.Security.DisableUnsecureEndpoints,
+			SecureCookie:                tempConfig.OAuth.Security.SecureCookie,
 		}
 		if tempConfig.OAuth.Security.StateParameterLifetime != "" {
 			if duration, err := parseDuration(tempConfig.OAuth.Security.StateParameterLifetime); err == nil {

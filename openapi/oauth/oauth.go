@@ -179,6 +179,14 @@ func (s *Service) GetStore() store.Store {
 	return s.store
 }
 
+// GetSecurityConfig returns the security configuration for the service
+func (s *Service) GetSecurityConfig() types.SecurityConfig {
+	if s.config == nil {
+		return types.SecurityConfig{}
+	}
+	return s.config.Security
+}
+
 // setConfigDefaults sets default values for configuration
 func setConfigDefaults(config *Config) error {
 	// Certificate defaults
