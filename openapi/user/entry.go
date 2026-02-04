@@ -45,6 +45,9 @@ func getEntryConfig(c *gin.Context) {
 	// Create public config without sensitive data (deep copy to avoid modifying global config)
 	publicConfig := createPublicEntryConfig(config)
 
+	// Add secure_cookie setting from OAuth config
+	publicConfig.SecureCookie = response.IsSecureCookieEnabled()
+
 	// Return the entry configuration
 	response.RespondWithSuccess(c, response.StatusOK, publicConfig)
 }

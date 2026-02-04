@@ -25,6 +25,15 @@ func IsSecureCookieEnabled() bool {
 	return secureCookieEnabled == nil || *secureCookieEnabled
 }
 
+// GetCookieName returns the correct cookie name based on secure cookie setting
+// If secure cookie is enabled, it returns "__Host-" + name, otherwise just name
+func GetCookieName(name string) string {
+	if IsSecureCookieEnabled() {
+		return "__Host-" + name
+	}
+	return name
+}
+
 // Type aliases for OAuth types to simplify usage
 type (
 	// Core response types

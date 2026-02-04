@@ -109,7 +109,8 @@ func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
 func (s *Service) getAccessToken(c *gin.Context) string {
 	token := c.GetHeader("Authorization")
 	if token == "" {
-		cookie, err := c.Cookie("__Host-access_token")
+		cookieName := response.GetCookieName("access_token")
+		cookie, err := c.Cookie(cookieName)
 		if err != nil {
 			return ""
 		}
@@ -176,7 +177,8 @@ func (s *Service) GetAccessToken(c *gin.Context) string {
 func (s *Service) getRefreshToken(c *gin.Context) string {
 	token := c.GetHeader("Authorization")
 	if token == "" {
-		cookie, err := c.Cookie("__Host-refresh_token")
+		cookieName := response.GetCookieName("refresh_token")
+		cookie, err := c.Cookie(cookieName)
 		if err != nil {
 			return ""
 		}
@@ -200,7 +202,8 @@ func (s *Service) getSessionID(c *gin.Context) string {
 	}
 
 	// 1. Try to get Session ID from cookies first
-	if sid, err := c.Cookie("__Host-session_id"); err == nil && sid != "" {
+	cookieName := response.GetCookieName("session_id")
+	if sid, err := c.Cookie(cookieName); err == nil && sid != "" {
 		return sid
 	}
 
