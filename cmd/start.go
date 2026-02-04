@@ -52,26 +52,29 @@ var startCmd = &cobra.Command{
 
 		// Setup
 		isnew := false
-		if setup.IsEmptyDir(config.Conf.Root) {
 
-			// In Yao App
+		// Check if current directory is a Yao app root
+		if !setup.IsYaoApp(config.Conf.Root) {
+
+			// Check if we're inside a Yao app (subdirectory)
 			if setup.InYaoApp(config.Conf.Root) {
 				fmt.Println(color.RedString(L("Please run the command in the root directory of project")))
 				os.Exit(1)
 			}
 
-			// Install the init app
-			if err := install(); err != nil {
-				fmt.Println(color.RedString(L("Install: %s"), err.Error()))
+			// Not in a Yao app, check if empty to install
+			if setup.IsEmptyDir(config.Conf.Root) {
+				// Install the init app
+				if err := install(); err != nil {
+					fmt.Println(color.RedString(L("Install: %s"), err.Error()))
+					os.Exit(1)
+				}
+				isnew = true
+			} else {
+				// Directory not empty and no app.yao
+				fmt.Println(color.RedString("The app.yao file is missing"))
 				os.Exit(1)
 			}
-			isnew = true
-		}
-
-		// Is Yao App
-		if !setup.IsYaoApp(config.Conf.Root) {
-			fmt.Println(color.RedString("The app.yao file is missing"))
-			os.Exit(1)
 		}
 
 		// force debug
@@ -346,9 +349,9 @@ func printWelcome() {
 	fmt.Println(color.CyanString("\n---------------------------------"))
 	fmt.Println(color.CyanString(L("🎉 Welcome to Yao 🎉 ")))
 	fmt.Println(color.CyanString("---------------------------------"))
-	fmt.Println(color.WhiteString("📚 Documentation:     "), color.CyanString("https://yaoapps.com/docs"))
-	fmt.Println(color.WhiteString("🏡 Join Yao Community:"), color.CyanString("https://yaoapps.com/community"))
-	fmt.Println(color.WhiteString("💬 Build App via Chat:"), color.CyanString("https://moapi.ai"))
+	fmt.Println(color.WhiteString("📚 Documentation:        "), color.CyanString("https://yaoapps.com/docs"))
+	fmt.Println(color.WhiteString("🏡 Join Yao Community:   "), color.CyanString("https://yaoapps.com/community"))
+	fmt.Println(color.WhiteString("🤖 Build Your Digital Workforce:"), color.CyanString("https://yaoagents.com"))
 	fmt.Println("")
 }
 
