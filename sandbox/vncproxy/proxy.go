@@ -172,15 +172,21 @@ func (p *Proxy) HandleVNCWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Upgrade HTTP to WebSocket
+	// Upgrade HTTP to WebSocket (client side)
 	clientConn, err := p.upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return // Upgrader already sent error response
 	}
 	defer clientConn.Close()
 
-	// Connect to container's websockify
-	targetConn, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)
+	// Connect to container's websockify via WebSocket (not raw TCP)
+	// websockify expects WebSocket connections at /websockify path with binary subprotocol
+	wsURL := fmt.Sprintf("ws://%s/websockify", targetAddr)
+	dialer := websocket.Dialer{
+		Subprotocols:     []string{"binary"},
+		HandshakeTimeout: 5 * time.Second,
+	}
+	targetConn, _, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		clientConn.WriteMessage(websocket.CloseMessage,
 			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "VNC connection failed"))
@@ -188,8 +194,8 @@ func (p *Proxy) HandleVNCWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer targetConn.Close()
 
-	// Bidirectional proxy
-	done := make(chan struct{})
+	// Bidirectional WebSocket proxy
+	done := make(chan struct{}, 2)
 
 	// Client -> Container
 	go func() {
@@ -199,10 +205,8 @@ func (p *Proxy) HandleVNCWebSocket(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				return
 			}
-			if messageType == websocket.BinaryMessage {
-				if _, err := targetConn.Write(data); err != nil {
-					return
-				}
+			if err := targetConn.WriteMessage(messageType, data); err != nil {
+				return
 			}
 		}
 	}()
@@ -210,13 +214,12 @@ func (p *Proxy) HandleVNCWebSocket(w http.ResponseWriter, r *http.Request) {
 	// Container -> Client
 	go func() {
 		defer func() { done <- struct{}{} }()
-		buf := make([]byte, 32*1024)
 		for {
-			n, err := targetConn.Read(buf)
+			messageType, data, err := targetConn.ReadMessage()
 			if err != nil {
 				return
 			}
-			if err := clientConn.WriteMessage(websocket.BinaryMessage, buf[:n]); err != nil {
+			if err := clientConn.WriteMessage(messageType, data); err != nil {
 				return
 			}
 		}
@@ -390,7 +393,7 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VNC - %s</title>
+    <title>Sandbox - %s</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body { width: 100%%; height: 100%%; overflow: hidden; background: #1e1e1e; }
@@ -420,7 +423,7 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div id="status">正在连接 VNC...</div>
+        <div id="status">正在连接 Sandbox...</div>
         <div id="retry-count"></div>
         <div id="error"></div>
     </div>
@@ -428,7 +431,8 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
     <div id="screen"></div>
 
     <script type="module">
-        import RFB from 'https://cdn.jsdelivr.net/npm/@novnc/novnc@1.5.0/lib/rfb.js';
+        // noVNC RFB class for VNC connections
+        import RFB from 'https://cdn.skypack.dev/novnc-core';
         
         const sandboxID = '%s';
         const wsPath = '%s';
@@ -450,15 +454,15 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
                 const data = await res.json();
                 
                 if (data.status === 'ready') {
-                    status.textContent = '正在初始化 VNC 客户端...';
+                    status.textContent = '正在初始化显示...';
                     connectVNC();
                     return;
                 }
                 
                 if (data.status === 'starting') {
-                    status.textContent = 'VNC 服务启动中...';
+                    status.textContent = 'Sandbox 启动中...';
                 } else if (data.status === 'not_supported') {
-                    showError('此容器不支持 VNC');
+                    showError('此 Sandbox 不支持可视化');
                     return;
                 } else {
                     status.textContent = '等待容器就绪...';
@@ -514,9 +518,9 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
                 screen.style.display = 'none';
                 modeIndicator.style.display = 'none';
                 if (e.detail.clean) {
-                    status.textContent = 'VNC 连接已关闭';
+                    status.textContent = '连接已关闭';
                 } else {
-                    showError('VNC 连接断开');
+                    showError('连接已断开');
                 }
             });
         }

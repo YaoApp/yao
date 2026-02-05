@@ -161,6 +161,7 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	app.Attach(group.Group("/app"), openapi.OAuth)
 
 	// Sandbox handlers (VNC proxy for visual browser automation)
+	sandbox.SetPathPrefix(baseURL)
 	sandbox.Attach(group.Group("/sandbox"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)

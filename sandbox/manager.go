@@ -185,8 +185,16 @@ func (m *Manager) Close() error {
 }
 
 // GetOrCreate returns existing container or creates new one
-func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Container, error) {
+func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string, opts ...CreateOptions) (*Container, error) {
 	name := containerName(userID, chatID)
+
+	// Extract options if provided
+	var createOpts CreateOptions
+	if len(opts) > 0 {
+		createOpts = opts[0]
+	}
+	createOpts.UserID = userID
+	createOpts.ChatID = chatID
 
 	// Check if container already exists (fast path)
 	if c, ok := m.containers.Load(name); ok {
@@ -243,7 +251,7 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	}
 
 	// Create new container
-	cont, err := m.createContainer(ctx, userID, chatID)
+	cont, err := m.createContainer(ctx, createOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -256,11 +264,19 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 }
 
 // createContainer creates a new Docker container
-func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*Container, error) {
+func (m *Manager) createContainer(ctx context.Context, opts CreateOptions) (*Container, error) {
+	userID := opts.UserID
+	chatID := opts.ChatID
 	name := containerName(userID, chatID)
 
+	// Use image from options or fall back to config default
+	image := opts.Image
+	if image == "" {
+		image = m.config.Image
+	}
+
 	// Ensure image exists, pull if not
-	if err := m.ensureImage(ctx, m.config.Image); err != nil {
+	if err := m.ensureImage(ctx, image); err != nil {
 		return nil, err
 	}
 
@@ -283,7 +299,7 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 
 	// Container configuration
 	containerConfig := &container.Config{
-		Image:      m.config.Image,
+		Image:      image,
 		Cmd:        []string{"sleep", "infinity"},
 		WorkingDir: m.config.ContainerWorkDir,
 		User:       m.config.ContainerUser, // Empty string uses image default
@@ -310,7 +326,7 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 
 	// VNC port mapping for Docker Desktop (macOS/Windows)
 	// Only enable for VNC-capable images (playwright/desktop) when config is enabled
-	if m.config.VNCPortMapping && isVNCImage(m.config.Image) {
+	if m.config.VNCPortMapping && isVNCImage(image) {
 		// Expose VNC ports in container config
 		containerConfig.ExposedPorts = nat.PortSet{
 			"6080/tcp": struct{}{}, // noVNC websockify

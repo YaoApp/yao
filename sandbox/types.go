@@ -66,3 +66,10 @@ const (
 	StatusRunning = "running"
 	StatusStopped = "stopped"
 )
+
+// CreateOptions contains options for creating a container
+type CreateOptions struct {
+	UserID string // User identifier (required)
+	ChatID string // Chat/session identifier (required)
+	Image  string // Docker image to use (optional, falls back to config default)
+}

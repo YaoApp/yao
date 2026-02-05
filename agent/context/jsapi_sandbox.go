@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/yaoapp/gou/runtime/v8/bridge"
+	openapiSandbox "github.com/yaoapp/yao/openapi/sandbox"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
 	"rogchap.com/v8go"
 )
@@ -22,6 +23,12 @@ type SandboxExecutor interface {
 
 	// Workspace info
 	GetWorkDir() string
+
+	// Sandbox identification
+	GetSandboxID() string
+
+	// VNC access (returns empty string if not available)
+	GetVNCUrl() string
 }
 
 // SetSandboxExecutor sets the sandbox executor for this context
@@ -54,6 +61,8 @@ func (ctx *Context) newSandboxObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	sandboxObj.Set("WriteFile", ctx.sandboxWriteFileMethod(iso))
 	sandboxObj.Set("ListDir", ctx.sandboxListDirMethod(iso))
 	sandboxObj.Set("Exec", ctx.sandboxExecMethod(iso))
+	sandboxObj.Set("GetVNCUrl", ctx.sandboxGetVNCUrlMethod(iso))
+	sandboxObj.Set("GetSandboxID", ctx.sandboxGetSandboxIDMethod(iso))
 
 	return sandboxObj
 }
@@ -71,6 +80,19 @@ func (ctx *Context) createSandboxInstance(v8ctx *v8go.Context) *v8go.Value {
 
 	// Set workdir as a property
 	sandboxTemplate.Set("workdir", ctx.sandboxExecutor.GetWorkDir())
+
+	// Set sandbox_id as a property
+	sandboxID := ctx.sandboxExecutor.GetSandboxID()
+	sandboxTemplate.Set("sandbox_id", sandboxID)
+
+	// Set vnc_url as a property (empty string if not available)
+	// GetVNCUrl returns sandbox ID if VNC is supported, empty otherwise
+	vncSandboxID := ctx.sandboxExecutor.GetVNCUrl()
+	if vncSandboxID != "" {
+		sandboxTemplate.Set("vnc_url", openapiSandbox.GetVNCClientURL(vncSandboxID))
+	} else {
+		sandboxTemplate.Set("vnc_url", "")
+	}
 
 	instance, err := sandboxTemplate.NewInstance(v8ctx)
 	if err != nil {
@@ -226,6 +248,51 @@ func (ctx *Context) sandboxExecMethod(iso *v8go.Isolate) *v8go.FunctionTemplate 
 		}
 
 		jsVal, err := v8go.NewValue(v8ctx.Isolate(), output)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// sandboxGetVNCUrlMethod implements ctx.sandbox.GetVNCUrl()
+func (ctx *Context) sandboxGetVNCUrlMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		if ctx.sandboxExecutor == nil {
+			return bridge.JsException(v8ctx, "sandbox executor not available")
+		}
+
+		// GetVNCUrl returns sandbox ID if VNC is supported, empty otherwise
+		vncSandboxID := ctx.sandboxExecutor.GetVNCUrl()
+		vncUrl := ""
+		if vncSandboxID != "" {
+			vncUrl = openapiSandbox.GetVNCClientURL(vncSandboxID)
+		}
+
+		jsVal, err := v8go.NewValue(iso, vncUrl)
+		if err != nil {
+			return bridge.JsException(v8ctx, err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// sandboxGetSandboxIDMethod implements ctx.sandbox.GetSandboxID()
+func (ctx *Context) sandboxGetSandboxIDMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+
+		if ctx.sandboxExecutor == nil {
+			return bridge.JsException(v8ctx, "sandbox executor not available")
+		}
+
+		sandboxID := ctx.sandboxExecutor.GetSandboxID()
+
+		jsVal, err := v8go.NewValue(iso, sandboxID)
 		if err != nil {
 			return bridge.JsException(v8ctx, err.Error())
 		}

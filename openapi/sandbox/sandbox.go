@@ -1,7 +1,9 @@
 package sandbox
 
 import (
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -19,14 +21,13 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Initialize VNC proxy lazily on first request
 	// This avoids startup errors if Docker is not available
 
-	// VNC status endpoint (requires auth)
+	// VNC status endpoint
 	group.GET("/:id/vnc", oauth.Guard, handleVNCStatus)
 
-	// VNC client page (requires auth)
+	// VNC client page
 	group.GET("/:id/vnc/client", oauth.Guard, handleVNCClient)
 
-	// VNC WebSocket proxy (requires auth)
-	// Note: WebSocket upgrade happens after auth middleware
+	// VNC WebSocket proxy
 	group.GET("/:id/vnc/ws", oauth.Guard, handleVNCWebSocket)
 }
 
@@ -95,4 +96,24 @@ func Close() error {
 		return vncProxy.Close()
 	}
 	return nil
+}
+
+// pathPrefix stores the router path prefix for sandbox endpoints
+var pathPrefix string = "/v1/sandbox"
+
+// SetPathPrefix sets the path prefix for sandbox URLs
+// Called during router setup with the actual OpenAPI base URL
+func SetPathPrefix(prefix string) {
+	pathPrefix = strings.TrimSuffix(prefix, "/") + "/sandbox"
+}
+
+// GetVNCClientURL returns the API VNC client page URL
+// sandboxID is the sandbox identifier (userID-chatID)
+// Returns the URL path like "/v1/sandbox/{id}/vnc/client"
+// Note: For CUI navigation, use "$dashboard/sandbox/{id}" directly with sandbox_id
+func GetVNCClientURL(sandboxID string) string {
+	if sandboxID == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s/%s/vnc/client", pathPrefix, sandboxID)
 }
