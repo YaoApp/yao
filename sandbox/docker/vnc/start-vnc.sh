@@ -31,20 +31,58 @@ if ! kill -0 $XVFB_PID 2>/dev/null; then
 fi
 echo "[VNC] Xvfb started (PID: $XVFB_PID)"
 
+# Start D-Bus session bus (required for XFCE)
+if [ "$DESKTOP" = "xfce" ] || [ "$DESKTOP" = "xfce4" ]; then
+    echo "[VNC] Starting D-Bus session bus..."
+    if command -v dbus-launch &> /dev/null; then
+        eval $(dbus-launch --sh-syntax)
+        export DBUS_SESSION_BUS_ADDRESS
+        echo "[VNC] D-Bus started: $DBUS_SESSION_BUS_ADDRESS"
+    else
+        echo "[VNC] WARNING: dbus-launch not found, XFCE may have limited functionality"
+    fi
+fi
+
 # Start window manager / desktop environment
 echo "[VNC] Starting ${DESKTOP}..."
 case "$DESKTOP" in
     xfce|xfce4)
+        # Run XFCE setup script if exists (for Yao branding)
+        if [ -x /usr/local/bin/setup-xfce.sh ]; then
+            echo "[VNC] Running XFCE setup..."
+            /usr/local/bin/setup-xfce.sh || true
+        fi
         # XFCE desktop environment
         startxfce4 &
         ;;
     fluxbox)
+        # Run Fluxbox setup script if exists (Yao branding, disable toolbar)
+        if [ -x /usr/local/bin/setup-fluxbox.sh ]; then
+            echo "[VNC] Running Fluxbox setup..."
+            /usr/local/bin/setup-fluxbox.sh || true
+        fi
         # Minimal window manager for Playwright
         fluxbox &
+        sleep 1
+        # Set wallpaper with feh if available (for Yao branding)
+        WALLPAPER="$HOME/.local/share/wallpapers/yao-wallpaper.png"
+        if [ -f "$WALLPAPER" ] && command -v feh &> /dev/null; then
+            echo "[VNC] Setting wallpaper..."
+            feh --bg-center "$WALLPAPER" || true
+        fi
         ;;
     *)
         # Default to fluxbox
+        if [ -x /usr/local/bin/setup-fluxbox.sh ]; then
+            /usr/local/bin/setup-fluxbox.sh || true
+        fi
         fluxbox &
+        sleep 1
+        # Set wallpaper with feh if available
+        WALLPAPER="$HOME/.local/share/wallpapers/yao-wallpaper.png"
+        if [ -f "$WALLPAPER" ] && command -v feh &> /dev/null; then
+            feh --bg-center "$WALLPAPER" || true
+        fi
         ;;
 esac
 sleep 2

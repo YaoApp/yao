@@ -16,6 +16,8 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu
 
 # Install X11, VNC, and minimal window manager
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Sudo for sandbox user
+    sudo \
     # Virtual display
     xvfb \
     # VNC server
@@ -25,6 +27,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-websockify \
     # Minimal window manager (lightweight, perfect for Playwright)
     fluxbox \
+    # Background/wallpaper utilities
+    feh \
+    imagemagick \
     # Fonts (required for proper browser rendering)
     fonts-liberation \
     fonts-noto-cjk \
@@ -35,6 +40,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Audio (for video playback in browsers, can be disabled)
     pulseaudio \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure passwordless sudo for sandbox user
+RUN echo "sandbox ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/sandbox && \
+    chmod 0440 /etc/sudoers.d/sandbox
 
 # Install Playwright system dependencies (requires root)
 # This installs system libraries needed by Chromium/Firefox
@@ -50,11 +59,16 @@ RUN npm install -g playwright && \
 
 USER root
 
-# Copy VNC startup scripts
+# Create directories for branding assets
+RUN mkdir -p /usr/local/share/yao
+
+# Copy VNC startup scripts and branding assets
 # Note: Build context should be sandbox/docker/, so paths are relative to that
 COPY vnc/start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY vnc/entrypoint-vnc.sh /usr/local/bin/entrypoint.sh
-RUN chmod +x /usr/local/bin/start-vnc.sh /usr/local/bin/entrypoint.sh
+COPY playwright/config/setup-fluxbox.sh /usr/local/bin/setup-fluxbox.sh
+COPY playwright/config/yao-logo.png /usr/local/share/yao/yao-logo.png
+RUN chmod +x /usr/local/bin/start-vnc.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-fluxbox.sh
 
 # Environment variables for VNC
 ENV DISPLAY=:99

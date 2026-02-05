@@ -16,6 +16,8 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu
 
 # Install X11, VNC, and XFCE desktop environment
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Sudo for sandbox user
+    sudo \
     # Virtual display
     xvfb \
     # VNC server
@@ -23,6 +25,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # noVNC (HTML5 VNC client) and websockify
     novnc \
     python3-websockify \
+    # D-Bus (required for XFCE)
+    dbus-x11 \
     # XFCE Desktop (full-featured but lightweight)
     xfce4 \
     xfce4-terminal \
@@ -39,6 +43,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Remove screensaver (causes issues in container)
     && apt-get remove -y xfce4-screensaver xscreensaver || true \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure passwordless sudo for sandbox user
+RUN echo "sandbox ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers.d/sandbox && \
+    chmod 0440 /etc/sudoers.d/sandbox
+
+# Create chromium wrapper script (uses Playwright's Chromium, starts maximized)
+RUN echo '#!/bin/bash\nexec /home/sandbox/.cache/ms-playwright/chromium-1208/chrome-linux/chrome --no-sandbox --start-maximized "$@"' > /usr/local/bin/chromium && \
+    chmod +x /usr/local/bin/chromium
 
 # Optional: Install Playwright system dependencies (requires root)
 # Users can run browser automation in desktop mode too
@@ -58,6 +70,16 @@ COPY vnc/start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY vnc/entrypoint-vnc.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/start-vnc.sh /usr/local/bin/entrypoint.sh
 
+# Copy Yao branding assets
+RUN mkdir -p /usr/share/yao
+COPY desktop/config/yao-logo-48.png /usr/share/yao/yao-logo-48.png
+COPY desktop/config/yao-logo-128.png /usr/share/yao/yao-logo-128.png
+COPY desktop/config/yao-logo-256.png /usr/share/yao/yao-logo-256.png
+COPY desktop/config/panel-launcher-chromium.desktop /usr/share/yao/panel-launcher-chromium.desktop
+COPY desktop/config/workspace.desktop /usr/share/yao/workspace.desktop
+COPY desktop/config/setup-xfce.sh /usr/local/bin/setup-xfce.sh
+RUN chmod +x /usr/local/bin/setup-xfce.sh
+
 # Environment variables for VNC
 ENV DISPLAY=:99
 ENV VNC_PORT=5900
@@ -65,6 +87,8 @@ ENV NOVNC_PORT=6080
 ENV RESOLUTION=1920x1080x24
 ENV SANDBOX_VNC_ENABLED=true
 ENV SANDBOX_DESKTOP=xfce
+# Set hostname for XFCE panel display
+ENV HOSTNAME="Yao Sandbox"
 
 # Node.js environment - ensure global modules are accessible
 ENV NODE_PATH=/home/sandbox/.npm-global/lib/node_modules

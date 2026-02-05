@@ -57,8 +57,10 @@ agent/test/UPGRADE_PLAN.md
 introduction/*
 !sandbox/docker/build.sh
 !sandbox/docker/vnc/*.sh
+!sandbox/docker/desktop/config/*.sh
 sandbox/docker/yao-bridge-*
 sandbox/docker/claude-proxy-*
 sandbox/docker/claude/claude-proxy-*
 sandbox/proxy/claude-proxy-linux-*
 release/*
+sandbox/TODO-VNC.md
