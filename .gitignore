@@ -56,6 +56,7 @@ agent/test/MULTI_TURN_DESIGN.md
 agent/test/UPGRADE_PLAN.md
 introduction/*
 !sandbox/docker/build.sh
+!sandbox/docker/vnc/*.sh
 sandbox/docker/yao-bridge-*
 sandbox/docker/claude-proxy-*
 sandbox/docker/claude/claude-proxy-*

@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/sandbox"
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
@@ -158,6 +159,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// App handlers (menu, etc.)
 	app.Attach(group.Group("/app"), openapi.OAuth)
+
+	// Sandbox handlers (VNC proxy for visual browser automation)
+	sandbox.Attach(group.Group("/sandbox"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 
