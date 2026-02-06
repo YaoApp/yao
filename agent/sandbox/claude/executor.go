@@ -1103,14 +1103,13 @@ func (e *Executor) GetVNCUrl() string {
 		return ""
 	}
 
-	// Check if the image supports VNC (playwright or desktop variants)
 	imageName := e.opts.Image
 	if imageName == "" {
 		return ""
 	}
 
-	// VNC is only available for playwright and desktop images
-	if !strings.Contains(imageName, "playwright") && !strings.Contains(imageName, "desktop") {
+	// Check if the image supports VNC using the shared keyword list in sandbox package
+	if !infraSandbox.IsVNCImage(imageName) {
 		return ""
 	}
 

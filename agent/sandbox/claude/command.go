@@ -121,6 +121,10 @@ func BuildCommandWithContinuation(messages []agentContext.Message, opts *Options
 	// System prompt may contain quotes, newlines, special characters that break shell quoting
 	var bashCmd strings.Builder
 
+	// Ensure $HOME/.Xauthority exists for PyAutoGUI/Xlib (HOME=/workspace).
+	// Xvfb runs without auth, but Xlib requires the file to exist.
+	bashCmd.WriteString("touch /home/sandbox/.Xauthority 2>/dev/null; touch \"$HOME/.Xauthority\" 2>/dev/null\n")
+
 	// If we have a system prompt (first request only), write it to a temp file via heredoc first
 	// then use --append-system-prompt-file
 	if systemPrompt != "" {
@@ -306,9 +310,29 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 	// Session data is stored in $HOME/.claude/ (i.e., /workspace/.claude/)
 	env["HOME"] = "/workspace"
 
+	// Fix Python user-site-packages: changing HOME from /home/sandbox to /workspace
+	// breaks Python's ability to find packages installed via pip --user (e.g., playwright,
+	// pyautogui, playwright-stealth) which live in /home/sandbox/.local/lib/pythonX.Y/site-packages/
+	env["PYTHONPATH"] = "/home/sandbox/.local/lib/python3.12/site-packages"
+
+	// Fix X11 auth: PyAutoGUI/Xlib looks for $HOME/.Xauthority, but HOME=/workspace
+	// so it fails to find /home/sandbox/.Xauthority created during image build.
+	// Explicitly set XAUTHORITY to the correct path.
+	env["XAUTHORITY"] = "/home/sandbox/.Xauthority"
+
 	// claude-proxy runs on localhost:3456, Claude CLI connects to it
 	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
 	env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
+
+	// Pass secrets as environment variables for Claude CLI to use
+	// These are configured in package.yao sandbox.secrets (e.g., LLM_API_KEY, GITHUB_TOKEN)
+	// start-claude-proxy also exports them for the proxy process, but Claude CLI
+	// is launched via a separate docker exec, so it needs them passed explicitly here.
+	if len(opts.Secrets) > 0 {
+		for k, v := range opts.Secrets {
+			env[k] = v
+		}
+	}
 
 	// Note: System prompt and max_turns are passed via CLI flags in BuildCommand
 	// CLAUDE_SYSTEM_PROMPT environment variable is NOT supported by Claude CLI
