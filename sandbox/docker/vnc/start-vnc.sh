@@ -1,6 +1,6 @@
 #!/bin/bash
 # VNC services startup script
-# Shared by sandbox-claude-playwright and sandbox-claude-desktop
+# Shared by sandbox-claude-browser and sandbox-claude-desktop
 # Starts: Xvfb (virtual display) + Window Manager + x11vnc + websockify (noVNC)
 
 set -e

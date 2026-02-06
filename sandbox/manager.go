@@ -811,12 +811,22 @@ func (m *Manager) ReadFile(ctx context.Context, name, path string) ([]byte, erro
 
 // ListDir lists directory contents in container
 func (m *Manager) ListDir(ctx context.Context, name, path string) ([]FileInfo, error) {
+	// Try GNU ls with --time-style first (for GNU coreutils)
 	result, err := m.Exec(ctx, name, []string{"ls", "-la", "--time-style=+%s", path}, nil)
+	if err == nil && result.ExitCode == 0 {
+		return parseLS(result.Stdout, true), nil
+	}
+
+	// Fall back to basic ls (for BusyBox/Alpine)
+	result, err = m.Exec(ctx, name, []string{"ls", "-la", path}, nil)
 	if err != nil {
 		return nil, err
 	}
+	if result.ExitCode != 0 {
+		return nil, fmt.Errorf("ls failed: %s", result.Stderr)
+	}
 
-	return parseLS(result.Stdout), nil
+	return parseLS(result.Stdout, false), nil
 }
 
 // Stat returns file info

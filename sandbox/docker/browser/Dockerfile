@@ -1,8 +1,9 @@
-# Claude sandbox with Playwright browser automation + VNC preview
-# Image: sandbox-claude-playwright
+# Claude sandbox with browser automation + VNC preview
+# Image: sandbox-claude-browser
 # Base: sandbox-claude (Ubuntu 24.04 + Node.js + Python + Claude CLI)
-# Adds: Xvfb + x11vnc + noVNC + Fluxbox + Playwright browsers
+# Adds: Xvfb + x11vnc + noVNC + Fluxbox + Playwright/Puppeteer browsers
 #
+# Lightweight browser environment for web automation tasks
 # Supports both amd64 and arm64 architectures
 
 ARG REGISTRY=yaoapp
@@ -66,8 +67,8 @@ RUN mkdir -p /usr/local/share/yao
 # Note: Build context should be sandbox/docker/, so paths are relative to that
 COPY vnc/start-vnc.sh /usr/local/bin/start-vnc.sh
 COPY vnc/entrypoint-vnc.sh /usr/local/bin/entrypoint.sh
-COPY playwright/config/setup-fluxbox.sh /usr/local/bin/setup-fluxbox.sh
-COPY playwright/config/yao-logo.png /usr/local/share/yao/yao-logo.png
+COPY browser/config/setup-fluxbox.sh /usr/local/bin/setup-fluxbox.sh
+COPY browser/config/yao-logo.png /usr/local/share/yao/yao-logo.png
 RUN chmod +x /usr/local/bin/start-vnc.sh /usr/local/bin/entrypoint.sh /usr/local/bin/setup-fluxbox.sh
 
 # Environment variables for VNC

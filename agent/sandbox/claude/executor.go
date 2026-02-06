@@ -561,11 +561,21 @@ func (e *Executor) parseStream(ctx *agentContext.Context, reader io.Reader, hand
 
 				switch eventType {
 				case "content_block_start":
-					// Check if this is a tool_use block starting
-					// Format: {"event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"...","name":"Write","input":{}}}}
+					// Handle new content blocks
+					// Format: {"event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use"|"text",...}}}
 					if contentBlock, ok := event["content_block"].(map[string]interface{}); ok {
 						blockType, _ := contentBlock["type"].(string)
-						if blockType == "tool_use" {
+						switch blockType {
+						case "text":
+							// New text block starting - add paragraph separator if we already have content
+							// This ensures proper separation between text blocks across tool-use rounds
+							if textContent.Len() > 0 {
+								textContent.WriteString("\n\n")
+								if handler != nil && messageStarted {
+									handler(message.ChunkText, []byte("\n\n"))
+								}
+							}
+						case "tool_use":
 							toolName, _ := contentBlock["name"].(string)
 							blockIndex := 0
 							if idx, ok := event["index"].(float64); ok {

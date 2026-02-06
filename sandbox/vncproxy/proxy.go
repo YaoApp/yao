@@ -380,11 +380,11 @@ func (p *Proxy) checkVNCReady(ctx context.Context, containerName string) bool {
 // serveNoVNCPage serves an inline HTML page with noVNC client
 func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, viewOnly bool) {
 	viewOnlyStr := "false"
-	modeIndicator := "可交互"
+	modeIndicator := "Interactive"
 	modeColor := "#4CAF50"
 	if viewOnly {
 		viewOnlyStr = "true"
-		modeIndicator = "只读模式"
+		modeIndicator = "View Only"
 		modeColor = "#FF9800"
 	}
 
@@ -423,7 +423,7 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
 <body>
     <div id="loading">
         <div class="spinner"></div>
-        <div id="status">正在连接 Sandbox...</div>
+        <div id="status">Connecting to Sandbox...</div>
         <div id="retry-count"></div>
         <div id="error"></div>
     </div>
@@ -454,25 +454,25 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
                 const data = await res.json();
                 
                 if (data.status === 'ready') {
-                    status.textContent = '正在初始化显示...';
+                    status.textContent = 'Initializing display...';
                     connectVNC();
                     return;
                 }
                 
                 if (data.status === 'starting') {
-                    status.textContent = 'Sandbox 启动中...';
+                    status.textContent = 'Sandbox starting...';
                 } else if (data.status === 'not_supported') {
-                    showError('此 Sandbox 不支持可视化');
+                    showError('This Sandbox does not support visualization');
                     return;
                 } else {
-                    status.textContent = '等待容器就绪...';
+                    status.textContent = 'Waiting for container to be ready...';
                 }
                 
                 retryCount++;
-                retryCountEl.textContent = '重试 ' + retryCount + '/' + maxRetries;
+                retryCountEl.textContent = 'Retry ' + retryCount + '/' + maxRetries;
                 
                 if (retryCount >= maxRetries) {
-                    showError('连接超时，请稍后重试');
+                    showError('Connection timeout, please try again later');
                     return;
                 }
                 
@@ -480,7 +480,7 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
             } catch (err) {
                 retryCount++;
                 if (retryCount >= maxRetries) {
-                    showError('无法连接到服务器');
+                    showError('Unable to connect to server');
                     return;
                 }
                 setTimeout(checkStatus, 1000);
@@ -518,9 +518,9 @@ func (p *Proxy) serveNoVNCPage(w http.ResponseWriter, sandboxID, wsPath string, 
                 screen.style.display = 'none';
                 modeIndicator.style.display = 'none';
                 if (e.detail.clean) {
-                    status.textContent = '连接已关闭';
+                    status.textContent = 'Connection closed';
                 } else {
-                    showError('连接已断开');
+                    showError('Connection lost');
                 }
             });
         }

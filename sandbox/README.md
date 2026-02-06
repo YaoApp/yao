@@ -60,7 +60,7 @@ cd sandbox/docker
 ./build.sh claude
 
 # Build VNC-enabled images
-./build.sh playwright   # Playwright + Fluxbox + VNC
+./build.sh browser      # Browser (Playwright) + Fluxbox + VNC
 ./build.sh desktop      # XFCE Desktop + VNC
 
 # Build all images
@@ -120,7 +120,7 @@ Docker Desktop runs containers in a LinuxKit VM, so container IPs are not direct
 
 ```bash
 export YAO_SANDBOX_VNC_PORT_MAPPING=true
-export YAO_SANDBOX_IMAGE="yaoapp/sandbox-claude-playwright:latest"
+export YAO_SANDBOX_IMAGE="yaoapp/sandbox-claude-browser:latest"
 ```
 
 When enabled, VNC ports (6080, 5900) are automatically mapped to random available host ports on `127.0.0.1`.
@@ -132,7 +132,7 @@ When enabled, VNC ports (6080, 5900) are automatically mapped to random availabl
 | `yaoapp/sandbox-base:latest`               | ❌  | Base image with git, curl, yao-bridge |
 | `yaoapp/sandbox-claude:latest`             | ❌  | + Claude CLI, Node.js 20, Python 3.11 |
 | `yaoapp/sandbox-claude:full`               | ❌  | + Go 1.23                             |
-| `yaoapp/sandbox-claude-playwright:latest`  | ✅  | + Playwright, Fluxbox, VNC (~3.4GB)   |
+| `yaoapp/sandbox-claude-browser:latest`     | ✅  | + Playwright, Fluxbox, VNC (~3.4GB)   |
 | `yaoapp/sandbox-claude-desktop:latest`     | ✅  | + XFCE Desktop, VNC (~3.1GB)          |
 
 ## IPC Communication
@@ -172,7 +172,7 @@ sandbox/
 ├── docker/          # Dockerfiles and build script
 │   ├── base/
 │   ├── claude/
-│   ├── playwright/  # Playwright + VNC image
+│   ├── browser/     # Browser (Playwright) + VNC image
 │   ├── desktop/     # XFCE Desktop + VNC image
 │   ├── vnc/         # Shared VNC scripts
 │   └── build.sh

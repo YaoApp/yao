@@ -58,8 +58,10 @@ func parseMemory(s string) int64 {
 	}
 }
 
-// parseLS parses ls -la --time-style=+%s output to []FileInfo
-func parseLS(output string) []FileInfo {
+// parseLS parses ls -la output to []FileInfo
+// If hasTimeStyle is true, expects GNU ls output with --time-style=+%s (Unix epoch)
+// If hasTimeStyle is false, expects BusyBox/basic ls output (date string format)
+func parseLS(output string, hasTimeStyle bool) []FileInfo {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	var result []FileInfo
 
@@ -69,9 +71,19 @@ func parseLS(output string) []FileInfo {
 			continue
 		}
 
-		// Parse ls -la output: drwxr-xr-x 2 user group 4096 1234567890 filename
+		// Parse ls -la output
+		// GNU with --time-style: drwxr-xr-x 2 user group 4096 1234567890 filename
+		// BusyBox/basic:         drwxr-xr-x 2 user group 4096 Jan  1 12:00 filename
 		fields := strings.Fields(line)
-		if len(fields) < 7 {
+
+		var minFields int
+		if hasTimeStyle {
+			minFields = 7 // mode, links, user, group, size, timestamp, name
+		} else {
+			minFields = 9 // mode, links, user, group, size, month, day, time/year, name
+		}
+
+		if len(fields) < minFields {
 			continue
 		}
 
@@ -85,12 +97,21 @@ func parseLS(output string) []FileInfo {
 		// Parse size
 		size, _ := strconv.ParseInt(fields[4], 10, 64)
 
-		// Parse timestamp (Unix epoch)
-		timestamp, _ := strconv.ParseInt(fields[5], 10, 64)
-		modTime := time.Unix(timestamp, 0)
+		// Parse timestamp and get filename
+		var modTime time.Time
+		var name string
 
-		// Get filename (may contain spaces)
-		name := strings.Join(fields[6:], " ")
+		if hasTimeStyle {
+			// GNU ls with --time-style=+%s: timestamp is Unix epoch in fields[5]
+			timestamp, _ := strconv.ParseInt(fields[5], 10, 64)
+			modTime = time.Unix(timestamp, 0)
+			name = strings.Join(fields[6:], " ")
+		} else {
+			// BusyBox/basic ls: date is in fields[5:8] (e.g., "Jan  1 12:00" or "Jan  1  2024")
+			// Note: time.Now() is used as fallback since BusyBox date parsing is complex
+			modTime = time.Now()
+			name = strings.Join(fields[8:], " ")
+		}
 
 		// Skip . and ..
 		if name == "." || name == ".." {

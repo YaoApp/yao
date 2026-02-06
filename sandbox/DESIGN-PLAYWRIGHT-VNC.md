@@ -70,7 +70,7 @@ The design provides **multiple sandbox image variants** with VNC support. Users 
 │    │                                      │                              │  │
 │    ▼                                      ▼                              ▼  │
 │  ┌──────────────────┐  ┌──────────────────────────┐  ┌──────────────────┐  │
-│  │ sandbox-claude   │  │ sandbox-claude-playwright│  │ sandbox-claude-  │  │
+│  │ sandbox-claude   │  │ sandbox-claude-browser   │  │ sandbox-claude-  │  │
 │  │ (No VNC)         │  │ (Browser + VNC)          │  │ desktop (Full)   │  │
 │  │                  │  │                          │  │                  │  │
 │  │ • Claude CLI     │  │ • Claude CLI             │  │ • Claude CLI     │  │
@@ -89,7 +89,7 @@ The design provides **multiple sandbox image variants** with VNC support. Users 
 | Image | VNC | Use Case | Size | Memory |
 |-------|-----|----------|------|--------|
 | `sandbox-claude` | ❌ | Code execution, scripts, CLI tasks | ~700MB | 2GB |
-| `sandbox-claude-playwright` | ✅ | Browser automation, web scraping | ~1.8GB | 4GB |
+| `sandbox-claude-browser` | ✅ | Browser automation, web scraping | ~1.8GB | 4GB |
 | `sandbox-claude-desktop` | ✅ | Full visibility, any GUI app | ~2.5GB | 4GB |
 
 ### User Selection Flow
@@ -105,7 +105,7 @@ The design provides **multiple sandbox image variants** with VNC support. Users 
 │  │  ○ Standard (sandbox-claude)                                    ││
 │  │    Code execution, no GUI. Lightweight and fast.                ││
 │  │                                                                 ││
-│  │  ○ Browser (sandbox-claude-playwright)                 ⭐       ││
+│  │  ○ Browser (sandbox-claude-browser)                    ⭐       ││
 │  │    Playwright browser automation with VNC preview.              ││
 │  │    See browser operations in real-time.                         ││
 │  │                                                                 ││
@@ -130,11 +130,11 @@ Three image variants sharing the same VNC infrastructure:
 ubuntu:24.04
     └── sandbox-base:latest (~200MB)
             └── sandbox-claude:latest (~700MB)                    # No VNC
-                    ├── sandbox-claude-playwright:latest (~1.8GB)  # VNC + Browser
+                    ├── sandbox-claude-browser:latest (~1.8GB)      # VNC + Browser
                     └── sandbox-claude-desktop:latest (~2.5GB)     # VNC + Full Desktop
 ```
 
-#### 1.1 sandbox-claude-playwright (Browser + VNC)
+#### 1.1 sandbox-claude-browser (Browser + VNC)
 
 For browser automation tasks with real-time visibility.
 
@@ -219,7 +219,7 @@ type ImageType string
 
 const (
     ImageTypeClaude     ImageType = "claude"      // No VNC
-    ImageTypePlaywright ImageType = "playwright"  // Browser + VNC
+    ImageTypeBrowser ImageType = "browser"  // Browser + VNC
     ImageTypeDesktop    ImageType = "desktop"     // Full desktop + VNC
 )
 
@@ -231,7 +231,7 @@ var ImageConfigs = map[ImageType]struct {
     CPU        float64
 }{
     ImageTypeClaude:     {"yaoapp/sandbox-claude:latest", false, "2g", 1.0},
-    ImageTypePlaywright: {"yaoapp/sandbox-claude-playwright:latest", true, "4g", 2.0},
+    ImageTypeBrowser: {"yaoapp/sandbox-claude-browser:latest", true, "4g", 2.0},
     ImageTypeDesktop:    {"yaoapp/sandbox-claude-desktop:latest", true, "4g", 2.0},
 }
 ```
@@ -353,7 +353,7 @@ sandbox:
 
 **Available Images**:
 - `yaoapp/sandbox-claude:latest` - No VNC, lightweight
-- `yaoapp/sandbox-claude-playwright:latest` - Browser + VNC
+- `yaoapp/sandbox-claude-browser:latest` - Browser + VNC
 - `yaoapp/sandbox-claude-desktop:latest` - Full desktop + VNC
 
 **Note**: No changes required to `agent/sandbox/` code. The existing `Image` field in `SandboxConfig` already supports custom images.
@@ -563,7 +563,7 @@ When user interaction is needed (e.g., login), Claude can:
 
 ## Implementation Details
 
-### Dockerfile.playwright
+### Dockerfile.browser (browser/Dockerfile)
 
 ```dockerfile
 ARG REGISTRY=yaoapp
@@ -1309,7 +1309,7 @@ Docker Desktop runs containers inside a LinuxKit VM, so container IPs (`172.17.0
 ```bash
 # Enable VNC port mapping for local development
 export YAO_SANDBOX_VNC_PORT_MAPPING=true
-export YAO_SANDBOX_IMAGE="yaoapp/sandbox-claude-playwright:latest"
+export YAO_SANDBOX_IMAGE="yaoapp/sandbox-claude-browser:latest"
 ```
 
 When `YAO_SANDBOX_VNC_PORT_MAPPING=true`:
@@ -1323,7 +1323,7 @@ On Linux (native Docker), this option is not needed as container IPs are directl
 
 ### Yao Backend ✅ 完成
 
-- [x] `sandbox/docker/playwright/Dockerfile` - Playwright + VNC image
+- [x] `sandbox/docker/browser/Dockerfile` - Browser + VNC image
 - [x] `sandbox/docker/desktop/Dockerfile` - Full desktop + VNC image  
 - [x] `sandbox/docker/vnc/start-vnc.sh` - Shared VNC startup script
 - [x] `sandbox/docker/vnc/entrypoint-vnc.sh` - VNC entrypoint
@@ -1355,7 +1355,7 @@ yao/sandbox/
 │   ├── claude/
 │   │   ├── Dockerfile
 │   │   └── Dockerfile.full
-│   ├── playwright/              # Playwright + VNC image
+│   ├── browser/                 # Browser + VNC image
 │   │   └── Dockerfile
 │   ├── desktop/                 # XFCE Desktop + VNC image
 │   │   └── Dockerfile
@@ -1408,12 +1408,12 @@ Commands execute identically across all sandbox images. The `Manager.Exec()` and
 | Image | DISPLAY | VNC Visible | Agent Gets Output |
 |-------|---------|-------------|-------------------|
 | sandbox-claude | ❌ | N/A | ✅ |
-| sandbox-claude-playwright | ✅ :99 | Browser window | ✅ |
+| sandbox-claude-browser | ✅ :99 | Browser window | ✅ |
 | sandbox-claude-desktop | ✅ :99 | Browser + Desktop apps | ✅ |
 
 ### What Users See in VNC
 
-| Operation | sandbox-claude-playwright | sandbox-claude-desktop |
+| Operation | sandbox-claude-browser | sandbox-claude-desktop |
 |-----------|--------------------------|------------------------|
 | Browser automation | ✅ Visible | ✅ Visible |
 | File operations | ❌ | ✅ (open Thunar) |
@@ -1435,7 +1435,7 @@ Commands execute identically across all sandbox images. The `Manager.Exec()` and
 
 ### A. Image Comparison
 
-| Feature | sandbox-claude | sandbox-claude-playwright | sandbox-claude-desktop |
+| Feature | sandbox-claude | sandbox-claude-browser | sandbox-claude-desktop |
 |---------|---------------|--------------------------|------------------------|
 | Claude CLI | ✅ | ✅ | ✅ |
 | Node.js | ✅ | ✅ | ✅ |
@@ -1453,7 +1453,7 @@ Commands execute identically across all sandbox images. The `Manager.Exec()` and
 
 What users can see and do in VNC:
 
-| Operation | sandbox-claude-playwright | sandbox-claude-desktop |
+| Operation | sandbox-claude-browser | sandbox-claude-desktop |
 |-----------|--------------------------|------------------------|
 | Browser navigation | ✅ See | ✅ See |
 | Browser clicks/typing | ✅ See | ✅ See |
@@ -1481,7 +1481,7 @@ What users can see and do in VNC:
 
 | Component | Location | Changes |
 |-----------|----------|---------|
-| Docker Images | `sandbox/docker/playwright/`, `sandbox/docker/desktop/` | NEW |
+| Docker Images | `sandbox/docker/browser/`, `sandbox/docker/desktop/` | NEW |
 | VNC Proxy | `sandbox/vncproxy/` | NEW |
 | VNC API | Yao router | NEW endpoints |
 | CUI | `cui/` | **No changes** (navigate action + iframe) |
