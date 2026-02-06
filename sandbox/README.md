@@ -37,13 +37,13 @@ The sandbox module enables Yao to safely run external AI coding agents (like Cla
 │                           │                                   │
 │           ┌───────────────┼───────────────┐                   │
 │           ▼               ▼               ▼                   │
-│    ┌────────────┐  ┌────────────┐  ┌────────────┐             │
-│    │ sandbox-   │  │ sandbox-   │  │ sandbox-   │             │
-│    │ claude     │  │ playwright │  │ desktop    │             │
-│    │ (No VNC)   │  │ (VNC)      │  │ (VNC)      │             │
-│    └─────┬──────┘  └─────┬──────┘  └─────┬──────┘             │
-│          │               │               │                    │
-│    ──────┴───────────────┴───────────────┴────                │
+│    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐       │
+│    │ sandbox- │ │ sandbox- │ │ sandbox- │ │ sandbox- │       │
+│    │ claude   │ │ browser  │ │ desktop  │ │ chrome   │       │
+│    │ (No VNC) │ │ (VNC)    │ │ (VNC)    │ │ (VNC)    │       │
+│    └────┬─────┘ └────┬─────┘ └────┬─────┘ └────┬─────┘       │
+│         │            │            │            │              │
+│    ─────┴────────────┴────────────┴────────────┴────         │
 │                   Unix Socket IPC                             │
 │             (one socket per container)                        │
 └───────────────────────────────────────────────────────────────┘
@@ -62,6 +62,7 @@ cd sandbox/docker
 # Build VNC-enabled images
 ./build.sh browser      # Browser (Playwright) + Fluxbox + VNC
 ./build.sh desktop      # XFCE Desktop + VNC
+./build.sh chrome       # Real Chrome + CDP + VNC (amd64 only)
 
 # Build all images
 ./build.sh all
@@ -134,6 +135,7 @@ When enabled, VNC ports (6080, 5900) are automatically mapped to random availabl
 | `yaoapp/sandbox-claude:full`               | ❌  | + Go 1.23                             |
 | `yaoapp/sandbox-claude-browser:latest`     | ✅  | + Playwright, Fluxbox, VNC (~3.4GB)   |
 | `yaoapp/sandbox-claude-desktop:latest`     | ✅  | + XFCE Desktop, VNC (~3.1GB)          |
+| `yaoapp/sandbox-claude-chrome:latest`      | ✅  | + Real Chrome, CDP, PyAutoGUI, VNC (~3.4GB, amd64 only) |
 
 ## IPC Communication
 
@@ -174,6 +176,9 @@ sandbox/
 │   ├── claude/
 │   ├── browser/     # Browser (Playwright) + VNC image
 │   ├── desktop/     # XFCE Desktop + VNC image
+│   ├── chrome/      # Real Chrome + CDP + VNC image (amd64 only)
+│   │   ├── config/  # Chrome preferences, stealth scripts
+│   │   └── tests/   # LLM-driven browser automation demos
 │   ├── vnc/         # Shared VNC scripts
 │   └── build.sh
 ├── ipc/             # IPC system

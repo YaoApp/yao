@@ -1,0 +1,34 @@
+{
+  "browser": {
+    "enabled_labs_experiments": ["disable-search-engine-collection@2"],
+    "check_default_browser": false,
+    "has_seen_welcome_page": true
+  },
+  "profile": {
+    "default_content_setting_values": {
+      "notifications": 2
+    }
+  },
+  "credentials_enable_service": false,
+  "translate": {
+    "enabled": false
+  },
+  "intl": {
+    "accept_languages": "en-US,en"
+  },
+  "distribution": {
+    "skip_first_run_ui": true,
+    "show_welcome_page": false,
+    "import_bookmarks": false,
+    "import_history": false,
+    "import_search_engine": false,
+    "suppress_first_run_bubble": true,
+    "do_not_create_desktop_shortcut": true,
+    "do_not_create_quick_launch_shortcut": true,
+    "do_not_create_taskbar_shortcut": true,
+    "do_not_launch_chrome": true,
+    "do_not_register_for_update_launch": true,
+    "make_chrome_default": false,
+    "make_chrome_default_for_user": false
+  }
+}
