@@ -64,3 +64,4 @@ sandbox/docker/claude/claude-proxy-*
 sandbox/proxy/claude-proxy-linux-*
 release/*
 sandbox/TODO-VNC.md
+sandbox/docker/chrome/PLAN.md
