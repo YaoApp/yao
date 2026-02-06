@@ -21,6 +21,8 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/openapi/sandbox"
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
@@ -62,6 +64,10 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the secure cookie configuration for the response package
+	// This determines whether to use __Host- prefix and Secure flag for cookies
+	response.SetSecureCookieEnabled(oauthConfig.Security.SecureCookie)
 
 	// Load user configurations
 	err = user.Load(appConfig)
@@ -153,6 +159,10 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// App handlers (menu, etc.)
 	app.Attach(group.Group("/app"), openapi.OAuth)
+
+	// Sandbox handlers (VNC proxy for visual browser automation)
+	sandbox.SetPathPrefix(baseURL)
+	sandbox.Attach(group.Group("/sandbox"), openapi.OAuth)
 
 	// Custom handlers (Defined by developer)
 

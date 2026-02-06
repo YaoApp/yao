@@ -112,6 +112,7 @@ type EntryConfig struct {
 	InviteRequired bool              `json:"invite_required,omitempty"` // From register config
 	Invite         *InvitePageConfig `json:"invite,omitempty"`          // Invite code page configuration
 	ThirdParty     *ThirdParty       `json:"third_party,omitempty"`
+	SecureCookie   bool              `json:"secure_cookie"` // Whether secure cookie is enabled (for frontend JWT verification)
 }
 
 // MessengerConfig represents the messenger configuration for user registration

@@ -79,7 +79,12 @@ func NewExecutor(manager *infraSandbox.Manager, opts interface{}) (*Executor, er
 	// Create or get container
 	// Note: IPC session is created by manager.createContainer, socket is already bind mounted
 	ctx := context.Background()
-	container, err := manager.GetOrCreate(ctx, execOpts.UserID, execOpts.ChatID)
+	createOpts := infraSandbox.CreateOptions{
+		UserID: execOpts.UserID,
+		ChatID: execOpts.ChatID,
+		Image:  execOpts.Image,
+	}
+	container, err := manager.GetOrCreate(ctx, execOpts.UserID, execOpts.ChatID, createOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create container: %w", err)
 	}
@@ -556,11 +561,21 @@ func (e *Executor) parseStream(ctx *agentContext.Context, reader io.Reader, hand
 
 				switch eventType {
 				case "content_block_start":
-					// Check if this is a tool_use block starting
-					// Format: {"event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"...","name":"Write","input":{}}}}
+					// Handle new content blocks
+					// Format: {"event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use"|"text",...}}}
 					if contentBlock, ok := event["content_block"].(map[string]interface{}); ok {
 						blockType, _ := contentBlock["type"].(string)
-						if blockType == "tool_use" {
+						switch blockType {
+						case "text":
+							// New text block starting - add paragraph separator if we already have content
+							// This ensures proper separation between text blocks across tool-use rounds
+							if textContent.Len() > 0 {
+								textContent.WriteString("\n\n")
+								if handler != nil && messageStarted {
+									handler(message.ChunkText, []byte("\n\n"))
+								}
+							}
+						case "tool_use":
 							toolName, _ := contentBlock["name"].(string)
 							blockIndex := 0
 							if idx, ok := event["index"].(float64); ok {
@@ -1071,6 +1086,36 @@ func (e *Executor) Exec(ctx context.Context, cmd []string) (string, error) {
 // GetWorkDir returns the container workspace directory
 func (e *Executor) GetWorkDir() string {
 	return e.workDir
+}
+
+// GetSandboxID returns the sandbox ID (userID-chatID)
+func (e *Executor) GetSandboxID() string {
+	if e.opts == nil {
+		return ""
+	}
+	return fmt.Sprintf("%s-%s", e.opts.UserID, e.opts.ChatID)
+}
+
+// GetVNCUrl returns the VNC preview URL path
+// Returns empty string if VNC is not enabled for this sandbox image
+func (e *Executor) GetVNCUrl() string {
+	if e.opts == nil {
+		return ""
+	}
+
+	// Check if the image supports VNC (playwright or desktop variants)
+	imageName := e.opts.Image
+	if imageName == "" {
+		return ""
+	}
+
+	// VNC is only available for playwright and desktop images
+	if !strings.Contains(imageName, "playwright") && !strings.Contains(imageName, "desktop") {
+		return ""
+	}
+
+	// Return only the sandbox ID, the full URL is constructed by openapi/sandbox.GetVNCClientURL()
+	return e.GetSandboxID()
 }
 
 // Close releases the executor resources and removes the container

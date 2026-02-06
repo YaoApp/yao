@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-connections/nat"
 	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
@@ -183,8 +185,16 @@ func (m *Manager) Close() error {
 }
 
 // GetOrCreate returns existing container or creates new one
-func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Container, error) {
+func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string, opts ...CreateOptions) (*Container, error) {
 	name := containerName(userID, chatID)
+
+	// Extract options if provided
+	var createOpts CreateOptions
+	if len(opts) > 0 {
+		createOpts = opts[0]
+	}
+	createOpts.UserID = userID
+	createOpts.ChatID = chatID
 
 	// Check if container already exists (fast path)
 	if c, ok := m.containers.Load(name); ok {
@@ -241,7 +251,7 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 	}
 
 	// Create new container
-	cont, err := m.createContainer(ctx, userID, chatID)
+	cont, err := m.createContainer(ctx, createOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -254,11 +264,19 @@ func (m *Manager) GetOrCreate(ctx context.Context, userID, chatID string) (*Cont
 }
 
 // createContainer creates a new Docker container
-func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*Container, error) {
+func (m *Manager) createContainer(ctx context.Context, opts CreateOptions) (*Container, error) {
+	userID := opts.UserID
+	chatID := opts.ChatID
 	name := containerName(userID, chatID)
 
+	// Use image from options or fall back to config default
+	image := opts.Image
+	if image == "" {
+		image = m.config.Image
+	}
+
 	// Ensure image exists, pull if not
-	if err := m.ensureImage(ctx, m.config.Image); err != nil {
+	if err := m.ensureImage(ctx, image); err != nil {
 		return nil, err
 	}
 
@@ -281,7 +299,7 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 
 	// Container configuration
 	containerConfig := &container.Config{
-		Image:      m.config.Image,
+		Image:      image,
 		Cmd:        []string{"sleep", "infinity"},
 		WorkingDir: m.config.ContainerWorkDir,
 		User:       m.config.ContainerUser, // Empty string uses image default
@@ -304,6 +322,24 @@ func (m *Manager) createContainer(ctx context.Context, userID, chatID string) (*
 		},
 		SecurityOpt: []string{"no-new-privileges"},
 		CapDrop:     []string{"ALL"},
+	}
+
+	// VNC port mapping for Docker Desktop (macOS/Windows)
+	// Only enable for VNC-capable images (playwright/desktop) when config is enabled
+	if m.config.VNCPortMapping && isVNCImage(image) {
+		// Expose VNC ports in container config
+		containerConfig.ExposedPorts = nat.PortSet{
+			"6080/tcp": struct{}{}, // noVNC websockify
+			"5900/tcp": struct{}{}, // VNC
+		}
+		// Enable SANDBOX_VNC_ENABLED environment variable
+		containerConfig.Env = append(containerConfig.Env, "SANDBOX_VNC_ENABLED=true")
+
+		// Map to random available ports on 127.0.0.1
+		hostConfig.PortBindings = nat.PortMap{
+			"6080/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}}, // empty = random port
+			"5900/tcp": []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}},
+		}
 	}
 
 	// Create container
@@ -775,12 +811,22 @@ func (m *Manager) ReadFile(ctx context.Context, name, path string) ([]byte, erro
 
 // ListDir lists directory contents in container
 func (m *Manager) ListDir(ctx context.Context, name, path string) ([]FileInfo, error) {
+	// Try GNU ls with --time-style first (for GNU coreutils)
 	result, err := m.Exec(ctx, name, []string{"ls", "-la", "--time-style=+%s", path}, nil)
+	if err == nil && result.ExitCode == 0 {
+		return parseLS(result.Stdout, true), nil
+	}
+
+	// Fall back to basic ls (for BusyBox/Alpine)
+	result, err = m.Exec(ctx, name, []string{"ls", "-la", path}, nil)
 	if err != nil {
 		return nil, err
 	}
+	if result.ExitCode != 0 {
+		return nil, fmt.Errorf("ls failed: %s", result.Stderr)
+	}
 
-	return parseLS(result.Stdout), nil
+	return parseLS(result.Stdout, false), nil
 }
 
 // Stat returns file info
@@ -904,4 +950,20 @@ func (m *Manager) fixIPCSocketPermissions(ctx context.Context, containerID strin
 
 	// Wait briefly for the chmod to complete
 	time.Sleep(50 * time.Millisecond)
+}
+
+// isVNCImage checks if the image is VNC-capable (playwright or desktop variants)
+func isVNCImage(imageName string) bool {
+	return strings.Contains(imageName, "playwright") || strings.Contains(imageName, "desktop")
+}
+
+// findAvailablePort finds an available port on the host
+// This is used as a fallback; Docker can auto-assign ports when HostPort is empty
+func findAvailablePort() (int, error) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return 0, err
+	}
+	defer listener.Close()
+	return listener.Addr().(*net.TCPAddr).Port, nil
 }

@@ -88,6 +88,17 @@ func (e *realSandboxExecutor) GetWorkDir() string {
 	return e.workDir
 }
 
+func (e *realSandboxExecutor) GetSandboxID() string {
+	// Extract sandbox ID from container name (format: yao-sandbox-{userID}-{chatID})
+	// For tests, just return a mock ID
+	return "test-user-test-chat"
+}
+
+func (e *realSandboxExecutor) GetVNCUrl() string {
+	// Tests don't use VNC, return empty
+	return ""
+}
+
 // TestJsSandboxNotAvailable tests ctx.sandbox when not configured
 func TestJsSandboxNotAvailable(t *testing.T) {
 	test.Prepare(t, config.Conf)

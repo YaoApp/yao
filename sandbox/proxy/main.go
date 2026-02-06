@@ -310,6 +310,7 @@ func (s *Server) processStream(w http.ResponseWriter, flusher http.Flusher, body
 	var toolCalls []*ToolCallAccumulator
 	var contentIndex int
 	var finishReason string
+	var lastUsage *Usage // Track the latest usage data from backend
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -332,19 +333,13 @@ func (s *Server) processStream(w http.ResponseWriter, flusher http.Flusher, body
 		}
 
 		if len(chunk.Choices) == 0 {
-			// Usage update at the end
+			// Usage update at the end - save it but don't send message_delta yet
+			// It will be included in the final message_delta below
 			if chunk.Usage != nil {
-				usageEvent := AnthropicStreamEvent{
-					Type: "message_delta",
-					Delta: &DeltaContent{
-						StopReason: &finishReason,
-					},
-					Usage: &Usage{
-						InputTokens:  chunk.Usage.PromptTokens,
-						OutputTokens: chunk.Usage.CompletionTokens,
-					},
+				lastUsage = &Usage{
+					InputTokens:  chunk.Usage.PromptTokens,
+					OutputTokens: chunk.Usage.CompletionTokens,
 				}
-				s.writeSSE(w, flusher, usageEvent)
 			}
 			continue
 		}
@@ -452,15 +447,20 @@ func (s *Server) processStream(w http.ResponseWriter, flusher http.Flusher, body
 		s.writeSSE(w, flusher, stopEvent)
 	}
 
-	// Send message_delta with stop reason
+	// Send message_delta with stop reason and usage
+	// Claude CLI expects usage to always be present in message_delta
 	if finishReason == "" {
 		finishReason = "end_turn"
+	}
+	if lastUsage == nil {
+		lastUsage = &Usage{InputTokens: 0, OutputTokens: 0}
 	}
 	deltaEvent := AnthropicStreamEvent{
 		Type: "message_delta",
 		Delta: &DeltaContent{
 			StopReason: &finishReason,
 		},
+		Usage: lastUsage,
 	}
 	s.writeSSE(w, flusher, deltaEvent)
 

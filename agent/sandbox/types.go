@@ -32,6 +32,13 @@ type Executor interface {
 	// GetWorkDir returns the container workspace directory
 	GetWorkDir() string
 
+	// GetSandboxID returns the sandbox ID (userID-chatID)
+	GetSandboxID() string
+
+	// GetVNCUrl returns the VNC preview URL path (e.g., /api/__yao/vnc/{sandboxID}/)
+	// Returns empty string if VNC is not enabled for this sandbox image
+	GetVNCUrl() string
+
 	// Close releases container resources
 	Close() error
 }

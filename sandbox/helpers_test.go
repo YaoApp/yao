@@ -65,41 +65,83 @@ func TestMapToSlice(t *testing.T) {
 }
 
 func TestParseLS(t *testing.T) {
-	output := `total 8
+	// Test GNU ls output with --time-style=+%s (Unix epoch timestamp)
+	t.Run("GNU_ls_with_time_style", func(t *testing.T) {
+		output := `total 8
 drwxr-xr-x 2 sandbox sandbox 4096 1700000000 dir1
 -rw-r--r-- 1 sandbox sandbox 100 1700000001 file1.txt
 lrwxrwxrwx 1 sandbox sandbox 10 1700000002 link1 -> file1.txt
 `
 
-	result := parseLS(output)
+		result := parseLS(output, true)
 
-	if len(result) != 3 {
-		t.Fatalf("expected 3 items, got %d", len(result))
-	}
+		if len(result) != 3 {
+			t.Fatalf("expected 3 items, got %d", len(result))
+		}
 
-	// Check dir1
-	if result[0].Name != "dir1" {
-		t.Errorf("expected name 'dir1', got '%s'", result[0].Name)
-	}
-	if !result[0].IsDir {
-		t.Errorf("expected dir1 to be a directory")
-	}
+		// Check dir1
+		if result[0].Name != "dir1" {
+			t.Errorf("expected name 'dir1', got '%s'", result[0].Name)
+		}
+		if !result[0].IsDir {
+			t.Errorf("expected dir1 to be a directory")
+		}
 
-	// Check file1.txt
-	if result[1].Name != "file1.txt" {
-		t.Errorf("expected name 'file1.txt', got '%s'", result[1].Name)
-	}
-	if result[1].Size != 100 {
-		t.Errorf("expected size 100, got %d", result[1].Size)
-	}
-	if result[1].IsDir {
-		t.Errorf("expected file1.txt to be a file, not directory")
-	}
+		// Check file1.txt
+		if result[1].Name != "file1.txt" {
+			t.Errorf("expected name 'file1.txt', got '%s'", result[1].Name)
+		}
+		if result[1].Size != 100 {
+			t.Errorf("expected size 100, got %d", result[1].Size)
+		}
+		if result[1].IsDir {
+			t.Errorf("expected file1.txt to be a file, not directory")
+		}
 
-	// Check link1
-	if result[2].Name != "link1 -> file1.txt" {
-		t.Errorf("expected name 'link1 -> file1.txt', got '%s'", result[2].Name)
-	}
+		// Check link1
+		if result[2].Name != "link1 -> file1.txt" {
+			t.Errorf("expected name 'link1 -> file1.txt', got '%s'", result[2].Name)
+		}
+	})
+
+	// Test BusyBox/basic ls output (Alpine-style)
+	t.Run("BusyBox_ls_basic", func(t *testing.T) {
+		output := `total 8
+drwxr-xr-x    2 sandbox  sandbox       4096 Jan  1 12:00 dir1
+-rw-r--r--    1 sandbox  sandbox        100 Jan  1 12:01 file1.txt
+lrwxrwxrwx    1 sandbox  sandbox         10 Jan  1 12:02 link1 -> file1.txt
+`
+
+		result := parseLS(output, false)
+
+		if len(result) != 3 {
+			t.Fatalf("expected 3 items, got %d", len(result))
+		}
+
+		// Check dir1
+		if result[0].Name != "dir1" {
+			t.Errorf("expected name 'dir1', got '%s'", result[0].Name)
+		}
+		if !result[0].IsDir {
+			t.Errorf("expected dir1 to be a directory")
+		}
+
+		// Check file1.txt
+		if result[1].Name != "file1.txt" {
+			t.Errorf("expected name 'file1.txt', got '%s'", result[1].Name)
+		}
+		if result[1].Size != 100 {
+			t.Errorf("expected size 100, got %d", result[1].Size)
+		}
+		if result[1].IsDir {
+			t.Errorf("expected file1.txt to be a file, not directory")
+		}
+
+		// Check link1 (in BusyBox format, symlink target is separate field)
+		if result[2].Name != "link1 -> file1.txt" {
+			t.Errorf("expected name 'link1 -> file1.txt', got '%s'", result[2].Name)
+		}
+	})
 }
 
 func TestParseStat(t *testing.T) {

@@ -105,6 +105,22 @@ case $TOOL in
     build_multiarch "sandbox-claude" "claude/Dockerfile" "$PUSH"
     build_multiarch "sandbox-claude-full" "claude/Dockerfile.full" "$PUSH"
     ;;
+  claude-vnc)
+    echo ""
+    echo "=== Building Claude VNC images (Browser + Desktop) ==="
+    build_multiarch "sandbox-claude-browser" "browser/Dockerfile" "$PUSH"
+    build_multiarch "sandbox-claude-desktop" "desktop/Dockerfile" "$PUSH"
+    ;;
+  browser)
+    echo ""
+    echo "=== Building Claude Browser image ==="
+    build_multiarch "sandbox-claude-browser" "browser/Dockerfile" "$PUSH"
+    ;;
+  desktop)
+    echo ""
+    echo "=== Building Claude Desktop image ==="
+    build_multiarch "sandbox-claude-desktop" "desktop/Dockerfile" "$PUSH"
+    ;;
   cursor)
     echo ""
     echo "=== Building Cursor images ==="
@@ -116,14 +132,20 @@ case $TOOL in
     # Claude
     build_multiarch "sandbox-claude" "claude/Dockerfile" "$PUSH"
     build_multiarch "sandbox-claude-full" "claude/Dockerfile.full" "$PUSH"
+    # Claude VNC variants
+    build_multiarch "sandbox-claude-browser" "browser/Dockerfile" "$PUSH"
+    build_multiarch "sandbox-claude-desktop" "desktop/Dockerfile" "$PUSH"
     # Cursor (uncomment when ready)
     # build_multiarch "sandbox-cursor" "cursor/Dockerfile" "$PUSH"
     ;;
   *)
     echo "Unknown tool: $TOOL"
-    echo "Usage: $0 [claude|cursor|all] [true|false]"
+    echo "Usage: $0 [claude|claude-vnc|browser|desktop|cursor|all] [true|false]"
     echo "  $0 claude        # Build Claude images locally"
     echo "  $0 claude true   # Build and push Claude images"
+    echo "  $0 claude-vnc    # Build Claude VNC images (Browser + Desktop)"
+    echo "  $0 browser       # Build Claude Browser image only"
+    echo "  $0 desktop       # Build Claude Desktop image only"
     echo "  $0 all true      # Build and push all images"
     exit 1
     ;;
@@ -142,9 +164,21 @@ if [ "$PUSH" = "true" ]; then
         echo "  - ${REGISTRY}/sandbox-claude:latest"
         echo "  - ${REGISTRY}/sandbox-claude-full:latest"
         ;;
+      claude-vnc)
+        echo "  - ${REGISTRY}/sandbox-claude-browser:latest"
+        echo "  - ${REGISTRY}/sandbox-claude-desktop:latest"
+        ;;
+      browser)
+        echo "  - ${REGISTRY}/sandbox-claude-browser:latest"
+        ;;
+      desktop)
+        echo "  - ${REGISTRY}/sandbox-claude-desktop:latest"
+        ;;
       all)
         echo "  - ${REGISTRY}/sandbox-claude:latest"
         echo "  - ${REGISTRY}/sandbox-claude-full:latest"
+        echo "  - ${REGISTRY}/sandbox-claude-browser:latest"
+        echo "  - ${REGISTRY}/sandbox-claude-desktop:latest"
         ;;
     esac
 fi

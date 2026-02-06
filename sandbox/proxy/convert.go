@@ -313,12 +313,14 @@ func (s *Server) convertResponse(resp *OpenAIResponse) *AnthropicResponse {
 		result.StopReason = &stopReason
 	}
 
-	// Convert usage
+	// Convert usage (always include - Claude CLI expects usage to be present)
 	if resp.Usage != nil {
 		result.Usage = &Usage{
 			InputTokens:  resp.Usage.PromptTokens,
 			OutputTokens: resp.Usage.CompletionTokens,
 		}
+	} else {
+		result.Usage = &Usage{InputTokens: 0, OutputTokens: 0}
 	}
 
 	return result
