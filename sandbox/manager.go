@@ -22,6 +22,10 @@ import (
 	"github.com/yaoapp/yao/sandbox/ipc"
 )
 
+// vncImageKeywords lists image name keywords that indicate VNC support.
+// Add new keywords here when adding new VNC-capable sandbox images.
+var vncImageKeywords = []string{"playwright", "desktop", "chrome"}
+
 // execReadCloser wraps a Reader with a Closer
 type execReadCloser struct {
 	*bufio.Reader
@@ -324,9 +328,15 @@ func (m *Manager) createContainer(ctx context.Context, opts CreateOptions) (*Con
 		CapDrop:     []string{"ALL"},
 	}
 
+	// Chrome/browser images need SYS_ADMIN for namespace-based process isolation.
+	// Without it, Chrome renderer/GPU processes crash with error code 5.
+	if IsVNCImage(image) {
+		hostConfig.CapAdd = []string{"SYS_ADMIN"}
+	}
+
 	// VNC port mapping for Docker Desktop (macOS/Windows)
 	// Only enable for VNC-capable images (playwright/desktop) when config is enabled
-	if m.config.VNCPortMapping && isVNCImage(image) {
+	if m.config.VNCPortMapping && IsVNCImage(image) {
 		// Expose VNC ports in container config
 		containerConfig.ExposedPorts = nat.PortSet{
 			"6080/tcp": struct{}{}, // noVNC websockify
@@ -952,9 +962,14 @@ func (m *Manager) fixIPCSocketPermissions(ctx context.Context, containerID strin
 	time.Sleep(50 * time.Millisecond)
 }
 
-// isVNCImage checks if the image is VNC-capable (playwright or desktop variants)
-func isVNCImage(imageName string) bool {
-	return strings.Contains(imageName, "playwright") || strings.Contains(imageName, "desktop")
+// IsVNCImage checks if the image is VNC-capable based on vncImageKeywords.
+func IsVNCImage(imageName string) bool {
+	for _, kw := range vncImageKeywords {
+		if strings.Contains(imageName, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 // findAvailablePort finds an available port on the host
