@@ -31,6 +31,7 @@ func processPing(process *process.Process) interface{} {
 	res := map[string]interface{}{
 		"engine":  share.BUILDNAME,
 		"version": share.VERSION,
+		"root":    config.Conf.Root,
 	}
 	return res
 }

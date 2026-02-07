@@ -81,6 +81,18 @@ func GetInfo(c *gin.Context) *types.AuthorizedInfo {
 		}
 	}
 
+	if authSource, ok := c.Get("__auth_source"); ok {
+		if asStr, ok := authSource.(string); ok {
+			info.AuthSource = asStr
+		}
+	}
+
+	if oauthEmail, ok := c.Get("__oauth_email"); ok {
+		if oeStr, ok := oauthEmail.(string); ok {
+			info.OAuthEmail = oeStr
+		}
+	}
+
 	// Get data access constraints (set by ACL enforcement)
 	info.Constraints = GetConstraints(c)
 

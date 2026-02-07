@@ -157,6 +157,11 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 		}
 	}
 
+	// Add Yao auth source if present
+	if user.YaoAuthSource != "" {
+		result["yao:auth_source"] = user.YaoAuthSource
+	}
+
 	// Add Yao member info if present and has content (for team context)
 	if user.YaoMember != nil {
 		memberMap := make(map[string]interface{})
@@ -305,6 +310,11 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 	}
 	if typeID, ok := user["yao:type_id"].(string); ok {
 		userInfo.YaoTypeID = typeID
+	}
+
+	// Yao auth source
+	if authSource, ok := user["yao:auth_source"].(string); ok {
+		userInfo.YaoAuthSource = authSource
 	}
 
 	// Yao team info (nested object)

@@ -764,17 +764,6 @@ func GinEntryRegister(c *gin.Context) {
 		return
 	}
 
-	// Get user provider
-	userProvider, err := oauth.OAuth.GetUserProvider()
-	if err != nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to get user provider: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
 	// Generate name if not provided
 	name := req.Name
 	if name == "" {
@@ -821,18 +810,17 @@ func GinEntryRegister(c *gin.Context) {
 		userData["status"] = "active"
 	}
 
-	// Create user
-	userID, err := userProvider.CreateUser(ctx, userData)
+	// Create user and default team (with rollback on team creation failure)
+	userID, err := registerUserWithTeam(ctx, userData, req.Locale)
 	if err != nil {
-		log.Error("Failed to create user: %v", err)
+		log.Error("Failed to register user: %v", err)
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to create user: " + err.Error(),
+			ErrorDescription: err.Error(),
 		}
 		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
 		return
 	}
-
 	log.Info("User registered successfully: %s (user_id: %s)", usernameStr, userID)
 
 	// If auto_login is false and invite not required, return success without tokens
@@ -849,6 +837,7 @@ func GinEntryRegister(c *gin.Context) {
 	// Auto-login or invite_required: Generate tokens using LoginByUserID
 	// For invite_required, LoginByUserID will detect pending_invite status and return temporary token
 	loginCtx := makeLoginContext(c)
+	loginCtx.AuthSource = "password" // Registered via email+password
 	loginResponse, err := LoginByUserID(userID, loginCtx)
 	if err != nil {
 		log.Error("Failed to auto-login after registration: %v", err)
@@ -1021,6 +1010,7 @@ func GinEntryLogin(c *gin.Context) {
 	// Login using LoginByUserID (all status checks are handled inside)
 	loginCtx := makeLoginContext(c)
 	loginCtx.RememberMe = req.RememberMe // Set Remember Me from request
+	loginCtx.AuthSource = "password"     // Logged in via email+password
 	loginResponse, err := LoginByUserID(userID, loginCtx)
 	if err != nil {
 		log.Error("Failed to login user %s: %v", userID, err)

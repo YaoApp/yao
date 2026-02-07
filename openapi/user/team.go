@@ -414,6 +414,8 @@ func GinTeamSelection(c *gin.Context) {
 
 	// Preserve Remember Me state from temporary token
 	loginCtx.RememberMe = authInfo.RememberMe
+	loginCtx.AuthSource = authInfo.AuthSource // Preserve auth source from login
+	loginCtx.OAuthEmail = authInfo.OAuthEmail // Preserve OAuth email from login
 
 	// Login with selected team
 	loginResponse, err := LoginByTeamID(authInfo.UserID, req.TeamID, loginCtx)

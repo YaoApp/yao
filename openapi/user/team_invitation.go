@@ -991,7 +991,7 @@ func teamInvitationGetPublic(ctx context.Context, invitationID, locale string) (
 			}
 			// Fallback to masked email if name is empty (for privacy protection)
 			if inviterInfo.Name == "" {
-				inviterInfo.Name = maskEmail(utils.ToString(inviter["email"]))
+				inviterInfo.Name = MaskEmail(utils.ToString(inviter["email"]))
 			}
 		}
 	}

@@ -174,6 +174,7 @@ func authback(c *gin.Context) {
 
 	// LoginThirdParty(providerID, userInfo)
 	loginCtx := makeLoginContext(c)
+	loginCtx.AuthSource = providerID // Set auth source to provider name (google, github, etc.)
 
 	// Use locale from params, fallback to "en" if not provided
 	locale := params.Locale

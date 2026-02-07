@@ -582,6 +582,9 @@ func (s *Service) SignIDToken(clientID, scope string, expiresIn int, userdata *t
 	if userdata.YaoTypeID != "" {
 		claims["yao:type_id"] = userdata.YaoTypeID
 	}
+	if userdata.YaoAuthSource != "" {
+		claims["yao:auth_source"] = userdata.YaoAuthSource
+	}
 	// Add Yao team info if present
 	if userdata.YaoTeam != nil {
 		teamMap := make(map[string]interface{})

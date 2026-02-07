@@ -15,6 +15,8 @@ type LoginContext struct {
 	Location   string `json:"location,omitempty"`    // Geographic location (optional)
 	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag for extended session
 	Locale     string `json:"locale,omitempty"`      // User's preferred locale (e.g., "en-US", "zh-CN")
+	AuthSource string `json:"auth_source,omitempty"` // Authentication source (password, google, github, etc.)
+	OAuthEmail string `json:"oauth_email,omitempty"` // OAuth account email (from third-party provider, not user profile)
 }
 
 // MFAOptions contains configuration for MFA operations
@@ -626,6 +628,8 @@ type AuthorizedInfo struct {
 	TeamID     string `json:"team_id,omitempty"`     // Team identifier
 	TenantID   string `json:"tenant_id,omitempty"`   // Tenant identifier
 	RememberMe bool   `json:"remember_me,omitempty"` // Remember Me flag preserved from login
+	AuthSource string `json:"auth_source,omitempty"` // Authentication source preserved from login
+	OAuthEmail string `json:"oauth_email,omitempty"` // OAuth account email preserved from login
 
 	// Data access constraints (set by ACL enforcement)
 	Constraints DataConstraints `json:"constraints,omitempty"`
@@ -776,14 +780,15 @@ type OIDCUserInfo struct {
 	Address *OIDCAddress `json:"address,omitempty"` // Physical mailing address
 
 	// Additional custom claims with namespace
-	YaoUserID   string          `json:"yao:user_id,omitempty"`   // Yao user ID (original user ID)
-	YaoTenantID string          `json:"yao:tenant_id,omitempty"` // Yao tenant ID
-	YaoTeamID   string          `json:"yao:team_id,omitempty"`   // Yao team ID
-	YaoTeam     *OIDCTeamInfo   `json:"yao:team,omitempty"`      // Yao team info
-	YaoIsOwner  *bool           `json:"yao:is_owner,omitempty"`  // Yao is owner
-	YaoTypeID   string          `json:"yao:type_id,omitempty"`   // Yao user type ID
-	YaoType     *OIDCTypeInfo   `json:"yao:type,omitempty"`      // Yao user type info
-	YaoMember   *OIDCMemberInfo `json:"yao:member,omitempty"`    // Yao member profile info (for team context)
+	YaoUserID     string          `json:"yao:user_id,omitempty"`     // Yao user ID (original user ID)
+	YaoTenantID   string          `json:"yao:tenant_id,omitempty"`   // Yao tenant ID
+	YaoTeamID     string          `json:"yao:team_id,omitempty"`     // Yao team ID
+	YaoTeam       *OIDCTeamInfo   `json:"yao:team,omitempty"`        // Yao team info
+	YaoIsOwner    *bool           `json:"yao:is_owner,omitempty"`    // Yao is owner
+	YaoTypeID     string          `json:"yao:type_id,omitempty"`     // Yao user type ID
+	YaoType       *OIDCTypeInfo   `json:"yao:type,omitempty"`        // Yao user type info
+	YaoMember     *OIDCMemberInfo `json:"yao:member,omitempty"`      // Yao member profile info (for team context)
+	YaoAuthSource string          `json:"yao:auth_source,omitempty"` // Authentication source (password, google, github, etc.)
 
 	// Raw response for debugging and custom processing
 	Raw map[string]interface{} `json:"raw,omitempty"` // Original provider response
