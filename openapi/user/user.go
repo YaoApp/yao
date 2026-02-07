@@ -269,7 +269,8 @@ func attachAccount(group *gin.RouterGroup, oauth types.OAuth) {
 	account.Use(oauth.Guard)
 
 	// Password Management
-	account.PUT("/password", placeholder)                // Change password (requires current password or 2FA)
+	account.PUT("/password", GinChangePassword) // Change password (requires current password)
+
 	account.POST("/password/reset/request", placeholder) // Request password reset (public, rate-limited)
 	account.POST("/password/reset/verify", placeholder)  // Verify reset token and set new password (public)
 

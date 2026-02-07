@@ -837,6 +837,7 @@ func GinEntryRegister(c *gin.Context) {
 	// Auto-login or invite_required: Generate tokens using LoginByUserID
 	// For invite_required, LoginByUserID will detect pending_invite status and return temporary token
 	loginCtx := makeLoginContext(c)
+	loginCtx.AuthSource = "password" // Registered via email+password
 	loginResponse, err := LoginByUserID(userID, loginCtx)
 	if err != nil {
 		log.Error("Failed to auto-login after registration: %v", err)
@@ -1009,6 +1010,7 @@ func GinEntryLogin(c *gin.Context) {
 	// Login using LoginByUserID (all status checks are handled inside)
 	loginCtx := makeLoginContext(c)
 	loginCtx.RememberMe = req.RememberMe // Set Remember Me from request
+	loginCtx.AuthSource = "password"     // Logged in via email+password
 	loginResponse, err := LoginByUserID(userID, loginCtx)
 	if err != nil {
 		log.Error("Failed to login user %s: %v", userID, err)

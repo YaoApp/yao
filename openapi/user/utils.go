@@ -30,7 +30,7 @@ func GetUserIDFromSession(process *process.Process) string {
 
 // Security Utilities
 
-// maskEmail masks an email address for privacy protection
+// MaskEmail masks an email address for privacy protection
 // Keeps the first and last character of the local part, masks the middle with ***
 // Examples:
 //   - "john.doe@example.com" -> "j***e@example.com"
@@ -38,7 +38,7 @@ func GetUserIDFromSession(process *process.Process) string {
 //   - "ab@example.com" -> "a***b@example.com"
 //
 // Returns empty string for invalid email or empty input
-func maskEmail(email string) string {
+func MaskEmail(email string) string {
 	if email == "" {
 		return ""
 	}

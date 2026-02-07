@@ -193,6 +193,11 @@ func LoginThirdParty(providerID string, userinfo *oauthtypes.OIDCUserInfo, login
 		return nil, err
 	}
 
+	// Pass OAuth email to loginCtx for display in token (without polluting user profile email)
+	if loginCtx != nil && userinfo.Email != "" {
+		loginCtx.OAuthEmail = userinfo.Email
+	}
+
 	return LoginByUserID(userID, loginCtx)
 }
 
@@ -334,10 +339,16 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// Sign temporary access token for Team Selection
 		var teamSelectionExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me state
+		// Prepare extra claims to preserve Remember Me and AuthSource state
 		extraClaims := make(map[string]interface{})
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
+		}
+		if loginCtx != nil && loginCtx.AuthSource != "" {
+			extraClaims["auth_source"] = loginCtx.AuthSource
+		}
+		if loginCtx != nil && loginCtx.OAuthEmail != "" {
+			extraClaims["oauth_email"] = loginCtx.OAuthEmail
 		}
 
 		accessToken, err := oauth.OAuth.MakeAccessToken(yaoClientConfig.ClientID, ScopeTeamSelection, subject, teamSelectionExpire, extraClaims)
@@ -578,6 +589,23 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 	oidcUserInfo := oauthtypes.MakeOIDCUserInfo(params.User)
 	oidcUserInfo.Sub = params.Subject
 	oidcUserInfo.YaoUserID = params.UserID // Add original user ID
+
+	// Add authentication source from IssueTokensParams or LoginContext
+	if params.AuthSource != "" {
+		oidcUserInfo.YaoAuthSource = params.AuthSource
+	} else if params.LoginCtx != nil && params.LoginCtx.AuthSource != "" {
+		oidcUserInfo.YaoAuthSource = params.LoginCtx.AuthSource
+	}
+
+	// For third-party login: use OAuth email (masked) if user profile email is empty
+	if oidcUserInfo.YaoAuthSource != "" && oidcUserInfo.YaoAuthSource != "password" {
+		if oidcUserInfo.Email == "" && params.LoginCtx != nil && params.LoginCtx.OAuthEmail != "" {
+			oidcUserInfo.Email = params.LoginCtx.OAuthEmail
+		}
+		if oidcUserInfo.Email != "" {
+			oidcUserInfo.Email = MaskEmail(oidcUserInfo.Email)
+		}
+	}
 
 	// Prepare extra claims for access token
 	extraClaims := make(map[string]interface{})
