@@ -269,6 +269,9 @@ func loadTeamConfigs(_ string) error {
 			return fmt.Errorf("failed to parse team config %s: %v", filename, err)
 		}
 
+		// Resolve $ENV. variables in team configuration
+		resolveTeamConfigENV(&teamConfig)
+
 		// Store team configuration
 		teamConfigs[locale] = &teamConfig
 
@@ -400,6 +403,49 @@ func extractEnvVarName(value string) string {
 	}
 
 	return "unknown"
+}
+
+// resolveTeamConfigENV resolves $ENV. variables in team configuration
+func resolveTeamConfigENV(config *TeamConfig) {
+	if config == nil {
+		return
+	}
+
+	// Resolve robot config
+	if config.Robot != nil {
+		// Resolve email domains
+		for _, domain := range config.Robot.EmailDomains {
+			if domain == nil {
+				continue
+			}
+			domain.Domain = replaceENVVar(domain.Domain)
+			domain.Messenger = replaceENVVar(domain.Messenger)
+
+			// Resolve whitelist
+			if domain.Whitelist != nil {
+				for i, d := range domain.Whitelist.Domains {
+					domain.Whitelist.Domains[i] = replaceENVVar(d)
+				}
+				for i, s := range domain.Whitelist.Senders {
+					domain.Whitelist.Senders[i] = replaceENVVar(s)
+				}
+				for i, ip := range domain.Whitelist.IPs {
+					domain.Whitelist.IPs[i] = replaceENVVar(ip)
+				}
+			}
+		}
+
+		// Resolve defaults
+		if config.Robot.Defaults != nil {
+			config.Robot.Defaults.LLM = replaceENVVar(config.Robot.Defaults.LLM)
+		}
+	}
+
+	// Resolve invite config
+	if config.Invite != nil {
+		config.Invite.BaseURL = replaceENVVar(config.Invite.BaseURL)
+		config.Invite.Channel = replaceENVVar(config.Invite.Channel)
+	}
 }
 
 // replaceENVVar replaces environment variables in a string
