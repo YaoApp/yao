@@ -376,6 +376,13 @@ artifacts-linux: clean
 	cd ../yao-init && rm -rf LICENSE
 #	cd ../yao-init rm -rf README.md
 
+#	Switch .env login URLs from dev mode (__yao_admin_root) to release mode (dashboard)
+	sed -i.bak 's|AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|# AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|# AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_SUCCESS_URL="/dashboard/|AFTER_LOGIN_SUCCESS_URL="/dashboard/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_FAILURE_URL="/dashboard/|AFTER_LOGIN_FAILURE_URL="/dashboard/|g' ../yao-init/.env
+	rm -f ../yao-init/.env.bak
+
 #   Yao Builder
 #   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
 #	mkdir -p .tmp/data/builder
@@ -451,6 +458,13 @@ artifacts-macos: clean
 	cd ../yao-init && rm -rf .gitignore
 	cd ../yao-init && rm -rf LICENSE
 #	 cd ../yao-init && rm -rf README.md
+
+#	Switch .env login URLs from dev mode (__yao_admin_root) to release mode (dashboard)
+	sed -i.bak 's|AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|# AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|# AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_SUCCESS_URL="/dashboard/|AFTER_LOGIN_SUCCESS_URL="/dashboard/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_FAILURE_URL="/dashboard/|AFTER_LOGIN_FAILURE_URL="/dashboard/|g' ../yao-init/.env
+	rm -f ../yao-init/.env.bak
 
 #	Packing
 	mkdir -p .tmp/data/cui
@@ -534,6 +548,13 @@ prepare: clean
 	rm -rf .tmp/yao-init/.gitignore
 	rm -rf .tmp/yao-init/LICENSE
 	rm -rf .tmp/yao-init/README.md
+
+#	Switch .env login URLs from dev mode (__yao_admin_root) to release mode (dashboard)
+	sed -i.bak 's|AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|# AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|g' .tmp/yao-init/.env
+	sed -i.bak 's|AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|# AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|g' .tmp/yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_SUCCESS_URL="/dashboard/|AFTER_LOGIN_SUCCESS_URL="/dashboard/|g' .tmp/yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_FAILURE_URL="/dashboard/|AFTER_LOGIN_FAILURE_URL="/dashboard/|g' .tmp/yao-init/.env
+	rm -f .tmp/yao-init/.env.bak
 
 #   Yao Builder
 #   Remove Yao Builder - DUI PageBuilder component will provide online design for pure HTML pages or SUI pages in the future.
