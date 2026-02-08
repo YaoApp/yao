@@ -35,7 +35,7 @@ func DefaultConfig() *Config {
 		MaxMemory:          "2g",
 		MaxCPU:             1.0,
 		ContainerWorkDir:   "/workspace",
-		ContainerIPCSocket: "/tmp/yao.sock",
+		ContainerIPCSocket: "/run/yao.sock",
 	}
 }
 
