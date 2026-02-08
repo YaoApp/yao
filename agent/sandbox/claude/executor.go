@@ -474,7 +474,6 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 
 		// Process each content part
 		var textParts []string
-		modified := false
 
 		for _, item := range parts {
 			m, ok := item.(map[string]interface{})
@@ -504,7 +503,6 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 				if !isWrapper {
 					// Not an attachment URL, keep as text reference
 					textParts = append(textParts, fmt.Sprintf("[Image: %s]", url))
-					modified = true
 					continue
 				}
 
@@ -513,13 +511,11 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 				if err != nil {
 					log.Printf("[sandbox] Warning: failed to resolve image attachment %s: %v", fileID, err)
 					textParts = append(textParts, "[Attached image: failed to load]")
-					modified = true
 					continue
 				}
 
 				textParts = append(textParts, ref)
 				hasAttachments = true
-				modified = true
 
 			case "file":
 				fileData, _ := m["file"].(map[string]interface{})
@@ -535,7 +531,6 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 				uploaderName, fileID, isWrapper := attachment.Parse(url)
 				if !isWrapper {
 					textParts = append(textParts, fmt.Sprintf("[File: %s]", url))
-					modified = true
 					continue
 				}
 
@@ -543,13 +538,11 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 				if err != nil {
 					log.Printf("[sandbox] Warning: failed to resolve file attachment %s: %v", fileID, err)
 					textParts = append(textParts, "[Attached file: failed to load]")
-					modified = true
 					continue
 				}
 
 				textParts = append(textParts, ref)
 				hasAttachments = true
-				modified = true
 
 			default:
 				// Keep other types as-is (shouldn't happen normally)
@@ -557,7 +550,11 @@ func (e *Executor) prepareAttachments(ctx context.Context, messages []agentConte
 			}
 		}
 
-		if modified && len(textParts) > 0 {
+		// Merge text parts into a single string when the original content was
+		// a multimodal array ([]interface{} / []ContentPart).  This is needed
+		// even when only "text" parts are present so that downstream code
+		// (BuildInputJSONL, etc.) always sees a plain string.
+		if len(textParts) > 0 {
 			newMsg := result[i]
 			newMsg.Content = strings.Join(textParts, "\n\n")
 			result[i] = newMsg

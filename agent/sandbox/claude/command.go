@@ -53,8 +53,8 @@ When working with GitHub and a token is provided:
 // Only keys listed here are passed through; everything else is ignored.
 var claudeArgWhitelist = map[string]string{
 	"max_turns":        "--max-turns",        // Maximum conversation turns
-	"disallowed_tools": "--disallowed-tools",  // Comma-separated tool blacklist (e.g. "WebSearch,WebFetch")
-	"allowed_tools":    "--allowedTools",      // Comma-separated tool whitelist (e.g. "Bash,Read,Write")
+	"disallowed_tools": "--disallowed-tools", // Comma-separated tool blacklist (e.g. "WebSearch,WebFetch")
+	"allowed_tools":    "--allowedTools",     // Comma-separated tool whitelist (e.g. "Bash,Read,Write")
 }
 
 // BuildCommand builds the Claude CLI command and environment variables
