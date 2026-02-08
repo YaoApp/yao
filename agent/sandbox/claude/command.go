@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/yaoapp/gou/connector"
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
 
@@ -355,11 +356,9 @@ func BuildProxyConfig(opts *Options) ([]byte, error) {
 		return nil, fmt.Errorf("options is required")
 	}
 
-	// Build backend URL - ensure it ends with /chat/completions
-	backendURL := opts.ConnectorHost
-	if !strings.HasSuffix(backendURL, "/chat/completions") {
-		backendURL = strings.TrimSuffix(backendURL, "/") + "/chat/completions"
-	}
+	// Build backend URL using the shared connector.BuildAPIURL helper
+	// so that the /v1 prefix is applied consistently with the agent LLM path.
+	backendURL := connector.BuildAPIURL(opts.ConnectorHost, "/chat/completions")
 
 	config := map[string]interface{}{
 		"backend": backendURL,

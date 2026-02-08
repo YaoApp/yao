@@ -129,17 +129,11 @@ type Provider struct {
 	adapters []adapters.CapabilityAdapter
 }
 
-// buildAPIURL builds the complete API URL from host and endpoint
-// If host ends with /, it's used as-is (user has specified full path)
-// Otherwise, /v1 prefix is added automatically (standard for OpenAI-compatible APIs)
+// buildAPIURL builds the complete API URL from host and endpoint.
+// Delegates to the shared connector.BuildAPIURL for consistent URL building
+// across the agent LLM path and the sandbox proxy path.
 func buildAPIURL(host, endpoint string) string {
-	// If host ends with /, use it as-is (user has specified full path like /v1/ or /api/)
-	// Otherwise, add /v1 prefix (standard for OpenAI-compatible APIs)
-	if !strings.HasSuffix(host, "/") {
-		endpoint = "/v1" + endpoint
-	}
-	host = strings.TrimSuffix(host, "/")
-	return host + endpoint
+	return connector.BuildAPIURL(host, endpoint)
 }
 
 // New create a new OpenAI provider with capability adapters
