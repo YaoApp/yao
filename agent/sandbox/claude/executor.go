@@ -16,6 +16,7 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/attachment"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
 	"github.com/yaoapp/yao/sandbox/ipc"
 )
@@ -173,6 +174,15 @@ func (e *Executor) Stream(ctx *agentContext.Context, messages []agentContext.Mes
 	// Prepare environment: write configs and copy skills
 	if err := e.prepareEnvironment(stdCtx); err != nil {
 		return nil, fmt.Errorf("failed to prepare environment: %w", err)
+	}
+
+	// Resolve attachment URLs and write files to container
+	// This converts __yao.attachment:// URLs to local file paths in /workspace/.attachments/
+	if resolved, attErr := e.prepareAttachments(stdCtx, messages); attErr != nil {
+		// Non-fatal: log warning and continue with original messages
+		log.Printf("[sandbox] Warning: failed to prepare attachments: %v", attErr)
+	} else {
+		messages = resolved
 	}
 
 	// Check if we should skip Claude CLI execution
@@ -405,6 +415,272 @@ func (e *Executor) copySkillsDirectory(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// prepareAttachments resolves __yao.attachment:// URLs in messages,
+// writes the actual files to the container's /workspace/.attachments/ directory,
+// and replaces the attachment content parts with text references to the file paths.
+// This allows Claude CLI to read the files using its built-in Read/Bash tools.
+func (e *Executor) prepareAttachments(ctx context.Context, messages []agentContext.Message) ([]agentContext.Message, error) {
+	// Track used filenames to handle duplicates
+	usedNames := make(map[string]int)
+	attachmentDir := e.workDir + "/.attachments"
+	dirCreated := false
+	hasAttachments := false
+
+	result := make([]agentContext.Message, len(messages))
+	copy(result, messages)
+
+	for i, msg := range result {
+		if msg.Role != "user" {
+			continue
+		}
+
+		// Handle content array (multimodal messages come as []interface{} from JSON)
+		parts, ok := msg.Content.([]interface{})
+		if !ok {
+			// Try typed content parts
+			if typedParts, ok := msg.Content.([]agentContext.ContentPart); ok {
+				iparts := make([]interface{}, len(typedParts))
+				for j, p := range typedParts {
+					// Convert to map for uniform handling
+					m := map[string]interface{}{"type": string(p.Type)}
+					if p.Text != "" {
+						m["text"] = p.Text
+					}
+					if p.ImageURL != nil {
+						m["image_url"] = map[string]interface{}{
+							"url":    p.ImageURL.URL,
+							"detail": string(p.ImageURL.Detail),
+						}
+					}
+					if p.File != nil {
+						m["file"] = map[string]interface{}{
+							"url":      p.File.URL,
+							"filename": p.File.Filename,
+						}
+					}
+					iparts[j] = m
+				}
+				parts = iparts
+			} else {
+				continue
+			}
+		}
+
+		if len(parts) == 0 {
+			continue
+		}
+
+		// Process each content part
+		var textParts []string
+		modified := false
+
+		for _, item := range parts {
+			m, ok := item.(map[string]interface{})
+			if !ok {
+				continue
+			}
+
+			partType, _ := m["type"].(string)
+
+			switch partType {
+			case "text":
+				if text, ok := m["text"].(string); ok && text != "" {
+					textParts = append(textParts, text)
+				}
+
+			case "image_url":
+				imgData, _ := m["image_url"].(map[string]interface{})
+				if imgData == nil {
+					continue
+				}
+				url, _ := imgData["url"].(string)
+				if url == "" {
+					continue
+				}
+
+				uploaderName, fileID, isWrapper := attachment.Parse(url)
+				if !isWrapper {
+					// Not an attachment URL, keep as text reference
+					textParts = append(textParts, fmt.Sprintf("[Image: %s]", url))
+					modified = true
+					continue
+				}
+
+				// Resolve the attachment
+				ref, err := e.resolveAttachment(ctx, uploaderName, fileID, "", attachmentDir, usedNames, &dirCreated)
+				if err != nil {
+					log.Printf("[sandbox] Warning: failed to resolve image attachment %s: %v", fileID, err)
+					textParts = append(textParts, "[Attached image: failed to load]")
+					modified = true
+					continue
+				}
+
+				textParts = append(textParts, ref)
+				hasAttachments = true
+				modified = true
+
+			case "file":
+				fileData, _ := m["file"].(map[string]interface{})
+				if fileData == nil {
+					continue
+				}
+				url, _ := fileData["url"].(string)
+				hintName, _ := fileData["filename"].(string)
+				if url == "" {
+					continue
+				}
+
+				uploaderName, fileID, isWrapper := attachment.Parse(url)
+				if !isWrapper {
+					textParts = append(textParts, fmt.Sprintf("[File: %s]", url))
+					modified = true
+					continue
+				}
+
+				ref, err := e.resolveAttachment(ctx, uploaderName, fileID, hintName, attachmentDir, usedNames, &dirCreated)
+				if err != nil {
+					log.Printf("[sandbox] Warning: failed to resolve file attachment %s: %v", fileID, err)
+					textParts = append(textParts, "[Attached file: failed to load]")
+					modified = true
+					continue
+				}
+
+				textParts = append(textParts, ref)
+				hasAttachments = true
+				modified = true
+
+			default:
+				// Keep other types as-is (shouldn't happen normally)
+				continue
+			}
+		}
+
+		if modified && len(textParts) > 0 {
+			newMsg := result[i]
+			newMsg.Content = strings.Join(textParts, "\n\n")
+			result[i] = newMsg
+		}
+	}
+
+	if !hasAttachments {
+		return result, nil
+	}
+
+	return result, nil
+}
+
+// resolveAttachment reads an attachment from the attachment manager and writes it
+// to the container's .attachments directory. Returns a text reference string.
+func (e *Executor) resolveAttachment(
+	ctx context.Context,
+	uploaderName, fileID, hintName, attachmentDir string,
+	usedNames map[string]int,
+	dirCreated *bool,
+) (string, error) {
+	// Get attachment manager
+	manager, exists := attachment.Managers[uploaderName]
+	if !exists {
+		return "", fmt.Errorf("attachment manager not found: %s", uploaderName)
+	}
+
+	// Get file info
+	fileInfo, err := manager.Info(ctx, fileID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get file info: %w", err)
+	}
+
+	// Read file data
+	data, err := manager.Read(ctx, fileID)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Determine filename
+	filename := fileInfo.Filename
+	if filename == "" && hintName != "" {
+		filename = hintName
+	}
+	if filename == "" {
+		// Fallback: use fileID with extension from content type
+		ext := extensionFromContentType(fileInfo.ContentType)
+		filename = fileID + ext
+	}
+
+	// Handle duplicate filenames
+	baseName := filename
+	if count, exists := usedNames[baseName]; exists {
+		ext := filepath.Ext(filename)
+		name := strings.TrimSuffix(filename, ext)
+		filename = fmt.Sprintf("%s_%d%s", name, count+1, ext)
+		usedNames[baseName] = count + 1
+	} else {
+		usedNames[baseName] = 0
+	}
+
+	// Create attachments directory if not yet created
+	if !*dirCreated {
+		if err := e.manager.WriteFile(ctx, e.containerName, attachmentDir+"/.keep", []byte("")); err != nil {
+			return "", fmt.Errorf("failed to create attachments directory: %w", err)
+		}
+		*dirCreated = true
+	}
+
+	// Write file to container
+	containerPath := attachmentDir + "/" + filename
+	if err := e.manager.WriteFile(ctx, e.containerName, containerPath, data); err != nil {
+		return "", fmt.Errorf("failed to write file to container: %w", err)
+	}
+
+	// Build human-readable size string
+	sizeStr := formatFileSize(fileInfo.Bytes)
+
+	// Return text reference
+	return fmt.Sprintf("[Attached file: %s (%s, %s)]", containerPath, fileInfo.ContentType, sizeStr), nil
+}
+
+// extensionFromContentType returns a file extension for a given content type
+func extensionFromContentType(contentType string) string {
+	switch contentType {
+	case "image/png":
+		return ".png"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "image/svg+xml":
+		return ".svg"
+	case "application/pdf":
+		return ".pdf"
+	case "text/plain":
+		return ".txt"
+	case "text/html":
+		return ".html"
+	case "text/css":
+		return ".css"
+	case "text/javascript", "application/javascript":
+		return ".js"
+	case "application/json":
+		return ".json"
+	case "application/zip":
+		return ".zip"
+	default:
+		return ""
+	}
+}
+
+// formatFileSize returns a human-readable file size string
+func formatFileSize(bytes int) string {
+	if bytes < 1024 {
+		return fmt.Sprintf("%dB", bytes)
+	}
+	if bytes < 1024*1024 {
+		return fmt.Sprintf("%.1fKB", float64(bytes)/1024)
+	}
+	return fmt.Sprintf("%.1fMB", float64(bytes)/(1024*1024))
 }
 
 // Execute runs the Claude CLI and returns the response

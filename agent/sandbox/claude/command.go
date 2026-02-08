@@ -34,6 +34,12 @@ The following tools are NOT available in this environment and you must NOT use t
 
 Focus on using the core tools: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch.
 
+## User Attachments
+
+User-uploaded files (images, documents, code files, etc.) are placed in /workspace/.attachments/
+When the user references an attached file, read it from this directory using the Read or Bash tool.
+For image files, you can view them directly as Claude supports vision on local files.
+
 ## GitHub CLI (gh) Usage
 
 When working with GitHub and a token is provided:
