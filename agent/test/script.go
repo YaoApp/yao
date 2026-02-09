@@ -29,42 +29,68 @@ func NewScriptRunner(opts *Options) *ScriptRunner {
 }
 
 // ResolveScript resolves the script path from scripts.xxx.yyy or scripts.xxx.yyy.zzz format
+//
+// Resolution strategy:
+//  1. Find the assistant directory by detecting package.yao from longest to shortest path
+//  2. Remaining parts after the assistant boundary map to src/ subdirectories + module name
+//
+// Examples:
+//   - scripts.expense.setup           -> assistants/expense/src/setup_test.ts
+//   - scripts.yao.keeper.seed         -> assistants/yao/keeper/src/seed_test.ts
+//   - scripts.yao.keeper.tests.seed   -> assistants/yao/keeper/src/tests/seed_test.ts
 func ResolveScript(input string) (*ScriptInfo, error) {
 	// Remove "scripts." prefix
 	path := strings.TrimPrefix(input, "scripts.")
 
 	// Split into parts:
 	// "expense.setup" -> ["expense", "setup"]
-	// "expense.submission.validation" -> ["expense", "submission", "validation"]
+	// "yao.keeper.tests.seed" -> ["yao", "keeper", "tests", "seed"]
 	parts := strings.Split(path, ".")
 	if len(parts) < 2 {
-		return nil, fmt.Errorf("invalid script path: %s (expected format: scripts.assistant.module or scripts.assistant.sub_agent.module)", input)
+		return nil, fmt.Errorf("invalid script path: %s (expected format: scripts.assistant.module or scripts.assistant.sub.module)", input)
 	}
 
-	// Build paths based on number of parts
-	var basePaths []string
-	var assistantDir, moduleName string
+	// Strategy: detect assistant boundary by looking for package.yao
+	// Try from the longest possible assistant path down to the shortest
+	var assistantDir, modulePath string
+	assistantFound := false
 
-	if len(parts) == 2 {
-		// Format: scripts.expense.setup
-		// assistantDir: expense
-		// moduleName: setup
-		assistantDir = parts[0]
-		moduleName = parts[1]
-		basePaths = []string{
-			filepath.Join("assistants", assistantDir, "src"),
-			filepath.Join(assistantDir, "src"),
+	for i := len(parts) - 1; i >= 1; i-- {
+		candidateDir := strings.Join(parts[:i], "/")
+		for _, prefix := range []string{"assistants/", ""} {
+			packagePath := filepath.Join(prefix+candidateDir, "package.yao")
+			exists, err := application.App.Exists(packagePath)
+			if err == nil && exists {
+				assistantDir = candidateDir
+				// Remaining parts form the module path (may include subdirectories)
+				// e.g., parts[i:] = ["tests", "seed"] -> "tests/seed"
+				modulePath = strings.Join(parts[i:], "/")
+				assistantFound = true
+				break
+			}
 		}
-	} else {
-		// Format: scripts.expense.submission.validation (sub-agent)
-		// assistantDir: expense/submission (or expense.submission)
-		// moduleName: validation
+		if assistantFound {
+			break
+		}
+	}
+
+	// Fallback: original behavior — last part is module, rest is assistant dir
+	if !assistantFound {
 		assistantDir = strings.Join(parts[:len(parts)-1], "/")
-		moduleName = parts[len(parts)-1]
-		basePaths = []string{
-			filepath.Join("assistants", assistantDir, "src"),
-			filepath.Join(assistantDir, "src"),
-		}
+		modulePath = parts[len(parts)-1]
+	}
+
+	// modulePath may contain subdirectories: "tests/seed" -> dir="tests", module="seed"
+	moduleName := filepath.Base(modulePath)
+	moduleSubDir := filepath.Dir(modulePath)
+	if moduleSubDir == "." {
+		moduleSubDir = ""
+	}
+
+	// Build candidate base paths
+	basePaths := []string{
+		filepath.Join("assistants", assistantDir, "src", moduleSubDir),
+		filepath.Join(assistantDir, "src", moduleSubDir),
 	}
 
 	var scriptPath, testPath string

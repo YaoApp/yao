@@ -90,7 +90,7 @@ func (r *Request) NewData() Data {
 // GetLocale get the locale
 func GetLocale(cookies map[string]string) interface{} {
 	if lang, has := cookies["locale"]; has {
-		return lang
+		return strings.ToLower(lang)
 	}
 	return nil
 }

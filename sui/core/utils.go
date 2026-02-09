@@ -70,6 +70,8 @@ func ComponentName(name string, hash ...bool) string {
 	name = strings.ReplaceAll(name, "/", "_")
 	name = strings.ReplaceAll(name, "[", "_")
 	name = strings.ReplaceAll(name, "]", "_")
+	name = strings.ReplaceAll(name, ".", "_")
+	name = strings.ReplaceAll(name, "-", "_")
 	cn := fmt.Sprintf("comp_%s", name)
 	// Keep the component name | hash will be supported later
 	// if len(hash) > 0 && hash[0] {
