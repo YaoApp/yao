@@ -75,11 +75,29 @@ func (parser *TemplateParser) Locale() *Locale {
 		return locale
 	}
 
-	path := filepath.Join("public", parser.option.Root, ".locales", name, strings.TrimPrefix(route, root)+".yml")
-	if exists, err := application.App.Exists(path); !exists {
-		if err != nil {
+	// Try exact locale first, then fallback to language prefix (e.g. zh-cn -> zh), then en-us
+	routeSuffix := strings.TrimPrefix(route, root) + ".yml"
+	candidates := []string{name}
+	if parts := strings.SplitN(name, "-", 2); len(parts) == 2 {
+		candidates = append(candidates, parts[0])
+	}
+	if name != "en-us" {
+		candidates = append(candidates, "en-us")
+	}
+
+	var path string
+	found := false
+	for _, candidate := range candidates {
+		path = filepath.Join("public", parser.option.Root, ".locales", candidate, routeSuffix)
+		if exists, err := application.App.Exists(path); exists {
+			found = true
+			name = candidate
+			break
+		} else if err != nil {
 			log.Error("[parser] %s Locale %s", route, err.Error())
 		}
+	}
+	if !found {
 		return nil
 	}
 

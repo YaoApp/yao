@@ -19,7 +19,7 @@ function $$(selector) {
 }
 
 function __sui_component_root(elm: Element, name: string) {
-  return elm.closest(`[s\\:cn=${name}]`);
+  return elm.closest(`[s\\:cn="${name}"]`);
 }
 
 function __sui_state(component) {
@@ -210,7 +210,7 @@ function __sui_event_init(elm: Element) {
         continue;
       }
 
-      const component = eventElm.closest(`[s\\:cn=${cn}]`);
+      const component = eventElm.closest(`[s\\:cn="${cn}"]`);
       if (typeof window[cn] !== "function") {
         console.error(`[SUI] Component ${cn} not found`, eventElm);
         return;
