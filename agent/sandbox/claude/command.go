@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/yaoapp/gou/connector"
 	agentContext "github.com/yaoapp/yao/agent/context"
 )
 
@@ -34,6 +35,12 @@ The following tools are NOT available in this environment and you must NOT use t
 
 Focus on using the core tools: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch.
 
+## User Attachments
+
+User-uploaded files (images, documents, code files, etc.) are placed in /workspace/.attachments/
+When the user references an attached file, read it from this directory using the Read or Bash tool.
+For image files, you can view them directly as Claude supports vision on local files.
+
 ## GitHub CLI (gh) Usage
 
 When working with GitHub and a token is provided:
@@ -41,6 +48,14 @@ When working with GitHub and a token is provided:
 2. Then use gh commands normally (gh repo create, gh pr create, etc.)
 3. Do NOT use curl to call GitHub API directly - always prefer gh CLI
 `
+
+// claudeArgWhitelist maps package.yao sandbox.arguments keys to Claude CLI flags.
+// Only keys listed here are passed through; everything else is ignored.
+var claudeArgWhitelist = map[string]string{
+	"max_turns":        "--max-turns",        // Maximum conversation turns
+	"disallowed_tools": "--disallowed-tools", // Comma-separated tool blacklist (e.g. "WebSearch,WebFetch")
+	"allowed_tools":    "--allowedTools",     // Comma-separated tool whitelist (e.g. "Bash,Read,Write")
+}
 
 // BuildCommand builds the Claude CLI command and environment variables
 // Uses stdin with --input-format stream-json for unlimited prompt length
@@ -102,10 +117,13 @@ func BuildCommandWithContinuation(messages []agentContext.Message, opts *Options
 		claudeArgs = append(claudeArgs, "--continue")
 	}
 
-	// Add max_turns if specified
+	// Pass through whitelisted arguments to Claude CLI flags.
+	// Map: package.yao arguments key → Claude CLI flag
 	if opts != nil && opts.Arguments != nil {
-		if maxTurns, ok := opts.Arguments["max_turns"]; ok {
-			claudeArgs = append(claudeArgs, "--max-turns", fmt.Sprintf("%v", maxTurns))
+		for key, flag := range claudeArgWhitelist {
+			if val, ok := opts.Arguments[key]; ok {
+				claudeArgs = append(claudeArgs, flag, fmt.Sprintf("%v", val))
+			}
 		}
 	}
 
@@ -349,11 +367,9 @@ func BuildProxyConfig(opts *Options) ([]byte, error) {
 		return nil, fmt.Errorf("options is required")
 	}
 
-	// Build backend URL - ensure it ends with /chat/completions
-	backendURL := opts.ConnectorHost
-	if !strings.HasSuffix(backendURL, "/chat/completions") {
-		backendURL = strings.TrimSuffix(backendURL, "/") + "/chat/completions"
-	}
+	// Build backend URL using the shared connector.BuildAPIURL helper
+	// so that the /v1 prefix is applied consistently with the agent LLM path.
+	backendURL := connector.BuildAPIURL(opts.ConnectorHost, "/chat/completions")
 
 	config := map[string]interface{}{
 		"backend": backendURL,

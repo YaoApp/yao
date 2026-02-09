@@ -118,8 +118,9 @@ func TestBuildProxyConfig(t *testing.T) {
 
 	configStr := string(configJSON)
 	// Proxy config uses simple format
+	// BuildAPIURL adds /v1 prefix for hosts that don't end with "/"
 	assert.Contains(t, configStr, "backend")
-	assert.Contains(t, configStr, "https://api.example.com/chat/completions")
+	assert.Contains(t, configStr, "https://api.example.com/v1/chat/completions")
 	assert.Contains(t, configStr, "api_key")
 	assert.Contains(t, configStr, "key123")
 	assert.Contains(t, configStr, "model")

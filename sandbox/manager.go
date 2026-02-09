@@ -330,8 +330,16 @@ func (m *Manager) createContainer(ctx context.Context, opts CreateOptions) (*Con
 
 	// Chrome/browser images need SYS_ADMIN for namespace-based process isolation.
 	// Without it, Chrome renderer/GPU processes crash with error code 5.
+	// Also increase /dev/shm (default 64MB is too small for Chrome rendering).
+	// Set to 1/4 of MaxMemory, minimum 256MB.
 	if IsVNCImage(image) {
 		hostConfig.CapAdd = []string{"SYS_ADMIN"}
+		memLimit := parseMemory(m.config.MaxMemory)
+		shmSize := memLimit / 4
+		if shmSize < 256*1024*1024 {
+			shmSize = 256 * 1024 * 1024 // minimum 256MB
+		}
+		hostConfig.ShmSize = shmSize
 	}
 
 	// VNC port mapping for Docker Desktop (macOS/Windows)

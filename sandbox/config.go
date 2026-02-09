@@ -19,7 +19,7 @@ type Config struct {
 
 	// Container internal paths
 	ContainerWorkDir   string `json:"container_workdir,omitempty"`    // Container working directory, default: /workspace
-	ContainerIPCSocket string `json:"container_ipc_socket,omitempty"` // Container IPC socket path, default: /tmp/yao.sock
+	ContainerIPCSocket string `json:"container_ipc_socket,omitempty"` // Container IPC socket path, default: /run/yao.sock
 	ContainerUser      string `json:"container_user,omitempty"`       // Container user, default: "" (use image default). Set to "0" for root.
 
 	// VNC port mapping (for Docker Desktop on macOS/Windows where container IPs are not directly accessible)
@@ -35,7 +35,7 @@ func DefaultConfig() *Config {
 		MaxMemory:          "2g",
 		MaxCPU:             1.0,
 		ContainerWorkDir:   "/workspace",
-		ContainerIPCSocket: "/tmp/yao.sock",
+		ContainerIPCSocket: "/run/yao.sock",
 	}
 }
 
@@ -112,7 +112,7 @@ func (c *Config) Init(dataRoot string) {
 	if env := os.Getenv("YAO_SANDBOX_CONTAINER_IPC"); env != "" {
 		c.ContainerIPCSocket = env
 	} else if c.ContainerIPCSocket == "" {
-		c.ContainerIPCSocket = "/tmp/yao.sock"
+		c.ContainerIPCSocket = "/run/yao.sock"
 	}
 
 	// Container user (for CI environments with UID mismatch)

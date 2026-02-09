@@ -377,7 +377,7 @@ func TestClaudeExecutorIPCSocketMount(t *testing.T) {
 	ctx := context.Background()
 
 	// Check if IPC socket exists in container
-	output, err := exec.Exec(ctx, []string{"ls", "-la", "/tmp/yao.sock"})
+	output, err := exec.Exec(ctx, []string{"ls", "-la", "/run/yao.sock"})
 	require.NoError(t, err, "IPC socket should exist in container")
 	assert.Contains(t, output, "yao.sock", "Should find yao.sock file")
 	t.Logf("✓ IPC socket mounted: %s", strings.TrimSpace(output))
