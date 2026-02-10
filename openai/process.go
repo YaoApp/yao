@@ -12,10 +12,11 @@ import (
 
 func init() {
 	process.RegisterGroup("openai", map[string]process.Handler{
-		"tiktoken":             ProcessTiktoken,
-		"embeddings":           ProcessEmbeddings,
-		"chat.completions":     ProcessChatCompletions,
-		"audio.transcriptions": ProcessAudioTranscriptions,
+		"tiktoken":                 ProcessTiktoken,
+		"embeddings":               ProcessEmbeddings,
+		"chat.completions":         ProcessChatCompletions,
+		"audio.transcriptions":     ProcessAudioTranscriptions,
+		"audio.transcriptionsfile": ProcessAudioTranscriptionsFile,
 	})
 }
 
@@ -71,6 +72,45 @@ func ProcessAudioTranscriptions(process *process.Process) interface{} {
 	}
 
 	res, ex := ai.AudioTranscriptions(dataBase64, options)
+	if ex != nil {
+		ex.Throw()
+	}
+	return res
+}
+
+// ProcessAudioTranscriptionsFile openai.audio.TranscriptionsFile
+// Transcribe audio from an OS file path (streaming upload, no base64 overhead).
+// This is the recommended way to call Whisper from TS scripts, consistent with
+// office.Parse / ffmpeg.* handler style.
+//
+// Args:
+//   - connector string - AI connector name (e.g. "openai.whisper-1")
+//   - filePath  string - OS absolute path to the audio file
+//   - options   map    - Optional: { language, model, ... }
+//
+// Returns: map[string]interface{} - Transcription result (e.g. {"text": "..."})
+//
+// Usage:
+//
+//	var result = Process("openai.audio.transcriptionsfile", "openai.whisper-1", "/abs/path/to/audio.mp3", {"language": "en"})
+func ProcessAudioTranscriptionsFile(process *process.Process) interface{} {
+	process.ValidateArgNums(2)
+	connector := process.ArgsString(0)
+	filePath := process.ArgsString(1)
+
+	options := map[string]interface{}{}
+	if process.NumOfArgs() > 2 {
+		if opts, ok := process.Args[2].(map[string]interface{}); ok {
+			options = opts
+		}
+	}
+
+	ai, err := New(connector)
+	if err != nil {
+		exception.New("AudioTranscriptionsFile error: %s", 400, err).Throw()
+	}
+
+	res, ex := ai.AudioTranscriptionsFile(filePath, options)
 	if ex != nil {
 		ex.Throw()
 	}

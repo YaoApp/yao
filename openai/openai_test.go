@@ -3,6 +3,7 @@ package openai
 import (
 	"context"
 	"encoding/base64"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -201,6 +202,47 @@ func TestAudioTranscriptions(t *testing.T) {
 	assert.Equal(t, "今晚打老虎", data.(map[string]interface{})["text"])
 }
 
+func TestAudioTranscriptionsFile(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	openai := prepare(t, "whisper-1")
+	filePath := audioFilePath(t)
+
+	data, err := openai.AudioTranscriptionsFile(filePath, nil)
+	if err != nil {
+		t.Fatal(err.Message)
+	}
+	assert.Equal(t, "今晚打老虎", data.(map[string]interface{})["text"])
+}
+
+func TestAudioTranscriptionsFile_WithLanguage(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	openai := prepare(t, "whisper-1")
+	filePath := audioFilePath(t)
+
+	data, err := openai.AudioTranscriptionsFile(filePath, map[string]interface{}{"language": "zh"})
+	if err != nil {
+		t.Fatal(err.Message)
+	}
+	text, ok := data.(map[string]interface{})["text"].(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, text)
+	t.Logf("Transcription with language=zh: %s", text)
+}
+
+func TestAudioTranscriptionsFile_FileNotFound(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	openai := prepare(t, "whisper-1")
+	_, err := openai.AudioTranscriptionsFile("/non/existent/audio.mp3", nil)
+	assert.NotNil(t, err, "Expected error for non-existent file")
+	t.Logf("Error for non-existent file: %s", err.Message)
+}
+
 func TestImagesGenerations(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
@@ -301,4 +343,11 @@ func audio(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return base64.StdEncoding.EncodeToString(data)
+}
+
+func audioFilePath(t *testing.T) string {
+	stor := fs.MustGet("system")
+	root := stor.Root()
+	absPath := filepath.Join(root, "assets", "audio_transcriptions.mp3")
+	return absPath
 }
