@@ -42,6 +42,45 @@ func TestProcessAudioTranscriptions(t *testing.T) {
 	assert.Equal(t, "今晚打老虎", data.(map[string]interface{})["text"])
 }
 
+func TestProcessAudioTranscriptionsFile(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	filePath := audioFilePath(t)
+	args := []interface{}{"whisper-1", filePath}
+	data := process.New("openai.audio.transcriptionsfile", args...).Run()
+	assert.Equal(t, "今晚打老虎", data.(map[string]interface{})["text"])
+}
+
+func TestProcessAudioTranscriptionsFile_WithOptions(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	filePath := audioFilePath(t)
+	args := []interface{}{"whisper-1", filePath, map[string]interface{}{"language": "zh"}}
+	data := process.New("openai.audio.transcriptionsfile", args...).Run()
+	text, ok := data.(map[string]interface{})["text"].(string)
+	assert.True(t, ok)
+	assert.NotEmpty(t, text)
+	t.Logf("ProcessAudioTranscriptionsFile with language=zh: %s", text)
+}
+
+func TestProcessAudioTranscriptionsFile_InvalidConnector(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Error("Expected panic for invalid connector, but got none")
+		}
+		t.Logf("Correctly panicked with: %v", r)
+	}()
+
+	args := []interface{}{"non-existent-connector", "/some/path.mp3"}
+	process.New("openai.audio.transcriptionsfile", args...).Run()
+}
+
 func TestProcessChatCompletions(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()

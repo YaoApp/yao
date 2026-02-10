@@ -253,6 +253,43 @@ func (openai OpenAI) AudioTranscriptions(dataBase64 string, option map[string]in
 	return openai.postFile(openai.baseURL+"/audio/transcriptions", map[string][]byte{"file": data}, option)
 }
 
+// AudioTranscriptionsFile Transcribes audio from an OS file path.
+// Unlike AudioTranscriptions which accepts base64-encoded data, this method
+// reads the file directly via streaming upload, avoiding 4× memory copies.
+// https://platform.openai.com/docs/api-reference/audio/create
+func (openai OpenAI) AudioTranscriptionsFile(filePath string, option map[string]interface{}) (interface{}, *exception.Exception) {
+
+	if option == nil {
+		option = map[string]interface{}{}
+	}
+
+	url := fmt.Sprintf("%s%s", openai.host, openai.baseURL+"/audio/transcriptions")
+	if _, ok := option["model"].(string); !ok {
+		option["model"] = openai.model
+	}
+
+	req := http.New(url)
+	if openai.azure {
+		req.WithHeader(map[string][]string{
+			"Content-Type": {"multipart/form-data"},
+			"api-key":      {openai.key},
+		})
+	} else {
+		req.WithHeader(map[string][]string{
+			"Content-Type":  {"multipart/form-data"},
+			"Authorization": {fmt.Sprintf("Bearer %s", openai.key)},
+		})
+	}
+
+	req.AddFile("file", filePath)
+
+	res := req.Send("POST", option)
+	if err := openai.isError(res); err != nil {
+		return nil, err
+	}
+	return res.Data, nil
+}
+
 // ImagesGenerations Creates an image given a prompt.
 // https://platform.openai.com/docs/api-reference/images
 func (openai OpenAI) ImagesGenerations(prompt string, option map[string]interface{}) (interface{}, *exception.Exception) {
@@ -437,7 +474,12 @@ func (openai OpenAI) postFile(path string, files map[string][]byte, option map[s
 	}
 
 	for name, data := range files {
-		req.AddFileBytes(name, fmt.Sprintf("%s.mp3", name), data)
+		filename := fmt.Sprintf("%s.mp3", name)
+		if fn, ok := option["filename"].(string); ok && fn != "" {
+			filename = fn
+			delete(option, "filename") // don't send as form field to API
+		}
+		req.AddFileBytes(name, filename, data)
 	}
 
 	res := req.Send("POST", option)
@@ -461,7 +503,12 @@ func (openai OpenAI) postFileWithoutModel(path string, files map[string][]byte, 
 	}
 
 	for name, data := range files {
-		req.AddFileBytes(name, fmt.Sprintf("%s.mp3", name), data)
+		filename := fmt.Sprintf("%s.mp3", name)
+		if fn, ok := option["filename"].(string); ok && fn != "" {
+			filename = fn
+			delete(option, "filename") // don't send as form field to API
+		}
+		req.AddFileBytes(name, filename, data)
 	}
 
 	res := req.Send("POST", option)
