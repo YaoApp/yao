@@ -59,13 +59,13 @@ func listProviders(c *gin.Context) {
 	// Get user-defined model capabilities once at the start of request
 	modelCapabilities := getModelCapabilities()
 
-	// Get all OpenAI-compatible LLM connectors from AIConnectors
-	// Note: All openai type connectors are automatically added to AIConnectors during loading
+	// Get all LLM connectors from AIConnectors
+	// Note: All AI type connectors (openai, anthropic, fastembed) are automatically added to AIConnectors during loading
 	// See gou/connector/connector.go LoadSource() for details
 	for _, opt := range connector.AIConnectors {
 		connType := getConnectorType(opt.Value)
-		// Only include OpenAI-compatible LLM connectors
-		if connType == "openai" {
+		// Include OpenAI-compatible and Anthropic LLM connectors
+		if connType == "openai" || connType == "anthropic" {
 			conn, ok := connector.Connectors[opt.Value]
 			if !ok {
 				continue
@@ -99,9 +99,12 @@ func getConnectorType(id string) string {
 		return "unknown"
 	}
 
-	// Only return openai type (OpenAI-compatible format)
 	if conn.Is(connector.OPENAI) {
 		return "openai"
+	}
+
+	if conn.Is(connector.ANTHROPIC) {
+		return "anthropic"
 	}
 
 	return "unknown"

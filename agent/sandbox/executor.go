@@ -41,6 +41,7 @@ func New(manager *infraSandbox.Manager, opts *Options) (Executor, error) {
 			ConnectorHost:    opts.ConnectorHost,
 			ConnectorKey:     opts.ConnectorKey,
 			Model:            opts.Model,
+			ConnectorType:    opts.ConnectorType,    // "openai" or "anthropic"
 			ConnectorOptions: opts.ConnectorOptions, // Extra options like thinking, max_tokens
 			Secrets:          opts.Secrets,          // Secrets for container env vars
 		}

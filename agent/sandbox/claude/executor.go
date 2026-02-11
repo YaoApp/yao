@@ -38,6 +38,7 @@ type Options struct {
 	ConnectorHost    string
 	ConnectorKey     string
 	Model            string
+	ConnectorType    string                 // Connector API type: "openai" or "anthropic"
 	ConnectorOptions map[string]interface{} // Extra connector options (e.g., thinking, max_tokens)
 	Secrets          map[string]string      // Secrets to pass to container (e.g., GITHUB_TOKEN)
 }
@@ -327,6 +328,12 @@ func (e *Executor) prepareEnvironment(ctx context.Context) error {
 func (e *Executor) startClaudeProxy(ctx context.Context) error {
 	// Skip if no connector configured (e.g., test containers without claude-proxy)
 	if e.opts.ConnectorHost == "" || e.opts.ConnectorKey == "" {
+		return nil
+	}
+
+	// Skip proxy for Anthropic connectors — Claude CLI connects directly
+	// The backend already speaks Anthropic Messages API, no conversion needed
+	if e.opts.ConnectorType == "anthropic" {
 		return nil
 	}
 

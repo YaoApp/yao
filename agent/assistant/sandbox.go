@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/yaoapp/gou/connector"
 	gouMCP "github.com/yaoapp/gou/mcp"
 	mcpProcess "github.com/yaoapp/gou/mcp/process"
 	"github.com/yaoapp/yao/agent/context"
@@ -255,6 +256,14 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 	conn, _, err := ast.GetConnector(ctx, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get connector: %w", err)
+	}
+
+	// Determine connector type for sandbox proxy behavior
+	// Anthropic connectors bypass the proxy (Claude CLI connects directly)
+	if conn.Is(connector.ANTHROPIC) {
+		execOpts.ConnectorType = "anthropic"
+	} else {
+		execOpts.ConnectorType = "openai"
 	}
 
 	setting := conn.Setting()
