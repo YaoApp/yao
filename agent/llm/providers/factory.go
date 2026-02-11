@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou/connector"
+	gouAnthropicConn "github.com/yaoapp/gou/connector/anthropic"
 	"github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/llm/providers/anthropic"
 	"github.com/yaoapp/yao/agent/llm/providers/openai"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -40,10 +42,15 @@ func SelectProvider(conn connector.Connector, options *context.CompletionOptions
 		// - Reasoning (o1, GPT-4o thinking, etc.)
 		return openai.New(conn, options.Capabilities), nil
 
-	case "claude":
-		// TODO: Implement Claude provider
-		// For now, use OpenAI provider (may have compatibility issues)
-		return openai.New(conn, options.Capabilities), nil
+	case "anthropic":
+		// Anthropic Messages API (Claude, Kimi Code, etc.)
+		// Check if connector has native Anthropic capabilities
+		settings := conn.Setting()
+		if caps, ok := settings["capabilities"].(*gouAnthropicConn.Capabilities); ok {
+			return anthropic.NewFromAnthropicCaps(conn, caps), nil
+		}
+		// Fallback: use OpenAI capabilities (converted from connector settings)
+		return anthropic.New(conn, options.Capabilities), nil
 
 	default:
 		// Default to OpenAI-compatible provider
@@ -53,21 +60,24 @@ func SelectProvider(conn connector.Connector, options *context.CompletionOptions
 
 // DetectAPIFormat detects the API format from connector
 func DetectAPIFormat(conn connector.Connector) string {
-	// Check connector type
+	// Check connector type directly
+	if conn.Is(connector.ANTHROPIC) {
+		return "anthropic"
+	}
+
 	if conn.Is(connector.OPENAI) {
 		return "openai"
 	}
 
-	// Check connector settings for host URL
+	// Check connector settings for host URL patterns as fallback
 	settings := conn.Setting()
 	if settings != nil {
 		if host, ok := settings["host"].(string); ok {
-			// Detect by host URL patterns
-			if contains(host, "anthropic.com") || contains(host, "claude") {
-				return "claude"
+			if contains(host, "anthropic.com") || contains(host, "api.kimi.com/coding") {
+				return "anthropic"
 			}
 			if contains(host, "deepseek.com") {
-				return "openai" // DeepSeek uses OpenAI-compatible API
+				return "openai"
 			}
 		}
 	}

@@ -2,6 +2,7 @@ package llm
 
 import (
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/connector/anthropic"
 	"github.com/yaoapp/gou/connector/openai"
 )
 
@@ -68,6 +69,14 @@ func GetCapabilitiesFromConn(conn connector.Connector, modelCapabilities map[str
 			if capabilities, ok := caps.(openai.Capabilities); ok {
 				return &capabilities
 			}
+			// Try to convert from *anthropic.Capabilities
+			if capabilities, ok := caps.(*anthropic.Capabilities); ok {
+				return convertAnthropicCaps(capabilities)
+			}
+			// Try to convert from anthropic.Capabilities (value type)
+			if capabilities, ok := caps.(anthropic.Capabilities); ok {
+				return convertAnthropicCaps(&capabilities)
+			}
 		}
 	}
 
@@ -124,4 +133,22 @@ func ToMap(caps *openai.Capabilities) map[string]interface{} {
 	result["temperature_adjustable"] = caps.TemperatureAdjustable
 
 	return result
+}
+
+// convertAnthropicCaps converts anthropic.Capabilities to openai.Capabilities
+// This provides a unified capabilities interface across connector types
+func convertAnthropicCaps(caps *anthropic.Capabilities) *openai.Capabilities {
+	if caps == nil {
+		return getDefaultCapabilities()
+	}
+	return &openai.Capabilities{
+		Vision:                caps.Vision,
+		Audio:                 caps.Audio,
+		ToolCalls:             caps.ToolCalls,
+		Reasoning:             caps.Reasoning,
+		Streaming:             caps.Streaming,
+		JSON:                  caps.JSON,
+		Multimodal:            caps.Multimodal,
+		TemperatureAdjustable: caps.TemperatureAdjustable,
+	}
 }

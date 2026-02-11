@@ -94,6 +94,10 @@ type Options struct {
 	ConnectorKey  string `json:"-"`
 	Model         string `json:"-"`
 
+	// ConnectorType - connector API type: "openai" or "anthropic"
+	// Determines whether to use claude-proxy (openai) or direct connection (anthropic)
+	ConnectorType string `json:"-"`
+
 	// ConnectorOptions - extra options from connector config (e.g., thinking, max_tokens, temperature)
 	// These are backend-specific parameters passed to the proxy
 	ConnectorOptions map[string]interface{} `json:"-"`

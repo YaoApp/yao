@@ -338,9 +338,27 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 	// Explicitly set XAUTHORITY to the correct path.
 	env["XAUTHORITY"] = "/home/sandbox/.Xauthority"
 
-	// claude-proxy runs on localhost:3456, Claude CLI connects to it
-	env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
-	env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
+	if opts.ConnectorType == "anthropic" {
+		// Anthropic mode: Claude CLI connects directly to the Anthropic-compatible backend
+		// No proxy needed — the backend already speaks Anthropic Messages API
+		env["ANTHROPIC_BASE_URL"] = opts.ConnectorHost
+		env["ANTHROPIC_API_KEY"] = opts.ConnectorKey
+	} else {
+		// OpenAI mode (default): Claude CLI connects to claude-proxy on localhost:3456
+		// The proxy translates Anthropic Messages API → OpenAI Chat Completions API
+		env["ANTHROPIC_BASE_URL"] = "http://127.0.0.1:3456"
+		env["ANTHROPIC_API_KEY"] = "dummy" // Proxy doesn't verify this
+	}
+
+	// Set model environment variables from connector
+	// Claude CLI uses these to select the model for all roles
+	if opts.Model != "" {
+		env["ANTHROPIC_MODEL"] = opts.Model
+		env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = opts.Model
+		env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = opts.Model
+		env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = opts.Model
+		env["CLAUDE_CODE_SUBAGENT_MODEL"] = opts.Model
+	}
 
 	// Pass secrets as environment variables for Claude CLI to use
 	// These are configured in package.yao sandbox.secrets (e.g., LLM_API_KEY, GITHUB_TOKEN)
