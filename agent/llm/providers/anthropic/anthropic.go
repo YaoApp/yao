@@ -3,6 +3,7 @@ package anthropic
 import (
 	gocontext "context"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -568,19 +569,26 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Convert accumulated tool calls
+	// Note: tool call indices may not start at 0 (e.g. if text blocks precede tool_use blocks)
 	if len(accumulator.toolCalls) > 0 {
+		// Collect all indices and sort them to ensure deterministic order
+		indices := make([]int, 0, len(accumulator.toolCalls))
+		for idx := range accumulator.toolCalls {
+			indices = append(indices, idx)
+		}
+		sort.Ints(indices)
+
 		toolCalls := make([]context.ToolCall, 0, len(accumulator.toolCalls))
-		for i := 0; i < len(accumulator.toolCalls); i++ {
-			if tc, exists := accumulator.toolCalls[i]; exists {
-				toolCalls = append(toolCalls, context.ToolCall{
-					ID:   tc.id,
-					Type: "function",
-					Function: context.Function{
-						Name:      tc.name,
-						Arguments: tc.inputJSON,
-					},
-				})
-			}
+		for _, idx := range indices {
+			tc := accumulator.toolCalls[idx]
+			toolCalls = append(toolCalls, context.ToolCall{
+				ID:   tc.id,
+				Type: "function",
+				Function: context.Function{
+					Name:      tc.name,
+					Arguments: tc.inputJSON,
+				},
+			})
 		}
 		response.ToolCalls = toolCalls
 	}
