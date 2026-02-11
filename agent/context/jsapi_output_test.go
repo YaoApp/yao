@@ -1041,6 +1041,11 @@ func TestJsValueStreamingWorkflow(t *testing.T) {
 	}
 	assert.Equal(t, true, result["success"], "Streaming workflow should work correctly")
 
+	// Close SafeWriter to flush all pending async writes before reading buffer.
+	// SafeWriter processes writes in a background goroutine via channel;
+	// without this, the buffer may still be empty on slow CI runners.
+	cxt.CloseSafeWriter()
+
 	// Verify the complete workflow events
 	output := mockWriter.buffer.String()
 	assert.Contains(t, output, "message_start", "Output should contain message_start")
