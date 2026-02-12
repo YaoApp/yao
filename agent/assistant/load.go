@@ -15,7 +15,6 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/openai"
 	"gopkg.in/yaml.v3"
 )
 
@@ -795,12 +794,6 @@ func (ast *Assistant) initialize() error {
 		conn = ast.Connector
 	}
 	ast.Connector = conn
-
-	api, err := openai.New(conn)
-	if err != nil {
-		return err
-	}
-	ast.openai = api
 
 	// Register scripts as process handlers
 	if len(ast.Scripts) > 0 {
