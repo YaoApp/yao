@@ -85,6 +85,8 @@ const i118nScriptTmpl = `
 		}
 		return __sui_locale[message] || message;
 	}
+
+	var T = __m;
 `
 
 const pageEventScriptTmpl = `

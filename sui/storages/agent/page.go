@@ -317,7 +317,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	// Write locale files from page's __locales directory
-	err = page.writeLocaleFiles(option.Data)
+	err = page.writeLocaleFiles(ctx, option.Data)
 	if err != nil {
 		log.Warn("[Agent] Write locale files error: %s", err.Error())
 		// Don't fail the build for locale errors
@@ -474,8 +474,9 @@ func (page *Page) AssistantID() string {
 	return page.assistantID
 }
 
-// writeLocaleFiles writes locale files from page's __locales directory to public
-func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
+// writeLocaleFiles writes locale files from page's __locales directory to public,
+// merging script translations extracted from __m() calls during build.
+func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]interface{}) error {
 	fs := page.tmpl.agent.fs
 
 	// Check if page has __locales directory
@@ -483,6 +484,13 @@ func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
 	if !fs.IsDir(localesDir) {
 		return nil
 	}
+
+	// Get translations from build context (includes __m() calls marked as type "script")
+	var translations []core.Translation
+	if ctx != nil {
+		translations = ctx.GetTranslations()
+	}
+	prefix := core.TranslationKeyPrefix(page.Route)
 
 	// Get the public root
 	root, err := page.tmpl.agent.DSL.PublicRoot(data)
@@ -544,13 +552,19 @@ func (page *Page) writeLocaleFiles(data map[string]interface{}) error {
 			}
 		}
 
-		// Extract script_messages
+		// Extract script_messages (if manually specified in source locale)
 		if scriptMessages, ok := localeData["script_messages"].(map[string]interface{}); ok {
 			for k, v := range scriptMessages {
 				if strVal, ok := v.(string); ok {
 					locale.ScriptMessages[k] = strVal
 				}
 			}
+		}
+
+		// Merge translations from build context — this populates ScriptMessages
+		// from __m() calls found in TS/JS scripts during compilation
+		if len(translations) > 0 {
+			locale.MergeTranslations(translations, prefix)
 		}
 
 		// Extract timezone and direction

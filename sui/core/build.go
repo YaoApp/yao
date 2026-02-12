@@ -15,7 +15,7 @@ var slotRe = regexp.MustCompile(`\[\{([^\}]+)\}\]`)
 var cssRe = regexp.MustCompile(`([\.a-z0-9A-Z-:# ]+)\{`)
 var transStmtReSingle = regexp.MustCompile(`'::([^:']+)'`)
 var transStmtReDouble = regexp.MustCompile(`"::([^:"]+)"`)
-var transFuncRe = regexp.MustCompile(`__m\s*\(\s*["'](.*?)["']\s*\)`)
+var transFuncRe = regexp.MustCompile(`(?:__m|(?:^|[^a-zA-Z0-9_.$])T)\s*\(\s*["'](.*?)["']\s*\)`)
 
 // Build build the page
 func (page *Page) Build(ctx *BuildContext, option *BuildOption) (*goquery.Document, []string, error) {
