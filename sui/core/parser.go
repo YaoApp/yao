@@ -140,12 +140,23 @@ func (parser *TemplateParser) Render(html string) (string, error) {
 	head := doc.Find("head")
 	if head.Length() > 0 {
 
-		scriptMessages := map[string]string{}
-		if parser.locale != nil && parser.locale.ScriptMessages != nil {
-			scriptMessages = parser.locale.ScriptMessages
+		// Merge Messages and ScriptMessages so that __sui_locale (and thus
+		// __m / T) can resolve all translation keys at runtime — not just those
+		// extracted from __m("literal") calls during build.  Messages written in
+		// the YAML locale files are now also available to JS code.
+		allMessages := map[string]string{}
+		if parser.locale != nil {
+			// Messages first (from YAML locale files, used for server-side rendering)
+			for k, v := range parser.locale.Messages {
+				allMessages[k] = v
+			}
+			// ScriptMessages override (extracted from __m() calls during build)
+			for k, v := range parser.locale.ScriptMessages {
+				allMessages[k] = v
+			}
 		}
 
-		data, err := jsoniter.MarshalToString(scriptMessages)
+		data, err := jsoniter.MarshalToString(allMessages)
 		if err != nil {
 			data = "{}"
 		}

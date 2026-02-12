@@ -9,7 +9,9 @@ import (
 	_ "github.com/yaoapp/yao/excel"
 	_ "github.com/yaoapp/yao/helper"
 	_ "github.com/yaoapp/yao/openai"
+	_ "github.com/yaoapp/yao/rss"
 	_ "github.com/yaoapp/yao/seed"
+	_ "github.com/yaoapp/yao/sitemap"
 	_ "github.com/yaoapp/yao/trace/jsapi"
 	_ "github.com/yaoapp/yao/wework"
 

@@ -8,7 +8,6 @@ import (
 
 	outputMessage "github.com/yaoapp/yao/agent/output/message"
 	store "github.com/yaoapp/yao/agent/store/types"
-	api "github.com/yaoapp/yao/openai"
 )
 
 const (
@@ -34,8 +33,7 @@ type Assistant struct {
 
 	// Internal
 	// ===============================
-	openai *api.OpenAI // OpenAI API
-	vision bool        // Whether this assistant supports vision
+	vision bool // Whether this assistant supports vision
 }
 
 // MCPTool represents a simplified MCP tool for building LLM requests
