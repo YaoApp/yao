@@ -321,7 +321,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -518,7 +518,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -712,7 +712,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -878,7 +878,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -1049,7 +1049,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -1245,7 +1245,7 @@ jobs:
           echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: ${{ matrix.redis }}
 
@@ -1277,7 +1277,7 @@ jobs:
           convert -version
 
       - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.8.0
+        uses: supercharge/mongodb-github-action@1.11.0
         with:
           mongodb-version: ${{ matrix.mongo }}
           mongodb-username: root

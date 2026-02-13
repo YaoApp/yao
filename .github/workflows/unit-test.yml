@@ -277,7 +277,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -412,7 +412,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -544,7 +544,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -648,7 +648,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -771,7 +771,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: 6
 
@@ -944,12 +944,12 @@ jobs:
           convert -version
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
+        uses: supercharge/redis-github-action@1.8.0
         with:
           redis-version: ${{ matrix.redis }}
 
       - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.8.0
+        uses: supercharge/mongodb-github-action@1.11.0
         with:
           mongodb-version: ${{ matrix.mongo }}
           mongodb-username: root
