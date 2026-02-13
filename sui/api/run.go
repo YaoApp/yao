@@ -70,8 +70,20 @@ func Run(process *process.Process) interface{} {
 
 	// Get the page config
 	cfg, err := getPageConfig(file, r.Request.DisableCache())
-	if err != nil {
+	if err != nil && err.Error() == "The config file not found" {
+		// Try to resolve dynamic route via rewrite rules (e.g., /agents/yao.keeper/entry/abc123 -> /agents/yao.keeper/entry/[id])
+		if core.RouteResolver != nil {
+			if resolved, _ := core.RouteResolver(route); resolved != "" {
+				resolvedFile := filepath.Join("/public", strings.TrimSuffix(resolved, ".sui"))
+				cfg, err = getPageConfig(resolvedFile, r.Request.DisableCache())
+				if err == nil {
+					file = resolvedFile
+				}
+			}
+		}
+	}
 
+	if err != nil {
 		if err.Error() == "The config file not found" {
 			exception.New("The page not found (%s)", 404, route).Throw()
 			return nil
