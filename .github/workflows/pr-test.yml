@@ -1043,6 +1043,17 @@ jobs:
       - name: Start Redis
         run: docker run --name redis --publish 6379:6379 --detach redis:6
 
+      - name: Install FFmpeg 7.x
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          tar -xf ffmpeg-master-latest-linux64-gpl.tar.xz
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+      - name: Test FFmpeg
+        run: ffmpeg -version
+
       - name: Setup Go Tools
         run: make tools
 
