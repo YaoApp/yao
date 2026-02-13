@@ -277,9 +277,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: 6
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
 
       - name: Setup Go Tools
         run: make tools
@@ -412,9 +410,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: 6
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
 
       - name: Setup Go Tools
         run: make tools
@@ -544,9 +540,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: 6
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
 
       - name: Setup Go Tools
         run: make tools
@@ -648,9 +642,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: 6
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
 
       - name: Setup Go Tools
         run: make tools
@@ -771,9 +763,18 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: 6
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
+
+      - name: Install FFmpeg 7.x
+        run: |
+          wget https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
+          tar -xf ffmpeg-master-latest-linux64-gpl.tar.xz
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffmpeg /usr/local/bin/
+          sudo cp ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
+          sudo chmod +x /usr/local/bin/ffmpeg /usr/local/bin/ffprobe
+
+      - name: Test FFmpeg
+        run: ffmpeg -version
 
       - name: Setup Go Tools
         run: make tools
@@ -944,17 +945,24 @@ jobs:
           convert -version
 
       - name: Start Redis
-        uses: supercharge/redis-github-action@1.4.0
-        with:
-          redis-version: ${{ matrix.redis }}
+        run: docker run --name redis --publish 6379:6379 --detach redis:${{ matrix.redis }}
 
       - name: Start MongoDB
-        uses: supercharge/mongodb-github-action@1.8.0
-        with:
-          mongodb-version: ${{ matrix.mongo }}
-          mongodb-username: root
-          mongodb-password: 123456
-          mongodb-db: test
+        run: |
+          docker run --name mongodb --publish 27017:27017 \
+            -e MONGO_INITDB_DATABASE=test \
+            -e MONGO_INITDB_ROOT_USERNAME=root \
+            -e MONGO_INITDB_ROOT_PASSWORD=123456 \
+            --detach mongo:${{ matrix.mongo }}
+          # Wait for MongoDB to be ready
+          for i in $(seq 1 20); do
+            if docker exec mongodb mongosh --quiet --port 27017 --username root --password 123456 --eval "db.serverStatus()" > /dev/null 2>&1; then
+              echo "MongoDB is ready"
+              break
+            fi
+            echo "Waiting for MongoDB... ($i)"
+            sleep 1
+          done
 
       - name: Setup MySQL8.0 (connector)
         uses: ./.github/actions/setup-db

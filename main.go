@@ -8,6 +8,7 @@ import (
 	_ "github.com/yaoapp/yao/crypto"
 	_ "github.com/yaoapp/yao/excel"
 	_ "github.com/yaoapp/yao/helper"
+	_ "github.com/yaoapp/yao/job/jsapi"
 	_ "github.com/yaoapp/yao/openai"
 	_ "github.com/yaoapp/yao/rss"
 	_ "github.com/yaoapp/yao/seed"

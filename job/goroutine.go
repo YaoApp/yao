@@ -29,11 +29,16 @@ func (g *Goroutine) ExecuteYaoProcess(ctx context.Context, work *WorkRequest, pr
 		// SharedData itself is the Global context
 		proc.WithGlobal(work.Execution.ExecutionOptions.SharedData)
 
-		// Check if there's a 'sid' field in SharedData for session context
+		// Restore session ID from SharedData
 		if sidValue, exists := work.Execution.ExecutionOptions.SharedData["sid"]; exists {
 			if sid, ok := sidValue.(string); ok {
 				proc.WithSID(sid)
 			}
+		}
+
+		// Restore authorized info from SharedData
+		if authValue, exists := work.Execution.ExecutionOptions.SharedData["authorized"]; exists {
+			proc.WithAuthorized(authValue)
 		}
 	}
 
