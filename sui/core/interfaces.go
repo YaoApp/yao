@@ -18,6 +18,12 @@ var RouteExactMatchers = map[string][][]*Matcher{}
 // RouteRegexp the regexp for the route
 var RouteRegexp = regexp.MustCompile(`([a-z0-9A-Z_\-]+)`)
 
+// RouteResolver is a function that resolves a dynamic route path via rewrite rules.
+// It takes an incoming route (e.g., /agents/yao.keeper/entry/abc123) and returns
+// the resolved template path (e.g., /agents/yao.keeper/entry/[id]) and matched values.
+// Set by the service package during initialization.
+var RouteResolver func(route string) (string, []string)
+
 // SUI is the interface for the SUI
 type SUI interface {
 	Setting() (*Setting, error)

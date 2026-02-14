@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/service/fs"
 	"github.com/yaoapp/yao/share"
+	"github.com/yaoapp/yao/sui/core"
 )
 
 // AppFileServer static file server
@@ -24,11 +25,30 @@ var AdminRoot = ""
 // AdminRootLen cache
 var AdminRootLen = 0
 
-var rewriteRules = []rewriteRule{}
+var rewriteRules = []RewriteRule{}
 
-type rewriteRule struct {
+// RewriteRule is a URL rewrite rule defined in app.yao
+type RewriteRule struct {
 	Pattern     *regexp.Regexp
 	Replacement string
+}
+
+// GetRewriteRules returns the loaded rewrite rules for use by other packages (e.g., sui/api)
+func GetRewriteRules() []RewriteRule {
+	return rewriteRules
+}
+
+// ResolveRoute applies rewrite rules to the given route path.
+// Returns the rewritten path (with .sui suffix removed) and matched parameter values, or empty string if no rule matches.
+func ResolveRoute(route string) (string, []string) {
+	for _, rule := range rewriteRules {
+		if matches := rule.Pattern.FindStringSubmatch(route); matches != nil {
+			rewritten := rule.Pattern.ReplaceAllString(route, rule.Replacement)
+			rewritten = strings.TrimSuffix(rewritten, ".sui")
+			return rewritten, matches
+		}
+	}
+	return "", nil
 }
 
 // SetupStatic setup static file server
@@ -64,12 +84,15 @@ func setupRewrite() {
 				continue
 			}
 
-			rewriteRules = append(rewriteRules, rewriteRule{
+			rewriteRules = append(rewriteRules, RewriteRule{
 				Pattern:     re,
 				Replacement: replacement,
 			})
 		}
 	}
+
+	// Register the route resolver for $Backend().Call() dynamic route support
+	core.RouteResolver = ResolveRoute
 }
 
 // rewrite path
