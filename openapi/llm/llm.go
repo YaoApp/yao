@@ -126,7 +126,8 @@ func getCapabilitiesWithModels(conn connector.Connector, modelCapabilities map[s
 // matchesFilters checks if capabilities match all requested filters
 // Filters are matched case-insensitively and support the following capability keys:
 // - vision: true or string value like "openai", "claude"
-// - audio: bool
+// - audio: bool (LLM supports audio input/understanding)
+// - stt: bool (Speech-to-Text / audio transcription model, e.g. Whisper)
 // - tool_calls: bool
 // - reasoning: bool
 // - streaming: bool

@@ -125,6 +125,7 @@ func ToMap(caps *openai.Capabilities) map[string]interface{} {
 	}
 
 	result["audio"] = caps.Audio
+	result["stt"] = caps.STT
 	result["tool_calls"] = caps.ToolCalls
 	result["reasoning"] = caps.Reasoning
 	result["streaming"] = caps.Streaming
@@ -144,6 +145,7 @@ func convertAnthropicCaps(caps *anthropic.Capabilities) *openai.Capabilities {
 	return &openai.Capabilities{
 		Vision:                caps.Vision,
 		Audio:                 caps.Audio,
+		STT:                   caps.STT,
 		ToolCalls:             caps.ToolCalls,
 		Reasoning:             caps.Reasoning,
 		Streaming:             caps.Streaming,
