@@ -5,15 +5,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/caarlos0/env/v6"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/yao/crypto"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -136,16 +133,6 @@ func LoadWithRoot(root string) Config {
 	// App Root
 	if cfg.AppSource == "" {
 		cfg.AppSource = cfg.Root
-	}
-
-	// Studio Secret
-	if cfg.Studio.Secret == "" {
-		v, err := crypto.Hash(crypto.HashTypes["SHA256"], uuid.New().String())
-		if err != nil {
-			exception.New("Can't gengrate studio secret %s", 500, err.Error()).Throw()
-		}
-		cfg.Studio.Secret = strings.ToUpper(v)
-		cfg.Studio.Auto = true
 	}
 
 	// DataRoot

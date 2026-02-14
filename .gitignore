@@ -65,3 +65,4 @@ sandbox/proxy/claude-proxy-linux-*
 release/*
 sandbox/TODO-VNC.md
 sandbox/docker/chrome/PLAN.md
+sandbox/DESIGN-REMOTE.md

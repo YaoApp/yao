@@ -151,3 +151,38 @@ type AppRoot struct {
 	Screens string
 	Data    string
 }
+
+// ExtToolInfo represents the detection result for a single external tool.
+type ExtToolInfo struct {
+	Name      string `json:"name"`              // Tool name (e.g. "ffmpeg", "pdftoppm")
+	Available bool   `json:"available"`         // Whether the tool is available
+	Path      string `json:"path,omitempty"`    // Resolved executable path
+	Version   string `json:"version,omitempty"` // Version string
+	EnvVar    string `json:"env_var,omitempty"` // Environment variable name for custom path override
+	Error     string `json:"error,omitempty"`   // Error message if not available
+}
+
+// DockerInfo represents the detection result for Docker.
+type DockerInfo struct {
+	Available bool              `json:"available"`          // Whether Docker daemon is reachable
+	Path      string            `json:"path,omitempty"`     // Docker CLI path
+	Version   string            `json:"version,omitempty"`  // Docker server version
+	Mode      string            `json:"mode,omitempty"`     // "local" or "remote"
+	Host      string            `json:"host,omitempty"`     // DOCKER_HOST value (empty = local socket)
+	Error     string            `json:"error,omitempty"`    // Error message if not available
+	EnvVars   map[string]string `json:"env_vars,omitempty"` // Related Yao environment variables
+}
+
+// ExtTools holds the detection results for all external tools.
+// Populated during engine.Load() and exposed via utils.app.Inspect.
+type ExtTools struct {
+	FFmpeg      *ExtToolInfo `json:"ffmpeg"`
+	FFprobe     *ExtToolInfo `json:"ffprobe"`
+	Pdftoppm    *ExtToolInfo `json:"pdftoppm"`
+	Mutool      *ExtToolInfo `json:"mutool"`
+	ImageMagick *ExtToolInfo `json:"imagemagick"`
+	Docker      *DockerInfo  `json:"docker"`
+}
+
+// Tools holds the global external tool detection results.
+var Tools *ExtTools
