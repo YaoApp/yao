@@ -1,6 +1,7 @@
 package caller
 
 import (
+	"fmt"
 	"sync"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
@@ -225,20 +226,14 @@ func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Requ
 		return &Result{Error: "nil request"}
 	}
 
-	result := &Result{
-		AgentID: req.AgentID,
-	}
-
 	// Get the agent using the getter function
 	if AgentGetterFunc == nil {
-		result.Error = "agent getter not initialized"
-		return result
+		return NewResult(req.AgentID, nil, fmt.Errorf("agent getter not initialized"))
 	}
 
 	agent, err := AgentGetterFunc(req.AgentID)
 	if err != nil {
-		result.Error = "failed to get agent: " + err.Error()
-		return result
+		return NewResult(req.AgentID, nil, fmt.Errorf("failed to get agent: %w", err))
 	}
 
 	// Mark this as an agent-to-agent fork call for proper source tracking
@@ -266,18 +261,10 @@ func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Requ
 	// The agent.Stream method will use the context's Writer for output
 	resp, err := agent.Stream(ctx, req.Messages, ctxOpts)
 	if err != nil {
-		result.Error = "agent call failed: " + err.Error()
-		return result
+		return NewResult(req.AgentID, nil, fmt.Errorf("agent call failed: %w", err))
 	}
 
-	result.Response = resp
-
-	// Extract content from completion if available
-	if resp != nil && resp.Completion != nil {
-		result.Content = extractContentFromCompletion(resp.Completion)
-	}
-
-	return result
+	return NewResult(req.AgentID, resp, nil)
 }
 
 // extractContentFromCompletion extracts the text content from a completion response

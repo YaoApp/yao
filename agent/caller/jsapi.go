@@ -110,23 +110,27 @@ func (api *JSAPI) RaceWithHandler(requests []interface{}, globalHandler agentCon
 }
 
 // forceSkipForSubAgent ensures proper A2A call behavior:
-// - skip.history = true: A2A messages are not saved to chat history
-// - skip.output = false: Sub-agents output normally with ThreadID for SSE stream isolation
-//
-// IMPORTANT: skip.output is explicitly set to false to override any user settings.
-// This ensures ThreadID mechanism works correctly for concurrent sub-agent calls.
-// Users can use the onChunk callback to receive streaming messages if needed.
+//   - skip.history = true: always set — A2A messages are not saved to chat history
+//   - skip.output: defaults to false (sub-agents output with ThreadID for SSE stream isolation),
+//     but if the caller explicitly sets skip.output = true, it is respected.
+//     This allows internal worker agents (e.g. classifiers) to run silently.
 func (api *JSAPI) forceSkipForSubAgent(req *Request) {
 	if req.Options == nil {
 		req.Options = &CallOptions{}
 	}
+
+	// Preserve caller's explicit skip.output = true before overwriting Skip struct
+	callerSkipOutput := req.Options.Skip != nil && req.Options.Skip.Output
+
 	if req.Options.Skip == nil {
 		req.Options.Skip = &agentContext.Skip{}
 	}
 	req.Options.Skip.History = true
-	// Force output to be enabled - this overrides any user settings
-	// Sub-agents MUST output with ThreadID for proper SSE stream isolation
-	req.Options.Skip.Output = false
+
+	if callerSkipOutput {
+		req.Options.Skip.Output = true
+	}
+	// else: skip.output remains false (default zero value) — sub-agent outputs normally
 }
 
 // parseRequestsWithHandlers parses requests and attaches handlers
