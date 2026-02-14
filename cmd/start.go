@@ -169,7 +169,6 @@ var startCmd = &cobra.Command{
 			printConnectors(false)
 			printStores(false)
 			printMCPs(false)
-			// printStudio(false, host)
 
 		}
 
@@ -395,29 +394,6 @@ func printStores(silent bool) {
 	for name := range store.Pools {
 		fmt.Print(color.CyanString("[Store]"))
 		fmt.Print(color.WhiteString(" %s\t loaded\n", name))
-	}
-}
-
-func printStudio(silent bool, host string) {
-
-	if silent {
-		log.Info("[Studio] http://%s:%d", host, config.Conf.Studio.Port)
-		if config.Conf.Studio.Auto {
-			log.Info("[Studio] Secret: %s", config.Conf.Studio.Secret)
-		}
-		return
-	}
-
-	fmt.Println(color.WhiteString("\n---------------------------------"))
-	fmt.Println(color.WhiteString(L("Yao Studio Server")))
-	fmt.Println(color.WhiteString("---------------------------------"))
-	fmt.Print(color.CyanString("HOST  : "))
-	fmt.Print(color.WhiteString(" %s\n", config.Conf.Host))
-	fmt.Print(color.CyanString("PORT  : "))
-	fmt.Print(color.WhiteString(" %d\n", config.Conf.Studio.Port))
-	if config.Conf.Studio.Auto {
-		fmt.Print(color.CyanString("SECRET: "))
-		fmt.Print(color.WhiteString(" %s\n", config.Conf.Studio.Secret))
 	}
 }
 

@@ -10,7 +10,6 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/helper"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -113,20 +112,6 @@ func auth(field string, value string, password string, sid string) maps.Map {
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("user", row)
 	session.Global().Expire(time.Duration(token.ExpiresAt)*time.Second).ID(sid).Set("issuer", "yao")
 
-	studio := map[string]interface{}{}
-	if config.Conf.Mode == "development" {
-
-		studioToken := helper.JwtMake(id, map[string]interface{}{}, map[string]interface{}{
-			"expires_at": expiresAt,
-			"sid":        sid,
-			"issuer":     "yao",
-		}, []byte(config.Conf.Studio.Secret))
-
-		studio["port"] = config.Conf.Studio.Port
-		studio["token"] = studioToken.Token
-		studio["expires_at"] = studioToken.ExpiresAt
-	}
-
 	// Get user menus
 	menus := process.New("yao.app.menu").WithSID(sid).Run()
 	return maps.Map{
@@ -134,6 +119,5 @@ func auth(field string, value string, password string, sid string) maps.Map {
 		"token":      token.Token,
 		"user":       row,
 		"menus":      menus,
-		"studio":     studio,
 	}
 }

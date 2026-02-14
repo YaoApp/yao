@@ -104,18 +104,6 @@ var rootCmd = &cobra.Command{
 	},
 }
 
-var studioCmd = &cobra.Command{
-	Use:   "studio",
-	Short: "Yao Studio CLI",
-	Long:  `Yao Studio CLI`,
-	CompletionOptions: cobra.CompletionOptions{
-		DisableDefaultCmd: true,
-	},
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
-	},
-}
-
 var suiCmd = &cobra.Command{
 	Use:   "sui",
 	Short: L("SUI Template Engine"),
@@ -143,8 +131,6 @@ var agentCmd = &cobra.Command{
 // Command initialize
 func init() {
 
-	// studioCmd.AddCommand(studio.RunCmd)
-
 	// Sui
 	suiCmd.AddCommand(sui.WatchCmd)
 	suiCmd.AddCommand(sui.BuildCmd)
@@ -166,7 +152,6 @@ func init() {
 		// socketCmd,
 		// websocketCmd,
 		// packCmd,
-		// studioCmd,
 		suiCmd,
 		agentCmd,
 		// upgradeCmd,

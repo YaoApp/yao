@@ -4,12 +4,15 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/ffmpeg"
+	"github.com/yaoapp/gou/pdf"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent"
@@ -138,6 +141,12 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Connector", Error: err})
 	}
+
+	// Inspect external tools (silent, non-fatal)
+	loadStep("ExtTools", func() error {
+		InspectExtTools()
+		return nil
+	}, callback)
 
 	// Load FileSystem
 	err = loadStep("FileSystem", func() error {
@@ -753,6 +762,146 @@ func loadApp(root string) error {
 	}
 
 	return nil
+}
+
+// InspectExtTools performs silent detection of external tools (ffmpeg, pdf converters, docker)
+// and stores the results in share.Tools for later access via Inspect / settings API.
+// Exported so it can be called from both engine.Load() and cmd/inspect.go.
+func InspectExtTools() {
+	tools := &share.ExtTools{}
+
+	// Inspect ffmpeg/ffprobe
+	ffmpegStatus := ffmpeg.Inspect()
+	if s, ok := ffmpegStatus["ffmpeg"]; ok {
+		tools.FFmpeg = &share.ExtToolInfo{
+			Name:      s.Name,
+			Available: s.Available,
+			Path:      s.Path,
+			Version:   s.Version,
+			EnvVar:    s.EnvVar,
+			Error:     s.Error,
+		}
+	}
+	if s, ok := ffmpegStatus["ffprobe"]; ok {
+		tools.FFprobe = &share.ExtToolInfo{
+			Name:      s.Name,
+			Available: s.Available,
+			Path:      s.Path,
+			Version:   s.Version,
+			EnvVar:    s.EnvVar,
+			Error:     s.Error,
+		}
+	}
+
+	// Inspect PDF tools
+	pdfStatus := pdf.Inspect()
+	if s, ok := pdfStatus["pdftoppm"]; ok {
+		tools.Pdftoppm = &share.ExtToolInfo{
+			Name:      s.Name,
+			Available: s.Available,
+			Path:      s.Path,
+			Version:   s.Version,
+			EnvVar:    s.EnvVar,
+			Error:     s.Error,
+		}
+	}
+	if s, ok := pdfStatus["mutool"]; ok {
+		tools.Mutool = &share.ExtToolInfo{
+			Name:      s.Name,
+			Available: s.Available,
+			Path:      s.Path,
+			Version:   s.Version,
+			EnvVar:    s.EnvVar,
+			Error:     s.Error,
+		}
+	}
+	if s, ok := pdfStatus["imagemagick"]; ok {
+		tools.ImageMagick = &share.ExtToolInfo{
+			Name:      s.Name,
+			Available: s.Available,
+			Path:      s.Path,
+			Version:   s.Version,
+			EnvVar:    s.EnvVar,
+			Error:     s.Error,
+		}
+	}
+
+	// Inspect Docker
+	tools.Docker = inspectDocker()
+
+	share.Tools = tools
+}
+
+// inspectDocker silently detects Docker availability, version, and host configuration.
+// Returns real runtime info: what Docker is actually connected to, not just env vars.
+func inspectDocker() *share.DockerInfo {
+	sandboxHost := os.Getenv("YAO_SANDBOX_HOST")
+	sandboxMode := os.Getenv("YAO_SANDBOX_MODE")
+
+	info := &share.DockerInfo{}
+
+	// Try to find docker CLI path
+	dockerPath, err := exec.LookPath("docker")
+	if err != nil {
+		info.Available = false
+		info.Error = "docker not found in PATH"
+		return info
+	}
+	info.Path = dockerPath
+
+	// Get real Docker context info: actual daemon address from docker info
+	cmd := exec.Command(dockerPath, "info", "--format", "{{.ClientInfo.Context}}")
+	ctxOutput, _ := cmd.Output()
+	dockerContext := strings.TrimSpace(string(ctxOutput))
+
+	// Get the actual daemon host from docker context inspect
+	var actualHost string
+	if dockerContext != "" {
+		cmd = exec.Command(dockerPath, "context", "inspect", dockerContext, "--format", "{{.Endpoints.docker.Host}}")
+		hostOutput, err := cmd.Output()
+		if err == nil {
+			actualHost = strings.TrimSpace(string(hostOutput))
+		}
+	}
+	// Fallback: DOCKER_HOST env or let docker figure it out
+	if actualHost == "" {
+		actualHost = os.Getenv("DOCKER_HOST")
+	}
+	info.Host = actualHost
+
+	// Get docker server version (also verifies daemon is reachable)
+	cmd = exec.Command(dockerPath, "version", "--format", "{{.Server.Version}}")
+	output, err := cmd.Output()
+	if err != nil {
+		info.Available = false
+		if actualHost != "" {
+			info.Error = fmt.Sprintf("docker daemon not reachable at %s", actualHost)
+		} else {
+			info.Error = "docker daemon not reachable"
+		}
+		return info
+	}
+	info.Available = true
+	info.Version = strings.TrimSpace(string(output))
+
+	// Determine sandbox mode from real host
+	if sandboxMode != "" {
+		info.Mode = sandboxMode
+	} else if actualHost == "" || strings.HasPrefix(actualHost, "unix://") || strings.HasPrefix(actualHost, "ssh://") || strings.HasPrefix(actualHost, "npipe://") {
+		info.Mode = "local"
+	} else if strings.HasPrefix(actualHost, "tcp://") {
+		info.Mode = "remote"
+	} else {
+		info.Mode = "local"
+	}
+
+	// Yao sandbox env vars
+	info.EnvVars = map[string]string{
+		"YAO_SANDBOX_HOST": sandboxHost,
+		"YAO_SANDBOX_MODE": sandboxMode,
+	}
+
+	return info
 }
 
 func printErr(mode, widget string, err error) {

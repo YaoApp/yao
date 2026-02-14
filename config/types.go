@@ -23,16 +23,8 @@ type Config struct {
 	DB            Database `json:"db,omitempty"`                                              // The database config
 	AllowFrom     []string `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"` // Domain list the separator is |
 	Session       Session  `json:"session,omitempty"`                                         // Session Config
-	Studio        Studio   `json:"studio,omitempty"`                                          // Studio config
 	Runtime       Runtime  `json:"runtime,omitempty"`                                         // Runtime config
 	Trace         Trace    `json:"trace,omitempty"`                                           // Trace config
-}
-
-// Studio the studio config
-type Studio struct {
-	Port   int    `json:"studio_port,omitempty" env:"YAO_STUDIO_PORT" envDefault:"5077"` // Studio port
-	Secret string `json:"studio_secret,omitempty" env:"YAO_STUDIO_SECRET"`               // Studio Secret, if does not set, auto-generate a secret
-	Auto   bool   `json:"-"`
 }
 
 // Database 数据库配置
