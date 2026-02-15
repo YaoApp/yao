@@ -362,6 +362,23 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 						Index: event.Index,
 					}
 					startToolCallMessage(msgTracker, toolCallInfo, handler)
+
+				// Send initial ChunkToolCall with id and function name
+				// to match OpenAI format so CUI can resolve tool name from stored chunks
+				if handler != nil {
+					toolCallData, _ := jsoniter.Marshal([]map[string]interface{}{
+						{
+							"index": event.Index,
+							"id":    event.ContentBlock.ID,
+							"type":  "function",
+							"function": map[string]interface{}{
+								"name": event.ContentBlock.Name,
+							},
+						},
+					})
+					handler(message.ChunkToolCall, toolCallData)
+					incrementChunk(msgTracker)
+				}
 				}
 			}
 
