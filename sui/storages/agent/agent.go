@@ -90,6 +90,12 @@ func (agent *Agent) GetTemplate(id string) (core.ITemplate, error) {
 		}
 	}
 
+	// Register default guard redirect from template config
+	if tmpl.Template.Config != nil && strings.Contains(tmpl.Template.Config.Guard, ":") {
+		parts := strings.SplitN(tmpl.Template.Config.Guard, ":", 2)
+		core.DefaultGuardRedirects[parts[0]] = parts[1]
+	}
+
 	// Load __document.html
 	documentFile := filepath.Join(agent.root, "__document.html")
 	if agent.fs.IsFile(documentFile) {

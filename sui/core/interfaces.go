@@ -9,6 +9,11 @@ import (
 // SUIs the loaded SUI instances
 var SUIs = map[string]SUI{}
 
+// DefaultGuardRedirects stores default guard redirect URLs from template configs.
+// Key is guard name (e.g. "oauth"), value is redirect URL (e.g. "/dashboard/auth/entry").
+// Registered by template loading (e.g. agent storage) and used by MakeCache as fallback.
+var DefaultGuardRedirects = map[string]string{}
+
 // RouteMatchers the route matchers for the SUI instance
 var RouteMatchers = map[*regexp.Regexp][][]*Matcher{}
 
