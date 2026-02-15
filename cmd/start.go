@@ -187,12 +187,20 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(L("Access Points")))
 		fmt.Println(color.WhiteString("---------------------------------"))
+		apiRoot := "/api"
+		if openapi.Server != nil {
+			apiRoot = openapi.Server.Config.BaseURL
+		}
 		for _, endpoint := range endpoints {
 			fmt.Println(color.CyanString("\n%s", endpoint.Interface))
 			fmt.Println(color.WhiteString("--------------------------"))
 			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", endpoint.URL))
 			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/auth/entry", endpoint.URL, strings.Trim(root, "/")))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", endpoint.URL))
+			if openapi.Server != nil {
+				fmt.Println(color.WhiteString(L("OpenAPI")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			} else {
+				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			}
 		}
 		fmt.Println("")
 
@@ -454,16 +462,14 @@ func printApis(silent bool) {
 		return
 	}
 
+	// Skip detailed API list when OpenAPI is enabled
+	if openapi.Server != nil {
+		return
+	}
+
 	fmt.Println(color.WhiteString("\n---------------------------------"))
 	fmt.Println(color.WhiteString(L("APIs List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
-
-	// Show OpenAPI mode info if enabled
-	if openapi.Server != nil {
-		fmt.Println(color.CyanString("\nOpenAPI Mode: %s", apiRoot))
-		fmt.Println(color.WhiteString("Developer APIs: %s/api/*", apiRoot))
-		fmt.Println(color.WhiteString("Widgets: %s/__yao/*", apiRoot))
-	}
 
 	for _, api := range api.APIs { // API info
 		if len(api.HTTP.Paths) <= 0 {
