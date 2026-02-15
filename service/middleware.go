@@ -91,9 +91,9 @@ func withStaticFileServer(c *gin.Context) {
 
 		html, code, err := r.Render()
 		if err != nil {
-		if code == 301 || code == 302 {
-			url := err.Error()
-			c.Redirect(code, url)
+			if code == 301 || code == 302 {
+				url := err.Error()
+				c.Redirect(code, url)
 				c.Done()
 				return
 			}

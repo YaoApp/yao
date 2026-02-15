@@ -185,9 +185,9 @@ type Template struct {
 	GlobalData   []byte           `json:"-"`
 	Scripts      *TemplateScirpts `json:"scripts,omitempty"`
 	Translator   string           `json:"translator,omitempty"`
-	Config       *PageSetting     `json:"config,omitempty"`    // Default page config (guard, api, etc.)
-	BuildScript  *Script          `json:"-"`                   // __build.backend.ts / __build.backend.js
-	GlobalScript *Script          `json:"-"`                   // __global.backend.ts / __global.backend.js
+	Config       *PageSetting     `json:"config,omitempty"` // Default page config (guard, api, etc.)
+	BuildScript  *Script          `json:"-"`                // __build.backend.ts / __build.backend.js
+	GlobalScript *Script          `json:"-"`                // __global.backend.ts / __global.backend.js
 }
 
 // TemplateScirpts is the struct for the template scripts
