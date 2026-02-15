@@ -1,6 +1,8 @@
 package attachment
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
@@ -28,6 +30,7 @@ func Init() {
 		"URL":      processURL,
 		"SaveText": processSaveText,
 		"GetText":  processGetText,
+		"Zip":      processZip,
 	})
 }
 
@@ -655,4 +658,141 @@ func buildPermissionWheres(p *process.Process) []model.QueryWhere {
 	}
 
 	return wheres
+}
+
+// processZip packages multiple attachment files into a single zip archive
+// and uploads it back to the same uploader storage.
+//
+// Args:
+//   - uploaderID: string - the uploader/manager ID (e.g. "__yao.attachment")
+//   - fileIDs: []string - list of file IDs to package
+//   - zipFilename: string - output zip filename (e.g. "my-notes.zip")
+//   - option: map (optional) - upload options (groups, gzip, public, share)
+//
+// Returns: *File - uploaded zip file info (file_id, filename, bytes, etc.)
+//
+// Permission: checks read permission on each source file via p.Authorized.
+// The uploaded zip inherits permission fields (created_by, team_id, tenant_id)
+// from the process context automatically via createUploadOption.
+//
+// Example:
+//
+//	Process("attachment.Zip", "__yao.attachment", ["abc123", "def456"], "archive.zip")
+//	Process("attachment.Zip", "__yao.attachment", ["abc123"], "archive.zip", {"public": true})
+func processZip(p *process.Process) interface{} {
+	p.ValidateArgNums(3)
+
+	uploaderID := p.ArgsString(0)
+	fileIDs := toStringSlice(p.Args[1])
+	zipFilename := p.ArgsString(2)
+
+	if len(fileIDs) == 0 {
+		return fmt.Errorf("attachment.Zip: fileIDs is empty")
+	}
+
+	if zipFilename == "" {
+		zipFilename = "archive.zip"
+	}
+
+	// Ensure .zip extension
+	if !strings.HasSuffix(strings.ToLower(zipFilename), ".zip") {
+		zipFilename += ".zip"
+	}
+
+	// Get manager
+	manager, exists := Managers[uploaderID]
+	if !exists {
+		return fmt.Errorf("uploader not found: %s", uploaderID)
+	}
+
+	ctx := context.Background()
+
+	// Build zip in memory
+	buf := new(bytes.Buffer)
+	zipWriter := zip.NewWriter(buf)
+	usedNames := map[string]int{} // for deduplication
+
+	for _, fid := range fileIDs {
+		// Get file info
+		fileInfo, err := manager.Info(ctx, fid)
+		if err != nil {
+			return fmt.Errorf("attachment.Zip: failed to get file info for %s: %v", fid, err)
+		}
+
+		// Check read permission
+		if err := checkFilePermission(p, fileInfo, true); err != nil {
+			return fmt.Errorf("attachment.Zip: permission denied for file %s: %v", fid, err)
+		}
+
+		// Read file content
+		data, err := manager.Read(ctx, fid)
+		if err != nil {
+			return fmt.Errorf("attachment.Zip: failed to read file %s: %v", fid, err)
+		}
+
+		// Deduplicate filename
+		name := dedupFilename(fileInfo.Filename, usedNames)
+
+		// Write to zip
+		w, err := zipWriter.Create(name)
+		if err != nil {
+			return fmt.Errorf("attachment.Zip: failed to create zip entry %s: %v", name, err)
+		}
+		if _, err := w.Write(data); err != nil {
+			return fmt.Errorf("attachment.Zip: failed to write zip entry %s: %v", name, err)
+		}
+	}
+
+	if err := zipWriter.Close(); err != nil {
+		return fmt.Errorf("attachment.Zip: failed to close zip writer: %v", err)
+	}
+
+	// Upload the zip file
+	header := createFileHeader(zipFilename, "application/zip", int64(buf.Len()))
+	option := createUploadOption(p, zipFilename)
+	file, err := manager.Upload(ctx, header, buf, option)
+	if err != nil {
+		return fmt.Errorf("attachment.Zip: failed to upload zip: %v", err)
+	}
+
+	return file
+}
+
+// toStringSlice converts []interface{} to []string
+func toStringSlice(v interface{}) []string {
+	switch val := v.(type) {
+	case []string:
+		return val
+	case []interface{}:
+		result := make([]string, 0, len(val))
+		for _, item := range val {
+			if s, ok := item.(string); ok {
+				result = append(result, s)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+// dedupFilename ensures unique filenames within a zip archive.
+// If "photo.png" already exists, returns "photo(1).png", "photo(2).png", etc.
+func dedupFilename(name string, used map[string]int) string {
+	if name == "" {
+		name = "file"
+	}
+
+	lower := strings.ToLower(name)
+	count, exists := used[lower]
+	if !exists {
+		used[lower] = 1
+		return name
+	}
+
+	// Generate deduplicated name
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	used[lower] = count + 1
+	return fmt.Sprintf("%s(%d)%s", base, count, ext)
 }
