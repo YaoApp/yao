@@ -541,3 +541,19 @@ func (ctx *Context) IsA2ACall() bool {
 func (ctx *Context) IsForkedA2ACall() bool {
 	return ctx.Referer == RefererAgentFork
 }
+
+// MergeMetadata merges the given metadata into ctx.Metadata.
+// Existing keys are overwritten by incoming values.
+// This enables A2A callers to pass custom metadata (e.g. oneshot, async)
+// to sub-agent hooks via ctx.metadata in JavaScript.
+func (ctx *Context) MergeMetadata(metadata map[string]interface{}) {
+	if len(metadata) == 0 {
+		return
+	}
+	if ctx.Metadata == nil {
+		ctx.Metadata = make(map[string]interface{}, len(metadata))
+	}
+	for k, v := range metadata {
+		ctx.Metadata[k] = v
+	}
+}

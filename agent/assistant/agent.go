@@ -55,6 +55,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		opts = &context.Options{}
 	}
 
+	// Merge caller-provided metadata into ctx so sub-agent hooks can read it via ctx.metadata
+	ctx.MergeMetadata(opts.Metadata)
+
 	// Initialize stack and auto-handle completion/failure/restore
 	_, _, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
