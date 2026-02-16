@@ -77,7 +77,6 @@ func withStaticFileServer(c *gin.Context) {
 
 	// Sui file server
 	if strings.HasSuffix(c.Request.URL.Path, ".sui") {
-
 		// Default index.sui
 		if filepath.Base(c.Request.URL.Path) == ".sui" {
 			c.Request.URL.Path = strings.TrimSuffix(c.Request.URL.Path, ".sui") + "index.sui"
@@ -94,8 +93,13 @@ func withStaticFileServer(c *gin.Context) {
 		if err != nil {
 			if code == 301 || code == 302 {
 				url := err.Error()
-				// fmt.Println("Redirect to: ", url)
 				c.Redirect(code, url)
+				c.Done()
+				return
+			}
+
+			// Guard already sent response (e.g., OAuth writes its own 401)
+			if c.Writer.Written() {
 				c.Done()
 				return
 			}

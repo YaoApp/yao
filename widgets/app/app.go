@@ -580,6 +580,36 @@ func processXgen(process *process.Process) interface{} {
 		// agentConfig["connectors"] = connector.AIConnectors
 	}
 
+	// External tools availability (safe subset for frontend)
+	toolsConfig := map[string]interface{}{}
+	if share.Tools != nil {
+		safeTool := func(info *share.ExtToolInfo) map[string]interface{} {
+			if info == nil {
+				return map[string]interface{}{"available": false}
+			}
+			return map[string]interface{}{
+				"available": info.Available,
+				"name":      info.Name,
+			}
+		}
+		toolsConfig["ffmpeg"] = safeTool(share.Tools.FFmpeg)
+		toolsConfig["ffprobe"] = safeTool(share.Tools.FFprobe)
+		toolsConfig["pdftoppm"] = safeTool(share.Tools.Pdftoppm)
+		toolsConfig["mutool"] = safeTool(share.Tools.Mutool)
+		toolsConfig["imagemagick"] = safeTool(share.Tools.ImageMagick)
+
+		if share.Tools.Docker != nil {
+			docker := map[string]interface{}{
+				"available": share.Tools.Docker.Available,
+				"name":      "docker",
+			}
+			if share.Tools.Docker.Mode != "" {
+				docker["mode"] = share.Tools.Docker.Mode
+			}
+			toolsConfig["docker"] = docker
+		}
+	}
+
 	// OpenAPI Settings
 	openapiConfig := map[string]interface{}{}
 	if openapi.Server != nil {
@@ -688,6 +718,7 @@ func processXgen(process *process.Process) interface{} {
 		"optional":  Setting.Optional,
 		"login":     xgenLogin,
 		"agent":     agentConfig,
+		"tools":     toolsConfig,
 		"openapi":   openapiConfig,
 		"kb":        kbConfig,
 	}

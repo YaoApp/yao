@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -82,30 +81,13 @@ var startCmd = &cobra.Command{
 			config.Development()
 		}
 
-		startTime := time.Now()
-
 		// load the application engine
-		var progressCallback func(string, string)
-		if config.Conf.Mode == "development" {
-			fmt.Println(color.CyanString("Loading application engine..."))
-			progressCallback = func(name string, duration string) {
-				fmt.Printf("  %s %s %s\n", color.GreenString("✓"), name, color.GreenString("(%s)", duration))
-			}
-		}
-
 		loadWarnings, err := engine.Load(config.Conf, engine.LoadOption{
 			Action: "start",
-		}, progressCallback)
+		})
 		if err != nil {
 			fmt.Println(color.RedString(L("Load: %s"), err.Error()))
 			os.Exit(1)
-		}
-
-		loadDuration := time.Since(startTime)
-		if config.Conf.Mode == "development" {
-			fmt.Printf("\n%s Engine loaded successfully in %s\n\n",
-				color.GreenString("✓"),
-				color.CyanString("%v", loadDuration))
 		}
 
 		port := fmt.Sprintf(":%d", config.Conf.Port)
@@ -205,12 +187,20 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(L("Access Points")))
 		fmt.Println(color.WhiteString("---------------------------------"))
+		apiRoot := "/api"
+		if openapi.Server != nil {
+			apiRoot = openapi.Server.Config.BaseURL
+		}
 		for _, endpoint := range endpoints {
 			fmt.Println(color.CyanString("\n%s", endpoint.Interface))
 			fmt.Println(color.WhiteString("--------------------------"))
 			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", endpoint.URL))
-			fmt.Println(color.WhiteString(L("Admin")), color.GreenString(" %s/%s/login/admin", endpoint.URL, strings.Trim(root, "/")))
-			fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s/api", endpoint.URL))
+			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/auth/entry", endpoint.URL, strings.Trim(root, "/")))
+			if openapi.Server != nil {
+				fmt.Println(color.WhiteString(L("OpenAPI")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			} else {
+				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			}
 		}
 		fmt.Println("")
 
@@ -472,16 +462,14 @@ func printApis(silent bool) {
 		return
 	}
 
+	// Skip detailed API list when OpenAPI is enabled
+	if openapi.Server != nil {
+		return
+	}
+
 	fmt.Println(color.WhiteString("\n---------------------------------"))
 	fmt.Println(color.WhiteString(L("APIs List")))
 	fmt.Println(color.WhiteString("---------------------------------"))
-
-	// Show OpenAPI mode info if enabled
-	if openapi.Server != nil {
-		fmt.Println(color.CyanString("\nOpenAPI Mode: %s", apiRoot))
-		fmt.Println(color.WhiteString("Developer APIs: %s/api/*", apiRoot))
-		fmt.Println(color.WhiteString("Widgets: %s/__yao/*", apiRoot))
-	}
 
 	for _, api := range api.APIs { // API info
 		if len(api.HTTP.Paths) <= 0 {

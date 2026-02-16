@@ -97,6 +97,8 @@ func guardCookieTrace(r *Request) error {
 // OAuth 2.1 guard - authentication only
 // This guard validates the token and sets authorized info
 // ACL checks are performed separately in Run() for API calls
+// NOTE: This guard does NOT write HTTP responses on failure, so that
+// the caller (Guard/apiGuard) can handle redirects or custom error responses.
 func guardOAuth(r *Request) error {
 	if r.context == nil {
 		return fmt.Errorf("Context is nil")
@@ -108,10 +110,21 @@ func guardOAuth(r *Request) error {
 
 	c := r.context
 
-	// Authenticate only (validates token and sets authorized info)
-	if !oauth.OAuth.Authenticate(c) {
-		return fmt.Errorf("Not authenticated")
+	// Check token first without writing response.
+	// oauth.Authenticate() writes JSON + aborts on failure, which prevents
+	// the caller from doing redirects. So we check the token manually first.
+	token := oauth.OAuth.GetAccessToken(c)
+	if token == "" {
+		return fmt.Errorf("Exception|401:Not authenticated")
 	}
+
+	if _, err := oauth.OAuth.VerifyToken(token); err != nil {
+		return fmt.Errorf("Exception|401:Invalid or expired token")
+	}
+
+	// Token is valid, now call Authenticate to set up the full context
+	// (session ID, authorized info, etc.). This will succeed since token is valid.
+	oauth.OAuth.Authenticate(c)
 
 	// Get authorized info from context
 	info := authorized.GetInfo(c)

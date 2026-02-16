@@ -237,6 +237,13 @@ func (r *Request) MakeCache() (*core.Cache, int, error) {
 			guardRedirect = parts[1]
 		}
 
+		// Fallback: if guard has no redirect, check template default redirect
+		if guardRedirect == "" && guard != "" && guard != "-" {
+			if defaultRedirect, has := core.DefaultGuardRedirects[guard]; has {
+				guardRedirect = defaultRedirect
+			}
+		}
+
 		// Cache store
 		cacheStore = conf.CacheStore
 		cacheTime = conf.Cache
@@ -303,8 +310,8 @@ func (r *Request) MakeCache() (*core.Cache, int, error) {
 // Guard the page
 func (r *Request) Guard(c *core.Cache) (int, error) {
 
-	// Guard not set
-	if c.Guard == "" || r.context == nil {
+	// Guard not set or explicitly disabled
+	if c.Guard == "" || c.Guard == "-" || r.context == nil {
 		return 200, nil
 	}
 
@@ -312,30 +319,25 @@ func (r *Request) Guard(c *core.Cache) (int, error) {
 	if guard, has := Guards[c.Guard]; has {
 		err := guard(r)
 		if err != nil {
-			// Redirect the page (should refector before release)
+			// Redirect the page (takes priority over guard's own response)
 			if c.GuardRedirect != "" {
 				redirect := c.GuardRedirect
-				data := core.Data{}
-				// Here may have a security issue, should be refector, in the future.
-				// Copy the script pointer to the request For page backend script execution
-				r.Request.Script = c.Script
-				if c.Data != "" {
-					data, err = r.Request.ExecString(c.Data)
-					if err != nil {
-						return 500, fmt.Errorf("data error, please re-complie the page %s", err.Error())
-					}
+
+				// Append error code and message as query parameters
+				ex := exception.Err(err, 403)
+				msg := url.QueryEscape(ex.Message)
+				if strings.Contains(redirect, "?") {
+					redirect = fmt.Sprintf("%s&code=%d&message=%s", redirect, ex.Code, msg)
+				} else {
+					redirect = fmt.Sprintf("%s?code=%d&message=%s", redirect, ex.Code, msg)
 				}
 
-				if c.Global != "" {
-					global, err := r.Request.ExecString(c.Global)
-					if err != nil {
-						return 500, fmt.Errorf("global data error, please re-complie the page %s", err.Error())
-					}
-					data["$global"] = global
-				}
-
-				redirect, _ = data.Replace(redirect)
 				return 302, fmt.Errorf("%s", redirect)
+			}
+
+			// Guard already sent response (e.g., OAuth writes its own 401)
+			if r.context != nil && r.context.IsAborted() {
+				return 403, err
 			}
 
 			// Return the error
@@ -348,6 +350,10 @@ func (r *Request) Guard(c *core.Cache) (int, error) {
 	// Developer custom guard
 	err := r.processGuard(c.Guard)
 	if err != nil {
+		// Guard already sent response
+		if r.context != nil && r.context.IsAborted() {
+			return 403, err
+		}
 		ex := exception.Err(err, 403)
 		return ex.Code, fmt.Errorf("%s", ex.Message)
 	}
