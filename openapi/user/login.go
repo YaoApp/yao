@@ -496,6 +496,115 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 	return resp, nil
 }
 
+// LoginWithOptions performs the same login flow as LoginByTeamID but allows
+// overriding scopes via opts. When opts.Scopes is non-nil, those scopes are
+// used instead of the user/client defaults.
+func LoginWithOptions(userid string, teamID string, loginCtx *LoginContext, opts *LoginOptions) (*LoginResponse, error) {
+	if opts == nil {
+		return LoginByTeamID(userid, teamID, loginCtx)
+	}
+
+	hasOverrides := opts.Scopes != nil || opts.TokenExpiresIn > 0 || opts.SkipRefreshToken
+	if !hasOverrides {
+		return LoginByTeamID(userid, teamID, loginCtx)
+	}
+
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	userData, err := userProvider.GetUserWithScopes(ctx, userid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve scopes: use opts.Scopes when provided, otherwise fall back to
+	// the same default resolution as LoginByTeamID (user scopes or client config).
+	scopes := opts.Scopes
+	if scopes == nil {
+		yaoClientConfig := GetYaoClientConfig()
+		scopes = yaoClientConfig.Scopes
+		if v, ok := userData["scopes"].([]string); ok {
+			scopes = v
+		}
+	}
+
+	subject, err := oauth.OAuth.Subject(GetYaoClientConfig().ClientID, userid)
+	if err != nil {
+		log.Warn("Failed to store user fingerprint: %s", err.Error())
+	}
+
+	if teamID == "" || teamID == "personal" {
+		resp, err := issueTokens(ctx, &IssueTokensParams{
+			UserID:           userid,
+			TeamID:           "",
+			Team:             nil,
+			Member:           nil,
+			User:             userData,
+			Subject:          subject,
+			Scopes:           scopes,
+			LoginCtx:         loginCtx,
+			TokenExpiresIn:   opts.TokenExpiresIn,
+			SkipRefreshToken: opts.SkipRefreshToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+		locale := ""
+		if loginCtx != nil {
+			locale = loginCtx.Locale
+		}
+		go prepareUserKBCollection(userid, "", locale)
+		return resp, nil
+	}
+
+	team, err := userProvider.GetTeamByMember(ctx, teamID, userid)
+	if err != nil {
+		return nil, fmt.Errorf("access denied: you are not a member of this team")
+	}
+
+	member, err := userProvider.GetMember(ctx, teamID, userid)
+	if err != nil {
+		log.Warn("Failed to get member profile: %s", err.Error())
+		member = nil
+	}
+
+	if loginCtx != nil {
+		err = userProvider.UpdateUserLastLogin(ctx, userid, loginCtx)
+		if err != nil {
+			log.Warn("Failed to update last login: %s", err.Error())
+		}
+	}
+
+	resp, err := issueTokens(ctx, &IssueTokensParams{
+		UserID:           userid,
+		TeamID:           teamID,
+		Team:             team,
+		Member:           member,
+		User:             userData,
+		Subject:          subject,
+		Scopes:           scopes,
+		LoginCtx:         loginCtx,
+		TokenExpiresIn:   opts.TokenExpiresIn,
+		SkipRefreshToken: opts.SkipRefreshToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	locale := ""
+	if loginCtx != nil {
+		locale = loginCtx.Locale
+	}
+	go prepareUserKBCollection(userid, teamID, locale)
+
+	return resp, nil
+}
+
 // issueTokens is the core function that issues all necessary tokens (ID token, access token, refresh token)
 func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse, error) {
 	yaoClientConfig := GetYaoClientConfig()
@@ -569,6 +678,11 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		} else {
 			refreshTokenExpiresIn = 7 * 24 * 3600 // 7 days
 		}
+	}
+
+	// 4. Caller overrides (e.g. OTP login with custom token lifetime)
+	if params.TokenExpiresIn > 0 {
+		expiresIn = params.TokenExpiresIn
 	}
 
 	// Prepare OIDC user info
@@ -717,15 +831,19 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
 	}
 
-	// Sign Refresh Token
+	// Sign Refresh Token (skip for temporary sessions like OTP)
 	var refreshToken string
-	if len(extraClaims) > 0 {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn, extraClaims)
+	if params.SkipRefreshToken {
+		refreshTokenExpiresIn = 0
 	} else {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
+		if len(extraClaims) > 0 {
+			refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn, extraClaims)
+		} else {
+			refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign refresh token: %w", err)
+		}
 	}
 
 	return &LoginResponse{
@@ -901,17 +1019,17 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 
 	// Normal Access Token
 	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
-	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
 
-	// Calculate expiration times
-	// access_token cookie lives as long as refresh_token so the browser keeps sending the
-	// (JWT-expired) access token — the Guard can then use the refresh token to issue a new one.
-	// The JWT's own `exp` claim handles the real expiration check on the server side.
-	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
-
-	// Send access token cookie (cookie lifetime = refresh token lifetime)
-	response.SendAccessTokenCookieWithExpiry(c, accessToken, refreshExpires)
-
-	// Send refresh token cookie
-	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	if loginResponse.RefreshToken != "" {
+		refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
+		// access_token cookie lives as long as refresh_token so the browser keeps sending the
+		// (JWT-expired) access token — the Guard can then use the refresh token to issue a new one.
+		refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
+		response.SendAccessTokenCookieWithExpiry(c, accessToken, refreshExpires)
+		response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	} else {
+		// No refresh token (e.g. OTP login): cookie expires with the access token
+		accessExpires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
+		response.SendAccessTokenCookieWithExpiry(c, accessToken, accessExpires)
+	}
 }
