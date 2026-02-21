@@ -496,93 +496,193 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 	return resp, nil
 }
 
+// LoginWithOptions performs the same login flow as LoginByTeamID but allows
+// overriding scopes via opts. When opts.Scopes is non-nil, those scopes are
+// used instead of the user/client defaults.
+func LoginWithOptions(userid string, teamID string, loginCtx *LoginContext, opts *LoginOptions) (*LoginResponse, error) {
+	if opts == nil {
+		return LoginByTeamID(userid, teamID, loginCtx)
+	}
+
+	hasOverrides := opts.Scopes != nil || opts.TokenExpiresIn > 0 || opts.SkipRefreshToken
+	if !hasOverrides {
+		return LoginByTeamID(userid, teamID, loginCtx)
+	}
+
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	userData, err := userProvider.GetUserWithScopes(ctx, userid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Resolve scopes: use opts.Scopes when provided, otherwise fall back to
+	// the same default resolution as LoginByTeamID (user scopes or client config).
+	scopes := opts.Scopes
+	if scopes == nil {
+		yaoClientConfig := GetYaoClientConfig()
+		scopes = yaoClientConfig.Scopes
+		if v, ok := userData["scopes"].([]string); ok {
+			scopes = v
+		}
+	}
+
+	subject, err := oauth.OAuth.Subject(GetYaoClientConfig().ClientID, userid)
+	if err != nil {
+		log.Warn("Failed to store user fingerprint: %s", err.Error())
+	}
+
+	if teamID == "" || teamID == "personal" {
+		resp, err := issueTokens(ctx, &IssueTokensParams{
+			UserID:           userid,
+			TeamID:           "",
+			Team:             nil,
+			Member:           nil,
+			User:             userData,
+			Subject:          subject,
+			Scopes:           scopes,
+			LoginCtx:         loginCtx,
+			TokenExpiresIn:   opts.TokenExpiresIn,
+			SkipRefreshToken: opts.SkipRefreshToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+		locale := ""
+		if loginCtx != nil {
+			locale = loginCtx.Locale
+		}
+		go prepareUserKBCollection(userid, "", locale)
+		return resp, nil
+	}
+
+	team, err := userProvider.GetTeamByMember(ctx, teamID, userid)
+	if err != nil {
+		return nil, fmt.Errorf("access denied: you are not a member of this team")
+	}
+
+	member, err := userProvider.GetMember(ctx, teamID, userid)
+	if err != nil {
+		log.Warn("Failed to get member profile: %s", err.Error())
+		member = nil
+	}
+
+	if loginCtx != nil {
+		err = userProvider.UpdateUserLastLogin(ctx, userid, loginCtx)
+		if err != nil {
+			log.Warn("Failed to update last login: %s", err.Error())
+		}
+	}
+
+	resp, err := issueTokens(ctx, &IssueTokensParams{
+		UserID:           userid,
+		TeamID:           teamID,
+		Team:             team,
+		Member:           member,
+		User:             userData,
+		Subject:          subject,
+		Scopes:           scopes,
+		LoginCtx:         loginCtx,
+		TokenExpiresIn:   opts.TokenExpiresIn,
+		SkipRefreshToken: opts.SkipRefreshToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	locale := ""
+	if loginCtx != nil {
+		locale = loginCtx.Locale
+	}
+	go prepareUserKBCollection(userid, teamID, locale)
+
+	return resp, nil
+}
+
 // issueTokens is the core function that issues all necessary tokens (ID token, access token, refresh token)
 func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse, error) {
 	yaoClientConfig := GetYaoClientConfig()
 
-	// Determine token expiration times based on Remember Me setting
+	// Token expiration strategy:
+	// - access_token: always short-lived (from expires_in config), same for all login types
+	// - refresh_token: short for normal login, long for remember_me / OAuth
+	// Security: a leaked access_token has limited impact window; "keep logged in"
+	// is achieved by silently refreshing via long-lived refresh_token in Guard.
 	var expiresIn, refreshTokenExpiresIn int
 
-	// Try to get token config from entry config first
 	locale := ""
+	if params.LoginCtx != nil && params.LoginCtx.Locale != "" {
+		locale = params.LoginCtx.Locale
+	}
 	entryConfig := GetEntryConfig(locale)
 
-	if params.LoginCtx != nil && params.LoginCtx.RememberMe {
-		// Remember Me mode: use extended token durations
-		if entryConfig != nil && entryConfig.Token != nil {
-			// Parse Remember Me access token expires_in
-			if entryConfig.Token.RememberMeExpiresIn != "" {
-				normalized, err := normalizeDuration(entryConfig.Token.RememberMeExpiresIn)
-				if err != nil {
-					log.Warn("Failed to parse remember_me_expires_in: %s, using default", err.Error())
-				} else {
-					duration, err := time.ParseDuration(normalized)
-					if err == nil {
-						expiresIn = int(duration.Seconds())
-					}
-				}
-			}
-
-			// Parse Remember Me refresh token expires_in
-			if entryConfig.Token.RememberMeRefreshTokenExpiresIn != "" {
-				normalized, err := normalizeDuration(entryConfig.Token.RememberMeRefreshTokenExpiresIn)
-				if err != nil {
-					log.Warn("Failed to parse remember_me_refresh_token_expires_in: %s, using default", err.Error())
-				} else {
-					duration, err := time.ParseDuration(normalized)
-					if err == nil {
-						refreshTokenExpiresIn = int(duration.Seconds())
-					}
-				}
-			}
-
-			// If refresh token not configured, default to 2x the access token duration
-			if refreshTokenExpiresIn == 0 && expiresIn > 0 {
-				refreshTokenExpiresIn = expiresIn * 2
-			}
-		}
-	} else {
-		// Normal login: use standard token durations from entry config
-		if entryConfig != nil && entryConfig.Token != nil {
-			// Parse access token expires_in
-			if entryConfig.Token.ExpiresIn != "" {
-				normalized, err := normalizeDuration(entryConfig.Token.ExpiresIn)
-				if err != nil {
-					log.Warn("Failed to parse expires_in: %s, using default", err.Error())
-				} else {
-					duration, err := time.ParseDuration(normalized)
-					if err == nil {
-						expiresIn = int(duration.Seconds())
-					}
-				}
-			}
-
-			// Parse refresh token expires_in
-			if entryConfig.Token.RefreshTokenExpiresIn != "" {
-				normalized, err := normalizeDuration(entryConfig.Token.RefreshTokenExpiresIn)
-				if err != nil {
-					log.Warn("Failed to parse refresh_token_expires_in: %s, using default", err.Error())
-				} else {
-					duration, err := time.ParseDuration(normalized)
-					if err == nil {
-						refreshTokenExpiresIn = int(duration.Seconds())
-					}
-				}
-			}
-
-			// If refresh token not configured, default to 24x the access token duration
-			if refreshTokenExpiresIn == 0 && expiresIn > 0 {
-				refreshTokenExpiresIn = expiresIn * 24
+	// 1. Access token: always use the standard short duration
+	if entryConfig != nil && entryConfig.Token != nil && entryConfig.Token.ExpiresIn != "" {
+		normalized, err := normalizeDuration(entryConfig.Token.ExpiresIn)
+		if err != nil {
+			log.Warn("Failed to parse expires_in: %s, using default", err.Error())
+		} else {
+			duration, err := time.ParseDuration(normalized)
+			if err == nil {
+				expiresIn = int(duration.Seconds())
 			}
 		}
 	}
 
-	// Fall back to YaoClientConfig defaults if not set from entry config
+	// 2. Refresh token: depends on remember_me
+	rememberMe := params.LoginCtx != nil && params.LoginCtx.RememberMe
+	if rememberMe && entryConfig != nil && entryConfig.Token != nil {
+		// Remember Me: use extended refresh token duration
+		if entryConfig.Token.RememberMeRefreshTokenExpiresIn != "" {
+			normalized, err := normalizeDuration(entryConfig.Token.RememberMeRefreshTokenExpiresIn)
+			if err != nil {
+				log.Warn("Failed to parse remember_me_refresh_token_expires_in: %s, using default", err.Error())
+			} else {
+				duration, err := time.ParseDuration(normalized)
+				if err == nil {
+					refreshTokenExpiresIn = int(duration.Seconds())
+				}
+			}
+		}
+	} else if entryConfig != nil && entryConfig.Token != nil {
+		// Normal login: use standard refresh token duration
+		if entryConfig.Token.RefreshTokenExpiresIn != "" {
+			normalized, err := normalizeDuration(entryConfig.Token.RefreshTokenExpiresIn)
+			if err != nil {
+				log.Warn("Failed to parse refresh_token_expires_in: %s, using default", err.Error())
+			} else {
+				duration, err := time.ParseDuration(normalized)
+				if err == nil {
+					refreshTokenExpiresIn = int(duration.Seconds())
+				}
+			}
+		}
+	}
+
+	// 3. Default fallbacks
 	if expiresIn == 0 {
 		expiresIn = yaoClientConfig.ExpiresIn
 	}
+	// Refresh token defaults: remember_me 90d, normal 7d, then client config
 	if refreshTokenExpiresIn == 0 {
-		refreshTokenExpiresIn = yaoClientConfig.RefreshTokenExpiresIn
+		if rememberMe {
+			refreshTokenExpiresIn = 90 * 24 * 3600 // 90 days
+		} else if yaoClientConfig.RefreshTokenExpiresIn > 0 {
+			refreshTokenExpiresIn = yaoClientConfig.RefreshTokenExpiresIn
+		} else {
+			refreshTokenExpiresIn = 7 * 24 * 3600 // 7 days
+		}
+	}
+
+	// 4. Caller overrides (e.g. OTP login with custom token lifetime)
+	if params.TokenExpiresIn > 0 {
+		expiresIn = params.TokenExpiresIn
 	}
 
 	// Prepare OIDC user info
@@ -731,15 +831,19 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		return nil, fmt.Errorf("failed to sign access token: %w", err)
 	}
 
-	// Sign Refresh Token
+	// Sign Refresh Token (skip for temporary sessions like OTP)
 	var refreshToken string
-	if len(extraClaims) > 0 {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn, extraClaims)
+	if params.SkipRefreshToken {
+		refreshTokenExpiresIn = 0
 	} else {
-		refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn)
-	}
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign refresh token: %w", err)
+		if len(extraClaims) > 0 {
+			refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn, extraClaims)
+		} else {
+			refreshToken, err = oauth.OAuth.MakeRefreshToken(yaoClientConfig.ClientID, strings.Join(params.Scopes, " "), params.Subject, refreshTokenExpiresIn)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("failed to sign refresh token: %w", err)
+		}
 	}
 
 	return &LoginResponse{
@@ -892,9 +996,13 @@ func GinLogout(c *gin.Context) {
 // This includes access token, refresh token, and optionally session ID cookies with appropriate security settings
 func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID string) {
 
-	// Send session ID cookie only if sessionID is provided
+	// Send session ID cookie - expires with refresh token so session survives token refreshes
 	if sessionID != "" {
-		expires := time.Now().Add(time.Duration(yaoClientConfig.ExpiresIn) * time.Second)
+		sessionExpiry := loginResponse.RefreshTokenExpiresIn
+		if sessionExpiry <= 0 {
+			sessionExpiry = loginResponse.ExpiresIn
+		}
+		expires := time.Now().Add(time.Duration(sessionExpiry) * time.Second)
 		options := response.NewSecureCookieOptions().
 			WithExpires(expires).
 			WithSameSite("Strict")
@@ -911,14 +1019,17 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 
 	// Normal Access Token
 	accessToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.AccessToken)
-	refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
 
-	// Calculate expiration times
-	refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
-
-	// Send access token cookie
-	response.SendAccessTokenCookieWithExpiry(c, accessToken, time.Now().Add(time.Duration(loginResponse.ExpiresIn)*time.Second))
-
-	// Send refresh token cookie
-	response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	if loginResponse.RefreshToken != "" {
+		refreshToken := fmt.Sprintf("%s %s", loginResponse.TokenType, loginResponse.RefreshToken)
+		// access_token cookie lives as long as refresh_token so the browser keeps sending the
+		// (JWT-expired) access token — the Guard can then use the refresh token to issue a new one.
+		refreshExpires := time.Now().Add(time.Duration(loginResponse.RefreshTokenExpiresIn) * time.Second)
+		response.SendAccessTokenCookieWithExpiry(c, accessToken, refreshExpires)
+		response.SendRefreshTokenCookieWithExpiry(c, refreshToken, refreshExpires)
+	} else {
+		// No refresh token (e.g. OTP login): cookie expires with the access token
+		accessExpires := time.Now().Add(time.Duration(loginResponse.ExpiresIn) * time.Second)
+		response.SendAccessTokenCookieWithExpiry(c, accessToken, accessExpires)
+	}
 }

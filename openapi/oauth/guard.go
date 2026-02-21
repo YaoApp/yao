@@ -47,36 +47,43 @@ func (s *Service) Guard(c *gin.Context) {
 // This method only performs authentication without ACL checks
 // Returns true if authentication succeeded, false otherwise
 func (s *Service) Authenticate(c *gin.Context) bool {
-	// Get the token from the request
 	token := s.getAccessToken(c)
-
-	// Validate the token
 	if token == "" {
 		response.RespondWithError(c, http.StatusUnauthorized, types.ErrTokenMissing)
 		c.Abort()
 		return false
 	}
 
-	// Validate the token
+	// Try strict verification first (signature + expiration)
 	claims, err := s.VerifyToken(token)
 	if err != nil {
-		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
-		c.Abort()
-		return false
-	}
+		// Token invalid — check if it's just expired (signature still valid)
+		expiredClaims, expErr := s.VerifyTokenAllowExpired(token)
+		if expErr != nil || expiredClaims == nil {
+			response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
+			c.Abort()
+			return false
+		}
 
-	// Auto refresh the token
-	if claims.ExpiresAt.Before(time.Now()) {
-		s.tryAutoRefreshToken(c, claims)
-		if c.IsAborted() {
+		// Signature valid but expired — attempt auto refresh
+		if !expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
+			newClaims, refreshErr := s.TryRefreshToken(c, expiredClaims)
+			if refreshErr != nil {
+				log.Error("[OAuth] Token refresh failed: %v", refreshErr)
+				response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
+				c.Abort()
+				return false
+			}
+			claims = newClaims
+		} else {
+			response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
+			c.Abort()
 			return false
 		}
 	}
 
-	// Set Authorized Info in context
 	sessionID := s.getSessionID(c)
 	authorized.SetInfo(c, claims, sessionID, s.UserID)
-
 	return true
 }
 
@@ -86,23 +93,108 @@ func GetAuthorizedInfo(c *gin.Context) *types.AuthorizedInfo {
 	return authorized.GetInfo(c)
 }
 
-func (s *Service) tryAutoRefreshToken(c *gin.Context, _ *types.TokenClaims) {
+// TryRefreshToken reads the refresh token from the request, verifies it,
+// rotates the refresh token (revoke old, issue new), issues a new access token,
+// writes both cookies, and returns the new claims.
+// expiredClaims may be nil; in that case the identity is derived from the refresh token itself.
+// Returns (nil, error) on any failure — the caller decides how to respond.
+func (s *Service) TryRefreshToken(c *gin.Context, expiredClaims *types.TokenClaims) (*types.TokenClaims, error) {
 	refreshToken := s.getRefreshToken(c)
 	if refreshToken == "" {
-		response.RespondWithError(c, http.StatusUnauthorized, types.ErrRefreshTokenMissing)
-		c.Abort()
-		return
+		return nil, fmt.Errorf("refresh token missing")
 	}
 
-	// Verify the refresh token
-	_, err := s.VerifyToken(refreshToken)
+	refreshClaims, err := s.VerifyRefreshToken(refreshToken)
 	if err != nil {
-		response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
-		c.Abort()
-		return
+		return nil, fmt.Errorf("invalid or expired refresh token: %w", err)
 	}
 
-	// @Todo: Auto refresh the token
+	// Derive access token TTL from the expired token's own iat/exp so the refreshed
+	// token keeps the same lifetime that was originally configured at login time.
+	var accessTTL time.Duration
+	if expiredClaims != nil && !expiredClaims.IssuedAt.IsZero() && !expiredClaims.ExpiresAt.IsZero() {
+		accessTTL = expiredClaims.ExpiresAt.Sub(expiredClaims.IssuedAt)
+	}
+	if accessTTL <= 0 {
+		accessTTL = s.config.Token.AccessTokenLifetime
+	}
+	if accessTTL <= 0 {
+		accessTTL = time.Hour
+	}
+
+	// Prefer the expired access token claims; fall back to refresh token claims
+	sourceClaims := expiredClaims
+	if sourceClaims == nil {
+		sourceClaims = refreshClaims
+	}
+
+	extraClaims := sourceClaims.Extra
+	if extraClaims == nil {
+		extraClaims = make(map[string]interface{})
+	}
+	if sourceClaims.TeamID != "" {
+		extraClaims["team_id"] = sourceClaims.TeamID
+	}
+	if sourceClaims.TenantID != "" {
+		extraClaims["tenant_id"] = sourceClaims.TenantID
+	}
+
+	// --- Refresh Token Rotation ---
+	// Revoke the old refresh token so it can never be reused.
+	s.revokeRefreshToken(refreshToken)
+
+	// Calculate remaining refresh lifetime for the new refresh token.
+	var refreshRemainingSeconds int
+	if !refreshClaims.ExpiresAt.IsZero() {
+		refreshRemainingSeconds = int(time.Until(refreshClaims.ExpiresAt).Seconds())
+		if refreshRemainingSeconds <= 0 {
+			return nil, fmt.Errorf("refresh token already expired after revocation")
+		}
+	} else {
+		refreshTTL := s.config.Token.RefreshTokenLifetime
+		if refreshTTL == 0 {
+			refreshTTL = 24 * time.Hour
+		}
+		refreshRemainingSeconds = int(refreshTTL.Seconds())
+	}
+
+	newRefreshToken, err := s.MakeRefreshToken(
+		sourceClaims.ClientID,
+		sourceClaims.Scope,
+		sourceClaims.Subject,
+		refreshRemainingSeconds,
+		extraClaims,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to issue new refresh token: %w", err)
+	}
+
+	// Issue new access token
+	newTokenStr, err := s.MakeAccessToken(
+		sourceClaims.ClientID,
+		sourceClaims.Scope,
+		sourceClaims.Subject,
+		int(accessTTL.Seconds()),
+		extraClaims,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to issue access token: %w", err)
+	}
+
+	// Cookie lifetime = new refresh token lifetime
+	cookieExpires := time.Now().Add(time.Duration(refreshRemainingSeconds) * time.Second)
+
+	cookieValue := fmt.Sprintf("Bearer %s", newTokenStr)
+	response.SendAccessTokenCookieWithExpiry(c, cookieValue, cookieExpires)
+	response.SendRefreshTokenCookieWithExpiry(c, newRefreshToken, cookieExpires)
+
+	newClaims, err := s.VerifyToken(newTokenStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify refreshed token: %w", err)
+	}
+
+	log.Info("[OAuth] Token rotated for subject %s (access + refresh)", sourceClaims.Subject)
+	return newClaims, nil
 }
 
 func (s *Service) getAccessToken(c *gin.Context) string {
@@ -150,6 +242,11 @@ func (s *Service) getRefreshToken(c *gin.Context) string {
 // GetRefreshToken gets the refresh token from the request (public method)
 func (s *Service) GetRefreshToken(c *gin.Context) string {
 	return s.getRefreshToken(c)
+}
+
+// GetSessionID gets the session ID from the request (public method)
+func (s *Service) GetSessionID(c *gin.Context) string {
+	return s.getSessionID(c)
 }
 
 // Get Session ID from cookies, headers, or query string

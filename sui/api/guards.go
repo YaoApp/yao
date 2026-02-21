@@ -6,6 +6,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -95,8 +96,8 @@ func guardCookieTrace(r *Request) error {
 }
 
 // OAuth 2.1 guard - authentication only
-// This guard validates the token and sets authorized info
-// ACL checks are performed separately in Run() for API calls
+// This guard validates the token and sets authorized info.
+// ACL checks are performed separately in Run() for API calls.
 // NOTE: This guard does NOT write HTTP responses on failure, so that
 // the caller (Guard/apiGuard) can handle redirects or custom error responses.
 func guardOAuth(r *Request) error {
@@ -110,23 +111,30 @@ func guardOAuth(r *Request) error {
 
 	c := r.context
 
-	// Check token first without writing response.
-	// oauth.Authenticate() writes JSON + aborts on failure, which prevents
-	// the caller from doing redirects. So we check the token manually first.
 	token := oauth.OAuth.GetAccessToken(c)
 	if token == "" {
 		return fmt.Errorf("Exception|401:Not authenticated")
 	}
 
-	if _, err := oauth.OAuth.VerifyToken(token); err != nil {
-		return fmt.Errorf("Exception|401:Invalid or expired token")
+	claims, err := oauth.OAuth.VerifyToken(token)
+	if err != nil {
+		// Token invalid — check if just expired (signature still valid)
+		expiredClaims, expErr := oauth.OAuth.VerifyTokenAllowExpired(token)
+		if expErr == nil && expiredClaims != nil &&
+			!expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
+			refreshed, refreshErr := oauth.OAuth.TryRefreshToken(c, expiredClaims)
+			if refreshErr != nil {
+				return fmt.Errorf("Exception|401:Token expired and refresh failed")
+			}
+			claims = refreshed
+		} else {
+			return fmt.Errorf("Exception|401:Invalid token")
+		}
 	}
 
-	// Token is valid, now call Authenticate to set up the full context
-	// (session ID, authorized info, etc.). This will succeed since token is valid.
-	oauth.OAuth.Authenticate(c)
+	// Set authorized info in context
+	authorized.SetInfo(c, claims, oauth.OAuth.GetSessionID(c), oauth.OAuth.UserID)
 
-	// Get authorized info from context
 	info := authorized.GetInfo(c)
 	if info != nil {
 		r.Sid = info.SessionID

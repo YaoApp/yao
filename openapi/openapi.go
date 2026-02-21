@@ -21,6 +21,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/otp"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/sandbox"
 	"github.com/yaoapp/yao/openapi/team"
@@ -85,6 +86,9 @@ func Load(appConfig config.Config) (*OpenAPI, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Initialize OTP service (shares the OAuth store)
+	otp.NewService(oauthService.GetStore(), oauthService.GetKeyPrefix())
 
 	// Create the OpenAPI server
 	Server = &OpenAPI{Config: &config, OAuth: oauthService}
@@ -159,6 +163,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// App handlers (menu, etc.)
 	app.Attach(group.Group("/app"), openapi.OAuth)
+
+	// OTP handlers (passwordless authentication)
+	otp.Attach(group.Group("/otp"), openapi.OAuth)
 
 	// Sandbox handlers (VNC proxy for visual browser automation)
 	sandbox.SetPathPrefix(baseURL)

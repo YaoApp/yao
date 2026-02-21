@@ -179,6 +179,11 @@ func (s *Service) GetStore() store.Store {
 	return s.store
 }
 
+// GetKeyPrefix returns the key prefix used for store keys (e.g. "yao_:")
+func (s *Service) GetKeyPrefix() string {
+	return s.prefix
+}
+
 // GetSecurityConfig returns the security configuration for the service
 func (s *Service) GetSecurityConfig() types.SecurityConfig {
 	if s.config == nil {

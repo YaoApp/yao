@@ -471,7 +471,6 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 		publicConfig.Token = &TokenConfig{
 			ExpiresIn:                       config.Token.ExpiresIn,
 			RefreshTokenExpiresIn:           config.Token.RefreshTokenExpiresIn,
-			RememberMeExpiresIn:             config.Token.RememberMeExpiresIn,
 			RememberMeRefreshTokenExpiresIn: config.Token.RememberMeRefreshTokenExpiresIn,
 		}
 	}

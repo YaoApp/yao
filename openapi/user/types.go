@@ -78,7 +78,6 @@ type CaptchaConfig struct {
 type TokenConfig struct {
 	ExpiresIn                       string `json:"expires_in,omitempty"`
 	RefreshTokenExpiresIn           string `json:"refresh_token_expires_in,omitempty"`
-	RememberMeExpiresIn             string `json:"remember_me_expires_in,omitempty"`
 	RememberMeRefreshTokenExpiresIn string `json:"remember_me_refresh_token_expires_in,omitempty"`
 }
 
@@ -266,17 +265,26 @@ type LoginSuccessResponse struct {
 // LoginContext is an alias for the oauth types LoginContext
 type LoginContext = oauthtypes.LoginContext
 
+// LoginOptions provides optional overrides for the login flow.
+type LoginOptions struct {
+	Scopes           []string // When non-nil, overrides the default scope resolution
+	TokenExpiresIn   int      // When > 0, overrides default access_token expiration (seconds)
+	SkipRefreshToken bool     // When true, do not issue refresh_token (for OTP/temporary sessions)
+}
+
 // IssueTokensParams represents parameters for issueTokens function
 type IssueTokensParams struct {
-	UserID     string                 // User ID
-	TeamID     string                 // Team ID (empty for personal account)
-	Team       map[string]interface{} // Team data (nil for personal account)
-	Member     map[string]interface{} // Member profile data (nil for personal account or if not available)
-	User       map[string]interface{} // User data
-	Subject    string                 // Token subject
-	Scopes     []string               // Token scopes
-	LoginCtx   *LoginContext          // Login context (IP, user agent, etc.)
-	AuthSource string                 // Authentication source (password, google, github, etc.)
+	UserID           string                 // User ID
+	TeamID           string                 // Team ID (empty for personal account)
+	Team             map[string]interface{} // Team data (nil for personal account)
+	Member           map[string]interface{} // Member profile data (nil for personal account or if not available)
+	User             map[string]interface{} // User data
+	Subject          string                 // Token subject
+	Scopes           []string               // Token scopes
+	LoginCtx         *LoginContext          // Login context (IP, user agent, etc.)
+	AuthSource       string                 // Authentication source (password, google, github, etc.)
+	TokenExpiresIn   int                    // When > 0, overrides default access_token expiration (seconds)
+	SkipRefreshToken bool                   // When true, skip refresh_token generation
 }
 
 // ==== Entry Verification Types ====
