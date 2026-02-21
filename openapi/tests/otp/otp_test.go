@@ -182,85 +182,10 @@ func TestOTPLoginInvalidJSON(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 }
 
-// ---------- POST /otp/create (protected) ----------
+// ---------- POST /otp/create (disabled — HTTP endpoint removed for security) ----------
+// Validation tests now covered by TestOTPServiceCreateValidation.
 
-func TestOTPCreateUnauthorized(t *testing.T) {
-	serverURL := testutils.Prepare(t)
-	defer testutils.Clean()
-
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	body, _ := json.Marshal(map[string]interface{}{
-		"user_id":  "someone",
-		"redirect": "/dashboard",
-	})
-	resp, err := http.Post(serverURL+baseURL+"/otp/create", "application/json", bytes.NewBuffer(body))
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
-}
-
-func TestOTPCreateMissingRedirect(t *testing.T) {
-	serverURL := testutils.Prepare(t)
-	defer testutils.Clean()
-
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	tc, cleanup := setupTestData(t, serverURL)
-	defer cleanup()
-
-	body, _ := json.Marshal(map[string]interface{}{
-		"user_id": tc.UserID,
-	})
-	req, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	rawBody, _ := io.ReadAll(resp.Body)
-	t.Logf("Response status: %d, body: %s", resp.StatusCode, string(rawBody))
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-func TestOTPCreateMissingUserAndMember(t *testing.T) {
-	serverURL := testutils.Prepare(t)
-	defer testutils.Clean()
-
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	tc, cleanup := setupTestData(t, serverURL)
-	defer cleanup()
-
-	body, _ := json.Marshal(map[string]interface{}{
-		"redirect": "/dashboard",
-	})
-	req, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	rawBody, _ := io.ReadAll(resp.Body)
-	t.Logf("Response status: %d, body: %s", resp.StatusCode, string(rawBody))
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
-}
-
-// ---------- Full flow: create -> login ----------
+// ---------- Full flow: create (service) -> login (HTTP) ----------
 
 func TestOTPCreateAndLogin(t *testing.T) {
 	serverURL := testutils.Prepare(t)
@@ -274,59 +199,36 @@ func TestOTPCreateAndLogin(t *testing.T) {
 	tc, cleanup := setupTestData(t, serverURL)
 	defer cleanup()
 
-	// Step 1: Create OTP code via API
-	createBody, _ := json.Marshal(map[string]interface{}{
-		"user_id":  tc.UserID,
-		"redirect": "/test/dashboard",
+	code, err := otp.OTP.Create(&otp.GenerateParams{
+		UserID:   tc.UserID,
+		TeamID:   tc.TeamID,
+		Redirect: "/test/dashboard",
+		Consume:  true,
 	})
-	createReq, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	createResp, err := http.DefaultClient.Do(createReq)
 	require.NoError(t, err)
-	defer createResp.Body.Close()
+	assert.Len(t, code, 12)
 
-	createBody2, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create response status: %d, body: %s", createResp.StatusCode, string(createBody2))
-	require.Equal(t, http.StatusOK, createResp.StatusCode, "OTP create should succeed, body: %s", string(createBody2))
-
-	var createResult map[string]interface{}
-	err = json.Unmarshal(createBody2, &createResult)
-	require.NoError(t, err)
-
-	code, ok := createResult["code"].(string)
-	require.True(t, ok, "Response should contain a code string")
-	assert.Len(t, code, 12, "OTP code should be 12 characters long")
-	t.Logf("Created OTP code: %s", code)
-
-	// Step 2: Login with the OTP code (public endpoint)
-	loginBody, _ := json.Marshal(map[string]string{
-		"code":   code,
-		"locale": "en-US",
-	})
+	// Login with the OTP code (public endpoint)
+	loginBody, _ := json.Marshal(map[string]string{"code": code, "locale": "en-US"})
 	loginResp, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody))
 	require.NoError(t, err)
 	defer loginResp.Body.Close()
 
-	loginBody2, _ := io.ReadAll(loginResp.Body)
-	t.Logf("Login response status: %d, body: %s", loginResp.StatusCode, string(loginBody2))
-	require.Equal(t, http.StatusOK, loginResp.StatusCode, "OTP login should succeed, body: %s", string(loginBody2))
+	loginRaw, _ := io.ReadAll(loginResp.Body)
+	t.Logf("Login response: %d, body: %s", loginResp.StatusCode, string(loginRaw))
+	require.Equal(t, http.StatusOK, loginResp.StatusCode, "body: %s", string(loginRaw))
 
 	var loginResult map[string]interface{}
-	err = json.Unmarshal(loginBody2, &loginResult)
-	require.NoError(t, err)
-
+	json.Unmarshal(loginRaw, &loginResult)
 	assert.Equal(t, "success", loginResult["status"])
 	assert.Equal(t, "/test/dashboard", loginResult["redirect"])
 
-	// Step 3: Verify the code is consumed (default Consume=true)
-	loginBody3, _ := json.Marshal(map[string]string{"code": code})
-	loginResp3, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody3))
+	// Verify the code is consumed (default Consume=true)
+	loginBody2, _ := json.Marshal(map[string]string{"code": code})
+	loginResp2, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody2))
 	require.NoError(t, err)
-	defer loginResp3.Body.Close()
-
-	assert.Equal(t, http.StatusUnauthorized, loginResp3.StatusCode, "Code should be consumed after first login")
+	defer loginResp2.Body.Close()
+	assert.Equal(t, http.StatusUnauthorized, loginResp2.StatusCode, "Code should be consumed after first login")
 }
 
 func TestOTPCreateAndLoginWithMemberID(t *testing.T) {
@@ -341,36 +243,20 @@ func TestOTPCreateAndLoginWithMemberID(t *testing.T) {
 	tc, cleanup := setupTestData(t, serverURL)
 	defer cleanup()
 
-	// Create OTP with member_id instead of user_id
-	createBody, _ := json.Marshal(map[string]interface{}{
-		"team_id":   tc.TeamID,
-		"member_id": tc.MemberID,
-		"redirect":  "/member-login-test",
+	code, err := otp.OTP.Create(&otp.GenerateParams{
+		TeamID:   tc.TeamID,
+		MemberID: tc.MemberID,
+		Redirect: "/member-login-test",
+		Consume:  true,
 	})
-	createReq, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	createResp, err := http.DefaultClient.Do(createReq)
 	require.NoError(t, err)
-	defer createResp.Body.Close()
 
-	createRaw, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create response: %d, body: %s", createResp.StatusCode, string(createRaw))
-	require.Equal(t, http.StatusOK, createResp.StatusCode, "body: %s", string(createRaw))
-
-	var createResult map[string]interface{}
-	json.Unmarshal(createRaw, &createResult)
-	code := createResult["code"].(string)
-
-	// Verify the stored payload has member_id
 	payload, err := otp.OTP.Verify(code)
 	require.NoError(t, err)
 	assert.Equal(t, tc.MemberID, payload.MemberID)
 	assert.Equal(t, tc.TeamID, payload.TeamID)
-	assert.Equal(t, "", payload.UserID, "user_id should be empty when member_id is used")
+	assert.Equal(t, "", payload.UserID)
 
-	// Login with the OTP code — should resolve member_id to user_id
 	loginBody, _ := json.Marshal(map[string]string{"code": code, "locale": "en-US"})
 	loginResp, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody))
 	require.NoError(t, err)
@@ -378,7 +264,7 @@ func TestOTPCreateAndLoginWithMemberID(t *testing.T) {
 
 	loginRaw, _ := io.ReadAll(loginResp.Body)
 	t.Logf("Login response: %d, body: %s", loginResp.StatusCode, string(loginRaw))
-	require.Equal(t, http.StatusOK, loginResp.StatusCode, "OTP login with member_id should succeed, body: %s", string(loginRaw))
+	require.Equal(t, http.StatusOK, loginResp.StatusCode, "body: %s", string(loginRaw))
 
 	var loginResult map[string]interface{}
 	json.Unmarshal(loginRaw, &loginResult)
@@ -398,28 +284,13 @@ func TestOTPCreateWithConsumeDisabled(t *testing.T) {
 	tc, cleanup := setupTestData(t, serverURL)
 	defer cleanup()
 
-	consumeFalse := false
-	createBody, _ := json.Marshal(map[string]interface{}{
-		"user_id":  tc.UserID,
-		"redirect": "/reusable",
-		"consume":  &consumeFalse,
+	code, err := otp.OTP.Create(&otp.GenerateParams{
+		UserID:   tc.UserID,
+		TeamID:   tc.TeamID,
+		Redirect: "/reusable",
+		Consume:  false,
 	})
-	createReq, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	createResp, err := http.DefaultClient.Do(createReq)
 	require.NoError(t, err)
-	defer createResp.Body.Close()
-
-	createRaw, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create response: %d, body: %s", createResp.StatusCode, string(createRaw))
-	require.Equal(t, http.StatusOK, createResp.StatusCode, "body: %s", string(createRaw))
-
-	var createResult map[string]interface{}
-	json.Unmarshal(createRaw, &createResult)
-	code := createResult["code"].(string)
-	t.Logf("Created reusable OTP code: %s", code)
 
 	// First login
 	loginBody, _ := json.Marshal(map[string]string{"code": code, "locale": "en-US"})
@@ -433,42 +304,21 @@ func TestOTPCreateWithConsumeDisabled(t *testing.T) {
 	loginResp2, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody2))
 	require.NoError(t, err)
 	defer loginResp2.Body.Close()
-
 	assert.Equal(t, http.StatusOK, loginResp2.StatusCode, "Reusable OTP code should allow multiple logins")
 }
 
 func TestOTPCreateWithTokenExpiresIn(t *testing.T) {
 	serverURL := testutils.Prepare(t)
 	defer testutils.Clean()
+	_ = serverURL
 
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	tc, cleanup := setupTestData(t, serverURL)
-	defer cleanup()
-
-	createBody, _ := json.Marshal(map[string]interface{}{
-		"user_id":          tc.UserID,
-		"redirect":         "/custom-ttl",
-		"token_expires_in": 600,
+	code, err := otp.OTP.Create(&otp.GenerateParams{
+		UserID:         "token_ttl_user",
+		Redirect:       "/custom-ttl",
+		TokenExpiresIn: 600,
+		Consume:        true,
 	})
-	createReq, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	createResp, err := http.DefaultClient.Do(createReq)
 	require.NoError(t, err)
-	defer createResp.Body.Close()
-
-	createRaw, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create response: %d, body: %s", createResp.StatusCode, string(createRaw))
-	require.Equal(t, http.StatusOK, createResp.StatusCode, "body: %s", string(createRaw))
-
-	var createResult map[string]interface{}
-	json.Unmarshal(createRaw, &createResult)
-	code := createResult["code"].(string)
 
 	payload, err := otp.OTP.Verify(code)
 	require.NoError(t, err)
@@ -671,33 +521,8 @@ func TestOTPServiceCreateWithCustomExpiry(t *testing.T) {
 }
 
 // ---------- Cross-team validation ----------
-
-func TestOTPCreateCrossTeamRejected(t *testing.T) {
-	serverURL := testutils.Prepare(t)
-	defer testutils.Clean()
-
-	baseURL := ""
-	if openapi.Server != nil && openapi.Server.Config != nil {
-		baseURL = openapi.Server.Config.BaseURL
-	}
-
-	tc, cleanup := setupTestData(t, serverURL)
-	defer cleanup()
-
-	body, _ := json.Marshal(map[string]interface{}{
-		"user_id":  "user_not_in_team_" + fmt.Sprintf("%d", time.Now().UnixNano()),
-		"redirect": "/cross-team",
-	})
-	req, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
-	defer resp.Body.Close()
-
-	assert.Equal(t, http.StatusForbidden, resp.StatusCode, "Should reject OTP creation for user not in team")
-}
+// NOTE: Cross-team HTTP endpoint test removed — /otp/create is disabled.
+// Server-side Process callers are trusted and should validate team membership themselves.
 
 // ---------- OTP Login sets cookies (no refresh token) ----------
 
@@ -713,25 +538,13 @@ func TestOTPLoginSetsAccessTokenCookieOnly(t *testing.T) {
 	tc, cleanup := setupTestData(t, serverURL)
 	defer cleanup()
 
-	createBody, _ := json.Marshal(map[string]interface{}{
-		"user_id":  tc.UserID,
-		"redirect": "/cookie-test",
+	code, err := otp.OTP.Create(&otp.GenerateParams{
+		UserID:   tc.UserID,
+		TeamID:   tc.TeamID,
+		Redirect: "/cookie-test",
+		Consume:  true,
 	})
-	createReq, _ := http.NewRequest("POST", serverURL+baseURL+"/otp/create", bytes.NewBuffer(createBody))
-	createReq.Header.Set("Content-Type", "application/json")
-	createReq.Header.Set("Authorization", "Bearer "+tc.Token)
-
-	createResp, err := http.DefaultClient.Do(createReq)
 	require.NoError(t, err)
-	defer createResp.Body.Close()
-
-	createRaw, _ := io.ReadAll(createResp.Body)
-	t.Logf("Create response: %d, body: %s", createResp.StatusCode, string(createRaw))
-	require.Equal(t, http.StatusOK, createResp.StatusCode, "body: %s", string(createRaw))
-
-	var createResult map[string]interface{}
-	json.Unmarshal(createRaw, &createResult)
-	code := createResult["code"].(string)
 
 	loginBody, _ := json.Marshal(map[string]string{"code": code})
 	loginResp, err := http.Post(serverURL+baseURL+"/otp/login", "application/json", bytes.NewBuffer(loginBody))
