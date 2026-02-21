@@ -33,9 +33,11 @@ type OTPLoginRequest struct {
 }
 
 // Attach registers OTP HTTP routes on the given router group.
-// The create endpoint requires authentication; login is public.
+// NOTE: /otp/create is disabled — OTP codes should only be created via
+// server-side Process (otp.Create) to prevent team members from generating
+// codes for other members and logging in as them.
 func Attach(group *gin.RouterGroup, auth types.OAuth) {
-	group.POST("/create", auth.Guard, GinOTPCreate)
+	// group.POST("/create", auth.Guard, GinOTPCreate)
 	group.POST("/login", GinOTPLogin)
 }
 

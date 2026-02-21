@@ -58,22 +58,10 @@ Deletes the code. Silent if the code does not exist.
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
-| `POST` | `/otp/create` | Bearer token (team context) | Create an OTP code |
+| ~~`POST`~~ | ~~`/otp/create`~~ | ~~Bearer token~~ | **Disabled** — use `otp.Create` process instead |
 | `POST` | `/otp/login` | Public | Verify code, set session cookies |
 
-### POST /otp/create
-
-Requires a valid access token with team context. The `team_id` is forced from the caller's identity. Validates that the target user/member belongs to the same team.
-
-**Request:**
-```json
-{"member_id": "M1", "redirect": "/agents/keeper/entry/xxx"}
-```
-
-**Response:**
-```json
-{"code": "abc123def456"}
-```
+> **Note:** The `/otp/create` HTTP endpoint is intentionally disabled. Exposing it would allow any team member to generate OTP codes for other members, effectively logging in as them without credentials. OTP codes must be created server-side via the `otp.Create` process only.
 
 ### POST /otp/login
 
