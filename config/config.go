@@ -138,8 +138,20 @@ func LoadWithRoot(root string) Config {
 	// DataRoot
 	if cfg.DataRoot == "" {
 		cfg.DataRoot = filepath.Join(cfg.Root, "data")
-		if !filepath.IsAbs(cfg.DataRoot) {
-			cfg.DataRoot, _ = filepath.Abs(cfg.DataRoot)
+	}
+	if !filepath.IsAbs(cfg.DataRoot) {
+		cfg.DataRoot = filepath.Join(cfg.Root, cfg.DataRoot)
+	}
+
+	// Resolve DB relative paths based on Root
+	for i, dsn := range cfg.DB.Primary {
+		if !filepath.IsAbs(dsn) && (cfg.DB.Driver == "sqlite3" || cfg.DB.Driver == "") {
+			cfg.DB.Primary[i] = filepath.Join(cfg.Root, dsn)
+		}
+	}
+	for i, dsn := range cfg.DB.Secondary {
+		if !filepath.IsAbs(dsn) && (cfg.DB.Driver == "sqlite3" || cfg.DB.Driver == "") {
+			cfg.DB.Secondary[i] = filepath.Join(cfg.Root, dsn)
 		}
 	}
 
