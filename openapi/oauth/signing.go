@@ -454,13 +454,62 @@ func (s *Service) SignToken(tokenType, clientID, scope, subject string, expiresI
 
 // VerifyToken verifies a token based on its format and returns token claims
 func (s *Service) VerifyToken(token string) (*types.TokenClaims, error) {
-	// First try to verify as JWT (JWT tokens contain dots)
 	if strings.Contains(token, ".") {
 		return s.verifyJWTToken(token)
 	}
-
-	// Otherwise, verify as opaque token
 	return s.verifyOpaqueToken(token)
+}
+
+// VerifyTokenAllowExpired verifies token signature but allows expired tokens.
+// Used by Guard to parse expired access tokens before attempting refresh.
+func (s *Service) VerifyTokenAllowExpired(token string) (*types.TokenClaims, error) {
+	if strings.Contains(token, ".") {
+		return s.verifyJWTTokenAllowExpired(token)
+	}
+	return s.verifyOpaqueToken(token)
+}
+
+// VerifyRefreshToken verifies a refresh token based on its format.
+// For opaque tokens it looks up the refresh token store (not the access token store).
+func (s *Service) VerifyRefreshToken(token string) (*types.TokenClaims, error) {
+	if strings.Contains(token, ".") {
+		// JWT refresh tokens can be verified with the same JWT logic
+		return s.verifyJWTToken(token)
+	}
+	return s.verifyOpaqueRefreshToken(token)
+}
+
+// verifyOpaqueRefreshToken verifies an opaque refresh token using the refresh token store.
+func (s *Service) verifyOpaqueRefreshToken(token string) (*types.TokenClaims, error) {
+	tokenInfo, err := s.getRefreshTokenData(token)
+	if err != nil {
+		return nil, fmt.Errorf("refresh token not found or invalid: %w", err)
+	}
+
+	clientID, _ := tokenInfo["client_id"].(string)
+	scope, _ := tokenInfo["scope"].(string)
+	subject, _ := tokenInfo["subject"].(string)
+
+	claims := &types.TokenClaims{
+		Subject:   subject,
+		ClientID:  clientID,
+		Scope:     scope,
+		TokenType: "refresh_token",
+		Issuer:    s.config.IssuerURL,
+	}
+
+	if issuedAt, ok := tokenInfo["issued_at"].(int64); ok {
+		claims.IssuedAt = time.Unix(issuedAt, 0)
+	}
+
+	if expiresAt, ok := tokenInfo["expires_at"].(int64); ok {
+		claims.ExpiresAt = time.Unix(expiresAt, 0)
+		if time.Now().After(claims.ExpiresAt) {
+			return nil, fmt.Errorf("refresh token expired")
+		}
+	}
+
+	return claims, nil
 }
 
 // SignIDToken signs an ID token with specific parameters and stores it
@@ -713,42 +762,57 @@ func (s *Service) signJWTToken(tokenType, clientID, scope, subject string, expir
 
 // verifyJWTToken verifies a JWT token and returns its claims
 func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error) {
+	return s.parseJWTToken(tokenString, false)
+}
+
+// verifyJWTTokenAllowExpired parses a JWT token, verifying signature but allowing expiration.
+// Returns claims even if the token is expired (signature must still be valid).
+func (s *Service) verifyJWTTokenAllowExpired(tokenString string) (*types.TokenClaims, error) {
+	return s.parseJWTToken(tokenString, true)
+}
+
+// parseJWTToken is the shared JWT parsing logic.
+// When allowExpired is true, expired tokens are still parsed (signature-only verification).
+func (s *Service) parseJWTToken(tokenString string, allowExpired bool) (*types.TokenClaims, error) {
 	if s.signingCerts == nil || s.signingCerts.SigningCert == nil {
 		return nil, fmt.Errorf("signing certificates not initialized")
 	}
 
-	// Parse token with MapClaims to support extra claims
+	parserOpts := []jwt.ParserOption{}
+	if allowExpired {
+		parserOpts = append(parserOpts, jwt.WithoutClaimsValidation())
+	}
+
 	token, err := jwt.ParseWithClaims(tokenString, jwt.MapClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// Validate signing method
 		expectedMethod := getSigningMethod(s.config.Token.AccessTokenSigningAlg)
 		if token.Method != expectedMethod {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
-
-		// Return public key for verification
 		return s.signingCerts.GetPublicKey(), nil
-	})
+	}, parserOpts...)
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse JWT token: %w", err)
 	}
 
-	if !token.Valid {
+	if !allowExpired && !token.Valid {
 		return nil, fmt.Errorf("invalid JWT token")
 	}
 
-	// Extract claims
 	mapClaims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, fmt.Errorf("invalid JWT claims type")
 	}
 
-	// Convert to TokenClaims
+	return s.extractTokenClaims(mapClaims), nil
+}
+
+// extractTokenClaims converts jwt.MapClaims to types.TokenClaims
+func (s *Service) extractTokenClaims(mapClaims jwt.MapClaims) *types.TokenClaims {
 	tokenClaims := &types.TokenClaims{
 		Extra: make(map[string]interface{}),
 	}
 
-	// Extract standard claims
 	if sub, ok := mapClaims["sub"].(string); ok {
 		tokenClaims.Subject = sub
 	}
@@ -768,7 +832,6 @@ func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error)
 		tokenClaims.JTI = jti
 	}
 
-	// Extract time claims
 	if exp, ok := mapClaims["exp"].(float64); ok {
 		tokenClaims.ExpiresAt = time.Unix(int64(exp), 0)
 	}
@@ -776,7 +839,6 @@ func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error)
 		tokenClaims.IssuedAt = time.Unix(int64(iat), 0)
 	}
 
-	// Extract audience
 	if aud, ok := mapClaims["aud"].(string); ok {
 		tokenClaims.Audience = []string{aud}
 	} else if audArray, ok := mapClaims["aud"].([]interface{}); ok {
@@ -789,7 +851,6 @@ func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error)
 		tokenClaims.Audience = audience
 	}
 
-	// Extract extended claims for multi-tenancy and team support
 	if teamID, ok := mapClaims["team_id"].(string); ok {
 		tokenClaims.TeamID = teamID
 	}
@@ -797,7 +858,6 @@ func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error)
 		tokenClaims.TenantID = tenantID
 	}
 
-	// Store all extra claims for flexibility
 	standardClaims := map[string]bool{
 		"sub": true, "client_id": true, "scope": true, "token_type": true,
 		"exp": true, "iat": true, "nbf": true, "iss": true, "aud": true, "jti": true,
@@ -809,7 +869,7 @@ func (s *Service) verifyJWTToken(tokenString string) (*types.TokenClaims, error)
 		}
 	}
 
-	return tokenClaims, nil
+	return tokenClaims
 }
 
 // signOpaqueToken signs an opaque token using HMAC or RSA signature

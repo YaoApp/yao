@@ -19,6 +19,7 @@ var (
 	ErrTokenMissing        = &ErrorResponse{Code: "token_missing", ErrorDescription: "No access token provided in the request"}
 	ErrInvalidRefreshToken = &ErrorResponse{Code: "invalid_refresh_token", ErrorDescription: "The refresh token provided is invalid or expired"}
 	ErrRefreshTokenMissing = &ErrorResponse{Code: "refresh_token_missing", ErrorDescription: "No refresh token provided in the request"}
+	ErrTokenRefreshFailed  = &ErrorResponse{Code: "token_refresh_failed", ErrorDescription: "Failed to refresh access token"}
 
 	// Permission related errors
 	ErrForbidden         = &ErrorResponse{Code: "forbidden", ErrorDescription: "You do not have permission to access this resource"}

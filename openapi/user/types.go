@@ -78,7 +78,6 @@ type CaptchaConfig struct {
 type TokenConfig struct {
 	ExpiresIn                       string `json:"expires_in,omitempty"`
 	RefreshTokenExpiresIn           string `json:"refresh_token_expires_in,omitempty"`
-	RememberMeExpiresIn             string `json:"remember_me_expires_in,omitempty"`
 	RememberMeRefreshTokenExpiresIn string `json:"remember_me_refresh_token_expires_in,omitempty"`
 }
 
