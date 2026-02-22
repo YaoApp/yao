@@ -18,6 +18,7 @@ type manager struct {
 	traceID      string
 	driver       types.Driver
 	stateCmdChan chan stateCommand // Single channel for all state mutations
+	closed       int32             // Atomic flag: 1 = closed, safeSend rejects new commands
 	autoArchive  bool              // Auto-archive on complete/fail
 	pubsub       *pubsub.PubSub    // Reference to independent pubsub service (for publishing only, doesn't own it)
 }

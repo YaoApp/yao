@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -487,17 +488,20 @@ func Release(traceID string) error {
 		return fmt.Errorf("trace not found in registry: %s", traceID)
 	}
 
-	// Stop manager
+	// Stop manager with safe three-step shutdown sequence.
+	// Order matters: flag blocks new writes -> cancel unblocks in-flight safeSend ->
+	// close terminates state worker (which drains remaining buffer first).
 	if mgr, ok := info.Manager.(*manager); ok {
-		// Close state machine channel to stop state worker goroutine
-		log.Trace("[TRACE] Release: closing state command channel")
-		close(mgr.stateCmdChan)
+		// Step 1: Set closed flag — new safeSend calls return false immediately
+		atomic.StoreInt32(&mgr.closed, 1)
 
-		// Cancel the manager's context to stop other background operations
+		// Step 2: Cancel context — unblocks any safeSend blocked in select on ctx.Done
 		if mgr.cancel != nil {
-			log.Trace("[TRACE] Release: cancelling manager context")
 			mgr.cancel()
 		}
+
+		// Step 3: Close channel — state worker for-range exits after draining buffer
+		close(mgr.stateCmdChan)
 	}
 
 	// Stop independent PubSub service
