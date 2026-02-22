@@ -8,6 +8,7 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/application"
 )
 
 // PathResolver resolves agent information from file paths
@@ -367,12 +368,22 @@ func CreateTestCaseFromMessage(message string) *Case {
 // ResolvePathWithYaoRoot resolves a file path relative to current directory
 // No fallback to YAO_ROOT - paths are always resolved from current working directory
 func ResolvePathWithYaoRoot(path string) string {
-	// If path is absolute, return as-is
 	if filepath.IsAbs(path) {
 		return path
 	}
 
-	// Resolve relative to current directory
+	// Try resolving relative to the application root first
+	if application.App != nil {
+		appRoot := application.App.Root()
+		if appRoot != "" {
+			candidate := filepath.Join(appRoot, path)
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
+		}
+	}
+
+	// Fallback: resolve relative to cwd
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return path
