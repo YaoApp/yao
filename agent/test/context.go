@@ -55,6 +55,7 @@ func buildAuthorizedInfo(env *Environment) *types.AuthorizedInfo {
 	authorized := &types.AuthorizedInfo{
 		Subject:  env.UserID,
 		UserID:   env.UserID,
+		TeamID:   env.TeamID,
 		TenantID: env.TeamID,
 	}
 

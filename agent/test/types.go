@@ -339,7 +339,8 @@ func NewEnvironmentWithContext(userID, teamID string, ctxConfig *ContextConfig) 
 
 // LoadContextConfig loads context configuration from a JSON file
 func LoadContextConfig(filePath string) (*ContextConfig, error) {
-	data, err := os.ReadFile(filePath)
+	resolvedPath := ResolvePathWithYaoRoot(filePath)
+	data, err := os.ReadFile(resolvedPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read context file: %w", err)
 	}

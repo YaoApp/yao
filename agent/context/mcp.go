@@ -218,8 +218,8 @@ func (ctx *Context) CallTool(mcpID string, name string, arguments interface{}) (
 		)
 	}
 
-	// Call tool
-	result, err := client.CallTool(ctx.Context, name, arguments)
+	// Call tool (pass ctx as extraArgs for Process transport to propagate Authorized())
+	result, err := client.CallTool(ctx.Context, name, arguments, ctx)
 	if err != nil {
 		if node != nil {
 			node.Fail(err)
@@ -273,8 +273,8 @@ func (ctx *Context) CallTools(mcpID string, tools []types.ToolCall) (*types.Call
 		)
 	}
 
-	// Call tools sequentially
-	result, err := client.CallTools(ctx.Context, tools)
+	// Call tools sequentially (pass ctx as extraArgs for Process transport to propagate Authorized())
+	result, err := client.CallTools(ctx.Context, tools, ctx)
 	if err != nil {
 		if node != nil {
 			node.Fail(err)
@@ -328,8 +328,8 @@ func (ctx *Context) CallToolsParallel(mcpID string, tools []types.ToolCall) (*ty
 		)
 	}
 
-	// Call tools in parallel
-	result, err := client.CallToolsParallel(ctx.Context, tools)
+	// Call tools in parallel (pass ctx as extraArgs for Process transport to propagate Authorized())
+	result, err := client.CallToolsParallel(ctx.Context, tools, ctx)
 	if err != nil {
 		if node != nil {
 			node.Fail(err)
