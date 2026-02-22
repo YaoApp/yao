@@ -1,7 +1,8 @@
 package trace
 
 import (
-	"time"
+	"fmt"
+	"sync/atomic"
 
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/trace/types"
@@ -210,9 +211,10 @@ func (c *cmdSpaceKVOp) execute(s *managerState) {
 	c.resp <- err
 }
 
-// State worker - processes all commands serially in a single goroutine
+// State worker - processes all commands serially in a single goroutine.
+// Exits only when stateCmdChan is closed by Release(). The for-range loop
+// automatically drains any buffered commands before returning (Go spec guarantee).
 func (m *manager) startStateWorker() {
-	// Initialize state
 	state := &managerState{
 		rootNode:     nil,
 		currentNodes: []*types.TraceNode{},
@@ -220,59 +222,29 @@ func (m *manager) startStateWorker() {
 		traceStatus:  types.TraceStatusPending,
 		completed:    false,
 		updates:      make([]*types.TraceUpdate, 0, 100),
-		// subscribers removed - now managed by SubscriptionManager
 	}
-
-	// Process commands until channel is closed (on Release)
-	// Note: We don't exit on context cancellation anymore - state machine should continue
-	// running until Release() is called, which closes the channel
-	for {
-		cmd, ok := <-m.stateCmdChan
-		if !ok {
-			// Channel closed by Release(), exit cleanly
-			return
-		}
+	for cmd := range m.stateCmdChan {
 		cmd.execute(state)
-
-		// Optional: Exit after processing completion (but only after draining)
-		// This is mainly for optimization - the channel will be closed by Release() anyway
-		if state.completed {
-			// Drain remaining commands with timeout
-			drainTimer := time.NewTimer(100 * time.Millisecond)
-			defer drainTimer.Stop()
-		drainLoop:
-			for {
-				select {
-				case cmd, ok := <-m.stateCmdChan:
-					if !ok {
-						// Channel closed during drain
-						break drainLoop
-					}
-					cmd.execute(state)
-				case <-drainTimer.C:
-					break drainLoop
-				}
-			}
-			return
-		}
 	}
 }
 
 // Helper methods for manager to send commands
 
-// safeSend checks if context is cancelled before sending to avoid panic on closed channel
+// safeSend sends a command to the state worker channel. Returns false if the
+// manager is closed, context is cancelled, or the channel was closed mid-send.
+// The atomic closed flag provides a fast-path rejection before touching the channel,
+// which is critical in CGO callback stacks where recover() may not work.
 func (m *manager) safeSend(cmd stateCommand) (ok bool) {
-	// Use defer/recover to handle the case where channel is closed mid-send
+	if atomic.LoadInt32(&m.closed) == 1 {
+		return false
+	}
 	defer func() {
 		if r := recover(); r != nil {
-			// Channel was closed, silently return false
 			ok = false
 		}
 	}()
-
 	select {
 	case <-m.ctx.Done():
-		// Context cancelled, channel may be closed
 		return false
 	case m.stateCmdChan <- cmd:
 		return true
@@ -383,6 +355,8 @@ func (m *manager) stateSetUpdates(updates []*types.TraceUpdate) {
 // stateExecuteSpaceOp executes a space operation serially through state worker
 func (m *manager) stateExecuteSpaceOp(spaceID string, fn func() error) error {
 	resp := make(chan error, 1)
-	m.stateCmdChan <- &cmdSpaceKVOp{spaceID: spaceID, fn: fn, resp: resp}
+	if !m.safeSend(&cmdSpaceKVOp{spaceID: spaceID, fn: fn, resp: resp}) {
+		return fmt.Errorf("trace %s: state worker stopped", m.traceID)
+	}
 	return <-resp
 }
