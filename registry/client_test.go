@@ -2,6 +2,7 @@ package registry_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
@@ -705,6 +706,88 @@ func TestDeleteNonExistentTag(t *testing.T) {
 	c.DeleteVersion("assistants", testScope, name, "1.0.0")
 }
 
+// --- Push / Delete error responses ---
+
+func TestPushDuplicateVersion(t *testing.T) {
+	c := newClient()
+	zipData, _ := testdata.BuildZip(&testdata.Manifest{
+		Type: "assistant", Scope: testScope, Name: "dup-push", Version: "1.0.0",
+	}, nil)
+
+	defer cleanup(c, "assistants", testScope, "dup-push", "1.0.0")
+
+	_, err := c.Push("assistants", testScope, "dup-push", "1.0.0", zipData)
+	if err != nil {
+		t.Fatalf("first push failed: %v", err)
+	}
+
+	_, err = c.Push("assistants", testScope, "dup-push", "1.0.0", zipData)
+	if err == nil {
+		t.Fatal("expected error on duplicate push")
+	}
+	apiErr, ok := err.(*registry.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 409 {
+		t.Errorf("expected 409, got %d", apiErr.StatusCode)
+	}
+
+	c.DeleteVersion("assistants", testScope, "dup-push", "1.0.0")
+}
+
+func TestDeleteNonExistentVersion(t *testing.T) {
+	c := newClient()
+	_, err := c.DeleteVersion("assistants", testScope, "never-existed", "9.9.9")
+	if err == nil {
+		t.Fatal("expected error deleting non-existent version")
+	}
+	apiErr, ok := err.(*registry.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 404 {
+		t.Errorf("expected 404, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestSetTagNonExistentPackage(t *testing.T) {
+	c := newClient()
+	_, err := c.SetTag("assistants", testScope, "no-such-pkg", "beta", "1.0.0")
+	if err == nil {
+		t.Fatal("expected error setting tag on non-existent package")
+	}
+	apiErr, ok := err.(*registry.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 404 {
+		t.Errorf("expected 404, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestListWithQueryFilter(t *testing.T) {
+	c := newClient()
+	zipData, _ := testdata.BuildZip(&testdata.Manifest{
+		Type: "mcp", Scope: testScope, Name: "list-query-mcp", Version: "1.0.0",
+		Description: "filterable mcp tool",
+	}, nil)
+
+	defer cleanup(c, "mcps", testScope, "list-query-mcp", "1.0.0")
+
+	c.Push("mcps", testScope, "list-query-mcp", "1.0.0", zipData)
+
+	list, err := c.List("mcps", testScope, "filterable", 1, 10)
+	if err != nil {
+		t.Fatalf("List with scope+query failed: %v", err)
+	}
+	if list.Total < 1 {
+		t.Errorf("expected at least 1 result, got %d", list.Total)
+	}
+
+	c.DeleteVersion("mcps", testScope, "list-query-mcp", "1.0.0")
+}
+
 // --- Release type CRUD ---
 
 func TestReleaseCRUD(t *testing.T) {
@@ -757,5 +840,203 @@ func TestReleaseCRUD(t *testing.T) {
 	_, err = c.DeleteVersion(pkgType, testScope, name, "1.0.0")
 	if err != nil {
 		t.Fatalf("Delete failed: %v", err)
+	}
+}
+
+// --- httptest-based edge-case coverage ---
+
+func TestParseErrorNonJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("plain text error"))
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL, registry.WithAuth("u", "p"))
+	_, err := c.Push("assistants", "@t", "x", "1.0.0", []byte("data"))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	apiErr, ok := err.(*registry.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.Message != "plain text error" {
+		t.Errorf("expected plain text body in message, got %q", apiErr.Message)
+	}
+}
+
+func TestInvalidBaseURL(t *testing.T) {
+	c := registry.New("http://invalid\x7f:8080", registry.WithAuth("u", "p"))
+
+	_, err := c.Push("assistants", "@t", "x", "1.0.0", []byte("zip"))
+	if err == nil {
+		t.Error("expected error from Push with invalid URL")
+	}
+
+	_, err = c.SetTag("assistants", "@t", "x", "beta", "1.0.0")
+	if err == nil {
+		t.Error("expected error from SetTag with invalid URL")
+	}
+
+	_, err = c.DeleteTag("assistants", "@t", "x", "beta")
+	if err == nil {
+		t.Error("expected error from DeleteTag with invalid URL")
+	}
+
+	_, err = c.DeleteVersion("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Error("expected error from DeleteVersion with invalid URL")
+	}
+}
+
+func TestPullNonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		w.Write([]byte(`{"error":"forbidden"}`))
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL)
+	_, _, err := c.Pull("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Fatal("expected error for forbidden pull")
+	}
+	apiErr, ok := err.(*registry.APIError)
+	if !ok {
+		t.Fatalf("expected APIError, got %T", err)
+	}
+	if apiErr.StatusCode != 403 {
+		t.Errorf("expected 403, got %d", apiErr.StatusCode)
+	}
+}
+
+func TestSetTagDeleteTagError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"bad request"}`))
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL, registry.WithAuth("u", "p"))
+
+	_, err := c.SetTag("assistants", "@t", "x", "beta", "1.0.0")
+	if err == nil {
+		t.Error("expected error from SetTag")
+	}
+
+	_, err = c.DeleteTag("assistants", "@t", "x", "beta")
+	if err == nil {
+		t.Error("expected error from DeleteTag")
+	}
+}
+
+func TestDeleteVersionError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+		w.Write([]byte(`{"error":"conflict"}`))
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL, registry.WithAuth("u", "p"))
+	_, err := c.DeleteVersion("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestMalformedResponseBody(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path != "/tags/" && callCount <= 2:
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("not-json"))
+		case r.Method == http.MethodPut:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("not-json"))
+		case r.Method == http.MethodDelete:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("not-json"))
+		default:
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("not-json"))
+		}
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL, registry.WithAuth("u", "p"))
+
+	_, err := c.Push("assistants", "@t", "x", "1.0.0", []byte("zip"))
+	if err == nil {
+		t.Error("expected decode error from Push")
+	}
+
+	_, err = c.SetTag("assistants", "@t", "x", "beta", "1.0.0")
+	if err == nil {
+		t.Error("expected decode error from SetTag")
+	}
+
+	_, err = c.DeleteTag("assistants", "@t", "x", "beta")
+	if err == nil {
+		t.Error("expected decode error from DeleteTag")
+	}
+
+	_, err = c.DeleteVersion("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Error("expected decode error from DeleteVersion")
+	}
+}
+
+func TestPullReadBodyError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Length", "99999")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("short"))
+	}))
+	defer srv.Close()
+
+	c := registry.New(srv.URL)
+	data, _, err := c.Pull("assistants", "@t", "x", "1.0.0")
+	if err != nil {
+		t.Logf("got expected error: %v", err)
+		return
+	}
+	if len(data) == 99999 {
+		t.Error("expected incomplete read")
+	}
+}
+
+func TestDoTransportError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	closedURL := srv.URL
+	srv.Close()
+
+	c := registry.New(closedURL, registry.WithAuth("u", "p"))
+
+	_, err := c.Push("assistants", "@t", "x", "1.0.0", []byte("zip"))
+	if err == nil {
+		t.Error("expected transport error from Push")
+	}
+
+	_, _, err = c.Pull("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Error("expected transport error from Pull")
+	}
+
+	_, err = c.SetTag("assistants", "@t", "x", "beta", "1.0.0")
+	if err == nil {
+		t.Error("expected transport error from SetTag")
+	}
+
+	_, err = c.DeleteTag("assistants", "@t", "x", "beta")
+	if err == nil {
+		t.Error("expected transport error from DeleteTag")
+	}
+
+	_, err = c.DeleteVersion("assistants", "@t", "x", "1.0.0")
+	if err == nil {
+		t.Error("expected transport error from DeleteVersion")
 	}
 }

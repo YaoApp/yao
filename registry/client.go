@@ -11,15 +11,20 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
 // Client talks to a Yao Registry server over HTTP.
+// On first API call it discovers the API prefix via /.well-known/yao-registry
+// so callers only need to provide the server root URL (e.g. "https://registry.yaoagents.com").
 type Client struct {
-	baseURL    string
-	username   string
-	password   string
-	httpClient *http.Client
+	baseURL      string
+	apiPrefix    string // resolved from well-known, e.g. "/v1"
+	discoverOnce sync.Once
+	username     string
+	password     string
+	httpClient   *http.Client
 }
 
 // Option configures a Client.
@@ -43,16 +48,29 @@ func WithTimeout(d time.Duration) Option {
 	return func(c *Client) { c.httpClient.Timeout = d }
 }
 
-// New creates a registry client. serverURL is the base URL without trailing slash.
+// New creates a registry client. serverURL is the root URL users configure,
+// e.g. "http://localhost:8080" or "https://registry.yaoagents.com".
+// The actual API prefix is auto-discovered via /.well-known/yao-registry.
 func New(serverURL string, opts ...Option) *Client {
 	c := &Client{
 		baseURL:    strings.TrimRight(serverURL, "/"),
+		apiPrefix:  "/v1", // sensible default, overridden by discovery
 		httpClient: &http.Client{Timeout: 60 * time.Second},
 	}
 	for _, o := range opts {
 		o(c)
 	}
 	return c
+}
+
+// ensureDiscovered runs well-known discovery exactly once (thread-safe).
+func (c *Client) ensureDiscovered() {
+	c.discoverOnce.Do(func() {
+		var info RegistryInfo
+		if err := c.doGet("/.well-known/yao-registry", nil, &info); err == nil && info.Registry.API != "" {
+			c.apiPrefix = strings.TrimRight(info.Registry.API, "/")
+		}
+	})
 }
 
 // --- Response types ---
@@ -184,16 +202,17 @@ func (e *APIError) Error() string {
 // Discover calls GET /.well-known/yao-registry.
 func (c *Client) Discover() (*RegistryInfo, error) {
 	var info RegistryInfo
-	if err := c.get("/.well-known/yao-registry", nil, &info); err != nil {
+	if err := c.doGet("/.well-known/yao-registry", nil, &info); err != nil {
 		return nil, err
 	}
 	return &info, nil
 }
 
-// Info calls GET /v1/.
+// Info calls GET {apiPrefix}/.
 func (c *Client) Info() (*ServerInfo, error) {
+	c.ensureDiscovered()
 	var info ServerInfo
-	if err := c.get("/v1/", nil, &info); err != nil {
+	if err := c.doGet(c.apiPrefix+"/", nil, &info); err != nil {
 		return nil, err
 	}
 	return &info, nil
@@ -201,8 +220,9 @@ func (c *Client) Info() (*ServerInfo, error) {
 
 // --- List & Search ---
 
-// List calls GET /v1/:type with optional filters.
+// List calls GET {apiPrefix}/:type with optional filters.
 func (c *Client) List(pkgType string, scope string, query string, page, pageSize int) (*ListResult, error) {
+	c.ensureDiscovered()
 	params := url.Values{}
 	if scope != "" {
 		params.Set("scope", scope)
@@ -217,14 +237,15 @@ func (c *Client) List(pkgType string, scope string, query string, page, pageSize
 		params.Set("pagesize", fmt.Sprintf("%d", pageSize))
 	}
 	var result ListResult
-	if err := c.get("/v1/"+pkgType, params, &result); err != nil {
+	if err := c.doGet(c.apiPrefix+"/"+pkgType, params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
 }
 
-// Search calls GET /v1/search.
+// Search calls GET {apiPrefix}/search.
 func (c *Client) Search(q string, pkgType string, page, pageSize int) (*ListResult, error) {
+	c.ensureDiscovered()
 	params := url.Values{"q": {q}}
 	if pkgType != "" {
 		params.Set("type", pkgType)
@@ -236,7 +257,7 @@ func (c *Client) Search(q string, pkgType string, page, pageSize int) (*ListResu
 		params.Set("pagesize", fmt.Sprintf("%d", pageSize))
 	}
 	var result ListResult
-	if err := c.get("/v1/search", params, &result); err != nil {
+	if err := c.doGet(c.apiPrefix+"/search", params, &result); err != nil {
 		return nil, err
 	}
 	return &result, nil
@@ -244,21 +265,23 @@ func (c *Client) Search(q string, pkgType string, page, pageSize int) (*ListResu
 
 // --- Package metadata ---
 
-// GetPackument calls GET /v1/:type/:scope/:name.
+// GetPackument calls GET {apiPrefix}/:type/:scope/:name.
 func (c *Client) GetPackument(pkgType, scope, name string) (*Packument, error) {
+	c.ensureDiscovered()
 	var p Packument
-	path := fmt.Sprintf("/v1/%s/%s/%s", pkgType, scope, name)
-	if err := c.get(path, nil, &p); err != nil {
+	path := fmt.Sprintf("%s/%s/%s/%s", c.apiPrefix, pkgType, scope, name)
+	if err := c.doGet(path, nil, &p); err != nil {
 		return nil, err
 	}
 	return &p, nil
 }
 
-// GetVersion calls GET /v1/:type/:scope/:name/:version.
+// GetVersion calls GET {apiPrefix}/:type/:scope/:name/:version.
 func (c *Client) GetVersion(pkgType, scope, name, version string) (*VersionDetail, error) {
+	c.ensureDiscovered()
 	var v VersionDetail
-	path := fmt.Sprintf("/v1/%s/%s/%s/%s", pkgType, scope, name, version)
-	if err := c.get(path, nil, &v); err != nil {
+	path := fmt.Sprintf("%s/%s/%s/%s/%s", c.apiPrefix, pkgType, scope, name, version)
+	if err := c.doGet(path, nil, &v); err != nil {
 		return nil, err
 	}
 	return &v, nil
@@ -266,25 +289,27 @@ func (c *Client) GetVersion(pkgType, scope, name, version string) (*VersionDetai
 
 // --- Dependencies ---
 
-// GetDependencies calls GET /v1/:type/:scope/:name/:version/dependencies.
+// GetDependencies calls GET {apiPrefix}/:type/:scope/:name/:version/dependencies.
 func (c *Client) GetDependencies(pkgType, scope, name, version string, recursive bool) (*DependencyList, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/%s/dependencies", pkgType, scope, name, version)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/%s/dependencies", c.apiPrefix, pkgType, scope, name, version)
 	params := url.Values{}
 	if recursive {
 		params.Set("recursive", "true")
 	}
 	var dl DependencyList
-	if err := c.get(path, params, &dl); err != nil {
+	if err := c.doGet(path, params, &dl); err != nil {
 		return nil, err
 	}
 	return &dl, nil
 }
 
-// GetDependents calls GET /v1/:type/:scope/:name/dependents.
+// GetDependents calls GET {apiPrefix}/:type/:scope/:name/dependents.
 func (c *Client) GetDependents(pkgType, scope, name string) (*DependentList, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/dependents", pkgType, scope, name)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/dependents", c.apiPrefix, pkgType, scope, name)
 	var dl DependentList
-	if err := c.get(path, nil, &dl); err != nil {
+	if err := c.doGet(path, nil, &dl); err != nil {
 		return nil, err
 	}
 	return &dl, nil
@@ -292,9 +317,10 @@ func (c *Client) GetDependents(pkgType, scope, name string) (*DependentList, err
 
 // --- Push & Pull ---
 
-// Push uploads a .yao.zip package via PUT /v1/:type/:scope/:name/:version.
+// Push uploads a .yao.zip package via PUT {apiPrefix}/:type/:scope/:name/:version.
 func (c *Client) Push(pkgType, scope, name, version string, zipData []byte) (*PushResult, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/%s", pkgType, scope, name, version)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/%s", c.apiPrefix, pkgType, scope, name, version)
 	req, err := http.NewRequest(http.MethodPut, c.baseURL+path, bytes.NewReader(zipData))
 	if err != nil {
 		return nil, err
@@ -319,10 +345,11 @@ func (c *Client) Push(pkgType, scope, name, version string, zipData []byte) (*Pu
 	return &result, nil
 }
 
-// Pull downloads a .yao.zip via GET /v1/:type/:scope/:name/:version/pull.
+// Pull downloads a .yao.zip via GET {apiPrefix}/:type/:scope/:name/:version/pull.
 // The version parameter can be a semver or a dist-tag name.
 func (c *Client) Pull(pkgType, scope, name, version string) ([]byte, string, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/%s/pull", pkgType, scope, name, version)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/%s/pull", c.apiPrefix, pkgType, scope, name, version)
 	resp, err := c.httpClient.Get(c.baseURL + path)
 	if err != nil {
 		return nil, "", err
@@ -343,9 +370,10 @@ func (c *Client) Pull(pkgType, scope, name, version string) ([]byte, string, err
 
 // --- Tags ---
 
-// SetTag calls PUT /v1/:type/:scope/:name/tags/:tag.
+// SetTag calls PUT {apiPrefix}/:type/:scope/:name/tags/:tag.
 func (c *Client) SetTag(pkgType, scope, name, tag, version string) (*TagResult, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/tags/%s", pkgType, scope, name, tag)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/tags/%s", c.apiPrefix, pkgType, scope, name, tag)
 	body, _ := json.Marshal(map[string]string{"version": version})
 
 	req, err := http.NewRequest(http.MethodPut, c.baseURL+path, bytes.NewReader(body))
@@ -372,9 +400,10 @@ func (c *Client) SetTag(pkgType, scope, name, tag, version string) (*TagResult, 
 	return &result, nil
 }
 
-// DeleteTag calls DELETE /v1/:type/:scope/:name/tags/:tag.
+// DeleteTag calls DELETE {apiPrefix}/:type/:scope/:name/tags/:tag.
 func (c *Client) DeleteTag(pkgType, scope, name, tag string) (*TagDeleteResult, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/tags/%s", pkgType, scope, name, tag)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/tags/%s", c.apiPrefix, pkgType, scope, name, tag)
 	req, err := http.NewRequest(http.MethodDelete, c.baseURL+path, nil)
 	if err != nil {
 		return nil, err
@@ -400,9 +429,10 @@ func (c *Client) DeleteTag(pkgType, scope, name, tag string) (*TagDeleteResult, 
 
 // --- Delete ---
 
-// DeleteVersion calls DELETE /v1/:type/:scope/:name/:version.
+// DeleteVersion calls DELETE {apiPrefix}/:type/:scope/:name/:version.
 func (c *Client) DeleteVersion(pkgType, scope, name, version string) (*DeleteResult, error) {
-	path := fmt.Sprintf("/v1/%s/%s/%s/%s", pkgType, scope, name, version)
+	c.ensureDiscovered()
+	path := fmt.Sprintf("%s/%s/%s/%s/%s", c.apiPrefix, pkgType, scope, name, version)
 	req, err := http.NewRequest(http.MethodDelete, c.baseURL+path, nil)
 	if err != nil {
 		return nil, err
@@ -434,7 +464,7 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
-func (c *Client) get(path string, params url.Values, out interface{}) error {
+func (c *Client) doGet(path string, params url.Values, out interface{}) error {
 	u := c.baseURL + path
 	if len(params) > 0 {
 		u += "?" + params.Encode()

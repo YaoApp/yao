@@ -1378,6 +1378,9 @@ jobs:
         image: yaoapp/registry:latest
         ports:
           - "8080:8080"
+        env:
+          REGISTRY_INIT_USER: yaoagents
+          REGISTRY_INIT_PASS: yaoagents
     strategy:
       matrix:
         go: ["1.25"]
@@ -1427,6 +1430,17 @@ jobs:
               issue_number: issue_number,
               body: '🤖 Registry Client SDK Tests running...'
             });
+
+      - name: Wait for Registry
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/.well-known/yao-registry > /dev/null 2>&1; then
+              echo "Registry is ready"
+              break
+            fi
+            echo "Waiting for registry... ($i)"
+            sleep 1
+          done
 
       - name: Checkout Kun
         uses: actions/checkout@v4
@@ -1492,23 +1506,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-
-      - name: Create Registry Test User
-        run: |
-          docker exec ${{ job.services.yao-registry.id }} \
-            registry user add --password yaoagents yaoagents
-
-      - name: Restart Registry Service
-        run: |
-          docker restart ${{ job.services.yao-registry.id }}
-          for i in $(seq 1 15); do
-            if curl -sf http://localhost:8080/.well-known/yao-registry > /dev/null 2>&1; then
-              echo "Registry is ready"
-              break
-            fi
-            echo "Waiting for registry... ($i)"
-            sleep 1
-          done
 
       - name: Run Registry Client Tests
         env:
