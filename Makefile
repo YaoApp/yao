@@ -10,9 +10,9 @@ NOW := $(shell date +"%FT%T%z")
 OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*' | awk '!/\/tests\// || /openapi\/tests/')
-# Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, and integrations which require external services)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations' | awk '!/\/tests\// || /openapi\/tests/')
+TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry' | awk '!/\/tests\// || /openapi\/tests/')
+# Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, registry, and integrations which require external services)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry' | awk '!/\/tests\// || /openapi\/tests/')
 # Agent tests (agent, aigc) - exclude agent/search/handlers/web (requires external API keys) and robot packages (tested in robot job)
 TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/search/handlers/web|agent/robot/')
 # KB tests (kb)
@@ -173,6 +173,27 @@ unit-test-robot:
 			rm profile.out; \
 		fi; \
 	done
+
+# Registry Client Test (requires Yao Registry service)
+.PHONY: unit-test-registry
+unit-test-registry:
+	echo "mode: count" > coverage.out
+	$(GO) test -v -timeout=2m -covermode=count -coverprofile=profile.out ./registry/... > tmp.out; \
+	cat tmp.out; \
+	if grep -q "^--- FAIL" tmp.out; then \
+		rm tmp.out; \
+		exit 1; \
+	elif grep -q "^FAIL" tmp.out; then \
+		rm tmp.out; \
+		exit 1; \
+	elif grep -q "^panic:" tmp.out; then \
+		rm tmp.out; \
+		exit 1; \
+	fi; \
+	if [ -f profile.out ]; then \
+		cat profile.out | grep -v "mode:" >> coverage.out; \
+		rm profile.out; \
+	fi
 
 # Sandbox Unit Test (requires Docker)
 .PHONY: unit-test-sandbox
