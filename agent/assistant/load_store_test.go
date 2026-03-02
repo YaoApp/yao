@@ -494,6 +494,10 @@ func TestLoadStoreWithAllFields(t *testing.T) {
 				Description: "This is a test placeholder",
 				Prompts:     []string{"Test prompt 1", "Test prompt 2"},
 			},
+			Dependencies: map[string]string{
+				"echo":     "^1.0.0",
+				"customer": ">=2.0.0",
+			},
 			Source: `
 // @ts-nocheck
 function Create(ctx: any, messages: any[]): any {
@@ -570,6 +574,12 @@ function Create(ctx: any, messages: any[]): any {
 	// Script from source
 	assert.NotNil(t, loaded.HookScript)
 	assert.NotEmpty(t, loaded.Source)
+
+	// Dependencies
+	require.NotNil(t, loaded.Dependencies)
+	assert.Len(t, loaded.Dependencies, 2)
+	assert.Equal(t, "^1.0.0", loaded.Dependencies["echo"])
+	assert.Equal(t, ">=2.0.0", loaded.Dependencies["customer"])
 
 	// Execute the Create hook to verify it works
 	ctx := newStoreTestContext("test-chat-all-fields", assistantID)

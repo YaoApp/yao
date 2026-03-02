@@ -259,6 +259,13 @@
       "nullable": true
     },
     {
+      "name": "dependencies",
+      "type": "json",
+      "label": "Dependencies",
+      "comment": "Dependencies on other MCP Clients (name -> version constraint)",
+      "nullable": true
+    },
+    {
       "name": "automated",
       "type": "boolean",
       "label": "Automated",

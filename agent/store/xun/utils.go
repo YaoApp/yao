@@ -2,8 +2,43 @@ package xun
 
 import (
 	"fmt"
+	"reflect"
 	"time"
+
+	jsoniter "github.com/json-iterator/go"
 )
+
+// isNil checks whether a value is truly nil, handling the Go typed-nil-in-interface pitfall.
+// A nil map, slice, or pointer stored in an interface{} is not == nil in Go;
+// this helper uses reflect to detect that case.
+func isNil(v interface{}) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Map, reflect.Slice, reflect.Interface, reflect.Chan, reflect.Func:
+		return rv.IsNil()
+	}
+	return false
+}
+
+// marshalJSONFields serialises each value in fields to a JSON string and writes
+// it into data. Truly-nil values (including typed nils) are skipped so the
+// database column keeps its SQL NULL / default.
+func marshalJSONFields(data map[string]interface{}, fields map[string]interface{}) error {
+	for field, value := range fields {
+		if isNil(value) {
+			continue
+		}
+		jsonStr, err := jsoniter.MarshalToString(value)
+		if err != nil {
+			return fmt.Errorf("failed to marshal %s: %w", field, err)
+		}
+		data[field] = jsonStr
+	}
+	return nil
+}
 
 // Helper functions for type conversion
 func getString(data map[string]interface{}, key string) string {

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 
+	jsoniter "github.com/json-iterator/go"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/trace/types"
@@ -17,6 +18,18 @@ import (
 type HistoryResult struct {
 	InputMessages []agentcontext.Message // Clean input messages (without overlap)
 	FullMessages  []agentcontext.Message // Full messages (history + clean input)
+}
+
+// getHistorySize returns the history size with priority: opts.HistorySize > storeSetting.MaxSize > default (20)
+func getHistorySize(opts *agentcontext.Options) int {
+	const defaultHistorySize = 20
+	if opts != nil && opts.HistorySize > 0 {
+		return opts.HistorySize
+	}
+	if setting := GetStoreSetting(); setting != nil && setting.MaxSize > 0 {
+		return setting.MaxSize
+	}
+	return defaultHistorySize
 }
 
 // WithHistory merges the input messages with chat history and traces it
@@ -41,14 +54,11 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 		return result, nil
 	}
 
-	// Get MaxSize from store setting
-	maxSize := 20 // default
-	if storeSetting := GetStoreSetting(); storeSetting != nil && storeSetting.MaxSize > 0 {
-		maxSize = storeSetting.MaxSize
-	}
+	// Resolve history size: opts.HistorySize > storeSetting.MaxSize > default (20)
+	maxSize := getHistorySize(opts)
 
 	// Load history from store
-	historyMessages, err := ast.loadHistory(ctx)
+	historyMessages, err := ast.loadHistory(ctx, maxSize)
 	if err != nil {
 		// Log warning but continue without history
 		ctx.Logger.Warn("Failed to load history for chat=%s: %v", ctx.ChatID, err)
@@ -102,8 +112,8 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 }
 
 // loadHistory loads chat history from the store
-// Returns the most recent MaxSize messages, ordered by time (oldest first)
-func (ast *Assistant) loadHistory(ctx *agentcontext.Context) ([]agentcontext.Message, error) {
+// Returns the most recent maxSize messages, ordered by time (oldest first)
+func (ast *Assistant) loadHistory(ctx *agentcontext.Context, maxSize int) ([]agentcontext.Message, error) {
 	// Check if chat ID is available
 	if ctx.ChatID == "" {
 		return nil, nil
@@ -113,13 +123,6 @@ func (ast *Assistant) loadHistory(ctx *agentcontext.Context) ([]agentcontext.Mes
 	chatStore := GetChatStore()
 	if chatStore == nil {
 		return nil, nil
-	}
-
-	// Get store setting for MaxSize
-	setting := GetStoreSetting()
-	maxSize := 20 // default
-	if setting != nil && setting.MaxSize > 0 {
-		maxSize = setting.MaxSize
 	}
 
 	// Load messages from store with limit
@@ -161,11 +164,16 @@ func (ast *Assistant) convertStoreMessageToContext(msg *storetypes.Message) *age
 		return nil
 	}
 
-	// Skip internal message types that should not be included in LLM context
-	// These types are for UI/internal use only and can confuse the LLM
-	// Note: "error" is kept so LLM can help troubleshoot issues
+	// Handle special message types:
+	// - tool_call/action: convert to historical summary text for LLM context
+	// - loading/event: skip (pure UI/lifecycle signals, no semantic value)
+	// - error: kept as-is so LLM can help troubleshoot issues
 	switch msg.Type {
-	case "tool_call", "loading", "action", "event":
+	case "tool_call":
+		return ast.convertToolCallToContext(msg)
+	case "action":
+		return ast.convertActionToContext(msg)
+	case "loading", "event":
 		return nil
 	}
 
@@ -222,6 +230,137 @@ func (ast *Assistant) extractContentFromProps(props map[string]interface{}, msgT
 	}
 
 	return nil
+}
+
+// convertToolCallToContext converts a tool_call store message to a historical summary text message.
+// This allows the LLM to understand what tools were previously called without re-invoking them.
+//
+// Supports two Props formats:
+//   - Standard ToolCallProps: {"name": "tool_name", "arguments": "{...}"}
+//   - Raw stream chunks:      {"content": "[{\"index\":0,\"id\":\"call_...\",\"function\":{\"name\":\"tool\"}}][...]"}
+func (ast *Assistant) convertToolCallToContext(msg *storetypes.Message) *agentcontext.Message {
+	if msg.Props == nil {
+		return nil
+	}
+
+	// Try standard ToolCallProps format first
+	if name, ok := msg.Props["name"].(string); ok && name != "" {
+		args, _ := msg.Props["arguments"].(string)
+		const maxArgsLen = 500
+		if len(args) > maxArgsLen {
+			args = args[:maxArgsLen] + "..."
+		}
+		return &agentcontext.Message{
+			Role:    agentcontext.RoleAssistant,
+			Content: fmt.Sprintf("[Historical Tool Call Summary] Called tool \"%s\" with arguments: %s", name, args),
+		}
+	}
+
+	// Try raw stream chunk format: {"content": "[...][...]..."}
+	// Each chunk is a JSON array like [{"index":0,"id":"call_...","function":{"name":"echo__ping"}}]
+	// Subsequent chunks append arguments: [{"index":0,"function":{"arguments":"..."}}]
+	if raw, ok := msg.Props["content"].(string); ok && raw != "" {
+		name, args := parseToolCallRawChunks(raw)
+		if name == "" {
+			return nil
+		}
+		const maxArgsLen = 500
+		if len(args) > maxArgsLen {
+			args = args[:maxArgsLen] + "..."
+		}
+		return &agentcontext.Message{
+			Role:    agentcontext.RoleAssistant,
+			Content: fmt.Sprintf("[Historical Tool Call Summary] Called tool \"%s\" with arguments: %s", name, args),
+		}
+	}
+
+	return nil
+}
+
+// parseToolCallRawChunks parses concatenated raw stream chunks to extract tool name and arguments.
+// Input format: "[{...}][{...}][{...}]" — multiple JSON arrays concatenated without separator.
+func parseToolCallRawChunks(raw string) (name, args string) {
+	// Split concatenated JSON arrays: "][" is the boundary
+	// e.g. "[{...}][{...}]" → ["[{...}]", "[{...}]"]
+	chunks := splitJSONArrays(raw)
+
+	var argParts []string
+	for _, chunk := range chunks {
+		var items []map[string]interface{}
+		if err := jsoniter.UnmarshalFromString(chunk, &items); err != nil || len(items) == 0 {
+			continue
+		}
+		item := items[0]
+		if fn, ok := item["function"].(map[string]interface{}); ok {
+			if n, ok := fn["name"].(string); ok && n != "" && name == "" {
+				name = n
+			}
+			if a, ok := fn["arguments"].(string); ok && a != "" {
+				argParts = append(argParts, a)
+			}
+		}
+	}
+
+	args = ""
+	for _, part := range argParts {
+		args += part
+	}
+	return name, args
+}
+
+// splitJSONArrays splits a string of concatenated JSON arrays "[...][...][...]" into individual arrays.
+func splitJSONArrays(s string) []string {
+	var result []string
+	depth := 0
+	start := -1
+	for i, ch := range s {
+		switch ch {
+		case '[':
+			if depth == 0 {
+				start = i
+			}
+			depth++
+		case ']':
+			depth--
+			if depth == 0 && start >= 0 {
+				result = append(result, s[start:i+1])
+				start = -1
+			}
+		}
+	}
+	return result
+}
+
+// convertActionToContext converts an action store message to a historical summary text message.
+// This allows the LLM to understand what system actions were previously executed.
+func (ast *Assistant) convertActionToContext(msg *storetypes.Message) *agentcontext.Message {
+	if msg.Props == nil {
+		return nil
+	}
+	name, _ := msg.Props["name"].(string)
+	if name == "" {
+		return nil
+	}
+	payload := ""
+	if msg.Props["payload"] != nil {
+		if payloadStr, err := jsoniter.MarshalToString(msg.Props["payload"]); err == nil {
+			const maxPayloadLen = 500
+			if len(payloadStr) > maxPayloadLen {
+				payloadStr = payloadStr[:maxPayloadLen] + "..."
+			}
+			payload = payloadStr
+		}
+	}
+	if payload != "" {
+		return &agentcontext.Message{
+			Role:    agentcontext.RoleAssistant,
+			Content: fmt.Sprintf("[Historical Action Summary] Executed action \"%s\" with payload: %s", name, payload),
+		}
+	}
+	return &agentcontext.Message{
+		Role:    agentcontext.RoleAssistant,
+		Content: fmt.Sprintf("[Historical Action Summary] Executed action \"%s\"", name),
+	}
 }
 
 // findOverlapIndex finds the index in input where history messages end

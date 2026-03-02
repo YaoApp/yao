@@ -124,9 +124,14 @@ func guardOAuth(r *Request) error {
 			!expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
 			refreshed, refreshErr := oauth.OAuth.TryRefreshToken(c, expiredClaims)
 			if refreshErr != nil {
-				return fmt.Errorf("Exception|401:Token expired and refresh failed")
+				if oauth.IsRefreshInProgress(refreshErr) {
+					claims = expiredClaims
+				} else {
+					return fmt.Errorf("Exception|401:Token expired and refresh failed")
+				}
+			} else {
+				claims = refreshed
 			}
-			claims = refreshed
 		} else {
 			return fmt.Errorf("Exception|401:Invalid token")
 		}

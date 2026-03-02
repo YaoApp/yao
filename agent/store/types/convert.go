@@ -454,6 +454,17 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		}
 	}
 
+	// Dependencies
+	if deps, ok := data["dependencies"]; ok && deps != nil {
+		raw, err := jsoniter.Marshal(deps)
+		if err == nil {
+			var d map[string]string
+			if err := jsoniter.Unmarshal(raw, &d); err == nil {
+				model.Dependencies = d
+			}
+		}
+	}
+
 	// Permission fields
 	if createdBy, ok := data["__yao_created_by"].(string); ok {
 		model.YaoCreatedBy = createdBy

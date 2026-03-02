@@ -1,9 +1,11 @@
 package oauth
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +15,16 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
+
+var (
+	errRefreshInProgress  = errors.New("refresh in progress")
+	errRefreshAlreadyDone = errors.New("refresh already done")
+	refreshGates          sync.Map // refreshToken → *refreshGate
+)
+
+type refreshGate struct {
+	done chan struct{} // closed when rotation completes
+}
 
 // Guard is the OAuth guard middleware
 func (s *Service) Guard(c *gin.Context) {
@@ -69,12 +81,17 @@ func (s *Service) Authenticate(c *gin.Context) bool {
 		if !expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
 			newClaims, refreshErr := s.TryRefreshToken(c, expiredClaims)
 			if refreshErr != nil {
-				log.Error("[OAuth] Token refresh failed: %v", refreshErr)
-				response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
-				c.Abort()
-				return false
+				if errors.Is(refreshErr, errRefreshInProgress) || errors.Is(refreshErr, errRefreshAlreadyDone) {
+					claims = expiredClaims
+				} else {
+					log.Error("[OAuth] Token refresh failed: %v", refreshErr)
+					response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
+					c.Abort()
+					return false
+				}
+			} else {
+				claims = newClaims
 			}
-			claims = newClaims
 		} else {
 			response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
 			c.Abort()
@@ -103,6 +120,29 @@ func (s *Service) TryRefreshToken(c *gin.Context, expiredClaims *types.TokenClai
 	if refreshToken == "" {
 		return nil, fmt.Errorf("refresh token missing")
 	}
+
+	gate := &refreshGate{done: make(chan struct{})}
+	if actual, loaded := refreshGates.LoadOrStore(refreshToken, gate); loaded {
+		// Another goroutine owns the rotation for this refresh token.
+		// It may still be running or already finished.
+		existing := actual.(*refreshGate)
+		select {
+		case <-existing.done:
+			return nil, errRefreshAlreadyDone
+		default:
+			return nil, errRefreshInProgress
+		}
+	}
+
+	// We own the gate — clean up when finished.
+	defer func() {
+		close(gate.done)
+		// Keep the gate in the map for 30 s so late arrivals see "done"
+		// instead of starting a new rotation with the now-revoked token.
+		time.AfterFunc(30*time.Second, func() {
+			refreshGates.CompareAndDelete(refreshToken, gate)
+		})
+	}()
 
 	refreshClaims, err := s.VerifyRefreshToken(refreshToken)
 	if err != nil {
@@ -242,6 +282,12 @@ func (s *Service) getRefreshToken(c *gin.Context) string {
 // GetRefreshToken gets the refresh token from the request (public method)
 func (s *Service) GetRefreshToken(c *gin.Context) string {
 	return s.getRefreshToken(c)
+}
+
+// IsRefreshInProgress checks whether an error signals that another goroutine
+// is already rotating (or has just rotated) the same refresh token.
+func IsRefreshInProgress(err error) bool {
+	return errors.Is(err, errRefreshInProgress) || errors.Is(err, errRefreshAlreadyDone)
 }
 
 // GetSessionID gets the session ID from the request (public method)

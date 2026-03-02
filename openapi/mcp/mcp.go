@@ -9,12 +9,13 @@ import (
 
 // Server represents an MCP server option (from user perspective)
 type Server struct {
-	Label       string `json:"label"`
-	Value       string `json:"value"`
-	Name        string `json:"name"`
-	Description string `json:"description,omitempty"`
-	Transport   string `json:"transport,omitempty"` // "stdio", "sse", "http"
-	Builtin     bool   `json:"builtin"`             // true for system built-in, false for user-defined
+	Label       string   `json:"label"`
+	Value       string   `json:"value"`
+	Name        string   `json:"name"`
+	Description string   `json:"description,omitempty"`
+	Tags        []string `json:"tags,omitempty"`
+	Transport   string   `json:"transport,omitempty"` // "stdio", "sse", "http"
+	Builtin     bool     `json:"builtin"`             // true for system built-in, false for user-defined
 }
 
 // Attach attaches the MCP server management handlers to the router with OAuth protection
@@ -58,6 +59,7 @@ func listServers(c *gin.Context) {
 			Value:       id,
 			Name:        name,
 			Description: meta.Description,
+			Tags:        meta.Tags,
 			Transport:   transport,
 			Builtin:     meta.Builtin,
 		})

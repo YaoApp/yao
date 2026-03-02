@@ -319,6 +319,11 @@ type Options struct {
 	// Metadata for passing custom data to hooks (e.g., scenario selection)
 	Metadata map[string]any `json:"metadata,omitempty"` // Custom metadata passed to Create/Next hooks
 
+	// HistorySize controls the max number of history messages loaded for LLM context.
+	// Priority: HistorySize > StoreSetting.MaxSize > default (20)
+	// 0 means use StoreSetting or default.
+	HistorySize int `json:"history_size,omitempty"`
+
 	// OnMessage is called for each message sent via ctx.Send()
 	// Used by ctx.agent.Call with onChunk callback to receive SSE messages
 	// Returns: 0 = continue, non-zero = stop

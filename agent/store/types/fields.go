@@ -36,6 +36,7 @@ var AssistantAllowedFields = map[string]bool{
 	"locales":                true,
 	"uses":                   true,
 	"search":                 true,
+	"dependencies":           true,
 	"automated":              true,
 	"mentionable":            true,
 	"created_at":             true,
@@ -66,10 +67,11 @@ var AssistantDefaultFields = []string{
 	"share",
 	"automated",
 	"mentionable",
-	"sandbox", // Sandbox configuration presence (lightweight)
-	"kb",      // Knowledge base configuration (lightweight)
-	"db",      // Database configuration (lightweight)
-	"mcp",     // MCP servers configuration (lightweight)
+	"sandbox",      // Sandbox configuration presence (lightweight)
+	"kb",           // Knowledge base configuration (lightweight)
+	"db",           // Database configuration (lightweight)
+	"mcp",          // MCP servers configuration (lightweight)
+	"dependencies", // Dependencies on other MCP Clients (lightweight)
 	"created_at",
 	"updated_at",
 	"__yao_created_by", // Permission: creator user ID
@@ -112,6 +114,7 @@ var AssistantFullFields = []string{
 	"locales",
 	"uses",
 	"search",
+	"dependencies",
 	"automated",
 	"mentionable",
 	"created_at",

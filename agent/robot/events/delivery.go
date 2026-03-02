@@ -91,25 +91,27 @@ func (h *robotHandler) handleDelivery(ctx context.Context, ev *eventtypes.Event,
 		}
 	}
 
-	// Push delivery to integration channels (Telegram, etc.) via ReplyFunc
-	if reply := getReplyFunc(); reply != nil {
-		msg := buildDeliveryMessage(content)
-		if msg != nil {
-			channel, chatID := splitChannelChatID(payload.ChatID)
-			extra := map[string]any{
-				"member_id":    payload.MemberID,
-				"execution_id": payload.ExecutionID,
-			}
-			for k, v := range payload.Extra {
-				extra[k] = v
-			}
-			metadata := &MessageMetadata{
-				Channel: channel,
-				ChatID:  chatID,
-				Extra:   extra,
-			}
-			if err := reply(ctx, msg, metadata); err != nil {
-				log.Error("delivery handler: integration reply failed execution=%s: %v", payload.ExecutionID, err)
+	// Push delivery to integration channels only when the task originated from one
+	if reply := getReplyFunc(); reply != nil && payload.ChatID != "" {
+		channel, chatID := splitChannelChatID(payload.ChatID)
+		if channel != "" && chatID != "" {
+			msg := buildDeliveryMessage(content)
+			if msg != nil {
+				extra := map[string]any{
+					"member_id":    payload.MemberID,
+					"execution_id": payload.ExecutionID,
+				}
+				for k, v := range payload.Extra {
+					extra[k] = v
+				}
+				metadata := &MessageMetadata{
+					Channel: channel,
+					ChatID:  chatID,
+					Extra:   extra,
+				}
+				if err := reply(ctx, msg, metadata); err != nil {
+					log.Error("delivery handler: integration reply failed channel=%s execution=%s: %v", channel, payload.ExecutionID, err)
+				}
 			}
 		}
 	}
