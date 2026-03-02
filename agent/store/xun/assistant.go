@@ -145,31 +145,6 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		data["__yao_tenant_id"] = nil
 	}
 
-	// Handle simple types
-	if assistant.Options != nil {
-		jsonStr, err := jsoniter.MarshalToString(assistant.Options)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal options: %w", err)
-		}
-		data["options"] = jsonStr
-	}
-
-	if assistant.Tags != nil {
-		jsonStr, err := jsoniter.MarshalToString(assistant.Tags)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal tags: %w", err)
-		}
-		data["tags"] = jsonStr
-	}
-
-	if assistant.Modes != nil {
-		jsonStr, err := jsoniter.MarshalToString(assistant.Modes)
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal modes: %w", err)
-		}
-		data["modes"] = jsonStr
-	}
-
 	// DefaultMode is a simple string field
 	if assistant.DefaultMode != "" {
 		data["default_mode"] = assistant.DefaultMode
@@ -177,8 +152,12 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		data["default_mode"] = nil
 	}
 
-	// Handle interface{} fields - they should already be in the correct format
+	// Handle all JSON fields uniformly via marshalJSONFields.
+	// Uses isNil() to correctly skip typed nils stored in interface{}.
 	jsonFields := map[string]interface{}{
+		"options":           assistant.Options,
+		"tags":              assistant.Tags,
+		"modes":             assistant.Modes,
 		"prompts":           assistant.Prompts,
 		"prompt_presets":    assistant.PromptPresets,
 		"connector_options": assistant.ConnectorOptions,
@@ -194,14 +173,8 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		"dependencies":      assistant.Dependencies,
 	}
 
-	for field, value := range jsonFields {
-		if value != nil {
-			jsonStr, err := jsoniter.MarshalToString(value)
-			if err != nil {
-				return "", fmt.Errorf("failed to marshal %s: %w", field, err)
-			}
-			data[field] = jsonStr
-		}
+	if err := marshalJSONFields(data, jsonFields); err != nil {
+		return "", err
 	}
 
 	// Update or insert
@@ -272,14 +245,14 @@ func (store *Xun) UpdateAssistant(assistantID string, updates map[string]interfa
 
 		// Handle JSON fields
 		if jsonFieldSet[key] {
-			if value != nil {
+			if isNil(value) {
+				data[key] = nil
+			} else {
 				jsonStr, err := jsoniter.MarshalToString(value)
 				if err != nil {
 					return fmt.Errorf("failed to marshal %s: %w", key, err)
 				}
 				data[key] = jsonStr
-			} else {
-				data[key] = nil
 			}
 		} else {
 			// Handle regular fields
