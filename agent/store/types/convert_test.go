@@ -583,6 +583,10 @@ func TestToAssistantModel(t *testing.T) {
 					"name": "English Name",
 				},
 			},
+			"dependencies": map[string]interface{}{
+				"echo":     "^1.0.0",
+				"customer": ">=2.0.0",
+			},
 		}
 
 		result, err := ToAssistantModel(data)
@@ -711,6 +715,19 @@ func TestToAssistantModel(t *testing.T) {
 		if result.Locales == nil {
 			t.Error("Expected Locales to be set")
 		}
+		if result.Dependencies == nil {
+			t.Error("Expected Dependencies to be set")
+		} else {
+			if len(result.Dependencies) != 2 {
+				t.Errorf("Expected 2 dependencies, got %d", len(result.Dependencies))
+			}
+			if result.Dependencies["echo"] != "^1.0.0" {
+				t.Errorf("Expected echo dependency '^1.0.0', got '%s'", result.Dependencies["echo"])
+			}
+			if result.Dependencies["customer"] != ">=2.0.0" {
+				t.Errorf("Expected customer dependency '>=2.0.0', got '%s'", result.Dependencies["customer"])
+			}
+		}
 	})
 
 	t.Run("MapWithFloatNumbers", func(t *testing.T) {
@@ -750,6 +767,7 @@ func TestToAssistantModel(t *testing.T) {
 			"workflow":     nil,
 			"placeholder":  nil,
 			"locales":      nil,
+			"dependencies": nil,
 		}
 
 		result, err := ToAssistantModel(data)
@@ -763,6 +781,9 @@ func TestToAssistantModel(t *testing.T) {
 		// All nil fields should remain nil
 		if result.Tags != nil {
 			t.Error("Expected Tags to be nil")
+		}
+		if result.Dependencies != nil {
+			t.Error("Expected Dependencies to be nil")
 		}
 		if result.Modes != nil {
 			t.Error("Expected Modes to be nil")

@@ -454,6 +454,7 @@ type AssistantModel struct {
 	Locales              i18n.Map               `json:"locales,omitempty"`                // Assistant Locales
 	Uses                 *context.Uses          `json:"uses,omitempty"`                   // Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings
 	Search               *searchTypes.Config    `json:"search,omitempty"`                 // Search configuration (web, kb, db, citation, weights, etc.)
+	Dependencies         map[string]string      `json:"dependencies,omitempty"`           // Dependencies on other MCP Clients (name -> version constraint)
 	CreatedAt            int64                  `json:"created_at"`                       // Creation timestamp
 	UpdatedAt            int64                  `json:"updated_at"`                       // Last update timestamp
 

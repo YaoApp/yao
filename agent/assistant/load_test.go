@@ -193,6 +193,18 @@ func TestLoadPath(t *testing.T) {
 		assert.NotNil(t, zhLocale)
 	})
 
+	t.Run("LoadDependencies", func(t *testing.T) {
+		assistant, err := assistant.LoadPath("/assistants/tests/fullfields")
+		require.NoError(t, err)
+		require.NotNil(t, assistant)
+
+		// Dependencies
+		assert.NotNil(t, assistant.Dependencies)
+		assert.Len(t, assistant.Dependencies, 2)
+		assert.Equal(t, "^1.0.0", assistant.Dependencies["echo"])
+		assert.Equal(t, ">=2.0.0", assistant.Dependencies["customer"])
+	})
+
 	t.Run("LoadNonExistentAssistant", func(t *testing.T) {
 		_, err := assistant.LoadPath("/assistants/non-existent")
 		assert.Error(t, err)
@@ -333,6 +345,13 @@ func TestClone(t *testing.T) {
 			assert.False(t, exists, "Clone should not have modified key")
 			delete(original.Options, "test_key") // cleanup
 		}
+
+		if original.Dependencies != nil {
+			original.Dependencies["test_dep"] = "^9.9.9"
+			_, exists := clone.Dependencies["test_dep"]
+			assert.False(t, exists, "Clone dependencies should not have modified key")
+			delete(original.Dependencies, "test_dep") // cleanup
+		}
 	})
 
 	t.Run("CloneNil", func(t *testing.T) {
@@ -457,6 +476,7 @@ func TestMap(t *testing.T) {
 	assert.Equal(t, assistant.ConnectorOptions, m["connector_options"])
 	assert.Equal(t, assistant.PromptPresets, m["prompt_presets"])
 	assert.Equal(t, assistant.Source, m["source"])
+	assert.Equal(t, assistant.Dependencies, m["dependencies"])
 }
 
 // TestLoadSystemAgents tests loading system agents from bindata

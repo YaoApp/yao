@@ -729,6 +729,30 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Sandbox = sb
 	}
 
+	// dependencies (name -> version constraint, like npm dependencies)
+	if deps, has := data["dependencies"]; has {
+		switch v := deps.(type) {
+		case map[string]string:
+			assistant.Dependencies = v
+		case map[string]interface{}:
+			d := make(map[string]string, len(v))
+			for k, val := range v {
+				d[k] = cast.ToString(val)
+			}
+			assistant.Dependencies = d
+		default:
+			raw, err := jsoniter.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			var d map[string]string
+			if err := jsoniter.Unmarshal(raw, &d); err != nil {
+				return nil, err
+			}
+			assistant.Dependencies = d
+		}
+	}
+
 	// uses (wrapper configurations for vision, audio, etc.)
 	// Merge hierarchy: global uses < assistant uses
 	if uses, has := data["uses"]; has {

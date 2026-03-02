@@ -146,6 +146,7 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"locales":                ast.Locales,
 		"uses":                   ast.Uses,
 		"search":                 ast.Search,
+		"dependencies":           ast.Dependencies,
 		"created_at":             store.ToMySQLTime(ast.CreatedAt),
 		"updated_at":             store.ToMySQLTime(ast.UpdatedAt),
 	}
@@ -455,6 +456,14 @@ func (ast *Assistant) Clone() *Assistant {
 		}
 	}
 
+	// Deep copy dependencies
+	if ast.Dependencies != nil {
+		clone.Dependencies = make(map[string]string, len(ast.Dependencies))
+		for k, v := range ast.Dependencies {
+			clone.Dependencies[k] = v
+		}
+	}
+
 	return clone
 }
 
@@ -637,6 +646,26 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 			return err
 		}
 		ast.Search = search
+	}
+
+	// Dependencies
+	if v, has := data["dependencies"]; has {
+		if v == nil {
+			ast.Dependencies = nil
+		} else {
+			switch d := v.(type) {
+			case map[string]string:
+				ast.Dependencies = d
+			case map[string]interface{}:
+				deps := make(map[string]string, len(d))
+				for k, val := range d {
+					if s, ok := val.(string); ok {
+						deps[k] = s
+					}
+				}
+				ast.Dependencies = deps
+			}
+		}
 	}
 
 	return ast.Validate()
