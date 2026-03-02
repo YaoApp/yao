@@ -1031,3 +1031,104 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+
+  # =============================================================================
+  # Registry Client SDK Tests (requires Yao Registry Docker service)
+  # =============================================================================
+  registry-test:
+    runs-on: ubuntu-latest
+    services:
+      yao-registry:
+        image: yaoapp/registry:latest
+        ports:
+          - "8080:8080"
+        env:
+          REGISTRY_INIT_USER: yaoagents
+          REGISTRY_INIT_PASS: yaoagents
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Wait for Registry
+        run: |
+          for i in $(seq 1 15); do
+            if curl -sf http://localhost:8080/.well-known/yao-registry > /dev/null 2>&1; then
+              echo "Registry is ready"
+              break
+            fi
+            echo "Waiting for registry... ($i)"
+            sleep 1
+          done
+
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Run Registry Client Tests
+        env:
+          YAO_REGISTRY_URL: http://localhost:8080
+        run: make unit-test-registry
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
