@@ -67,14 +67,21 @@ func (s *Service) Authenticate(c *gin.Context) bool {
 
 		// Signature valid but expired — attempt auto refresh
 		if !expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
-			newClaims, refreshErr := s.TryRefreshToken(c, expiredClaims)
-			if refreshErr != nil {
-				log.Error("[OAuth] Token refresh failed: %v", refreshErr)
-				response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
-				c.Abort()
-				return false
+			if refreshToken := s.getRefreshToken(c); s.IsRefreshing(refreshToken) {
+				// Another request is already rotating this refresh token.
+				// The signature has been verified, so we can safely let
+				// this request through with the expired-but-authentic claims.
+				claims = expiredClaims
+			} else {
+				newClaims, refreshErr := s.TryRefreshToken(c, expiredClaims)
+				if refreshErr != nil {
+					log.Error("[OAuth] Token refresh failed: %v", refreshErr)
+					response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidRefreshToken)
+					c.Abort()
+					return false
+				}
+				claims = newClaims
 			}
-			claims = newClaims
 		} else {
 			response.RespondWithError(c, http.StatusUnauthorized, types.ErrInvalidToken)
 			c.Abort()
@@ -103,6 +110,13 @@ func (s *Service) TryRefreshToken(c *gin.Context, expiredClaims *types.TokenClai
 	if refreshToken == "" {
 		return nil, fmt.Errorf("refresh token missing")
 	}
+
+	// Mark this refresh token as being rotated so concurrent requests
+	// can detect the in-flight rotation and skip duplicate refresh attempts.
+	// TTL acts as a safety net in case defer doesn't run (e.g. process crash).
+	refreshingKey := s.refreshingCacheKey(refreshToken)
+	s.cache.Set(refreshingKey, true, 30*time.Second)
+	defer s.cache.Del(refreshingKey)
 
 	refreshClaims, err := s.VerifyRefreshToken(refreshToken)
 	if err != nil {
@@ -242,6 +256,21 @@ func (s *Service) getRefreshToken(c *gin.Context) string {
 // GetRefreshToken gets the refresh token from the request (public method)
 func (s *Service) GetRefreshToken(c *gin.Context) string {
 	return s.getRefreshToken(c)
+}
+
+// IsRefreshing reports whether the given refresh token is currently being
+// rotated by another request. Callers can use this to avoid duplicate
+// refresh attempts that would fail because the old token has been revoked.
+func (s *Service) IsRefreshing(refreshToken string) bool {
+	if refreshToken == "" {
+		return false
+	}
+	_, ok := s.cache.Get(s.refreshingCacheKey(refreshToken))
+	return ok
+}
+
+func (s *Service) refreshingCacheKey(refreshToken string) string {
+	return fmt.Sprintf("%soauth:refreshing:%s", s.prefix, refreshToken)
 }
 
 // GetSessionID gets the session ID from the request (public method)

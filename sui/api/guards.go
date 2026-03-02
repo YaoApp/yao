@@ -122,11 +122,18 @@ func guardOAuth(r *Request) error {
 		expiredClaims, expErr := oauth.OAuth.VerifyTokenAllowExpired(token)
 		if expErr == nil && expiredClaims != nil &&
 			!expiredClaims.ExpiresAt.IsZero() && expiredClaims.ExpiresAt.Before(time.Now()) {
-			refreshed, refreshErr := oauth.OAuth.TryRefreshToken(c, expiredClaims)
-			if refreshErr != nil {
-				return fmt.Errorf("Exception|401:Token expired and refresh failed")
+			if refreshToken := oauth.OAuth.GetRefreshToken(c); oauth.OAuth.IsRefreshing(refreshToken) {
+				// Another request is already rotating this refresh token.
+				// The signature has been verified, so we can safely let
+				// this request through with the expired-but-authentic claims.
+				claims = expiredClaims
+			} else {
+				refreshed, refreshErr := oauth.OAuth.TryRefreshToken(c, expiredClaims)
+				if refreshErr != nil {
+					return fmt.Errorf("Exception|401:Token expired and refresh failed")
+				}
+				claims = refreshed
 			}
-			claims = refreshed
 		} else {
 			return fmt.Errorf("Exception|401:Invalid token")
 		}
