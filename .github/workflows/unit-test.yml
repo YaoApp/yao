@@ -1222,8 +1222,8 @@ jobs:
 
       - name: Start Tai (with Docker socket + K8s proxy)
         run: |
-          K3D_IP=$(docker inspect k3d-tai-test-server-0 \
-            --format '{{.NetworkSettings.Networks.k3d-tai-test.IPAddress}}')
+          FMT='${{ "{{" }}.NetworkSettings.Networks.k3d-tai-test.IPAddress{{ "}}" }}'
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 --format "${FMT}")
           echo "k3d server IP: ${K3D_IP}"
 
           docker run -d --name tai \
