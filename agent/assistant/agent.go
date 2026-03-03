@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -567,29 +568,34 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	return finalResponse, nil
 }
 
-// GetConnector get the connector object, capabilities, and error with priority: opts.Connector > ast.Connector
+// GetConnector get the connector object, capabilities, and error with priority:
+// opts.Connector > ast.Connector > defaultConnector (fallback)
 // Note: opts.Connector may be set by Create hook's applyOptionsAdjustments
 // Returns: (connector, capabilities, error)
 func (ast *Assistant) GetConnector(ctx *context.Context, opts ...*context.Options) (connector.Connector, *goullm.Capabilities, error) {
-	// Determine connector ID with priority: opts.Connector > ast.Connector
 	connectorID := ast.Connector
 	if len(opts) > 0 && opts[0] != nil && opts[0].Connector != "" {
 		connectorID = opts[0].Connector
 	}
 
-	// If empty, return error
+	if connectorID == "" {
+		connectorID = defaultConnector
+	}
+
 	if connectorID == "" {
 		return nil, nil, fmt.Errorf("connector not specified")
 	}
 
-	// Load gou connector
 	conn, err := connector.Select(connectorID)
+	if err != nil && connectorID != defaultConnector && defaultConnector != "" {
+		log.Printf("[Assistant] connector %q not found, falling back to default %q", connectorID, defaultConnector)
+		conn, err = connector.Select(defaultConnector)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
 
 	capabilities := llm.GetCapabilitiesFromConn(conn)
-
 	return conn, capabilities, nil
 }
 
