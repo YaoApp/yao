@@ -583,9 +583,9 @@ func TestScanDependencies(t *testing.T) {
 	os.WriteFile(filepath.Join(assistantDir, "package.yao"), []byte(`{
 		"name":"test-scan",
 		"mcp": {
-			"servers": {
-				"rag": {"server_id": "yao.rag-tools"}
-			}
+			"servers": [
+				{"server_id": "yao.rag-tools"}
+			]
 		}
 	}`), 0644)
 
@@ -610,9 +610,9 @@ func TestScanDependenciesSkipUnscoped(t *testing.T) {
 	os.WriteFile(filepath.Join(assistantDir, "package.yao"), []byte(`{
 		"name":"test-local",
 		"mcp": {
-			"servers": {
-				"echo": {"server_id": "echo"}
-			}
+			"servers": [
+				{"server_id": "echo"}
+			]
 		}
 	}`), 0644)
 

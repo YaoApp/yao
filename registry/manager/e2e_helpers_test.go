@@ -178,9 +178,9 @@ func buildV2AgentApp(t *testing.T) string {
   "options": { "temperature": 0.5 },
   "public": false,
   "mcp": {
-    "servers": {
-      "registry-mcp": { "server_id": "`+testScope+`.registry-mcp" }
-    }
+    "servers": [
+      { "server_id": "`+testScope+`.registry-mcp" }
+    ]
   },
   "tags": ["Test", "Registry", "V2"],
   "sort": 999,
@@ -309,10 +309,10 @@ func buildV2AnalyticsApp(t *testing.T) string {
   "options": { "temperature": 0.2 },
   "public": false,
   "mcp": {
-    "servers": {
-      "registry-mcp": { "server_id": "`+testScope+`.registry-mcp" },
-      "data-tools": { "server_id": "`+testScope+`.data-tools" }
-    }
+    "servers": [
+      { "server_id": "`+testScope+`.registry-mcp" },
+      { "server_id": "`+testScope+`.data-tools" }
+    ]
   },
   "tags": ["Test", "Registry", "Analytics", "V2"],
   "sort": 998,

@@ -19,7 +19,7 @@ type packageYao struct {
 }
 
 type mcpConfig struct {
-	Servers map[string]mcpServerEntry `json:"servers,omitempty"`
+	Servers []mcpServerEntry `json:"servers,omitempty"`
 }
 
 type mcpServerEntry struct {
