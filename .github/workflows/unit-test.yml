@@ -1126,6 +1126,7 @@ jobs:
       - name: Run Registry Client Tests
         env:
           YAO_REGISTRY_URL: http://localhost:8080
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/../app
         run: make unit-test-registry
 
       - name: Codecov Report

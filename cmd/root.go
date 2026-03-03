@@ -8,6 +8,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/cmd/agent"
+	"github.com/yaoapp/yao/cmd/mcp"
+	"github.com/yaoapp/yao/cmd/robot"
 	"github.com/yaoapp/yao/cmd/sui"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/pack"
@@ -64,6 +66,10 @@ var langs = map[string]string{
 	"🎉Successfully updated to version: %s🎉":      "🎉成功更新到版本: %s🎉",
 	"Print all version information":              "显示详细版本信息",
 	"SUI Template Engine":                        "SUI 模板引擎命令",
+	"MCP commands":                               "MCP 包管理命令",
+	"MCP package management commands":            "MCP 包管理命令",
+	"Robot commands":                             "Robot 包管理命令",
+	"Robot package management commands":          "Robot 包管理命令",
 }
 
 // L Language switch
@@ -128,6 +134,30 @@ var agentCmd = &cobra.Command{
 	},
 }
 
+var mcpCmd = &cobra.Command{
+	Use:   "mcp",
+	Short: L("MCP commands"),
+	Long:  L("MCP package management commands"),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
+var robotCmd = &cobra.Command{
+	Use:   "robot",
+	Short: L("Robot commands"),
+	Long:  L("Robot package management commands"),
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
 // Command initialize
 func init() {
 
@@ -139,6 +169,19 @@ func init() {
 	// Agent
 	agentCmd.AddCommand(agent.TestCmd)
 	agentCmd.AddCommand(agent.ExtractCmd)
+	agentCmd.AddCommand(agent.AddCmd)
+	agentCmd.AddCommand(agent.UpdateCmd)
+	agentCmd.AddCommand(agent.PushCmd)
+	agentCmd.AddCommand(agent.ForkCmd)
+
+	// MCP
+	mcpCmd.AddCommand(mcp.AddCmd)
+	mcpCmd.AddCommand(mcp.UpdateCmd)
+	mcpCmd.AddCommand(mcp.PushCmd)
+	mcpCmd.AddCommand(mcp.ForkCmd)
+
+	// Robot
+	robotCmd.AddCommand(robot.AddCmd)
 
 	rootCmd.AddCommand(
 		versionCmd,
@@ -154,6 +197,8 @@ func init() {
 		// packCmd,
 		suiCmd,
 		agentCmd,
+		mcpCmd,
+		robotCmd,
 		// upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
