@@ -1133,3 +1133,107 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  # =============================================================================
+  # Tai SDK Tests (requires Tai container with Docker socket mount)
+  # =============================================================================
+  tai-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
+          done
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Pull Tai & Test Images
+        run: |
+          docker pull yaoapp/tai:latest
+          docker pull alpine:latest
+
+      - name: Start Tai (with Docker socket)
+        run: |
+          docker run -d --name tai \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
+            yaoapp/tai:latest
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
+              echo "Tai is ready"
+              break
+            fi
+            echo "Waiting for Tai... ($i)"
+            sleep 1
+          done
+
+      - name: Run Tai SDK Tests
+        env:
+          TAI_TEST_HOST: "127.0.0.1"
+          TAI_TEST_GRPC: "127.0.0.1:9100"
+          TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
+        run: make unit-test-tai
+
+      - name: Codecov Report
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

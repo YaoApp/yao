@@ -163,6 +163,7 @@ require (
 	github.com/opencontainers/image-spec v1.1.0 // indirect
 	github.com/pdfcpu/pdfcpu v0.11.0 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pierrec/lz4/v4 v4.1.25 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/qdrant/go-client v1.14.0 // indirect

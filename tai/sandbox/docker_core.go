@@ -1,0 +1,211 @@
+package sandbox
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"strconv"
+	"strings"
+
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/docker/go-connections/nat"
+)
+
+// dockerCore contains Docker SDK operations shared by both Local and Docker (via Tai) sandboxes.
+type dockerCore struct {
+	cli *client.Client
+}
+
+func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts bool) (string, error) {
+	cfg := &container.Config{
+		Image:      opts.Image,
+		Cmd:        opts.Cmd,
+		Env:        envSlice(opts.Env),
+		WorkingDir: opts.WorkingDir,
+	}
+
+	hostCfg := &container.HostConfig{
+		Binds: opts.Binds,
+	}
+
+	if opts.Memory > 0 {
+		hostCfg.Resources.Memory = opts.Memory
+	}
+	if opts.CPUs > 0 {
+		hostCfg.Resources.NanoCPUs = int64(opts.CPUs * 1e9)
+	}
+
+	exposedPorts := nat.PortSet{}
+	portBindings := nat.PortMap{}
+	for _, p := range opts.Ports {
+		cp := nat.Port(fmt.Sprintf("%d/%s", p.ContainerPort, proto(p.Protocol)))
+		exposedPorts[cp] = struct{}{}
+		portBindings[cp] = []nat.PortBinding{{
+			HostIP:   hostIP(p.HostIP),
+			HostPort: portStr(p.HostPort),
+		}}
+	}
+
+	if opts.VNC {
+		hostCfg.CapAdd = append(hostCfg.CapAdd, "SYS_ADMIN")
+		shmSize := opts.Memory / 4
+		if shmSize < 256*1024*1024 {
+			shmSize = 256 * 1024 * 1024
+		}
+		hostCfg.ShmSize = shmSize
+		cfg.Env = append(cfg.Env, "SANDBOX_VNC_ENABLED=true")
+
+		if addVNCPorts {
+			for _, p := range []int{6080, 5900} {
+				cp := nat.Port(fmt.Sprintf("%d/tcp", p))
+				exposedPorts[cp] = struct{}{}
+				portBindings[cp] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}}
+			}
+		}
+	}
+
+	if len(exposedPorts) > 0 {
+		cfg.ExposedPorts = exposedPorts
+		hostCfg.PortBindings = portBindings
+	}
+
+	resp, err := d.cli.ContainerCreate(ctx, cfg, hostCfg, nil, nil, opts.Name)
+	if err != nil {
+		return "", fmt.Errorf("create: %w", err)
+	}
+	return resp.ID, nil
+}
+
+func (d *dockerCore) start(ctx context.Context, id string) error {
+	return d.cli.ContainerStart(ctx, id, container.StartOptions{})
+}
+
+func (d *dockerCore) stop(ctx context.Context, id string, timeoutSec int) error {
+	return d.cli.ContainerStop(ctx, id, container.StopOptions{Timeout: &timeoutSec})
+}
+
+func (d *dockerCore) remove(ctx context.Context, id string, force bool) error {
+	return d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: force, RemoveVolumes: true})
+}
+
+func (d *dockerCore) exec(ctx context.Context, id string, cmd []string, opts ExecOptions) (*ExecResult, error) {
+	execCfg := container.ExecOptions{
+		Cmd:          cmd,
+		WorkingDir:   opts.WorkDir,
+		Env:          envSlice(opts.Env),
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execResp, err := d.cli.ContainerExecCreate(ctx, id, execCfg)
+	if err != nil {
+		return nil, fmt.Errorf("exec create: %w", err)
+	}
+
+	resp, err := d.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach: %w", err)
+	}
+	defer resp.Close()
+
+	var stdout, stderr bytes.Buffer
+	if _, err := stdcopy.StdCopy(&stdout, &stderr, resp.Reader); err != nil && err != io.EOF {
+		return nil, fmt.Errorf("exec read: %w", err)
+	}
+
+	inspect, err := d.cli.ContainerExecInspect(ctx, execResp.ID)
+	if err != nil {
+		return nil, fmt.Errorf("exec inspect: %w", err)
+	}
+
+	return &ExecResult{
+		ExitCode: inspect.ExitCode,
+		Stdout:   stdout.String(),
+		Stderr:   stderr.String(),
+	}, nil
+}
+
+func (d *dockerCore) inspect(ctx context.Context, id string) (*ContainerInfo, error) {
+	info, err := d.cli.ContainerInspect(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	ci := &ContainerInfo{
+		ID:     info.ID,
+		Name:   strings.TrimPrefix(info.Name, "/"),
+		Image:  info.Config.Image,
+		Status: info.State.Status,
+	}
+
+	if info.NetworkSettings != nil {
+		for _, net := range info.NetworkSettings.Networks {
+			if net.IPAddress != "" {
+				ci.IP = net.IPAddress
+				break
+			}
+		}
+		for portProto, bindings := range info.NetworkSettings.Ports {
+			parts := strings.SplitN(string(portProto), "/", 2)
+			cp, _ := strconv.Atoi(parts[0])
+			protocol := "tcp"
+			if len(parts) > 1 {
+				protocol = parts[1]
+			}
+			for _, b := range bindings {
+				hp, _ := strconv.Atoi(b.HostPort)
+				ci.Ports = append(ci.Ports, PortMapping{
+					ContainerPort: cp,
+					HostPort:      hp,
+					HostIP:        b.HostIP,
+					Protocol:      protocol,
+				})
+			}
+		}
+	}
+	return ci, nil
+}
+
+func (d *dockerCore) list(ctx context.Context, opts ListOptions) ([]ContainerInfo, error) {
+	listOpts := container.ListOptions{All: opts.All}
+	if len(opts.Labels) > 0 {
+		f := filters.NewArgs()
+		for k, v := range opts.Labels {
+			f.Add("label", k+"="+v)
+		}
+		listOpts.Filters = f
+	}
+
+	containers, err := d.cli.ContainerList(ctx, listOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]ContainerInfo, 0, len(containers))
+	for _, c := range containers {
+		name := ""
+		if len(c.Names) > 0 {
+			name = strings.TrimPrefix(c.Names[0], "/")
+		}
+		ci := ContainerInfo{
+			ID:     c.ID,
+			Name:   name,
+			Image:  c.Image,
+			Status: c.State,
+		}
+		for _, p := range c.Ports {
+			ci.Ports = append(ci.Ports, PortMapping{
+				ContainerPort: int(p.PrivatePort),
+				HostPort:      int(p.PublicPort),
+				HostIP:        p.IP,
+				Protocol:      p.Type,
+			})
+		}
+		result = append(result, ci)
+	}
+	return result, nil
+}
