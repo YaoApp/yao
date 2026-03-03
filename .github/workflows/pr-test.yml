@@ -1662,7 +1662,7 @@ jobs:
 
       - name: Create k3d cluster
         run: |
-          k3d cluster create tai-test --no-lb --wait --api-port 0
+          k3d cluster create tai-test --no-lb --wait --api-port 16443
           kubectl wait --for=condition=Ready node --all --timeout=60s
           k3d image import alpine:latest -c tai-test
 
