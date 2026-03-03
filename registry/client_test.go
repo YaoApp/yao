@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	testScope = "@test"
+	testScope = "@yaoagents"
 )
 
 func serverURL() string {

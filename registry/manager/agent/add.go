@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/yaoapp/yao/registry/manager/common"
+	mcpmgr "github.com/yaoapp/yao/registry/manager/mcp"
 )
 
 // AddOptions configures the Add operation.
@@ -69,6 +70,11 @@ func (m *Manager) Add(pkgID string, opts AddOptions) error {
 		if err := m.installDependencies(manifest.Dependencies, lf, pkgID, map[string]bool{pkgID: true}); err != nil {
 			return err
 		}
+		// Reload lockfile — dependency managers write their own entries to disk
+		lf, err = common.LoadLockfile(m.appRoot)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Unpack to destination
@@ -113,6 +119,8 @@ func (m *Manager) Add(pkgID string, opts AddOptions) error {
 }
 
 // installDependencies recursively installs missing dependencies.
+// For MCP-type dependencies, delegates to the MCP manager which handles
+// script extraction to the project root correctly.
 func (m *Manager) installDependencies(deps map[string]string, lf *common.RegistryYao, parentID string, installing map[string]bool) error {
 	missing, conflicts, _ := common.CheckDependencies(deps, lf)
 
@@ -130,10 +138,8 @@ func (m *Manager) installDependencies(deps map[string]string, lf *common.Registr
 		choice := m.prompter.Choose(msg, options)
 		switch choice {
 		case 0:
-			// Upgrade: treat as missing so it gets reinstalled
 			missing = append(missing, c)
 		case 1:
-			// Keep current
 			continue
 		default:
 			return fmt.Errorf("installation aborted by user")
@@ -144,7 +150,6 @@ func (m *Manager) installDependencies(deps map[string]string, lf *common.Registr
 		return nil
 	}
 
-	// Build summary
 	var summary strings.Builder
 	summary.WriteString("The following dependencies need to be installed:\n")
 	for _, dep := range missing {
@@ -160,63 +165,23 @@ func (m *Manager) installDependencies(deps map[string]string, lf *common.Registr
 		}
 		installing[dep.PackageID] = true
 
-		// Determine type from package ID by trying to pull and reading manifest
-		depScope, depName, err := common.ParsePackageID(dep.PackageID)
-		if err != nil {
+		if _, _, err := common.ParsePackageID(dep.PackageID); err != nil {
 			return err
 		}
 
-		// Try assistant type first, then mcp
-		var installed bool
-		for _, regType := range []string{common.TypeDirAssistants, common.TypeDirMCPs} {
-			zipData, digest, err := m.client.Pull(regType, "@"+depScope, depName, "latest")
-			if err != nil {
-				continue
-			}
-			manifest, err := common.ReadManifest(zipData)
-			if err != nil {
-				continue
-			}
-
-			pkgType := manifest.Type
-			destDir := common.PackageDir(pkgType, depScope, depName, m.appRoot)
-			if err := os.MkdirAll(destDir, 0755); err != nil {
-				return err
-			}
-			if _, err := common.UnpackTo(zipData, destDir); err != nil {
-				return fmt.Errorf("unpack dependency %s: %w", dep.PackageID, err)
-			}
-
-			relDir := common.PackageDirRel(pkgType, depScope, depName)
-			files, err := common.HashDir(destDir, relDir)
-			if err != nil {
-				return err
-			}
-
-			info := common.PackageInfo{
-				Type:         pkgType,
-				Version:      manifest.Version,
-				Integrity:    digest,
-				Dependencies: manifest.Dependencies,
-				Files:        files,
-			}
-			lf.SetPackage(dep.PackageID, info)
-
-			// Recursively install this dep's dependencies
-			if len(manifest.Dependencies) > 0 {
-				if err := m.installDependencies(manifest.Dependencies, lf, dep.PackageID, installing); err != nil {
-					return err
-				}
-			}
-
-			fmt.Printf("  ✓ Dependency %s@%s installed\n", dep.PackageID, manifest.Version)
-			installed = true
-			break
+		// Try MCP type first (most agent dependencies are MCPs), then assistant.
+		// Delegate to the appropriate manager so MCP script extraction is handled.
+		if err := m.mcpMgr.Add(dep.PackageID, mcpmgr.AddOptions{}); err == nil {
+			fmt.Printf("  ✓ Dependency %s installed (mcp)\n", dep.PackageID)
+			continue
 		}
 
-		if !installed {
-			return fmt.Errorf("failed to install dependency %s: not found in registry", dep.PackageID)
+		if err := m.Add(dep.PackageID, AddOptions{}); err == nil {
+			fmt.Printf("  ✓ Dependency %s installed (assistant)\n", dep.PackageID)
+			continue
 		}
+
+		return fmt.Errorf("failed to install dependency %s: not found in registry", dep.PackageID)
 	}
 
 	return nil
