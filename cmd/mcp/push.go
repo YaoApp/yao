@@ -1,0 +1,45 @@
+package mcp
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/registry"
+	mcpmgr "github.com/yaoapp/yao/registry/manager/mcp"
+)
+
+// PushCmd implements "yao mcp push scope.name --version x.y.z"
+var PushCmd = &cobra.Command{
+	Use:   "push [yao-id]",
+	Short: L("Push an MCP package to the registry"),
+	Long:  L("Package and push an MCP to the registry. Example: yao mcp push max.rag-tools --version 1.0.0"),
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		Boot()
+		yaoID := args[0]
+		version, _ := cmd.Flags().GetString("version")
+
+		client := registry.New(config.Conf.Registry,
+			registry.WithAuth(
+				os.Getenv("YAO_REGISTRY_USER"),
+				os.Getenv("YAO_REGISTRY_PASS"),
+			),
+		)
+
+		mgr := mcpmgr.New(client, config.Conf.Root, nil)
+		if err := mgr.Push(yaoID, mcpmgr.PushOptions{
+			Version: version,
+		}); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+func init() {
+	PushCmd.Flags().StringP("version", "v", "", L("Package version (required)"))
+	PushCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
+	PushCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", L("Environment file"))
+}
