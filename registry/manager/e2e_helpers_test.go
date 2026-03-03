@@ -189,7 +189,7 @@ func buildV2AgentApp(t *testing.T) string {
   "mentionable": false
 }`)
 	mustWriteFile(t, filepath.Join(assistDir, "prompts.yml"),
-		"system: |\n  You are the v2 registry test assistant with enhanced capabilities.\n")
+		"- role: system\n  content: |\n    You are the v2 registry test assistant with enhanced capabilities.\n")
 	mustWriteFile(t, filepath.Join(assistDir, "tools.ts"),
 		`export function newV2Tool(): number { return 42; }`)
 
@@ -321,7 +321,7 @@ func buildV2AnalyticsApp(t *testing.T) string {
   "mentionable": false
 }`)
 	mustWriteFile(t, filepath.Join(assistDir, "prompts.yml"),
-		"system: |\n  You are the v2 analytics assistant with charting capabilities.\n")
+		"- role: system\n  content: |\n    You are the v2 analytics assistant with charting capabilities.\n")
 	mustWriteFile(t, filepath.Join(assistDir, "chart_helper.ts"),
 		`export function renderChart(): string { return "chart-v2"; }`)
 

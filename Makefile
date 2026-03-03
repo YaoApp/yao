@@ -178,7 +178,7 @@ unit-test-robot:
 .PHONY: unit-test-registry
 unit-test-registry:
 	echo "mode: count" > coverage.out
-	$(GO) test -v -timeout=2m -covermode=count -coverprofile=profile.out ./registry/... > tmp.out; \
+	$(GO) test -v -p 1 -timeout=5m -covermode=count -coverprofile=profile.out ./registry/... > tmp.out; \
 	cat tmp.out; \
 	if grep -q "^--- FAIL" tmp.out; then \
 		rm tmp.out; \
