@@ -9,7 +9,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/yaoapp/gou/application/ignore"
 )
+
+// DefaultIgnorePatterns are always excluded when packing, regardless of
+// whether a .yaoignore file exists. The syntax is identical to .gitignore.
+var DefaultIgnorePatterns = []string{
+	".git/",
+	".gitignore",
+	".DS_Store",
+	"Thumbs.db",
+	"*.swp",
+	"*.swo",
+	"*.bak",
+	"*.tmp",
+	"*.log",
+	"__debug_bin*",
+	".vscode/",
+	".cursor/",
+	".idea/",
+	"node_modules/",
+	".yaoignore",
+}
 
 // PackDir creates a .yao.zip from a directory. All files under dir are stored
 // under the "package/" prefix in the zip. extraFiles maps additional relative
@@ -35,21 +57,30 @@ func PackDir(dir string, manifest *PkgManifest, extraFiles map[string]string) ([
 		return nil, err
 	}
 
+	// Load ignore rules: built-in defaults first, then .yaoignore on top so
+	// that user negation patterns (e.g. !important.tmp) can override defaults.
+	gi := loadIgnoreRules(filepath.Join(dir, ".yaoignore"))
+
 	// Walk the main directory
 	if err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
-		}
-		if info.IsDir() {
-			return nil
 		}
 		rel, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
 		rel = filepath.ToSlash(rel)
-		// Skip pkg.yao if it exists in source (we generate our own)
+		if info.IsDir() {
+			if rel != "." && gi.MatchesPath(rel+"/") {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if rel == "pkg.yao" {
+			return nil
+		}
+		if gi.MatchesPath(rel) {
 			return nil
 		}
 		return addFileToZip(w, "package/"+rel, path)
@@ -189,6 +220,20 @@ func ListZipFiles(zipData []byte) ([]string, error) {
 		files = append(files, rel)
 	}
 	return files, nil
+}
+
+// loadIgnoreRules compiles ignore patterns with defaults first, then the
+// .yaoignore file contents appended so user rules (including negations) win.
+func loadIgnoreRules(yaoignorePath string) *ignore.GitIgnore {
+	lines := make([]string, 0, len(DefaultIgnorePatterns)+16)
+	lines = append(lines, DefaultIgnorePatterns...)
+
+	if data, err := os.ReadFile(yaoignorePath); err == nil {
+		for _, l := range strings.Split(string(data), "\n") {
+			lines = append(lines, l)
+		}
+	}
+	return ignore.CompileIgnoreLines(lines...)
 }
 
 func addFileToZip(w *zip.Writer, zipPath, srcPath string) error {

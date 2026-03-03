@@ -21,6 +21,7 @@ var PushCmd = &cobra.Command{
 
 		yaoID := args[0]
 		version, _ := cmd.Flags().GetString("version")
+		force, _ := cmd.Flags().GetBool("force")
 
 		client := registry.New(config.Conf.Registry,
 			registry.WithAuth(
@@ -32,6 +33,7 @@ var PushCmd = &cobra.Command{
 		mgr := agentmgr.New(client, config.Conf.Root, nil)
 		if err := mgr.Push(yaoID, agentmgr.PushOptions{
 			Version: version,
+			Force:   force,
 		}); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
@@ -41,6 +43,7 @@ var PushCmd = &cobra.Command{
 
 func init() {
 	PushCmd.Flags().StringP("version", "v", "", L("Package version (required)"))
+	PushCmd.Flags().Bool("force", false, L("Overwrite existing version"))
 	PushCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
 	PushCmd.PersistentFlags().StringVarP(&envFile, "env", "e", "", L("Environment file"))
 }

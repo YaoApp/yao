@@ -73,6 +73,13 @@ func mockRegistryServer(packages map[string][]byte) *httptest.Server {
 			return
 		}
 
+		// Delete: DELETE /v1/{type}/{scope}/{name}/{version}
+		if r.Method == http.MethodDelete {
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+			return
+		}
+
 		// Push: PUT /v1/{type}/{scope}/{name}/{version}
 		if r.Method == http.MethodPut {
 			w.WriteHeader(http.StatusCreated)
@@ -422,6 +429,52 @@ func TestPushLocalScope(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "@local") {
 		t.Errorf("expected @local rejection, got: %v", err)
+	}
+}
+
+func TestPushForce(t *testing.T) {
+	appRoot := t.TempDir()
+
+	assistantDir := filepath.Join(appRoot, "assistants", "max", "my-agent")
+	os.MkdirAll(assistantDir, 0755)
+	os.WriteFile(filepath.Join(assistantDir, "package.yao"), []byte(`{"name":"my-agent"}`), 0644)
+
+	var deleteCalled bool
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.well-known/yao-registry" {
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"registry": map[string]string{"version": "1.0.0", "api": "/v1"},
+				"types":    []string{"assistants"},
+			})
+			return
+		}
+		if r.Method == http.MethodDelete {
+			deleteCalled = true
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "deleted"})
+			return
+		}
+		if r.Method == http.MethodPut {
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]string{
+				"type": "assistants", "scope": "@max",
+				"name": "my-agent", "version": "1.0.0", "digest": "sha256-forced",
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := registry.New(srv.URL, registry.WithAuth("u", "p"))
+	mgr := New(client, appRoot, &common.AutoConfirmPrompter{})
+
+	err := mgr.Push("max.my-agent", PushOptions{Version: "1.0.0", Force: true})
+	if err != nil {
+		t.Fatalf("Force push failed: %v", err)
+	}
+	if !deleteCalled {
+		t.Error("expected DELETE to be called before PUT when Force=true")
 	}
 }
 

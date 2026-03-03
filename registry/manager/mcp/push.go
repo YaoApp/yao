@@ -11,6 +11,7 @@ import (
 // PushOptions configures the Push operation.
 type PushOptions struct {
 	Version string
+	Force   bool // delete existing version before push
 }
 
 // Push packages and uploads an MCP to the registry.
@@ -72,6 +73,11 @@ func (m *Manager) Push(yaoID string, opts PushOptions) error {
 	}
 
 	regType := common.TypeToRegistryType(common.TypeMCP)
+
+	if opts.Force {
+		m.client.DeleteVersion(regType, "@"+scope, name, opts.Version)
+	}
+
 	result, err := m.client.Push(regType, "@"+scope, name, opts.Version, zipData)
 	if err != nil {
 		return fmt.Errorf("push: %w", err)

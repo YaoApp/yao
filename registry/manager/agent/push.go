@@ -11,6 +11,7 @@ import (
 // PushOptions configures the Push operation.
 type PushOptions struct {
 	Version string // required semver
+	Force   bool   // delete existing version before push
 }
 
 // Push packages and uploads an assistant to the registry.
@@ -66,8 +67,14 @@ func (m *Manager) Push(yaoID string, opts PushOptions) error {
 		return fmt.Errorf("pack: %w", err)
 	}
 
-	// Push to registry
 	regType := common.TypeToRegistryType(common.TypeAssistant)
+
+	// Force: delete existing version first (ignore 404)
+	if opts.Force {
+		m.client.DeleteVersion(regType, "@"+scope, name, opts.Version)
+	}
+
+	// Push to registry
 	result, err := m.client.Push(regType, "@"+scope, name, opts.Version, zipData)
 	if err != nil {
 		return fmt.Errorf("push: %w", err)

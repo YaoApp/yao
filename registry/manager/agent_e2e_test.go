@@ -29,6 +29,13 @@ func TestE2EAgent_SingleDepLifecycle(t *testing.T) {
 		t.Fatalf("Push MCP: %v", err)
 	}
 
+	// Verify .yaoignore fixtures exist in source before push
+	srcAgent := filepath.Join(devApp, "assistants", testScope, "registry-agent")
+	requireFileExists(t, filepath.Join(srcAgent, ".yaoignore"))
+	requireFileExists(t, filepath.Join(srcAgent, "dev-notes.md"))
+	requireFileExists(t, filepath.Join(srcAgent, "wireframe.sketch"))
+	requireFileExists(t, filepath.Join(srcAgent, "debug", "trace.log"))
+
 	// Push agent
 	agentMgr := agentmgr.New(c, devApp, &common.AutoConfirmPrompter{})
 	if err := agentMgr.Push(testScope+".registry-agent", agentmgr.PushOptions{Version: "1.0.0"}); err != nil {
@@ -55,6 +62,12 @@ func TestE2EAgent_SingleDepLifecycle(t *testing.T) {
 	agentDir := filepath.Join(installApp, "assistants", testScope, "registry-agent")
 	requireFileExists(t, filepath.Join(agentDir, "package.yao"))
 	requireFileContains(t, filepath.Join(agentDir, "prompts.yml"), "registry E2E testing")
+
+	// .yaoignore: excluded files must NOT appear in the installed package
+	requireFileNotExists(t, filepath.Join(agentDir, ".yaoignore"))
+	requireFileNotExists(t, filepath.Join(agentDir, "dev-notes.md"))
+	requireFileNotExists(t, filepath.Join(agentDir, "wireframe.sketch"))
+	requireFileNotExists(t, filepath.Join(agentDir, "debug", "trace.log"))
 
 	// Lockfile: agent entry
 	agentPkg := requireLockfileHas(t, installApp, "@"+testScope+"/registry-agent")
