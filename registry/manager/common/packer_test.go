@@ -133,6 +133,132 @@ func TestReadManifestMissing(t *testing.T) {
 	}
 }
 
+func TestPackDirBuiltinIgnore(t *testing.T) {
+	srcDir := t.TempDir()
+	os.WriteFile(filepath.Join(srcDir, "package.yao"), []byte(`{}`), 0644)
+	os.WriteFile(filepath.Join(srcDir, "prompts.md"), []byte("hello"), 0644)
+
+	// Files that should be excluded by built-in defaults
+	os.WriteFile(filepath.Join(srcDir, ".DS_Store"), []byte{}, 0644)
+	os.WriteFile(filepath.Join(srcDir, "debug.swp"), []byte{}, 0644)
+	os.WriteFile(filepath.Join(srcDir, "notes.bak"), []byte{}, 0644)
+	os.MkdirAll(filepath.Join(srcDir, ".git", "objects"), 0755)
+	os.WriteFile(filepath.Join(srcDir, ".git", "config"), []byte{}, 0644)
+	os.MkdirAll(filepath.Join(srcDir, ".vscode"), 0755)
+	os.WriteFile(filepath.Join(srcDir, ".vscode", "settings.json"), []byte{}, 0644)
+	os.MkdirAll(filepath.Join(srcDir, "node_modules", "foo"), 0755)
+	os.WriteFile(filepath.Join(srcDir, "node_modules", "foo", "index.js"), []byte{}, 0644)
+
+	manifest := &PkgManifest{Type: TypeAssistant, Scope: "test", Name: "ign", Version: "1.0.0"}
+	zipData, err := PackDir(srcDir, manifest, nil)
+	if err != nil {
+		t.Fatalf("PackDir: %v", err)
+	}
+
+	files, err := ListZipFiles(zipData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fileSet := map[string]bool{}
+	for _, f := range files {
+		fileSet[f] = true
+	}
+
+	if !fileSet["package.yao"] {
+		t.Error("expected package.yao in zip")
+	}
+	if !fileSet["prompts.md"] {
+		t.Error("expected prompts.md in zip")
+	}
+	for _, excluded := range []string{".DS_Store", "debug.swp", "notes.bak", ".git/config", ".vscode/settings.json", "node_modules/foo/index.js"} {
+		if fileSet[excluded] {
+			t.Errorf("expected %s to be excluded from zip", excluded)
+		}
+	}
+}
+
+func TestPackDirYaoignoreFile(t *testing.T) {
+	srcDir := t.TempDir()
+	os.WriteFile(filepath.Join(srcDir, "package.yao"), []byte(`{}`), 0644)
+	os.WriteFile(filepath.Join(srcDir, "keep.txt"), []byte("keep"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "secret.key"), []byte("secret"), 0644)
+	os.MkdirAll(filepath.Join(srcDir, "drafts"), 0755)
+	os.WriteFile(filepath.Join(srcDir, "drafts", "notes.md"), []byte("draft"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "test.log"), []byte("log"), 0644)
+
+	// .yaoignore excludes *.key and drafts/
+	os.WriteFile(filepath.Join(srcDir, ".yaoignore"), []byte("*.key\ndrafts/\n"), 0644)
+
+	manifest := &PkgManifest{Type: TypeAssistant, Scope: "test", Name: "ign2", Version: "1.0.0"}
+	zipData, err := PackDir(srcDir, manifest, nil)
+	if err != nil {
+		t.Fatalf("PackDir: %v", err)
+	}
+
+	files, err := ListZipFiles(zipData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fileSet := map[string]bool{}
+	for _, f := range files {
+		fileSet[f] = true
+	}
+
+	if !fileSet["package.yao"] {
+		t.Error("expected package.yao")
+	}
+	if !fileSet["keep.txt"] {
+		t.Error("expected keep.txt")
+	}
+	if fileSet["secret.key"] {
+		t.Error("secret.key should be excluded by .yaoignore")
+	}
+	if fileSet["drafts/notes.md"] {
+		t.Error("drafts/notes.md should be excluded by .yaoignore")
+	}
+	if fileSet["test.log"] {
+		t.Error("test.log should be excluded by built-in *.log pattern")
+	}
+	if fileSet[".yaoignore"] {
+		t.Error(".yaoignore itself should be excluded")
+	}
+}
+
+func TestPackDirYaoignoreNegation(t *testing.T) {
+	srcDir := t.TempDir()
+	os.WriteFile(filepath.Join(srcDir, "package.yao"), []byte(`{}`), 0644)
+	os.WriteFile(filepath.Join(srcDir, "a.tmp"), []byte("tmp"), 0644)
+	os.WriteFile(filepath.Join(srcDir, "important.tmp"), []byte("keep"), 0644)
+
+	// *.tmp is in defaults, but negate important.tmp
+	os.WriteFile(filepath.Join(srcDir, ".yaoignore"), []byte("!important.tmp\n"), 0644)
+
+	manifest := &PkgManifest{Type: TypeAssistant, Scope: "test", Name: "neg", Version: "1.0.0"}
+	zipData, err := PackDir(srcDir, manifest, nil)
+	if err != nil {
+		t.Fatalf("PackDir: %v", err)
+	}
+
+	files, err := ListZipFiles(zipData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fileSet := map[string]bool{}
+	for _, f := range files {
+		fileSet[f] = true
+	}
+
+	if fileSet["a.tmp"] {
+		t.Error("a.tmp should be excluded by built-in *.tmp")
+	}
+	if !fileSet["important.tmp"] {
+		t.Error("important.tmp should be included via negation in .yaoignore")
+	}
+}
+
 func TestExtractFile(t *testing.T) {
 	srcDir := t.TempDir()
 	os.WriteFile(filepath.Join(srcDir, "data.json"), []byte(`{"key":"value"}`), 0644)
