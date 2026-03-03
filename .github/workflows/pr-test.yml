@@ -1657,11 +1657,26 @@ jobs:
           docker pull yaoapp/tai:latest
           docker pull alpine:latest
 
-      - name: Start Tai (with Docker socket)
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Create k3d cluster
         run: |
+          k3d cluster create tai-test --no-lb --wait --api-port 0
+          kubectl wait --for=condition=Ready node --all --timeout=60s
+          k3d image import alpine:latest -c tai-test
+
+      - name: Start Tai (with Docker socket + K8s proxy)
+        run: |
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 \
+            --format '{{.NetworkSettings.Networks.k3d-tai-test.IPAddress}}')
+          echo "k3d server IP: ${K3D_IP}"
+
           docker run -d --name tai \
+            --network k3d-tai-test \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
+            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 -p 6443:6443 \
+            -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             yaoapp/tai:latest
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
@@ -1672,11 +1687,22 @@ jobs:
             sleep 1
           done
 
+      - name: Generate kubeconfig for Tai K8s proxy
+        run: |
+          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
+          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
+            > ${{ runner.temp }}/kubeconfig-tai.yml
+          echo "Generated kubeconfig:"
+          grep server: ${{ runner.temp }}/kubeconfig-tai.yml
+
       - name: Run Tai SDK Tests
         env:
           TAI_TEST_HOST: "127.0.0.1"
           TAI_TEST_GRPC: "127.0.0.1:9100"
           TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
+          TAI_TEST_K8S_HOST: "127.0.0.1"
+          TAI_TEST_K8S_PORT: "6443"
+          TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
         run: make unit-test-tai
 
       - name: Codecov Report

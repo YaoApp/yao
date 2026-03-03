@@ -8,7 +8,7 @@ Provides a unified API for container lifecycle, filesystem operations, HTTP prox
 Supports two modes via a single entry point:
 
 - **Local** (`docker://` or `""`) — direct Docker daemon connection
-- **Remote** (`tai://host`) — via Tai Server proxy
+- **Remote** (`tai://host`) — via Tai Server proxy (Docker, K8s)
 
 All sub-packages follow the same pattern: **interface + Remote/Local implementations**.
 
@@ -20,6 +20,11 @@ yao/tai/
 ├── volume/                     # Volume IO + Sync
 ├── workspace/                  # Go fs.FS wrapper over volume.Volume
 ├── sandbox/                    # Container lifecycle (Create/Start/Stop/Exec/Remove)
+│   ├── sandbox.go              # Interface + shared types
+│   ├── local.go                # Direct Docker socket
+│   ├── docker.go               # Docker via Tai proxy
+│   ├── docker_core.go          # Shared Docker SDK logic
+│   └── k8s.go                  # Kubernetes via Tai TCP proxy
 ├── proxy/                      # HTTP reverse proxy URL resolution
 └── vnc/                        # VNC WebSocket URL resolution
 ```
@@ -40,7 +45,10 @@ c, _ := tai.New("docker://192.168.1.50:2375")
 c, _ := tai.New("tai://192.168.1.100")
 
 // Remote — via Tai Server (K8s runtime)
-c, _ := tai.New("tai://10.0.0.5", tai.K8s)
+c, _ := tai.New("tai://10.0.0.5", tai.K8s,
+    tai.WithKubeConfig("/path/to/kubeconfig.yml"),
+    tai.WithNamespace("sandbox"),
+)
 
 defer c.Close()
 
@@ -78,7 +86,7 @@ vncURL, _ := c.VNC().URL(ctx, id)
 File IO and directory sync between Yao and the container workspace.
 
 - `ReadFile`, `WriteFile`, `Stat`, `ListDir`, `Remove`, `Rename`, `MkdirAll`
-- `SyncPush` (Yao → Tai), `SyncPull` (Tai → Yao)
+- `SyncPush` (Yao -> Tai), `SyncPull` (Tai -> Yao)
 - **Remote**: gRPC to Tai `:9100`
 - **Local**: direct disk IO under `dataDir/{sessionID}/`
 
@@ -91,9 +99,8 @@ Go `fs.FS`-compatible interface wrapping `volume.Volume`, adding write operation
 Container lifecycle: `Create`, `Start`, `Stop`, `Remove`, `Exec`, `Inspect`, `List`.
 
 - **Local**: direct Docker socket, handles VNC port mapping and capabilities
-- **Docker**: via Tai `:2375`
-- **Containerd**: via Tai `:2376` (Phase 2)
-- **K8s**: via Tai `:6443` (Phase 2)
+- **Docker**: via Tai `:2375` (Docker Engine API proxy)
+- **K8s**: via Tai `:6443` (kube-apiserver TCP proxy, single-container Pod per sandbox)
 
 ### proxy.Proxy
 
@@ -112,13 +119,24 @@ VNC WebSocket URL resolution: `URL(ctx, containerID)`.
 ## Options
 
 ```go
-tai.Docker              // default runtime (can omit)
-tai.Containerd          // containerd runtime
-tai.K8s                 // Kubernetes runtime
-tai.WithPorts(Ports{})  // custom port mapping
-tai.WithHTTPClient(hc)  // custom HTTP client
-tai.WithDataDir(dir)    // workspace root (Local mode)
+tai.Docker                     // Docker runtime (default, can omit)
+tai.K8s                        // Kubernetes runtime
+tai.WithPorts(Ports{})         // custom port mapping
+tai.WithHTTPClient(hc)         // custom HTTP client
+tai.WithDataDir(dir)           // workspace root (Local mode)
+tai.WithKubeConfig(path)       // kubeconfig file path (K8s runtime)
+tai.WithNamespace(ns)          // namespace for K8s (default "default")
 ```
+
+## Default Ports
+
+| Service | Default Port |
+|---------|-------------|
+| gRPC (Volume + Gateway) | 9100 |
+| HTTP Proxy | 8080 |
+| VNC Router | 6080 |
+| Docker API Proxy | 2375 |
+| K8s API Proxy | 6443 |
 
 ## Dependencies
 
@@ -126,3 +144,4 @@ tai.WithDataDir(dir)    // workspace root (Local mode)
 - `google.golang.org/grpc`
 - `github.com/pierrec/lz4/v4` — sync compression
 - `github.com/docker/docker` — Docker SDK
+- `k8s.io/client-go` + `k8s.io/api` + `k8s.io/apimachinery` — Kubernetes SDK

@@ -19,9 +19,8 @@ import (
 type Runtime int
 
 const (
-	Docker     Runtime = iota // default
-	Containerd                // Phase 2
-	K8s                       // Phase 2
+	Docker Runtime = iota
+	K8s
 )
 
 func (r Runtime) apply(c *config) { c.runtime = r }
@@ -37,12 +36,11 @@ func (f optionFunc) apply(c *config) { f(c) }
 
 // Ports configures service ports for Tai server.
 type Ports struct {
-	GRPC       int // default 9100
-	HTTP       int // default 8080
-	VNC        int // default 6080
-	Docker     int // default 2375
-	Containerd int // default 2376
-	K8s        int // default 6443
+	GRPC   int // default 9100
+	HTTP   int // default 8080
+	VNC    int // default 6080
+	Docker int // default 2375
+	K8s    int // default 6443
 }
 
 // WithPorts overrides default Tai service ports.
@@ -60,21 +58,31 @@ func WithDataDir(dir string) Option {
 	return optionFunc(func(c *config) { c.dataDir = dir })
 }
 
+// WithKubeConfig sets the kubeconfig file path for K8s runtime.
+// Supports both absolute and relative paths (relative paths are resolved to absolute).
+func WithKubeConfig(path string) Option {
+	return optionFunc(func(c *config) { c.kubeConfig = path })
+}
+
+// WithNamespace sets the namespace for K8s runtime. Default is "default".
+func WithNamespace(ns string) Option {
+	return optionFunc(func(c *config) { c.namespace = ns })
+}
+
 type config struct {
 	runtime    Runtime
 	ports      Ports
 	httpClient *http.Client
 	dataDir    string
+	kubeConfig string
+	namespace  string
 }
 
 func defaultPorts() Ports {
 	return Ports{
-		GRPC:       9100,
-		HTTP:       8080,
-		VNC:        6080,
-		Docker:     2375,
-		Containerd: 2376,
-		K8s:        6443,
+		GRPC: 9100,
+		HTTP: 8080,
+		VNC:  6080,
 	}
 }
 
@@ -91,9 +99,6 @@ func mergedPorts(p Ports) Ports {
 	}
 	if p.Docker != 0 {
 		d.Docker = p.Docker
-	}
-	if p.Containerd != 0 {
-		d.Containerd = p.Containerd
 	}
 	if p.K8s != 0 {
 		d.K8s = p.K8s
@@ -175,19 +180,29 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	c.grpcConn = conn
 	c.vol = volume.NewRemote(conn)
 
-	// Sandbox (default Docker, Phase 2: containerd/k8s)
-	var sbAddr string
+	// Sandbox
 	switch cfg.runtime {
-	case Containerd:
-		sbAddr = fmt.Sprintf("tcp://%s:%d", c.host, c.ports.Containerd)
-		// Phase 2: return sandbox.NewContainerd(sbAddr)
-		return nil, fmt.Errorf("containerd runtime not yet implemented")
 	case K8s:
-		sbAddr = fmt.Sprintf("tcp://%s:%d", c.host, c.ports.K8s)
-		// Phase 2: return sandbox.NewK8s(sbAddr)
-		return nil, fmt.Errorf("k8s runtime not yet implemented")
+		k8sPort := c.ports.K8s
+		if k8sPort == 0 {
+			k8sPort = 6443
+		}
+		sbAddr := fmt.Sprintf("%s:%d", c.host, k8sPort)
+		sb, err := sandbox.NewK8s(sbAddr, sandbox.K8sOption{
+			Namespace:  cfg.namespace,
+			KubeConfig: cfg.kubeConfig,
+		})
+		if err != nil {
+			conn.Close()
+			return nil, err
+		}
+		c.sb = sb
 	default:
-		sbAddr = fmt.Sprintf("tcp://%s:%d", c.host, c.ports.Docker)
+		dockerPort := c.ports.Docker
+		if dockerPort == 0 {
+			dockerPort = 2375
+		}
+		sbAddr := fmt.Sprintf("tcp://%s:%d", c.host, dockerPort)
 		sb, err := sandbox.NewDocker(sbAddr)
 		if err != nil {
 			conn.Close()

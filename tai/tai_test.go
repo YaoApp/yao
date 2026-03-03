@@ -2,6 +2,7 @@ package tai
 
 import (
 	"os"
+	"strconv"
 	"testing"
 )
 
@@ -10,6 +11,15 @@ func taiTestHost() string {
 		return h
 	}
 	return "127.0.0.1"
+}
+
+func envPort(key string, fallback int) int {
+	if v := os.Getenv(key); v != "" {
+		if p, err := strconv.Atoi(v); err == nil {
+			return p
+		}
+	}
+	return fallback
 }
 
 func TestParseAddr(t *testing.T) {
@@ -63,23 +73,20 @@ func TestMergedPorts(t *testing.T) {
 	if p.GRPC != 9100 {
 		t.Errorf("GRPC = %d, want 9100 (default)", p.GRPC)
 	}
-	if p.Docker != 2375 {
-		t.Errorf("Docker = %d, want 2375 (default)", p.Docker)
-	}
 	if p.VNC != 6080 {
 		t.Errorf("VNC = %d, want 6080 (default)", p.VNC)
 	}
-	if p.Containerd != 2376 {
-		t.Errorf("Containerd = %d, want 2376 (default)", p.Containerd)
+	if p.Docker != 0 {
+		t.Errorf("Docker = %d, want 0 (unset)", p.Docker)
 	}
-	if p.K8s != 6443 {
-		t.Errorf("K8s = %d, want 6443 (default)", p.K8s)
+	if p.K8s != 0 {
+		t.Errorf("K8s = %d, want 0 (unset)", p.K8s)
 	}
 }
 
 func TestMergedPortsAll(t *testing.T) {
-	p := mergedPorts(Ports{GRPC: 1, HTTP: 2, VNC: 3, Docker: 4, Containerd: 5, K8s: 6})
-	if p.GRPC != 1 || p.HTTP != 2 || p.VNC != 3 || p.Docker != 4 || p.Containerd != 5 || p.K8s != 6 {
+	p := mergedPorts(Ports{GRPC: 1, HTTP: 2, VNC: 3, Docker: 4, K8s: 5})
+	if p.GRPC != 1 || p.HTTP != 2 || p.VNC != 3 || p.Docker != 4 || p.K8s != 5 {
 		t.Errorf("unexpected ports: %+v", p)
 	}
 }
@@ -102,10 +109,6 @@ func TestOptions(t *testing.T) {
 	Docker.apply(cfg)
 	if cfg.runtime != Docker {
 		t.Error("Docker option failed")
-	}
-	Containerd.apply(cfg)
-	if cfg.runtime != Containerd {
-		t.Error("Containerd option failed")
 	}
 	K8s.apply(cfg)
 	if cfg.runtime != K8s {
@@ -168,17 +171,54 @@ func TestNewLocalExplicitSocket(t *testing.T) {
 	}
 }
 
-func TestNewRemoteContainerdNotImplemented(t *testing.T) {
-	_, err := New("tai://127.0.0.1", Containerd)
-	if err == nil {
-		t.Error("expected error for unimplemented containerd")
+func TestNewRemoteK8s(t *testing.T) {
+	host := os.Getenv("TAI_TEST_K8S_HOST")
+	kubeconfig := os.Getenv("TAI_TEST_KUBECONFIG")
+	if host == "" || kubeconfig == "" {
+		t.Skip("TAI_TEST_K8S_HOST or TAI_TEST_KUBECONFIG not set")
+	}
+
+	ports := Ports{
+		K8s:  envPort("TAI_TEST_K8S_PORT", 6443),
+		GRPC: envPort("TAI_TEST_GRPC_PORT", 9100),
+		HTTP: envPort("TAI_TEST_HTTP_PORT", 8080),
+		VNC:  envPort("TAI_TEST_VNC_PORT", 6080),
+	}
+
+	c, err := New("tai://"+host, K8s,
+		WithPorts(ports),
+		WithKubeConfig(kubeconfig),
+		WithNamespace("default"),
+	)
+	if err != nil {
+		t.Skipf("Tai K8s not available: %v", err)
+	}
+	defer c.Close()
+
+	if c.IsLocal() {
+		t.Error("expected IsLocal = false")
+	}
+	if c.Sandbox() == nil {
+		t.Error("Sandbox should not be nil")
 	}
 }
 
-func TestNewRemoteK8sNotImplemented(t *testing.T) {
+func TestNewRemoteK8sMissingKubeConfig(t *testing.T) {
 	_, err := New("tai://127.0.0.1", K8s)
 	if err == nil {
-		t.Error("expected error for unimplemented k8s")
+		t.Error("expected error for missing kubeconfig")
+	}
+}
+
+func TestWithKubeConfigAndNamespace(t *testing.T) {
+	cfg := &config{ports: defaultPorts()}
+	WithKubeConfig("/path/to/kubeconfig").apply(cfg)
+	if cfg.kubeConfig != "/path/to/kubeconfig" {
+		t.Errorf("WithKubeConfig = %q", cfg.kubeConfig)
+	}
+	WithNamespace("test-ns").apply(cfg)
+	if cfg.namespace != "test-ns" {
+		t.Errorf("WithNamespace = %q", cfg.namespace)
 	}
 }
 
