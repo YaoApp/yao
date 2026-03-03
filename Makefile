@@ -12,7 +12,7 @@ OS := $(shell uname)
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry' | awk '!/\/tests\// || /openapi\/tests/')
 # Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, registry, and integrations which require external services)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry' | awk '!/\/tests\// || /openapi\/tests/')
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry|tai' | awk '!/\/tests\// || /openapi\/tests/')
 # Agent tests (agent, aigc) - exclude agent/search/handlers/web (requires external API keys) and robot packages (tested in robot job)
 TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/search/handlers/web|agent/robot/')
 # KB tests (kb)
@@ -21,6 +21,8 @@ TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
 TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot/events')
 # Sandbox tests (requires Docker)
 TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/...)
+# Tai SDK tests (requires Tai container with Docker socket)
+TESTFOLDER_TAI := $(shell $(GO) list ./tai/...)
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
@@ -238,6 +240,49 @@ unit-test-sandbox:
 	@echo ""
 	@echo "============================================="
 	@echo "✅ All sandbox tests passed"
+	@echo "============================================="
+
+# Tai SDK Test (requires Tai container with Docker socket)
+.PHONY: unit-test-tai
+unit-test-tai:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Tai SDK Tests (requires Tai container)..."
+	@echo "============================================="
+	@echo "Pulling test images..."
+	docker pull alpine:latest || true
+	@echo ""
+	echo "mode: count" > coverage.out
+	for d in $(TESTFOLDER_TAI); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=5m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+	@echo ""
+	@echo "============================================="
+	@echo "All Tai SDK tests passed"
 	@echo "============================================="
 
 # Benchmark Test

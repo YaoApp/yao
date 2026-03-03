@@ -23,8 +23,16 @@ func serverURL() string {
 }
 
 func newClient() *registry.Client {
+	user := os.Getenv("YAO_REGISTRY_USER")
+	pass := os.Getenv("YAO_REGISTRY_PASS")
+	if user == "" {
+		user = "yaoagents"
+	}
+	if pass == "" {
+		pass = "yaoagents"
+	}
 	return registry.New(serverURL(),
-		registry.WithAuth("yaoagents", "yaoagents"),
+		registry.WithAuth(user, pass),
 	)
 }
 

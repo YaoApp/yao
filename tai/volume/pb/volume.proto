@@ -1,0 +1,138 @@
+syntax = "proto3";
+package volume;
+option go_package = "github.com/yaoapp/tai/volume/pb";
+
+// Volume provides bulk file synchronization and real-time filesystem I/O.
+// Shares gRPC port :9100 with Yao Gateway.
+service Volume {
+
+  // --- Bulk Sync ---
+
+  // SyncPush: Yao sends code to Tai (before container start).
+  // Bidirectional stream:
+  //   1. Yao sends SyncManifest (file list with mtime+size)
+  //   2. Tai diffs, replies with SyncDiff (which files to send)
+  //   3. Yao sends only needed FileChunks
+  //   4. Tai replies with SyncResult
+  rpc SyncPush(stream SyncMessage) returns (stream SyncMessage);
+
+  // SyncPull: Yao pulls changes from Tai (after container stop).
+  // Yao sends its file manifest; Tai diffs internally and streams back changed files.
+  rpc SyncPull(SyncManifest) returns (stream SyncMessage);
+
+  // --- Real-Time FS IO ---
+
+  rpc ReadFile(FSReadRequest) returns (stream FSDataChunk);
+  rpc WriteFile(stream FSWriteChunk) returns (FSWriteResponse);
+  rpc Stat(FSRequest) returns (FileInfo);
+  rpc ListDir(FSRequest) returns (FSListResponse);
+  rpc Remove(FSRemoveRequest) returns (FSOpResponse);
+  rpc Rename(FSRenameRequest) returns (FSOpResponse);
+  rpc MkdirAll(FSRequest) returns (FSOpResponse);
+}
+
+// --- File Metadata ---
+
+message FileInfo {
+  string path   = 1;
+  int64  size   = 2;
+  int64  mtime  = 3;           // unix timestamp (nanoseconds)
+  uint32 mode   = 4;
+  bool   is_dir = 5;
+}
+
+// --- Sync Messages ---
+
+message SyncManifest {
+  string session_id       = 1;
+  repeated FileInfo files = 2;
+  bool   force_full       = 3;  // skip snapshot cache, diff against actual disk
+}
+
+message SyncMessage {
+  oneof payload {
+    SyncManifest manifest = 1;
+    SyncDiff     diff     = 2;
+    FileChunk    chunk    = 3;
+    SyncResult   result   = 4;
+  }
+}
+
+message SyncDiff {
+  repeated string need_files   = 1;  // paths needing full transfer
+  repeated string delete_files = 2;  // paths Tai should delete
+}
+
+message FileChunk {
+  string    path  = 1;
+  ChunkType type  = 2;
+  bytes     data  = 3;          // lz4 compressed (V1: always FULL)
+  uint32    mode  = 4;          // file mode (first chunk only)
+  int64     mtime = 5;          // modification time (first chunk only)
+  bool      eof   = 6;
+
+  enum ChunkType {
+    FULL   = 0;
+    DELTA  = 1;                 // reserved for future rsync delta
+    DELETE = 2;
+    MKDIR  = 3;
+  }
+}
+
+message SyncResult {
+  int32 files_synced      = 1;
+  int64 bytes_transferred = 2;
+  int64 duration_ms       = 3;
+}
+
+// --- FS IO Messages ---
+
+message FSRequest {
+  string session_id = 1;
+  string path       = 2;
+}
+
+message FSOpResponse {
+  bool   ok    = 1;
+  string error = 2;
+}
+
+message FSReadRequest {
+  string session_id = 1;
+  string path       = 2;
+}
+
+message FSDataChunk {
+  bytes  data  = 1;             // up to 64KB per message
+  uint32 mode  = 2;             // first chunk only
+  int64  size  = 3;             // total file size (first chunk only)
+  int64  mtime = 4;             // modification time (first chunk only)
+}
+
+message FSWriteChunk {
+  string session_id  = 1;       // first chunk only
+  string path        = 2;       // first chunk only
+  bytes  data        = 3;
+  uint32 mode        = 4;       // first chunk only, 0 = keep existing
+  bool   create_dirs = 5;       // auto-create parent directories (first chunk only)
+}
+
+message FSWriteResponse {
+  int64 size = 1;
+}
+
+message FSListResponse {
+  repeated FileInfo entries = 1;
+}
+
+message FSRemoveRequest {
+  string session_id = 1;
+  string path       = 2;
+  bool   recursive  = 3;       // true = RemoveAll, false = Remove
+}
+
+message FSRenameRequest {
+  string session_id = 1;
+  string old_path   = 2;
+  string new_path   = 3;
+}
