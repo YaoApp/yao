@@ -1,0 +1,149 @@
+syntax = "proto3";
+package yao;
+option go_package = "github.com/yaoapp/yao/grpc/pb";
+
+// Yao gRPC gateway. Shares OAuth + ACL scope system with openapi.
+service Yao {
+
+  // Base
+  rpc Run(RunRequest) returns (RunResponse);
+  rpc Stream(RunRequest) returns (stream Chunk);
+  rpc Shell(ShellRequest) returns (ShellResponse);
+  rpc ShellStream(ShellRequest) returns (stream Chunk);
+
+  // API gateway
+  rpc API(APIRequest) returns (APIResponse);
+
+  // MCP
+  rpc MCPListTools(MCPListRequest) returns (MCPListResponse);
+  rpc MCPCallTool(MCPCallRequest) returns (MCPCallResponse);
+  rpc MCPListResources(MCPListRequest) returns (MCPResourcesResponse);
+  rpc MCPReadResource(MCPResourceRequest) returns (MCPResourceResponse);
+
+  // AI - LLM
+  rpc ChatCompletions(ChatRequest) returns (ChatResponse);
+  rpc ChatCompletionsStream(ChatRequest) returns (stream ChatChunk);
+
+  // AI - Agent
+  rpc AgentStream(AgentRequest) returns (stream AgentChunk);
+
+  // Health
+  rpc Healthz(Empty) returns (HealthzResponse);
+}
+
+// ── Base ─────────────────────────────────────────────────────────────────────
+
+message RunRequest {
+  string process = 1;
+  bytes  args    = 2; // JSON-encoded argument array
+  int32  timeout = 3; // seconds, 0 = server default
+}
+
+message RunResponse {
+  bytes data = 1; // JSON-encoded result
+}
+
+message Chunk {
+  bytes data = 1;
+  bool  done = 2;
+}
+
+message ShellRequest {
+  string            command = 1;
+  repeated string   args    = 2;
+  map<string,string> env    = 3;
+  int32             timeout = 4; // seconds, 0 = default 30s
+}
+
+message ShellResponse {
+  bytes stdout    = 1;
+  bytes stderr    = 2;
+  int32 exit_code = 3;
+}
+
+// ── API gateway ──────────────────────────────────────────────────────────────
+
+message APIRequest {
+  string             method  = 1; // HTTP method
+  string             path    = 2; // openapi path
+  map<string,string> headers = 3;
+  bytes              body    = 4;
+}
+
+message APIResponse {
+  int32              status  = 1; // HTTP status code
+  map<string,string> headers = 2;
+  bytes              body    = 3;
+}
+
+// ── MCP ──────────────────────────────────────────────────────────────────────
+
+message MCPListRequest {
+  string session_id = 1;
+}
+
+message MCPListResponse {
+  bytes tools = 1; // JSON array of tool definitions
+}
+
+message MCPCallRequest {
+  string session_id = 1;
+  string tool       = 2;
+  bytes  arguments  = 3; // JSON-encoded arguments
+}
+
+message MCPCallResponse {
+  bytes result = 1; // JSON-encoded result
+}
+
+message MCPResourcesResponse {
+  bytes resources = 1; // JSON array of resource definitions
+}
+
+message MCPResourceRequest {
+  string session_id = 1;
+  string uri        = 2;
+}
+
+message MCPResourceResponse {
+  bytes contents = 1; // JSON-encoded resource contents
+}
+
+// ── LLM ──────────────────────────────────────────────────────────────────────
+
+message ChatRequest {
+  string connector = 1; // connector ID
+  bytes  messages  = 2; // JSON-encoded message array
+  bytes  options   = 3; // JSON-encoded options
+}
+
+message ChatResponse {
+  bytes data = 1; // JSON-encoded completion result
+}
+
+message ChatChunk {
+  bytes data = 1; // JSON-encoded chunk
+  bool  done = 2;
+}
+
+// ── Agent ────────────────────────────────────────────────────────────────────
+
+message AgentRequest {
+  string assistant_id = 1;
+  bytes  messages     = 2; // JSON-encoded message array
+  bytes  options      = 3; // JSON-encoded options
+}
+
+// Each chunk carries JSON-serialized agent/output/message.Message.
+message AgentChunk {
+  bytes data = 1;
+  bool  done = 2;
+}
+
+// ── Health ───────────────────────────────────────────────────────────────────
+
+message Empty {}
+
+message HealthzResponse {
+  string status = 1;
+}
