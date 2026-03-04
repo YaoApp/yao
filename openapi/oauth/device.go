@@ -72,7 +72,7 @@ func (s *Service) DeviceAuthorization(ctx context.Context, clientID string, scop
 }
 
 // AuthorizeDevice allows an authenticated user to authorize a device code via user_code.
-func (s *Service) AuthorizeDevice(ctx context.Context, userCode string, subject string) error {
+func (s *Service) AuthorizeDevice(ctx context.Context, userCode string, subject string, extraClaims ...map[string]interface{}) error {
 	if !s.config.Features.DeviceFlowEnabled {
 		return &types.ErrorResponse{
 			Code:             types.ErrorUnsupportedGrantType,
@@ -86,7 +86,11 @@ func (s *Service) AuthorizeDevice(ctx context.Context, userCode string, subject 
 		formatted = normalized[:4] + "-" + normalized[4:]
 	}
 
-	return s.authorizeDeviceCode(formatted, subject)
+	var claims map[string]interface{}
+	if len(extraClaims) > 0 {
+		claims = extraClaims[0]
+	}
+	return s.authorizeDeviceCode(formatted, subject, claims)
 }
 
 // generateUserCode generates a user-friendly code formatted as XXXX-XXXX.

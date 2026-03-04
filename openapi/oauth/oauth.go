@@ -57,6 +57,7 @@ type Config struct {
 
 	// OAuth server metadata
 	IssuerURL string `json:"issuer_url"` // JWT token issuer URL
+	BaseURL   string `json:"base_url"`   // API route prefix (e.g. "/v1")
 }
 
 // FeatureFlags represents feature toggle configuration

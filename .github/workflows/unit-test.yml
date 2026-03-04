@@ -1258,22 +1258,42 @@ jobs:
             -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 -p 6443:6443 \
             -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             yaoapp/tai:latest
+
+          TAI_HTTP_READY=false
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
               echo "Tai HTTP is ready"
+              TAI_HTTP_READY=true
               break
             fi
             echo "Waiting for Tai HTTP... ($i)"
             sleep 1
           done
+          if [ "$TAI_HTTP_READY" != "true" ]; then
+            echo "::error::Tai HTTP failed to become ready within 30s"
+            echo "--- Tai container logs ---"
+            docker logs tai 2>&1 || true
+            echo "--- Tai container status ---"
+            docker inspect tai --format='{{.State.Status}} exit={{.State.ExitCode}}' || true
+            exit 1
+          fi
+
+          TAI_GRPC_READY=false
           for i in $(seq 1 15); do
             if nc -z 127.0.0.1 9100 2>/dev/null; then
               echo "Tai gRPC is ready"
+              TAI_GRPC_READY=true
               break
             fi
             echo "Waiting for Tai gRPC... ($i)"
             sleep 1
           done
+          if [ "$TAI_GRPC_READY" != "true" ]; then
+            echo "::error::Tai gRPC failed to become ready within 15s"
+            echo "--- Tai container logs ---"
+            docker logs tai 2>&1 || true
+            exit 1
+          fi
 
       - name: Generate kubeconfig for Tai K8s proxy
         run: |

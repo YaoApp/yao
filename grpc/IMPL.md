@@ -193,7 +193,7 @@ Container token issuance uses existing `oauth.MakeAccessToken` / `oauth.MakeRefr
 
 Deliverable: `go build -o yao-grpc ./tai/grpc/cmd`.
 
-### Phase 6: Device Flow + CLI auth ⏳
+### Phase 6: Device Flow + CLI auth ✅
 
 Depends on: Phase 1. Three sub-phases with sequential dependency: 6.1 → 6.2 → 6.3.
 
@@ -214,7 +214,7 @@ Backend endpoints for RFC 8628 Device Authorization Grant. Scaffolding already i
 
 Deliverable: Device flow endpoints functional — `POST /oauth/device_authorization` issues codes, `POST /oauth/token` with `grant_type=device_code` polls status. `POST /oauth/device/authorize` allows authenticated user to authorize device.
 
-#### Phase 6.2: CUI auth/device page (frontend) ⏳
+#### Phase 6.2: CUI auth/device page (frontend) ✅
 
 Depends on: Phase 6.1 (backend endpoints). Frontend-only task in **CUI repo**.
 
@@ -222,8 +222,10 @@ Route: `/auth/device` (Umi convention-based routing → `pages/auth/device/index
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `pages/auth/device/index.tsx` | Device authorization page. User enters `user_code`, clicks Authorize. Uses `AuthLayout` + `AuthInput` + `AuthButton` from existing `pages/auth/components/`. | ⏳ Pending |
-| `pages/auth/device/index.less` | Styles, follow `pages/auth/entry/index.less` pattern | ⏳ Pending |
+| `pages/auth/device/index.tsx` | Device authorization page. User enters `user_code`, clicks Authorize. Uses `AuthLayout` + `AuthInput` + `AuthButton` from existing `pages/auth/components/`. Three states: input, success, error. i18n (zh/en), light/dark, system CSS variables only. | ✅ Done |
+| `pages/auth/device/index.less` | Styles, follow `pages/auth/entry/mfa/index.less` pattern. Full responsive + dark theme. | ✅ Done |
+| `openapi/user/auth.ts` | `AuthorizeDevice(userCode)` method — `POST /oauth/device/authorize` | ✅ Done |
+| `layouts/index.tsx` | Register `['auth_device', '/auth/device']` in `STANDALONE_PAGES` | ✅ Done |
 
 Implementation:
 
@@ -237,7 +239,7 @@ Implementation:
 
 Deliverable: `/auth/device` page. User authorizes CLI device login from browser.
 
-#### Phase 6.3: CLI commands + TUI status bar ⏳
+#### Phase 6.3: CLI commands + TUI status bar ✅
 
 Depends on: Phase 6.1 (backend) + Phase 6.2 (CUI page for end-to-end `yao login`).
 
@@ -258,10 +260,13 @@ Stored as: `base64(json) → ~/.yao/credentials`. Prevents casual `cat` exposure
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `cmd/login.go` | `yao login --server <url>` — call device authorization endpoint, color-print device code + verification URL (no TUI), poll token endpoint with interval, on success base64-encode and save to `~/.yao/credentials` | ⏳ Pending |
-| `cmd/logout.go` | `yao logout` — read credentials, revoke token via server, delete `~/.yao/credentials` | ⏳ Pending |
-| `cmd/run.go` | Detect credentials → gRPC mode vs local mode. `--auth <path>` flag loads alternate credentials file (for bash scripting). `-s` (silent) mode: no TUI, pure output. gRPC mode with terminal: bubbletea TUI status bar. | ⏳ Pending |
-| `cmd/tui_status.go` | bubbletea `StatusBarModel` — top-line persistent bar showing `user@host (gRPC)` + scope summary. Does not interfere with process output below. Uses existing bubbletea + lipgloss deps. | ⏳ Pending |
+| `cmd/credential.go` | `Credential` struct, `LoadCredential`, `LoadCredentialFrom`, `SaveCredential`, `RemoveCredential` — base64-encoded JSON read/write to `~/.yao/credentials` | ✅ Done |
+| `cmd/login.go` | `yao login --server <url>` — compute machine ID → `POST /oauth/register` (dynamic client) → `POST /oauth/device_authorization` → color-print device code + verification URL → poll `POST /oauth/token` with interval + slow_down handling → save to `~/.yao/credentials` | ✅ Done |
+| `cmd/logout.go` | `yao logout` — read credentials, best-effort `POST /oauth/revoke`, delete `~/.yao/credentials` | ✅ Done |
+| `cmd/run.go` | Detect credentials → gRPC mode vs local mode. `--auth <path>` flag loads alternate credentials file. `-s` (silent) mode: no TUI. gRPC mode renders TUI status bar then calls remote (gRPC call wiring pending Phase 4/5 integration). Local mode unchanged. | ✅ Done |
+| `cmd/tui_status.go` | lipgloss `RenderStatusBar(cred)` — one-line persistent bar: `user (gRPC) │ scope: run,stream,...`. Rounded border, colored connection info. Hidden in silent mode. | ✅ Done |
+| `cmd/root.go` | Register `loginCmd`, `logoutCmd` in root command | ✅ Done |
+| i18n | All new strings have zh-CN translations via `langs` map | ✅ Done |
 
 **`yao run` behavior matrix:**
 
@@ -314,17 +319,17 @@ Phase 1 (auth + server)     ✅
     │
     ├───────────┬───────────┬──────────────────────┐
     ▼           ▼           ▼                      ▼
-Phase 2 ✅   Phase 3 ✅  Phase 4 ✅           Phase 6 (device flow + CLI)
+Phase 2 ✅   Phase 3 ✅  Phase 4 ✅           Phase 6 ✅ (device flow + CLI)
 (handlers)  (LLM/Agent)  (Tai gateway)            │
                             │              ┌───────┴───────┐
                             ▼              ▼               ▼
-                         Phase 5 ✅     6.1 OAuth       6.2 CUI page
-                         (yao-grpc)    (backend)       (frontend)
+                         Phase 5 ✅     6.1 ✅          6.2 ✅
+                         (yao-grpc)    (OAuth backend)  (CUI page)
                                            │               │
                                            └───────┬───────┘
                                                    ▼
-                                              6.3 CMD + TUI
-                                         (login/logout/run)
+                                              6.3 ✅
+                                         (CMD + TUI)
 
 --- V2 ---
 

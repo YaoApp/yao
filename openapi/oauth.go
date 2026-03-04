@@ -547,45 +547,15 @@ func (openapi *OpenAPI) oauthDeviceAuthorization(c *gin.Context) {
 
 // oauthDeviceAuthorize allows an authenticated user to authorize a pending device code.
 func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
-	authHeader := c.GetHeader("Authorization")
-	if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+	tokenStr := extractBearerToken(c)
+	if tokenStr == "" {
 		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
 			Code:             types.ErrorInvalidGrant,
 			ErrorDescription: "Bearer token required",
 		})
 		return
 	}
-
-	tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
-	oauthService := openapi.OAuth
-	introspection, err := oauthService.Introspect(c, tokenStr)
-	if err != nil || introspection == nil || !introspection.Active {
-		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Invalid or expired token",
-		})
-		return
-	}
-
-	subject := introspection.Subject
-	if subject == "" {
-		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
-			Code:             types.ErrorInvalidGrant,
-			ErrorDescription: "Token has no subject",
-		})
-		return
-	}
-
-	userCode := c.PostForm("user_code")
-	if userCode == "" {
-		userCode = c.Query("user_code")
-	}
-	if userCode == "" {
-		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidRequest)
-		return
-	}
-
-	svc, ok := oauthService.(*oauth.Service)
+	svc, ok := openapi.OAuth.(*oauth.Service)
 	if !ok {
 		response.RespondWithSecureError(c, response.StatusInternalServerError, &response.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -594,7 +564,52 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 		return
 	}
 
-	if err := svc.AuthorizeDevice(c, userCode, subject); err != nil {
+	tokenClaims, err := svc.VerifyToken(tokenStr)
+	if err != nil || tokenClaims == nil {
+		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Invalid or expired token",
+		})
+		return
+	}
+
+	if tokenClaims.Subject == "" {
+		response.RespondWithSecureError(c, response.StatusUnauthorized, &response.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Token has no subject",
+		})
+		return
+	}
+
+	extraClaims := tokenClaims.Extra
+	if extraClaims == nil {
+		extraClaims = make(map[string]interface{})
+	}
+	if tokenClaims.TeamID != "" {
+		extraClaims["team_id"] = tokenClaims.TeamID
+	}
+	if tokenClaims.TenantID != "" {
+		extraClaims["tenant_id"] = tokenClaims.TenantID
+	}
+
+	userCode := c.PostForm("user_code")
+	if userCode == "" {
+		userCode = c.Query("user_code")
+	}
+	if userCode == "" {
+		var body struct {
+			UserCode string `json:"user_code"`
+		}
+		if c.ShouldBindJSON(&body) == nil {
+			userCode = body.UserCode
+		}
+	}
+	if userCode == "" {
+		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidRequest)
+		return
+	}
+
+	if err := svc.AuthorizeDevice(c, userCode, tokenClaims.Subject, extraClaims); err != nil {
 		if oauthErr, ok := err.(*response.ErrorResponse); ok {
 			response.RespondWithSecureError(c, response.StatusBadRequest, oauthErr)
 		} else {
@@ -704,4 +719,17 @@ func (openapi *OpenAPI) getParam(c *gin.Context, key string) string {
 	}
 	// Then try to get from POST form data (POST request)
 	return c.PostForm(key)
+}
+
+// extractBearerToken reads the access token from Authorization header or cookie,
+// matching the same logic as guard.getAccessToken.
+func extractBearerToken(c *gin.Context) string {
+	if auth := c.GetHeader("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	cookieName := response.GetCookieName("access_token")
+	if cookie, err := c.Cookie(cookieName); err == nil && cookie != "" {
+		return strings.TrimPrefix(cookie, "Bearer ")
+	}
+	return ""
 }

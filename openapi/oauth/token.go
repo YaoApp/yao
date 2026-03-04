@@ -596,7 +596,7 @@ func (s *Service) getDeviceCodeData(deviceCode string) (map[string]interface{}, 
 }
 
 // authorizeDeviceCode marks a device code as authorized via user_code lookup
-func (s *Service) authorizeDeviceCode(userCode, subject string) error {
+func (s *Service) authorizeDeviceCode(userCode, subject string, extraClaims map[string]interface{}) error {
 	reverseData, exists := s.store.Get(s.userCodeKey(userCode))
 	if !exists {
 		return &types.ErrorResponse{
@@ -626,6 +626,9 @@ func (s *Service) authorizeDeviceCode(userCode, subject string) error {
 
 	codeData["status"] = "authorized"
 	codeData["subject"] = subject
+	if extraClaims != nil {
+		codeData["extra_claims"] = extraClaims
+	}
 
 	// Re-store with remaining TTL
 	expiresAt, _ := codeData["expires_at"].(int64)

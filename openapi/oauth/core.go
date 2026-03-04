@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // AuthorizationServer returns the authorization server endpoint URL
@@ -667,8 +668,18 @@ func (s *Service) handleDeviceCodeGrant(ctx context.Context, client *types.Clien
 		subject, _ := codeData["subject"].(string)
 		s.consumeDeviceCode(deviceCode)
 
+		var extraClaims map[string]interface{}
+		if ec, ok := codeData["extra_claims"]; ok {
+			switch v := ec.(type) {
+			case map[string]interface{}:
+				extraClaims = v
+			case primitive.M:
+				extraClaims = map[string]interface{}(v)
+			}
+		}
+
 		expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-		accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, nil)
+		accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, extraClaims)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -683,7 +694,7 @@ func (s *Service) handleDeviceCodeGrant(ctx context.Context, client *types.Clien
 		}
 
 		if types.Contains(client.GrantTypes, types.GrantTypeRefreshToken) {
-			refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, nil)
+			refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, extraClaims)
 			if err != nil {
 				return nil, &types.ErrorResponse{
 					Code:             types.ErrorServerError,
