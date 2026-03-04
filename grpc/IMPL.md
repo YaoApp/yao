@@ -197,18 +197,22 @@ Deliverable: `go build -o yao-grpc ./tai/grpc/cmd`.
 
 Depends on: Phase 1. Three sub-phases with sequential dependency: 6.1 → 6.2 → 6.3.
 
-#### Phase 6.1: OAuth Device Flow backend ⏳
+#### Phase 6.1: OAuth Device Flow backend ✅
 
 Backend endpoints for RFC 8628 Device Authorization Grant. Scaffolding already in place (`types.DeviceAuthorizationResponse`, `GrantTypeDeviceCode`, error codes, route registration).
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `oauth/token.go` | `deviceCodeKey`, `storeDeviceCode`, `getDeviceCodeData`, `consumeDeviceCode` — device_code storage/retrieval/consumption helpers using existing store infrastructure | ⏳ Pending |
-| `oauth/device.go` | Implement `DeviceAuthorization()` — generate `device_code` + `user_code` (crypto/rand), store with `DeviceCodeLifetime` expiry, return `DeviceAuthorizationResponse` | ⏳ Pending |
-| `oauth/core.go` | Add `case types.GrantTypeDeviceCode` → `handleDeviceCodeGrant()` — poll returns `authorization_pending` / `slow_down` / token | ⏳ Pending |
-| `openapi/oauth.go` | Replace hardcoded `oauthDeviceAuthorization` handler → call `openapi.OAuth.DeviceAuthorization()`. Add user authorization callback endpoint (`POST /oauth/device/authorize` — binds device_code to authenticated user). Fix discovery path (`/oauth/device` vs `/oauth/device_authorization`) | ⏳ Pending |
+| `engine/machine.go` + platform files | `GetMachineID()` Go API + `utils.app.MachineID` process — cross-platform (macOS/Linux/Windows) deterministic machine fingerprint | ✅ Done |
+| `oauth/token.go` | `deviceCodeKey`, `userCodeKey`, `storeDeviceCode`, `getDeviceCodeData`, `authorizeDeviceCode`, `consumeDeviceCode` — device_code + user_code storage/retrieval/consumption helpers | ✅ Done |
+| `oauth/device.go` | Implement `DeviceAuthorization()` + `AuthorizeDevice()` + `generateUserCode()` — generate codes (gonanoid, XXXX-XXXX format), validate client + grant type, store, return `DeviceAuthorizationResponse` | ✅ Done |
+| `oauth/core.go` | Add `case types.GrantTypeDeviceCode` → `handleDeviceCodeGrant()` — poll returns `authorization_pending` / `expired_token` / token | ✅ Done |
+| `openapi/oauth.go` | Replace stub `oauthDeviceAuthorization` handler → call `DeviceAuthorization()`. Add `POST /oauth/device/authorize` → `oauthDeviceAuthorize` (bearer token + user_code → authorize device). | ✅ Done |
+| `oauth/discovery.go` | Fix path: `/oauth/device` → `/oauth/device_authorization` | ✅ Done |
+| `oauth/oauth.go` | Config defaults: `DeviceCodeLength=8`, `UserCodeLength=8`, `DeviceCodeInterval=5s`, `DeviceFlowEnabled=true`, `DynamicClientRegistrationEnabled=true` | ✅ Done |
+| `openapi/tests/oauth/device_test.go` | Full test suite: device auth success/error, token polling (pending/invalid), end-to-end flow | ✅ Done |
 
-Deliverable: Device flow endpoints functional — `POST /oauth/device_authorization` issues codes, `POST /oauth/token` with `grant_type=device_code` polls status.
+Deliverable: Device flow endpoints functional — `POST /oauth/device_authorization` issues codes, `POST /oauth/token` with `grant_type=device_code` polls status. `POST /oauth/device/authorize` allows authenticated user to authorize device.
 
 #### Phase 6.2: CUI auth/device page (frontend) ⏳
 

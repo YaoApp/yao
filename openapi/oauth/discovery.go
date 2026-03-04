@@ -63,7 +63,7 @@ func (s *Service) Endpoints(ctx context.Context) (map[string]string, error) {
 		"registration_endpoint":                 fmt.Sprintf("%s/oauth/register", baseURL),
 		"introspection_endpoint":                fmt.Sprintf("%s/oauth/introspect", baseURL),
 		"revocation_endpoint":                   fmt.Sprintf("%s/oauth/revoke", baseURL),
-		"device_authorization_endpoint":         fmt.Sprintf("%s/oauth/device", baseURL),
+		"device_authorization_endpoint":         fmt.Sprintf("%s/oauth/device_authorization", baseURL),
 		"pushed_authorization_request_endpoint": fmt.Sprintf("%s/oauth/par", baseURL),
 	}
 

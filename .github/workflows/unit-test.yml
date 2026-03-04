@@ -1139,6 +1139,16 @@ jobs:
   # =============================================================================
   tai-test:
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
     strategy:
       matrix:
         go: ["1.25"]
@@ -1201,10 +1211,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Start Redis
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Setup ENV (SQLite)
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
 
       - name: Pull Tai & Test Images
         run: |

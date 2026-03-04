@@ -212,6 +212,15 @@ func setConfigDefaults(config *Config) error {
 	if config.Token.DeviceCodeLifetime == 0 {
 		config.Token.DeviceCodeLifetime = 15 * time.Minute
 	}
+	if config.Token.DeviceCodeLength == 0 {
+		config.Token.DeviceCodeLength = 8
+	}
+	if config.Token.UserCodeLength == 0 {
+		config.Token.UserCodeLength = 8
+	}
+	if config.Token.DeviceCodeInterval == 0 {
+		config.Token.DeviceCodeInterval = 5 * time.Second
+	}
 	if config.Token.AccessTokenFormat == "" {
 		config.Token.AccessTokenFormat = "jwt"
 	}
@@ -257,6 +266,8 @@ func setConfigDefaults(config *Config) error {
 	config.Features.OAuth21Enabled = true
 	config.Features.PKCEEnforced = true
 	config.Features.RefreshTokenRotationEnabled = true
+	config.Features.DeviceFlowEnabled = true
+	config.Features.DynamicClientRegistrationEnabled = true
 
 	return nil
 }
