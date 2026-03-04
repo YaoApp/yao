@@ -1,10 +1,14 @@
 package openapi
 
 import (
+	"fmt"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -45,6 +49,7 @@ type YaoMetadata struct {
 
 	// Dashboard configuration
 	Dashboard string                 `json:"dashboard,omitempty"` // Admin dashboard root path
+	GRPC      string                 `json:"grpc,omitempty"`      // gRPC server address (e.g., "127.0.0.1:9099")
 	Optional  map[string]interface{} `json:"optional,omitempty"`  // Optional settings
 
 	// Developer information
@@ -67,6 +72,7 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 		IssuerURL:   openapi.Config.OAuth.IssuerURL,
 		ServerURL:   resolveServerURL(openapi.Config.OAuth.IssuerURL),
 		Dashboard:   "/" + dashboard,
+		GRPC:        resolveGRPCAddr(c),
 		Optional:    share.App.Optional,
 	}
 
@@ -97,8 +103,46 @@ func resolveServerURL(issuerURL string) string {
 	return ""
 }
 
+// resolveGRPCAddr returns the gRPC server address for client discovery.
+// Uses the request Host's IP with the configured gRPC port.
+func resolveGRPCAddr(c *gin.Context) string {
+	cfg := config.Conf.GRPC
+	if strings.ToLower(cfg.Enabled) == "off" {
+		return ""
+	}
+	port := cfg.Port
+	if port == 0 {
+		port = 9099
+	}
+
+	host := cfg.Host
+	if host == "" || host == "0.0.0.0" {
+		reqHost := c.Request.Host
+		h, _, err := net.SplitHostPort(reqHost)
+		if err != nil {
+			h = reqHost
+		}
+		host = h
+	} else if strings.Contains(host, ",") {
+		host = strings.TrimSpace(strings.Split(host, ",")[0])
+	}
+
+	return fmt.Sprintf("%s:%s", host, strconv.Itoa(port))
+}
+
 // oauthServerMetadata returns authorization server metadata - RFC 8414
-func (openapi *OpenAPI) oauthServerMetadata(c *gin.Context) {}
+func (openapi *OpenAPI) oauthServerMetadata(c *gin.Context) {
+	if openapi.OAuth == nil {
+		c.JSON(503, gin.H{"error": "OAuth service not available"})
+		return
+	}
+	metadata, err := openapi.OAuth.GetServerMetadata(c.Request.Context())
+	if err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(200, metadata)
+}
 
 // oauthOpenIDConfiguration returns OpenID Connect configuration
 func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {}

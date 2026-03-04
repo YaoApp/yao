@@ -11,8 +11,8 @@ OS := $(shell uname)
 
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry' | awk '!/\/tests\// || /openapi\/tests/')
-# Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, registry, and integrations which require external services)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry|tai' | awk '!/\/tests\// || /openapi\/tests/')
+# Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, registry, grpc, and integrations which require external services)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry|tai|grpc' | awk '!/\/tests\// || /openapi\/tests/')
 # Agent tests (agent, aigc) - exclude agent/search/handlers/web (requires external API keys) and robot packages (tested in robot job)
 TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/search/handlers/web|agent/robot/')
 # KB tests (kb)
@@ -23,6 +23,8 @@ TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot
 TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/...)
 # Tai SDK tests (requires Tai container with Docker socket)
 TESTFOLDER_TAI := $(shell $(GO) list ./tai/...)
+# gRPC tests
+TESTFOLDER_GRPC := $(shell $(GO) list ./grpc/...)
 TESTTAGS ?= ""
 
 # TESTWIDGETS := $(shell $(GO) list ./widgets/...)
@@ -284,6 +286,43 @@ unit-test-tai:
 	@echo "============================================="
 	@echo "All Tai SDK tests passed"
 	@echo "============================================="
+
+# Proto codegen
+.PHONY: proto
+proto:
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		grpc/pb/yao.proto
+
+# gRPC Unit Test
+.PHONY: unit-test-grpc
+unit-test-grpc:
+	echo "mode: count" > coverage.out
+	for d in $(TESTFOLDER_GRPC); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=10m \
+			-covermode=count -coverprofile=profile.out \
+			-coverpkg=$$(echo $$d | sed "s/\/test$$//g") \
+			-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_' \
+			$$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
 
 # Benchmark Test
 .PHONY: benchmark

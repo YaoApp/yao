@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 // AuthorizationServer returns the authorization server endpoint URL
@@ -131,6 +132,8 @@ func (s *Service) Token(ctx context.Context, grantType string, code string, clie
 		return s.handleClientCredentialsGrant(ctx, client)
 	case types.GrantTypeRefreshToken:
 		return s.handleRefreshTokenGrant(ctx, client, code) // code is refresh token in this case
+	case types.GrantTypeDeviceCode:
+		return s.handleDeviceCodeGrant(ctx, client, code) // code is device_code in this case
 	default:
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorUnsupportedGrantType,
@@ -614,4 +617,99 @@ func (s *Service) validatePKCE(ctx context.Context, client *types.ClientInfo, co
 	}
 
 	return nil
+}
+
+// handleDeviceCodeGrant handles the device_code grant type (RFC 8628 Section 3.4).
+func (s *Service) handleDeviceCodeGrant(ctx context.Context, client *types.ClientInfo, deviceCode string) (*types.Token, error) {
+	if !s.config.Features.DeviceFlowEnabled {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorUnsupportedGrantType,
+			ErrorDescription: "Device flow is not enabled",
+		}
+	}
+
+	codeData, err := s.getDeviceCodeData(deviceCode)
+	if err != nil {
+		return nil, err
+	}
+
+	storedClientID, _ := codeData["client_id"].(string)
+	if storedClientID != client.ClientID {
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Device code was issued to a different client",
+		}
+	}
+
+	expiresAt, _ := codeData["expires_at"].(int64)
+	if expiresAt == 0 {
+		if f, ok := codeData["expires_at"].(float64); ok {
+			expiresAt = int64(f)
+		}
+	}
+	if expiresAt > 0 && time.Now().Unix() > expiresAt {
+		s.consumeDeviceCode(deviceCode)
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorExpiredToken,
+			ErrorDescription: "Device code has expired",
+		}
+	}
+
+	status, _ := codeData["status"].(string)
+	switch status {
+	case "pending":
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorAuthorizationPending,
+			ErrorDescription: "The authorization request is still pending",
+		}
+
+	case "authorized":
+		scope, _ := codeData["scope"].(string)
+		subject, _ := codeData["subject"].(string)
+		s.consumeDeviceCode(deviceCode)
+
+		var extraClaims map[string]interface{}
+		if ec, ok := codeData["extra_claims"]; ok {
+			switch v := ec.(type) {
+			case map[string]interface{}:
+				extraClaims = v
+			case primitive.M:
+				extraClaims = map[string]interface{}(v)
+			}
+		}
+
+		expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
+		accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, extraClaims)
+		if err != nil {
+			return nil, &types.ErrorResponse{
+				Code:             types.ErrorServerError,
+				ErrorDescription: "Failed to generate access token",
+			}
+		}
+
+		token := &types.Token{
+			AccessToken: accessToken,
+			TokenType:   "Bearer",
+			ExpiresIn:   expiresIn,
+		}
+
+		if types.Contains(client.GrantTypes, types.GrantTypeRefreshToken) {
+			refreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, extraClaims)
+			if err != nil {
+				return nil, &types.ErrorResponse{
+					Code:             types.ErrorServerError,
+					ErrorDescription: "Failed to generate refresh token",
+				}
+			}
+			token.RefreshToken = refreshToken
+		}
+
+		return token, nil
+
+	default:
+		return nil, &types.ErrorResponse{
+			Code:             types.ErrorInvalidGrant,
+			ErrorDescription: "Invalid device code status",
+		}
+	}
 }

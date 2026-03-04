@@ -11,6 +11,10 @@ import (
 	"github.com/yaoapp/yao/share"
 )
 
+// Router holds the active gin.Engine so the gRPC API proxy can forward
+// requests internally without an HTTP round-trip.
+var Router *gin.Engine
+
 // Start the yao service
 func Start(cfg config.Config) (*http.Server, error) {
 
@@ -24,6 +28,7 @@ func Start(cfg config.Config) (*http.Server, error) {
 	}
 
 	router := gin.New()
+	Router = router
 	router.Use(Middlewares...)
 
 	var apiRoot string
@@ -68,6 +73,7 @@ func Start(cfg config.Config) (*http.Server, error) {
 // Restart the yao service
 func Restart(srv *http.Server, cfg config.Config) error {
 	router := gin.New()
+	Router = router
 	router.Use(Middlewares...)
 
 	if openapi.Server != nil {

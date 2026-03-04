@@ -189,6 +189,8 @@ func init() {
 		inspectCmd,
 		startCmd,
 		runCmd,
+		loginCmd,
+		logoutCmd,
 		// getCmd,
 		// dumpCmd,
 		// restoreCmd,

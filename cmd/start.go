@@ -28,6 +28,8 @@ import (
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	yaogrpc "github.com/yaoapp/yao/grpc"
+	_ "github.com/yaoapp/yao/grpc/auth"
 	"github.com/yaoapp/yao/openapi"
 	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/service"
@@ -190,6 +192,12 @@ var startCmd = &cobra.Command{
 			}
 		}
 
+		// Print gRPC listen addresses
+		grpcAddrs := yaogrpc.Addr()
+		for _, addr := range grpcAddrs {
+			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s (gRPC)", addr))
+		}
+
 		fmt.Println(color.WhiteString("\n---------------------------------"))
 		fmt.Println(color.WhiteString(L("Access Points")))
 		fmt.Println(color.WhiteString("---------------------------------"))
@@ -234,6 +242,13 @@ var startCmd = &cobra.Command{
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)
 		}
+
+		// Start gRPC Server (after HTTP, LIFO shutdown: gRPC stops before HTTP)
+		if grpcErr := yaogrpc.StartServer(config.Conf); grpcErr != nil {
+			fmt.Println(color.RedString(L("gRPC: %s"), grpcErr.Error()))
+			os.Exit(1)
+		}
+		defer yaogrpc.Stop()
 
 		// Start watching
 		watchDone := make(chan uint8, 1)

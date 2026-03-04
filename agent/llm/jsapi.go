@@ -201,6 +201,12 @@ func parseToolCalls(toolCalls []interface{}) []agentContext.ToolCall {
 }
 
 // buildCompletionOptions creates CompletionOptions from JS opts map
+// BuildCompletionOptions builds CompletionOptions from a connector and raw opts map.
+// Exported for reuse by gRPC handlers.
+func BuildCompletionOptions(conn connector.Connector, opts map[string]interface{}) *agentContext.CompletionOptions {
+	return buildCompletionOptions(conn, opts)
+}
+
 func buildCompletionOptions(conn connector.Connector, opts map[string]interface{}) *agentContext.CompletionOptions {
 	// Get capabilities from connector
 	capabilities := GetCapabilitiesFromConn(conn)

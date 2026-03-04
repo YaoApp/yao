@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -53,7 +54,7 @@ func (s *Service) JWKS(ctx context.Context) (*types.JWKSResponse, error) {
 // Endpoints returns a map of all available OAuth endpoints
 // This provides endpoint discovery for clients
 func (s *Service) Endpoints(ctx context.Context) (map[string]string, error) {
-	baseURL := s.config.IssuerURL
+	baseURL := strings.TrimRight(s.config.IssuerURL, "/") + s.config.BaseURL
 
 	endpoints := map[string]string{
 		"authorization_endpoint":                fmt.Sprintf("%s/oauth/authorize", baseURL),
@@ -63,7 +64,7 @@ func (s *Service) Endpoints(ctx context.Context) (map[string]string, error) {
 		"registration_endpoint":                 fmt.Sprintf("%s/oauth/register", baseURL),
 		"introspection_endpoint":                fmt.Sprintf("%s/oauth/introspect", baseURL),
 		"revocation_endpoint":                   fmt.Sprintf("%s/oauth/revoke", baseURL),
-		"device_authorization_endpoint":         fmt.Sprintf("%s/oauth/device", baseURL),
+		"device_authorization_endpoint":         fmt.Sprintf("%s/oauth/device_authorization", baseURL),
 		"pushed_authorization_request_endpoint": fmt.Sprintf("%s/oauth/par", baseURL),
 	}
 

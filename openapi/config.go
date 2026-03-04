@@ -388,6 +388,7 @@ func (config *Config) OAuthConfig(appConfig config.Config) (*oauth.Config, error
 		Cache:          cacheStore,
 		Store:          dataStore,
 		IssuerURL:      config.OAuth.IssuerURL,
+		BaseURL:        config.BaseURL,
 		Signing:        signingConfig, // Use the converted signing config
 		Token:          config.OAuth.Token,
 		Security:       config.OAuth.Security,
