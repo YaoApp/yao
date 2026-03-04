@@ -161,7 +161,7 @@ Depends on: Phase 1. No code dependency on Phase 2 — can parallel.
 
 Deliverable: LLM (unary + stream) and Agent streaming via gRPC.
 
-### Phase 4: Tai gateway change (Tai repo) ⏳
+### Phase 4: Tai gateway change (Tai repo) ✅
 
 Depends on: Phase 1 (need proto definitions for testing). yao-grpc depends on this.
 
@@ -169,79 +169,131 @@ Tai gateway currently dials a fixed `YaoUpstream` at startup. New behavior: yao-
 
 | Task | Detail | Status |
 |------|--------|--------|
-| Tai `gateway/gateway.go` | Remove fixed `upstream *grpc.ClientConn`. On each request, read `x-grpc-upstream` from metadata → lookup/create conn from `sync.Map` cache (key = address string) → forward. Typical deployment has 1 upstream, cache stays tiny. | ⏳ Pending |
-| Tai `server/server.go` | Remove `YaoUpstream` from `Config`. Gateway init no longer needs an address. | ⏳ Pending |
+| Tai `gateway/gateway.go` | Remove fixed `upstream *grpc.ClientConn`. On each request, read `x-grpc-upstream` from metadata → lookup/create conn from `sync.Map` cache (key = address string) → forward. Typical deployment has 1 upstream, cache stays tiny. | ✅ Done |
+| Tai `server/server.go` | Remove `YaoUpstream` from `Config`. Gateway init no longer needs an address. | ✅ Done |
+| Tai `main.go` | Remove `--yao` flag, `TAI_YAO_UPSTREAM` env var, YAML `yao` field, and required check. | ✅ Done |
+| Tai `gateway/gateway_test.go` | Updated tests: dynamic routing, missing metadata → InvalidArgument, metadata forwarding (x-grpc-upstream stripped), upstream error propagation, multiple upstreams, connection cache. Coverage: 88.8%. | ✅ Done |
 
-Connection cache: `sync.Map[string, *grpc.ClientConn]` — lazy dial on first request per upstream, reuse thereafter. No eviction needed (upstream count ≈ 1 in practice). `GracefulStop` closes all cached connections.
+Connection cache: `sync.Map[string, *grpc.ClientConn]` — lazy dial on first request per upstream, reuse thereafter. No eviction needed (upstream count ≈ 1 in practice). `Close` closes all cached connections.
 
 Deliverable: Tai starts without Yao address. Forwards based on request metadata.
 
-### Phase 5: yao-grpc container client ⏳
+### Phase 5: yao-grpc container client ✅
 
 Depends on: Phase 1 (server + auth), Phase 4 (Tai gateway accepts `x-grpc-upstream`).
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `tai/grpc/grpc.go` | `Dial(YAO_GRPC_ADDR)`, method wrappers mirroring server | ⏳ Pending |
-| `tai/grpc/auth.go` | Read `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` / `YAO_GRPC_UPSTREAM` from env. Attach as metadata on every call: Bearer token, `x-refresh-token`, `x-sandbox-id`, `x-grpc-upstream` (if set, for Tai relay). Read `SendHeader` for rotated tokens, update in memory. | ⏳ Pending |
-| `tai/grpc/cmd/main.go` | Stdio MCP server: JSON-RPC → gRPC. Replaces `yao-bridge`. `yao-grpc version` prints version/commit/build time (via `-ldflags`), for container debugging. | ⏳ Pending |
-| `tai/grpc/grpc_test.go` | Tests | ⏳ Pending |
+| `tai/grpc/auth.go` | `TokenManager`: read `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` / `YAO_GRPC_UPSTREAM` from env. `YAO_GRPC_TAI=enable` triggers Tai relay mode (requires `YAO_GRPC_UPSTREAM`). Attach as gRPC metadata on every call via unary + stream interceptors. Auto-refresh from response headers. | ✅ Done |
+| `tai/grpc/grpc.go` | `Client`: `Dial(addr, TokenManager)`, `NewFromEnv()`. Method wrappers for all RPCs: Run, Shell, API, MCP (list/call/resources/read), ChatCompletions, ChatCompletionsStream, AgentStream, Healthz. | ✅ Done |
+| `tai/grpc/cmd/main.go` | Stdio MCP server: JSON-RPC → gRPC. `yao-grpc version` prints version/commit/build time (via `-ldflags`). `yao-grpc serve` reads stdin JSON-RPC, dispatches to gRPC client. | ✅ Done |
+| `tai/grpc/grpc_test.go` + `integration_test.go` | Black-box tests (package `grpc_test`). Unit: TokenManager metadata attachment, env parsing, refresh handling. Integration: real Yao gRPC server, all method wrappers, token refresh, auth rejection. Coverage: 83.9%. | ✅ Done |
 
 Container token issuance uses existing `oauth.MakeAccessToken` / `oauth.MakeRefreshToken` — called by sandbox Manager at container creation, injected as env vars. Revoke on Remove. No new auth code needed on the issuance side.
 
 Deliverable: `go build -o yao-grpc ./tai/grpc/cmd`.
 
-### Phase 6: Device Flow — backend (`yao login`) ⏳
+### Phase 6: Device Flow + CLI auth ⏳
 
-Depends on: Phase 1. Independent — can parallel with Phase 2-5.
+Depends on: Phase 1. Three sub-phases with sequential dependency: 6.1 → 6.2 → 6.3.
+
+#### Phase 6.1: OAuth Device Flow backend ⏳
+
+Backend endpoints for RFC 8628 Device Authorization Grant. Scaffolding already in place (`types.DeviceAuthorizationResponse`, `GrantTypeDeviceCode`, error codes, route registration).
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `oauth/device.go` | Implement `DeviceAuthorization()` — generate `device_code` + `user_code`, store with expiry | ⏳ Pending |
-| `oauth/token.go` | Device code store/get/consume helpers | ⏳ Pending |
-| `oauth/core.go` | Add `GrantTypeDeviceCode` case → `handleDeviceCodeGrant()` (poll returns `authorization_pending` / token) | ⏳ Pending |
-| `cmd/yao/login.go` | `yao login --server <url>` → device flow → poll token endpoint → save `~/.yao/credentials` | ⏳ Pending |
-| `cmd/yao/logout.go` | Revoke + delete credentials | ⏳ Pending |
-| `cmd/yao/run.go` | Credentials exist → gRPC; otherwise local. Non-silent mode prints `⟶ user@host (gRPC)` header before execution (same line position as existing `Run: process.name`). Silent mode (`-s`) keeps pure output — no connection info, for shell scripting. | ⏳ Pending |
+| `oauth/token.go` | `deviceCodeKey`, `storeDeviceCode`, `getDeviceCodeData`, `consumeDeviceCode` — device_code storage/retrieval/consumption helpers using existing store infrastructure | ⏳ Pending |
+| `oauth/device.go` | Implement `DeviceAuthorization()` — generate `device_code` + `user_code` (crypto/rand), store with `DeviceCodeLifetime` expiry, return `DeviceAuthorizationResponse` | ⏳ Pending |
+| `oauth/core.go` | Add `case types.GrantTypeDeviceCode` → `handleDeviceCodeGrant()` — poll returns `authorization_pending` / `slow_down` / token | ⏳ Pending |
+| `openapi/oauth.go` | Replace hardcoded `oauthDeviceAuthorization` handler → call `openapi.OAuth.DeviceAuthorization()`. Add user authorization callback endpoint (`POST /oauth/device/authorize` — binds device_code to authenticated user). Fix discovery path (`/oauth/device` vs `/oauth/device_authorization`) | ⏳ Pending |
 
-Deliverable: `yao login` + `yao run` via gRPC (backend complete, auth page in Phase 7).
+Deliverable: Device flow endpoints functional — `POST /oauth/device_authorization` issues codes, `POST /oauth/token` with `grant_type=device_code` polls status.
 
-### Phase 7: Device Flow — CUI auth page (frontend) ⏳
+#### Phase 6.2: CUI auth/device page (frontend) ⏳
 
-Depends on: Phase 6 (backend endpoints ready). This is a **frontend-only** task in the CUI repo.
+Depends on: Phase 6.1 (backend endpoints). Frontend-only task in **CUI repo**.
 
 Route: `/auth/device` (Umi convention-based routing → `pages/auth/device/index.tsx`)
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `pages/auth/device/index.tsx` | Device authorization page. User enters `user_code` and clicks Authorize. Uses `AuthLayout` + `AuthInput` + `AuthButton` from existing `pages/auth/components/`. | ⏳ Pending |
+| `pages/auth/device/index.tsx` | Device authorization page. User enters `user_code`, clicks Authorize. Uses `AuthLayout` + `AuthInput` + `AuthButton` from existing `pages/auth/components/`. | ⏳ Pending |
 | `pages/auth/device/index.less` | Styles, follow `pages/auth/entry/index.less` pattern | ⏳ Pending |
 
-**Implementation details:**
+Implementation:
 
 - Framework: React + UmiJS Max + Ant Design + MobX (same as all auth pages)
-- Layout: Wrap with `AuthLayout` (logo + theme switch), same as `/auth/entry`
-- Components reuse: `AuthInput` for `user_code` input, `AuthButton` for submit, from `pages/auth/components/`
-- Page export: `export default observer(DeviceAuth)` (same pattern as `pages/auth/entry/index.tsx`)
-- API: `window.$app.openapi` → call backend `POST /oauth/device/authorize` with `{ user_code }`, bearer token from current session
-- Auth: User must be logged in (redirect to `/auth/entry` if not). After authorizing, show success message and close/redirect
-- i18n: Use `useIntl()` hook for text, support `zh-CN` / `en-US`
-- Flow: User opens URL from CLI prompt → logs in if needed → enters user_code → clicks Authorize → backend binds device_code to user → CLI poll gets token
+- Layout: `AuthLayout` (logo + theme switch), same as `/auth/entry`
+- Components: reuse `AuthInput` for `user_code` input, `AuthButton` for submit
+- Page export: `export default observer(DeviceAuth)`
+- API: `window.$app.openapi` → `POST /oauth/device/authorize` with `{ user_code }`, bearer token from session
+- Auth: must be logged in (redirect to `/auth/entry` if not). After authorizing, show success and close/redirect
+- i18n: `useIntl()`, `zh-CN` / `en-US`
 
-Deliverable: `/auth/device` page in CUI. User can authorize CLI device login from browser.
+Deliverable: `/auth/device` page. User authorizes CLI device login from browser.
+
+#### Phase 6.3: CLI commands + TUI status bar ⏳
+
+Depends on: Phase 6.1 (backend) + Phase 6.2 (CUI page for end-to-end `yao login`).
+
+**Credentials file** (`~/.yao/credentials`): base64-encoded JSON.
+
+```json
+{
+  "server": "https://yao.example.com",
+  "access_token": "eyJ...",
+  "refresh_token": "eyJ...",
+  "scope": "grpc:run grpc:stream grpc:shell grpc:llm grpc:agent grpc:mcp",
+  "user": "admin@example.com",
+  "expires_at": "2026-03-05T10:00:00Z"
+}
+```
+
+Stored as: `base64(json) → ~/.yao/credentials`. Prevents casual `cat` exposure.
+
+| Task | Detail | Status |
+|------|--------|--------|
+| `cmd/login.go` | `yao login --server <url>` — call device authorization endpoint, color-print device code + verification URL (no TUI), poll token endpoint with interval, on success base64-encode and save to `~/.yao/credentials` | ⏳ Pending |
+| `cmd/logout.go` | `yao logout` — read credentials, revoke token via server, delete `~/.yao/credentials` | ⏳ Pending |
+| `cmd/run.go` | Detect credentials → gRPC mode vs local mode. `--auth <path>` flag loads alternate credentials file (for bash scripting). `-s` (silent) mode: no TUI, pure output. gRPC mode with terminal: bubbletea TUI status bar. | ⏳ Pending |
+| `cmd/tui_status.go` | bubbletea `StatusBarModel` — top-line persistent bar showing `user@host (gRPC)` + scope summary. Does not interfere with process output below. Uses existing bubbletea + lipgloss deps. | ⏳ Pending |
+
+**`yao run` behavior matrix:**
+
+| Credentials | `-s` flag | `--auth` flag | Behavior |
+|-------------|-----------|---------------|----------|
+| None | — | — | Local execution (current behavior) |
+| `~/.yao/credentials` | No | — | gRPC + TUI status bar |
+| `~/.yao/credentials` | Yes | — | gRPC, no TUI, pure output |
+| — | Yes | `<path>` | gRPC via specified credentials, no TUI, pure output |
+| — | No | `<path>` | gRPC via specified credentials + TUI status bar |
+
+**TUI status bar** (bubbletea, `cmd/tui_status.go`):
+
+```
+┌─ admin@yao.example.com (gRPC) │ scope: run,stream,shell,llm,agent,mcp ─┐
+```
+
+- Top-line, persistent during execution
+- lipgloss styled (dim border, colored connection info)
+- Process output renders below, unaffected
+- Hidden in silent mode (`-s`)
+
+Deliverable: `yao login` + `yao logout` + `yao run` via gRPC with TUI status bar.
 
 ## V2 Phases
 
-### Phase 8: `gou/stream` package ⏳
+### Phase 7: `gou/stream` package ⏳
 
 | Task | Detail | Status |
 |------|--------|--------|
 | `gou/stream/` | ~150 lines. `Handler`, `Process`, `Register`, `New`, `Execute`. Fallback to process. | ⏳ Pending |
 | V8 | `stream.Register("scripts", ...)`, `ExecStream`, `template.Set("Stream", ...)`, JS `Stream()` global | ⏳ Pending |
 
-### Phase 9: Base streaming handlers ⏳
+### Phase 8: Base streaming handlers ⏳
 
-Depends on: Phase 8.
+Depends on: Phase 7.
 
 | Task | Detail | Status |
 |------|--------|--------|
@@ -256,19 +308,24 @@ Phase 0 (proto)             ✅
     ▼
 Phase 1 (auth + server)     ✅
     │
-    ├───────────┬───────────┬──────────────┐
-    ▼           ▼           ▼              ▼
-Phase 2 ✅   Phase 3 ✅  Phase 4 (Tai)   Phase 6
-(handlers)  (LLM/Agent)    │           (device backend)
-                            ▼              │
-                         Phase 5           ▼
-                         (yao-grpc)     Phase 7
-                                       (CUI auth page)
+    ├───────────┬───────────┬──────────────────────┐
+    ▼           ▼           ▼                      ▼
+Phase 2 ✅   Phase 3 ✅  Phase 4 ✅           Phase 6 (device flow + CLI)
+(handlers)  (LLM/Agent)  (Tai gateway)            │
+                            │              ┌───────┴───────┐
+                            ▼              ▼               ▼
+                         Phase 5 ✅     6.1 OAuth       6.2 CUI page
+                         (yao-grpc)    (backend)       (frontend)
+                                           │               │
+                                           └───────┬───────┘
+                                                   ▼
+                                              6.3 CMD + TUI
+                                         (login/logout/run)
 
 --- V2 ---
 
-Phase 8 (gou/stream)
+Phase 7 (gou/stream)
     │
     ▼
-Phase 9 (Stream, ShellStream)
+Phase 8 (Stream, ShellStream)
 ```
