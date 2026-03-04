@@ -90,7 +90,8 @@ func TestIntegration_Shell_Echo(t *testing.T) {
 	client := setupClient(t, "grpc:shell")
 
 	resp, err := client.Shell(context.Background(), "echo", []string{"hello"}, nil, 5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	assert.Equal(t, int32(0), resp.ExitCode)
 	assert.Contains(t, string(resp.Stdout), "hello")
 }
@@ -147,10 +148,8 @@ func TestIntegration_API_Proxy(t *testing.T) {
 	client := setupClient(t, "grpc:run", "grpc:mcp")
 
 	resp, err := client.API(context.Background(), "GET", "/api/__yao/app/setting", nil, nil)
-	assert.NoError(t, err)
-	assert.NotNil(t, resp)
-	// API proxy returns the response; the actual status depends on the route.
-	// A valid openapi path returns 200; anything else returns 404.
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	t.Logf("API proxy status: %d", resp.Status)
 }
 
@@ -313,7 +312,7 @@ func TestRelay_Healthz(t *testing.T) {
 	defer client.Close()
 
 	status, err := client.Healthz(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "ok", status)
 }
 
@@ -321,8 +320,8 @@ func TestRelay_Run_Ping(t *testing.T) {
 	client := setupRelayClient(t, "grpc:run")
 
 	data, err := client.Run(context.Background(), "utils.app.Ping", nil, 0)
-	assert.NoError(t, err)
-	assert.NotNil(t, data)
+	require.NoError(t, err)
+	require.NotNil(t, data)
 	t.Logf("relay Run result: %s", string(data))
 }
 
@@ -337,7 +336,8 @@ func TestRelay_Shell_Echo(t *testing.T) {
 	client := setupRelayClient(t, "grpc:shell")
 
 	resp, err := client.Shell(context.Background(), "echo", []string{"relay-test"}, nil, 5)
-	assert.NoError(t, err)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
 	assert.Equal(t, int32(0), resp.ExitCode)
 	assert.Contains(t, string(resp.Stdout), "relay-test")
 }

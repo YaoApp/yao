@@ -1706,10 +1706,18 @@ jobs:
             yaoapp/tai:latest
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
-              echo "Tai is ready"
+              echo "Tai HTTP is ready"
               break
             fi
-            echo "Waiting for Tai... ($i)"
+            echo "Waiting for Tai HTTP... ($i)"
+            sleep 1
+          done
+          for i in $(seq 1 15); do
+            if nc -z 127.0.0.1 9100 2>/dev/null; then
+              echo "Tai gRPC is ready"
+              break
+            fi
+            echo "Waiting for Tai gRPC... ($i)"
             sleep 1
           done
 
