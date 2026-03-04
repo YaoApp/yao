@@ -85,7 +85,7 @@ func runGRPC(cred *Credential, args []string) {
 		color.Green(L("Run: %s gRPC: %s\n"), name, cred.GRPCAddr)
 	}
 
-	pargs := parseRunArgs(args[1:])
+	pargs := parseRunArgs(args)
 
 	argsJSON, err := jsoniter.Marshal(pargs)
 	if err != nil {

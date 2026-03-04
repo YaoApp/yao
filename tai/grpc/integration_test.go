@@ -280,11 +280,11 @@ func setupRelayClient(t *testing.T, scopes ...string) *yaogrpc.Client {
 		testutils.Clean()
 	})
 
-	yaoAddr := testutils.Addr()
+	yaoAddr := testutils.RelayAddr()
 	token := testutils.ObtainAccessToken(t, scopes...)
 	refreshToken := testutils.ObtainRefreshToken(t, scopes...)
 
-	// upstream = Yao gRPC address; taiMode = true
+	// upstream = Yao gRPC address reachable from the Tai container
 	tm := yaogrpc.NewTokenManager(token, refreshToken, "relay-sandbox", yaoAddr)
 	client, err := yaogrpc.Dial(taiAddr, tm)
 	require.NoError(t, err)
@@ -305,7 +305,7 @@ func TestRelay_Healthz(t *testing.T) {
 		testutils.Clean()
 	}()
 
-	yaoAddr := testutils.Addr()
+	yaoAddr := testutils.RelayAddr()
 	tm := yaogrpc.NewTokenManager("", "", "", yaoAddr)
 	client, err := yaogrpc.Dial(taiAddr, tm)
 	require.NoError(t, err)
@@ -375,7 +375,7 @@ func TestRelay_Run_NoToken(t *testing.T) {
 		testutils.Clean()
 	}()
 
-	yaoAddr := testutils.Addr()
+	yaoAddr := testutils.RelayAddr()
 	tm := yaogrpc.NewTokenManager("", "", "", yaoAddr)
 	client, err := yaogrpc.Dial(taiAddr, tm)
 	require.NoError(t, err)
@@ -398,7 +398,7 @@ func TestRelay_TokenRefresh(t *testing.T) {
 		testutils.Clean()
 	}()
 
-	yaoAddr := testutils.Addr()
+	yaoAddr := testutils.RelayAddr()
 	scopes := []string{"grpc:run"}
 
 	expiredToken := testutils.ObtainExpiredAccessToken(t, scopes...)

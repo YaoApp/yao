@@ -2,6 +2,8 @@ package testutils
 
 import (
 	"context"
+	"net"
+	"os"
 	"strings"
 	"testing"
 
@@ -43,7 +45,7 @@ func Prepare(t *testing.T) *grpc.ClientConn {
 
 	cfg := config.Conf
 	cfg.GRPC.Port = 0
-	cfg.GRPC.Host = "127.0.0.1"
+	cfg.GRPC.Host = "0.0.0.0"
 	cfg.GRPC.Enabled = ""
 
 	test.Prepare(t, config.Conf)
@@ -127,6 +129,26 @@ func Addr() string {
 		return ""
 	}
 	return addrs[0]
+}
+
+// RelayAddr returns the gRPC address reachable from a Docker container.
+// When TAI_TEST_HOST_IP is set (e.g. to the docker bridge gateway),
+// it replaces the host portion so that the Tai container can reach the
+// Yao gRPC server running on the CI host.
+func RelayAddr() string {
+	addr := Addr()
+	if addr == "" {
+		return ""
+	}
+	hostIP := os.Getenv("TAI_TEST_HOST_IP")
+	if hostIP == "" {
+		return addr
+	}
+	_, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	return hostIP + ":" + port
 }
 
 // ObtainAccessToken mints a token with the given scopes via oauth.MakeAccessToken.

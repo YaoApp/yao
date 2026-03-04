@@ -1311,6 +1311,7 @@ jobs:
           TAI_TEST_K8S_HOST: "127.0.0.1"
           TAI_TEST_K8S_PORT: "6443"
           TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
+          TAI_TEST_HOST_IP: "172.17.0.1"
         run: make unit-test-tai
 
       - name: Codecov Report
