@@ -1,6 +1,7 @@
 package tai
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"testing"
@@ -201,14 +202,15 @@ func TestNewRemoteK8s(t *testing.T) {
 		t.Skip("TAI_TEST_K8S_HOST or TAI_TEST_KUBECONFIG not set")
 	}
 
+	grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
 	ports := Ports{
 		K8s:  envPort("TAI_TEST_K8S_PORT", 6443),
-		GRPC: envPort("TAI_TEST_GRPC_PORT", 9100),
-		HTTP: envPort("TAI_TEST_HTTP_PORT", 8080),
-		VNC:  envPort("TAI_TEST_VNC_PORT", 6080),
+		GRPC: grpcPort,
+		HTTP: envPort("TAI_TEST_K8S_HTTP_PORT", 8080),
+		VNC:  envPort("TAI_TEST_K8S_VNC_PORT", 6080),
 	}
 
-	c, err := New("tai://"+host, K8s,
+	c, err := New(fmt.Sprintf("tai://%s:%d", host, grpcPort), K8s,
 		WithPorts(ports),
 		WithKubeConfig(kubeconfig),
 		WithNamespace("default"),

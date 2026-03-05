@@ -23,11 +23,11 @@ CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/
 echo "Built: yao-grpc-amd64, yao-grpc-arm64"
 
 echo ""
-echo "=== Building claude-proxy (multi-arch) ==="
-cd "$YAO_ROOT/sandbox/proxy/cmd/claude-proxy"
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/base/claude-proxy-amd64" .
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/base/claude-proxy-arm64" .
-echo "Built: claude-proxy-amd64, claude-proxy-arm64"
+echo "=== Building openai-proxy (multi-arch) ==="
+cd "$SCRIPT_DIR/bin/openai-proxy/cmd/openai-proxy"
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/base/openai-proxy-amd64" .
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o "$SCRIPT_DIR/base/openai-proxy-arm64" .
+echo "Built: openai-proxy-amd64, openai-proxy-arm64"
 
 cd "$SCRIPT_DIR"
 
@@ -71,7 +71,7 @@ build_image "sandbox-v2-test" "$SCRIPT_DIR/test" "$PUSH"
 echo ""
 echo "=== Cleanup ==="
 rm -f "$SCRIPT_DIR/base/yao-grpc-amd64" "$SCRIPT_DIR/base/yao-grpc-arm64"
-rm -f "$SCRIPT_DIR/base/claude-proxy-amd64" "$SCRIPT_DIR/base/claude-proxy-arm64"
+rm -f "$SCRIPT_DIR/base/openai-proxy-amd64" "$SCRIPT_DIR/base/openai-proxy-arm64"
 echo "Removed temporary binary files"
 
 echo ""

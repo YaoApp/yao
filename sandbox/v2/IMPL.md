@@ -78,36 +78,14 @@ Reference: [DESIGN.md](./DESIGN.md)
 
 ---
 
-## Phase 2: Process + JSAPI — PENDING
+## Phase 2: JSAPI + OAuth — PENDING
 
 | Task | Package | Detail |
 |------|---------|--------|
-| `process.go` | `sandbox/v2` | Register `sandbox.*` process namespace (sandbox.Create, sandbox.Exec, sandbox.ReadFile, etc.) |
-| `process.go` | `workspace` | Register `workspace.*` process namespace |
-| `jsapi/sandbox.go` | `sandbox/v2/jsapi` | V8 JSAPI `Sandbox()` constructor (registered in gou runtime) |
+| `jsapi/sandbox.go` | `sandbox/v2/jsapi` | V8 JSAPI `Sandbox()` + `Workspace()` constructors (registered in gou runtime) |
+| Wire `openapi/oauth` | `sandbox/v2/grpc.go` | `CreateContainerTokens` currently generates random strings; `RevokeContainerTokens` is a no-op. Replace with real `openapi/oauth` issue/revoke calls |
 | `cmd/start.go` integration | `yao` | Call `sandbox.Init(config.Conf.Sandbox)` + `sandbox.M().Start(ctx)` in startup sequence |
 | Heartbeat bridge | `yao/grpc` | Wire gRPC Heartbeat handler → `sandbox.M().Heartbeat()` |
-| Wire `openapi/oauth` | `sandbox/v2/grpc.go` | `CreateContainerTokens` currently generates random strings; `RevokeContainerTokens` is a no-op. Replace with real `openapi/oauth` issue/revoke calls |
-
-### Process Registration (planned)
-
-```
-sandbox.pool.Add        sandbox.pool.Remove     sandbox.pool.List
-sandbox.Create          sandbox.Get             sandbox.GetOrCreate
-sandbox.Remove          sandbox.List
-sandbox.Start           sandbox.Stop
-sandbox.Exec            sandbox.Stream          sandbox.Attach
-sandbox.ReadFile        sandbox.WriteFile       sandbox.ListDir
-sandbox.RemoveFile      sandbox.MkdirAll
-sandbox.VNC             sandbox.Proxy
-sandbox.EnsureImage     sandbox.ImageExists     sandbox.PullImage
-
-workspace.Create        workspace.Get           workspace.List
-workspace.Update        workspace.Delete
-workspace.ReadFile      workspace.WriteFile     workspace.ListDir
-workspace.Remove        workspace.FS
-workspace.Nodes
-```
 
 ### JSAPI (planned)
 
@@ -157,6 +135,8 @@ ws.Remove("tmp.txt")
 | Delete old sandbox code | manager.go, ipc/, bridge/, vncproxy/, docker/ |
 | Delete `DESIGN-REMOTE.md` | Superseded by tai.Client |
 | Update `cmd/start.go` | Use new init path |
+| `sandbox/process.go` | Register `sandbox.*` process namespace (post-cutover) |
+| `workspace/process.go` | Register `workspace.*` process namespace (post-cutover) |
 
 ---
 

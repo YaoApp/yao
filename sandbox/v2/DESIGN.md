@@ -824,15 +824,13 @@ Docker `StopStart` ~2.2s is expected: `DefaultStopTimeout = 2s` and Docker waits
 - Tests: unit + integration + benchmarks
 - CI: consolidated SandboxV2Test + BenchmarkSandboxV2
 
-## Phase 2: Process + JSAPI (PENDING)
+## Phase 2: JSAPI + OAuth (PENDING)
 
 | Task | Detail |
 |------|--------|
-| `sandbox/v2/process.go` | Register `sandbox.*` process namespace |
-| `sandbox/v2/jsapi/` | V8 `Sandbox()` constructor (registered in gou runtime) |
-| `workspace/process.go` | Register `workspace.*` process namespace |
-| Integration with `cmd/start.go` | Call `sandbox.Init()` + `sandbox.M().Start()` |
+| `sandbox/v2/jsapi/` | V8 `Sandbox()` / `Workspace()` constructors (registered in gou runtime) |
 | Wire `openapi/oauth` | `grpc.go` currently uses random token placeholders; replace with real OAuth issue/revoke |
+| Integration with `cmd/start.go` | Call `sandbox.Init()` + `sandbox.M().Start()` |
 
 ## Phase 3: Agent Integration (PENDING)
 
@@ -850,6 +848,8 @@ Docker `StopStart` ~2.2s is expected: `DefaultStopTimeout = 2s` and Docker waits
 | Move `sandbox/v2` → `sandbox` | Rename package |
 | Delete old sandbox code | manager.go, ipc/, bridge/, vncproxy/, docker/ |
 | Update `cmd/start.go` | Use new init path |
+| `sandbox/process.go` | Register `sandbox.*` process namespace (post-cutover) |
+| `workspace/process.go` | Register `workspace.*` process namespace (post-cutover) |
 
 ## V1 vs V2 Comparison
 

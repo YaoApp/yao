@@ -793,50 +793,63 @@ jobs:
           kubectl wait --for=condition=Ready node --all --timeout=60s
           k3d image import alpine:latest -c tai-test
 
-      - name: Start Tai (Docker + K8s proxy)
+      - name: Start Tai Docker instance
+        run: |
+          docker run -d --name tai-docker \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
+            yaoapp/tai:latest
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
+              echo "Tai Docker HTTP ready"; break
+            fi
+            echo "Waiting for Tai Docker HTTP... ($i)"; sleep 1
+          done
+          curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1 || {
+            echo "::error::Tai Docker HTTP failed"; docker logs tai-docker 2>&1; exit 1
+          }
+
+          for i in $(seq 1 15); do
+            if nc -z 127.0.0.1 9100 2>/dev/null; then
+              echo "Tai Docker gRPC ready"; break
+            fi
+            echo "Waiting for Tai Docker gRPC... ($i)"; sleep 1
+          done
+          nc -z 127.0.0.1 9100 2>/dev/null || {
+            echo "::error::Tai Docker gRPC failed"; docker logs tai-docker 2>&1; exit 1
+          }
+
+      - name: Start Tai K8s instance
         run: |
           K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
           echo "k3d server IP: ${K3D_IP}"
 
-          docker run -d --name tai \
+          docker run -d --name tai-k8s \
             --network k3d-tai-test \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 -p 6443:6443 \
+            -p 8081:8080 -p 9101:9100 -p 6443:6443 -p 6081:6080 \
             -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             yaoapp/tai:latest
 
-          TAI_HTTP_READY=false
           for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
-              echo "Tai HTTP is ready"
-              TAI_HTTP_READY=true
-              break
+            if curl -sf http://127.0.0.1:8081/healthz > /dev/null 2>&1; then
+              echo "Tai K8s HTTP ready"; break
             fi
-            echo "Waiting for Tai HTTP... ($i)"
-            sleep 1
+            echo "Waiting for Tai K8s HTTP... ($i)"; sleep 1
           done
-          if [ "$TAI_HTTP_READY" != "true" ]; then
-            echo "::error::Tai HTTP failed to become ready within 30s"
-            docker logs tai 2>&1 || true
-            docker inspect tai --format='{{.State.Status}} exit={{.State.ExitCode}}' || true
-            exit 1
-          fi
+          curl -sf http://127.0.0.1:8081/healthz > /dev/null 2>&1 || {
+            echo "::error::Tai K8s HTTP failed"; docker logs tai-k8s 2>&1; exit 1
+          }
 
-          TAI_GRPC_READY=false
           for i in $(seq 1 15); do
-            if nc -z 127.0.0.1 9100 2>/dev/null; then
-              echo "Tai gRPC is ready"
-              TAI_GRPC_READY=true
-              break
+            if nc -z 127.0.0.1 9101 2>/dev/null; then
+              echo "Tai K8s gRPC ready"; break
             fi
-            echo "Waiting for Tai gRPC... ($i)"
-            sleep 1
+            echo "Waiting for Tai K8s gRPC... ($i)"; sleep 1
           done
-          if [ "$TAI_GRPC_READY" != "true" ]; then
-            echo "::error::Tai gRPC failed to become ready within 15s"
-            docker logs tai 2>&1 || true
-            exit 1
-          fi
+          nc -z 127.0.0.1 9101 2>/dev/null || {
+            echo "::error::Tai K8s gRPC failed"; docker logs tai-k8s 2>&1; exit 1
+          }
 
       - name: Generate kubeconfig for Tai K8s proxy
         run: |
@@ -850,9 +863,10 @@ jobs:
         env:
           TAI_TEST_HOST: "127.0.0.1"
           TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
+          TAI_TEST_GRPC_PORT: "9100"
           TAI_TEST_K8S_HOST: "127.0.0.1"
           TAI_TEST_K8S_PORT: "6443"
-          TAI_TEST_GRPC_PORT: "9100"
+          TAI_TEST_K8S_GRPC_PORT: "9101"
           TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
           TAI_TEST_HOST_IP: "172.17.0.1"
           SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:9100"
@@ -1416,29 +1430,25 @@ jobs:
           docker pull yaoapp/tai:latest
           docker pull alpine:latest
 
-      - name: Start Tai (Docker proxy for benchmarks)
+      - name: Start Tai Docker instance (benchmarks)
         run: |
-          docker run -d --name tai \
+          docker run -d --name tai-docker \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
             yaoapp/tai:latest
 
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
-              echo "Tai HTTP is ready"
-              break
+              echo "Tai Docker HTTP ready"; break
             fi
-            echo "Waiting for Tai HTTP... ($i)"
-            sleep 1
+            echo "Waiting for Tai Docker HTTP... ($i)"; sleep 1
           done
 
           for i in $(seq 1 15); do
             if nc -z 127.0.0.1 9100 2>/dev/null; then
-              echo "Tai gRPC is ready"
-              break
+              echo "Tai Docker gRPC ready"; break
             fi
-            echo "Waiting for Tai gRPC... ($i)"
-            sleep 1
+            echo "Waiting for Tai Docker gRPC... ($i)"; sleep 1
           done
 
       - name: Run Benchmarks

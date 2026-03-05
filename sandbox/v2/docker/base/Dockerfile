@@ -27,9 +27,9 @@ ARG TARGETARCH
 COPY yao-grpc-${TARGETARCH} /usr/local/bin/yao-grpc
 RUN chmod +x /usr/local/bin/yao-grpc
 
-# claude-proxy binary
-COPY claude-proxy-${TARGETARCH} /usr/local/bin/claude-proxy
-RUN chmod +x /usr/local/bin/claude-proxy
+# openai-proxy: Anthropic Messages API → OpenAI Chat Completions API
+COPY openai-proxy-${TARGETARCH} /usr/local/bin/openai-proxy
+RUN chmod +x /usr/local/bin/openai-proxy
 
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh

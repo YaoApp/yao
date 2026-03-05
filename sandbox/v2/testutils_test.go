@@ -36,13 +36,14 @@ func testPools() []poolConfig {
 		if kubeconfig == "" {
 			return pools
 		}
-		addr := fmt.Sprintf("tai://%s", host)
+		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
+		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
 		opts := []tai.Option{
 			tai.K8s,
 			tai.WithKubeConfig(kubeconfig),
 			tai.WithPorts(tai.Ports{
 				K8s:  envPort("TAI_TEST_K8S_PORT", 6443),
-				GRPC: envPort("TAI_TEST_GRPC_PORT", 9100),
+				GRPC: grpcPort,
 			}),
 		}
 		if ns := os.Getenv("TAI_TEST_K8S_NAMESPACE"); ns != "" {
