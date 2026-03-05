@@ -23,10 +23,12 @@ type Box struct {
 	lastHeartbeat atomic.Int64
 	processCount  atomic.Int32
 	idleTimeoutD  time.Duration
+	stopTimeoutD  time.Duration
 	createdAt     time.Time
 	refreshToken  string
 	vnc           bool
 	image         string
+	workspaceID   string
 	ws            workspace.FS
 	manager       *Manager
 }
@@ -143,18 +145,27 @@ func (b *Box) Attach(ctx context.Context, port int, opts ...AttachOption) (*Serv
 }
 
 // Workspace returns an fs.FS-compatible filesystem for this sandbox.
+// If a workspace is mounted (WorkspaceID set), uses the workspace ID as session;
+// otherwise falls back to the sandbox ID (backward compatible).
 func (b *Box) Workspace() workspace.FS {
 	b.touch()
 	if b.ws != nil {
 		return b.ws
 	}
+	sessionID := b.workspaceID
+	if sessionID == "" {
+		sessionID = b.id
+	}
 	client, err := b.manager.getPool(b.pool)
 	if err != nil {
 		return nil
 	}
-	b.ws = client.Workspace(b.id)
+	b.ws = client.Workspace(sessionID)
 	return b.ws
 }
+
+// WorkspaceID returns the workspace ID mounted to this sandbox, or empty string.
+func (b *Box) WorkspaceID() string { return b.workspaceID }
 
 // VNC returns the VNC WebSocket URL.
 func (b *Box) VNC(ctx context.Context) (string, error) {
@@ -191,7 +202,7 @@ func (b *Box) Stop(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return client.Sandbox().Stop(ctx, b.containerID, 10*time.Second)
+	return client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
 }
 
 // Remove stops and removes the sandbox.
@@ -258,4 +269,15 @@ func (b *Box) maxLifetime() time.Duration {
 		return pd.MaxLifetime
 	}
 	return 0
+}
+
+func (b *Box) stopTimeout() time.Duration {
+	if b.stopTimeoutD > 0 {
+		return b.stopTimeoutD
+	}
+	pd := b.manager.findPoolDef(b.pool)
+	if pd != nil && pd.StopTimeout > 0 {
+		return pd.StopTimeout
+	}
+	return DefaultStopTimeout
 }

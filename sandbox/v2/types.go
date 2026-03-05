@@ -16,6 +16,8 @@ const (
 	Persistent  LifecyclePolicy = "persistent"
 )
 
+const DefaultStopTimeout = 2 * time.Second
+
 type Pool struct {
 	Name        string
 	Addr        string
@@ -24,6 +26,7 @@ type Pool struct {
 	MaxTotal    int
 	IdleTimeout time.Duration
 	MaxLifetime time.Duration
+	StopTimeout time.Duration // SIGTERM grace period before SIGKILL; 0 = DefaultStopTimeout
 }
 
 type PoolInfo struct {
@@ -59,6 +62,12 @@ type CreateOptions struct {
 	Ports       []PortMapping
 	Policy      LifecyclePolicy
 	IdleTimeout time.Duration
+
+	StopTimeout time.Duration // SIGTERM grace period; 0 = pool default or DefaultStopTimeout
+
+	WorkspaceID string // workspace to mount; empty = no workspace
+	MountMode   string // "rw" (default) or "ro"
+	MountPath   string // container path; default "/workspace"
 }
 
 type ListOptions struct {
@@ -131,6 +140,18 @@ func WithHeaders(headers map[string]string) AttachOption {
 	return func(c *attachConfig) {
 		c.Headers = headers
 	}
+}
+
+// ImagePullOptions configures an image pull operation.
+type ImagePullOptions struct {
+	Auth *RegistryAuth // nil = anonymous / public
+}
+
+// RegistryAuth holds credentials for a private container registry.
+type RegistryAuth struct {
+	Username string
+	Password string
+	Server   string
 }
 
 type ServiceConn struct {

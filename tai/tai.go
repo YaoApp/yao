@@ -77,6 +77,12 @@ func WithNamespace(ns string) Option {
 	return optionFunc(func(c *config) { c.namespace = ns })
 }
 
+// WithVolume injects a custom Volume implementation.
+// Useful for testing workspace operations without Docker.
+func WithVolume(vol volume.Volume) Option {
+	return optionFunc(func(c *config) { c.volume = vol })
+}
+
 type config struct {
 	runtime    Runtime
 	ports      Ports
@@ -85,6 +91,7 @@ type config struct {
 	dataDir    string
 	kubeConfig string
 	namespace  string
+	volume     volume.Volume // override volume (for testing without Docker)
 }
 
 func defaultPorts() Ports {
@@ -121,8 +128,10 @@ type Client struct {
 	host     string
 	addr     string
 	ports    Ports
+	dataDir  string // host-side data directory for local volume
 	vol      volume.Volume
 	sb       sandbox.Sandbox
+	img      sandbox.Image
 	prx      proxy.Proxy
 	vc       vnc.VNC
 	grpcConn *grpc.ClientConn
@@ -170,18 +179,27 @@ func New(addr string, opts ...Option) (*Client, error) {
 
 func (c *Client) initLocal(cfg *config) (*Client, error) {
 	sb, err := sandbox.NewLocal(c.addr)
-	if err != nil {
+	if err != nil && cfg.volume == nil {
 		return nil, err
 	}
-	c.sb = sb
-	c.prx = proxy.NewLocal(sb)
-	c.vc = vnc.NewLocal(sb)
-
-	dataDir := cfg.dataDir
-	if dataDir == "" {
-		dataDir = "/tmp/tai-volumes"
+	if sb != nil {
+		c.sb = sb
+		c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
+		c.prx = proxy.NewLocal(sb)
+		c.vc = vnc.NewLocal(sb)
 	}
-	c.vol = volume.NewLocal(dataDir)
+
+	if cfg.volume != nil {
+		c.vol = cfg.volume
+		c.dataDir = cfg.dataDir
+	} else {
+		dataDir := cfg.dataDir
+		if dataDir == "" {
+			dataDir = "/tmp/tai-volumes"
+		}
+		c.dataDir = dataDir
+		c.vol = volume.NewLocal(dataDir)
+	}
 	return c, nil
 }
 
@@ -219,6 +237,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 			return nil, err
 		}
 		c.sb = sb
+		c.img = sandbox.NewK8sImage()
 	default:
 		dockerPort := c.ports.Docker
 		if dockerPort == 0 {
@@ -231,6 +250,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 			return nil, err
 		}
 		c.sb = sb
+		c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
 	}
 
 	hc := cfg.httpClient
@@ -266,6 +286,10 @@ func (c *Client) Close() error {
 // Volume returns the Volume IO layer. Never nil.
 func (c *Client) Volume() volume.Volume { return c.vol }
 
+// DataDir returns the host-side data directory used by the local volume.
+// Empty for remote (Tai gRPC) connections — the Tai server manages paths.
+func (c *Client) DataDir() string { return c.dataDir }
+
 // Workspace returns an fs.FS-compatible filesystem for the given session.
 func (c *Client) Workspace(sessionID string) workspace.FS {
 	return workspace.New(c.vol, sessionID)
@@ -273,6 +297,9 @@ func (c *Client) Workspace(sessionID string) workspace.FS {
 
 // Sandbox returns the container lifecycle manager. Never nil.
 func (c *Client) Sandbox() sandbox.Sandbox { return c.sb }
+
+// Image returns the container image manager. Never nil.
+func (c *Client) Image() sandbox.Image { return c.img }
 
 // Proxy returns the HTTP reverse proxy helper. Never nil.
 func (c *Client) Proxy() proxy.Proxy { return c.prx }

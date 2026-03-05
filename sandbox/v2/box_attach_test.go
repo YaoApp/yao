@@ -2,7 +2,6 @@ package sandbox_test
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -19,12 +18,12 @@ func waitForPort(t *testing.T, box *sandbox.Box, port int, timeout time.Duration
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	url, err := box.Proxy(ctx, port, "/")
+	proxyURL, err := box.Proxy(ctx, port, "/")
 	if err != nil {
 		t.Fatalf("Proxy URL: %v", err)
 	}
 
-	host := url[len("http://"):]
+	host := proxyURL[len("http://"):]
 	if i := len(host) - 1; host[i] == '/' {
 		host = host[:i]
 	}
@@ -36,7 +35,7 @@ func waitForPort(t *testing.T, box *sandbox.Box, port int, timeout time.Duration
 	}
 
 	deadline := time.After(timeout)
-	ticker := time.NewTicker(200 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 
 	for {
@@ -44,13 +43,16 @@ func waitForPort(t *testing.T, box *sandbox.Box, port int, timeout time.Duration
 		case <-deadline:
 			t.Fatalf("port %d not ready within %v", port, timeout)
 		case <-ticker.C:
-			conn, err := net.DialTimeout("tcp", host, time.Second)
-			if err == nil {
-				conn.Close()
-				time.Sleep(200 * time.Millisecond)
-				return
+			conn, err := net.DialTimeout("tcp", host, 2*time.Second)
+			if err != nil {
+				continue
 			}
-			fmt.Printf("waiting for %s: %v\n", host, err)
+			conn.Close()
+			// TCP reachable — give the service process time to accept
+			// application-layer connections (Python ws/sse servers in CI
+			// may take 1-3s after the port opens before they're ready).
+			time.Sleep(2 * time.Second)
+			return
 		}
 	}
 }
@@ -74,9 +76,17 @@ func TestAttachWS(t *testing.T) {
 
 			waitForPort(t, box, 9800, 30*time.Second)
 
-			conn, err := box.Attach(t.Context(), 9800, sandbox.WithProtocol("ws"), sandbox.WithPath("/"))
+			var conn *sandbox.ServiceConn
+			var err error
+			for attempt := 0; attempt < 5; attempt++ {
+				conn, err = box.Attach(t.Context(), 9800, sandbox.WithProtocol("ws"), sandbox.WithPath("/"))
+				if err == nil {
+					break
+				}
+				time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+			}
 			if err != nil {
-				t.Fatalf("Attach WS: %v", err)
+				t.Fatalf("Attach WS after retries: %v", err)
 			}
 			defer conn.Close()
 
@@ -114,9 +124,17 @@ func TestAttachSSE(t *testing.T) {
 
 			waitForPort(t, box, 9801, 30*time.Second)
 
-			conn, err := box.Attach(t.Context(), 9801, sandbox.WithProtocol("sse"), sandbox.WithPath("/events"))
+			var conn *sandbox.ServiceConn
+			var err error
+			for attempt := 0; attempt < 5; attempt++ {
+				conn, err = box.Attach(t.Context(), 9801, sandbox.WithProtocol("sse"), sandbox.WithPath("/events"))
+				if err == nil {
+					break
+				}
+				time.Sleep(time.Duration(attempt+1) * 500 * time.Millisecond)
+			}
 			if err != nil {
-				t.Fatalf("Attach SSE: %v", err)
+				t.Fatalf("Attach SSE after retries: %v", err)
 			}
 			defer conn.Close()
 
@@ -181,7 +199,7 @@ func TestVNCConnect(t *testing.T) {
 				co.VNC = true
 			})
 
-			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 			defer cancel()
 
 			vncURL, err := box.VNC(ctx)
@@ -196,13 +214,20 @@ func TestVNCConnect(t *testing.T) {
 				Subprotocols:     []string{"binary"},
 				HandshakeTimeout: 10 * time.Second,
 			}
-			ws, resp, err := dialer.DialContext(ctx, vncURL, http.Header{})
-			if err != nil {
-				extra := ""
-				if resp != nil {
-					extra = fmt.Sprintf(" (status %d)", resp.StatusCode)
+			var ws *websocket.Conn
+			for attempt := 0; attempt < 5; attempt++ {
+				var resp *http.Response
+				ws, resp, err = dialer.DialContext(ctx, vncURL, http.Header{})
+				if err == nil {
+					break
 				}
-				t.Fatalf("VNC dial: %v%s", err, extra)
+				if resp != nil {
+					resp.Body.Close()
+				}
+				time.Sleep(time.Duration(attempt+1) * time.Second)
+			}
+			if err != nil {
+				t.Fatalf("VNC dial after retries: %v", err)
 			}
 			defer ws.Close()
 
@@ -240,12 +265,16 @@ func waitForWSEndpoint(t *testing.T, wsURL string, timeout time.Duration) {
 		case <-deadline:
 			t.Fatalf("VNC endpoint %s not ready within %v", host, timeout)
 		case <-ticker.C:
-			conn, err := net.DialTimeout("tcp", host, time.Second)
-			if err == nil {
-				conn.Close()
-				time.Sleep(500 * time.Millisecond)
-				return
+			conn, err := net.DialTimeout("tcp", host, 2*time.Second)
+			if err != nil {
+				continue
 			}
+			conn.Close()
+			// VNC services (Xvfb → fluxbox → x11vnc → websockify) need time
+			// after the TCP port is reachable. Give the process chain time to
+			// stabilize before attempting the WebSocket handshake.
+			time.Sleep(2 * time.Second)
+			return
 		}
 	}
 }

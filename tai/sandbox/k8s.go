@@ -113,7 +113,7 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 	container := corev1.Container{
 		Name:       "main",
 		Image:      opts.Image,
-		Command:    opts.Cmd,
+		Args:       opts.Cmd,
 		Env:        envVars,
 		WorkingDir: opts.WorkingDir,
 	}
@@ -160,9 +160,16 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 }
 
 func (s *k8sSandbox) Start(ctx context.Context, id string) error {
-	// K8s pods start automatically after creation.
-	// Wait briefly for the pod to leave Pending.
-	for i := 0; i < 30; i++ {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
 		pod, err := s.cli.CoreV1().Pods(s.ns).Get(ctx, id, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("get pod: %w", err)
@@ -170,9 +177,13 @@ func (s *k8sSandbox) Start(ctx context.Context, id string) error {
 		if pod.Status.Phase == corev1.PodRunning || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			return nil
 		}
-		time.Sleep(1 * time.Second)
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("pod %s did not reach Running: %w", id, ctx.Err())
+		case <-ticker.C:
+		}
 	}
-	return fmt.Errorf("pod %s did not reach Running within 30s", id)
 }
 
 func (s *k8sSandbox) Stop(ctx context.Context, id string, timeout time.Duration) error {

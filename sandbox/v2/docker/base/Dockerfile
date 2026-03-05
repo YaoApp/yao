@@ -8,6 +8,7 @@ RUN sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu
     sed -i 's|http://ports.ubuntu.com/ubuntu-ports|http://mirrors.mit.edu/ubuntu-ports|g' /etc/apt/sources.list 2>/dev/null || true
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    tini \
     curl wget git ca-certificates gnupg lsb-release jq \
     vim less tree \
     iputils-ping net-tools dnsutils telnet netcat-openbsd \
@@ -34,5 +35,5 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 USER sandbox
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
 CMD ["sleep", "infinity"]

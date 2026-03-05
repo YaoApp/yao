@@ -680,10 +680,20 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   # =============================================================================
-  # Sandbox V2 Tests (requires Docker + Tai for dual-mode)
+  # Sandbox V2 Tests (tai + sandbox/v2 + workspace, Docker + K8s via k3d)
   # =============================================================================
   sandbox-v2-test:
     runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
     strategy:
       matrix:
         go: ["1.25"]
@@ -746,48 +756,107 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup Apple Private Key
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
       - name: Setup Go ${{ matrix.go }}
         uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Start Redis
+        run: docker run --name redis --publish 6379:6379 --detach redis:6
+
       - name: Setup Go Tools
         run: make tools
+
+      - name: Setup ENV (SQLite)
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
 
       - name: Pull Test Images
         run: |
           docker pull yaoapp/sandbox-v2-test:latest || true
           docker pull yaoapp/tai:latest
+          docker pull alpine:latest
 
-      - name: Start Tai Server (Docker proxy for remote mode)
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+
+      - name: Create k3d cluster
         run: |
+          k3d cluster create tai-test --no-lb --wait --api-port 16443
+          kubectl wait --for=condition=Ready node --all --timeout=60s
+          k3d image import alpine:latest -c tai-test
+
+      - name: Start Tai (Docker + K8s proxy)
+        run: |
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
+          echo "k3d server IP: ${K3D_IP}"
+
           docker run -d --name tai \
+            --network k3d-tai-test \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
+            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 -p 6443:6443 \
+            -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             yaoapp/tai:latest
 
+          TAI_HTTP_READY=false
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
               echo "Tai HTTP is ready"
+              TAI_HTTP_READY=true
               break
             fi
             echo "Waiting for Tai HTTP... ($i)"
             sleep 1
           done
+          if [ "$TAI_HTTP_READY" != "true" ]; then
+            echo "::error::Tai HTTP failed to become ready within 30s"
+            docker logs tai 2>&1 || true
+            docker inspect tai --format='{{.State.Status}} exit={{.State.ExitCode}}' || true
+            exit 1
+          fi
 
+          TAI_GRPC_READY=false
           for i in $(seq 1 15); do
             if nc -z 127.0.0.1 9100 2>/dev/null; then
               echo "Tai gRPC is ready"
+              TAI_GRPC_READY=true
               break
             fi
             echo "Waiting for Tai gRPC... ($i)"
             sleep 1
           done
+          if [ "$TAI_GRPC_READY" != "true" ]; then
+            echo "::error::Tai gRPC failed to become ready within 15s"
+            docker logs tai 2>&1 || true
+            exit 1
+          fi
 
-      - name: "Run Sandbox V2 Tests (dual-mode: local + remote)"
+      - name: Generate kubeconfig for Tai K8s proxy
+        run: |
+          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
+          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
+            > ${{ runner.temp }}/kubeconfig-tai.yml
+          echo "Generated kubeconfig:"
+          grep server: ${{ runner.temp }}/kubeconfig-tai.yml
+
+      - name: Run Sandbox V2 Tests (tai + sandbox-v2 + workspace)
         env:
-          SANDBOX_TEST_IMAGE: yaoapp/sandbox-v2-test:latest
+          TAI_TEST_HOST: "127.0.0.1"
+          TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
+          TAI_TEST_K8S_HOST: "127.0.0.1"
+          TAI_TEST_K8S_PORT: "6443"
+          TAI_TEST_GRPC_PORT: "9100"
+          TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
+          TAI_TEST_HOST_IP: "172.17.0.1"
           SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:9100"
+          SANDBOX_TEST_IMAGE: "yaoapp/sandbox-v2-test:latest"
         run: make unit-test-sandbox-v2
 
       - name: Codecov Report
@@ -795,8 +864,6 @@ jobs:
         uses: codecov/codecov-action@v4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: sandbox/v2/coverage.out
-          flags: sandbox-v2
           fail_ci_if_error: false
 
   # =============================================================================
@@ -1255,20 +1322,10 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
 
   # =============================================================================
-  # Tai SDK Tests (requires Tai container with Docker socket mount)
+  # Benchmark: Sandbox V2 + Workspace (parallel with sandbox-v2-test)
   # =============================================================================
-  tai-test:
+  benchmark-sandbox-v2:
     runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
     strategy:
       matrix:
         go: ["1.25"]
@@ -1353,91 +1410,46 @@ jobs:
           echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
           echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
 
-      - name: Pull Tai & Test Images
+      - name: Pull Test Images
         run: |
+          docker pull yaoapp/sandbox-v2-test:latest || true
           docker pull yaoapp/tai:latest
           docker pull alpine:latest
 
-      - name: Install k3d
-        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-
-      - name: Create k3d cluster
+      - name: Start Tai (Docker proxy for benchmarks)
         run: |
-          k3d cluster create tai-test --no-lb --wait --api-port 16443
-          kubectl wait --for=condition=Ready node --all --timeout=60s
-          k3d image import alpine:latest -c tai-test
-
-      - name: Start Tai (with Docker socket + K8s proxy)
-        run: |
-          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
-          echo "k3d server IP: ${K3D_IP}"
-
           docker run -d --name tai \
-            --network k3d-tai-test \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 -p 6443:6443 \
-            -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
+            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
             yaoapp/tai:latest
 
-          TAI_HTTP_READY=false
           for i in $(seq 1 30); do
             if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
               echo "Tai HTTP is ready"
-              TAI_HTTP_READY=true
               break
             fi
             echo "Waiting for Tai HTTP... ($i)"
             sleep 1
           done
-          if [ "$TAI_HTTP_READY" != "true" ]; then
-            echo "::error::Tai HTTP failed to become ready within 30s"
-            echo "--- Tai container logs ---"
-            docker logs tai 2>&1 || true
-            echo "--- Tai container status ---"
-            docker inspect tai --format='{{.State.Status}} exit={{.State.ExitCode}}' || true
-            exit 1
-          fi
 
-          TAI_GRPC_READY=false
           for i in $(seq 1 15); do
             if nc -z 127.0.0.1 9100 2>/dev/null; then
               echo "Tai gRPC is ready"
-              TAI_GRPC_READY=true
               break
             fi
             echo "Waiting for Tai gRPC... ($i)"
             sleep 1
           done
-          if [ "$TAI_GRPC_READY" != "true" ]; then
-            echo "::error::Tai gRPC failed to become ready within 15s"
-            echo "--- Tai container logs ---"
-            docker logs tai 2>&1 || true
-            exit 1
-          fi
 
-      - name: Generate kubeconfig for Tai K8s proxy
-        run: |
-          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
-          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
-            > ${{ runner.temp }}/kubeconfig-tai.yml
-          echo "Generated kubeconfig:"
-          grep server: ${{ runner.temp }}/kubeconfig-tai.yml
-
-      - name: Run Tai SDK Tests
+      - name: Run Benchmarks
         env:
           TAI_TEST_HOST: "127.0.0.1"
-          TAI_TEST_GRPC: "127.0.0.1:9100"
           TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
-          TAI_TEST_K8S_HOST: "127.0.0.1"
-          TAI_TEST_K8S_PORT: "6443"
-          TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
+          TAI_TEST_GRPC_PORT: "9100"
           TAI_TEST_HOST_IP: "172.17.0.1"
-        run: make unit-test-tai
-
-      - name: Codecov Report
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
+          SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:9100"
+          SANDBOX_TEST_IMAGE: "yaoapp/sandbox-v2-test:latest"
+        run: make benchmark-sandbox-v2
 
   # =============================================================================
   # gRPC Tests - Run once with SQLite (transport layer, no DB matrix needed)

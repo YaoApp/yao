@@ -24,5 +24,5 @@ ENV DISPLAY=:99
 
 USER sandbox
 EXPOSE 5900 6080
-ENTRYPOINT ["/test-entrypoint.sh"]
+ENTRYPOINT ["/usr/bin/tini", "--", "/test-entrypoint.sh"]
 CMD ["sleep", "infinity"]

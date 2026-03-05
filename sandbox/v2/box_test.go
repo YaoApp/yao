@@ -3,6 +3,7 @@ package sandbox_test
 import (
 	"context"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -143,7 +144,7 @@ func TestBoxInfo(t *testing.T) {
 			if info.ID != box.ID() {
 				t.Errorf("ID = %q, want %q", info.ID, box.ID())
 			}
-			if info.Status != "running" {
+			if s := strings.ToLower(info.Status); s != "running" {
 				t.Errorf("status = %q, want running", info.Status)
 			}
 			if info.Owner != "test-user" {

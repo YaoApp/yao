@@ -8,6 +8,7 @@ import (
 
 	"github.com/yaoapp/yao/tai"
 	taisandbox "github.com/yaoapp/yao/tai/sandbox"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // Manager manages a pool of tai.Client connections and sandbox lifecycle.
@@ -20,6 +21,7 @@ type Manager struct {
 	mu          sync.Mutex
 	cancel      context.CancelFunc
 	grpcPort    int
+	wsManager   *workspace.Manager
 }
 
 func newManager(cfg Config) (*Manager, error) {
@@ -176,6 +178,16 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		poolName = m.defaultPool
 	}
 
+	// Workspace node binding: when WorkspaceID is set, resolve the workspace's
+	// bound node and force the container onto that pool.
+	if opts.WorkspaceID != "" && m.wsManager != nil {
+		node, err := m.wsManager.NodeForWorkspace(ctx, opts.WorkspaceID)
+		if err != nil {
+			return nil, fmt.Errorf("sandbox: resolve workspace %q: %w", opts.WorkspaceID, err)
+		}
+		poolName = node
+	}
+
 	pd := m.findPoolDef(poolName)
 	if pd == nil {
 		return nil, ErrPoolNotFound
@@ -225,11 +237,13 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		policy:       policy,
 		labels:       opts.Labels,
 		idleTimeoutD: opts.IdleTimeout,
+		stopTimeoutD: opts.StopTimeout,
 		createdAt:    time.Now(),
 		refreshToken: refresh,
 		manager:      m,
 		vnc:          opts.VNC,
 		image:        opts.Image,
+		workspaceID:  opts.WorkspaceID,
 	}
 	box.lastCall.Store(time.Now().UnixMilli())
 
@@ -280,7 +294,7 @@ func (m *Manager) List(_ context.Context, opts ListOptions) ([]*Box, error) {
 	return result, nil
 }
 
-// Remove stops and removes a sandbox.
+// Remove force-removes a sandbox (SIGKILL + delete).
 func (m *Manager) Remove(ctx context.Context, id string) error {
 	v, ok := m.boxes.Load(id)
 	if !ok {
@@ -290,7 +304,6 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 
 	client, err := m.getPool(b.pool)
 	if err == nil {
-		client.Sandbox().Stop(ctx, b.containerID, 10*time.Second)
 		client.Sandbox().Remove(ctx, b.containerID, true)
 	}
 
@@ -319,7 +332,7 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 		case LongRunning:
 			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
 				if client, err := m.getPool(b.pool); err == nil {
-					client.Sandbox().Stop(ctx, b.containerID, 10*time.Second)
+					client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
 				}
 			}
 			if lifetime := b.maxLifetime(); lifetime > 0 && now.Sub(b.createdAt) > lifetime {
@@ -350,6 +363,13 @@ func (m *Manager) Close() error {
 // SetGRPCPort sets the local gRPC port for container env injection.
 func (m *Manager) SetGRPCPort(port int) {
 	m.grpcPort = port
+}
+
+// SetWorkspaceManager links the workspace manager for workspace-aware container creation.
+// When CreateOptions.WorkspaceID is set, the sandbox Manager uses the workspace Manager
+// to resolve the workspace's bound node and force container routing.
+func (m *Manager) SetWorkspaceManager(wm *workspace.Manager) {
+	m.wsManager = wm
 }
 
 func (m *Manager) cleanupLoop(ctx context.Context) {
@@ -448,6 +468,9 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 		"sandbox-pool":   pd.Name,
 		"sandbox-policy": string(opts.Policy),
 	}
+	if opts.WorkspaceID != "" {
+		labels["workspace-id"] = opts.WorkspaceID
+	}
 	for k, v := range opts.Labels {
 		labels[k] = v
 	}
@@ -457,7 +480,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 		workDir = "/workspace"
 	}
 
-	cmd := []string{"sleep", "infinity"}
+	cmd := []string{"sh", "-c", "trap 'exit 0' TERM; while :; do sleep 86400 & wait $!; done"}
 
 	var ports []taisandbox.PortMapping
 	for _, p := range opts.Ports {
@@ -469,11 +492,29 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 		})
 	}
 
+	// Workspace bind mount
+	var binds []string
+	if opts.WorkspaceID != "" && m.wsManager != nil {
+		mountPath := opts.MountPath
+		if mountPath == "" {
+			mountPath = "/workspace"
+		}
+		mode := opts.MountMode
+		if mode == "" {
+			mode = "rw"
+		}
+		hostPath, _ := m.wsManager.MountPath(context.Background(), opts.WorkspaceID)
+		if hostPath != "" {
+			binds = append(binds, fmt.Sprintf("%s:%s:%s", hostPath, mountPath, mode))
+		}
+	}
+
 	return taisandbox.CreateOptions{
 		Name:       sandboxID,
 		Image:      opts.Image,
 		Cmd:        cmd,
 		Env:        env,
+		Binds:      binds,
 		WorkingDir: workDir,
 		User:       opts.User,
 		Memory:     opts.Memory,
@@ -511,9 +552,65 @@ func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client
 			labels:      c.Labels,
 			createdAt:   time.Now(),
 			image:       c.Image,
+			workspaceID: c.Labels["workspace-id"],
 			manager:     m,
 		}
 		box.lastCall.Store(time.Now().UnixMilli())
 		m.boxes.Store(sandboxID, box)
 	}
+}
+
+// ImageExists reports whether the given image ref exists on the target pool node.
+func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error) {
+	client, err := m.getPool(pool)
+	if err != nil {
+		return false, err
+	}
+	return client.Image().Exists(ctx, ref)
+}
+
+// PullImage pulls an image to the target pool node, returning a channel of
+// real-time progress events. The channel is nil when no pull is needed (e.g. K8s mode).
+func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error) {
+	client, err := m.getPool(pool)
+	if err != nil {
+		return nil, err
+	}
+	pullOpts := taisandbox.PullOptions{}
+	if opts.Auth != nil {
+		pullOpts.Auth = &taisandbox.RegistryAuth{
+			Username: opts.Auth.Username,
+			Password: opts.Auth.Password,
+			Server:   opts.Auth.Server,
+		}
+	}
+	return client.Image().Pull(ctx, ref, pullOpts)
+}
+
+// EnsureImage checks whether the image exists on the pool node; if not, it
+// pulls the image and blocks until the pull completes. Returns the first
+// error encountered during pull. For K8s pools this is a no-op.
+func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImagePullOptions) error {
+	exists, err := m.ImageExists(ctx, pool, ref)
+	if err != nil {
+		return fmt.Errorf("image exists check: %w", err)
+	}
+	if exists {
+		return nil
+	}
+
+	ch, err := m.PullImage(ctx, pool, ref, opts)
+	if err != nil {
+		return fmt.Errorf("image pull: %w", err)
+	}
+	if ch == nil {
+		return nil
+	}
+
+	for p := range ch {
+		if p.Error != "" {
+			return fmt.Errorf("image pull %q: %s", ref, p.Error)
+		}
+	}
+	return nil
 }

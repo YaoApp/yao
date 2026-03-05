@@ -3,7 +3,6 @@ package sandbox
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"time"
 
 	"github.com/docker/docker/client"
@@ -36,7 +35,7 @@ func NewLocal(addr string) (Sandbox, error) {
 }
 
 func (l *local) Create(ctx context.Context, opts CreateOptions) (string, error) {
-	return l.core.create(ctx, opts, opts.VNC && needsPortMapping())
+	return l.core.create(ctx, opts, opts.VNC)
 }
 
 func (l *local) Start(ctx context.Context, id string) error {
@@ -69,12 +68,6 @@ func (l *local) List(ctx context.Context, opts ListOptions) ([]ContainerInfo, er
 
 func (l *local) Close() error {
 	return l.core.cli.Close()
-}
-
-// needsPortMapping returns true on platforms where container IPs are not
-// directly reachable (macOS Docker Desktop, Windows).
-func needsPortMapping() bool {
-	return runtime.GOOS == "darwin" || runtime.GOOS == "windows"
 }
 
 func portStr(p int) string {

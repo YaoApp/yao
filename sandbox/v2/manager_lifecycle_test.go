@@ -52,6 +52,7 @@ func TestIdleCleanup(t *testing.T) {
 			m := setupManagerForPool(t, pc, func(p *sandbox.Pool) {
 				p.IdleTimeout = 1 * time.Second
 			})
+			ensureTestImage(t, m, pc.Name)
 
 			ctx := context.Background()
 			box, err := m.Create(ctx, sandbox.CreateOptions{

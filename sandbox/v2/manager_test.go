@@ -127,6 +127,7 @@ func TestRemove(t *testing.T) {
 	for _, pc := range testPools() {
 		t.Run(pc.Name, func(t *testing.T) {
 			m := setupManagerForPool(t, pc)
+			ensureTestImage(t, m, pc.Name)
 			ctx := context.Background()
 			box, err := m.Create(ctx, sandbox.CreateOptions{
 				Image: testImage(),
@@ -156,6 +157,7 @@ func TestPoolLimits_MaxTotal(t *testing.T) {
 			m := setupManagerForPool(t, pc, func(p *sandbox.Pool) {
 				p.MaxTotal = 1
 			})
+			ensureTestImage(t, m, pc.Name)
 
 			box1 := createTestBox(t, m)
 			_ = box1
@@ -236,9 +238,13 @@ func TestMultiPool(t *testing.T) {
 
 	var sps []sandbox.Pool
 	for _, pc := range pools {
-		sps = append(sps, sandbox.Pool{Name: pc.Name, Addr: pc.Addr})
+		sps = append(sps, sandbox.Pool{Name: pc.Name, Addr: pc.Addr, Options: pc.Options})
 	}
 	m := setupManager(t, sps...)
+
+	for _, pc := range pools {
+		ensureTestImage(t, m, pc.Name)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
