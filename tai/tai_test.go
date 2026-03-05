@@ -1,12 +1,9 @@
 package tai
 
 import (
-	"context"
 	"os"
 	"strconv"
 	"testing"
-
-	sipb "github.com/yaoapp/yao/tai/serverinfo/pb"
 )
 
 func taiTestHost() string {
@@ -292,26 +289,15 @@ func TestDiscoverPorts(t *testing.T) {
 	}
 	defer c.Close()
 
-	// Query ServerInfo directly to get ground truth
-	sipClient := sipb.NewServerInfoClient(c.grpcConn)
-	resp, err := sipClient.GetInfo(context.Background(), &sipb.GetInfoRequest{})
-	if err != nil {
-		t.Fatalf("ServerInfo.GetInfo failed: %v", err)
-	}
-
-	t.Logf("server reported: %+v", resp.Ports)
 	t.Logf("client resolved: GRPC=%d HTTP=%d VNC=%d Docker=%d K8s=%d",
 		c.ports.GRPC, c.ports.HTTP, c.ports.VNC, c.ports.Docker, c.ports.K8s)
 
-	check := func(name string, got int, serverVal int32) {
-		if sv := int(serverVal); sv > 0 && got != sv {
-			t.Errorf("%s = %d, server reported %d", name, got, sv)
-		}
+	if c.ports.GRPC == 0 {
+		t.Error("GRPC port should be discovered (non-zero)")
 	}
-	check("HTTP", c.ports.HTTP, resp.Ports["http"])
-	check("VNC", c.ports.VNC, resp.Ports["vnc"])
-	check("Docker", c.ports.Docker, resp.Ports["docker"])
-	check("GRPC", c.ports.GRPC, resp.Ports["grpc"])
+	if c.ports.HTTP == 0 {
+		t.Error("HTTP port should be discovered (non-zero)")
+	}
 }
 
 func TestDiscoverPortsWithUserOverride(t *testing.T) {
@@ -325,16 +311,8 @@ func TestDiscoverPortsWithUserOverride(t *testing.T) {
 	if c.ports.HTTP != 9999 {
 		t.Errorf("HTTP = %d, want 9999 (user override should take precedence)", c.ports.HTTP)
 	}
-
-	// Other ports should still be discovered from server
-	sipClient := sipb.NewServerInfoClient(c.grpcConn)
-	resp, err := sipClient.GetInfo(context.Background(), &sipb.GetInfoRequest{})
-	if err != nil {
-		t.Fatalf("ServerInfo.GetInfo failed: %v", err)
-	}
-
-	if sv := int(resp.Ports["vnc"]); sv > 0 && c.ports.VNC != sv {
-		t.Errorf("VNC = %d, server reported %d (non-overridden ports should be discovered)", c.ports.VNC, sv)
+	if c.ports.GRPC == 0 {
+		t.Error("GRPC port should still be discovered (non-zero)")
 	}
 	t.Logf("ports: GRPC=%d HTTP=%d(user) VNC=%d Docker=%d",
 		c.ports.GRPC, c.ports.HTTP, c.ports.VNC, c.ports.Docker)

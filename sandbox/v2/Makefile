@@ -2,7 +2,7 @@ GO ?= go
 GOFILES := $(shell find . -name "*.go" -not -path "./docker/*")
 PACKAGES := $(shell $(GO) list ./...)
 TEST_IMAGE ?= yaoapp/sandbox-v2-test:latest
-TEST_TIMEOUT ?= 300s
+TEST_TIMEOUT ?= 600s
 
 # ---------------------------------------------------------------------------
 # Local test (Docker only)

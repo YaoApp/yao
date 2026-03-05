@@ -32,7 +32,7 @@ func NewDocker(addr string) (Sandbox, error) {
 }
 
 func (d *dockerSandbox) Create(ctx context.Context, opts CreateOptions) (string, error) {
-	return d.core.create(ctx, opts, false)
+	return d.core.create(ctx, opts, true)
 }
 
 func (d *dockerSandbox) Start(ctx context.Context, id string) error {
