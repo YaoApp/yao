@@ -21,15 +21,23 @@ type poolConfig struct {
 }
 
 // testPools returns all available pool configurations for multi-mode testing.
-//   - local:      always present (direct Docker daemon)
-//   - remote:     when SANDBOX_TEST_REMOTE_ADDR is set (Tai proxy → Docker)
-//   - k8s:        when TAI_TEST_K8S_HOST + TAI_TEST_KUBECONFIG are set (Tai proxy → K8s)
+//   - local:          always present (direct Docker daemon)
+//   - remote:         when SANDBOX_TEST_REMOTE_ADDR is set (Tai on host → Docker)
+//   - containerized:  when TAI_TEST_CONTAINERIZED_HOST is set (Tai in container → Docker)
+//   - k8s:            when TAI_TEST_K8S_HOST + TAI_TEST_KUBECONFIG are set (Tai → K8s)
 func testPools() []poolConfig {
 	pools := []poolConfig{
 		{Name: "local", Addr: testLocalAddr()},
 	}
 	if addr := os.Getenv("SANDBOX_TEST_REMOTE_ADDR"); addr != "" {
 		pools = append(pools, poolConfig{Name: "remote", Addr: addr})
+	}
+	if host := os.Getenv("TAI_TEST_CONTAINERIZED_HOST"); host != "" {
+		grpcPort := envPort("TAI_TEST_CONTAINERIZED_GRPC_PORT", 9200)
+		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
+		// No WithPorts for HTTP/VNC — Tai self-inspects its container
+		// and returns host-mapped ports via ServerInfo automatically.
+		pools = append(pools, poolConfig{Name: "containerized", Addr: addr})
 	}
 	if host := os.Getenv("TAI_TEST_K8S_HOST"); host != "" {
 		kubeconfig := os.Getenv("TAI_TEST_KUBECONFIG")
