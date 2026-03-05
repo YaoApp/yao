@@ -1,0 +1,15 @@
+syntax = "proto3";
+package serverinfo;
+option go_package = "github.com/yaoapp/tai/serverinfo/pb";
+
+service ServerInfo {
+  rpc GetInfo(GetInfoRequest) returns (GetInfoResponse);
+}
+
+message GetInfoRequest {}
+
+message GetInfoResponse {
+  string version     = 1;
+  map<string, int32> ports = 2; // "grpc", "http", "vnc", "docker", "k8s"
+  map<string, bool>  capabilities = 3; // "docker", "k8s"
+}

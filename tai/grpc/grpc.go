@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/yaoapp/yao/grpc/pb"
 	"google.golang.org/grpc"
@@ -36,6 +37,9 @@ func NewFromEnv() (*Client, error) {
 }
 
 // Dial connects to the gRPC server at addr with the given TokenManager.
+// Bare host:port addresses are wrapped with passthrough:/// for grpc.NewClient
+// compatibility (grpc.NewClient defaults to dns scheme which may fail for hostnames
+// like host.docker.internal).
 func Dial(addr string, tm *TokenManager) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -47,7 +51,12 @@ func Dial(addr string, tm *TokenManager) (*Client, error) {
 		)
 	}
 
-	conn, err := grpc.NewClient(addr, opts...)
+	target := addr
+	if !strings.Contains(addr, "://") {
+		target = "passthrough:///" + addr
+	}
+
+	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("dial %s: %w", addr, err)
 	}
@@ -226,6 +235,22 @@ func (c *Client) AgentStream(ctx context.Context, assistantID string, messages, 
 			return nil
 		}
 	}
+}
+
+// --- Sandbox ---
+
+// Heartbeat sends a sandbox heartbeat to the Yao gRPC server.
+func (c *Client) Heartbeat(ctx context.Context, sandboxID string, cpuPercent int32, memBytes int64, runningProcs int32) (string, error) {
+	resp, err := c.svc.Heartbeat(ctx, &pb.HeartbeatRequest{
+		SandboxId:    sandboxID,
+		CpuPercent:   cpuPercent,
+		MemBytes:     memBytes,
+		RunningProcs: runningProcs,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.Action, nil
 }
 
 // --- Health ---

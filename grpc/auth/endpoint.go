@@ -60,6 +60,9 @@ func VirtualEndpoint(fullMethod string, req interface{}) (method string, path st
 		}
 		return "POST", "/grpc/agent/"
 
+	case "/yao.Yao/Heartbeat":
+		return "POST", "/grpc/heartbeat"
+
 	default:
 		return "POST", "/grpc/unknown"
 	}

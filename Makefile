@@ -19,8 +19,8 @@ TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/
 TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
 # Robot tests (agent/robot/... packages, excluding events/integrations which require Telegram etc.)
 TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot/events')
-# Sandbox tests (requires Docker)
-TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/...)
+# Sandbox tests (requires Docker) — excludes sandbox/v2 (has its own job)
+TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/... | grep -v 'sandbox/v2')
 # Tai SDK tests (requires Tai container with Docker socket)
 TESTFOLDER_TAI := $(shell $(GO) list ./tai/...)
 # gRPC tests
@@ -198,6 +198,17 @@ unit-test-registry:
 		cat profile.out | grep -v "mode:" >> coverage.out; \
 		rm profile.out; \
 	fi
+
+# Sandbox V2 Unit Test (requires Docker; optionally Tai for remote mode)
+.PHONY: unit-test-sandbox-v2
+unit-test-sandbox-v2:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Sandbox V2 Tests..."
+	@echo "============================================="
+	docker pull $(SANDBOX_V2_IMAGE) || true
+	$(MAKE) -C sandbox/v2 test-ci TEST_IMAGE=$(SANDBOX_V2_IMAGE)
+SANDBOX_V2_IMAGE ?= yaoapp/sandbox-v2-test:latest
 
 # Sandbox Unit Test (requires Docker)
 .PHONY: unit-test-sandbox

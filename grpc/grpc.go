@@ -21,6 +21,7 @@ import (
 	mcphandler "github.com/yaoapp/yao/grpc/mcp"
 	"github.com/yaoapp/yao/grpc/pb"
 	runhandler "github.com/yaoapp/yao/grpc/run"
+	sandboxhandler "github.com/yaoapp/yao/grpc/sandbox"
 	shellhandler "github.com/yaoapp/yao/grpc/shell"
 )
 
@@ -33,13 +34,14 @@ var (
 
 type yaoServer struct {
 	pb.UnimplementedYaoServer
-	health health.Handler
-	run    runhandler.Handler
-	shell  shellhandler.Handler
-	api    apihandler.Handler
-	mcp    mcphandler.Handler
-	llm    llmhandler.Handler
-	agent  agenthandler.Handler
+	health  health.Handler
+	run     runhandler.Handler
+	shell   shellhandler.Handler
+	api     apihandler.Handler
+	mcp     mcphandler.Handler
+	llm     llmhandler.Handler
+	agent   agenthandler.Handler
+	sandbox *sandboxhandler.Handler
 }
 
 // ── Health ───────────────────────────────────────────────────────────────────
@@ -107,6 +109,30 @@ func (s *yaoServer) AgentStream(req *pb.AgentRequest, stream grpc.ServerStreamin
 	return s.agent.AgentStream(req, stream)
 }
 
+// ── Sandbox ──────────────────────────────────────────────────────────────────
+
+func (s *yaoServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequest) (*pb.HeartbeatResponse, error) {
+	if s.sandbox == nil {
+		return &pb.HeartbeatResponse{Action: "ok"}, nil
+	}
+	return s.sandbox.Heartbeat(ctx, req)
+}
+
+// SandboxHandler returns the sandbox handler for external access (e.g., Manager integration).
+func SandboxHandler() *sandboxhandler.Handler {
+	mu.Lock()
+	defer mu.Unlock()
+	return sandboxH
+}
+
+var sandboxH *sandboxhandler.Handler
+
+// SetSandboxOnBeat sets the heartbeat callback for the sandbox handler.
+// Must be called before StartServer.
+func SetSandboxOnBeat(fn func(data *sandboxhandler.HeartbeatData) string) {
+	sandboxH = sandboxhandler.NewHandler(fn)
+}
+
 // ── Server lifecycle ─────────────────────────────────────────────────────────
 
 // StartServer initializes and starts the gRPC server based on config.
@@ -124,7 +150,10 @@ func StartServer(cfg config.Config) error {
 		grpc.ChainUnaryInterceptor(auth.UnaryInterceptor),
 		grpc.ChainStreamInterceptor(auth.StreamInterceptor),
 	)
-	pb.RegisterYaoServer(server, &yaoServer{})
+	if sandboxH == nil {
+		sandboxH = sandboxhandler.NewHandler(nil)
+	}
+	pb.RegisterYaoServer(server, &yaoServer{sandbox: sandboxH})
 
 	hosts := strings.Split(cfg.GRPC.Host, ",")
 	port := strconv.Itoa(cfg.GRPC.Port)

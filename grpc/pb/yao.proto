@@ -29,6 +29,9 @@ service Yao {
 
   // Health
   rpc Healthz(Empty) returns (HealthzResponse);
+
+  // Sandbox
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
 }
 
 // ── Base ─────────────────────────────────────────────────────────────────────
@@ -146,4 +149,17 @@ message Empty {}
 
 message HealthzResponse {
   string status = 1;
+}
+
+// ── Sandbox ─────────────────────────────────────────────────────────────────
+
+message HeartbeatRequest {
+  string sandbox_id   = 1;
+  int32  cpu_percent  = 2;
+  int64  mem_bytes    = 3;
+  int32  running_procs = 4;
+}
+
+message HeartbeatResponse {
+  string action = 1; // "ok" or "shutdown"
 }

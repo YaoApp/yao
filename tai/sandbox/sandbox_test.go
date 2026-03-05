@@ -2,7 +2,9 @@ package sandbox
 
 import (
 	"context"
+	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -623,5 +625,334 @@ func TestNewK8sRelativeKubeConfig(t *testing.T) {
 	})
 	if err != nil {
 		t.Skipf("K8s not available: %v", err)
+	}
+}
+
+func TestCreateWithLabels(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	labels := map[string]string{
+		"sandbox-id":    "test-123",
+		"sandbox-owner": "user1",
+	}
+
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:   "tai-label-test",
+		Image:  "alpine:latest",
+		Cmd:    []string{"sleep", "10"},
+		Labels: labels,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	info, err := sb.Inspect(ctx, id)
+	if err != nil {
+		t.Fatalf("Inspect: %v", err)
+	}
+	for k, v := range labels {
+		if info.Labels[k] != v {
+			t.Errorf("label %q = %q, want %q", k, info.Labels[k], v)
+		}
+	}
+
+	listed, err := sb.List(ctx, ListOptions{
+		Labels: map[string]string{"sandbox-id": "test-123"},
+	})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	found := false
+	for _, c := range listed {
+		if c.ID == id {
+			found = true
+			if c.Labels["sandbox-owner"] != "user1" {
+				t.Errorf("list labels missing sandbox-owner")
+			}
+		}
+	}
+	if !found {
+		t.Error("labeled container not found in filtered list")
+	}
+}
+
+func TestCreateWithUser(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-user-test",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "10"},
+		User:  "1000:1000",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	result, err := sb.Exec(ctx, id, []string{"id", "-u"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if result.Stdout != "1000\n" {
+		t.Errorf("user id = %q, want %q", result.Stdout, "1000\n")
+	}
+}
+
+func TestExecStream_ShortCommand(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-short",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"echo", "hello-stream"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	out, err := io.ReadAll(stream.Stdout)
+	if err != nil {
+		t.Fatalf("ReadAll stdout: %v", err)
+	}
+	if string(out) != "hello-stream\n" {
+		t.Errorf("stdout = %q, want %q", string(out), "hello-stream\n")
+	}
+
+	code, err := stream.Wait()
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func TestExecStream_Stdin(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-stdin",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"cat"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	_, err = stream.Stdin.Write([]byte("from-stdin\n"))
+	if err != nil {
+		t.Fatalf("Write stdin: %v", err)
+	}
+	stream.Stdin.Close()
+
+	out, err := io.ReadAll(stream.Stdout)
+	if err != nil {
+		t.Fatalf("ReadAll stdout: %v", err)
+	}
+	if string(out) != "from-stdin\n" {
+		t.Errorf("stdout = %q, want %q", string(out), "from-stdin\n")
+	}
+
+	code, err := stream.Wait()
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func TestExecStream_ExitCode(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-exit",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"sh", "-c", "exit 42"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	io.ReadAll(stream.Stdout)
+	code, err := stream.Wait()
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if code != 42 {
+		t.Errorf("exit code = %d, want 42", code)
+	}
+}
+
+func TestExecStream_Stderr(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-stderr",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"sh", "-c", "echo err-msg >&2"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	stderr, err := io.ReadAll(stream.Stderr)
+	if err != nil {
+		t.Fatalf("ReadAll stderr: %v", err)
+	}
+	if !strings.Contains(string(stderr), "err-msg") {
+		t.Errorf("stderr = %q, want to contain %q", string(stderr), "err-msg")
+	}
+
+	code, _ := stream.Wait()
+	if code != 0 {
+		t.Errorf("exit code = %d, want 0", code)
+	}
+}
+
+func TestExecStream_Cancel(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-cancel",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"sleep", "300"}, ExecOptions{})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	stream.Cancel()
+
+	done := make(chan struct{})
+	go func() {
+		stream.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Error("Wait did not return after Cancel within 5s")
+	}
+}
+
+func TestParseUID(t *testing.T) {
+	tests := []struct {
+		input string
+		want  int64
+		ok    bool
+	}{
+		{"1000", 1000, true},
+		{"1000:1000", 1000, true},
+		{"0", 0, true},
+		{"abc", 0, false},
+	}
+	for _, tt := range tests {
+		got, err := parseUID(tt.input)
+		if tt.ok && err != nil {
+			t.Errorf("parseUID(%q): unexpected error %v", tt.input, err)
+		}
+		if !tt.ok && err == nil {
+			t.Errorf("parseUID(%q): expected error", tt.input)
+		}
+		if tt.ok && got != tt.want {
+			t.Errorf("parseUID(%q) = %d, want %d", tt.input, got, tt.want)
+		}
 	}
 }

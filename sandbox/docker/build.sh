@@ -164,15 +164,21 @@ case $TOOL in
     # Cursor (uncomment when ready)
     # build_multiarch "sandbox-cursor" "cursor/Dockerfile" "$PUSH"
     ;;
+  v2)
+    echo "V2 images have their own build script: sandbox/v2/docker/build.sh"
+    echo "Usage: sandbox/v2/docker/build.sh [true|false]"
+    exit 0
+    ;;
   *)
     echo "Unknown tool: $TOOL"
-    echo "Usage: $0 [claude|claude-vnc|browser|desktop|chrome|cursor|all] [true|false]"
+    echo "Usage: $0 [claude|claude-vnc|browser|desktop|chrome|cursor|v2|all] [true|false]"
     echo "  $0 claude        # Build Claude images locally"
     echo "  $0 claude true   # Build and push Claude images"
     echo "  $0 claude-vnc    # Build Claude VNC images (Browser + Desktop)"
     echo "  $0 browser       # Build Claude Browser image only"
     echo "  $0 desktop       # Build Claude Desktop image only"
     echo "  $0 chrome        # Build Claude Chrome image (amd64 only)"
+    echo "  $0 v2            # Build Sandbox V2 images (base + test)"
     echo "  $0 all true      # Build and push all images"
     exit 1
     ;;

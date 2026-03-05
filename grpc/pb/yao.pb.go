@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v4.25.0
-// source: yao.proto
+// source: grpc/pb/yao.proto
 
 package pb
 
@@ -32,7 +32,7 @@ type RunRequest struct {
 
 func (x *RunRequest) Reset() {
 	*x = RunRequest{}
-	mi := &file_yao_proto_msgTypes[0]
+	mi := &file_grpc_pb_yao_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +44,7 @@ func (x *RunRequest) String() string {
 func (*RunRequest) ProtoMessage() {}
 
 func (x *RunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[0]
+	mi := &file_grpc_pb_yao_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +57,7 @@ func (x *RunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunRequest.ProtoReflect.Descriptor instead.
 func (*RunRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{0}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *RunRequest) GetProcess() string {
@@ -90,7 +90,7 @@ type RunResponse struct {
 
 func (x *RunResponse) Reset() {
 	*x = RunResponse{}
-	mi := &file_yao_proto_msgTypes[1]
+	mi := &file_grpc_pb_yao_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -102,7 +102,7 @@ func (x *RunResponse) String() string {
 func (*RunResponse) ProtoMessage() {}
 
 func (x *RunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[1]
+	mi := &file_grpc_pb_yao_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -115,7 +115,7 @@ func (x *RunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunResponse.ProtoReflect.Descriptor instead.
 func (*RunResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{1}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *RunResponse) GetData() []byte {
@@ -135,7 +135,7 @@ type Chunk struct {
 
 func (x *Chunk) Reset() {
 	*x = Chunk{}
-	mi := &file_yao_proto_msgTypes[2]
+	mi := &file_grpc_pb_yao_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -147,7 +147,7 @@ func (x *Chunk) String() string {
 func (*Chunk) ProtoMessage() {}
 
 func (x *Chunk) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[2]
+	mi := &file_grpc_pb_yao_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -160,7 +160,7 @@ func (x *Chunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Chunk.ProtoReflect.Descriptor instead.
 func (*Chunk) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{2}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Chunk) GetData() []byte {
@@ -189,7 +189,7 @@ type ShellRequest struct {
 
 func (x *ShellRequest) Reset() {
 	*x = ShellRequest{}
-	mi := &file_yao_proto_msgTypes[3]
+	mi := &file_grpc_pb_yao_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +201,7 @@ func (x *ShellRequest) String() string {
 func (*ShellRequest) ProtoMessage() {}
 
 func (x *ShellRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[3]
+	mi := &file_grpc_pb_yao_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +214,7 @@ func (x *ShellRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShellRequest.ProtoReflect.Descriptor instead.
 func (*ShellRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{3}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ShellRequest) GetCommand() string {
@@ -256,7 +256,7 @@ type ShellResponse struct {
 
 func (x *ShellResponse) Reset() {
 	*x = ShellResponse{}
-	mi := &file_yao_proto_msgTypes[4]
+	mi := &file_grpc_pb_yao_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -268,7 +268,7 @@ func (x *ShellResponse) String() string {
 func (*ShellResponse) ProtoMessage() {}
 
 func (x *ShellResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[4]
+	mi := &file_grpc_pb_yao_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -281,7 +281,7 @@ func (x *ShellResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShellResponse.ProtoReflect.Descriptor instead.
 func (*ShellResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{4}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ShellResponse) GetStdout() []byte {
@@ -317,7 +317,7 @@ type APIRequest struct {
 
 func (x *APIRequest) Reset() {
 	*x = APIRequest{}
-	mi := &file_yao_proto_msgTypes[5]
+	mi := &file_grpc_pb_yao_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -329,7 +329,7 @@ func (x *APIRequest) String() string {
 func (*APIRequest) ProtoMessage() {}
 
 func (x *APIRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[5]
+	mi := &file_grpc_pb_yao_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -342,7 +342,7 @@ func (x *APIRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use APIRequest.ProtoReflect.Descriptor instead.
 func (*APIRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{5}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *APIRequest) GetMethod() string {
@@ -384,7 +384,7 @@ type APIResponse struct {
 
 func (x *APIResponse) Reset() {
 	*x = APIResponse{}
-	mi := &file_yao_proto_msgTypes[6]
+	mi := &file_grpc_pb_yao_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -396,7 +396,7 @@ func (x *APIResponse) String() string {
 func (*APIResponse) ProtoMessage() {}
 
 func (x *APIResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[6]
+	mi := &file_grpc_pb_yao_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -409,7 +409,7 @@ func (x *APIResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use APIResponse.ProtoReflect.Descriptor instead.
 func (*APIResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{6}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *APIResponse) GetStatus() int32 {
@@ -442,7 +442,7 @@ type MCPListRequest struct {
 
 func (x *MCPListRequest) Reset() {
 	*x = MCPListRequest{}
-	mi := &file_yao_proto_msgTypes[7]
+	mi := &file_grpc_pb_yao_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +454,7 @@ func (x *MCPListRequest) String() string {
 func (*MCPListRequest) ProtoMessage() {}
 
 func (x *MCPListRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[7]
+	mi := &file_grpc_pb_yao_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +467,7 @@ func (x *MCPListRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPListRequest.ProtoReflect.Descriptor instead.
 func (*MCPListRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{7}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *MCPListRequest) GetSessionId() string {
@@ -486,7 +486,7 @@ type MCPListResponse struct {
 
 func (x *MCPListResponse) Reset() {
 	*x = MCPListResponse{}
-	mi := &file_yao_proto_msgTypes[8]
+	mi := &file_grpc_pb_yao_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -498,7 +498,7 @@ func (x *MCPListResponse) String() string {
 func (*MCPListResponse) ProtoMessage() {}
 
 func (x *MCPListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[8]
+	mi := &file_grpc_pb_yao_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -511,7 +511,7 @@ func (x *MCPListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPListResponse.ProtoReflect.Descriptor instead.
 func (*MCPListResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{8}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *MCPListResponse) GetTools() []byte {
@@ -532,7 +532,7 @@ type MCPCallRequest struct {
 
 func (x *MCPCallRequest) Reset() {
 	*x = MCPCallRequest{}
-	mi := &file_yao_proto_msgTypes[9]
+	mi := &file_grpc_pb_yao_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -544,7 +544,7 @@ func (x *MCPCallRequest) String() string {
 func (*MCPCallRequest) ProtoMessage() {}
 
 func (x *MCPCallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[9]
+	mi := &file_grpc_pb_yao_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -557,7 +557,7 @@ func (x *MCPCallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPCallRequest.ProtoReflect.Descriptor instead.
 func (*MCPCallRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{9}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MCPCallRequest) GetSessionId() string {
@@ -590,7 +590,7 @@ type MCPCallResponse struct {
 
 func (x *MCPCallResponse) Reset() {
 	*x = MCPCallResponse{}
-	mi := &file_yao_proto_msgTypes[10]
+	mi := &file_grpc_pb_yao_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -602,7 +602,7 @@ func (x *MCPCallResponse) String() string {
 func (*MCPCallResponse) ProtoMessage() {}
 
 func (x *MCPCallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[10]
+	mi := &file_grpc_pb_yao_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +615,7 @@ func (x *MCPCallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPCallResponse.ProtoReflect.Descriptor instead.
 func (*MCPCallResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{10}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *MCPCallResponse) GetResult() []byte {
@@ -634,7 +634,7 @@ type MCPResourcesResponse struct {
 
 func (x *MCPResourcesResponse) Reset() {
 	*x = MCPResourcesResponse{}
-	mi := &file_yao_proto_msgTypes[11]
+	mi := &file_grpc_pb_yao_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -646,7 +646,7 @@ func (x *MCPResourcesResponse) String() string {
 func (*MCPResourcesResponse) ProtoMessage() {}
 
 func (x *MCPResourcesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[11]
+	mi := &file_grpc_pb_yao_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -659,7 +659,7 @@ func (x *MCPResourcesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPResourcesResponse.ProtoReflect.Descriptor instead.
 func (*MCPResourcesResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{11}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *MCPResourcesResponse) GetResources() []byte {
@@ -679,7 +679,7 @@ type MCPResourceRequest struct {
 
 func (x *MCPResourceRequest) Reset() {
 	*x = MCPResourceRequest{}
-	mi := &file_yao_proto_msgTypes[12]
+	mi := &file_grpc_pb_yao_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -691,7 +691,7 @@ func (x *MCPResourceRequest) String() string {
 func (*MCPResourceRequest) ProtoMessage() {}
 
 func (x *MCPResourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[12]
+	mi := &file_grpc_pb_yao_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -704,7 +704,7 @@ func (x *MCPResourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPResourceRequest.ProtoReflect.Descriptor instead.
 func (*MCPResourceRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{12}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *MCPResourceRequest) GetSessionId() string {
@@ -730,7 +730,7 @@ type MCPResourceResponse struct {
 
 func (x *MCPResourceResponse) Reset() {
 	*x = MCPResourceResponse{}
-	mi := &file_yao_proto_msgTypes[13]
+	mi := &file_grpc_pb_yao_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -742,7 +742,7 @@ func (x *MCPResourceResponse) String() string {
 func (*MCPResourceResponse) ProtoMessage() {}
 
 func (x *MCPResourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[13]
+	mi := &file_grpc_pb_yao_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -755,7 +755,7 @@ func (x *MCPResourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MCPResourceResponse.ProtoReflect.Descriptor instead.
 func (*MCPResourceResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{13}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *MCPResourceResponse) GetContents() []byte {
@@ -776,7 +776,7 @@ type ChatRequest struct {
 
 func (x *ChatRequest) Reset() {
 	*x = ChatRequest{}
-	mi := &file_yao_proto_msgTypes[14]
+	mi := &file_grpc_pb_yao_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -788,7 +788,7 @@ func (x *ChatRequest) String() string {
 func (*ChatRequest) ProtoMessage() {}
 
 func (x *ChatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[14]
+	mi := &file_grpc_pb_yao_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -801,7 +801,7 @@ func (x *ChatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatRequest.ProtoReflect.Descriptor instead.
 func (*ChatRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{14}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ChatRequest) GetConnector() string {
@@ -834,7 +834,7 @@ type ChatResponse struct {
 
 func (x *ChatResponse) Reset() {
 	*x = ChatResponse{}
-	mi := &file_yao_proto_msgTypes[15]
+	mi := &file_grpc_pb_yao_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -846,7 +846,7 @@ func (x *ChatResponse) String() string {
 func (*ChatResponse) ProtoMessage() {}
 
 func (x *ChatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[15]
+	mi := &file_grpc_pb_yao_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -859,7 +859,7 @@ func (x *ChatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatResponse.ProtoReflect.Descriptor instead.
 func (*ChatResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{15}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ChatResponse) GetData() []byte {
@@ -879,7 +879,7 @@ type ChatChunk struct {
 
 func (x *ChatChunk) Reset() {
 	*x = ChatChunk{}
-	mi := &file_yao_proto_msgTypes[16]
+	mi := &file_grpc_pb_yao_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -891,7 +891,7 @@ func (x *ChatChunk) String() string {
 func (*ChatChunk) ProtoMessage() {}
 
 func (x *ChatChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[16]
+	mi := &file_grpc_pb_yao_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -904,7 +904,7 @@ func (x *ChatChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChatChunk.ProtoReflect.Descriptor instead.
 func (*ChatChunk) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{16}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ChatChunk) GetData() []byte {
@@ -932,7 +932,7 @@ type AgentRequest struct {
 
 func (x *AgentRequest) Reset() {
 	*x = AgentRequest{}
-	mi := &file_yao_proto_msgTypes[17]
+	mi := &file_grpc_pb_yao_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -944,7 +944,7 @@ func (x *AgentRequest) String() string {
 func (*AgentRequest) ProtoMessage() {}
 
 func (x *AgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[17]
+	mi := &file_grpc_pb_yao_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -957,7 +957,7 @@ func (x *AgentRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentRequest.ProtoReflect.Descriptor instead.
 func (*AgentRequest) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{17}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *AgentRequest) GetAssistantId() string {
@@ -992,7 +992,7 @@ type AgentChunk struct {
 
 func (x *AgentChunk) Reset() {
 	*x = AgentChunk{}
-	mi := &file_yao_proto_msgTypes[18]
+	mi := &file_grpc_pb_yao_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1004,7 +1004,7 @@ func (x *AgentChunk) String() string {
 func (*AgentChunk) ProtoMessage() {}
 
 func (x *AgentChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[18]
+	mi := &file_grpc_pb_yao_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1017,7 +1017,7 @@ func (x *AgentChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AgentChunk.ProtoReflect.Descriptor instead.
 func (*AgentChunk) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{18}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AgentChunk) GetData() []byte {
@@ -1042,7 +1042,7 @@ type Empty struct {
 
 func (x *Empty) Reset() {
 	*x = Empty{}
-	mi := &file_yao_proto_msgTypes[19]
+	mi := &file_grpc_pb_yao_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1054,7 @@ func (x *Empty) String() string {
 func (*Empty) ProtoMessage() {}
 
 func (x *Empty) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[19]
+	mi := &file_grpc_pb_yao_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1067,7 +1067,7 @@ func (x *Empty) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Empty.ProtoReflect.Descriptor instead.
 func (*Empty) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{19}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{19}
 }
 
 type HealthzResponse struct {
@@ -1079,7 +1079,7 @@ type HealthzResponse struct {
 
 func (x *HealthzResponse) Reset() {
 	*x = HealthzResponse{}
-	mi := &file_yao_proto_msgTypes[20]
+	mi := &file_grpc_pb_yao_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1091,7 @@ func (x *HealthzResponse) String() string {
 func (*HealthzResponse) ProtoMessage() {}
 
 func (x *HealthzResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_yao_proto_msgTypes[20]
+	mi := &file_grpc_pb_yao_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1104,7 @@ func (x *HealthzResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthzResponse.ProtoReflect.Descriptor instead.
 func (*HealthzResponse) Descriptor() ([]byte, []int) {
-	return file_yao_proto_rawDescGZIP(), []int{20}
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *HealthzResponse) GetStatus() string {
@@ -1114,11 +1114,123 @@ func (x *HealthzResponse) GetStatus() string {
 	return ""
 }
 
-var File_yao_proto protoreflect.FileDescriptor
+type HeartbeatRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SandboxId     string                 `protobuf:"bytes,1,opt,name=sandbox_id,json=sandboxId,proto3" json:"sandbox_id,omitempty"`
+	CpuPercent    int32                  `protobuf:"varint,2,opt,name=cpu_percent,json=cpuPercent,proto3" json:"cpu_percent,omitempty"`
+	MemBytes      int64                  `protobuf:"varint,3,opt,name=mem_bytes,json=memBytes,proto3" json:"mem_bytes,omitempty"`
+	RunningProcs  int32                  `protobuf:"varint,4,opt,name=running_procs,json=runningProcs,proto3" json:"running_procs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_yao_proto_rawDesc = "" +
+func (x *HeartbeatRequest) Reset() {
+	*x = HeartbeatRequest{}
+	mi := &file_grpc_pb_yao_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatRequest) ProtoMessage() {}
+
+func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_pb_yao_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
+func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *HeartbeatRequest) GetSandboxId() string {
+	if x != nil {
+		return x.SandboxId
+	}
+	return ""
+}
+
+func (x *HeartbeatRequest) GetCpuPercent() int32 {
+	if x != nil {
+		return x.CpuPercent
+	}
+	return 0
+}
+
+func (x *HeartbeatRequest) GetMemBytes() int64 {
+	if x != nil {
+		return x.MemBytes
+	}
+	return 0
+}
+
+func (x *HeartbeatRequest) GetRunningProcs() int32 {
+	if x != nil {
+		return x.RunningProcs
+	}
+	return 0
+}
+
+type HeartbeatResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Action        string                 `protobuf:"bytes,1,opt,name=action,proto3" json:"action,omitempty"` // "ok" or "shutdown"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HeartbeatResponse) Reset() {
+	*x = HeartbeatResponse{}
+	mi := &file_grpc_pb_yao_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HeartbeatResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HeartbeatResponse) ProtoMessage() {}
+
+func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_grpc_pb_yao_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
+func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
+	return file_grpc_pb_yao_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *HeartbeatResponse) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+var File_grpc_pb_yao_proto protoreflect.FileDescriptor
+
+const file_grpc_pb_yao_proto_rawDesc = "" +
 	"\n" +
-	"\tyao.proto\x12\x03yao\"T\n" +
+	"\x11grpc/pb/yao.proto\x12\x03yao\"T\n" +
 	"\n" +
 	"RunRequest\x12\x18\n" +
 	"\aprocess\x18\x01 \x01(\tR\aprocess\x12\x12\n" +
@@ -1196,7 +1308,16 @@ const file_yao_proto_rawDesc = "" +
 	"\x04done\x18\x02 \x01(\bR\x04done\"\a\n" +
 	"\x05Empty\")\n" +
 	"\x0fHealthzResponse\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status2\xb8\x05\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x94\x01\n" +
+	"\x10HeartbeatRequest\x12\x1d\n" +
+	"\n" +
+	"sandbox_id\x18\x01 \x01(\tR\tsandboxId\x12\x1f\n" +
+	"\vcpu_percent\x18\x02 \x01(\x05R\n" +
+	"cpuPercent\x12\x1b\n" +
+	"\tmem_bytes\x18\x03 \x01(\x03R\bmemBytes\x12#\n" +
+	"\rrunning_procs\x18\x04 \x01(\x05R\frunningProcs\"+\n" +
+	"\x11HeartbeatResponse\x12\x16\n" +
+	"\x06action\x18\x01 \x01(\tR\x06action2\xf4\x05\n" +
 	"\x03Yao\x12(\n" +
 	"\x03Run\x12\x0f.yao.RunRequest\x1a\x10.yao.RunResponse\x12'\n" +
 	"\x06Stream\x12\x0f.yao.RunRequest\x1a\n" +
@@ -1213,22 +1334,23 @@ const file_yao_proto_rawDesc = "" +
 	"\x15ChatCompletionsStream\x12\x10.yao.ChatRequest\x1a\x0e.yao.ChatChunk0\x01\x123\n" +
 	"\vAgentStream\x12\x11.yao.AgentRequest\x1a\x0f.yao.AgentChunk0\x01\x12+\n" +
 	"\aHealthz\x12\n" +
-	".yao.Empty\x1a\x14.yao.HealthzResponseB\x1fZ\x1dgithub.com/yaoapp/yao/grpc/pbb\x06proto3"
+	".yao.Empty\x1a\x14.yao.HealthzResponse\x12:\n" +
+	"\tHeartbeat\x12\x15.yao.HeartbeatRequest\x1a\x16.yao.HeartbeatResponseB\x1fZ\x1dgithub.com/yaoapp/yao/grpc/pbb\x06proto3"
 
 var (
-	file_yao_proto_rawDescOnce sync.Once
-	file_yao_proto_rawDescData []byte
+	file_grpc_pb_yao_proto_rawDescOnce sync.Once
+	file_grpc_pb_yao_proto_rawDescData []byte
 )
 
-func file_yao_proto_rawDescGZIP() []byte {
-	file_yao_proto_rawDescOnce.Do(func() {
-		file_yao_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_yao_proto_rawDesc), len(file_yao_proto_rawDesc)))
+func file_grpc_pb_yao_proto_rawDescGZIP() []byte {
+	file_grpc_pb_yao_proto_rawDescOnce.Do(func() {
+		file_grpc_pb_yao_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_grpc_pb_yao_proto_rawDesc), len(file_grpc_pb_yao_proto_rawDesc)))
 	})
-	return file_yao_proto_rawDescData
+	return file_grpc_pb_yao_proto_rawDescData
 }
 
-var file_yao_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
-var file_yao_proto_goTypes = []any{
+var file_grpc_pb_yao_proto_msgTypes = make([]protoimpl.MessageInfo, 26)
+var file_grpc_pb_yao_proto_goTypes = []any{
 	(*RunRequest)(nil),           // 0: yao.RunRequest
 	(*RunResponse)(nil),          // 1: yao.RunResponse
 	(*Chunk)(nil),                // 2: yao.Chunk
@@ -1250,14 +1372,16 @@ var file_yao_proto_goTypes = []any{
 	(*AgentChunk)(nil),           // 18: yao.AgentChunk
 	(*Empty)(nil),                // 19: yao.Empty
 	(*HealthzResponse)(nil),      // 20: yao.HealthzResponse
-	nil,                          // 21: yao.ShellRequest.EnvEntry
-	nil,                          // 22: yao.APIRequest.HeadersEntry
-	nil,                          // 23: yao.APIResponse.HeadersEntry
+	(*HeartbeatRequest)(nil),     // 21: yao.HeartbeatRequest
+	(*HeartbeatResponse)(nil),    // 22: yao.HeartbeatResponse
+	nil,                          // 23: yao.ShellRequest.EnvEntry
+	nil,                          // 24: yao.APIRequest.HeadersEntry
+	nil,                          // 25: yao.APIResponse.HeadersEntry
 }
-var file_yao_proto_depIdxs = []int32{
-	21, // 0: yao.ShellRequest.env:type_name -> yao.ShellRequest.EnvEntry
-	22, // 1: yao.APIRequest.headers:type_name -> yao.APIRequest.HeadersEntry
-	23, // 2: yao.APIResponse.headers:type_name -> yao.APIResponse.HeadersEntry
+var file_grpc_pb_yao_proto_depIdxs = []int32{
+	23, // 0: yao.ShellRequest.env:type_name -> yao.ShellRequest.EnvEntry
+	24, // 1: yao.APIRequest.headers:type_name -> yao.APIRequest.HeadersEntry
+	25, // 2: yao.APIResponse.headers:type_name -> yao.APIResponse.HeadersEntry
 	0,  // 3: yao.Yao.Run:input_type -> yao.RunRequest
 	0,  // 4: yao.Yao.Stream:input_type -> yao.RunRequest
 	3,  // 5: yao.Yao.Shell:input_type -> yao.ShellRequest
@@ -1271,46 +1395,48 @@ var file_yao_proto_depIdxs = []int32{
 	14, // 13: yao.Yao.ChatCompletionsStream:input_type -> yao.ChatRequest
 	17, // 14: yao.Yao.AgentStream:input_type -> yao.AgentRequest
 	19, // 15: yao.Yao.Healthz:input_type -> yao.Empty
-	1,  // 16: yao.Yao.Run:output_type -> yao.RunResponse
-	2,  // 17: yao.Yao.Stream:output_type -> yao.Chunk
-	4,  // 18: yao.Yao.Shell:output_type -> yao.ShellResponse
-	2,  // 19: yao.Yao.ShellStream:output_type -> yao.Chunk
-	6,  // 20: yao.Yao.API:output_type -> yao.APIResponse
-	8,  // 21: yao.Yao.MCPListTools:output_type -> yao.MCPListResponse
-	10, // 22: yao.Yao.MCPCallTool:output_type -> yao.MCPCallResponse
-	11, // 23: yao.Yao.MCPListResources:output_type -> yao.MCPResourcesResponse
-	13, // 24: yao.Yao.MCPReadResource:output_type -> yao.MCPResourceResponse
-	15, // 25: yao.Yao.ChatCompletions:output_type -> yao.ChatResponse
-	16, // 26: yao.Yao.ChatCompletionsStream:output_type -> yao.ChatChunk
-	18, // 27: yao.Yao.AgentStream:output_type -> yao.AgentChunk
-	20, // 28: yao.Yao.Healthz:output_type -> yao.HealthzResponse
-	16, // [16:29] is the sub-list for method output_type
-	3,  // [3:16] is the sub-list for method input_type
+	21, // 16: yao.Yao.Heartbeat:input_type -> yao.HeartbeatRequest
+	1,  // 17: yao.Yao.Run:output_type -> yao.RunResponse
+	2,  // 18: yao.Yao.Stream:output_type -> yao.Chunk
+	4,  // 19: yao.Yao.Shell:output_type -> yao.ShellResponse
+	2,  // 20: yao.Yao.ShellStream:output_type -> yao.Chunk
+	6,  // 21: yao.Yao.API:output_type -> yao.APIResponse
+	8,  // 22: yao.Yao.MCPListTools:output_type -> yao.MCPListResponse
+	10, // 23: yao.Yao.MCPCallTool:output_type -> yao.MCPCallResponse
+	11, // 24: yao.Yao.MCPListResources:output_type -> yao.MCPResourcesResponse
+	13, // 25: yao.Yao.MCPReadResource:output_type -> yao.MCPResourceResponse
+	15, // 26: yao.Yao.ChatCompletions:output_type -> yao.ChatResponse
+	16, // 27: yao.Yao.ChatCompletionsStream:output_type -> yao.ChatChunk
+	18, // 28: yao.Yao.AgentStream:output_type -> yao.AgentChunk
+	20, // 29: yao.Yao.Healthz:output_type -> yao.HealthzResponse
+	22, // 30: yao.Yao.Heartbeat:output_type -> yao.HeartbeatResponse
+	17, // [17:31] is the sub-list for method output_type
+	3,  // [3:17] is the sub-list for method input_type
 	3,  // [3:3] is the sub-list for extension type_name
 	3,  // [3:3] is the sub-list for extension extendee
 	0,  // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_yao_proto_init() }
-func file_yao_proto_init() {
-	if File_yao_proto != nil {
+func init() { file_grpc_pb_yao_proto_init() }
+func file_grpc_pb_yao_proto_init() {
+	if File_grpc_pb_yao_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_yao_proto_rawDesc), len(file_yao_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_grpc_pb_yao_proto_rawDesc), len(file_grpc_pb_yao_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   24,
+			NumMessages:   26,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_yao_proto_goTypes,
-		DependencyIndexes: file_yao_proto_depIdxs,
-		MessageInfos:      file_yao_proto_msgTypes,
+		GoTypes:           file_grpc_pb_yao_proto_goTypes,
+		DependencyIndexes: file_grpc_pb_yao_proto_depIdxs,
+		MessageInfos:      file_grpc_pb_yao_proto_msgTypes,
 	}.Build()
-	File_yao_proto = out.File
-	file_yao_proto_goTypes = nil
-	file_yao_proto_depIdxs = nil
+	File_grpc_pb_yao_proto = out.File
+	file_grpc_pb_yao_proto_goTypes = nil
+	file_grpc_pb_yao_proto_depIdxs = nil
 }

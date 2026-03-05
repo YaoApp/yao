@@ -51,6 +51,10 @@ func (d *dockerSandbox) Exec(ctx context.Context, id string, cmd []string, opts 
 	return d.core.exec(ctx, id, cmd, opts)
 }
 
+func (d *dockerSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error) {
+	return d.core.execStream(ctx, id, cmd, opts)
+}
+
 func (d *dockerSandbox) Inspect(ctx context.Context, id string) (*ContainerInfo, error) {
 	return d.core.inspect(ctx, id)
 }

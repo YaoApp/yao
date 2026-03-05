@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/yaoapp/yao/tai/sandbox"
 )
 
@@ -138,6 +140,126 @@ func TestHostIP(t *testing.T) {
 	}
 }
 
+// ── Connect tests ─────────────────────────────────────────────────────────────
+
+func TestConnect_UnsupportedProtocol(t *testing.T) {
+	_, err := connect(context.Background(), "http://127.0.0.1:1234", "tcp", http.DefaultClient)
+	if err == nil {
+		t.Fatal("expected error for unsupported protocol")
+	}
+	if !strings.Contains(err.Error(), "unsupported connect protocol") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestConnectWS_EchoRoundtrip(t *testing.T) {
+	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		c, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer c.Close()
+		for {
+			mt, msg, err := c.ReadMessage()
+			if err != nil {
+				return
+			}
+			c.WriteMessage(mt, msg)
+		}
+	}))
+	defer srv.Close()
+
+	conn, err := connectWS(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("connectWS: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.Send([]byte("hello")); err != nil {
+		t.Fatalf("Send: %v", err)
+	}
+
+	select {
+	case msg := <-conn.Messages:
+		if string(msg) != "hello" {
+			t.Errorf("got %q, want %q", msg, "hello")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for echo")
+	}
+}
+
+func TestConnectSSE_ReceiveEvents(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		flusher, _ := w.(http.Flusher)
+		for i := 0; i < 3; i++ {
+			fmt.Fprintf(w, "data: event-%d\n\n", i)
+			flusher.Flush()
+		}
+	}))
+	defer srv.Close()
+
+	conn, err := connectSSE(context.Background(), srv.URL, srv.Client())
+	if err != nil {
+		t.Fatalf("connectSSE: %v", err)
+	}
+	defer conn.Close()
+
+	var events []string
+	for msg := range conn.Messages {
+		events = append(events, string(msg))
+		if len(events) >= 3 {
+			break
+		}
+	}
+	if len(events) != 3 {
+		t.Fatalf("got %d events, want 3", len(events))
+	}
+	for i, e := range events {
+		want := fmt.Sprintf("event-%d", i)
+		if e != want {
+			t.Errorf("event[%d] = %q, want %q", i, e, want)
+		}
+	}
+}
+
+func TestConnectSSE_SendNotSupported(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "data: x\n\n")
+	}))
+	defer srv.Close()
+
+	conn, err := connectSSE(context.Background(), srv.URL, srv.Client())
+	if err != nil {
+		t.Fatalf("connectSSE: %v", err)
+	}
+	defer conn.Close()
+
+	if err := conn.Send([]byte("test")); err == nil {
+		t.Error("expected error from SSE Send")
+	}
+}
+
+func TestConnectSSE_Non200(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	_, err := connectSSE(context.Background(), srv.URL, srv.Client())
+	if err == nil {
+		t.Fatal("expected error for non-200")
+	}
+	if !strings.Contains(err.Error(), "status 503") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
 // mockSandbox implements sandbox.Sandbox for testing.
 type mockSandbox struct {
 	inspectFn func(ctx context.Context, id string) (*sandbox.ContainerInfo, error)
@@ -152,6 +274,9 @@ func (m *mockSandbox) Stop(ctx context.Context, id string, timeout time.Duration
 }
 func (m *mockSandbox) Remove(ctx context.Context, id string, force bool) error { return nil }
 func (m *mockSandbox) Exec(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.ExecResult, error) {
+	return nil, nil
+}
+func (m *mockSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.StreamHandle, error) {
 	return nil, nil
 }
 func (m *mockSandbox) Inspect(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {

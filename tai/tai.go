@@ -1,13 +1,17 @@
 package tai
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/yao/tai/proxy"
 	"github.com/yaoapp/yao/tai/sandbox"
+	sipb "github.com/yaoapp/yao/tai/serverinfo/pb"
 	"github.com/yaoapp/yao/tai/vnc"
 	"github.com/yaoapp/yao/tai/volume"
 	"github.com/yaoapp/yao/tai/workspace"
@@ -44,8 +48,12 @@ type Ports struct {
 }
 
 // WithPorts overrides default Tai service ports.
+// Ports set here take precedence over server-reported values from ServerInfo.
 func WithPorts(p Ports) Option {
-	return optionFunc(func(c *config) { c.ports = p })
+	return optionFunc(func(c *config) {
+		c.ports = p
+		c.userPorts = p
+	})
 }
 
 // WithHTTPClient sets a custom HTTP client for proxy and VNC health checks.
@@ -72,6 +80,7 @@ func WithNamespace(ns string) Option {
 type config struct {
 	runtime    Runtime
 	ports      Ports
+	userPorts  Ports // tracks explicitly set ports (zero = not set by user)
 	httpClient *http.Client
 	dataDir    string
 	kubeConfig string
@@ -121,9 +130,11 @@ type Client struct {
 
 // New creates a Client based on the address protocol:
 //
-//	""               → Local mode, platform default Docker socket
+//	"local"          → Local mode, platform default Docker socket
 //	"docker://addr"  → Local mode, specified Docker daemon
 //	"tai://host"     → Remote mode via Tai Server
+//
+// Empty string is not allowed — use "local" for default local Docker.
 func New(addr string, opts ...Option) (*Client, error) {
 	cfg := &config{ports: defaultPorts()}
 	for _, o := range opts {
@@ -131,9 +142,13 @@ func New(addr string, opts ...Option) (*Client, error) {
 	}
 	cfg.ports = mergedPorts(cfg.ports)
 
-	scheme, host, dockerAddr, err := parseAddr(addr)
+	scheme, host, dockerAddr, grpcPort, err := parseAddr(addr)
 	if err != nil {
 		return nil, err
+	}
+
+	if grpcPort > 0 {
+		cfg.ports.GRPC = grpcPort
 	}
 
 	c := &Client{
@@ -171,16 +186,23 @@ func (c *Client) initLocal(cfg *config) (*Client, error) {
 }
 
 func (c *Client) initRemote(cfg *config) (*Client, error) {
-	// gRPC connection
 	grpcAddr := fmt.Sprintf("%s:%d", c.host, c.ports.GRPC)
 	conn, err := grpc.NewClient(grpcAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("grpc dial %s: %w", grpcAddr, err)
 	}
 	c.grpcConn = conn
+
+	// Auto-discover server ports via ServerInfo RPC.
+	// Only overwrite ports that were NOT explicitly set by WithPorts.
+	if err := c.discoverPorts(conn, cfg); err != nil {
+		// Non-fatal: fall back to defaults / WithPorts values.
+		// Old Tai servers without ServerInfo will hit this path.
+		_ = err
+	}
+
 	c.vol = volume.NewRemote(conn)
 
-	// Sandbox
 	switch cfg.runtime {
 	case K8s:
 		k8sPort := c.ports.K8s
@@ -261,41 +283,100 @@ func (c *Client) VNC() vnc.VNC { return c.vc }
 // IsLocal returns true if the client connects directly to a Docker daemon.
 func (c *Client) IsLocal() bool { return c.scheme == "docker" }
 
-func parseAddr(addr string) (scheme, host, dockerAddr string, err error) {
+func parseAddr(addr string) (scheme, host, dockerAddr string, grpcPort int, err error) {
 	addr = strings.TrimSpace(addr)
 	if addr == "" {
-		return "docker", "", "", nil
+		return "", "", "", 0, fmt.Errorf("empty address: use \"local\" for default Docker daemon")
+	}
+
+	if addr == "local" {
+		return "docker", "", "", 0, nil
+	}
+
+	// Bare IP or host(:port) without scheme → normalise before url.Parse,
+	// which misparses bare addresses (treats them as path, not host).
+	if !strings.Contains(addr, "://") {
+		if isLocalHost(addr) {
+			return "docker", "", "", 0, nil
+		}
+		// host:port — split carefully (IPv6 like [::1]:9100 is already handled above)
+		h := addr
+		if idx := strings.LastIndex(addr, ":"); idx > 0 {
+			h = addr[:idx]
+		}
+		if isLocalHost(h) {
+			return "docker", "", "", 0, nil
+		}
+		addr = "tai://" + addr
 	}
 
 	u, parseErr := url.Parse(addr)
 	if parseErr != nil {
-		return "", "", "", fmt.Errorf("parse addr %q: %w", addr, parseErr)
+		return "", "", "", 0, fmt.Errorf("parse addr %q: %w", addr, parseErr)
 	}
 
 	switch u.Scheme {
 	case "tai":
-		host = u.Host
-		if host == "" {
-			return "", "", "", fmt.Errorf("tai:// requires a host")
+		hostname := u.Hostname()
+		if hostname == "" {
+			return "", "", "", 0, fmt.Errorf("tai:// requires a host")
 		}
-		if idx := strings.Index(host, ":"); idx >= 0 {
-			host = host[:idx]
+		if portStr := u.Port(); portStr != "" {
+			if p, convErr := strconv.Atoi(portStr); convErr == nil && p > 0 {
+				grpcPort = p
+			}
 		}
-		return "tai", host, "", nil
+		return "tai", hostname, "", grpcPort, nil
 
 	case "docker":
-		return "docker", "", addr, nil
+		return "docker", "", addr, 0, nil
 
 	case "unix":
-		return "docker", "", addr, nil
+		return "docker", "", addr, 0, nil
 
 	case "tcp":
-		return "docker", "", addr, nil
+		return "docker", "", addr, 0, nil
 
 	case "npipe":
-		return "docker", "", addr, nil
+		return "docker", "", addr, 0, nil
 
 	default:
-		return "", "", "", fmt.Errorf("unsupported scheme %q in addr %q", u.Scheme, addr)
+		return "", "", "", 0, fmt.Errorf("unsupported scheme %q in addr %q", u.Scheme, addr)
 	}
+}
+
+func isLocalHost(h string) bool {
+	return h == "127.0.0.1" || h == "localhost" || h == "::1"
+}
+
+// discoverPorts calls ServerInfo.GetInfo on the remote Tai server and merges
+// discovered ports into c.ports. Ports explicitly set via WithPorts (non-zero
+// in the original config before merging defaults) take precedence.
+func (c *Client) discoverPorts(conn *grpc.ClientConn, cfg *config) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	client := sipb.NewServerInfoClient(conn)
+	resp, err := client.GetInfo(ctx, &sipb.GetInfoRequest{})
+	if err != nil {
+		return err
+	}
+
+	// cfg.userPorts tracks what the caller explicitly passed to WithPorts.
+	// Only overwrite ports that the caller did NOT explicitly set.
+	up := cfg.userPorts
+
+	if p := int(resp.Ports["http"]); p > 0 && up.HTTP == 0 {
+		c.ports.HTTP = p
+	}
+	if p := int(resp.Ports["docker"]); p > 0 && up.Docker == 0 {
+		c.ports.Docker = p
+	}
+	if p := int(resp.Ports["vnc"]); p > 0 && up.VNC == 0 {
+		c.ports.VNC = p
+	}
+	if p := int(resp.Ports["k8s"]); p > 0 && up.K8s == 0 {
+		c.ports.K8s = p
+	}
+	return nil
 }

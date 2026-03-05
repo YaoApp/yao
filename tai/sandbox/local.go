@@ -55,6 +55,10 @@ func (l *local) Exec(ctx context.Context, id string, cmd []string, opts ExecOpti
 	return l.core.exec(ctx, id, cmd, opts)
 }
 
+func (l *local) ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error) {
+	return l.core.execStream(ctx, id, cmd, opts)
+}
+
 func (l *local) Inspect(ctx context.Context, id string) (*ContainerInfo, error) {
 	return l.core.inspect(ctx, id)
 }
