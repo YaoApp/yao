@@ -21,7 +21,8 @@ Sandbox does NOT import or depend on Agent. Agent is one of many consumers.
 ```
 ┌─────────────────────────────────────────────────┐
 │  Consumers (know nothing about tai/Docker/K8s)  │
-│  ├── JSAPI: Sandbox("my-app")                   │
+│  ├── JSAPI: sandbox.Create/Get/List/Delete      │
+│  ├── JSAPI: workspace.Create/Get/List/Delete     │
 │  ├── Process: sandbox.Create, sandbox.Exec      │
 │  ├── Agent: uses sandbox via interface           │
 │  └── API: /api/__yao/sandbox/*                   │
@@ -576,8 +577,9 @@ sandbox/v2/
 ├── config.go               // Config struct
 ├── errors.go               // sentinel errors
 ├── grpc.go                 // token creation/revocation, gRPC env var injection
-├── jsapi/                  // (Phase 2) V8 JSAPI Sandbox() constructor
-│   └── sandbox.go
+├── jsapi/                  // (Phase 2) V8 JSAPI sandbox.* namespace
+│   ├── jsapi.go            // RegisterObject("sandbox"), Create/Get/List/Delete
+│   └── box.go              // Box JS object: Exec/Attach/VNC/Proxy/Workspace/Info/Start/Stop/Remove
 ├── export_test.go          // ResetForTest() for test isolation
 ├── testutils_test.go       // shared test helpers (multi-pool setup)
 ├── sandbox_test.go         // Init/M singleton tests
@@ -729,6 +731,9 @@ workspace/
 ├── workspace.go         // types, metadata marshal/unmarshal
 ├── manager.go           // Manager: CRUD, file I/O, node management
 ├── errors.go            // sentinel errors
+├── jsapi/               // (Phase 2) V8 JSAPI workspace.* namespace
+│   ├── jsapi.go         // RegisterObject("workspace"), Create/Get/List/Delete
+│   └── fs.go            // WorkspaceFS JS object: ReadFile/WriteFile/ReadDir/Stat/MkdirAll/Remove/RemoveAll/Rename
 ├── testutils_test.go    // shared test helpers
 ├── workspace_test.go    // CRUD tests (Create/Get/List/Update/Delete/Nodes)
 ├── fileio_test.go       // File I/O + fs.FS tests
@@ -824,12 +829,269 @@ Docker `StopStart` ~2.2s is expected: `DefaultStopTimeout = 2s` and Docker waits
 - Tests: unit + integration + benchmarks
 - CI: consolidated SandboxV2Test + BenchmarkSandboxV2
 
-## Phase 2: JSAPI + OAuth (PENDING)
+## Phase 2: JSAPI + OAuth + Auth (PENDING)
+
+### Prerequisites
 
 | Task | Detail |
 |------|--------|
-| `sandbox/v2/jsapi/` | V8 `Sandbox()` / `Workspace()` constructors (registered in gou runtime) |
 | Wire `openapi/oauth` | `grpc.go` currently uses random token placeholders; replace with real OAuth issue/revoke |
+
+### JSAPI Design
+
+All JSAPI methods are static — no constructors, no Go objects in V8, no bridge/Release.
+JS objects only hold string IDs, delegate everything to Go singletons (`sandbox.M()`, `workspace.M()`).
+
+#### sandbox namespace (`RegisterObject("sandbox")`)
+
+Static methods:
+
+| JS | Go | Returns |
+|----|-----|---------|
+| `sandbox.Create(opts)` | `Manager.Create(ctx, CreateOptions)` | `Box` |
+| `sandbox.Create(opts)` (opts.id set) | `Manager.GetOrCreate(ctx, CreateOptions)` | `Box` |
+| `sandbox.Get(id)` | `Manager.Get(ctx, id)` | `Box \| null` |
+| `sandbox.List(filter?)` | `Manager.List(ctx, ListOptions)` → `Box.Info()` | `BoxInfo[]` |
+| `sandbox.Delete(id)` | `Manager.Remove(ctx, id)` | `void` |
+
+`sandbox.Create(options)` — JS options → Go `CreateOptions`:
+
+```
+{
+  id:           string   →  CreateOptions.ID           // optional; triggers GetOrCreate
+  owner:        string   →  CreateOptions.Owner        // required
+  pool:         string   →  CreateOptions.Pool         // default: first pool
+  image:        string   →  CreateOptions.Image        // required
+  workdir:      string   →  CreateOptions.WorkDir
+  user:         string   →  CreateOptions.User         // e.g. "1000:1000"
+  env:          object   →  CreateOptions.Env          // map[string]string
+  memory:       number   →  CreateOptions.Memory       // bytes (int64)
+  cpus:         number   →  CreateOptions.CPUs         // float64
+  vnc:          boolean  →  CreateOptions.VNC
+  ports:        array    →  CreateOptions.Ports        // [{container, host, host_ip, protocol}] → []PortMapping
+  policy:       string   →  CreateOptions.Policy       // "oneshot"|"session"|"longrunning"|"persistent"
+  idle_timeout: number   →  CreateOptions.IdleTimeout  // ms → time.Duration
+  stop_timeout: number   →  CreateOptions.StopTimeout  // ms → time.Duration
+  workspace_id: string   →  CreateOptions.WorkspaceID
+  mount_mode:   string   →  CreateOptions.MountMode    // "rw"|"ro"
+  mount_path:   string   →  CreateOptions.MountPath
+  labels:       object   →  CreateOptions.Labels       // map[string]string
+}
+```
+
+`sandbox.List(filter?)` — JS filter → Go `ListOptions`:
+
+```
+{
+  owner:  string  →  ListOptions.Owner   // empty = all
+  pool:   string  →  ListOptions.Pool    // empty = all
+  labels: object  →  ListOptions.Labels
+}
+```
+
+Returns `BoxInfo[]` — each element:
+
+```
+{
+  id:            string   ←  BoxInfo.ID
+  container_id:  string   ←  BoxInfo.ContainerID
+  pool:          string   ←  BoxInfo.Pool
+  owner:         string   ←  BoxInfo.Owner
+  status:        string   ←  BoxInfo.Status
+  image:         string   ←  BoxInfo.Image
+  vnc:           boolean  ←  BoxInfo.VNC
+  policy:        string   ←  BoxInfo.Policy
+  labels:        object   ←  BoxInfo.Labels
+  created_at:    string   ←  BoxInfo.CreatedAt   (ISO 8601)
+  last_active:   string   ←  BoxInfo.LastActive   (ISO 8601)
+  process_count: number   ←  BoxInfo.ProcessCount
+}
+```
+
+#### Box object
+
+Read-only properties:
+
+| JS | Go |
+|----|----|
+| `box.id` | `Box.ID()` |
+| `box.owner` | `Box.Owner()` |
+| `box.pool` | `Box.Pool()` |
+
+Methods:
+
+| JS | Go | Returns |
+|----|-----|---------|
+| `box.Exec(cmd, opts?)` | `Box.Exec(ctx, cmd, ...ExecOption)` | `ExecResult` |
+| `box.Stream(cmd, opts?)` | `Box.Stream(ctx, cmd, ...ExecOption)` | `ExecStream` |
+| `box.Attach(port, opts?)` | `Box.Attach(ctx, port, ...AttachOption)` | `ServiceConn` |
+| `box.VNC()` | `Box.VNC(ctx)` | `string` |
+| `box.Proxy(port, path?)` | `Box.Proxy(ctx, port, path)` | `string` |
+| `box.Workspace()` | `Box.WorkspaceID()` → `NewFSObject` | `WorkspaceFS` |
+| `box.Info()` | `Box.Info(ctx)` | `BoxInfo` |
+| `box.Start()` | `Box.Start(ctx)` | `void` |
+| `box.Stop()` | `Box.Stop(ctx)` | `void` |
+| `box.Remove()` | `Box.Remove(ctx)` | `void` |
+
+`box.Exec(cmd, options?)`:
+
+```
+cmd:     string[]                         → cmd []string
+options: {
+  workdir: string,                        → WithWorkDir(dir)
+  env:     object,                        → WithEnv(map[string]string)
+  timeout: number                         → WithTimeout(ms → time.Duration)
+}
+returns: {
+  exit_code: number,                      ← ExecResult.ExitCode
+  stdout:    string,                      ← ExecResult.Stdout
+  stderr:    string                       ← ExecResult.Stderr
+}
+```
+
+`box.Stream(cmd, options?)`:
+
+```
+options: same as Exec
+returns: {
+  stdout: ReadableStream,                 ← ExecStream.Stdout
+  stderr: ReadableStream,                 ← ExecStream.Stderr
+  stdin:  WritableStream,                 ← ExecStream.Stdin
+  wait:   function() → number,            ← ExecStream.Wait() (int, error)
+  cancel: function() → void               ← ExecStream.Cancel()
+}
+```
+
+`box.Attach(port, options?)`:
+
+```
+port:    number                           → port int
+options: {
+  protocol: "ws"|"sse",                  → WithProtocol(protocol)
+  path:     string,                      → WithPath(path)
+  headers:  object                       → WithHeaders(map[string]string)
+}
+returns: {
+  url:    string,                         ← ServiceConn.URL
+  read:   function() → Uint8Array,        ← ServiceConn.Read()
+  write:  function(data) → void,          ← ServiceConn.Write(data)
+  events: AsyncIterable<Uint8Array>,      ← ServiceConn.Events
+  close:  function() → void               ← ServiceConn.Close()
+}
+```
+
+`box.Info()` returns same structure as `BoxInfo[]` element above.
+
+#### workspace namespace (`RegisterObject("workspace")`)
+
+Static methods:
+
+| JS | Go | Returns |
+|----|-----|---------|
+| `workspace.Create(opts)` | `Manager.Create(ctx, CreateOptions)` | `WorkspaceFS` |
+| `workspace.Get(id)` | `Manager.Get(ctx, id)` | `WorkspaceFS \| null` |
+| `workspace.List(filter?)` | `Manager.List(ctx, ListOptions)` | `WorkspaceInfo[]` |
+| `workspace.Delete(id)` | `Manager.Delete(ctx, id, false)` | `void` |
+
+`workspace.Create(options)` — JS options → Go `CreateOptions`:
+
+```
+{
+  id:     string  →  CreateOptions.ID      // optional; auto-generated if empty
+  name:   string  →  CreateOptions.Name    // required
+  owner:  string  →  CreateOptions.Owner   // required
+  node:   string  →  CreateOptions.Node    // required
+  labels: object  →  CreateOptions.Labels  // map[string]string
+}
+```
+
+`workspace.List(filter?)` — JS filter → Go `ListOptions`:
+
+```
+{
+  owner: string  →  ListOptions.Owner  // empty = all
+  node:  string  →  ListOptions.Node   // empty = all
+}
+```
+
+Returns `WorkspaceInfo[]` — each element:
+
+```
+{
+  id:         string  ←  Workspace.ID
+  name:       string  ←  Workspace.Name
+  owner:      string  ←  Workspace.Owner
+  node:       string  ←  Workspace.Node
+  labels:     object  ←  Workspace.Labels
+  created_at: string  ←  Workspace.CreatedAt (ISO 8601)
+  updated_at: string  ←  Workspace.UpdatedAt (ISO 8601)
+}
+```
+
+#### WorkspaceFS object
+
+Read-only properties:
+
+| JS | Go |
+|----|----|
+| `ws.id` | workspace ID |
+| `ws.name` | `Workspace.Name` |
+| `ws.node` | `Workspace.Node` |
+
+Methods (1:1 to Go `taiworkspace.FS` + `Manager` shortcuts):
+
+| JS | Go | Returns |
+|----|-----|---------|
+| `ws.ReadFile(path)` | `FS.ReadFile(name)` / `Manager.ReadFile(ctx, id, path)` | `string` |
+| `ws.WriteFile(path, data, perm?)` | `FS.WriteFile(name, data, perm)` / `Manager.WriteFile(ctx, id, path, data, perm)` | `void` |
+| `ws.ReadDir(path?)` | `FS.ReadDir(name)` / `Manager.ListDir(ctx, id, path)` | `DirEntry[]` |
+| `ws.Stat(path)` | `FS.Stat(name)` | `FileInfo` |
+| `ws.MkdirAll(path, perm?)` | `FS.MkdirAll(name, perm)` | `void` |
+| `ws.Remove(path)` | `FS.Remove(name)` / `Manager.Remove(ctx, id, path)` | `void` |
+| `ws.RemoveAll(path)` | `FS.RemoveAll(name)` | `void` |
+| `ws.Rename(from, to)` | `FS.Rename(old, new)` | `void` |
+
+Planned (not yet implemented):
+
+| JS | Go | Returns | Note |
+|----|-----|---------|------|
+| `ws.ReadFileBase64(path)` | `FS.ReadFile` → `base64.StdEncoding.EncodeToString` | `string` | Avoids V8↔Go binary bridge overhead for images, archives, etc. |
+| `ws.WriteFileBase64(path, b64, perm?)` | `base64.StdEncoding.DecodeString` → `FS.WriteFile` | `void` | Same — base64 string transfer is far more efficient than Uint8Array across the bridge |
+| `ws.CopyFromHost(hostPath, destPath?)` | Host `os.Read` → `FS.WriteFile` / `FS.MkdirAll` per entry | `void` | Copy file/dir from Yao host into workspace; `destPath` defaults to basename |
+| `ws.CopyFromHostArchive(hostPath, destPath?)` | Zip on host → Tai Volume upload → Tai-side unarchive | `void` | For large directory trees; requires Tai server-side unarchive support |
+
+Return types:
+
+```
+DirEntry: { name: string, is_dir: boolean, size: number }
+FileInfo: { name: string, size: number, is_dir: boolean, mod_time: string (ISO 8601) }
+```
+
+### Auth
+
+JSAPI does not enforce permissions internally. The Go Manager methods execute operations directly without owner/admin checks.
+
+Developers retrieve the current caller identity via the gou global `Authorized()` function (registered by `gou/runtime/v8/functions/authorized`, reads from `bridge.Share.Authorized` / `__yao_data.AUTHORIZED`) and implement permission logic in their JS scripts.
+
+`Authorized()` returns `map[string]interface{}` (or null if not set). The exact fields depend on what the caller sets via `Context.WithAuthorized()`. There is no fixed schema — typical fields include `user_id`, `team_id`, `scope`, etc.
+
+```javascript
+const auth = Authorized()        // gou global — returns caller info or null
+const box  = sandbox.Get(id)
+// Developer decides permission logic — fields depend on application's auth setup
+if (box.owner !== auth.user_id) {
+    throw new Error("permission denied")
+}
+```
+
+Permission control is the responsibility of the caller (JS scripts, Agent hooks, API middleware, etc.).
+
+### Implementation Tasks
+
+| Task | Detail |
+|------|--------|
+| `sandbox/v2/jsapi/` | `RegisterObject("sandbox")` with Create/Get/List/Delete + Box object |
+| `workspace/jsapi/` | `RegisterObject("workspace")` with Create/Get/List/Delete + FS object |
 | Integration with `cmd/start.go` | Call `sandbox.Init()` + `sandbox.M().Start()` |
 
 ## Phase 3: Agent Integration (PENDING)
