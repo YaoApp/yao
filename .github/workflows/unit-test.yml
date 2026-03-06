@@ -1480,6 +1480,15 @@ jobs:
             echo "::error::Tai Docker gRPC failed"; docker logs tai-docker 2>&1; exit 1
           }
 
+      - name: Generate kubeconfig for benchmarks
+        run: |
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
+          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d-bench.yml
+          sed "s|server: .*|server: https://${K3D_IP}:6443|" /tmp/kubeconfig-k3d-bench.yml \
+            > /tmp/kubeconfig-tai-k8s-bench.yml
+          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d-bench.yml \
+            > ${{ runner.temp }}/kubeconfig-tai.yml
+
       - name: Start Tai K8s instance (benchmarks)
         run: |
           K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
@@ -1489,7 +1498,7 @@ jobs:
             --network k3d-tai-test \
             -p 8081:8080 -p 9101:9100 -p 6443:6443 -p 6081:6080 \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            -v /tmp/kubeconfig-tai-k8s.yml:/etc/tai/kubeconfig.yml:ro \
+            -v /tmp/kubeconfig-tai-k8s-bench.yml:/etc/tai/kubeconfig.yml:ro \
             -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             -e TAI_KUBECONFIG=/etc/tai/kubeconfig.yml \
             yaoapp/tai:latest
@@ -1513,15 +1522,6 @@ jobs:
           nc -z 127.0.0.1 9101 2>/dev/null || {
             echo "::error::Tai K8s gRPC failed"; docker logs tai-k8s 2>&1; exit 1
           }
-
-      - name: Generate kubeconfig for benchmarks
-        run: |
-          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
-          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
-          sed "s|server: .*|server: https://${K3D_IP}:6443|" /tmp/kubeconfig-k3d.yml \
-            > /tmp/kubeconfig-tai-k8s.yml
-          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
-            > ${{ runner.temp }}/kubeconfig-tai.yml
 
       - name: Run Benchmarks
         env:
