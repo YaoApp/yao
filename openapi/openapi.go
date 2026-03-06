@@ -28,6 +28,7 @@ import (
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
+	taitunnel "github.com/yaoapp/yao/tai/tunnel"
 )
 
 // Server is the OpenAPI server
@@ -174,6 +175,12 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Sandbox handlers (VNC proxy for visual browser automation)
 	sandbox.SetPathPrefix(baseURL)
 	sandbox.Attach(group.Group("/sandbox"), openapi.OAuth)
+
+	// Tai tunnel WebSocket and reverse proxy routes
+	group.GET("/ws/tai", taitunnel.HandleControl)
+	group.GET("/ws/tai/data/:channel_id", taitunnel.HandleData)
+	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleProxy)
+	group.GET("/tai/:taiID/vnc/*path", taitunnel.HandleVNC)
 
 	// Custom handlers (Defined by developer)
 

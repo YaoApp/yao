@@ -277,26 +277,11 @@ func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Requ
 		)
 	}
 
-	// Notify TUI of A2A call start (use parent requestID so it appears in parent panel)
-	parentRequestID := o.ctx.RequestID()
-	agentContext.SendTUI(agentContext.AgentEventMsg{
-		RequestID: parentRequestID,
-		Event:     agentContext.EventA2AStart,
-		Data:      map[string]interface{}{"target": req.AgentID},
-	})
-
-	// Execute the agent call with the provided context
-	// The agent.Stream method will use the context's Writer for output
 	resp, err := agent.Stream(ctx, req.Messages, ctxOpts)
 	if err != nil {
 		if a2aNode != nil {
 			a2aNode.Fail(err)
 		}
-		agentContext.SendTUI(agentContext.AgentEventMsg{
-			RequestID: parentRequestID,
-			Event:     agentContext.EventA2ADone,
-			Data:      map[string]interface{}{"target": req.AgentID, "error": err.Error()},
-		})
 		return NewResult(req.AgentID, nil, fmt.Errorf("agent call failed: %w", err))
 	}
 
@@ -306,11 +291,6 @@ func (o *Orchestrator) callAgentWithContext(ctx *agentContext.Context, req *Requ
 			"status":   "completed",
 		})
 	}
-	agentContext.SendTUI(agentContext.AgentEventMsg{
-		RequestID: parentRequestID,
-		Event:     agentContext.EventA2ADone,
-		Data:      map[string]interface{}{"target": req.AgentID},
-	})
 
 	return NewResult(req.AgentID, resp, nil)
 }

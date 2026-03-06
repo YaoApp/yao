@@ -192,6 +192,15 @@ func Stop() {
 	addrs = nil
 }
 
+// GRPCServer returns the active gRPC server instance.
+// Used by the Tai tunnel server to serve data channel connections
+// on the existing gRPC server.
+func GRPCServer() *grpc.Server {
+	mu.Lock()
+	defer mu.Unlock()
+	return server
+}
+
 // Addr returns all addresses the gRPC server is listening on.
 func Addr() []string {
 	mu.Lock()

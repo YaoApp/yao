@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/yaoapp/yao/tai/sandbox"
 )
@@ -48,6 +49,29 @@ func (r *remoteVNC) Ping(ctx context.Context, containerID string) error {
 		return err
 	}
 	resp.Body.Close()
+	return nil
+}
+
+// --- Tunnel implementation ---
+
+type tunnelVNC struct {
+	taiID   string
+	yaoBase string // e.g. "http://yao-host:5099"
+}
+
+// NewTunnel creates a VNC that routes through Yao's reverse proxy
+// for tunnel-connected Tai instances.
+func NewTunnel(taiID, yaoBase string) VNC {
+	return &tunnelVNC{taiID: taiID, yaoBase: strings.TrimRight(yaoBase, "/")}
+}
+
+func (t *tunnelVNC) URL(_ context.Context, containerID string) (string, error) {
+	base := strings.Replace(t.yaoBase, "http://", "ws://", 1)
+	base = strings.Replace(base, "https://", "wss://", 1)
+	return fmt.Sprintf("%s/tai/%s/vnc/%s/ws", base, t.taiID, containerID), nil
+}
+
+func (t *tunnelVNC) Ping(_ context.Context, _ string) error {
 	return nil
 }
 
