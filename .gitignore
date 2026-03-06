@@ -75,3 +75,7 @@ tg-send
 registry/data/
 registry/manager/DESIGN*.md
 tai/testdata/
+sandbox/v2/docker/base/*-amd64
+sandbox/v2/docker/base/*-arm64
+!sandbox/v2/docker/*.sh
+!sandbox/v2/docker/*/*.sh

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -112,7 +113,7 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 	container := corev1.Container{
 		Name:       "main",
 		Image:      opts.Image,
-		Command:    opts.Cmd,
+		Args:       opts.Cmd,
 		Env:        envVars,
 		WorkingDir: opts.WorkingDir,
 	}
@@ -126,6 +127,9 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 		labels[k] = v
 	}
 	labels["sandbox-name"] = name
+	for k, v := range opts.Labels {
+		labels[k] = v
+	}
 
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -139,6 +143,15 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 		},
 	}
 
+	if opts.User != "" {
+		uid, err := parseUID(opts.User)
+		if err == nil {
+			pod.Spec.SecurityContext = &corev1.PodSecurityContext{
+				RunAsUser: &uid,
+			}
+		}
+	}
+
 	created, err := s.cli.CoreV1().Pods(s.ns).Create(ctx, pod, metav1.CreateOptions{})
 	if err != nil {
 		return "", fmt.Errorf("create pod: %w", err)
@@ -147,9 +160,16 @@ func (s *k8sSandbox) Create(ctx context.Context, opts CreateOptions) (string, er
 }
 
 func (s *k8sSandbox) Start(ctx context.Context, id string) error {
-	// K8s pods start automatically after creation.
-	// Wait briefly for the pod to leave Pending.
-	for i := 0; i < 30; i++ {
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 60*time.Second)
+		defer cancel()
+	}
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
 		pod, err := s.cli.CoreV1().Pods(s.ns).Get(ctx, id, metav1.GetOptions{})
 		if err != nil {
 			return fmt.Errorf("get pod: %w", err)
@@ -157,9 +177,13 @@ func (s *k8sSandbox) Start(ctx context.Context, id string) error {
 		if pod.Status.Phase == corev1.PodRunning || pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
 			return nil
 		}
-		time.Sleep(1 * time.Second)
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("pod %s did not reach Running: %w", id, ctx.Err())
+		case <-ticker.C:
+		}
 	}
-	return fmt.Errorf("pod %s did not reach Running within 30s", id)
 }
 
 func (s *k8sSandbox) Stop(ctx context.Context, id string, timeout time.Duration) error {
@@ -236,6 +260,78 @@ func (s *k8sSandbox) Exec(ctx context.Context, id string, cmd []string, opts Exe
 	}, nil
 }
 
+func (s *k8sSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error) {
+	execCmd := cmd
+	if opts.WorkDir != "" || len(opts.Env) > 0 {
+		var prefix string
+		for k, v := range opts.Env {
+			prefix += fmt.Sprintf("export %s=%q; ", k, v)
+		}
+		cdPart := ""
+		if opts.WorkDir != "" {
+			cdPart = fmt.Sprintf("cd %s && ", opts.WorkDir)
+		}
+		execCmd = []string{"sh", "-c", cdPart + prefix + strings.Join(cmd, " ")}
+	}
+
+	req := s.cli.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(id).
+		Namespace(s.ns).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: "main",
+			Command:   execCmd,
+			Stdin:     true,
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(s.cfg, "POST", req.URL())
+	if err != nil {
+		return nil, fmt.Errorf("create executor: %w", err)
+	}
+
+	stdinR, stdinW := io.Pipe()
+	stdoutR, stdoutW := io.Pipe()
+	stderrR, stderrW := io.Pipe()
+
+	execCtx, cancel := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	var exitCode int
+
+	go func() {
+		err := exec.StreamWithContext(execCtx, remotecommand.StreamOptions{
+			Stdin:  stdinR,
+			Stdout: stdoutW,
+			Stderr: stderrW,
+		})
+		if err != nil {
+			if exitErr, ok := err.(interface{ ExitStatus() int }); ok {
+				exitCode = exitErr.ExitStatus()
+				err = nil
+			}
+		}
+		stdoutW.Close()
+		stderrW.Close()
+		done <- err
+	}()
+
+	return &StreamHandle{
+		Stdin:  stdinW,
+		Stdout: stdoutR,
+		Stderr: stderrR,
+		Wait: func() (int, error) {
+			err := <-done
+			return exitCode, err
+		},
+		Cancel: func() {
+			cancel()
+			stdinR.Close()
+		},
+	}, nil
+}
+
 func (s *k8sSandbox) Inspect(ctx context.Context, id string) (*ContainerInfo, error) {
 	pod, err := s.cli.CoreV1().Pods(s.ns).Get(ctx, id, metav1.GetOptions{})
 	if err != nil {
@@ -248,6 +344,7 @@ func (s *k8sSandbox) Inspect(ctx context.Context, id string) (*ContainerInfo, er
 		Image:  pod.Spec.Containers[0].Image,
 		Status: string(pod.Status.Phase),
 		IP:     pod.Status.PodIP,
+		Labels: pod.Labels,
 	}, nil
 }
 
@@ -273,6 +370,7 @@ func (s *k8sSandbox) List(ctx context.Context, opts ListOptions) ([]ContainerInf
 			Name:   pod.Name,
 			Status: string(pod.Status.Phase),
 			IP:     pod.Status.PodIP,
+			Labels: pod.Labels,
 		}
 		if len(pod.Spec.Containers) > 0 {
 			ci.Image = pod.Spec.Containers[0].Image
@@ -284,6 +382,14 @@ func (s *k8sSandbox) List(ctx context.Context, opts ListOptions) ([]ContainerInf
 
 func (s *k8sSandbox) Close() error {
 	return nil // REST client doesn't need explicit close
+}
+
+// parseUID extracts a numeric UID from a user string like "1000" or "1000:1000".
+func parseUID(user string) (int64, error) {
+	parts := strings.SplitN(user, ":", 2)
+	var uid int64
+	_, err := fmt.Sscanf(parts[0], "%d", &uid)
+	return uid, err
 }
 
 func buildResources(memory int64, cpus float64) corev1.ResourceRequirements {

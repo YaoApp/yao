@@ -134,3 +134,15 @@ func TestVirtualEndpoint_AgentStreamEmptyID(t *testing.T) {
 	assert.Equal(t, "POST", method)
 	assert.Equal(t, "/grpc/agent/", path)
 }
+
+func TestVirtualEndpoint_Heartbeat(t *testing.T) {
+	method, path := auth.VirtualEndpoint("/yao.Yao/Heartbeat", &pb.HeartbeatRequest{SandboxId: "sb-1"})
+	assert.Equal(t, "POST", method)
+	assert.Equal(t, "/grpc/heartbeat", path)
+}
+
+func TestVirtualEndpoint_HeartbeatNilReq(t *testing.T) {
+	method, path := auth.VirtualEndpoint("/yao.Yao/Heartbeat", nil)
+	assert.Equal(t, "POST", method)
+	assert.Equal(t, "/grpc/heartbeat", path)
+}

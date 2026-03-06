@@ -18,8 +18,8 @@ Go client library for the [Tai](https://github.com/YaoApp/tai) runtime bridge. P
 ### Local Mode (direct Docker)
 
 ```go
-c, err := tai.New("")
-// or: tai.New("unix:///var/run/docker.sock")
+c, err := tai.New("local")
+// or: tai.New("docker:///var/run/docker.sock")
 // or: tai.New("tcp://192.168.1.50:2375")
 defer c.Close()
 

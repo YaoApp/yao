@@ -2,6 +2,7 @@ package sandbox
 
 import (
 	"context"
+	"io"
 	"time"
 )
 
@@ -13,9 +14,21 @@ type Sandbox interface {
 	Stop(ctx context.Context, id string, timeout time.Duration) error
 	Remove(ctx context.Context, id string, force bool) error
 	Exec(ctx context.Context, id string, cmd []string, opts ExecOptions) (*ExecResult, error)
+	ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error)
 	Inspect(ctx context.Context, id string) (*ContainerInfo, error)
 	List(ctx context.Context, opts ListOptions) ([]ContainerInfo, error)
 	Close() error
+}
+
+// StreamHandle provides real-time I/O access to a running exec process.
+type StreamHandle struct {
+	Stdin  io.WriteCloser
+	Stdout io.Reader
+	Stderr io.Reader
+	// Wait blocks until the exec process finishes and returns the exit code.
+	Wait func() (int, error)
+	// Cancel aborts the exec process.
+	Cancel func()
 }
 
 // CreateOptions configures a new container.
@@ -30,6 +43,8 @@ type CreateOptions struct {
 	CPUs       float64 // 0 = no limit
 	VNC        bool
 	Ports      []PortMapping
+	Labels     map[string]string // container/pod labels for discovery and management
+	User       string            // container user, e.g. "1000:1000" or "sandbox"
 }
 
 // PortMapping maps a container port to a host port.
@@ -48,6 +63,7 @@ type ContainerInfo struct {
 	Status string // "created", "running", "exited", "removing"
 	IP     string
 	Ports  []PortMapping
+	Labels map[string]string
 }
 
 // ExecOptions configures a command execution inside a container.

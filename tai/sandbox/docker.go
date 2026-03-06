@@ -32,7 +32,7 @@ func NewDocker(addr string) (Sandbox, error) {
 }
 
 func (d *dockerSandbox) Create(ctx context.Context, opts CreateOptions) (string, error) {
-	return d.core.create(ctx, opts, false)
+	return d.core.create(ctx, opts, true)
 }
 
 func (d *dockerSandbox) Start(ctx context.Context, id string) error {
@@ -49,6 +49,10 @@ func (d *dockerSandbox) Remove(ctx context.Context, id string, force bool) error
 
 func (d *dockerSandbox) Exec(ctx context.Context, id string, cmd []string, opts ExecOptions) (*ExecResult, error) {
 	return d.core.exec(ctx, id, cmd, opts)
+}
+
+func (d *dockerSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error) {
+	return d.core.execStream(ctx, id, cmd, opts)
 }
 
 func (d *dockerSandbox) Inspect(ctx context.Context, id string) (*ContainerInfo, error) {

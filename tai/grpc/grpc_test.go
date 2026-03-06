@@ -169,6 +169,41 @@ func TestDial_WithTokenManager(t *testing.T) {
 	assert.False(t, c.TokenManager().IsTaiMode())
 }
 
+func TestDial_PassthroughPrefix_BareAddress(t *testing.T) {
+	c, err := yaogrpc.Dial("host.docker.internal:9099", nil)
+	require.NoError(t, err)
+	defer c.Close()
+
+	assert.Equal(t, "passthrough:///host.docker.internal:9099", c.Conn().Target())
+}
+
+func TestDial_PassthroughPrefix_IPAddress(t *testing.T) {
+	c, err := yaogrpc.Dial("192.168.1.100:9100", nil)
+	require.NoError(t, err)
+	defer c.Close()
+
+	assert.Equal(t, "passthrough:///192.168.1.100:9100", c.Conn().Target())
+}
+
+func TestDial_PassthroughPrefix_PreservesExistingScheme(t *testing.T) {
+	tests := []struct {
+		addr   string
+		target string
+	}{
+		{"dns:///myhost:9099", "dns:///myhost:9099"},
+		{"passthrough:///127.0.0.1:9099", "passthrough:///127.0.0.1:9099"},
+		{"unix:///var/run/grpc.sock", "unix:///var/run/grpc.sock"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.addr, func(t *testing.T) {
+			c, err := yaogrpc.Dial(tt.addr, nil)
+			require.NoError(t, err)
+			defer c.Close()
+			assert.Equal(t, tt.target, c.Conn().Target())
+		})
+	}
+}
+
 func TestClient_Close_Nil(t *testing.T) {
 	c := &yaogrpc.Client{}
 	assert.NoError(t, c.Close())

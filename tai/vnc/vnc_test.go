@@ -202,6 +202,9 @@ func (m *mockSandbox) Remove(ctx context.Context, id string, force bool) error {
 func (m *mockSandbox) Exec(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.ExecResult, error) {
 	return nil, nil
 }
+func (m *mockSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.StreamHandle, error) {
+	return nil, nil
+}
 func (m *mockSandbox) Inspect(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
 	if m.inspectFn != nil {
 		return m.inspectFn(ctx, id)

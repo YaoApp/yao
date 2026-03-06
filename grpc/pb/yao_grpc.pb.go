@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v4.25.0
-// source: yao.proto
+// source: grpc/pb/yao.proto
 
 package pb
 
@@ -32,6 +32,7 @@ const (
 	Yao_ChatCompletionsStream_FullMethodName = "/yao.Yao/ChatCompletionsStream"
 	Yao_AgentStream_FullMethodName           = "/yao.Yao/AgentStream"
 	Yao_Healthz_FullMethodName               = "/yao.Yao/Healthz"
+	Yao_Heartbeat_FullMethodName             = "/yao.Yao/Heartbeat"
 )
 
 // YaoClient is the client API for Yao service.
@@ -59,6 +60,8 @@ type YaoClient interface {
 	AgentStream(ctx context.Context, in *AgentRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AgentChunk], error)
 	// Health
 	Healthz(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HealthzResponse, error)
+	// Sandbox
+	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
 }
 
 type yaoClient struct {
@@ -235,6 +238,16 @@ func (c *yaoClient) Healthz(ctx context.Context, in *Empty, opts ...grpc.CallOpt
 	return out, nil
 }
 
+func (c *yaoClient) Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HeartbeatResponse)
+	err := c.cc.Invoke(ctx, Yao_Heartbeat_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // YaoServer is the server API for Yao service.
 // All implementations must embed UnimplementedYaoServer
 // for forward compatibility.
@@ -260,6 +273,8 @@ type YaoServer interface {
 	AgentStream(*AgentRequest, grpc.ServerStreamingServer[AgentChunk]) error
 	// Health
 	Healthz(context.Context, *Empty) (*HealthzResponse, error)
+	// Sandbox
+	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
 	mustEmbedUnimplementedYaoServer()
 }
 
@@ -308,6 +323,9 @@ func (UnimplementedYaoServer) AgentStream(*AgentRequest, grpc.ServerStreamingSer
 }
 func (UnimplementedYaoServer) Healthz(context.Context, *Empty) (*HealthzResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Healthz not implemented")
+}
+func (UnimplementedYaoServer) Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Heartbeat not implemented")
 }
 func (UnimplementedYaoServer) mustEmbedUnimplementedYaoServer() {}
 func (UnimplementedYaoServer) testEmbeddedByValue()             {}
@@ -536,6 +554,24 @@ func _Yao_Healthz_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Yao_Heartbeat_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(HeartbeatRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(YaoServer).Heartbeat(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Yao_Heartbeat_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(YaoServer).Heartbeat(ctx, req.(*HeartbeatRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Yao_ServiceDesc is the grpc.ServiceDesc for Yao service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -579,6 +615,10 @@ var Yao_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "Healthz",
 			Handler:    _Yao_Healthz_Handler,
 		},
+		{
+			MethodName: "Heartbeat",
+			Handler:    _Yao_Heartbeat_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -602,5 +642,5 @@ var Yao_ServiceDesc = grpc.ServiceDesc{
 			ServerStreams: true,
 		},
 	},
-	Metadata: "yao.proto",
+	Metadata: "grpc/pb/yao.proto",
 }

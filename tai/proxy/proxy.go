@@ -13,7 +13,25 @@ import (
 // Remote routes through Tai HTTP proxy; Local resolves host ports directly.
 type Proxy interface {
 	URL(ctx context.Context, containerID string, port int, path string) (string, error)
+	Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error)
 	Healthz(ctx context.Context) error
+}
+
+// ConnectOptions configures a persistent connection to a container service.
+type ConnectOptions struct {
+	Port     int    // container port
+	Path     string // URL path (e.g. "/ws" or "/events")
+	Protocol string // "ws", "sse", or "tcp"
+}
+
+// Connection represents a persistent connection to a container service.
+type Connection struct {
+	// Messages receives incoming data. Channel is closed when the connection ends.
+	Messages <-chan []byte
+	// Send writes data to the connection (only valid for "ws" protocol).
+	Send func(data []byte) error
+	// Close terminates the connection.
+	Close func() error
 }
 
 // --- Remote implementation ---

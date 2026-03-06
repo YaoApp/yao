@@ -26,6 +26,8 @@ func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts
 		Cmd:        opts.Cmd,
 		Env:        envSlice(opts.Env),
 		WorkingDir: opts.WorkingDir,
+		Labels:     opts.Labels,
+		User:       opts.User,
 	}
 
 	hostCfg := &container.HostConfig{
@@ -129,6 +131,68 @@ func (d *dockerCore) exec(ctx context.Context, id string, cmd []string, opts Exe
 	}, nil
 }
 
+func (d *dockerCore) execStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error) {
+	execCfg := container.ExecOptions{
+		Cmd:          cmd,
+		WorkingDir:   opts.WorkDir,
+		Env:          envSlice(opts.Env),
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+	}
+
+	execResp, err := d.cli.ContainerExecCreate(ctx, id, execCfg)
+	if err != nil {
+		return nil, fmt.Errorf("exec create: %w", err)
+	}
+
+	resp, err := d.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("exec attach: %w", err)
+	}
+
+	execCtx, execCancel := context.WithCancel(ctx)
+
+	stdinR, stdinW := io.Pipe()
+	stdoutR, stdoutW := io.Pipe()
+	stderrR, stderrW := io.Pipe()
+
+	// Pump user writes into the multiplexed connection.
+	// Closing stdinW sends EOF to the container stdin without
+	// tearing down the underlying connection (which carries stdout/stderr).
+	go func() {
+		io.Copy(resp.Conn, stdinR)
+		resp.CloseWrite()
+	}()
+
+	go func() {
+		_, _ = stdcopy.StdCopy(stdoutW, stderrW, resp.Reader)
+		stdoutW.Close()
+		stderrW.Close()
+	}()
+
+	return &StreamHandle{
+		Stdin:  stdinW,
+		Stdout: stdoutR,
+		Stderr: stderrR,
+		Wait: func() (int, error) {
+			for {
+				inspect, err := d.cli.ContainerExecInspect(execCtx, execResp.ID)
+				if err != nil {
+					return -1, fmt.Errorf("exec inspect: %w", err)
+				}
+				if !inspect.Running {
+					return inspect.ExitCode, nil
+				}
+			}
+		},
+		Cancel: func() {
+			execCancel()
+			resp.Close()
+		},
+	}, nil
+}
+
 func (d *dockerCore) inspect(ctx context.Context, id string) (*ContainerInfo, error) {
 	info, err := d.cli.ContainerInspect(ctx, id)
 	if err != nil {
@@ -140,6 +204,7 @@ func (d *dockerCore) inspect(ctx context.Context, id string) (*ContainerInfo, er
 		Name:   strings.TrimPrefix(info.Name, "/"),
 		Image:  info.Config.Image,
 		Status: info.State.Status,
+		Labels: info.Config.Labels,
 	}
 
 	if info.NetworkSettings != nil {
@@ -196,6 +261,7 @@ func (d *dockerCore) list(ctx context.Context, opts ListOptions) ([]ContainerInf
 			Name:   name,
 			Image:  c.Image,
 			Status: c.State,
+			Labels: c.Labels,
 		}
 		for _, p := range c.Ports {
 			ci.Ports = append(ci.Ports, PortMapping{

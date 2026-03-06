@@ -19,10 +19,12 @@ TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/
 TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
 # Robot tests (agent/robot/... packages, excluding events/integrations which require Telegram etc.)
 TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot/events')
-# Sandbox tests (requires Docker)
-TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/...)
+# Sandbox tests (requires Docker) — excludes sandbox/v2 (has its own job)
+TESTFOLDER_SANDBOX := $(shell $(GO) list ./sandbox/... | grep -v 'sandbox/v2')
 # Tai SDK tests (requires Tai container with Docker socket)
 TESTFOLDER_TAI := $(shell $(GO) list ./tai/...)
+# Workspace tests (requires Tai for remote mode)
+TESTFOLDER_WORKSPACE := $(shell $(GO) list ./workspace/...)
 # gRPC tests
 TESTFOLDER_GRPC := $(shell $(GO) list ./grpc/...)
 TESTTAGS ?= ""
@@ -199,6 +201,96 @@ unit-test-registry:
 		rm profile.out; \
 	fi
 
+# ---------------------------------------------------------------------------
+# Sandbox V2 Integration Test (tai + sandbox/v2 + workspace)
+# Requires: Docker, Tai container, optionally k3d for K8s mode
+# ---------------------------------------------------------------------------
+SANDBOX_V2_IMAGE ?= yaoapp/sandbox-v2-test:latest
+
+.PHONY: unit-test-sandbox-v2
+unit-test-sandbox-v2: unit-test-sandbox-v2-pull unit-test-tai unit-test-sandbox-v2-core unit-test-workspace
+	@echo ""
+	@echo "============================================="
+	@echo "All Sandbox V2 integration tests passed"
+	@echo "============================================="
+
+.PHONY: unit-test-sandbox-v2-pull
+unit-test-sandbox-v2-pull:
+	@echo ""
+	@echo "============================================="
+	@echo "Pulling test images..."
+	@echo "============================================="
+	docker pull $(SANDBOX_V2_IMAGE) || true
+	docker pull alpine:latest || true
+
+.PHONY: unit-test-sandbox-v2-core
+unit-test-sandbox-v2-core:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Sandbox V2 Tests..."
+	@echo "============================================="
+	$(MAKE) -C sandbox/v2 test-ci TEST_IMAGE=$(SANDBOX_V2_IMAGE)
+
+# Workspace Unit Test (requires Tai for remote mode)
+.PHONY: unit-test-workspace
+unit-test-workspace:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Workspace Tests..."
+	@echo "============================================="
+	echo "mode: count" > coverage.out
+	for d in $(TESTFOLDER_WORKSPACE); do \
+		$(GO) test -tags $(TESTTAGS) -v -timeout=10m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \
+		cat tmp.out; \
+		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "build failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "setup failed" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "runtime error" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		fi; \
+		if [ -f profile.out ]; then \
+			cat profile.out | grep -v "mode:" >> coverage.out; \
+			rm profile.out; \
+		fi; \
+	done
+	@echo ""
+	@echo "============================================="
+	@echo "All workspace tests passed"
+	@echo "============================================="
+
+# Benchmark: Sandbox V2 + Workspace
+.PHONY: benchmark-sandbox-v2
+benchmark-sandbox-v2:
+	@echo ""
+	@echo "============================================="
+	@echo "Running Sandbox V2 + Workspace Benchmarks..."
+	@echo "============================================="
+	@for d in $$($(GO) list ./sandbox/v2/... ./workspace/...); do \
+		if $(GO) test -list=Benchmark $$d 2>/dev/null | grep -q "^Benchmark"; then \
+			echo ""; \
+			echo "Benchmarking: $$d"; \
+			echo "---------------------------------------------"; \
+			$(GO) test -bench=. -benchmem -benchtime=1x -run='^$$' -timeout=600s $$d || true; \
+		fi; \
+	done
+	@echo ""
+	@echo "============================================="
+	@echo "All benchmarks completed"
+	@echo "============================================="
+
 # Sandbox Unit Test (requires Docker)
 .PHONY: unit-test-sandbox
 unit-test-sandbox:
@@ -251,9 +343,6 @@ unit-test-tai:
 	@echo "============================================="
 	@echo "Running Tai SDK Tests (requires Tai container)..."
 	@echo "============================================="
-	@echo "Pulling test images..."
-	docker pull alpine:latest || true
-	@echo ""
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_TAI); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=5m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") $$d > tmp.out; \

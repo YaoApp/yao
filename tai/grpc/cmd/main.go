@@ -71,6 +71,10 @@ func serve() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	if sandboxID := os.Getenv("YAO_SANDBOX_ID"); sandboxID != "" {
+		go yaogrpc.HeartbeatLoop(ctx, client, sandboxID)
+	}
+
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Buffer(make([]byte, 0, 4*1024*1024), 4*1024*1024)
 	encoder := json.NewEncoder(os.Stdout)
