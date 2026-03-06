@@ -35,6 +35,7 @@ import (
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
+	tairegistry "github.com/yaoapp/yao/tai/registry"
 	itask "github.com/yaoapp/yao/task"
 )
 
@@ -230,6 +231,10 @@ var startCmd = &cobra.Command{
 		// Start Schedules
 		ischedule.Start()
 		defer ischedule.Stop()
+
+		// Initialize the global Tai registry for tunnel and direct connections
+		// (must happen before HTTP/gRPC start so handlers can access it)
+		tairegistry.Init(nil)
 
 		// Start HTTP Server
 		srv, err := service.Start(config.Conf)

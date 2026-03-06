@@ -21,6 +21,16 @@ func (r *remoteProxy) Connect(ctx context.Context, containerID string, opts Conn
 	return connect(ctx, baseURL, opts.Protocol, r.client)
 }
 
+// --- Tunnel Connect ---
+
+func (t *tunnelProxy) Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error) {
+	baseURL, err := t.URL(ctx, containerID, opts.Port, opts.Path)
+	if err != nil {
+		return nil, err
+	}
+	return connect(ctx, baseURL, opts.Protocol, http.DefaultClient)
+}
+
 // --- Local Connect ---
 
 func (l *localProxy) Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error) {

@@ -73,6 +73,28 @@ func (r *remoteProxy) Healthz(ctx context.Context) error {
 	return nil
 }
 
+// --- Tunnel implementation ---
+
+type tunnelProxy struct {
+	taiID   string
+	yaoBase string // e.g. "http://yao-host:5099"
+}
+
+// NewTunnel creates a Proxy that routes through Yao's reverse proxy for
+// tunnel-connected Tai instances. URLs point to {yaoBase}/tai/{taiID}/proxy/*.
+func NewTunnel(taiID, yaoBase string) Proxy {
+	return &tunnelProxy{taiID: taiID, yaoBase: strings.TrimRight(yaoBase, "/")}
+}
+
+func (t *tunnelProxy) URL(_ context.Context, containerID string, port int, path string) (string, error) {
+	path = strings.TrimPrefix(path, "/")
+	return fmt.Sprintf("%s/tai/%s/proxy/%s:%d/%s", t.yaoBase, t.taiID, containerID, port, path), nil
+}
+
+func (t *tunnelProxy) Healthz(_ context.Context) error {
+	return nil
+}
+
 // --- Local implementation ---
 
 type localProxy struct {

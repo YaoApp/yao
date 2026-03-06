@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -35,6 +36,7 @@ func RevokeContainerTokens(refresh string) error {
 }
 
 // BuildGRPCEnv builds the gRPC environment variables for a sandbox container.
+// Supports tai:// (direct), tunnel:// (NAT traversal), and local modes.
 func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) map[string]string {
 	portStr := strconv.Itoa(grpcPort)
 	env := map[string]string{
@@ -42,12 +44,34 @@ func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) m
 		"YAO_TOKEN":         access,
 		"YAO_REFRESH_TOKEN": refresh,
 	}
-	if pool != nil && strings.Contains(pool.Addr, "tai://") {
-		taiHost := strings.TrimPrefix(pool.Addr, "tai://")
+
+	if pool == nil {
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%s", portStr)
+		return env
+	}
+
+	switch {
+	case strings.HasPrefix(pool.Addr, "tunnel://"):
 		env["YAO_GRPC_TAI"] = "enable"
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:9100", taiHost)
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%d", grpcPort)
 		env["YAO_GRPC_UPSTREAM"] = fmt.Sprintf("127.0.0.1:%s", portStr)
-	} else {
+
+	case strings.HasPrefix(pool.Addr, "tai://"):
+		u, err := url.Parse(pool.Addr)
+		if err != nil {
+			env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%s", portStr)
+			return env
+		}
+		taiHost := u.Hostname()
+		taiPort := u.Port()
+		if taiPort == "" {
+			taiPort = "9100"
+		}
+		env["YAO_GRPC_TAI"] = "enable"
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%s", taiHost, taiPort)
+		env["YAO_GRPC_UPSTREAM"] = fmt.Sprintf("127.0.0.1:%s", portStr)
+
+	default:
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%s", portStr)
 	}
 	return env

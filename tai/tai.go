@@ -3,6 +3,7 @@ package tai
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai/proxy"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/sandbox"
 	sipb "github.com/yaoapp/yao/tai/serverinfo/pb"
 	"github.com/yaoapp/yao/tai/vnc"
@@ -124,7 +126,7 @@ func mergedPorts(p Ports) Ports {
 
 // Client provides unified access to all Tai SDK sub-packages.
 type Client struct {
-	scheme   string // "tai" or "docker"
+	scheme   string // "tai", "docker", or "tunnel"
 	host     string
 	addr     string
 	ports    Ports
@@ -135,6 +137,9 @@ type Client struct {
 	prx      proxy.Proxy
 	vc       vnc.VNC
 	grpcConn *grpc.ClientConn
+
+	// tunnel mode: local listeners that bridge to Tai via WS
+	tunnelListeners []net.Listener
 }
 
 // New creates a Client based on the address protocol:
@@ -172,6 +177,8 @@ func New(addr string, opts ...Option) (*Client, error) {
 		return c.initLocal(cfg)
 	case "tai":
 		return c.initRemote(cfg)
+	case "tunnel":
+		return c.initTunnel(cfg)
 	default:
 		return nil, fmt.Errorf("unsupported scheme: %s", scheme)
 	}
@@ -256,7 +263,95 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	hc := cfg.httpClient
 	c.prx = proxy.NewRemote(c.host, c.ports.HTTP, hc)
 	c.vc = vnc.NewRemote(c.host, c.ports.VNC, hc)
+
+	if reg := registry.Global(); reg != nil {
+		reg.Register(&registry.TaiNode{
+			TaiID: c.host,
+			Mode:  "direct",
+			Addr:  c.host,
+			Ports: map[string]int{
+				"grpc":   c.ports.GRPC,
+				"http":   c.ports.HTTP,
+				"vnc":    c.ports.VNC,
+				"docker": c.ports.Docker,
+				"k8s":    c.ports.K8s,
+			},
+		})
+	}
+
 	return c, nil
+}
+
+func (c *Client) initTunnel(cfg *config) (*Client, error) {
+	reg := registry.Global()
+	if reg == nil {
+		return nil, fmt.Errorf("tai registry not initialized")
+	}
+
+	taiID := c.host // for tunnel:// scheme, host stores the taiID
+	node, ok := reg.Get(taiID)
+	if !ok || node.Status != "online" {
+		return nil, fmt.Errorf("tai node %s not online", taiID)
+	}
+
+	c.ports = Ports{
+		GRPC:   nodePort(node.Ports, "grpc", 9100),
+		HTTP:   nodePort(node.Ports, "http", 8080),
+		VNC:    nodePort(node.Ports, "vnc", 6080),
+		Docker: nodePort(node.Ports, "docker", 2375),
+	}
+
+	grpcLn, err := reg.OpenLocalListener(taiID, c.ports.GRPC)
+	if err != nil {
+		return nil, fmt.Errorf("open grpc tunnel listener: %w", err)
+	}
+	c.tunnelListeners = append(c.tunnelListeners, grpcLn)
+
+	grpcAddr := grpcLn.Addr().String()
+	conn, err := grpc.NewClient("passthrough:///"+grpcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		grpcLn.Close()
+		return nil, fmt.Errorf("grpc dial tunnel %s: %w", grpcAddr, err)
+	}
+	c.grpcConn = conn
+	c.vol = volume.NewRemote(conn)
+
+	dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
+	if err != nil {
+		conn.Close()
+		grpcLn.Close()
+		return nil, fmt.Errorf("open docker tunnel listener: %w", err)
+	}
+	c.tunnelListeners = append(c.tunnelListeners, dockerLn)
+
+	sbAddr := fmt.Sprintf("tcp://%s", dockerLn.Addr().String())
+	sb, err := sandbox.NewDocker(sbAddr)
+	if err != nil {
+		c.closeTunnelListeners()
+		conn.Close()
+		return nil, err
+	}
+	c.sb = sb
+	c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
+
+	c.prx = proxy.NewTunnel(taiID, node.YaoBase)
+	c.vc = vnc.NewTunnel(taiID, node.YaoBase)
+	return c, nil
+}
+
+func (c *Client) closeTunnelListeners() {
+	for _, ln := range c.tunnelListeners {
+		ln.Close()
+	}
+	c.tunnelListeners = nil
+}
+
+func nodePort(ports map[string]int, key string, fallback int) int {
+	if p, ok := ports[key]; ok && p > 0 {
+		return p
+	}
+	return fallback
 }
 
 // Close releases all resources.
@@ -275,6 +370,12 @@ func (c *Client) Close() error {
 	if c.grpcConn != nil {
 		if err := c.grpcConn.Close(); err != nil {
 			errs = append(errs, err)
+		}
+	}
+	c.closeTunnelListeners()
+	if c.scheme == "tai" {
+		if reg := registry.Global(); reg != nil {
+			reg.Unregister(c.host)
 		}
 	}
 	if len(errs) > 0 {
@@ -354,6 +455,13 @@ func parseAddr(addr string) (scheme, host, dockerAddr string, grpcPort int, err 
 			}
 		}
 		return "tai", hostname, "", grpcPort, nil
+
+	case "tunnel":
+		taiID := u.Host
+		if taiID == "" {
+			return "", "", "", 0, fmt.Errorf("tunnel:// requires a tai ID")
+		}
+		return "tunnel", taiID, "", 0, nil
 
 	case "docker":
 		return "docker", "", addr, 0, nil
