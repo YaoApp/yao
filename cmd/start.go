@@ -8,14 +8,11 @@ import (
 	"strings"
 	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/fatih/color"
-	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou/api"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/fs"
-	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/schedule"
@@ -23,9 +20,7 @@ import (
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/gou/task"
 	"github.com/yaoapp/gou/websocket"
-	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
-	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 	yaogrpc "github.com/yaoapp/yao/grpc"
@@ -41,7 +36,6 @@ import (
 
 var startDebug = false
 var startDisableWatching = false
-var startTUI = false
 
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -293,7 +287,6 @@ var startCmd = &cobra.Command{
 				case http.READY:
 					fmt.Println(color.GreenString(L("Server is up and running...")))
 					fmt.Println(color.GreenString("Ctrl+C to stop"))
-					initAgentTUI()
 					break
 
 				case http.CLOSED:
@@ -654,38 +647,7 @@ func colorMehtod(method string) string {
 	}
 }
 
-// initAgentTUI initializes the TUI for agent request visualization in dev mode.
-// Must be called after HTTP READY to avoid interfering with startup messages.
-func initAgentTUI() {
-	if !config.IsDevelopment() {
-		return
-	}
-
-	if !startTUI && os.Getenv("YAO_TUI") != "on" {
-		return
-	}
-
-	if !isatty.IsTerminal(os.Stdout.Fd()) {
-		return
-	}
-
-	model := agentcontext.NewAgentTUIModel()
-	p := tea.NewProgram(model, tea.WithoutSignalHandler())
-
-	agentcontext.SetTUIProgram(p)
-	tuiWriter := &agentcontext.TUILogWriter{Program: p}
-	helper.SetDevWriter(tuiWriter)
-	exception.SetWriter(tuiWriter)
-
-	go func() {
-		if _, err := p.Run(); err != nil {
-			log.Error("TUI error: %s", err.Error())
-		}
-	}()
-}
-
 func init() {
 	startCmd.PersistentFlags().BoolVarP(&startDebug, "debug", "", false, L("Development mode"))
 	startCmd.PersistentFlags().BoolVarP(&startDisableWatching, "disable-watching", "", false, L("Disable watching"))
-	startCmd.PersistentFlags().BoolVarP(&startTUI, "tui", "", false, L("Enable TUI for agent request visualization"))
 }

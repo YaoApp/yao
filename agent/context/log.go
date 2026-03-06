@@ -192,11 +192,8 @@ func (l *RequestLogger) processEntry(entry LogEntry) {
 	}
 }
 
-// printDev sends to TUI if available, otherwise prints colored output to stdout
+// printDev prints colored output to stdout in development mode
 func (l *RequestLogger) printDev(entry LogEntry) {
-	if GetTUIProgram() != nil {
-		return
-	}
 	switch entry.Level {
 	case LogLevelTrace:
 		fmt.Printf("%s  → %s%s\n", colorGray, entry.Message, colorReset)
@@ -315,17 +312,6 @@ func (l *RequestLogger) Start() {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID:   l.requestID,
-		ParentID:    l.parentID,
-		AssistantID: l.currentAssistantID(),
-		Event:       EventRequestStart,
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
-
 	fmt.Println()
 	fmt.Printf("%s%s%s\n", colorBoldCyan, strings.Repeat("═", 60), colorReset)
 	fmt.Printf("%s  AGENT REQUEST %s%s\n", colorBoldCyan, l.shortID, colorReset)
@@ -357,21 +343,6 @@ func (l *RequestLogger) End(success bool, err error) {
 		return
 	}
 
-	data := map[string]interface{}{"duration": duration.Round(time.Millisecond)}
-	if err != nil {
-		data["error"] = err.Error()
-	}
-	SendTUI(AgentEventMsg{
-		RequestID:   l.requestID,
-		AssistantID: l.currentAssistantID(),
-		Event:       EventRequestEnd,
-		Data:        data,
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
-
 	fmt.Printf("%s%s%s\n", colorCyan, strings.Repeat("─", 60), colorReset)
 	if success {
 		fmt.Printf("%s  REQUEST %s COMPLETED%s\n", colorBoldGreen, l.shortID, colorReset)
@@ -400,15 +371,6 @@ func (l *RequestLogger) Phase(name string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventPhase,
-		Data:      map[string]interface{}{"name": name, "elapsed": elapsed},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  > %s%s %s[+%v]%s\n", colorBoldBlue, name, colorReset, colorGray, elapsed, colorReset)
 }
 
@@ -425,15 +387,6 @@ func (l *RequestLogger) PhaseComplete(name string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventPhaseDone,
-		Data:      map[string]interface{}{"name": name, "elapsed": elapsed},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  + %s%s %s[+%v]%s\n", colorGreen, name, colorReset, colorGray, elapsed, colorReset)
 }
 
@@ -447,15 +400,6 @@ func (l *RequestLogger) PhaseSkip(name, reason string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventPhaseSkip,
-		Data:      map[string]interface{}{"name": name, "reason": reason},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  - %s (%s)%s\n", colorGray, name, reason, colorReset)
 }
 
@@ -472,19 +416,6 @@ func (l *RequestLogger) LLMStart(connector, model string, messageCount int) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventLLMCall,
-		Data: map[string]interface{}{
-			"connector": connector,
-			"model":     model,
-			"messages":  messageCount,
-		},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  LLM Call%s %s[+%v]%s\n", colorBoldMagenta, colorReset, colorGray, elapsed, colorReset)
 	fmt.Printf("%s    Connector: %s%s%s\n", colorGray, colorWhite, connector, colorReset)
 	if model != "" {
@@ -511,19 +442,6 @@ func (l *RequestLogger) LLMComplete(tokens int, hasToolCalls bool) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventLLMDone,
-		Data: map[string]interface{}{
-			"detail": fmt.Sprintf("%s [tokens:%d, %v]", status, tokens, elapsed),
-			"tokens": tokens,
-			"status": status,
-		},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  + LLM Response (%s)%s", colorGreen, status, colorReset)
 	if tokens > 0 {
 		fmt.Printf(" %s[tokens: %d]%s", colorGray, tokens, colorReset)
@@ -543,15 +461,6 @@ func (l *RequestLogger) ToolStart(toolName string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventToolCall,
-		Data:      map[string]interface{}{"name": toolName},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  Tool: %s%s\n", colorYellow, toolName, colorReset)
 }
 
@@ -571,15 +480,6 @@ func (l *RequestLogger) ToolComplete(toolName string, success bool) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventToolDone,
-		Data:      map[string]interface{}{"name": toolName, "success": success},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	if success {
 		fmt.Printf("%s    + %s completed%s\n", colorGreen, toolName, colorReset)
 	} else {
@@ -600,15 +500,6 @@ func (l *RequestLogger) HookStart(hookName string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventHook,
-		Data:      map[string]interface{}{"name": hookName},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  Hook: %s%s %s[+%v]%s\n", colorMagenta, hookName, colorReset, colorGray, elapsed, colorReset)
 }
 
@@ -624,15 +515,6 @@ func (l *RequestLogger) HookComplete(hookName string) {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventHookDone,
-		Data:      map[string]interface{}{"name": hookName},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s    + %s done%s\n", colorGreen, hookName, colorReset)
 }
 
@@ -644,7 +526,7 @@ func (l *RequestLogger) Cleanup(resource string) {
 
 	kunlog.Trace("[AGENT] %s Cleanup: %s", l.shortID, resource)
 
-	if !config.IsDevelopment() || GetTUIProgram() != nil {
+	if !config.IsDevelopment() {
 		return
 	}
 	fmt.Printf("%s    + %s%s\n", colorGray, resource, colorReset)
@@ -658,7 +540,7 @@ func (l *RequestLogger) HistoryLoad(count, maxSize int) {
 
 	kunlog.Trace("[AGENT] %s History loaded: %d/%d messages", l.shortID, count, maxSize)
 
-	if !config.IsDevelopment() || GetTUIProgram() != nil {
+	if !config.IsDevelopment() {
 		return
 	}
 	fmt.Printf("%s    Loaded %d/%d history messages%s\n", colorGray, count, maxSize, colorReset)
@@ -673,7 +555,7 @@ func (l *RequestLogger) HistoryOverlap(overlapCount int) {
 	if overlapCount > 0 {
 		kunlog.Trace("[AGENT] %s History overlap removed: %d messages", l.shortID, overlapCount)
 
-		if !config.IsDevelopment() || GetTUIProgram() != nil {
+		if !config.IsDevelopment() {
 			return
 		}
 		fmt.Printf("%s    Removed %d overlapping messages%s\n", colorYellow, overlapCount, colorReset)
@@ -692,15 +574,6 @@ func (l *RequestLogger) Release() {
 		return
 	}
 
-	SendTUI(AgentEventMsg{
-		RequestID: l.requestID,
-		Event:     EventContextRelease,
-		Data:      map[string]interface{}{"assistant": l.currentAssistantID()},
-	})
-
-	if GetTUIProgram() != nil {
-		return
-	}
 	fmt.Printf("%s  RELEASE %s%s %s(%s)%s\n", colorBoldYellow, l.shortID, colorReset, colorGray, l.currentAssistantID(), colorReset)
 }
 
