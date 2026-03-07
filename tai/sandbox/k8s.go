@@ -349,12 +349,18 @@ func (s *k8sSandbox) Inspect(ctx context.Context, id string) (*ContainerInfo, er
 }
 
 func (s *k8sSandbox) List(ctx context.Context, opts ListOptions) ([]ContainerInfo, error) {
-	labelSelector := "managed-by=yao-tai-sdk"
-	if len(opts.Labels) > 0 {
-		for k, v := range opts.Labels {
-			labelSelector += "," + k + "=" + v
-		}
+	merged := make(map[string]string)
+	for k, v := range s.labels {
+		merged[k] = v
 	}
+	for k, v := range opts.Labels {
+		merged[k] = v
+	}
+	var parts []string
+	for k, v := range merged {
+		parts = append(parts, k+"="+v)
+	}
+	labelSelector := strings.Join(parts, ",")
 
 	pods, err := s.cli.CoreV1().Pods(s.ns).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,

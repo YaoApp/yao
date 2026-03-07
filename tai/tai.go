@@ -221,18 +221,28 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	c.grpcConn = conn
 	c.he = hepb.NewHostExecClient(conn)
 
-	// Auto-discover server ports via ServerInfo RPC.
-	// Only overwrite ports that were NOT explicitly set by WithPorts.
-	if err := c.discoverPorts(conn, cfg); err != nil {
-		// Non-fatal: fall back to defaults / WithPorts values.
-		// Old Tai servers without ServerInfo will hit this path.
-		_ = err
+	caps, err := c.discoverServerInfo(conn, cfg)
+	if err != nil {
+		// Old Tai without ServerInfo — fall back to legacy behaviour (try Docker).
+		caps = map[string]bool{"docker": true}
+	}
+
+	hasDocker := caps["docker"]
+	hasK8s := caps["k8s"]
+	hasHostExec := caps["host_exec"]
+
+	if !hasDocker && !hasK8s && !hasHostExec {
+		conn.Close()
+		return nil, fmt.Errorf("tai %s: no capabilities available (docker/k8s/host_exec all false)", c.host)
 	}
 
 	c.vol = volume.NewRemote(conn)
 
-	switch cfg.runtime {
-	case K8s:
+	if cfg.runtime == K8s {
+		if cfg.kubeConfig == "" {
+			conn.Close()
+			return nil, fmt.Errorf("tai %s: K8s runtime requested but no kubeconfig provided", c.host)
+		}
 		k8sPort := c.ports.K8s
 		if k8sPort == 0 {
 			k8sPort = 6443
@@ -242,30 +252,28 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 			Namespace:  cfg.namespace,
 			KubeConfig: cfg.kubeConfig,
 		})
-		if err != nil {
-			conn.Close()
-			return nil, err
+		if err == nil {
+			c.sb = sb
+			c.img = sandbox.NewK8sImage()
 		}
-		c.sb = sb
-		c.img = sandbox.NewK8sImage()
-	default:
+	} else if hasDocker {
 		dockerPort := c.ports.Docker
 		if dockerPort == 0 {
 			dockerPort = 2375
 		}
 		sbAddr := fmt.Sprintf("tcp://%s:%d", c.host, dockerPort)
 		sb, err := sandbox.NewDocker(sbAddr)
-		if err != nil {
-			conn.Close()
-			return nil, err
+		if err == nil {
+			c.sb = sb
+			c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
 		}
-		c.sb = sb
-		c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
 	}
 
-	hc := cfg.httpClient
-	c.prx = proxy.NewRemote(c.host, c.ports.HTTP, hc)
-	c.vc = vnc.NewRemote(c.host, c.ports.VNC, hc)
+	if c.sb != nil {
+		hc := cfg.httpClient
+		c.prx = proxy.NewRemote(c.host, c.ports.HTTP, hc)
+		c.vc = vnc.NewRemote(c.host, c.ports.VNC, hc)
+	}
 
 	if reg := registry.Global(); reg != nil {
 		reg.Register(&registry.TaiNode{
@@ -321,26 +329,37 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	c.he = hepb.NewHostExecClient(conn)
 	c.vol = volume.NewRemote(conn)
 
-	dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
+	caps, err := c.discoverServerInfo(conn, cfg)
 	if err != nil {
-		conn.Close()
-		grpcLn.Close()
-		return nil, fmt.Errorf("open docker tunnel listener: %w", err)
+		caps = map[string]bool{"docker": true}
 	}
-	c.tunnelListeners = append(c.tunnelListeners, dockerLn)
 
-	sbAddr := fmt.Sprintf("tcp://%s", dockerLn.Addr().String())
-	sb, err := sandbox.NewDocker(sbAddr)
-	if err != nil {
+	hasDocker := caps["docker"]
+	hasHostExec := caps["host_exec"]
+
+	if !hasDocker && !hasHostExec {
 		c.closeTunnelListeners()
 		conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("tai %s: no capabilities available via tunnel", taiID)
 	}
-	c.sb = sb
-	c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
 
-	c.prx = proxy.NewTunnel(taiID, node.YaoBase)
-	c.vc = vnc.NewTunnel(taiID, node.YaoBase)
+	if hasDocker && c.ports.Docker > 0 {
+		dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
+		if err == nil {
+			c.tunnelListeners = append(c.tunnelListeners, dockerLn)
+			sbAddr := fmt.Sprintf("tcp://%s", dockerLn.Addr().String())
+			sb, err := sandbox.NewDocker(sbAddr)
+			if err == nil {
+				c.sb = sb
+				c.img = sandbox.NewDockerImage(sandbox.DockerCli(sb))
+			}
+		}
+	}
+
+	if c.sb != nil {
+		c.prx = proxy.NewTunnel(taiID, node.YaoBase)
+		c.vc = vnc.NewTunnel(taiID, node.YaoBase)
+	}
 	return c, nil
 }
 
@@ -400,16 +419,20 @@ func (c *Client) Workspace(sessionID string) workspace.FS {
 	return workspace.New(c.vol, sessionID)
 }
 
-// Sandbox returns the container lifecycle manager. Never nil.
+// Sandbox returns the container lifecycle manager.
+// Nil when the Tai server has no container runtime (host-exec-only mode).
 func (c *Client) Sandbox() sandbox.Sandbox { return c.sb }
 
-// Image returns the container image manager. Never nil.
+// Image returns the container image manager.
+// Nil when the Tai server has no container runtime.
 func (c *Client) Image() sandbox.Image { return c.img }
 
-// Proxy returns the HTTP reverse proxy helper. Never nil.
+// Proxy returns the HTTP reverse proxy helper.
+// Nil when the Tai server has no container runtime.
 func (c *Client) Proxy() proxy.Proxy { return c.prx }
 
-// VNC returns the VNC WebSocket helper. Never nil.
+// VNC returns the VNC WebSocket helper.
+// Nil when the Tai server has no container runtime.
 func (c *Client) VNC() vnc.VNC { return c.vc }
 
 // HostExec returns the HostExec gRPC client for executing commands on the Tai
@@ -492,21 +515,19 @@ func isLocalHost(h string) bool {
 	return h == "127.0.0.1" || h == "localhost" || h == "::1"
 }
 
-// discoverPorts calls ServerInfo.GetInfo on the remote Tai server and merges
-// discovered ports into c.ports. Ports explicitly set via WithPorts (non-zero
-// in the original config before merging defaults) take precedence.
-func (c *Client) discoverPorts(conn *grpc.ClientConn, cfg *config) error {
+// discoverServerInfo calls ServerInfo.GetInfo on the remote Tai server, merges
+// discovered ports into c.ports, and returns the server's capabilities map.
+// Ports explicitly set via WithPorts take precedence over server-reported values.
+func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[string]bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	client := sipb.NewServerInfoClient(conn)
 	resp, err := client.GetInfo(ctx, &sipb.GetInfoRequest{})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	// cfg.userPorts tracks what the caller explicitly passed to WithPorts.
-	// Only overwrite ports that the caller did NOT explicitly set.
 	up := cfg.userPorts
 
 	if p := int(resp.Ports["http"]); p > 0 && up.HTTP == 0 {
@@ -521,5 +542,10 @@ func (c *Client) discoverPorts(conn *grpc.ClientConn, cfg *config) error {
 	if p := int(resp.Ports["k8s"]); p > 0 && up.K8s == 0 {
 		c.ports.K8s = p
 	}
-	return nil
+
+	caps := resp.Capabilities
+	if caps == nil {
+		caps = make(map[string]bool)
+	}
+	return caps, nil
 }

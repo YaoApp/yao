@@ -164,6 +164,32 @@ func (m *Manager) Heartbeat(sandboxID string, active bool, processCount int) err
 	return nil
 }
 
+// Host returns a Host handle for executing commands on the Tai host machine.
+// The pool must be connected to a Tai server with host_exec capability.
+// Unlike Create/Box, Host does not create a container — it is available
+// immediately as long as the pool is reachable.
+func (m *Manager) Host(_ context.Context, pool string) (*Host, error) {
+	if pool == "" {
+		pool = m.defaultPool
+	}
+
+	pd := m.findPoolDef(pool)
+	if pd == nil {
+		return nil, ErrPoolNotFound
+	}
+
+	client, err := m.getPool(pool)
+	if err != nil {
+		return nil, fmt.Errorf("sandbox: connect pool %q: %w", pool, err)
+	}
+
+	if client.HostExec() == nil {
+		return nil, fmt.Errorf("sandbox: pool %q has no host_exec capability", pool)
+	}
+
+	return &Host{pool: pool, manager: m}, nil
+}
+
 // Create creates and starts a new sandbox.
 func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) {
 	if len(m.poolDefs) == 0 {
@@ -205,6 +231,10 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 	client, err := m.getPool(poolName)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: connect pool %q: %w", poolName, err)
+	}
+
+	if client.Sandbox() == nil {
+		return nil, fmt.Errorf("sandbox: pool %q has no container runtime", poolName)
 	}
 
 	access, refresh, err := CreateContainerTokens(id, opts.Owner, nil)
@@ -303,7 +333,7 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 	b := v.(*Box)
 
 	client, err := m.getPool(b.pool)
-	if err == nil {
+	if err == nil && client.Sandbox() != nil {
 		client.Sandbox().Remove(ctx, b.containerID, true)
 	}
 
@@ -331,7 +361,7 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 			}
 		case LongRunning:
 			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
-				if client, err := m.getPool(b.pool); err == nil {
+				if client, err := m.getPool(b.pool); err == nil && client.Sandbox() != nil {
 					client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
 				}
 			}
@@ -526,6 +556,9 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 }
 
 func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client) {
+	if client.Sandbox() == nil {
+		return
+	}
 	containers, err := client.Sandbox().List(ctx, taisandbox.ListOptions{
 		All:    true,
 		Labels: map[string]string{"managed-by": "yao-sandbox"},
@@ -543,9 +576,13 @@ func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client
 			continue
 		}
 
+		cid := c.ID
+		if c.Name != "" {
+			cid = c.Name
+		}
 		box := &Box{
 			id:          sandboxID,
-			containerID: c.ID,
+			containerID: cid,
 			pool:        c.Labels["sandbox-pool"],
 			owner:       c.Labels["sandbox-owner"],
 			policy:      LifecyclePolicy(c.Labels["sandbox-policy"]),
@@ -561,12 +598,18 @@ func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client
 }
 
 // ImageExists reports whether the given image ref exists on the target pool node.
+// Returns (true, nil) when the pool has no image service (e.g. K8s — kubelet
+// handles image pulls transparently).
 func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error) {
 	client, err := m.getPool(pool)
 	if err != nil {
 		return false, err
 	}
-	return client.Image().Exists(ctx, ref)
+	img := client.Image()
+	if img == nil {
+		return true, nil
+	}
+	return img.Exists(ctx, ref)
 }
 
 // PullImage pulls an image to the target pool node, returning a channel of
@@ -576,6 +619,10 @@ func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePul
 	if err != nil {
 		return nil, err
 	}
+	img := client.Image()
+	if img == nil {
+		return nil, nil
+	}
 	pullOpts := taisandbox.PullOptions{}
 	if opts.Auth != nil {
 		pullOpts.Auth = &taisandbox.RegistryAuth{
@@ -584,7 +631,7 @@ func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePul
 			Server:   opts.Auth.Server,
 		}
 	}
-	return client.Image().Pull(ctx, ref, pullOpts)
+	return img.Pull(ctx, ref, pullOpts)
 }
 
 // EnsureImage checks whether the image exists on the pool node; if not, it

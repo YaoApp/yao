@@ -2,12 +2,10 @@ package sandbox
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"sync/atomic"
 	"time"
 
-	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/proxy"
 	taisandbox "github.com/yaoapp/yao/tai/sandbox"
 	"github.com/yaoapp/yao/tai/workspace"
@@ -282,50 +280,4 @@ func (b *Box) stopTimeout() time.Duration {
 		return pd.StopTimeout
 	}
 	return DefaultStopTimeout
-}
-
-// ExecOnHost runs a command on the Tai host machine (not inside the container).
-// Returns an error if the pool uses a local Docker connection (no Tai server).
-func (b *Box) ExecOnHost(ctx context.Context, cmd string, args []string, opts ...HostExecOption) (*HostExecResult, error) {
-	b.touch()
-	client, err := b.manager.getPool(b.pool)
-	if err != nil {
-		return nil, err
-	}
-
-	he := client.HostExec()
-	if he == nil {
-		return nil, fmt.Errorf("hostexec not available on pool %q (local mode)", b.pool)
-	}
-
-	cfg := &hostExecConfig{}
-	for _, o := range opts {
-		o(cfg)
-	}
-
-	req := &hepb.ExecRequest{
-		Command:        cmd,
-		Args:           args,
-		WorkingDir:     cfg.WorkDir,
-		Stdin:          cfg.Stdin,
-		TimeoutMs:      cfg.TimeoutMs,
-		MaxOutputBytes: cfg.MaxOutputBytes,
-	}
-	if cfg.Env != nil {
-		req.Env = cfg.Env
-	}
-
-	resp, err := he.Exec(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("hostexec rpc: %w", err)
-	}
-
-	return &HostExecResult{
-		ExitCode:   int(resp.ExitCode),
-		Stdout:     resp.Stdout,
-		Stderr:     resp.Stderr,
-		DurationMs: resp.DurationMs,
-		Error:      resp.Error,
-		Truncated:  resp.Truncated,
-	}, nil
 }

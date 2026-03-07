@@ -84,7 +84,7 @@ func TestStartRecovery(t *testing.T) {
 
 	for _, pc := range testPools() {
 		t.Run(pc.Name, func(t *testing.T) {
-			pool := sandbox.Pool{Name: pc.Name, Addr: pc.Addr}
+			pool := sandbox.Pool{Name: pc.Name, Addr: pc.Addr, Options: pc.Options}
 
 			m1 := setupManager(t, pool)
 			box := createTestBox(t, m1)
