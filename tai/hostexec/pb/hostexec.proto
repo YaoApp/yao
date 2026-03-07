@@ -1,0 +1,46 @@
+syntax = "proto3";
+package hostexec;
+option go_package = "github.com/yaoapp/yao/tai/hostexec/pb";
+
+// HostExec provides remote command execution on the Tai host machine.
+// High privilege — enabled only when --host-exec flag is set.
+service HostExec {
+  // Exec runs a command and returns the result when it completes.
+  rpc Exec(ExecRequest) returns (ExecResponse);
+
+  // ExecStream runs a command and streams stdout/stderr in real time.
+  rpc ExecStream(ExecRequest) returns (stream ExecOutput);
+}
+
+message ExecRequest {
+  string              command          = 1;
+  repeated string     args             = 2;
+  string              working_dir      = 3;
+  map<string, string> env              = 4;
+  bytes               stdin            = 5;
+  int64               timeout_ms       = 6;
+  int64               max_output_bytes = 7; // max stdout+stderr size (0 = default 10MB), truncate if exceeded
+}
+
+message ExecResponse {
+  int32  exit_code   = 1;
+  bytes  stdout      = 2;
+  bytes  stderr      = 3;
+  int64  duration_ms = 4;
+  string error       = 5; // non-empty if Tai failed to execute (not the command's error)
+  bool   truncated   = 6; // true if stdout+stderr exceeded max_output_bytes and was truncated
+}
+
+message ExecOutput {
+  enum Stream {
+    STDOUT = 0;
+    STDERR = 1;
+  }
+  Stream stream = 1;
+  bytes  data   = 2;
+
+  // Only set in the final message (exit_code is meaningful).
+  bool  done      = 3;
+  int32 exit_code = 4;
+  string error    = 5;
+}

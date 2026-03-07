@@ -164,18 +164,18 @@ Deliverable: LLM (unary + stream) and Agent streaming via gRPC.
 
 Depends on: Phase 1 (need proto definitions for testing). `tai call` (tai repo) depends on this.
 
-Tai gateway currently dials a fixed `YaoUpstream` at startup. New behavior: yao-grpc tells Tai where to forward via request metadata (`x-grpc-upstream`). Tai reads the target address and proxies to it — removes `YaoUpstream` startup config.
+Tai gateway receives the upstream address during registration (`SetUpstream`). All gRPC requests are forwarded to the configured upstream — no per-request metadata required.
 
 | Task | Detail | Status |
 |------|--------|--------|
-| Tai `gateway/gateway.go` | Remove fixed `upstream *grpc.ClientConn`. On each request, read `x-grpc-upstream` from metadata → lookup/create conn from `sync.Map` cache (key = address string) → forward. Typical deployment has 1 upstream, cache stays tiny. | ✅ Done |
-| Tai `server/server.go` | Remove `YaoUpstream` from `Config`. Gateway init no longer needs an address. | ✅ Done |
+| Tai `gateway/gateway.go` | Removed fixed `upstream *grpc.ClientConn`. `SetUpstream` configures the forwarding target. `sync.Map` cache for connections (key = address string). | ✅ Done |
+| Tai `server/server.go` | Remove `YaoUpstream` from `Config`. Gateway uses `SetUpstream` after registration. | ✅ Done |
 | Tai `main.go` | Remove `--yao` flag, `TAI_YAO_UPSTREAM` env var, YAML `yao` field, and required check. | ✅ Done |
-| Tai `gateway/gateway_test.go` | Updated tests: dynamic routing, missing metadata → InvalidArgument, metadata forwarding (x-grpc-upstream stripped), upstream error propagation, multiple upstreams, connection cache. Coverage: 88.8%. | ✅ Done |
+| Tai `gateway/gateway_test.go` | Updated tests: SetUpstream routing, no-upstream → Unavailable, metadata forwarding, upstream error propagation, upstream switching, connection cache. | ✅ Done |
 
 Connection cache: `sync.Map[string, *grpc.ClientConn]` — lazy dial on first request per upstream, reuse thereafter. No eviction needed (upstream count ≈ 1 in practice). `Close` closes all cached connections.
 
-Deliverable: Tai starts without Yao address. Forwards based on request metadata.
+Deliverable: Tai receives upstream via registration. Forwards all requests to configured upstream.
 
 ### Phase 5: yao-grpc container client ✅
 
@@ -183,14 +183,11 @@ Depends on: Phase 1 (server + auth), Phase 4 (Tai gateway accepts `x-grpc-upstre
 
 | Task | Detail | Status |
 |------|--------|--------|
-| `tai/grpc/auth.go` | `TokenManager`: read `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` / `YAO_GRPC_UPSTREAM` from env. `YAO_GRPC_TAI=enable` triggers Tai relay mode (requires `YAO_GRPC_UPSTREAM`). Attach as gRPC metadata on every call via unary + stream interceptors. Auto-refresh from response headers. | ✅ Done |
-| `tai/grpc/grpc.go` | `Client`: `Dial(addr, TokenManager)`, `NewFromEnv()`. Method wrappers for all RPCs: Run, Shell, API, MCP (list/call/resources/read), ChatCompletions, ChatCompletionsStream, AgentStream, Healthz. | ✅ Done |
-| `tai/grpc/cmd/main.go` | Stdio MCP server: JSON-RPC → gRPC. `yao-grpc version` prints version/commit/build time (via `-ldflags`). `yao-grpc serve` reads stdin JSON-RPC, dispatches to gRPC client. | ✅ Done |
-| `tai/grpc/grpc_test.go` + `integration_test.go` | Black-box tests (package `grpc_test`). Unit: TokenManager metadata attachment, env parsing, refresh handling. Integration: real Yao gRPC server, all method wrappers, token refresh, auth rejection. Coverage: 83.9%. | ✅ Done |
+| `tai call` (tai repo) | In-container gRPC bridge. Reads `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` / `YAO_GRPC_ADDR` from env. Attaches auth metadata on every call via unary + stream interceptors. Auto-refresh from response headers. | ✅ Done |
 
 Container token issuance uses existing `oauth.MakeAccessToken` / `oauth.MakeRefreshToken` — called by sandbox Manager at container creation, injected as env vars. Revoke on Remove. No new auth code needed on the issuance side.
 
-Deliverable: `go build -o yao-grpc ./tai/grpc/cmd`.
+Deliverable: `tai call` subcommand (part of Tai binary).
 
 ### Phase 6: Device Flow + CLI auth ✅
 

@@ -158,7 +158,7 @@ type Config struct {
 }
 ```
 
-Container gRPC env vars (`YAO_GRPC_ADDR`, `YAO_GRPC_UPSTREAM`, etc.) are derived automatically at creation time. Per-instance settings (image, memory, CPU, workdir, env, pool) are passed via `CreateOptions`.
+Container gRPC env vars (`YAO_GRPC_ADDR`, etc.) are derived automatically at creation time. Per-instance settings (image, memory, CPU, workdir, env, pool) are passed via `CreateOptions`.
 
 ### Core API
 
@@ -548,10 +548,8 @@ YAO_TOKEN=<access_token>
 YAO_REFRESH_TOKEN=<refresh_token>
 YAO_GRPC_ADDR=127.0.0.1:9099
 
-# Remote mode (tai://) adds:
-YAO_GRPC_TAI=enable
+# Remote mode (tai://)
 YAO_GRPC_ADDR=<tai-host>:9100
-YAO_GRPC_UPSTREAM=127.0.0.1:9099
 ```
 
 ## Errors

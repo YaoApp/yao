@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/proxy"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/sandbox"
@@ -136,6 +137,7 @@ type Client struct {
 	img      sandbox.Image
 	prx      proxy.Proxy
 	vc       vnc.VNC
+	he       hepb.HostExecClient
 	grpcConn *grpc.ClientConn
 
 	// tunnel mode: local listeners that bridge to Tai via WS
@@ -217,6 +219,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 		return nil, fmt.Errorf("grpc dial %s: %w", grpcAddr, err)
 	}
 	c.grpcConn = conn
+	c.he = hepb.NewHostExecClient(conn)
 
 	// Auto-discover server ports via ServerInfo RPC.
 	// Only overwrite ports that were NOT explicitly set by WithPorts.
@@ -315,6 +318,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 		return nil, fmt.Errorf("grpc dial tunnel %s: %w", grpcAddr, err)
 	}
 	c.grpcConn = conn
+	c.he = hepb.NewHostExecClient(conn)
 	c.vol = volume.NewRemote(conn)
 
 	dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
@@ -407,6 +411,10 @@ func (c *Client) Proxy() proxy.Proxy { return c.prx }
 
 // VNC returns the VNC WebSocket helper. Never nil.
 func (c *Client) VNC() vnc.VNC { return c.vc }
+
+// HostExec returns the HostExec gRPC client for executing commands on the Tai
+// host machine. Returns nil in local mode (no Tai server).
+func (c *Client) HostExec() hepb.HostExecClient { return c.he }
 
 // IsLocal returns true if the client connects directly to a Docker daemon.
 func (c *Client) IsLocal() bool { return c.scheme == "docker" }

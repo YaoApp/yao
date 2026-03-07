@@ -233,8 +233,8 @@ agent/context/jsapi_sandbox.go
 | Container exec | `dockerClient.ContainerExecCreate/Start/Attach` | `tai.Client.Sandbox().Exec()` |
 | File read | Host path via bind mount (`containerPathToHost`) | Local: bind mount (same). Remote: `tai.Client.Volume().Read()` |
 | File write | `dockerClient.CopyToContainer` | Local: bind mount. Remote: `tai.Client.Volume().Write()` |
-| IPC | Unix socket bind mount + yao-bridge | All modes: `yao-grpc` → gRPC (direct or via Tai relay). No Unix socket. |
-| MCP config | `{args: ["/tmp/yao.sock"]}` hardcoded | `YAO_GRPC_ADDR` + `YAO_TOKEN` env vars. Local: direct. Remote: + `YAO_GRPC_TAI`/`YAO_GRPC_UPSTREAM`. |
+| IPC | Unix socket bind mount + yao-bridge | All modes: `tai call` → gRPC (direct or via Tai gateway). No Unix socket. |
+| MCP config | `{args: ["/tmp/yao.sock"]}` hardcoded | `YAO_GRPC_ADDR` + `YAO_TOKEN` env vars. Local: direct. Remote: via Tai gateway. |
 | VNC | `vncproxy.NewProxy(nil)` local assumption | `tai.Client.VNC().URL()` |
 | Cleanup | `dockerClient.ContainerRemove` | `tai.Client.Sandbox().Remove()` |
 
@@ -243,11 +243,11 @@ agent/context/jsapi_sandbox.go
 All modes use gRPC — no Unix socket fallback, one code path for local and remote.
 
 ```
-Local:   Container → yao-grpc → Yao gRPC 127.0.0.1:9099
-Remote:  Container → yao-grpc → Tai :9100 relay → Yao gRPC :9099
+Local:   Container → tai call → Yao gRPC 127.0.0.1:9099
+Remote:  Container → tai call → Tai :9100 gateway → Yao gRPC :9099
 ```
 
-`yao-grpc` source lives in `yao/tai/grpc/` — shares gRPC deps with `tai/`, version-locked with the Tai protocol. Built via `go build -o yao-grpc ./tai/grpc/cmd`.
+`tai call` is the in-container gRPC bridge (part of the Tai binary). It reads env vars and bridges JSON-RPC/stdio to the Yao gRPC server.
 
 Mode determined by env vars injected by Manager at container creation:
 
@@ -255,13 +255,11 @@ Mode determined by env vars injected by Manager at container creation:
 # Local: direct to Yao
 YAO_GRPC_ADDR=127.0.0.1:9099
 
-# Remote: via Tai relay
+# Remote: via Tai gateway
 YAO_GRPC_ADDR=tai-host:9100
-YAO_GRPC_TAI=enable
-YAO_GRPC_UPSTREAM=yao-host:9099
 ```
 
-`yao-grpc` reads `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` from env, attaches as gRPC metadata on every call, and handles automatic token refresh from response metadata. In Tai relay mode, attaches `x-grpc-upstream` metadata so Tai knows where to forward.
+`tai call` reads `YAO_TOKEN` / `YAO_REFRESH_TOKEN` / `YAO_SANDBOX_ID` from env, attaches as gRPC metadata on every call, and handles automatic token refresh from response metadata. The Tai gateway uses the upstream address configured during Tai registration to forward requests to Yao.
 
 Tai relay upstream is NOT configured at Tai startup. `yao-grpc` carries the target address per request — Tai reads `x-grpc-upstream` metadata and proxies dynamically. One Tai can serve containers from different Yao instances.
 
@@ -308,9 +306,9 @@ sandbox:
 
 2. **Tai SDK** (`yao/tai`) — unified sandbox runtime SDK with Local/Remote modes. Sandbox (container lifecycle), Volume (file IO + sync with lz4), Workspace (`fs.FS` compatible), Proxy (HTTP reverse proxy), VNC (WebSocket). Remote mode connects via Tai gateway (gRPC :9100, Docker :2375, K8s :6443, HTTP :8080, VNC :6080). Details: [tai/docs/README.md](../tai/docs/README.md).
 
-3. **Tai gateway dynamic routing** (Tai repo) — removed fixed `YaoUpstream` startup config. `yao-grpc` carries `x-grpc-upstream` metadata per request; Tai reads target and proxies dynamically. One Tai serves containers from multiple Yao instances.
+3. **Tai gateway dynamic routing** (Tai repo) — removed fixed `YaoUpstream` startup config. Tai receives upstream address during registration (`SetUpstream`) and forwards all gRPC requests to it. One Tai serves containers from multiple Yao instances.
 
-4. **yao-grpc container client** (`yao/tai/grpc`) — in-container gRPC client binary replacing `yao-bridge`. Reads `YAO_TOKEN`/`YAO_REFRESH_TOKEN`/`YAO_SANDBOX_ID` from env, auto-refreshes tokens via response metadata. Supports direct mode (`YAO_GRPC_ADDR=127.0.0.1:9099`) and Tai relay mode (`YAO_GRPC_TAI=enable`). Built as `go build -o yao-grpc ./tai/grpc/cmd`.
+4. **`tai call` container client** (Tai repo) — in-container gRPC bridge replacing `yao-bridge`. Reads `YAO_TOKEN`/`YAO_REFRESH_TOKEN`/`YAO_SANDBOX_ID` from env, auto-refreshes tokens via response metadata. `YAO_GRPC_ADDR` determines the target (local Yao or remote Tai gateway).
 
 5. **OAuth Device Flow + CLI auth** — `yao login --server <url>` (RFC 8628 Device Authorization Grant), `yao logout`, credentials stored as base64 JSON in `~/.yao/credentials`. CUI `/auth/device` page for user authorization. Dynamic client registration via machine ID.
 

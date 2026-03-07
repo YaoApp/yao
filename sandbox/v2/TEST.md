@@ -468,13 +468,11 @@ func TestBuildGRPCEnv_Local(t *testing.T) {
     assert.Equal(t, "tok", env["YAO_TOKEN"])
     assert.Equal(t, "ref", env["YAO_REFRESH_TOKEN"])
     assert.NotEmpty(t, env["YAO_GRPC_ADDR"])
-    assert.Empty(t, env["YAO_GRPC_TAI"])
 }
 
 func TestBuildGRPCEnv_Remote(t *testing.T) {
     env := sandbox.BuildGRPCEnv(&sandbox.Pool{Addr: "tai://gpu.internal"}, "sb-002", "tok", "ref")
-    assert.Equal(t, "enable", env["YAO_GRPC_TAI"])
-    assert.NotEmpty(t, env["YAO_GRPC_UPSTREAM"])
+    assert.NotEmpty(t, env["YAO_GRPC_ADDR"])
 }
 
 func TestCreateContainerTokens(t *testing.T) {
