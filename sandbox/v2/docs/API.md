@@ -519,6 +519,38 @@ fmt.Printf("exit=%d stdout=%s duration=%dms\n",
     result.ExitCode, string(result.Stdout), result.DurationMs)
 ```
 
+### Stream
+
+```go
+func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...HostExecOption) (*HostExecStream, error)
+```
+
+Runs a command on the Tai host and streams stdout/stderr in real time via HostExec gRPC
+ExecStream. Returns a `HostExecStream` with separate channels for stdout and stderr.
+
+```go
+host, _ := sandbox.M().Host(ctx, "remote")
+stream, err := host.Stream(ctx, "tail", []string{"-f", "/var/log/app.log"},
+    sandbox.WithHostWorkDir("/data"),
+    sandbox.WithHostTimeout(60000),
+)
+go func() {
+    for chunk := range stream.Stderr {
+        fmt.Fprintf(os.Stderr, "%s", chunk)
+    }
+}()
+for chunk := range stream.Stdout {
+    fmt.Printf("%s", chunk)
+}
+exitCode, err := stream.Wait()
+```
+
+To cancel a long-running stream early:
+
+```go
+stream.Cancel()
+```
+
 ### Workspace
 
 ```go
@@ -706,6 +738,17 @@ type HostExecResult struct {
     DurationMs int64
     Error      string
     Truncated  bool
+}
+```
+
+### HostExecStream
+
+```go
+type HostExecStream struct {
+    Stdout <-chan []byte
+    Stderr <-chan []byte
+    Wait   func() (int, error) // blocks until exit; returns exit code
+    Cancel func()              // cancels the stream context
 }
 ```
 

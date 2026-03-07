@@ -157,6 +157,210 @@ func TestHost_Workspace(t *testing.T) {
 	}
 }
 
+func TestHost_Stream_Incremental(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		if tgt.IsWinNative {
+			continue
+		}
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, tgt)
+
+			host, err := m.Host(context.Background(), tgt.Name)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			stream, err := host.Stream(ctx, "sh", []string{"-c",
+				"for i in 1 2 3 4 5; do echo chunk$i; sleep 0.2; done"})
+			if err != nil {
+				t.Fatalf("Stream: %v", err)
+			}
+
+			var chunks []string
+			for chunk := range stream.Stdout {
+				chunks = append(chunks, string(chunk))
+			}
+
+			exitCode, err := stream.Wait()
+			if err != nil && !strings.Contains(err.Error(), "EOF") {
+				if strings.Contains(err.Error(), "not in the allowed list") {
+					t.Skipf("command not allowed on %s", tgt.Name)
+				}
+				t.Fatalf("Wait: %v", err)
+			}
+			if exitCode != 0 {
+				t.Errorf("exit_code = %d, want 0", exitCode)
+			}
+
+			combined := strings.Join(chunks, "")
+			for _, expect := range []string{"chunk1", "chunk3", "chunk5"} {
+				if !strings.Contains(combined, expect) {
+					t.Errorf("output = %q, want contains %q", combined, expect)
+				}
+			}
+
+			if len(chunks) < 2 {
+				t.Errorf("received %d chunks, want >= 2 (proves streaming, not buffered)", len(chunks))
+			}
+			t.Logf("received %d chunks over stream", len(chunks))
+		})
+	}
+}
+
+func TestHost_Stream_MultiLine(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		if tgt.IsWinNative {
+			continue
+		}
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, tgt)
+
+			host, err := m.Host(context.Background(), tgt.Name)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			stream, err := host.Stream(ctx, "sh", []string{"-c", "for i in 1 2 3; do echo line$i; done"})
+			if err != nil {
+				t.Fatalf("Stream: %v", err)
+			}
+
+			var stdout []byte
+			for chunk := range stream.Stdout {
+				stdout = append(stdout, chunk...)
+			}
+
+			exitCode, err := stream.Wait()
+			if err != nil && !strings.Contains(err.Error(), "EOF") {
+				if strings.Contains(err.Error(), "not in the allowed list") {
+					t.Skipf("command not allowed on %s", tgt.Name)
+				}
+				t.Fatalf("Wait: %v", err)
+			}
+			if exitCode != 0 {
+				t.Errorf("exit_code = %d, want 0", exitCode)
+			}
+			got := strings.TrimSpace(string(stdout))
+			for _, expect := range []string{"line1", "line2", "line3"} {
+				if !strings.Contains(got, expect) {
+					t.Errorf("stdout = %q, want contains %q", got, expect)
+				}
+			}
+		})
+	}
+}
+
+func TestHost_Stream_Stderr(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		if tgt.IsWinNative {
+			continue
+		}
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, tgt)
+
+			host, err := m.Host(context.Background(), tgt.Name)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			stream, err := host.Stream(ctx, "sh", []string{"-c", "echo err-msg >&2"})
+			if err != nil {
+				t.Fatalf("Stream: %v", err)
+			}
+
+			var stderr []byte
+			done := make(chan struct{})
+			go func() {
+				for chunk := range stream.Stdout {
+					_ = chunk
+				}
+				close(done)
+			}()
+			for chunk := range stream.Stderr {
+				stderr = append(stderr, chunk...)
+			}
+			<-done
+
+			exitCode, err := stream.Wait()
+			if err != nil && !strings.Contains(err.Error(), "EOF") {
+				if strings.Contains(err.Error(), "not in the allowed list") {
+					t.Skipf("command not allowed on %s", tgt.Name)
+				}
+				t.Fatalf("Wait: %v", err)
+			}
+			if exitCode != 0 {
+				t.Errorf("exit_code = %d, want 0", exitCode)
+			}
+			got := strings.TrimSpace(string(stderr))
+			if !strings.Contains(got, "err-msg") {
+				t.Errorf("stderr = %q, want contains 'err-msg'", got)
+			}
+		})
+	}
+}
+
+func TestHost_Stream_Cancel(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		if tgt.IsWinNative {
+			continue
+		}
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, tgt)
+
+			host, err := m.Host(context.Background(), tgt.Name)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+
+			stream, err := host.Stream(ctx, "sh", []string{"-c", "while true; do echo tick; sleep 0.1; done"})
+			if err != nil {
+				if strings.Contains(err.Error(), "not in the allowed list") {
+					t.Skipf("command not allowed on %s", tgt.Name)
+				}
+				t.Fatalf("Stream: %v", err)
+			}
+
+			received := 0
+			for chunk := range stream.Stdout {
+				_ = chunk
+				received++
+				if received >= 3 {
+					stream.Cancel()
+					break
+				}
+			}
+
+			_, waitErr := stream.Wait()
+			if waitErr != nil && strings.Contains(waitErr.Error(), "not in the allowed list") {
+				t.Skipf("command not allowed on %s", tgt.Name)
+			}
+			if received < 3 && waitErr == nil {
+				t.Errorf("received %d chunks before cancel, want >= 3", received)
+			}
+		})
+	}
+}
+
 func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
 	// Use the Windows native HostExec target which has no Docker.
 	tgt := findHostExecOnly(t)

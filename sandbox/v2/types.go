@@ -187,6 +187,15 @@ type HostExecResult struct {
 	Truncated  bool
 }
 
+// HostExecStream provides real-time streaming output from a command running
+// on the Tai host machine via HostExec gRPC ExecStream.
+type HostExecStream struct {
+	Stdout <-chan []byte
+	Stderr <-chan []byte
+	Wait   func() (int, error) // blocks until exit; returns exit code
+	Cancel func()              // cancels the stream context
+}
+
 type hostExecConfig struct {
 	WorkDir        string
 	Env            map[string]string
