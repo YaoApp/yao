@@ -50,14 +50,14 @@ High-level business layer on top of `tai.Client`. Manages container lifecycle, u
 General-purpose gRPC gateway exposed by the Yao process. Not limited to sandbox IPC — it exposes process execution, shell, API proxy, MCP, LLM, and Agent capabilities to any gRPC client. 14 RPCs defined; V1 (unary + LLM/Agent streaming) complete, V2 (base streaming via `gou/stream`) pending.
 
 **Clients:**
-- Container-internal `yao-grpc` (via Tai Gateway relay or direct)
+- Container-internal `tai call` (via Tai Gateway relay or direct)
 - `yao run` CLI (after `yao login`)
 - Other Yao instances (future node-to-node)
 
 **IPC path (replacing Unix socket):**
 ```
-Local:   Container → yao-grpc (tai/grpc/) → Yao gRPC 127.0.0.1:9099
-Remote:  Container → yao-grpc (tai/grpc/) → Tai Gateway (:9100 gRPC) → Yao gRPC Server (:9099)
+Local:   Container → tai call (tai repo) → Yao gRPC 127.0.0.1:9099
+Remote:  Container → tai call (tai repo) → Tai Gateway (:9100 gRPC) → Yao gRPC Server (:9099)
 ```
 
 All modes use gRPC — no Unix socket fallback. `yao-grpc` reads `YAO_GRPC_ADDR` from env and connects. Local containers point directly at the Yao gRPC server on loopback; remote containers point at the Tai relay. Tai does **not** know Yao gRPC address at startup — `yao-grpc` carries target in `x-grpc-upstream` request metadata. This keeps Tai stateless and allows one Tai to serve multiple Yao instances.

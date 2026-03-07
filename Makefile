@@ -205,7 +205,7 @@ unit-test-registry:
 # Sandbox V2 Integration Test (tai + sandbox/v2 + workspace)
 # Requires: Docker, Tai container, optionally k3d for K8s mode
 # ---------------------------------------------------------------------------
-SANDBOX_V2_IMAGE ?= yaoapp/sandbox-v2-test:latest
+SANDBOX_V2_IMAGE ?= yaoapp/tai-sandbox-test:latest
 
 .PHONY: unit-test-sandbox-v2
 unit-test-sandbox-v2: unit-test-sandbox-v2-pull unit-test-tai unit-test-sandbox-v2-core unit-test-workspace

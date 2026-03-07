@@ -73,6 +73,7 @@ func HandleControl(c *gin.Context) {
 		MachineID:    regMsg.MachineID,
 		Version:      regMsg.Version,
 		Auth:         authInfo,
+		System:       regMsg.System,
 		Mode:         "tunnel",
 		YaoBase:      regMsg.Server,
 		Ports:        regMsg.Ports,
@@ -159,13 +160,14 @@ func HandleData(c *gin.Context) {
 
 // registerMessage is the JSON structure for Tai's register message.
 type registerMessage struct {
-	Type         string          `json:"type"`
-	TaiID        string          `json:"tai_id"`
-	MachineID    string          `json:"machine_id"`
-	Version      string          `json:"version"`
-	Server       string          `json:"server"`
-	Ports        map[string]int  `json:"ports"`
-	Capabilities map[string]bool `json:"capabilities"`
+	Type         string              `json:"type"`
+	TaiID        string              `json:"tai_id"`
+	MachineID    string              `json:"machine_id"`
+	Version      string              `json:"version"`
+	Server       string              `json:"server"`
+	Ports        map[string]int      `json:"ports"`
+	Capabilities map[string]bool     `json:"capabilities"`
+	System       registry.SystemInfo `json:"system"`
 }
 
 // controlMsg is a generic control channel message.

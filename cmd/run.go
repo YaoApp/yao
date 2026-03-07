@@ -16,9 +16,9 @@ import (
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	grpcclient "github.com/yaoapp/yao/grpc/client"
 	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/share"
-	taigrpc "github.com/yaoapp/yao/tai/grpc"
 	itask "github.com/yaoapp/yao/task"
 )
 
@@ -93,8 +93,8 @@ func runGRPC(cred *Credential, args []string) {
 		os.Exit(1)
 	}
 
-	tm := taigrpc.NewTokenManager(cred.AccessToken, cred.RefreshToken, "", "")
-	client, err := taigrpc.Dial(cred.GRPCAddr, tm)
+	tm := grpcclient.NewTokenManager(cred.AccessToken, cred.RefreshToken, "")
+	client, err := grpcclient.Dial(cred.GRPCAddr, tm)
 	if err != nil {
 		color.Red("  %s %s\n", L("gRPC connect failed:"), err.Error())
 		os.Exit(1)

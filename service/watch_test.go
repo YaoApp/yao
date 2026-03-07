@@ -18,10 +18,10 @@ func TestWatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer Stop(srv)
+	defer srv.Stop()
 
 	done := make(chan uint8, 1)
-	go Watch(srv, done)
+	go srv.Watch(done)
 
 	select {
 	case <-time.After(200 * time.Millisecond):

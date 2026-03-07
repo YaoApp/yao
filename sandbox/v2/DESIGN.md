@@ -1121,7 +1121,7 @@ Permission control is the responsibility of the caller (JS scripts, Agent hooks,
 | **Runtime** | Direct Docker SDK | tai.Client pool (Docker/K8s/Remote) |
 | **Execution** | Exec + Stream | Exec + Stream + Attach (WS/SSE) |
 | **File I/O** | bind mount + Docker Copy | `workspace.FS` (fs.FS compatible) |
-| **IPC** | Unix socket + yao-bridge | gRPC (yao-grpc) |
+| **IPC** | Unix socket + yao-bridge | gRPC (tai call) |
 | **Idle detection** | External calls only | Dual: external calls + container heartbeat |
 | **Lifecycle** | Chat session only | Policy-based (oneshot/session/longrunning/persistent) |
 | **Pool** | Single Docker daemon | Multi-pool with per-pool policies |

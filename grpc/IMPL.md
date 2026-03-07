@@ -40,12 +40,11 @@ grpc/
 Container client:
 
 ```
-tai/grpc/
-├── grpc.go                 // gRPC client, Dial, method wrappers
-├── auth.go                 // read env tokens, attach metadata, handle refresh
-├── grpc_test.go
-└── cmd/
-    └── main.go             // yao-grpc binary entry
+grpc/client/                    // gRPC client (moved from tai/grpc/ to grpc/client/)
+├── client.go                   // gRPC client, Dial, method wrappers
+└── token.go                    // read env tokens, attach metadata, handle refresh
+
+tai repo: tai/call/             // container-side binary (replaces yao-grpc)
 ```
 
 ## V1 Phases
@@ -163,7 +162,7 @@ Deliverable: LLM (unary + stream) and Agent streaming via gRPC.
 
 ### Phase 4: Tai gateway change (Tai repo) ✅
 
-Depends on: Phase 1 (need proto definitions for testing). yao-grpc depends on this.
+Depends on: Phase 1 (need proto definitions for testing). `tai call` (tai repo) depends on this.
 
 Tai gateway currently dials a fixed `YaoUpstream` at startup. New behavior: yao-grpc tells Tai where to forward via request metadata (`x-grpc-upstream`). Tai reads the target address and proxies to it — removes `YaoUpstream` startup config.
 

@@ -475,6 +475,135 @@ func newWSServer(handler func(*websocket.Conn)) *httptest.Server {
 	}))
 }
 
+func TestRegister_SystemInfo(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{
+		TaiID: "tai-001",
+		System: SystemInfo{
+			OS:       "linux",
+			Arch:     "amd64",
+			Hostname: "docker-host-01",
+			NumCPU:   16,
+		},
+	})
+
+	snap, ok := r.Get("tai-001")
+	if !ok {
+		t.Fatal("node not found")
+	}
+	if snap.System.OS != "linux" {
+		t.Errorf("System.OS = %q, want linux", snap.System.OS)
+	}
+	if snap.System.Arch != "amd64" {
+		t.Errorf("System.Arch = %q, want amd64", snap.System.Arch)
+	}
+	if snap.System.Hostname != "docker-host-01" {
+		t.Errorf("System.Hostname = %q, want docker-host-01", snap.System.Hostname)
+	}
+	if snap.System.NumCPU != 16 {
+		t.Errorf("System.NumCPU = %d, want 16", snap.System.NumCPU)
+	}
+}
+
+func TestListByTeam(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-a", Auth: AuthInfo{TeamID: "team-dev"}})
+	r.Register(&TaiNode{TaiID: "tai-b", Auth: AuthInfo{TeamID: "team-dev"}})
+	r.Register(&TaiNode{TaiID: "tai-c", Auth: AuthInfo{TeamID: "team-ops"}})
+
+	devNodes := r.ListByTeam("team-dev")
+	if len(devNodes) != 2 {
+		t.Errorf("ListByTeam(team-dev) = %d nodes, want 2", len(devNodes))
+	}
+
+	opsNodes := r.ListByTeam("team-ops")
+	if len(opsNodes) != 1 {
+		t.Errorf("ListByTeam(team-ops) = %d nodes, want 1", len(opsNodes))
+	}
+
+	empty := r.ListByTeam("team-ghost")
+	if len(empty) != 0 {
+		t.Errorf("ListByTeam(team-ghost) = %d nodes, want 0", len(empty))
+	}
+}
+
+func TestStartHealthCheck_MarkOffline(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-direct", Mode: "direct"})
+	r.Register(&TaiNode{TaiID: "tai-tunnel", Mode: "tunnel"})
+
+	// Manually set LastPing to the past for the direct node.
+	r.mu.Lock()
+	r.nodes["tai-direct"].LastPing = time.Now().Add(-5 * time.Second)
+	r.mu.Unlock()
+
+	done := make(chan struct{})
+	r.StartHealthCheck(done, 50*time.Millisecond, 2*time.Second, 10*time.Minute)
+	defer close(done)
+
+	time.Sleep(200 * time.Millisecond)
+
+	snap, ok := r.Get("tai-direct")
+	if !ok {
+		t.Fatal("direct node should still exist")
+	}
+	if snap.Status != "offline" {
+		t.Errorf("direct node Status = %q, want offline", snap.Status)
+	}
+
+	// Tunnel nodes should not be affected.
+	snap2, ok := r.Get("tai-tunnel")
+	if !ok {
+		t.Fatal("tunnel node should still exist")
+	}
+	if snap2.Status != "online" {
+		t.Errorf("tunnel node Status = %q, want online", snap2.Status)
+	}
+}
+
+func TestStartHealthCheck_AutoCleanup(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-stale", Mode: "direct"})
+
+	// Set LastPing far in the past so it exceeds both timeout and cleanupAfter.
+	r.mu.Lock()
+	r.nodes["tai-stale"].LastPing = time.Now().Add(-1 * time.Hour)
+	r.mu.Unlock()
+
+	done := make(chan struct{})
+	r.StartHealthCheck(done, 50*time.Millisecond, 1*time.Second, 1*time.Second)
+	defer close(done)
+
+	time.Sleep(200 * time.Millisecond)
+
+	if _, ok := r.Get("tai-stale"); ok {
+		t.Error("stale node should have been auto-unregistered")
+	}
+}
+
+func TestStartHealthCheck_PingKeepsAlive(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-alive", Mode: "direct"})
+
+	done := make(chan struct{})
+	r.StartHealthCheck(done, 50*time.Millisecond, 2*time.Second, 10*time.Minute)
+	defer close(done)
+
+	// Continuously ping to keep the node alive.
+	for i := 0; i < 4; i++ {
+		time.Sleep(30 * time.Millisecond)
+		r.UpdatePing("tai-alive")
+	}
+
+	snap, ok := r.Get("tai-alive")
+	if !ok {
+		t.Fatal("node should still exist")
+	}
+	if snap.Status != "online" {
+		t.Errorf("Status = %q, want online", snap.Status)
+	}
+}
+
 func TestNodeSnapshot_AuthInfo(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{

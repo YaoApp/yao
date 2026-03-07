@@ -1,4 +1,4 @@
-package grpc
+package client
 
 import (
 	"context"
@@ -12,15 +12,14 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// Client wraps a gRPC connection to a Yao server (direct or via Tai relay).
-// TokenManager handles auth metadata attachment and token refresh automatically.
+// Client wraps a gRPC connection to a Yao server.
 type Client struct {
 	conn  *grpc.ClientConn
 	svc   pb.YaoClient
 	token *TokenManager
 }
 
-// NewFromEnv reads YAO_GRPC_ADDR (required) and token env vars, dials the
+// NewFromEnv reads YAO_GRPC_ADDR and token env vars, dials the
 // gRPC server, and returns a connected Client.
 func NewFromEnv() (*Client, error) {
 	addr := os.Getenv("YAO_GRPC_ADDR")
@@ -36,10 +35,7 @@ func NewFromEnv() (*Client, error) {
 	return Dial(addr, tm)
 }
 
-// Dial connects to the gRPC server at addr with the given TokenManager.
-// Bare host:port addresses are wrapped with passthrough:/// for grpc.NewClient
-// compatibility (grpc.NewClient defaults to dns scheme which may fail for hostnames
-// like host.docker.internal).
+// Dial connects to a Yao gRPC server at addr with the given TokenManager.
 func Dial(addr string, tm *TokenManager) (*Client, error) {
 	opts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -180,7 +176,6 @@ func (c *Client) ChatCompletions(ctx context.Context, connector string, messages
 }
 
 // ChatCompletionsStream sends a streaming chat completion request.
-// The callback receives each chunk's data; return a non-nil error to stop.
 func (c *Client) ChatCompletionsStream(ctx context.Context, connector string, messages, options []byte, cb func(data []byte, done bool) error) error {
 	stream, err := c.svc.ChatCompletionsStream(ctx, &pb.ChatRequest{
 		Connector: connector,
@@ -210,7 +205,6 @@ func (c *Client) ChatCompletionsStream(ctx context.Context, connector string, me
 // --- Agent ---
 
 // AgentStream calls an agent with streaming response.
-// The callback receives each chunk's data; return a non-nil error to stop.
 func (c *Client) AgentStream(ctx context.Context, assistantID string, messages, options []byte, cb func(data []byte, done bool) error) error {
 	stream, err := c.svc.AgentStream(ctx, &pb.AgentRequest{
 		AssistantId: assistantID,

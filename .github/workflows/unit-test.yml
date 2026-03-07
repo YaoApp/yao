@@ -780,7 +780,7 @@ jobs:
 
       - name: Pull Test Images
         run: |
-          docker pull yaoapp/sandbox-v2-test:latest || true
+          docker pull yaoapp/tai-sandbox-test:latest || true
           docker pull yaoapp/tai:latest
           docker pull alpine:latest
 
@@ -1440,7 +1440,7 @@ jobs:
 
       - name: Pull Test Images
         run: |
-          docker pull yaoapp/sandbox-v2-test:latest || true
+          docker pull yaoapp/tai-sandbox-test:latest || true
           docker pull yaoapp/tai:latest
           docker pull alpine:latest
 

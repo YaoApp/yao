@@ -165,8 +165,8 @@ case $TOOL in
     # build_multiarch "sandbox-cursor" "cursor/Dockerfile" "$PUSH"
     ;;
   v2)
-    echo "V2 images have their own build script: sandbox/v2/docker/build.sh"
-    echo "Usage: sandbox/v2/docker/build.sh [true|false]"
+    echo "V2 images have moved to the tai repo: tai/docker/sandbox/build.sh"
+    echo "See: https://github.com/yaoapp/tai/tree/main/docker/sandbox"
     exit 0
     ;;
   *)

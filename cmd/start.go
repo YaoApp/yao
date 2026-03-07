@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -16,7 +18,6 @@ import (
 	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/schedule"
-	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/gou/task"
 	"github.com/yaoapp/gou/websocket"
@@ -128,49 +129,24 @@ var startCmd = &cobra.Command{
 
 		// print the messages under the development mode
 		if mode == "development" {
-
-			// Start Studio Server
-			// Yao Studio will be deprecated in the future
-			// go func() {
-
-			// 	err = studio.Load(config.Conf)
-			// 	if err != nil {
-			// 		// fmt.Println(color.RedString(L("Studio Load: %s"), err.Error()))
-			// 		log.Error("Studio Load: %s", err.Error())
-			// 		return
-			// 	}
-
-			// 	err := studio.Start(config.Conf)
-			// 	if err != nil {
-			// 		log.Error("Studio Start: %s", err.Error())
-			// 		return
-			// 	}
-			// }()
-			// defer studio.Stop()
-
 			printApis(false)
 			printTasks(false)
 			printSchedules(false)
 			printConnectors(false)
 			printStores(false)
 			printMCPs(false)
-
 		}
 
 		root, _ := adminRoot()
 		endpoints := []setup.Endpoint{{URL: fmt.Sprintf("http://%s%s", "127.0.0.1", port), Interface: "localhost"}}
 		switch host {
 		case "0.0.0.0":
-			// All interfaces
 			if values, err := setup.Endpoints(config.Conf); err == nil {
 				endpoints = append(endpoints, values...)
 			}
-			break
 		case "127.0.0.1":
 			// Localhost only
-			break
 		default:
-			// Filter by the host IP
 			matched := false
 			endpoints = []setup.Endpoint{}
 			if values, err := setup.Endpoints(config.Conf); err == nil {
@@ -186,32 +162,6 @@ var startCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
-
-		// Print gRPC listen addresses
-		grpcAddrs := yaogrpc.Addr()
-		for _, addr := range grpcAddrs {
-			fmt.Println(color.WhiteString(L("Listening")), color.GreenString(" %s (gRPC)", addr))
-		}
-
-		fmt.Println(color.WhiteString("\n---------------------------------"))
-		fmt.Println(color.WhiteString(L("Access Points")))
-		fmt.Println(color.WhiteString("---------------------------------"))
-		apiRoot := "/api"
-		if openapi.Server != nil {
-			apiRoot = openapi.Server.Config.BaseURL
-		}
-		for _, endpoint := range endpoints {
-			fmt.Println(color.CyanString("\n%s", endpoint.Interface))
-			fmt.Println(color.WhiteString("--------------------------"))
-			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", endpoint.URL))
-			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/auth/entry", endpoint.URL, strings.Trim(root, "/")))
-			if openapi.Server != nil {
-				fmt.Println(color.WhiteString(L("OpenAPI")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
-			} else {
-				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
-			}
-		}
-		fmt.Println("")
 
 		// Print welcome message for the new application
 		if isnew {
@@ -230,32 +180,66 @@ var startCmd = &cobra.Command{
 		// (must happen before HTTP/gRPC start so handlers can access it)
 		tairegistry.Init(nil)
 
-		// Start HTTP Server
-		srv, err := service.Start(config.Conf)
-		defer func() {
-			service.Stop(srv)
-			fmt.Println(color.GreenString(L("✨Exited successfully!")))
-		}()
+		// Pre-flight: detect port conflicts before attempting to start servers.
+		if occupied, proc := portOccupied(config.Conf.Host, config.Conf.Port); occupied {
+			fmt.Println(color.RedString(L("Fatal: HTTP port %d is already in use%s"), config.Conf.Port, proc))
+			return
+		}
+		if strings.ToLower(config.Conf.GRPC.Enabled) != "off" {
+			for _, h := range strings.Split(config.Conf.GRPC.Host, ",") {
+				if occupied, proc := portOccupied(strings.TrimSpace(h), config.Conf.GRPC.Port); occupied {
+					fmt.Println(color.RedString(L("Fatal: gRPC port %d is already in use%s"), config.Conf.GRPC.Port, proc))
+					return
+				}
+			}
+		}
 
+		// Start all servers (gRPC + HTTP) as a single unit.
+		// Start() blocks until HTTP port is bound (READY) or returns error.
+		svc, err := service.Start(config.Conf, service.ServerHooks{
+			Start: yaogrpc.StartServer,
+			Stop:  yaogrpc.Stop,
+			Addrs: yaogrpc.Addr,
+		})
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
-			os.Exit(1)
+			return
 		}
 
-		// Start gRPC Server (after HTTP, LIFO shutdown: gRPC stops before HTTP)
-		if grpcErr := yaogrpc.StartServer(config.Conf); grpcErr != nil {
-			fmt.Println(color.RedString(L("gRPC: %s"), grpcErr.Error()))
-			os.Exit(1)
+		// Access Points (printed after servers are up so addresses are known)
+		fmt.Println(color.WhiteString("\n---------------------------------"))
+		fmt.Println(color.WhiteString(L("Access Points")))
+		fmt.Println(color.WhiteString("---------------------------------"))
+
+		if grpcAddrs := svc.HookAddrs(); len(grpcAddrs) > 0 {
+			fmt.Println(color.CyanString("\ngRPC"))
+			fmt.Println(color.WhiteString("--------------------------"))
+			for _, addr := range grpcAddrs {
+				fmt.Println(color.WhiteString(L("Server")), color.GreenString(" %s", addr))
+			}
 		}
-		defer yaogrpc.Stop()
+
+		apiRoot := "/api"
+		if openapi.Server != nil {
+			apiRoot = openapi.Server.Config.BaseURL
+		}
+		for _, endpoint := range endpoints {
+			fmt.Println(color.CyanString("\n%s", endpoint.Interface))
+			fmt.Println(color.WhiteString("--------------------------"))
+			fmt.Println(color.WhiteString(L("Website")), color.GreenString(" %s", endpoint.URL))
+			fmt.Println(color.WhiteString(L("Dashboard")), color.GreenString(" %s/%s/auth/entry", endpoint.URL, strings.Trim(root, "/")))
+			if openapi.Server != nil {
+				fmt.Println(color.WhiteString(L("OpenAPI")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			} else {
+				fmt.Println(color.WhiteString(L("API")), color.GreenString(" %s%s", endpoint.URL, apiRoot))
+			}
+		}
+		fmt.Println("")
 
 		// Start watching
 		watchDone := make(chan uint8, 1)
 		if mode == "development" && !startDisableWatching {
-			// fmt.Println(color.WhiteString("\n---------------------------------"))
-			// fmt.Println(color.WhiteString(L("Watching")))
-			// fmt.Println(color.WhiteString("---------------------------------"))
-			go service.Watch(srv, watchDone)
+			go svc.Watch(watchDone)
 		}
 
 		// Print the messages under the production mode
@@ -279,31 +263,15 @@ var startCmd = &cobra.Command{
 			fmt.Printf("\n")
 		}
 
+		fmt.Println(color.GreenString(L("Server is up and running...")))
+		fmt.Println(color.GreenString("Ctrl+C to stop"))
+
 		for {
 			select {
-			case v := <-srv.Event():
-
-				switch v {
-				case http.READY:
-					fmt.Println(color.GreenString(L("Server is up and running...")))
-					fmt.Println(color.GreenString("Ctrl+C to stop"))
-					break
-
-				case http.CLOSED:
-					fmt.Println(color.GreenString(L("✨Exited successfully!")))
-					watchDone <- 1
-					return
-
-				case http.ERROR:
-					color.Red("Fatal: check the error information in the log")
-					watchDone <- 1
-					return
-
-				default:
-					fmt.Println("Signal:", v)
-				}
-
 			case <-interrupt:
+				fmt.Println(color.WhiteString("\nShutting down..."))
+				svc.Stop()
+				fmt.Println(color.GreenString(L("✨Exited successfully!")))
 				watchDone <- 1
 				return
 			}
@@ -399,7 +367,7 @@ func printStores(silent bool) {
 	}
 
 	fmt.Println(color.WhiteString("\n---------------------------------"))
-	fmt.Println(color.WhiteString(L("Stores List (%d)"), len(connector.Connectors)))
+	fmt.Println(color.WhiteString(L("Stores List (%d)"), len(store.Pools)))
 	fmt.Println(color.WhiteString("---------------------------------"))
 	for name := range store.Pools {
 		fmt.Print(color.CyanString("[Store]"))
@@ -645,6 +613,18 @@ func colorMehtod(method string) string {
 	default:
 		return color.WhiteString(method)
 	}
+}
+
+// portOccupied probes whether host:port is already bound.
+// Returns (true, " (pid XXXX)") when occupied, (false, "") otherwise.
+func portOccupied(host string, port int) (bool, string) {
+	addr := net.JoinHostPort(host, strconv.Itoa(port))
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return true, fmt.Sprintf(" (%s)", err.Error())
+	}
+	ln.Close()
+	return false, ""
 }
 
 func init() {
