@@ -27,7 +27,7 @@ type Computer interface {
 
 // ComputerInfo holds identity and registry information for a Computer.
 type ComputerInfo struct {
-	Kind         string            // "box" | "host"
+	Kind         string // "box" | "host"
 	Pool         string
 	TaiID        string
 	MachineID    string

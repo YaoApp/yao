@@ -649,8 +649,8 @@ sandbox/v2/
 ├── grpc.go                 // token creation/revocation, gRPC env var injection
 ├── jsapi/                  // (Phase 2) V8 JSAPI sandbox.* namespace
 │   ├── jsapi.go            // RegisterObject("sandbox"), Create/Get/List/Delete/Host
-│   ├── box.go              // Box JS object: Computer + Attach/Info/Start/Stop/Remove
-│   └── host.go             // Host JS object: Computer (unified with Box)
+│   ├── computer.go         // Unified Computer JS object (box + host), sbHost()
+│   └── node.go             // GetNode/Nodes/NodesByTeam JS bindings
 ├── export_test.go          // ResetForTest() for test isolation
 ├── testutils_test.go       // shared test helpers (multi-pool setup)
 ├── sandbox_test.go         // Init/M singleton tests

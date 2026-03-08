@@ -1,32 +1,30 @@
 // Package jsapi registers the sandbox namespace into the Yao V8 runtime.
 //
 // All methods are static on the sandbox object — no constructor.
+// Both sandbox.Create() and sandbox.Host() return a unified Computer object.
 //
 // # JavaScript API
 //
-//	const box = sandbox.Create({ image: "node:20", owner: "user1" })
-//	const result = box.Exec(["node", "-e", "console.log('hi')"])
-//	console.log(result.stdout)
-//
-//	const box  = sandbox.Get(id)               // → Box
+//	const pc   = sandbox.Create({ image: "node:20", owner: "user1" }) // → Computer (kind="box")
+//	const pc   = sandbox.Get(id)               // → Computer (kind="box") | null
 //	const list = sandbox.List({ owner: "u1" }) // → BoxInfo[]
 //	sandbox.Delete(id)                          // → void
-//	const host = sandbox.Host("gpu")            // → Computer (Host via host_exec on Tai)
+//	const host = sandbox.Host("gpu")            // → Computer (kind="host")
 //	const node = sandbox.GetNode("tai-abc123") // → NodeInfo | null
 //	const all  = sandbox.Nodes()               // → NodeInfo[]
 //	const team = sandbox.NodesByTeam("t-001")  // → NodeInfo[]
 //
 // # Go mapping
 //
-//	sandbox.Create(opts)  → Manager.Create(ctx, CreateOptions)   → Box
-//	sandbox.Create(opts)  → Manager.GetOrCreate(ctx, opts)       → Box  (when opts.id is set)
-//	sandbox.Get(id)       → Manager.Get(ctx, id)                 → Box
-//	sandbox.List(filter?) → Manager.List(ctx, ListOptions)       → []*Box → BoxInfo[]
-//	sandbox.Delete(id)    → Manager.Remove(ctx, id)              → void
-//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)                → Computer (Host)
-//	sandbox.GetNode(id)   → registry.Global().Get(id)              → NodeInfo | null
-//	sandbox.Nodes()       → registry.Global().List()               → NodeInfo[]
-//	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)        → NodeInfo[]
+//	sandbox.Create(opts)  → Manager.Create(ctx, CreateOptions)    → Computer (Box)
+//	sandbox.Create(opts)  → Manager.GetOrCreate(ctx, opts)        → Computer (Box)  (when opts.id is set)
+//	sandbox.Get(id)       → Manager.Get(ctx, id)                  → Computer (Box)
+//	sandbox.List(filter?) → Manager.List(ctx, ListOptions)        → BoxInfo[]
+//	sandbox.Delete(id)    → Manager.Remove(ctx, id)               → void
+//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)               → Computer (Host)
+//	sandbox.GetNode(id)   → registry.Global().Get(id)             → NodeInfo | null
+//	sandbox.Nodes()       → registry.Global().List()              → NodeInfo[]
+//	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)       → NodeInfo[]
 //
 // Registration happens via init() — import with:
 //
@@ -85,14 +83,14 @@ func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 //	  labels:       object   →  CreateOptions.Labels       // map[string]string
 //	}
 //
-// Returns: Box object (see box.go)
+// Returns: Computer object (kind="box") — see computer.go
 func sbCreate(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	// TODO: Phase 2
 	// 1. Parse options from info.Args()[0]
 	// 2. Validate required fields (image, owner)
 	// 3. If opts.id != "" → sandbox.M().GetOrCreate(ctx, opts)
 	//    else             → sandbox.M().Create(ctx, opts)
-	// 4. Return NewBoxObject(v8ctx, box.ID())
+	// 4. Return NewComputerObject(v8ctx, "box", box.ID())
 	return v8go.Undefined(info.Context().Isolate())
 }
 
@@ -104,12 +102,12 @@ func sbCreate(info *v8go.FunctionCallbackInfo) *v8go.Value {
 //
 //	id: string  — sandbox ID
 //
-// Returns: Box object if found, null if not found
+// Returns: Computer object (kind="box") if found, null if not found
 func sbGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	// TODO: Phase 2
 	// 1. id = info.Args()[0].String()
 	// 2. box, err := sandbox.M().Get(ctx, id)
-	// 3. Return NewBoxObject(v8ctx, id) or null
+	// 3. Return NewComputerObject(v8ctx, "box", id) or null
 	return v8go.Undefined(info.Context().Isolate())
 }
 
