@@ -14,7 +14,15 @@ func taiTestGRPC() string {
 	if addr := os.Getenv("TAI_TEST_GRPC"); addr != "" {
 		return addr
 	}
-	return "127.0.0.1:9100"
+	host := os.Getenv("TAI_TEST_HOST")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := os.Getenv("TAI_TEST_GRPC_PORT")
+	if port == "" {
+		port = "19100"
+	}
+	return host + ":" + port
 }
 
 func TestLocalVolume(t *testing.T) {
