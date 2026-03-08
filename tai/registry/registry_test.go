@@ -29,7 +29,7 @@ func TestRegister_SetsFieldsAndOnline(t *testing.T) {
 		MachineID: "m-abc",
 		Version:   "1.0.0",
 		Mode:      "tunnel",
-		Ports:     map[string]int{"grpc": 9100},
+		Ports:     map[string]int{"grpc": 19100},
 	}
 	r.Register(node)
 
@@ -117,14 +117,14 @@ func TestSnapshot_DeepCopy(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{
 		TaiID: "tai-001",
-		Ports: map[string]int{"grpc": 9100, "http": 8080},
+		Ports: map[string]int{"grpc": 19100, "http": 8099},
 	})
 
 	snap, _ := r.Get("tai-001")
 	snap.Ports["grpc"] = 0
 
 	snap2, _ := r.Get("tai-001")
-	if snap2.Ports["grpc"] != 9100 {
+	if snap2.Ports["grpc"] != 19100 {
 		t.Error("snapshot modification leaked into registry node")
 	}
 }
@@ -165,7 +165,7 @@ func TestWriteControlJSON_NilConn(t *testing.T) {
 
 func TestRequestChannel_NotFound(t *testing.T) {
 	r := newTestRegistry()
-	_, _, err := r.RequestChannel("ghost", 9100)
+	_, _, err := r.RequestChannel("ghost", 19100)
 	if err == nil {
 		t.Fatal("expected error for missing node")
 	}
@@ -174,7 +174,7 @@ func TestRequestChannel_NotFound(t *testing.T) {
 func TestRequestChannel_DirectMode(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{TaiID: "tai-001", Mode: "direct"})
-	_, _, err := r.RequestChannel("tai-001", 9100)
+	_, _, err := r.RequestChannel("tai-001", 19100)
 	if err == nil {
 		t.Fatal("expected error for direct-mode node")
 	}
@@ -357,7 +357,7 @@ func TestRequestChannel_Success(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel", ControlConn: wsConn})
 
-	channelID, resultCh, err := r.RequestChannel("tai-001", 9100)
+	channelID, resultCh, err := r.RequestChannel("tai-001", 19100)
 	if err != nil {
 		t.Fatalf("RequestChannel: %v", err)
 	}
@@ -379,8 +379,8 @@ func TestRequestChannel_Success(t *testing.T) {
 		if cmd["channel_id"] != channelID {
 			t.Errorf("cmd channel_id = %v, want %s", cmd["channel_id"], channelID)
 		}
-		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 9100 {
-			t.Errorf("cmd target_port = %v, want 9100", cmd["target_port"])
+		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 19100 {
+			t.Errorf("cmd target_port = %v, want 19100", cmd["target_port"])
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for open command")
@@ -391,7 +391,7 @@ func TestRequestChannel_NoControlConn(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
 
-	_, _, err := r.RequestChannel("tai-001", 9100)
+	_, _, err := r.RequestChannel("tai-001", 19100)
 	if err == nil {
 		t.Fatal("expected error for nil ControlConn")
 	}
@@ -420,7 +420,7 @@ func TestOpenLocalListener_Success(t *testing.T) {
 
 	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel", ControlConn: wsConn})
 
-	ln, err := r.OpenLocalListener("tai-001", 9100)
+	ln, err := r.OpenLocalListener("tai-001", 19100)
 	if err != nil {
 		t.Fatalf("OpenLocalListener: %v", err)
 	}
@@ -448,8 +448,8 @@ func TestOpenLocalListener_Success(t *testing.T) {
 		if _, ok := cmd["channel_id"].(string); !ok {
 			t.Error("open cmd missing channel_id")
 		}
-		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 9100 {
-			t.Errorf("target_port = %v, want 9100", cmd["target_port"])
+		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 19100 {
+			t.Errorf("target_port = %v, want 19100", cmd["target_port"])
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for open command from local listener")
@@ -458,7 +458,7 @@ func TestOpenLocalListener_Success(t *testing.T) {
 
 func TestOpenLocalListener_NodeNotFound(t *testing.T) {
 	r := newTestRegistry()
-	_, err := r.OpenLocalListener("ghost", 9100)
+	_, err := r.OpenLocalListener("ghost", 19100)
 	if err == nil {
 		t.Fatal("expected error for missing node")
 	}

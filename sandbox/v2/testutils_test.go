@@ -55,7 +55,7 @@ func purgeStaleContainers() {
 	if host := os.Getenv("TAI_TEST_K8S_HOST"); host != "" {
 		kubeconfig := os.Getenv("TAI_TEST_KUBECONFIG")
 		if kubeconfig != "" {
-			grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
+			grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
 			opts := []tai.Option{
 				tai.K8s,
 				tai.WithKubeConfig(kubeconfig),
@@ -128,7 +128,7 @@ func testPools() []poolConfig {
 		if kubeconfig == "" {
 			return pools
 		}
-		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
+		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
 		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
 		opts := []tai.Option{
 			tai.K8s,
@@ -176,7 +176,7 @@ func hostExecTargets() []hostExecTarget {
 		targets = append(targets, hostExecTarget{Name: "remote", Addr: addr})
 	}
 	if host := os.Getenv("TAI_TEST_K8S_HOST"); host != "" {
-		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
+		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
 		targets = append(targets, hostExecTarget{Name: "k8s", Addr: fmt.Sprintf("%s:%d", host, grpcPort)})
 	}
 	if addr := os.Getenv("TAI_TEST_WIN_HOSTEXEC_LINUX"); addr != "" {

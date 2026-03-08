@@ -12,16 +12,31 @@ Container lifecycle management. Provides a unified `Sandbox` interface with thre
 
 ```go
 type Sandbox interface {
-    Create(ctx context.Context, opts CreateOptions) (id string, err error)
+    Create(ctx context.Context, opts CreateOptions) (string, error)
     Start(ctx context.Context, id string) error
     Stop(ctx context.Context, id string, timeout time.Duration) error
     Remove(ctx context.Context, id string, force bool) error
     Exec(ctx context.Context, id string, cmd []string, opts ExecOptions) (*ExecResult, error)
+    ExecStream(ctx context.Context, id string, cmd []string, opts ExecOptions) (*StreamHandle, error)
     Inspect(ctx context.Context, id string) (*ContainerInfo, error)
     List(ctx context.Context, opts ListOptions) ([]ContainerInfo, error)
     Close() error
 }
 ```
+
+### StreamHandle
+
+```go
+type StreamHandle struct {
+    Stdin  io.WriteCloser
+    Stdout io.Reader
+    Stderr io.Reader
+    Wait   func() (int, error) // blocks until exec finishes, returns exit code
+    Cancel func()              // aborts the exec process
+}
+```
+
+`ExecStream` provides real-time I/O access to a running exec process. Unlike `Exec` which collects all output, `ExecStream` returns immediately with readers/writers for interactive use.
 
 ## Constructors
 
@@ -44,7 +59,7 @@ Pings the daemon on creation; returns an error if unreachable.
 func NewDocker(addr string) (Sandbox, error)
 ```
 
-Connects to Docker Engine API through Tai's Docker proxy. `addr` should be `"tcp://tai-host:2375"`.
+Connects to Docker Engine API through Tai's Docker proxy. `addr` should be `"tcp://tai-host:12375"`.
 
 ### NewK8s
 
@@ -77,8 +92,10 @@ type CreateOptions struct {
     WorkingDir string            // working directory
     Memory     int64             // memory limit in bytes, 0 = no limit
     CPUs       float64           // CPU limit, 0 = no limit
-    VNC        bool              // enable VNC port mapping (Local only)
+    VNC        bool              // enable VNC port mapping (Local and Docker modes)
     Ports      []PortMapping     // port mappings (Docker only)
+    Labels     map[string]string // container/pod labels for discovery and management
+    User       string            // container user, e.g. "1000:1000" or "sandbox"
 }
 ```
 
@@ -97,13 +114,14 @@ type PortMapping struct {
 
 ```go
 type ContainerInfo struct {
-    ID     string        // container/pod ID
-    Name   string        // container/pod name
-    Image  string        // image name
-    Status string        // "created", "running", "exited", "removing" (Docker)
-                         // "Pending", "Running", "Succeeded", "Failed" (K8s)
-    IP     string        // container/pod IP address
-    Ports  []PortMapping // mapped ports (Docker only)
+    ID     string            // container/pod ID
+    Name   string            // container/pod name
+    Image  string            // image name
+    Status string            // "created", "running", "exited", "removing" (Docker)
+                             // "Pending", "Running", "Succeeded", "Failed" (K8s)
+    IP     string            // container/pod IP address
+    Ports  []PortMapping     // mapped ports (Docker only)
+    Labels map[string]string // container/pod labels
 }
 ```
 
@@ -149,16 +167,88 @@ type K8sOption struct {
 | Behavior | Docker (Local/Remote) | K8s |
 |----------|----------------------|-----|
 | `Create` returns | container ID (hash) | pod name |
-| `Start` | starts a stopped container | polls until pod leaves Pending (up to 30s) |
+| `Start` | starts a stopped container | polls until pod leaves Pending (up to 60s) |
 | `Stop` | stops with timeout, container persists | deletes the pod with grace period |
 | `Remove(force=true)` | force-removes | deletes with grace period 0 |
 | `Exec` | Docker exec API | `kubectl exec` via SPDY |
 | `Inspect.Ports` | populated from Docker | always empty |
-| `List` | filters by `tai-sdk=true` label | filters by `managed-by=yao-tai-sdk` label |
+| `List` | filters only by `opts.Labels` (no auto label) | auto-merges `managed-by=yao-tai-sdk` + `opts.Labels` |
 | `Binds` | supported | not supported |
-| `VNC` flag | auto port-maps 6080 on macOS/Windows | not applicable |
+| `VNC` flag | auto port-maps 6080 and 5900 (all platforms) | not applicable |
 
-## Example
+## Image Interface
+
+```go
+type Image interface {
+    Exists(ctx context.Context, ref string) (bool, error)
+    Pull(ctx context.Context, ref string, opts PullOptions) (<-chan PullProgress, error)
+    Remove(ctx context.Context, ref string, force bool) error
+    List(ctx context.Context) ([]ImageInfo, error)
+}
+```
+
+Accessed via `c.Image()` on the top-level client. Nil when the Tai server has no container runtime.
+
+| Implementation | Constructor | Backend | Notes |
+|----------------|-------------|---------|-------|
+| **Docker** | `NewDockerImage(cli)` | Docker SDK | Shared by Local and Docker-via-Tai modes |
+| **K8s** | `NewK8sImage()` | No-op | Image pulling is handled by kubelet |
+
+### DockerCli Helper
+
+```go
+func DockerCli(sb Sandbox) *client.Client
+```
+
+Extracts the underlying Docker SDK client from a `Sandbox` (Local or Docker). Returns `nil` for K8s sandboxes. Used internally to construct `NewDockerImage(DockerCli(sb))`.
+
+### Types
+
+```go
+type PullOptions struct {
+    Auth *RegistryAuth // nil = anonymous / public
+}
+
+type RegistryAuth struct {
+    Username string
+    Password string
+    Server   string // e.g. "ghcr.io", "registry.example.com"
+}
+
+type PullProgress struct {
+    Status  string // "Pulling fs layer", "Downloading", "Extracting", "Pull complete", etc.
+    Layer   string // layer digest / short ID
+    Current int64  // bytes completed
+    Total   int64  // bytes total (0 if unknown)
+    Error   string // non-empty on failure
+}
+
+type ImageInfo struct {
+    ID      string
+    Tags    []string
+    Size    int64
+    Created time.Time
+}
+```
+
+### Image Example
+
+```go
+c, _ := tai.New("tai://192.168.1.100")
+defer c.Close()
+
+progress, _ := c.Image().Pull(ctx, "alpine:latest", sandbox.PullOptions{})
+for p := range progress {
+    fmt.Printf("%s %s %d/%d\n", p.Status, p.Layer, p.Current, p.Total)
+}
+
+images, _ := c.Image().List(ctx)
+for _, img := range images {
+    fmt.Printf("%s %v\n", img.ID[:12], img.Tags)
+}
+```
+
+## Sandbox Example
 
 ```go
 sb, _ := sandbox.NewLocal("")

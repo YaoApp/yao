@@ -50,7 +50,7 @@ func TestHandleRegister_Success(t *testing.T) {
 		MachineID:    "m-001",
 		Version:      "0.2.0",
 		Addr:         "192.168.1.100",
-		Ports:        map[string]int{"grpc": 9100, "http": 8080},
+		Ports:        map[string]int{"grpc": 19100, "http": 8099},
 		Capabilities: map[string]bool{"docker": true, "host_exec": false},
 		System: registry.SystemInfo{
 			OS: "linux", Arch: "amd64", Hostname: "docker-host-01", NumCPU: 16,

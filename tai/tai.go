@@ -43,11 +43,11 @@ func (f optionFunc) apply(c *config) { f(c) }
 
 // Ports configures service ports for Tai server.
 type Ports struct {
-	GRPC   int // default 9100
-	HTTP   int // default 8080
-	VNC    int // default 6080
-	Docker int // default 2375
-	K8s    int // default 6443
+	GRPC   int // default 19100
+	HTTP   int // default 8099
+	VNC    int // default 16080
+	Docker int // default 12375
+	K8s    int // default 16443
 }
 
 // WithPorts overrides default Tai service ports.
@@ -99,9 +99,9 @@ type config struct {
 
 func defaultPorts() Ports {
 	return Ports{
-		GRPC: 9100,
-		HTTP: 8080,
-		VNC:  6080,
+		GRPC: 19100,
+		HTTP: 8099,
+		VNC:  16080,
 	}
 }
 
@@ -245,7 +245,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 		}
 		k8sPort := c.ports.K8s
 		if k8sPort == 0 {
-			k8sPort = 6443
+			k8sPort = 16443
 		}
 		sbAddr := fmt.Sprintf("%s:%d", c.host, k8sPort)
 		sb, err := sandbox.NewK8s(sbAddr, sandbox.K8sOption{
@@ -259,7 +259,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	} else if hasDocker {
 		dockerPort := c.ports.Docker
 		if dockerPort == 0 {
-			dockerPort = 2375
+			dockerPort = 12375
 		}
 		sbAddr := fmt.Sprintf("tcp://%s:%d", c.host, dockerPort)
 		sb, err := sandbox.NewDocker(sbAddr)
@@ -306,10 +306,10 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	}
 
 	c.ports = Ports{
-		GRPC:   nodePort(node.Ports, "grpc", 9100),
-		HTTP:   nodePort(node.Ports, "http", 8080),
-		VNC:    nodePort(node.Ports, "vnc", 6080),
-		Docker: nodePort(node.Ports, "docker", 2375),
+		GRPC:   nodePort(node.Ports, "grpc", 19100),
+		HTTP:   nodePort(node.Ports, "http", 8099),
+		VNC:    nodePort(node.Ports, "vnc", 16080),
+		Docker: nodePort(node.Ports, "docker", 12375),
 	}
 
 	grpcLn, err := reg.OpenLocalListener(taiID, c.ports.GRPC)
@@ -458,7 +458,7 @@ func parseAddr(addr string) (scheme, host, dockerAddr string, grpcPort int, err 
 		if isLocalHost(addr) {
 			return "docker", "", "", 0, nil
 		}
-		// host:port — split carefully (IPv6 like [::1]:9100 is already handled above)
+		// host:port — split carefully (IPv6 like [::1]:19100 is already handled above)
 		h := addr
 		if idx := strings.LastIndex(addr, ":"); idx > 0 {
 			h = addr[:idx]

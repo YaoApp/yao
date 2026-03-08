@@ -26,7 +26,7 @@ err := sandbox.Init(sandbox.Config{
     Pool: []sandbox.Pool{
         {
             Name:        "docker",
-            Addr:        "tai://192.168.1.10:9100",
+            Addr:        "tai://192.168.1.10:19100",
             MaxPerUser:  5,
             MaxTotal:    20,
             IdleTimeout: 30 * time.Minute,
@@ -247,7 +247,7 @@ Registers a new pool at runtime.
 ```go
 err := sandbox.M().AddPool(ctx, sandbox.Pool{
     Name:     "k8s-gpu",
-    Addr:     "tai://10.0.0.5:9100",
+    Addr:     "tai://10.0.0.5:19100",
     MaxTotal: 10,
 })
 ```
@@ -423,7 +423,7 @@ Returns the VNC WebSocket URL for the sandbox (requires `VNC: true` at creation)
 
 ```go
 url, err := box.VNC(ctx)
-// url = "ws://tai-host:6080/websockify?container=xxx"
+// url = "ws://tai-host:16080/vnc/xxx/ws"
 ```
 
 ### Proxy
@@ -436,7 +436,7 @@ Returns the HTTP proxy URL for a service on the given port.
 
 ```go
 url, err := box.Proxy(ctx, 3000, "/api/health")
-// url = "http://tai-host:8080/proxy/container-id/3000/api/health"
+// url = "http://tai-host:8099/container-id:3000/api/health"
 ```
 
 ### Workspace
@@ -581,7 +581,7 @@ func WithTimeout(timeout time.Duration) ExecOption
 ## AttachOption Functions
 
 ```go
-func WithProtocol(protocol string) AttachOption  // "ws" (default), "tcp"
+func WithProtocol(protocol string) AttachOption  // "ws" (default) or "sse"
 func WithPath(path string) AttachOption           // URL path on the target service
 func WithHeaders(headers map[string]string) AttachOption
 ```
@@ -802,6 +802,6 @@ Builds environment variables injected into sandbox containers:
 | `YAO_GRPC_ADDR`    | gRPC server address (auto-derived)   |
 
 Address derivation logic:
-- `tai://host:port` → `host:port`
+- `tai://host:port` → `host:port` (default port 19100 when omitted)
 - `tunnel://...` → `127.0.0.1:<grpcPort>`
 - Local/default → `127.0.0.1:<grpcPort>`

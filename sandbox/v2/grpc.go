@@ -63,7 +63,7 @@ func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) m
 		taiHost := u.Hostname()
 		taiPort := u.Port()
 		if taiPort == "" {
-			taiPort = "9100"
+			taiPort = "19100"
 		}
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%s", taiHost, taiPort)
 

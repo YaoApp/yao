@@ -21,7 +21,7 @@ type Proxy interface {
 type ConnectOptions struct {
 	Port     int    // container port
 	Path     string // URL path (e.g. "/ws" or "/events")
-	Protocol string // "ws", "sse", or "tcp"
+	Protocol string // "ws" or "sse"
 }
 
 // Connection represents a persistent connection to a container service.

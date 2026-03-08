@@ -33,7 +33,7 @@ type TaiNode struct {
 	Mode         string         // "direct" | "tunnel"
 	Addr         string         // direct mode: "tai-host"; tunnel mode: empty
 	YaoBase      string         // Yao server base URL reported by Tai (tunnel mode)
-	Ports        map[string]int // {"grpc":9100, "http":8080, "vnc":6080, "docker":2375}
+	Ports        map[string]int // {"grpc":19100, "http":8099, "vnc":16080, "docker":12375}
 	Capabilities map[string]bool
 
 	ControlConn *websocket.Conn

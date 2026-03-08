@@ -5,7 +5,7 @@ File IO and directory synchronization. Provides a `Volume` interface with two im
 | Implementation | Constructor | Backend | Mode |
 |----------------|-------------|---------|------|
 | **Local** | `NewLocal(root)` | Direct filesystem | Local |
-| **Remote** | `NewRemote(conn)` | gRPC to Tai :9100 | Remote |
+| **Remote** | `NewRemote(conn)` | gRPC to Tai :19100 | Remote |
 
 ## Interface
 
@@ -33,10 +33,10 @@ All paths are **relative** to the session's workspace root. The `sessionID` iden
 ### NewLocal
 
 ```go
-func NewLocal(root string) Volume
+func NewLocal(dataDir string) Volume
 ```
 
-Creates a Volume backed by the local filesystem. Files are stored under `<root>/<sessionID>/`.
+Creates a Volume backed by the local filesystem. Files are stored under `<dataDir>/<sessionID>/`.
 
 ### NewRemote
 
@@ -44,7 +44,7 @@ Creates a Volume backed by the local filesystem. Files are stored under `<root>/
 func NewRemote(conn *grpc.ClientConn) Volume
 ```
 
-Creates a Volume backed by Tai's gRPC Volume service. The connection should target Tai's gRPC port (default 9100). Uses lz4 compression for `SyncPush`/`SyncPull` bulk transfers.
+Creates a Volume backed by Tai's gRPC Volume service. The connection should target Tai's gRPC port (default 19100). Uses lz4 compression for `SyncPush`/`SyncPull` bulk transfers.
 
 ## Types
 

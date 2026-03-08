@@ -25,8 +25,8 @@ func TestBuildGRPCEnvRemote(t *testing.T) {
 	pool := &sandbox.Pool{Name: "gpu", Addr: "tai://gpu-server"}
 	env := sandbox.BuildGRPCEnv(pool, "sb-002", "access", "refresh", 9099)
 
-	if env["YAO_GRPC_ADDR"] != "gpu-server:9100" {
-		t.Errorf("YAO_GRPC_ADDR = %q, want gpu-server:9100", env["YAO_GRPC_ADDR"])
+	if env["YAO_GRPC_ADDR"] != "gpu-server:19100" {
+		t.Errorf("YAO_GRPC_ADDR = %q, want gpu-server:19100", env["YAO_GRPC_ADDR"])
 	}
 }
 

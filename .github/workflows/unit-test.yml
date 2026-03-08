@@ -782,7 +782,7 @@ jobs:
       - name: Pull Test Images
         run: |
           docker pull yaoapp/tai-sandbox-test:latest || true
-          docker pull yaoapp/tai:latest
+          docker pull yaoapp/tai:1.2.0
           docker pull alpine:latest
 
       - name: Install k3d
@@ -798,26 +798,27 @@ jobs:
         run: |
           docker run -d --name tai-docker \
             -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 8080:8080 -p 9100:9100 -p 2375:2375 -p 6080:6080 \
-            yaoapp/tai:latest
+            -p 19100:19100 -p 8099:8099 -p 12375:12375 -p 16080:16080 \
+            yaoapp/tai:1.2.0 server \
+            -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -docker 0.0.0.0:12375
 
           for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1; then
+            if curl -sf http://127.0.0.1:8099/healthz > /dev/null 2>&1; then
               echo "Tai Docker HTTP ready"; break
             fi
             echo "Waiting for Tai Docker HTTP... ($i)"; sleep 1
           done
-          curl -sf http://127.0.0.1:8080/healthz > /dev/null 2>&1 || {
+          curl -sf http://127.0.0.1:8099/healthz > /dev/null 2>&1 || {
             echo "::error::Tai Docker HTTP failed"; docker logs tai-docker 2>&1; exit 1
           }
 
           for i in $(seq 1 15); do
-            if nc -z 127.0.0.1 9100 2>/dev/null; then
+            if nc -z 127.0.0.1 19100 2>/dev/null; then
               echo "Tai Docker gRPC ready"; break
             fi
             echo "Waiting for Tai Docker gRPC... ($i)"; sleep 1
           done
-          nc -z 127.0.0.1 9100 2>/dev/null || {
+          nc -z 127.0.0.1 19100 2>/dev/null || {
             echo "::error::Tai Docker gRPC failed"; docker logs tai-docker 2>&1; exit 1
           }
 
@@ -847,45 +848,49 @@ jobs:
 
           docker run -d --name tai-k8s \
             --network k3d-tai-test \
-            -p 8081:8080 -p 9101:9100 -p 6443:6443 -p 6081:6080 \
+            -p 19101:19100 -p 8100:8099 -p 6443:16443 -p 16081:16080 \
             -v /var/run/docker.sock:/var/run/docker.sock:ro \
             -v /tmp/kubeconfig-tai-k8s.yml:/etc/tai/kubeconfig.yml:ro \
             -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             -e TAI_KUBECONFIG=/etc/tai/kubeconfig.yml \
-            yaoapp/tai:latest
+            yaoapp/tai:1.2.0 server \
+            -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -k8s 0.0.0.0:16443
 
           for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8081/healthz > /dev/null 2>&1; then
+            if curl -sf http://127.0.0.1:8100/healthz > /dev/null 2>&1; then
               echo "Tai K8s HTTP ready"; break
             fi
             echo "Waiting for Tai K8s HTTP... ($i)"; sleep 1
           done
-          curl -sf http://127.0.0.1:8081/healthz > /dev/null 2>&1 || {
+          curl -sf http://127.0.0.1:8100/healthz > /dev/null 2>&1 || {
             echo "::error::Tai K8s HTTP failed"; docker logs tai-k8s 2>&1; exit 1
           }
 
           for i in $(seq 1 15); do
-            if nc -z 127.0.0.1 9101 2>/dev/null; then
+            if nc -z 127.0.0.1 19101 2>/dev/null; then
               echo "Tai K8s gRPC ready"; break
             fi
             echo "Waiting for Tai K8s gRPC... ($i)"; sleep 1
           done
-          nc -z 127.0.0.1 9101 2>/dev/null || {
+          nc -z 127.0.0.1 19101 2>/dev/null || {
             echo "::error::Tai K8s gRPC failed"; docker logs tai-k8s 2>&1; exit 1
           }
 
       - name: Run Sandbox V2 CI Tests (tai + workspace)
         env:
           TAI_TEST_HOST: "127.0.0.1"
-          TAI_TEST_DOCKER: "tcp://127.0.0.1:2375"
-          TAI_TEST_GRPC_PORT: "9100"
+          TAI_TEST_DOCKER: "tcp://127.0.0.1:12375"
+          TAI_TEST_GRPC_PORT: "19100"
+          TAI_TEST_HTTP_PORT: "8099"
+          TAI_TEST_VNC_PORT: "16080"
+          TAI_TEST_DOCKER_PORT: "12375"
           TAI_TEST_K8S_HOST: "127.0.0.1"
           TAI_TEST_K8S_PORT: "6443"
-          TAI_TEST_K8S_GRPC_PORT: "9101"
+          TAI_TEST_K8S_GRPC_PORT: "19101"
           TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
           TAI_TEST_HOST_IP: "172.17.0.1"
-          SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:9100"
-          SANDBOX_TEST_IMAGE: "yaoapp/sandbox-v2-test:latest"
+          SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:19100"
+          SANDBOX_TEST_IMAGE: "yaoapp/tai-sandbox-test:latest"
         run: make unit-test-sandbox-v2
 
       - name: Codecov Report

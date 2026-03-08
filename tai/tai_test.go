@@ -14,6 +14,26 @@ func taiTestHost() string {
 	return "127.0.0.1"
 }
 
+// taiRemoteAddr returns the tai:// address for remote tests (e.g. TestNewRemoteDocker).
+// Uses TAI_TEST_HOST and, when set, TAI_TEST_GRPC_PORT so Tai on non-default port works.
+func taiRemoteAddr() string {
+	host := taiTestHost()
+	if p := os.Getenv("TAI_TEST_GRPC_PORT"); p != "" {
+		return "tai://" + host + ":" + p
+	}
+	return "tai://" + host
+}
+
+// taiTestPorts builds a Ports struct from TAI_TEST_*_PORT env vars.
+// Only non-zero fields are set so they override ServerInfo-discovered values.
+func taiTestPorts() Ports {
+	return Ports{
+		Docker: envPort("TAI_TEST_DOCKER_PORT", 0),
+		HTTP:   envPort("TAI_TEST_HTTP_PORT", 0),
+		VNC:    envPort("TAI_TEST_VNC_PORT", 0),
+	}
+}
+
 func envPort(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
 		if p, err := strconv.Atoi(v); err == nil {
@@ -84,11 +104,11 @@ func TestMergedPorts(t *testing.T) {
 	if p.HTTP != 8888 {
 		t.Errorf("HTTP = %d, want 8888", p.HTTP)
 	}
-	if p.GRPC != 9100 {
-		t.Errorf("GRPC = %d, want 9100 (default)", p.GRPC)
+	if p.GRPC != 19100 {
+		t.Errorf("GRPC = %d, want 19100 (default)", p.GRPC)
 	}
-	if p.VNC != 6080 {
-		t.Errorf("VNC = %d, want 6080 (default)", p.VNC)
+	if p.VNC != 16080 {
+		t.Errorf("VNC = %d, want 16080 (default)", p.VNC)
 	}
 	if p.Docker != 0 {
 		t.Errorf("Docker = %d, want 0 (unset)", p.Docker)
@@ -202,12 +222,12 @@ func TestNewRemoteK8s(t *testing.T) {
 		t.Skip("TAI_TEST_K8S_HOST or TAI_TEST_KUBECONFIG not set")
 	}
 
-	grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 9100))
+	grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
 	ports := Ports{
-		K8s:  envPort("TAI_TEST_K8S_PORT", 6443),
+		K8s:  envPort("TAI_TEST_K8S_PORT", 16443),
 		GRPC: grpcPort,
-		HTTP: envPort("TAI_TEST_K8S_HTTP_PORT", 8080),
-		VNC:  envPort("TAI_TEST_K8S_VNC_PORT", 6080),
+		HTTP: envPort("TAI_TEST_K8S_HTTP_PORT", 8099),
+		VNC:  envPort("TAI_TEST_K8S_VNC_PORT", 16080),
 	}
 
 	c, err := New(fmt.Sprintf("tai://%s:%d", host, grpcPort), K8s,
@@ -255,12 +275,15 @@ func TestNewInvalidScheme(t *testing.T) {
 }
 
 func TestNewRemoteDocker(t *testing.T) {
-	addr := "tai://" + taiTestHost()
-	c, err := New(addr)
+	addr := taiRemoteAddr()
+	ports := taiTestPorts()
+	c, err := New(addr, WithPorts(ports))
 	if err != nil {
 		t.Skipf("Tai not available at %s: %v", addr, err)
 	}
 	defer c.Close()
+
+	t.Logf("remote docker: addr=%s ports=%+v", addr, c.ports)
 
 	if c.IsLocal() {
 		t.Error("expected IsLocal = false for tai://")
@@ -284,7 +307,7 @@ func TestNewRemoteDocker(t *testing.T) {
 }
 
 func TestDiscoverPorts(t *testing.T) {
-	addr := "tai://" + taiTestHost()
+	addr := taiRemoteAddr()
 	c, err := New(addr)
 	if err != nil {
 		t.Skipf("Tai not available at %s: %v", addr, err)
@@ -303,7 +326,7 @@ func TestDiscoverPorts(t *testing.T) {
 }
 
 func TestDiscoverPortsWithUserOverride(t *testing.T) {
-	addr := "tai://" + taiTestHost()
+	addr := taiRemoteAddr()
 	c, err := New(addr, WithPorts(Ports{HTTP: 9999}))
 	if err != nil {
 		t.Skipf("Tai not available at %s: %v", addr, err)

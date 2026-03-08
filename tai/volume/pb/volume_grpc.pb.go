@@ -35,7 +35,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // Volume provides bulk file synchronization and real-time filesystem I/O.
-// Shares gRPC port :9100 with Yao Gateway.
+// Shares gRPC port :19100 with Yao Gateway.
 type VolumeClient interface {
 	// SyncPush: Yao sends code to Tai (before container start).
 	// Bidirectional stream:
@@ -183,7 +183,7 @@ func (c *volumeClient) MkdirAll(ctx context.Context, in *FSRequest, opts ...grpc
 // for forward compatibility.
 //
 // Volume provides bulk file synchronization and real-time filesystem I/O.
-// Shares gRPC port :9100 with Yao Gateway.
+// Shares gRPC port :19100 with Yao Gateway.
 type VolumeServer interface {
 	// SyncPush: Yao sends code to Tai (before container start).
 	// Bidirectional stream:

@@ -13,7 +13,7 @@ type dockerSandbox struct {
 }
 
 // NewDocker creates a Sandbox backed by Docker SDK through Tai's Docker API proxy.
-// addr should be "tcp://tai-host:2375".
+// addr should be "tcp://tai-host:12375".
 func NewDocker(addr string) (Sandbox, error) {
 	cli, err := client.NewClientWithOpts(
 		client.WithHost(addr),
