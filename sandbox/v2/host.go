@@ -16,7 +16,7 @@ import (
 //
 // Host implements the Computer interface.
 type Host struct {
-	pool        string
+	nodeID      string
 	workplaceID string
 	manager     *Manager
 }
@@ -25,12 +25,12 @@ type Host struct {
 var _ Computer = (*Host)(nil)
 
 // ComputerInfo returns identity and registry information for the host.
-// Registry-level details (TaiID, System, etc.) are populated when the pool
-// is backed by a registered Tai node; otherwise only Kind and Pool are set.
+// Registry-level details (TaiID, System, etc.) are populated when the node
+// is backed by a registered Tai node; otherwise only Kind and NodeID are set.
 func (h *Host) ComputerInfo() ComputerInfo {
 	return ComputerInfo{
 		Kind:   "host",
-		Pool:   h.pool,
+		NodeID: h.nodeID,
 		Status: "online",
 	}
 }
@@ -42,14 +42,14 @@ func (h *Host) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exe
 		return nil, fmt.Errorf("sandbox: empty command")
 	}
 
-	client, err := h.manager.getPool(h.pool)
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
 	he := client.HostExec()
 	if he == nil {
-		return nil, fmt.Errorf("sandbox: host_exec not available on pool %q", h.pool)
+		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
 
 	cfg := &execConfig{}
@@ -98,14 +98,14 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 		return nil, fmt.Errorf("sandbox: empty command")
 	}
 
-	client, err := h.manager.getPool(h.pool)
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
 	he := client.HostExec()
 	if he == nil {
-		return nil, fmt.Errorf("sandbox: host_exec not available on pool %q", h.pool)
+		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
 
 	cfg := &execConfig{}
@@ -187,7 +187,7 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 // VNC returns the VNC WebSocket URL for the Tai host machine.
 // Uses the special __host__ identifier to route to localhost:5900 on the Tai server.
 func (h *Host) VNC(ctx context.Context) (string, error) {
-	client, err := h.manager.getPool(h.pool)
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -197,7 +197,7 @@ func (h *Host) VNC(ctx context.Context) (string, error) {
 // Proxy returns the HTTP URL for a service running on the Tai host machine.
 // Uses the special __host__ identifier to route to localhost:{port} on the Tai server.
 func (h *Host) Proxy(ctx context.Context, port int, path string) (string, error) {
-	client, err := h.manager.getPool(h.pool)
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -215,15 +215,15 @@ func (h *Host) Workplace() workspace.FS {
 	if h.workplaceID == "" {
 		return nil
 	}
-	client, err := h.manager.getPool(h.pool)
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil
 	}
 	return client.Workspace(h.workplaceID)
 }
 
-// Pool returns the pool name this Host belongs to.
-func (h *Host) Pool() string { return h.pool }
+// NodeID returns the node ID this Host belongs to.
+func (h *Host) NodeID() string { return h.nodeID }
 
 // nopWriteCloser wraps an io.Writer with a no-op Close.
 type nopWriteCloser struct{ io.Writer }

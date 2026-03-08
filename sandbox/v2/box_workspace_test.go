@@ -15,7 +15,7 @@ import (
 func TestWorkspaceID_Set(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			sbm, wsm := setupManagerWithWorkspace(t, &pc)
@@ -41,10 +41,10 @@ func TestWorkspaceID_Set(t *testing.T) {
 func TestWorkspaceID_Empty(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 			assert.Empty(t, box.WorkspaceID())
 		})
@@ -54,7 +54,7 @@ func TestWorkspaceID_Empty(t *testing.T) {
 func TestWorkspace_NodeRouting(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			sbm, wsm := setupManagerWithWorkspace(t, &pc)
@@ -72,7 +72,7 @@ func TestWorkspace_NodeRouting(t *testing.T) {
 				co.WorkspaceID = ws.ID
 			})
 
-			assert.Equal(t, pc.TaiID, box.Pool())
+			assert.Equal(t, pc.TaiID, box.NodeID())
 		})
 	}
 }
@@ -80,7 +80,7 @@ func TestWorkspace_NodeRouting(t *testing.T) {
 func TestWorkspace_InvalidID(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			sbm, _ := setupManagerWithWorkspace(t, &pc)
@@ -103,7 +103,7 @@ func TestWorkspace_InvalidID(t *testing.T) {
 func TestWorkspace_BindMountLocal(t *testing.T) {
 	skipIfNoDocker(t)
 
-	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
+	pc := nodeConfig{Name: "local", Addr: testLocalAddr()}
 	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -129,7 +129,7 @@ func TestWorkspace_BindMountLocal(t *testing.T) {
 func TestWorkspace_ContainerWriteBack(t *testing.T) {
 	skipIfNoDocker(t)
 
-	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
+	pc := nodeConfig{Name: "local", Addr: testLocalAddr()}
 	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -156,7 +156,7 @@ func TestWorkspace_ContainerWriteBack(t *testing.T) {
 func TestWorkspace_ReadOnlyMount(t *testing.T) {
 	skipIfNoDocker(t)
 
-	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
+	pc := nodeConfig{Name: "local", Addr: testLocalAddr()}
 	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -189,7 +189,7 @@ func TestWorkspace_ReadOnlyMount(t *testing.T) {
 func TestWorkspace_CustomMountPath(t *testing.T) {
 	skipIfNoDocker(t)
 
-	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
+	pc := nodeConfig{Name: "local", Addr: testLocalAddr()}
 	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -216,7 +216,7 @@ func TestWorkspace_CustomMountPath(t *testing.T) {
 func TestWorkspace_BoxWorkspaceFS(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		if pc.Name == "local" {
 			continue
 		}
@@ -254,7 +254,7 @@ func TestWorkspace_BoxWorkspaceFS(t *testing.T) {
 func TestWorkspace_LabelPersistence(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			sbm, wsm := setupManagerWithWorkspace(t, &pc)

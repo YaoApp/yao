@@ -15,7 +15,7 @@ import (
 type Box struct {
 	id            string
 	containerID   string
-	pool          string
+	nodeID        string
 	owner         string
 	policy        LifecyclePolicy
 	labels        map[string]string
@@ -39,13 +39,13 @@ var _ Computer = (*Box)(nil)
 func (b *Box) ID() string          { return b.id }
 func (b *Box) Owner() string       { return b.owner }
 func (b *Box) ContainerID() string { return b.containerID }
-func (b *Box) Pool() string        { return b.pool }
+func (b *Box) NodeID() string      { return b.nodeID }
 
 // ComputerInfo returns identity and registry information for this Box.
 func (b *Box) ComputerInfo() ComputerInfo {
 	return ComputerInfo{
 		Kind:        "box",
-		Pool:        b.pool,
+		NodeID:      b.nodeID,
 		Status:      "online",
 		BoxID:       b.id,
 		ContainerID: b.containerID,
@@ -79,7 +79,7 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +143,7 @@ func (b *Box) Attach(ctx context.Context, port int, opts ...AttachOption) (*Serv
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func (b *Box) Workspace() workspace.FS {
 	if sessionID == "" {
 		sessionID = b.id
 	}
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil
 	}
@@ -203,7 +203,7 @@ func (b *Box) WorkspaceID() string { return b.workspaceID }
 // VNC returns the VNC WebSocket URL.
 func (b *Box) VNC(ctx context.Context) (string, error) {
 	b.touch()
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -213,7 +213,7 @@ func (b *Box) VNC(ctx context.Context) (string, error) {
 // Proxy returns the HTTP URL for a service on the given port inside the sandbox.
 func (b *Box) Proxy(ctx context.Context, port int, path string) (string, error) {
 	b.touch()
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -222,7 +222,7 @@ func (b *Box) Proxy(ctx context.Context, port int, path string) (string, error) 
 
 // Start starts a stopped sandbox.
 func (b *Box) Start(ctx context.Context) error {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
@@ -231,7 +231,7 @@ func (b *Box) Start(ctx context.Context) error {
 
 // Stop stops the sandbox without removing it.
 func (b *Box) Stop(ctx context.Context) error {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
@@ -245,7 +245,7 @@ func (b *Box) Remove(ctx context.Context) error {
 
 // Info returns current sandbox status.
 func (b *Box) Info(ctx context.Context) (*BoxInfo, error) {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +258,7 @@ func (b *Box) Info(ctx context.Context) (*BoxInfo, error) {
 	return &BoxInfo{
 		ID:           b.id,
 		ContainerID:  b.containerID,
-		Pool:         b.pool,
+		NodeID:       b.nodeID,
 		Owner:        b.owner,
 		Status:       info.Status,
 		Policy:       b.policy,

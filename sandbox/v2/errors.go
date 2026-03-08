@@ -3,8 +3,8 @@ package sandbox
 import "errors"
 
 var (
-	ErrNotAvailable = errors.New("sandbox: not available (no pools configured)")
+	ErrNotAvailable = errors.New("sandbox: not available (no nodes registered)")
 	ErrNotFound     = errors.New("sandbox: not found")
-	ErrPoolNotFound = errors.New("sandbox: pool not found")
-	ErrPoolMissing  = errors.New("sandbox: pool name is required")
+	ErrNodeNotFound = errors.New("sandbox: node not found")
+	ErrNodeMissing  = errors.New("sandbox: node ID is required")
 )

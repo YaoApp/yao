@@ -103,7 +103,7 @@ func TestCreate(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestCreate() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				if (pc.kind !== "box") throw new Error("kind=" + pc.kind);
 				if (!pc.id) throw new Error("no id");
 				var id = pc.id;
@@ -124,7 +124,7 @@ func TestGet(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestGet() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var id = pc.id;
 				var got = sandbox.Get(id);
 				if (!got) throw new Error("Get returned null");
@@ -161,7 +161,7 @@ func TestDelete(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestDelete() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var id = pc.id;
 				sandbox.Delete(id);
 				var got = sandbox.Get(id);
@@ -185,8 +185,8 @@ func TestList(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestList() {
-				var a = sandbox.Create({ image: "%s", owner: "list-user", pool: "%s" });
-				var b = sandbox.Create({ image: "%s", owner: "list-user", pool: "%s" });
+				var a = sandbox.Create({ image: "%s", owner: "list-user", node_id: "%s" });
+				var b = sandbox.Create({ image: "%s", owner: "list-user", node_id: "%s" });
 				var list = sandbox.List({ owner: "list-user" });
 				var count = list.length;
 				sandbox.Delete(a.id);
@@ -212,7 +212,7 @@ func TestExec(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestExec() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var r = pc.Exec(["echo", "hello-jsapi"]);
 				sandbox.Delete(pc.id);
 				return r.stdout;
@@ -232,7 +232,7 @@ func TestExecWithOptions(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestExecWithOptions() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var r = pc.Exec(["pwd"], { workdir: "/tmp" });
 				sandbox.Delete(pc.id);
 				return r.stdout;
@@ -256,7 +256,7 @@ func TestStream(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestStream() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var chunks = [];
 				var exitCode = -1;
 				pc.Stream(["echo", "streaming"], function(type, data) {
@@ -285,7 +285,7 @@ func TestComputerInfo(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestComputerInfo() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var info = pc.ComputerInfo();
 				sandbox.Delete(pc.id);
 				return info.kind;
@@ -308,7 +308,7 @@ func TestBoxInfo(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestBoxInfo() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var info = pc.Info();
 				sandbox.Delete(pc.id);
 				return info.id ? "ok" : "no-id";
@@ -356,7 +356,7 @@ func TestComputerKind(t *testing.T) {
 			setupSandbox(t, &m)
 			img := testImage()
 			res := runJS(t, fmt.Sprintf(`function TestComputerKind() {
-				var pc = sandbox.Create({ image: "%s", owner: "test-user", pool: "%s" });
+				var pc = sandbox.Create({ image: "%s", owner: "test-user", node_id: "%s" });
 				var k = pc.kind;
 				sandbox.Delete(pc.id);
 				return k;

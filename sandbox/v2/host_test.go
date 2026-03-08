@@ -15,8 +15,8 @@ import (
 func setupHostManager(t *testing.T, tgt *hostExecTarget) *sandbox.Manager {
 	t.Helper()
 	addr := fmt.Sprintf("tai://%s", tgt.Addr)
-	m, pools := setupManager(t, poolConfig{Name: tgt.Name, Addr: addr})
-	tgt.TaiID = pools[0].TaiID
+	m, nodes := setupManager(t, nodeConfig{Name: tgt.Name, Addr: addr})
+	tgt.TaiID = nodes[0].TaiID
 	return m
 }
 
@@ -384,8 +384,8 @@ func TestHost_ComputerInfo(t *testing.T) {
 			if info.Kind != "host" {
 				t.Errorf("Kind = %q, want 'host'", info.Kind)
 			}
-			if info.Pool != tgt.TaiID {
-				t.Errorf("Pool = %q, want %q", info.Pool, tgt.TaiID)
+			if info.NodeID != tgt.TaiID {
+				t.Errorf("NodeID = %q, want %q", info.NodeID, tgt.TaiID)
 			}
 		})
 	}
@@ -414,7 +414,7 @@ func TestHost_ComputerInterface(t *testing.T) {
 	}
 }
 
-func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
+func TestHost_CreateRejectsNoContainerNode(t *testing.T) {
 	tgt := findHostExecOnly(t)
 	if tgt == nil {
 		t.Skip("no host-exec-only target available")
@@ -426,24 +426,24 @@ func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
 	defer cancel()
 
 	_, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: "alpine:latest",
-		Owner: "test",
-		Pool:  tgt.TaiID,
+		Image:  "alpine:latest",
+		Owner:  "test",
+		NodeID: tgt.TaiID,
 	})
 	if err == nil {
-		t.Fatal("expected error for Create on host-exec-only pool, got nil")
+		t.Fatal("expected error for Create on host-exec-only node, got nil")
 	}
 	if !strings.Contains(err.Error(), "no container runtime") {
 		t.Errorf("error = %q, want contains 'no container runtime'", err.Error())
 	}
 }
 
-func TestHost_PoolNotFound(t *testing.T) {
+func TestHost_NodeNotFound(t *testing.T) {
 	skipIfNoHostExec(t)
 	tgt := hostExecTargets()[0]
 	m := setupHostManager(t, &tgt)
 
-	_, err := m.Host(context.Background(), "nonexistent-pool")
+	_, err := m.Host(context.Background(), "nonexistent-node")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}

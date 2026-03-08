@@ -27,7 +27,7 @@ type Computer interface {
 // ComputerInfo holds identity and registry information for a Computer.
 type ComputerInfo struct {
 	Kind         string // "box" | "host"
-	Pool         string
+	NodeID       string
 	TaiID        string
 	MachineID    string
 	Version      string
@@ -84,7 +84,7 @@ type CreateOptions struct {
 	ID          string
 	Owner       string
 	Labels      map[string]string
-	Pool        string
+	NodeID      string
 	Image       string
 	WorkDir     string
 	User        string
@@ -105,7 +105,7 @@ type CreateOptions struct {
 
 type ListOptions struct {
 	Owner  string
-	Pool   string
+	NodeID string
 	Labels map[string]string
 }
 
@@ -211,7 +211,7 @@ type ServiceConn struct {
 type BoxInfo struct {
 	ID           string
 	ContainerID  string
-	Pool         string
+	NodeID       string
 	Owner        string
 	Status       string
 	Policy       LifecyclePolicy

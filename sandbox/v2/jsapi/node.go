@@ -83,7 +83,7 @@ func snapshotToJS(v8ctx *v8go.Context, snap *registry.NodeSnapshot) (*v8go.Value
 		"mode":         snap.Mode,
 		"addr":         snap.Addr,
 		"status":       snap.Status,
-		"pool":         snap.PoolName,
+		"display_name": snap.DisplayName,
 		"connected_at": snap.ConnectedAt.Format(time.RFC3339),
 		"last_ping":    snap.LastPing.Format(time.RFC3339),
 		"ports":        ports,
@@ -117,12 +117,13 @@ func snapshotsToJSArray(v8ctx *v8go.Context, snaps []registry.NodeSnapshot) *v8g
 		}
 		items = append(items, map[string]interface{}{
 			"tai_id":       snap.TaiID,
+			"node_id":      snap.TaiID,
 			"machine_id":   snap.MachineID,
 			"version":      snap.Version,
 			"mode":         snap.Mode,
 			"addr":         snap.Addr,
 			"status":       snap.Status,
-			"pool":         snap.PoolName,
+			"display_name": snap.DisplayName,
 			"connected_at": snap.ConnectedAt.Format(time.RFC3339),
 			"last_ping":    snap.LastPing.Format(time.RFC3339),
 			"ports":        ports,

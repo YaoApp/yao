@@ -13,7 +13,7 @@ import (
 
 // BenchmarkContainerLifecycle measures the full Create → Exec → Remove cycle.
 func BenchmarkContainerLifecycle(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -44,7 +44,7 @@ func BenchmarkContainerLifecycle(b *testing.B) {
 
 // BenchmarkCreate measures container creation time only.
 func BenchmarkCreate(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -73,7 +73,7 @@ func BenchmarkCreate(b *testing.B) {
 
 // BenchmarkExec measures command execution latency on a pre-created container.
 func BenchmarkExec(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -95,7 +95,7 @@ func BenchmarkExec(b *testing.B) {
 
 // BenchmarkExecHeavy measures execution of a heavier command (write + read file).
 func BenchmarkExecHeavy(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -118,7 +118,7 @@ func BenchmarkExecHeavy(b *testing.B) {
 
 // BenchmarkRemove measures container removal time.
 func BenchmarkRemove(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -148,7 +148,7 @@ func BenchmarkRemove(b *testing.B) {
 
 // BenchmarkInfo measures Info() latency on a running container.
 func BenchmarkInfo(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -167,7 +167,7 @@ func BenchmarkInfo(b *testing.B) {
 
 // BenchmarkStopStart measures Stop → Start cycle time.
 func BenchmarkStopStart(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			if pc.Name == "k8s" {
@@ -191,7 +191,7 @@ func BenchmarkStopStart(b *testing.B) {
 
 // BenchmarkWorkspaceReadWrite measures workspace file read/write via container Box.
 func BenchmarkWorkspaceReadWrite(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			m := setupManagerForBench(b, &pc)
@@ -223,7 +223,7 @@ func BenchmarkWorkspaceReadWrite(b *testing.B) {
 
 // --- helpers ---
 
-func setupManagerForBench(b *testing.B, pc *poolConfig) *sandbox.Manager {
+func setupManagerForBench(b *testing.B, pc *nodeConfig) *sandbox.Manager {
 	b.Helper()
 	reg := registry.Global()
 	if reg == nil {
@@ -240,29 +240,29 @@ func setupManagerForBench(b *testing.B, pc *poolConfig) *sandbox.Manager {
 	return m
 }
 
-func ensureTestImageBench(b *testing.B, m *sandbox.Manager, pool string) {
+func ensureTestImageBench(b *testing.B, m *sandbox.Manager, nodeID string) {
 	b.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	if err := m.EnsureImage(ctx, pool, testImage(), sandbox.ImagePullOptions{}); err != nil {
+	if err := m.EnsureImage(ctx, nodeID, testImage(), sandbox.ImagePullOptions{}); err != nil {
 		b.Fatalf("EnsureImage: %v", err)
 	}
 }
 
 func createBoxForBench(b *testing.B, m *sandbox.Manager) *sandbox.Box {
 	b.Helper()
-	pools := m.Pools()
-	var poolName string
-	if len(pools) > 0 {
-		poolName = pools[0].TaiID
-		ensureTestImageBench(b, m, poolName)
+	nodes := m.Nodes()
+	var nodeID string
+	if len(nodes) > 0 {
+		nodeID = nodes[0].TaiID
+		ensureTestImageBench(b, m, nodeID)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	box, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: testImage(),
-		Owner: "bench",
-		Pool:  poolName,
+		Image:  testImage(),
+		Owner:  "bench",
+		NodeID: nodeID,
 	})
 	if err != nil {
 		b.Fatalf("Create: %v", err)

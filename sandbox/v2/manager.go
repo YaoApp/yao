@@ -32,7 +32,7 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 
 	for _, snap := range reg.List() {
-		client, err := m.getPool(snap.TaiID)
+		client, err := m.getNode(snap.TaiID)
 		if err != nil {
 			continue
 		}
@@ -45,8 +45,8 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Pools returns the list of registered Tai nodes from the registry.
-func (m *Manager) Pools() []registry.NodeSnapshot {
+// Nodes returns the list of registered Tai nodes from the registry.
+func (m *Manager) Nodes() []registry.NodeSnapshot {
 	reg := registry.Global()
 	if reg == nil {
 		return nil
@@ -69,21 +69,21 @@ func (m *Manager) Heartbeat(sandboxID string, active bool, processCount int) err
 }
 
 // Host returns a Host handle for executing commands on the Tai host machine.
-func (m *Manager) Host(_ context.Context, pool string) (*Host, error) {
-	if pool == "" {
-		return nil, ErrPoolMissing
+func (m *Manager) Host(_ context.Context, nodeID string) (*Host, error) {
+	if nodeID == "" {
+		return nil, ErrNodeMissing
 	}
 
-	client, err := m.getPool(pool)
+	client, err := m.getNode(nodeID)
 	if err != nil {
-		return nil, fmt.Errorf("sandbox: connect pool %q: %w", pool, err)
+		return nil, fmt.Errorf("sandbox: connect node %q: %w", nodeID, err)
 	}
 
 	if client.HostExec() == nil {
-		return nil, fmt.Errorf("sandbox: pool %q has no host_exec capability", pool)
+		return nil, fmt.Errorf("sandbox: node %q has no host_exec capability", nodeID)
 	}
 
-	return &Host{pool: pool, manager: m}, nil
+	return &Host{nodeID: nodeID, manager: m}, nil
 }
 
 // Create creates and starts a new sandbox.
@@ -92,7 +92,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		return nil, fmt.Errorf("sandbox: image is required")
 	}
 
-	poolName := opts.Pool
+	nodeID := opts.NodeID
 
 	if opts.WorkspaceID != "" {
 		if wsm := workspace.M(); wsm != nil {
@@ -100,12 +100,12 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 			if err != nil {
 				return nil, fmt.Errorf("sandbox: resolve workspace %q: %w", opts.WorkspaceID, err)
 			}
-			poolName = node
+			nodeID = node
 		}
 	}
 
-	if poolName == "" {
-		return nil, ErrPoolMissing
+	if nodeID == "" {
+		return nil, ErrNodeMissing
 	}
 
 	id := opts.ID
@@ -113,16 +113,16 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		id = fmt.Sprintf("sb-%d", time.Now().UnixNano())
 	}
 
-	client, err := m.getPool(poolName)
+	client, err := m.getNode(nodeID)
 	if err != nil {
-		return nil, fmt.Errorf("sandbox: connect pool %q: %w", poolName, err)
+		return nil, fmt.Errorf("sandbox: connect node %q: %w", nodeID, err)
 	}
 
 	if client.Sandbox() == nil {
-		return nil, fmt.Errorf("sandbox: pool %q has no container runtime", poolName)
+		return nil, fmt.Errorf("sandbox: node %q has no container runtime", nodeID)
 	}
 
-	taiOpts := m.buildTaiCreateOptions(opts, poolName, id)
+	taiOpts := m.buildTaiCreateOptions(opts, nodeID, id)
 
 	containerID, err := client.Sandbox().Create(ctx, taiOpts)
 	if err != nil {
@@ -142,7 +142,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 	box := &Box{
 		id:           id,
 		containerID:  containerID,
-		pool:         poolName,
+		nodeID:       nodeID,
 		owner:        opts.Owner,
 		policy:       policy,
 		labels:       opts.Labels,
@@ -188,7 +188,7 @@ func (m *Manager) List(_ context.Context, opts ListOptions) ([]*Box, error) {
 		if opts.Owner != "" && b.owner != opts.Owner {
 			return true
 		}
-		if opts.Pool != "" && b.pool != opts.Pool {
+		if opts.NodeID != "" && b.nodeID != opts.NodeID {
 			return true
 		}
 		if len(opts.Labels) > 0 {
@@ -212,7 +212,7 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 	}
 	b := v.(*Box)
 
-	client, err := m.getPool(b.pool)
+	client, err := m.getNode(b.nodeID)
 	if err == nil && client.Sandbox() != nil {
 		client.Sandbox().Remove(ctx, b.containerID, true)
 	}
@@ -237,7 +237,7 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 			}
 		case LongRunning:
 			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
-				if client, err := m.getPool(b.pool); err == nil && client.Sandbox() != nil {
+				if client, err := m.getNode(b.nodeID); err == nil && client.Sandbox() != nil {
 					client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
 				}
 			}
@@ -273,20 +273,20 @@ func (m *Manager) cleanupLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) getPool(name string) (*tai.Client, error) {
+func (m *Manager) getNode(name string) (*tai.Client, error) {
 	client, ok := tai.GetClient(name)
 	if !ok {
-		return nil, ErrPoolNotFound
+		return nil, ErrNodeNotFound
 	}
 	return client, nil
 }
 
-func (m *Manager) buildTaiCreateOptions(opts CreateOptions, poolName, sandboxID string) taisandbox.CreateOptions {
+func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID string) taisandbox.CreateOptions {
 	env := make(map[string]string)
 
 	reg := registry.Global()
 	if reg != nil {
-		if snap, ok := reg.Get(poolName); ok {
+		if snap, ok := reg.Get(nodeID); ok {
 			grpcEnv := BuildGRPCEnv(snap.Mode, snap.Addr, sandboxID)
 			for k, v := range grpcEnv {
 				env[k] = v
@@ -299,11 +299,11 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, poolName, sandboxID 
 	}
 
 	labels := map[string]string{
-		"managed-by":     "yao-sandbox",
-		"sandbox-id":     sandboxID,
-		"sandbox-owner":  opts.Owner,
-		"sandbox-pool":   poolName,
-		"sandbox-policy": string(opts.Policy),
+		"managed-by":      "yao-sandbox",
+		"sandbox-id":      sandboxID,
+		"sandbox-owner":   opts.Owner,
+		"sandbox-node-id": nodeID,
+		"sandbox-policy":  string(opts.Policy),
 	}
 	if opts.WorkspaceID != "" {
 		labels["workspace-id"] = opts.WorkspaceID
@@ -363,7 +363,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, poolName, sandboxID 
 	}
 }
 
-func (m *Manager) recoverBoxes(ctx context.Context, poolName string, client *tai.Client) {
+func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, client *tai.Client) {
 	if client.Sandbox() == nil {
 		return
 	}
@@ -391,7 +391,7 @@ func (m *Manager) recoverBoxes(ctx context.Context, poolName string, client *tai
 		box := &Box{
 			id:          sandboxID,
 			containerID: cid,
-			pool:        c.Labels["sandbox-pool"],
+			nodeID:      c.Labels["sandbox-node-id"],
 			owner:       c.Labels["sandbox-owner"],
 			policy:      LifecyclePolicy(c.Labels["sandbox-policy"]),
 			labels:      c.Labels,
@@ -405,9 +405,9 @@ func (m *Manager) recoverBoxes(ctx context.Context, poolName string, client *tai
 	}
 }
 
-// ImageExists reports whether the given image ref exists on the target pool node.
-func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error) {
-	client, err := m.getPool(pool)
+// ImageExists reports whether the given image ref exists on the target node.
+func (m *Manager) ImageExists(ctx context.Context, nodeID, ref string) (bool, error) {
+	client, err := m.getNode(nodeID)
 	if err != nil {
 		return false, err
 	}
@@ -418,10 +418,10 @@ func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, erro
 	return img.Exists(ctx, ref)
 }
 
-// PullImage pulls an image to the target pool node, returning a channel of
+// PullImage pulls an image to the target node, returning a channel of
 // real-time progress events.
-func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error) {
-	client, err := m.getPool(pool)
+func (m *Manager) PullImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error) {
+	client, err := m.getNode(nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -440,10 +440,10 @@ func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePul
 	return img.Pull(ctx, ref, pullOpts)
 }
 
-// EnsureImage checks whether the image exists on the pool node; if not, it
+// EnsureImage checks whether the image exists on the node; if not, it
 // pulls the image and blocks until the pull completes.
-func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImagePullOptions) error {
-	exists, err := m.ImageExists(ctx, pool, ref)
+func (m *Manager) EnsureImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) error {
+	exists, err := m.ImageExists(ctx, nodeID, ref)
 	if err != nil {
 		return fmt.Errorf("image exists check: %w", err)
 	}
@@ -451,7 +451,7 @@ func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImageP
 		return nil
 	}
 
-	ch, err := m.PullImage(ctx, pool, ref, opts)
+	ch, err := m.PullImage(ctx, nodeID, ref, opts)
 	if err != nil {
 		return fmt.Errorf("image pull: %w", err)
 	}

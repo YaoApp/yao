@@ -11,12 +11,12 @@ import (
 )
 
 func TestImageExists(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			if pc.Name == "k8s" {
 				t.Run("always_true", func(t *testing.T) {
-					m := setupManagerForPool(t, &pc)
+					m := setupManagerForNode(t, &pc)
 					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 					defer cancel()
 					exists, err := m.ImageExists(ctx, pc.TaiID, "anything:nonexistent")
@@ -26,7 +26,7 @@ func TestImageExists(t *testing.T) {
 				return
 			}
 
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
@@ -46,12 +46,12 @@ func TestImageExists(t *testing.T) {
 }
 
 func TestImagePull(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			if pc.Name == "k8s" {
 				t.Run("noop", func(t *testing.T) {
-					m := setupManagerForPool(t, &pc)
+					m := setupManagerForNode(t, &pc)
 					ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 					defer cancel()
 					ch, err := m.PullImage(ctx, pc.TaiID, "alpine:latest", sandbox.ImagePullOptions{})
@@ -61,7 +61,7 @@ func TestImagePull(t *testing.T) {
 				return
 			}
 
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
@@ -84,10 +84,10 @@ func TestImagePull(t *testing.T) {
 }
 
 func TestEnsureImage(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 			defer cancel()
 
@@ -104,13 +104,13 @@ func TestEnsureImage(t *testing.T) {
 }
 
 func TestEnsureImage_BadRef(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		if pc.Name == "k8s" {
 			continue
 		}
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 

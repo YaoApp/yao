@@ -13,10 +13,10 @@ import (
 func TestBoxExec(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -36,10 +36,10 @@ func TestBoxExec(t *testing.T) {
 func TestBoxExecWithOptions(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
@@ -59,10 +59,10 @@ func TestBoxExecWithOptions(t *testing.T) {
 func TestBoxStream(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
@@ -93,10 +93,10 @@ func TestBoxStream(t *testing.T) {
 func TestBoxWorkspace(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ws := box.Workspace()
@@ -135,10 +135,10 @@ func TestBoxWorkspace(t *testing.T) {
 func TestBoxInfo(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
@@ -162,10 +162,10 @@ func TestBoxInfo(t *testing.T) {
 func TestBoxStopStart(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 			ctx := context.Background()
 
@@ -191,16 +191,16 @@ func TestBoxStopStart(t *testing.T) {
 func TestBoxGetOrCreate(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ctx := context.Background()
 			box1, err := m.GetOrCreate(ctx, sandbox.CreateOptions{
-				ID:    "goc-" + pc.Name,
-				Image: testImage(),
-				Owner: "test-user",
-				Pool:  pc.TaiID,
+				ID:     "goc-" + pc.Name,
+				Image:  testImage(),
+				Owner:  "test-user",
+				NodeID: pc.TaiID,
 			})
 			if err != nil {
 				t.Fatalf("GetOrCreate first: %v", err)
@@ -208,10 +208,10 @@ func TestBoxGetOrCreate(t *testing.T) {
 			defer m.Remove(ctx, box1.ID())
 
 			box2, err := m.GetOrCreate(ctx, sandbox.CreateOptions{
-				ID:    "goc-" + pc.Name,
-				Image: testImage(),
-				Owner: "test-user",
-				Pool:  pc.TaiID,
+				ID:     "goc-" + pc.Name,
+				Image:  testImage(),
+				Owner:  "test-user",
+				NodeID: pc.TaiID,
 			})
 			if err != nil {
 				t.Fatalf("GetOrCreate second: %v", err)

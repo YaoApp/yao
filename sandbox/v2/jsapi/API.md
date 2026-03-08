@@ -31,7 +31,7 @@ Create a new sandbox container. Returns a Computer (`kind = "box"`). If `options
 const pc = sandbox.Create({
   image:        "node:20",          // required — container image
   owner:        "user-123",         // required — owner identifier
-  pool:         "192.168.1.10-19100", // optional — TaiID from registry (required unless workspace_id routes to a node)
+  node_id:      "192.168.1.10-19100", // optional — TaiID from registry (required unless workspace_id routes to a node)
   id:           "my-sandbox",       // optional — if set, uses GetOrCreate
   workdir:      "/app",             // optional — working directory
   user:         "1000:1000",        // optional — UID:GID
@@ -59,7 +59,7 @@ Get an existing sandbox by ID. Returns a Computer (`kind = "box"`) or `null` if 
 ```javascript
 const pc = sandbox.Get("my-sandbox")
 if (pc) {
-  console.log(pc.kind, pc.id, pc.owner, pc.pool)
+  console.log(pc.kind, pc.id, pc.owner, pc.node_id)
 }
 ```
 
@@ -74,8 +74,8 @@ const all = sandbox.List()
 // Filter by owner
 const mine = sandbox.List({ owner: "user-123" })
 
-// Filter by pool (TaiID) and labels
-const gpu = sandbox.List({ pool: "10.0.0.5-19100", labels: { team: "ml" } })
+// Filter by node_id (TaiID) and labels
+const gpu = sandbox.List({ node_id: "10.0.0.5-19100", labels: { team: "ml" } })
 ```
 
 Each element in the returned array:
@@ -84,7 +84,7 @@ Each element in the returned array:
 {
   id:            "sb-xxx",
   container_id:  "abc123...",
-  pool:          "192.168.1.10-19100",
+  node_id:       "192.168.1.10-19100",
   owner:         "user-123",
   status:        "running",       // "running"|"stopped"|"creating"|...
   image:         "node:20",
@@ -105,9 +105,9 @@ Remove a sandbox and its container.
 sandbox.Delete("my-sandbox")
 ```
 
-### sandbox.Host(pool) → Computer
+### sandbox.Host(nodeID?) → Computer
 
-Get a Computer (`kind = "host"`) for executing commands directly on the Tai host machine (no container). Only available when the node's Tai server has `host_exec` capability. The `pool` argument is the TaiID (e.g. `"192.168.1.10-19100"`).
+Get a Computer (`kind = "host"`) for executing commands directly on the Tai host machine (no container). Only available when the node's Tai server has `host_exec` capability. The `nodeID` argument is the TaiID (e.g. `"192.168.1.10-19100"`).
 
 ```javascript
 const host = sandbox.Host("192.168.1.10-19100")
@@ -131,7 +131,7 @@ List all registered nodes.
 ```javascript
 const nodes = sandbox.Nodes()
 nodes.forEach(function(n) {
-  console.log(n.tai_id, n.status, n.pool, n.system.os)
+  console.log(n.tai_id, n.status, n.display_name, n.system.os)
 })
 ```
 
@@ -158,7 +158,7 @@ Use the `kind` property to check the type. Methods marked **box-only** throw an 
 | `pc.kind` | string | `"box"` or `"host"` |
 | `pc.id` | string | Sandbox ID (box-only; empty for host) |
 | `pc.owner` | string | Owner identifier (box-only; empty for host) |
-| `pc.pool` | string | TaiID (e.g. `"192.168.1.10-19100"`, `"local"`) |
+| `pc.node_id` | string | TaiID (e.g. `"192.168.1.10-19100"`, `"local"`) |
 
 ### pc.Exec(cmd, options?) → ExecResult
 
@@ -260,7 +260,7 @@ Get identity and registry information.
 ```javascript
 const info = pc.ComputerInfo()
 console.log(info.kind)        // "box" or "host"
-console.log(info.pool)        // TaiID
+console.log(info.node_id)    // TaiID
 console.log(info.system.os)   // "linux" | "windows" | "darwin"
 console.log(info.status)      // "running" | "stopped" | ...
 ```
@@ -332,7 +332,7 @@ Returned by `pc.ComputerInfo()`. Read-only snapshot of a Computer's identity and
 ```javascript
 {
   kind:          "box",              // "box" | "host"
-  pool:          "192.168.1.10-19100", // TaiID
+  node_id:       "192.168.1.10-19100", // TaiID
   tai_id:        "tai-abc123",
   machine_id:    "m-xyz",
   version:       "1.2.3",
@@ -371,7 +371,8 @@ Returned by `sandbox.GetNode()`, `sandbox.Nodes()`, `sandbox.NodesByTeam()`. Rea
   mode:         "direct",          // "direct" | "tunnel"
   addr:         "tai://192.168.1.100:19100",
   status:       "online",          // "online" | "offline" | "connecting"
-  pool:         "gpu",
+  display_name: "GPU Node",        // optional human-readable name for UI
+  node_id:      "gpu",
   connected_at: "2026-03-07T08:00:00Z",
   last_ping:    "2026-03-07T10:05:00Z",
   ports: {
@@ -550,7 +551,7 @@ const nodes = sandbox.Nodes()
 
 // Find online GPU nodes
 const gpuNodes = nodes.filter(function(n) {
-  return n.status === "online" && n.pool === "gpu"
+  return n.status === "online" && n.display_name === "gpu"  // n.display_name is optional label for UI
 })
 
 console.log("Available GPU nodes:", gpuNodes.length)

@@ -22,11 +22,10 @@ Reference: [DESIGN.md](./DESIGN.md)
 | File | What | Status |
 |------|------|--------|
 | `sandbox.go` | `Init()`, `M()`, global singleton | DONE |
-| `manager.go` | Manager: Create/Get/GetOrCreate/List/Remove/Cleanup/Close, Start (container recovery), AddPool/RemovePool/Pools, Heartbeat, SetGRPCPort, SetWorkspaceManager, ImageExists/PullImage/EnsureImage | DONE |
+| `manager.go` | Manager: Create/Get/GetOrCreate/List/Remove/Cleanup/Close, Start (container recovery), Nodes, Heartbeat, ImageExists/PullImage/EnsureImage | DONE |
 | `box.go` | Box: Exec, Stream, Attach, Workspace, VNC, Proxy, Start/Stop/Remove, Info, touch/lastActiveTime/idleTimeout/maxLifetime/stopTimeout | DONE |
-| `types.go` | LifecyclePolicy (OneShot/Session/LongRunning/Persistent), Pool, PoolInfo, PortMapping, CreateOptions (with WorkspaceID/MountMode/MountPath), ListOptions, ExecOption/ExecResult/ExecStream, AttachOption/ServiceConn, ImagePullOptions/RegistryAuth, BoxInfo, DefaultStopTimeout | DONE |
-| `config.go` | Config struct | DONE |
-| `errors.go` | ErrNotAvailable, ErrNotFound, ErrLimitExceeded, ErrPoolNotFound, ErrPoolInUse | DONE |
+| `types.go` | LifecyclePolicy (OneShot/Session/LongRunning/Persistent), NodeID, PortMapping, CreateOptions (with WorkspaceID/MountMode/MountPath), ListOptions, ExecOption/ExecResult/ExecStream, AttachOption/ServiceConn, ImagePullOptions/RegistryAuth, BoxInfo, DefaultStopTimeout | DONE |
+| `errors.go` | ErrNotAvailable, ErrNotFound, ErrNodeNotFound, ErrNodeMissing | DONE |
 | `grpc.go` | BuildGRPCEnv (sandbox ID + gRPC addr only; token injection is caller's responsibility via Env) | DONE |
 
 ### workspace Module — DONE
@@ -51,7 +50,7 @@ Reference: [DESIGN.md](./DESIGN.md)
 | `box_image_test.go` | ImageExists (Docker+K8s), PullImage (progress+K8s no-op), EnsureImage, bad ref | DONE |
 | `grpc_test.go` | Token creation/revocation, env var building (local vs remote) | DONE |
 | `bench_test.go` | ContainerLifecycle, Create, Exec, ExecHeavy, Remove, Info, StopStart, WorkspaceReadWrite | DONE |
-| `testutils_test.go` | testPools (local/remote/k8s), setupManager, createTestBox, ensureTestImage | DONE |
+| `testutils_test.go` | testNodes (local/remote/k8s), setupManager, setupManagerForNode, createTestBox, ensureTestImage | DONE |
 | `export_test.go` | ResetForTest | DONE |
 | **workspace** | | |
 | `workspace_test.go` | Create (auto/explicit ID, labels, invalid node), Get, List (owner/node filter), Update (name/labels), Delete, Nodes, NodeForWorkspace, AddPool/RemovePool, MountPath | DONE |
@@ -88,7 +87,7 @@ Box and Host now share a single `Computer` interface (`types.go`). Both `sandbox
 |------|---------|------|--------|
 | Computer interface | `sandbox/v2/types.go` | `Computer` interface: Exec, Stream, VNC, Proxy, ComputerInfo, BindWorkplace, Workplace | DONE |
 | Host implementation | `sandbox/v2/host.go` | `Host` struct implements `Computer` via tai HostExec + VNC/Proxy | DONE |
-| ComputerInfo | `sandbox/v2/types.go` | `ComputerInfo` struct with Kind, Pool, TaiID, System, Capabilities, box-specific fields | DONE |
+| ComputerInfo | `sandbox/v2/types.go` | `ComputerInfo` struct with Kind, NodeID, TaiID, System, Capabilities, box-specific fields | DONE |
 
 ### JSAPI — DONE
 
@@ -224,7 +223,7 @@ Manager injects these labels at creation time:
 managed-by=yao-sandbox
 sandbox-id=<id>
 sandbox-owner=<owner>
-sandbox-pool=<pool>
+sandbox-node-id=<nodeID>
 sandbox-policy=<policy>
 workspace-id=<workspace-id>    (if WorkspaceID set)
 ```
@@ -237,14 +236,14 @@ When `CreateOptions.WorkspaceID` is set:
 
 ```
 1. NodeForWorkspace(wsID) → node name
-2. Force pool = node name
+2. Force nodeID = node name
 3. MountPath(wsID) → hostDir
 4. Bind: hostDir:/workspace:rw
 ```
 
 ### Multi-Mode Testing
 
-`testPools()` returns all available pool configurations:
+`testNodes()` returns all available node configurations:
 
 ```go
 func testPools() []poolConfig {

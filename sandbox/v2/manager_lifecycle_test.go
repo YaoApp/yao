@@ -11,10 +11,10 @@ import (
 func TestHeartbeatUpdates(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			err := m.Heartbeat(box.ID(), true, 5)
@@ -34,10 +34,10 @@ func TestHeartbeatUpdates(t *testing.T) {
 }
 
 func TestHeartbeatUnknownBox(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			err := m.Heartbeat("nonexistent", true, 1)
 			if err != sandbox.ErrNotFound {
 				t.Errorf("err = %v, want ErrNotFound", err)
@@ -49,17 +49,17 @@ func TestHeartbeatUnknownBox(t *testing.T) {
 func TestIdleCleanup(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ensureTestImage(t, m, pc.TaiID)
 
 			ctx := context.Background()
 			box, err := m.Create(ctx, sandbox.CreateOptions{
 				Image:       testImage(),
 				Owner:       "test-user",
-				Pool:        pc.TaiID,
+				NodeID:      pc.TaiID,
 				Policy:      sandbox.Session,
 				IdleTimeout: 1 * time.Second,
 			})
@@ -85,10 +85,10 @@ func TestIdleCleanup(t *testing.T) {
 func TestStartRecovery(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m1 := setupManagerForPool(t, &pc)
+			m1 := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m1, pc)
 			boxID := box.ID()
 
@@ -117,10 +117,10 @@ func TestStartRecovery(t *testing.T) {
 func TestPersistentNotCleaned(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 
 			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Policy = sandbox.Persistent

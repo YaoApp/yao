@@ -117,7 +117,7 @@ func boxInfoToJS(v8ctx *v8go.Context, b *sandbox.BoxInfo) *v8go.Value {
 	data, _ := json.Marshal(map[string]interface{}{
 		"id":            b.ID,
 		"container_id":  b.ContainerID,
-		"pool":          b.Pool,
+		"node_id":       b.NodeID,
 		"owner":         b.Owner,
 		"status":        b.Status,
 		"image":         b.Image,
@@ -135,7 +135,7 @@ func boxInfoToJS(v8ctx *v8go.Context, b *sandbox.BoxInfo) *v8go.Value {
 func computerInfoToJS(v8ctx *v8go.Context, c sandbox.ComputerInfo) *v8go.Value {
 	data, _ := json.Marshal(map[string]interface{}{
 		"kind":         c.Kind,
-		"pool":         c.Pool,
+		"node_id":      c.NodeID,
 		"tai_id":       c.TaiID,
 		"machine_id":   c.MachineID,
 		"version":      c.Version,
@@ -161,7 +161,7 @@ func computerInfoToJS(v8ctx *v8go.Context, c sandbox.ComputerInfo) *v8go.Value {
 }
 
 // getComputer re-fetches a Computer from the Manager by kind + identifier.
-// kind="box"  → identifier is boxID, kind="host" → identifier is pool name.
+// kind="box"  → identifier is boxID, kind="host" → identifier is node ID.
 func getComputer(ctx context.Context, kind, identifier string) (sandbox.Computer, error) {
 	m := sandbox.M()
 	if kind == "box" {
@@ -171,24 +171,24 @@ func getComputer(ctx context.Context, kind, identifier string) (sandbox.Computer
 }
 
 // ---------------------------------------------------------------------------
-// sbHost — sandbox.Host(pool?)
+// sbHost — sandbox.Host(nodeID?)
 // ---------------------------------------------------------------------------
 
 func sbHost(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	ctx := context.Background()
 	v8ctx := info.Context()
 
-	pool := ""
+	nodeID := ""
 	args := info.Args()
 	if len(args) > 0 && args[0].IsString() {
-		pool = args[0].String()
+		nodeID = args[0].String()
 	}
 
-	if _, err := sandbox.M().Host(ctx, pool); err != nil {
+	if _, err := sandbox.M().Host(ctx, nodeID); err != nil {
 		return throwError(info, err.Error())
 	}
 
-	val, err := NewComputerObject(v8ctx, "host", pool)
+	val, err := NewComputerObject(v8ctx, "host", nodeID)
 	if err != nil {
 		return throwError(info, err.Error())
 	}
@@ -452,20 +452,20 @@ func NewComputerObject(v8ctx *v8go.Context, kind string, identifier string) (*v8
 
 	idStr := ""
 	ownerStr := ""
-	poolStr := identifier
+	nodeIDStr := identifier
 	if kind == "box" {
 		if comp, err := getComputer(ctx, kind, identifier); err == nil {
 			box := comp.(*sandbox.Box)
 			idStr = box.ID()
 			ownerStr = box.Owner()
-			poolStr = box.Pool()
+			nodeIDStr = box.NodeID()
 		} else {
 			idStr = identifier
 		}
 	}
 	obj.Set("id", idStr)
 	obj.Set("owner", ownerStr)
-	obj.Set("pool", poolStr)
+	obj.Set("node_id", nodeIDStr)
 
 	return obj.Value, nil
 }

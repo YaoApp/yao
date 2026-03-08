@@ -42,7 +42,7 @@ type TaiNode struct {
 	Status      string // "online" | "offline" | "connecting"
 	ConnectedAt time.Time
 	LastPing    time.Time
-	PoolName    string
+	DisplayName string // optional human-readable name for UI
 
 	client any // *tai.Client; stored as any to avoid import cycle
 
@@ -64,7 +64,7 @@ type NodeSnapshot struct {
 	Status       string
 	ConnectedAt  time.Time
 	LastPing     time.Time
-	PoolName     string
+	DisplayName  string
 	client       any
 }
 
@@ -83,8 +83,8 @@ func (n *TaiNode) snapshot() NodeSnapshot {
 		Mode: n.Mode, Addr: n.Addr, YaoBase: n.YaoBase,
 		Ports: ports, Capabilities: caps,
 		Status: n.Status, ConnectedAt: n.ConnectedAt, LastPing: n.LastPing,
-		PoolName: n.PoolName,
-		client:   n.client,
+		DisplayName: n.DisplayName,
+		client:      n.client,
 	}
 }
 

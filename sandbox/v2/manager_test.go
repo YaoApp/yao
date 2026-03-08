@@ -11,10 +11,10 @@ import (
 func TestCreateAndExec(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -37,10 +37,10 @@ func TestCreateAndExec(t *testing.T) {
 func TestCreateWithLabels(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Labels = map[string]string{"app": "test-app"}
 			})
@@ -60,10 +60,10 @@ func TestCreateWithLabels(t *testing.T) {
 func TestGet(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc)
 
 			got, err := m.Get(context.Background(), box.ID())
@@ -78,10 +78,10 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetNotFound(t *testing.T) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			_, err := m.Get(context.Background(), "nonexistent")
 			if err != sandbox.ErrNotFound {
 				t.Errorf("err = %v, want ErrNotFound", err)
@@ -93,10 +93,10 @@ func TestGetNotFound(t *testing.T) {
 func TestList(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Owner = "user-list"
 			})
@@ -129,16 +129,16 @@ func TestList(t *testing.T) {
 func TestRemove(t *testing.T) {
 	skipIfNoDocker(t)
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, &pc)
+			m := setupManagerForNode(t, &pc)
 			ensureTestImage(t, m, pc.TaiID)
 			ctx := context.Background()
 			box, err := m.Create(ctx, sandbox.CreateOptions{
-				Image: testImage(),
-				Owner: "test-user",
-				Pool:  pc.TaiID,
+				Image:  testImage(),
+				Owner:  "test-user",
+				NodeID: pc.TaiID,
 			})
 			if err != nil {
 				t.Fatalf("Create: %v", err)
@@ -157,38 +157,38 @@ func TestRemove(t *testing.T) {
 }
 
 func TestCreateNoImage(t *testing.T) {
-	m, pools := setupManager(t, poolConfig{Name: "local", Addr: testLocalAddr()})
+	m, nodes := setupManager(t, nodeConfig{Name: "local", Addr: testLocalAddr()})
 
 	_, err := m.Create(context.Background(), sandbox.CreateOptions{
-		Owner: "test",
-		Pool:  pools[0].TaiID,
+		Owner:  "test",
+		NodeID: nodes[0].TaiID,
 	})
 	if err == nil {
 		t.Error("expected error for missing image")
 	}
 }
 
-func TestCreateNoPool(t *testing.T) {
-	m, _ := setupManager(t, poolConfig{Name: "local", Addr: testLocalAddr()})
+func TestCreateNoNodeID(t *testing.T) {
+	m, _ := setupManager(t, nodeConfig{Name: "local", Addr: testLocalAddr()})
 
 	_, err := m.Create(context.Background(), sandbox.CreateOptions{
 		Image: testImage(),
 	})
-	if err != sandbox.ErrPoolMissing {
-		t.Errorf("err = %v, want ErrPoolMissing", err)
+	if err != sandbox.ErrNodeMissing {
+		t.Errorf("err = %v, want ErrNodeMissing", err)
 	}
 }
 
-func TestMultiPool(t *testing.T) {
+func TestMultiNode(t *testing.T) {
 	skipIfNoDocker(t)
 	skipIfNoTai(t)
 
-	pools := testPools()
-	if len(pools) < 2 {
-		t.Skip("need at least 2 pools (local + remote) for multi-pool test")
+	nodes := testNodes()
+	if len(nodes) < 2 {
+		t.Skip("need at least 2 nodes (local + remote) for multi-node test")
 	}
 
-	m, registered := setupManager(t, pools...)
+	m, registered := setupManager(t, nodes...)
 
 	for _, pc := range registered {
 		ensureTestImage(t, m, pc.TaiID)
@@ -198,9 +198,9 @@ func TestMultiPool(t *testing.T) {
 	defer cancel()
 
 	localBox, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: testImage(),
-		Owner: "test-user",
-		Pool:  registered[0].TaiID,
+		Image:  testImage(),
+		Owner:  "test-user",
+		NodeID: registered[0].TaiID,
 	})
 	if err != nil {
 		t.Fatalf("Create on local: %v", err)
@@ -208,9 +208,9 @@ func TestMultiPool(t *testing.T) {
 	defer m.Remove(ctx, localBox.ID())
 
 	remoteBox, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: testImage(),
-		Owner: "test-user",
-		Pool:  registered[1].TaiID,
+		Image:  testImage(),
+		Owner:  "test-user",
+		NodeID: registered[1].TaiID,
 	})
 	if err != nil {
 		t.Fatalf("Create on remote: %v", err)

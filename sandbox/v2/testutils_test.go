@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 }
 
 // purgeStaleContainers removes leftover sb-* containers/pods from previous
-// test runs across all configured pools (Docker + K8s).
+// test runs across all configured nodes (Docker + K8s).
 func purgeStaleContainers() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -98,30 +98,30 @@ func purgeStaleContainers() {
 	}
 }
 
-type poolConfig struct {
+type nodeConfig struct {
 	Name    string // human-readable label for t.Run (e.g. "remote", "k8s")
 	Addr    string
 	TaiID   string // actual registry key, filled after tai.New
 	Options []tai.Option
 }
 
-// testPools returns all available pool configurations for multi-mode testing.
-func testPools() []poolConfig {
-	pools := []poolConfig{
+// testNodes returns all available node configurations for multi-mode testing.
+func testNodes() []nodeConfig {
+	nodes := []nodeConfig{
 		{Name: "local", Addr: testLocalAddr()},
 	}
 	if addr := os.Getenv("SANDBOX_TEST_REMOTE_ADDR"); addr != "" {
-		pools = append(pools, poolConfig{Name: "remote", Addr: addr})
+		nodes = append(nodes, nodeConfig{Name: "remote", Addr: addr})
 	}
 	if host := os.Getenv("TAI_TEST_CONTAINERIZED_HOST"); host != "" {
 		grpcPort := envPort("TAI_TEST_CONTAINERIZED_GRPC_PORT", 9200)
 		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
-		pools = append(pools, poolConfig{Name: "containerized", Addr: addr})
+		nodes = append(nodes, nodeConfig{Name: "containerized", Addr: addr})
 	}
 	if host := os.Getenv("TAI_TEST_K8S_HOST"); host != "" {
 		kubeconfig := os.Getenv("TAI_TEST_KUBECONFIG")
 		if kubeconfig == "" {
-			return pools
+			return nodes
 		}
 		grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
 		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
@@ -136,9 +136,9 @@ func testPools() []poolConfig {
 		if ns := os.Getenv("TAI_TEST_K8S_NAMESPACE"); ns != "" {
 			opts = append(opts, tai.WithNamespace(ns))
 		}
-		pools = append(pools, poolConfig{Name: "k8s", Addr: addr, Options: opts})
+		nodes = append(nodes, nodeConfig{Name: "k8s", Addr: addr, Options: opts})
 	}
-	return pools
+	return nodes
 }
 
 func skipIfNoDocker(t *testing.T) {
@@ -237,9 +237,9 @@ func envPort(key string, fallback int) int {
 	return fallback
 }
 
-// registerPool creates a tai.Client and registers it in the global registry.
+// registerNode creates a tai.Client and registers it in the global registry.
 // It fills pc.TaiID with the actual registry key returned by tai.New.
-func registerPool(t *testing.T, pc *poolConfig) {
+func registerNode(t *testing.T, pc *nodeConfig) {
 	t.Helper()
 
 	reg := registry.Global()
@@ -255,7 +255,7 @@ func registerPool(t *testing.T, pc *poolConfig) {
 	t.Cleanup(func() { client.Close() })
 }
 
-func setupManager(t *testing.T, pools ...poolConfig) (*sandbox.Manager, []poolConfig) {
+func setupManager(t *testing.T, nodes ...nodeConfig) (*sandbox.Manager, []nodeConfig) {
 	t.Helper()
 
 	reg := registry.Global()
@@ -264,8 +264,8 @@ func setupManager(t *testing.T, pools ...poolConfig) (*sandbox.Manager, []poolCo
 	}
 	_ = reg
 
-	out := make([]poolConfig, len(pools))
-	copy(out, pools)
+	out := make([]nodeConfig, len(nodes))
+	copy(out, nodes)
 	for i := range out {
 		client, err := tai.New(out[i].Addr, out[i].Options...)
 		if err != nil {
@@ -280,7 +280,7 @@ func setupManager(t *testing.T, pools ...poolConfig) (*sandbox.Manager, []poolCo
 	return m, out
 }
 
-func setupManagerForPool(t *testing.T, pc *poolConfig) *sandbox.Manager {
+func setupManagerForNode(t *testing.T, pc *nodeConfig) *sandbox.Manager {
 	t.Helper()
 	m, registered := setupManager(t, *pc)
 	*pc = registered[0]
@@ -289,38 +289,38 @@ func setupManagerForPool(t *testing.T, pc *poolConfig) *sandbox.Manager {
 
 // setupManagerWithWorkspace creates a sandbox Manager and returns
 // the global workspace.Manager (which uses the registry for client lookups).
-func setupManagerWithWorkspace(t *testing.T, pc *poolConfig) (*sandbox.Manager, *workspace.Manager) {
+func setupManagerWithWorkspace(t *testing.T, pc *nodeConfig) (*sandbox.Manager, *workspace.Manager) {
 	t.Helper()
-	sbm := setupManagerForPool(t, pc)
+	sbm := setupManagerForNode(t, pc)
 	return sbm, workspace.M()
 }
 
-func ensureTestImage(t *testing.T, m *sandbox.Manager, pool string) {
+func ensureTestImage(t *testing.T, m *sandbox.Manager, nodeID string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	if err := m.EnsureImage(ctx, pool, testImage(), sandbox.ImagePullOptions{}); err != nil {
-		t.Fatalf("EnsureImage(%s, %s): %v", pool, testImage(), err)
+	if err := m.EnsureImage(ctx, nodeID, testImage(), sandbox.ImagePullOptions{}); err != nil {
+		t.Fatalf("EnsureImage(%s, %s): %v", nodeID, testImage(), err)
 	}
 }
 
-func createTestBox(t *testing.T, m *sandbox.Manager, pc poolConfig, opts ...func(*sandbox.CreateOptions)) *sandbox.Box {
+func createTestBox(t *testing.T, m *sandbox.Manager, pc nodeConfig, opts ...func(*sandbox.CreateOptions)) *sandbox.Box {
 	t.Helper()
 	co := sandbox.CreateOptions{
-		Image: testImage(),
-		Owner: "test-user",
-		Pool:  pc.TaiID,
+		Image:  testImage(),
+		Owner:  "test-user",
+		NodeID: pc.TaiID,
 	}
 	for _, fn := range opts {
 		fn(&co)
 	}
 
-	pool := co.Pool
-	if pool == "" {
-		pools := m.Pools()
-		if len(pools) > 0 {
-			pool = pools[0].TaiID
-			co.Pool = pool
+	nodeID := co.NodeID
+	if nodeID == "" {
+		nodes := m.Nodes()
+		if len(nodes) > 0 {
+			nodeID = nodes[0].TaiID
+			co.NodeID = nodeID
 		}
 	}
 
@@ -332,12 +332,12 @@ func createTestBox(t *testing.T, m *sandbox.Manager, pc poolConfig, opts ...func
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if pool != "" {
-		if err := m.EnsureImage(ctx, pool, co.Image, sandbox.ImagePullOptions{}); err != nil {
+	if nodeID != "" {
+		if err := m.EnsureImage(ctx, nodeID, co.Image, sandbox.ImagePullOptions{}); err != nil {
 			if isK8s {
 				<-k8sSem
 			}
-			t.Fatalf("EnsureImage(%s, %s): %v", pool, co.Image, err)
+			t.Fatalf("EnsureImage(%s, %s): %v", nodeID, co.Image, err)
 		}
 	}
 

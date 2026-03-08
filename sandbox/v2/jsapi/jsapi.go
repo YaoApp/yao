@@ -21,7 +21,7 @@
 //	sandbox.Get(id)       → Manager.Get(ctx, id)                  → Computer (Box)
 //	sandbox.List(filter?) → Manager.List(ctx, ListOptions)        → BoxInfo[]
 //	sandbox.Delete(id)    → Manager.Remove(ctx, id)               → void
-//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)               → Computer (Host)
+//	sandbox.Host(nodeID?) → Manager.Host(ctx, nodeID)             → Computer (Host)
 //	sandbox.GetNode(id)   → registry.Global().Get(id)             → NodeInfo | null
 //	sandbox.Nodes()       → registry.Global().List()              → NodeInfo[]
 //	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)       → NodeInfo[]
@@ -86,8 +86,8 @@ func sbCreate(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	if v, ok := raw["owner"].(string); ok {
 		opts.Owner = v
 	}
-	if v, ok := raw["pool"].(string); ok {
-		opts.Pool = v
+	if v, ok := raw["node_id"].(string); ok {
+		opts.NodeID = v
 	}
 	if v, ok := raw["image"].(string); ok {
 		opts.Image = v
@@ -221,8 +221,8 @@ func sbList(info *v8go.FunctionCallbackInfo) *v8go.Value {
 			if v, ok := raw["owner"].(string); ok {
 				opts.Owner = v
 			}
-			if v, ok := raw["pool"].(string); ok {
-				opts.Pool = v
+			if v, ok := raw["node_id"].(string); ok {
+				opts.NodeID = v
 			}
 			if v, ok := raw["labels"].(map[string]interface{}); ok {
 				labels := make(map[string]string, len(v))
@@ -250,7 +250,7 @@ func sbList(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		items = append(items, map[string]interface{}{
 			"id":            bi.ID,
 			"container_id":  bi.ContainerID,
-			"pool":          bi.Pool,
+			"node_id":       bi.NodeID,
 			"owner":         bi.Owner,
 			"status":        bi.Status,
 			"image":         bi.Image,

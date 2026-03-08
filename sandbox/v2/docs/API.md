@@ -2,7 +2,7 @@
 
 Package: `github.com/yaoapp/yao/sandbox/v2`
 
-Sandbox V2 manages sandboxes through a pool of Tai nodes. Two primary abstractions:
+Sandbox V2 manages sandboxes through a set of Tai nodes. Two primary abstractions:
 
 - **Box** — a container (Docker or K8s pod). Created via `Manager.Create`.
 - **Host** — the Tai host machine itself. Obtained via `Manager.Host` (no Create needed).
@@ -42,10 +42,10 @@ mgr := sandbox.M()
 
 ## Node Discovery
 
-Sandbox V2 no longer uses a static pool configuration. Nodes are discovered dynamically
+Sandbox V2 no longer uses static node configuration. Nodes are discovered dynamically
 through `tai/registry`. Each Tai node registers itself with a unique **TaiID** (e.g.
 `"192.168.1.10-19100"` for direct mode, `"local"` for Docker). The TaiID is used as the
-`Pool` identifier in `CreateOptions`, `ListOptions`, `Host()`, `ImageExists()`, etc.
+`NodeID` identifier in `CreateOptions`, `ListOptions`, `Host()`, `ImageExists()`, etc.
 
 ---
 
@@ -72,7 +72,7 @@ const (
 func (m *Manager) Start(ctx context.Context) error
 ```
 
-Recovers existing containers from all pools and starts the background cleanup loop (1 min interval).
+Recovers existing containers from all nodes and starts the background cleanup loop (1 min interval).
 
 ```go
 ctx := context.Background()
@@ -85,7 +85,7 @@ err := sandbox.M().Start(ctx)
 func (m *Manager) Close() error
 ```
 
-Stops the cleanup loop and closes all pool connections.
+Stops the cleanup loop and closes all node connections.
 
 ### Create
 
@@ -99,7 +99,7 @@ Creates and starts a new sandbox container. Returns a `Box` handle.
 box, err := sandbox.M().Create(ctx, sandbox.CreateOptions{
     Image:   "alpine:latest",
     Owner:   "user-123",
-    Pool:    "192.168.1.10-19100",  // TaiID from registry
+    NodeID:  "192.168.1.10-19100",  // TaiID from registry
     Policy:  sandbox.Session,
     WorkDir: "/workspace",
     Env:     map[string]string{"LANG": "en_US.UTF-8"},
@@ -121,13 +121,13 @@ box, err := sandbox.M().Create(ctx, sandbox.CreateOptions{
 ### Host
 
 ```go
-func (m *Manager) Host(ctx context.Context, pool string) (*Host, error)
+func (m *Manager) Host(ctx context.Context, nodeID string) (*Host, error)
 ```
 
-Returns a `Host` handle for the given pool (identified by TaiID). Unlike `Create`, no
+Returns a `Host` handle for the given node (identified by TaiID). Unlike `Create`, no
 container is provisioned — the Host is available as long as the Tai server reports
-`host_exec` capability. Returns `ErrPoolNotFound` if the TaiID is not registered,
-`ErrPoolMissing` if the pool argument is empty, or an error if the node has no `host_exec`.
+`host_exec` capability. Returns `ErrNodeNotFound` if the TaiID is not registered,
+`ErrNodeMissing` if the nodeID argument is empty, or an error if the node has no `host_exec`.
 
 ```go
 host, err := sandbox.M().Host(ctx, "192.168.1.10-19100")
@@ -172,7 +172,7 @@ Returns all sandboxes matching the given filters. Empty fields = no filter.
 ```go
 boxes, err := sandbox.M().List(ctx, sandbox.ListOptions{
     Owner: "user-123",
-    Pool:  "192.168.1.10-19100",
+    NodeID: "192.168.1.10-19100",
     Labels: map[string]string{"project": "demo"},
 })
 ```
@@ -210,16 +210,16 @@ Updates a sandbox's last-active timestamp. Called by the gRPC heartbeat service.
 err := sandbox.M().Heartbeat("sb-12345", true, 3)
 ```
 
-### Pools
+### Nodes
 
 ```go
-func (m *Manager) Pools() []registry.NodeSnapshot
+func (m *Manager) Nodes() []registry.NodeSnapshot
 ```
 
 Returns all registered Tai nodes from the `tai/registry`.
 
 ```go
-for _, n := range sandbox.M().Pools() {
+for _, n := range sandbox.M().Nodes() {
     fmt.Printf("tai_id=%s mode=%s addr=%s status=%s\n",
         n.TaiID, n.Mode, n.Addr, n.Status)
 }
@@ -228,11 +228,11 @@ for _, n := range sandbox.M().Pools() {
 ### ImageExists
 
 ```go
-func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error)
+func (m *Manager) ImageExists(ctx context.Context, nodeID, ref string) (bool, error)
 ```
 
-Reports whether the given image ref exists on the target pool node.
-Returns `(true, nil)` when the pool has no image service (e.g. K8s — kubelet handles pulls).
+Reports whether the given image ref exists on the target node.
+Returns `(true, nil)` when the node has no image service (e.g. K8s — kubelet handles pulls).
 
 ```go
 exists, err := sandbox.M().ImageExists(ctx, "192.168.1.10-19100", "alpine:latest")
@@ -241,11 +241,11 @@ exists, err := sandbox.M().ImageExists(ctx, "192.168.1.10-19100", "alpine:latest
 ### PullImage
 
 ```go
-func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error)
+func (m *Manager) PullImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error)
 ```
 
-Pulls an image to the target pool node. Returns a channel of `taisandbox.PullProgress`
-(from `github.com/yaoapp/yao/tai/sandbox`). Returns `(nil, nil)` when the pool has no image
+Pulls an image to the target node. Returns a channel of `taisandbox.PullProgress`
+(from `github.com/yaoapp/yao/tai/sandbox`). Returns `(nil, nil)` when the node has no image
 service (e.g. K8s).
 
 `PullProgress` fields: `Status string`, `Layer string`, `Current int64`, `Total int64`, `Error string`.
@@ -266,7 +266,7 @@ for p := range ch {
 ### EnsureImage
 
 ```go
-func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImagePullOptions) error
+func (m *Manager) EnsureImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) error
 ```
 
 Checks if the image exists; if not, pulls it and blocks until complete.
@@ -287,7 +287,7 @@ A `Box` is a handle to a running sandbox container.
 func (b *Box) ID() string
 func (b *Box) Owner() string
 func (b *Box) ContainerID() string
-func (b *Box) Pool() string
+func (b *Box) NodeID() string
 func (b *Box) WorkspaceID() string
 ```
 
@@ -423,12 +423,12 @@ fmt.Printf("status=%s processes=%d vnc=%v created=%s\n",
 ## Host
 
 A `Host` represents a Tai host machine execution environment, distinct from `Box` (containers).
-No `Create` call is needed — a Host is available as long as the pool's Tai server reports `host_exec`.
+No `Create` call is needed — a Host is available as long as the node's Tai server reports `host_exec`.
 
 ### Accessors
 
 ```go
-func (h *Host) Pool() string
+func (h *Host) NodeID() string
 ```
 
 ### Exec
@@ -539,7 +539,7 @@ type CreateOptions struct {
     ID          string
     Owner       string
     Labels      map[string]string
-    Pool        string              // TaiID from registry (required unless WorkspaceID routes to a node)
+    NodeID      string              // TaiID from registry (required unless WorkspaceID routes to a node)
     Image       string              // required
     WorkDir     string              // default "/workspace"
     User        string              // container user
@@ -563,7 +563,7 @@ type CreateOptions struct {
 ```go
 type ListOptions struct {
     Owner  string
-    Pool   string
+    NodeID string
     Labels map[string]string
 }
 ```
@@ -619,7 +619,7 @@ type ServiceConn struct {
 type BoxInfo struct {
     ID           string
     ContainerID  string
-    Pool         string
+    NodeID       string
     Owner        string
     Status       string          // "running", "stopped", etc.
     Policy       LifecyclePolicy
@@ -676,10 +676,10 @@ type HostExecStream struct {
 
 ```go
 var (
-    ErrNotAvailable = errors.New("sandbox: not available (no pools configured)")
+    ErrNotAvailable = errors.New("sandbox: not available (no nodes registered)")
     ErrNotFound     = errors.New("sandbox: not found")
-    ErrPoolNotFound = errors.New("sandbox: pool not found")
-    ErrPoolMissing  = errors.New("sandbox: pool name is required")
+    ErrNodeNotFound = errors.New("sandbox: node not found")
+    ErrNodeMissing  = errors.New("sandbox: node ID is required")
 )
 ```
 
