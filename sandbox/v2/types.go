@@ -1,11 +1,63 @@
 package sandbox
 
 import (
+	"context"
 	"io"
 	"time"
 
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/workspace"
 )
+
+// ---------------------------------------------------------------------------
+// Computer — unified interface for execution environments
+// ---------------------------------------------------------------------------
+
+// Computer is the unified interface for remote execution environments.
+// Both Box (container) and Host (bare metal) implement it.
+type Computer interface {
+	ComputerInfo() ComputerInfo
+	Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error)
+	Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecStream, error)
+	VNC(ctx context.Context) (string, error)
+	Proxy(ctx context.Context, port int, path string) (string, error)
+	BindWorkplace(workspaceID string)
+	Workplace() workspace.FS
+}
+
+// ComputerInfo holds identity and registry information for a Computer.
+type ComputerInfo struct {
+	Kind         string            // "box" | "host"
+	Pool         string
+	TaiID        string
+	MachineID    string
+	Version      string
+	System       SystemInfo
+	Mode         string // "direct" | "tunnel"
+	Capabilities map[string]bool
+	Status       string
+
+	// Box-specific fields (zero values for Host)
+	BoxID       string
+	ContainerID string
+	Owner       string
+	Image       string
+	Policy      LifecyclePolicy
+	Labels      map[string]string
+}
+
+// SystemInfo describes the hardware of a Tai node.
+type SystemInfo struct {
+	OS       string
+	Arch     string
+	Hostname string
+	NumCPU   int
+	TotalMem int64
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle & Pool
+// ---------------------------------------------------------------------------
 
 type LifecyclePolicy string
 
@@ -26,7 +78,7 @@ type Pool struct {
 	MaxTotal    int
 	IdleTimeout time.Duration
 	MaxLifetime time.Duration
-	StopTimeout time.Duration // SIGTERM grace period before SIGKILL; 0 = DefaultStopTimeout
+	StopTimeout time.Duration
 }
 
 type PoolInfo struct {
@@ -39,6 +91,10 @@ type PoolInfo struct {
 	IdleTimeout time.Duration
 	MaxLifetime time.Duration
 }
+
+// ---------------------------------------------------------------------------
+// Create / List options
+// ---------------------------------------------------------------------------
 
 type PortMapping struct {
 	ContainerPort int
@@ -62,12 +118,11 @@ type CreateOptions struct {
 	Ports       []PortMapping
 	Policy      LifecyclePolicy
 	IdleTimeout time.Duration
+	StopTimeout time.Duration
 
-	StopTimeout time.Duration // SIGTERM grace period; 0 = pool default or DefaultStopTimeout
-
-	WorkspaceID string // workspace to mount; empty = no workspace
-	MountMode   string // "rw" (default) or "ro"
-	MountPath   string // container path; default "/workspace"
+	WorkspaceID string
+	MountMode   string
+	MountPath   string
 }
 
 type ListOptions struct {
@@ -76,38 +131,52 @@ type ListOptions struct {
 	Labels map[string]string
 }
 
+// ---------------------------------------------------------------------------
+// Unified ExecOption / ExecResult / ExecStream
+// ---------------------------------------------------------------------------
+
 type execConfig struct {
-	WorkDir string
-	Env     map[string]string
-	Timeout time.Duration
+	WorkDir        string
+	Env            map[string]string
+	Timeout        time.Duration
+	Stdin          []byte
+	MaxOutputBytes int64
 }
 
+// ExecOption configures an Exec or Stream call on any Computer.
 type ExecOption func(*execConfig)
 
 func WithWorkDir(dir string) ExecOption {
-	return func(c *execConfig) {
-		c.WorkDir = dir
-	}
+	return func(c *execConfig) { c.WorkDir = dir }
 }
 
 func WithEnv(env map[string]string) ExecOption {
-	return func(c *execConfig) {
-		c.Env = env
-	}
+	return func(c *execConfig) { c.Env = env }
 }
 
 func WithTimeout(timeout time.Duration) ExecOption {
-	return func(c *execConfig) {
-		c.Timeout = timeout
-	}
+	return func(c *execConfig) { c.Timeout = timeout }
 }
 
+func WithStdin(data []byte) ExecOption {
+	return func(c *execConfig) { c.Stdin = data }
+}
+
+func WithMaxOutput(bytes int64) ExecOption {
+	return func(c *execConfig) { c.MaxOutputBytes = bytes }
+}
+
+// ExecResult holds the outcome of a command executed on any Computer.
 type ExecResult struct {
-	ExitCode int
-	Stdout   string
-	Stderr   string
+	ExitCode   int
+	Stdout     string
+	Stderr     string
+	DurationMs int64
+	Error      string
+	Truncated  bool
 }
 
+// ExecStream provides real-time streaming I/O for a running command.
 type ExecStream struct {
 	Stdout io.ReadCloser
 	Stderr io.ReadCloser
@@ -115,6 +184,10 @@ type ExecStream struct {
 	Wait   func() (int, error)
 	Cancel func()
 }
+
+// ---------------------------------------------------------------------------
+// Attach (Box-specific, not part of Computer interface)
+// ---------------------------------------------------------------------------
 
 type attachConfig struct {
 	Protocol string
@@ -125,26 +198,20 @@ type attachConfig struct {
 type AttachOption func(*attachConfig)
 
 func WithProtocol(protocol string) AttachOption {
-	return func(c *attachConfig) {
-		c.Protocol = protocol
-	}
+	return func(c *attachConfig) { c.Protocol = protocol }
 }
 
 func WithPath(path string) AttachOption {
-	return func(c *attachConfig) {
-		c.Path = path
-	}
+	return func(c *attachConfig) { c.Path = path }
 }
 
 func WithHeaders(headers map[string]string) AttachOption {
-	return func(c *attachConfig) {
-		c.Headers = headers
-	}
+	return func(c *attachConfig) { c.Headers = headers }
 }
 
 // ImagePullOptions configures an image pull operation.
 type ImagePullOptions struct {
-	Auth *RegistryAuth // nil = anonymous / public
+	Auth *RegistryAuth
 }
 
 // RegistryAuth holds credentials for a private container registry.
@@ -162,6 +229,7 @@ type ServiceConn struct {
 	Close  func() error
 }
 
+// BoxInfo is a snapshot of a Box's runtime state (used by Manager.List).
 type BoxInfo struct {
 	ID           string
 	ContainerID  string
@@ -175,54 +243,4 @@ type BoxInfo struct {
 	LastActive   time.Time
 	ProcessCount int
 	VNC          bool
-}
-
-// HostExecResult holds the outcome of a command executed on the Tai host.
-type HostExecResult struct {
-	ExitCode   int
-	Stdout     []byte
-	Stderr     []byte
-	DurationMs int64
-	Error      string
-	Truncated  bool
-}
-
-// HostExecStream provides real-time streaming output from a command running
-// on the Tai host machine via HostExec gRPC ExecStream.
-type HostExecStream struct {
-	Stdout <-chan []byte
-	Stderr <-chan []byte
-	Wait   func() (int, error) // blocks until exit; returns exit code
-	Cancel func()              // cancels the stream context
-}
-
-type hostExecConfig struct {
-	WorkDir        string
-	Env            map[string]string
-	Stdin          []byte
-	TimeoutMs      int64
-	MaxOutputBytes int64
-}
-
-// HostExecOption configures an ExecOnHost call.
-type HostExecOption func(*hostExecConfig)
-
-func WithHostWorkDir(dir string) HostExecOption {
-	return func(c *hostExecConfig) { c.WorkDir = dir }
-}
-
-func WithHostEnv(env map[string]string) HostExecOption {
-	return func(c *hostExecConfig) { c.Env = env }
-}
-
-func WithHostStdin(data []byte) HostExecOption {
-	return func(c *hostExecConfig) { c.Stdin = data }
-}
-
-func WithHostTimeout(ms int64) HostExecOption {
-	return func(c *hostExecConfig) { c.TimeoutMs = ms }
-}
-
-func WithHostMaxOutput(bytes int64) HostExecOption {
-	return func(c *hostExecConfig) { c.MaxOutputBytes = bytes }
 }

@@ -11,7 +11,7 @@
 //	const box  = sandbox.Get(id)               // → Box
 //	const list = sandbox.List({ owner: "u1" }) // → BoxInfo[]
 //	sandbox.Delete(id)                          // → void
-//	const host = sandbox.Host("gpu")            // → Host (host_exec on Tai)
+//	const host = sandbox.Host("gpu")            // → Computer (Host via host_exec on Tai)
 //	const node = sandbox.GetNode("tai-abc123") // → NodeInfo | null
 //	const all  = sandbox.Nodes()               // → NodeInfo[]
 //	const team = sandbox.NodesByTeam("t-001")  // → NodeInfo[]
@@ -23,7 +23,7 @@
 //	sandbox.Get(id)       → Manager.Get(ctx, id)                 → Box
 //	sandbox.List(filter?) → Manager.List(ctx, ListOptions)       → []*Box → BoxInfo[]
 //	sandbox.Delete(id)    → Manager.Remove(ctx, id)              → void
-//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)                → Host
+//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)                → Computer (Host)
 //	sandbox.GetNode(id)   → registry.Global().Get(id)              → NodeInfo | null
 //	sandbox.Nodes()       → registry.Global().List()               → NodeInfo[]
 //	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)        → NodeInfo[]

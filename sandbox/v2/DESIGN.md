@@ -41,14 +41,17 @@ Sandbox does NOT import or depend on Agent. Agent is one of many consumers.
 │  ├── EnsureImage / ImageExists / PullImage      │
 │  └── guard rails (limits, TTL) + Box factory    │
 │                                                  │
-│  Box (per-instance)                              │
+│  Computer (unified interface)                     │
 │  ├── Exec(cmd) → ExecResult                     │
 │  ├── Stream(cmd) → ExecStream (real-time I/O)   │
-│  ├── Attach(port) → ServiceConn (WS/SSE)        │
-│  ├── Workspace() → workspace.FS                 │
 │  ├── VNC() → url                                │
-│  ├── Proxy(port) → url                          │
-│  └── Start / Stop / Remove / Info               │
+│  ├── Proxy(port, path) → url                    │
+│  ├── ComputerInfo() → ComputerInfo              │
+│  ├── BindWorkplace(id) / Workplace() → FS       │
+│  └── [Box-specific: Attach/Start/Stop/Remove]   │
+│                                                  │
+│  Box (container) ── implements Computer          │
+│  Host (bare metal) ── implements Computer        │
 └──────────────────┬──────────────────────────────┘
                    │
                    ▼
@@ -251,9 +254,70 @@ const (
 const DefaultStopTimeout = 2 * time.Second
 ```
 
+## Computer Interface
+
+`Computer` is the unified interface for execution environments. Both `Box` (container) and `Host` (bare metal) implement it, allowing callers to work with any execution environment without knowing the underlying runtime.
+
+```go
+type Computer interface {
+    ComputerInfo() ComputerInfo
+    Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error)
+    Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecStream, error)
+    VNC(ctx context.Context) (string, error)
+    Proxy(ctx context.Context, port int, path string) (string, error)
+    BindWorkplace(workspaceID string)
+    Workplace() workspace.FS
+}
+```
+
+### ComputerInfo
+
+```go
+type ComputerInfo struct {
+    Kind         string            // "box" | "host"
+    Pool         string
+    TaiID        string
+    MachineID    string
+    Version      string
+    System       SystemInfo
+    Mode         string            // "direct" | "tunnel"
+    Capabilities map[string]bool
+    Status       string
+
+    // Box-specific (zero values for Host)
+    BoxID        string
+    ContainerID  string
+    Owner        string
+    Image        string
+    Policy       LifecyclePolicy
+    Labels       map[string]string
+}
+
+type SystemInfo struct {
+    OS       string
+    Arch     string
+    Hostname string
+    NumCPU   int
+    TotalMem int64
+}
+```
+
+### Workplace Binding
+
+Workspace is a Node-level resource, decoupled from the Computer. A Computer can bind to a workspace at session time:
+
+- `BindWorkplace(workspaceID)` — binds a workspace to this Computer (virtual record, rebind to change)
+- `Workplace()` — returns the bound workspace FS, or nil if unbound
+- Box: automatically bound via `CreateOptions.WorkspaceID`, can rebind with `BindWorkplace()`
+- Host: explicitly bound in the session
+
+### VNC and Proxy on Host
+
+Host VNC and Proxy use the special `__host__` identifier to route to the Tai server's localhost instead of a container. The Tai server's VNC router and HTTP proxy both handle `__host__` by connecting to `127.0.0.1:{port}` directly, bypassing the container resolver.
+
 ## Box
 
-A `Box` is a single sandbox instance. All operations go through it.
+A `Box` is a single sandbox instance backed by a container. It implements the `Computer` interface and adds container-specific methods (Attach, Start, Stop, Remove, Info).
 
 ```go
 type Box struct {
@@ -303,7 +367,9 @@ func (b *Box) Remove(ctx context.Context) error
 func (b *Box) Info(ctx context.Context) (*BoxInfo, error)
 ```
 
-### ExecOption / ExecResult / ExecStream
+### ExecOption / ExecResult / ExecStream (unified)
+
+These types are shared between Box and Host via the Computer interface.
 
 ```go
 type ExecOption func(*execConfig)
@@ -311,11 +377,16 @@ type ExecOption func(*execConfig)
 func WithWorkDir(dir string) ExecOption
 func WithEnv(env map[string]string) ExecOption
 func WithTimeout(d time.Duration) ExecOption
+func WithStdin(data []byte) ExecOption
+func WithMaxOutput(bytes int64) ExecOption
 
 type ExecResult struct {
-    ExitCode int
-    Stdout   string
-    Stderr   string
+    ExitCode   int
+    Stdout     string
+    Stderr     string
+    DurationMs int64   // Host fills; Box = 0
+    Error      string  // Host fills; Box = ""
+    Truncated  bool    // Host fills; Box = false
 }
 
 type ExecStream struct {
@@ -570,14 +641,16 @@ var (
 sandbox/v2/
 ├── sandbox.go              // Init, M(), global singleton
 ├── manager.go              // Manager: CRUD, pool management, image ops, cleanup
-├── box.go                  // Box: Exec, Stream, Attach, Workspace, VNC, Proxy, lifecycle
-├── types.go                // CreateOptions, ExecResult, ExecStream, ServiceConn, BoxInfo, etc.
+├── types.go                // Computer interface, ComputerInfo, ExecResult, ExecStream, etc.
+├── box.go                  // Box: implements Computer + Attach/Start/Stop/Remove/Info
+├── host.go                 // Host: implements Computer (HostExec gRPC + __host__ VNC/Proxy)
 ├── config.go               // Config struct
 ├── errors.go               // sentinel errors
 ├── grpc.go                 // token creation/revocation, gRPC env var injection
 ├── jsapi/                  // (Phase 2) V8 JSAPI sandbox.* namespace
-│   ├── jsapi.go            // RegisterObject("sandbox"), Create/Get/List/Delete
-│   └── box.go              // Box JS object: Exec/Attach/VNC/Proxy/Workspace/Info/Start/Stop/Remove
+│   ├── jsapi.go            // RegisterObject("sandbox"), Create/Get/List/Delete/Host
+│   ├── box.go              // Box JS object: Computer + Attach/Info/Start/Stop/Remove
+│   └── host.go             // Host JS object: Computer (unified with Box)
 ├── export_test.go          // ResetForTest() for test isolation
 ├── testutils_test.go       // shared test helpers (multi-pool setup)
 ├── sandbox_test.go         // Init/M singleton tests
@@ -586,6 +659,7 @@ sandbox/v2/
 ├── box_test.go             // Box Exec/Workspace/Info tests
 ├── box_attach_test.go      // Attach WS/SSE/VNC tests
 ├── box_workspace_test.go   // Workspace integration tests
+├── host_test.go            // Host Exec/Stream/VNC/Proxy/ComputerInfo tests
 ├── box_image_test.go       // Image Pull API tests
 ├── bench_test.go           // Performance benchmarks
 ├── grpc_test.go            // Token/env building tests
@@ -851,7 +925,7 @@ Static methods:
 | `sandbox.Get(id)` | `Manager.Get(ctx, id)` | `Box \| null` |
 | `sandbox.List(filter?)` | `Manager.List(ctx, ListOptions)` → `Box.Info()` | `BoxInfo[]` |
 | `sandbox.Delete(id)` | `Manager.Remove(ctx, id)` | `void` |
-| `sandbox.Host(pool?)` | `Manager.Host(ctx, pool)` | `Host` |
+| `sandbox.Host(pool?)` | `Manager.Host(ctx, pool)` | `Computer (Host)` |
 | `sandbox.GetNode(taiID)` | `registry.Global().Get(taiID)` | `NodeInfo \| null` |
 | `sandbox.Nodes()` | `registry.Global().List()` | `NodeInfo[]` |
 | `sandbox.NodesByTeam(teamID)` | `registry.Global().ListByTeam(teamID)` | `NodeInfo[]` |
@@ -922,13 +996,23 @@ Read-only properties:
 
 Methods:
 
+Computer interface methods:
+
 | JS | Go | Returns |
 |----|-----|---------|
-| `box.Exec(cmd, opts?)` | `Box.Exec(ctx, cmd, ...ExecOption)` | `ExecResult` |
-| `box.Stream(cmd, [opts,] cb)` | `Box.Stream(ctx, cmd, ...ExecOption)` | callback(type, data) |
+| `box.Exec(cmd, opts?)` | `Computer.Exec(ctx, cmd []string, ...ExecOption)` | `ExecResult` |
+| `box.Stream(cmd, [opts,] cb)` | `Computer.Stream(ctx, cmd []string, ...ExecOption)` | callback(type, data) |
+| `box.VNC()` | `Computer.VNC(ctx)` | `string` |
+| `box.Proxy(port, path?)` | `Computer.Proxy(ctx, port, path)` | `string` |
+| `box.ComputerInfo()` | `Computer.ComputerInfo()` | `ComputerInfo` |
+| `box.BindWorkplace(id)` | `Computer.BindWorkplace(id)` | `void` |
+| `box.Workplace()` | `Computer.Workplace()` | `WorkspaceFS \| null` |
+
+Box-specific methods:
+
+| JS | Go | Returns |
+|----|-----|---------|
 | `box.Attach(port, opts?)` | `Proxy.URL(ctx, containerID, port, path)` | `string` (URL) |
-| `box.VNC()` | `Box.VNC(ctx)` | `string` |
-| `box.Proxy(port, path?)` | `Box.Proxy(ctx, port, path)` | `string` |
 | `box.Workspace()` | `Box.WorkspaceID()` → `NewFSObject` | `WorkspaceFS` |
 | `box.Info()` | `Box.Info(ctx)` | `BoxInfo` |
 | `box.Start()` | `Box.Start(ctx)` | `void` |
@@ -940,14 +1024,19 @@ Methods:
 ```
 cmd:     string[]                         → cmd []string
 options: {
-  workdir: string,                        → WithWorkDir(dir)
-  env:     object,                        → WithEnv(map[string]string)
-  timeout: number                         → WithTimeout(ms → time.Duration)
+  workdir:    string,                     → WithWorkDir(dir)
+  env:        object,                     → WithEnv(map[string]string)
+  stdin:      string,                     → WithStdin([]byte)
+  timeout:    number,                     → WithTimeout(ms → time.Duration)
+  max_output: number                      → WithMaxOutput(bytes int64)
 }
 returns: {
-  exit_code: number,                      ← ExecResult.ExitCode
-  stdout:    string,                      ← ExecResult.Stdout
-  stderr:    string                       ← ExecResult.Stderr
+  exit_code:   number,                    ← ExecResult.ExitCode
+  stdout:      string,                    ← ExecResult.Stdout
+  stderr:      string,                    ← ExecResult.Stderr
+  duration_ms: number,                    ← ExecResult.DurationMs (Host fills; Box = 0)
+  error:       string,                    ← ExecResult.Error (Host fills; Box = "")
+  truncated:   boolean                    ← ExecResult.Truncated (Host fills; Box = false)
 }
 ```
 
@@ -978,9 +1067,9 @@ Go-side `ServiceConn` (with Read/Write/Events/Close) is available for Go callers
 
 `box.Info()` returns same structure as `BoxInfo[]` element above.
 
-#### Host object
+#### Host object (Computer)
 
-Host executes commands on the Tai host machine (no container). Available only when the pool's Tai server exposes HostExec gRPC. JS object holds pool name; all methods delegate to `sandbox.M().Host(ctx, pool)`.
+Host implements the unified Computer interface for Tai host machines. It executes commands via HostExec gRPC and accesses VNC/Proxy via the `__host__` identifier. Available only when the pool's Tai server exposes HostExec gRPC. JS object holds pool name; all methods delegate to `sandbox.M().Host(ctx, pool)`.
 
 Read-only properties:
 
@@ -988,48 +1077,49 @@ Read-only properties:
 |----|----|
 | `host.pool` | `Host.Pool()` |
 
-Methods:
+Methods (same Computer interface as Box):
 
 | JS | Go | Returns |
 |----|-----|---------|
-| `host.Exec(cmd, args, opts?)` | `Host.Exec(ctx, cmd, args, ...HostExecOption)` | `HostExecResult` |
-| `host.Stream(cmd, args, [opts,] cb)` | `Host.Stream(ctx, cmd, args, ...HostExecOption)` | callback(type, data) |
-| `host.Workspace(sessionID)` | `Host.Workspace(sessionID)` | `WorkspaceFS` |
+| `host.Exec(cmd, opts?)` | `Computer.Exec(ctx, cmd []string, ...ExecOption)` | `ExecResult` |
+| `host.Stream(cmd, [opts,] cb)` | `Computer.Stream(ctx, cmd []string, ...ExecOption)` | callback(type, data) |
+| `host.VNC()` | `Computer.VNC(ctx)` | `string` (URL) |
+| `host.Proxy(port, path?)` | `Computer.Proxy(ctx, port, path)` | `string` (URL) |
+| `host.ComputerInfo()` | `Computer.ComputerInfo()` | `ComputerInfo` |
+| `host.BindWorkplace(id)` | `Computer.BindWorkplace(id)` | `void` |
+| `host.Workplace()` | `Computer.Workplace()` | `WorkspaceFS \| null` |
 
-`host.Exec(cmd, args, options?)`:
+`host.Exec(cmd, options?)`:
 
 ```
-cmd:     string                    → cmd string
-args:    string[]                  → args []string
+cmd:     string[]                  → cmd []string (unified with Box)
 options: {
-  workdir:    string,              → WithHostWorkDir(dir)
-  env:        object,              → WithHostEnv(map[string]string)
-  stdin:      string,              → WithHostStdin([]byte)
-  timeout:    number,              → WithHostTimeout(ms int64)
-  max_output: number               → WithHostMaxOutput(bytes int64)
+  workdir:    string,              → WithWorkDir(dir)
+  env:        object,              → WithEnv(map[string]string)
+  stdin:      string,              → WithStdin([]byte)
+  timeout:    number,              → WithTimeout(ms → time.Duration)
+  max_output: number               → WithMaxOutput(bytes int64)
 }
 returns: {
-  exit_code:   number,             ← HostExecResult.ExitCode
-  stdout:      string,              ← HostExecResult.Stdout (UTF-8)
-  stderr:      string,              ← HostExecResult.Stderr (UTF-8)
-  duration_ms: number,             ← HostExecResult.DurationMs
-  error:       string,             ← HostExecResult.Error
-  truncated:   boolean              ← HostExecResult.Truncated
+  exit_code:   number,             ← ExecResult.ExitCode
+  stdout:      string,             ← ExecResult.Stdout
+  stderr:      string,             ← ExecResult.Stderr
+  duration_ms: number,             ← ExecResult.DurationMs
+  error:       string,             ← ExecResult.Error
+  truncated:   boolean             ← ExecResult.Truncated
 }
 ```
 
-`host.Stream(cmd, args, callback)` / `host.Stream(cmd, args, options, callback)`:
+`host.Stream(cmd, callback)` / `host.Stream(cmd, options, callback)`:
 
 ```
 Blocks until exit. Last arg must be a JS function.
 options: same as host.Exec (optional)
 callback: function(type, data)
-  type = "stdout" → data is string (chunk)   ← HostExecStream.Stdout
-  type = "stderr" → data is string (chunk)   ← HostExecStream.Stderr
-  type = "exit"   → data is number (exit code) ← HostExecStream.Wait()
+  type = "stdout" → data is string (chunk)   ← ExecStream.Stdout (io.ReadCloser)
+  type = "stderr" → data is string (chunk)   ← ExecStream.Stderr (io.ReadCloser)
+  type = "exit"   → data is number (exit code) ← ExecStream.Wait()
 ```
-
-`host.Workspace(sessionID)` returns the same WorkspaceFS interface as `box.Workspace()`; sessionID typically corresponds to a workspace ID on the Tai host.
 
 #### NodeInfo object
 

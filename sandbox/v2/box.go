@@ -33,10 +33,43 @@ type Box struct {
 	manager       *Manager
 }
 
+// Compile-time check: *Box implements Computer.
+var _ Computer = (*Box)(nil)
+
 func (b *Box) ID() string          { return b.id }
 func (b *Box) Owner() string       { return b.owner }
 func (b *Box) ContainerID() string { return b.containerID }
 func (b *Box) Pool() string        { return b.pool }
+
+// ComputerInfo returns identity and registry information for this Box.
+func (b *Box) ComputerInfo() ComputerInfo {
+	return ComputerInfo{
+		Kind:        "box",
+		Pool:        b.pool,
+		Status:      "online",
+		BoxID:       b.id,
+		ContainerID: b.containerID,
+		Owner:       b.owner,
+		Image:       b.image,
+		Policy:      b.policy,
+		Labels:      b.labels,
+	}
+}
+
+// BindWorkplace binds (or rebinds) a workspace to this Box. Subsequent calls
+// to Workplace() return the FS for this workspace. Overrides the workspace
+// set during Create.
+func (b *Box) BindWorkplace(workspaceID string) {
+	b.workspaceID = workspaceID
+	b.ws = nil // clear cache so Workplace() re-resolves
+}
+
+// Workplace returns the workspace FS bound to this Box.
+// If a workspace was bound via CreateOptions.WorkspaceID or BindWorkplace(),
+// returns that workspace's FS. Otherwise returns nil.
+func (b *Box) Workplace() workspace.FS {
+	return b.Workspace()
+}
 
 // Exec runs a command and waits for it to finish.
 func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error) {
