@@ -158,7 +158,7 @@ type Config struct {
 }
 ```
 
-Container gRPC env vars (`YAO_GRPC_ADDR`, `YAO_GRPC_UPSTREAM`, etc.) are derived automatically at creation time. Per-instance settings (image, memory, CPU, workdir, env, pool) are passed via `CreateOptions`.
+Container gRPC env vars (`YAO_GRPC_ADDR`, etc.) are derived automatically at creation time. Per-instance settings (image, memory, CPU, workdir, env, pool) are passed via `CreateOptions`.
 
 ### Core API
 
@@ -548,10 +548,8 @@ YAO_TOKEN=<access_token>
 YAO_REFRESH_TOKEN=<refresh_token>
 YAO_GRPC_ADDR=127.0.0.1:9099
 
-# Remote mode (tai://) adds:
-YAO_GRPC_TAI=enable
+# Remote mode (tai://)
 YAO_GRPC_ADDR=<tai-host>:9100
-YAO_GRPC_UPSTREAM=127.0.0.1:9099
 ```
 
 ## Errors
@@ -1121,7 +1119,7 @@ Permission control is the responsibility of the caller (JS scripts, Agent hooks,
 | **Runtime** | Direct Docker SDK | tai.Client pool (Docker/K8s/Remote) |
 | **Execution** | Exec + Stream | Exec + Stream + Attach (WS/SSE) |
 | **File I/O** | bind mount + Docker Copy | `workspace.FS` (fs.FS compatible) |
-| **IPC** | Unix socket + yao-bridge | gRPC (yao-grpc) |
+| **IPC** | Unix socket + yao-bridge | gRPC (tai call) |
 | **Idle detection** | External calls only | Dual: external calls + container heartbeat |
 | **Lifecycle** | Chat session only | Policy-based (oneshot/session/longrunning/persistent) |
 | **Pool** | Single Docker daemon | Multi-pool with per-pool policies |

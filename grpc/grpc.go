@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -162,7 +163,7 @@ func StartServer(cfg config.Config) error {
 		addr := net.JoinHostPort(strings.TrimSpace(h), port)
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
-			Stop()
+			stopLocked()
 			return err
 		}
 		listeners = append(listeners, lis)
@@ -179,17 +180,39 @@ func StartServer(cfg config.Config) error {
 	return nil
 }
 
-// Stop gracefully stops the gRPC server. Safe to call if server was never started.
+// stopLocked performs cleanup while the caller already holds mu.
+func stopLocked() {
+	s := server
+	server = nil
+	listeners = nil
+	addrs = nil
+
+	if s == nil {
+		return
+	}
+
+	done := make(chan struct{})
+	go func() {
+		s.GracefulStop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		log.Info("gRPC server stopped gracefully")
+	case <-time.After(5 * time.Second):
+		log.Warn("gRPC server graceful stop timed out, forcing stop")
+		s.Stop()
+	}
+}
+
+// Stop gracefully stops the gRPC server with a 5-second timeout.
+// If GracefulStop doesn't complete in time (e.g. active streams), it forces Stop.
+// Safe to call if server was never started.
 func Stop() {
 	mu.Lock()
 	defer mu.Unlock()
-
-	if server != nil {
-		server.GracefulStop()
-		server = nil
-	}
-	listeners = nil
-	addrs = nil
+	stopLocked()
 }
 
 // GRPCServer returns the active gRPC server instance.

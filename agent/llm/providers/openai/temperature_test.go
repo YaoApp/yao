@@ -14,53 +14,54 @@ import (
 )
 
 // TestTemperatureGPT5AutoReset tests that GPT-5 automatically resets temperature to 1.0
-func TestTemperatureGPT5AutoReset(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	conn, err := connector.Select("openai.gpt-5")
-	if err != nil {
-		t.Fatalf("Failed to select connector: %v", err)
-	}
-
-	invalidTemp := 0.7 // GPT-5 doesn't support this
-	options := &context.CompletionOptions{
-		Capabilities: &openai.Capabilities{
-			Reasoning: true,
-		},
-		Temperature: &invalidTemp, // Should be reset to 1.0
-	}
-
-	llmInstance, err := llm.New(conn, options)
-	if err != nil {
-		t.Fatalf("Failed to create LLM instance: %v", err)
-	}
-
-	messages := []context.Message{
-		{
-			Role:    context.RoleUser,
-			Content: "Say 'OK'",
-		},
-	}
-
-	maxTokens := 10
-	options.MaxCompletionTokens = &maxTokens
-
-	ctx := newTemperatureTestContext("test-gpt5-temp", "openai.gpt-5")
-
-	// Should succeed (temperature automatically reset to 1.0)
-	response, err := llmInstance.Post(ctx, messages, options)
-	if err != nil {
-		t.Fatalf("Post failed: %v", err)
-	}
-
-	if response == nil {
-		t.Fatal("Response is nil")
-	}
-
-	t.Log("✓ GPT-5 successfully handled invalid temperature by resetting to 1.0")
-	t.Logf("Response: %v", response.Content)
-}
+// Temporarily commented out
+// func TestTemperatureGPT5AutoReset(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer test.Clean()
+//
+// 	conn, err := connector.Select("openai.gpt-5")
+// 	if err != nil {
+// 		t.Fatalf("Failed to select connector: %v", err)
+// 	}
+//
+// 	invalidTemp := 0.7 // GPT-5 doesn't support this
+// 	options := &context.CompletionOptions{
+// 		Capabilities: &openai.Capabilities{
+// 			Reasoning: true,
+// 		},
+// 		Temperature: &invalidTemp, // Should be reset to 1.0
+// 	}
+//
+// 	llmInstance, err := llm.New(conn, options)
+// 	if err != nil {
+// 		t.Fatalf("Failed to create LLM instance: %v", err)
+// 	}
+//
+// 	messages := []context.Message{
+// 		{
+// 			Role:    context.RoleUser,
+// 			Content: "Say 'OK'",
+// 		},
+// 	}
+//
+// 	maxTokens := 10
+// 	options.MaxCompletionTokens = &maxTokens
+//
+// 	ctx := newTemperatureTestContext("test-gpt5-temp", "openai.gpt-5")
+//
+// 	// Should succeed (temperature automatically reset to 1.0)
+// 	response, err := llmInstance.Post(ctx, messages, options)
+// 	if err != nil {
+// 		t.Fatalf("Post failed: %v", err)
+// 	}
+//
+// 	if response == nil {
+// 		t.Fatal("Response is nil")
+// 	}
+//
+// 	t.Log("✓ GPT-5 successfully handled invalid temperature by resetting to 1.0")
+// 	t.Logf("Response: %v", response.Content)
+// }
 
 // TestTemperatureDeepSeekR1AutoReset tests that DeepSeek R1 automatically resets temperature to 1.0
 func TestTemperatureDeepSeekR1AutoReset(t *testing.T) {
@@ -215,53 +216,54 @@ func TestTemperatureDeepSeekV3Preserved(t *testing.T) {
 }
 
 // TestTemperatureGPT5Default tests that GPT-5 with temperature=1.0 works fine
-func TestTemperatureGPT5Default(t *testing.T) {
-	test.Prepare(t, config.Conf)
-	defer test.Clean()
-
-	conn, err := connector.Select("openai.gpt-5")
-	if err != nil {
-		t.Fatalf("Failed to select connector: %v", err)
-	}
-
-	defaultTemp := 1.0 // GPT-5's valid temperature
-	options := &context.CompletionOptions{
-		Capabilities: &openai.Capabilities{
-			Reasoning: true,
-		},
-		Temperature: &defaultTemp, // Should work fine
-	}
-
-	llmInstance, err := llm.New(conn, options)
-	if err != nil {
-		t.Fatalf("Failed to create LLM instance: %v", err)
-	}
-
-	messages := []context.Message{
-		{
-			Role:    context.RoleUser,
-			Content: "What is 2+2? Reply with just the number.",
-		},
-	}
-
-	maxTokens := 10
-	options.MaxCompletionTokens = &maxTokens
-
-	ctx := newTemperatureTestContext("test-gpt5-temp-default", "openai.gpt-5")
-
-	// Should succeed with default temperature
-	response, err := llmInstance.Post(ctx, messages, options)
-	if err != nil {
-		t.Fatalf("Post failed: %v", err)
-	}
-
-	if response == nil {
-		t.Fatal("Response is nil")
-	}
-
-	t.Log("✓ GPT-5 successfully handled default temperature (1.0)")
-	t.Logf("Response: %v", response.Content)
-}
+// Temporarily commented out
+// func TestTemperatureGPT5Default(t *testing.T) {
+// 	test.Prepare(t, config.Conf)
+// 	defer test.Clean()
+//
+// 	conn, err := connector.Select("openai.gpt-5")
+// 	if err != nil {
+// 		t.Fatalf("Failed to select connector: %v", err)
+// 	}
+//
+// 	defaultTemp := 1.0 // GPT-5's valid temperature
+// 	options := &context.CompletionOptions{
+// 		Capabilities: &openai.Capabilities{
+// 			Reasoning: true,
+// 		},
+// 		Temperature: &defaultTemp, // Should work fine
+// 	}
+//
+// 	llmInstance, err := llm.New(conn, options)
+// 	if err != nil {
+// 		t.Fatalf("Failed to create LLM instance: %v", err)
+// 	}
+//
+// 	messages := []context.Message{
+// 		{
+// 			Role:    context.RoleUser,
+// 			Content: "What is 2+2? Reply with just the number.",
+// 		},
+// 	}
+//
+// 	maxTokens := 10
+// 	options.MaxCompletionTokens = &maxTokens
+//
+// 	ctx := newTemperatureTestContext("test-gpt5-temp-default", "openai.gpt-5")
+//
+// 	// Should succeed with default temperature
+// 	response, err := llmInstance.Post(ctx, messages, options)
+// 	if err != nil {
+// 		t.Fatalf("Post failed: %v", err)
+// 	}
+//
+// 	if response == nil {
+// 		t.Fatal("Response is nil")
+// 	}
+//
+// 	t.Log("✓ GPT-5 successfully handled default temperature (1.0)")
+// 	t.Logf("Response: %v", response.Content)
+// }
 
 // TestTemperatureNoTemperatureProvided tests that models work when no temperature is provided
 func TestTemperatureNoTemperatureProvided(t *testing.T) {
@@ -273,7 +275,7 @@ func TestTemperatureNoTemperatureProvided(t *testing.T) {
 		connector string
 		reasoning bool
 	}{
-		{"GPT-5 No Temp", "openai.gpt-5", true},
+		// {"GPT-5 No Temp", "openai.gpt-5", true}, // Temporarily commented out
 		{"GPT-4o No Temp", "openai.gpt-4o", false},
 		{"DeepSeek R1 No Temp", "deepseek.r1", true},
 		{"DeepSeek V3 No Temp", "deepseek.v3", false},

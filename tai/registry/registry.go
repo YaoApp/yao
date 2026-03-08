@@ -13,6 +13,15 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// SystemInfo describes the host machine running Tai.
+type SystemInfo struct {
+	OS       string `json:"os"`
+	Arch     string `json:"arch"`
+	Hostname string `json:"hostname"`
+	NumCPU   int    `json:"num_cpu"`
+	TotalMem int64  `json:"total_mem,omitempty"`
+}
+
 // TaiNode represents a registered Tai instance (direct or tunnel).
 // Internal use only; external callers receive NodeSnapshot via Get()/List().
 type TaiNode struct {
@@ -20,10 +29,11 @@ type TaiNode struct {
 	MachineID    string
 	Version      string
 	Auth         AuthInfo
+	System       SystemInfo
 	Mode         string         // "direct" | "tunnel"
 	Addr         string         // direct mode: "tai-host"; tunnel mode: empty
 	YaoBase      string         // Yao server base URL reported by Tai (tunnel mode)
-	Ports        map[string]int // {"grpc":9100, "http":8080, "vnc":6080, "docker":2375}
+	Ports        map[string]int // {"grpc":19100, "http":8099, "vnc":16080, "docker":12375}
 	Capabilities map[string]bool
 
 	ControlConn *websocket.Conn
@@ -43,6 +53,7 @@ type NodeSnapshot struct {
 	MachineID    string
 	Version      string
 	Auth         AuthInfo
+	System       SystemInfo
 	Mode         string
 	Addr         string
 	YaoBase      string
@@ -65,7 +76,8 @@ func (n *TaiNode) snapshot() NodeSnapshot {
 	}
 	return NodeSnapshot{
 		TaiID: n.TaiID, MachineID: n.MachineID, Version: n.Version,
-		Auth: n.Auth, Mode: n.Mode, Addr: n.Addr, YaoBase: n.YaoBase,
+		Auth: n.Auth, System: n.System,
+		Mode: n.Mode, Addr: n.Addr, YaoBase: n.YaoBase,
 		Ports: ports, Capabilities: caps,
 		Status: n.Status, ConnectedAt: n.ConnectedAt, LastPing: n.LastPing,
 		PoolName: n.PoolName,
@@ -219,6 +231,66 @@ func (r *Registry) UpdatePing(taiID string) {
 	defer r.mu.Unlock()
 	if n, ok := r.nodes[taiID]; ok {
 		n.LastPing = time.Now()
+	}
+}
+
+// ListByTeam returns snapshots of all nodes belonging to the given team.
+func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []NodeSnapshot
+	for _, n := range r.nodes {
+		if n.Auth.TeamID == teamID {
+			result = append(result, n.snapshot())
+		}
+	}
+	return result
+}
+
+// StartHealthCheck runs a background goroutine that periodically checks
+// direct-mode nodes for heartbeat timeout. Nodes whose LastPing exceeds
+// timeout are marked offline. Nodes that remain offline longer than
+// cleanupAfter are automatically unregistered.
+// The goroutine stops when ctx.Done() is closed.
+func (r *Registry) StartHealthCheck(done <-chan struct{}, interval, timeout, cleanupAfter time.Duration) {
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				r.checkHealth(timeout, cleanupAfter)
+			}
+		}
+	}()
+}
+
+func (r *Registry) checkHealth(timeout, cleanupAfter time.Duration) {
+	now := time.Now()
+	var toRemove []string
+
+	r.mu.Lock()
+	for id, n := range r.nodes {
+		if n.Mode != "direct" {
+			continue
+		}
+		elapsed := now.Sub(n.LastPing)
+		if n.Status == "online" && elapsed > timeout {
+			n.Status = "offline"
+			r.logger.Warn("tai node offline (heartbeat timeout)",
+				"tai_id", id, "last_ping", n.LastPing)
+		}
+		if n.Status == "offline" && elapsed > timeout+cleanupAfter {
+			toRemove = append(toRemove, id)
+		}
+	}
+	r.mu.Unlock()
+
+	for _, id := range toRemove {
+		r.logger.Info("tai node auto-unregistered (offline too long)", "tai_id", id)
+		r.Unregister(id)
 	}
 }
 

@@ -3,7 +3,7 @@ package volume;
 option go_package = "github.com/yaoapp/tai/volume/pb";
 
 // Volume provides bulk file synchronization and real-time filesystem I/O.
-// Shares gRPC port :9100 with Yao Gateway.
+// Shares gRPC port :19100 with Yao Gateway.
 service Volume {
 
   // --- Bulk Sync ---

@@ -28,6 +28,7 @@ import (
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
+	taiapi "github.com/yaoapp/yao/tai/api"
 	taitunnel "github.com/yaoapp/yao/tai/tunnel"
 )
 
@@ -181,6 +182,11 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	group.GET("/ws/tai/data/:channel_id", taitunnel.HandleData)
 	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleProxy)
 	group.GET("/tai/:taiID/vnc/*path", taitunnel.HandleVNC)
+
+	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
+	group.POST("/tai-nodes/register", taiapi.HandleRegister)
+	group.POST("/tai-nodes/heartbeat", taiapi.HandleHeartbeat)
+	group.DELETE("/tai-nodes/register/:tai_id", taiapi.HandleUnregister)
 
 	// Custom handlers (Defined by developer)
 

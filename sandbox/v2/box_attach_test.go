@@ -62,7 +62,7 @@ func TestAttachWS(t *testing.T) {
 
 	img := testImage()
 	if img == "alpine:latest" {
-		t.Skip("WebSocket test requires sandbox-v2-test image with ws-echo service")
+		t.Skip("WebSocket test requires tai-sandbox-test image with ws-echo service")
 	}
 
 	for _, pc := range testPools() {
@@ -110,7 +110,7 @@ func TestAttachSSE(t *testing.T) {
 
 	img := testImage()
 	if img == "alpine:latest" {
-		t.Skip("SSE test requires sandbox-v2-test image with sse-server service")
+		t.Skip("SSE test requires tai-sandbox-test image with sse-server service")
 	}
 
 	for _, pc := range testPools() {
@@ -159,7 +159,7 @@ func TestVNCURL(t *testing.T) {
 
 	img := testImage()
 	if img == "alpine:latest" {
-		t.Skip("VNC test requires sandbox-v2-test image with VNC desktop")
+		t.Skip("VNC test requires tai-sandbox-test image with VNC desktop")
 	}
 
 	for _, pc := range testPools() {
@@ -189,7 +189,7 @@ func TestVNCConnect(t *testing.T) {
 
 	img := testImage()
 	if img == "alpine:latest" {
-		t.Skip("VNC test requires sandbox-v2-test image with VNC desktop")
+		t.Skip("VNC test requires tai-sandbox-test image with VNC desktop")
 	}
 
 	for _, pc := range testPools() {

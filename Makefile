@@ -202,34 +202,16 @@ unit-test-registry:
 	fi
 
 # ---------------------------------------------------------------------------
-# Sandbox V2 Integration Test (tai + sandbox/v2 + workspace)
-# Requires: Docker, Tai container, optionally k3d for K8s mode
+# Sandbox V2 CI Test (tai SDK + workspace only)
+# Full sandbox/v2 integration tests (multi-pool, K8s, etc.) are run locally.
 # ---------------------------------------------------------------------------
-SANDBOX_V2_IMAGE ?= yaoapp/sandbox-v2-test:latest
 
 .PHONY: unit-test-sandbox-v2
-unit-test-sandbox-v2: unit-test-sandbox-v2-pull unit-test-tai unit-test-sandbox-v2-core unit-test-workspace
+unit-test-sandbox-v2: unit-test-tai unit-test-workspace
 	@echo ""
 	@echo "============================================="
-	@echo "All Sandbox V2 integration tests passed"
+	@echo "All Sandbox V2 CI tests passed (tai + workspace)"
 	@echo "============================================="
-
-.PHONY: unit-test-sandbox-v2-pull
-unit-test-sandbox-v2-pull:
-	@echo ""
-	@echo "============================================="
-	@echo "Pulling test images..."
-	@echo "============================================="
-	docker pull $(SANDBOX_V2_IMAGE) || true
-	docker pull alpine:latest || true
-
-.PHONY: unit-test-sandbox-v2-core
-unit-test-sandbox-v2-core:
-	@echo ""
-	@echo "============================================="
-	@echo "Running Sandbox V2 Tests..."
-	@echo "============================================="
-	$(MAKE) -C sandbox/v2 test-ci TEST_IMAGE=$(SANDBOX_V2_IMAGE)
 
 # Workspace Unit Test (requires Tai for remote mode)
 .PHONY: unit-test-workspace
@@ -269,26 +251,6 @@ unit-test-workspace:
 	@echo ""
 	@echo "============================================="
 	@echo "All workspace tests passed"
-	@echo "============================================="
-
-# Benchmark: Sandbox V2 + Workspace
-.PHONY: benchmark-sandbox-v2
-benchmark-sandbox-v2:
-	@echo ""
-	@echo "============================================="
-	@echo "Running Sandbox V2 + Workspace Benchmarks..."
-	@echo "============================================="
-	@for d in $$($(GO) list ./sandbox/v2/... ./workspace/...); do \
-		if $(GO) test -list=Benchmark $$d 2>/dev/null | grep -q "^Benchmark"; then \
-			echo ""; \
-			echo "Benchmarking: $$d"; \
-			echo "---------------------------------------------"; \
-			$(GO) test -bench=. -benchmem -benchtime=1x -run='^$$' -timeout=600s $$d || true; \
-		fi; \
-	done
-	@echo ""
-	@echo "============================================="
-	@echo "All benchmarks completed"
 	@echo "============================================="
 
 # Sandbox Unit Test (requires Docker)

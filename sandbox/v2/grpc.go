@@ -52,9 +52,7 @@ func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) m
 
 	switch {
 	case strings.HasPrefix(pool.Addr, "tunnel://"):
-		env["YAO_GRPC_TAI"] = "enable"
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%d", grpcPort)
-		env["YAO_GRPC_UPSTREAM"] = fmt.Sprintf("127.0.0.1:%s", portStr)
 
 	case strings.HasPrefix(pool.Addr, "tai://"):
 		u, err := url.Parse(pool.Addr)
@@ -65,11 +63,9 @@ func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) m
 		taiHost := u.Hostname()
 		taiPort := u.Port()
 		if taiPort == "" {
-			taiPort = "9100"
+			taiPort = "19100"
 		}
-		env["YAO_GRPC_TAI"] = "enable"
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%s", taiHost, taiPort)
-		env["YAO_GRPC_UPSTREAM"] = fmt.Sprintf("127.0.0.1:%s", portStr)
 
 	default:
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%s", portStr)

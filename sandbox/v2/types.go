@@ -176,3 +176,53 @@ type BoxInfo struct {
 	ProcessCount int
 	VNC          bool
 }
+
+// HostExecResult holds the outcome of a command executed on the Tai host.
+type HostExecResult struct {
+	ExitCode   int
+	Stdout     []byte
+	Stderr     []byte
+	DurationMs int64
+	Error      string
+	Truncated  bool
+}
+
+// HostExecStream provides real-time streaming output from a command running
+// on the Tai host machine via HostExec gRPC ExecStream.
+type HostExecStream struct {
+	Stdout <-chan []byte
+	Stderr <-chan []byte
+	Wait   func() (int, error) // blocks until exit; returns exit code
+	Cancel func()              // cancels the stream context
+}
+
+type hostExecConfig struct {
+	WorkDir        string
+	Env            map[string]string
+	Stdin          []byte
+	TimeoutMs      int64
+	MaxOutputBytes int64
+}
+
+// HostExecOption configures an ExecOnHost call.
+type HostExecOption func(*hostExecConfig)
+
+func WithHostWorkDir(dir string) HostExecOption {
+	return func(c *hostExecConfig) { c.WorkDir = dir }
+}
+
+func WithHostEnv(env map[string]string) HostExecOption {
+	return func(c *hostExecConfig) { c.Env = env }
+}
+
+func WithHostStdin(data []byte) HostExecOption {
+	return func(c *hostExecConfig) { c.Stdin = data }
+}
+
+func WithHostTimeout(ms int64) HostExecOption {
+	return func(c *hostExecConfig) { c.TimeoutMs = ms }
+}
+
+func WithHostMaxOutput(bytes int64) HostExecOption {
+	return func(c *hostExecConfig) { c.MaxOutputBytes = bytes }
+}

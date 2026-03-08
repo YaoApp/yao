@@ -468,13 +468,11 @@ func TestBuildGRPCEnv_Local(t *testing.T) {
     assert.Equal(t, "tok", env["YAO_TOKEN"])
     assert.Equal(t, "ref", env["YAO_REFRESH_TOKEN"])
     assert.NotEmpty(t, env["YAO_GRPC_ADDR"])
-    assert.Empty(t, env["YAO_GRPC_TAI"])
 }
 
 func TestBuildGRPCEnv_Remote(t *testing.T) {
     env := sandbox.BuildGRPCEnv(&sandbox.Pool{Addr: "tai://gpu.internal"}, "sb-002", "tok", "ref")
-    assert.Equal(t, "enable", env["YAO_GRPC_TAI"])
-    assert.NotEmpty(t, env["YAO_GRPC_UPSTREAM"])
+    assert.NotEmpty(t, env["YAO_GRPC_ADDR"])
 }
 
 func TestCreateContainerTokens(t *testing.T) {
@@ -589,8 +587,8 @@ sandbox-v2-test:
 Key decisions:
 - SQLite only — sandbox is infrastructure, not data-model dependent
 - Tai container provides remote mode — exercises the full proxy path
-- `sandbox-v2-test` as default test image — includes `yao-grpc` (heartbeat), `openai-proxy`, Nginx, WS echo + SSE test services
-- CI builds test image from source (Step 4.5) — ensures binary compatibility with latest tai SDK + yao-grpc changes
+- `sandbox-v2-test` as default test image — includes `tai` (heartbeat), `openai-proxy`, Nginx, WS echo + SSE test services
+- CI builds test image from source (Step 4.5) — ensures binary compatibility with latest tai SDK changes
 - Attach tests (WS/SSE) use `sandbox-v2-test` image's built-in test services
 
 ## Coverage
