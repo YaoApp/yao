@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Volume provides filesystem IO and directory synchronization.
+// Volume provides filesystem IO, directory synchronization, and archive operations.
 // Remote connects to Tai gRPC :19100; Local operates directly on disk.
 type Volume interface {
 	ReadFile(ctx context.Context, sessionID, path string) ([]byte, os.FileMode, error)
@@ -20,6 +20,15 @@ type Volume interface {
 
 	SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
 	SyncPull(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
+
+	Zip(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error)
+	Unzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
+	Gzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
+	Gunzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
+	Tar(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error)
+	Untar(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
+	Tgz(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error)
+	Untgz(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
 
 	Close() error
 }
@@ -40,12 +49,19 @@ type SyncResult struct {
 	Duration         time.Duration
 }
 
+// ArchiveResult summarizes an archive/compression operation.
+type ArchiveResult struct {
+	SizeBytes  int64
+	FilesCount int
+}
+
 // SyncOption configures sync behavior.
 type SyncOption func(*syncConfig)
 
 type syncConfig struct {
-	forceFull bool
-	excludes  []string
+	forceFull  bool
+	excludes   []string
+	remotePath string
 }
 
 // WithForceFull skips snapshot caches and diffs against actual disk.
@@ -56,6 +72,11 @@ func WithForceFull() SyncOption {
 // WithExcludes adds glob patterns to exclude from sync.
 func WithExcludes(patterns ...string) SyncOption {
 	return func(c *syncConfig) { c.excludes = append(c.excludes, patterns...) }
+}
+
+// WithRemotePath sets a sub-path within the workspace root for sync operations.
+func WithRemotePath(path string) SyncOption {
+	return func(c *syncConfig) { c.remotePath = path }
 }
 
 func applySyncOpts(opts []SyncOption) syncConfig {

@@ -11,6 +11,10 @@
 //	const box  = sandbox.Get(id)               // → Box
 //	const list = sandbox.List({ owner: "u1" }) // → BoxInfo[]
 //	sandbox.Delete(id)                          // → void
+//	const host = sandbox.Host("gpu")            // → Host (host_exec on Tai)
+//	const node = sandbox.GetNode("tai-abc123") // → NodeInfo | null
+//	const all  = sandbox.Nodes()               // → NodeInfo[]
+//	const team = sandbox.NodesByTeam("t-001")  // → NodeInfo[]
 //
 // # Go mapping
 //
@@ -19,6 +23,10 @@
 //	sandbox.Get(id)       → Manager.Get(ctx, id)                 → Box
 //	sandbox.List(filter?) → Manager.List(ctx, ListOptions)       → []*Box → BoxInfo[]
 //	sandbox.Delete(id)    → Manager.Remove(ctx, id)              → void
+//	sandbox.Host(pool?)   → Manager.Host(ctx, pool)                → Host
+//	sandbox.GetNode(id)   → registry.Global().Get(id)              → NodeInfo | null
+//	sandbox.Nodes()       → registry.Global().List()               → NodeInfo[]
+//	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)        → NodeInfo[]
 //
 // Registration happens via init() — import with:
 //
@@ -41,6 +49,10 @@ func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	obj.Set("Get", v8go.NewFunctionTemplate(iso, sbGet))
 	obj.Set("List", v8go.NewFunctionTemplate(iso, sbList))
 	obj.Set("Delete", v8go.NewFunctionTemplate(iso, sbDelete))
+	obj.Set("Host", v8go.NewFunctionTemplate(iso, sbHost))
+	obj.Set("GetNode", v8go.NewFunctionTemplate(iso, sbGetNode))
+	obj.Set("Nodes", v8go.NewFunctionTemplate(iso, sbNodes))
+	obj.Set("NodesByTeam", v8go.NewFunctionTemplate(iso, sbNodesByTeam))
 	return obj
 }
 
@@ -63,7 +75,7 @@ func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 //	  memory:       number   →  CreateOptions.Memory       // bytes (int64)
 //	  cpus:         number   →  CreateOptions.CPUs         // float64 e.g. 1.5
 //	  vnc:          boolean  →  CreateOptions.VNC
-//	  ports:        array    →  CreateOptions.Ports        // [{container, host, host_ip, protocol}] → []PortMapping
+//	  ports:        array    →  CreateOptions.Ports        // [{container_port, host_port, host_ip, protocol}] → []PortMapping
 //	  policy:       string   →  CreateOptions.Policy       // "oneshot"|"session"|"longrunning"|"persistent"
 //	  idle_timeout: number   →  CreateOptions.IdleTimeout  // ms → time.Duration
 //	  stop_timeout: number   →  CreateOptions.StopTimeout  // ms → time.Duration

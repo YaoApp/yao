@@ -82,7 +82,9 @@ Reference: [DESIGN.md](./DESIGN.md)
 
 | Task | Package | Detail |
 |------|---------|--------|
-| `jsapi/sandbox.go` | `sandbox/v2/jsapi` | V8 JSAPI `Sandbox()` + `Workspace()` constructors (registered in gou runtime) |
+| `jsapi/jsapi.go` + `box.go` | `sandbox/v2/jsapi` | V8 JSAPI `Sandbox()` Create/Get/List/Delete + Box object (registered in gou runtime) |
+| `jsapi/host.go` | `sandbox/v2/jsapi` | V8 JSAPI `sandbox.Host(pool?)` + Host object (Exec, Stream, Workspace) |
+| `jsapi/node.go` | `sandbox/v2/jsapi` | V8 JSAPI `sandbox.GetNode(id)` / `Nodes()` / `NodesByTeam(tid)` + snapshotToJS converter |
 | Wire `openapi/oauth` | `sandbox/v2/grpc.go` | `CreateContainerTokens` currently generates random strings; `RevokeContainerTokens` is a no-op. Replace with real `openapi/oauth` issue/revoke calls |
 | `cmd/start.go` integration | `yao` | Call `sandbox.Init(config.Conf.Sandbox)` + `sandbox.M().Start(ctx)` in startup sequence |
 | Heartbeat bridge | `yao/grpc` | Wire gRPC Heartbeat handler → `sandbox.M().Heartbeat()` |
@@ -91,26 +93,43 @@ Reference: [DESIGN.md](./DESIGN.md)
 
 ```javascript
 // Sandbox
-var sb = Sandbox("my-workspace", {
+var box = sandbox.Create({
     image: "yaoapp/workspace:latest",
-    owner: "user-123"
+    owner: "user-123",
+    workspace_id: "my-workspace"
 })
-sb.Exec(["go", "build", "./..."])
-sb.ReadFile("src/main.go")
-sb.WriteFile("src/main.go", "package main\n...")
-sb.Stream(["npm", "run", "dev"], function(chunk) { ... })
-var conn = sb.Attach(3000, { protocol: "ws", path: "/ws" })
-sb.Info()
-sb.Stop()
-sb.Start()
-sb.Remove()
+box.Exec(["go", "build", "./..."])
+box.Stream(["npm", "run", "dev"], function(type, data) {
+    if (type === "stdout") console.log(data)
+    if (type === "exit") console.log("exited:", data)
+})
+var url = box.Attach(3000, { protocol: "ws", path: "/ws" })
+box.Info()
+box.Stop()
+box.Start()
+box.Remove()
 
-// Workspace
-var ws = Workspace("my-workspace")
+// Box workspace file I/O
+var ws = box.Workspace()
 ws.ReadFile("src/main.go")
 ws.WriteFile("src/main.go", "package main\n...")
-ws.ListDir("src/")
+ws.ReadDir("src/")
 ws.Remove("tmp.txt")
+
+// Host (Tai host_exec — no container)
+var host = sandbox.Host("gpu")
+host.Exec("ls", ["-la", "/workspace"], { workdir: "/workspace" })
+var wsHost = host.Workspace("my-session")
+wsHost.ReadFile("config.yml")
+
+// Nodes (registry read-only query)
+var nodes = sandbox.Nodes()
+nodes.forEach(function(n) { console.log(n.tai_id, n.status, n.system.hostname) })
+
+var node = sandbox.GetNode("tai-abc123")
+if (node) { console.log(node.pool, node.ports.grpc, node.capabilities) }
+
+var teamNodes = sandbox.NodesByTeam("team-001")
 ```
 
 ---

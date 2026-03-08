@@ -215,9 +215,10 @@ func (r *remoteStorage) SyncPush(ctx context.Context, sessionID, localDir string
 	if err := stream.Send(&pb.SyncMessage{
 		Payload: &pb.SyncMessage_Manifest{
 			Manifest: &pb.SyncManifest{
-				SessionId: sessionID,
-				Files:     manifest,
-				ForceFull: cfg.forceFull,
+				SessionId:  sessionID,
+				Files:      manifest,
+				ForceFull:  cfg.forceFull,
+				RemotePath: cfg.remotePath,
 			},
 		},
 	}); err != nil {
@@ -343,9 +344,10 @@ func (r *remoteStorage) SyncPull(ctx context.Context, sessionID, localDir string
 	})
 
 	stream, err := r.client.SyncPull(ctx, &pb.SyncManifest{
-		SessionId: sessionID,
-		Files:     manifest,
-		ForceFull: cfg.forceFull,
+		SessionId:  sessionID,
+		Files:      manifest,
+		ForceFull:  cfg.forceFull,
+		RemotePath: cfg.remotePath,
 	})
 	if err != nil {
 		return nil, err
@@ -430,6 +432,86 @@ func (r *remoteStorage) SyncPull(ctx context.Context, sessionID, localDir string
 		BytesTransferred: transferred,
 		Duration:         time.Since(start),
 	}, nil
+}
+
+func (r *remoteStorage) Zip(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error) {
+	resp, err := r.client.Zip(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst, Excludes: excludes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Unzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error) {
+	resp, err := r.client.Unzip(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Gzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error) {
+	resp, err := r.client.Gzip(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Gunzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error) {
+	resp, err := r.client.Gunzip(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Tar(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error) {
+	resp, err := r.client.Tar(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst, Excludes: excludes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Untar(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error) {
+	resp, err := r.client.Untar(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Tgz(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error) {
+	resp, err := r.client.Tgz(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst, Excludes: excludes,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
+}
+
+func (r *remoteStorage) Untgz(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error) {
+	resp, err := r.client.Untgz(ctx, &pb.ArchiveRequest{
+		SessionId: sessionID, SrcPath: src, DstPath: dst,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ArchiveResult{SizeBytes: resp.SizeBytes, FilesCount: int(resp.FilesCount)}, nil
 }
 
 func (r *remoteStorage) Close() error {

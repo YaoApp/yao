@@ -230,3 +230,90 @@ func TestFS_NotFound(t *testing.T) {
 		})
 	}
 }
+
+func TestManagerRename(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			ws := createWorkspace(t, m, pc.Name)
+			ctx := context.Background()
+
+			require.NoError(t, m.WriteFile(ctx, ws.ID, "old.txt", []byte("rename me"), 0644))
+			require.NoError(t, m.Rename(ctx, ws.ID, "old.txt", "new.txt"))
+
+			data, err := m.ReadFile(ctx, ws.ID, "new.txt")
+			require.NoError(t, err)
+			assert.Equal(t, "rename me", string(data))
+
+			_, err = m.ReadFile(ctx, ws.ID, "old.txt")
+			assert.Error(t, err)
+		})
+	}
+}
+
+func TestManagerRename_NotFound(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			err := m.Rename(context.Background(), "nonexistent", "a", "b")
+			assert.ErrorIs(t, err, workspace.ErrNotFound)
+		})
+	}
+}
+
+func TestManagerMkdirAll(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			ws := createWorkspace(t, m, pc.Name)
+			ctx := context.Background()
+
+			require.NoError(t, m.MkdirAll(ctx, ws.ID, "a/b/c"))
+			require.NoError(t, m.WriteFile(ctx, ws.ID, "a/b/c/test.txt", []byte("deep"), 0644))
+
+			data, err := m.ReadFile(ctx, ws.ID, "a/b/c/test.txt")
+			require.NoError(t, err)
+			assert.Equal(t, "deep", string(data))
+		})
+	}
+}
+
+func TestManagerMkdirAll_NotFound(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			err := m.MkdirAll(context.Background(), "nonexistent", "a/b")
+			assert.ErrorIs(t, err, workspace.ErrNotFound)
+		})
+	}
+}
+
+func TestManagerVolume(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			ws := createWorkspace(t, m, pc.Name)
+			ctx := context.Background()
+
+			vol, wsID, err := m.Volume(ctx, ws.ID)
+			require.NoError(t, err)
+			assert.Equal(t, ws.ID, wsID)
+			assert.NotNil(t, vol)
+
+			require.NoError(t, vol.WriteFile(ctx, wsID, "via-vol.txt", []byte("volume direct"), 0o644))
+			data, _, err := vol.ReadFile(ctx, wsID, "via-vol.txt")
+			require.NoError(t, err)
+			assert.Equal(t, "volume direct", string(data))
+		})
+	}
+}
+
+func TestManagerVolume_NotFound(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			_, _, err := m.Volume(context.Background(), "nonexistent")
+			assert.ErrorIs(t, err, workspace.ErrNotFound)
+		})
+	}
+}

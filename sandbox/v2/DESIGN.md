@@ -549,7 +549,7 @@ YAO_REFRESH_TOKEN=<refresh_token>
 YAO_GRPC_ADDR=127.0.0.1:9099
 
 # Remote mode (tai://)
-YAO_GRPC_ADDR=<tai-host>:9100
+YAO_GRPC_ADDR=<tai-host>:19100
 ```
 
 ## Errors
@@ -851,6 +851,10 @@ Static methods:
 | `sandbox.Get(id)` | `Manager.Get(ctx, id)` | `Box \| null` |
 | `sandbox.List(filter?)` | `Manager.List(ctx, ListOptions)` → `Box.Info()` | `BoxInfo[]` |
 | `sandbox.Delete(id)` | `Manager.Remove(ctx, id)` | `void` |
+| `sandbox.Host(pool?)` | `Manager.Host(ctx, pool)` | `Host` |
+| `sandbox.GetNode(taiID)` | `registry.Global().Get(taiID)` | `NodeInfo \| null` |
+| `sandbox.Nodes()` | `registry.Global().List()` | `NodeInfo[]` |
+| `sandbox.NodesByTeam(teamID)` | `registry.Global().ListByTeam(teamID)` | `NodeInfo[]` |
 
 `sandbox.Create(options)` — JS options → Go `CreateOptions`:
 
@@ -866,7 +870,7 @@ Static methods:
   memory:       number   →  CreateOptions.Memory       // bytes (int64)
   cpus:         number   →  CreateOptions.CPUs         // float64
   vnc:          boolean  →  CreateOptions.VNC
-  ports:        array    →  CreateOptions.Ports        // [{container, host, host_ip, protocol}] → []PortMapping
+  ports:        array    →  CreateOptions.Ports        // [{container_port, host_port, host_ip, protocol}] → []PortMapping
   policy:       string   →  CreateOptions.Policy       // "oneshot"|"session"|"longrunning"|"persistent"
   idle_timeout: number   →  CreateOptions.IdleTimeout  // ms → time.Duration
   stop_timeout: number   →  CreateOptions.StopTimeout  // ms → time.Duration
@@ -921,8 +925,8 @@ Methods:
 | JS | Go | Returns |
 |----|-----|---------|
 | `box.Exec(cmd, opts?)` | `Box.Exec(ctx, cmd, ...ExecOption)` | `ExecResult` |
-| `box.Stream(cmd, opts?)` | `Box.Stream(ctx, cmd, ...ExecOption)` | `ExecStream` |
-| `box.Attach(port, opts?)` | `Box.Attach(ctx, port, ...AttachOption)` | `ServiceConn` |
+| `box.Stream(cmd, [opts,] cb)` | `Box.Stream(ctx, cmd, ...ExecOption)` | callback(type, data) |
+| `box.Attach(port, opts?)` | `Proxy.URL(ctx, containerID, port, path)` | `string` (URL) |
 | `box.VNC()` | `Box.VNC(ctx)` | `string` |
 | `box.Proxy(port, path?)` | `Box.Proxy(ctx, port, path)` | `string` |
 | `box.Workspace()` | `Box.WorkspaceID()` → `NewFSObject` | `WorkspaceFS` |
@@ -947,17 +951,15 @@ returns: {
 }
 ```
 
-`box.Stream(cmd, options?)`:
+`box.Stream(cmd, callback)` / `box.Stream(cmd, options, callback)`:
 
 ```
-options: same as Exec
-returns: {
-  stdout: ReadableStream,                 ← ExecStream.Stdout
-  stderr: ReadableStream,                 ← ExecStream.Stderr
-  stdin:  WritableStream,                 ← ExecStream.Stdin
-  wait:   function() → number,            ← ExecStream.Wait() (int, error)
-  cancel: function() → void               ← ExecStream.Cancel()
-}
+Blocks until exit. Last arg must be a JS function.
+options: same as Exec (optional)
+callback: function(type, data)
+  type = "stdout" → data is string (chunk)   ← ExecStream.Stdout
+  type = "stderr" → data is string (chunk)   ← ExecStream.Stderr
+  type = "exit"   → data is number (exit code) ← ExecStream.Wait()
 ```
 
 `box.Attach(port, options?)`:
@@ -965,20 +967,106 @@ returns: {
 ```
 port:    number                           → port int
 options: {
-  protocol: "ws"|"sse",                  → WithProtocol(protocol)
-  path:     string,                      → WithPath(path)
-  headers:  object                       → WithHeaders(map[string]string)
+  protocol: "ws"|"sse",                  → affects URL scheme (ws:// vs http://)
+  path:     string,                      → URL path suffix
+}
+returns: string (URL)                     ← Proxy.URL(ctx, containerID, port, path)
+```
+
+Caller (frontend, Agent) establishes the actual WS/SSE connection using the returned URL.
+Go-side `ServiceConn` (with Read/Write/Events/Close) is available for Go callers only.
+
+`box.Info()` returns same structure as `BoxInfo[]` element above.
+
+#### Host object
+
+Host executes commands on the Tai host machine (no container). Available only when the pool's Tai server exposes HostExec gRPC. JS object holds pool name; all methods delegate to `sandbox.M().Host(ctx, pool)`.
+
+Read-only properties:
+
+| JS | Go |
+|----|----|
+| `host.pool` | `Host.Pool()` |
+
+Methods:
+
+| JS | Go | Returns |
+|----|-----|---------|
+| `host.Exec(cmd, args, opts?)` | `Host.Exec(ctx, cmd, args, ...HostExecOption)` | `HostExecResult` |
+| `host.Stream(cmd, args, [opts,] cb)` | `Host.Stream(ctx, cmd, args, ...HostExecOption)` | callback(type, data) |
+| `host.Workspace(sessionID)` | `Host.Workspace(sessionID)` | `WorkspaceFS` |
+
+`host.Exec(cmd, args, options?)`:
+
+```
+cmd:     string                    → cmd string
+args:    string[]                  → args []string
+options: {
+  workdir:    string,              → WithHostWorkDir(dir)
+  env:        object,              → WithHostEnv(map[string]string)
+  stdin:      string,              → WithHostStdin([]byte)
+  timeout:    number,              → WithHostTimeout(ms int64)
+  max_output: number               → WithHostMaxOutput(bytes int64)
 }
 returns: {
-  url:    string,                         ← ServiceConn.URL
-  read:   function() → Uint8Array,        ← ServiceConn.Read()
-  write:  function(data) → void,          ← ServiceConn.Write(data)
-  events: AsyncIterable<Uint8Array>,      ← ServiceConn.Events
-  close:  function() → void               ← ServiceConn.Close()
+  exit_code:   number,             ← HostExecResult.ExitCode
+  stdout:      string,              ← HostExecResult.Stdout (UTF-8)
+  stderr:      string,              ← HostExecResult.Stderr (UTF-8)
+  duration_ms: number,             ← HostExecResult.DurationMs
+  error:       string,             ← HostExecResult.Error
+  truncated:   boolean              ← HostExecResult.Truncated
 }
 ```
 
-`box.Info()` returns same structure as `BoxInfo[]` element above.
+`host.Stream(cmd, args, callback)` / `host.Stream(cmd, args, options, callback)`:
+
+```
+Blocks until exit. Last arg must be a JS function.
+options: same as host.Exec (optional)
+callback: function(type, data)
+  type = "stdout" → data is string (chunk)   ← HostExecStream.Stdout
+  type = "stderr" → data is string (chunk)   ← HostExecStream.Stderr
+  type = "exit"   → data is number (exit code) ← HostExecStream.Wait()
+```
+
+`host.Workspace(sessionID)` returns the same WorkspaceFS interface as `box.Workspace()`; sessionID typically corresponds to a workspace ID on the Tai host.
+
+#### NodeInfo object
+
+`sandbox.GetNode()`, `sandbox.Nodes()`, `sandbox.NodesByTeam()` return NodeInfo objects mapped from `registry.NodeSnapshot`. Auth and YaoBase fields are excluded for security.
+
+```
+{
+  tai_id:       string,           ← NodeSnapshot.TaiID
+  machine_id:   string,           ← NodeSnapshot.MachineID
+  version:      string,           ← NodeSnapshot.Version
+  mode:         string,           ← NodeSnapshot.Mode  ("direct"|"tunnel")
+  addr:         string,           ← NodeSnapshot.Addr
+  status:       string,           ← NodeSnapshot.Status ("online"|"offline"|"connecting")
+  pool:         string,           ← NodeSnapshot.PoolName
+  connected_at: string,           ← NodeSnapshot.ConnectedAt (ISO 8601)
+  last_ping:    string,           ← NodeSnapshot.LastPing    (ISO 8601)
+  ports: {                        ← NodeSnapshot.Ports
+    grpc:   number,
+    http:   number,
+    vnc:    number,
+    docker: number,
+    k8s:    number,
+  },
+  capabilities: {                 ← NodeSnapshot.Capabilities
+    docker:    boolean,
+    k8s:       boolean,
+    host_exec: boolean,
+  },
+  system: {                       ← NodeSnapshot.System (SystemInfo)
+    os:        string,
+    arch:      string,
+    hostname:  string,
+    num_cpu:   number,
+    total_mem: number,
+  }
+}
+```
 
 #### workspace namespace (`RegisterObject("workspace")`)
 

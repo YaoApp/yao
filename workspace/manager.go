@@ -8,8 +8,24 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/volume"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
+
+var mgr *Manager
+
+// Init initializes the global workspace Manager with the given pools.
+func Init(pools map[string]*tai.Client) {
+	mgr = NewManager(pools)
+}
+
+// M returns the global Manager. Panics if Init was not called.
+func M() *Manager {
+	if mgr == nil {
+		panic("workspace.Init not called")
+	}
+	return mgr
+}
 
 // Manager owns workspace CRUD, file I/O, and node management.
 // Pools are shared with sandbox.Manager — both reference the same tai.Client instances.
@@ -235,6 +251,33 @@ func (m *Manager) Remove(ctx context.Context, id string, path string) error {
 		return err
 	}
 	return client.Volume().Remove(ctx, id, path, true)
+}
+
+// Rename renames a file or directory within the workspace.
+func (m *Manager) Rename(ctx context.Context, id string, oldPath, newPath string) error {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return client.Volume().Rename(ctx, id, oldPath, newPath)
+}
+
+// MkdirAll creates a directory (and parents) in the workspace.
+func (m *Manager) MkdirAll(ctx context.Context, id string, path string) error {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return client.Volume().MkdirAll(ctx, id, path)
+}
+
+// Volume returns the Volume interface for the node hosting the given workspace.
+func (m *Manager) Volume(ctx context.Context, id string) (volume.Volume, string, error) {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, "", err
+	}
+	return client.Volume(), id, nil
 }
 
 // AddPool registers a new Tai node.

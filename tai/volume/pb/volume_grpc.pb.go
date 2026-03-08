@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v4.25.0
-// source: volume/pb/volume.proto
+// source: tai/volume/pb/volume.proto
 
 package pb
 
@@ -28,13 +28,22 @@ const (
 	Volume_Remove_FullMethodName    = "/volume.Volume/Remove"
 	Volume_Rename_FullMethodName    = "/volume.Volume/Rename"
 	Volume_MkdirAll_FullMethodName  = "/volume.Volume/MkdirAll"
+	Volume_Zip_FullMethodName       = "/volume.Volume/Zip"
+	Volume_Unzip_FullMethodName     = "/volume.Volume/Unzip"
+	Volume_Gzip_FullMethodName      = "/volume.Volume/Gzip"
+	Volume_Gunzip_FullMethodName    = "/volume.Volume/Gunzip"
+	Volume_Tar_FullMethodName       = "/volume.Volume/Tar"
+	Volume_Untar_FullMethodName     = "/volume.Volume/Untar"
+	Volume_Tgz_FullMethodName       = "/volume.Volume/Tgz"
+	Volume_Untgz_FullMethodName     = "/volume.Volume/Untgz"
 )
 
 // VolumeClient is the client API for Volume service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Volume provides bulk file synchronization and real-time filesystem I/O.
+// Volume provides bulk file synchronization, real-time filesystem I/O,
+// and archive/compression operations.
 // Shares gRPC port :19100 with Yao Gateway.
 type VolumeClient interface {
 	// SyncPush: Yao sends code to Tai (before container start).
@@ -54,6 +63,14 @@ type VolumeClient interface {
 	Remove(ctx context.Context, in *FSRemoveRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
 	Rename(ctx context.Context, in *FSRenameRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
 	MkdirAll(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
+	Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Unzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Gzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Gunzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Tar(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Untar(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Tgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	Untgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 }
 
 type volumeClient struct {
@@ -178,11 +195,92 @@ func (c *volumeClient) MkdirAll(ctx context.Context, in *FSRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *volumeClient) Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Zip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Unzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Unzip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Gzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Gzip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Gunzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Gunzip_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Tar(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Tar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Untar(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Untar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Tgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Tgz_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) Untgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArchiveResponse)
+	err := c.cc.Invoke(ctx, Volume_Untgz_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VolumeServer is the server API for Volume service.
 // All implementations must embed UnimplementedVolumeServer
 // for forward compatibility.
 //
-// Volume provides bulk file synchronization and real-time filesystem I/O.
+// Volume provides bulk file synchronization, real-time filesystem I/O,
+// and archive/compression operations.
 // Shares gRPC port :19100 with Yao Gateway.
 type VolumeServer interface {
 	// SyncPush: Yao sends code to Tai (before container start).
@@ -202,6 +300,14 @@ type VolumeServer interface {
 	Remove(context.Context, *FSRemoveRequest) (*FSOpResponse, error)
 	Rename(context.Context, *FSRenameRequest) (*FSOpResponse, error)
 	MkdirAll(context.Context, *FSRequest) (*FSOpResponse, error)
+	Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Unzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Gzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Gunzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Tar(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Untar(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Tgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	Untgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	mustEmbedUnimplementedVolumeServer()
 }
 
@@ -238,6 +344,30 @@ func (UnimplementedVolumeServer) Rename(context.Context, *FSRenameRequest) (*FSO
 }
 func (UnimplementedVolumeServer) MkdirAll(context.Context, *FSRequest) (*FSOpResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MkdirAll not implemented")
+}
+func (UnimplementedVolumeServer) Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Zip not implemented")
+}
+func (UnimplementedVolumeServer) Unzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Unzip not implemented")
+}
+func (UnimplementedVolumeServer) Gzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Gzip not implemented")
+}
+func (UnimplementedVolumeServer) Gunzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Gunzip not implemented")
+}
+func (UnimplementedVolumeServer) Tar(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Tar not implemented")
+}
+func (UnimplementedVolumeServer) Untar(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Untar not implemented")
+}
+func (UnimplementedVolumeServer) Tgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Tgz not implemented")
+}
+func (UnimplementedVolumeServer) Untgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Untgz not implemented")
 }
 func (UnimplementedVolumeServer) mustEmbedUnimplementedVolumeServer() {}
 func (UnimplementedVolumeServer) testEmbeddedByValue()                {}
@@ -386,6 +516,150 @@ func _Volume_MkdirAll_Handler(srv interface{}, ctx context.Context, dec func(int
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Volume_Zip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Zip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Zip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Zip(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Unzip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Unzip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Unzip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Unzip(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Gzip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Gzip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Gzip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Gzip(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Gunzip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Gunzip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Gunzip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Gunzip(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Tar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Tar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Tar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Tar(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Untar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Untar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Untar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Untar(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Tgz_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Tgz(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Tgz_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Tgz(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Untgz_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArchiveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Untgz(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Untgz_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Untgz(ctx, req.(*ArchiveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Volume_ServiceDesc is the grpc.ServiceDesc for Volume service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -413,6 +687,38 @@ var Volume_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "MkdirAll",
 			Handler:    _Volume_MkdirAll_Handler,
 		},
+		{
+			MethodName: "Zip",
+			Handler:    _Volume_Zip_Handler,
+		},
+		{
+			MethodName: "Unzip",
+			Handler:    _Volume_Unzip_Handler,
+		},
+		{
+			MethodName: "Gzip",
+			Handler:    _Volume_Gzip_Handler,
+		},
+		{
+			MethodName: "Gunzip",
+			Handler:    _Volume_Gunzip_Handler,
+		},
+		{
+			MethodName: "Tar",
+			Handler:    _Volume_Tar_Handler,
+		},
+		{
+			MethodName: "Untar",
+			Handler:    _Volume_Untar_Handler,
+		},
+		{
+			MethodName: "Tgz",
+			Handler:    _Volume_Tgz_Handler,
+		},
+		{
+			MethodName: "Untgz",
+			Handler:    _Volume_Untgz_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -437,5 +743,5 @@ var Volume_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "volume/pb/volume.proto",
+	Metadata: "tai/volume/pb/volume.proto",
 }

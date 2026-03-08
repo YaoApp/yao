@@ -33,36 +33,33 @@ import (
 //	  stderr:    string                         ← ExecResult.Stderr
 //	}
 //
-// box.Stream(cmd, options?) → ExecStream
+// box.Stream(cmd, callback) / box.Stream(cmd, options, callback)
 //
 //	Go: Box.Stream(ctx, cmd []string, opts ...ExecOption) (*ExecStream, error)
 //
-//	JS returns: {
-//	  stdout: ReadableStream,                   ← ExecStream.Stdout
-//	  stderr: ReadableStream,                   ← ExecStream.Stderr
-//	  stdin:  WritableStream,                   ← ExecStream.Stdin
-//	  wait:   function() → number,              ← ExecStream.Wait() (int, error)
-//	  cancel: function() → void                 ← ExecStream.Cancel()
-//	}
-//
-// box.Attach(port, options?) → ServiceConn
-//
-//	Go: Box.Attach(ctx, port int, opts ...AttachOption) (*ServiceConn, error)
+//	Blocks until the process exits. The last argument must be a JS function.
+//	Callback signature: function(type, data)
+//	  type = "stdout" → data is string (chunk)
+//	  type = "stderr" → data is string (chunk)
+//	  type = "exit"   → data is number (exit code)
 //
 //	JS args:
+//	  cmd:      string[]
+//	  options:  { workdir, env, timeout }   (optional, same as Exec)
+//	  callback: function(type, data)
+//
+// box.Attach(port, options?) → string
+//
+//	Go: Proxy.URL(ctx, containerID, port, path) (string, error)
+//
+//	Returns the service URL string. Caller (frontend/Agent) establishes WS/SSE.
+//	JS args:
 //	  port:    number                           → port int
-//	  options: {                                → AttachOption functional options
-//	    protocol: "ws"|"sse",                   → WithProtocol(protocol)
-//	    path:     string,                       → WithPath(path)
-//	    headers:  object                        → WithHeaders(map[string]string)
+//	  options: {                                → AttachOption
+//	    protocol: "ws"|"sse",                   → affects URL scheme
+//	    path:     string,                       → URL path suffix
 //	  }
-//	JS returns: {
-//	  url:    string,                           ← ServiceConn.URL
-//	  read:   function() → Uint8Array,          ← ServiceConn.Read() ([]byte, error)
-//	  write:  function(data) → void,            ← ServiceConn.Write(data) error
-//	  events: AsyncIterable<Uint8Array>,        ← ServiceConn.Events <-chan []byte
-//	  close:  function() → void                 ← ServiceConn.Close() error
-//	}
+//	JS returns: string (URL)
 //
 // box.VNC() → string
 //
@@ -76,10 +73,9 @@ import (
 //
 // box.Workspace() → WorkspaceFS
 //
-//	Go: Box.Workspace() workspace.FS
-//	      Box.WorkspaceID() string
-//	Returns: WorkspaceFS object (see workspace/jsapi/fs.go)
-//	         Uses box.WorkspaceID() to create NewFSObject
+//	Implemented in workspace/jsapi package. This method calls:
+//	  workspace.NewFSObject(v8ctx, box.WorkspaceID())
+//	and returns the resulting WorkspaceFS object directly.
 //
 // box.Info() → BoxInfo
 //
@@ -117,7 +113,7 @@ func NewBoxObject(v8ctx *v8go.Context, boxID string) (*v8go.Value, error) {
 	// 3. Bind each method as FunctionTemplate:
 	//    - Exec    → sandbox.M().Get(id).Exec(ctx, cmd, opts...)
 	//    - Stream  → sandbox.M().Get(id).Stream(ctx, cmd, opts...)
-	//    - Attach  → sandbox.M().Get(id).Attach(ctx, port, opts...)
+	//    - Attach  → client.Proxy().URL(ctx, containerID, port, path) → string
 	//    - VNC     → sandbox.M().Get(id).VNC(ctx)
 	//    - Proxy   → sandbox.M().Get(id).Proxy(ctx, port, path)
 	//    - Workspace → NewFSObject(v8ctx, sandbox.M().Get(id).WorkspaceID())

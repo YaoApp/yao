@@ -383,6 +383,183 @@ func TestRemoteVolume(t *testing.T) {
 		}
 	})
 
+	t.Run("SyncPush with RemotePath", func(t *testing.T) {
+		srcDir := t.TempDir()
+		_ = os.WriteFile(filepath.Join(srcDir, "mod.go"), []byte("module test"), 0o644)
+		result, err := vol.SyncPush(ctx, "rp-test", srcDir, WithForceFull(), WithRemotePath("packages/api"))
+		if err != nil {
+			t.Fatalf("SyncPush: %v", err)
+		}
+		if result.FilesSynced < 1 {
+			t.Errorf("synced = %d", result.FilesSynced)
+		}
+		_ = vol.Remove(ctx, "rp-test", ".", true)
+	})
+
+	t.Run("SyncPull with RemotePath", func(t *testing.T) {
+		rpSid := "rp-pull-test"
+		_ = vol.MkdirAll(ctx, rpSid, "sub/deep")
+		_ = vol.WriteFile(ctx, rpSid, "sub/deep/f.txt", []byte("deep"), 0o644)
+		_ = vol.WriteFile(ctx, rpSid, "root.txt", []byte("root"), 0o644)
+
+		dstDir := t.TempDir()
+		result, err := vol.SyncPull(ctx, rpSid, dstDir, WithForceFull(), WithRemotePath("sub/deep"))
+		if err != nil {
+			t.Fatalf("SyncPull: %v", err)
+		}
+		if result.FilesSynced < 1 {
+			t.Errorf("synced = %d", result.FilesSynced)
+		}
+		data, err := os.ReadFile(filepath.Join(dstDir, "f.txt"))
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(data) != "deep" {
+			t.Errorf("content = %q", data)
+		}
+		_ = vol.Remove(ctx, rpSid, ".", true)
+	})
+
+	t.Run("Zip and Unzip", func(t *testing.T) {
+		arcSid := "arc-zip-test"
+		_ = vol.MkdirAll(ctx, arcSid, "src")
+		_ = vol.WriteFile(ctx, arcSid, "src/a.txt", []byte("zip a"), 0o644)
+		_ = vol.WriteFile(ctx, arcSid, "src/b.txt", []byte("zip b"), 0o644)
+
+		zr, err := vol.Zip(ctx, arcSid, "src", "out.zip", nil)
+		if err != nil {
+			t.Fatalf("Zip: %v", err)
+		}
+		if zr.FilesCount != 2 {
+			t.Errorf("zip files = %d, want 2", zr.FilesCount)
+		}
+
+		ur, err := vol.Unzip(ctx, arcSid, "out.zip", "extracted")
+		if err != nil {
+			t.Fatalf("Unzip: %v", err)
+		}
+		if ur.FilesCount != 2 {
+			t.Errorf("unzip files = %d, want 2", ur.FilesCount)
+		}
+
+		data, _, err := vol.ReadFile(ctx, arcSid, "extracted/a.txt")
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(data) != "zip a" {
+			t.Errorf("content = %q", data)
+		}
+		_ = vol.Remove(ctx, arcSid, ".", true)
+	})
+
+	t.Run("Zip with excludes", func(t *testing.T) {
+		arcSid := "arc-zip-excl"
+		_ = vol.MkdirAll(ctx, arcSid, "src")
+		_ = vol.WriteFile(ctx, arcSid, "src/keep.txt", []byte("keep"), 0o644)
+		_ = vol.WriteFile(ctx, arcSid, "src/skip.log", []byte("skip"), 0o644)
+
+		zr, err := vol.Zip(ctx, arcSid, "src", "filtered.zip", []string{"*.log"})
+		if err != nil {
+			t.Fatalf("Zip: %v", err)
+		}
+		if zr.FilesCount != 1 {
+			t.Errorf("zip files = %d, want 1", zr.FilesCount)
+		}
+		_ = vol.Remove(ctx, arcSid, ".", true)
+	})
+
+	t.Run("Gzip and Gunzip", func(t *testing.T) {
+		arcSid := "arc-gzip-test"
+		_ = vol.WriteFile(ctx, arcSid, "data.txt", []byte("gzip remote"), 0o644)
+
+		gr, err := vol.Gzip(ctx, arcSid, "data.txt", "data.txt.gz")
+		if err != nil {
+			t.Fatalf("Gzip: %v", err)
+		}
+		if gr.FilesCount != 1 {
+			t.Errorf("gzip files = %d", gr.FilesCount)
+		}
+
+		ur, err := vol.Gunzip(ctx, arcSid, "data.txt.gz", "restored.txt")
+		if err != nil {
+			t.Fatalf("Gunzip: %v", err)
+		}
+		if ur.FilesCount != 1 {
+			t.Errorf("gunzip files = %d", ur.FilesCount)
+		}
+
+		data, _, err := vol.ReadFile(ctx, arcSid, "restored.txt")
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(data) != "gzip remote" {
+			t.Errorf("content = %q", data)
+		}
+		_ = vol.Remove(ctx, arcSid, ".", true)
+	})
+
+	t.Run("Tar and Untar", func(t *testing.T) {
+		arcSid := "arc-tar-test"
+		_ = vol.MkdirAll(ctx, arcSid, "src")
+		_ = vol.WriteFile(ctx, arcSid, "src/x.txt", []byte("tar remote"), 0o644)
+
+		tr, err := vol.Tar(ctx, arcSid, "src", "out.tar", nil)
+		if err != nil {
+			t.Fatalf("Tar: %v", err)
+		}
+		if tr.FilesCount != 1 {
+			t.Errorf("tar files = %d", tr.FilesCount)
+		}
+
+		ur, err := vol.Untar(ctx, arcSid, "out.tar", "extracted")
+		if err != nil {
+			t.Fatalf("Untar: %v", err)
+		}
+		if ur.FilesCount != 1 {
+			t.Errorf("untar files = %d", ur.FilesCount)
+		}
+
+		data, _, err := vol.ReadFile(ctx, arcSid, "extracted/x.txt")
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(data) != "tar remote" {
+			t.Errorf("content = %q", data)
+		}
+		_ = vol.Remove(ctx, arcSid, ".", true)
+	})
+
+	t.Run("Tgz and Untgz", func(t *testing.T) {
+		arcSid := "arc-tgz-test"
+		_ = vol.MkdirAll(ctx, arcSid, "src")
+		_ = vol.WriteFile(ctx, arcSid, "src/f.txt", []byte("tgz remote"), 0o644)
+
+		tr, err := vol.Tgz(ctx, arcSid, "src", "out.tgz", nil)
+		if err != nil {
+			t.Fatalf("Tgz: %v", err)
+		}
+		if tr.FilesCount != 1 {
+			t.Errorf("tgz files = %d", tr.FilesCount)
+		}
+
+		ur, err := vol.Untgz(ctx, arcSid, "out.tgz", "extracted")
+		if err != nil {
+			t.Fatalf("Untgz: %v", err)
+		}
+		if ur.FilesCount != 1 {
+			t.Errorf("untgz files = %d", ur.FilesCount)
+		}
+
+		data, _, err := vol.ReadFile(ctx, arcSid, "extracted/f.txt")
+		if err != nil {
+			t.Fatalf("ReadFile: %v", err)
+		}
+		if string(data) != "tgz remote" {
+			t.Errorf("content = %q", data)
+		}
+		_ = vol.Remove(ctx, arcSid, ".", true)
+	})
+
 	// Cleanup
 	_ = vol.Remove(ctx, sid, ".", true)
 }
@@ -778,6 +955,290 @@ func TestLocalSyncPullForceFull(t *testing.T) {
 	}
 	if result.FilesSynced != 1 {
 		t.Errorf("synced = %d, want 1 (force full)", result.FilesSynced)
+	}
+}
+
+func TestLocalSyncPushWithRemotePath(t *testing.T) {
+	dataDir := t.TempDir()
+	vol := NewLocal(dataDir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "remote-path-push"
+
+	srcDir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(srcDir, "app.js"), []byte("console.log('hi')"), 0o644)
+	_ = os.MkdirAll(filepath.Join(srcDir, "lib"), 0o755)
+	_ = os.WriteFile(filepath.Join(srcDir, "lib", "util.js"), []byte("export {}"), 0o644)
+
+	result, err := vol.SyncPush(ctx, sid, srcDir, WithForceFull(), WithRemotePath("packages/frontend"))
+	if err != nil {
+		t.Fatalf("SyncPush: %v", err)
+	}
+	if result.FilesSynced != 2 {
+		t.Errorf("synced = %d, want 2", result.FilesSynced)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dataDir, sid, "packages", "frontend", "app.js"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "console.log('hi')" {
+		t.Errorf("content = %q", data)
+	}
+
+	nested, err := os.ReadFile(filepath.Join(dataDir, sid, "packages", "frontend", "lib", "util.js"))
+	if err != nil {
+		t.Fatalf("ReadFile nested: %v", err)
+	}
+	if string(nested) != "export {}" {
+		t.Errorf("nested content = %q", nested)
+	}
+}
+
+func TestLocalSyncPullWithRemotePath(t *testing.T) {
+	dataDir := t.TempDir()
+	vol := NewLocal(dataDir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "remote-path-pull"
+
+	sessionDir := filepath.Join(dataDir, sid, "packages", "backend")
+	_ = os.MkdirAll(sessionDir, 0o755)
+	_ = os.WriteFile(filepath.Join(sessionDir, "main.go"), []byte("package main"), 0o644)
+
+	dstDir := t.TempDir()
+	result, err := vol.SyncPull(ctx, sid, dstDir, WithForceFull(), WithRemotePath("packages/backend"))
+	if err != nil {
+		t.Fatalf("SyncPull: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("synced = %d, want 1", result.FilesSynced)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dstDir, "main.go"))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "package main" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalZipUnzip(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "zip-test"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/a.txt", []byte("aaa"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/b.txt", []byte("bbb"), 0o644)
+
+	zr, err := vol.Zip(ctx, sid, "src", "out.zip", nil)
+	if err != nil {
+		t.Fatalf("Zip: %v", err)
+	}
+	if zr.FilesCount != 2 {
+		t.Errorf("zip files = %d, want 2", zr.FilesCount)
+	}
+	if zr.SizeBytes <= 0 {
+		t.Error("zip size should be > 0")
+	}
+
+	ur, err := vol.Unzip(ctx, sid, "out.zip", "extracted")
+	if err != nil {
+		t.Fatalf("Unzip: %v", err)
+	}
+	if ur.FilesCount != 2 {
+		t.Errorf("unzip files = %d, want 2", ur.FilesCount)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "extracted/a.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "aaa" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalZipExcludes(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "zip-excl"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/keep.txt", []byte("keep"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/skip.log", []byte("skip"), 0o644)
+
+	zr, err := vol.Zip(ctx, sid, "src", "filtered.zip", []string{"*.log"})
+	if err != nil {
+		t.Fatalf("Zip: %v", err)
+	}
+	if zr.FilesCount != 1 {
+		t.Errorf("zip files = %d, want 1", zr.FilesCount)
+	}
+
+	ur, err := vol.Unzip(ctx, sid, "filtered.zip", "out")
+	if err != nil {
+		t.Fatalf("Unzip: %v", err)
+	}
+	if ur.FilesCount != 1 {
+		t.Errorf("unzip files = %d, want 1", ur.FilesCount)
+	}
+
+	_, err = vol.Stat(ctx, sid, "out/keep.txt")
+	if err != nil {
+		t.Error("keep.txt should exist")
+	}
+	_, err = vol.Stat(ctx, sid, "out/skip.log")
+	if !os.IsNotExist(err) {
+		t.Error("skip.log should not exist")
+	}
+}
+
+func TestLocalGzipGunzip(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "gzip-test"
+
+	_ = vol.WriteFile(ctx, sid, "data.txt", []byte("gzip test content"), 0o644)
+
+	gr, err := vol.Gzip(ctx, sid, "data.txt", "data.txt.gz")
+	if err != nil {
+		t.Fatalf("Gzip: %v", err)
+	}
+	if gr.FilesCount != 1 {
+		t.Errorf("gzip files = %d", gr.FilesCount)
+	}
+	if gr.SizeBytes <= 0 {
+		t.Error("gzip size should be > 0")
+	}
+
+	ur, err := vol.Gunzip(ctx, sid, "data.txt.gz", "restored.txt")
+	if err != nil {
+		t.Fatalf("Gunzip: %v", err)
+	}
+	if ur.FilesCount != 1 {
+		t.Errorf("gunzip files = %d", ur.FilesCount)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "restored.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "gzip test content" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalGzipRejectsDir(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "gzip-dir"
+
+	_ = vol.MkdirAll(ctx, sid, "subdir")
+	_, err := vol.Gzip(ctx, sid, "subdir", "subdir.gz")
+	if err == nil {
+		t.Error("expected error for gzip on directory")
+	}
+}
+
+func TestLocalTarUntar(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "tar-test"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/x.txt", []byte("tar x"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/y.txt", []byte("tar y"), 0o644)
+
+	tr, err := vol.Tar(ctx, sid, "src", "out.tar", nil)
+	if err != nil {
+		t.Fatalf("Tar: %v", err)
+	}
+	if tr.FilesCount != 2 {
+		t.Errorf("tar files = %d, want 2", tr.FilesCount)
+	}
+
+	ur, err := vol.Untar(ctx, sid, "out.tar", "extracted")
+	if err != nil {
+		t.Fatalf("Untar: %v", err)
+	}
+	if ur.FilesCount != 2 {
+		t.Errorf("untar files = %d, want 2", ur.FilesCount)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "extracted/x.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "tar x" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalTarExcludes(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "tar-excl"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/keep.txt", []byte("keep"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/skip.log", []byte("skip"), 0o644)
+
+	tr, err := vol.Tar(ctx, sid, "src", "out.tar", []string{"*.log"})
+	if err != nil {
+		t.Fatalf("Tar: %v", err)
+	}
+	if tr.FilesCount != 1 {
+		t.Errorf("tar files = %d, want 1", tr.FilesCount)
+	}
+}
+
+func TestLocalTgzUntgz(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "tgz-test"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/f.txt", []byte("tgz content"), 0o644)
+
+	tr, err := vol.Tgz(ctx, sid, "src", "out.tgz", nil)
+	if err != nil {
+		t.Fatalf("Tgz: %v", err)
+	}
+	if tr.FilesCount != 1 {
+		t.Errorf("tgz files = %d", tr.FilesCount)
+	}
+
+	ur, err := vol.Untgz(ctx, sid, "out.tgz", "extracted")
+	if err != nil {
+		t.Fatalf("Untgz: %v", err)
+	}
+	if ur.FilesCount != 1 {
+		t.Errorf("untgz files = %d", ur.FilesCount)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "extracted/f.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "tgz content" {
+		t.Errorf("content = %q", data)
 	}
 }
 

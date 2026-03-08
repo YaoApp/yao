@@ -1,30 +1,12 @@
 // Package jsapi registers the workspace namespace into the Yao V8 runtime.
-//
-// All methods are static on the workspace object — no constructor.
-//
-// # JavaScript API
-//
-//	const ws = workspace.Create({ name: "proj", owner: "user1", node: "default" })
-//	const ws = workspace.Get(id)
-//	ws.ReadFile("main.go")          → string
-//	ws.WriteFile("out.txt", data)   → void
-//	ws.ReadDir("src/")              → [{ name, is_dir, size }]
-//	workspace.Delete(id)            → void
-//
-// # Go mapping
-//
-//	workspace.Create(opts)  → Manager.Create(ctx, CreateOptions)   → *Workspace → WorkspaceFS
-//	workspace.Get(id)       → Manager.Get(ctx, id)                 → *Workspace → WorkspaceFS
-//	workspace.List(filter?) → Manager.List(ctx, ListOptions)       → []*Workspace → WorkspaceInfo[]
-//	workspace.Delete(id)    → Manager.Delete(ctx, id, false)       → void
-//
-// Registration happens via init() — import with:
-//
-//	_ "github.com/yaoapp/yao/workspace/jsapi"
 package jsapi
 
 import (
+	"context"
+	"encoding/json"
+
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	"github.com/yaoapp/yao/workspace"
 	"rogchap.com/v8go"
 )
 
@@ -32,7 +14,6 @@ func init() {
 	v8.RegisterObject("workspace", ExportObject)
 }
 
-// ExportObject exports the workspace namespace object to V8.
 func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	obj := v8go.NewObjectTemplate(iso)
 	obj.Set("Create", v8go.NewFunctionTemplate(iso, wsCreate))
@@ -42,88 +23,152 @@ func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	return obj
 }
 
-// wsCreate: `workspace.Create(options)` → WorkspaceFS
-//
-// Go: Manager.Create(ctx, CreateOptions) (*Workspace, error)
-//
-// JS options → Go CreateOptions mapping:
-//
-//	{
-//	  id:     string  →  CreateOptions.ID      // optional; auto-generated if empty
-//	  name:   string  →  CreateOptions.Name    // required, human-readable name
-//	  owner:  string  →  CreateOptions.Owner   // required, user ID
-//	  node:   string  →  CreateOptions.Node    // required, target Tai node
-//	  labels: object  →  CreateOptions.Labels  // optional, map[string]string
-//	}
-//
-// Returns: WorkspaceFS object (see fs.go)
 func wsCreate(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. Parse options from info.Args()[0]
-	// 2. Validate required fields (name, owner, node)
-	// 3. ws := workspace.M().Create(ctx, opts)
-	// 4. Return NewFSObject(v8ctx, ws.ID)
-	return v8go.Undefined(info.Context().Isolate())
+	ctx := context.Background()
+
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsObject() {
+		return throwError(info, "workspace.Create requires an options object")
+	}
+
+	optsObj, err := args[0].AsObject()
+	if err != nil {
+		return throwError(info, "invalid options: "+err.Error())
+	}
+
+	opts := workspace.CreateOptions{}
+	if v, e := optsObj.Get("id"); e == nil && v.IsString() {
+		opts.ID = v.String()
+	}
+	if v, e := optsObj.Get("name"); e == nil && v.IsString() {
+		opts.Name = v.String()
+	}
+	if v, e := optsObj.Get("owner"); e == nil && v.IsString() {
+		opts.Owner = v.String()
+	}
+	if v, e := optsObj.Get("node"); e == nil && v.IsString() {
+		opts.Node = v.String()
+	}
+	if v, e := optsObj.Get("labels"); e == nil && v.IsObject() {
+		opts.Labels = parseStringMapFromValue(info.Context(), v)
+	}
+
+	if opts.Name == "" || opts.Owner == "" || opts.Node == "" {
+		return throwError(info, "workspace.Create: name, owner, and node are required")
+	}
+
+	ws, err := workspace.M().Create(ctx, opts)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+
+	val, err := NewFSObject(info.Context(), ws.ID)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+	return val
 }
 
-// wsGet: `workspace.Get(id)` → WorkspaceFS | null
-//
-// Go: Manager.Get(ctx, id) (*Workspace, error)
-//
-// Args:
-//
-//	id: string  — workspace ID
-//
-// Returns: WorkspaceFS object if found, null if not found
 func wsGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. id = info.Args()[0].String()
-	// 2. ws, err := workspace.M().Get(ctx, id)
-	// 3. Return NewFSObject(v8ctx, id) or null
-	return v8go.Undefined(info.Context().Isolate())
+	iso := info.Context().Isolate()
+	ctx := context.Background()
+
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsString() {
+		return throwError(info, "workspace.Get requires a string ID")
+	}
+
+	id := args[0].String()
+	_, err := workspace.M().Get(ctx, id)
+	if err != nil {
+		return v8go.Null(iso)
+	}
+
+	val, err := NewFSObject(info.Context(), id)
+	if err != nil {
+		return v8go.Null(iso)
+	}
+	return val
 }
 
-// wsList: `workspace.List(filter?)` → WorkspaceInfo[]
-//
-// Go: Manager.List(ctx, ListOptions) ([]*Workspace, error)
-//
-// JS filter → Go ListOptions mapping:
-//
-//	{
-//	  owner: string  →  ListOptions.Owner  // filter by owner; empty = all
-//	  node:  string  →  ListOptions.Node   // filter by node; empty = all
-//	}
-//
-// Returns: WorkspaceInfo[] — each element:
-//
-//	{
-//	  id:         string  ←  Workspace.ID
-//	  name:       string  ←  Workspace.Name
-//	  owner:      string  ←  Workspace.Owner
-//	  node:       string  ←  Workspace.Node
-//	  labels:     object  ←  Workspace.Labels
-//	  created_at: string  ←  Workspace.CreatedAt (ISO 8601)
-//	  updated_at: string  ←  Workspace.UpdatedAt (ISO 8601)
-//	}
 func wsList(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. Parse optional filter from info.Args()[0]
-	// 2. list := workspace.M().List(ctx, opts)
-	// 3. Convert each *Workspace → JS object
-	// 4. Return JS array
-	return v8go.Undefined(info.Context().Isolate())
+	ctx := context.Background()
+	v8ctx := info.Context()
+
+	opts := workspace.ListOptions{}
+	args := info.Args()
+	if len(args) > 0 && args[0].IsObject() {
+		filterObj, _ := args[0].AsObject()
+		if filterObj != nil {
+			if v, e := filterObj.Get("owner"); e == nil && v.IsString() {
+				opts.Owner = v.String()
+			}
+			if v, e := filterObj.Get("node"); e == nil && v.IsString() {
+				opts.Node = v.String()
+			}
+		}
+	}
+
+	list, err := workspace.M().List(ctx, opts)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+
+	type wsInfo struct {
+		ID        string            `json:"id"`
+		Name      string            `json:"name"`
+		Owner     string            `json:"owner"`
+		Node      string            `json:"node"`
+		Labels    map[string]string `json:"labels,omitempty"`
+		CreatedAt string            `json:"created_at"`
+		UpdatedAt string            `json:"updated_at"`
+	}
+
+	items := make([]wsInfo, len(list))
+	for i, ws := range list {
+		items[i] = wsInfo{
+			ID: ws.ID, Name: ws.Name, Owner: ws.Owner, Node: ws.Node,
+			Labels: ws.Labels, CreatedAt: ws.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt: ws.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	data, _ := json.Marshal(items)
+	val, err := v8go.JSONParse(v8ctx, string(data))
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+	return val
 }
 
-// wsDelete: `workspace.Delete(id)` → void
-//
-// Go: Manager.Delete(ctx, id string, force bool) error
-//
-// Args:
-//
-//	id: string  — workspace ID to remove (force = false)
 func wsDelete(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. id = info.Args()[0].String()
-	// 2. workspace.M().Delete(ctx, id, false)
-	return v8go.Undefined(info.Context().Isolate())
+	iso := info.Context().Isolate()
+	ctx := context.Background()
+
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsString() {
+		return throwError(info, "workspace.Delete requires a string ID")
+	}
+
+	if err := workspace.M().Delete(ctx, args[0].String(), false); err != nil {
+		return throwError(info, err.Error())
+	}
+	return v8go.Undefined(iso)
+}
+
+func throwError(info *v8go.FunctionCallbackInfo, msg string) *v8go.Value {
+	iso := info.Context().Isolate()
+	e, _ := v8go.NewValue(iso, msg)
+	iso.ThrowException(e)
+	return v8go.Undefined(iso)
+}
+
+func parseStringMapFromValue(v8ctx *v8go.Context, val *v8go.Value) map[string]string {
+	result := make(map[string]string)
+	jsonStr, err := v8go.JSONStringify(v8ctx, val)
+	if err != nil {
+		return result
+	}
+	_ = json.Unmarshal([]byte(jsonStr), &result)
+	return result
 }
