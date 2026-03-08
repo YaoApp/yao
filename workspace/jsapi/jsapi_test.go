@@ -9,9 +9,9 @@ import (
 	v8runtime "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/volume"
 	"github.com/yaoapp/yao/test"
-	"github.com/yaoapp/yao/workspace"
 	_ "github.com/yaoapp/yao/workspace/jsapi"
 )
 
@@ -32,6 +32,8 @@ func testModes() []testMode {
 func setupForMode(t *testing.T, m testMode) {
 	t.Helper()
 	test.Prepare(t, config.Conf)
+	registry.Init(nil)
+
 	var client *tai.Client
 	var err error
 	if m.Addr == "local" {
@@ -45,7 +47,6 @@ func setupForMode(t *testing.T, m testMode) {
 		t.Fatalf("tai.New(%s): %v", m.Addr, err)
 	}
 	t.Cleanup(func() { client.Close() })
-	workspace.Init(map[string]*tai.Client{"default": client})
 }
 
 func setupGlobal(t *testing.T) {
@@ -88,7 +89,7 @@ func TestWSCreateAndDelete(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSCreateAndDelete() {
-				var ws = workspace.Create({ name: "test-proj", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "test-proj", owner: "u1", node: "local" });
 				var id = ws.id;
 				workspace.Delete(id);
 				return id;
@@ -105,7 +106,7 @@ func TestWSGet(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSGet() {
-				var ws = workspace.Create({ name: "get-test", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "get-test", owner: "u1", node: "local" });
 				var got = workspace.Get(ws.id);
 				var result = got ? got.id : "null";
 				workspace.Delete(ws.id);
@@ -138,8 +139,8 @@ func TestWSList(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSList() {
-				var ws1 = workspace.Create({ name: "list-a", owner: "u1", node: "default" });
-				var ws2 = workspace.Create({ name: "list-b", owner: "u1", node: "default" });
+				var ws1 = workspace.Create({ name: "list-a", owner: "u1", node: "local" });
+				var ws2 = workspace.Create({ name: "list-b", owner: "u1", node: "local" });
 				var list = workspace.List({ owner: "u1" });
 				var count = list.length;
 				workspace.Delete(ws1.id);
@@ -158,7 +159,7 @@ func TestWSReadWriteFile(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSReadWriteFile() {
-				var ws = workspace.Create({ name: "rw-test", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "rw-test", owner: "u1", node: "local" });
 				ws.WriteFile("hello.txt", "Hello, World!");
 				var content = ws.ReadFile("hello.txt");
 				workspace.Delete(ws.id);
@@ -176,7 +177,7 @@ func TestWSReadDir(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSReadDir() {
-				var ws = workspace.Create({ name: "readdir", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "readdir", owner: "u1", node: "local" });
 				ws.WriteFile("a.txt", "aaa");
 				ws.MkdirAll("sub");
 				ws.WriteFile("sub/b.txt", "bbb");
@@ -196,7 +197,7 @@ func TestWSReadDirRecursive(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSReadDirRecursive() {
-				var ws = workspace.Create({ name: "readdir-r", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "readdir-r", owner: "u1", node: "local" });
 				ws.WriteFile("a.txt", "aaa");
 				ws.MkdirAll("sub/deep");
 				ws.WriteFile("sub/b.txt", "bbb");
@@ -217,7 +218,7 @@ func TestWSStat(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSStat() {
-				var ws = workspace.Create({ name: "stat-test", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "stat-test", owner: "u1", node: "local" });
 				ws.WriteFile("file.txt", "12345");
 				var info = ws.Stat("file.txt");
 				workspace.Delete(ws.id);
@@ -235,7 +236,7 @@ func TestWSExistsIsDirIsFile(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSExistsIsDirIsFile() {
-				var ws = workspace.Create({ name: "checks", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "checks", owner: "u1", node: "local" });
 				ws.WriteFile("f.txt", "data");
 				ws.MkdirAll("d");
 				var r = [
@@ -261,7 +262,7 @@ func TestWSRemoveAndRename(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSRemoveAndRename() {
-				var ws = workspace.Create({ name: "ops", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "ops", owner: "u1", node: "local" });
 				ws.WriteFile("del.txt", "x");
 				ws.Remove("del.txt");
 				var a = ws.Exists("del.txt");
@@ -291,7 +292,7 @@ func TestWSBase64(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSBase64() {
-				var ws = workspace.Create({ name: "b64", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "b64", owner: "u1", node: "local" });
 				ws.WriteFile("src.txt", "base64 test");
 				var b64 = ws.ReadFileBase64("src.txt");
 				ws.WriteFileBase64("dst.txt", b64);
@@ -311,7 +312,7 @@ func TestWSCopyInternal(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSCopyInternal() {
-				var ws = workspace.Create({ name: "copy", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "copy", owner: "u1", node: "local" });
 				ws.WriteFile("src.txt", "copy me");
 				ws.Copy("src.txt", "dst.txt");
 				var content = ws.ReadFile("dst.txt");
@@ -336,7 +337,7 @@ func TestWSCopyLocalToLocal(t *testing.T) {
 	dstRel := dstDir[len(os.TempDir()):]
 
 	runJS(t, `function TestWSCopyLocalToLocal() {
-		var ws = workspace.Create({ name: "l2l", owner: "u1", node: "default" });
+		var ws = workspace.Create({ name: "l2l", owner: "u1", node: "local" });
 		ws.Copy("tmp://`+srcRel+`", "tmp://`+dstRel+`");
 		workspace.Delete(ws.id);
 		return "ok";
@@ -356,7 +357,7 @@ func TestWSZipUnzip(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSZipUnzip() {
-				var ws = workspace.Create({ name: "zip", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "zip", owner: "u1", node: "local" });
 				ws.MkdirAll("src");
 				ws.WriteFile("src/a.txt", "zip content");
 				ws.WriteFile("src/b.txt", "more");
@@ -378,7 +379,7 @@ func TestWSGzipGunzip(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSGzipGunzip() {
-				var ws = workspace.Create({ name: "gzip", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "gzip", owner: "u1", node: "local" });
 				ws.WriteFile("data.txt", "gzip test");
 				ws.Gzip("data.txt", "data.txt.gz");
 				ws.Gunzip("data.txt.gz", "restored.txt");
@@ -398,7 +399,7 @@ func TestWSTarUntar(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSTarUntar() {
-				var ws = workspace.Create({ name: "tar", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "tar", owner: "u1", node: "local" });
 				ws.MkdirAll("src");
 				ws.WriteFile("src/a.txt", "tar a");
 				ws.Tar("src", "out.tar");
@@ -419,7 +420,7 @@ func TestWSTgzUntgz(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSTgzUntgz() {
-				var ws = workspace.Create({ name: "tgz", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "tgz", owner: "u1", node: "local" });
 				ws.MkdirAll("src");
 				ws.WriteFile("src/x.txt", "tgz x");
 				ws.Tgz("src", "out.tgz");
@@ -440,7 +441,7 @@ func TestWSZipExcludes(t *testing.T) {
 		t.Run(m.Name, func(t *testing.T) {
 			setupForMode(t, m)
 			res := runJS(t, `function TestWSZipExcludes() {
-				var ws = workspace.Create({ name: "zip-exc", owner: "u1", node: "default" });
+				var ws = workspace.Create({ name: "zip-exc", owner: "u1", node: "local" });
 				ws.MkdirAll("src");
 				ws.WriteFile("src/keep.txt", "keep");
 				ws.WriteFile("src/skip.log", "skip");

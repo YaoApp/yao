@@ -12,9 +12,10 @@ func TestHeartbeatUpdates(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			err := m.Heartbeat(box.ID(), true, 5)
 			if err != nil {
@@ -34,8 +35,9 @@ func TestHeartbeatUpdates(t *testing.T) {
 
 func TestHeartbeatUnknownBox(t *testing.T) {
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
+			m := setupManagerForPool(t, &pc)
 			err := m.Heartbeat("nonexistent", true, 1)
 			if err != sandbox.ErrNotFound {
 				t.Errorf("err = %v, want ErrNotFound", err)
@@ -48,17 +50,18 @@ func TestIdleCleanup(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc, func(p *sandbox.Pool) {
-				p.IdleTimeout = 1 * time.Second
-			})
-			ensureTestImage(t, m, pc.Name)
+			m := setupManagerForPool(t, &pc)
+			ensureTestImage(t, m, pc.TaiID)
 
 			ctx := context.Background()
 			box, err := m.Create(ctx, sandbox.CreateOptions{
-				Image:  testImage(),
-				Owner:  "test-user",
-				Policy: sandbox.Session,
+				Image:       testImage(),
+				Owner:       "test-user",
+				Pool:        pc.TaiID,
+				Policy:      sandbox.Session,
+				IdleTimeout: 1 * time.Second,
 			})
 			if err != nil {
 				t.Fatalf("Create: %v", err)
@@ -83,17 +86,13 @@ func TestStartRecovery(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			pool := sandbox.Pool{Name: pc.Name, Addr: pc.Addr, Options: pc.Options}
-
-			m1 := setupManager(t, pool)
-			box := createTestBox(t, m1)
+			m1 := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m1, pc)
 			boxID := box.ID()
 
-			cfg := sandbox.Config{Pool: []sandbox.Pool{pool}}
-			if err := sandbox.Init(cfg); err != nil {
-				t.Fatalf("Init2: %v", err)
-			}
+			sandbox.Init()
 			m2 := sandbox.M()
 			defer m2.Close()
 
@@ -119,13 +118,13 @@ func TestPersistentNotCleaned(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc, func(p *sandbox.Pool) {
-				p.IdleTimeout = 1 * time.Second
-			})
+			m := setupManagerForPool(t, &pc)
 
-			box := createTestBox(t, m, func(co *sandbox.CreateOptions) {
+			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Policy = sandbox.Persistent
+				co.IdleTimeout = 1 * time.Second
 			})
 
 			time.Sleep(2 * time.Second)

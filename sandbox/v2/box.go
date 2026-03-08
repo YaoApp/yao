@@ -23,9 +23,9 @@ type Box struct {
 	lastHeartbeat atomic.Int64
 	processCount  atomic.Int32
 	idleTimeoutD  time.Duration
+	maxLifetimeD  time.Duration
 	stopTimeoutD  time.Duration
 	createdAt     time.Time
-	refreshToken  string
 	vnc           bool
 	image         string
 	workspaceID   string
@@ -286,31 +286,16 @@ func (b *Box) lastActiveTime() time.Time {
 }
 
 func (b *Box) idleTimeout() time.Duration {
-	if b.idleTimeoutD > 0 {
-		return b.idleTimeoutD
-	}
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil {
-		return pd.IdleTimeout
-	}
-	return 0
+	return b.idleTimeoutD
 }
 
 func (b *Box) maxLifetime() time.Duration {
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil {
-		return pd.MaxLifetime
-	}
-	return 0
+	return b.maxLifetimeD
 }
 
 func (b *Box) stopTimeout() time.Duration {
 	if b.stopTimeoutD > 0 {
 		return b.stopTimeoutD
-	}
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil && pd.StopTimeout > 0 {
-		return pd.StopTimeout
 	}
 	return DefaultStopTimeout
 }

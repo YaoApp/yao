@@ -16,19 +16,20 @@ func TestWorkspaceID_Set(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, wsm := setupManagerWithWorkspace(t, pc)
+			sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			ws, err := wsm.Create(ctx, workspace.CreateOptions{
-				Name: "test-ws", Owner: "user", Node: pc.Name,
+				Name: "test-ws", Owner: "user", Node: pc.TaiID,
 			})
 			require.NoError(t, err)
 			defer wsm.Delete(context.Background(), ws.ID, true)
 
-			box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+			box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 				co.WorkspaceID = ws.ID
 			})
 
@@ -41,9 +42,10 @@ func TestWorkspaceID_Empty(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 			assert.Empty(t, box.WorkspaceID())
 		})
 	}
@@ -53,23 +55,24 @@ func TestWorkspace_NodeRouting(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, wsm := setupManagerWithWorkspace(t, pc)
+			sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			ws, err := wsm.Create(ctx, workspace.CreateOptions{
-				Name: "routed-ws", Owner: "user", Node: pc.Name,
+				Name: "routed-ws", Owner: "user", Node: pc.TaiID,
 			})
 			require.NoError(t, err)
 			defer wsm.Delete(context.Background(), ws.ID, true)
 
-			box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+			box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 				co.WorkspaceID = ws.ID
 			})
 
-			assert.Equal(t, pc.Name, box.Pool())
+			assert.Equal(t, pc.TaiID, box.Pool())
 		})
 	}
 }
@@ -78,9 +81,10 @@ func TestWorkspace_InvalidID(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, _ := setupManagerWithWorkspace(t, pc)
-			ensureTestImage(t, sbm, pc.Name)
+			sbm, _ := setupManagerWithWorkspace(t, &pc)
+			ensureTestImage(t, sbm, pc.TaiID)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -100,20 +104,20 @@ func TestWorkspace_BindMountLocal(t *testing.T) {
 	skipIfNoDocker(t)
 
 	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
-	sbm, wsm := setupManagerWithWorkspace(t, pc)
+	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ws, err := wsm.Create(ctx, workspace.CreateOptions{
-		Name: "mount-ws", Owner: "user", Node: pc.Name,
+		Name: "mount-ws", Owner: "user", Node: pc.TaiID,
 	})
 	require.NoError(t, err)
 	defer wsm.Delete(context.Background(), ws.ID, true)
 
 	require.NoError(t, wsm.WriteFile(ctx, ws.ID, "seed.txt", []byte("hello from workspace"), 0644))
 
-	box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+	box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 		co.WorkspaceID = ws.ID
 	})
 
@@ -126,18 +130,18 @@ func TestWorkspace_ContainerWriteBack(t *testing.T) {
 	skipIfNoDocker(t)
 
 	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
-	sbm, wsm := setupManagerWithWorkspace(t, pc)
+	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ws, err := wsm.Create(ctx, workspace.CreateOptions{
-		Name: "writeback-ws", Owner: "user", Node: pc.Name,
+		Name: "writeback-ws", Owner: "user", Node: pc.TaiID,
 	})
 	require.NoError(t, err)
 	defer wsm.Delete(context.Background(), ws.ID, true)
 
-	box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+	box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 		co.WorkspaceID = ws.ID
 	})
 
@@ -153,20 +157,20 @@ func TestWorkspace_ReadOnlyMount(t *testing.T) {
 	skipIfNoDocker(t)
 
 	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
-	sbm, wsm := setupManagerWithWorkspace(t, pc)
+	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ws, err := wsm.Create(ctx, workspace.CreateOptions{
-		Name: "ro-ws", Owner: "user", Node: pc.Name,
+		Name: "ro-ws", Owner: "user", Node: pc.TaiID,
 	})
 	require.NoError(t, err)
 	defer wsm.Delete(context.Background(), ws.ID, true)
 
 	require.NoError(t, wsm.WriteFile(ctx, ws.ID, "readonly.txt", []byte("immutable"), 0644))
 
-	box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+	box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 		co.WorkspaceID = ws.ID
 		co.MountMode = "ro"
 	})
@@ -186,20 +190,20 @@ func TestWorkspace_CustomMountPath(t *testing.T) {
 	skipIfNoDocker(t)
 
 	pc := poolConfig{Name: "local", Addr: testLocalAddr()}
-	sbm, wsm := setupManagerWithWorkspace(t, pc)
+	sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	ws, err := wsm.Create(ctx, workspace.CreateOptions{
-		Name: "custom-path-ws", Owner: "user", Node: pc.Name,
+		Name: "custom-path-ws", Owner: "user", Node: pc.TaiID,
 	})
 	require.NoError(t, err)
 	defer wsm.Delete(context.Background(), ws.ID, true)
 
 	require.NoError(t, wsm.WriteFile(ctx, ws.ID, "data.json", []byte(`{"ok":true}`), 0644))
 
-	box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+	box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 		co.WorkspaceID = ws.ID
 		co.MountPath = "/data"
 	})
@@ -214,25 +218,22 @@ func TestWorkspace_BoxWorkspaceFS(t *testing.T) {
 
 	for _, pc := range testPools() {
 		if pc.Name == "local" {
-			// Local mode: sandbox and workspace use separate tai.Clients with
-			// different dataDirs, so Box.Workspace() writes to the sandbox volume
-			// while wsm reads from the workspace volume. Bind mount tests cover
-			// local workspace I/O end-to-end instead.
 			continue
 		}
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, wsm := setupManagerWithWorkspace(t, pc)
+			sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			ws, err := wsm.Create(ctx, workspace.CreateOptions{
-				Name: "fs-ws", Owner: "user", Node: pc.Name,
+				Name: "fs-ws", Owner: "user", Node: pc.TaiID,
 			})
 			require.NoError(t, err)
 			defer wsm.Delete(context.Background(), ws.ID, true)
 
-			box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+			box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 				co.WorkspaceID = ws.ID
 			})
 
@@ -254,23 +255,23 @@ func TestWorkspace_LabelPersistence(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, wsm := setupManagerWithWorkspace(t, pc)
+			sbm, wsm := setupManagerWithWorkspace(t, &pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
 			ws, err := wsm.Create(ctx, workspace.CreateOptions{
-				Name: "label-ws", Owner: "user", Node: pc.Name,
+				Name: "label-ws", Owner: "user", Node: pc.TaiID,
 			})
 			require.NoError(t, err)
 			defer wsm.Delete(context.Background(), ws.ID, true)
 
-			box := createTestBox(t, sbm, func(co *sandbox.CreateOptions) {
+			box := createTestBox(t, sbm, pc, func(co *sandbox.CreateOptions) {
 				co.WorkspaceID = ws.ID
 			})
 
-			// WorkspaceID getter should reflect what was set
 			assert.Equal(t, ws.ID, box.WorkspaceID())
 
 			// Container should also carry the label (verify via exec reading env or

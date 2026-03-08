@@ -12,16 +12,11 @@ import (
 	"github.com/yaoapp/yao/tai"
 )
 
-func setupHostManager(t *testing.T, tgt hostExecTarget) *sandbox.Manager {
+func setupHostManager(t *testing.T, tgt *hostExecTarget) *sandbox.Manager {
 	t.Helper()
 	addr := fmt.Sprintf("tai://%s", tgt.Addr)
-	pool := sandbox.Pool{Name: tgt.Name, Addr: addr}
-	cfg := sandbox.Config{Pool: []sandbox.Pool{pool}}
-	if err := sandbox.Init(cfg); err != nil {
-		t.Fatalf("Init: %v", err)
-	}
-	m := sandbox.M()
-	t.Cleanup(func() { m.Close() })
+	m, pools := setupManager(t, poolConfig{Name: tgt.Name, Addr: addr})
+	tgt.TaiID = pools[0].TaiID
 	return m
 }
 
@@ -29,10 +24,11 @@ func TestHost_Exec_Echo(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -66,10 +62,11 @@ func TestHost_Exec_Env(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -106,10 +103,11 @@ func TestHost_Workplace(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -163,10 +161,11 @@ func TestHost_Stream_Incremental(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -225,10 +224,11 @@ func TestHost_Stream_MultiLine(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -270,10 +270,11 @@ func TestHost_Stream_Stderr(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -319,10 +320,11 @@ func TestHost_Stream_Cancel(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -369,10 +371,11 @@ func TestHost_ComputerInfo(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -381,8 +384,8 @@ func TestHost_ComputerInfo(t *testing.T) {
 			if info.Kind != "host" {
 				t.Errorf("Kind = %q, want 'host'", info.Kind)
 			}
-			if info.Pool != tgt.Name {
-				t.Errorf("Pool = %q, want %q", info.Pool, tgt.Name)
+			if info.Pool != tgt.TaiID {
+				t.Errorf("Pool = %q, want %q", info.Pool, tgt.TaiID)
 			}
 		})
 	}
@@ -392,10 +395,11 @@ func TestHost_ComputerInterface(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -416,7 +420,7 @@ func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
 		t.Skip("no host-exec-only target available")
 	}
 
-	m := setupHostManager(t, *tgt)
+	m := setupHostManager(t, tgt)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -424,7 +428,7 @@ func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
 	_, err := m.Create(ctx, sandbox.CreateOptions{
 		Image: "alpine:latest",
 		Owner: "test",
-		Pool:  tgt.Name,
+		Pool:  tgt.TaiID,
 	})
 	if err == nil {
 		t.Fatal("expected error for Create on host-exec-only pool, got nil")
@@ -437,7 +441,7 @@ func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
 func TestHost_PoolNotFound(t *testing.T) {
 	skipIfNoHostExec(t)
 	tgt := hostExecTargets()[0]
-	m := setupHostManager(t, tgt)
+	m := setupHostManager(t, &tgt)
 
 	_, err := m.Host(context.Background(), "nonexistent-pool")
 	if err == nil {

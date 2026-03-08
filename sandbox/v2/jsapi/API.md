@@ -13,7 +13,8 @@ pc.Remove()
 
 // Or use the host directly (no container)
 const host = sandbox.Host()
-host.Exec(["ls", "-la", "/workspace"])
+const info = host.Exec(["uname", "-a"])
+console.log(info.stdout) // same ExecResult as box
 ```
 
 Both `sandbox.Create()` and `sandbox.Host()` return a **Computer** object with the same interface. The `kind` property tells you which type it is.
@@ -30,7 +31,7 @@ Create a new sandbox container. Returns a Computer (`kind = "box"`). If `options
 const pc = sandbox.Create({
   image:        "node:20",          // required — container image
   owner:        "user-123",         // required — owner identifier
-  pool:         "gpu",              // optional — pool name (default: first pool)
+  pool:         "192.168.1.10-19100", // optional — TaiID from registry (required unless workspace_id routes to a node)
   id:           "my-sandbox",       // optional — if set, uses GetOrCreate
   workdir:      "/app",             // optional — working directory
   user:         "1000:1000",        // optional — UID:GID
@@ -73,8 +74,8 @@ const all = sandbox.List()
 // Filter by owner
 const mine = sandbox.List({ owner: "user-123" })
 
-// Filter by pool and labels
-const gpu = sandbox.List({ pool: "gpu", labels: { team: "ml" } })
+// Filter by pool (TaiID) and labels
+const gpu = sandbox.List({ pool: "10.0.0.5-19100", labels: { team: "ml" } })
 ```
 
 Each element in the returned array:
@@ -83,7 +84,7 @@ Each element in the returned array:
 {
   id:            "sb-xxx",
   container_id:  "abc123...",
-  pool:          "default",
+  pool:          "192.168.1.10-19100",
   owner:         "user-123",
   status:        "running",       // "running"|"stopped"|"creating"|...
   image:         "node:20",
@@ -104,13 +105,12 @@ Remove a sandbox and its container.
 sandbox.Delete("my-sandbox")
 ```
 
-### sandbox.Host(pool?) → Computer
+### sandbox.Host(pool) → Computer
 
-Get a Computer (`kind = "host"`) for executing commands directly on the Tai host machine (no container). Only available when the pool's Tai server has `host_exec` capability.
+Get a Computer (`kind = "host"`) for executing commands directly on the Tai host machine (no container). Only available when the node's Tai server has `host_exec` capability. The `pool` argument is the TaiID (e.g. `"192.168.1.10-19100"`).
 
 ```javascript
-const host = sandbox.Host()        // default pool
-const gpu  = sandbox.Host("gpu")   // specific pool
+const host = sandbox.Host("192.168.1.10-19100")
 ```
 
 ### sandbox.GetNode(taiID) → NodeInfo | null
@@ -149,7 +149,7 @@ const nodes = sandbox.NodesByTeam("team-001")
 
 Returned by `sandbox.Create()`, `sandbox.Get()`, and `sandbox.Host()`. This is the unified interface for all execution environments — containers and bare-metal hosts.
 
-Use the `kind` property to check the type. Methods marked **box-only** throw an error when called on a host computer.
+Use the `kind` property to check the type. Methods marked **box-only** throw an error when called on a host computer. `Proxy()` covers HTTP, WebSocket, and SSE — use it for all protocol access to container/host services.
 
 ### Properties (read-only)
 
@@ -158,7 +158,7 @@ Use the `kind` property to check the type. Methods marked **box-only** throw an 
 | `pc.kind` | string | `"box"` or `"host"` |
 | `pc.id` | string | Sandbox ID (box-only; empty for host) |
 | `pc.owner` | string | Owner identifier (box-only; empty for host) |
-| `pc.pool` | string | Pool name |
+| `pc.pool` | string | TaiID (e.g. `"192.168.1.10-19100"`, `"local"`) |
 
 ### pc.Exec(cmd, options?) → ExecResult
 
@@ -238,7 +238,7 @@ If no VNC server is running, the WebSocket connection will fail — handle this 
 
 ### pc.Proxy(port, path?) → string
 
-Get an HTTP proxy URL for a service port.
+Get a proxy URL for a service port. Supports HTTP, WebSocket (`ws://`), and SSE — the Tai proxy handles protocol upgrades automatically.
 
 - **Box**: routes to `container-ip:{port}`
 - **Host**: routes to `127.0.0.1:{port}` on the Tai machine via `__host__`
@@ -260,7 +260,7 @@ Get identity and registry information.
 ```javascript
 const info = pc.ComputerInfo()
 console.log(info.kind)        // "box" or "host"
-console.log(info.pool)        // pool name
+console.log(info.pool)        // TaiID
 console.log(info.system.os)   // "linux" | "windows" | "darwin"
 console.log(info.status)      // "running" | "stopped" | ...
 ```
@@ -269,7 +269,7 @@ Returns a [ComputerInfo](#computerinfo-object) object.
 
 ### pc.BindWorkplace(workspaceID) → void
 
-Bind a workspace to this computer for the current session.
+Bind a workspace to this computer for the current session. For box computers created with a `workspace_id` option, the workspace is already bound at creation time — calling `BindWorkplace` overrides it.
 
 ```javascript
 pc.BindWorkplace("ws-project-abc")
@@ -277,7 +277,7 @@ pc.BindWorkplace("ws-project-abc")
 
 ### pc.Workplace() → WorkspaceFS | null
 
-Access the workspace bound via `BindWorkplace()`. Returns `null` if no workspace is bound.
+Access the workspace filesystem bound via `BindWorkplace()`. Returns `null` if no workspace is bound. ("Workplace" is the binding on a Computer; "Workspace" is the filesystem it points to.)
 
 ```javascript
 pc.BindWorkplace("ws-project-abc")
@@ -288,30 +288,9 @@ ws.WriteFile("output.json", JSON.stringify(data))
 
 See [WorkspaceFS Object](#workspacefs-object) for the full method list.
 
-### pc.Attach(port, options?) → string — box-only
-
-Get a WebSocket or SSE endpoint URL for a service running inside the container. Throws on host computers.
-
-```javascript
-const wsURL = pc.Attach(3000, { protocol: "ws", path: "/ws" })
-// "ws://tai-host:8099/container-id:3000/ws"
-
-const sseURL = pc.Attach(8080, { protocol: "sse", path: "/events" })
-// "http://tai-host:8099/container-id:8080/events"
-```
-
-Options:
-
-```javascript
-{
-  protocol: "ws" | "sse",   // default "ws"; affects URL scheme (ws:// vs http://)
-  path:     "/ws"           // optional URL path suffix
-}
-```
-
 ### pc.Info() → BoxInfo — box-only
 
-Get current container status information. Throws on host computers.
+Get current container runtime status (process count, last active time, etc.). For node-level identity info (OS, CPU, capabilities), use `ComputerInfo()` instead. Throws on host computers.
 
 ```javascript
 const info = pc.Info()
@@ -353,7 +332,7 @@ Returned by `pc.ComputerInfo()`. Read-only snapshot of a Computer's identity and
 ```javascript
 {
   kind:          "box",              // "box" | "host"
-  pool:          "default",
+  pool:          "192.168.1.10-19100", // TaiID
   tai_id:        "tai-abc123",
   machine_id:    "m-xyz",
   version:       "1.2.3",
@@ -390,7 +369,7 @@ Returned by `sandbox.GetNode()`, `sandbox.Nodes()`, `sandbox.NodesByTeam()`. Rea
   machine_id:   "m-xyz",
   version:      "1.2.3",
   mode:         "direct",          // "direct" | "tunnel"
-  addr:         "192.168.1.100",
+  addr:         "tai://192.168.1.100:19100",
   status:       "online",          // "online" | "offline" | "connecting"
   pool:         "gpu",
   connected_at: "2026-03-07T08:00:00Z",
@@ -509,16 +488,17 @@ pc.Stream(["npm", "run", "dev"], { workdir: "/app" }, function(type, data) {
 ### Host execution for GPU workloads
 
 ```javascript
-const host = sandbox.Host("gpu")
+const host = sandbox.Host("10.0.0.5-19100")
 
 const result = host.Exec(["nvidia-smi"])
 console.log(result.stdout)
 
-host.Exec(["python3", "train.py", "--epochs=10"], {
+const train = host.Exec(["python3", "train.py", "--epochs=10"], {
   workdir: "/workspace/ml",
   env: { CUDA_VISIBLE_DEVICES: "0,1" },
   timeout: 3600000
 })
+if (train.exit_code !== 0) throw new Error("training failed: " + train.stderr)
 ```
 
 ### Uniform interface — same code for box and host
@@ -534,7 +514,7 @@ function runTask(pc, cmd, opts) {
 
 // Works the same for both
 const box  = sandbox.Create({ image: "node:20", owner: "u1" })
-const host = sandbox.Host("gpu")
+const host = sandbox.Host("10.0.0.5-19100")
 
 runTask(box,  ["node", "-e", "console.log('hi')"])
 runTask(host, ["echo", "hello"])
@@ -558,7 +538,7 @@ const appURL = pc.Proxy(3000)
 // "http://tai-host:8099/container-id:3000/"
 
 // Same methods work on host
-const host = sandbox.Host()
+const host = sandbox.Host("192.168.1.10-19100")
 const hostVNC = host.VNC()
 // "ws://tai-host:16080/vnc/__host__/ws"
 ```

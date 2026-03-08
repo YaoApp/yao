@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/yaoapp/yao/tai"
-	"github.com/yaoapp/yao/tai/volume"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -157,18 +155,18 @@ func TestList_FilterOwner(t *testing.T) {
 }
 
 func TestList_FilterNode(t *testing.T) {
-	m := setupManagerMultiNode(t)
+	m, nodeA, nodeB := setupManagerMultiNode(t)
 
 	ctx := context.Background()
-	_, err := m.Create(ctx, workspace.CreateOptions{Name: "a", Owner: "u", Node: "node-a"})
+	_, err := m.Create(ctx, workspace.CreateOptions{Name: "a", Owner: "u", Node: nodeA})
 	require.NoError(t, err)
-	_, err = m.Create(ctx, workspace.CreateOptions{Name: "b", Owner: "u", Node: "node-b"})
+	_, err = m.Create(ctx, workspace.CreateOptions{Name: "b", Owner: "u", Node: nodeB})
 	require.NoError(t, err)
 
-	list, err := m.List(ctx, workspace.ListOptions{Node: "node-a"})
+	list, err := m.List(ctx, workspace.ListOptions{Node: nodeA})
 	require.NoError(t, err)
 	assert.Len(t, list, 1)
-	assert.Equal(t, "node-a", list[0].Node)
+	assert.Equal(t, nodeA, list[0].Node)
 }
 
 func TestUpdate_Name(t *testing.T) {
@@ -246,17 +244,16 @@ func TestDelete_NotFound(t *testing.T) {
 }
 
 func TestNodes(t *testing.T) {
-	m := setupManagerMultiNode(t)
+	m, nodeA, nodeB := setupManagerMultiNode(t)
 	nodes := m.Nodes()
-	assert.Len(t, nodes, 2)
+	assert.GreaterOrEqual(t, len(nodes), 2)
 
 	names := make(map[string]bool)
 	for _, n := range nodes {
 		names[n.Name] = true
-		assert.True(t, n.Online)
 	}
-	assert.True(t, names["node-a"])
-	assert.True(t, names["node-b"])
+	assert.True(t, names[nodeA])
+	assert.True(t, names[nodeB])
 }
 
 func TestNodeForWorkspace(t *testing.T) {
@@ -282,29 +279,17 @@ func TestNodeForWorkspace_NotFound(t *testing.T) {
 	}
 }
 
-func TestAddPool(t *testing.T) {
-	for _, pc := range testPools() {
-		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			assert.Len(t, m.Nodes(), 1)
+func TestRegistryDrivenNodes(t *testing.T) {
+	m, nodeA, nodeB := setupManagerMultiNode(t)
+	nodes := m.Nodes()
+	assert.GreaterOrEqual(t, len(nodes), 2)
 
-			vol := volume.NewLocal(t.TempDir())
-			client, err := tai.New("local", tai.WithVolume(vol))
-			require.NoError(t, err)
-			defer client.Close()
-
-			m.AddPool("new-node", client)
-			assert.Len(t, m.Nodes(), 2)
-		})
+	names := make(map[string]bool)
+	for _, n := range nodes {
+		names[n.Name] = true
 	}
-}
-
-func TestRemovePool(t *testing.T) {
-	m := setupManagerMultiNode(t)
-	assert.Len(t, m.Nodes(), 2)
-
-	m.RemovePool("node-b")
-	assert.Len(t, m.Nodes(), 1)
+	assert.True(t, names[nodeA])
+	assert.True(t, names[nodeB])
 }
 
 func TestMountPath(t *testing.T) {

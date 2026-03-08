@@ -27,7 +27,7 @@ Reference: [DESIGN.md](./DESIGN.md)
 | `types.go` | LifecyclePolicy (OneShot/Session/LongRunning/Persistent), Pool, PoolInfo, PortMapping, CreateOptions (with WorkspaceID/MountMode/MountPath), ListOptions, ExecOption/ExecResult/ExecStream, AttachOption/ServiceConn, ImagePullOptions/RegistryAuth, BoxInfo, DefaultStopTimeout | DONE |
 | `config.go` | Config struct | DONE |
 | `errors.go` | ErrNotAvailable, ErrNotFound, ErrLimitExceeded, ErrPoolNotFound, ErrPoolInUse | DONE |
-| `grpc.go` | CreateContainerTokens, RevokeContainerTokens, BuildGRPCEnv | DONE |
+| `grpc.go` | BuildGRPCEnv (sandbox ID + gRPC addr only; token injection is caller's responsibility via Env) | DONE |
 
 ### workspace Module — DONE
 
@@ -78,59 +78,101 @@ Reference: [DESIGN.md](./DESIGN.md)
 
 ---
 
-## Phase 2: JSAPI + OAuth — PENDING
+## Phase 2: JSAPI + Computer Unification — DONE
 
-| Task | Package | Detail |
-|------|---------|--------|
-| `jsapi/jsapi.go` + `box.go` | `sandbox/v2/jsapi` | V8 JSAPI `Sandbox()` Create/Get/List/Delete + Box object (registered in gou runtime) |
-| `jsapi/host.go` | `sandbox/v2/jsapi` | V8 JSAPI `sandbox.Host(pool?)` + Host object (Exec, Stream, Workspace) |
-| `jsapi/node.go` | `sandbox/v2/jsapi` | V8 JSAPI `sandbox.GetNode(id)` / `Nodes()` / `NodesByTeam(tid)` + snapshotToJS converter |
-| Wire `openapi/oauth` | `sandbox/v2/grpc.go` | `CreateContainerTokens` currently generates random strings; `RevokeContainerTokens` is a no-op. Replace with real `openapi/oauth` issue/revoke calls |
-| `cmd/start.go` integration | `yao` | Call `sandbox.Init(config.Conf.Sandbox)` + `sandbox.M().Start(ctx)` in startup sequence |
-| Heartbeat bridge | `yao/grpc` | Wire gRPC Heartbeat handler → `sandbox.M().Heartbeat()` |
+### Unified Computer Interface — DONE
 
-### JSAPI (planned)
+Box and Host now share a single `Computer` interface (`types.go`). Both `sandbox.Create()` and `sandbox.Host()` return the same JS `Computer` object; `kind` property distinguishes them. Box-only methods (`Info`, `Start`, `Stop`, `Remove`) throw at runtime when called on a host.
+
+| Step | Package | What | Status |
+|------|---------|------|--------|
+| Computer interface | `sandbox/v2/types.go` | `Computer` interface: Exec, Stream, VNC, Proxy, ComputerInfo, BindWorkplace, Workplace | DONE |
+| Host implementation | `sandbox/v2/host.go` | `Host` struct implements `Computer` via tai HostExec + VNC/Proxy | DONE |
+| ComputerInfo | `sandbox/v2/types.go` | `ComputerInfo` struct with Kind, Pool, TaiID, System, Capabilities, box-specific fields | DONE |
+
+### JSAPI — DONE
+
+| File | What | Status |
+|------|------|--------|
+| `jsapi/jsapi.go` | Static methods: `sandbox.Create`, `Get`, `List`, `Delete` | DONE |
+| `jsapi/computer.go` | `NewComputerObject` factory (11 methods + 4 properties), `sbHost`, helpers | DONE |
+| `jsapi/node.go` | `sandbox.GetNode`, `Nodes`, `NodesByTeam`, `snapshotToJS` | DONE |
+| `jsapi/API.md` | Full JavaScript API reference | DONE |
+
+Design decisions:
+- **No Go objects in V8**: closures capture only `kind` (string) and `identifier` (string); `getComputer()` re-fetches from Manager on each call — prevents memory leaks across runtimes.
+- **Stream**: blocking with callback `function(type, data)`, goroutines feed a channel, main V8 thread drains it.
+- **Workplace()**: delegates to `workspace/jsapi.NewFSObject()` — reuses existing WorkspaceFS JSAPI.
 
 ```javascript
-// Sandbox
-var box = sandbox.Create({
-    image: "yaoapp/workspace:latest",
-    owner: "user-123",
-    workspace_id: "my-workspace"
-})
-box.Exec(["go", "build", "./..."])
-box.Stream(["npm", "run", "dev"], function(type, data) {
+// Unified Computer — same API for box and host
+const pc = sandbox.Create({ image: "node:20", owner: "user-123" })
+pc.Exec(["node", "-e", "console.log('hello')"])
+pc.Stream(["npm", "run", "dev"], function(type, data) {
     if (type === "stdout") console.log(data)
     if (type === "exit") console.log("exited:", data)
 })
-var url = box.Attach(3000, { protocol: "ws", path: "/ws" })
-box.Info()
-box.Stop()
-box.Start()
-box.Remove()
+pc.VNC()                          // → "ws://host:port/vnc/{id}/ws"
+pc.Proxy(3000, "/api")            // → "http://host:port/{id}:3000/api"
+pc.ComputerInfo()                 // → { kind, pool, system, ... }
+pc.BindWorkplace("ws-abc")
+pc.Workplace().ReadFile("main.go")
+pc.Info()                         // box-only
+pc.Remove()                       // box-only
 
-// Box workspace file I/O
-var ws = box.Workspace()
-ws.ReadFile("src/main.go")
-ws.WriteFile("src/main.go", "package main\n...")
-ws.ReadDir("src/")
-ws.Remove("tmp.txt")
-
-// Host (Tai host_exec — no container)
-var host = sandbox.Host("gpu")
-host.Exec("ls", ["-la", "/workspace"], { workdir: "/workspace" })
-var wsHost = host.Workspace("my-session")
-wsHost.ReadFile("config.yml")
+// Host — same interface, no container
+const host = sandbox.Host("gpu")
+host.Exec(["nvidia-smi"])
+host.VNC()                        // → "ws://host:port/vnc/__host__/ws"
+host.Proxy(8080)                  // → "http://host:port/__host__:8080/"
+host.kind                         // "host"
+host.Info()                       // throws: "not supported: Info() requires a box computer"
 
 // Nodes (registry read-only query)
-var nodes = sandbox.Nodes()
-nodes.forEach(function(n) { console.log(n.tai_id, n.status, n.system.hostname) })
-
-var node = sandbox.GetNode("tai-abc123")
-if (node) { console.log(node.pool, node.ports.grpc, node.capabilities) }
-
-var teamNodes = sandbox.NodesByTeam("team-001")
+const nodes = sandbox.Nodes()
+const node  = sandbox.GetNode("tai-abc123")
+const team  = sandbox.NodesByTeam("team-001")
 ```
+
+### JSAPI Tests — DONE
+
+| Test | Coverage | Status |
+|------|----------|--------|
+| `TestCreate` | Create box, verify kind/id | DONE |
+| `TestGet` | Get existing box | DONE |
+| `TestGetNotFound` | Get non-existent → null | DONE |
+| `TestDelete` | Delete + verify gone | DONE |
+| `TestList` | List with owner filter | DONE |
+| `TestExec` | Exec echo, verify stdout | DONE |
+| `TestExecWithOptions` | Exec with workdir option | DONE |
+| `TestStream` | Stream with callback, verify chunks + exit code | DONE |
+| `TestComputerInfo` | Verify kind field | DONE |
+| `TestBoxInfo` | Box-only Info() | DONE |
+| `TestHostBoxMethodsThrow` | Host.Info() throws "not supported" | DONE |
+| `TestComputerKind` | kind property = "box" | DONE |
+| `TestNodes` | Nodes() returns array | DONE |
+| `TestGetNodeNotFound` | GetNode non-existent → null | DONE |
+
+All 14 tests pass in both local and remote modes.
+
+### OAuth Decoupling — DONE
+
+Token injection (YAO_TOKEN, YAO_REFRESH_TOKEN) has been **removed from sandbox Manager**.
+`CreateContainerTokens`, `RevokeContainerTokens`, and the `Box.refreshToken` field have been deleted.
+`BuildGRPCEnv` now only sets `YAO_SANDBOX_ID` and `YAO_GRPC_ADDR`.
+
+Token provisioning is the **caller's responsibility** via `CreateOptions.Env`:
+- The caller (e.g. Agent Hook) already holds an OAuth context
+- It calls `oauth.OAuth.MakeAccessToken(...)` to issue a scoped token
+- Passes it in `CreateOptions.Env["YAO_TOKEN"]` / `Env["YAO_REFRESH_TOKEN"]`
+- `opts.Env` takes priority over `BuildGRPCEnv` output (caller can override anything)
+
+### Remaining (Startup) — PENDING
+
+| Task | Package | Detail |
+|------|---------|--------|
+| `cmd/start.go` integration | `yao` | Call `sandbox.Init()` + `sandbox.M().Start(ctx)` in startup (no config needed — node discovery via tai/registry) |
+| Heartbeat bridge | `yao/grpc` | Wire gRPC Heartbeat handler → `sandbox.M().Heartbeat()` |
 
 ---
 
@@ -223,9 +265,10 @@ Every test iterates over all available pools:
 ```go
 func TestSomething(t *testing.T) {
     for _, pc := range testPools() {
+        pc := pc
         t.Run(pc.Name, func(t *testing.T) {
-            m := setupManagerForPool(t, pc)
-            // test logic
+            m := setupManagerForPool(t, &pc)
+            // test logic — use pc.TaiID as pool identifier
         })
     }
 }
@@ -247,18 +290,20 @@ K8s-specific behavior:
 
 ## File Inventory
 
-### sandbox/v2 (7 source + 10 test = 17 files)
+### sandbox/v2 (9 source + 10 test = 19 files)
 
 | File | Lines | Purpose |
 |------|-------|---------|
 | `sandbox.go` | ~25 | Global singleton |
 | `manager.go` | ~620 | Manager implementation |
-| `box.go` | ~230 | Box implementation |
-| `types.go` | ~170 | Type definitions |
+| `box.go` | ~317 | Box implementation (Computer interface) |
+| `host.go` | ~232 | Host implementation (Computer interface) |
+| `types.go` | ~247 | Type definitions (Computer, ComputerInfo, ExecOption, etc.) |
 | `config.go` | ~5 | Config struct |
 | `errors.go` | ~10 | Error definitions |
-| `grpc.go` | ~55 | Token/env injection |
-| `testutils_test.go` | ~130 | Test helpers |
+| `grpc.go` | ~50 | BuildGRPCEnv (sandbox ID + addr) |
+| `export_test.go` | ~6 | ResetForTest |
+| `testutils_test.go` | ~364 | Test helpers (multi-pool, host exec targets) |
 | `sandbox_test.go` | ~30 | Singleton tests |
 | `manager_test.go` | ~250 | CRUD tests |
 | `manager_lifecycle_test.go` | ~120 | Lifecycle tests |
@@ -266,8 +311,18 @@ K8s-specific behavior:
 | `box_attach_test.go` | ~260 | Attach/VNC tests |
 | `box_workspace_test.go` | ~285 | Workspace tests |
 | `box_image_test.go` | ~120 | Image tests |
-| `grpc_test.go` | ~80 | Token tests |
+| `grpc_test.go` | ~40 | BuildGRPCEnv tests |
 | `bench_test.go` | ~230 | Benchmarks |
+
+### sandbox/v2/jsapi (3 source + 1 test + 1 doc = 5 files)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `jsapi.go` | ~286 | Static methods (Create/Get/List/Delete) + V8 registration |
+| `computer.go` | ~472 | NewComputerObject factory, sbHost, helpers |
+| `node.go` | ~143 | Node query methods (GetNode/Nodes/NodesByTeam) + snapshotToJS |
+| `jsapi_test.go` | ~430 | 14 test cases (local + remote modes) |
+| `API.md` | ~604 | JavaScript API reference |
 
 ### workspace (3 source + 4 test = 7 files)
 
@@ -280,3 +335,12 @@ K8s-specific behavior:
 | `workspace_test.go` | ~325 | CRUD tests |
 | `fileio_test.go` | ~235 | File I/O tests |
 | `bench_test.go` | ~150 | Benchmarks |
+
+### workspace/jsapi (2 source + 1 test + 1 doc = 4 files)
+
+| File | Lines | Purpose |
+|------|-------|---------|
+| `jsapi.go` | ~100 | Static methods (Create/Get/List/Delete) + V8 registration |
+| `fs.go` | ~630 | NewFSObject factory (WorkspaceFS methods) |
+| `jsapi_test.go` | ~460 | JSAPI tests (local + remote modes) |
+| `API.md` | ~220 | Workspace JavaScript API reference |

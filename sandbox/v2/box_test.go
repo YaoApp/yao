@@ -14,9 +14,10 @@ func TestBoxExec(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
@@ -36,9 +37,10 @@ func TestBoxExecWithOptions(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
 			result, err := box.Exec(ctx, []string{"pwd"},
@@ -58,9 +60,10 @@ func TestBoxStream(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
 			stream, err := box.Stream(ctx, []string{"sh", "-c", "echo line1; echo line2"})
@@ -91,9 +94,10 @@ func TestBoxWorkspace(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			ws := box.Workspace()
 			if ws == nil {
@@ -132,9 +136,10 @@ func TestBoxInfo(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 
 			ctx := context.Background()
 			info, err := box.Info(ctx)
@@ -158,9 +163,10 @@ func TestBoxStopStart(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m)
+			m := setupManagerForPool(t, &pc)
+			box := createTestBox(t, m, pc)
 			ctx := context.Background()
 
 			if err := box.Stop(ctx); err != nil {
@@ -186,13 +192,15 @@ func TestBoxGetOrCreate(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testPools() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
+			m := setupManagerForPool(t, &pc)
 			ctx := context.Background()
 			box1, err := m.GetOrCreate(ctx, sandbox.CreateOptions{
 				ID:    "goc-" + pc.Name,
 				Image: testImage(),
 				Owner: "test-user",
+				Pool:  pc.TaiID,
 			})
 			if err != nil {
 				t.Fatalf("GetOrCreate first: %v", err)
@@ -203,6 +211,7 @@ func TestBoxGetOrCreate(t *testing.T) {
 				ID:    "goc-" + pc.Name,
 				Image: testImage(),
 				Owner: "test-user",
+				Pool:  pc.TaiID,
 			})
 			if err != nil {
 				t.Fatalf("GetOrCreate second: %v", err)

@@ -7,49 +7,36 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 	taisandbox "github.com/yaoapp/yao/tai/sandbox"
 	"github.com/yaoapp/yao/workspace"
 )
 
-// Manager manages a pool of tai.Client connections and sandbox lifecycle.
+// Manager manages sandbox lifecycle. Node connections are delegated to tai/registry.
 type Manager struct {
-	pool        map[string]*tai.Client
-	poolDefs    []Pool
-	defaultPool string
-	config      Config
-	boxes       sync.Map
-	mu          sync.Mutex
-	cancel      context.CancelFunc
-	grpcPort    int
-	wsManager   *workspace.Manager
+	boxes  sync.Map
+	mu     sync.Mutex
+	cancel context.CancelFunc
 }
 
-func newManager(cfg Config) (*Manager, error) {
-	m := &Manager{
-		pool:     make(map[string]*tai.Client),
-		poolDefs: cfg.Pool,
-		config:   cfg,
-		grpcPort: 9099,
-	}
-	if len(cfg.Pool) > 0 {
-		m.defaultPool = cfg.Pool[0].Name
-	}
-	return m, nil
+func newManager() *Manager {
+	return &Manager{}
 }
 
-// Start discovers existing containers from all pools, rebuilds the boxes map,
-// and starts the cleanup loop.
+// Start discovers existing containers from all registered nodes, rebuilds
+// the boxes map, and starts the cleanup loop.
 func (m *Manager) Start(ctx context.Context) error {
-	if len(m.poolDefs) == 0 {
+	reg := registry.Global()
+	if reg == nil {
 		return nil
 	}
 
-	for _, pd := range m.poolDefs {
-		client, err := m.getPool(pd.Name)
+	for _, snap := range reg.List() {
+		client, err := m.getPool(snap.TaiID)
 		if err != nil {
 			continue
 		}
-		m.recoverBoxes(ctx, &pd, client)
+		m.recoverBoxes(ctx, snap.TaiID, client)
 	}
 
 	loopCtx, cancel := context.WithCancel(ctx)
@@ -58,96 +45,13 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// AddPool registers a new pool at runtime.
-func (m *Manager) AddPool(_ context.Context, p Pool) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, pd := range m.poolDefs {
-		if pd.Name == p.Name {
-			return fmt.Errorf("sandbox: pool %q already exists", p.Name)
-		}
+// Pools returns the list of registered Tai nodes from the registry.
+func (m *Manager) Pools() []registry.NodeSnapshot {
+	reg := registry.Global()
+	if reg == nil {
+		return nil
 	}
-	m.poolDefs = append(m.poolDefs, p)
-	if m.defaultPool == "" {
-		m.defaultPool = p.Name
-	}
-	return nil
-}
-
-// RemovePool removes a pool by name.
-func (m *Manager) RemovePool(ctx context.Context, name string, force bool) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	idx := -1
-	for i, pd := range m.poolDefs {
-		if pd.Name == name {
-			idx = i
-			break
-		}
-	}
-	if idx < 0 {
-		return ErrPoolNotFound
-	}
-
-	count := 0
-	m.boxes.Range(func(_, value any) bool {
-		if value.(*Box).pool == name {
-			count++
-		}
-		return true
-	})
-
-	if count > 0 && !force {
-		return ErrPoolInUse
-	}
-
-	if count > 0 {
-		m.boxes.Range(func(key, value any) bool {
-			b := value.(*Box)
-			if b.pool == name {
-				b.Remove(ctx)
-			}
-			return true
-		})
-	}
-
-	m.poolDefs = append(m.poolDefs[:idx], m.poolDefs[idx+1:]...)
-	if client, ok := m.pool[name]; ok {
-		client.Close()
-		delete(m.pool, name)
-	}
-	return nil
-}
-
-// Pools returns all registered pool names and their status.
-func (m *Manager) Pools() []PoolInfo {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	result := make([]PoolInfo, 0, len(m.poolDefs))
-	for _, pd := range m.poolDefs {
-		_, connected := m.pool[pd.Name]
-		count := 0
-		m.boxes.Range(func(_, value any) bool {
-			if value.(*Box).pool == pd.Name {
-				count++
-			}
-			return true
-		})
-		result = append(result, PoolInfo{
-			Name:        pd.Name,
-			Addr:        pd.Addr,
-			Connected:   connected,
-			Boxes:       count,
-			MaxPerUser:  pd.MaxPerUser,
-			MaxTotal:    pd.MaxTotal,
-			IdleTimeout: pd.IdleTimeout,
-			MaxLifetime: pd.MaxLifetime,
-		})
-	}
-	return result
+	return reg.List()
 }
 
 // Heartbeat updates the box's last heartbeat timestamp.
@@ -165,17 +69,9 @@ func (m *Manager) Heartbeat(sandboxID string, active bool, processCount int) err
 }
 
 // Host returns a Host handle for executing commands on the Tai host machine.
-// The pool must be connected to a Tai server with host_exec capability.
-// Unlike Create/Box, Host does not create a container — it is available
-// immediately as long as the pool is reachable.
 func (m *Manager) Host(_ context.Context, pool string) (*Host, error) {
 	if pool == "" {
-		pool = m.defaultPool
-	}
-
-	pd := m.findPoolDef(pool)
-	if pd == nil {
-		return nil, ErrPoolNotFound
+		return nil, ErrPoolMissing
 	}
 
 	client, err := m.getPool(pool)
@@ -192,35 +88,24 @@ func (m *Manager) Host(_ context.Context, pool string) (*Host, error) {
 
 // Create creates and starts a new sandbox.
 func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) {
-	if len(m.poolDefs) == 0 {
-		return nil, ErrNotAvailable
-	}
 	if opts.Image == "" {
 		return nil, fmt.Errorf("sandbox: image is required")
 	}
 
 	poolName := opts.Pool
-	if poolName == "" {
-		poolName = m.defaultPool
-	}
 
-	// Workspace node binding: when WorkspaceID is set, resolve the workspace's
-	// bound node and force the container onto that pool.
-	if opts.WorkspaceID != "" && m.wsManager != nil {
-		node, err := m.wsManager.NodeForWorkspace(ctx, opts.WorkspaceID)
-		if err != nil {
-			return nil, fmt.Errorf("sandbox: resolve workspace %q: %w", opts.WorkspaceID, err)
+	if opts.WorkspaceID != "" {
+		if wsm := workspace.M(); wsm != nil {
+			node, err := wsm.NodeForWorkspace(ctx, opts.WorkspaceID)
+			if err != nil {
+				return nil, fmt.Errorf("sandbox: resolve workspace %q: %w", opts.WorkspaceID, err)
+			}
+			poolName = node
 		}
-		poolName = node
 	}
 
-	pd := m.findPoolDef(poolName)
-	if pd == nil {
-		return nil, ErrPoolNotFound
-	}
-
-	if err := m.checkLimits(pd, opts.Owner); err != nil {
-		return nil, err
+	if poolName == "" {
+		return nil, ErrPoolMissing
 	}
 
 	id := opts.ID
@@ -237,12 +122,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		return nil, fmt.Errorf("sandbox: pool %q has no container runtime", poolName)
 	}
 
-	access, refresh, err := CreateContainerTokens(id, opts.Owner, nil)
-	if err != nil {
-		return nil, fmt.Errorf("sandbox: create tokens: %w", err)
-	}
-
-	taiOpts := m.buildTaiCreateOptions(opts, pd, id, access, refresh)
+	taiOpts := m.buildTaiCreateOptions(opts, poolName, id)
 
 	containerID, err := client.Sandbox().Create(ctx, taiOpts)
 	if err != nil {
@@ -267,9 +147,9 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		policy:       policy,
 		labels:       opts.Labels,
 		idleTimeoutD: opts.IdleTimeout,
+		maxLifetimeD: opts.MaxLifetime,
 		stopTimeoutD: opts.StopTimeout,
 		createdAt:    time.Now(),
-		refreshToken: refresh,
 		manager:      m,
 		vnc:          opts.VNC,
 		image:        opts.Image,
@@ -337,10 +217,6 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 		client.Sandbox().Remove(ctx, b.containerID, true)
 	}
 
-	if b.refreshToken != "" {
-		RevokeContainerTokens(b.refreshToken)
-	}
-
 	m.boxes.Delete(id)
 	return nil
 }
@@ -376,30 +252,12 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 	return nil
 }
 
-// Close stops the cleanup loop and releases all pool connections.
+// Close stops the cleanup loop. Node connections are managed by the registry.
 func (m *Manager) Close() error {
 	if m.cancel != nil {
 		m.cancel()
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for name, client := range m.pool {
-		client.Close()
-		delete(m.pool, name)
-	}
 	return nil
-}
-
-// SetGRPCPort sets the local gRPC port for container env injection.
-func (m *Manager) SetGRPCPort(port int) {
-	m.grpcPort = port
-}
-
-// SetWorkspaceManager links the workspace manager for workspace-aware container creation.
-// When CreateOptions.WorkspaceID is set, the sandbox Manager uses the workspace Manager
-// to resolve the workspace's bound node and force container routing.
-func (m *Manager) SetWorkspaceManager(wm *workspace.Manager) {
-	m.wsManager = wm
 }
 
 func (m *Manager) cleanupLoop(ctx context.Context) {
@@ -416,78 +274,27 @@ func (m *Manager) cleanupLoop(ctx context.Context) {
 }
 
 func (m *Manager) getPool(name string) (*tai.Client, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if client, ok := m.pool[name]; ok {
-		return client, nil
-	}
-
-	pd := m.findPoolDefLocked(name)
-	if pd == nil {
+	client, ok := tai.GetClient(name)
+	if !ok {
 		return nil, ErrPoolNotFound
 	}
-
-	client, err := tai.New(pd.Addr, pd.Options...)
-	if err != nil {
-		return nil, err
-	}
-	m.pool[name] = client
 	return client, nil
 }
 
-func (m *Manager) findPoolDef(name string) *Pool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.findPoolDefLocked(name)
-}
-
-func (m *Manager) findPoolDefLocked(name string) *Pool {
-	for i := range m.poolDefs {
-		if m.poolDefs[i].Name == name {
-			return &m.poolDefs[i]
-		}
-	}
-	return nil
-}
-
-func (m *Manager) checkLimits(pd *Pool, owner string) error {
-	if pd.MaxTotal > 0 {
-		count := 0
-		m.boxes.Range(func(_, value any) bool {
-			if value.(*Box).pool == pd.Name {
-				count++
-			}
-			return true
-		})
-		if count >= pd.MaxTotal {
-			return ErrLimitExceeded
-		}
-	}
-
-	if pd.MaxPerUser > 0 && owner != "" {
-		count := 0
-		m.boxes.Range(func(_, value any) bool {
-			b := value.(*Box)
-			if b.pool == pd.Name && b.owner == owner {
-				count++
-			}
-			return true
-		})
-		if count >= pd.MaxPerUser {
-			return ErrLimitExceeded
-		}
-	}
-	return nil
-}
-
-func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID, access, refresh string) taisandbox.CreateOptions {
+func (m *Manager) buildTaiCreateOptions(opts CreateOptions, poolName, sandboxID string) taisandbox.CreateOptions {
 	env := make(map[string]string)
-	for k, v := range opts.Env {
-		env[k] = v
+
+	reg := registry.Global()
+	if reg != nil {
+		if snap, ok := reg.Get(poolName); ok {
+			grpcEnv := BuildGRPCEnv(snap.Mode, snap.Addr, sandboxID)
+			for k, v := range grpcEnv {
+				env[k] = v
+			}
+		}
 	}
-	grpcEnv := BuildGRPCEnv(pd, sandboxID, access, refresh, m.grpcPort)
-	for k, v := range grpcEnv {
+
+	for k, v := range opts.Env {
 		env[k] = v
 	}
 
@@ -495,7 +302,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 		"managed-by":     "yao-sandbox",
 		"sandbox-id":     sandboxID,
 		"sandbox-owner":  opts.Owner,
-		"sandbox-pool":   pd.Name,
+		"sandbox-pool":   poolName,
 		"sandbox-policy": string(opts.Policy),
 	}
 	if opts.WorkspaceID != "" {
@@ -522,20 +329,21 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 		})
 	}
 
-	// Workspace bind mount
 	var binds []string
-	if opts.WorkspaceID != "" && m.wsManager != nil {
-		mountPath := opts.MountPath
-		if mountPath == "" {
-			mountPath = "/workspace"
-		}
-		mode := opts.MountMode
-		if mode == "" {
-			mode = "rw"
-		}
-		hostPath, _ := m.wsManager.MountPath(context.Background(), opts.WorkspaceID)
-		if hostPath != "" {
-			binds = append(binds, fmt.Sprintf("%s:%s:%s", hostPath, mountPath, mode))
+	if opts.WorkspaceID != "" {
+		if wsm := workspace.M(); wsm != nil {
+			mountPath := opts.MountPath
+			if mountPath == "" {
+				mountPath = "/workspace"
+			}
+			mode := opts.MountMode
+			if mode == "" {
+				mode = "rw"
+			}
+			hostPath, _ := wsm.MountPath(context.Background(), opts.WorkspaceID)
+			if hostPath != "" {
+				binds = append(binds, fmt.Sprintf("%s:%s:%s", hostPath, mountPath, mode))
+			}
 		}
 	}
 
@@ -555,7 +363,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, pd *Pool, sandboxID,
 	}
 }
 
-func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client) {
+func (m *Manager) recoverBoxes(ctx context.Context, poolName string, client *tai.Client) {
 	if client.Sandbox() == nil {
 		return
 	}
@@ -598,8 +406,6 @@ func (m *Manager) recoverBoxes(ctx context.Context, pd *Pool, client *tai.Client
 }
 
 // ImageExists reports whether the given image ref exists on the target pool node.
-// Returns (true, nil) when the pool has no image service (e.g. K8s — kubelet
-// handles image pulls transparently).
 func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error) {
 	client, err := m.getPool(pool)
 	if err != nil {
@@ -613,7 +419,7 @@ func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, erro
 }
 
 // PullImage pulls an image to the target pool node, returning a channel of
-// real-time progress events. The channel is nil when no pull is needed (e.g. K8s mode).
+// real-time progress events.
 func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error) {
 	client, err := m.getPool(pool)
 	if err != nil {
@@ -635,8 +441,7 @@ func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePul
 }
 
 // EnsureImage checks whether the image exists on the pool node; if not, it
-// pulls the image and blocks until the pull completes. Returns the first
-// error encountered during pull. For K8s pools this is a no-op.
+// pulls the image and blocks until the pull completes.
 func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImagePullOptions) error {
 	exists, err := m.ImageExists(ctx, pool, ref)
 	if err != nil {

@@ -44,6 +44,8 @@ type TaiNode struct {
 	LastPing    time.Time
 	PoolName    string
 
+	client any // *tai.Client; stored as any to avoid import cycle
+
 	localListeners map[int]*tunnelListener
 }
 
@@ -63,6 +65,7 @@ type NodeSnapshot struct {
 	ConnectedAt  time.Time
 	LastPing     time.Time
 	PoolName     string
+	client       any
 }
 
 func (n *TaiNode) snapshot() NodeSnapshot {
@@ -81,8 +84,13 @@ func (n *TaiNode) snapshot() NodeSnapshot {
 		Ports: ports, Capabilities: caps,
 		Status: n.Status, ConnectedAt: n.ConnectedAt, LastPing: n.LastPing,
 		PoolName: n.PoolName,
+		client:   n.client,
 	}
 }
+
+// Client returns the associated *tai.Client (as any to avoid import cycle).
+// Callers should type-assert: snap.Client().(*tai.Client).
+func (s *NodeSnapshot) Client() any { return s.client }
 
 // AuthInfo holds Yao user authorization extracted from OAuth token.
 type AuthInfo struct {
@@ -231,6 +239,16 @@ func (r *Registry) UpdatePing(taiID string) {
 	defer r.mu.Unlock()
 	if n, ok := r.nodes[taiID]; ok {
 		n.LastPing = time.Now()
+	}
+}
+
+// SetClient associates a *tai.Client with a registered node.
+// Called by tai.New() after successful initialization.
+func (r *Registry) SetClient(taiID string, c any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n, ok := r.nodes[taiID]; ok {
+		n.client = c
 	}
 }
 

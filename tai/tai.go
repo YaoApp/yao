@@ -130,6 +130,7 @@ type Client struct {
 	scheme   string // "tai", "docker", or "tunnel"
 	host     string
 	addr     string
+	taiID    string // registry key — set by initLocal/initRemote/initTunnel
 	ports    Ports
 	dataDir  string // host-side data directory for local volume
 	vol      volume.Volume
@@ -209,6 +210,23 @@ func (c *Client) initLocal(cfg *config) (*Client, error) {
 		c.dataDir = dataDir
 		c.vol = volume.NewLocal(dataDir)
 	}
+
+	if reg := registry.Global(); reg != nil {
+		id := c.host
+		if id == "" {
+			id = c.addr
+		}
+		if id == "" {
+			id = "local"
+		}
+		c.taiID = id
+		reg.Register(&registry.TaiNode{
+			TaiID: id,
+			Mode:  "local",
+			Addr:  c.addr,
+		})
+		reg.SetClient(id, c)
+	}
 	return c, nil
 }
 
@@ -276,10 +294,12 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	}
 
 	if reg := registry.Global(); reg != nil {
+		id := fmt.Sprintf("%s-%d", c.host, c.ports.GRPC)
+		c.taiID = id
 		reg.Register(&registry.TaiNode{
-			TaiID: c.host,
+			TaiID: id,
 			Mode:  "direct",
-			Addr:  c.host,
+			Addr:  fmt.Sprintf("tai://%s:%d", c.host, c.ports.GRPC),
 			Ports: map[string]int{
 				"grpc":   c.ports.GRPC,
 				"http":   c.ports.HTTP,
@@ -288,6 +308,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 				"k8s":    c.ports.K8s,
 			},
 		})
+		reg.SetClient(id, c)
 	}
 
 	return c, nil
@@ -300,6 +321,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	}
 
 	taiID := c.host // for tunnel:// scheme, host stores the taiID
+	c.taiID = taiID
 	node, ok := reg.Get(taiID)
 	if !ok || node.Status != "online" {
 		return nil, fmt.Errorf("tai node %s not online", taiID)
@@ -360,6 +382,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 		c.prx = proxy.NewTunnel(taiID, node.YaoBase)
 		c.vc = vnc.NewTunnel(taiID, node.YaoBase)
 	}
+	reg.SetClient(taiID, c)
 	return c, nil
 }
 
@@ -396,9 +419,9 @@ func (c *Client) Close() error {
 		}
 	}
 	c.closeTunnelListeners()
-	if c.scheme == "tai" {
+	if c.taiID != "" {
 		if reg := registry.Global(); reg != nil {
-			reg.Unregister(c.host)
+			reg.Unregister(c.taiID)
 		}
 	}
 	if len(errs) > 0 {
@@ -413,6 +436,12 @@ func (c *Client) Volume() volume.Volume { return c.vol }
 // DataDir returns the host-side data directory used by the local volume.
 // Empty for remote (Tai gRPC) connections — the Tai server manages paths.
 func (c *Client) DataDir() string { return c.dataDir }
+
+// Host returns the raw host parsed from the address (IP or hostname).
+func (c *Client) Host() string { return c.host }
+
+// TaiID returns the registry key for this client.
+func (c *Client) TaiID() string { return c.taiID }
 
 // Workspace returns an fs.FS-compatible filesystem for the given session.
 func (c *Client) Workspace(sessionID string) workspace.FS {
@@ -548,4 +577,21 @@ func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[str
 		caps = make(map[string]bool)
 	}
 	return caps, nil
+}
+
+// GetClient returns a registered *Client by taiID from the global registry.
+func GetClient(taiID string) (*Client, bool) {
+	reg := registry.Global()
+	if reg == nil {
+		return nil, false
+	}
+	snap, ok := reg.Get(taiID)
+	if !ok {
+		return nil, false
+	}
+	c, ok := snap.Client().(*Client)
+	if !ok || c == nil {
+		return nil, false
+	}
+	return c, true
 }

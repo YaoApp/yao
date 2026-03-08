@@ -602,26 +602,26 @@ type Proxy interface {
 
 Local: resolves host ports via `Inspect()`. Remote: routes through Tai HTTP proxy which handles WebSocket upgrade and SSE streaming natively.
 
-## gRPC Token Injection
+## gRPC Environment Injection
 
 ```go
-func CreateContainerTokens(sandboxID, owner string, scopes []string) (access, refresh string, err error)
-func RevokeContainerTokens(refresh string) error
-func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) map[string]string
+func BuildGRPCEnv(pool *Pool, sandboxID string, grpcPort int) map[string]string
 ```
 
-Environment variables injected into each container:
+`BuildGRPCEnv` sets **only** routing variables — token injection is decoupled:
 
 ```
-# All modes
+# Set by BuildGRPCEnv (always)
 YAO_SANDBOX_ID=<sandbox_id>
+YAO_GRPC_ADDR=127.0.0.1:9099        # local / tunnel mode
+YAO_GRPC_ADDR=<tai-host>:19100      # remote mode (tai://)
+
+# Set by caller via CreateOptions.Env (OAuth is caller's responsibility)
 YAO_TOKEN=<access_token>
 YAO_REFRESH_TOKEN=<refresh_token>
-YAO_GRPC_ADDR=127.0.0.1:9099
-
-# Remote mode (tai://)
-YAO_GRPC_ADDR=<tai-host>:19100
 ```
+
+`CreateOptions.Env` is merged **after** `BuildGRPCEnv`, so the caller can override any variable including `YAO_GRPC_ADDR`.
 
 ## Errors
 

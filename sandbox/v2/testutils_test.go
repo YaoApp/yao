@@ -13,8 +13,8 @@ import (
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 	taisandbox "github.com/yaoapp/yao/tai/sandbox"
-	"github.com/yaoapp/yao/tai/volume"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -99,16 +99,13 @@ func purgeStaleContainers() {
 }
 
 type poolConfig struct {
-	Name    string
+	Name    string // human-readable label for t.Run (e.g. "remote", "k8s")
 	Addr    string
+	TaiID   string // actual registry key, filled after tai.New
 	Options []tai.Option
 }
 
 // testPools returns all available pool configurations for multi-mode testing.
-//   - local:          always present (direct Docker daemon)
-//   - remote:         when SANDBOX_TEST_REMOTE_ADDR is set (Tai on host → Docker)
-//   - containerized:  when TAI_TEST_CONTAINERIZED_HOST is set (Tai in container → Docker)
-//   - k8s:            when TAI_TEST_K8S_HOST + TAI_TEST_KUBECONFIG are set (Tai → K8s)
 func testPools() []poolConfig {
 	pools := []poolConfig{
 		{Name: "local", Addr: testLocalAddr()},
@@ -119,8 +116,6 @@ func testPools() []poolConfig {
 	if host := os.Getenv("TAI_TEST_CONTAINERIZED_HOST"); host != "" {
 		grpcPort := envPort("TAI_TEST_CONTAINERIZED_GRPC_PORT", 9200)
 		addr := fmt.Sprintf("tai://%s:%d", host, grpcPort)
-		// No WithPorts for HTTP/VNC — Tai self-inspects its container
-		// and returns host-mapped ports via ServerInfo automatically.
 		pools = append(pools, poolConfig{Name: "containerized", Addr: addr})
 	}
 	if host := os.Getenv("TAI_TEST_K8S_HOST"); host != "" {
@@ -164,11 +159,10 @@ func skipIfNoTai(t *testing.T) {
 type hostExecTarget struct {
 	Name        string
 	Addr        string // host:port (without tai:// prefix)
+	TaiID       string // filled after registration
 	IsWinNative bool
 }
 
-// hostExecTargets returns all Tai instances that support HostExec gRPC.
-// No container creation needed — these are direct gRPC connections.
 func hostExecTargets() []hostExecTarget {
 	var targets []hostExecTarget
 	if addr := os.Getenv("SANDBOX_TEST_REMOTE_ADDR"); addr != "" {
@@ -195,8 +189,6 @@ func skipIfNoHostExec(t *testing.T) {
 	}
 }
 
-// linuxCmd adapts a Linux command to the equivalent Windows command for
-// Windows native Tai targets.
 func linuxCmd(tgt hostExecTarget, cmd string, args ...string) (string, []string) {
 	if tgt.IsWinNative {
 		switch cmd {
@@ -245,55 +237,64 @@ func envPort(key string, fallback int) int {
 	return fallback
 }
 
-func setupManager(t *testing.T, pools ...sandbox.Pool) *sandbox.Manager {
+// registerPool creates a tai.Client and registers it in the global registry.
+// It fills pc.TaiID with the actual registry key returned by tai.New.
+func registerPool(t *testing.T, pc *poolConfig) {
 	t.Helper()
-	cfg := sandbox.Config{Pool: pools}
-	if err := sandbox.Init(cfg); err != nil {
-		t.Fatalf("Init: %v", err)
+
+	reg := registry.Global()
+	if reg == nil {
+		registry.Init(nil)
 	}
+
+	client, err := tai.New(pc.Addr, pc.Options...)
+	if err != nil {
+		t.Fatalf("tai.New(%s): %v", pc.Addr, err)
+	}
+	pc.TaiID = client.TaiID()
+	t.Cleanup(func() { client.Close() })
+}
+
+func setupManager(t *testing.T, pools ...poolConfig) (*sandbox.Manager, []poolConfig) {
+	t.Helper()
+
+	reg := registry.Global()
+	if reg == nil {
+		registry.Init(nil)
+	}
+	_ = reg
+
+	out := make([]poolConfig, len(pools))
+	copy(out, pools)
+	for i := range out {
+		client, err := tai.New(out[i].Addr, out[i].Options...)
+		if err != nil {
+			t.Fatalf("tai.New(%s): %v", out[i].Addr, err)
+		}
+		out[i].TaiID = client.TaiID()
+	}
+
+	sandbox.Init()
 	m := sandbox.M()
-	t.Cleanup(func() {
-		m.Close()
-	})
+	t.Cleanup(func() { m.Close() })
+	return m, out
+}
+
+func setupManagerForPool(t *testing.T, pc *poolConfig) *sandbox.Manager {
+	t.Helper()
+	m, registered := setupManager(t, *pc)
+	*pc = registered[0]
 	return m
 }
 
-func setupManagerForPool(t *testing.T, pc poolConfig, mutators ...func(*sandbox.Pool)) *sandbox.Manager {
-	t.Helper()
-	pool := sandbox.Pool{Name: pc.Name, Addr: pc.Addr, Options: pc.Options}
-	for _, fn := range mutators {
-		fn(&pool)
-	}
-	return setupManager(t, pool)
-}
-
-// setupManagerWithWorkspace creates a sandbox Manager with a linked workspace Manager.
-// Returns both managers and a helper to create workspaces on the given pool's node.
-func setupManagerWithWorkspace(t *testing.T, pc poolConfig) (*sandbox.Manager, *workspace.Manager) {
+// setupManagerWithWorkspace creates a sandbox Manager and returns
+// the global workspace.Manager (which uses the registry for client lookups).
+func setupManagerWithWorkspace(t *testing.T, pc *poolConfig) (*sandbox.Manager, *workspace.Manager) {
 	t.Helper()
 	sbm := setupManagerForPool(t, pc)
-
-	var wsClient *tai.Client
-	var err error
-	if pc.Addr == "local" || pc.Addr == "" {
-		dataDir := t.TempDir()
-		vol := volume.NewLocal(dataDir)
-		wsClient, err = tai.New("local", tai.WithVolume(vol), tai.WithDataDir(dataDir))
-	} else {
-		wsClient, err = tai.New(pc.Addr, pc.Options...)
-	}
-	if err != nil {
-		t.Fatalf("tai.New for workspace: %v", err)
-	}
-	t.Cleanup(func() { wsClient.Close() })
-
-	wsm := workspace.NewManager(map[string]*tai.Client{pc.Name: wsClient})
-	sbm.SetWorkspaceManager(wsm)
-	return sbm, wsm
+	return sbm, workspace.M()
 }
 
-// ensureTestImage guarantees testImage() is available on the given pool before
-// container creation. Safe for all modes (Docker pull; K8s no-op).
 func ensureTestImage(t *testing.T, m *sandbox.Manager, pool string) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
@@ -303,11 +304,12 @@ func ensureTestImage(t *testing.T, m *sandbox.Manager, pool string) {
 	}
 }
 
-func createTestBox(t *testing.T, m *sandbox.Manager, opts ...func(*sandbox.CreateOptions)) *sandbox.Box {
+func createTestBox(t *testing.T, m *sandbox.Manager, pc poolConfig, opts ...func(*sandbox.CreateOptions)) *sandbox.Box {
 	t.Helper()
 	co := sandbox.CreateOptions{
 		Image: testImage(),
 		Owner: "test-user",
+		Pool:  pc.TaiID,
 	}
 	for _, fn := range opts {
 		fn(&co)
@@ -317,11 +319,12 @@ func createTestBox(t *testing.T, m *sandbox.Manager, opts ...func(*sandbox.Creat
 	if pool == "" {
 		pools := m.Pools()
 		if len(pools) > 0 {
-			pool = pools[0].Name
+			pool = pools[0].TaiID
+			co.Pool = pool
 		}
 	}
 
-	isK8s := pool == "k8s"
+	isK8s := pc.Name == "k8s"
 	if isK8s {
 		k8sSem <- struct{}{}
 	}

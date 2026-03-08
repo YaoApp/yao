@@ -1,138 +1,471 @@
 package jsapi
 
 import (
+	"context"
+	"encoding/json"
+	"sync"
+	"time"
+
+	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	wsjsapi "github.com/yaoapp/yao/workspace/jsapi"
 	"rogchap.com/v8go"
 )
 
-// sbHost: `sandbox.Host(pool?)` → Computer (kind="host")
-//
-// Go: Manager.Host(ctx, pool) (*Host, error)
-//
-// Args:
-//
-//	pool: string (optional) — pool name; empty = default pool
-//
-// Returns: Computer object (kind="host") if the pool has host_exec capability, otherwise throws.
-func sbHost(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. pool := ""; if len(info.Args()) > 0 && info.Args()[0].IsString() { pool = info.Args()[0].String() }
-	// 2. host, err := sandbox.M().Host(ctx, pool)
-	// 3. if err != nil { throw in V8 }
-	// 4. Return NewComputerObject(v8ctx, "host", pool)
-	return v8go.Undefined(info.Context().Isolate())
+// ---------------------------------------------------------------------------
+// Helpers — shared across jsapi files
+// ---------------------------------------------------------------------------
+
+func throwError(info *v8go.FunctionCallbackInfo, msg string) *v8go.Value {
+	iso := info.Context().Isolate()
+	e, _ := v8go.NewValue(iso, msg)
+	iso.ThrowException(e)
+	return v8go.Undefined(iso)
 }
 
-// NewComputerObject creates a unified JS Computer object backed by either a Box or Host.
-// The `kind` field ("box" or "host") determines which methods are available at runtime.
-// Box-only methods (Attach, Info, Start, Stop, Remove) throw an error when called on a host.
-//
-// # Properties (read-only)
-//
-//	pc.kind  → string  // "box" | "host"  ← ComputerInfo().Kind
-//	pc.id    → string  // sandbox ID      ← Box.ID() (empty for host)
-//	pc.owner → string  // owner           ← Box.Owner() (empty for host)
-//	pc.pool  → string  // pool name       ← ComputerInfo().Pool
-//
-// # Methods — Computer interface (both box and host)
-//
-// pc.Exec(cmd, options?) → ExecResult
-//
-//	Go: Computer.Exec(ctx, cmd []string, opts ...ExecOption) (*ExecResult, error)
-//
-//	JS args:
-//	  cmd:     string[]                  → cmd []string
-//	  options: {                         → ExecOption
-//	    workdir:    string,              → WithWorkDir(dir)
-//	    env:        object,              → WithEnv(map[string]string)
-//	    stdin:      string,              → WithStdin([]byte)
-//	    timeout:    number,              → WithTimeout(ms → time.Duration)
-//	    max_output: number               → WithMaxOutput(bytes int64)
-//	  }
-//	JS returns: {
-//	  exit_code:   number,               ← ExecResult.ExitCode
-//	  stdout:      string,               ← ExecResult.Stdout
-//	  stderr:      string,               ← ExecResult.Stderr
-//	  duration_ms: number,               ← ExecResult.DurationMs
-//	  error:       string,               ← ExecResult.Error
-//	  truncated:   boolean               ← ExecResult.Truncated
-//	}
-//
-// pc.Stream(cmd, callback) / pc.Stream(cmd, options, callback)
-//
-//	Go: Computer.Stream(ctx, cmd []string, opts ...ExecOption) (*ExecStream, error)
-//
-//	Blocks until the process exits. The last argument must be a JS function.
-//	Callback signature: function(type, data)
-//	  type = "stdout" → data is string (chunk)
-//	  type = "stderr" → data is string (chunk)
-//	  type = "exit"   → data is number (exit code)
-//
-// pc.VNC() → string
-//
-//	Go: Computer.VNC(ctx) (string, error)
-//	Box:  returns ws://host:port/vnc/{containerID}/ws
-//	Host: returns ws://host:port/vnc/__host__/ws
-//
-// pc.Proxy(port, path?) → string
-//
-//	Go: Computer.Proxy(ctx, port int, path string) (string, error)
-//	Box:  returns http://host:port/{containerID}:{port}/{path}
-//	Host: returns http://host:port/__host__:{port}/{path}
-//
-// pc.ComputerInfo() → ComputerInfo
-//
-//	Go: Computer.ComputerInfo() ComputerInfo
-//	JS returns: { kind, pool, tai_id, machine_id, version, mode, status, capabilities,
-//	              system: { os, arch, hostname, num_cpu, total_mem },
-//	              box_id, container_id, owner, image, policy, labels }
-//
-// pc.BindWorkplace(workspaceID) → void
-//
-//	Go: Computer.BindWorkplace(workspaceID string)
-//
-// pc.Workplace() → WorkspaceFS | null
-//
-//	Go: Computer.Workplace() workspace.FS
-//	Returns WorkspaceFS if a workplace is bound, null otherwise.
-//
-// # Methods — Box-only (throw on host)
-//
-// pc.Attach(port, options?) → string
-//
-//	Gets a WebSocket/SSE endpoint URL for a container service.
-//	JS args:
-//	  port:    number
-//	  options: { protocol: "ws"|"sse", path: string }
-//	JS returns: string (URL)
-//
-// pc.Info() → BoxInfo
-//
-//	Go: Box.Info(ctx) (*BoxInfo, error)
-//	JS returns: { id, container_id, pool, owner, status, image, vnc, policy,
-//	              labels, created_at, last_active, process_count }
-//
-// pc.Start() → void
-//
-//	Go: Box.Start(ctx) error
-//
-// pc.Stop() → void
-//
-//	Go: Box.Stop(ctx) error
-//
-// pc.Remove() → void
-//
-//	Go: Box.Remove(ctx) error
-func NewComputerObject(v8ctx *v8go.Context, kind string, id string) (*v8go.Value, error) {
-	// TODO: Phase 2 implementation
-	// 1. Create JS object via v8go.NewObjectTemplate
-	// 2. Set read-only properties: kind, id, owner, pool
-	//    - kind: "box" or "host"
-	//    - id/owner: from sandbox.M().Get(id) for box; empty for host
-	//    - pool: from ComputerInfo().Pool
-	// 3. Bind Computer interface methods:
-	//    - Exec, Stream, VNC, Proxy, ComputerInfo, BindWorkplace, Workplace
-	// 4. Bind box-only methods with kind guard:
-	//    - Attach, Info, Start, Stop, Remove
-	//    - If kind == "host", these throw: "not supported: {method}() requires a box computer"
-	return nil, nil
+func parseStringArray(val *v8go.Value) []string {
+	obj, err := val.AsObject()
+	if err != nil {
+		return nil
+	}
+	lenVal, err := obj.Get("length")
+	if err != nil {
+		return nil
+	}
+	length := int(lenVal.Int32())
+	result := make([]string, 0, length)
+	for i := 0; i < length; i++ {
+		item, err := obj.GetIdx(uint32(i))
+		if err != nil || !item.IsString() {
+			continue
+		}
+		result = append(result, item.String())
+	}
+	return result
+}
+
+func parseStringMap(v8ctx *v8go.Context, val *v8go.Value) map[string]string {
+	result := make(map[string]string)
+	if !val.IsObject() {
+		return result
+	}
+	jsonStr, err := v8go.JSONStringify(v8ctx, val)
+	if err != nil {
+		return result
+	}
+	_ = json.Unmarshal([]byte(jsonStr), &result)
+	return result
+}
+
+func parseExecOptions(v8ctx *v8go.Context, args []*v8go.Value) ([]string, []sandbox.ExecOption, *v8go.Value) {
+	if len(args) < 1 || !args[0].IsObject() {
+		return nil, nil, nil
+	}
+	cmd := parseStringArray(args[0])
+	if len(cmd) == 0 {
+		return nil, nil, nil
+	}
+	var opts []sandbox.ExecOption
+	var callback *v8go.Value
+	for i := 1; i < len(args); i++ {
+		v := args[i]
+		if v.IsFunction() {
+			callback = v
+			break
+		}
+		if v.IsObject() {
+			optsObj, err := v.AsObject()
+			if err != nil {
+				continue
+			}
+			if wd, e := optsObj.Get("workdir"); e == nil && wd.IsString() {
+				opts = append(opts, sandbox.WithWorkDir(wd.String()))
+			}
+			if env, e := optsObj.Get("env"); e == nil && env.IsObject() {
+				envMap := parseStringMap(v8ctx, env)
+				if len(envMap) > 0 {
+					opts = append(opts, sandbox.WithEnv(envMap))
+				}
+			}
+			if stdin, e := optsObj.Get("stdin"); e == nil && stdin.IsString() {
+				opts = append(opts, sandbox.WithStdin([]byte(stdin.String())))
+			}
+			if t, e := optsObj.Get("timeout"); e == nil && t.IsNumber() {
+				opts = append(opts, sandbox.WithTimeout(time.Duration(t.Number())*time.Millisecond))
+			}
+			if mo, e := optsObj.Get("max_output"); e == nil && mo.IsNumber() {
+				opts = append(opts, sandbox.WithMaxOutput(int64(mo.Number())))
+			}
+		}
+	}
+	return cmd, opts, callback
+}
+
+func execResultToJS(v8ctx *v8go.Context, r *sandbox.ExecResult) *v8go.Value {
+	data, _ := json.Marshal(map[string]interface{}{
+		"exit_code":   r.ExitCode,
+		"stdout":      r.Stdout,
+		"stderr":      r.Stderr,
+		"duration_ms": r.DurationMs,
+		"error":       r.Error,
+		"truncated":   r.Truncated,
+	})
+	val, _ := v8go.JSONParse(v8ctx, string(data))
+	return val
+}
+
+func boxInfoToJS(v8ctx *v8go.Context, b *sandbox.BoxInfo) *v8go.Value {
+	data, _ := json.Marshal(map[string]interface{}{
+		"id":            b.ID,
+		"container_id":  b.ContainerID,
+		"pool":          b.Pool,
+		"owner":         b.Owner,
+		"status":        b.Status,
+		"image":         b.Image,
+		"vnc":           b.VNC,
+		"policy":        string(b.Policy),
+		"labels":        b.Labels,
+		"created_at":    b.CreatedAt.Format(time.RFC3339),
+		"last_active":   b.LastActive.Format(time.RFC3339),
+		"process_count": b.ProcessCount,
+	})
+	val, _ := v8go.JSONParse(v8ctx, string(data))
+	return val
+}
+
+func computerInfoToJS(v8ctx *v8go.Context, c sandbox.ComputerInfo) *v8go.Value {
+	data, _ := json.Marshal(map[string]interface{}{
+		"kind":         c.Kind,
+		"pool":         c.Pool,
+		"tai_id":       c.TaiID,
+		"machine_id":   c.MachineID,
+		"version":      c.Version,
+		"mode":         c.Mode,
+		"status":       c.Status,
+		"capabilities": c.Capabilities,
+		"system": map[string]interface{}{
+			"os":        c.System.OS,
+			"arch":      c.System.Arch,
+			"hostname":  c.System.Hostname,
+			"num_cpu":   c.System.NumCPU,
+			"total_mem": c.System.TotalMem,
+		},
+		"box_id":       c.BoxID,
+		"container_id": c.ContainerID,
+		"owner":        c.Owner,
+		"image":        c.Image,
+		"policy":       string(c.Policy),
+		"labels":       c.Labels,
+	})
+	val, _ := v8go.JSONParse(v8ctx, string(data))
+	return val
+}
+
+// getComputer re-fetches a Computer from the Manager by kind + identifier.
+// kind="box"  → identifier is boxID, kind="host" → identifier is pool name.
+func getComputer(ctx context.Context, kind, identifier string) (sandbox.Computer, error) {
+	m := sandbox.M()
+	if kind == "box" {
+		return m.Get(ctx, identifier)
+	}
+	return m.Host(ctx, identifier)
+}
+
+// ---------------------------------------------------------------------------
+// sbHost — sandbox.Host(pool?)
+// ---------------------------------------------------------------------------
+
+func sbHost(info *v8go.FunctionCallbackInfo) *v8go.Value {
+	ctx := context.Background()
+	v8ctx := info.Context()
+
+	pool := ""
+	args := info.Args()
+	if len(args) > 0 && args[0].IsString() {
+		pool = args[0].String()
+	}
+
+	if _, err := sandbox.M().Host(ctx, pool); err != nil {
+		return throwError(info, err.Error())
+	}
+
+	val, err := NewComputerObject(v8ctx, "host", pool)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+	return val
+}
+
+// ---------------------------------------------------------------------------
+// NewComputerObject — unified JS Computer object factory
+// ---------------------------------------------------------------------------
+
+// NewComputerObject creates a JS Computer object. Closures capture only
+// kind (string) and identifier (string) — no Go objects cross into V8.
+func NewComputerObject(v8ctx *v8go.Context, kind string, identifier string) (*v8go.Value, error) {
+	iso := v8ctx.Isolate()
+	ctx := context.Background()
+
+	// Mutable workplace binding lives in closure, not in V8 heap.
+	var workplaceID string
+
+	tpl := v8go.NewObjectTemplate(iso)
+
+	// -- Exec --
+	tpl.Set("Exec", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		cmd, opts, _ := parseExecOptions(info.Context(), info.Args())
+		if len(cmd) == 0 {
+			return throwError(info, "Exec requires cmd (string[])")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		result, err := comp.Exec(ctx, cmd, opts...)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		return execResultToJS(info.Context(), result)
+	}))
+
+	// -- Stream --
+	tpl.Set("Stream", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		cmd, opts, cbVal := parseExecOptions(info.Context(), info.Args())
+		if len(cmd) == 0 {
+			return throwError(info, "Stream requires cmd (string[]) and callback")
+		}
+		if cbVal == nil || !cbVal.IsFunction() {
+			return throwError(info, "Stream requires a callback function as last argument")
+		}
+		cbFn, err := cbVal.AsFunction()
+		if err != nil {
+			return throwError(info, "Stream callback is not a function")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		stream, err := comp.Stream(ctx, cmd, opts...)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+
+		type chunk struct {
+			typ  string
+			data interface{}
+		}
+		ch := make(chan chunk, 64)
+		var wg sync.WaitGroup
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			buf := make([]byte, 4096)
+			for {
+				n, err := stream.Stdout.Read(buf)
+				if n > 0 {
+					ch <- chunk{"stdout", string(buf[:n])}
+				}
+				if err != nil {
+					break
+				}
+			}
+		}()
+		go func() {
+			defer wg.Done()
+			buf := make([]byte, 4096)
+			for {
+				n, err := stream.Stderr.Read(buf)
+				if n > 0 {
+					ch <- chunk{"stderr", string(buf[:n])}
+				}
+				if err != nil {
+					break
+				}
+			}
+		}()
+		go func() {
+			code, _ := stream.Wait()
+			wg.Wait()
+			ch <- chunk{"exit", code}
+			close(ch)
+		}()
+
+		v8c := info.Context()
+		global := v8c.Global()
+		for c := range ch {
+			var dataVal *v8go.Value
+			switch v := c.data.(type) {
+			case string:
+				dataVal, _ = v8go.NewValue(iso, v)
+			case int:
+				dataVal, _ = v8go.NewValue(iso, int32(v))
+			}
+			typeVal, _ := v8go.NewValue(iso, c.typ)
+			if typeVal != nil && dataVal != nil {
+				_, _ = cbFn.Call(global, typeVal, dataVal)
+			}
+		}
+		return v8go.Undefined(iso)
+	}))
+
+	// -- VNC --
+	tpl.Set("VNC", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		url, err := comp.VNC(ctx)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		val, _ := v8go.NewValue(iso, url)
+		return val
+	}))
+
+	// -- Proxy --
+	tpl.Set("Proxy", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		args := info.Args()
+		if len(args) < 1 || !args[0].IsNumber() {
+			return throwError(info, "Proxy requires port (number)")
+		}
+		port := int(args[0].Int32())
+		path := "/"
+		if len(args) > 1 && args[1].IsString() {
+			path = args[1].String()
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		url, err := comp.Proxy(ctx, port, path)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		val, _ := v8go.NewValue(iso, url)
+		return val
+	}))
+
+	// -- ComputerInfo --
+	tpl.Set("ComputerInfo", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		return computerInfoToJS(info.Context(), comp.ComputerInfo())
+	}))
+
+	// -- BindWorkplace --
+	tpl.Set("BindWorkplace", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		args := info.Args()
+		if len(args) < 1 || !args[0].IsString() {
+			return throwError(info, "BindWorkplace requires workspaceID (string)")
+		}
+		workplaceID = args[0].String()
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		comp.BindWorkplace(workplaceID)
+		return v8go.Undefined(iso)
+	}))
+
+	// -- Workplace → reuse workspace JSAPI NewFSObject --
+	tpl.Set("Workplace", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if workplaceID == "" {
+			return v8go.Null(iso)
+		}
+		val, err := wsjsapi.NewFSObject(info.Context(), workplaceID)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		return val
+	}))
+
+	// -- Box-only: Info --
+	tpl.Set("Info", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if kind == "host" {
+			return throwError(info, "not supported: Info() requires a box computer")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		box := comp.(*sandbox.Box)
+		bi, err := box.Info(ctx)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		return boxInfoToJS(info.Context(), bi)
+	}))
+
+	// -- Box-only: Start --
+	tpl.Set("Start", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if kind == "host" {
+			return throwError(info, "not supported: Start() requires a box computer")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		if err := comp.(*sandbox.Box).Start(ctx); err != nil {
+			return throwError(info, err.Error())
+		}
+		return v8go.Undefined(iso)
+	}))
+
+	// -- Box-only: Stop --
+	tpl.Set("Stop", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if kind == "host" {
+			return throwError(info, "not supported: Stop() requires a box computer")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		if err := comp.(*sandbox.Box).Stop(ctx); err != nil {
+			return throwError(info, err.Error())
+		}
+		return v8go.Undefined(iso)
+	}))
+
+	// -- Box-only: Remove --
+	tpl.Set("Remove", v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		if kind == "host" {
+			return throwError(info, "not supported: Remove() requires a box computer")
+		}
+		comp, err := getComputer(ctx, kind, identifier)
+		if err != nil {
+			return throwError(info, err.Error())
+		}
+		if err := comp.(*sandbox.Box).Remove(ctx); err != nil {
+			return throwError(info, err.Error())
+		}
+		return v8go.Undefined(iso)
+	}))
+
+	// Instantiate and set read-only properties
+	obj, err := tpl.NewInstance(v8ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	obj.Set("kind", kind)
+
+	idStr := ""
+	ownerStr := ""
+	poolStr := identifier
+	if kind == "box" {
+		if comp, err := getComputer(ctx, kind, identifier); err == nil {
+			box := comp.(*sandbox.Box)
+			idStr = box.ID()
+			ownerStr = box.Owner()
+			poolStr = box.Pool()
+		} else {
+			idStr = identifier
+		}
+	}
+	obj.Set("id", idStr)
+	obj.Set("owner", ownerStr)
+	obj.Set("pool", poolStr)
+
+	return obj.Value, nil
 }

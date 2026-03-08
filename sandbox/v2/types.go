@@ -5,7 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/workspace"
 )
 
@@ -56,7 +55,7 @@ type SystemInfo struct {
 }
 
 // ---------------------------------------------------------------------------
-// Lifecycle & Pool
+// Lifecycle
 // ---------------------------------------------------------------------------
 
 type LifecyclePolicy string
@@ -69,28 +68,6 @@ const (
 )
 
 const DefaultStopTimeout = 2 * time.Second
-
-type Pool struct {
-	Name        string
-	Addr        string
-	Options     []tai.Option
-	MaxPerUser  int
-	MaxTotal    int
-	IdleTimeout time.Duration
-	MaxLifetime time.Duration
-	StopTimeout time.Duration
-}
-
-type PoolInfo struct {
-	Name        string
-	Addr        string
-	Connected   bool
-	Boxes       int
-	MaxPerUser  int
-	MaxTotal    int
-	IdleTimeout time.Duration
-	MaxLifetime time.Duration
-}
 
 // ---------------------------------------------------------------------------
 // Create / List options
@@ -118,6 +95,7 @@ type CreateOptions struct {
 	Ports       []PortMapping
 	Policy      LifecyclePolicy
 	IdleTimeout time.Duration
+	MaxLifetime time.Duration
 	StopTimeout time.Duration
 
 	WorkspaceID string
