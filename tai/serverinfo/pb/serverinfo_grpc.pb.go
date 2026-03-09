@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v4.25.0
-// source: tai/serverinfo/pb/serverinfo.proto
+// source: serverinfo.proto
 
 package pb
 
@@ -117,5 +117,5 @@ var ServerInfo_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "tai/serverinfo/pb/serverinfo.proto",
+	Metadata: "serverinfo.proto",
 }

@@ -20,6 +20,7 @@ type Volume interface {
 
 	SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
 	SyncPull(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
+	Copy(ctx context.Context, sessionID, src, dst string, opts ...SyncOption) (*SyncResult, error)
 
 	Zip(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error)
 	Unzip(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
@@ -56,31 +57,33 @@ type ArchiveResult struct {
 }
 
 // SyncOption configures sync behavior.
-type SyncOption func(*syncConfig)
+type SyncOption func(*SyncConfig)
 
-type syncConfig struct {
-	forceFull  bool
-	excludes   []string
-	remotePath string
+// SyncConfig holds resolved sync options.
+type SyncConfig struct {
+	ForceFull  bool
+	Excludes   []string
+	RemotePath string
 }
 
 // WithForceFull skips snapshot caches and diffs against actual disk.
 func WithForceFull() SyncOption {
-	return func(c *syncConfig) { c.forceFull = true }
+	return func(c *SyncConfig) { c.ForceFull = true }
 }
 
 // WithExcludes adds glob patterns to exclude from sync.
 func WithExcludes(patterns ...string) SyncOption {
-	return func(c *syncConfig) { c.excludes = append(c.excludes, patterns...) }
+	return func(c *SyncConfig) { c.Excludes = append(c.Excludes, patterns...) }
 }
 
 // WithRemotePath sets a sub-path within the workspace root for sync operations.
 func WithRemotePath(path string) SyncOption {
-	return func(c *syncConfig) { c.remotePath = path }
+	return func(c *SyncConfig) { c.RemotePath = path }
 }
 
-func applySyncOpts(opts []SyncOption) syncConfig {
-	var cfg syncConfig
+// ApplySyncOpts resolves a slice of SyncOption into a SyncConfig.
+func ApplySyncOpts(opts []SyncOption) SyncConfig {
+	var cfg SyncConfig
 	for _, o := range opts {
 		o(&cfg)
 	}

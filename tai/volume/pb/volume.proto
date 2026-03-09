@@ -30,6 +30,8 @@ service Volume {
   rpc Remove(FSRemoveRequest) returns (FSOpResponse);
   rpc Rename(FSRenameRequest) returns (FSOpResponse);
   rpc MkdirAll(FSRequest) returns (FSOpResponse);
+  // Copy: copy src to dst within the same workspace (server-side when remote).
+  rpc Copy(FSCopyRequest) returns (SyncResult);
 
   // --- Archive / Compression ---
 
@@ -148,6 +150,14 @@ message FSRenameRequest {
   string session_id = 1;
   string old_path   = 2;
   string new_path   = 3;
+}
+
+message FSCopyRequest {
+  string session_id       = 1;
+  string src_path         = 2;
+  string dst_path         = 3;
+  repeated string excludes = 4;  // glob patterns
+  bool force              = 5;   // overwrite even if mtime/size match
 }
 
 // --- Archive / Compression Messages ---

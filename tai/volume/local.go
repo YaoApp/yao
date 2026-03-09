@@ -138,14 +138,125 @@ func (l *localStorage) MkdirAll(_ context.Context, sessionID, path string) error
 	return os.MkdirAll(abs, 0o755)
 }
 
+// Copy duplicates src to dst within the same workspace session.
+// Supports single files and directories (recursive). Uses excludes from SyncOption
+// and forceFull to overwrite even when mtime+size match.
+func (l *localStorage) Copy(_ context.Context, sessionID, src, dst string, opts ...SyncOption) (*SyncResult, error) {
+	start := time.Now()
+	cfg := ApplySyncOpts(opts)
+
+	srcAbs, err := l.abs(sessionID, src)
+	if err != nil {
+		return nil, err
+	}
+	dstAbs, err := l.abs(sessionID, dst)
+	if err != nil {
+		return nil, err
+	}
+
+	srcInfo, err := os.Stat(srcAbs)
+	if err != nil {
+		return nil, err
+	}
+
+	if !srcInfo.IsDir() {
+		n, err := l.copyFile(srcAbs, dstAbs, srcInfo, cfg.ForceFull)
+		if err != nil {
+			return nil, err
+		}
+		synced := 0
+		if n > 0 {
+			synced = 1
+		}
+		return &SyncResult{
+			FilesSynced:      synced,
+			BytesTransferred: n,
+			Duration:         time.Since(start),
+		}, nil
+	}
+
+	var synced int
+	var transferred int64
+	err = filepath.WalkDir(srcAbs, func(abs string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			if os.IsNotExist(walkErr) {
+				return nil
+			}
+			return walkErr
+		}
+		rel, _ := filepath.Rel(srcAbs, abs)
+		if rel == "." {
+			return os.MkdirAll(dstAbs, 0o755)
+		}
+
+		if isExcluded(rel, d.IsDir(), cfg.Excludes) {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+
+		target := filepath.Join(dstAbs, rel)
+		if d.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+
+		info, err := d.Info()
+		if err != nil {
+			return nil
+		}
+		n, err := l.copyFile(abs, target, info, cfg.ForceFull)
+		if err != nil {
+			return err
+		}
+		if n > 0 {
+			synced++
+			transferred += n
+		}
+		return nil
+	})
+
+	return &SyncResult{
+		FilesSynced:      synced,
+		BytesTransferred: transferred,
+		Duration:         time.Since(start),
+	}, err
+}
+
+func (l *localStorage) copyFile(srcAbs, dstAbs string, srcInfo os.FileInfo, force bool) (int64, error) {
+	if !force {
+		if dstInfo, e := os.Stat(dstAbs); e == nil {
+			if dstInfo.Size() == srcInfo.Size() && dstInfo.ModTime().Equal(srcInfo.ModTime()) {
+				return 0, nil
+			}
+		}
+	}
+
+	data, err := os.ReadFile(srcAbs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	if err := os.MkdirAll(filepath.Dir(dstAbs), 0o755); err != nil {
+		return 0, err
+	}
+	if err := os.WriteFile(dstAbs, data, srcInfo.Mode()); err != nil {
+		return 0, err
+	}
+	_ = os.Chtimes(dstAbs, srcInfo.ModTime(), srcInfo.ModTime())
+	return int64(len(data)), nil
+}
+
 // SyncPush copies changed files from localDir to dataDir/{sessionID}/.
 // Uses mtime+size to detect changes. Files that vanish during sync are skipped.
 func (l *localStorage) SyncPush(_ context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error) {
 	start := time.Now()
-	cfg := applySyncOpts(opts)
+	cfg := ApplySyncOpts(opts)
 	dst := l.root(sessionID)
-	if cfg.remotePath != "" {
-		dst = filepath.Join(dst, filepath.Clean(cfg.remotePath))
+	if cfg.RemotePath != "" {
+		dst = filepath.Join(dst, filepath.Clean(cfg.RemotePath))
 	}
 	if err := os.MkdirAll(dst, 0o755); err != nil {
 		return nil, err
@@ -167,7 +278,7 @@ func (l *localStorage) SyncPush(_ context.Context, sessionID, localDir string, o
 		}
 		rel = filepath.ToSlash(rel)
 
-		if isExcluded(rel, d.IsDir(), cfg.excludes) {
+		if isExcluded(rel, d.IsDir(), cfg.Excludes) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -184,7 +295,7 @@ func (l *localStorage) SyncPush(_ context.Context, sessionID, localDir string, o
 			return nil // file vanished between readdir and stat; skip
 		}
 
-		if !cfg.forceFull {
+		if !cfg.ForceFull {
 			if dstInfo, e := os.Stat(target); e == nil {
 				if dstInfo.Size() == srcInfo.Size() && dstInfo.ModTime().Equal(srcInfo.ModTime()) {
 					return nil
@@ -222,10 +333,10 @@ func (l *localStorage) SyncPush(_ context.Context, sessionID, localDir string, o
 // Files that vanish during sync are skipped.
 func (l *localStorage) SyncPull(_ context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error) {
 	start := time.Now()
-	cfg := applySyncOpts(opts)
+	cfg := ApplySyncOpts(opts)
 	src := l.root(sessionID)
-	if cfg.remotePath != "" {
-		src = filepath.Join(src, filepath.Clean(cfg.remotePath))
+	if cfg.RemotePath != "" {
+		src = filepath.Join(src, filepath.Clean(cfg.RemotePath))
 	}
 	if err := os.MkdirAll(localDir, 0o755); err != nil {
 		return nil, err
@@ -247,7 +358,7 @@ func (l *localStorage) SyncPull(_ context.Context, sessionID, localDir string, o
 		}
 		rel = filepath.ToSlash(rel)
 
-		if isExcluded(rel, d.IsDir(), cfg.excludes) {
+		if isExcluded(rel, d.IsDir(), cfg.Excludes) {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -264,7 +375,7 @@ func (l *localStorage) SyncPull(_ context.Context, sessionID, localDir string, o
 			return nil // file vanished between readdir and stat; skip
 		}
 
-		if !cfg.forceFull {
+		if !cfg.ForceFull {
 			if dstInfo, e := os.Stat(target); e == nil {
 				if dstInfo.Size() == srcInfo.Size() && dstInfo.ModTime().Equal(srcInfo.ModTime()) {
 					return nil

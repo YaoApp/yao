@@ -11,6 +11,8 @@ import (
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	infraV2 "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/workspace"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
@@ -251,6 +253,8 @@ type Context struct {
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
 	sandboxExecutor SandboxExecutor       `json:"-"` // Sandbox executor for hooks (set by assistant when sandbox is configured)
+	computer        infraV2.Computer      `json:"-"` // V2 sandbox computer (set by assistant when V2 sandbox is configured)
+	workspace       workspace.FS          `json:"-"` // V2 workspace FS (derived from computer.Workplace())
 
 	// Model capabilities (set by assistant, used by output adapters)
 	Capabilities *llm.Capabilities `json:"-"` // Model capabilities for the current connector

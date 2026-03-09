@@ -22,6 +22,8 @@ type SystemInfo struct {
 	Hostname string `json:"hostname"`
 	NumCPU   int    `json:"num_cpu"`
 	TotalMem int64  `json:"total_mem,omitempty"`
+	Shell    string `json:"shell,omitempty"`
+	TempDir  string `json:"temp_dir,omitempty"`
 }
 
 // TaiNode represents a registered Tai instance (direct or tunnel).

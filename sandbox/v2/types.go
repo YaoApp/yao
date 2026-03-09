@@ -45,13 +45,15 @@ type ComputerInfo struct {
 	Labels      map[string]string
 }
 
-// SystemInfo describes the hardware of a Tai node.
+// SystemInfo describes the hardware and environment of a Tai node.
 type SystemInfo struct {
 	OS       string
 	Arch     string
 	Hostname string
 	NumCPU   int
 	TotalMem int64
+	Shell    string // preferred shell: "sh", "pwsh", "powershell", "cmd.exe"
+	TempDir  string // system temp directory
 }
 
 // ---------------------------------------------------------------------------

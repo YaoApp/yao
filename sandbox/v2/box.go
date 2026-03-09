@@ -29,6 +29,7 @@ type Box struct {
 	vnc           bool
 	image         string
 	workspaceID   string
+	system        SystemInfo
 	ws            workspace.FS
 	manager       *Manager
 }
@@ -46,6 +47,7 @@ func (b *Box) ComputerInfo() ComputerInfo {
 	return ComputerInfo{
 		Kind:        "box",
 		NodeID:      b.nodeID,
+		System:      b.system,
 		Status:      "online",
 		BoxID:       b.id,
 		ContainerID: b.containerID,
@@ -96,10 +98,6 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		ExitCode: result.ExitCode,
 		Stdout:   result.Stdout,
 		Stderr:   result.Stderr,
-	}
-
-	if b.policy == OneShot {
-		b.manager.Remove(ctx, b.id)
 	}
 
 	return r, nil

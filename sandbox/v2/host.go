@@ -18,6 +18,7 @@ import (
 type Host struct {
 	nodeID      string
 	workplaceID string
+	system      SystemInfo
 	manager     *Manager
 }
 
@@ -31,6 +32,7 @@ func (h *Host) ComputerInfo() ComputerInfo {
 	return ComputerInfo{
 		Kind:   "host",
 		NodeID: h.nodeID,
+		System: h.system,
 		Status: "online",
 	}
 }

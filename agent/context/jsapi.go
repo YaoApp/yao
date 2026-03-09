@@ -152,12 +152,30 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		memoryObj.Release()
 	}
 
-	// Sandbox object - only set if sandbox executor is available
+	// Sandbox object - only set if sandbox executor is available (V1)
 	if ctx.sandboxExecutor != nil {
 		sandboxObj := ctx.createSandboxInstance(v8ctx)
 		if sandboxObj != nil {
 			obj.Set("sandbox", sandboxObj)
 			sandboxObj.Release()
+		}
+	}
+
+	// Computer object - only set if V2 computer is available
+	if ctx.computer != nil {
+		computerObj := ctx.createComputerInstance(v8ctx)
+		if computerObj != nil {
+			obj.Set("computer", computerObj)
+			computerObj.Release()
+		}
+	}
+
+	// Workspace object - only set if V2 workspace is available
+	if ctx.workspace != nil {
+		wsObj := ctx.createWorkspaceInstance(v8ctx)
+		if wsObj != nil {
+			obj.Set("workspace", wsObj)
+			wsObj.Release()
 		}
 	}
 

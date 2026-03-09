@@ -1286,3 +1286,244 @@ func TestLocalSyncExcludes(t *testing.T) {
 		t.Error("excluded file should not exist")
 	}
 }
+
+func TestLocalCopyFile(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-file"
+
+	_ = vol.WriteFile(ctx, sid, "src.txt", []byte("hello copy"), 0o644)
+
+	result, err := vol.Copy(ctx, sid, "src.txt", "dst.txt")
+	if err != nil {
+		t.Fatalf("Copy file: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("synced = %d, want 1", result.FilesSynced)
+	}
+	if result.BytesTransferred != 10 {
+		t.Errorf("bytes = %d, want 10", result.BytesTransferred)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "dst.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "hello copy" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalCopyDir(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-dir"
+
+	_ = vol.MkdirAll(ctx, sid, "src/sub")
+	_ = vol.WriteFile(ctx, sid, "src/a.txt", []byte("aaa"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/sub/b.txt", []byte("bbb"), 0o644)
+
+	result, err := vol.Copy(ctx, sid, "src", "dst")
+	if err != nil {
+		t.Fatalf("Copy dir: %v", err)
+	}
+	if result.FilesSynced != 2 {
+		t.Errorf("synced = %d, want 2", result.FilesSynced)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "dst/a.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "aaa" {
+		t.Errorf("content = %q", data)
+	}
+
+	data, _, err = vol.ReadFile(ctx, sid, "dst/sub/b.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "bbb" {
+		t.Errorf("content = %q", data)
+	}
+}
+
+func TestLocalCopyExcludes(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-excl"
+
+	_ = vol.MkdirAll(ctx, sid, "src")
+	_ = vol.WriteFile(ctx, sid, "src/keep.txt", []byte("keep"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/skip.log", []byte("skip"), 0o644)
+
+	result, err := vol.Copy(ctx, sid, "src", "dst", WithExcludes("*.log"))
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("synced = %d, want 1", result.FilesSynced)
+	}
+
+	_, err = vol.Stat(ctx, sid, "dst/keep.txt")
+	if err != nil {
+		t.Error("keep.txt should exist")
+	}
+	_, err = vol.Stat(ctx, sid, "dst/skip.log")
+	if !os.IsNotExist(err) {
+		t.Error("skip.log should not exist")
+	}
+}
+
+func TestLocalCopySkipsUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-skip"
+
+	_ = vol.WriteFile(ctx, sid, "src.txt", []byte("data"), 0o644)
+
+	result1, err := vol.Copy(ctx, sid, "src.txt", "dst.txt", WithForceFull())
+	if err != nil {
+		t.Fatalf("Copy 1: %v", err)
+	}
+	if result1.FilesSynced != 1 {
+		t.Errorf("first copy synced = %d, want 1", result1.FilesSynced)
+	}
+
+	result2, err := vol.Copy(ctx, sid, "src.txt", "dst.txt")
+	if err != nil {
+		t.Fatalf("Copy 2: %v", err)
+	}
+	if result2.FilesSynced != 0 {
+		t.Errorf("second copy synced = %d, want 0 (unchanged)", result2.FilesSynced)
+	}
+}
+
+func TestLocalCopyForceFull(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-force"
+
+	_ = vol.WriteFile(ctx, sid, "src.txt", []byte("data"), 0o644)
+
+	_, _ = vol.Copy(ctx, sid, "src.txt", "dst.txt", WithForceFull())
+
+	result, err := vol.Copy(ctx, sid, "src.txt", "dst.txt", WithForceFull())
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("force copy synced = %d, want 1", result.FilesSynced)
+	}
+}
+
+func TestLocalCopyNotExist(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+
+	_, err := vol.Copy(ctx, "test", "nonexistent", "dst")
+	if err == nil {
+		t.Error("expected error for copy nonexistent source")
+	}
+}
+
+func TestLocalCopyPathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+
+	_, err := vol.Copy(ctx, "test", "../../etc/passwd", "dst")
+	if err == nil {
+		t.Error("expected error for path traversal in src")
+	}
+
+	_, err = vol.Copy(ctx, "test", "src", "../../etc/evil")
+	if err == nil {
+		t.Error("expected error for path traversal in dst")
+	}
+}
+
+func TestRemoteCopy(t *testing.T) {
+	addr := taiTestGRPC()
+	conn, err := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Skipf("gRPC dial %s: %v", addr, err)
+	}
+	defer conn.Close()
+
+	vol := NewRemote(conn)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-remote-test"
+
+	_ = vol.WriteFile(ctx, sid, "src.txt", []byte("remote copy"), 0o644)
+
+	result, err := vol.Copy(ctx, sid, "src.txt", "dst.txt", WithForceFull())
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced < 1 {
+		t.Errorf("synced = %d", result.FilesSynced)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "dst.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "remote copy" {
+		t.Errorf("content = %q", data)
+	}
+
+	_ = vol.Remove(ctx, sid, ".", true)
+}
+
+func TestRemoteCopyDir(t *testing.T) {
+	addr := taiTestGRPC()
+	conn, err := grpc.NewClient(addr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	if err != nil {
+		t.Skipf("gRPC dial %s: %v", addr, err)
+	}
+	defer conn.Close()
+
+	vol := NewRemote(conn)
+	defer vol.Close()
+	ctx := context.Background()
+	sid := "copy-remote-dir"
+
+	_ = vol.MkdirAll(ctx, sid, "src/sub")
+	_ = vol.WriteFile(ctx, sid, "src/a.txt", []byte("aaa"), 0o644)
+	_ = vol.WriteFile(ctx, sid, "src/sub/b.txt", []byte("bbb"), 0o644)
+
+	result, err := vol.Copy(ctx, sid, "src", "dst", WithForceFull())
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced < 2 {
+		t.Errorf("synced = %d", result.FilesSynced)
+	}
+
+	data, _, err := vol.ReadFile(ctx, sid, "dst/sub/b.txt")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "bbb" {
+		t.Errorf("content = %q", data)
+	}
+
+	_ = vol.Remove(ctx, sid, ".", true)
+}

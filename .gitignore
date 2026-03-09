@@ -75,3 +75,4 @@ tg-send
 registry/data/
 registry/manager/DESIGN*.md
 tai/testdata/
+agent/sandbox/docs/*.md

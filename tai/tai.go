@@ -239,15 +239,14 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	c.grpcConn = conn
 	c.he = hepb.NewHostExecClient(conn)
 
-	caps, err := c.discoverServerInfo(conn, cfg)
+	info, err := c.discoverServerInfo(conn, cfg)
 	if err != nil {
-		// Old Tai without ServerInfo — fall back to legacy behaviour (try Docker).
-		caps = map[string]bool{"docker": true}
+		info = &discoveredInfo{Capabilities: map[string]bool{"docker": true}}
 	}
 
-	hasDocker := caps["docker"]
-	hasK8s := caps["k8s"]
-	hasHostExec := caps["host_exec"]
+	hasDocker := info.Capabilities["docker"]
+	hasK8s := info.Capabilities["k8s"]
+	hasHostExec := info.Capabilities["host_exec"]
 
 	if !hasDocker && !hasK8s && !hasHostExec {
 		conn.Close()
@@ -297,9 +296,12 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 		id := fmt.Sprintf("%s-%d", c.host, c.ports.GRPC)
 		c.taiID = id
 		reg.Register(&registry.TaiNode{
-			TaiID: id,
-			Mode:  "direct",
-			Addr:  fmt.Sprintf("tai://%s:%d", c.host, c.ports.GRPC),
+			TaiID:        id,
+			Mode:         "direct",
+			Version:      info.Version,
+			System:       info.System,
+			Capabilities: info.Capabilities,
+			Addr:         fmt.Sprintf("tai://%s:%d", c.host, c.ports.GRPC),
 			Ports: map[string]int{
 				"grpc":   c.ports.GRPC,
 				"http":   c.ports.HTTP,
@@ -351,13 +353,13 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	c.he = hepb.NewHostExecClient(conn)
 	c.vol = volume.NewRemote(conn)
 
-	caps, err := c.discoverServerInfo(conn, cfg)
+	info, err := c.discoverServerInfo(conn, cfg)
 	if err != nil {
-		caps = map[string]bool{"docker": true}
+		info = &discoveredInfo{Capabilities: map[string]bool{"docker": true}}
 	}
 
-	hasDocker := caps["docker"]
-	hasHostExec := caps["host_exec"]
+	hasDocker := info.Capabilities["docker"]
+	hasHostExec := info.Capabilities["host_exec"]
 
 	if !hasDocker && !hasHostExec {
 		c.closeTunnelListeners()
@@ -544,10 +546,16 @@ func isLocalHost(h string) bool {
 	return h == "127.0.0.1" || h == "localhost" || h == "::1"
 }
 
+type discoveredInfo struct {
+	Capabilities map[string]bool
+	System       registry.SystemInfo
+	Version      string
+}
+
 // discoverServerInfo calls ServerInfo.GetInfo on the remote Tai server, merges
-// discovered ports into c.ports, and returns the server's capabilities map.
+// discovered ports into c.ports, and returns capabilities + system info.
 // Ports explicitly set via WithPorts take precedence over server-reported values.
-func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[string]bool, error) {
+func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (*discoveredInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -576,7 +584,25 @@ func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[str
 	if caps == nil {
 		caps = make(map[string]bool)
 	}
-	return caps, nil
+
+	var sys registry.SystemInfo
+	if s := resp.System; s != nil {
+		sys = registry.SystemInfo{
+			OS:       s.Os,
+			Arch:     s.Arch,
+			Hostname: s.Hostname,
+			NumCPU:   int(s.NumCpu),
+			TotalMem: s.TotalMem,
+			Shell:    s.Shell,
+			TempDir:  s.TempDir,
+		}
+	}
+
+	return &discoveredInfo{
+		Capabilities: caps,
+		System:       sys,
+		Version:      resp.Version,
+	}, nil
 }
 
 // RegisterLocal probes the local Docker environment and, if reachable,
@@ -615,4 +641,14 @@ func GetClient(taiID string) (*Client, bool) {
 		return nil, false
 	}
 	return c, true
+}
+
+// GetNodeSnapshot returns the registry snapshot for a Tai node by ID.
+// Callers can inspect System, Capabilities, Mode and other registry-level fields.
+func GetNodeSnapshot(taiID string) (*registry.NodeSnapshot, bool) {
+	reg := registry.Global()
+	if reg == nil {
+		return nil, false
+	}
+	return reg.Get(taiID)
 }

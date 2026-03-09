@@ -98,7 +98,20 @@ func (m *Manager) Host(_ context.Context, nodeID string) (*Host, error) {
 		return nil, fmt.Errorf("sandbox: node %q has no host_exec capability", nodeID)
 	}
 
-	return &Host{nodeID: nodeID, manager: m}, nil
+	var sys SystemInfo
+	if snap, ok := tai.GetNodeSnapshot(nodeID); ok {
+		sys = SystemInfo{
+			OS:       snap.System.OS,
+			Arch:     snap.System.Arch,
+			Hostname: snap.System.Hostname,
+			NumCPU:   snap.System.NumCPU,
+			TotalMem: snap.System.TotalMem,
+			Shell:    snap.System.Shell,
+			TempDir:  snap.System.TempDir,
+		}
+	}
+
+	return &Host{nodeID: nodeID, system: sys, manager: m}, nil
 }
 
 // Create creates and starts a new sandbox.
@@ -113,9 +126,33 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		if wsm := workspace.M(); wsm != nil {
 			node, err := wsm.NodeForWorkspace(ctx, opts.WorkspaceID)
 			if err != nil {
-				return nil, fmt.Errorf("sandbox: resolve workspace %q: %w", opts.WorkspaceID, err)
+				targetNode := nodeID
+				if targetNode == "" {
+					if nodes := wsm.Nodes(); len(nodes) > 0 {
+						for _, n := range nodes {
+							if n.Online {
+								targetNode = n.Name
+								break
+							}
+						}
+					}
+				}
+				if targetNode == "" {
+					return nil, fmt.Errorf("sandbox: resolve workspace %q: no available node", opts.WorkspaceID)
+				}
+				_, err = wsm.Create(ctx, workspace.CreateOptions{
+					ID:    opts.WorkspaceID,
+					Name:  opts.WorkspaceID,
+					Owner: opts.Owner,
+					Node:  targetNode,
+				})
+				if err != nil {
+					return nil, fmt.Errorf("sandbox: auto-create workspace %q: %w", opts.WorkspaceID, err)
+				}
+				nodeID = targetNode
+			} else {
+				nodeID = node
 			}
-			nodeID = node
 		}
 	}
 
@@ -154,6 +191,19 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		policy = Session
 	}
 
+	var sys SystemInfo
+	if snap, ok := tai.GetNodeSnapshot(nodeID); ok {
+		sys = SystemInfo{
+			OS:       snap.System.OS,
+			Arch:     snap.System.Arch,
+			Hostname: snap.System.Hostname,
+			NumCPU:   snap.System.NumCPU,
+			TotalMem: snap.System.TotalMem,
+			Shell:    snap.System.Shell,
+			TempDir:  snap.System.TempDir,
+		}
+	}
+
 	box := &Box{
 		id:           id,
 		containerID:  containerID,
@@ -169,6 +219,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		vnc:          opts.VNC,
 		image:        opts.Image,
 		workspaceID:  opts.WorkspaceID,
+		system:       sys,
 	}
 	box.lastCall.Store(time.Now().UnixMilli())
 

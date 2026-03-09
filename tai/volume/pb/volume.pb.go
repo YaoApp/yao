@@ -1035,6 +1035,82 @@ func (x *FSRenameRequest) GetNewPath() string {
 	return ""
 }
 
+type FSCopyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	SrcPath       string                 `protobuf:"bytes,2,opt,name=src_path,json=srcPath,proto3" json:"src_path,omitempty"`
+	DstPath       string                 `protobuf:"bytes,3,opt,name=dst_path,json=dstPath,proto3" json:"dst_path,omitempty"`
+	Excludes      []string               `protobuf:"bytes,4,rep,name=excludes,proto3" json:"excludes,omitempty"` // glob patterns
+	Force         bool                   `protobuf:"varint,5,opt,name=force,proto3" json:"force,omitempty"`      // overwrite even if mtime/size match
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FSCopyRequest) Reset() {
+	*x = FSCopyRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FSCopyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FSCopyRequest) ProtoMessage() {}
+
+func (x *FSCopyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FSCopyRequest.ProtoReflect.Descriptor instead.
+func (*FSCopyRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *FSCopyRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *FSCopyRequest) GetSrcPath() string {
+	if x != nil {
+		return x.SrcPath
+	}
+	return ""
+}
+
+func (x *FSCopyRequest) GetDstPath() string {
+	if x != nil {
+		return x.DstPath
+	}
+	return ""
+}
+
+func (x *FSCopyRequest) GetExcludes() []string {
+	if x != nil {
+		return x.Excludes
+	}
+	return nil
+}
+
+func (x *FSCopyRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
 type ArchiveRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -1047,7 +1123,7 @@ type ArchiveRequest struct {
 
 func (x *ArchiveRequest) Reset() {
 	*x = ArchiveRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1059,7 +1135,7 @@ func (x *ArchiveRequest) String() string {
 func (*ArchiveRequest) ProtoMessage() {}
 
 func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1072,7 +1148,7 @@ func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{15}
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ArchiveRequest) GetSessionId() string {
@@ -1113,7 +1189,7 @@ type ArchiveResponse struct {
 
 func (x *ArchiveResponse) Reset() {
 	*x = ArchiveResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1125,7 +1201,7 @@ func (x *ArchiveResponse) String() string {
 func (*ArchiveResponse) ProtoMessage() {}
 
 func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1138,7 +1214,7 @@ func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{16}
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ArchiveResponse) GetSizeBytes() int64 {
@@ -1240,7 +1316,14 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
 	"\bold_path\x18\x02 \x01(\tR\aoldPath\x12\x19\n" +
-	"\bnew_path\x18\x03 \x01(\tR\anewPath\"\x81\x01\n" +
+	"\bnew_path\x18\x03 \x01(\tR\anewPath\"\x96\x01\n" +
+	"\rFSCopyRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
+	"\bsrc_path\x18\x02 \x01(\tR\asrcPath\x12\x19\n" +
+	"\bdst_path\x18\x03 \x01(\tR\adstPath\x12\x1a\n" +
+	"\bexcludes\x18\x04 \x03(\tR\bexcludes\x12\x14\n" +
+	"\x05force\x18\x05 \x01(\bR\x05force\"\x81\x01\n" +
 	"\x0eArchiveRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x19\n" +
@@ -1251,7 +1334,7 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x01 \x01(\x03R\tsizeBytes\x12\x1f\n" +
 	"\vfiles_count\x18\x02 \x01(\x05R\n" +
-	"filesCount2\xc7\a\n" +
+	"filesCount2\xfa\a\n" +
 	"\x06Volume\x128\n" +
 	"\bSyncPush\x12\x13.volume.SyncMessage\x1a\x13.volume.SyncMessage(\x010\x01\x127\n" +
 	"\bSyncPull\x12\x14.volume.SyncManifest\x1a\x13.volume.SyncMessage0\x01\x128\n" +
@@ -1261,7 +1344,8 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\aListDir\x12\x11.volume.FSRequest\x1a\x16.volume.FSListResponse\x127\n" +
 	"\x06Remove\x12\x17.volume.FSRemoveRequest\x1a\x14.volume.FSOpResponse\x127\n" +
 	"\x06Rename\x12\x17.volume.FSRenameRequest\x1a\x14.volume.FSOpResponse\x123\n" +
-	"\bMkdirAll\x12\x11.volume.FSRequest\x1a\x14.volume.FSOpResponse\x126\n" +
+	"\bMkdirAll\x12\x11.volume.FSRequest\x1a\x14.volume.FSOpResponse\x121\n" +
+	"\x04Copy\x12\x15.volume.FSCopyRequest\x1a\x12.volume.SyncResult\x126\n" +
 	"\x03Zip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x128\n" +
 	"\x05Unzip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x127\n" +
 	"\x04Gzip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x129\n" +
@@ -1284,7 +1368,7 @@ func file_tai_volume_pb_volume_proto_rawDescGZIP() []byte {
 }
 
 var file_tai_volume_pb_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_tai_volume_pb_volume_proto_goTypes = []any{
 	(FileChunk_ChunkType)(0), // 0: volume.FileChunk.ChunkType
 	(*FileInfo)(nil),         // 1: volume.FileInfo
@@ -1302,8 +1386,9 @@ var file_tai_volume_pb_volume_proto_goTypes = []any{
 	(*FSListResponse)(nil),   // 13: volume.FSListResponse
 	(*FSRemoveRequest)(nil),  // 14: volume.FSRemoveRequest
 	(*FSRenameRequest)(nil),  // 15: volume.FSRenameRequest
-	(*ArchiveRequest)(nil),   // 16: volume.ArchiveRequest
-	(*ArchiveResponse)(nil),  // 17: volume.ArchiveResponse
+	(*FSCopyRequest)(nil),    // 16: volume.FSCopyRequest
+	(*ArchiveRequest)(nil),   // 17: volume.ArchiveRequest
+	(*ArchiveResponse)(nil),  // 18: volume.ArchiveResponse
 }
 var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	1,  // 0: volume.SyncManifest.files:type_name -> volume.FileInfo
@@ -1322,33 +1407,35 @@ var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	14, // 13: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
 	15, // 14: volume.Volume.Rename:input_type -> volume.FSRenameRequest
 	7,  // 15: volume.Volume.MkdirAll:input_type -> volume.FSRequest
-	16, // 16: volume.Volume.Zip:input_type -> volume.ArchiveRequest
-	16, // 17: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
-	16, // 18: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
-	16, // 19: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
-	16, // 20: volume.Volume.Tar:input_type -> volume.ArchiveRequest
-	16, // 21: volume.Volume.Untar:input_type -> volume.ArchiveRequest
-	16, // 22: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
-	16, // 23: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
-	3,  // 24: volume.Volume.SyncPush:output_type -> volume.SyncMessage
-	3,  // 25: volume.Volume.SyncPull:output_type -> volume.SyncMessage
-	10, // 26: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
-	12, // 27: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
-	1,  // 28: volume.Volume.Stat:output_type -> volume.FileInfo
-	13, // 29: volume.Volume.ListDir:output_type -> volume.FSListResponse
-	8,  // 30: volume.Volume.Remove:output_type -> volume.FSOpResponse
-	8,  // 31: volume.Volume.Rename:output_type -> volume.FSOpResponse
-	8,  // 32: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
-	17, // 33: volume.Volume.Zip:output_type -> volume.ArchiveResponse
-	17, // 34: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
-	17, // 35: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
-	17, // 36: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
-	17, // 37: volume.Volume.Tar:output_type -> volume.ArchiveResponse
-	17, // 38: volume.Volume.Untar:output_type -> volume.ArchiveResponse
-	17, // 39: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
-	17, // 40: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
-	24, // [24:41] is the sub-list for method output_type
-	7,  // [7:24] is the sub-list for method input_type
+	16, // 16: volume.Volume.Copy:input_type -> volume.FSCopyRequest
+	17, // 17: volume.Volume.Zip:input_type -> volume.ArchiveRequest
+	17, // 18: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
+	17, // 19: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
+	17, // 20: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
+	17, // 21: volume.Volume.Tar:input_type -> volume.ArchiveRequest
+	17, // 22: volume.Volume.Untar:input_type -> volume.ArchiveRequest
+	17, // 23: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
+	17, // 24: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
+	3,  // 25: volume.Volume.SyncPush:output_type -> volume.SyncMessage
+	3,  // 26: volume.Volume.SyncPull:output_type -> volume.SyncMessage
+	10, // 27: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
+	12, // 28: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
+	1,  // 29: volume.Volume.Stat:output_type -> volume.FileInfo
+	13, // 30: volume.Volume.ListDir:output_type -> volume.FSListResponse
+	8,  // 31: volume.Volume.Remove:output_type -> volume.FSOpResponse
+	8,  // 32: volume.Volume.Rename:output_type -> volume.FSOpResponse
+	8,  // 33: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
+	6,  // 34: volume.Volume.Copy:output_type -> volume.SyncResult
+	18, // 35: volume.Volume.Zip:output_type -> volume.ArchiveResponse
+	18, // 36: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
+	18, // 37: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
+	18, // 38: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
+	18, // 39: volume.Volume.Tar:output_type -> volume.ArchiveResponse
+	18, // 40: volume.Volume.Untar:output_type -> volume.ArchiveResponse
+	18, // 41: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
+	18, // 42: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
+	25, // [25:43] is the sub-list for method output_type
+	7,  // [7:25] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name
 	7,  // [7:7] is the sub-list for extension extendee
 	0,  // [0:7] is the sub-list for field type_name
@@ -1371,7 +1458,7 @@ func file_tai_volume_pb_volume_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_volume_pb_volume_proto_rawDesc), len(file_tai_volume_pb_volume_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   17,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

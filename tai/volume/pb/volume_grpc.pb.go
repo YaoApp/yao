@@ -28,6 +28,7 @@ const (
 	Volume_Remove_FullMethodName    = "/volume.Volume/Remove"
 	Volume_Rename_FullMethodName    = "/volume.Volume/Rename"
 	Volume_MkdirAll_FullMethodName  = "/volume.Volume/MkdirAll"
+	Volume_Copy_FullMethodName      = "/volume.Volume/Copy"
 	Volume_Zip_FullMethodName       = "/volume.Volume/Zip"
 	Volume_Unzip_FullMethodName     = "/volume.Volume/Unzip"
 	Volume_Gzip_FullMethodName      = "/volume.Volume/Gzip"
@@ -63,6 +64,8 @@ type VolumeClient interface {
 	Remove(ctx context.Context, in *FSRemoveRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
 	Rename(ctx context.Context, in *FSRenameRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
 	MkdirAll(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*FSOpResponse, error)
+	// Copy: copy src to dst within the same workspace (server-side when remote).
+	Copy(ctx context.Context, in *FSCopyRequest, opts ...grpc.CallOption) (*SyncResult, error)
 	Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Unzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Gzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
@@ -195,6 +198,16 @@ func (c *volumeClient) MkdirAll(ctx context.Context, in *FSRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *volumeClient) Copy(ctx context.Context, in *FSCopyRequest, opts ...grpc.CallOption) (*SyncResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SyncResult)
+	err := c.cc.Invoke(ctx, Volume_Copy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *volumeClient) Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ArchiveResponse)
@@ -300,6 +313,8 @@ type VolumeServer interface {
 	Remove(context.Context, *FSRemoveRequest) (*FSOpResponse, error)
 	Rename(context.Context, *FSRenameRequest) (*FSOpResponse, error)
 	MkdirAll(context.Context, *FSRequest) (*FSOpResponse, error)
+	// Copy: copy src to dst within the same workspace (server-side when remote).
+	Copy(context.Context, *FSCopyRequest) (*SyncResult, error)
 	Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Unzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Gzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
@@ -344,6 +359,9 @@ func (UnimplementedVolumeServer) Rename(context.Context, *FSRenameRequest) (*FSO
 }
 func (UnimplementedVolumeServer) MkdirAll(context.Context, *FSRequest) (*FSOpResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method MkdirAll not implemented")
+}
+func (UnimplementedVolumeServer) Copy(context.Context, *FSCopyRequest) (*SyncResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method Copy not implemented")
 }
 func (UnimplementedVolumeServer) Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Zip not implemented")
@@ -512,6 +530,24 @@ func _Volume_MkdirAll_Handler(srv interface{}, ctx context.Context, dec func(int
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(VolumeServer).MkdirAll(ctx, req.(*FSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_Copy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FSCopyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).Copy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_Copy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).Copy(ctx, req.(*FSCopyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -686,6 +722,10 @@ var Volume_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "MkdirAll",
 			Handler:    _Volume_MkdirAll_Handler,
+		},
+		{
+			MethodName: "Copy",
+			Handler:    _Volume_Copy_Handler,
 		},
 		{
 			MethodName: "Zip",
