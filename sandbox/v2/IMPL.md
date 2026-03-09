@@ -166,12 +166,12 @@ Token provisioning is the **caller's responsibility** via `CreateOptions.Env`:
 - Passes it in `CreateOptions.Env["YAO_TOKEN"]` / `Env["YAO_REFRESH_TOKEN"]`
 - `opts.Env` takes priority over `BuildGRPCEnv` output (caller can override anything)
 
-### Remaining (Startup) — PENDING
+### Remaining (Startup)
 
-| Task | Package | Detail |
-|------|---------|--------|
-| `cmd/start.go` integration | `yao` | Call `sandbox.Init()` + `sandbox.M().Start(ctx)` in startup (no config needed — node discovery via tai/registry) |
-| Heartbeat bridge | `yao/grpc` | Wire gRPC Heartbeat handler → `sandbox.M().Heartbeat()` |
+| Task | Package | Status | Detail |
+|------|---------|--------|--------|
+| `engine/load.go` integration | `yao` | **DONE** | `sandbox.Init()` + `sandbox.M().Start(ctx)` added as a `loadStep("Sandbox", ...)` right after Registry init |
+| Heartbeat bridge | `yao/cmd` | **DONE** | `cmd/start.go` calls `yaogrpc.SetSandboxOnBeat(...)` before `service.Start`, forwarding gRPC heartbeats to `sandbox.M().Heartbeat()` |
 
 ---
 

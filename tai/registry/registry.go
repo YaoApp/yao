@@ -7,6 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -143,6 +145,23 @@ func Init(logger *slog.Logger) {
 			logger:  logger,
 		}
 	})
+}
+
+// InitWithWriter initializes the global registry using the given io.Writer
+// and log format ("JSON" or "TEXT"). If w is nil it falls back to stderr.
+// This is the preferred way to integrate with the application log system.
+func InitWithWriter(w io.Writer, logMode string) {
+	if w == nil {
+		w = os.Stderr
+	}
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	var handler slog.Handler
+	if strings.EqualFold(logMode, "JSON") {
+		handler = slog.NewJSONHandler(w, opts)
+	} else {
+		handler = slog.NewTextHandler(w, opts)
+	}
+	Init(slog.New(handler))
 }
 
 // Global returns the global registry instance.

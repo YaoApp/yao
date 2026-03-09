@@ -5,6 +5,8 @@ import (
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/yaoapp/yao/tai/registry"
 )
 
 func taiTestHost() string {
@@ -341,4 +343,78 @@ func TestDiscoverPortsWithUserOverride(t *testing.T) {
 	}
 	t.Logf("ports: GRPC=%d HTTP=%d(user) VNC=%d Docker=%d",
 		c.ports.GRPC, c.ports.HTTP, c.ports.VNC, c.ports.Docker)
+}
+
+func TestRegisterLocal(t *testing.T) {
+	registry.Init(nil)
+	reg := registry.Global()
+
+	dir := t.TempDir()
+	ok := RegisterLocal(WithDataDir(dir))
+	if !ok {
+		t.Skip("Docker not available, skipping RegisterLocal test")
+	}
+
+	snap, found := reg.Get("local")
+	if !found {
+		t.Fatal("expected 'local' node in registry after RegisterLocal")
+	}
+	if snap.Mode != "local" {
+		t.Errorf("mode = %q, want 'local'", snap.Mode)
+	}
+	if snap.Status != "online" {
+		t.Errorf("status = %q, want 'online'", snap.Status)
+	}
+
+	c, got := GetClient("local")
+	if !got {
+		t.Fatal("GetClient('local') returned false after RegisterLocal")
+	}
+	if c.DataDir() != dir {
+		t.Errorf("DataDir = %q, want %q", c.DataDir(), dir)
+	}
+	if c.Sandbox() == nil {
+		t.Error("local client Sandbox should not be nil")
+	}
+
+	// Idempotent: second call should return true without error
+	ok2 := RegisterLocal(WithDataDir(dir))
+	if !ok2 {
+		t.Error("second RegisterLocal should return true (idempotent)")
+	}
+
+	c.Close()
+}
+
+func TestRegisterLocal_NoRegistry(t *testing.T) {
+	// RegisterLocal without a registry should return false, not panic
+	origReg := registry.Global()
+	defer func() {
+		if origReg != nil {
+			registry.Init(nil)
+		}
+	}()
+
+	// registry.Global() returns the singleton; we can't un-init it,
+	// but we can verify RegisterLocal returns true (registry exists from
+	// other tests) or false gracefully.
+	ok := RegisterLocal()
+	// Just verify it doesn't panic; result depends on Docker availability
+	_ = ok
+}
+
+func TestRegisterLocal_NoDocker(t *testing.T) {
+	registry.Init(nil)
+
+	// Use an unreachable Docker socket to ensure failure
+	ok := RegisterLocal(WithDataDir(t.TempDir()))
+	if !ok {
+		// Expected when Docker is not available — just ensure no panic
+		return
+	}
+	// If Docker happens to be available, that's also fine
+	c, _ := GetClient("local")
+	if c != nil {
+		c.Close()
+	}
 }

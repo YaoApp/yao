@@ -3,9 +3,11 @@ package sandbox
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 	taisandbox "github.com/yaoapp/yao/tai/sandbox"
@@ -25,11 +27,15 @@ func newManager() *Manager {
 
 // Start discovers existing containers from all registered nodes, rebuilds
 // the boxes map, and starts the cleanup loop.
+// If no "local" node is registered yet, it probes the local Docker environment
+// and auto-registers one when available.
 func (m *Manager) Start(ctx context.Context) error {
 	reg := registry.Global()
 	if reg == nil {
 		return nil
 	}
+
+	m.ensureLocalNode(reg)
 
 	for _, snap := range reg.List() {
 		client, err := m.getNode(snap.TaiID)
@@ -43,6 +49,15 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.cancel = cancel
 	go m.cleanupLoop(loopCtx)
 	return nil
+}
+
+// ensureLocalNode delegates to tai.RegisterLocal() which probes the local
+// Docker environment and registers a "local" node in the registry if available.
+// The workspace data directory is derived from config.Conf.DataRoot so that
+// workspace files persist across restarts.
+func (m *Manager) ensureLocalNode(_ *registry.Registry) {
+	dataDir := filepath.Join(config.Conf.DataRoot, "workspaces")
+	tai.RegisterLocal(tai.WithDataDir(dataDir))
 }
 
 // Nodes returns the list of registered Tai nodes from the registry.

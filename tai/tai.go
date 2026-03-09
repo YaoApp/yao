@@ -579,6 +579,27 @@ func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[str
 	return caps, nil
 }
 
+// RegisterLocal probes the local Docker environment and, if reachable,
+// creates a Client and registers it as the "local" node in the registry.
+// Returns true if a local node was successfully registered.
+// Silently returns false if Docker is not available — this is not an error.
+func RegisterLocal(opts ...Option) bool {
+	reg := registry.Global()
+	if reg == nil {
+		return false
+	}
+	if _, ok := reg.Get("local"); ok {
+		return true
+	}
+
+	c, err := New("local", opts...)
+	if err != nil {
+		return false
+	}
+	_ = c // registered by initLocal → reg.Register + reg.SetClient
+	return true
+}
+
 // GetClient returns a registered *Client by taiID from the global registry.
 func GetClient(taiID string) (*Client, bool) {
 	reg := registry.Global()
