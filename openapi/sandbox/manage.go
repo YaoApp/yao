@@ -3,6 +3,7 @@ package sandbox
 import (
 	"context"
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,6 +11,8 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	sandboxv2 "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 )
 
 // AttachManage registers sandbox management CRUD routes on the given group.
@@ -82,14 +85,18 @@ type sandboxSystemInfo struct {
 }
 
 type sandboxResponse struct {
+	Kind         string            `json:"kind"`
 	ID           string            `json:"id"`
-	ContainerID  string            `json:"container_id"`
+	DisplayName  string            `json:"display_name"`
+	ContainerID  string            `json:"container_id,omitempty"`
 	NodeID       string            `json:"node_id"`
 	Owner        string            `json:"owner"`
 	Status       string            `json:"status"`
-	Policy       string            `json:"policy"`
+	Policy       string            `json:"policy,omitempty"`
 	Labels       map[string]string `json:"labels,omitempty"`
-	Image        string            `json:"image"`
+	Image        string            `json:"image,omitempty"`
+	Mode         string            `json:"mode,omitempty"`
+	Addr         string            `json:"addr,omitempty"`
 	VNC          bool              `json:"vnc"`
 	CreatedAt    time.Time         `json:"created_at"`
 	LastActive   time.Time         `json:"last_active"`
@@ -101,8 +108,29 @@ type sandboxResponse struct {
 func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 	snap := b.Snapshot()
 	info := b.ComputerInfo()
+
+	displayName := info.System.Hostname
+	if displayName == "" {
+		displayName = snap.ID
+	}
+
+	var mode, addr string
+	if ns, ok := tai.GetNodeSnapshot(snap.NodeID); ok {
+		mode = ns.Mode
+		addr = ns.Addr
+	}
+	if addr == "" && snap.NodeID != "" {
+		scheme := mode
+		if scheme == "" {
+			scheme = "local"
+		}
+		addr = scheme + "://" + snap.NodeID
+	}
+
 	return sandboxResponse{
+		Kind:         "box",
 		ID:           snap.ID,
+		DisplayName:  displayName,
 		ContainerID:  snap.ContainerID,
 		NodeID:       snap.NodeID,
 		Owner:        snap.Owner,
@@ -110,6 +138,8 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 		Policy:       string(snap.Policy),
 		Labels:       snap.Labels,
 		Image:        snap.Image,
+		Mode:         mode,
+		Addr:         addr,
 		VNC:          snap.VNC,
 		CreatedAt:    snap.CreatedAt,
 		LastActive:   snap.LastActive,
@@ -125,6 +155,71 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 			TempDir:  info.System.TempDir,
 		},
 	}
+}
+
+func hostToResponse(s registry.NodeSnapshot) sandboxResponse {
+	displayName := s.DisplayName
+	if displayName == "" {
+		displayName = s.System.Hostname
+	}
+	if displayName == "" {
+		displayName = s.TaiID
+	}
+
+	status := "stopped"
+	if s.Status == "online" {
+		status = "running"
+	}
+
+	owner := s.Auth.TeamID
+	if owner == "" {
+		owner = s.Auth.UserID
+	}
+
+	addr := s.Addr
+	if addr == "" {
+		scheme := s.Mode
+		if scheme == "" {
+			scheme = "tai"
+		}
+		addr = scheme + "://" + s.TaiID
+	}
+
+	return sandboxResponse{
+		Kind:        "host",
+		ID:          s.TaiID,
+		DisplayName: displayName,
+		NodeID:      s.TaiID,
+		Owner:       owner,
+		Status:      status,
+		Policy:      "persistent",
+		Mode:        s.Mode,
+		Addr:        addr,
+		VNC:         false,
+		CreatedAt:   s.ConnectedAt,
+		LastActive:  s.LastPing,
+		System: sandboxSystemInfo{
+			OS:       s.System.OS,
+			Arch:     s.System.Arch,
+			Hostname: s.System.Hostname,
+			NumCPU:   s.System.NumCPU,
+			TotalMem: s.System.TotalMem,
+			Shell:    s.System.Shell,
+		},
+	}
+}
+
+func nodeOwnedBy(snap *registry.NodeSnapshot, authInfo *types.AuthorizedInfo) bool {
+	if authInfo == nil {
+		return true
+	}
+	if authInfo.TeamID != "" {
+		return snap.Auth.TeamID == authInfo.TeamID
+	}
+	if authInfo.UserID != "" {
+		return snap.Auth.TeamID == "" && snap.Auth.UserID == authInfo.UserID
+	}
+	return true
 }
 
 func getManager(c *gin.Context) *sandboxv2.Manager {
@@ -148,27 +243,54 @@ func checkBoxOwner(c *gin.Context, box *sandboxv2.Box, owner string) bool {
 // --- handlers ---
 
 func handleList(c *gin.Context) {
-	mgr := getManager(c)
-	if mgr == nil {
-		response.RespondWithSuccess(c, http.StatusOK, []sandboxResponse{})
-		return
-	}
-
 	authInfo := authorized.GetInfo(c)
 	owner := resolveOwner(authInfo)
+	nodeFilter := c.Query("node_id")
 
-	boxes, err := mgr.List(context.Background(), sandboxv2.ListOptions{
-		Owner:  owner,
-		NodeID: c.Query("node_id"),
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+	var result []sandboxResponse
+
+	// Host entries: list all nodes, filter by ownership + host_exec
+	if reg := registry.Global(); reg != nil {
+		snaps := reg.List()
+		for i := range snaps {
+			s := &snaps[i]
+			if !nodeOwnedBy(s, authInfo) {
+				continue
+			}
+			if !s.Capabilities["host_exec"] {
+				continue
+			}
+			if nodeFilter != "" && s.TaiID != nodeFilter {
+				continue
+			}
+			result = append(result, hostToResponse(*s))
+		}
 	}
 
-	result := make([]sandboxResponse, 0, len(boxes))
-	for _, b := range boxes {
-		result = append(result, boxToResponse(b))
+	// Box entries: list all, then filter by owner
+	if mgr := getManager(c); mgr != nil {
+		boxes, err := mgr.List(context.Background(), sandboxv2.ListOptions{
+			NodeID: nodeFilter,
+		})
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+		for _, b := range boxes {
+			snap := b.Snapshot()
+			if snap.Owner != owner {
+				continue
+			}
+			result = append(result, boxToResponse(b))
+		}
+	}
+
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].LastActive.After(result[j].LastActive)
+	})
+
+	if result == nil {
+		result = []sandboxResponse{}
 	}
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
