@@ -334,6 +334,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 		HTTP:   nodePort(node.Ports, "http", 8099),
 		VNC:    nodePort(node.Ports, "vnc", 16080),
 		Docker: nodePort(node.Ports, "docker", 12375),
+		K8s:    nodePort(node.Ports, "k8s", 16443),
 	}
 
 	grpcLn, err := reg.OpenLocalListener(taiID, c.ports.GRPC)
@@ -359,15 +360,30 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	}
 
 	hasDocker := info.Capabilities["docker"]
+	hasK8s := info.Capabilities["k8s"]
 	hasHostExec := info.Capabilities["host_exec"]
 
-	if !hasDocker && !hasHostExec {
+	if !hasDocker && !hasK8s && !hasHostExec {
 		c.closeTunnelListeners()
 		conn.Close()
-		return nil, fmt.Errorf("tai %s: no capabilities available via tunnel", taiID)
+		return nil, fmt.Errorf("tai %s: no capabilities available via tunnel (docker/k8s/host_exec all false)", taiID)
 	}
 
-	if hasDocker && c.ports.Docker > 0 {
+	if cfg.runtime == K8s || (!hasDocker && hasK8s) {
+		k8sLn, err := reg.OpenLocalListener(taiID, c.ports.K8s)
+		if err == nil {
+			c.tunnelListeners = append(c.tunnelListeners, k8sLn)
+			sbAddr := k8sLn.Addr().String()
+			sb, err := sandbox.NewK8s(sbAddr, sandbox.K8sOption{
+				Namespace:  cfg.namespace,
+				KubeConfig: cfg.kubeConfig,
+			})
+			if err == nil {
+				c.sb = sb
+				c.img = sandbox.NewK8sImage()
+			}
+		}
+	} else if hasDocker && c.ports.Docker > 0 {
 		dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
 		if err == nil {
 			c.tunnelListeners = append(c.tunnelListeners, dockerLn)

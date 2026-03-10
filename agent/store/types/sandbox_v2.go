@@ -2,6 +2,7 @@ package types
 
 import (
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -72,11 +73,11 @@ func ToSandboxV2(v any) (*sandboxTypes.SandboxConfig, error) {
 func ComputeConfigHash(cfg *sandboxTypes.SandboxConfig, mcpServers []MCPServerConfig, skillsDir string) string {
 	h := sha256.New()
 
-	raw, _ := jsoniter.Marshal(cfg)
+	raw, _ := json.Marshal(cfg)
 	h.Write(raw)
 
 	if len(mcpServers) > 0 {
-		mcpRaw, _ := jsoniter.Marshal(mcpServers)
+		mcpRaw, _ := json.Marshal(mcpServers)
 		h.Write(mcpRaw)
 	}
 

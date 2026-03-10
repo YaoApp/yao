@@ -281,7 +281,7 @@ func TestHandleControl_RegisterAndPing(t *testing.T) {
 
 	regMsg := registerMessage{
 		Type:      "register",
-		TaiID:     "tai-001",
+		NodeID:    "9100",
 		MachineID: "m-test",
 		Version:   "2.0",
 		Ports:     map[string]int{"grpc": 9100},
@@ -297,11 +297,12 @@ func TestHandleControl_RegisterAndPing(t *testing.T) {
 	if registered["type"] != "registered" {
 		t.Errorf("response type = %q, want registered", registered["type"])
 	}
-	if registered["tai_id"] != "tai-001" {
-		t.Errorf("response tai_id = %q, want tai-001", registered["tai_id"])
+	gotTaiID := registered["tai_id"]
+	if gotTaiID == "" || len(gotTaiID) < 5 || gotTaiID[:4] != "tai-" {
+		t.Errorf("response tai_id = %q, want server-generated tai-xxx", gotTaiID)
 	}
 
-	snap, ok := reg.Get("tai-001")
+	snap, ok := reg.Get(gotTaiID)
 	if !ok {
 		t.Fatal("node not found in registry after register")
 	}
@@ -332,15 +333,24 @@ func TestHandleControl_RegisterAndPing(t *testing.T) {
 		t.Fatalf("write ping: %v", err)
 	}
 
-	var pong map[string]string
-	if err := conn.ReadJSON(&pong); err != nil {
-		t.Fatalf("read pong: %v", err)
+	// Read messages until we get the pong; connectTunnelNode may inject
+	// "open" messages (with numeric fields) before our pong arrives.
+	var gotPong bool
+	for i := 0; i < 10; i++ {
+		var msg map[string]interface{}
+		if err := conn.ReadJSON(&msg); err != nil {
+			t.Fatalf("read message: %v", err)
+		}
+		if msg["type"] == "pong" {
+			gotPong = true
+			break
+		}
 	}
-	if pong["type"] != "pong" {
-		t.Errorf("pong type = %q, want pong", pong["type"])
+	if !gotPong {
+		t.Error("did not receive pong after ping")
 	}
 
-	snap2, _ := reg.Get("tai-001")
+	snap2, _ := reg.Get(gotTaiID)
 	if !snap2.LastPing.After(snap.LastPing) {
 		t.Error("LastPing should be updated after ping")
 	}
@@ -529,9 +539,10 @@ func TestHandleControl_OpenChannelAndBridge(t *testing.T) {
 	defer ctrlConn.Close()
 
 	ctrlConn.WriteJSON(registerMessage{
-		Type:  "register",
-		TaiID: "tai-001",
-		Ports: map[string]int{"grpc": 9100},
+		Type:      "register",
+		NodeID:    "9100",
+		MachineID: "m-test",
+		Ports:     map[string]int{"grpc": 9100},
 	})
 	var registered map[string]string
 	if err := ctrlConn.ReadJSON(&registered); err != nil {
@@ -540,6 +551,7 @@ func TestHandleControl_OpenChannelAndBridge(t *testing.T) {
 	if registered["type"] != "registered" {
 		t.Fatalf("expected registered, got %v", registered)
 	}
+	taiID := registered["tai_id"]
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -547,7 +559,7 @@ func TestHandleControl_OpenChannelAndBridge(t *testing.T) {
 	var channelConn net.Conn
 	go func() {
 		defer wg.Done()
-		_, resultCh, err := reg.RequestChannel("tai-001", 9100)
+		_, resultCh, err := reg.RequestChannel(taiID, 9100)
 		if err != nil {
 			requestErr = err
 			return

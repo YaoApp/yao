@@ -2,6 +2,7 @@ package openapi
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -585,11 +586,32 @@ func (openapi *OpenAPI) oauthDeviceAuthorize(c *gin.Context) {
 	if extraClaims == nil {
 		extraClaims = make(map[string]interface{})
 	}
-	if tokenClaims.TeamID != "" {
-		extraClaims["team_id"] = tokenClaims.TeamID
+
+	teamID := tokenClaims.TeamID
+	if teamID == "" {
+		switch v := extraClaims["team_id"].(type) {
+		case string:
+			teamID = v
+		case float64:
+			teamID = fmt.Sprintf("%.0f", v)
+		}
 	}
-	if tokenClaims.TenantID != "" {
-		extraClaims["tenant_id"] = tokenClaims.TenantID
+	if teamID != "" {
+		extraClaims["team_id"] = teamID
+	}
+
+	tenantID := tokenClaims.TenantID
+	if tenantID == "" {
+		if v, ok := extraClaims["tenant_id"].(string); ok {
+			tenantID = v
+		}
+	}
+	if tenantID != "" {
+		extraClaims["tenant_id"] = tenantID
+	}
+
+	if tokenClaims.ClientID != "" {
+		extraClaims["authorizer_client_id"] = tokenClaims.ClientID
 	}
 
 	userCode := c.PostForm("user_code")

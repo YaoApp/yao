@@ -189,18 +189,43 @@ func (s *Service) refreshTokenDirect(refreshToken string, expiredClaims *types.T
 // buildAuthInfo constructs AuthorizedInfo directly from token claims,
 // equivalent to the SetInfo+GetInfo round-trip through gin.Context.
 func (s *Service) buildAuthInfo(claims *types.TokenClaims, sessionID string) *types.AuthorizedInfo {
+	teamID := claims.TeamID
+	tenantID := claims.TenantID
+
+	if claims.Extra != nil {
+		if teamID == "" {
+			if v, ok := claims.Extra["team_id"].(string); ok && v != "" {
+				teamID = v
+			}
+		}
+		if tenantID == "" {
+			if v, ok := claims.Extra["tenant_id"].(string); ok && v != "" {
+				tenantID = v
+			}
+		}
+	}
+
 	info := &types.AuthorizedInfo{
 		Subject:   claims.Subject,
 		ClientID:  claims.ClientID,
 		Scope:     claims.Scope,
 		SessionID: sessionID,
-		TeamID:    claims.TeamID,
-		TenantID:  claims.TenantID,
+		TeamID:    teamID,
+		TenantID:  tenantID,
 	}
 
 	userID, err := s.UserID(claims.ClientID, claims.Subject)
 	if err == nil && userID != "" {
 		info.UserID = userID
+	}
+
+	if info.UserID == "" && claims.Extra != nil {
+		if authorizerClientID, ok := claims.Extra["authorizer_client_id"].(string); ok && authorizerClientID != "" {
+			if uid, err := s.UserID(authorizerClientID, claims.Subject); err == nil && uid != "" {
+				info.UserID = uid
+				s.copyFingerprint(authorizerClientID, claims.ClientID, claims.Subject)
+			}
+		}
 	}
 
 	return info

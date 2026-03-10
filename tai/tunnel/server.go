@@ -13,7 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	oauth "github.com/yaoapp/yao/openapi/oauth"
+	tai "github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/taiid"
 )
 
 var upgrader = websocket.Upgrader{
@@ -62,19 +64,32 @@ func HandleControl(c *gin.Context) {
 		conn.Close()
 		return
 	}
-	if regMsg.TaiID == "" {
-		logger.Error("register message missing tai_id")
+	if regMsg.NodeID == "" || regMsg.MachineID == "" {
+		logger.Error("register message missing node_id or machine_id")
+		conn.Close()
+		return
+	}
+	resolvedTaiID, err := taiid.Generate(regMsg.MachineID, regMsg.NodeID)
+	if err != nil {
+		logger.Error("taiid generation failed", "err", err)
 		conn.Close()
 		return
 	}
 
+	addr := ""
+	if host, _, err := net.SplitHostPort(c.Request.RemoteAddr); err == nil {
+		addr = "tunnel://" + host
+	}
+
 	node := &registry.TaiNode{
-		TaiID:        regMsg.TaiID,
+		TaiID:        resolvedTaiID,
 		MachineID:    regMsg.MachineID,
 		Version:      regMsg.Version,
+		DisplayName:  regMsg.DisplayName,
 		Auth:         authInfo,
 		System:       regMsg.System,
 		Mode:         "tunnel",
+		Addr:         addr,
 		YaoBase:      regMsg.Server,
 		Ports:        regMsg.Ports,
 		Capabilities: regMsg.Capabilities,
@@ -82,16 +97,18 @@ func HandleControl(c *gin.Context) {
 	}
 	reg.Register(node)
 	defer func() {
-		reg.Unregister(regMsg.TaiID)
-		logger.Info("tai tunnel disconnected", "tai_id", regMsg.TaiID)
+		reg.Unregister(resolvedTaiID)
+		logger.Info("tai tunnel disconnected", "tai_id", resolvedTaiID)
 	}()
 
-	if err := reg.WriteControlJSON(regMsg.TaiID, map[string]string{"type": "registered", "tai_id": regMsg.TaiID}); err != nil {
+	if err := reg.WriteControlJSON(resolvedTaiID, map[string]string{"type": "registered", "tai_id": resolvedTaiID}); err != nil {
 		logger.Error("write registered response", "err", err)
 		return
 	}
 
-	logger.Info("tai tunnel connected", "tai_id", regMsg.TaiID, "version", regMsg.Version)
+	logger.Info("tai tunnel connected", "tai_id", resolvedTaiID, "version", regMsg.Version)
+
+	go connectTunnelNode(resolvedTaiID, reg, logger)
 
 	for {
 		var msg controlMsg
@@ -104,8 +121,8 @@ func HandleControl(c *gin.Context) {
 
 		switch msg.Type {
 		case "ping":
-			reg.UpdatePing(regMsg.TaiID)
-			if err := reg.WriteControlJSON(regMsg.TaiID, map[string]string{"type": "pong"}); err != nil {
+			reg.UpdatePing(resolvedTaiID)
+			if err := reg.WriteControlJSON(resolvedTaiID, map[string]string{"type": "pong"}); err != nil {
 				logger.Debug("pong write failed", "err", err)
 				return
 			}
@@ -150,9 +167,15 @@ func HandleData(c *gin.Context) {
 		return
 	}
 
+	resolvedTaiID := reg.FindTaiIDByAuthClient(authInfo.ClientID)
+	if resolvedTaiID == "" {
+		resolvedTaiID = authInfo.ClientID
+	}
+
 	wsConn := newWSConn(conn)
-	if err := reg.AcceptDataChannel(channelID, authInfo.ClientID, wsConn); err != nil {
-		logger.Debug("accept data channel failed", "channel_id", channelID, "err", err)
+	if err := reg.AcceptDataChannel(channelID, resolvedTaiID, wsConn); err != nil {
+		logger.Debug("accept data channel failed", "channel_id", channelID, "err", err,
+			"auth_client_id", authInfo.ClientID, "resolved_tai_id", resolvedTaiID)
 		conn.Close()
 		return
 	}
@@ -161,8 +184,10 @@ func HandleData(c *gin.Context) {
 // registerMessage is the JSON structure for Tai's register message.
 type registerMessage struct {
 	Type         string              `json:"type"`
-	TaiID        string              `json:"tai_id"`
+	NodeID       string              `json:"node_id,omitempty"`
+	ClientID     string              `json:"client_id,omitempty"`
 	MachineID    string              `json:"machine_id"`
+	DisplayName  string              `json:"display_name,omitempty"`
 	Version      string              `json:"version"`
 	Server       string              `json:"server"`
 	Ports        map[string]int      `json:"ports"`
@@ -207,6 +232,37 @@ func authenticateBearerDefault(token string) (registry.AuthInfo, error) {
 		info.TeamID = result.Info.TeamID
 		info.TenantID = result.Info.TenantID
 	}
+
+	slog.Info("[tunnel-auth] info from token",
+		"subject", info.Subject, "user_id", info.UserID,
+		"client_id", info.ClientID, "team_id", info.TeamID,
+		"scope", info.Scope)
+
+	if result.Claims != nil {
+		slog.Info("[tunnel-auth] claims",
+			"claims.TeamID", result.Claims.TeamID,
+			"claims.ClientID", result.Claims.ClientID,
+			"extra", fmt.Sprintf("%+v", result.Claims.Extra))
+
+		if info.TeamID == "" && result.Claims.TeamID != "" {
+			info.TeamID = result.Claims.TeamID
+		}
+		if info.TeamID == "" {
+			switch v := result.Claims.Extra["team_id"].(type) {
+			case string:
+				info.TeamID = v
+			case float64:
+				info.TeamID = fmt.Sprintf("%.0f", v)
+			}
+		}
+		if info.TenantID == "" {
+			if v, ok := result.Claims.Extra["tenant_id"].(string); ok {
+				info.TenantID = v
+			}
+		}
+	}
+
+	slog.Info("[tunnel-auth] final", "team_id", info.TeamID, "client_id", info.ClientID)
 	return info, nil
 }
 
@@ -267,3 +323,15 @@ func (c *wsConn) SetDeadline(t time.Time) error {
 
 func (c *wsConn) SetReadDeadline(t time.Time) error  { return c.ws.SetReadDeadline(t) }
 func (c *wsConn) SetWriteDeadline(t time.Time) error { return c.ws.SetWriteDeadline(t) }
+
+// connectTunnelNode creates a tai.Client through the tunnel and binds it to the taiID.
+func connectTunnelNode(taiID string, reg *registry.Registry, logger *slog.Logger) {
+	client, err := tai.New("tunnel://" + taiID)
+	if err != nil {
+		logger.Warn("failed to connect tunnel node",
+			"tai_id", taiID, "err", err)
+		return
+	}
+	_ = client // initTunnel already calls reg.SetClient(taiID, c)
+	logger.Info("tai client created for tunnel node", "tai_id", taiID)
+}

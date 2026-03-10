@@ -83,19 +83,27 @@ func TestWorkspace_InvalidID(t *testing.T) {
 	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			sbm, _ := setupManagerWithWorkspace(t, &pc)
+			sbm, wsm := setupManagerWithWorkspace(t, &pc)
 			ensureTestImage(t, sbm, pc.TaiID)
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer cancel()
 
-			_, err := sbm.Create(ctx, sandbox.CreateOptions{
+			wsID := "nonexistent-workspace"
+
+			box, err := sbm.Create(ctx, sandbox.CreateOptions{
 				Image:       testImage(),
 				Owner:       "user",
-				WorkspaceID: "nonexistent-workspace",
+				WorkspaceID: wsID,
 			})
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "resolve workspace")
+
+			// With online nodes the manager auto-creates the workspace.
+			require.NoError(t, err)
+			require.NotNil(t, box)
+			defer box.Remove(context.Background())
+			if wsm != nil {
+				defer wsm.Delete(context.Background(), wsID, true)
+			}
 		})
 	}
 }

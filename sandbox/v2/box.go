@@ -198,6 +198,25 @@ func (b *Box) Workspace() workspace.FS {
 // WorkspaceID returns the workspace ID mounted to this sandbox, or empty string.
 func (b *Box) WorkspaceID() string { return b.workspaceID }
 
+// Snapshot returns a local-only BoxInfo snapshot without any remote calls.
+// Status is inferred from local state (not from the container runtime).
+func (b *Box) Snapshot() BoxInfo {
+	return BoxInfo{
+		ID:           b.id,
+		ContainerID:  b.containerID,
+		NodeID:       b.nodeID,
+		Owner:        b.owner,
+		Status:       "running",
+		Policy:       b.policy,
+		Labels:       b.labels,
+		Image:        b.image,
+		CreatedAt:    b.createdAt,
+		LastActive:   b.lastActiveTime(),
+		ProcessCount: int(b.processCount.Load()),
+		VNC:          b.vnc,
+	}
+}
+
 // VNC returns the VNC WebSocket URL.
 func (b *Box) VNC(ctx context.Context) (string, error) {
 	b.touch()

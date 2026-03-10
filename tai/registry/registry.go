@@ -273,6 +273,21 @@ func (r *Registry) SetClient(taiID string, c any) {
 	}
 }
 
+// FindTaiIDByAuthClient returns the TaiID of the first node whose
+// Auth.ClientID matches the given OAuth client ID. Returns "" if not found.
+// This is needed because Tai's data channel authenticates with its OAuth
+// ClientID, which may differ from the server-assigned TaiID.
+func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, n := range r.nodes {
+		if n.Auth.ClientID == clientID {
+			return n.TaiID
+		}
+	}
+	return ""
+}
+
 // ListByTeam returns snapshots of all nodes belonging to the given team.
 func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
 	r.mu.RLock()
@@ -280,6 +295,20 @@ func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
 	var result []NodeSnapshot
 	for _, n := range r.nodes {
 		if n.Auth.TeamID == teamID {
+			result = append(result, n.snapshot())
+		}
+	}
+	return result
+}
+
+// ListByUser returns snapshots of all nodes registered by the given user
+// that are NOT associated with any team.
+func (r *Registry) ListByUser(userID string) []NodeSnapshot {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []NodeSnapshot
+	for _, n := range r.nodes {
+		if n.Auth.TeamID == "" && n.Auth.UserID == userID {
 			result = append(result, n.snapshot())
 		}
 	}

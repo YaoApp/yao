@@ -19,6 +19,7 @@ import (
 	"github.com/yaoapp/yao/openapi/llm"
 	"github.com/yaoapp/yao/openapi/mcp"
 	"github.com/yaoapp/yao/openapi/messenger"
+	"github.com/yaoapp/yao/openapi/nodes"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -28,6 +29,7 @@ import (
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
+	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
 	taiapi "github.com/yaoapp/yao/tai/api"
 	taitunnel "github.com/yaoapp/yao/tai/tunnel"
 )
@@ -173,9 +175,17 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// OTP handlers (passwordless authentication)
 	otp.Attach(group.Group("/otp"), openapi.OAuth)
 
-	// Sandbox handlers (VNC proxy for visual browser automation)
+	// Sandbox handlers (VNC proxy + management CRUD)
 	sandbox.SetPathPrefix(baseURL)
-	sandbox.Attach(group.Group("/sandbox"), openapi.OAuth)
+	sandboxGroup := group.Group("/sandbox")
+	sandbox.Attach(sandboxGroup, openapi.OAuth)
+	sandbox.AttachManage(sandboxGroup)
+
+	// Workspace handlers
+	openapiWorkspace.Attach(group.Group("/workspace"), openapi.OAuth)
+
+	// Tai nodes handlers
+	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
 
 	// Tai tunnel WebSocket and reverse proxy routes
 	group.GET("/ws/tai", taitunnel.HandleControl)

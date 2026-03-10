@@ -46,9 +46,10 @@ func TestHandleRegister_Success(t *testing.T) {
 	defer teardown()
 
 	body := registerRequest{
-		TaiID:        "tai-abc123",
+		NodeID:       "9100",
 		MachineID:    "m-001",
 		Version:      "0.2.0",
+		DisplayName:  "My Dev Machine",
 		Addr:         "192.168.1.100",
 		Ports:        map[string]int{"grpc": 19100, "http": 8099},
 		Capabilities: map[string]bool{"docker": true, "host_exec": false},
@@ -74,14 +75,15 @@ func TestHandleRegister_Success(t *testing.T) {
 	if resp["status"] != "registered" {
 		t.Errorf("status = %v, want registered", resp["status"])
 	}
-	if resp["tai_id"] != "tai-abc123" {
-		t.Errorf("tai_id = %v, want tai-abc123", resp["tai_id"])
+	taiID, _ := resp["tai_id"].(string)
+	if taiID == "" || len(taiID) < 5 || taiID[:4] != "tai-" {
+		t.Errorf("tai_id = %v, want server-generated tai-xxx", resp["tai_id"])
 	}
 	if _, ok := resp["remote_ip"]; !ok {
 		t.Error("response missing remote_ip")
 	}
 
-	snap, ok := registry.Global().Get("tai-abc123")
+	snap, ok := registry.Global().Get(taiID)
 	if !ok {
 		t.Fatal("node not found in registry after register")
 	}
@@ -94,6 +96,74 @@ func TestHandleRegister_Success(t *testing.T) {
 	if snap.Auth.UserID != "user-alice" {
 		t.Errorf("Auth.UserID = %q, want user-alice", snap.Auth.UserID)
 	}
+	if snap.DisplayName != "My Dev Machine" {
+		t.Errorf("DisplayName = %q, want %q", snap.DisplayName, "My Dev Machine")
+	}
+}
+
+func TestHandleRegister_ServerGeneratedTaiID(t *testing.T) {
+	teardown := setupTest()
+	defer teardown()
+
+	body := registerRequest{
+		NodeID:       "19100",
+		ClientID:     "local-uuid-001",
+		MachineID:    "m-001",
+		Version:      "0.2.0",
+		DisplayName:  "Generated ID Node",
+		Addr:         "192.168.1.200",
+		Ports:        map[string]int{"grpc": 19100},
+		Capabilities: map[string]bool{"docker": true},
+		System:       registry.SystemInfo{OS: "darwin", Arch: "arm64", Hostname: "mac-01", NumCPU: 12},
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest("POST", "/tai-nodes/register", jsonBody(body))
+	c.Request.Header.Set("Authorization", "Bearer test-token")
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	HandleRegister(c)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body = %s", w.Code, http.StatusOK, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	generatedID, ok := resp["tai_id"].(string)
+	if !ok || generatedID == "" {
+		t.Fatal("response missing tai_id")
+	}
+	if generatedID == "19100" {
+		t.Error("tai_id should be server-generated, not the raw node_id")
+	}
+	if len(generatedID) != 26 {
+		t.Errorf("tai_id length = %d, want 26 (tai- + 22 base62); got %q", len(generatedID), generatedID)
+	}
+
+	snap, ok2 := registry.Global().Get(generatedID)
+	if !ok2 {
+		t.Fatalf("node %q not found in registry", generatedID)
+	}
+	if snap.DisplayName != "Generated ID Node" {
+		t.Errorf("DisplayName = %q, want %q", snap.DisplayName, "Generated ID Node")
+	}
+
+	// Deterministic: same inputs produce same ID
+	w2 := httptest.NewRecorder()
+	c2, _ := gin.CreateTestContext(w2)
+	c2.Request = httptest.NewRequest("POST", "/tai-nodes/register", jsonBody(body))
+	c2.Request.Header.Set("Authorization", "Bearer test-token")
+	c2.Request.Header.Set("Content-Type", "application/json")
+	HandleRegister(c2)
+
+	var resp2 map[string]interface{}
+	json.Unmarshal(w2.Body.Bytes(), &resp2)
+	if resp2["tai_id"] != generatedID {
+		t.Errorf("not deterministic: %v != %v", resp2["tai_id"], generatedID)
+	}
 }
 
 func TestHandleRegister_MissingAuth(t *testing.T) {
@@ -102,7 +172,7 @@ func TestHandleRegister_MissingAuth(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("POST", "/tai-nodes/register", jsonBody(registerRequest{TaiID: "x"}))
+	c.Request = httptest.NewRequest("POST", "/tai-nodes/register", jsonBody(registerRequest{NodeID: "x", MachineID: "m1"}))
 	c.Request.Header.Set("Content-Type", "application/json")
 
 	HandleRegister(c)
@@ -112,7 +182,7 @@ func TestHandleRegister_MissingAuth(t *testing.T) {
 	}
 }
 
-func TestHandleRegister_MissingTaiID(t *testing.T) {
+func TestHandleRegister_MissingTaiIDAndClientID(t *testing.T) {
 	teardown := setupTest()
 	defer teardown()
 
