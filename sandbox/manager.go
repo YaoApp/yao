@@ -350,8 +350,7 @@ func (m *Manager) createContainer(ctx context.Context, opts CreateOptions) (*Con
 			"6080/tcp": struct{}{}, // noVNC websockify
 			"5900/tcp": struct{}{}, // VNC
 		}
-		// Enable SANDBOX_VNC_ENABLED environment variable
-		containerConfig.Env = append(containerConfig.Env, "SANDBOX_VNC_ENABLED=true")
+		containerConfig.Env = append(containerConfig.Env, "VNC_ENABLED=true")
 
 		// Map to random available ports on 127.0.0.1
 		hostConfig.PortBindings = nat.PortMap{

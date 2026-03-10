@@ -323,10 +323,8 @@ func (p *Proxy) checkVNCEnabled(ctx context.Context, containerName string) bool 
 		return false
 	}
 
-	// Check environment variables for VNC_ENABLED or SANDBOX_VNC_ENABLED
 	for _, env := range info.Config.Env {
-		if strings.HasPrefix(env, "SANDBOX_VNC_ENABLED=true") ||
-			strings.HasPrefix(env, "VNC_ENABLED=true") {
+		if strings.HasPrefix(env, "VNC_ENABLED=true") {
 			return true
 		}
 	}

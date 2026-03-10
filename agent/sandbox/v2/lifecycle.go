@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/yaoapp/gou/connector"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -37,8 +38,9 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID stri
 }
 
 // GetComputer obtains or creates a Computer for the current request.
+// An optional connector may be passed to inject OPENAI_PROXY_* env vars.
 // Returns the Computer, the resolved identifier, and any error.
-func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (infra.Computer, string, error) {
+func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager, conn ...connector.Connector) (infra.Computer, string, error) {
 	ownerID := resolveOwnerID(ctx)
 	identifier := BuildIdentifier(cfg, ownerID, ctx.ChatID, ctx.AssistantID, ctx.Metadata)
 
@@ -84,7 +86,11 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	}
 
 	// Create new box.
-	createOpts, err := BuildCreateOptions(cfg, identifier, ownerID, workspaceID)
+	var c connector.Connector
+	if len(conn) > 0 {
+		c = conn[0]
+	}
+	createOpts, err := BuildCreateOptions(cfg, identifier, ownerID, workspaceID, c)
 	if err != nil {
 		return nil, identifier, fmt.Errorf("build create options: %w", err)
 	}

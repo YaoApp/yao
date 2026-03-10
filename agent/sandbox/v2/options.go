@@ -1,11 +1,13 @@
 package sandboxv2
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
@@ -19,8 +21,9 @@ func resolveEnvRef(value string) string {
 }
 
 // BuildCreateOptions converts a SandboxConfig into the V2 infrastructure
-// CreateOptions. Pure runtime mapping — no file-system or DSL access.
-func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspaceID string) (infra.CreateOptions, error) {
+// CreateOptions. An optional connector is used to inject OPENAI_PROXY_*
+// environment variables when the connector is OpenAI-compatible (non-Anthropic).
+func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspaceID string, conn ...connector.Connector) (infra.CreateOptions, error) {
 	opts := infra.CreateOptions{
 		ID:          identifier,
 		Owner:       ownerID,
@@ -116,7 +119,67 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		}
 	}
 
+	if opts.Env == nil {
+		opts.Env = make(map[string]string)
+	}
+
+	// Inject OPENAI_PROXY_* when connector is OpenAI-compatible (non-Anthropic).
+	// The a2o proxy inside the container translates Anthropic API → OpenAI API.
+	if len(conn) > 0 && conn[0] != nil && !conn[0].Is(connector.ANTHROPIC) {
+		injectProxyEnv(opts.Env, conn[0])
+	}
+
+	// Inject VNC_* environment variables from config.
+	if cfg.Computer.VNC.Enabled {
+		opts.Env["VNC_ENABLED"] = "true"
+		if cfg.Computer.VNC.Password != "" {
+			opts.Env["VNC_PASSWORD"] = resolveEnvRef(cfg.Computer.VNC.Password)
+		}
+		if cfg.Computer.VNC.Resolution != "" {
+			opts.Env["VNC_RESOLUTION"] = cfg.Computer.VNC.Resolution
+		}
+		if cfg.Computer.VNC.ViewOnly {
+			opts.Env["VNC_VIEW_ONLY"] = "true"
+		}
+	}
+
 	return opts, nil
+}
+
+// injectProxyEnv extracts backend URL, model, and API key from an
+// OpenAI-compatible connector's settings and writes them as OPENAI_PROXY_*
+// environment variables into env.
+func injectProxyEnv(env map[string]string, conn connector.Connector) {
+	settings := conn.Setting()
+	if settings == nil {
+		return
+	}
+
+	if host, ok := settings["host"].(string); ok && host != "" {
+		env["OPENAI_PROXY_BACKEND"] = host
+	}
+	if model, ok := settings["model"].(string); ok && model != "" {
+		env["OPENAI_PROXY_MODEL"] = model
+	}
+	if key, ok := settings["key"].(string); ok && key != "" {
+		env["OPENAI_PROXY_API_KEY"] = key
+	}
+
+	// Forward extra options as JSON.
+	extra := make(map[string]interface{})
+	for k, v := range settings {
+		switch k {
+		case "host", "model", "key", "proxy", "type":
+			continue
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		if data, err := json.Marshal(extra); err == nil {
+			env["OPENAI_PROXY_OPTIONS"] = string(data)
+		}
+	}
 }
 
 // parseMemory converts a human-readable memory string to bytes.

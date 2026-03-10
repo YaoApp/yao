@@ -39,28 +39,27 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 
 	stdCtx := ctx.Context
 
-	// 1. Obtain Computer.
-	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager)
+	// 1. Resolve connector (before Computer so proxy env vars can be injected).
+	conn, _, err := ast.GetConnector(ctx, opts)
+	if err != nil && cfg.Runner.Name != "yao" {
+		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+		return nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
+	}
+
+	// 2. Obtain Computer (passes connector for OPENAI_PROXY_* env injection).
+	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager, conn)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
 		return nil, nil, nil, "", fmt.Errorf("getComputer failed: %w", err)
 	}
 	_ = identifier
 
-	// 2. Get Runner.
+	// 3. Get Runner.
 	runner, err := sandboxv2.Get(cfg.Runner.Name)
 	if err != nil {
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
 		return nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
-	}
-
-	// 3. Resolve connector.
-	conn, _, err := ast.GetConnector(ctx, opts)
-	if err != nil && cfg.Runner.Name != "yao" {
-		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
-		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
 	}
 
 	// 4. Resolve skills directory.

@@ -59,7 +59,7 @@ func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts
 			shmSize = 256 * 1024 * 1024
 		}
 		hostCfg.ShmSize = shmSize
-		cfg.Env = append(cfg.Env, "SANDBOX_VNC_ENABLED=true")
+		cfg.Env = append(cfg.Env, "VNC_ENABLED=true")
 
 		if addVNCPorts {
 			for _, p := range []int{6080, 5900} {

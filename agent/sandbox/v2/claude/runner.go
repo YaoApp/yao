@@ -24,7 +24,6 @@ const (
 // ClaudeRunner implements the Runner interface for Claude CLI (mode=cli).
 type ClaudeRunner struct {
 	mode            string
-	proxyReady      bool
 	hasMCP          bool
 	mcpToolPattern  string // e.g. "mcp__yao__*,mcp__github__*"
 	servicePort     int
@@ -58,30 +57,6 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 			Cmd:    fmt.Sprintf("mkdir -p %s/.claude", workDir),
 			Once:   true,
 		})
-	}
-
-	// Runner-specific: write proxy config and start proxy (for non-anthropic connectors).
-	if req.Connector != nil && !req.Connector.Is(connector.ANTHROPIC) {
-		setting := req.Connector.Setting()
-		host, _ := setting["host"].(string)
-		key, _ := setting["key"].(string)
-		model, _ := setting["model"].(string)
-		if host != "" && key != "" {
-			proxyJSON := buildProxyConfig(host, key, model, setting)
-			steps = append(steps, types.PrepareStep{
-				Action:  "file",
-				Path:    ".yao/proxy.json",
-				Content: proxyJSON,
-				Once:    true,
-			})
-			steps = append(steps, types.PrepareStep{
-				Action:      "exec",
-				Cmd:         "which start-claude-proxy && start-claude-proxy || true",
-				Once:        true,
-				IgnoreError: true,
-			})
-			r.proxyReady = true
-		}
 	}
 
 	// Runner-specific: write MCP config.
@@ -174,7 +149,6 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 }
 
 // Cleanup kills any remaining claude processes.
-// mode=service: don't kill the service daemon (lifecycle manages it), only clean proxy.
 // mode=cli: kill all claude CLI processes.
 func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) error {
 	if computer == nil {
@@ -183,10 +157,6 @@ func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) err
 
 	if r.mode != "service" {
 		computer.Exec(ctx, []string{"sh", "-c", "pkill -f 'claude' || true"})
-	}
-
-	if r.proxyReady {
-		computer.Exec(ctx, []string{"sh", "-c", "pkill -f 'claude-proxy' || true"})
 	}
 
 	return nil
@@ -320,32 +290,9 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation 
 	return []string{"bash", "-c", bash.String()}, env
 }
 
-// buildProxyConfig creates the claude-proxy configuration JSON.
-func buildProxyConfig(host, key, model string, setting map[string]any) []byte {
-	backendURL := connector.BuildAPIURL(host, "/chat/completions")
-	config := map[string]any{
-		"backend": backendURL,
-		"api_key": key,
-		"model":   model,
-	}
-	opts := make(map[string]any)
-	for k, v := range setting {
-		switch k {
-		case "host", "key", "model", "azure", "capabilities":
-			continue
-		default:
-			opts[k] = v
-		}
-	}
-	if len(opts) > 0 {
-		config["options"] = opts
-	}
-	data, _ := json.MarshalIndent(config, "", "  ")
-	return data
-}
-
 // buildMCPConfig creates the .mcp.json for Claude CLI based on declared servers.
-// Each server delegates to "tai call" which bridges stdio JSON-RPC to Yao gRPC.
+// Each server delegates to "tai mcp" which implements the standard MCP protocol
+// over stdio and bridges to Yao gRPC with authentication.
 // Connection is configured via env vars (YAO_GRPC_ADDR, YAO_TOKEN, etc.)
 // injected by the sandbox infrastructure at container start.
 func buildMCPConfig(servers []types.MCPServer) []byte {
@@ -357,13 +304,13 @@ func buildMCPConfig(servers []types.MCPServer) []byte {
 		}
 		mcpServers[name] = map[string]any{
 			"command": "tai",
-			"args":    []string{"call"},
+			"args":    []string{"mcp"},
 		}
 	}
 	if len(mcpServers) == 0 {
 		mcpServers["yao"] = map[string]any{
 			"command": "tai",
-			"args":    []string{"call"},
+			"args":    []string{"mcp"},
 		}
 	}
 	config := map[string]any{"mcpServers": mcpServers}

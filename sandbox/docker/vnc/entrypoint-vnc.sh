@@ -5,7 +5,7 @@
 # ============================================
 # VNC Services Startup
 # ============================================
-if [ "$SANDBOX_VNC_ENABLED" = "true" ]; then
+if [ "$VNC_ENABLED" = "true" ]; then
     echo "[Entrypoint] Starting VNC services..."
     /usr/local/bin/start-vnc.sh &
     # Wait for VNC to initialize
