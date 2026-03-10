@@ -1,8 +1,9 @@
 syntax = "proto3";
 package volume;
-option go_package = "github.com/yaoapp/tai/volume/pb";
+option go_package = "github.com/yaoapp/yao/tai/volume/pb";
 
-// Volume provides bulk file synchronization and real-time filesystem I/O.
+// Volume provides bulk file synchronization, real-time filesystem I/O,
+// and archive/compression operations.
 // Shares gRPC port :19100 with Yao Gateway.
 service Volume {
 
@@ -29,6 +30,19 @@ service Volume {
   rpc Remove(FSRemoveRequest) returns (FSOpResponse);
   rpc Rename(FSRenameRequest) returns (FSOpResponse);
   rpc MkdirAll(FSRequest) returns (FSOpResponse);
+  // Copy: copy src to dst within the same workspace (server-side when remote).
+  rpc Copy(FSCopyRequest) returns (SyncResult);
+
+  // --- Archive / Compression ---
+
+  rpc Zip(ArchiveRequest) returns (ArchiveResponse);
+  rpc Unzip(ArchiveRequest) returns (ArchiveResponse);
+  rpc Gzip(ArchiveRequest) returns (ArchiveResponse);
+  rpc Gunzip(ArchiveRequest) returns (ArchiveResponse);
+  rpc Tar(ArchiveRequest) returns (ArchiveResponse);
+  rpc Untar(ArchiveRequest) returns (ArchiveResponse);
+  rpc Tgz(ArchiveRequest) returns (ArchiveResponse);
+  rpc Untgz(ArchiveRequest) returns (ArchiveResponse);
 }
 
 // --- File Metadata ---
@@ -47,6 +61,7 @@ message SyncManifest {
   string session_id       = 1;
   repeated FileInfo files = 2;
   bool   force_full       = 3;  // skip snapshot cache, diff against actual disk
+  string remote_path      = 4;  // sub-path within workspace root; empty = root
 }
 
 message SyncMessage {
@@ -135,4 +150,26 @@ message FSRenameRequest {
   string session_id = 1;
   string old_path   = 2;
   string new_path   = 3;
+}
+
+message FSCopyRequest {
+  string session_id       = 1;
+  string src_path         = 2;
+  string dst_path         = 3;
+  repeated string excludes = 4;  // glob patterns
+  bool force              = 5;   // overwrite even if mtime/size match
+}
+
+// --- Archive / Compression Messages ---
+
+message ArchiveRequest {
+  string session_id      = 1;
+  string src_path        = 2;  // relative to workspace root
+  string dst_path        = 3;  // relative to workspace root
+  repeated string excludes = 4; // glob patterns (pack ops only)
+}
+
+message ArchiveResponse {
+  int64 size_bytes  = 1;  // output file size (pack) or total extracted size (unpack)
+  int32 files_count = 2;  // number of files processed
 }

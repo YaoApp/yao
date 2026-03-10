@@ -30,7 +30,7 @@ type TaiNode struct {
     Status       string            // "online" | "offline" | "connecting"
     ConnectedAt  time.Time
     LastPing     time.Time
-    PoolName     string
+    DisplayName  string
 }
 ```
 
@@ -48,7 +48,7 @@ type NodeSnapshot struct {
     Capabilities map[string]bool
     Status       string
     ConnectedAt, LastPing time.Time
-    PoolName     string
+    DisplayName  string
 }
 ```
 

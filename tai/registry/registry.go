@@ -7,6 +7,8 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -20,6 +22,8 @@ type SystemInfo struct {
 	Hostname string `json:"hostname"`
 	NumCPU   int    `json:"num_cpu"`
 	TotalMem int64  `json:"total_mem,omitempty"`
+	Shell    string `json:"shell,omitempty"`
+	TempDir  string `json:"temp_dir,omitempty"`
 }
 
 // TaiNode represents a registered Tai instance (direct or tunnel).
@@ -42,7 +46,9 @@ type TaiNode struct {
 	Status      string // "online" | "offline" | "connecting"
 	ConnectedAt time.Time
 	LastPing    time.Time
-	PoolName    string
+	DisplayName string // optional human-readable name for UI
+
+	client any // *tai.Client; stored as any to avoid import cycle
 
 	localListeners map[int]*tunnelListener
 }
@@ -62,7 +68,8 @@ type NodeSnapshot struct {
 	Status       string
 	ConnectedAt  time.Time
 	LastPing     time.Time
-	PoolName     string
+	DisplayName  string
+	client       any
 }
 
 func (n *TaiNode) snapshot() NodeSnapshot {
@@ -80,9 +87,14 @@ func (n *TaiNode) snapshot() NodeSnapshot {
 		Mode: n.Mode, Addr: n.Addr, YaoBase: n.YaoBase,
 		Ports: ports, Capabilities: caps,
 		Status: n.Status, ConnectedAt: n.ConnectedAt, LastPing: n.LastPing,
-		PoolName: n.PoolName,
+		DisplayName: n.DisplayName,
+		client:      n.client,
 	}
 }
+
+// Client returns the associated *tai.Client (as any to avoid import cycle).
+// Callers should type-assert: snap.Client().(*tai.Client).
+func (s *NodeSnapshot) Client() any { return s.client }
 
 // AuthInfo holds Yao user authorization extracted from OAuth token.
 type AuthInfo struct {
@@ -135,6 +147,23 @@ func Init(logger *slog.Logger) {
 			logger:  logger,
 		}
 	})
+}
+
+// InitWithWriter initializes the global registry using the given io.Writer
+// and log format ("JSON" or "TEXT"). If w is nil it falls back to stderr.
+// This is the preferred way to integrate with the application log system.
+func InitWithWriter(w io.Writer, logMode string) {
+	if w == nil {
+		w = os.Stderr
+	}
+	opts := &slog.HandlerOptions{Level: slog.LevelInfo}
+	var handler slog.Handler
+	if strings.EqualFold(logMode, "JSON") {
+		handler = slog.NewJSONHandler(w, opts)
+	} else {
+		handler = slog.NewTextHandler(w, opts)
+	}
+	Init(slog.New(handler))
 }
 
 // Global returns the global registry instance.
@@ -234,6 +263,31 @@ func (r *Registry) UpdatePing(taiID string) {
 	}
 }
 
+// SetClient associates a *tai.Client with a registered node.
+// Called by tai.New() after successful initialization.
+func (r *Registry) SetClient(taiID string, c any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n, ok := r.nodes[taiID]; ok {
+		n.client = c
+	}
+}
+
+// FindTaiIDByAuthClient returns the TaiID of the first node whose
+// Auth.ClientID matches the given OAuth client ID. Returns "" if not found.
+// This is needed because Tai's data channel authenticates with its OAuth
+// ClientID, which may differ from the server-assigned TaiID.
+func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	for _, n := range r.nodes {
+		if n.Auth.ClientID == clientID {
+			return n.TaiID
+		}
+	}
+	return ""
+}
+
 // ListByTeam returns snapshots of all nodes belonging to the given team.
 func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
 	r.mu.RLock()
@@ -241,6 +295,20 @@ func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
 	var result []NodeSnapshot
 	for _, n := range r.nodes {
 		if n.Auth.TeamID == teamID {
+			result = append(result, n.snapshot())
+		}
+	}
+	return result
+}
+
+// ListByUser returns snapshots of all nodes registered by the given user
+// that are NOT associated with any team.
+func (r *Registry) ListByUser(userID string) []NodeSnapshot {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var result []NodeSnapshot
+	for _, n := range r.nodes {
+		if n.Auth.TeamID == "" && n.Auth.UserID == userID {
 			result = append(result, n.snapshot())
 		}
 	}

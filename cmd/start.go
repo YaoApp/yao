@@ -26,12 +26,14 @@ import (
 	"github.com/yaoapp/yao/engine"
 	yaogrpc "github.com/yaoapp/yao/grpc"
 	_ "github.com/yaoapp/yao/grpc/auth"
+	sandboxhandler "github.com/yaoapp/yao/grpc/sandbox"
 	"github.com/yaoapp/yao/openapi"
+	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	ischedule "github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/service"
 	"github.com/yaoapp/yao/setup"
 	"github.com/yaoapp/yao/share"
-	tairegistry "github.com/yaoapp/yao/tai/registry"
+
 	itask "github.com/yaoapp/yao/task"
 )
 
@@ -176,10 +178,6 @@ var startCmd = &cobra.Command{
 		ischedule.Start()
 		defer ischedule.Stop()
 
-		// Initialize the global Tai registry for tunnel and direct connections
-		// (must happen before HTTP/gRPC start so handlers can access it)
-		tairegistry.Init(nil)
-
 		// Pre-flight: detect port conflicts before attempting to start servers.
 		if occupied, proc := portOccupied(config.Conf.Host, config.Conf.Port); occupied {
 			fmt.Println(color.RedString(L("Fatal: HTTP port %d is already in use%s"), config.Conf.Port, proc))
@@ -193,6 +191,12 @@ var startCmd = &cobra.Command{
 				}
 			}
 		}
+
+		// Wire gRPC heartbeat → sandbox Manager so container liveness is tracked.
+		yaogrpc.SetSandboxOnBeat(func(data *sandboxhandler.HeartbeatData) string {
+			sandbox.M().Heartbeat(data.SandboxID, true, int(data.RunningProcs))
+			return "ok"
+		})
 
 		// Start all servers (gRPC + HTTP) as a single unit.
 		// Start() blocks until HTTP port is bound (READY) or returns error.

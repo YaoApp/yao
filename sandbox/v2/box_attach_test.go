@@ -65,10 +65,11 @@ func TestAttachWS(t *testing.T) {
 		t.Skip("WebSocket test requires tai-sandbox-test image with ws-echo service")
 	}
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m, func(co *sandbox.CreateOptions) {
+			m := setupManagerForNode(t, &pc)
+			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Ports = []sandbox.PortMapping{
 					{ContainerPort: 9800, HostPort: 0, Protocol: "tcp"},
 				}
@@ -113,10 +114,11 @@ func TestAttachSSE(t *testing.T) {
 		t.Skip("SSE test requires tai-sandbox-test image with sse-server service")
 	}
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m, func(co *sandbox.CreateOptions) {
+			m := setupManagerForNode(t, &pc)
+			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.Ports = []sandbox.PortMapping{
 					{ContainerPort: 9801, HostPort: 0, Protocol: "tcp"},
 				}
@@ -162,10 +164,11 @@ func TestVNCURL(t *testing.T) {
 		t.Skip("VNC test requires tai-sandbox-test image with VNC desktop")
 	}
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m, func(co *sandbox.CreateOptions) {
+			m := setupManagerForNode(t, &pc)
+			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.VNC = true
 			})
 
@@ -192,10 +195,11 @@ func TestVNCConnect(t *testing.T) {
 		t.Skip("VNC test requires tai-sandbox-test image with VNC desktop")
 	}
 
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForPool(t, pc)
-			box := createTestBox(t, m, func(co *sandbox.CreateOptions) {
+			m := setupManagerForNode(t, &pc)
+			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
 				co.VNC = true
 			})
 

@@ -426,7 +426,7 @@ func TestRemovePool_InUse(t *testing.T) {
 // manager_test.go
 package sandbox_test
 
-func TestMultiPool(t *testing.T) {
+func TestMultiNode(t *testing.T) {
     skipIfNoDocker(t)
     skipIfNoTai(t)
     cleanup := setupManagerWithRemote(t)

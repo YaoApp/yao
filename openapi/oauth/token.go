@@ -320,6 +320,22 @@ func (s *Service) UserID(clientID, subject string) (string, error) {
 	return userIDStr, nil
 }
 
+// copyFingerprint copies the subject→userID fingerprint mapping from one
+// clientID to another so that tokens issued under a different clientID
+// (e.g. Device Flow) can resolve the same userID.
+func (s *Service) copyFingerprint(srcClientID, dstClientID, subject string) {
+	srcKey := s.userFingerprintKey(srcClientID, subject)
+	userID, exists := s.store.Get(srcKey)
+	if !exists {
+		return
+	}
+	dstKey := s.userFingerprintKey(dstClientID, subject)
+	if _, already := s.store.Get(dstKey); already {
+		return
+	}
+	s.store.Set(dstKey, userID, 0)
+}
+
 // MakeAuthorizationCode generates a new authorization code with specific parameters and stores it
 
 // ============================================================================

@@ -15,7 +15,7 @@ import (
 type Box struct {
 	id            string
 	containerID   string
-	pool          string
+	nodeID        string
 	owner         string
 	policy        LifecyclePolicy
 	labels        map[string]string
@@ -23,20 +23,55 @@ type Box struct {
 	lastHeartbeat atomic.Int64
 	processCount  atomic.Int32
 	idleTimeoutD  time.Duration
+	maxLifetimeD  time.Duration
 	stopTimeoutD  time.Duration
 	createdAt     time.Time
-	refreshToken  string
 	vnc           bool
 	image         string
 	workspaceID   string
+	system        SystemInfo
 	ws            workspace.FS
 	manager       *Manager
 }
 
+// Compile-time check: *Box implements Computer.
+var _ Computer = (*Box)(nil)
+
 func (b *Box) ID() string          { return b.id }
 func (b *Box) Owner() string       { return b.owner }
 func (b *Box) ContainerID() string { return b.containerID }
-func (b *Box) Pool() string        { return b.pool }
+func (b *Box) NodeID() string      { return b.nodeID }
+
+// ComputerInfo returns identity and registry information for this Box.
+func (b *Box) ComputerInfo() ComputerInfo {
+	return ComputerInfo{
+		Kind:        "box",
+		NodeID:      b.nodeID,
+		System:      b.system,
+		Status:      "online",
+		BoxID:       b.id,
+		ContainerID: b.containerID,
+		Owner:       b.owner,
+		Image:       b.image,
+		Policy:      b.policy,
+		Labels:      b.labels,
+	}
+}
+
+// BindWorkplace binds (or rebinds) a workspace to this Box. Subsequent calls
+// to Workplace() return the FS for this workspace. Overrides the workspace
+// set during Create.
+func (b *Box) BindWorkplace(workspaceID string) {
+	b.workspaceID = workspaceID
+	b.ws = nil // clear cache so Workplace() re-resolves
+}
+
+// Workplace returns the workspace FS bound to this Box.
+// If a workspace was bound via CreateOptions.WorkspaceID or BindWorkplace(),
+// returns that workspace's FS. Otherwise returns nil.
+func (b *Box) Workplace() workspace.FS {
+	return b.Workspace()
+}
 
 // Exec runs a command and waits for it to finish.
 func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error) {
@@ -46,7 +81,7 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,10 +100,6 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		Stderr:   result.Stderr,
 	}
 
-	if b.policy == OneShot {
-		b.manager.Remove(ctx, b.id)
-	}
-
 	return r, nil
 }
 
@@ -80,7 +111,7 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -110,7 +141,7 @@ func (b *Box) Attach(ctx context.Context, port int, opts ...AttachOption) (*Serv
 		o(cfg)
 	}
 
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +187,7 @@ func (b *Box) Workspace() workspace.FS {
 	if sessionID == "" {
 		sessionID = b.id
 	}
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil
 	}
@@ -167,10 +198,29 @@ func (b *Box) Workspace() workspace.FS {
 // WorkspaceID returns the workspace ID mounted to this sandbox, or empty string.
 func (b *Box) WorkspaceID() string { return b.workspaceID }
 
+// Snapshot returns a local-only BoxInfo snapshot without any remote calls.
+// Status is inferred from local state (not from the container runtime).
+func (b *Box) Snapshot() BoxInfo {
+	return BoxInfo{
+		ID:           b.id,
+		ContainerID:  b.containerID,
+		NodeID:       b.nodeID,
+		Owner:        b.owner,
+		Status:       "running",
+		Policy:       b.policy,
+		Labels:       b.labels,
+		Image:        b.image,
+		CreatedAt:    b.createdAt,
+		LastActive:   b.lastActiveTime(),
+		ProcessCount: int(b.processCount.Load()),
+		VNC:          b.vnc,
+	}
+}
+
 // VNC returns the VNC WebSocket URL.
 func (b *Box) VNC(ctx context.Context) (string, error) {
 	b.touch()
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -180,7 +230,7 @@ func (b *Box) VNC(ctx context.Context) (string, error) {
 // Proxy returns the HTTP URL for a service on the given port inside the sandbox.
 func (b *Box) Proxy(ctx context.Context, port int, path string) (string, error) {
 	b.touch()
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
@@ -189,7 +239,7 @@ func (b *Box) Proxy(ctx context.Context, port int, path string) (string, error) 
 
 // Start starts a stopped sandbox.
 func (b *Box) Start(ctx context.Context) error {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
@@ -198,7 +248,7 @@ func (b *Box) Start(ctx context.Context) error {
 
 // Stop stops the sandbox without removing it.
 func (b *Box) Stop(ctx context.Context) error {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
@@ -212,7 +262,7 @@ func (b *Box) Remove(ctx context.Context) error {
 
 // Info returns current sandbox status.
 func (b *Box) Info(ctx context.Context) (*BoxInfo, error) {
-	client, err := b.manager.getPool(b.pool)
+	client, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +275,7 @@ func (b *Box) Info(ctx context.Context) (*BoxInfo, error) {
 	return &BoxInfo{
 		ID:           b.id,
 		ContainerID:  b.containerID,
-		Pool:         b.pool,
+		NodeID:       b.nodeID,
 		Owner:        b.owner,
 		Status:       info.Status,
 		Policy:       b.policy,
@@ -253,31 +303,16 @@ func (b *Box) lastActiveTime() time.Time {
 }
 
 func (b *Box) idleTimeout() time.Duration {
-	if b.idleTimeoutD > 0 {
-		return b.idleTimeoutD
-	}
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil {
-		return pd.IdleTimeout
-	}
-	return 0
+	return b.idleTimeoutD
 }
 
 func (b *Box) maxLifetime() time.Duration {
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil {
-		return pd.MaxLifetime
-	}
-	return 0
+	return b.maxLifetimeD
 }
 
 func (b *Box) stopTimeout() time.Duration {
 	if b.stopTimeoutD > 0 {
 		return b.stopTimeoutD
-	}
-	pd := b.manager.findPoolDef(b.pool)
-	if pd != nil && pd.StopTimeout > 0 {
-		return pd.StopTimeout
 	}
 	return DefaultStopTimeout
 }

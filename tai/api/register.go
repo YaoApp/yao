@@ -8,7 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth"
+	tai "github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/taiid"
 )
 
 // authenticateBearer validates a Bearer token and returns the caller's identity.
@@ -33,6 +35,44 @@ func authenticateBearerDefault(token string) (registry.AuthInfo, error) {
 		info.TeamID = result.Info.TeamID
 		info.TenantID = result.Info.TenantID
 	}
+
+	slog.Info("[auth] buildAuthInfo result",
+		"subject", info.Subject, "user_id", info.UserID,
+		"client_id", info.ClientID, "team_id", info.TeamID,
+		"scope", info.Scope)
+
+	if result.Claims != nil {
+		slog.Info("[auth] claims",
+			"claims.TeamID", result.Claims.TeamID,
+			"claims.TenantID", result.Claims.TenantID,
+			"claims.ClientID", result.Claims.ClientID,
+			"claims.Subject", result.Claims.Subject)
+		if result.Claims.Extra != nil {
+			slog.Info("[auth] claims.Extra", "extra", fmt.Sprintf("%+v", result.Claims.Extra))
+		} else {
+			slog.Info("[auth] claims.Extra is nil")
+		}
+
+		if info.TeamID == "" {
+			switch v := result.Claims.Extra["team_id"].(type) {
+			case string:
+				info.TeamID = v
+				slog.Info("[auth] team_id from Extra (string)", "team_id", v)
+			case float64:
+				info.TeamID = fmt.Sprintf("%.0f", v)
+				slog.Info("[auth] team_id from Extra (float64)", "team_id", info.TeamID)
+			default:
+				slog.Info("[auth] team_id not found in Extra or unknown type",
+					"type", fmt.Sprintf("%T", result.Claims.Extra["team_id"]),
+					"value", fmt.Sprintf("%v", result.Claims.Extra["team_id"]))
+			}
+		}
+		if info.TenantID == "" {
+			if v, ok := result.Claims.Extra["tenant_id"].(string); ok {
+				info.TenantID = v
+			}
+		}
+	}
 	return info, nil
 }
 
@@ -46,8 +86,10 @@ func extractBearer(r *http.Request) string {
 
 // registerRequest is the JSON body for POST /tai-nodes/register.
 type registerRequest struct {
-	TaiID        string              `json:"tai_id"`
+	NodeID       string              `json:"node_id,omitempty"`
+	ClientID     string              `json:"client_id,omitempty"`
 	MachineID    string              `json:"machine_id"`
+	DisplayName  string              `json:"display_name,omitempty"`
 	Version      string              `json:"version"`
 	Addr         string              `json:"addr"`
 	Ports        map[string]int      `json:"ports"`
@@ -87,31 +129,63 @@ func HandleRegister(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
 		return
 	}
-	if req.TaiID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "tai_id is required"})
+
+	if req.NodeID == "" || req.MachineID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "node_id and machine_id are required"})
 		return
 	}
 
+	resolvedTaiID, err := taiid.Generate(req.MachineID, req.NodeID)
+	if err != nil {
+		slog.Warn("taiid generation failed", "err", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to generate tai_id"})
+		return
+	}
+
+	remoteIP := c.ClientIP()
+	addr := req.Addr
+	if addr == "" && remoteIP != "" {
+		grpcPort := req.Ports["grpc"]
+		if grpcPort > 0 {
+			addr = fmt.Sprintf("tai://%s:%d", remoteIP, grpcPort)
+		} else {
+			addr = remoteIP
+		}
+	}
+
 	node := &registry.TaiNode{
-		TaiID:        req.TaiID,
+		TaiID:        resolvedTaiID,
 		MachineID:    req.MachineID,
 		Version:      req.Version,
+		DisplayName:  req.DisplayName,
 		Auth:         authInfo,
 		System:       req.System,
 		Mode:         "direct",
-		Addr:         req.Addr,
+		Addr:         addr,
 		Ports:        req.Ports,
 		Capabilities: req.Capabilities,
 	}
 	reg.Register(node)
+	slog.Info("[register] node registered via API",
+		"tai_id", resolvedTaiID, "addr", addr, "remote_ip", remoteIP,
+		"user_id", authInfo.UserID, "team_id", authInfo.TeamID)
 
-	remoteIP := c.ClientIP()
-	slog.Info("tai node registered via API",
-		"tai_id", req.TaiID, "remote_ip", remoteIP, "user_id", authInfo.UserID)
+	allBefore := reg.List()
+	slog.Info("[register] registry snapshot after Register",
+		"total", len(allBefore))
+	for _, s := range allBefore {
+		slog.Info("[register]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
+	}
+
+	if strings.HasPrefix(addr, "tai://") {
+		slog.Info("[register] launching connectRegisteredNode goroutine",
+			"tai_id", resolvedTaiID, "addr", addr)
+		go connectRegisteredNode(resolvedTaiID, addr, reg)
+	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"status":    "registered",
-		"tai_id":    req.TaiID,
+		"tai_id":    resolvedTaiID,
 		"remote_ip": remoteIP,
 	})
 }
@@ -202,4 +276,47 @@ func HandleUnregister(c *gin.Context) {
 	slog.Info("tai node unregistered via API", "tai_id", taiID, "user_id", authInfo.UserID)
 
 	c.JSON(http.StatusOK, gin.H{"status": "unregistered"})
+}
+
+// connectRegisteredNode dials the self-registered Tai node via gRPC,
+// creates a tai.Client, and binds it to the node's TaiID in the registry.
+// initRemote internally registers a redundant "host-port" entry; we remove
+// it so that the registry contains only the canonical taiID.
+func connectRegisteredNode(taiID, addr string, reg *registry.Registry) {
+	slog.Info("[connect] start", "tai_id", taiID, "addr", addr)
+
+	client, err := tai.New(addr)
+	if err != nil {
+		slog.Warn("[connect] tai.New FAILED",
+			"tai_id", taiID, "addr", addr, "err", err)
+
+		allAfterFail := reg.List()
+		slog.Info("[connect] registry after tai.New failure", "total", len(allAfterFail))
+		for _, s := range allAfterFail {
+			slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
+		}
+		return
+	}
+
+	autoID := client.TaiID()
+	slog.Info("[connect] tai.New OK", "tai_id", taiID, "autoID", autoID)
+
+	allAfterNew := reg.List()
+	slog.Info("[connect] registry after tai.New", "total", len(allAfterNew))
+	for _, s := range allAfterNew {
+		slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
+	}
+
+	if autoID != "" && autoID != taiID {
+		slog.Info("[connect] removing redundant autoID", "autoID", autoID)
+		reg.Unregister(autoID)
+	}
+	reg.SetClient(taiID, client)
+
+	allFinal := reg.List()
+	slog.Info("[connect] registry FINAL", "total", len(allFinal))
+	for _, s := range allFinal {
+		slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
+	}
+	slog.Info("[connect] done", "tai_id", taiID)
 }

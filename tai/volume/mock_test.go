@@ -197,6 +197,13 @@ func (m *mockVolumeServer) ListDir(_ context.Context, req *pb.FSRequest) (*pb.FS
 	}}, nil
 }
 
+func (m *mockVolumeServer) Copy(_ context.Context, req *pb.FSCopyRequest) (*pb.SyncResult, error) {
+	return &pb.SyncResult{
+		FilesSynced:      1,
+		BytesTransferred: 42,
+	}, nil
+}
+
 func startMockServer(t *testing.T, mock *mockVolumeServer) (*grpc.ClientConn, func()) {
 	t.Helper()
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -549,6 +556,10 @@ func (m *errMockVolumeServer) MkdirAll(_ context.Context, _ *pb.FSRequest) (*pb.
 	return nil, fmt.Errorf("injected mkdir error")
 }
 
+func (m *errMockVolumeServer) Copy(_ context.Context, _ *pb.FSCopyRequest) (*pb.SyncResult, error) {
+	return nil, fmt.Errorf("injected copy error")
+}
+
 func startErrMockServer(t *testing.T) (*grpc.ClientConn, func()) {
 	t.Helper()
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -692,5 +703,48 @@ func TestPbToFileInfo(t *testing.T) {
 	}
 	if fi.Mode != os.FileMode(0o644) {
 		t.Errorf("mode = %v", fi.Mode)
+	}
+}
+
+func TestMockRemoteCopy(t *testing.T) {
+	conn, cleanup := startMockServer(t, &mockVolumeServer{})
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	result, err := vol.Copy(context.Background(), "s1", "src.txt", "dst.txt")
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("synced = %d, want 1", result.FilesSynced)
+	}
+	if result.BytesTransferred != 42 {
+		t.Errorf("bytes = %d, want 42", result.BytesTransferred)
+	}
+}
+
+func TestMockRemoteCopyWithOpts(t *testing.T) {
+	conn, cleanup := startMockServer(t, &mockVolumeServer{})
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	result, err := vol.Copy(context.Background(), "s1", "src", "dst",
+		WithExcludes("*.log"), WithForceFull())
+	if err != nil {
+		t.Fatalf("Copy: %v", err)
+	}
+	if result.FilesSynced != 1 {
+		t.Errorf("synced = %d", result.FilesSynced)
+	}
+}
+
+func TestErrRemoteCopy(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	_, err := vol.Copy(context.Background(), "s1", "a", "b")
+	if err == nil {
+		t.Error("expected error")
 	}
 }

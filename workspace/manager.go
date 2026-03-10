@@ -4,26 +4,28 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/volume"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
-// Manager owns workspace CRUD, file I/O, and node management.
-// Pools are shared with sandbox.Manager — both reference the same tai.Client instances.
-type Manager struct {
-	pools map[string]*tai.Client
-	mu    sync.RWMutex
+var mgr = NewManager()
+
+// M returns the global Manager.
+func M() *Manager {
+	return mgr
 }
 
-// NewManager creates a workspace manager with the given pools.
-func NewManager(pools map[string]*tai.Client) *Manager {
-	if pools == nil {
-		pools = make(map[string]*tai.Client)
-	}
-	return &Manager{pools: pools}
+// Manager owns workspace CRUD, file I/O, and node management.
+// All node/client lookups go through tai.GetClient → registry.
+type Manager struct{}
+
+// NewManager creates a workspace manager.
+func NewManager() *Manager {
+	return &Manager{}
 }
 
 // Create allocates storage on the target node and persists metadata.
@@ -32,9 +34,9 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Workspace, e
 		return nil, ErrNodeMissing
 	}
 
-	client, err := m.getClient(opts.Node)
-	if err != nil {
-		return nil, err
+	client, ok := tai.GetClient(opts.Node)
+	if !ok {
+		return nil, ErrNodeOffline
 	}
 
 	id := opts.ID
@@ -71,18 +73,19 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Workspace, e
 }
 
 // Get returns a workspace by ID.
-// If the node is unknown, scans all pools.
+// Scans all registered nodes.
 func (m *Manager) Get(ctx context.Context, id string) (*Workspace, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	for nodeName, client := range m.pools {
-		ws, err := m.readMeta(ctx, client, id)
+	for _, snap := range listNodes() {
+		client, ok := tai.GetClient(snap.TaiID)
+		if !ok {
+			continue
+		}
+		ws, err := readMeta(ctx, client, id)
 		if err != nil {
 			continue
 		}
 		if ws.Node == "" {
-			ws.Node = nodeName
+			ws.Node = snap.TaiID
 		}
 		return ws, nil
 	}
@@ -91,12 +94,13 @@ func (m *Manager) Get(ctx context.Context, id string) (*Workspace, error) {
 
 // List returns workspaces, optionally filtered by owner and/or node.
 func (m *Manager) List(ctx context.Context, opts ListOptions) ([]*Workspace, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
 	var result []*Workspace
-	for nodeName, client := range m.pools {
-		if opts.Node != "" && nodeName != opts.Node {
+	for _, snap := range listNodes() {
+		if opts.Node != "" && snap.TaiID != opts.Node {
+			continue
+		}
+		client, ok := tai.GetClient(snap.TaiID)
+		if !ok {
 			continue
 		}
 		entries, err := client.Volume().ListDir(ctx, "", ".")
@@ -107,12 +111,12 @@ func (m *Manager) List(ctx context.Context, opts ListOptions) ([]*Workspace, err
 			if !e.IsDir {
 				continue
 			}
-			ws, err := m.readMeta(ctx, client, e.Path)
+			ws, err := readMeta(ctx, client, e.Path)
 			if err != nil {
 				continue
 			}
 			if ws.Node == "" {
-				ws.Node = nodeName
+				ws.Node = snap.TaiID
 			}
 			if opts.Owner != "" && ws.Owner != opts.Owner {
 				continue
@@ -163,28 +167,25 @@ func (m *Manager) Delete(ctx context.Context, id string, force bool) error {
 	return nil
 }
 
-// Nodes returns all configured Tai nodes with their online status.
+// Nodes returns all registered Tai nodes with their online status.
 func (m *Manager) Nodes() []NodeInfo {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	nodes := make([]NodeInfo, 0, len(m.pools))
-	for name := range m.pools {
-		nodes = append(nodes, NodeInfo{
-			Name:   name,
-			Online: true,
+	nodes := listNodes()
+	result := make([]NodeInfo, 0, len(nodes))
+	for _, snap := range nodes {
+		result = append(result, NodeInfo{
+			Name:   snap.TaiID,
+			Online: snap.Status == "online" || snap.Status == "",
 		})
 	}
-	return nodes
+	return result
 }
 
 // FS returns an fs.FS-compatible filesystem for the given workspace.
 func (m *Manager) FS(ctx context.Context, id string) (taiworkspace.FS, error) {
-	ws, client, err := m.resolve(ctx, id)
+	_, client, err := m.resolve(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	_ = ws
 	return client.Workspace(id), nil
 }
 
@@ -237,18 +238,31 @@ func (m *Manager) Remove(ctx context.Context, id string, path string) error {
 	return client.Volume().Remove(ctx, id, path, true)
 }
 
-// AddPool registers a new Tai node.
-func (m *Manager) AddPool(name string, client *tai.Client) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.pools[name] = client
+// Rename renames a file or directory within the workspace.
+func (m *Manager) Rename(ctx context.Context, id string, oldPath, newPath string) error {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return client.Volume().Rename(ctx, id, oldPath, newPath)
 }
 
-// RemovePool unregisters a Tai node.
-func (m *Manager) RemovePool(name string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	delete(m.pools, name)
+// MkdirAll creates a directory (and parents) in the workspace.
+func (m *Manager) MkdirAll(ctx context.Context, id string, path string) error {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return client.Volume().MkdirAll(ctx, id, path)
+}
+
+// Volume returns the Volume interface for the node hosting the given workspace.
+func (m *Manager) Volume(ctx context.Context, id string) (volume.Volume, string, error) {
+	_, client, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, "", err
+	}
+	return client.Volume(), id, nil
 }
 
 // NodeForWorkspace returns the node name for a given workspace ID.
@@ -263,7 +277,6 @@ func (m *Manager) NodeForWorkspace(ctx context.Context, id string) (string, erro
 
 // MountPath returns the host-side directory path for a workspace,
 // suitable for use as a Docker bind mount source.
-// For local volumes this is dataDir/{id}; for remote (Tai) the server handles mounts.
 func (m *Manager) MountPath(ctx context.Context, id string) (string, error) {
 	_, client, err := m.resolve(ctx, id)
 	if err != nil {
@@ -278,23 +291,14 @@ func (m *Manager) MountPath(ctx context.Context, id string) (string, error) {
 
 // --- internal ---
 
-func (m *Manager) getClient(node string) (*tai.Client, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	client, ok := m.pools[node]
-	if !ok {
-		return nil, ErrNodeOffline
-	}
-	return client, nil
-}
-
-// resolve finds the workspace and its tai.Client by scanning pools.
+// resolve finds the workspace and its tai.Client by scanning all registered nodes.
 func (m *Manager) resolve(ctx context.Context, id string) (*Workspace, *tai.Client, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	for _, client := range m.pools {
-		ws, err := m.readMeta(ctx, client, id)
+	for _, snap := range listNodes() {
+		client, ok := tai.GetClient(snap.TaiID)
+		if !ok {
+			continue
+		}
+		ws, err := readMeta(ctx, client, id)
 		if err != nil {
 			continue
 		}
@@ -303,12 +307,20 @@ func (m *Manager) resolve(ctx context.Context, id string) (*Workspace, *tai.Clie
 	return nil, nil, ErrNotFound
 }
 
-func (m *Manager) readMeta(ctx context.Context, client *tai.Client, id string) (*Workspace, error) {
+func readMeta(ctx context.Context, client *tai.Client, id string) (*Workspace, error) {
 	data, _, err := client.Volume().ReadFile(ctx, id, metadataFile)
 	if err != nil {
 		return nil, err
 	}
 	return unmarshalMeta(data)
+}
+
+func listNodes() []registry.NodeSnapshot {
+	reg := registry.Global()
+	if reg == nil {
+		return nil
+	}
+	return reg.List()
 }
 
 // DirEntry represents a file or directory entry in a workspace listing.

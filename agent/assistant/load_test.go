@@ -594,6 +594,162 @@ func TestLoadSystemAgents(t *testing.T) {
 	})
 }
 
+// TestLoadPathSandboxV2 tests loading assistants with V2 sandbox configuration (standalone sandbox.yao)
+func TestLoadPathSandboxV2(t *testing.T) {
+	prepare(t)
+	defer test.Clean()
+
+	t.Run("OneshotCLI", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/oneshot-cli")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		assert.Equal(t, "Sandbox V2 Oneshot CLI", ast.Name)
+		assert.Contains(t, ast.Tags, "SandboxV2")
+
+		// V2 sandbox should be loaded from sandbox.yao
+		require.NotNil(t, ast.SandboxV2, "SandboxV2 should be loaded")
+		assert.Equal(t, "2.0", ast.SandboxV2.Version)
+		assert.Equal(t, "yaoapp/tai-sandbox-claude:latest", ast.SandboxV2.Computer.Image)
+		assert.Equal(t, "2GB", ast.SandboxV2.Computer.Memory)
+		assert.Equal(t, float64(2), ast.SandboxV2.Computer.CPUs)
+		assert.Equal(t, "/workspace", ast.SandboxV2.Computer.WorkDir)
+		assert.Equal(t, "claude", ast.SandboxV2.Runner.Name)
+		assert.Equal(t, "cli", ast.SandboxV2.Runner.Mode)
+		assert.Equal(t, "oneshot", ast.SandboxV2.Lifecycle)
+
+		// Runner options
+		assert.NotNil(t, ast.SandboxV2.Runner.Options)
+		assert.Equal(t, float64(5), ast.SandboxV2.Runner.Options["max_turns"])
+
+		// V1 Sandbox should be nil
+		assert.Nil(t, ast.Sandbox, "V1 Sandbox should be nil when V2 is present")
+
+		// ConfigHash should be computed
+		assert.NotEmpty(t, ast.ConfigHash, "ConfigHash should be computed for V2 sandbox")
+
+		// HasSandboxV2 helper
+		assert.True(t, ast.HasSandboxV2())
+	})
+
+	t.Run("SessionCLI", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/session-cli")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		require.NotNil(t, ast.SandboxV2)
+		assert.Equal(t, "session", ast.SandboxV2.Lifecycle)
+		assert.Equal(t, "10m", ast.SandboxV2.IdleTimeout)
+
+		// Prepare steps
+		require.Len(t, ast.SandboxV2.Prepare, 1)
+		assert.Equal(t, "exec", ast.SandboxV2.Prepare[0].Action)
+		assert.True(t, ast.SandboxV2.Prepare[0].Once)
+	})
+
+	t.Run("LongrunningCLI", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/longrunning-cli")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		require.NotNil(t, ast.SandboxV2)
+		assert.Equal(t, "longrunning", ast.SandboxV2.Lifecycle)
+		assert.Equal(t, "15m", ast.SandboxV2.IdleTimeout)
+		assert.Equal(t, "2h", ast.SandboxV2.MaxLifetime)
+		assert.Equal(t, "5s", ast.SandboxV2.StopTimeout)
+		assert.Equal(t, "4GB", ast.SandboxV2.Computer.Memory)
+		assert.Equal(t, "rw", ast.SandboxV2.Computer.MountMode)
+
+		// Environment
+		assert.Equal(t, "test", ast.SandboxV2.Environment["NODE_ENV"])
+		assert.Equal(t, "longrunning", ast.SandboxV2.Environment["V2_TEST_MODE"])
+
+		// Secrets
+		assert.Equal(t, "sandbox-v2-longrunning-secret", ast.SandboxV2.Secrets["TEST_SECRET"])
+
+		// Prepare steps
+		require.Len(t, ast.SandboxV2.Prepare, 3)
+		assert.True(t, ast.SandboxV2.Prepare[2].IgnoreError)
+
+		// MCP (from package.yao)
+		require.NotNil(t, ast.MCP)
+		require.Len(t, ast.MCP.Servers, 1)
+		assert.Equal(t, "echo", ast.MCP.Servers[0].ServerID)
+
+		// ConfigHash should include MCP servers
+		hashWithMCP := ast.ConfigHash
+		assert.NotEmpty(t, hashWithMCP)
+	})
+
+	t.Run("HooksOnly_YaoRunner", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/hooks-only")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		require.NotNil(t, ast.SandboxV2)
+		assert.Equal(t, "yao", ast.SandboxV2.Runner.Name)
+		assert.Equal(t, "oneshot", ast.SandboxV2.Lifecycle)
+		assert.Equal(t, float64(1), ast.SandboxV2.Computer.CPUs)
+
+		// Runner mode should be empty (yao runner ignores mode)
+		assert.Empty(t, ast.SandboxV2.Runner.Mode)
+	})
+
+	t.Run("FullPrepare", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/full-prepare")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		require.NotNil(t, ast.SandboxV2)
+		assert.Equal(t, "session", ast.SandboxV2.Lifecycle)
+		assert.Equal(t, "15m", ast.SandboxV2.IdleTimeout)
+
+		// Prepare: 5 steps with mixed actions
+		require.Len(t, ast.SandboxV2.Prepare, 5)
+		assert.Equal(t, "copy", ast.SandboxV2.Prepare[0].Action)
+		assert.Equal(t, "skills", ast.SandboxV2.Prepare[0].Src)
+		assert.Equal(t, "~/.claude/skills", ast.SandboxV2.Prepare[0].Dst)
+		assert.Equal(t, "exec", ast.SandboxV2.Prepare[1].Action)
+		assert.True(t, ast.SandboxV2.Prepare[1].Once)
+		assert.True(t, ast.SandboxV2.Prepare[3].IgnoreError)
+
+		// Environment + Secrets
+		assert.Equal(t, "full", ast.SandboxV2.Environment["V2_PREPARE_TEST"])
+		assert.Equal(t, "v2-full-prepare-key", ast.SandboxV2.Secrets["TEST_API_KEY"])
+
+		// Runner options
+		assert.Equal(t, "acceptEdits", ast.SandboxV2.Runner.Options["permission_mode"])
+	})
+
+	t.Run("HostMode", func(t *testing.T) {
+		ast, err := assistant.LoadPath("/assistants/tests/sandbox-v2/host-mode")
+		require.NoError(t, err)
+		require.NotNil(t, ast)
+
+		require.NotNil(t, ast.SandboxV2)
+		// Host mode: no image
+		assert.Empty(t, ast.SandboxV2.Computer.Image)
+		assert.Equal(t, "/tmp/yao-sandbox-v2-host-test", ast.SandboxV2.Computer.WorkDir)
+		assert.Equal(t, "session", ast.SandboxV2.Lifecycle)
+	})
+
+	t.Run("ConfigHashDeterministic", func(t *testing.T) {
+		ast1, err := assistant.LoadPath("/assistants/tests/sandbox-v2/oneshot-cli")
+		require.NoError(t, err)
+		ast2, err := assistant.LoadPath("/assistants/tests/sandbox-v2/oneshot-cli")
+		require.NoError(t, err)
+		assert.Equal(t, ast1.ConfigHash, ast2.ConfigHash, "same config should produce same hash")
+	})
+
+	t.Run("ConfigHashDiffers", func(t *testing.T) {
+		ast1, err := assistant.LoadPath("/assistants/tests/sandbox-v2/oneshot-cli")
+		require.NoError(t, err)
+		ast2, err := assistant.LoadPath("/assistants/tests/sandbox-v2/longrunning-cli")
+		require.NoError(t, err)
+		assert.NotEqual(t, ast1.ConfigHash, ast2.ConfigHash, "different configs should produce different hashes")
+	})
+}
+
 // TestValidate tests the assistant Validate method
 func TestValidate(t *testing.T) {
 	tests := []struct {

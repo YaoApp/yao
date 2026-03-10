@@ -1,8 +1,10 @@
 package sandbox
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/workspace"
@@ -12,43 +14,67 @@ import (
 // Unlike Box (which wraps a container), Host executes commands directly on
 // the Tai server's OS via HostExec gRPC and accesses files via Volume gRPC.
 //
-// A Host is bound to a pool and does not require Create — it is available as
-// long as the pool's Tai server reports host_exec capability.
+// Host implements the Computer interface.
 type Host struct {
-	pool    string
-	manager *Manager
+	nodeID      string
+	workplaceID string
+	system      SystemInfo
+	manager     *Manager
 }
 
-// Pool returns the pool name this Host belongs to.
-func (h *Host) Pool() string { return h.pool }
+// Compile-time check: *Host implements Computer.
+var _ Computer = (*Host)(nil)
+
+// ComputerInfo returns identity and registry information for the host.
+// Registry-level details (TaiID, System, etc.) are populated when the node
+// is backed by a registered Tai node; otherwise only Kind and NodeID are set.
+func (h *Host) ComputerInfo() ComputerInfo {
+	return ComputerInfo{
+		Kind:   "host",
+		NodeID: h.nodeID,
+		System: h.system,
+		Status: "online",
+	}
+}
 
 // Exec runs a command on the Tai host machine via HostExec gRPC.
-func (h *Host) Exec(ctx context.Context, cmd string, args []string, opts ...HostExecOption) (*HostExecResult, error) {
-	client, err := h.manager.getPool(h.pool)
+// cmd[0] is the program, cmd[1:] are arguments.
+func (h *Host) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error) {
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("sandbox: empty command")
+	}
+
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
 	he := client.HostExec()
 	if he == nil {
-		return nil, fmt.Errorf("sandbox: host_exec not available on pool %q", h.pool)
+		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
 
-	cfg := &hostExecConfig{}
+	cfg := &execConfig{}
 	for _, o := range opts {
 		o(cfg)
 	}
 
 	req := &hepb.ExecRequest{
-		Command:        cmd,
-		Args:           args,
-		WorkingDir:     cfg.WorkDir,
-		Stdin:          cfg.Stdin,
-		TimeoutMs:      cfg.TimeoutMs,
-		MaxOutputBytes: cfg.MaxOutputBytes,
+		Command: cmd[0],
+		Args:    cmd[1:],
+		Stdin:   cfg.Stdin,
+	}
+	if cfg.WorkDir != "" {
+		req.WorkingDir = cfg.WorkDir
 	}
 	if cfg.Env != nil {
 		req.Env = cfg.Env
+	}
+	if cfg.Timeout > 0 {
+		req.TimeoutMs = cfg.Timeout.Milliseconds()
+	}
+	if cfg.MaxOutputBytes > 0 {
+		req.MaxOutputBytes = cfg.MaxOutputBytes
 	}
 
 	resp, err := he.Exec(ctx, req)
@@ -56,10 +82,10 @@ func (h *Host) Exec(ctx context.Context, cmd string, args []string, opts ...Host
 		return nil, fmt.Errorf("hostexec rpc: %w", err)
 	}
 
-	return &HostExecResult{
+	return &ExecResult{
 		ExitCode:   int(resp.ExitCode),
-		Stdout:     resp.Stdout,
-		Stderr:     resp.Stderr,
+		Stdout:     string(resp.Stdout),
+		Stderr:     string(resp.Stderr),
 		DurationMs: resp.DurationMs,
 		Error:      resp.Error,
 		Truncated:  resp.Truncated,
@@ -67,34 +93,44 @@ func (h *Host) Exec(ctx context.Context, cmd string, args []string, opts ...Host
 }
 
 // Stream runs a command on the Tai host and streams stdout/stderr in real time
-// via HostExec gRPC ExecStream. Returns a HostExecStream with separate channels
-// for stdout and stderr, plus Wait (blocks until exit) and Cancel.
-func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...HostExecOption) (*HostExecStream, error) {
-	client, err := h.manager.getPool(h.pool)
+// via HostExec gRPC ExecStream. Returns a unified ExecStream with io.ReadCloser
+// for stdout/stderr.
+func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecStream, error) {
+	if len(cmd) == 0 {
+		return nil, fmt.Errorf("sandbox: empty command")
+	}
+
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
 	he := client.HostExec()
 	if he == nil {
-		return nil, fmt.Errorf("sandbox: host_exec not available on pool %q", h.pool)
+		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
 
-	cfg := &hostExecConfig{}
+	cfg := &execConfig{}
 	for _, o := range opts {
 		o(cfg)
 	}
 
 	req := &hepb.ExecRequest{
-		Command:        cmd,
-		Args:           args,
-		WorkingDir:     cfg.WorkDir,
-		Stdin:          cfg.Stdin,
-		TimeoutMs:      cfg.TimeoutMs,
-		MaxOutputBytes: cfg.MaxOutputBytes,
+		Command: cmd[0],
+		Args:    cmd[1:],
+		Stdin:   cfg.Stdin,
+	}
+	if cfg.WorkDir != "" {
+		req.WorkingDir = cfg.WorkDir
 	}
 	if cfg.Env != nil {
 		req.Env = cfg.Env
+	}
+	if cfg.Timeout > 0 {
+		req.TimeoutMs = cfg.Timeout.Milliseconds()
+	}
+	if cfg.MaxOutputBytes > 0 {
+		req.MaxOutputBytes = cfg.MaxOutputBytes
 	}
 
 	streamCtx, cancel := context.WithCancel(ctx)
@@ -104,15 +140,15 @@ func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...Ho
 		return nil, fmt.Errorf("hostexec stream rpc: %w", err)
 	}
 
-	stdoutCh := make(chan []byte, 64)
-	stderrCh := make(chan []byte, 64)
+	stdoutR, stdoutW := io.Pipe()
+	stderrR, stderrW := io.Pipe()
 	doneCh := make(chan struct{})
 	var exitCode int
 	var exitErr error
 
 	go func() {
-		defer close(stdoutCh)
-		defer close(stderrCh)
+		defer stdoutW.Close()
+		defer stderrW.Close()
 		defer close(doneCh)
 		for {
 			msg, err := rpcStream.Recv()
@@ -123,9 +159,9 @@ func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...Ho
 			if len(msg.Data) > 0 {
 				switch msg.Stream {
 				case hepb.ExecOutput_STDOUT:
-					stdoutCh <- msg.Data
+					stdoutW.Write(msg.Data)
 				case hepb.ExecOutput_STDERR:
-					stderrCh <- msg.Data
+					stderrW.Write(msg.Data)
 				}
 			}
 			if msg.Done {
@@ -138,9 +174,10 @@ func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...Ho
 		}
 	}()
 
-	return &HostExecStream{
-		Stdout: stdoutCh,
-		Stderr: stderrCh,
+	return &ExecStream{
+		Stdout: stdoutR,
+		Stderr: stderrR,
+		Stdin:  nopWriteCloser{&bytes.Buffer{}},
 		Wait: func() (int, error) {
 			<-doneCh
 			return exitCode, exitErr
@@ -149,13 +186,48 @@ func (h *Host) Stream(ctx context.Context, cmd string, args []string, opts ...Ho
 	}, nil
 }
 
-// Workspace returns a filesystem interface for the given session on the host.
-// The sessionID typically corresponds to a workspace ID; files are stored
-// under dataDir/{sessionID}/ on the Tai host, accessed via Volume gRPC.
-func (h *Host) Workspace(sessionID string) workspace.FS {
-	client, err := h.manager.getPool(h.pool)
+// VNC returns the VNC WebSocket URL for the Tai host machine.
+// Uses the special __host__ identifier to route to localhost:5900 on the Tai server.
+func (h *Host) VNC(ctx context.Context) (string, error) {
+	client, err := h.manager.getNode(h.nodeID)
+	if err != nil {
+		return "", err
+	}
+	return client.VNC().URL(ctx, "__host__")
+}
+
+// Proxy returns the HTTP URL for a service running on the Tai host machine.
+// Uses the special __host__ identifier to route to localhost:{port} on the Tai server.
+func (h *Host) Proxy(ctx context.Context, port int, path string) (string, error) {
+	client, err := h.manager.getNode(h.nodeID)
+	if err != nil {
+		return "", err
+	}
+	return client.Proxy().URL(ctx, "__host__", port, path)
+}
+
+// BindWorkplace binds a workspace to this host by ID. Subsequent calls to
+// Workplace() will return the FS for this workspace. Call again to rebind.
+func (h *Host) BindWorkplace(workspaceID string) {
+	h.workplaceID = workspaceID
+}
+
+// Workplace returns the workspace FS bound to this host, or nil if unbound.
+func (h *Host) Workplace() workspace.FS {
+	if h.workplaceID == "" {
+		return nil
+	}
+	client, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil
 	}
-	return client.Workspace(sessionID)
+	return client.Workspace(h.workplaceID)
 }
+
+// NodeID returns the node ID this Host belongs to.
+func (h *Host) NodeID() string { return h.nodeID }
+
+// nopWriteCloser wraps an io.Writer with a no-op Close.
+type nopWriteCloser struct{ io.Writer }
+
+func (nopWriteCloser) Close() error { return nil }

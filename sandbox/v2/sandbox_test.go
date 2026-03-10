@@ -7,27 +7,12 @@ import (
 )
 
 func TestInit(t *testing.T) {
-	cfg := sandbox.Config{
-		Pool: []sandbox.Pool{
-			{Name: "test", Addr: "local"},
-		},
-	}
-	if err := sandbox.Init(cfg); err != nil {
-		t.Fatalf("Init: %v", err)
-	}
+	sandbox.Init()
 	m := sandbox.M()
 	if m == nil {
 		t.Fatal("M() returned nil")
 	}
 	m.Close()
-}
-
-func TestInitEmpty(t *testing.T) {
-	cfg := sandbox.Config{}
-	if err := sandbox.Init(cfg); err != nil {
-		t.Fatalf("Init with empty config: %v", err)
-	}
-	sandbox.M().Close()
 }
 
 func TestMPanicWithoutInit(t *testing.T) {

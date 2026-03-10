@@ -14,6 +14,8 @@ import (
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
+	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
+	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 )
 
 // Stream stream the agent
@@ -163,7 +165,25 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var sandboxExecutor agentsandbox.Executor
 	var sandboxCleanup func()
 	var sandboxLoadingMsgID string
-	if ast.HasSandbox() {
+
+	// V2 sandbox state
+	var v2Runner sandboxTypes.Runner
+	var v2Computer infraV2.Computer
+	var v2LoadingMsgID string
+
+	if ast.HasSandboxV2() {
+		ctx.Logger.Phase("Sandbox V2")
+		var err error
+		var v2Cleanup func()
+		v2Runner, v2Computer, v2Cleanup, v2LoadingMsgID, err = ast.initSandboxV2(ctx, opts)
+		if err != nil {
+			ast.traceAgentFail(agentNode, err)
+			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
+			return nil, err
+		}
+		sandboxCleanup = v2Cleanup
+		ctx.Logger.PhaseComplete("Sandbox V2")
+	} else if ast.HasSandbox() {
 		ctx.Logger.Phase("Sandbox")
 		var err error
 		sandboxExecutor, sandboxCleanup, sandboxLoadingMsgID, err = ast.initSandbox(ctx, opts)
@@ -289,8 +309,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		// Execute the LLM streaming call
 		// Choose between sandbox execution or direct LLM execution
-		if ast.HasSandbox() {
-			// Sandbox execution path (Claude CLI, Cursor CLI, etc.)
+		if ast.HasSandboxV2() && v2Runner != nil && v2Computer != nil && v2Runner.Name() != "yao" {
+			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
+			completionResponse, err = ast.executeSandboxV2Stream(ctx, completionMessages, agentNode, streamHandler, v2Runner, v2Computer, v2LoadingMsgID)
+		} else if ast.HasSandboxV2() && v2Runner != nil && v2Runner.Name() == "yao" {
+			// V2 yao runner: Prepare is done, close loading, fall through to LLM
+			if v2LoadingMsgID != "" {
+				closeLoadingV2(ctx, v2LoadingMsgID, "")
+			}
+			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
+		} else if ast.HasSandbox() {
+			// V1 Sandbox execution path (Claude CLI, Cursor CLI, etc.)
 			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor, sandboxLoadingMsgID)
 		} else {
 			// Direct LLM execution path

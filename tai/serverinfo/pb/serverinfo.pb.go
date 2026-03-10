@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v4.25.0
-// source: tai/serverinfo/pb/serverinfo.proto
+// source: serverinfo.proto
 
 package pb
 
@@ -29,7 +29,7 @@ type GetInfoRequest struct {
 
 func (x *GetInfoRequest) Reset() {
 	*x = GetInfoRequest{}
-	mi := &file_tai_serverinfo_pb_serverinfo_proto_msgTypes[0]
+	mi := &file_serverinfo_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +41,7 @@ func (x *GetInfoRequest) String() string {
 func (*GetInfoRequest) ProtoMessage() {}
 
 func (x *GetInfoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_serverinfo_pb_serverinfo_proto_msgTypes[0]
+	mi := &file_serverinfo_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +54,99 @@ func (x *GetInfoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfoRequest.ProtoReflect.Descriptor instead.
 func (*GetInfoRequest) Descriptor() ([]byte, []int) {
-	return file_tai_serverinfo_pb_serverinfo_proto_rawDescGZIP(), []int{0}
+	return file_serverinfo_proto_rawDescGZIP(), []int{0}
+}
+
+type SystemInfo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Os            string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
+	Arch          string                 `protobuf:"bytes,2,opt,name=arch,proto3" json:"arch,omitempty"`
+	Hostname      string                 `protobuf:"bytes,3,opt,name=hostname,proto3" json:"hostname,omitempty"`
+	NumCpu        int32                  `protobuf:"varint,4,opt,name=num_cpu,json=numCpu,proto3" json:"num_cpu,omitempty"`
+	TotalMem      int64                  `protobuf:"varint,5,opt,name=total_mem,json=totalMem,proto3" json:"total_mem,omitempty"`
+	Shell         string                 `protobuf:"bytes,6,opt,name=shell,proto3" json:"shell,omitempty"`                    // preferred shell: "sh", "pwsh", "powershell", "cmd.exe"
+	TempDir       string                 `protobuf:"bytes,7,opt,name=temp_dir,json=tempDir,proto3" json:"temp_dir,omitempty"` // system temp directory
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SystemInfo) Reset() {
+	*x = SystemInfo{}
+	mi := &file_serverinfo_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SystemInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SystemInfo) ProtoMessage() {}
+
+func (x *SystemInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_serverinfo_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SystemInfo.ProtoReflect.Descriptor instead.
+func (*SystemInfo) Descriptor() ([]byte, []int) {
+	return file_serverinfo_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SystemInfo) GetOs() string {
+	if x != nil {
+		return x.Os
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetArch() string {
+	if x != nil {
+		return x.Arch
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetHostname() string {
+	if x != nil {
+		return x.Hostname
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetNumCpu() int32 {
+	if x != nil {
+		return x.NumCpu
+	}
+	return 0
+}
+
+func (x *SystemInfo) GetTotalMem() int64 {
+	if x != nil {
+		return x.TotalMem
+	}
+	return 0
+}
+
+func (x *SystemInfo) GetShell() string {
+	if x != nil {
+		return x.Shell
+	}
+	return ""
+}
+
+func (x *SystemInfo) GetTempDir() string {
+	if x != nil {
+		return x.TempDir
+	}
+	return ""
 }
 
 type GetInfoResponse struct {
@@ -62,13 +154,14 @@ type GetInfoResponse struct {
 	Version       string                 `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
 	Ports         map[string]int32       `protobuf:"bytes,2,rep,name=ports,proto3" json:"ports,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`               // "grpc", "http", "vnc", "docker", "k8s"
 	Capabilities  map[string]bool        `protobuf:"bytes,3,rep,name=capabilities,proto3" json:"capabilities,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"` // "docker", "k8s"
+	System        *SystemInfo            `protobuf:"bytes,4,opt,name=system,proto3" json:"system,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetInfoResponse) Reset() {
 	*x = GetInfoResponse{}
-	mi := &file_tai_serverinfo_pb_serverinfo_proto_msgTypes[1]
+	mi := &file_serverinfo_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -80,7 +173,7 @@ func (x *GetInfoResponse) String() string {
 func (*GetInfoResponse) ProtoMessage() {}
 
 func (x *GetInfoResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_serverinfo_pb_serverinfo_proto_msgTypes[1]
+	mi := &file_serverinfo_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -93,7 +186,7 @@ func (x *GetInfoResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInfoResponse.ProtoReflect.Descriptor instead.
 func (*GetInfoResponse) Descriptor() ([]byte, []int) {
-	return file_tai_serverinfo_pb_serverinfo_proto_rawDescGZIP(), []int{1}
+	return file_serverinfo_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *GetInfoResponse) GetVersion() string {
@@ -117,17 +210,34 @@ func (x *GetInfoResponse) GetCapabilities() map[string]bool {
 	return nil
 }
 
-var File_tai_serverinfo_pb_serverinfo_proto protoreflect.FileDescriptor
+func (x *GetInfoResponse) GetSystem() *SystemInfo {
+	if x != nil {
+		return x.System
+	}
+	return nil
+}
 
-const file_tai_serverinfo_pb_serverinfo_proto_rawDesc = "" +
+var File_serverinfo_proto protoreflect.FileDescriptor
+
+const file_serverinfo_proto_rawDesc = "" +
 	"\n" +
-	"\"tai/serverinfo/pb/serverinfo.proto\x12\n" +
+	"\x10serverinfo.proto\x12\n" +
 	"serverinfo\"\x10\n" +
-	"\x0eGetInfoRequest\"\xb7\x02\n" +
+	"\x0eGetInfoRequest\"\xb3\x01\n" +
+	"\n" +
+	"SystemInfo\x12\x0e\n" +
+	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +
+	"\x04arch\x18\x02 \x01(\tR\x04arch\x12\x1a\n" +
+	"\bhostname\x18\x03 \x01(\tR\bhostname\x12\x17\n" +
+	"\anum_cpu\x18\x04 \x01(\x05R\x06numCpu\x12\x1b\n" +
+	"\ttotal_mem\x18\x05 \x01(\x03R\btotalMem\x12\x14\n" +
+	"\x05shell\x18\x06 \x01(\tR\x05shell\x12\x19\n" +
+	"\btemp_dir\x18\a \x01(\tR\atempDir\"\xe7\x02\n" +
 	"\x0fGetInfoResponse\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\tR\aversion\x12<\n" +
 	"\x05ports\x18\x02 \x03(\v2&.serverinfo.GetInfoResponse.PortsEntryR\x05ports\x12Q\n" +
-	"\fcapabilities\x18\x03 \x03(\v2-.serverinfo.GetInfoResponse.CapabilitiesEntryR\fcapabilities\x1a8\n" +
+	"\fcapabilities\x18\x03 \x03(\v2-.serverinfo.GetInfoResponse.CapabilitiesEntryR\fcapabilities\x12.\n" +
+	"\x06system\x18\x04 \x01(\v2\x16.serverinfo.SystemInfoR\x06system\x1a8\n" +
 	"\n" +
 	"PortsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
@@ -140,56 +250,58 @@ const file_tai_serverinfo_pb_serverinfo_proto_rawDesc = "" +
 	"\aGetInfo\x12\x1a.serverinfo.GetInfoRequest\x1a\x1b.serverinfo.GetInfoResponseB%Z#github.com/yaoapp/tai/serverinfo/pbb\x06proto3"
 
 var (
-	file_tai_serverinfo_pb_serverinfo_proto_rawDescOnce sync.Once
-	file_tai_serverinfo_pb_serverinfo_proto_rawDescData []byte
+	file_serverinfo_proto_rawDescOnce sync.Once
+	file_serverinfo_proto_rawDescData []byte
 )
 
-func file_tai_serverinfo_pb_serverinfo_proto_rawDescGZIP() []byte {
-	file_tai_serverinfo_pb_serverinfo_proto_rawDescOnce.Do(func() {
-		file_tai_serverinfo_pb_serverinfo_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tai_serverinfo_pb_serverinfo_proto_rawDesc), len(file_tai_serverinfo_pb_serverinfo_proto_rawDesc)))
+func file_serverinfo_proto_rawDescGZIP() []byte {
+	file_serverinfo_proto_rawDescOnce.Do(func() {
+		file_serverinfo_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_serverinfo_proto_rawDesc), len(file_serverinfo_proto_rawDesc)))
 	})
-	return file_tai_serverinfo_pb_serverinfo_proto_rawDescData
+	return file_serverinfo_proto_rawDescData
 }
 
-var file_tai_serverinfo_pb_serverinfo_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_tai_serverinfo_pb_serverinfo_proto_goTypes = []any{
+var file_serverinfo_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_serverinfo_proto_goTypes = []any{
 	(*GetInfoRequest)(nil),  // 0: serverinfo.GetInfoRequest
-	(*GetInfoResponse)(nil), // 1: serverinfo.GetInfoResponse
-	nil,                     // 2: serverinfo.GetInfoResponse.PortsEntry
-	nil,                     // 3: serverinfo.GetInfoResponse.CapabilitiesEntry
+	(*SystemInfo)(nil),      // 1: serverinfo.SystemInfo
+	(*GetInfoResponse)(nil), // 2: serverinfo.GetInfoResponse
+	nil,                     // 3: serverinfo.GetInfoResponse.PortsEntry
+	nil,                     // 4: serverinfo.GetInfoResponse.CapabilitiesEntry
 }
-var file_tai_serverinfo_pb_serverinfo_proto_depIdxs = []int32{
-	2, // 0: serverinfo.GetInfoResponse.ports:type_name -> serverinfo.GetInfoResponse.PortsEntry
-	3, // 1: serverinfo.GetInfoResponse.capabilities:type_name -> serverinfo.GetInfoResponse.CapabilitiesEntry
-	0, // 2: serverinfo.ServerInfo.GetInfo:input_type -> serverinfo.GetInfoRequest
-	1, // 3: serverinfo.ServerInfo.GetInfo:output_type -> serverinfo.GetInfoResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+var file_serverinfo_proto_depIdxs = []int32{
+	3, // 0: serverinfo.GetInfoResponse.ports:type_name -> serverinfo.GetInfoResponse.PortsEntry
+	4, // 1: serverinfo.GetInfoResponse.capabilities:type_name -> serverinfo.GetInfoResponse.CapabilitiesEntry
+	1, // 2: serverinfo.GetInfoResponse.system:type_name -> serverinfo.SystemInfo
+	0, // 3: serverinfo.ServerInfo.GetInfo:input_type -> serverinfo.GetInfoRequest
+	2, // 4: serverinfo.ServerInfo.GetInfo:output_type -> serverinfo.GetInfoResponse
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_tai_serverinfo_pb_serverinfo_proto_init() }
-func file_tai_serverinfo_pb_serverinfo_proto_init() {
-	if File_tai_serverinfo_pb_serverinfo_proto != nil {
+func init() { file_serverinfo_proto_init() }
+func file_serverinfo_proto_init() {
+	if File_serverinfo_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_serverinfo_pb_serverinfo_proto_rawDesc), len(file_tai_serverinfo_pb_serverinfo_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_serverinfo_proto_rawDesc), len(file_serverinfo_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_tai_serverinfo_pb_serverinfo_proto_goTypes,
-		DependencyIndexes: file_tai_serverinfo_pb_serverinfo_proto_depIdxs,
-		MessageInfos:      file_tai_serverinfo_pb_serverinfo_proto_msgTypes,
+		GoTypes:           file_serverinfo_proto_goTypes,
+		DependencyIndexes: file_serverinfo_proto_depIdxs,
+		MessageInfos:      file_serverinfo_proto_msgTypes,
 	}.Build()
-	File_tai_serverinfo_pb_serverinfo_proto = out.File
-	file_tai_serverinfo_pb_serverinfo_proto_goTypes = nil
-	file_tai_serverinfo_pb_serverinfo_proto_depIdxs = nil
+	File_serverinfo_proto = out.File
+	file_serverinfo_proto_goTypes = nil
+	file_serverinfo_proto_depIdxs = nil
 }

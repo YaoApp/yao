@@ -130,6 +130,7 @@ type Client struct {
 	scheme   string // "tai", "docker", or "tunnel"
 	host     string
 	addr     string
+	taiID    string // registry key — set by initLocal/initRemote/initTunnel
 	ports    Ports
 	dataDir  string // host-side data directory for local volume
 	vol      volume.Volume
@@ -209,6 +210,23 @@ func (c *Client) initLocal(cfg *config) (*Client, error) {
 		c.dataDir = dataDir
 		c.vol = volume.NewLocal(dataDir)
 	}
+
+	if reg := registry.Global(); reg != nil {
+		id := c.host
+		if id == "" {
+			id = c.addr
+		}
+		if id == "" {
+			id = "local"
+		}
+		c.taiID = id
+		reg.Register(&registry.TaiNode{
+			TaiID: id,
+			Mode:  "local",
+			Addr:  c.addr,
+		})
+		reg.SetClient(id, c)
+	}
 	return c, nil
 }
 
@@ -221,15 +239,14 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	c.grpcConn = conn
 	c.he = hepb.NewHostExecClient(conn)
 
-	caps, err := c.discoverServerInfo(conn, cfg)
+	info, err := c.discoverServerInfo(conn, cfg)
 	if err != nil {
-		// Old Tai without ServerInfo — fall back to legacy behaviour (try Docker).
-		caps = map[string]bool{"docker": true}
+		info = &discoveredInfo{Capabilities: map[string]bool{"docker": true}}
 	}
 
-	hasDocker := caps["docker"]
-	hasK8s := caps["k8s"]
-	hasHostExec := caps["host_exec"]
+	hasDocker := info.Capabilities["docker"]
+	hasK8s := info.Capabilities["k8s"]
+	hasHostExec := info.Capabilities["host_exec"]
 
 	if !hasDocker && !hasK8s && !hasHostExec {
 		conn.Close()
@@ -276,10 +293,15 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 	}
 
 	if reg := registry.Global(); reg != nil {
+		id := fmt.Sprintf("%s-%d", c.host, c.ports.GRPC)
+		c.taiID = id
 		reg.Register(&registry.TaiNode{
-			TaiID: c.host,
-			Mode:  "direct",
-			Addr:  c.host,
+			TaiID:        id,
+			Mode:         "direct",
+			Version:      info.Version,
+			System:       info.System,
+			Capabilities: info.Capabilities,
+			Addr:         fmt.Sprintf("tai://%s:%d", c.host, c.ports.GRPC),
 			Ports: map[string]int{
 				"grpc":   c.ports.GRPC,
 				"http":   c.ports.HTTP,
@@ -288,6 +310,7 @@ func (c *Client) initRemote(cfg *config) (*Client, error) {
 				"k8s":    c.ports.K8s,
 			},
 		})
+		reg.SetClient(id, c)
 	}
 
 	return c, nil
@@ -300,6 +323,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	}
 
 	taiID := c.host // for tunnel:// scheme, host stores the taiID
+	c.taiID = taiID
 	node, ok := reg.Get(taiID)
 	if !ok || node.Status != "online" {
 		return nil, fmt.Errorf("tai node %s not online", taiID)
@@ -310,6 +334,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 		HTTP:   nodePort(node.Ports, "http", 8099),
 		VNC:    nodePort(node.Ports, "vnc", 16080),
 		Docker: nodePort(node.Ports, "docker", 12375),
+		K8s:    nodePort(node.Ports, "k8s", 16443),
 	}
 
 	grpcLn, err := reg.OpenLocalListener(taiID, c.ports.GRPC)
@@ -329,21 +354,36 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 	c.he = hepb.NewHostExecClient(conn)
 	c.vol = volume.NewRemote(conn)
 
-	caps, err := c.discoverServerInfo(conn, cfg)
+	info, err := c.discoverServerInfo(conn, cfg)
 	if err != nil {
-		caps = map[string]bool{"docker": true}
+		info = &discoveredInfo{Capabilities: map[string]bool{"docker": true}}
 	}
 
-	hasDocker := caps["docker"]
-	hasHostExec := caps["host_exec"]
+	hasDocker := info.Capabilities["docker"]
+	hasK8s := info.Capabilities["k8s"]
+	hasHostExec := info.Capabilities["host_exec"]
 
-	if !hasDocker && !hasHostExec {
+	if !hasDocker && !hasK8s && !hasHostExec {
 		c.closeTunnelListeners()
 		conn.Close()
-		return nil, fmt.Errorf("tai %s: no capabilities available via tunnel", taiID)
+		return nil, fmt.Errorf("tai %s: no capabilities available via tunnel (docker/k8s/host_exec all false)", taiID)
 	}
 
-	if hasDocker && c.ports.Docker > 0 {
+	if cfg.runtime == K8s || (!hasDocker && hasK8s) {
+		k8sLn, err := reg.OpenLocalListener(taiID, c.ports.K8s)
+		if err == nil {
+			c.tunnelListeners = append(c.tunnelListeners, k8sLn)
+			sbAddr := k8sLn.Addr().String()
+			sb, err := sandbox.NewK8s(sbAddr, sandbox.K8sOption{
+				Namespace:  cfg.namespace,
+				KubeConfig: cfg.kubeConfig,
+			})
+			if err == nil {
+				c.sb = sb
+				c.img = sandbox.NewK8sImage()
+			}
+		}
+	} else if hasDocker && c.ports.Docker > 0 {
 		dockerLn, err := reg.OpenLocalListener(taiID, c.ports.Docker)
 		if err == nil {
 			c.tunnelListeners = append(c.tunnelListeners, dockerLn)
@@ -360,6 +400,7 @@ func (c *Client) initTunnel(cfg *config) (*Client, error) {
 		c.prx = proxy.NewTunnel(taiID, node.YaoBase)
 		c.vc = vnc.NewTunnel(taiID, node.YaoBase)
 	}
+	reg.SetClient(taiID, c)
 	return c, nil
 }
 
@@ -396,9 +437,9 @@ func (c *Client) Close() error {
 		}
 	}
 	c.closeTunnelListeners()
-	if c.scheme == "tai" {
+	if c.taiID != "" {
 		if reg := registry.Global(); reg != nil {
-			reg.Unregister(c.host)
+			reg.Unregister(c.taiID)
 		}
 	}
 	if len(errs) > 0 {
@@ -413,6 +454,12 @@ func (c *Client) Volume() volume.Volume { return c.vol }
 // DataDir returns the host-side data directory used by the local volume.
 // Empty for remote (Tai gRPC) connections — the Tai server manages paths.
 func (c *Client) DataDir() string { return c.dataDir }
+
+// Host returns the raw host parsed from the address (IP or hostname).
+func (c *Client) Host() string { return c.host }
+
+// TaiID returns the registry key for this client.
+func (c *Client) TaiID() string { return c.taiID }
 
 // Workspace returns an fs.FS-compatible filesystem for the given session.
 func (c *Client) Workspace(sessionID string) workspace.FS {
@@ -515,10 +562,16 @@ func isLocalHost(h string) bool {
 	return h == "127.0.0.1" || h == "localhost" || h == "::1"
 }
 
+type discoveredInfo struct {
+	Capabilities map[string]bool
+	System       registry.SystemInfo
+	Version      string
+}
+
 // discoverServerInfo calls ServerInfo.GetInfo on the remote Tai server, merges
-// discovered ports into c.ports, and returns the server's capabilities map.
+// discovered ports into c.ports, and returns capabilities + system info.
 // Ports explicitly set via WithPorts take precedence over server-reported values.
-func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[string]bool, error) {
+func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (*discoveredInfo, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -547,5 +600,71 @@ func (c *Client) discoverServerInfo(conn *grpc.ClientConn, cfg *config) (map[str
 	if caps == nil {
 		caps = make(map[string]bool)
 	}
-	return caps, nil
+
+	var sys registry.SystemInfo
+	if s := resp.System; s != nil {
+		sys = registry.SystemInfo{
+			OS:       s.Os,
+			Arch:     s.Arch,
+			Hostname: s.Hostname,
+			NumCPU:   int(s.NumCpu),
+			TotalMem: s.TotalMem,
+			Shell:    s.Shell,
+			TempDir:  s.TempDir,
+		}
+	}
+
+	return &discoveredInfo{
+		Capabilities: caps,
+		System:       sys,
+		Version:      resp.Version,
+	}, nil
+}
+
+// RegisterLocal probes the local Docker environment and, if reachable,
+// creates a Client and registers it as the "local" node in the registry.
+// Returns true if a local node was successfully registered.
+// Silently returns false if Docker is not available — this is not an error.
+func RegisterLocal(opts ...Option) bool {
+	reg := registry.Global()
+	if reg == nil {
+		return false
+	}
+	if _, ok := reg.Get("local"); ok {
+		return true
+	}
+
+	c, err := New("local", opts...)
+	if err != nil {
+		return false
+	}
+	_ = c // registered by initLocal → reg.Register + reg.SetClient
+	return true
+}
+
+// GetClient returns a registered *Client by taiID from the global registry.
+func GetClient(taiID string) (*Client, bool) {
+	reg := registry.Global()
+	if reg == nil {
+		return nil, false
+	}
+	snap, ok := reg.Get(taiID)
+	if !ok {
+		return nil, false
+	}
+	c, ok := snap.Client().(*Client)
+	if !ok || c == nil {
+		return nil, false
+	}
+	return c, true
+}
+
+// GetNodeSnapshot returns the registry snapshot for a Tai node by ID.
+// Callers can inspect System, Capabilities, Mode and other registry-level fields.
+func GetNodeSnapshot(taiID string) (*registry.NodeSnapshot, bool) {
+	reg := registry.Global()
+	if reg == nil {
+		return nil, false
+	}
+	return reg.Get(taiID)
 }

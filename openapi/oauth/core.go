@@ -241,9 +241,11 @@ func (s *Service) RefreshToken(ctx context.Context, refreshToken string, scope .
 		finalScope = requestedScope
 	}
 
+	extraClaims := extractExtraClaims(tokenInfo)
+
 	// Generate new access token with final scope
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, nil)
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, extraClaims)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -340,9 +342,11 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, reque
 		finalScope = scope
 	}
 
+	extraClaims := extractExtraClaims(tokenInfo)
+
 	// Generate new tokens with final scope and original subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, nil)
+	newAccessToken, err := s.generateAccessTokenWithScope(clientID, finalScope, originalSubject, expiresIn, extraClaims)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -350,7 +354,7 @@ func (s *Service) RotateRefreshToken(ctx context.Context, oldToken string, reque
 		}
 	}
 
-	newRefreshToken, err := s.generateRefreshToken(clientID, finalScope, originalSubject, 0, nil)
+	newRefreshToken, err := s.generateRefreshToken(clientID, finalScope, originalSubject, 0, extraClaims)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -497,20 +501,12 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		return nil, err
 	}
 
-	// Extract scope and subject from refresh token if available
-	scope := ""
-	if scopeVal, ok := refreshTokenInfo["scope"].(string); ok {
-		scope = scopeVal
-	}
+	scope, _ := refreshTokenInfo["scope"].(string)
+	subject, _ := refreshTokenInfo["subject"].(string)
+	extraClaims := extractExtraClaims(refreshTokenInfo)
 
-	subject := ""
-	if subjectVal, ok := refreshTokenInfo["subject"].(string); ok {
-		subject = subjectVal
-	}
-
-	// Generate and store new access token with proper scope and subject
 	expiresIn := int(s.config.Token.AccessTokenLifetime.Seconds())
-	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, nil)
+	accessToken, err := s.generateAccessTokenWithScope(client.ClientID, scope, subject, expiresIn, extraClaims)
 	if err != nil {
 		return nil, &types.ErrorResponse{
 			Code:             types.ErrorServerError,
@@ -524,9 +520,8 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 		ExpiresIn:   expiresIn,
 	}
 
-	// Include refresh token if rotation is enabled
 	if s.config.Features.RefreshTokenRotationEnabled {
-		newRefreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, nil)
+		newRefreshToken, err := s.generateRefreshToken(client.ClientID, scope, subject, 0, extraClaims)
 		if err != nil {
 			return nil, &types.ErrorResponse{
 				Code:             types.ErrorServerError,
@@ -534,11 +529,8 @@ func (s *Service) handleRefreshTokenGrant(ctx context.Context, client *types.Cli
 			}
 		}
 		token.RefreshToken = newRefreshToken
-
-		// Revoke old refresh token
 		s.revokeRefreshToken(refreshToken)
 	} else {
-		// Reuse the same refresh token
 		token.RefreshToken = refreshToken
 	}
 
@@ -712,4 +704,24 @@ func (s *Service) handleDeviceCodeGrant(ctx context.Context, client *types.Clien
 			ErrorDescription: "Invalid device code status",
 		}
 	}
+}
+
+// extractExtraClaims pulls non-reserved fields from a token info map so they
+// can be propagated into newly generated access/refresh tokens.
+func extractExtraClaims(tokenInfo map[string]interface{}) map[string]interface{} {
+	reserved := map[string]bool{
+		"client_id": true, "scope": true, "subject": true,
+		"type": true, "issued_at": true, "expires_at": true,
+	}
+	var extra map[string]interface{}
+	for k, v := range tokenInfo {
+		if reserved[k] {
+			continue
+		}
+		if extra == nil {
+			extra = make(map[string]interface{})
+		}
+		extra[k] = v
+	}
+	return extra
 }

@@ -40,12 +40,14 @@ import (
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/runtime"
+	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
 	sui "github.com/yaoapp/yao/sui/api"
+	tairegistry "github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/websocket"
 	"github.com/yaoapp/yao/widget"
@@ -128,6 +130,22 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "DB", Error: err})
+	}
+
+	// Initialize the Tai node registry (idempotent, safe to call early).
+	loadStep("Registry", func() error {
+		tairegistry.InitWithWriter(config.LogOutput, cfg.LogMode)
+		return nil
+	}, callback)
+
+	// Initialize the Sandbox manager and start it (auto-registers local Docker
+	// node if available, recovers existing containers, starts cleanup loop).
+	err = loadStep("Sandbox", func() error {
+		sandbox.Init()
+		return sandbox.M().Start(context.Background())
+	}, callback)
+	if err != nil {
+		warnings = append(warnings, Warning{Widget: "Sandbox", Error: err})
 	}
 
 	// Load Certs

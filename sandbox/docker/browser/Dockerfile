@@ -76,7 +76,7 @@ ENV DISPLAY=:99
 ENV VNC_PORT=5900
 ENV NOVNC_PORT=6080
 ENV RESOLUTION=1920x1080x24
-ENV SANDBOX_VNC_ENABLED=true
+ENV VNC_ENABLED=true
 ENV SANDBOX_DESKTOP=fluxbox
 
 # Node.js environment - ensure global modules are accessible

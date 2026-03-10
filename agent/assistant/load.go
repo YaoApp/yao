@@ -12,8 +12,10 @@ import (
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/config"
 	"gopkg.in/yaml.v3"
 )
 
@@ -378,7 +380,45 @@ func LoadPath(path string) (*Assistant, error) {
 		return nil, err
 	}
 	data["locales"] = locales
-	return loadMap(data)
+
+	// V2 sandbox: load standalone sandbox.yao if present (Path A).
+	sandboxFile := filepath.Join(path, "sandbox.yao")
+	if has, _ := app.Exists(sandboxFile); has {
+		absFile := filepath.Join(config.Conf.AppSource, sandboxFile)
+		sbCfg, sbErr := store.LoadSandboxConfig(absFile)
+		if sbErr != nil {
+			return nil, fmt.Errorf("load sandbox.yao: %w", sbErr)
+		}
+		data["__sandbox_v2"] = sbCfg
+	}
+
+	ast, err := loadMap(data)
+	if err != nil {
+		return nil, err
+	}
+
+	// If V2 sandbox was loaded via Path A, assign it now.
+	if sbCfg, ok := data["__sandbox_v2"].(*sandboxTypes.SandboxConfig); ok && sbCfg != nil {
+		ast.SandboxV2 = sbCfg
+	}
+
+	// Compute config hash for V2 sandbox.
+	if ast.SandboxV2 != nil {
+		var mcpServers []store.MCPServerConfig
+		if ast.MCP != nil {
+			mcpServers = ast.MCP.Servers
+		}
+		skillsDir := ""
+		if ast.Path != "" {
+			dir := filepath.Join(config.Conf.AppSource, ast.Path, "skills")
+			if info, e := os.Stat(dir); e == nil && info.IsDir() {
+				skillsDir = dir
+			}
+		}
+		ast.ConfigHash = store.ComputeConfigHash(ast.SandboxV2, mcpServers, skillsDir)
+	}
+
+	return ast, nil
 }
 
 func loadMap(data map[string]interface{}) (*Assistant, error) {
@@ -721,12 +761,25 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// sandbox (for coding agents like Claude CLI, Cursor CLI)
-	if sandbox, has := data["sandbox"]; has {
-		sb, err := store.ToSandbox(sandbox)
-		if err != nil {
-			return nil, err
+	// V2 sandbox via independent sandbox.yao is loaded in LoadPath (below).
+	// This block handles the package.yao embedded "sandbox" field with version dispatch.
+	if assistant.SandboxV2 == nil {
+		if sandbox, has := data["sandbox"]; has {
+			version := extractSandboxVersion(sandbox)
+			if version == sandboxTypes.SandboxVersionV2 {
+				sb, err := store.ToSandboxV2(sandbox)
+				if err != nil {
+					return nil, err
+				}
+				assistant.SandboxV2 = sb
+			} else {
+				sb, err := store.ToSandbox(sandbox)
+				if err != nil {
+					return nil, err
+				}
+				assistant.Sandbox = sb
+			}
 		}
-		assistant.Sandbox = sb
 	}
 
 	// dependencies (name -> version constraint, like npm dependencies)
@@ -1035,4 +1088,14 @@ func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
 	}
 
 	return &result
+}
+
+// extractSandboxVersion tries to read the "version" field from a sandbox config value.
+func extractSandboxVersion(v any) string {
+	if m, ok := v.(map[string]any); ok {
+		if ver, ok := m["version"].(string); ok {
+			return ver
+		}
+	}
+	return ""
 }

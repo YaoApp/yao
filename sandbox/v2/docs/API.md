@@ -2,7 +2,7 @@
 
 Package: `github.com/yaoapp/yao/sandbox/v2`
 
-Sandbox V2 manages sandboxes through a pool of Tai nodes. Two primary abstractions:
+Sandbox V2 manages sandboxes through a set of Tai nodes. Two primary abstractions:
 
 - **Box** — a container (Docker or K8s pod). Created via `Manager.Create`.
 - **Host** — the Tai host machine itself. Obtained via `Manager.Host` (no Create needed).
@@ -16,25 +16,14 @@ Supports workspace mounting, VNC, WebSocket proxying, and HostExec.
 ### Init
 
 ```go
-func Init(cfg Config) error
+func Init()
 ```
 
 Initializes the global Manager singleton. Must be called once at startup.
+No configuration is needed — node discovery is handled by `tai/registry`.
 
 ```go
-err := sandbox.Init(sandbox.Config{
-    Pool: []sandbox.Pool{
-        {
-            Name:        "docker",
-            Addr:        "tai://192.168.1.10:19100",
-            MaxPerUser:  5,
-            MaxTotal:    20,
-            IdleTimeout: 30 * time.Minute,
-            MaxLifetime: 24 * time.Hour,
-            StopTimeout: 5 * time.Second,
-        },
-    },
-})
+sandbox.Init()
 ```
 
 ### M
@@ -51,28 +40,12 @@ mgr := sandbox.M()
 
 ---
 
-## Config
+## Node Discovery
 
-```go
-type Config struct {
-    Pool []Pool
-}
-```
-
-### Pool
-
-```go
-type Pool struct {
-    Name        string
-    Addr        string           // "tai://host:port", "tunnel://host:port", or Docker socket
-    Options     []tai.Option     // tai.Client options
-    MaxPerUser  int              // 0 = unlimited
-    MaxTotal    int              // 0 = unlimited
-    IdleTimeout time.Duration    // 0 = no idle cleanup
-    MaxLifetime time.Duration    // 0 = no max lifetime
-    StopTimeout time.Duration    // SIGTERM grace period; 0 = DefaultStopTimeout (2s)
-}
-```
+Sandbox V2 no longer uses static node configuration. Nodes are discovered dynamically
+through `tai/registry`. Each Tai node registers itself with a unique **TaiID** (e.g.
+`"192.168.1.10-19100"` for direct mode, `"local"` for Docker). The TaiID is used as the
+`NodeID` identifier in `CreateOptions`, `ListOptions`, `Host()`, `ImageExists()`, etc.
 
 ---
 
@@ -99,7 +72,7 @@ const (
 func (m *Manager) Start(ctx context.Context) error
 ```
 
-Recovers existing containers from all pools and starts the background cleanup loop (1 min interval).
+Recovers existing containers from all nodes and starts the background cleanup loop (1 min interval).
 
 ```go
 ctx := context.Background()
@@ -112,7 +85,7 @@ err := sandbox.M().Start(ctx)
 func (m *Manager) Close() error
 ```
 
-Stops the cleanup loop and closes all pool connections.
+Stops the cleanup loop and closes all node connections.
 
 ### Create
 
@@ -126,7 +99,7 @@ Creates and starts a new sandbox container. Returns a `Box` handle.
 box, err := sandbox.M().Create(ctx, sandbox.CreateOptions{
     Image:   "alpine:latest",
     Owner:   "user-123",
-    Pool:    "docker",
+    NodeID:  "192.168.1.10-19100",  // TaiID from registry
     Policy:  sandbox.Session,
     WorkDir: "/workspace",
     Env:     map[string]string{"LANG": "en_US.UTF-8"},
@@ -148,15 +121,16 @@ box, err := sandbox.M().Create(ctx, sandbox.CreateOptions{
 ### Host
 
 ```go
-func (m *Manager) Host(ctx context.Context, pool string) (*Host, error)
+func (m *Manager) Host(ctx context.Context, nodeID string) (*Host, error)
 ```
 
-Returns a `Host` handle for the given pool. Unlike `Create`, no container is provisioned —
-the Host is available as long as the pool's Tai server reports `host_exec` capability.
-Returns `ErrPoolNotFound` if the pool does not exist, or an error if the pool has no `host_exec`.
+Returns a `Host` handle for the given node (identified by TaiID). Unlike `Create`, no
+container is provisioned — the Host is available as long as the Tai server reports
+`host_exec` capability. Returns `ErrNodeNotFound` if the TaiID is not registered,
+`ErrNodeMissing` if the nodeID argument is empty, or an error if the node has no `host_exec`.
 
 ```go
-host, err := sandbox.M().Host(ctx, "remote")
+host, err := sandbox.M().Host(ctx, "192.168.1.10-19100")
 ```
 
 ### Get
@@ -198,7 +172,7 @@ Returns all sandboxes matching the given filters. Empty fields = no filter.
 ```go
 boxes, err := sandbox.M().List(ctx, sandbox.ListOptions{
     Owner: "user-123",
-    Pool:  "docker",
+    NodeID: "192.168.1.10-19100",
     Labels: map[string]string{"project": "demo"},
 })
 ```
@@ -209,7 +183,7 @@ boxes, err := sandbox.M().List(ctx, sandbox.ListOptions{
 func (m *Manager) Remove(ctx context.Context, id string) error
 ```
 
-Force-removes a sandbox (SIGKILL + delete). Revokes container tokens.
+Force-removes a sandbox (SIGKILL + delete).
 
 ```go
 err := sandbox.M().Remove(ctx, "sb-12345")
@@ -236,90 +210,48 @@ Updates a sandbox's last-active timestamp. Called by the gRPC heartbeat service.
 err := sandbox.M().Heartbeat("sb-12345", true, 3)
 ```
 
-### AddPool
+### Nodes
 
 ```go
-func (m *Manager) AddPool(ctx context.Context, p Pool) error
+func (m *Manager) Nodes() []registry.NodeSnapshot
 ```
 
-Registers a new pool at runtime.
+Returns all registered Tai nodes from the `tai/registry`.
 
 ```go
-err := sandbox.M().AddPool(ctx, sandbox.Pool{
-    Name:     "k8s-gpu",
-    Addr:     "tai://10.0.0.5:19100",
-    MaxTotal: 10,
-})
-```
-
-### RemovePool
-
-```go
-func (m *Manager) RemovePool(ctx context.Context, name string, force bool) error
-```
-
-Removes a pool. Returns `ErrPoolInUse` if the pool has running boxes and `force=false`.
-With `force=true`, all boxes in the pool are removed first.
-
-### Pools
-
-```go
-func (m *Manager) Pools() []PoolInfo
-```
-
-Returns all registered pools and their status.
-
-```go
-for _, p := range sandbox.M().Pools() {
-    fmt.Printf("pool=%s addr=%s connected=%v boxes=%d\n",
-        p.Name, p.Addr, p.Connected, p.Boxes)
+for _, n := range sandbox.M().Nodes() {
+    fmt.Printf("tai_id=%s mode=%s addr=%s status=%s\n",
+        n.TaiID, n.Mode, n.Addr, n.Status)
 }
 ```
-
-### SetGRPCPort
-
-```go
-func (m *Manager) SetGRPCPort(port int)
-```
-
-Sets the local gRPC port injected into container env vars (`YAO_GRPC_ADDR`). Default: `9099`.
-
-### SetWorkspaceManager
-
-```go
-func (m *Manager) SetWorkspaceManager(wm *workspace.Manager)
-```
-
-Links the workspace manager. When `CreateOptions.WorkspaceID` is set, the Manager uses it
-to resolve the workspace's bound node and route the container to the correct pool.
 
 ### ImageExists
 
 ```go
-func (m *Manager) ImageExists(ctx context.Context, pool, ref string) (bool, error)
+func (m *Manager) ImageExists(ctx context.Context, nodeID, ref string) (bool, error)
 ```
 
-Reports whether the given image ref exists on the target pool node.
-Returns `(true, nil)` when the pool has no image service (e.g. K8s — kubelet handles pulls).
+Reports whether the given image ref exists on the target node.
+Returns `(true, nil)` when the node has no image service (e.g. K8s — kubelet handles pulls).
 
 ```go
-exists, err := sandbox.M().ImageExists(ctx, "docker", "alpine:latest")
+exists, err := sandbox.M().ImageExists(ctx, "192.168.1.10-19100", "alpine:latest")
 ```
 
 ### PullImage
 
 ```go
-func (m *Manager) PullImage(ctx context.Context, pool, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error)
+func (m *Manager) PullImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error)
 ```
 
-Pulls an image to the target pool node. Returns a channel of `taisandbox.PullProgress`
-(from `github.com/yaoapp/yao/tai/sandbox`). Returns `(nil, nil)` when the pool has no image
+Pulls an image to the target node. Returns a channel of `taisandbox.PullProgress`
+(from `github.com/yaoapp/yao/tai/sandbox`). Returns `(nil, nil)` when the node has no image
 service (e.g. K8s).
 
 `PullProgress` fields: `Status string`, `Layer string`, `Current int64`, `Total int64`, `Error string`.
 
 ```go
-ch, err := sandbox.M().PullImage(ctx, "docker", "myapp:v2", sandbox.ImagePullOptions{
+ch, err := sandbox.M().PullImage(ctx, "192.168.1.10-19100", "myapp:v2", sandbox.ImagePullOptions{
     Auth: &sandbox.RegistryAuth{
         Username: "user",
         Password: "pass",
@@ -334,13 +266,13 @@ for p := range ch {
 ### EnsureImage
 
 ```go
-func (m *Manager) EnsureImage(ctx context.Context, pool, ref string, opts ImagePullOptions) error
+func (m *Manager) EnsureImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) error
 ```
 
 Checks if the image exists; if not, pulls it and blocks until complete.
 
 ```go
-err := sandbox.M().EnsureImage(ctx, "docker", "alpine:latest", sandbox.ImagePullOptions{})
+err := sandbox.M().EnsureImage(ctx, "192.168.1.10-19100", "alpine:latest", sandbox.ImagePullOptions{})
 ```
 
 ---
@@ -355,7 +287,7 @@ A `Box` is a handle to a running sandbox container.
 func (b *Box) ID() string
 func (b *Box) Owner() string
 func (b *Box) ContainerID() string
-func (b *Box) Pool() string
+func (b *Box) NodeID() string
 func (b *Box) WorkspaceID() string
 ```
 
@@ -491,12 +423,12 @@ fmt.Printf("status=%s processes=%d vnc=%v created=%s\n",
 ## Host
 
 A `Host` represents a Tai host machine execution environment, distinct from `Box` (containers).
-No `Create` call is needed — a Host is available as long as the pool's Tai server reports `host_exec`.
+No `Create` call is needed — a Host is available as long as the node's Tai server reports `host_exec`.
 
 ### Accessors
 
 ```go
-func (h *Host) Pool() string
+func (h *Host) NodeID() string
 ```
 
 ### Exec
@@ -508,7 +440,7 @@ func (h *Host) Exec(ctx context.Context, cmd string, args []string, opts ...Host
 Runs a command directly on the Tai host machine via HostExec gRPC.
 
 ```go
-host, _ := sandbox.M().Host(ctx, "remote")
+host, _ := sandbox.M().Host(ctx, "192.168.1.10-19100")
 result, err := host.Exec(ctx, "git", []string{"status"},
     sandbox.WithHostWorkDir("/data/repos/project"),
     sandbox.WithHostEnv(map[string]string{"GIT_AUTHOR_NAME": "bot"}),
@@ -529,7 +461,7 @@ Runs a command on the Tai host and streams stdout/stderr in real time via HostEx
 ExecStream. Returns a `HostExecStream` with separate channels for stdout and stderr.
 
 ```go
-host, _ := sandbox.M().Host(ctx, "remote")
+host, _ := sandbox.M().Host(ctx, "192.168.1.10-19100")
 stream, err := host.Stream(ctx, "tail", []string{"-f", "/var/log/app.log"},
     sandbox.WithHostWorkDir("/data"),
     sandbox.WithHostTimeout(60000),
@@ -607,7 +539,7 @@ type CreateOptions struct {
     ID          string
     Owner       string
     Labels      map[string]string
-    Pool        string              // empty = default pool
+    NodeID      string              // TaiID from registry (required unless WorkspaceID routes to a node)
     Image       string              // required
     WorkDir     string              // default "/workspace"
     User        string              // container user
@@ -617,8 +549,9 @@ type CreateOptions struct {
     VNC         bool
     Ports       []PortMapping
     Policy      LifecyclePolicy     // default Session
-    IdleTimeout time.Duration       // overrides pool default
-    StopTimeout time.Duration       // overrides pool default
+    IdleTimeout time.Duration       // 0 = no idle cleanup
+    MaxLifetime time.Duration       // 0 = no max lifetime
+    StopTimeout time.Duration       // SIGTERM grace period; 0 = DefaultStopTimeout (2s)
     WorkspaceID string              // workspace to mount; empty = none
     MountMode   string              // "rw" (default) or "ro"
     MountPath   string              // default "/workspace"
@@ -630,7 +563,7 @@ type CreateOptions struct {
 ```go
 type ListOptions struct {
     Owner  string
-    Pool   string
+    NodeID string
     Labels map[string]string
 }
 ```
@@ -686,7 +619,7 @@ type ServiceConn struct {
 type BoxInfo struct {
     ID           string
     ContainerID  string
-    Pool         string
+    NodeID       string
     Owner        string
     Status       string          // "running", "stopped", etc.
     Policy       LifecyclePolicy
@@ -696,21 +629,6 @@ type BoxInfo struct {
     LastActive   time.Time
     ProcessCount int
     VNC          bool
-}
-```
-
-### PoolInfo
-
-```go
-type PoolInfo struct {
-    Name        string
-    Addr        string
-    Connected   bool
-    Boxes       int
-    MaxPerUser  int
-    MaxTotal    int
-    IdleTimeout time.Duration
-    MaxLifetime time.Duration
 }
 ```
 
@@ -758,11 +676,10 @@ type HostExecStream struct {
 
 ```go
 var (
-    ErrNotAvailable  = errors.New("sandbox: not available (no pools configured)")
-    ErrNotFound      = errors.New("sandbox: not found")
-    ErrLimitExceeded = errors.New("sandbox: limit exceeded")
-    ErrPoolNotFound  = errors.New("sandbox: pool not found")
-    ErrPoolInUse     = errors.New("sandbox: pool has running boxes")
+    ErrNotAvailable = errors.New("sandbox: not available (no nodes registered)")
+    ErrNotFound     = errors.New("sandbox: not found")
+    ErrNodeNotFound = errors.New("sandbox: node not found")
+    ErrNodeMissing  = errors.New("sandbox: node ID is required")
 )
 ```
 
@@ -770,38 +687,28 @@ var (
 
 ## Helper Functions
 
-### CreateContainerTokens
-
-```go
-func CreateContainerTokens(sandboxID, owner string, scopes []string) (access, refresh string, err error)
-```
-
-Creates an OAuth token pair for a sandbox container.
-
-### RevokeContainerTokens
-
-```go
-func RevokeContainerTokens(refresh string) error
-```
-
-Revokes a container refresh token.
-
 ### BuildGRPCEnv
 
 ```go
-func BuildGRPCEnv(pool *Pool, sandboxID, access, refresh string, grpcPort int) map[string]string
+func BuildGRPCEnv(mode, addr, sandboxID string) map[string]string
 ```
 
-Builds environment variables injected into sandbox containers:
+Builds environment variables injected into sandbox containers. The gRPC port is read from
+`config.Conf.GRPC.Port` (defaults to `9099`).
 
-| Variable           | Description                          |
-|--------------------|--------------------------------------|
-| `YAO_SANDBOX_ID`   | Sandbox identifier                   |
-| `YAO_TOKEN`        | Access token for gRPC auth           |
-| `YAO_REFRESH_TOKEN` | Refresh token for token rotation    |
-| `YAO_GRPC_ADDR`    | gRPC server address (auto-derived)   |
+- `mode` — the `TaiNode.Mode` (`"local"`, `"direct"`, `"tunnel"`)
+- `addr` — the `TaiNode.Addr` (e.g. `"tai://192.168.1.10:19100"` for direct mode)
+- `sandboxID` — the container's sandbox identifier
+
+| Variable         | Description                        |
+|------------------|------------------------------------|
+| `YAO_SANDBOX_ID` | Sandbox identifier                 |
+| `YAO_GRPC_ADDR`  | gRPC server address (auto-derived) |
 
 Address derivation logic:
-- `tai://host:port` → `host:port` (default port 19100 when omitted)
-- `tunnel://...` → `127.0.0.1:<grpcPort>`
-- Local/default → `127.0.0.1:<grpcPort>`
+- `local` → `host.docker.internal:<grpcPort>`
+- `direct` with `tai://host:port` → `host:port`
+- `tunnel` → `127.0.0.1:<grpcPort>`
+
+Token injection (`YAO_TOKEN`, `YAO_REFRESH_TOKEN`) is the **caller's responsibility** via
+`CreateOptions.Env`. See IMPL.md "OAuth Decoupling" for details.

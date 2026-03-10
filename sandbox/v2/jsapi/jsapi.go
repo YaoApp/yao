@@ -1,24 +1,30 @@
 // Package jsapi registers the sandbox namespace into the Yao V8 runtime.
 //
 // All methods are static on the sandbox object — no constructor.
+// Both sandbox.Create() and sandbox.Host() return a unified Computer object.
 //
 // # JavaScript API
 //
-//	const box = sandbox.Create({ image: "node:20", owner: "user1" })
-//	const result = box.Exec(["node", "-e", "console.log('hi')"])
-//	console.log(result.stdout)
-//
-//	const box  = sandbox.Get(id)               // → Box
+//	const pc   = sandbox.Create({ image: "node:20", owner: "user1" }) // → Computer (kind="box")
+//	const pc   = sandbox.Get(id)               // → Computer (kind="box") | null
 //	const list = sandbox.List({ owner: "u1" }) // → BoxInfo[]
 //	sandbox.Delete(id)                          // → void
+//	const host = sandbox.Host("gpu")            // → Computer (kind="host")
+//	const node = sandbox.GetNode("tai-abc123") // → NodeInfo | null
+//	const all  = sandbox.Nodes()               // → NodeInfo[]
+//	const team = sandbox.NodesByTeam("t-001")  // → NodeInfo[]
 //
 // # Go mapping
 //
-//	sandbox.Create(opts)  → Manager.Create(ctx, CreateOptions)   → Box
-//	sandbox.Create(opts)  → Manager.GetOrCreate(ctx, opts)       → Box  (when opts.id is set)
-//	sandbox.Get(id)       → Manager.Get(ctx, id)                 → Box
-//	sandbox.List(filter?) → Manager.List(ctx, ListOptions)       → []*Box → BoxInfo[]
-//	sandbox.Delete(id)    → Manager.Remove(ctx, id)              → void
+//	sandbox.Create(opts)  → Manager.Create(ctx, CreateOptions)    → Computer (Box)
+//	sandbox.Create(opts)  → Manager.GetOrCreate(ctx, opts)        → Computer (Box)  (when opts.id is set)
+//	sandbox.Get(id)       → Manager.Get(ctx, id)                  → Computer (Box)
+//	sandbox.List(filter?) → Manager.List(ctx, ListOptions)        → BoxInfo[]
+//	sandbox.Delete(id)    → Manager.Remove(ctx, id)               → void
+//	sandbox.Host(nodeID?) → Manager.Host(ctx, nodeID)             → Computer (Host)
+//	sandbox.GetNode(id)   → registry.Global().Get(id)             → NodeInfo | null
+//	sandbox.Nodes()       → registry.Global().List()              → NodeInfo[]
+//	sandbox.NodesByTeam(t)→ registry.Global().ListByTeam(t)       → NodeInfo[]
 //
 // Registration happens via init() — import with:
 //
@@ -26,7 +32,12 @@
 package jsapi
 
 import (
+	"context"
+	"encoding/json"
+	"time"
+
 	v8 "github.com/yaoapp/gou/runtime/v8"
+	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"rogchap.com/v8go"
 )
 
@@ -41,115 +52,234 @@ func ExportObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 	obj.Set("Get", v8go.NewFunctionTemplate(iso, sbGet))
 	obj.Set("List", v8go.NewFunctionTemplate(iso, sbList))
 	obj.Set("Delete", v8go.NewFunctionTemplate(iso, sbDelete))
+	obj.Set("Host", v8go.NewFunctionTemplate(iso, sbHost))
+	obj.Set("GetNode", v8go.NewFunctionTemplate(iso, sbGetNode))
+	obj.Set("Nodes", v8go.NewFunctionTemplate(iso, sbNodes))
+	obj.Set("NodesByTeam", v8go.NewFunctionTemplate(iso, sbNodesByTeam))
 	return obj
 }
 
-// sbCreate: `sandbox.Create(options)` → Box
-//
-// Go: Manager.Create(ctx, CreateOptions) (*Box, error)
-//
-//	Manager.GetOrCreate(ctx, CreateOptions) (*Box, error)  — when opts.id is set
-//
-// JS options → Go CreateOptions mapping:
-//
-//	{
-//	  id:           string   →  CreateOptions.ID           // optional; triggers GetOrCreate
-//	  owner:        string   →  CreateOptions.Owner        // required
-//	  pool:         string   →  CreateOptions.Pool         // default: first pool
-//	  image:        string   →  CreateOptions.Image        // required
-//	  workdir:      string   →  CreateOptions.WorkDir
-//	  user:         string   →  CreateOptions.User         // e.g. "1000:1000"
-//	  env:          object   →  CreateOptions.Env          // map[string]string
-//	  memory:       number   →  CreateOptions.Memory       // bytes (int64)
-//	  cpus:         number   →  CreateOptions.CPUs         // float64 e.g. 1.5
-//	  vnc:          boolean  →  CreateOptions.VNC
-//	  ports:        array    →  CreateOptions.Ports        // [{container, host, host_ip, protocol}] → []PortMapping
-//	  policy:       string   →  CreateOptions.Policy       // "oneshot"|"session"|"longrunning"|"persistent"
-//	  idle_timeout: number   →  CreateOptions.IdleTimeout  // ms → time.Duration
-//	  stop_timeout: number   →  CreateOptions.StopTimeout  // ms → time.Duration
-//	  workspace_id: string   →  CreateOptions.WorkspaceID
-//	  mount_mode:   string   →  CreateOptions.MountMode    // "rw"|"ro"
-//	  mount_path:   string   →  CreateOptions.MountPath
-//	  labels:       object   →  CreateOptions.Labels       // map[string]string
-//	}
-//
-// Returns: Box object (see box.go)
+// sbCreate: `sandbox.Create(options)` → Computer (kind="box")
 func sbCreate(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. Parse options from info.Args()[0]
-	// 2. Validate required fields (image, owner)
-	// 3. If opts.id != "" → sandbox.M().GetOrCreate(ctx, opts)
-	//    else             → sandbox.M().Create(ctx, opts)
-	// 4. Return NewBoxObject(v8ctx, box.ID())
-	return v8go.Undefined(info.Context().Isolate())
+	v8ctx := info.Context()
+	ctx := context.Background()
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsObject() {
+		return throwError(info, "Create requires options object")
+	}
+
+	optsVal := args[0]
+	jsonStr, err := v8go.JSONStringify(v8ctx, optsVal)
+	if err != nil {
+		return throwError(info, "Create: invalid options: "+err.Error())
+	}
+
+	var raw map[string]interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &raw); err != nil {
+		return throwError(info, "Create: invalid options JSON: "+err.Error())
+	}
+
+	opts := sandbox.CreateOptions{}
+	if v, ok := raw["id"].(string); ok {
+		opts.ID = v
+	}
+	if v, ok := raw["owner"].(string); ok {
+		opts.Owner = v
+	}
+	if v, ok := raw["node_id"].(string); ok {
+		opts.NodeID = v
+	}
+	if v, ok := raw["image"].(string); ok {
+		opts.Image = v
+	}
+	if v, ok := raw["workdir"].(string); ok {
+		opts.WorkDir = v
+	}
+	if v, ok := raw["user"].(string); ok {
+		opts.User = v
+	}
+	if v, ok := raw["env"].(map[string]interface{}); ok {
+		env := make(map[string]string, len(v))
+		for k, val := range v {
+			if s, ok := val.(string); ok {
+				env[k] = s
+			}
+		}
+		opts.Env = env
+	}
+	if v, ok := raw["memory"].(float64); ok {
+		opts.Memory = int64(v)
+	}
+	if v, ok := raw["cpus"].(float64); ok {
+		opts.CPUs = v
+	}
+	if v, ok := raw["vnc"].(bool); ok {
+		opts.VNC = v
+	}
+	if v, ok := raw["policy"].(string); ok {
+		opts.Policy = sandbox.LifecyclePolicy(v)
+	}
+	if v, ok := raw["idle_timeout"].(float64); ok {
+		opts.IdleTimeout = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := raw["stop_timeout"].(float64); ok {
+		opts.StopTimeout = time.Duration(v) * time.Millisecond
+	}
+	if v, ok := raw["workspace_id"].(string); ok {
+		opts.WorkspaceID = v
+	}
+	if v, ok := raw["mount_mode"].(string); ok {
+		opts.MountMode = v
+	}
+	if v, ok := raw["mount_path"].(string); ok {
+		opts.MountPath = v
+	}
+	if v, ok := raw["labels"].(map[string]interface{}); ok {
+		labels := make(map[string]string, len(v))
+		for k, val := range v {
+			if s, ok := val.(string); ok {
+				labels[k] = s
+			}
+		}
+		opts.Labels = labels
+	}
+	if v, ok := raw["ports"].([]interface{}); ok {
+		for _, p := range v {
+			pm, ok := p.(map[string]interface{})
+			if !ok {
+				continue
+			}
+			mapping := sandbox.PortMapping{}
+			if cp, ok := pm["container_port"].(float64); ok {
+				mapping.ContainerPort = int(cp)
+			}
+			if hp, ok := pm["host_port"].(float64); ok {
+				mapping.HostPort = int(hp)
+			}
+			if hi, ok := pm["host_ip"].(string); ok {
+				mapping.HostIP = hi
+			}
+			if pr, ok := pm["protocol"].(string); ok {
+				mapping.Protocol = pr
+			}
+			opts.Ports = append(opts.Ports, mapping)
+		}
+	}
+
+	m := sandbox.M()
+	var box *sandbox.Box
+	if opts.ID != "" {
+		box, err = m.GetOrCreate(ctx, opts)
+	} else {
+		box, err = m.Create(ctx, opts)
+	}
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+
+	val, err := NewComputerObject(v8ctx, "box", box.ID())
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+	return val
 }
 
-// sbGet: `sandbox.Get(id)` → Box | null
-//
-// Go: Manager.Get(ctx, id) (*Box, error)
-//
-// Args:
-//
-//	id: string  — sandbox ID
-//
-// Returns: Box object if found, null if not found
+// sbGet: `sandbox.Get(id)` → Computer (kind="box") | null
 func sbGet(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. id = info.Args()[0].String()
-	// 2. box, err := sandbox.M().Get(ctx, id)
-	// 3. Return NewBoxObject(v8ctx, id) or null
-	return v8go.Undefined(info.Context().Isolate())
+	iso := info.Context().Isolate()
+	v8ctx := info.Context()
+	ctx := context.Background()
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsString() {
+		return throwError(info, "Get requires id (string)")
+	}
+	id := args[0].String()
+
+	_, err := sandbox.M().Get(ctx, id)
+	if err != nil {
+		return v8go.Null(iso)
+	}
+
+	val, err := NewComputerObject(v8ctx, "box", id)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+	return val
 }
 
 // sbList: `sandbox.List(filter?)` → BoxInfo[]
-//
-// Go: Manager.List(ctx, ListOptions) ([]*Box, error)
-//
-//	then Box.Info(ctx) for each → BoxInfo
-//
-// JS filter → Go ListOptions mapping:
-//
-//	{
-//	  owner:  string  →  ListOptions.Owner   // filter by owner; empty = all
-//	  pool:   string  →  ListOptions.Pool    // filter by pool; empty = all
-//	  labels: object  →  ListOptions.Labels  // filter by labels
-//	}
-//
-// Returns: BoxInfo[] — each element:
-//
-//	{
-//	  id:            string   ←  BoxInfo.ID
-//	  container_id:  string   ←  BoxInfo.ContainerID
-//	  pool:          string   ←  BoxInfo.Pool
-//	  owner:         string   ←  BoxInfo.Owner
-//	  status:        string   ←  BoxInfo.Status
-//	  image:         string   ←  BoxInfo.Image
-//	  vnc:           boolean  ←  BoxInfo.VNC
-//	  policy:        string   ←  BoxInfo.Policy
-//	  labels:        object   ←  BoxInfo.Labels
-//	  created_at:    string   ←  BoxInfo.CreatedAt   (ISO 8601)
-//	  last_active:   string   ←  BoxInfo.LastActive   (ISO 8601)
-//	  process_count: number   ←  BoxInfo.ProcessCount
-//	}
 func sbList(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. Parse optional filter from info.Args()[0]
-	// 2. boxes := sandbox.M().List(ctx, opts)
-	// 3. For each box: box.Info(ctx) → BoxInfo → JS object
-	// 4. Return JS array of BoxInfo objects
-	return v8go.Undefined(info.Context().Isolate())
+	v8ctx := info.Context()
+	ctx := context.Background()
+	args := info.Args()
+
+	opts := sandbox.ListOptions{}
+	if len(args) > 0 && args[0].IsObject() {
+		jsonStr, _ := v8go.JSONStringify(v8ctx, args[0])
+		var raw map[string]interface{}
+		if json.Unmarshal([]byte(jsonStr), &raw) == nil {
+			if v, ok := raw["owner"].(string); ok {
+				opts.Owner = v
+			}
+			if v, ok := raw["node_id"].(string); ok {
+				opts.NodeID = v
+			}
+			if v, ok := raw["labels"].(map[string]interface{}); ok {
+				labels := make(map[string]string, len(v))
+				for k, val := range v {
+					if s, ok := val.(string); ok {
+						labels[k] = s
+					}
+				}
+				opts.Labels = labels
+			}
+		}
+	}
+
+	boxes, err := sandbox.M().List(ctx, opts)
+	if err != nil {
+		return throwError(info, err.Error())
+	}
+
+	items := make([]interface{}, 0, len(boxes))
+	for _, b := range boxes {
+		bi, err := b.Info(ctx)
+		if err != nil {
+			continue
+		}
+		items = append(items, map[string]interface{}{
+			"id":            bi.ID,
+			"container_id":  bi.ContainerID,
+			"node_id":       bi.NodeID,
+			"owner":         bi.Owner,
+			"status":        bi.Status,
+			"image":         bi.Image,
+			"vnc":           bi.VNC,
+			"policy":        string(bi.Policy),
+			"labels":        bi.Labels,
+			"created_at":    bi.CreatedAt.Format(time.RFC3339),
+			"last_active":   bi.LastActive.Format(time.RFC3339),
+			"process_count": bi.ProcessCount,
+		})
+	}
+
+	data, _ := json.Marshal(items)
+	val, _ := v8go.JSONParse(v8ctx, string(data))
+	return val
 }
 
 // sbDelete: `sandbox.Delete(id)` → void
-//
-// Go: Manager.Remove(ctx, id) error
-//
-// Args:
-//
-//	id: string  — sandbox ID to remove
 func sbDelete(info *v8go.FunctionCallbackInfo) *v8go.Value {
-	// TODO: Phase 2
-	// 1. id = info.Args()[0].String()
-	// 2. sandbox.M().Remove(ctx, id)
-	return v8go.Undefined(info.Context().Isolate())
+	iso := info.Context().Isolate()
+	args := info.Args()
+	if len(args) < 1 || !args[0].IsString() {
+		return throwError(info, "Delete requires id (string)")
+	}
+	ctx := context.Background()
+	id := args[0].String()
+
+	if err := sandbox.M().Remove(ctx, id); err != nil {
+		return throwError(info, err.Error())
+	}
+	return v8go.Undefined(iso)
 }

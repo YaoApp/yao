@@ -7,14 +7,17 @@ import (
 	"time"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 )
 
 // BenchmarkContainerLifecycle measures the full Create → Exec → Remove cycle.
 func BenchmarkContainerLifecycle(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
-			ensureTestImageBench(b, m, pc.Name)
+			m := setupManagerForBench(b, &pc)
+			ensureTestImageBench(b, m, pc.TaiID)
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -41,10 +44,11 @@ func BenchmarkContainerLifecycle(b *testing.B) {
 
 // BenchmarkCreate measures container creation time only.
 func BenchmarkCreate(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
-			ensureTestImageBench(b, m, pc.Name)
+			m := setupManagerForBench(b, &pc)
+			ensureTestImageBench(b, m, pc.TaiID)
 
 			ids := make([]string, 0, b.N)
 			b.ResetTimer()
@@ -69,9 +73,10 @@ func BenchmarkCreate(b *testing.B) {
 
 // BenchmarkExec measures command execution latency on a pre-created container.
 func BenchmarkExec(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
+			m := setupManagerForBench(b, &pc)
 			box := createBoxForBench(b, m)
 
 			b.ResetTimer()
@@ -90,9 +95,10 @@ func BenchmarkExec(b *testing.B) {
 
 // BenchmarkExecHeavy measures execution of a heavier command (write + read file).
 func BenchmarkExecHeavy(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
+			m := setupManagerForBench(b, &pc)
 			box := createBoxForBench(b, m)
 
 			b.ResetTimer()
@@ -112,10 +118,11 @@ func BenchmarkExecHeavy(b *testing.B) {
 
 // BenchmarkRemove measures container removal time.
 func BenchmarkRemove(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
-			ensureTestImageBench(b, m, pc.Name)
+			m := setupManagerForBench(b, &pc)
+			ensureTestImageBench(b, m, pc.TaiID)
 
 			boxes := make([]*sandbox.Box, b.N)
 			for i := 0; i < b.N; i++ {
@@ -141,9 +148,10 @@ func BenchmarkRemove(b *testing.B) {
 
 // BenchmarkInfo measures Info() latency on a running container.
 func BenchmarkInfo(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
+			m := setupManagerForBench(b, &pc)
 			box := createBoxForBench(b, m)
 
 			b.ResetTimer()
@@ -159,12 +167,13 @@ func BenchmarkInfo(b *testing.B) {
 
 // BenchmarkStopStart measures Stop → Start cycle time.
 func BenchmarkStopStart(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
 			if pc.Name == "k8s" {
 				b.Skip("K8s Stop deletes Pod; Stop→Start cycle not applicable")
 			}
-			m := setupManagerForBench(b, pc)
+			m := setupManagerForBench(b, &pc)
 			box := createBoxForBench(b, m)
 
 			b.ResetTimer()
@@ -182,9 +191,10 @@ func BenchmarkStopStart(b *testing.B) {
 
 // BenchmarkWorkspaceReadWrite measures workspace file read/write via container Box.
 func BenchmarkWorkspaceReadWrite(b *testing.B) {
-	for _, pc := range testPools() {
+	for _, pc := range testNodes() {
+		pc := pc
 		b.Run(pc.Name, func(b *testing.B) {
-			m := setupManagerForBench(b, pc)
+			m := setupManagerForBench(b, &pc)
 			box := createBoxForBench(b, m)
 			ws := box.Workspace()
 			if ws == nil {
@@ -213,38 +223,46 @@ func BenchmarkWorkspaceReadWrite(b *testing.B) {
 
 // --- helpers ---
 
-func setupManagerForBench(b *testing.B, pc poolConfig) *sandbox.Manager {
+func setupManagerForBench(b *testing.B, pc *nodeConfig) *sandbox.Manager {
 	b.Helper()
-	pool := sandbox.Pool{Name: pc.Name, Addr: pc.Addr, Options: pc.Options}
-	cfg := sandbox.Config{Pool: []sandbox.Pool{pool}}
-	if err := sandbox.Init(cfg); err != nil {
-		b.Fatalf("Init: %v", err)
+	reg := registry.Global()
+	if reg == nil {
+		registry.Init(nil)
 	}
+	client, err := tai.New(pc.Addr, pc.Options...)
+	if err != nil {
+		b.Fatalf("tai.New(%s): %v", pc.Addr, err)
+	}
+	pc.TaiID = client.TaiID()
+	sandbox.Init()
 	m := sandbox.M()
 	b.Cleanup(func() { m.Close() })
 	return m
 }
 
-func ensureTestImageBench(b *testing.B, m *sandbox.Manager, pool string) {
+func ensureTestImageBench(b *testing.B, m *sandbox.Manager, nodeID string) {
 	b.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	if err := m.EnsureImage(ctx, pool, testImage(), sandbox.ImagePullOptions{}); err != nil {
+	if err := m.EnsureImage(ctx, nodeID, testImage(), sandbox.ImagePullOptions{}); err != nil {
 		b.Fatalf("EnsureImage: %v", err)
 	}
 }
 
 func createBoxForBench(b *testing.B, m *sandbox.Manager) *sandbox.Box {
 	b.Helper()
-	pools := m.Pools()
-	if len(pools) > 0 {
-		ensureTestImageBench(b, m, pools[0].Name)
+	nodes := m.Nodes()
+	var nodeID string
+	if len(nodes) > 0 {
+		nodeID = nodes[0].TaiID
+		ensureTestImageBench(b, m, nodeID)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	box, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: testImage(),
-		Owner: "bench",
+		Image:  testImage(),
+		Owner:  "bench",
+		NodeID: nodeID,
 	})
 	if err != nil {
 		b.Fatalf("Create: %v", err)

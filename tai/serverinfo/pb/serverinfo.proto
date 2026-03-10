@@ -8,8 +8,19 @@ service ServerInfo {
 
 message GetInfoRequest {}
 
+message SystemInfo {
+  string os       = 1;
+  string arch     = 2;
+  string hostname = 3;
+  int32  num_cpu  = 4;
+  int64  total_mem = 5;
+  string shell    = 6;  // preferred shell: "sh", "pwsh", "powershell", "cmd.exe"
+  string temp_dir = 7;  // system temp directory
+}
+
 message GetInfoResponse {
   string version     = 1;
-  map<string, int32> ports = 2; // "grpc", "http", "vnc", "docker", "k8s"
+  map<string, int32> ports = 2;        // "grpc", "http", "vnc", "docker", "k8s"
   map<string, bool>  capabilities = 3; // "docker", "k8s"
+  SystemInfo system  = 4;
 }

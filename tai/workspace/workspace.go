@@ -25,6 +25,12 @@ type FS interface {
 	RemoveAll(name string) error
 	Rename(oldname, newname string) error
 	MkdirAll(name string, perm os.FileMode) error
+
+	// Copy copies files between workspace paths and/or host paths.
+	// Host paths use "local:///" (absolute system path) or "tmp:///" (os.TempDir-relative).
+	// ws↔ws uses Volume.Copy (server-side for remote volumes, avoiding 2N network round-trips).
+	// Returns non-nil *SyncResult for host↔workspace and ws↔ws transfers; nil for host↔host.
+	Copy(src, dst string, opts ...volume.SyncOption) (*volume.SyncResult, error)
 }
 
 // New creates an FS backed by the given Volume for the specified session.

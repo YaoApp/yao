@@ -3,6 +3,7 @@ package sandbox_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -11,16 +12,11 @@ import (
 	"github.com/yaoapp/yao/tai"
 )
 
-func setupHostManager(t *testing.T, tgt hostExecTarget) *sandbox.Manager {
+func setupHostManager(t *testing.T, tgt *hostExecTarget) *sandbox.Manager {
 	t.Helper()
 	addr := fmt.Sprintf("tai://%s", tgt.Addr)
-	pool := sandbox.Pool{Name: tgt.Name, Addr: addr}
-	cfg := sandbox.Config{Pool: []sandbox.Pool{pool}}
-	if err := sandbox.Init(cfg); err != nil {
-		t.Fatalf("Init: %v", err)
-	}
-	m := sandbox.M()
-	t.Cleanup(func() { m.Close() })
+	m, nodes := setupManager(t, nodeConfig{Name: tgt.Name, Addr: addr})
+	tgt.TaiID = nodes[0].TaiID
 	return m
 }
 
@@ -28,10 +24,11 @@ func TestHost_Exec_Echo(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -39,8 +36,8 @@ func TestHost_Exec_Echo(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			cmd, args := linuxCmd(tgt, "echo", "hello", "from", "host")
-			result, err := host.Exec(ctx, cmd, args)
+			cmd := hostCmd(tgt, "echo", "hello", "from", "host")
+			result, err := host.Exec(ctx, cmd)
 			if err != nil {
 				t.Fatalf("Exec: %v", err)
 			}
@@ -53,7 +50,7 @@ func TestHost_Exec_Echo(t *testing.T) {
 			if result.ExitCode != 0 {
 				t.Errorf("exit_code = %d, want 0", result.ExitCode)
 			}
-			got := strings.TrimSpace(string(result.Stdout))
+			got := strings.TrimSpace(result.Stdout)
 			if !strings.Contains(got, "hello") {
 				t.Errorf("stdout = %q, want contains 'hello'", got)
 			}
@@ -65,10 +62,11 @@ func TestHost_Exec_Env(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -76,17 +74,14 @@ func TestHost_Exec_Env(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			var cmd string
-			var args []string
+			var cmd []string
 			if tgt.IsWinNative {
-				cmd = "cmd.exe"
-				args = []string{"/c", "echo", "%MY_VAR%"}
+				cmd = []string{"cmd.exe", "/c", "echo", "%MY_VAR%"}
 			} else {
-				cmd = "sh"
-				args = []string{"-c", "echo $MY_VAR"}
+				cmd = []string{"sh", "-c", "echo $MY_VAR"}
 			}
 
-			result, err := host.Exec(ctx, cmd, args, sandbox.WithHostEnv(map[string]string{"MY_VAR": "host_test_value"}))
+			result, err := host.Exec(ctx, cmd, sandbox.WithEnv(map[string]string{"MY_VAR": "host_test_value"}))
 			if err != nil {
 				t.Fatalf("Exec: %v", err)
 			}
@@ -96,7 +91,7 @@ func TestHost_Exec_Env(t *testing.T) {
 				}
 				t.Fatalf("error: %s", result.Error)
 			}
-			got := strings.TrimSpace(string(result.Stdout))
+			got := strings.TrimSpace(result.Stdout)
 			if !strings.Contains(got, "host_test_value") {
 				t.Errorf("stdout = %q, want contains 'host_test_value'", got)
 			}
@@ -104,25 +99,27 @@ func TestHost_Exec_Env(t *testing.T) {
 	}
 }
 
-func TestHost_Workspace(t *testing.T) {
+func TestHost_Workplace(t *testing.T) {
 	skipIfNoHostExec(t)
 
 	for _, tgt := range hostExecTargets() {
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
 
 			sessionID := fmt.Sprintf("host-test-%d", time.Now().UnixNano())
-			ws := host.Workspace(sessionID)
+			host.BindWorkplace(sessionID)
+			ws := host.Workplace()
 			if ws == nil {
-				t.Fatal("Workspace returned nil")
+				t.Fatal("Workplace returned nil after BindWorkplace")
 			}
 
-			content := []byte("hello from host workspace test")
+			content := []byte("hello from host workplace test")
 			if err := ws.WriteFile("test.txt", content, 0644); err != nil {
 				t.Fatalf("WriteFile: %v", err)
 			}
@@ -164,10 +161,11 @@ func TestHost_Stream_Incremental(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -175,15 +173,22 @@ func TestHost_Stream_Incremental(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			stream, err := host.Stream(ctx, "sh", []string{"-c",
+			stream, err := host.Stream(ctx, []string{"sh", "-c",
 				"for i in 1 2 3 4 5; do echo chunk$i; sleep 0.2; done"})
 			if err != nil {
 				t.Fatalf("Stream: %v", err)
 			}
 
 			var chunks []string
-			for chunk := range stream.Stdout {
-				chunks = append(chunks, string(chunk))
+			buf := make([]byte, 4096)
+			for {
+				n, err := stream.Stdout.Read(buf)
+				if n > 0 {
+					chunks = append(chunks, string(buf[:n]))
+				}
+				if err != nil {
+					break
+				}
 			}
 
 			exitCode, err := stream.Wait()
@@ -219,10 +224,11 @@ func TestHost_Stream_MultiLine(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -230,15 +236,12 @@ func TestHost_Stream_MultiLine(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			stream, err := host.Stream(ctx, "sh", []string{"-c", "for i in 1 2 3; do echo line$i; done"})
+			stream, err := host.Stream(ctx, []string{"sh", "-c", "for i in 1 2 3; do echo line$i; done"})
 			if err != nil {
 				t.Fatalf("Stream: %v", err)
 			}
 
-			var stdout []byte
-			for chunk := range stream.Stdout {
-				stdout = append(stdout, chunk...)
-			}
+			stdout, _ := io.ReadAll(stream.Stdout)
 
 			exitCode, err := stream.Wait()
 			if err != nil && !strings.Contains(err.Error(), "EOF") {
@@ -267,10 +270,11 @@ func TestHost_Stream_Stderr(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -278,22 +282,17 @@ func TestHost_Stream_Stderr(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			stream, err := host.Stream(ctx, "sh", []string{"-c", "echo err-msg >&2"})
+			stream, err := host.Stream(ctx, []string{"sh", "-c", "echo err-msg >&2"})
 			if err != nil {
 				t.Fatalf("Stream: %v", err)
 			}
 
-			var stderr []byte
 			done := make(chan struct{})
 			go func() {
-				for chunk := range stream.Stdout {
-					_ = chunk
-				}
+				io.ReadAll(stream.Stdout)
 				close(done)
 			}()
-			for chunk := range stream.Stderr {
-				stderr = append(stderr, chunk...)
-			}
+			stderr, _ := io.ReadAll(stream.Stderr)
 			<-done
 
 			exitCode, err := stream.Wait()
@@ -321,10 +320,11 @@ func TestHost_Stream_Cancel(t *testing.T) {
 		if tgt.IsWinNative {
 			continue
 		}
+		tgt := tgt
 		t.Run(tgt.Name, func(t *testing.T) {
-			m := setupHostManager(t, tgt)
+			m := setupHostManager(t, &tgt)
 
-			host, err := m.Host(context.Background(), tgt.Name)
+			host, err := m.Host(context.Background(), tgt.TaiID)
 			if err != nil {
 				t.Skipf("Host(%s): %v", tgt.Name, err)
 			}
@@ -332,7 +332,7 @@ func TestHost_Stream_Cancel(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 
-			stream, err := host.Stream(ctx, "sh", []string{"-c", "while true; do echo tick; sleep 0.1; done"})
+			stream, err := host.Stream(ctx, []string{"sh", "-c", "while true; do echo tick; sleep 0.1; done"})
 			if err != nil {
 				if strings.Contains(err.Error(), "not in the allowed list") {
 					t.Skipf("command not allowed on %s", tgt.Name)
@@ -341,11 +341,17 @@ func TestHost_Stream_Cancel(t *testing.T) {
 			}
 
 			received := 0
-			for chunk := range stream.Stdout {
-				_ = chunk
-				received++
+			buf := make([]byte, 4096)
+			for {
+				n, err := stream.Stdout.Read(buf)
+				if n > 0 {
+					received++
+				}
 				if received >= 3 {
 					stream.Cancel()
+					break
+				}
+				if err != nil {
 					break
 				}
 			}
@@ -361,49 +367,92 @@ func TestHost_Stream_Cancel(t *testing.T) {
 	}
 }
 
-func TestHost_CreateRejectsNoContainerPool(t *testing.T) {
-	// Use the Windows native HostExec target which has no Docker.
+func TestHost_ComputerInfo(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		tgt := tgt
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, &tgt)
+
+			host, err := m.Host(context.Background(), tgt.TaiID)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			info := host.ComputerInfo()
+			if info.Kind != "host" {
+				t.Errorf("Kind = %q, want 'host'", info.Kind)
+			}
+			if info.NodeID != tgt.TaiID {
+				t.Errorf("NodeID = %q, want %q", info.NodeID, tgt.TaiID)
+			}
+		})
+	}
+}
+
+func TestHost_ComputerInterface(t *testing.T) {
+	skipIfNoHostExec(t)
+
+	for _, tgt := range hostExecTargets() {
+		tgt := tgt
+		t.Run(tgt.Name, func(t *testing.T) {
+			m := setupHostManager(t, &tgt)
+
+			host, err := m.Host(context.Background(), tgt.TaiID)
+			if err != nil {
+				t.Skipf("Host(%s): %v", tgt.Name, err)
+			}
+
+			// Verify Host satisfies Computer interface at runtime.
+			var c sandbox.Computer = host
+			info := c.ComputerInfo()
+			if info.Kind != "host" {
+				t.Errorf("Computer.ComputerInfo().Kind = %q, want 'host'", info.Kind)
+			}
+		})
+	}
+}
+
+func TestHost_CreateRejectsNoContainerNode(t *testing.T) {
 	tgt := findHostExecOnly(t)
 	if tgt == nil {
 		t.Skip("no host-exec-only target available")
 	}
 
-	m := setupHostManager(t, *tgt)
+	m := setupHostManager(t, tgt)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
 	_, err := m.Create(ctx, sandbox.CreateOptions{
-		Image: "alpine:latest",
-		Owner: "test",
-		Pool:  tgt.Name,
+		Image:  "alpine:latest",
+		Owner:  "test",
+		NodeID: tgt.TaiID,
 	})
 	if err == nil {
-		t.Fatal("expected error for Create on host-exec-only pool, got nil")
+		t.Fatal("expected error for Create on host-exec-only node, got nil")
 	}
 	if !strings.Contains(err.Error(), "no container runtime") {
 		t.Errorf("error = %q, want contains 'no container runtime'", err.Error())
 	}
 }
 
-func TestHost_PoolNotFound(t *testing.T) {
+func TestHost_NodeNotFound(t *testing.T) {
 	skipIfNoHostExec(t)
 	tgt := hostExecTargets()[0]
-	m := setupHostManager(t, tgt)
+	m := setupHostManager(t, &tgt)
 
-	_, err := m.Host(context.Background(), "nonexistent-pool")
+	_, err := m.Host(context.Background(), "nonexistent-node")
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
 }
 
-// findHostExecOnly returns a hostExecTarget that is likely host-exec-only
-// (Windows native Tai without Docker).
 func findHostExecOnly(t *testing.T) *hostExecTarget {
 	t.Helper()
 	for _, tgt := range hostExecTargets() {
 		if tgt.IsWinNative {
-			// Windows native Tai typically has no Docker
 			addr := fmt.Sprintf("tai://%s", tgt.Addr)
 			client, err := tai.New(addr)
 			if err != nil {
@@ -417,4 +466,13 @@ func findHostExecOnly(t *testing.T) *hostExecTarget {
 		}
 	}
 	return nil
+}
+
+// hostCmd builds a []string command, adapting for Windows targets.
+func hostCmd(tgt hostExecTarget, prog string, args ...string) []string {
+	if tgt.IsWinNative {
+		cmd, wArgs := linuxCmd(tgt, prog, args...)
+		return append([]string{cmd}, wArgs...)
+	}
+	return append([]string{prog}, args...)
 }
