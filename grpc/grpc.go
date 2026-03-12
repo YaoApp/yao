@@ -24,6 +24,9 @@ import (
 	runhandler "github.com/yaoapp/yao/grpc/run"
 	sandboxhandler "github.com/yaoapp/yao/grpc/sandbox"
 	shellhandler "github.com/yaoapp/yao/grpc/shell"
+	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/tunnel"
+	"github.com/yaoapp/yao/tai/tunnel/taipb"
 )
 
 var (
@@ -127,6 +130,7 @@ func SandboxHandler() *sandboxhandler.Handler {
 }
 
 var sandboxH *sandboxhandler.Handler
+var tunnelH *tunnel.TunnelHandler
 
 // SetSandboxOnBeat sets the heartbeat callback for the sandbox handler.
 // Must be called before StartServer.
@@ -156,11 +160,16 @@ func StartServer(cfg config.Config) error {
 	}
 	pb.RegisterYaoServer(server, &yaoServer{sandbox: sandboxH})
 
-	hosts := strings.Split(cfg.GRPC.Host, ",")
+	if reg := registry.Global(); reg != nil {
+		tunnelH = tunnel.NewTunnelHandler(reg)
+		taipb.RegisterTaiTunnelServer(server, tunnelH)
+	}
+
+	hosts := ExpandHosts(cfg.GRPC.Host)
 	port := strconv.Itoa(cfg.GRPC.Port)
 
 	for _, h := range hosts {
-		addr := net.JoinHostPort(strings.TrimSpace(h), port)
+		addr := net.JoinHostPort(h, port)
 		lis, err := net.Listen("tcp", addr)
 		if err != nil {
 			stopLocked()
@@ -224,6 +233,13 @@ func GRPCServer() *grpc.Server {
 	return server
 }
 
+// TunnelHandler returns the gRPC tunnel handler for forward requests.
+func TunnelHandler() *tunnel.TunnelHandler {
+	mu.Lock()
+	defer mu.Unlock()
+	return tunnelH
+}
+
 // Addr returns all addresses the gRPC server is listening on.
 func Addr() []string {
 	mu.Lock()
@@ -231,4 +247,85 @@ func Addr() []string {
 	result := make([]string, len(addrs))
 	copy(result, addrs)
 	return result
+}
+
+// expandHosts parses comma-separated host entries, expanding special values:
+//   - "internal" → 127.0.0.1 + all private-network IPv4 addresses (10.x, 172.16-31.x, 192.168.x)
+//   - "localhost" → 127.0.0.1
+//
+// Duplicates are removed.
+func ExpandHosts(raw string) []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, h := range strings.Split(raw, ",") {
+		h = strings.TrimSpace(h)
+		if h == "" {
+			continue
+		}
+
+		switch strings.ToLower(h) {
+		case "localhost":
+			h = "127.0.0.1"
+			if !seen[h] {
+				seen[h] = true
+				result = append(result, h)
+			}
+		case "internal":
+			if !seen["127.0.0.1"] {
+				seen["127.0.0.1"] = true
+				result = append(result, "127.0.0.1")
+			}
+			for _, ip := range InternalIPs() {
+				if !seen[ip] {
+					seen[ip] = true
+					result = append(result, ip)
+				}
+			}
+		default:
+			if !seen[h] {
+				seen[h] = true
+				result = append(result, h)
+			}
+		}
+	}
+	return result
+}
+
+// InternalIPs returns all IPv4 addresses on private-network interfaces
+// (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16).
+func InternalIPs() []string {
+	var ips []string
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, a := range addrs {
+			ipNet, ok := a.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			ip := ipNet.IP.To4()
+			if ip == nil {
+				continue
+			}
+			if isPrivateIP(ip) {
+				ips = append(ips, ip.String())
+			}
+		}
+	}
+	return ips
+}
+
+func isPrivateIP(ip net.IP) bool {
+	return ip[0] == 10 ||
+		(ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) ||
+		(ip[0] == 192 && ip[1] == 168)
 }

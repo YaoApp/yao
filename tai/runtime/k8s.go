@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"bytes"
@@ -20,7 +20,7 @@ import (
 	"k8s.io/client-go/tools/remotecommand"
 )
 
-// K8sOption configures a K8s sandbox.
+// K8sOption configures a K8s runtime.
 type K8sOption struct {
 	Namespace  string // default "default"
 	KubeConfig string // path to kubeconfig file
@@ -33,10 +33,10 @@ type k8sSandbox struct {
 	labels map[string]string
 }
 
-// NewK8s creates a Sandbox backed by Kubernetes via Tai's TCP proxy.
+// NewK8s creates a Runtime backed by Kubernetes via Tai's TCP proxy.
 // addr should be "host:port" pointing to Tai's K8s proxy endpoint.
 // kubeConfigPath must be an absolute path or will be resolved relative to the caller's working directory.
-func NewK8s(addr string, opts ...K8sOption) (Sandbox, error) {
+func NewK8s(addr string, opts ...K8sOption) (Runtime, error) {
 	ns := "default"
 	var kubeConfigPath string
 	if len(opts) > 0 {
@@ -56,7 +56,7 @@ func NewK8s(addr string, opts ...K8sOption) (Sandbox, error) {
 	}
 
 	if kubeConfigPath == "" {
-		return nil, fmt.Errorf("kubeconfig path is required for K8s sandbox")
+		return nil, fmt.Errorf("kubeconfig path is required for K8s runtime")
 	}
 
 	cfg, err := clientcmd.BuildConfigFromFlags("", kubeConfigPath)

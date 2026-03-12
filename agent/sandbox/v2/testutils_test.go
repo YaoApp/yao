@@ -13,19 +13,27 @@ import (
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
-	taisandbox "github.com/yaoapp/yao/tai/sandbox"
+	tairuntime "github.com/yaoapp/yao/tai/runtime"
 	"github.com/yaoapp/yao/workspace"
 )
 
 // ---------------------------------------------------------------------------
-// node configuration — mirrors sandbox/v2 testutils but scoped to prepare tests
+// Build-tag extension points (same pattern as sandbox/v2).
+// ---------------------------------------------------------------------------
+var (
+	extraNodeProviders     []func() []nodeConfig
+	extraHostExecProviders []func() []hostTarget
+)
+
+// ---------------------------------------------------------------------------
+// Node / host configuration
 // ---------------------------------------------------------------------------
 
 type nodeConfig struct {
 	Name    string
 	Addr    string
 	TaiID   string
-	Options []tai.Option
+	DialOps []tai.DialOption
 }
 
 type hostTarget struct {
@@ -35,7 +43,7 @@ type hostTarget struct {
 }
 
 // ---------------------------------------------------------------------------
-// environment helpers (same conventions as sandbox/v2 + env.local.sh)
+// Environment helpers
 // ---------------------------------------------------------------------------
 
 func testLocalAddr() string {
@@ -62,28 +70,82 @@ func envPort(key string, fallback int) int {
 }
 
 // ---------------------------------------------------------------------------
-// node discovery
+// Node / host discovery
 // ---------------------------------------------------------------------------
 
 func boxNodes() []nodeConfig {
 	nodes := []nodeConfig{
 		{Name: "local", Addr: testLocalAddr()},
 	}
-	if addr := os.Getenv("SANDBOX_TEST_REMOTE_ADDR"); addr != "" {
-		nodes = append(nodes, nodeConfig{Name: "remote", Addr: addr})
+	for _, fn := range extraNodeProviders {
+		nodes = append(nodes, fn()...)
 	}
 	return nodes
 }
 
 func hostTargets() []hostTarget {
 	var targets []hostTarget
-	if addr := os.Getenv("TAI_TEST_WIN_HOSTEXEC_LINUX"); addr != "" {
-		targets = append(targets, hostTarget{Name: "win-linux", Addr: addr})
-	}
-	if addr := os.Getenv("TAI_TEST_WIN_HOSTEXEC_NATIVE"); addr != "" {
-		targets = append(targets, hostTarget{Name: "win-native", Addr: addr})
+	for _, fn := range extraHostExecProviders {
+		targets = append(targets, fn()...)
 	}
 	return targets
+}
+
+// ---------------------------------------------------------------------------
+// Dial + Register helper (replaces old tai.New)
+// ---------------------------------------------------------------------------
+
+func dialForTest(addr string, dialOps ...tai.DialOption) (*tai.ConnResources, error) {
+	if addr == "local" || addr == "" {
+		return tai.DialLocal("", "", nil)
+	}
+	host, grpcPort := parseHostPort(addr)
+	ports := tai.Ports{GRPC: grpcPort}
+	return tai.DialRemote(host, ports, dialOps...)
+}
+
+func registerForTest(t testing.TB, addr string, dialOps ...tai.DialOption) (string, *tai.ConnResources) {
+	t.Helper()
+	if registry.Global() == nil {
+		registry.Init(nil)
+	}
+	res, err := dialForTest(addr, dialOps...)
+	if err != nil {
+		t.Fatalf("dialForTest(%s): %v", addr, err)
+	}
+	taiID := taiIDFromAddr(addr)
+	reg := registry.Global()
+	reg.Register(&registry.TaiNode{TaiID: taiID, Mode: modeForAddr(addr)})
+	reg.SetResources(taiID, res)
+	return taiID, res
+}
+
+func taiIDFromAddr(addr string) string {
+	if addr == "local" || addr == "" {
+		return "local"
+	}
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	return parts[0]
+}
+
+func modeForAddr(addr string) string {
+	if addr == "local" || addr == "" {
+		return "local"
+	}
+	return "direct"
+}
+
+func parseHostPort(addr string) (string, int) {
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	h := parts[0]
+	if len(parts) == 2 {
+		if p, err := strconv.Atoi(parts[1]); err == nil {
+			return h, p
+		}
+	}
+	return h, 19100
 }
 
 // ---------------------------------------------------------------------------
@@ -100,16 +162,16 @@ func purgeStale() {
 	defer cancel()
 
 	for _, nc := range boxNodes() {
-		client, err := tai.New(nc.Addr, nc.Options...)
+		res, err := dialForTest(nc.Addr, nc.DialOps...)
 		if err != nil {
 			continue
 		}
-		sb := client.Sandbox()
+		sb := res.Runtime
 		if sb == nil {
-			client.Close()
+			res.Close()
 			continue
 		}
-		containers, _ := sb.List(ctx, taisandbox.ListOptions{All: true})
+		containers, _ := sb.List(ctx, tairuntime.ListOptions{All: true})
 		for _, c := range containers {
 			id := c.Name
 			if id == "" {
@@ -120,7 +182,7 @@ func purgeStale() {
 				log.Printf("[purge] %s: removed %s", nc.Name, id)
 			}
 		}
-		client.Close()
+		res.Close()
 	}
 }
 
@@ -133,11 +195,9 @@ func setupManager(t *testing.T, nc *nodeConfig) *sandbox.Manager {
 	if registry.Global() == nil {
 		registry.Init(nil)
 	}
-	client, err := tai.New(nc.Addr, nc.Options...)
-	if err != nil {
-		t.Fatalf("tai.New(%s): %v", nc.Addr, err)
-	}
-	nc.TaiID = client.TaiID()
+	taiID, res := registerForTest(t, nc.Addr, nc.DialOps...)
+	nc.TaiID = taiID
+	t.Cleanup(func() { res.Close() })
 
 	sandbox.Init()
 	m := sandbox.M()
@@ -191,7 +251,7 @@ func setupHostManager(t *testing.T, tgt *hostTarget) *sandbox.Manager {
 }
 
 // ---------------------------------------------------------------------------
-// skip helpers
+// Skip helpers
 // ---------------------------------------------------------------------------
 
 func skipIfNoDocker(t *testing.T) {

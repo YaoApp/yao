@@ -9,7 +9,6 @@ import (
 	"time"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
-	"github.com/yaoapp/yao/tai"
 )
 
 func setupHostManager(t *testing.T, tgt *hostExecTarget) *sandbox.Manager {
@@ -454,12 +453,12 @@ func findHostExecOnly(t *testing.T) *hostExecTarget {
 	for _, tgt := range hostExecTargets() {
 		if tgt.IsWinNative {
 			addr := fmt.Sprintf("tai://%s", tgt.Addr)
-			client, err := tai.New(addr)
+			res, err := dialForTest(addr)
 			if err != nil {
 				continue
 			}
-			hasNoSandbox := client.Sandbox() == nil
-			client.Close()
+			hasNoSandbox := res.Runtime == nil
+			res.Close()
 			if hasNoSandbox {
 				return &tgt
 			}

@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"context"
@@ -12,9 +12,9 @@ type dockerSandbox struct {
 	core dockerCore
 }
 
-// NewDocker creates a Sandbox backed by Docker SDK through Tai's Docker API proxy.
+// NewDocker creates a Runtime backed by Docker SDK through Tai's Docker API proxy.
 // addr should be "tcp://tai-host:12375".
-func NewDocker(addr string) (Sandbox, error) {
+func NewDocker(addr string) (Runtime, error) {
 	cli, err := client.NewClientWithOpts(
 		client.WithHost(addr),
 		client.WithAPIVersionNegotiation(),

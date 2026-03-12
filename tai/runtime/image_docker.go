@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 )
 
 // dockerImage implements Image using the Docker SDK.
-// Shared by both local and dockerSandbox (via Tai proxy) modes.
+// Shared by both local and docker (via Tai proxy) runtime modes.
 type dockerImage struct {
 	cli *client.Client
 }

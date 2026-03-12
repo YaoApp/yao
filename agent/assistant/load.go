@@ -402,6 +402,12 @@ func LoadPath(path string) (*Assistant, error) {
 		ast.SandboxV2 = sbCfg
 	}
 
+	// Extract Sandbox flag and ComputerFilter from V2 sandbox config.
+	if ast.SandboxV2 != nil {
+		ast.IsSandbox = true
+		ast.ComputerFilter = ast.SandboxV2.Filter
+	}
+
 	// Compute config hash for V2 sandbox.
 	if ast.SandboxV2 != nil {
 		var mcpServers []store.MCPServerConfig
@@ -772,6 +778,8 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 					return nil, err
 				}
 				assistant.SandboxV2 = sb
+				assistant.IsSandbox = true
+				assistant.ComputerFilter = sb.Filter
 			} else {
 				sb, err := store.ToSandbox(sandbox)
 				if err != nil {

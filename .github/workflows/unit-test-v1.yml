@@ -1,0 +1,534 @@
+name: Unit Test V1
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags:
+        description: "Version"
+
+env:
+  CI_VERSION: "1.0.0"
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+  YAO_DEV: ${{ github.WORKSPACE }}
+  YAO_ENV: development
+  YAO_ROOT: ${{ github.WORKSPACE }}/../app
+  YAO_HOST: 0.0.0.0
+  YAO_PORT: 5099
+  YAO_SESSION: "memory"
+  YAO_LOG: "./logs/application.log"
+  YAO_LOG_MODE: "TEXT"
+  YAO_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
+  YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
+
+  YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
+
+  MYSQL_TEST_HOST: "127.0.0.1"
+  MYSQL_TEST_PORT: "3308"
+  MYSQL_TEST_USER: "test"
+  MYSQL_TEST_PASS: "123456"
+
+  REDIS_TEST_HOST: "127.0.0.1"
+  REDIS_TEST_PORT: "6379"
+  REDIS_TEST_DB: "2"
+
+  MONGO_TEST_HOST: "127.0.0.1"
+  MONGO_TEST_PORT: "27017"
+  MONGO_TEST_USER: "root"
+  MONGO_TEST_PASS: "123456"
+
+  PG_TEST_HOST: "127.0.0.1"
+  PG_TEST_PORT: "5432"
+  PG_TEST_USER: "test"
+  PG_TEST_PASS: "123456"
+
+jobs:
+  # =============================================================================
+  # Environment Setup & Verification
+  # Build Yao, start services, connect Tai via gRPC tunnel, verify everything.
+  # No tests are run — this job validates the CI environment is healthy.
+  # =============================================================================
+  setup-and-verify:
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:6.0
+        ports:
+          - 27017:27017
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: 123456
+          MONGO_INITDB_DATABASE: test
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd="pg_isready -U test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    strategy:
+      matrix:
+        go: ["1.25"]
+
+    steps:
+      # ==== Phase 1: Checkout & Setup ====
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          checkout-init: "true"
+          apple-private-key: ${{ secrets.APPLE_PRIVATE_KEY_USER }}
+
+      - name: Load sandbox-v2 env
+        run: grep -vE '^\s*#|^\s*$' .github/env/sandbox-v2.env >> $GITHUB_ENV
+
+      - name: Setup SQLite
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../app/db
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+
+      - name: Start MySQL 8.0
+        run: |
+          docker run -d --name mysql \
+            -e MYSQL_RANDOM_ROOT_PASSWORD=true \
+            -e MYSQL_USER=${MYSQL_TEST_USER} \
+            -e MYSQL_PASSWORD=${MYSQL_TEST_PASS} \
+            -e MYSQL_DATABASE=test \
+            -p ${MYSQL_TEST_PORT}:3306 \
+            mysql:8.0 --port=3306 --sql-mode='' \
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+
+          for i in $(seq 1 30); do
+            if docker exec mysql mysqladmin ping -h 127.0.0.1 -u ${MYSQL_TEST_USER} -p${MYSQL_TEST_PASS} > /dev/null 2>&1; then
+              echo "MySQL ready"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
+
+      - name: Start Redis
+        run: docker run --name redis -d -p 6379:6379 redis:6
+
+      # ==== Phase 2: Code Quality & Build ====
+      - name: Code Quality Check
+        run: |
+          make vet
+          make fmt-check
+
+      - name: Build Yao
+        run: go build -v -o $RUNNER_TEMP/yao .
+
+      - name: Build ci-token
+        run: go build -tags ci -v -o $RUNNER_TEMP/ci-token ./cmd/ci-token
+
+      - name: Extract tai binary from image
+        run: |
+          CID=$(docker create yaoapp/tai:latest)
+          docker cp "$CID":/usr/local/bin/tai $RUNNER_TEMP/tai
+          docker rm "$CID"
+          chmod +x $RUNNER_TEMP/tai
+          $RUNNER_TEMP/tai version || echo "tai binary extracted"
+
+      # ==== Phase 3: Prepare & Start Yao ====
+      - name: Prepare test app directory
+        run: |
+          cp -r ${{ github.WORKSPACE }}/../yao-init $RUNNER_TEMP/yao-test-app
+          mkdir -p $RUNNER_TEMP/yao-test-app/db
+
+      - name: Start Yao server
+        run: |
+          cd $RUNNER_TEMP/yao-test-app
+          YAO_ROOT=$(pwd) \
+          YAO_HOST=0.0.0.0 \
+          YAO_PORT=5099 \
+          YAO_GRPC_HOST=0.0.0.0 \
+          YAO_GRPC_PORT=9099 \
+          YAO_DB_DRIVER=sqlite3 \
+          YAO_DB_PRIMARY=$(pwd)/db/yao.db \
+          YAO_SESSION=memory \
+          YAO_ENV=development \
+          YAO_JWT_SECRET="${{ env.YAO_JWT_SECRET }}" \
+          YAO_DB_AESKEY="${{ env.YAO_DB_AESKEY }}" \
+          $RUNNER_TEMP/yao start &
+
+          # Wait for Yao HTTP to be ready (up to 120s)
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5099/.well-known/yao > /dev/null 2>&1; then
+              echo "Yao HTTP ready"
+              curl -s http://127.0.0.1:5099/.well-known/yao | jq .
+              break
+            fi
+            echo "Waiting for Yao... ($i/60)"
+            sleep 2
+          done
+
+          curl -sf http://127.0.0.1:5099/.well-known/yao > /dev/null 2>&1 || {
+            echo "::error::Yao HTTP failed to start"
+            exit 1
+          }
+
+      # ==== Phase 4: Generate Tai credentials ====
+      - name: Generate Tai credentials
+        run: |
+          gen_cred() {
+            local CID=$1 TID=$2 OUT=$3
+            local TOKEN
+            TOKEN=$($RUNNER_TEMP/ci-token \
+              --app $RUNNER_TEMP/yao-test-app \
+              --client-id "$CID" \
+              --subject "${YAO_CI_OAUTH_SUBJECT:-ci-tai}" \
+              --user-id "${YAO_CI_OAUTH_USER_ID}" \
+              --team-id "${YAO_CI_OAUTH_TEAM_ID}" \
+              --scope "${YAO_CI_OAUTH_SCOPE:-tai:tunnel}" \
+              --ttl "${YAO_CI_OAUTH_TTL:-24h}" 2>/dev/null | tail -1 | tr -d '[:space:]')
+
+            local JSON="{\"client_id\":\"$CID\",\"tai_id\":\"$TID\",\"machine_id\":\"ci-runner\",\"server\":\"http://127.0.0.1:${YAO_CI_HTTP_PORT}\",\"yao_grpc_addr\":\"127.0.0.1:${YAO_CI_GRPC_PORT}\",\"access_token\":\"$TOKEN\",\"scope\":\"${YAO_CI_OAUTH_SCOPE}\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"registered\":true}"
+            echo -n "$JSON" | base64 -w0 > "$OUT"
+            echo ""
+            echo "Credentials JSON (debug): $JSON" | head -c 200
+            echo "..."
+            echo "Generated credentials for $CID → $OUT"
+          }
+
+          gen_cred tai-ci-local    tai-local-001    $RUNNER_TEMP/tai-local-credentials
+          gen_cred tai-ci-docker   tai-docker-001   $RUNNER_TEMP/tai-docker-credentials
+          gen_cred tai-ci-k8s      tai-k8s-001      $RUNNER_TEMP/tai-k8s-credentials
+          gen_cred tai-ci-hostexec tai-hostexec-001  $RUNNER_TEMP/tai-hostexec-credentials
+
+      # ==== Phase 5: Pull images & Setup K8s ====
+      - name: Pull test images
+        run: |
+          docker pull yaoapp/tai-sandbox-test:latest || true
+          docker pull yaoapp/tai:latest
+          docker pull alpine:latest
+
+      - name: Install k3d & create cluster
+        run: |
+          curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+          k3d cluster create tai-test --no-lb --wait --api-port ${YAO_CI_K3D_API_PORT}
+          kubectl wait --for=condition=Ready node --all --timeout=60s
+          k3d image import alpine:latest -c tai-test
+
+      - name: Generate kubeconfig
+        run: |
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
+          echo "k3d server IP: ${K3D_IP}"
+
+          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
+
+          # For tai-k8s container (uses k3d internal IP)
+          sed "s|server: .*|server: https://${K3D_IP}:6443|" /tmp/kubeconfig-k3d.yml \
+            > /tmp/kubeconfig-tai-k8s.yml
+          echo "Container kubeconfig server:"
+          grep server: /tmp/kubeconfig-tai-k8s.yml
+
+          # For test runner (uses localhost via k3d port-mapped API)
+          sed "s|server: .*|server: https://127.0.0.1:${YAO_CI_K3D_API_PORT}|" /tmp/kubeconfig-k3d.yml \
+            > $RUNNER_TEMP/kubeconfig-tai.yml
+          echo "Test runner kubeconfig server:"
+          grep server: $RUNNER_TEMP/kubeconfig-tai.yml
+
+          # Export for later steps
+          echo "TAI_TEST_KUBECONFIG=$RUNNER_TEMP/kubeconfig-tai.yml" >> $GITHUB_ENV
+          echo "YAO_CI_TAI_KUBECONFIG=$RUNNER_TEMP/kubeconfig-tai.yml" >> $GITHUB_ENV
+
+      # ==== Phase 6: Start Tai instances (host processes) ====
+      - name: Start tai-local (DIRECT mode, auto-detect Docker)
+        run: |
+          mkdir -p $RUNNER_TEMP/tai-local-data
+
+          TAI_CREDENTIALS=$RUNNER_TEMP/tai-local-credentials \
+          TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
+          TAI_DATA_DIR=$RUNNER_TEMP/tai-local-data \
+          $RUNNER_TEMP/tai server \
+            --grpc 127.0.0.1:${YAO_CI_TAI_LOCAL_GRPC_PORT} \
+            --http 127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT} \
+            --vnc  127.0.0.1:${YAO_CI_TAI_LOCAL_VNC_PORT} \
+            --docker 127.0.0.1:${YAO_CI_TAI_LOCAL_DOCKER_PORT} \
+            --direct \
+            --host-exec --host-exec-full-access \
+            --log-level debug &
+
+          echo $! > $RUNNER_TEMP/tai-local.pid
+          echo "tai-local PID: $(cat $RUNNER_TEMP/tai-local.pid)"
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz > /dev/null 2>&1; then
+              echo "tai-local HTTP ready"
+              break
+            fi
+            echo "Waiting for tai-local HTTP... ($i/30)"
+            sleep 1
+          done
+
+      - name: Start tai-docker (TUNNEL mode, Docker API proxy)
+        run: |
+          mkdir -p $RUNNER_TEMP/tai-docker-data
+
+          TAI_CREDENTIALS=$RUNNER_TEMP/tai-docker-credentials \
+          TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
+          TAI_DATA_DIR=$RUNNER_TEMP/tai-docker-data \
+          $RUNNER_TEMP/tai server \
+            --grpc 127.0.0.1:${YAO_CI_TAI_DOCKER_GRPC_PORT} \
+            --http 127.0.0.1:${YAO_CI_TAI_DOCKER_HTTP_PORT} \
+            --vnc  127.0.0.1:${YAO_CI_TAI_DOCKER_VNC_PORT} \
+            --docker 127.0.0.1:${YAO_CI_TAI_DOCKER_API_PORT} \
+            --host-exec --host-exec-full-access \
+            --log-level debug &
+
+          echo $! > $RUNNER_TEMP/tai-docker.pid
+          echo "tai-docker PID: $(cat $RUNNER_TEMP/tai-docker.pid)"
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:${YAO_CI_TAI_DOCKER_HTTP_PORT}/healthz > /dev/null 2>&1; then
+              echo "tai-docker HTTP ready"
+              break
+            fi
+            echo "Waiting for tai-docker HTTP... ($i/30)"
+            sleep 1
+          done
+
+      - name: Start tai-k8s (TUNNEL mode, K8s API proxy)
+        run: |
+          mkdir -p $RUNNER_TEMP/tai-k8s-data
+
+          TAI_CREDENTIALS=$RUNNER_TEMP/tai-k8s-credentials \
+          TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
+          TAI_DATA_DIR=$RUNNER_TEMP/tai-k8s-data \
+          TAI_K8S_UPSTREAM="tcp://127.0.0.1:${YAO_CI_K3D_API_PORT}" \
+          TAI_KUBECONFIG=$RUNNER_TEMP/kubeconfig-tai.yml \
+          $RUNNER_TEMP/tai server \
+            --grpc 127.0.0.1:${YAO_CI_TAI_K8S_GRPC_PORT} \
+            --http 127.0.0.1:${YAO_CI_TAI_K8S_HTTP_PORT} \
+            --vnc  127.0.0.1:${YAO_CI_TAI_K8S_VNC_PORT} \
+            --k8s  127.0.0.1:${YAO_CI_TAI_K8S_API_PORT} \
+            --docker="" \
+            --host-exec --host-exec-full-access \
+            --log-level debug &
+
+          echo $! > $RUNNER_TEMP/tai-k8s.pid
+          echo "tai-k8s PID: $(cat $RUNNER_TEMP/tai-k8s.pid)"
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:${YAO_CI_TAI_K8S_HTTP_PORT}/healthz > /dev/null 2>&1; then
+              echo "tai-k8s HTTP ready"
+              break
+            fi
+            echo "Waiting for tai-k8s HTTP... ($i/30)"
+            sleep 1
+          done
+
+      - name: Start tai-hostexec (TUNNEL mode, HostExec only, no runtime)
+        run: |
+          mkdir -p $RUNNER_TEMP/tai-hostexec-data
+
+          TAI_CREDENTIALS=$RUNNER_TEMP/tai-hostexec-credentials \
+          TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
+          TAI_DATA_DIR=$RUNNER_TEMP/tai-hostexec-data \
+          $RUNNER_TEMP/tai server \
+            --grpc 127.0.0.1:${YAO_CI_TAI_HOSTEXEC_GRPC_PORT} \
+            --http 127.0.0.1:${YAO_CI_TAI_HOSTEXEC_HTTP_PORT} \
+            --vnc  127.0.0.1:${YAO_CI_TAI_HOSTEXEC_VNC_PORT} \
+            --docker="" \
+            --host-exec --host-exec-full-access \
+            --log-level debug &
+
+          echo $! > $RUNNER_TEMP/tai-hostexec.pid
+          echo "tai-hostexec PID: $(cat $RUNNER_TEMP/tai-hostexec.pid)"
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:${YAO_CI_TAI_HOSTEXEC_HTTP_PORT}/healthz > /dev/null 2>&1; then
+              echo "tai-hostexec HTTP ready"
+              break
+            fi
+            echo "Waiting for tai-hostexec HTTP... ($i/30)"
+            sleep 1
+          done
+
+      # ==== Phase 7: Environment Verification (fail fast) ====
+      - name: Verify Environment
+        run: |
+          echo "CI Environment v${CI_VERSION}"
+          echo ""
+
+          FAILED=0
+          check() {
+            local name=$1; shift
+            if "$@" > /dev/null 2>&1; then
+              echo "  [PASS] $name"
+            else
+              echo "  [FAIL] $name"
+              FAILED=$((FAILED + 1))
+            fi
+          }
+
+          echo "=== Environment Verification ==="
+
+          # ── 1. Service Health ──
+          echo ""
+          echo "--- 1. Service Health ---"
+
+          echo "[Yao]"
+          check "Yao HTTP (/.well-known/yao)" curl -sf http://127.0.0.1:5099/.well-known/yao
+          check "Yao gRPC port" nc -z 127.0.0.1 9099
+
+          echo "[tai-local (DIRECT)]"
+          check "tai-local process alive" kill -0 $(cat $RUNNER_TEMP/tai-local.pid 2>/dev/null || echo 0)
+          check "tai-local HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
+          check "tai-local gRPC reachable (direct)" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+
+          echo "[tai-docker (TUNNEL)]"
+          check "tai-docker process alive" kill -0 $(cat $RUNNER_TEMP/tai-docker.pid 2>/dev/null || echo 0)
+          check "tai-docker HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_DOCKER_HTTP_PORT}/healthz
+          check "tai-docker gRPC listener" nc -z 127.0.0.1 ${YAO_CI_TAI_DOCKER_GRPC_PORT}
+
+          echo "[tai-k8s (TUNNEL)]"
+          check "tai-k8s process alive" kill -0 $(cat $RUNNER_TEMP/tai-k8s.pid 2>/dev/null || echo 0)
+          check "tai-k8s HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_K8S_HTTP_PORT}/healthz
+          check "tai-k8s gRPC listener" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_GRPC_PORT}
+
+          echo "[tai-hostexec (TUNNEL)]"
+          check "tai-hostexec process alive" kill -0 $(cat $RUNNER_TEMP/tai-hostexec.pid 2>/dev/null || echo 0)
+          check "tai-hostexec HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_HOSTEXEC_HTTP_PORT}/healthz
+          check "tai-hostexec gRPC listener" nc -z 127.0.0.1 ${YAO_CI_TAI_HOSTEXEC_GRPC_PORT}
+
+          echo "[K8s (k3d via direct API)]"
+          check "kubectl get nodes (k3d direct)" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
+
+          echo "[Data Stores]"
+          MONGO_CID=$(docker ps -qf "ancestor=mongo:6.0" | head -1)
+          check "MongoDB ping" docker exec "$MONGO_CID" mongosh --quiet \
+            -u ${MONGO_TEST_USER} -p ${MONGO_TEST_PASS} --authenticationDatabase admin \
+            --eval "db.runCommand({ping:1})"
+
+          check "MySQL ping" docker exec mysql mysqladmin ping -h 127.0.0.1 \
+            -u ${MYSQL_TEST_USER} -p${MYSQL_TEST_PASS}
+
+          PG_CID=$(docker ps -qf "ancestor=postgres:14" | head -1)
+          check "PostgreSQL ping" docker exec "$PG_CID" pg_isready -U ${PG_TEST_USER}
+
+          check "Redis ping" docker exec redis redis-cli ping
+
+          # ── 2. Network Topology ──
+          echo ""
+          echo "--- 2. Network Topology ---"
+
+          BRIDGE_IP=${YAO_CI_BRIDGE_IP}
+
+          echo "[Host network basics]"
+          check "docker0 bridge exists" ip addr show docker0
+          check "Bridge IP reachable (${BRIDGE_IP})" ping -c1 -W2 ${BRIDGE_IP}
+          check "Docker socket accessible" test -S /var/run/docker.sock
+          check "tai binary on runner" test -x $RUNNER_TEMP/tai
+
+          echo "[Yao endpoints (all Tai instances need these)]"
+          check "Yao HTTP :${YAO_CI_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_HTTP_PORT}/.well-known/yao
+          check "Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
+
+          echo "[DIRECT path: Yao → tai-local]"
+          check "Yao→tai-local gRPC :${YAO_CI_TAI_LOCAL_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+          check "Yao→tai-local HTTP :${YAO_CI_TAI_LOCAL_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
+          check "tai-local Docker API proxy :${YAO_CI_TAI_LOCAL_DOCKER_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_DOCKER_PORT}
+
+          echo "[TUNNEL path: tai-docker → Yao gRPC (reverse tunnel)]"
+          check "tai-docker→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
+          check "tai-docker Docker API proxy :${YAO_CI_TAI_DOCKER_API_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_DOCKER_API_PORT}
+          check "Docker API via proxy" bash -c "curl -sf http://127.0.0.1:${YAO_CI_TAI_DOCKER_API_PORT}/version | jq -r .ApiVersion"
+
+          echo "[TUNNEL path: tai-k8s → Yao gRPC (reverse tunnel)]"
+          check "tai-k8s→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
+          check "tai-k8s K8s API proxy :${YAO_CI_TAI_K8S_API_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_API_PORT}
+          sed "s|server: .*|server: https://127.0.0.1:${YAO_CI_TAI_K8S_API_PORT}|" $RUNNER_TEMP/kubeconfig-tai.yml \
+            > $RUNNER_TEMP/kubeconfig-tai-proxy.yml
+          check "K8s API via tai-k8s proxy (kubectl)" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai-proxy.yml --insecure-skip-tls-verify get nodes
+
+          echo "[TUNNEL path: tai-hostexec → Yao gRPC (reverse tunnel)]"
+          check "tai-hostexec→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
+
+          echo "[Data Store connectivity from runner]"
+          check "MongoDB :27017" nc -z 127.0.0.1 27017
+          check "Redis :6379" nc -z 127.0.0.1 6379
+          check "MySQL :${MYSQL_TEST_PORT}" nc -z 127.0.0.1 ${MYSQL_TEST_PORT}
+          check "PostgreSQL :${PG_TEST_PORT}" nc -z 127.0.0.1 ${PG_TEST_PORT}
+
+          # ── 3. Connection Mode Verification ──
+          echo ""
+          echo "--- 3. Connection Modes ---"
+          sleep 5
+
+          echo "[Credentials (4 tokens)]"
+          check "tai-local credentials exist" test -f $RUNNER_TEMP/tai-local-credentials
+          check "tai-docker credentials exist" test -f $RUNNER_TEMP/tai-docker-credentials
+          check "tai-k8s credentials exist" test -f $RUNNER_TEMP/tai-k8s-credentials
+          check "tai-hostexec credentials exist" test -f $RUNNER_TEMP/tai-hostexec-credentials
+
+          echo "[DIRECT: tai-local → Yao HTTP register → Yao dials tai-local gRPC]"
+          echo "  tai-local registers via POST /tai-nodes/register"
+          echo "  Yao dials back tai-local gRPC at 127.0.0.1:${YAO_CI_TAI_LOCAL_GRPC_PORT}"
+
+          echo "[TUNNEL: tai-docker → Yao gRPC :${YAO_CI_GRPC_PORT} (Register + Forward)]"
+          echo "  Sandbox connects Yao gRPC → Forward stream → tai-docker :${YAO_CI_TAI_DOCKER_GRPC_PORT}"
+
+          echo "[TUNNEL: tai-k8s → Yao gRPC :${YAO_CI_GRPC_PORT} (Register + Forward)]"
+          echo "  Sandbox connects Yao gRPC → Forward stream → tai-k8s :${YAO_CI_TAI_K8S_GRPC_PORT}"
+
+          echo "[TUNNEL: tai-hostexec → Yao gRPC :${YAO_CI_GRPC_PORT} (Register + Forward)]"
+          echo "  HostExec only, no container runtime"
+
+          WELL_KNOWN=$(curl -sf http://127.0.0.1:5099/.well-known/yao 2>/dev/null || echo "{}")
+          echo ""
+          echo "  Yao .well-known/yao:"
+          echo "$WELL_KNOWN" | jq . 2>/dev/null || echo "  $WELL_KNOWN"
+
+          # ── 4. HostExec Readiness ──
+          echo ""
+          echo "--- 4. HostExec ---"
+
+          echo "[HostExec gRPC ports (all 4 instances)]"
+          check "HostExec tai-local (direct, auto-Docker)" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+          check "HostExec tai-docker (tunnel, Docker proxy)" nc -z 127.0.0.1 ${YAO_CI_TAI_DOCKER_GRPC_PORT}
+          check "HostExec tai-k8s (tunnel, K8s proxy)" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_GRPC_PORT}
+          check "HostExec tai-hostexec (tunnel, no runtime)" nc -z 127.0.0.1 ${YAO_CI_TAI_HOSTEXEC_GRPC_PORT}
+
+          echo ""
+          echo "=========================================="
+          if [ $FAILED -gt 0 ]; then
+            echo "::error::$FAILED verification check(s) FAILED"
+            echo ""
+            echo "=== Diagnostic Info ==="
+            echo "--- Docker containers ---"
+            docker ps -a
+            echo ""
+            echo "--- Processes (yao + tai) ---"
+            ps aux | grep -E "yao|tai" | grep -v grep || true
+            echo ""
+            echo "--- Listening ports ---"
+            ss -tlnp | grep -E "5099|9099|19100|19101|19102|19103|8099|8100|8101|8102|12375|12376|16443|16444" || true
+            exit 1
+          else
+            echo "All verification checks PASSED"
+          fi

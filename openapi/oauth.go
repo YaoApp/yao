@@ -208,10 +208,14 @@ func (openapi *OpenAPI) handleStandardTokenGrant(c *gin.Context, grantType strin
 		}
 
 	case types.GrantTypeClientCredentials:
-		// No code needed for client credentials
 		code = ""
 
-		// Validate that client supports client credentials grant
+		// RFC 6749 §4.4: client_credentials requires confidential client
+		if clientInfo.ClientType == types.ClientTypePublic {
+			response.RespondWithSecureError(c, response.StatusUnauthorized, response.ErrUnauthorizedClient)
+			return
+		}
+
 		if !openapi.clientSupportsGrantType(clientInfo, types.GrantTypeClientCredentials) {
 			response.RespondWithSecureError(c, response.StatusUnauthorized, response.ErrUnauthorizedClient)
 			return

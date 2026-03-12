@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 // Attach registers Tai node endpoints on the given group.
@@ -44,7 +45,7 @@ type systemResponse struct {
 	Shell    string `json:"shell,omitempty"`
 }
 
-func snapToResponse(s registry.NodeSnapshot) nodeResponse {
+func snapToResponse(s taitypes.NodeMeta) nodeResponse {
 	r := nodeResponse{
 		TaiID:        s.TaiID,
 		MachineID:    s.MachineID,
@@ -53,8 +54,8 @@ func snapToResponse(s registry.NodeSnapshot) nodeResponse {
 		Mode:         s.Mode,
 		Addr:         s.Addr,
 		Status:       s.Status,
-		Capabilities: s.Capabilities,
-		Ports:        s.Ports,
+		Capabilities: map[string]bool{"docker": s.Capabilities.Docker, "k8s": s.Capabilities.K8s, "host_exec": s.Capabilities.HostExec},
+		Ports:        map[string]int{"grpc": s.Ports.GRPC, "http": s.Ports.HTTP, "vnc": s.Ports.VNC, "docker": s.Ports.Docker, "k8s": s.Ports.K8s},
 		System: systemResponse{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,
@@ -75,7 +76,7 @@ func snapToResponse(s registry.NodeSnapshot) nodeResponse {
 
 // nodeOwnedBy checks whether a node belongs to the caller.
 // TeamID match → true; no team and UserID match → true.
-func nodeOwnedBy(snap *registry.NodeSnapshot, authInfo *types.AuthorizedInfo) bool {
+func nodeOwnedBy(snap *taitypes.NodeMeta, authInfo *types.AuthorizedInfo) bool {
 	if authInfo == nil {
 		return true
 	}
@@ -98,7 +99,7 @@ func handleList(c *gin.Context) {
 
 	authInfo := authorized.GetInfo(c)
 
-	var snaps []registry.NodeSnapshot
+	var snaps []taitypes.NodeMeta
 	if authInfo != nil && authInfo.TeamID != "" {
 		snaps = reg.ListByTeam(authInfo.TeamID)
 	} else if authInfo != nil && authInfo.UserID != "" {

@@ -479,11 +479,16 @@ func (ast *Assistant) GetInfo(locale ...string) *store.AssistantInfo {
 	}
 
 	info := &store.AssistantInfo{
-		AssistantID: ast.ID,
-		Avatar:      ast.Avatar,
+		AssistantID:      ast.ID,
+		Avatar:           ast.Avatar,
+		Connector:        ast.Connector,
+		ConnectorOptions: ast.ConnectorOptions,
+		Modes:            ast.Modes,
+		DefaultMode:      ast.DefaultMode,
+		Sandbox:          ast.IsSandbox,
+		ComputerFilter:   ast.ComputerFilter,
 	}
 
-	// Apply i18n translation if locale is provided
 	if loc != "" {
 		info.Name = ast.GetName(loc)
 		info.Description = ast.GetDescription(loc)

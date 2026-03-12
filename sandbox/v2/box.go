@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai/proxy"
-	taisandbox "github.com/yaoapp/yao/tai/sandbox"
-	"github.com/yaoapp/yao/tai/workspace"
+	tairuntime "github.com/yaoapp/yao/tai/runtime"
+	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
 // Box represents a single sandbox instance.
@@ -30,7 +30,7 @@ type Box struct {
 	image         string
 	workspaceID   string
 	system        SystemInfo
-	ws            workspace.FS
+	ws            taiworkspace.FS
 	manager       *Manager
 }
 
@@ -69,7 +69,7 @@ func (b *Box) BindWorkplace(workspaceID string) {
 // Workplace returns the workspace FS bound to this Box.
 // If a workspace was bound via CreateOptions.WorkspaceID or BindWorkplace(),
 // returns that workspace's FS. Otherwise returns nil.
-func (b *Box) Workplace() workspace.FS {
+func (b *Box) Workplace() taiworkspace.FS {
 	return b.Workspace()
 }
 
@@ -81,12 +81,12 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		o(cfg)
 	}
 
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	result, err := client.Sandbox().Exec(ctx, b.containerID, cmd, taisandbox.ExecOptions{
+	result, err := res.Runtime.Exec(ctx, b.containerID, cmd, tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
 	})
@@ -111,12 +111,12 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 		o(cfg)
 	}
 
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	handle, err := client.Sandbox().ExecStream(ctx, b.containerID, cmd, taisandbox.ExecOptions{
+	handle, err := res.Runtime.ExecStream(ctx, b.containerID, cmd, tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
 	})
@@ -141,12 +141,12 @@ func (b *Box) Attach(ctx context.Context, port int, opts ...AttachOption) (*Serv
 		o(cfg)
 	}
 
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := client.Proxy().Connect(ctx, b.containerID, proxy.ConnectOptions{
+	conn, err := res.Proxy.Connect(ctx, b.containerID, proxy.ConnectOptions{
 		Port:     port,
 		Path:     cfg.Path,
 		Protocol: cfg.Protocol,
@@ -178,7 +178,7 @@ func (b *Box) Attach(ctx context.Context, port int, opts ...AttachOption) (*Serv
 // Workspace returns an fs.FS-compatible filesystem for this sandbox.
 // If a workspace is mounted (WorkspaceID set), uses the workspace ID as session;
 // otherwise falls back to the sandbox ID (backward compatible).
-func (b *Box) Workspace() workspace.FS {
+func (b *Box) Workspace() taiworkspace.FS {
 	b.touch()
 	if b.ws != nil {
 		return b.ws
@@ -187,11 +187,11 @@ func (b *Box) Workspace() workspace.FS {
 	if sessionID == "" {
 		sessionID = b.id
 	}
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil
 	}
-	b.ws = client.Workspace(sessionID)
+	b.ws = taiworkspace.New(res.Volume, sessionID)
 	return b.ws
 }
 
@@ -220,39 +220,39 @@ func (b *Box) Snapshot() BoxInfo {
 // VNC returns the VNC WebSocket URL.
 func (b *Box) VNC(ctx context.Context) (string, error) {
 	b.touch()
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
-	return client.VNC().URL(ctx, b.containerID)
+	return res.VNC.URL(ctx, b.containerID)
 }
 
 // Proxy returns the HTTP URL for a service on the given port inside the sandbox.
 func (b *Box) Proxy(ctx context.Context, port int, path string) (string, error) {
 	b.touch()
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return "", err
 	}
-	return client.Proxy().URL(ctx, b.containerID, port, path)
+	return res.Proxy.URL(ctx, b.containerID, port, path)
 }
 
 // Start starts a stopped sandbox.
 func (b *Box) Start(ctx context.Context) error {
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
-	return client.Sandbox().Start(ctx, b.containerID)
+	return res.Runtime.Start(ctx, b.containerID)
 }
 
 // Stop stops the sandbox without removing it.
 func (b *Box) Stop(ctx context.Context) error {
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return err
 	}
-	return client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
+	return res.Runtime.Stop(ctx, b.containerID, b.stopTimeout())
 }
 
 // Remove stops and removes the sandbox.
@@ -262,12 +262,12 @@ func (b *Box) Remove(ctx context.Context) error {
 
 // Info returns current sandbox status.
 func (b *Box) Info(ctx context.Context) (*BoxInfo, error) {
-	client, err := b.manager.getNode(b.nodeID)
+	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	info, err := client.Sandbox().Inspect(ctx, b.containerID)
+	info, err := res.Runtime.Inspect(ctx, b.containerID)
 	if err != nil {
 		return nil, err
 	}

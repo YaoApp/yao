@@ -10,7 +10,8 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
-	taisandbox "github.com/yaoapp/yao/tai/sandbox"
+	tairuntime "github.com/yaoapp/yao/tai/runtime"
+	taitypes "github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -38,11 +39,11 @@ func (m *Manager) Start(ctx context.Context) error {
 	m.ensureLocalNode(reg)
 
 	for _, snap := range reg.List() {
-		client, err := m.getNode(snap.TaiID)
+		res, err := m.getNode(snap.TaiID)
 		if err != nil {
 			continue
 		}
-		m.recoverBoxes(ctx, snap.TaiID, client)
+		m.recoverBoxes(ctx, snap.TaiID, res)
 	}
 
 	loopCtx, cancel := context.WithCancel(ctx)
@@ -61,7 +62,7 @@ func (m *Manager) ensureLocalNode(_ *registry.Registry) {
 }
 
 // Nodes returns the list of registered Tai nodes from the registry.
-func (m *Manager) Nodes() []registry.NodeSnapshot {
+func (m *Manager) Nodes() []taitypes.NodeMeta {
 	reg := registry.Global()
 	if reg == nil {
 		return nil
@@ -89,26 +90,23 @@ func (m *Manager) Host(_ context.Context, nodeID string) (*Host, error) {
 		return nil, ErrNodeMissing
 	}
 
-	client, err := m.getNode(nodeID)
+	res, err := m.getNode(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: connect node %q: %w", nodeID, err)
 	}
 
-	if client.HostExec() == nil {
+	if res.HostExec == nil {
 		return nil, fmt.Errorf("sandbox: node %q has no host_exec capability", nodeID)
 	}
 
-	var sys SystemInfo
-	if snap, ok := tai.GetNodeSnapshot(nodeID); ok {
-		sys = SystemInfo{
-			OS:       snap.System.OS,
-			Arch:     snap.System.Arch,
-			Hostname: snap.System.Hostname,
-			NumCPU:   snap.System.NumCPU,
-			TotalMem: snap.System.TotalMem,
-			Shell:    snap.System.Shell,
-			TempDir:  snap.System.TempDir,
-		}
+	sys := SystemInfo{
+		OS:       res.System.OS,
+		Arch:     res.System.Arch,
+		Hostname: res.System.Hostname,
+		NumCPU:   res.System.NumCPU,
+		TotalMem: res.System.TotalMem,
+		Shell:    res.System.Shell,
+		TempDir:  res.System.TempDir,
 	}
 
 	return &Host{nodeID: nodeID, system: sys, manager: m}, nil
@@ -165,24 +163,24 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		id = fmt.Sprintf("sb-%d", time.Now().UnixNano())
 	}
 
-	client, err := m.getNode(nodeID)
+	res, err := m.getNode(nodeID)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: connect node %q: %w", nodeID, err)
 	}
 
-	if client.Sandbox() == nil {
+	if res.Runtime == nil {
 		return nil, fmt.Errorf("sandbox: node %q has no container runtime", nodeID)
 	}
 
 	taiOpts := m.buildTaiCreateOptions(opts, nodeID, id)
 
-	containerID, err := client.Sandbox().Create(ctx, taiOpts)
+	containerID, err := res.Runtime.Create(ctx, taiOpts)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox: create container: %w", err)
 	}
 
-	if err := client.Sandbox().Start(ctx, containerID); err != nil {
-		client.Sandbox().Remove(ctx, containerID, true)
+	if err := res.Runtime.Start(ctx, containerID); err != nil {
+		res.Runtime.Remove(ctx, containerID, true)
 		return nil, fmt.Errorf("sandbox: start container: %w", err)
 	}
 
@@ -191,17 +189,14 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		policy = Session
 	}
 
-	var sys SystemInfo
-	if snap, ok := tai.GetNodeSnapshot(nodeID); ok {
-		sys = SystemInfo{
-			OS:       snap.System.OS,
-			Arch:     snap.System.Arch,
-			Hostname: snap.System.Hostname,
-			NumCPU:   snap.System.NumCPU,
-			TotalMem: snap.System.TotalMem,
-			Shell:    snap.System.Shell,
-			TempDir:  snap.System.TempDir,
-		}
+	sys := SystemInfo{
+		OS:       res.System.OS,
+		Arch:     res.System.Arch,
+		Hostname: res.System.Hostname,
+		NumCPU:   res.System.NumCPU,
+		TotalMem: res.System.TotalMem,
+		Shell:    res.System.Shell,
+		TempDir:  res.System.TempDir,
 	}
 
 	box := &Box{
@@ -278,9 +273,9 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 	}
 	b := v.(*Box)
 
-	client, err := m.getNode(b.nodeID)
-	if err == nil && client.Sandbox() != nil {
-		client.Sandbox().Remove(ctx, b.containerID, true)
+	res, err := m.getNode(b.nodeID)
+	if err == nil && res.Runtime != nil {
+		res.Runtime.Remove(ctx, b.containerID, true)
 	}
 
 	m.boxes.Delete(id)
@@ -303,8 +298,8 @@ func (m *Manager) Cleanup(ctx context.Context) error {
 			}
 		case LongRunning:
 			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
-				if client, err := m.getNode(b.nodeID); err == nil && client.Sandbox() != nil {
-					client.Sandbox().Stop(ctx, b.containerID, b.stopTimeout())
+				if res, err := m.getNode(b.nodeID); err == nil && res.Runtime != nil {
+					res.Runtime.Stop(ctx, b.containerID, b.stopTimeout())
 				}
 			}
 			if lifetime := b.maxLifetime(); lifetime > 0 && now.Sub(b.createdAt) > lifetime {
@@ -339,15 +334,15 @@ func (m *Manager) cleanupLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) getNode(name string) (*tai.Client, error) {
-	client, ok := tai.GetClient(name)
+func (m *Manager) getNode(name string) (*tai.ConnResources, error) {
+	res, ok := tai.GetResources(name)
 	if !ok {
 		return nil, ErrNodeNotFound
 	}
-	return client, nil
+	return res, nil
 }
 
-func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID string) taisandbox.CreateOptions {
+func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID string) tairuntime.CreateOptions {
 	env := make(map[string]string)
 
 	reg := registry.Global()
@@ -385,9 +380,9 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 
 	cmd := []string{"sh", "-c", "trap 'exit 0' TERM; while :; do sleep 86400 & wait $!; done"}
 
-	var ports []taisandbox.PortMapping
+	var ports []tairuntime.PortMapping
 	for _, p := range opts.Ports {
-		ports = append(ports, taisandbox.PortMapping{
+		ports = append(ports, tairuntime.PortMapping{
 			ContainerPort: p.ContainerPort,
 			HostPort:      p.HostPort,
 			HostIP:        p.HostIP,
@@ -413,7 +408,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 		}
 	}
 
-	return taisandbox.CreateOptions{
+	return tairuntime.CreateOptions{
 		Name:       sandboxID,
 		Image:      opts.Image,
 		Cmd:        cmd,
@@ -429,11 +424,11 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 	}
 }
 
-func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, client *tai.Client) {
-	if client.Sandbox() == nil {
+func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.ConnResources) {
+	if res.Runtime == nil {
 		return
 	}
-	containers, err := client.Sandbox().List(ctx, taisandbox.ListOptions{
+	containers, err := res.Runtime.List(ctx, tairuntime.ListOptions{
 		All:    true,
 		Labels: map[string]string{"managed-by": "yao-sandbox"},
 	})
@@ -473,37 +468,35 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, client *tai.C
 
 // ImageExists reports whether the given image ref exists on the target node.
 func (m *Manager) ImageExists(ctx context.Context, nodeID, ref string) (bool, error) {
-	client, err := m.getNode(nodeID)
+	res, err := m.getNode(nodeID)
 	if err != nil {
 		return false, err
 	}
-	img := client.Image()
-	if img == nil {
+	if res.Image == nil {
 		return true, nil
 	}
-	return img.Exists(ctx, ref)
+	return res.Image.Exists(ctx, ref)
 }
 
 // PullImage pulls an image to the target node, returning a channel of
 // real-time progress events.
-func (m *Manager) PullImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) (<-chan taisandbox.PullProgress, error) {
-	client, err := m.getNode(nodeID)
+func (m *Manager) PullImage(ctx context.Context, nodeID, ref string, opts ImagePullOptions) (<-chan tairuntime.PullProgress, error) {
+	res, err := m.getNode(nodeID)
 	if err != nil {
 		return nil, err
 	}
-	img := client.Image()
-	if img == nil {
+	if res.Image == nil {
 		return nil, nil
 	}
-	pullOpts := taisandbox.PullOptions{}
+	pullOpts := tairuntime.PullOptions{}
 	if opts.Auth != nil {
-		pullOpts.Auth = &taisandbox.RegistryAuth{
+		pullOpts.Auth = &tairuntime.RegistryAuth{
 			Username: opts.Auth.Username,
 			Password: opts.Auth.Password,
 			Server:   opts.Auth.Server,
 		}
 	}
-	return img.Pull(ctx, ref, pullOpts)
+	return res.Image.Pull(ctx, ref, pullOpts)
 }
 
 // EnsureImage checks whether the image exists on the node; if not, it

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yaoapp/yao/tai/sandbox"
+	"github.com/yaoapp/yao/tai/runtime"
 )
 
 // Proxy resolves HTTP service URLs for containers.
@@ -98,11 +98,11 @@ func (t *tunnelProxy) Healthz(_ context.Context) error {
 // --- Local implementation ---
 
 type localProxy struct {
-	sb sandbox.Sandbox
+	sb runtime.Runtime
 }
 
-// NewLocal creates a Proxy that resolves host ports via sandbox.Inspect.
-func NewLocal(sb sandbox.Sandbox) Proxy {
+// NewLocal creates a Proxy that resolves host ports via runtime.Inspect.
+func NewLocal(sb runtime.Runtime) Proxy {
 	return &localProxy{sb: sb}
 }
 

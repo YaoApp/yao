@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/yaoapp/yao/tai/sandbox"
+	"github.com/yaoapp/yao/tai/runtime"
 )
 
 const defaultVNCContainerPort = 6080
@@ -78,11 +78,11 @@ func (t *tunnelVNC) Ping(_ context.Context, _ string) error {
 // --- Local implementation ---
 
 type localVNC struct {
-	sb sandbox.Sandbox
+	sb runtime.Runtime
 }
 
-// NewLocal creates a VNC that resolves host VNC ports via sandbox.Inspect.
-func NewLocal(sb sandbox.Sandbox) VNC {
+// NewLocal creates a VNC that resolves host VNC ports via runtime.Inspect.
+func NewLocal(sb runtime.Runtime) VNC {
 	return &localVNC{sb: sb}
 }
 

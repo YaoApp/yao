@@ -32,6 +32,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
 	group.GET("", handleList)
+	group.GET("/options", handleOptions)
 	group.POST("", handleCreate)
 	group.GET("/:id", handleGet)
 	group.PUT("/:id", handleUpdate)
@@ -145,6 +146,35 @@ func resolveAndCheckWS(c *gin.Context) (*ws.Workspace, bool) {
 // --- handlers ---
 
 func handleList(c *gin.Context) {
+	m := mgr()
+	if m == nil {
+		response.RespondWithSuccess(c, http.StatusOK, []workspaceResponse{})
+		return
+	}
+
+	authInfo := authorized.GetInfo(c)
+	owner := resolveOwner(authInfo)
+
+	list, err := m.List(context.Background(), ws.ListOptions{
+		Owner: owner,
+		Node:  c.Query("node"),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	result := make([]workspaceResponse, 0, len(list))
+	for _, w := range list {
+		result = append(result, toResponse(w))
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+// handleOptions returns workspace options for the InputArea selector.
+// Reuses the same logic as handleList (Manager.List with owner+node filter).
+// Separated as a dedicated endpoint for clear API responsibility boundary.
+func handleOptions(c *gin.Context) {
 	m := mgr()
 	if m == nil {
 		response.RespondWithSuccess(c, http.StatusOK, []workspaceResponse{})

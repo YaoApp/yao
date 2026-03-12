@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
 	"github.com/yaoapp/yao/openapi/chat"
+	openapiComputer "github.com/yaoapp/yao/openapi/computer"
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
@@ -181,17 +182,18 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	sandbox.Attach(sandboxGroup, openapi.OAuth)
 	sandbox.AttachManage(sandboxGroup)
 
+	// Computer option handlers (for InputArea selector)
+	openapiComputer.Attach(group.Group("/computer"), openapi.OAuth)
+
 	// Workspace handlers
 	openapiWorkspace.Attach(group.Group("/workspace"), openapi.OAuth)
 
 	// Tai nodes handlers
 	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
 
-	// Tai tunnel WebSocket and reverse proxy routes
-	group.GET("/ws/tai", taitunnel.HandleControl)
-	group.GET("/ws/tai/data/:channel_id", taitunnel.HandleData)
-	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleProxy)
-	group.GET("/tai/:taiID/vnc/*path", taitunnel.HandleVNC)
+	// Tai tunnel: gRPC Forward-based HTTP/VNC transparent proxy
+	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleForwardLazy)
+	group.Any("/tai/:taiID/vnc/*path", taitunnel.HandleForwardLazy)
 
 	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
 	group.POST("/tai-nodes/register", taiapi.HandleRegister)

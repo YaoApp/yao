@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func TestHelpers(t *testing.T) {
 	})
 }
 
-func TestLocalSandbox(t *testing.T) {
+func TestLocalRuntime(t *testing.T) {
 	sb, err := NewLocal("")
 	if err != nil {
 		t.Skipf("Docker not available: %v", err)
@@ -258,7 +258,7 @@ func TestLocalCreateWithEnvAndWorkDir(t *testing.T) {
 	}
 }
 
-func TestDockerSandboxViaTai(t *testing.T) {
+func TestDockerRuntimeViaTai(t *testing.T) {
 	addr := taiTestDocker()
 	sb, err := NewDocker(addr)
 	if err != nil {
@@ -352,7 +352,7 @@ func TestPortStr(t *testing.T) {
 	}
 }
 
-func TestK8sSandbox(t *testing.T) {
+func TestK8sRuntime(t *testing.T) {
 	host := taiTestK8sHost()
 	port := taiTestK8sPort()
 	kubeconfig := taiTestKubeConfig()
@@ -496,7 +496,7 @@ func TestK8sBuildResourcesPartial(t *testing.T) {
 	}
 }
 
-func TestK8sSandboxStopAndRemove(t *testing.T) {
+func TestK8sRuntimeStopAndRemove(t *testing.T) {
 	host := taiTestK8sHost()
 	port := taiTestK8sPort()
 	kubeconfig := taiTestKubeConfig()

@@ -104,7 +104,11 @@ func resolveServerURL(issuerURL string) string {
 }
 
 // resolveGRPCAddr returns the gRPC server address for client discovery.
-// Uses the request Host's IP with the configured gRPC port.
+//
+// When the listen host includes "internal", "0.0.0.0", or multiple addresses,
+// the returned address uses the IP from the incoming HTTP request — if the
+// client could reach Yao's HTTP port via that IP, gRPC on the same IP should
+// also be reachable. "localhost" is treated as "127.0.0.1".
 func resolveGRPCAddr(c *gin.Context) string {
 	cfg := config.Conf.GRPC
 	if strings.ToLower(cfg.Enabled) == "off" {
@@ -116,15 +120,22 @@ func resolveGRPCAddr(c *gin.Context) string {
 	}
 
 	host := cfg.Host
-	if host == "" || host == "0.0.0.0" {
+	useRequestIP := host == "" || host == "0.0.0.0" ||
+		strings.Contains(host, ",") ||
+		config.HostHasInternal(host)
+
+	if useRequestIP {
 		reqHost := c.Request.Host
 		h, _, err := net.SplitHostPort(reqHost)
 		if err != nil {
 			h = reqHost
 		}
+		if strings.ToLower(h) == "localhost" {
+			h = "127.0.0.1"
+		}
 		host = h
-	} else if strings.Contains(host, ",") {
-		host = strings.TrimSpace(strings.Split(host, ",")[0])
+	} else if strings.ToLower(strings.TrimSpace(host)) == "localhost" {
+		host = "127.0.0.1"
 	}
 
 	return fmt.Sprintf("%s:%s", host, strconv.Itoa(port))

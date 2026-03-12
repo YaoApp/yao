@@ -15,8 +15,10 @@ import (
 )
 
 const (
-	healthzMethod = "/yao.Yao/Healthz"
-	apiMethod     = "/yao.Yao/API"
+	healthzMethod     = "/yao.Yao/Healthz"
+	apiMethod         = "/yao.Yao/API"
+	taiRegisterMethod = "/tai.tunnel.TaiTunnel/Register"
+	taiForwardMethod  = "/tai.tunnel.TaiTunnel/Forward"
 
 	metaAuthorization = "authorization"
 	metaRefreshToken  = "x-refresh-token"
@@ -102,8 +104,8 @@ func authenticate(ctx context.Context, fullMethod string, req interface{}) (cont
 		))
 	}
 
-	// ACL scope check — skip for API proxy (the openapi router does its own auth).
-	if fullMethod != apiMethod {
+	// ACL scope check — skip for API proxy and Tai tunnel (infrastructure services).
+	if fullMethod != apiMethod && fullMethod != taiRegisterMethod && fullMethod != taiForwardMethod {
 		httpMethod, httpPath := VirtualEndpoint(fullMethod, req)
 		scopes := strings.Fields(result.Info.Scope)
 

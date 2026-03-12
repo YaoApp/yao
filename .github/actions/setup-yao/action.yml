@@ -1,0 +1,113 @@
+name: "Setup Yao Build Environment"
+description: "Checkout dependency repos, setup Go toolchain, and install build tools (v1.0.0)"
+
+inputs:
+  go-version:
+    description: "Go version to install"
+    default: "1.25"
+  repo-kun:
+    description: "Kun repository (owner/repo)"
+    required: true
+  repo-xun:
+    description: "Xun repository (owner/repo)"
+    required: true
+  repo-gou:
+    description: "Gou repository (owner/repo)"
+    required: true
+  checkout-app:
+    description: "Checkout yao-dev-app (demo application for tests)"
+    default: "true"
+  checkout-init:
+    description: "Checkout yao-init (for Yao server startup in CI)"
+    default: "false"
+  apple-private-key:
+    description: "Apple private key content for OAuth certs (optional)"
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    # -- Dependency repositories --
+    - name: Checkout Kun
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo-kun }}
+        path: kun
+
+    - name: Checkout Xun
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo-xun }}
+        path: xun
+
+    - name: Checkout Gou
+      uses: actions/checkout@v4
+      with:
+        repository: ${{ inputs.repo-gou }}
+        path: gou
+
+    - name: Checkout V8Go
+      uses: actions/checkout@v4
+      with:
+        repository: yaoapp/v8go
+        path: v8go
+
+    - name: Unzip libv8
+      shell: bash
+      run: |
+        for file in $(find ./v8go -name "libv8*.zip"); do
+          dir=$(dirname "$file")
+          echo "Extracting $file to $dir"
+          unzip -o -d "$dir" "$file"
+          rm -rf "$dir/__MACOSX"
+        done
+
+    - name: Checkout Demo App
+      if: ${{ inputs.checkout-app == 'true' }}
+      uses: actions/checkout@v4
+      with:
+        repository: yaoapp/yao-dev-app
+        path: app
+
+    - name: Checkout Extension
+      uses: actions/checkout@v4
+      with:
+        repository: yaoapp/yao-extensions-dev
+        path: extension
+
+    - name: Checkout yao-init
+      if: ${{ inputs.checkout-init == 'true' }}
+      uses: actions/checkout@v4
+      with:
+        repository: yaoapp/yao-init
+        path: yao-init
+
+    # -- Move all dependencies to parent directory (Go workspace layout) --
+    - name: Move Dependencies
+      shell: bash
+      run: |
+        mv kun ../
+        mv xun ../
+        mv gou ../
+        mv v8go ../
+        [ -d app ] && mv app ../
+        mv extension ../
+        [ -d yao-init ] && mv yao-init ../
+
+    # -- Setup Apple Private Key (if provided) --
+    - name: Setup Apple Private Key
+      if: ${{ inputs.apple-private-key != '' }}
+      shell: bash
+      run: |
+        mkdir -p ../app/openapi/certs/apple
+        echo "${{ inputs.apple-private-key }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
+    # -- Go toolchain --
+    - name: Setup Go ${{ inputs.go-version }}
+      uses: actions/setup-go@v5
+      with:
+        go-version: ${{ inputs.go-version }}
+
+    - name: Setup Go Tools
+      shell: bash
+      run: make tools

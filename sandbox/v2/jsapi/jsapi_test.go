@@ -3,6 +3,7 @@ package jsapi_test
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -18,10 +19,9 @@ import (
 )
 
 type testMode struct {
-	Name    string
-	Addr    string
-	TaiID   string // filled by setupSandbox
-	Options []tai.Option
+	Name  string
+	Addr  string
+	TaiID string
 }
 
 func testModes() []testMode {
@@ -46,17 +46,69 @@ func setupSandbox(t *testing.T, m *testMode) {
 	reg := registry.Global()
 	if reg == nil {
 		registry.Init(nil)
+		reg = registry.Global()
 	}
 
-	client, err := tai.New(m.Addr, m.Options...)
-	if err != nil {
-		t.Fatalf("tai.New: %v", err)
-	}
-	m.TaiID = client.TaiID()
+	taiID, _ := registerForTest(t, m.Addr)
+	m.TaiID = taiID
 
 	sandbox.Init()
 	mgr := sandbox.M()
 	t.Cleanup(func() { mgr.Close() })
+}
+
+func registerForTest(t testing.TB, addr string, dialOps ...tai.DialOption) (string, *tai.ConnResources) {
+	t.Helper()
+	if registry.Global() == nil {
+		registry.Init(nil)
+	}
+	res, err := dialForTest(addr, dialOps...)
+	if err != nil {
+		t.Fatalf("dialForTest(%s): %v", addr, err)
+	}
+	taiID := taiIDFromAddr(addr)
+	reg := registry.Global()
+	reg.Register(&registry.TaiNode{TaiID: taiID, Mode: modeForAddr(addr)})
+	reg.SetResources(taiID, res)
+	t.Cleanup(func() { res.Close() })
+	return taiID, res
+}
+
+func dialForTest(addr string, dialOps ...tai.DialOption) (*tai.ConnResources, error) {
+	if addr == "local" || addr == "" {
+		return tai.DialLocal("", "", nil)
+	}
+	host, grpcPort := parseHostPort(addr)
+	ports := tai.Ports{GRPC: grpcPort}
+	return tai.DialRemote(host, ports, dialOps...)
+}
+
+func taiIDFromAddr(addr string) string {
+	if addr == "local" || addr == "" {
+		return "local"
+	}
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	return parts[0]
+}
+
+func modeForAddr(addr string) string {
+	if addr == "local" || addr == "" {
+		return "local"
+	}
+	return "direct"
+}
+
+func parseHostPort(addr string) (string, int) {
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	h := parts[0]
+	if len(parts) == 2 {
+		if p, err := strconv.Atoi(parts[1]); err == nil {
+			return h, p
+		}
+	}
+	return h, 19100
 }
 
 func runJS(t *testing.T, source string) interface{} {

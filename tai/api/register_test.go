@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/types"
 )
 
 func init() {
@@ -20,8 +21,8 @@ func setupTest() func() {
 	registry.SetGlobalForTest(r)
 
 	origAuth := authenticateBearer
-	authenticateBearer = func(token string) (registry.AuthInfo, error) {
-		return registry.AuthInfo{
+	authenticateBearer = func(token string) (types.AuthInfo, error) {
+		return types.AuthInfo{
 			Subject:  "sub-001",
 			UserID:   "user-alice",
 			ClientID: "tai-abc123",
@@ -53,7 +54,7 @@ func TestHandleRegister_Success(t *testing.T) {
 		Addr:         "192.168.1.100",
 		Ports:        map[string]int{"grpc": 19100, "http": 8099},
 		Capabilities: map[string]bool{"docker": true, "host_exec": false},
-		System: registry.SystemInfo{
+		System: types.SystemInfo{
 			OS: "linux", Arch: "amd64", Hostname: "docker-host-01", NumCPU: 16,
 		},
 	}
@@ -114,7 +115,7 @@ func TestHandleRegister_ServerGeneratedTaiID(t *testing.T) {
 		Addr:         "192.168.1.200",
 		Ports:        map[string]int{"grpc": 19100},
 		Capabilities: map[string]bool{"docker": true},
-		System:       registry.SystemInfo{OS: "darwin", Arch: "arm64", Hostname: "mac-01", NumCPU: 12},
+		System:       types.SystemInfo{OS: "darwin", Arch: "arm64", Hostname: "mac-01", NumCPU: 12},
 	}
 
 	w := httptest.NewRecorder()
@@ -207,7 +208,7 @@ func TestHandleHeartbeat_Success(t *testing.T) {
 	reg.Register(&registry.TaiNode{
 		TaiID: "tai-abc123",
 		Mode:  "direct",
-		Auth:  registry.AuthInfo{ClientID: "tai-abc123"},
+		Auth:  types.AuthInfo{ClientID: "tai-abc123"},
 	})
 
 	w := httptest.NewRecorder()
@@ -232,7 +233,7 @@ func TestHandleHeartbeat_WrongOwner(t *testing.T) {
 	reg.Register(&registry.TaiNode{
 		TaiID: "tai-other",
 		Mode:  "direct",
-		Auth:  registry.AuthInfo{ClientID: "different-client"},
+		Auth:  types.AuthInfo{ClientID: "different-client"},
 	})
 
 	w := httptest.NewRecorder()
@@ -275,7 +276,7 @@ func TestHandleUnregister_Success(t *testing.T) {
 	reg.Register(&registry.TaiNode{
 		TaiID: "tai-abc123",
 		Mode:  "direct",
-		Auth:  registry.AuthInfo{ClientID: "tai-abc123"},
+		Auth:  types.AuthInfo{ClientID: "tai-abc123"},
 	})
 
 	w := httptest.NewRecorder()
@@ -303,7 +304,7 @@ func TestHandleUnregister_WrongOwner(t *testing.T) {
 	reg.Register(&registry.TaiNode{
 		TaiID: "tai-other",
 		Mode:  "direct",
-		Auth:  registry.AuthInfo{ClientID: "different-client"},
+		Auth:  types.AuthInfo{ClientID: "different-client"},
 	})
 
 	w := httptest.NewRecorder()
