@@ -191,11 +191,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Tai nodes handlers
 	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
 
-	// Tai tunnel WebSocket and reverse proxy routes
-	group.GET("/ws/tai", taitunnel.HandleControl)
-	group.GET("/ws/tai/data/:channel_id", taitunnel.HandleData)
-	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleProxy)
-	group.GET("/tai/:taiID/vnc/*path", taitunnel.HandleVNC)
+	// Tai tunnel: gRPC Forward-based HTTP/VNC transparent proxy
+	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleForwardLazy)
+	group.Any("/tai/:taiID/vnc/*path", taitunnel.HandleForwardLazy)
 
 	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
 	group.POST("/tai-nodes/register", taiapi.HandleRegister)

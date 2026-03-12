@@ -1,0 +1,56 @@
+syntax = "proto3";
+package tai.tunnel;
+option go_package = "github.com/yaoapp/yao/tai/tunnel/taipb";
+
+service TaiTunnel {
+    // Control plane: Tai → Yao, register + keepalive + receive commands.
+    rpc Register(stream TunnelControl) returns (stream TunnelControl);
+
+    // Data plane: Tai → Yao, raw TCP forwarding.
+    rpc Forward(stream ForwardData) returns (stream ForwardData);
+}
+
+message TunnelControl {
+    string type = 1; // "register" / "registered" / "open" / "ping" / "pong"
+
+    // Carried on "register" (Tai → Yao)
+    string node_id      = 2;
+    string machine_id   = 3;
+    string display_name = 4;
+    string version      = 5;
+    Ports  ports        = 6;
+    Capabilities caps   = 7;
+    SystemInfo system   = 8;
+
+    // Carried on "open" (Yao → Tai)
+    string channel_id   = 10;
+    int32  target_port  = 11;
+
+    // Carried on "registered" (Yao → Tai)
+    string tai_id       = 20;
+}
+
+message ForwardData {
+    bytes data = 1;
+}
+
+message Ports {
+    int32 grpc   = 1;
+    int32 http   = 2;
+    int32 vnc    = 3;
+    int32 docker = 4;
+    int32 k8s    = 5;
+}
+
+message Capabilities {
+    bool docker    = 1;
+    bool k8s       = 2;
+    bool host_exec = 3;
+}
+
+message SystemInfo {
+    string os       = 1;
+    string arch     = 2;
+    string hostname = 3;
+    string shell    = 4;
+}

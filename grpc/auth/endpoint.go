@@ -63,6 +63,12 @@ func VirtualEndpoint(fullMethod string, req interface{}) (method string, path st
 	case "/yao.Yao/Heartbeat":
 		return "POST", "/grpc/heartbeat"
 
+	case "/tai.tunnel.TaiTunnel/Register":
+		return "POST", "/grpc/tai/register"
+
+	case "/tai.tunnel.TaiTunnel/Forward":
+		return "POST", "/grpc/tai/forward"
+
 	default:
 		return "POST", "/grpc/unknown"
 	}

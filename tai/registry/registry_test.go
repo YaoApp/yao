@@ -2,24 +2,18 @@ package registry
 
 import (
 	"log/slog"
-	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/yaoapp/yao/tai/types"
 )
 
 // newTestRegistry creates a standalone registry for testing (bypasses global singleton).
 func newTestRegistry() *Registry {
 	return &Registry{
-		nodes:   make(map[string]*TaiNode),
-		pending: make(map[string]*pendingChannel),
-		logger:  slog.Default(),
+		nodes:  make(map[string]*TaiNode),
+		logger: slog.Default(),
 	}
 }
 
@@ -147,98 +141,6 @@ func TestUpdatePing_NonexistentNode(t *testing.T) {
 	r.UpdatePing("ghost")
 }
 
-func TestWriteControlJSON_NoNode(t *testing.T) {
-	r := newTestRegistry()
-	err := r.WriteControlJSON("missing", map[string]string{"type": "test"})
-	if err == nil {
-		t.Fatal("expected error for missing node")
-	}
-}
-
-func TestWriteControlJSON_NilConn(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-001"})
-	err := r.WriteControlJSON("tai-001", map[string]string{"type": "test"})
-	if err == nil {
-		t.Fatal("expected error for nil ControlConn")
-	}
-}
-
-func TestRequestChannel_NotFound(t *testing.T) {
-	r := newTestRegistry()
-	_, _, err := r.RequestChannel("ghost", 19100)
-	if err == nil {
-		t.Fatal("expected error for missing node")
-	}
-}
-
-func TestRequestChannel_DirectMode(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-001", Mode: "direct"})
-	_, _, err := r.RequestChannel("tai-001", 19100)
-	if err == nil {
-		t.Fatal("expected error for direct-mode node")
-	}
-}
-
-func TestAcceptDataChannel_NotPending(t *testing.T) {
-	r := newTestRegistry()
-	pipe1, pipe2 := net.Pipe()
-	defer pipe1.Close()
-	defer pipe2.Close()
-
-	err := r.AcceptDataChannel("unknown-channel", "tai-001", pipe1)
-	if err == nil {
-		t.Fatal("expected error for non-pending channel")
-	}
-}
-
-func TestAcceptDataChannel_TaiIDMismatch(t *testing.T) {
-	r := newTestRegistry()
-
-	resultCh := make(chan net.Conn, 1)
-	timer := time.AfterFunc(5*time.Second, func() {})
-	r.mu.Lock()
-	r.pending["ch-001"] = &pendingChannel{taiID: "tai-owner", result: resultCh, timer: timer}
-	r.mu.Unlock()
-
-	pipe1, pipe2 := net.Pipe()
-	defer pipe1.Close()
-	defer pipe2.Close()
-
-	err := r.AcceptDataChannel("ch-001", "tai-intruder", pipe1)
-	if err == nil {
-		t.Fatal("expected error for tai_id mismatch")
-	}
-}
-
-func TestAcceptDataChannel_Success(t *testing.T) {
-	r := newTestRegistry()
-
-	resultCh := make(chan net.Conn, 1)
-	timer := time.AfterFunc(5*time.Second, func() {})
-	r.mu.Lock()
-	r.pending["ch-002"] = &pendingChannel{taiID: "tai-001", result: resultCh, timer: timer}
-	r.mu.Unlock()
-
-	pipe1, pipe2 := net.Pipe()
-	defer pipe2.Close()
-
-	if err := r.AcceptDataChannel("ch-002", "tai-001", pipe1); err != nil {
-		t.Fatalf("AcceptDataChannel: %v", err)
-	}
-
-	select {
-	case conn := <-resultCh:
-		if conn == nil {
-			t.Fatal("expected non-nil conn")
-		}
-		conn.Close()
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for conn on resultCh")
-	}
-}
-
 func TestGenerateChannelID_Unique(t *testing.T) {
 	seen := make(map[string]bool)
 	for i := 0; i < 100; i++ {
@@ -254,26 +156,6 @@ func TestGenerateChannelID_Unique(t *testing.T) {
 		}
 		seen[id] = true
 	}
-}
-
-func TestBridgeTCP(t *testing.T) {
-	a1, a2 := net.Pipe()
-	b1, b2 := net.Pipe()
-
-	go bridgeTCP(a2, b1)
-
-	msg := []byte("hello tunnel")
-	go func() {
-		a1.Write(msg)
-		a1.Close()
-	}()
-
-	buf := make([]byte, 64)
-	n, _ := b2.Read(buf)
-	if string(buf[:n]) != "hello tunnel" {
-		t.Errorf("got %q, want %q", buf[:n], "hello tunnel")
-	}
-	b2.Close()
 }
 
 func TestConcurrentRegisterGet(t *testing.T) {
@@ -299,181 +181,12 @@ func TestConcurrentRegisterGet(t *testing.T) {
 	wg.Wait()
 }
 
-func TestWriteControlJSON_Success(t *testing.T) {
-	done := make(chan map[string]string, 1)
-
-	srv := newWSServer(func(conn *websocket.Conn) {
-		var msg map[string]string
-		conn.ReadJSON(&msg)
-		done <- msg
-		conn.Close()
-	})
-	defer srv.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel", ControlConn: wsConn})
-
-	payload := map[string]string{"type": "test", "data": "hello"}
-	if err := r.WriteControlJSON("tai-001", payload); err != nil {
-		t.Fatalf("WriteControlJSON: %v", err)
-	}
-
-	select {
-	case got := <-done:
-		if got["type"] != "test" {
-			t.Errorf("type = %q, want test", got["type"])
-		}
-		if got["data"] != "hello" {
-			t.Errorf("data = %q, want hello", got["data"])
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for server to receive message")
-	}
-}
-
-func TestRequestChannel_Success(t *testing.T) {
-	openCh := make(chan map[string]interface{}, 1)
-
-	srv := newWSServer(func(conn *websocket.Conn) {
-		var msg map[string]interface{}
-		conn.ReadJSON(&msg)
-		openCh <- msg
-		time.Sleep(time.Second)
-		conn.Close()
-	})
-	defer srv.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel", ControlConn: wsConn})
-
-	channelID, resultCh, err := r.RequestChannel("tai-001", 19100)
-	if err != nil {
-		t.Fatalf("RequestChannel: %v", err)
-	}
-	if channelID == "" {
-		t.Fatal("channelID should not be empty")
-	}
-	if len(channelID) != 64 {
-		t.Errorf("channelID len = %d, want 64", len(channelID))
-	}
-	if resultCh == nil {
-		t.Fatal("resultCh should not be nil")
-	}
-
-	select {
-	case cmd := <-openCh:
-		if cmd["type"] != "open" {
-			t.Errorf("cmd type = %v, want open", cmd["type"])
-		}
-		if cmd["channel_id"] != channelID {
-			t.Errorf("cmd channel_id = %v, want %s", cmd["channel_id"], channelID)
-		}
-		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 19100 {
-			t.Errorf("cmd target_port = %v, want 19100", cmd["target_port"])
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for open command")
-	}
-}
-
-func TestRequestChannel_NoControlConn(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
-
-	_, _, err := r.RequestChannel("tai-001", 19100)
-	if err == nil {
-		t.Fatal("expected error for nil ControlConn")
-	}
-}
-
-func TestOpenLocalListener_Success(t *testing.T) {
-	r := newTestRegistry()
-
-	controlCh := make(chan map[string]interface{}, 1)
-	srv := newWSServer(func(conn *websocket.Conn) {
-		for {
-			var msg map[string]interface{}
-			if err := conn.ReadJSON(&msg); err != nil {
-				return
-			}
-			controlCh <- msg
-		}
-	})
-	defer srv.Close()
-
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
-	wsConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial: %v", err)
-	}
-
-	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel", ControlConn: wsConn})
-
-	ln, err := r.OpenLocalListener("tai-001", 19100)
-	if err != nil {
-		t.Fatalf("OpenLocalListener: %v", err)
-	}
-	defer ln.Close()
-
-	addr := ln.Addr().String()
-	if addr == "" {
-		t.Fatal("listener address should not be empty")
-	}
-	if !strings.HasPrefix(addr, "127.0.0.1:") {
-		t.Errorf("addr = %q, want 127.0.0.1:*", addr)
-	}
-
-	conn, err := net.DialTimeout("tcp", addr, time.Second)
-	if err != nil {
-		t.Fatalf("connect to local listener: %v", err)
-	}
-	defer conn.Close()
-
-	select {
-	case cmd := <-controlCh:
-		if cmd["type"] != "open" {
-			t.Errorf("open cmd type = %v, want open", cmd["type"])
-		}
-		if _, ok := cmd["channel_id"].(string); !ok {
-			t.Error("open cmd missing channel_id")
-		}
-		if tp, ok := cmd["target_port"].(float64); !ok || int(tp) != 19100 {
-			t.Errorf("target_port = %v, want 19100", cmd["target_port"])
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("timeout waiting for open command from local listener")
-	}
-}
-
 func TestOpenLocalListener_NodeNotFound(t *testing.T) {
 	r := newTestRegistry()
 	_, err := r.OpenLocalListener("ghost", 19100)
 	if err == nil {
 		t.Fatal("expected error for missing node")
 	}
-}
-
-func newWSServer(handler func(*websocket.Conn)) *httptest.Server {
-	up := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		conn, err := up.Upgrade(w, r, nil)
-		if err != nil {
-			return
-		}
-		handler(conn)
-	}))
 }
 
 func TestRegister_SystemInfo(t *testing.T) {

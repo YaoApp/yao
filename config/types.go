@@ -1,5 +1,17 @@
 package config
 
+import "strings"
+
+// HostHasInternal reports whether a comma-separated host string contains "internal".
+func HostHasInternal(host string) bool {
+	for _, h := range strings.Split(host, ",") {
+		if strings.ToLower(strings.TrimSpace(h)) == "internal" {
+			return true
+		}
+	}
+	return false
+}
+
 // Config 象传应用引擎配置
 type Config struct {
 	Mode          string     `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
@@ -30,6 +42,12 @@ type Config struct {
 }
 
 // GRPCConfig gRPC server configuration
+//
+// Host accepts comma-separated bind addresses. Special values:
+//   - "internal" — 127.0.0.1 + auto-detect all private-network interfaces (10.x, 172.16-31.x, 192.168.x)
+//   - "localhost" — treated as 127.0.0.1
+//
+// Example: YAO_GRPC_HOST=127.0.0.1,internal
 type GRPCConfig struct {
 	Enabled string `json:"enabled,omitempty" env:"YAO_GRPC"`                          // Set "off" to disable gRPC server
 	Host    string `json:"host,omitempty" env:"YAO_GRPC_HOST" envDefault:"127.0.0.1"` // Comma-separated bind addresses

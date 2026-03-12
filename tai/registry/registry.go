@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/yaoapp/yao/tai/types"
 )
 
@@ -30,8 +29,7 @@ type TaiNode struct {
 	Ports        types.Ports
 	Capabilities types.Capabilities
 
-	ControlConn *websocket.Conn
-	connMu      sync.Mutex // protects ControlConn writes
+	registerStream any // taipb.TaiTunnel_RegisterServer (stored as any to avoid import cycle)
 
 	Status      string // "online" | "offline" | "connecting"
 	ConnectedAt time.Time
@@ -54,15 +52,8 @@ func (n *TaiNode) meta() types.NodeMeta {
 	}
 }
 
-// pendingChannel represents a channel awaiting Tai's data WS connection.
-type pendingChannel struct {
-	taiID  string
-	result chan net.Conn
-	timer  *time.Timer
-}
-
 // tunnelListener wraps a TCP listener that bridges each accepted connection
-// through the WS tunnel to a specific Tai port.
+// through the tunnel to a specific Tai port.
 type tunnelListener struct {
 	listener net.Listener
 	taiID    string
@@ -75,12 +66,17 @@ var (
 	once   sync.Once
 )
 
+// BridgeFunc bridges a local TCP connection to a target port on a tunnel node.
+// Set via SetBridgeFunc once the gRPC tunnel handler is ready.
+type BridgeFunc func(taiID string, targetPort int, localConn net.Conn)
+
 // Registry manages all Tai nodes (direct and tunnel).
 type Registry struct {
-	mu      sync.RWMutex
-	nodes   map[string]*TaiNode
-	pending map[string]*pendingChannel
-	logger  *slog.Logger
+	mu       sync.RWMutex
+	nodes    map[string]*TaiNode
+	logger   *slog.Logger
+	bridgeFn BridgeFunc
+	bridgeMu sync.RWMutex
 }
 
 // Init initializes the global registry singleton.
@@ -90,9 +86,8 @@ func Init(logger *slog.Logger) {
 			logger = slog.Default()
 		}
 		global = &Registry{
-			nodes:   make(map[string]*TaiNode),
-			pending: make(map[string]*pendingChannel),
-			logger:  logger,
+			nodes:  make(map[string]*TaiNode),
+			logger: logger,
 		}
 	})
 }
@@ -136,7 +131,7 @@ func (r *Registry) Register(node *TaiNode) {
 		"tai_id", node.TaiID, "mode", node.Mode, "version", node.Version)
 }
 
-// Unregister removes a Tai node, closes its local listeners, control connection,
+// Unregister removes a Tai node, closes its local listeners,
 // and any held ConnResources.
 func (r *Registry) Unregister(taiID string) {
 	r.mu.Lock()
@@ -146,12 +141,6 @@ func (r *Registry) Unregister(taiID string) {
 			tl.cancel()
 			tl.listener.Close()
 		}
-		node.connMu.Lock()
-		if node.ControlConn != nil {
-			node.ControlConn.Close()
-			node.ControlConn = nil
-		}
-		node.connMu.Unlock()
 		delete(r.nodes, taiID)
 	}
 	r.mu.Unlock()
@@ -187,25 +176,6 @@ func (r *Registry) List() []types.NodeMeta {
 		result = append(result, n.meta())
 	}
 	return result
-}
-
-// WriteControlJSON sends a JSON message on the node's control channel
-// with proper serialization. Returns error if node not found or not tunnel.
-func (r *Registry) WriteControlJSON(taiID string, v interface{}) error {
-	r.mu.RLock()
-	node := r.nodes[taiID]
-	r.mu.RUnlock()
-
-	if node == nil {
-		return fmt.Errorf("tai node %s not found", taiID)
-	}
-
-	node.connMu.Lock()
-	defer node.connMu.Unlock()
-	if node.ControlConn == nil {
-		return fmt.Errorf("tai node %s has no active control channel", taiID)
-	}
-	return node.ControlConn.WriteJSON(v)
 }
 
 // UpdatePing records a heartbeat timestamp.
@@ -254,10 +224,40 @@ func (r *Registry) GetResources(taiID string) (any, bool) {
 	return n.resources, true
 }
 
+// SetBridgeFunc sets the function used by OpenLocalListener to bridge
+// TCP connections through the gRPC tunnel (Forward stream).
+func (r *Registry) SetBridgeFunc(fn BridgeFunc) {
+	r.bridgeMu.Lock()
+	defer r.bridgeMu.Unlock()
+	r.bridgeFn = fn
+}
+
+// SetRegisterStream stores the gRPC Register stream for a tunnel node.
+func (r *Registry) SetRegisterStream(taiID string, stream any) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if n, ok := r.nodes[taiID]; ok {
+		n.registerStream = stream
+	}
+}
+
+// GetRegisterStream returns the gRPC Register stream for a tunnel node.
+func (r *Registry) GetRegisterStream(taiID string) any {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if n, ok := r.nodes[taiID]; ok {
+		return n.registerStream
+	}
+	return nil
+}
+
+// GenerateChannelID creates a random channel ID for Forward stream matching.
+func GenerateChannelID() (string, error) {
+	return generateChannelID()
+}
+
 // FindTaiIDByAuthClient returns the TaiID of the first node whose
 // Auth.ClientID matches the given OAuth client ID. Returns "" if not found.
-// This is needed because Tai's data channel authenticates with its OAuth
-// ClientID, which may differ from the server-assigned TaiID.
 func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -343,85 +343,6 @@ func (r *Registry) checkHealth(timeout, cleanupAfter time.Duration) {
 	}
 }
 
-// RequestChannel sends an "open" command to a tunnel-connected Tai via its
-// control channel. Returns a channel_id that Tai will use to connect back.
-// Blocks until the data channel is established or timeout.
-func (r *Registry) RequestChannel(taiID string, targetPort int) (string, chan net.Conn, error) {
-	r.mu.RLock()
-	node := r.nodes[taiID]
-	r.mu.RUnlock()
-
-	if node == nil {
-		return "", nil, fmt.Errorf("tai node %s not found", taiID)
-	}
-	if node.Mode != "tunnel" {
-		return "", nil, fmt.Errorf("tai node %s is not a tunnel node", taiID)
-	}
-	node.connMu.Lock()
-	hasConn := node.ControlConn != nil
-	node.connMu.Unlock()
-	if !hasConn {
-		return "", nil, fmt.Errorf("tai node %s has no active control channel", taiID)
-	}
-
-	channelID, err := generateChannelID()
-	if err != nil {
-		return "", nil, fmt.Errorf("generate channel_id: %w", err)
-	}
-
-	resultCh := make(chan net.Conn, 1)
-	timer := time.AfterFunc(30*time.Second, func() {
-		r.mu.Lock()
-		if pc, ok := r.pending[channelID]; ok {
-			close(pc.result)
-			delete(r.pending, channelID)
-		}
-		r.mu.Unlock()
-	})
-
-	r.mu.Lock()
-	r.pending[channelID] = &pendingChannel{taiID: taiID, result: resultCh, timer: timer}
-	r.mu.Unlock()
-
-	msg := map[string]interface{}{
-		"type":        "open",
-		"channel_id":  channelID,
-		"target_port": targetPort,
-	}
-	if err := r.WriteControlJSON(taiID, msg); err != nil {
-		r.mu.Lock()
-		delete(r.pending, channelID)
-		r.mu.Unlock()
-		timer.Stop()
-		return "", nil, fmt.Errorf("send open command: %w", err)
-	}
-
-	return channelID, resultCh, nil
-}
-
-// AcceptDataChannel resolves a pending channel when Tai connects its data WS.
-// The taiID must match the node that requested the channel via RequestChannel.
-func (r *Registry) AcceptDataChannel(channelID, taiID string, conn net.Conn) error {
-	r.mu.Lock()
-	pc, ok := r.pending[channelID]
-	if ok {
-		delete(r.pending, channelID)
-	}
-	r.mu.Unlock()
-
-	if !ok {
-		return fmt.Errorf("no pending channel for %s", channelID)
-	}
-	if pc.taiID != taiID {
-		pc.timer.Stop()
-		close(pc.result)
-		return fmt.Errorf("channel %s: tai_id mismatch (expected %s, got %s)", channelID, pc.taiID, taiID)
-	}
-	pc.timer.Stop()
-	pc.result <- conn
-	return nil
-}
-
 // OpenLocalListener creates a localhost TCP listener that tunnels every
 // accepted connection to the specified port on the given Tai node.
 // Returns the listener address (e.g. "127.0.0.1:54321").
@@ -467,37 +388,17 @@ func (r *Registry) OpenLocalListener(taiID string, targetPort int) (net.Listener
 }
 
 func (r *Registry) bridgeTunnelConn(taiID string, targetPort int, localConn net.Conn) {
-	channelID, resultCh, err := r.RequestChannel(taiID, targetPort)
-	if err != nil {
-		localConn.Close()
-		r.logger.Error("request channel failed", "tai_id", taiID, "port", targetPort, "err", err)
+	r.bridgeMu.RLock()
+	fn := r.bridgeFn
+	r.bridgeMu.RUnlock()
+
+	if fn != nil {
+		fn(taiID, targetPort, localConn)
 		return
 	}
 
-	remoteConn, ok := <-resultCh
-	if !ok || remoteConn == nil {
-		localConn.Close()
-		r.logger.Error("data channel timeout", "tai_id", taiID, "channel_id", channelID)
-		return
-	}
-
-	bridgeTCP(localConn, remoteConn)
-}
-
-// bridgeTCP copies bytes bidirectionally between two net.Conn, closing both when done.
-func bridgeTCP(a, b net.Conn) {
-	var wg sync.WaitGroup
-	wg.Add(2)
-
-	cp := func(dst, src net.Conn) {
-		defer wg.Done()
-		io.Copy(dst, src)
-		dst.Close()
-	}
-
-	go cp(a, b)
-	go cp(b, a)
-	wg.Wait()
+	localConn.Close()
+	r.logger.Error("no bridge function configured", "tai_id", taiID, "port", targetPort)
 }
 
 func generateChannelID() (string, error) {

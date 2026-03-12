@@ -184,8 +184,8 @@ var startCmd = &cobra.Command{
 			return
 		}
 		if strings.ToLower(config.Conf.GRPC.Enabled) != "off" {
-			for _, h := range strings.Split(config.Conf.GRPC.Host, ",") {
-				if occupied, proc := portOccupied(strings.TrimSpace(h), config.Conf.GRPC.Port); occupied {
+			for _, h := range yaogrpc.ExpandHosts(config.Conf.GRPC.Host) {
+				if occupied, proc := portOccupied(h, config.Conf.GRPC.Port); occupied {
 					fmt.Println(color.RedString(L("Fatal: gRPC port %d is already in use%s"), config.Conf.GRPC.Port, proc))
 					return
 				}

@@ -28,6 +28,7 @@ import (
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/service"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/test"
 
 	_ "github.com/yaoapp/gou/encoding"
@@ -95,6 +96,10 @@ func Prepare(t *testing.T) *grpc.ClientConn {
 			openapi.Server.Attach(router)
 		}
 		service.Router = router
+	}
+
+	if registry.Global() == nil {
+		registry.SetGlobalForTest(registry.NewForTest())
 	}
 
 	if err := yaogrpc.StartServer(cfg); err != nil {
