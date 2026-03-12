@@ -79,7 +79,7 @@ jobs:
           apple-private-key: ${{ secrets.APPLE_PRIVATE_KEY_USER }}
 
       - name: Load sandbox-v2 env
-        run: cat .github/env/sandbox-v2.env >> $GITHUB_ENV
+        run: grep -vE '^\s*#|^\s*$' .github/env/sandbox-v2.env >> $GITHUB_ENV
 
       - name: Setup SQLite
         run: |
