@@ -70,23 +70,6 @@ jobs:
           MONGO_INITDB_ROOT_PASSWORD: 123456
           MONGO_INITDB_DATABASE: test
 
-      mysql:
-        image: mysql:8.0
-        ports:
-          - 3308:3306
-        env:
-          MYSQL_ROOT_PASSWORD: 123456
-          MYSQL_USER: test
-          MYSQL_PASSWORD: 123456
-          MYSQL_DATABASE: test
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
-          --character-set-server=utf8mb4
-          --collation-server=utf8mb4_general_ci
-
       postgres:
         image: postgres:14
         ports:
@@ -126,6 +109,26 @@ jobs:
         run: |
           mkdir -p ${{ github.WORKSPACE }}/../app/db
           echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+
+      - name: Start MySQL 8.0
+        run: |
+          docker run -d --name mysql \
+            -e MYSQL_RANDOM_ROOT_PASSWORD=true \
+            -e MYSQL_USER=${MYSQL_TEST_USER} \
+            -e MYSQL_PASSWORD=${MYSQL_TEST_PASS} \
+            -e MYSQL_DATABASE=test \
+            -p ${MYSQL_TEST_PORT}:3306 \
+            mysql:8.0 --port=3306 --sql-mode='' \
+            --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+
+          for i in $(seq 1 30); do
+            if docker exec mysql mysqladmin ping -h 127.0.0.1 -u ${MYSQL_TEST_USER} -p${MYSQL_TEST_PASS} > /dev/null 2>&1; then
+              echo "MySQL ready"
+              break
+            fi
+            echo "Waiting for MySQL... ($i/30)"
+            sleep 2
+          done
 
       - name: Start Redis
         run: docker run --name redis -d -p 6379:6379 redis:6
@@ -333,8 +336,7 @@ jobs:
             -u ${MONGO_TEST_USER} -p ${MONGO_TEST_PASS} --authenticationDatabase admin \
             --eval "db.runCommand({ping:1})"
 
-          MYSQL_CID=$(docker ps -qf "ancestor=mysql:8.0" | head -1)
-          check "MySQL ping" docker exec "$MYSQL_CID" mysqladmin ping -h 127.0.0.1 \
+          check "MySQL ping" docker exec mysql mysqladmin ping -h 127.0.0.1 \
             -u ${MYSQL_TEST_USER} -p${MYSQL_TEST_PASS}
 
           PG_CID=$(docker ps -qf "ancestor=postgres:14" | head -1)
