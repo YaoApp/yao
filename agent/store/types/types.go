@@ -207,10 +207,16 @@ type AssistantList struct {
 // AssistantInfo contains basic assistant information for display
 // Used in chat history to show assistant details with i18n support
 type AssistantInfo struct {
-	AssistantID string `json:"assistant_id"`
-	Name        string `json:"name"`
-	Avatar      string `json:"avatar,omitempty"`
-	Description string `json:"description,omitempty"`
+	AssistantID      string                       `json:"assistant_id"`
+	Name             string                       `json:"name"`
+	Avatar           string                       `json:"avatar,omitempty"`
+	Description      string                       `json:"description,omitempty"`
+	Connector        string                       `json:"connector,omitempty"`
+	ConnectorOptions *ConnectorOptions            `json:"connector_options,omitempty"`
+	Modes            []string                     `json:"modes,omitempty"`
+	DefaultMode      string                       `json:"default_mode,omitempty"`
+	Sandbox          bool                         `json:"sandbox,omitempty"`
+	ComputerFilter   *sandboxTypes.ComputerFilter `json:"computer_filter,omitempty"`
 }
 
 // Tag represents a tag
@@ -422,44 +428,46 @@ type ConnectorOptions struct {
 
 // AssistantModel the assistant database model
 type AssistantModel struct {
-	ID                   string                      `json:"assistant_id"`                     // Assistant ID
-	Type                 string                      `json:"type,omitempty"`                   // Assistant Type, default is assistant
-	Name                 string                      `json:"name,omitempty"`                   // Assistant Name
-	Avatar               string                      `json:"avatar,omitempty"`                 // Assistant Avatar
-	Connector            string                      `json:"connector"`                        // AI Connector (default connector)
-	ConnectorOptions     *ConnectorOptions           `json:"connector_options,omitempty"`      // Connector selection options for user to choose from
-	Path                 string                      `json:"path,omitempty"`                   // Assistant Path
-	BuiltIn              bool                        `json:"built_in,omitempty"`               // Whether this is a built-in assistant
-	Sort                 int                         `json:"sort,omitempty"`                   // Assistant Sort
-	Description          string                      `json:"description,omitempty"`            // Assistant Description
-	Capabilities         string                      `json:"capabilities,omitempty"`           // Assistant capabilities description (useful for Robot orchestration)
-	Tags                 []string                    `json:"tags,omitempty"`                   // Assistant Tags
-	Modes                []string                    `json:"modes,omitempty"`                  // Supported modes (e.g., ["task", "chat"]), null means all modes are supported
-	DefaultMode          string                      `json:"default_mode,omitempty"`           // Default mode, can be empty
-	Readonly             bool                        `json:"readonly,omitempty"`               // Whether this assistant is readonly
-	Public               bool                        `json:"public,omitempty"`                 // Whether this assistant is shared across all teams in the platform
-	Share                string                      `json:"share,omitempty"`                  // Assistant sharing scope (private/team)
-	Mentionable          bool                        `json:"mentionable,omitempty"`            // Whether this assistant is mentionable
-	Automated            bool                        `json:"automated,omitempty"`              // Whether this assistant is automated
-	Options              map[string]interface{}      `json:"options,omitempty"`                // AI Options
-	Prompts              []Prompt                    `json:"prompts,omitempty"`                // AI Prompts (default prompts)
-	PromptPresets        map[string][]Prompt         `json:"prompt_presets,omitempty"`         // Prompt presets organized by mode (e.g., "chat", "task", etc.)
-	DisableGlobalPrompts bool                        `json:"disable_global_prompts,omitempty"` // Whether to disable global prompts, default is false
-	KB                   *KnowledgeBase              `json:"kb,omitempty"`                     // Knowledge base configuration
-	DB                   *Database                   `json:"db,omitempty"`                     // Database configuration
-	MCP                  *MCPServers                 `json:"mcp,omitempty"`                    // MCP servers configuration
-	Workflow             *Workflow                   `json:"workflow,omitempty"`               // Workflow configuration
-	Sandbox              *Sandbox                    `json:"sandbox,omitempty"`                // Sandbox configuration for coding agents (V1)
-	SandboxV2            *sandboxTypes.SandboxConfig `json:"-"`                                // V2 sandbox configuration (runtime only, not persisted in DB)
-	ConfigHash           string                      `json:"-"`                                // V2 sandbox config fingerprint for hot-reload
-	Placeholder          *Placeholder                `json:"placeholder,omitempty"`            // Assistant Placeholder
-	Source               string                      `json:"source,omitempty"`                 // Hook script source code
-	Locales              i18n.Map                    `json:"locales,omitempty"`                // Assistant Locales
-	Uses                 *context.Uses               `json:"uses,omitempty"`                   // Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings
-	Search               *searchTypes.Config         `json:"search,omitempty"`                 // Search configuration (web, kb, db, citation, weights, etc.)
-	Dependencies         map[string]string           `json:"dependencies,omitempty"`           // Dependencies on other MCP Clients (name -> version constraint)
-	CreatedAt            int64                       `json:"created_at"`                       // Creation timestamp
-	UpdatedAt            int64                       `json:"updated_at"`                       // Last update timestamp
+	ID                   string                       `json:"assistant_id"`                     // Assistant ID
+	Type                 string                       `json:"type,omitempty"`                   // Assistant Type, default is assistant
+	Name                 string                       `json:"name,omitempty"`                   // Assistant Name
+	Avatar               string                       `json:"avatar,omitempty"`                 // Assistant Avatar
+	Connector            string                       `json:"connector"`                        // AI Connector (default connector)
+	ConnectorOptions     *ConnectorOptions            `json:"connector_options,omitempty"`      // Connector selection options for user to choose from
+	Path                 string                       `json:"path,omitempty"`                   // Assistant Path
+	BuiltIn              bool                         `json:"built_in,omitempty"`               // Whether this is a built-in assistant
+	Sort                 int                          `json:"sort,omitempty"`                   // Assistant Sort
+	Description          string                       `json:"description,omitempty"`            // Assistant Description
+	Capabilities         string                       `json:"capabilities,omitempty"`           // Assistant capabilities description (useful for Robot orchestration)
+	Tags                 []string                     `json:"tags,omitempty"`                   // Assistant Tags
+	Modes                []string                     `json:"modes,omitempty"`                  // Supported modes (e.g., ["task", "chat"]), null means all modes are supported
+	DefaultMode          string                       `json:"default_mode,omitempty"`           // Default mode, can be empty
+	Readonly             bool                         `json:"readonly,omitempty"`               // Whether this assistant is readonly
+	Public               bool                         `json:"public,omitempty"`                 // Whether this assistant is shared across all teams in the platform
+	Share                string                       `json:"share,omitempty"`                  // Assistant sharing scope (private/team)
+	Mentionable          bool                         `json:"mentionable,omitempty"`            // Whether this assistant is mentionable
+	Automated            bool                         `json:"automated,omitempty"`              // Whether this assistant is automated
+	Options              map[string]interface{}       `json:"options,omitempty"`                // AI Options
+	Prompts              []Prompt                     `json:"prompts,omitempty"`                // AI Prompts (default prompts)
+	PromptPresets        map[string][]Prompt          `json:"prompt_presets,omitempty"`         // Prompt presets organized by mode (e.g., "chat", "task", etc.)
+	DisableGlobalPrompts bool                         `json:"disable_global_prompts,omitempty"` // Whether to disable global prompts, default is false
+	KB                   *KnowledgeBase               `json:"kb,omitempty"`                     // Knowledge base configuration
+	DB                   *Database                    `json:"db,omitempty"`                     // Database configuration
+	MCP                  *MCPServers                  `json:"mcp,omitempty"`                    // MCP servers configuration
+	Workflow             *Workflow                    `json:"workflow,omitempty"`               // Workflow configuration
+	Sandbox              *Sandbox                     `json:"sandbox,omitempty"`                // Sandbox configuration for coding agents (V1)
+	SandboxV2            *sandboxTypes.SandboxConfig  `json:"-"`                                // V2 sandbox configuration (runtime only, not persisted in DB)
+	IsSandbox            bool                         `json:"-"`                                // Whether this is a Sandbox assistant (derived from SandboxV2 presence)
+	ComputerFilter       *sandboxTypes.ComputerFilter `json:"-"`                                // Computer filter from DSL sandbox.filter (runtime only)
+	ConfigHash           string                       `json:"-"`                                // V2 sandbox config fingerprint for hot-reload
+	Placeholder          *Placeholder                 `json:"placeholder,omitempty"`            // Assistant Placeholder
+	Source               string                       `json:"source,omitempty"`                 // Hook script source code
+	Locales              i18n.Map                     `json:"locales,omitempty"`                // Assistant Locales
+	Uses                 *context.Uses                `json:"uses,omitempty"`                   // Assistant-specific wrapper configurations for vision, audio, etc. If not set, use global settings
+	Search               *searchTypes.Config          `json:"search,omitempty"`                 // Search configuration (web, kb, db, citation, weights, etc.)
+	Dependencies         map[string]string            `json:"dependencies,omitempty"`           // Dependencies on other MCP Clients (name -> version constraint)
+	CreatedAt            int64                        `json:"created_at"`                       // Creation timestamp
+	UpdatedAt            int64                        `json:"updated_at"`                       // Last update timestamp
 
 	// Permission management fields (not exposed in JSON API responses)
 	YaoCreatedBy string `json:"-"` // User who created the assistant (not exposed in JSON)

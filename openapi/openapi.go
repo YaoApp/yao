@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/openapi/app"
 	"github.com/yaoapp/yao/openapi/captcha"
 	"github.com/yaoapp/yao/openapi/chat"
+	openapiComputer "github.com/yaoapp/yao/openapi/computer"
 	"github.com/yaoapp/yao/openapi/dsl"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
@@ -180,6 +181,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	sandboxGroup := group.Group("/sandbox")
 	sandbox.Attach(sandboxGroup, openapi.OAuth)
 	sandbox.AttachManage(sandboxGroup)
+
+	// Computer option handlers (for InputArea selector)
+	openapiComputer.Attach(group.Group("/computer"), openapi.OAuth)
 
 	// Workspace handlers
 	openapiWorkspace.Attach(group.Group("/workspace"), openapi.OAuth)

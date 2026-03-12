@@ -23,6 +23,7 @@ type SandboxConfig struct {
 	Prepare     []PrepareStep     `json:"prepare,omitempty" yaml:"prepare,omitempty"`
 	Environment map[string]string `json:"environment,omitempty" yaml:"environment,omitempty"`
 	Secrets     map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Filter      *ComputerFilter   `json:"filter,omitempty" yaml:"filter,omitempty"`
 
 	// Populated by the framework at runtime (never serialized).
 	Owner       string            `json:"-" yaml:"-"`
@@ -31,6 +32,19 @@ type SandboxConfig struct {
 	NodeID      string            `json:"-" yaml:"-"`
 	Kind        string            `json:"-" yaml:"-"`
 	WorkspaceID string            `json:"-" yaml:"-"`
+}
+
+// ComputerFilter defines the query parameters for GET /computer/options.
+// Declared in DSL sandbox.filter; frontend passes it through to the API.
+type ComputerFilter struct {
+	Kind    string            `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Image   string            `json:"image,omitempty" yaml:"image,omitempty"`
+	VNC     *bool             `json:"vnc,omitempty" yaml:"vnc,omitempty"`
+	OS      string            `json:"os,omitempty" yaml:"os,omitempty"`
+	Arch    string            `json:"arch,omitempty" yaml:"arch,omitempty"`
+	MinCPUs float64           `json:"min_cpus,omitempty" yaml:"min_cpus,omitempty"`
+	MinMem  string            `json:"min_mem,omitempty" yaml:"min_mem,omitempty"`
+	Labels  map[string]string `json:"labels,omitempty" yaml:"labels,omitempty"`
 }
 
 // ComputerConfig describes the execution environment (container or host).

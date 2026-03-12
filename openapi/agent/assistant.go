@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent"
-	"github.com/yaoapp/yao/agent/assistant"
+	assistantPkg "github.com/yaoapp/yao/agent/assistant"
 	agenttypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -415,13 +415,13 @@ func CreateAssistant(c *gin.Context) {
 	assistantData["assistant_id"] = id
 
 	// Clear cache and reload assistant to make it effective
-	cache := assistant.GetCache()
+	cache := assistantPkg.GetCache()
 	if cache != nil {
 		cache.Remove(id)
 	}
 
 	// Reload the assistant to ensure it's available in cache with updated data
-	_, err = assistant.Get(id)
+	_, err = assistantPkg.Get(id)
 	if err != nil {
 		// Just log the error, don't fail the request
 		log.Error("Error reloading assistant %s: %v", id, err)
@@ -520,13 +520,13 @@ func UpdateAssistant(c *gin.Context) {
 	}
 
 	// Clear cache and reload assistant to make it effective
-	cache := assistant.GetCache()
+	cache := assistantPkg.GetCache()
 	if cache != nil {
 		cache.Remove(assistantID)
 	}
 
 	// Reload the assistant to ensure it's available in cache with updated data
-	_, err = assistant.Get(assistantID)
+	_, err = assistantPkg.Get(assistantID)
 	if err != nil {
 		// Just log the error, don't fail the request
 		log.Error("Error reloading assistant %s: %v", assistantID, err)
@@ -539,24 +539,10 @@ func UpdateAssistant(c *gin.Context) {
 }
 
 // GetAssistantInfo retrieves essential assistant information for InputArea component
-// Returns only the fields needed for UI display: id, name, avatar, description, connector, connector_options, modes, default_mode
 func GetAssistantInfo(c *gin.Context) {
 
-	// Get authorized information
 	authInfo := authorized.GetInfo(c)
 
-	// Get Agent instance from global variable
-	agentInstance := agent.GetAgent()
-	if agentInstance == nil || agentInstance.Store == nil {
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Agent store not initialized",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Get assistant ID from URL parameter
 	assistantID := c.Param("id")
 	if assistantID == "" {
 		errorResp := &response.ErrorResponse{
@@ -567,37 +553,11 @@ func GetAssistantInfo(c *gin.Context) {
 		return
 	}
 
-	// Parse locale (optional - defaults to "en-us")
 	locale := "en-us"
 	if loc := c.Query("locale"); loc != "" {
 		locale = strings.ToLower(strings.TrimSpace(loc))
 	}
 
-	// Define fields needed for InputArea
-	infoFields := []string{
-		"assistant_id",
-		"name",
-		"avatar",
-		"description",
-		"connector",
-		"connector_options",
-		"modes",
-		"default_mode",
-	}
-
-	// Get assistant with specific fields and locale
-	assistant, err := agentInstance.Store.GetAssistant(assistantID, infoFields, locale)
-	if err != nil {
-		log.Error("Failed to get assistant info %s: %v", assistantID, err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrInvalidRequest.Code,
-			ErrorDescription: "Assistant not found: " + err.Error(),
-		}
-		response.RespondWithError(c, response.StatusNotFound, errorResp)
-		return
-	}
-
-	// Check read permission (same as GetAssistant)
 	hasPermission, err := checkAssistantPermission(authInfo, assistantID, true)
 	if err != nil {
 		log.Error("Failed to check permission for assistant %s: %v", assistantID, err)
@@ -618,28 +578,18 @@ func GetAssistantInfo(c *gin.Context) {
 		return
 	}
 
-	// Build response with only the required fields
-	infoResponse := map[string]interface{}{
-		"assistant_id": assistant.ID,
-		"name":         assistant.Name,
-		"avatar":       assistant.Avatar,
-		"description":  assistant.Description,
-		"connector":    assistant.Connector,
+	ast, err := assistantPkg.Get(assistantID)
+	if err != nil || ast == nil {
+		log.Error("Failed to get assistant info %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Assistant not found",
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
 	}
 
-	// Add optional fields if they exist
-	if assistant.ConnectorOptions != nil {
-		infoResponse["connector_options"] = assistant.ConnectorOptions
-	}
-	if len(assistant.Modes) > 0 {
-		infoResponse["modes"] = assistant.Modes
-	}
-	if assistant.DefaultMode != "" {
-		infoResponse["default_mode"] = assistant.DefaultMode
-	}
-
-	// Return the result with standard response format
-	response.RespondWithSuccess(c, response.StatusOK, infoResponse)
+	response.RespondWithSuccess(c, response.StatusOK, ast.GetInfo(locale))
 }
 
 // checkAssistantPermission checks if the user has permission to access the assistant
