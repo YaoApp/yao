@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 	"rogchap.com/v8go"
 )
 
@@ -63,17 +64,17 @@ func sbNodesByTeam(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	return snapshotsToJSArray(v8ctx, snaps)
 }
 
-// snapshotToJS converts a NodeSnapshot to a JS NodeInfo object.
+// snapshotToJS converts a NodeMeta to a JS NodeInfo object.
 // Auth and YaoBase are excluded for security.
-func snapshotToJS(v8ctx *v8go.Context, snap *registry.NodeSnapshot) (*v8go.Value, error) {
-	ports := make(map[string]interface{}, len(snap.Ports))
-	for k, v := range snap.Ports {
-		ports[k] = v
+func snapshotToJS(v8ctx *v8go.Context, snap *taitypes.NodeMeta) (*v8go.Value, error) {
+	ports := map[string]interface{}{
+		"grpc": snap.Ports.GRPC, "http": snap.Ports.HTTP,
+		"vnc": snap.Ports.VNC, "docker": snap.Ports.Docker, "k8s": snap.Ports.K8s,
 	}
 
-	caps := make(map[string]interface{}, len(snap.Capabilities))
-	for k, v := range snap.Capabilities {
-		caps[k] = v
+	caps := map[string]interface{}{
+		"docker": snap.Capabilities.Docker, "k8s": snap.Capabilities.K8s,
+		"host_exec": snap.Capabilities.HostExec,
 	}
 
 	data, err := json.Marshal(map[string]interface{}{
@@ -103,17 +104,17 @@ func snapshotToJS(v8ctx *v8go.Context, snap *registry.NodeSnapshot) (*v8go.Value
 	return v8go.JSONParse(v8ctx, string(data))
 }
 
-func snapshotsToJSArray(v8ctx *v8go.Context, snaps []registry.NodeSnapshot) *v8go.Value {
+func snapshotsToJSArray(v8ctx *v8go.Context, snaps []taitypes.NodeMeta) *v8go.Value {
 	items := make([]interface{}, 0, len(snaps))
 	for i := range snaps {
 		snap := &snaps[i]
-		ports := make(map[string]interface{}, len(snap.Ports))
-		for k, v := range snap.Ports {
-			ports[k] = v
+		ports := map[string]interface{}{
+			"grpc": snap.Ports.GRPC, "http": snap.Ports.HTTP,
+			"vnc": snap.Ports.VNC, "docker": snap.Ports.Docker, "k8s": snap.Ports.K8s,
 		}
-		caps := make(map[string]interface{}, len(snap.Capabilities))
-		for k, v := range snap.Capabilities {
-			caps[k] = v
+		caps := map[string]interface{}{
+			"docker": snap.Capabilities.Docker, "k8s": snap.Capabilities.K8s,
+			"host_exec": snap.Capabilities.HostExec,
 		}
 		items = append(items, map[string]interface{}{
 			"tai_id":       snap.TaiID,

@@ -31,7 +31,7 @@ func HandleProxy(c *gin.Context) {
 		return
 	}
 
-	httpPort := node.Ports["http"]
+	httpPort := node.Ports.HTTP
 	if httpPort == 0 {
 		httpPort = 8099
 	}
@@ -102,7 +102,7 @@ func HandleVNC(c *gin.Context) {
 		return
 	}
 
-	vncPort := node.Ports["vnc"]
+	vncPort := node.Ports.VNC
 	if vncPort == 0 {
 		vncPort = 16080
 	}

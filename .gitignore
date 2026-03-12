@@ -76,3 +76,4 @@ registry/data/
 registry/manager/DESIGN*.md
 tai/testdata/
 agent/sandbox/docs/*.md
+tai/docs/refactor-registration.md

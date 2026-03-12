@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/yaoapp/yao/tai/types"
 )
 
 // newTestRegistry creates a standalone registry for testing (bypasses global singleton).
@@ -29,7 +30,7 @@ func TestRegister_SetsFieldsAndOnline(t *testing.T) {
 		MachineID: "m-abc",
 		Version:   "1.0.0",
 		Mode:      "tunnel",
-		Ports:     map[string]int{"grpc": 19100},
+		Ports:     types.Ports{GRPC: 19100},
 	}
 	r.Register(node)
 
@@ -117,14 +118,14 @@ func TestSnapshot_DeepCopy(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{
 		TaiID: "tai-001",
-		Ports: map[string]int{"grpc": 19100, "http": 8099},
+		Ports: types.Ports{GRPC: 19100, HTTP: 8099},
 	})
 
 	snap, _ := r.Get("tai-001")
-	snap.Ports["grpc"] = 0
+	snap.Ports.GRPC = 0
 
 	snap2, _ := r.Get("tai-001")
-	if snap2.Ports["grpc"] != 19100 {
+	if snap2.Ports.GRPC != 19100 {
 		t.Error("snapshot modification leaked into registry node")
 	}
 }
@@ -479,7 +480,7 @@ func TestRegister_SystemInfo(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{
 		TaiID: "tai-001",
-		System: SystemInfo{
+		System: types.SystemInfo{
 			OS:       "linux",
 			Arch:     "amd64",
 			Hostname: "docker-host-01",
@@ -507,9 +508,9 @@ func TestRegister_SystemInfo(t *testing.T) {
 
 func TestListByTeam(t *testing.T) {
 	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-a", Auth: AuthInfo{TeamID: "team-dev"}})
-	r.Register(&TaiNode{TaiID: "tai-b", Auth: AuthInfo{TeamID: "team-dev"}})
-	r.Register(&TaiNode{TaiID: "tai-c", Auth: AuthInfo{TeamID: "team-ops"}})
+	r.Register(&TaiNode{TaiID: "tai-a", Auth: types.AuthInfo{TeamID: "team-dev"}})
+	r.Register(&TaiNode{TaiID: "tai-b", Auth: types.AuthInfo{TeamID: "team-dev"}})
+	r.Register(&TaiNode{TaiID: "tai-c", Auth: types.AuthInfo{TeamID: "team-ops"}})
 
 	devNodes := r.ListByTeam("team-dev")
 	if len(devNodes) != 2 {
@@ -604,11 +605,11 @@ func TestStartHealthCheck_PingKeepsAlive(t *testing.T) {
 	}
 }
 
-func TestNodeSnapshot_AuthInfo(t *testing.T) {
+func TestNodeMeta_AuthInfo(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{
 		TaiID: "tai-001",
-		Auth: AuthInfo{
+		Auth: types.AuthInfo{
 			Subject:  "user123",
 			ClientID: "tai-001",
 			Scope:    "tai:tunnel",

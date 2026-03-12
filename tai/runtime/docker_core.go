@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"bytes"
@@ -15,7 +15,7 @@ import (
 	"github.com/docker/go-connections/nat"
 )
 
-// dockerCore contains Docker SDK operations shared by both Local and Docker (via Tai) sandboxes.
+// dockerCore contains Docker SDK operations shared by both Local and Docker (via Tai) runtimes.
 type dockerCore struct {
 	cli *client.Client
 }

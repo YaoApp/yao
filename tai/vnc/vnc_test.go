@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/yaoapp/yao/tai/sandbox"
+	"github.com/yaoapp/yao/tai/runtime"
 )
 
 func TestRemoteURL(t *testing.T) {
@@ -63,10 +63,10 @@ func TestRemotePingError(t *testing.T) {
 
 func TestLocalURL(t *testing.T) {
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
-			return &sandbox.ContainerInfo{
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
+			return &runtime.ContainerInfo{
 				ID: id,
-				Ports: []sandbox.PortMapping{
+				Ports: []runtime.PortMapping{
 					{ContainerPort: 6080, HostPort: 49152, HostIP: "127.0.0.1", Protocol: "tcp"},
 				},
 			}, nil
@@ -86,10 +86,10 @@ func TestLocalURL(t *testing.T) {
 
 func TestLocalURLEmptyHostIP(t *testing.T) {
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
-			return &sandbox.ContainerInfo{
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
+			return &runtime.ContainerInfo{
 				ID: id,
-				Ports: []sandbox.PortMapping{
+				Ports: []runtime.PortMapping{
 					{ContainerPort: 6080, HostPort: 49152, HostIP: "", Protocol: "tcp"},
 				},
 			}, nil
@@ -109,8 +109,8 @@ func TestLocalURLEmptyHostIP(t *testing.T) {
 
 func TestLocalURLPortNotFound(t *testing.T) {
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
-			return &sandbox.ContainerInfo{ID: id}, nil
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
+			return &runtime.ContainerInfo{ID: id}, nil
 		},
 	}
 
@@ -123,7 +123,7 @@ func TestLocalURLPortNotFound(t *testing.T) {
 
 func TestLocalURLInspectError(t *testing.T) {
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
 			return nil, fmt.Errorf("not found")
 		},
 	}
@@ -157,10 +157,10 @@ func TestLocalPingSuccess(t *testing.T) {
 	}
 
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
-			return &sandbox.ContainerInfo{
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
+			return &runtime.ContainerInfo{
 				ID: id,
-				Ports: []sandbox.PortMapping{
+				Ports: []runtime.PortMapping{
 					{ContainerPort: 6080, HostPort: port, HostIP: "127.0.0.1", Protocol: "tcp"},
 				},
 			}, nil
@@ -175,7 +175,7 @@ func TestLocalPingSuccess(t *testing.T) {
 
 func TestLocalPingError(t *testing.T) {
 	mock := &mockSandbox{
-		inspectFn: func(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
+		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
 			return nil, fmt.Errorf("not found")
 		},
 	}
@@ -186,12 +186,12 @@ func TestLocalPingError(t *testing.T) {
 	}
 }
 
-// mockSandbox implements sandbox.Sandbox for testing.
+// mockSandbox implements runtime.Sandbox for testing.
 type mockSandbox struct {
-	inspectFn func(ctx context.Context, id string) (*sandbox.ContainerInfo, error)
+	inspectFn func(ctx context.Context, id string) (*runtime.ContainerInfo, error)
 }
 
-func (m *mockSandbox) Create(ctx context.Context, opts sandbox.CreateOptions) (string, error) {
+func (m *mockSandbox) Create(ctx context.Context, opts runtime.CreateOptions) (string, error) {
 	return "", nil
 }
 func (m *mockSandbox) Start(ctx context.Context, id string) error { return nil }
@@ -199,19 +199,19 @@ func (m *mockSandbox) Stop(ctx context.Context, id string, timeout time.Duration
 	return nil
 }
 func (m *mockSandbox) Remove(ctx context.Context, id string, force bool) error { return nil }
-func (m *mockSandbox) Exec(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.ExecResult, error) {
+func (m *mockSandbox) Exec(ctx context.Context, id string, cmd []string, opts runtime.ExecOptions) (*runtime.ExecResult, error) {
 	return nil, nil
 }
-func (m *mockSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts sandbox.ExecOptions) (*sandbox.StreamHandle, error) {
+func (m *mockSandbox) ExecStream(ctx context.Context, id string, cmd []string, opts runtime.ExecOptions) (*runtime.StreamHandle, error) {
 	return nil, nil
 }
-func (m *mockSandbox) Inspect(ctx context.Context, id string) (*sandbox.ContainerInfo, error) {
+func (m *mockSandbox) Inspect(ctx context.Context, id string) (*runtime.ContainerInfo, error) {
 	if m.inspectFn != nil {
 		return m.inspectFn(ctx, id)
 	}
-	return &sandbox.ContainerInfo{ID: id}, nil
+	return &runtime.ContainerInfo{ID: id}, nil
 }
-func (m *mockSandbox) List(ctx context.Context, opts sandbox.ListOptions) ([]sandbox.ContainerInfo, error) {
+func (m *mockSandbox) List(ctx context.Context, opts runtime.ListOptions) ([]runtime.ContainerInfo, error) {
 	return nil, nil
 }
 func (m *mockSandbox) Close() error { return nil }

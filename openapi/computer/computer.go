@@ -10,6 +10,7 @@ import (
 	sandboxv2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -87,7 +88,7 @@ func handleOptions(c *gin.Context) {
 			if !nodeOwnedBy(s, authInfo) {
 				continue
 			}
-			if !s.Capabilities["host_exec"] {
+			if !s.Capabilities.HostExec {
 				continue
 			}
 			if !matchNodeFilter(s, osFilter, archFilter, minCPUs, minMem) {
@@ -104,7 +105,7 @@ func handleOptions(c *gin.Context) {
 			if !nodeOwnedBy(s, authInfo) {
 				continue
 			}
-			hasRuntime := s.Capabilities["docker"] || s.Capabilities["k8s"]
+			hasRuntime := s.Capabilities.Docker || s.Capabilities.K8s
 			if !hasRuntime {
 				continue
 			}
@@ -147,7 +148,7 @@ func handleOptions(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
-func matchNodeFilter(s *registry.NodeSnapshot, osFilter, archFilter string, minCPUs float64, minMem int64) bool {
+func matchNodeFilter(s *taitypes.NodeMeta, osFilter, archFilter string, minCPUs float64, minMem int64) bool {
 	if osFilter != "" && !strings.EqualFold(s.System.OS, osFilter) {
 		return false
 	}
@@ -163,7 +164,7 @@ func matchNodeFilter(s *registry.NodeSnapshot, osFilter, archFilter string, minC
 	return true
 }
 
-func nodeToHostOption(s registry.NodeSnapshot) computerOption {
+func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 	displayName := s.DisplayName
 	if displayName == "" {
 		displayName = s.System.Hostname
@@ -204,7 +205,7 @@ func nodeToHostOption(s registry.NodeSnapshot) computerOption {
 	}
 }
 
-func nodeToNodeOption(s registry.NodeSnapshot) computerOption {
+func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
 	displayName := s.DisplayName
 	if displayName == "" {
 		displayName = s.System.Hostname
@@ -255,7 +256,7 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 	}
 
 	var mode, addr string
-	if ns, ok := tai.GetNodeSnapshot(snap.NodeID); ok {
+	if ns, ok := tai.GetNodeMeta(snap.NodeID); ok {
 		mode = ns.Mode
 		addr = ns.Addr
 	}
@@ -289,7 +290,7 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 	}
 }
 
-func nodeOwnedBy(snap *registry.NodeSnapshot, authInfo *oauthTypes.AuthorizedInfo) bool {
+func nodeOwnedBy(snap *taitypes.NodeMeta, authInfo *oauthTypes.AuthorizedInfo) bool {
 	if authInfo == nil {
 		return true
 	}

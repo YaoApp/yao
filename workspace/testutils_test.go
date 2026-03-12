@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -60,32 +61,52 @@ func ensureRegistry(tb testing.TB) {
 func setupManagerForPool(tb testing.TB, pc poolConfig) *workspace.Manager {
 	tb.Helper()
 	ensureRegistry(tb)
-	registerClient(tb, pc)
+	registerForTest(tb, pc)
 	return workspace.NewManager()
 }
 
-func registerClient(tb testing.TB, pc poolConfig) *tai.Client {
+func registerForTest(tb testing.TB, pc poolConfig) {
 	tb.Helper()
 	if pc.Addr == "local" {
-		return localClient(tb, tb.TempDir())
+		registerLocalForTest(tb, tb.TempDir())
+		return
 	}
-	client, err := tai.New(pc.Addr)
+	host, grpcPort := parseHostPort(pc.Addr)
+	ports := tai.Ports{GRPC: grpcPort}
+	res, err := tai.DialRemote(host, ports)
 	if err != nil {
-		tb.Fatalf("tai.New(%s): %v", pc.Addr, err)
+		tb.Fatalf("DialRemote(%s): %v", pc.Addr, err)
 	}
-	tb.Cleanup(func() { client.Close() })
-	return client
+	taiID := taiIDFromAddr(pc.Addr)
+	reg := registry.Global()
+	reg.Register(&registry.TaiNode{TaiID: taiID, Mode: "direct"})
+	reg.SetResources(taiID, res)
+	tb.Cleanup(func() { res.Close() })
 }
 
-func localClient(tb testing.TB, dataDir string) *tai.Client {
+func registerLocalForTest(tb testing.TB, dataDir string) {
 	tb.Helper()
 	vol := volume.NewLocal(dataDir)
-	client, err := tai.New("local", tai.WithVolume(vol), tai.WithDataDir(dataDir))
+	res, err := tai.DialLocal("", dataDir, vol)
 	if err != nil {
-		tb.Fatalf("tai.New local: %v", err)
+		tb.Fatalf("DialLocal: %v", err)
 	}
-	tb.Cleanup(func() { client.Close() })
-	return client
+	reg := registry.Global()
+	reg.Register(&registry.TaiNode{TaiID: "local", Mode: "local"})
+	reg.SetResources("local", res)
+	tb.Cleanup(func() { res.Close() })
+}
+
+func parseHostPort(addr string) (string, int) {
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	h := parts[0]
+	if len(parts) == 2 {
+		if p, err := strconv.Atoi(parts[1]); err == nil {
+			return h, p
+		}
+	}
+	return h, 19100
 }
 
 func setupManagerMultiNode(t *testing.T) (*workspace.Manager, string, string) {
@@ -94,19 +115,26 @@ func setupManagerMultiNode(t *testing.T) (*workspace.Manager, string, string) {
 
 	dir1 := t.TempDir()
 	vol1 := volume.NewLocal(dir1)
-	_, err := tai.New("docker://node-a", tai.WithVolume(vol1), tai.WithDataDir(dir1))
+	res1, err := tai.DialLocal("", dir1, vol1)
 	if err != nil {
-		t.Fatalf("tai.New node-a: %v", err)
+		t.Fatalf("DialLocal node-a: %v", err)
 	}
+	reg := registry.Global()
+	reg.Register(&registry.TaiNode{TaiID: "node-a", Mode: "local"})
+	reg.SetResources("node-a", res1)
+	t.Cleanup(func() { res1.Close() })
 
 	dir2 := t.TempDir()
 	vol2 := volume.NewLocal(dir2)
-	_, err = tai.New("docker://node-b", tai.WithVolume(vol2), tai.WithDataDir(dir2))
+	res2, err := tai.DialLocal("", dir2, vol2)
 	if err != nil {
-		t.Fatalf("tai.New node-b: %v", err)
+		t.Fatalf("DialLocal node-b: %v", err)
 	}
+	reg.Register(&registry.TaiNode{TaiID: "node-b", Mode: "local"})
+	reg.SetResources("node-b", res2)
+	t.Cleanup(func() { res2.Close() })
 
-	return workspace.NewManager(), "docker://node-a", "docker://node-b"
+	return workspace.NewManager(), "node-a", "node-b"
 }
 
 func createWorkspace(tb testing.TB, m *workspace.Manager, node string, opts ...func(*workspace.CreateOptions)) *workspace.Workspace {

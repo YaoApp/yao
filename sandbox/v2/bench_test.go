@@ -7,7 +7,6 @@ import (
 	"time"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
-	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 )
 
@@ -225,15 +224,12 @@ func BenchmarkWorkspaceReadWrite(b *testing.B) {
 
 func setupManagerForBench(b *testing.B, pc *nodeConfig) *sandbox.Manager {
 	b.Helper()
-	reg := registry.Global()
-	if reg == nil {
+	if registry.Global() == nil {
 		registry.Init(nil)
 	}
-	client, err := tai.New(pc.Addr, pc.Options...)
-	if err != nil {
-		b.Fatalf("tai.New(%s): %v", pc.Addr, err)
-	}
-	pc.TaiID = client.TaiID()
+	taiID, res := registerForTest(b, pc.Addr, pc.DialOps...)
+	pc.TaiID = taiID
+	b.Cleanup(func() { res.Close() })
 	sandbox.Init()
 	m := sandbox.M()
 	b.Cleanup(func() { m.Close() })

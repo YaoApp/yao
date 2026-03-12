@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"context"
@@ -12,9 +12,9 @@ type local struct {
 	core dockerCore
 }
 
-// NewLocal creates a Sandbox backed by a direct Docker daemon connection.
+// NewLocal creates a Runtime backed by a direct Docker daemon connection.
 // addr can be "unix:///var/run/docker.sock", "tcp://host:port", or "" for platform default.
-func NewLocal(addr string) (Sandbox, error) {
+func NewLocal(addr string) (Runtime, error) {
 	opts := []client.Opt{client.WithAPIVersionNegotiation()}
 	if addr != "" {
 		opts = append(opts, client.WithHost(addr))

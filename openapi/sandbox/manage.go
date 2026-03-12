@@ -13,6 +13,7 @@ import (
 	sandboxv2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 // AttachManage registers sandbox management CRUD routes on the given group.
@@ -115,7 +116,7 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 	}
 
 	var mode, addr string
-	if ns, ok := tai.GetNodeSnapshot(snap.NodeID); ok {
+	if ns, ok := tai.GetNodeMeta(snap.NodeID); ok {
 		mode = ns.Mode
 		addr = ns.Addr
 	}
@@ -157,7 +158,7 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 	}
 }
 
-func hostToResponse(s registry.NodeSnapshot) sandboxResponse {
+func hostToResponse(s taitypes.NodeMeta) sandboxResponse {
 	displayName := s.DisplayName
 	if displayName == "" {
 		displayName = s.System.Hostname
@@ -209,7 +210,7 @@ func hostToResponse(s registry.NodeSnapshot) sandboxResponse {
 	}
 }
 
-func nodeOwnedBy(snap *registry.NodeSnapshot, authInfo *types.AuthorizedInfo) bool {
+func nodeOwnedBy(snap *taitypes.NodeMeta, authInfo *types.AuthorizedInfo) bool {
 	if authInfo == nil {
 		return true
 	}
@@ -257,7 +258,7 @@ func handleList(c *gin.Context) {
 			if !nodeOwnedBy(s, authInfo) {
 				continue
 			}
-			if !s.Capabilities["host_exec"] {
+			if !s.Capabilities.HostExec {
 				continue
 			}
 			if nodeFilter != "" && s.TaiID != nodeFilter {

@@ -2,6 +2,7 @@ package jsapi_test
 
 import (
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -34,19 +35,48 @@ func setupForMode(t *testing.T, m testMode) {
 	test.Prepare(t, config.Conf)
 	registry.Init(nil)
 
-	var client *tai.Client
-	var err error
 	if m.Addr == "local" {
 		dataDir := t.TempDir()
 		vol := volume.NewLocal(dataDir)
-		client, err = tai.New("local", tai.WithVolume(vol), tai.WithDataDir(dataDir))
+		res, err := tai.DialLocal("", dataDir, vol)
+		if err != nil {
+			t.Fatalf("DialLocal: %v", err)
+		}
+		reg := registry.Global()
+		reg.Register(&registry.TaiNode{TaiID: "local", Mode: "local"})
+		reg.SetResources("local", res)
+		t.Cleanup(func() { res.Close() })
 	} else {
-		client, err = tai.New(m.Addr)
+		host, grpcPort := parseHostPort(m.Addr)
+		ports := tai.Ports{GRPC: grpcPort}
+		res, err := tai.DialRemote(host, ports)
+		if err != nil {
+			t.Fatalf("DialRemote(%s): %v", m.Addr, err)
+		}
+		taiID := taiIDFromAddr(m.Addr)
+		reg := registry.Global()
+		reg.Register(&registry.TaiNode{TaiID: taiID, Mode: "direct"})
+		reg.SetResources(taiID, res)
+		t.Cleanup(func() { res.Close() })
 	}
-	if err != nil {
-		t.Fatalf("tai.New(%s): %v", m.Addr, err)
+}
+
+func taiIDFromAddr(addr string) string {
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	return parts[0]
+}
+
+func parseHostPort(addr string) (string, int) {
+	addr = strings.TrimPrefix(addr, "tai://")
+	parts := strings.SplitN(addr, ":", 2)
+	h := parts[0]
+	if len(parts) == 2 {
+		if p, err := strconv.Atoi(parts[1]); err == nil {
+			return h, p
+		}
 	}
-	t.Cleanup(func() { client.Close() })
+	return h, 19100
 }
 
 func setupGlobal(t *testing.T) {

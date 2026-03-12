@@ -1,4 +1,4 @@
-package sandbox
+package runtime
 
 import (
 	"context"
@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// Sandbox manages container lifecycle.
+// Runtime manages container lifecycle.
 // Local connects directly to a Docker daemon; Docker/Containerd/K8s connect via Tai proxy.
-type Sandbox interface {
+type Runtime interface {
 	Create(ctx context.Context, opts CreateOptions) (string, error)
 	Start(ctx context.Context, id string) error
 	Stop(ctx context.Context, id string, timeout time.Duration) error

@@ -16,6 +16,7 @@ import (
 	tai "github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/taiid"
+	"github.com/yaoapp/yao/tai/types"
 )
 
 var upgrader = websocket.Upgrader{
@@ -91,8 +92,8 @@ func HandleControl(c *gin.Context) {
 		Mode:         "tunnel",
 		Addr:         addr,
 		YaoBase:      regMsg.Server,
-		Ports:        regMsg.Ports,
-		Capabilities: regMsg.Capabilities,
+		Ports:        portsFromMap(regMsg.Ports),
+		Capabilities: capsFromMap(regMsg.Capabilities),
 		ControlConn:  conn,
 	}
 	reg.Register(node)
@@ -183,16 +184,16 @@ func HandleData(c *gin.Context) {
 
 // registerMessage is the JSON structure for Tai's register message.
 type registerMessage struct {
-	Type         string              `json:"type"`
-	NodeID       string              `json:"node_id,omitempty"`
-	ClientID     string              `json:"client_id,omitempty"`
-	MachineID    string              `json:"machine_id"`
-	DisplayName  string              `json:"display_name,omitempty"`
-	Version      string              `json:"version"`
-	Server       string              `json:"server"`
-	Ports        map[string]int      `json:"ports"`
-	Capabilities map[string]bool     `json:"capabilities"`
-	System       registry.SystemInfo `json:"system"`
+	Type         string           `json:"type"`
+	NodeID       string           `json:"node_id,omitempty"`
+	ClientID     string           `json:"client_id,omitempty"`
+	MachineID    string           `json:"machine_id"`
+	DisplayName  string           `json:"display_name,omitempty"`
+	Version      string           `json:"version"`
+	Server       string           `json:"server"`
+	Ports        map[string]int   `json:"ports"`
+	Capabilities map[string]bool  `json:"capabilities"`
+	System       types.SystemInfo `json:"system"`
 }
 
 // controlMsg is a generic control channel message.
@@ -210,20 +211,20 @@ func extractBearer(r *http.Request) string {
 
 var authenticateBearerFunc = authenticateBearerDefault
 
-func authenticateBearerDefault(token string) (registry.AuthInfo, error) {
+func authenticateBearerDefault(token string) (types.AuthInfo, error) {
 	svc := oauth.OAuth
 	if svc == nil {
-		return registry.AuthInfo{}, fmt.Errorf("oauth service not initialized")
+		return types.AuthInfo{}, fmt.Errorf("oauth service not initialized")
 	}
 
 	result, err := svc.AuthenticateToken(oauth.AuthInput{
 		AccessToken: token,
 	})
 	if err != nil {
-		return registry.AuthInfo{}, err
+		return types.AuthInfo{}, err
 	}
 
-	info := registry.AuthInfo{}
+	info := types.AuthInfo{}
 	if result.Info != nil {
 		info.Subject = result.Info.Subject
 		info.UserID = result.Info.UserID
@@ -324,14 +325,33 @@ func (c *wsConn) SetDeadline(t time.Time) error {
 func (c *wsConn) SetReadDeadline(t time.Time) error  { return c.ws.SetReadDeadline(t) }
 func (c *wsConn) SetWriteDeadline(t time.Time) error { return c.ws.SetWriteDeadline(t) }
 
-// connectTunnelNode creates a tai.Client through the tunnel and binds it to the taiID.
+func portsFromMap(m map[string]int) types.Ports {
+	return types.Ports{
+		GRPC:   m["grpc"],
+		HTTP:   m["http"],
+		VNC:    m["vnc"],
+		Docker: m["docker"],
+		K8s:    m["k8s"],
+	}
+}
+
+func capsFromMap(m map[string]bool) types.Capabilities {
+	return types.Capabilities{
+		Docker:   m["docker"],
+		K8s:      m["k8s"],
+		HostExec: m["host_exec"],
+	}
+}
+
+// connectTunnelNode dials the Tai node through the WS tunnel and binds
+// the returned ConnResources to the taiID in the registry.
 func connectTunnelNode(taiID string, reg *registry.Registry, logger *slog.Logger) {
-	client, err := tai.New("tunnel://" + taiID)
+	res, err := tai.DialTunnel(taiID, reg)
 	if err != nil {
 		logger.Warn("failed to connect tunnel node",
 			"tai_id", taiID, "err", err)
 		return
 	}
-	_ = client // initTunnel already calls reg.SetClient(taiID, c)
-	logger.Info("tai client created for tunnel node", "tai_id", taiID)
+	reg.SetResources(taiID, res)
+	logger.Info("tunnel node connected", "tai_id", taiID)
 }

@@ -7,7 +7,7 @@ import (
 	"io"
 
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
-	"github.com/yaoapp/yao/tai/workspace"
+	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
 // Host represents a Tai host machine execution environment.
@@ -44,12 +44,12 @@ func (h *Host) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exe
 		return nil, fmt.Errorf("sandbox: empty command")
 	}
 
-	client, err := h.manager.getNode(h.nodeID)
+	res, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	he := client.HostExec()
+	he := res.HostExec
 	if he == nil {
 		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
@@ -100,12 +100,12 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 		return nil, fmt.Errorf("sandbox: empty command")
 	}
 
-	client, err := h.manager.getNode(h.nodeID)
+	res, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	he := client.HostExec()
+	he := res.HostExec
 	if he == nil {
 		return nil, fmt.Errorf("sandbox: host_exec not available on node %q", h.nodeID)
 	}
@@ -189,21 +189,27 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 // VNC returns the VNC WebSocket URL for the Tai host machine.
 // Uses the special __host__ identifier to route to localhost:5900 on the Tai server.
 func (h *Host) VNC(ctx context.Context) (string, error) {
-	client, err := h.manager.getNode(h.nodeID)
+	res, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return "", err
 	}
-	return client.VNC().URL(ctx, "__host__")
+	if res.VNC == nil {
+		return "", fmt.Errorf("sandbox: vnc not available on node %q", h.nodeID)
+	}
+	return res.VNC.URL(ctx, "__host__")
 }
 
 // Proxy returns the HTTP URL for a service running on the Tai host machine.
 // Uses the special __host__ identifier to route to localhost:{port} on the Tai server.
 func (h *Host) Proxy(ctx context.Context, port int, path string) (string, error) {
-	client, err := h.manager.getNode(h.nodeID)
+	res, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return "", err
 	}
-	return client.Proxy().URL(ctx, "__host__", port, path)
+	if res.Proxy == nil {
+		return "", fmt.Errorf("sandbox: proxy not available on node %q", h.nodeID)
+	}
+	return res.Proxy.URL(ctx, "__host__", port, path)
 }
 
 // BindWorkplace binds a workspace to this host by ID. Subsequent calls to
@@ -213,15 +219,18 @@ func (h *Host) BindWorkplace(workspaceID string) {
 }
 
 // Workplace returns the workspace FS bound to this host, or nil if unbound.
-func (h *Host) Workplace() workspace.FS {
+func (h *Host) Workplace() taiworkspace.FS {
 	if h.workplaceID == "" {
 		return nil
 	}
-	client, err := h.manager.getNode(h.nodeID)
+	res, err := h.manager.getNode(h.nodeID)
 	if err != nil {
 		return nil
 	}
-	return client.Workspace(h.workplaceID)
+	if res.Volume == nil {
+		return nil
+	}
+	return taiworkspace.New(res.Volume, h.workplaceID)
 }
 
 // NodeID returns the node ID this Host belongs to.

@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai/types"
 )
 
 func init() {
@@ -26,9 +27,9 @@ func setupTestRegistry() *registry.Registry {
 	return r
 }
 
-func mockAuth(info registry.AuthInfo, authErr error) func() {
+func mockAuth(info types.AuthInfo, authErr error) func() {
 	old := authenticateBearerFunc
-	authenticateBearerFunc = func(token string) (registry.AuthInfo, error) {
+	authenticateBearerFunc = func(token string) (types.AuthInfo, error) {
 		return info, authErr
 	}
 	return func() { authenticateBearerFunc = old }
@@ -200,7 +201,7 @@ func TestHandleControl_NoRegistry(t *testing.T) {
 	registry.SetGlobalForTest(nil)
 	defer setupTestRegistry()
 
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-001"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-001"}, nil)
 	defer restore()
 
 	srv := httptest.NewServer(newGinRouter())
@@ -236,7 +237,7 @@ func TestHandleControl_NoAuth(t *testing.T) {
 
 func TestHandleControl_AuthFailed(t *testing.T) {
 	setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{}, fmt.Errorf("bad token"))
+	restore := mockAuth(types.AuthInfo{}, fmt.Errorf("bad token"))
 	defer restore()
 
 	srv := httptest.NewServer(newGinRouter())
@@ -256,7 +257,7 @@ func TestHandleControl_AuthFailed(t *testing.T) {
 
 func TestHandleControl_RegisterAndPing(t *testing.T) {
 	reg := setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{
+	restore := mockAuth(types.AuthInfo{
 		ClientID: "tai-001",
 		Subject:  "user-test",
 		Scope:    "tai:tunnel",
@@ -324,8 +325,8 @@ func TestHandleControl_RegisterAndPing(t *testing.T) {
 	if snap.Auth.Subject != "user-test" {
 		t.Errorf("Auth.Subject = %q, want user-test", snap.Auth.Subject)
 	}
-	if snap.Ports["grpc"] != 9100 {
-		t.Errorf("Ports[grpc] = %d, want 9100", snap.Ports["grpc"])
+	if snap.Ports.GRPC != 9100 {
+		t.Errorf("Ports.GRPC = %d, want 9100", snap.Ports.GRPC)
 	}
 
 	time.Sleep(10 * time.Millisecond)
@@ -366,7 +367,7 @@ func TestHandleControl_RegisterAndPing(t *testing.T) {
 
 func TestHandleControl_BadRegisterType(t *testing.T) {
 	setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-001"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-001"}, nil)
 	defer restore()
 
 	srv := httptest.NewServer(newGinRouter())
@@ -390,7 +391,7 @@ func TestHandleControl_BadRegisterType(t *testing.T) {
 
 func TestHandleControl_MissingTaiID(t *testing.T) {
 	setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-001"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-001"}, nil)
 	defer restore()
 
 	srv := httptest.NewServer(newGinRouter())
@@ -432,7 +433,7 @@ func TestHandleData_NoAuth(t *testing.T) {
 
 func TestHandleData_AcceptSuccess(t *testing.T) {
 	reg := setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-001"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-001"}, nil)
 	defer restore()
 
 	resultCh := make(chan net.Conn, 1)
@@ -468,7 +469,7 @@ func TestHandleData_AcceptSuccess(t *testing.T) {
 
 func TestHandleData_ChannelNotPending(t *testing.T) {
 	setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-001"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-001"}, nil)
 	defer restore()
 
 	srv := httptest.NewServer(newGinRouter())
@@ -491,7 +492,7 @@ func TestHandleData_ChannelNotPending(t *testing.T) {
 
 func TestHandleData_TaiIDMismatch(t *testing.T) {
 	reg := setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{ClientID: "tai-intruder"}, nil)
+	restore := mockAuth(types.AuthInfo{ClientID: "tai-intruder"}, nil)
 	defer restore()
 
 	resultCh := make(chan net.Conn, 1)
@@ -520,7 +521,7 @@ func TestHandleData_TaiIDMismatch(t *testing.T) {
 
 func TestHandleControl_OpenChannelAndBridge(t *testing.T) {
 	reg := setupTestRegistry()
-	restore := mockAuth(registry.AuthInfo{
+	restore := mockAuth(types.AuthInfo{
 		ClientID: "tai-001",
 		Subject:  "user-test",
 	}, nil)

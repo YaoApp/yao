@@ -13,32 +13,22 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/yaoapp/yao/tai/types"
 )
 
-// SystemInfo describes the host machine running Tai.
-type SystemInfo struct {
-	OS       string `json:"os"`
-	Arch     string `json:"arch"`
-	Hostname string `json:"hostname"`
-	NumCPU   int    `json:"num_cpu"`
-	TotalMem int64  `json:"total_mem,omitempty"`
-	Shell    string `json:"shell,omitempty"`
-	TempDir  string `json:"temp_dir,omitempty"`
-}
-
 // TaiNode represents a registered Tai instance (direct or tunnel).
-// Internal use only; external callers receive NodeSnapshot via Get()/List().
+// Internal use only; external callers receive types.NodeMeta via Get()/List().
 type TaiNode struct {
 	TaiID        string
 	MachineID    string
 	Version      string
-	Auth         AuthInfo
-	System       SystemInfo
-	Mode         string         // "direct" | "tunnel"
-	Addr         string         // direct mode: "tai-host"; tunnel mode: empty
-	YaoBase      string         // Yao server base URL reported by Tai (tunnel mode)
-	Ports        map[string]int // {"grpc":19100, "http":8099, "vnc":16080, "docker":12375}
-	Capabilities map[string]bool
+	Auth         types.AuthInfo
+	System       types.SystemInfo
+	Mode         string // "direct" | "tunnel"
+	Addr         string // direct mode: "tai-host"; tunnel mode: empty
+	YaoBase      string // Yao server base URL reported by Tai (tunnel mode)
+	Ports        types.Ports
+	Capabilities types.Capabilities
 
 	ControlConn *websocket.Conn
 	connMu      sync.Mutex // protects ControlConn writes
@@ -48,62 +38,20 @@ type TaiNode struct {
 	LastPing    time.Time
 	DisplayName string // optional human-readable name for UI
 
-	client any // *tai.Client; stored as any to avoid import cycle
+	resources any // *tai.ConnResources; stored as any to avoid import cycle
 
 	localListeners map[int]*tunnelListener
 }
 
-// NodeSnapshot is a read-only copy of TaiNode fields safe to use outside locks.
-type NodeSnapshot struct {
-	TaiID        string
-	MachineID    string
-	Version      string
-	Auth         AuthInfo
-	System       SystemInfo
-	Mode         string
-	Addr         string
-	YaoBase      string
-	Ports        map[string]int
-	Capabilities map[string]bool
-	Status       string
-	ConnectedAt  time.Time
-	LastPing     time.Time
-	DisplayName  string
-	client       any
-}
-
-func (n *TaiNode) snapshot() NodeSnapshot {
-	ports := make(map[string]int, len(n.Ports))
-	for k, v := range n.Ports {
-		ports[k] = v
-	}
-	caps := make(map[string]bool, len(n.Capabilities))
-	for k, v := range n.Capabilities {
-		caps[k] = v
-	}
-	return NodeSnapshot{
+func (n *TaiNode) meta() types.NodeMeta {
+	return types.NodeMeta{
 		TaiID: n.TaiID, MachineID: n.MachineID, Version: n.Version,
 		Auth: n.Auth, System: n.System,
 		Mode: n.Mode, Addr: n.Addr, YaoBase: n.YaoBase,
-		Ports: ports, Capabilities: caps,
+		Ports: n.Ports, Capabilities: n.Capabilities,
 		Status: n.Status, ConnectedAt: n.ConnectedAt, LastPing: n.LastPing,
 		DisplayName: n.DisplayName,
-		client:      n.client,
 	}
-}
-
-// Client returns the associated *tai.Client (as any to avoid import cycle).
-// Callers should type-assert: snap.Client().(*tai.Client).
-func (s *NodeSnapshot) Client() any { return s.client }
-
-// AuthInfo holds Yao user authorization extracted from OAuth token.
-type AuthInfo struct {
-	Subject  string
-	UserID   string
-	ClientID string
-	Scope    string
-	TeamID   string
-	TenantID string
 }
 
 // pendingChannel represents a channel awaiting Tai's data WS connection.
@@ -188,7 +136,8 @@ func (r *Registry) Register(node *TaiNode) {
 		"tai_id", node.TaiID, "mode", node.Mode, "version", node.Version)
 }
 
-// Unregister removes a Tai node and closes its local listeners and control connection.
+// Unregister removes a Tai node, closes its local listeners, control connection,
+// and any held ConnResources.
 func (r *Registry) Unregister(taiID string) {
 	r.mu.Lock()
 	node, ok := r.nodes[taiID]
@@ -208,29 +157,34 @@ func (r *Registry) Unregister(taiID string) {
 	r.mu.Unlock()
 
 	if ok {
+		if node.resources != nil {
+			if closer, ok := node.resources.(ResourceCloser); ok {
+				closer.Close()
+			}
+		}
 		r.logger.Info("tai node unregistered", "tai_id", taiID)
 	}
 }
 
-// Get returns a snapshot of a Tai node by ID. Returns nil, false if not found.
-func (r *Registry) Get(taiID string) (*NodeSnapshot, bool) {
+// Get returns the metadata of a Tai node by ID. Returns nil, false if not found.
+func (r *Registry) Get(taiID string) (*types.NodeMeta, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	n, ok := r.nodes[taiID]
 	if !ok {
 		return nil, false
 	}
-	snap := n.snapshot()
-	return &snap, true
+	m := n.meta()
+	return &m, true
 }
 
-// List returns snapshots of all registered Tai nodes.
-func (r *Registry) List() []NodeSnapshot {
+// List returns metadata of all registered Tai nodes.
+func (r *Registry) List() []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	result := make([]NodeSnapshot, 0, len(r.nodes))
+	result := make([]types.NodeMeta, 0, len(r.nodes))
 	for _, n := range r.nodes {
-		result = append(result, n.snapshot())
+		result = append(result, n.meta())
 	}
 	return result
 }
@@ -263,14 +217,41 @@ func (r *Registry) UpdatePing(taiID string) {
 	}
 }
 
-// SetClient associates a *tai.Client with a registered node.
-// Called by tai.New() after successful initialization.
-func (r *Registry) SetClient(taiID string, c any) {
+// ResourceCloser is implemented by *tai.ConnResources to allow the registry
+// to close resources without importing the tai package (avoids import cycle).
+type ResourceCloser interface {
+	Close() error
+}
+
+// SetResources binds connection resources to a registered node.
+// If the node already has resources, the old ones are closed asynchronously.
+// The node status is set to "online".
+func (r *Registry) SetResources(taiID string, res any) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if n, ok := r.nodes[taiID]; ok {
-		n.client = c
+	n, ok := r.nodes[taiID]
+	if !ok {
+		return
 	}
+	if n.resources != nil {
+		if closer, ok := n.resources.(ResourceCloser); ok {
+			go closer.Close()
+		}
+	}
+	n.resources = res
+	n.Status = "online"
+}
+
+// GetResources returns the *tai.ConnResources for a node (as any).
+// Callers should type-assert to *tai.ConnResources.
+func (r *Registry) GetResources(taiID string) (any, bool) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	n, ok := r.nodes[taiID]
+	if !ok || n.resources == nil {
+		return nil, false
+	}
+	return n.resources, true
 }
 
 // FindTaiIDByAuthClient returns the TaiID of the first node whose
@@ -288,28 +269,28 @@ func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
 	return ""
 }
 
-// ListByTeam returns snapshots of all nodes belonging to the given team.
-func (r *Registry) ListByTeam(teamID string) []NodeSnapshot {
+// ListByTeam returns metadata of all nodes belonging to the given team.
+func (r *Registry) ListByTeam(teamID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var result []NodeSnapshot
+	var result []types.NodeMeta
 	for _, n := range r.nodes {
 		if n.Auth.TeamID == teamID {
-			result = append(result, n.snapshot())
+			result = append(result, n.meta())
 		}
 	}
 	return result
 }
 
-// ListByUser returns snapshots of all nodes registered by the given user
+// ListByUser returns metadata of all nodes registered by the given user
 // that are NOT associated with any team.
-func (r *Registry) ListByUser(userID string) []NodeSnapshot {
+func (r *Registry) ListByUser(userID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
-	var result []NodeSnapshot
+	var result []types.NodeMeta
 	for _, n := range r.nodes {
 		if n.Auth.TeamID == "" && n.Auth.UserID == userID {
-			result = append(result, n.snapshot())
+			result = append(result, n.meta())
 		}
 	}
 	return result

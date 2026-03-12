@@ -11,22 +11,23 @@ import (
 	tai "github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/taiid"
+	"github.com/yaoapp/yao/tai/types"
 )
 
 // authenticateBearer validates a Bearer token and returns the caller's identity.
 // Package-level var so tests can inject a mock without an OAuth service.
 var authenticateBearer = authenticateBearerDefault
 
-func authenticateBearerDefault(token string) (registry.AuthInfo, error) {
+func authenticateBearerDefault(token string) (types.AuthInfo, error) {
 	svc := oauth.OAuth
 	if svc == nil {
-		return registry.AuthInfo{}, fmt.Errorf("oauth service not initialized")
+		return types.AuthInfo{}, fmt.Errorf("oauth service not initialized")
 	}
 	result, err := svc.AuthenticateToken(oauth.AuthInput{AccessToken: token})
 	if err != nil {
-		return registry.AuthInfo{}, err
+		return types.AuthInfo{}, err
 	}
-	info := registry.AuthInfo{}
+	info := types.AuthInfo{}
 	if result.Info != nil {
 		info.Subject = result.Info.Subject
 		info.UserID = result.Info.UserID
@@ -86,15 +87,15 @@ func extractBearer(r *http.Request) string {
 
 // registerRequest is the JSON body for POST /tai-nodes/register.
 type registerRequest struct {
-	NodeID       string              `json:"node_id,omitempty"`
-	ClientID     string              `json:"client_id,omitempty"`
-	MachineID    string              `json:"machine_id"`
-	DisplayName  string              `json:"display_name,omitempty"`
-	Version      string              `json:"version"`
-	Addr         string              `json:"addr"`
-	Ports        map[string]int      `json:"ports"`
-	Capabilities map[string]bool     `json:"capabilities"`
-	System       registry.SystemInfo `json:"system"`
+	NodeID       string           `json:"node_id,omitempty"`
+	ClientID     string           `json:"client_id,omitempty"`
+	MachineID    string           `json:"machine_id"`
+	DisplayName  string           `json:"display_name,omitempty"`
+	Version      string           `json:"version"`
+	Addr         string           `json:"addr"`
+	Ports        map[string]int   `json:"ports"`
+	Capabilities map[string]bool  `json:"capabilities"`
+	System       types.SystemInfo `json:"system"`
 }
 
 // heartbeatRequest is the JSON body for POST /tai-nodes/heartbeat.
@@ -162,8 +163,8 @@ func HandleRegister(c *gin.Context) {
 		System:       req.System,
 		Mode:         "direct",
 		Addr:         addr,
-		Ports:        req.Ports,
-		Capabilities: req.Capabilities,
+		Ports:        portsFromMap(req.Ports),
+		Capabilities: capsFromMap(req.Capabilities),
 	}
 	reg.Register(node)
 	slog.Info("[register] node registered via API",
@@ -180,7 +181,7 @@ func HandleRegister(c *gin.Context) {
 	if strings.HasPrefix(addr, "tai://") {
 		slog.Info("[register] launching connectRegisteredNode goroutine",
 			"tai_id", resolvedTaiID, "addr", addr)
-		go connectRegisteredNode(resolvedTaiID, addr, reg)
+		go connectRegisteredNode(resolvedTaiID, addr, portsFromMap(req.Ports), reg)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -278,45 +279,50 @@ func HandleUnregister(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "unregistered"})
 }
 
-// connectRegisteredNode dials the self-registered Tai node via gRPC,
-// creates a tai.Client, and binds it to the node's TaiID in the registry.
-// initRemote internally registers a redundant "host-port" entry; we remove
-// it so that the registry contains only the canonical taiID.
-func connectRegisteredNode(taiID, addr string, reg *registry.Registry) {
+func portsFromMap(m map[string]int) types.Ports {
+	return types.Ports{
+		GRPC:   m["grpc"],
+		HTTP:   m["http"],
+		VNC:    m["vnc"],
+		Docker: m["docker"],
+		K8s:    m["k8s"],
+	}
+}
+
+func capsFromMap(m map[string]bool) types.Capabilities {
+	return types.Capabilities{
+		Docker:   m["docker"],
+		K8s:      m["k8s"],
+		HostExec: m["host_exec"],
+	}
+}
+
+// connectRegisteredNode dials the Tai node via DialRemote and binds the
+// returned ConnResources to the taiID in the registry. No double-registration.
+func connectRegisteredNode(taiID, addr string, ports types.Ports, reg *registry.Registry) {
 	slog.Info("[connect] start", "tai_id", taiID, "addr", addr)
 
-	client, err := tai.New(addr)
-	if err != nil {
-		slog.Warn("[connect] tai.New FAILED",
-			"tai_id", taiID, "addr", addr, "err", err)
-
-		allAfterFail := reg.List()
-		slog.Info("[connect] registry after tai.New failure", "total", len(allAfterFail))
-		for _, s := range allAfterFail {
-			slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
-		}
+	host := extractHost(addr)
+	if host == "" {
+		slog.Warn("[connect] failed to extract host from addr", "addr", addr)
 		return
 	}
 
-	autoID := client.TaiID()
-	slog.Info("[connect] tai.New OK", "tai_id", taiID, "autoID", autoID)
-
-	allAfterNew := reg.List()
-	slog.Info("[connect] registry after tai.New", "total", len(allAfterNew))
-	for _, s := range allAfterNew {
-		slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
+	res, err := tai.DialRemote(host, ports)
+	if err != nil {
+		slog.Warn("[connect] DialRemote failed",
+			"tai_id", taiID, "addr", addr, "err", err)
+		return
 	}
 
-	if autoID != "" && autoID != taiID {
-		slog.Info("[connect] removing redundant autoID", "autoID", autoID)
-		reg.Unregister(autoID)
-	}
-	reg.SetClient(taiID, client)
-
-	allFinal := reg.List()
-	slog.Info("[connect] registry FINAL", "total", len(allFinal))
-	for _, s := range allFinal {
-		slog.Info("[connect]   node", "tai_id", s.TaiID, "mode", s.Mode, "addr", s.Addr)
-	}
+	reg.SetResources(taiID, res)
 	slog.Info("[connect] done", "tai_id", taiID)
+}
+
+func extractHost(addr string) string {
+	addr = strings.TrimPrefix(addr, "tai://")
+	if idx := strings.LastIndex(addr, ":"); idx > 0 {
+		return addr[:idx]
+	}
+	return addr
 }
