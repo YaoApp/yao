@@ -229,7 +229,7 @@ jobs:
       - name: Install k3d & create cluster
         run: |
           curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-          k3d cluster create tai-test --no-lb --wait --api-port 16443
+          k3d cluster create tai-test --no-lb --wait --api-port ${YAO_CI_K3D_API_PORT}
           kubectl wait --for=condition=Ready node --all --timeout=60s
           k3d image import alpine:latest -c tai-test
 
@@ -246,8 +246,8 @@ jobs:
           echo "Container kubeconfig server:"
           grep server: /tmp/kubeconfig-tai-k8s.yml
 
-          # For test runner (uses localhost via port-mapped 6443)
-          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
+          # For test runner (uses localhost via k3d port-mapped API)
+          sed "s|server: .*|server: https://127.0.0.1:${YAO_CI_K3D_API_PORT}|" /tmp/kubeconfig-k3d.yml \
             > $RUNNER_TEMP/kubeconfig-tai.yml
           echo "Test runner kubeconfig server:"
           grep server: $RUNNER_TEMP/kubeconfig-tai.yml
@@ -268,6 +268,7 @@ jobs:
             --grpc 127.0.0.1:${YAO_CI_TAI_LOCAL_GRPC_PORT} \
             --http 127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT} \
             --vnc  127.0.0.1:${YAO_CI_TAI_LOCAL_VNC_PORT} \
+            --docker 127.0.0.1:${YAO_CI_TAI_LOCAL_DOCKER_PORT} \
             --direct \
             --host-exec --host-exec-full-access \
             --log-level debug &
@@ -318,13 +319,14 @@ jobs:
           TAI_CREDENTIALS=$RUNNER_TEMP/tai-k8s-credentials \
           TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
           TAI_DATA_DIR=$RUNNER_TEMP/tai-k8s-data \
-          TAI_K8S_UPSTREAM="tcp://127.0.0.1:${YAO_CI_TAI_K8S_API_PORT}" \
+          TAI_K8S_UPSTREAM="tcp://127.0.0.1:${YAO_CI_K3D_API_PORT}" \
           TAI_KUBECONFIG=$RUNNER_TEMP/kubeconfig-tai.yml \
           $RUNNER_TEMP/tai server \
             --grpc 127.0.0.1:${YAO_CI_TAI_K8S_GRPC_PORT} \
             --http 127.0.0.1:${YAO_CI_TAI_K8S_HTTP_PORT} \
             --vnc  127.0.0.1:${YAO_CI_TAI_K8S_VNC_PORT} \
             --k8s  127.0.0.1:${YAO_CI_TAI_K8S_API_PORT} \
+            --docker="" \
             --host-exec --host-exec-full-access \
             --log-level debug &
 
@@ -347,11 +349,11 @@ jobs:
           TAI_CREDENTIALS=$RUNNER_TEMP/tai-hostexec-credentials \
           TAI_YAO_SERVER=http://127.0.0.1:${YAO_CI_HTTP_PORT} \
           TAI_DATA_DIR=$RUNNER_TEMP/tai-hostexec-data \
-          TAI_DOCKER_UPSTREAM=none \
           $RUNNER_TEMP/tai server \
             --grpc 127.0.0.1:${YAO_CI_TAI_HOSTEXEC_GRPC_PORT} \
             --http 127.0.0.1:${YAO_CI_TAI_HOSTEXEC_HTTP_PORT} \
             --vnc  127.0.0.1:${YAO_CI_TAI_HOSTEXEC_VNC_PORT} \
+            --docker="" \
             --host-exec --host-exec-full-access \
             --log-level debug &
 
@@ -414,8 +416,8 @@ jobs:
           check "tai-hostexec HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_HOSTEXEC_HTTP_PORT}/healthz
           check "tai-hostexec gRPC listener" nc -z 127.0.0.1 ${YAO_CI_TAI_HOSTEXEC_GRPC_PORT}
 
-          echo "[K8s (k3d)]"
-          check "kubectl get nodes" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
+          echo "[K8s (k3d via direct API)]"
+          check "kubectl get nodes (k3d direct)" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
 
           echo "[Data Stores]"
           MONGO_CID=$(docker ps -qf "ancestor=mongo:6.0" | head -1)
@@ -450,6 +452,7 @@ jobs:
           echo "[DIRECT path: Yao → tai-local]"
           check "Yao→tai-local gRPC :${YAO_CI_TAI_LOCAL_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
           check "Yao→tai-local HTTP :${YAO_CI_TAI_LOCAL_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
+          check "tai-local Docker API proxy :${YAO_CI_TAI_LOCAL_DOCKER_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_DOCKER_PORT}
 
           echo "[TUNNEL path: tai-docker → Yao gRPC (reverse tunnel)]"
           check "tai-docker→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
@@ -459,7 +462,9 @@ jobs:
           echo "[TUNNEL path: tai-k8s → Yao gRPC (reverse tunnel)]"
           check "tai-k8s→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
           check "tai-k8s K8s API proxy :${YAO_CI_TAI_K8S_API_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_API_PORT}
-          check "K8s API via proxy (kubectl)" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
+          sed "s|server: .*|server: https://127.0.0.1:${YAO_CI_TAI_K8S_API_PORT}|" $RUNNER_TEMP/kubeconfig-tai.yml \
+            > $RUNNER_TEMP/kubeconfig-tai-proxy.yml
+          check "K8s API via tai-k8s proxy (kubectl)" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai-proxy.yml --insecure-skip-tls-verify get nodes
 
           echo "[TUNNEL path: tai-hostexec → Yao gRPC (reverse tunnel)]"
           check "tai-hostexec→Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
@@ -522,7 +527,7 @@ jobs:
             ps aux | grep -E "yao|tai" | grep -v grep || true
             echo ""
             echo "--- Listening ports ---"
-            ss -tlnp | grep -E "5099|9099|19100|19101|19102|19103|8099|8100|8101|8102|12375|16443" || true
+            ss -tlnp | grep -E "5099|9099|19100|19101|19102|19103|8099|8100|8101|8102|12375|12376|16443|16444" || true
             exit 1
           else
             echo "All verification checks PASSED"
