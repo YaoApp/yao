@@ -33,6 +33,11 @@ env:
   YAO_RUNTIME_HEAP_AVAILABLE: 550000000
   YAO_RUNTIME_PRECOMPILE: true
 
+  MYSQL_TEST_HOST: "127.0.0.1"
+  MYSQL_TEST_PORT: "3308"
+  MYSQL_TEST_USER: "test"
+  MYSQL_TEST_PASS: "123456"
+
   REDIS_TEST_HOST: "127.0.0.1"
   REDIS_TEST_PORT: "6379"
   REDIS_TEST_DB: "2"
@@ -41,6 +46,11 @@ env:
   MONGO_TEST_PORT: "27017"
   MONGO_TEST_USER: "root"
   MONGO_TEST_PASS: "123456"
+
+  PG_TEST_HOST: "127.0.0.1"
+  PG_TEST_PORT: "5432"
+  PG_TEST_USER: "test"
+  PG_TEST_PASS: "123456"
 
 jobs:
   # =============================================================================
@@ -59,6 +69,37 @@ jobs:
           MONGO_INITDB_ROOT_USERNAME: root
           MONGO_INITDB_ROOT_PASSWORD: 123456
           MONGO_INITDB_DATABASE: test
+
+      mysql:
+        image: mysql:8.0
+        ports:
+          - 3308:3306
+        env:
+          MYSQL_ROOT_PASSWORD: 123456
+          MYSQL_USER: test
+          MYSQL_PASSWORD: 123456
+          MYSQL_DATABASE: test
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+          --character-set-server=utf8mb4
+          --collation-server=utf8mb4_general_ci
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: 123456
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd="pg_isready -U test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
 
     strategy:
       matrix:
@@ -147,10 +188,13 @@ jobs:
               --user-id "${YAO_CI_OAUTH_USER_ID}" \
               --team-id "${YAO_CI_OAUTH_TEAM_ID}" \
               --scope "${YAO_CI_OAUTH_SCOPE:-tai:tunnel}" \
-              --ttl "${YAO_CI_OAUTH_TTL:-24h}")
+              --ttl "${YAO_CI_OAUTH_TTL:-24h}" 2>/dev/null | tail -1 | tr -d '[:space:]')
 
-            echo -n "{\"client_id\":\"$CID\",\"tai_id\":\"$TID\",\"machine_id\":\"ci-runner\",\"server\":\"http://${YAO_CI_BRIDGE_IP}:${YAO_CI_HTTP_PORT}\",\"yao_grpc_addr\":\"${YAO_CI_BRIDGE_IP}:${YAO_CI_GRPC_PORT}\",\"access_token\":\"$TOKEN\",\"scope\":\"${YAO_CI_OAUTH_SCOPE}\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"registered\":true}" \
-              | base64 > "$OUT"
+            local JSON="{\"client_id\":\"$CID\",\"tai_id\":\"$TID\",\"machine_id\":\"ci-runner\",\"server\":\"http://${YAO_CI_BRIDGE_IP}:${YAO_CI_HTTP_PORT}\",\"yao_grpc_addr\":\"${YAO_CI_BRIDGE_IP}:${YAO_CI_GRPC_PORT}\",\"access_token\":\"$TOKEN\",\"scope\":\"${YAO_CI_OAUTH_SCOPE}\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"registered\":true}"
+            echo -n "$JSON" | base64 -w0 > "$OUT"
+            echo ""
+            echo "Credentials JSON (debug): $JSON" | head -c 200
+            echo "..."
             echo "Generated credentials for $CID → $OUT"
           }
 
@@ -263,48 +307,102 @@ jobs:
           }
 
           echo "=== Environment Verification ==="
-          echo ""
 
-          echo "--- Yao ---"
+          # ── 1. Service Health ──
+          echo ""
+          echo "--- 1. Service Health ---"
+
+          echo "[Yao]"
           check "Yao HTTP (/.well-known/yao)" curl -sf http://127.0.0.1:5099/.well-known/yao
           check "Yao gRPC port" nc -z 127.0.0.1 9099
 
-          echo ""
-          echo "--- tai-docker ---"
+          echo "[tai-docker]"
           check "tai-docker HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_HTTP_PORT}/healthz
           check "tai-docker gRPC port" nc -z 127.0.0.1 ${YAO_CI_TAI_GRPC_PORT}
 
-          echo ""
-          echo "--- tai-k8s ---"
+          echo "[tai-k8s]"
           check "tai-k8s HTTP (/healthz)" curl -sf http://127.0.0.1:8100/healthz
           check "tai-k8s gRPC port" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_GRPC_PORT}
 
-          echo ""
-          echo "--- Tai Tunnel Registration ---"
-          sleep 5
-          echo "tai-docker tunnel logs:"
-          docker logs tai-docker 2>&1 | grep -iE "tunnel|register|connected" | tail -5 || true
-          echo "tai-k8s tunnel logs:"
-          docker logs tai-k8s 2>&1 | grep -iE "tunnel|register|connected" | tail -5 || true
+          echo "[K8s (k3d)]"
+          check "kubectl get nodes" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
 
-          # Check if Tai instances appear registered via Yao
+          echo "[Data Stores]"
+          MONGO_CID=$(docker ps -qf "ancestor=mongo:6.0" | head -1)
+          check "MongoDB ping" docker exec "$MONGO_CID" mongosh --quiet \
+            -u ${MONGO_TEST_USER} -p ${MONGO_TEST_PASS} --authenticationDatabase admin \
+            --eval "db.runCommand({ping:1})"
+
+          MYSQL_CID=$(docker ps -qf "ancestor=mysql:8.0" | head -1)
+          check "MySQL ping" docker exec "$MYSQL_CID" mysqladmin ping -h 127.0.0.1 \
+            -u ${MYSQL_TEST_USER} -p${MYSQL_TEST_PASS}
+
+          PG_CID=$(docker ps -qf "ancestor=postgres:14" | head -1)
+          check "PostgreSQL ping" docker exec "$PG_CID" pg_isready -U ${PG_TEST_USER}
+
+          check "Redis ping" docker exec redis redis-cli ping
+
+          # ── 2. Network Topology ──
+          echo ""
+          echo "--- 2. Network Topology ---"
+
+          BRIDGE_IP=${YAO_CI_BRIDGE_IP}
+          echo "  docker0 bridge IP: ${BRIDGE_IP}"
+
+          echo "[Runner → Bridge]"
+          check "Bridge IP exists" ip addr show docker0
+          check "Bridge IP reachable" ping -c1 -W2 ${BRIDGE_IP}
+
+          echo "[Runner → Tai Docker API]"
+          check "Tai Docker API (tcp://127.0.0.1:${YAO_CI_TAI_DOCKER_PORT})" \
+            nc -z 127.0.0.1 ${YAO_CI_TAI_DOCKER_PORT}
+
+          echo "[Runner → Tai K8s API proxy]"
+          check "Tai K8s API (127.0.0.1:${YAO_CI_TAI_K8S_PORT})" \
+            nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_PORT}
+
+          echo "[tai-docker → Yao via bridge]"
+          check "tai-docker→Yao HTTP (bridge)" \
+            docker exec tai-docker wget -q -O /dev/null --timeout=3 \
+            http://${BRIDGE_IP}:${YAO_CI_HTTP_PORT}/.well-known/yao
+          check "tai-docker→Yao gRPC (bridge)" \
+            docker exec tai-docker nc -z -w3 ${BRIDGE_IP} ${YAO_CI_GRPC_PORT}
+
+          echo "[tai-k8s → Yao via bridge]"
+          check "tai-k8s→Yao HTTP (bridge)" \
+            docker exec tai-k8s wget -q -O /dev/null --timeout=3 \
+            http://${BRIDGE_IP}:${YAO_CI_HTTP_PORT}/.well-known/yao
+          check "tai-k8s→Yao gRPC (bridge)" \
+            docker exec tai-k8s nc -z -w3 ${BRIDGE_IP} ${YAO_CI_GRPC_PORT}
+
+          echo "[tai-k8s → k3d API server]"
+          K3D_IP=$(docker inspect k3d-tai-test-server-0 2>/dev/null \
+            | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress' 2>/dev/null || echo "")
+          if [ -n "$K3D_IP" ] && [ "$K3D_IP" != "null" ]; then
+            check "tai-k8s→k3d API (${K3D_IP}:6443)" \
+              docker exec tai-k8s nc -z -w3 ${K3D_IP} 6443
+          else
+            echo "  [SKIP] k3d IP not found"
+          fi
+
+          # ── 3. Tai Tunnel Registration ──
+          echo ""
+          echo "--- 3. Tai Tunnel Registration ---"
+          sleep 5
+
+          echo "tai-docker tunnel logs:"
+          docker logs tai-docker 2>&1 | grep -iE "tunnel|register|connect" | tail -5 || true
+          echo "tai-k8s tunnel logs:"
+          docker logs tai-k8s 2>&1 | grep -iE "tunnel|register|connect" | tail -5 || true
+
+          check "tai-docker tunnel connected" \
+            bash -c 'docker logs tai-docker 2>&1 | grep -qiE "tunnel.*(connected|registered|established)"'
+          check "tai-k8s tunnel connected" \
+            bash -c 'docker logs tai-k8s 2>&1 | grep -qiE "tunnel.*(connected|registered|established)"'
+
           WELL_KNOWN=$(curl -sf http://127.0.0.1:5099/.well-known/yao 2>/dev/null || echo "{}")
           echo "Yao .well-known/yao:"
           echo "$WELL_KNOWN" | jq . 2>/dev/null || echo "$WELL_KNOWN"
-
-          echo ""
-          echo "--- K8s (k3d) ---"
-          check "kubectl get nodes" kubectl --kubeconfig=$RUNNER_TEMP/kubeconfig-tai.yml get nodes
-
-          echo ""
-          echo "--- MongoDB ---"
-          check "MongoDB ping" mongosh --quiet --host 127.0.0.1 --port 27017 \
-            -u root -p 123456 --authenticationDatabase admin \
-            --eval "db.runCommand({ping:1})"
-
-          echo ""
-          echo "--- Redis ---"
-          check "Redis ping" docker exec redis redis-cli ping
 
           echo ""
           echo "=========================================="

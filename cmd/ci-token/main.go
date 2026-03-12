@@ -35,6 +35,9 @@ func main() {
 		os.Exit(1)
 	}
 
+	savedStdout := os.Stdout
+	os.Stdout, _ = os.Open(os.DevNull)
+
 	config.Conf = config.LoadFrom(filepath.Join(root, ".env"))
 	config.Conf.Root = root
 
@@ -42,6 +45,7 @@ func main() {
 	cfg.Session.IsCLI = true
 
 	warnings, err := engine.Load(cfg, engine.LoadOption{Action: "run"})
+	os.Stdout = savedStdout
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "ci-token: engine.Load failed: %v\n", err)
 		os.Exit(1)
