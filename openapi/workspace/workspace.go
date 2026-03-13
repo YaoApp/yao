@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
+	"sort"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
@@ -168,6 +169,9 @@ func handleList(c *gin.Context) {
 	for _, w := range list {
 		result = append(result, toResponse(w))
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt > result[j].CreatedAt
+	})
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
@@ -197,6 +201,9 @@ func handleOptions(c *gin.Context) {
 	for _, w := range list {
 		result = append(result, toResponse(w))
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].CreatedAt > result[j].CreatedAt
+	})
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 

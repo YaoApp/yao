@@ -3,6 +3,7 @@ package computer
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -80,6 +81,9 @@ func handleOptions(c *gin.Context) {
 	}
 
 	snaps := reg.List()
+	sort.Slice(snaps, func(i, j int) bool {
+		return strings.ToLower(nodeDisplayName(snaps[i])) < strings.ToLower(nodeDisplayName(snaps[j]))
+	})
 
 	// Host entries: nodes with host_exec capability
 	if kindFilter == "" || kindFilter == "host" {
@@ -164,14 +168,18 @@ func matchNodeFilter(s *taitypes.NodeMeta, osFilter, archFilter string, minCPUs 
 	return true
 }
 
+func nodeDisplayName(s taitypes.NodeMeta) string {
+	if s.DisplayName != "" {
+		return s.DisplayName
+	}
+	if s.System.Hostname != "" {
+		return s.System.Hostname
+	}
+	return s.TaiID
+}
+
 func nodeToHostOption(s taitypes.NodeMeta) computerOption {
-	displayName := s.DisplayName
-	if displayName == "" {
-		displayName = s.System.Hostname
-	}
-	if displayName == "" {
-		displayName = s.TaiID
-	}
+	displayName := nodeDisplayName(s)
 
 	status := "stopped"
 	if s.Status == "online" {
@@ -195,6 +203,7 @@ func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
+		VNC:         s.Ports.VNC > 0,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,
@@ -206,13 +215,7 @@ func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 }
 
 func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
-	displayName := s.DisplayName
-	if displayName == "" {
-		displayName = s.System.Hostname
-	}
-	if displayName == "" {
-		displayName = s.TaiID
-	}
+	displayName := nodeDisplayName(s)
 
 	status := "stopped"
 	if s.Status == "online" {
@@ -236,6 +239,7 @@ func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
+		VNC:         s.Ports.VNC > 0,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,

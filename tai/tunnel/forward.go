@@ -2,6 +2,7 @@ package tunnel
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -22,6 +23,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 	reg := h.reg
 
 	taiID := c.Param("taiID")
+
 	node, ok := reg.Get(taiID)
 	if !ok || node.Status != "online" {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "tai node not available"})
@@ -34,6 +36,13 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		return
 	}
 
+	rewrittenReq := rewriteRequest(c.Request, taiID)
+	logger.Debug("[forward] "+node.Mode+" → tai:"+fmt.Sprintf("%d", targetPort),
+		"tai_id", taiID,
+		"addr", node.Addr,
+		"path", rewrittenReq.URL.Path,
+	)
+
 	hijacker, ok := c.Writer.(http.Hijacker)
 	if !ok {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "hijack not supported"})
@@ -41,20 +50,18 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 	}
 	browserConn, bufrw, err := hijacker.Hijack()
 	if err != nil {
-		logger.Error("hijack failed", "err", err)
+		logger.Error("[forward] hijack failed", "tai_id", taiID, "err", err)
 		return
 	}
 	defer browserConn.Close()
 
 	fwd, err := h.RequestForward(taiID, targetPort)
 	if err != nil {
-		logger.Error("request forward failed",
+		logger.Error("[forward] stream failed",
 			"tai_id", taiID, "port", targetPort, "err", err)
 		browserConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return
 	}
-
-	rewrittenReq := rewriteRequest(c.Request, taiID)
 
 	var reqBuf bytes.Buffer
 	rewrittenReq.Write(&reqBuf)
@@ -63,7 +70,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		reqBuf.Write(buffered)
 	}
 	if err := fwd.Send(&taipb.ForwardData{Data: reqBuf.Bytes()}); err != nil {
-		logger.Error("send initial request", "err", err)
+		logger.Error("[forward] send failed", "tai_id", taiID, "err", err)
 		return
 	}
 
@@ -72,6 +79,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		&netConnAdapter{ReadWriteCloser: browserConn},
 		streamConn,
 	)
+	logger.Debug("[forward] closed", "tai_id", taiID)
 }
 
 // HandleForwardLazy is a gin.HandlerFunc that resolves the global TunnelHandler

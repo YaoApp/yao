@@ -102,20 +102,51 @@ func (h *TunnelHandler) Register(stream taipb.TaiTunnel_RegisterServer) error {
 
 	go h.connectTunnelNode(resolvedTaiID)
 
+	const pingTimeout = 90 * time.Second
+	recvCh := make(chan *taipb.TunnelControl)
+	errCh := make(chan error, 1)
+	go func() {
+		for {
+			ctrl, err := stream.Recv()
+			if err != nil {
+				errCh <- err
+				return
+			}
+			recvCh <- ctrl
+		}
+	}()
+
+	timer := time.NewTimer(pingTimeout)
+	defer timer.Stop()
+
 	for {
-		ctrl, err := stream.Recv()
-		if err != nil {
+		select {
+		case ctrl := <-recvCh:
+			if !timer.Stop() {
+				select {
+				case <-timer.C:
+				default:
+				}
+			}
+			timer.Reset(pingTimeout)
+
+			switch ctrl.Type {
+			case "ping":
+				h.reg.UpdatePing(resolvedTaiID)
+				if err := stream.Send(&taipb.TunnelControl{Type: "pong"}); err != nil {
+					return err
+				}
+			}
+
+		case err := <-errCh:
 			if err == io.EOF {
 				return nil
 			}
 			return err
-		}
-		switch ctrl.Type {
-		case "ping":
-			h.reg.UpdatePing(resolvedTaiID)
-			if err := stream.Send(&taipb.TunnelControl{Type: "pong"}); err != nil {
-				return err
-			}
+
+		case <-timer.C:
+			h.logger.Warn("tai ping timeout, closing tunnel", "tai_id", resolvedTaiID, "timeout", pingTimeout)
+			return fmt.Errorf("tai %s: ping timeout (%s)", resolvedTaiID, pingTimeout)
 		}
 	}
 }

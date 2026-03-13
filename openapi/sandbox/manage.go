@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -196,7 +197,7 @@ func hostToResponse(s taitypes.NodeMeta) sandboxResponse {
 		Policy:      "persistent",
 		Mode:        s.Mode,
 		Addr:        addr,
-		VNC:         false,
+		VNC:         s.Ports.VNC > 0,
 		CreatedAt:   s.ConnectedAt,
 		LastActive:  s.LastPing,
 		System: sandboxSystemInfo{
@@ -287,7 +288,7 @@ func handleList(c *gin.Context) {
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].LastActive.After(result[j].LastActive)
+		return strings.ToLower(result[i].DisplayName) < strings.ToLower(result[j].DisplayName)
 	})
 
 	if result == nil {
