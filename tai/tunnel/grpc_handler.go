@@ -175,12 +175,13 @@ func (h *TunnelHandler) Forward(stream taipb.TaiTunnel_ForwardServer) error {
 	}
 	channelID := vals[0]
 
-	h.logger.Debug("[forward] Forward stream arrived", "channel_id", channelID[:16])
+	short := registry.ShortChannelID(channelID)
+	h.logger.Debug("[forward] Forward stream arrived", "channel_id", short)
 
 	if ch, ok := h.pending.LoadAndDelete(channelID); ok {
 		ch.(chan taipb.TaiTunnel_ForwardServer) <- stream
 	} else {
-		h.logger.Warn("[forward] no pending channel (expired?)", "channel_id", channelID[:16])
+		h.logger.Warn("[forward] no pending channel (expired?)", "channel_id", short)
 		return fmt.Errorf("no pending channel for %s", channelID)
 	}
 
@@ -216,8 +217,9 @@ func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiT
 		return nil, fmt.Errorf("tai %s: register stream type mismatch", taiID)
 	}
 
+	short := registry.ShortChannelID(channelID)
 	h.logger.Debug("[forward] sending open command",
-		"tai_id", taiID, "port", targetPort, "channel_id", channelID[:16])
+		"tai_id", taiID, "port", targetPort, "channel_id", short)
 
 	mu.Lock()
 	sendErr := regStream.Send(&taipb.TunnelControl{
@@ -231,15 +233,15 @@ func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiT
 	}
 
 	h.logger.Debug("[forward] open sent, waiting for callback",
-		"tai_id", taiID, "port", targetPort, "channel_id", channelID[:16])
+		"tai_id", taiID, "port", targetPort, "channel_id", short)
 
 	select {
 	case fwd := <-waitCh:
 		h.logger.Debug("[forward] callback received",
-			"tai_id", taiID, "channel_id", channelID[:16])
+			"tai_id", taiID, "channel_id", short)
 		return fwd, nil
 	case <-time.After(10 * time.Second):
-		return nil, fmt.Errorf("tai %s: forward timeout (10s) channel=%s", taiID, channelID[:16])
+		return nil, fmt.Errorf("tai %s: forward timeout (10s) channel=%s", taiID, short)
 	case <-regStream.Context().Done():
 		return nil, fmt.Errorf("tai %s: register stream closed while waiting for forward", taiID)
 	}
