@@ -204,13 +204,16 @@ func TestForward_MissingMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = stream.Send(&taipb.ForwardData{Data: []byte("hello")})
-	if err != nil {
-		t.Fatal(err)
+
+	// Server may close the stream before or after Send completes (race).
+	// Either Send or Recv returning an error confirms the server rejected.
+	sendErr := stream.Send(&taipb.ForwardData{Data: []byte("hello")})
+	if sendErr != nil {
+		return // server already closed stream — pass
 	}
 
-	_, err = stream.Recv()
-	if err == nil {
+	_, recvErr := stream.Recv()
+	if recvErr == nil {
 		t.Fatal("expected error for missing channel_id metadata")
 	}
 }
@@ -224,13 +227,14 @@ func TestForward_NoPendingChannel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = stream.Send(&taipb.ForwardData{Data: []byte("hello")})
-	if err != nil {
-		t.Fatal(err)
+
+	sendErr := stream.Send(&taipb.ForwardData{Data: []byte("hello")})
+	if sendErr != nil {
+		return // server already closed stream — pass
 	}
 
-	_, err = stream.Recv()
-	if err == nil {
+	_, recvErr := stream.Recv()
+	if recvErr == nil {
 		t.Fatal("expected error for non-existent channel_id")
 	}
 }
