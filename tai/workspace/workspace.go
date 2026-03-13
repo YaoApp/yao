@@ -31,6 +31,9 @@ type FS interface {
 	// ws↔ws uses Volume.Copy (server-side for remote volumes, avoiding 2N network round-trips).
 	// Returns non-nil *SyncResult for host↔workspace and ws↔ws transfers; nil for host↔host.
 	Copy(src, dst string, opts ...volume.SyncOption) (*volume.SyncResult, error)
+
+	// GetRoot returns the absolute path of this workspace's root directory on the host filesystem.
+	GetRoot() (string, error)
 }
 
 // New creates an FS backed by the given Volume for the specified session.
@@ -117,6 +120,10 @@ func (w *workspaceFS) Rename(oldname, newname string) error {
 
 func (w *workspaceFS) MkdirAll(name string, _ os.FileMode) error {
 	return w.vol.MkdirAll(context.Background(), w.session, name)
+}
+
+func (w *workspaceFS) GetRoot() (string, error) {
+	return w.vol.Abs(context.Background(), w.session, ".")
 }
 
 func (w *workspaceFS) Close() error { return nil }

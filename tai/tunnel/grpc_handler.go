@@ -30,6 +30,8 @@ type TunnelHandler struct {
 	reg     *registry.Registry
 	pending sync.Map // channel_id → chan taipb.TaiTunnel_ForwardServer
 	logger  *slog.Logger
+
+	sendMu sync.Map // taiID → *sync.Mutex – serializes Send on each Register stream
 }
 
 // NewTunnelHandler creates a TunnelHandler backed by the given registry.
@@ -84,17 +86,24 @@ func (h *TunnelHandler) Register(stream taipb.TaiTunnel_RegisterServer) error {
 		Capabilities: capsFromProto(msg.Caps),
 	}
 
+	var mu sync.Mutex
+	h.sendMu.Store(resolvedTaiID, &mu)
+
 	h.reg.Register(node)
 	h.reg.SetRegisterStream(resolvedTaiID, stream)
 	defer func() {
+		h.sendMu.Delete(resolvedTaiID)
 		h.reg.Unregister(resolvedTaiID)
 		h.logger.Info("tai gRPC tunnel disconnected", "tai_id", resolvedTaiID)
 	}()
 
-	if err := stream.Send(&taipb.TunnelControl{
+	mu.Lock()
+	err = stream.Send(&taipb.TunnelControl{
 		Type:  "registered",
 		TaiId: resolvedTaiID,
-	}); err != nil {
+	})
+	mu.Unlock()
+	if err != nil {
 		return fmt.Errorf("send registered: %w", err)
 	}
 
@@ -133,8 +142,11 @@ func (h *TunnelHandler) Register(stream taipb.TaiTunnel_RegisterServer) error {
 			switch ctrl.Type {
 			case "ping":
 				h.reg.UpdatePing(resolvedTaiID)
-				if err := stream.Send(&taipb.TunnelControl{Type: "pong"}); err != nil {
-					return err
+				mu.Lock()
+				sendErr := stream.Send(&taipb.TunnelControl{Type: "pong"})
+				mu.Unlock()
+				if sendErr != nil {
+					return sendErr
 				}
 			}
 
@@ -163,9 +175,12 @@ func (h *TunnelHandler) Forward(stream taipb.TaiTunnel_ForwardServer) error {
 	}
 	channelID := vals[0]
 
+	h.logger.Debug("[forward] Forward stream arrived", "channel_id", channelID[:16])
+
 	if ch, ok := h.pending.LoadAndDelete(channelID); ok {
 		ch.(chan taipb.TaiTunnel_ForwardServer) <- stream
 	} else {
+		h.logger.Warn("[forward] no pending channel (expired?)", "channel_id", channelID[:16])
 		return fmt.Errorf("no pending channel for %s", channelID)
 	}
 
@@ -181,6 +196,12 @@ func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiT
 		return nil, fmt.Errorf("tai %s: no active register stream", taiID)
 	}
 
+	muVal, ok := h.sendMu.Load(taiID)
+	if !ok {
+		return nil, fmt.Errorf("tai %s: no send mutex (stream closing?)", taiID)
+	}
+	mu := muVal.(*sync.Mutex)
+
 	channelID, err := registry.GenerateChannelID()
 	if err != nil {
 		return nil, fmt.Errorf("generate channel_id: %w", err)
@@ -194,19 +215,31 @@ func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiT
 	if !ok {
 		return nil, fmt.Errorf("tai %s: register stream type mismatch", taiID)
 	}
-	if err := regStream.Send(&taipb.TunnelControl{
+
+	h.logger.Debug("[forward] sending open command",
+		"tai_id", taiID, "port", targetPort, "channel_id", channelID[:16])
+
+	mu.Lock()
+	sendErr := regStream.Send(&taipb.TunnelControl{
 		Type:       "open",
 		ChannelId:  channelID,
 		TargetPort: int32(targetPort),
-	}); err != nil {
-		return nil, fmt.Errorf("send open: %w", err)
+	})
+	mu.Unlock()
+	if sendErr != nil {
+		return nil, fmt.Errorf("send open: %w", sendErr)
 	}
+
+	h.logger.Debug("[forward] open sent, waiting for callback",
+		"tai_id", taiID, "port", targetPort, "channel_id", channelID[:16])
 
 	select {
 	case fwd := <-waitCh:
+		h.logger.Debug("[forward] callback received",
+			"tai_id", taiID, "channel_id", channelID[:16])
 		return fwd, nil
 	case <-time.After(10 * time.Second):
-		return nil, fmt.Errorf("tai %s: forward timeout (10s)", taiID)
+		return nil, fmt.Errorf("tai %s: forward timeout (10s) channel=%s", taiID, channelID[:16])
 	case <-regStream.Context().Done():
 		return nil, fmt.Errorf("tai %s: register stream closed while waiting for forward", taiID)
 	}

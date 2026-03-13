@@ -233,6 +233,21 @@ func (h *Host) Workplace() taiworkspace.FS {
 	return taiworkspace.New(res.Volume, h.workplaceID)
 }
 
+// GetWorkDir returns the host working directory for command execution.
+// Resolves from the bound workspace's root path on disk, falling back to
+// the system temp directory if no workspace is bound or root resolution fails.
+func (h *Host) GetWorkDir() string {
+	if ws := h.Workplace(); ws != nil {
+		if root, err := ws.GetRoot(); err == nil && root != "" {
+			return root
+		}
+	}
+	if h.system.TempDir != "" {
+		return h.system.TempDir
+	}
+	return "/tmp"
+}
+
 // NodeID returns the node ID this Host belongs to.
 func (h *Host) NodeID() string { return h.nodeID }
 

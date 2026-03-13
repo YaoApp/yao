@@ -29,6 +29,7 @@ import (
 //   - DELETE /:id/files/*path — delete file
 //   - POST   /:id/mkdir      — create directory
 //   - POST   /:id/rename     — rename file/directory
+//   - GET    /:id/rootdir   — get workspace root directory absolute path
 func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.Use(oauth.Guard)
 
@@ -39,6 +40,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.PUT("/:id", handleUpdate)
 	group.DELETE("/:id", handleDelete)
 
+	group.GET("/:id/rootdir", handleRootDir)
 	group.GET("/:id/files", handleListFiles)
 	group.GET("/:id/files/*path", handleReadFile)
 	group.PUT("/:id/files/*path", handleWriteFile)
@@ -283,6 +285,21 @@ func handleDelete(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+func handleRootDir(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+
+	rootDir, err := mgr().MountPath(context.Background(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"root_dir": rootDir})
 }
 
 func handleListFiles(c *gin.Context) {

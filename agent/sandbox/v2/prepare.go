@@ -144,7 +144,12 @@ func runExecStep(ctx context.Context, computer infra.Computer, step types.Prepar
 		}
 	}
 
-	result, err := computer.Exec(ctx, shellWrap(kind, script), infra.WithWorkDir("/"))
+	rootDir := "/"
+	if isWindowsComputer(computer) {
+		rootDir = `C:\`
+	}
+
+	result, err := computer.Exec(ctx, shellWrap(kind, script), infra.WithWorkDir(rootDir))
 	if err != nil {
 		return err
 	}
@@ -153,6 +158,10 @@ func runExecStep(ctx context.Context, computer infra.Computer, step types.Prepar
 		label = "exec(background)"
 	}
 	return checkResult(result, label)
+}
+
+func isWindowsComputer(computer infra.Computer) bool {
+	return strings.EqualFold(computer.ComputerInfo().System.OS, "windows")
 }
 
 // checkResult inspects ExecResult for errors.

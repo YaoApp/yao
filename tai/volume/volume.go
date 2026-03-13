@@ -17,6 +17,7 @@ type Volume interface {
 	Remove(ctx context.Context, sessionID, path string, recursive bool) error
 	Rename(ctx context.Context, sessionID, oldPath, newPath string) error
 	MkdirAll(ctx context.Context, sessionID, path string) error
+	Abs(ctx context.Context, sessionID, path string) (string, error)
 
 	SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
 	SyncPull(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)

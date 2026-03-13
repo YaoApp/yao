@@ -199,6 +199,11 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		TempDir:  res.System.TempDir,
 	}
 
+	boxWorkDir := opts.WorkDir
+	if boxWorkDir == "" {
+		boxWorkDir = "/workspace"
+	}
+
 	box := &Box{
 		id:           id,
 		containerID:  containerID,
@@ -214,6 +219,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		vnc:          opts.VNC,
 		image:        opts.Image,
 		workspaceID:  opts.WorkspaceID,
+		workDir:      boxWorkDir,
 		system:       sys,
 	}
 	box.lastCall.Store(time.Now().UnixMilli())
@@ -459,6 +465,7 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 			createdAt:   time.Now(),
 			image:       c.Image,
 			workspaceID: c.Labels["workspace-id"],
+			workDir:     "/workspace",
 			manager:     m,
 		}
 		box.lastCall.Store(time.Now().UnixMilli())

@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	traceTypes "github.com/yaoapp/yao/trace/types"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // HasSandboxV2 returns true if the assistant has a V2 sandbox configuration.
@@ -165,6 +167,26 @@ func (ast *Assistant) executeSandboxV2Stream(
 	}
 
 	return sandboxv2.ExecuteSandboxStream(ctx, execReq, streamHandler)
+}
+
+// initStandaloneWorkspace loads the workspace FS into context when no sandbox
+// is configured but the user selected a workspace (metadata["workspace_id"]).
+func (ast *Assistant) initStandaloneWorkspace(ctx *context.Context) {
+	if ctx.Metadata == nil {
+		return
+	}
+	wsID, _ := ctx.Metadata["workspace_id"].(string)
+	if wsID == "" {
+		return
+	}
+
+	stdCtx := ctx.Context
+	wsFS, err := workspace.M().FS(stdCtx, wsID)
+	if err != nil {
+		log.Printf("[assistant] initStandaloneWorkspace: failed to load workspace %s: %v", wsID, err)
+		return
+	}
+	ctx.SetWorkspace(wsFS)
 }
 
 func closeLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {

@@ -20,6 +20,12 @@ func (ctx *Context) SetComputer(computer infraV2.Computer) {
 	}
 }
 
+// SetWorkspace sets the workspace FS directly without requiring a Computer.
+// Use this when the user selected a workspace but no sandbox is configured.
+func (ctx *Context) SetWorkspace(ws workspace.FS) {
+	ctx.workspace = ws
+}
+
 // GetComputer returns the V2 computer if available.
 func (ctx *Context) GetComputer() infraV2.Computer {
 	return ctx.computer
@@ -33,6 +39,11 @@ func (ctx *Context) GetWorkspace() workspace.FS {
 // HasComputer returns true if V2 computer is available.
 func (ctx *Context) HasComputer() bool {
 	return ctx.computer != nil
+}
+
+// HasWorkspace returns true if workspace FS is available.
+func (ctx *Context) HasWorkspace() bool {
+	return ctx.workspace != nil
 }
 
 // createComputerInstance creates the ctx.computer JavaScript object.

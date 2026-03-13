@@ -210,6 +210,25 @@ func TestWorkspaceFS(t *testing.T) {
 	})
 }
 
+func TestGetRoot(t *testing.T) {
+	dir := t.TempDir()
+	vol := volume.NewLocal(dir)
+	defer vol.Close()
+
+	sid := "getroot-test"
+	wfs := New(vol, sid)
+	defer wfs.Close()
+
+	root, err := wfs.GetRoot()
+	if err != nil {
+		t.Fatalf("GetRoot: %v", err)
+	}
+	want := dir + "/" + sid
+	if root != want {
+		t.Errorf("GetRoot() = %q, want %q", root, want)
+	}
+}
+
 // Compile-time interface checks.
 var (
 	_ fs.FS         = (*workspaceFS)(nil)

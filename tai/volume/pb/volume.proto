@@ -30,6 +30,8 @@ service Volume {
   rpc Remove(FSRemoveRequest) returns (FSOpResponse);
   rpc Rename(FSRenameRequest) returns (FSOpResponse);
   rpc MkdirAll(FSRequest) returns (FSOpResponse);
+  // Abs: resolve a session-relative path to its absolute path on the host.
+  rpc Abs(FSRequest) returns (FSAbsResponse);
   // Copy: copy src to dst within the same workspace (server-side when remote).
   rpc Copy(FSCopyRequest) returns (SyncResult);
 
@@ -110,6 +112,10 @@ message FSRequest {
 message FSOpResponse {
   bool   ok    = 1;
   string error = 2;
+}
+
+message FSAbsResponse {
+  string path = 1;              // absolute path on the host filesystem
 }
 
 message FSReadRequest {

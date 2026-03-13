@@ -138,6 +138,10 @@ func (l *localStorage) MkdirAll(_ context.Context, sessionID, path string) error
 	return os.MkdirAll(abs, 0o755)
 }
 
+func (l *localStorage) Abs(_ context.Context, sessionID, path string) (string, error) {
+	return l.abs(sessionID, path)
+}
+
 // Copy duplicates src to dst within the same workspace session.
 // Supports single files and directories (recursive). Uses excludes from SyncOption
 // and forceFull to overwrite even when mtime+size match.

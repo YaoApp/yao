@@ -190,6 +190,10 @@ func (m *mockVolumeServer) SyncPull(req *pb.SyncManifest, stream grpc.ServerStre
 	return nil
 }
 
+func (m *mockVolumeServer) Abs(_ context.Context, req *pb.FSRequest) (*pb.FSAbsResponse, error) {
+	return &pb.FSAbsResponse{Path: "/data/" + req.SessionId + "/" + req.Path}, nil
+}
+
 func (m *mockVolumeServer) ListDir(_ context.Context, req *pb.FSRequest) (*pb.FSListResponse, error) {
 	return &pb.FSListResponse{Entries: []*pb.FileInfo{
 		{Path: "a.txt", Size: 10},
@@ -560,6 +564,10 @@ func (m *errMockVolumeServer) Copy(_ context.Context, _ *pb.FSCopyRequest) (*pb.
 	return nil, fmt.Errorf("injected copy error")
 }
 
+func (m *errMockVolumeServer) Abs(_ context.Context, _ *pb.FSRequest) (*pb.FSAbsResponse, error) {
+	return nil, fmt.Errorf("injected abs error")
+}
+
 func startErrMockServer(t *testing.T) (*grpc.ClientConn, func()) {
 	t.Helper()
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -744,6 +752,45 @@ func TestErrRemoteCopy(t *testing.T) {
 
 	vol := NewRemote(conn)
 	_, err := vol.Copy(context.Background(), "s1", "a", "b")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestMockRemoteAbs(t *testing.T) {
+	conn, cleanup := startMockServer(t, &mockVolumeServer{})
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	got, err := vol.Abs(context.Background(), "s1", ".")
+	if err != nil {
+		t.Fatalf("Abs: %v", err)
+	}
+	if got != "/data/s1/." {
+		t.Errorf("Abs = %q, want %q", got, "/data/s1/.")
+	}
+}
+
+func TestMockRemoteAbsRelative(t *testing.T) {
+	conn, cleanup := startMockServer(t, &mockVolumeServer{})
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	got, err := vol.Abs(context.Background(), "s1", "sub/file.txt")
+	if err != nil {
+		t.Fatalf("Abs: %v", err)
+	}
+	if got != "/data/s1/sub/file.txt" {
+		t.Errorf("Abs = %q, want %q", got, "/data/s1/sub/file.txt")
+	}
+}
+
+func TestErrRemoteAbs(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	_, err := vol.Abs(context.Background(), "s1", ".")
 	if err == nil {
 		t.Error("expected error")
 	}

@@ -22,6 +22,7 @@ type Computer interface {
 	Proxy(ctx context.Context, port int, path string) (string, error)
 	BindWorkplace(workspaceID string)
 	Workplace() workspace.FS
+	GetWorkDir() string
 }
 
 // ComputerInfo holds identity and registry information for a Computer.

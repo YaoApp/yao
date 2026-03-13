@@ -560,8 +560,81 @@ func TestRemoteVolume(t *testing.T) {
 		_ = vol.Remove(ctx, arcSid, ".", true)
 	})
 
+	t.Run("Abs dot", func(t *testing.T) {
+		absSid := "abs-remote-test"
+		_ = vol.MkdirAll(ctx, absSid, ".")
+		got, err := vol.Abs(ctx, absSid, ".")
+		if err != nil {
+			t.Fatalf("Abs: %v", err)
+		}
+		if got == "" {
+			t.Error("Abs returned empty")
+		}
+		_ = vol.Remove(ctx, absSid, ".", true)
+	})
+
+	t.Run("Abs relative", func(t *testing.T) {
+		got, err := vol.Abs(ctx, sid, "sub/file.txt")
+		if err != nil {
+			t.Fatalf("Abs: %v", err)
+		}
+		if got == "" {
+			t.Error("Abs returned empty")
+		}
+	})
+
+	t.Run("Abs path traversal", func(t *testing.T) {
+		_, err := vol.Abs(ctx, sid, "../../etc/passwd")
+		if err == nil {
+			t.Error("expected error for Abs path traversal")
+		}
+	})
+
 	// Cleanup
 	_ = vol.Remove(ctx, sid, ".", true)
+}
+
+func TestLocalAbs_Dot(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "abs-test"
+
+	got, err := vol.Abs(ctx, sid, ".")
+	if err != nil {
+		t.Fatalf("Abs: %v", err)
+	}
+	want := dir + "/" + sid
+	if got != want {
+		t.Errorf("Abs(\".\") = %q, want %q", got, want)
+	}
+}
+
+func TestLocalAbs_RelativePath(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "abs-rel"
+
+	got, err := vol.Abs(ctx, sid, "sub/file.txt")
+	if err != nil {
+		t.Fatalf("Abs: %v", err)
+	}
+	want := dir + "/" + sid + "/sub/file.txt"
+	if got != want {
+		t.Errorf("Abs = %q, want %q", got, want)
+	}
+}
+
+func TestLocalAbs_PathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+
+	_, err := vol.Abs(ctx, "test", "../../etc/passwd")
+	if err == nil {
+		t.Error("expected error for path traversal in Abs")
+	}
 }
 
 func TestLocalPathTraversal(t *testing.T) {
