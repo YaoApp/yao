@@ -235,6 +235,15 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, oe *osEnv, isCo
 		}
 	}
 
+	if req.Token != nil {
+		if req.Token.Token != "" {
+			env["YAO_TOKEN"] = req.Token.Token
+		}
+		if req.Token.RefreshToken != "" {
+			env["YAO_REFRESH_TOKEN"] = req.Token.RefreshToken
+		}
+	}
+
 	var systemPrompt string
 	envPrompt := buildSandboxEnvPrompt(oe.WorkDir)
 	if !isContinuation && req.SystemPrompt != "" {

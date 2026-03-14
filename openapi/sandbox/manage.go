@@ -18,20 +18,19 @@ import (
 )
 
 // AttachManage registers sandbox management CRUD routes on the given group.
-// oauth.Guard is already applied by the parent Attach call on the same group.
 //   - GET    /              — list sandboxes (filtered by owner)
 //   - POST   /              — create sandbox (owner from token)
 //   - GET    /:id           — get sandbox (owner check)
 //   - DELETE /:id           — remove sandbox (owner check)
 //   - POST   /:id/exec     — execute command (owner check)
 //   - POST   /:id/heartbeat — heartbeat (owner check)
-func AttachManage(group *gin.RouterGroup) {
-	group.GET("", handleList)
-	group.POST("", handleCreate)
-	group.GET("/:id", handleGet)
-	group.DELETE("/:id", handleRemove)
-	group.POST("/:id/exec", handleExec)
-	group.POST("/:id/heartbeat", handleHeartbeat)
+func AttachManage(group *gin.RouterGroup, oauth types.OAuth) {
+	group.GET("", oauth.Guard, handleList)
+	group.POST("", oauth.Guard, handleCreate)
+	group.GET("/:id", oauth.Guard, handleGet)
+	group.DELETE("/:id", oauth.Guard, handleRemove)
+	group.POST("/:id/exec", oauth.Guard, handleExec)
+	group.POST("/:id/heartbeat", oauth.Guard, handleHeartbeat)
 }
 
 // resolveOwner returns TeamID if present, otherwise UserID.

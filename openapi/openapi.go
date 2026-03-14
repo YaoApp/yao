@@ -180,7 +180,7 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	sandbox.SetPathPrefix(baseURL)
 	sandboxGroup := group.Group("/sandbox")
 	sandbox.Attach(sandboxGroup, openapi.OAuth)
-	sandbox.AttachManage(sandboxGroup)
+	sandbox.AttachManage(sandboxGroup, openapi.OAuth)
 
 	// Computer option handlers (for InputArea selector)
 	openapiComputer.Attach(group.Group("/computer"), openapi.OAuth)

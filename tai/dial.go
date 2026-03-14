@@ -189,8 +189,8 @@ func buildResources(conn *grpc.ClientConn, cfg *dialConfig, env dialEnv) (*ConnR
 
 	if res.Runtime != nil {
 		res.Proxy = env.newProxy(cfg.ports)
-		res.VNC = env.newVNC(cfg.ports)
 	}
+	res.VNC = env.newVNC(cfg.ports)
 
 	return res, nil
 }

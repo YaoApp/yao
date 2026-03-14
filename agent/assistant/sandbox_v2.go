@@ -149,6 +149,15 @@ func (ast *Assistant) executeSandboxV2Stream(
 	// Resolve connector for Stream.
 	conn, _, _ := ast.GetConnector(ctx)
 
+	var tok *sandboxTypes.SandboxToken
+	if ctx.Authorized != nil {
+		var err error
+		tok, err = sandboxv2.IssueSandboxToken(ctx.Authorized.TeamID, ctx.Authorized.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("issue sandbox token: %w", err)
+		}
+	}
+
 	streamReq := &sandboxTypes.StreamRequest{
 		Computer:     computer,
 		Config:       cfg,
@@ -156,6 +165,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Messages:     completionMessages,
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,
+		Token:        tok,
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{

@@ -372,6 +372,9 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 		"sandbox-node-id": nodeID,
 		"sandbox-policy":  string(opts.Policy),
 	}
+	if opts.VNC {
+		labels["sandbox-vnc"] = "true"
+	}
 	if opts.WorkspaceID != "" {
 		labels["workspace-id"] = opts.WorkspaceID
 	}
@@ -455,6 +458,15 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 		if c.Name != "" {
 			cid = c.Name
 		}
+		hasVNC := c.Labels["sandbox-vnc"] == "true"
+		if !hasVNC {
+			for _, p := range c.Ports {
+				if p.ContainerPort == 5900 || p.ContainerPort == 6080 {
+					hasVNC = true
+					break
+				}
+			}
+		}
 		box := &Box{
 			id:          sandboxID,
 			containerID: cid,
@@ -465,6 +477,7 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 			createdAt:   time.Now(),
 			image:       c.Image,
 			workspaceID: c.Labels["workspace-id"],
+			vnc:         hasVNC,
 			workDir:     "/workspace",
 			manager:     m,
 		}

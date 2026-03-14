@@ -37,6 +37,7 @@ type computerOption struct {
 	Kind        string             `json:"kind"`
 	ID          string             `json:"id"`
 	DisplayName string             `json:"display_name"`
+	ContainerID string             `json:"container_id,omitempty"`
 	NodeID      string             `json:"node_id"`
 	Status      string             `json:"status"`
 	Mode        string             `json:"mode,omitempty"`
@@ -276,6 +277,7 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 		Kind:        "box",
 		ID:          snap.ID,
 		DisplayName: displayName,
+		ContainerID: snap.ContainerID,
 		NodeID:      snap.NodeID,
 		Status:      snap.Status,
 		Mode:        mode,

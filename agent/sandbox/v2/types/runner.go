@@ -50,4 +50,5 @@ type StreamRequest struct {
 	Messages     []agentContext.Message
 	SystemPrompt string
 	ChatID       string
+	Token        *SandboxToken // current user's sandbox token for MCP callbacks
 }
