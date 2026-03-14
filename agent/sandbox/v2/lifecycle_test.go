@@ -20,7 +20,7 @@ import (
 
 func TestBuildIdentifier_Oneshot(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "oneshot"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", nil)
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", "ws1", nil)
 	if id != "" {
 		t.Errorf("oneshot should return empty, got %q", id)
 	}
@@ -28,7 +28,7 @@ func TestBuildIdentifier_Oneshot(t *testing.T) {
 
 func TestBuildIdentifier_Session(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "session"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat42", "ast1", nil)
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat42", "ast1", "ws1", nil)
 	if id != "owner1-chat42" {
 		t.Errorf("session: got %q, want %q", id, "owner1-chat42")
 	}
@@ -36,33 +36,33 @@ func TestBuildIdentifier_Session(t *testing.T) {
 
 func TestBuildIdentifier_Longrunning(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "longrunning"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast99", nil)
-	if id != "owner1-ast99" {
-		t.Errorf("longrunning: got %q, want %q", id, "owner1-ast99")
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast99", "ws1", nil)
+	if id != "owner1-ast99.ws1" {
+		t.Errorf("longrunning: got %q, want %q", id, "owner1-ast99.ws1")
 	}
 }
 
 func TestBuildIdentifier_Persistent(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "persistent"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast99", nil)
-	if id != "owner1-ast99" {
-		t.Errorf("persistent: got %q, want %q", id, "owner1-ast99")
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast99", "ws1", nil)
+	if id != "owner1-ast99.ws1" {
+		t.Errorf("persistent: got %q, want %q", id, "owner1-ast99.ws1")
 	}
 }
 
 func TestBuildIdentifier_MetadataOverride(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "session"}
 	meta := map[string]any{"computer_id": "custom-box"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", meta)
-	if id != "owner1-custom-box" {
-		t.Errorf("metadata override: got %q, want %q", id, "owner1-custom-box")
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", "ws1", meta)
+	if id != "owner1-custom-box.ws1" {
+		t.Errorf("metadata override: got %q, want %q", id, "owner1-custom-box.ws1")
 	}
 }
 
 func TestBuildIdentifier_MetadataEmptyIgnored(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "session"}
 	meta := map[string]any{"computer_id": ""}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat42", "ast1", meta)
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat42", "ast1", "ws1", meta)
 	if id != "owner1-chat42" {
 		t.Errorf("empty metadata should fall through to session, got %q", id)
 	}
@@ -70,7 +70,7 @@ func TestBuildIdentifier_MetadataEmptyIgnored(t *testing.T) {
 
 func TestBuildIdentifier_UnknownLifecycle(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "unknown"}
-	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", nil)
+	id := sandboxv2.BuildIdentifier(cfg, "owner1", "chat1", "ast1", "ws1", nil)
 	if id != "" {
 		t.Errorf("unknown lifecycle should return empty, got %q", id)
 	}

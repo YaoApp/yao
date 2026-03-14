@@ -45,7 +45,6 @@ type computerOption struct {
 	Image       string             `json:"image,omitempty"`
 	Policy      string             `json:"policy,omitempty"`
 	VNC         bool               `json:"vnc"`
-	Labels      map[string]string  `json:"labels,omitempty"`
 	System      computerSystemInfo `json:"system"`
 }
 
@@ -255,7 +254,10 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 	snap := b.Snapshot()
 	info := b.ComputerInfo()
 
-	displayName := info.System.Hostname
+	displayName := info.DisplayName
+	if displayName == "" {
+		displayName = info.System.Hostname
+	}
 	if displayName == "" {
 		displayName = snap.ID
 	}
@@ -285,7 +287,6 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 		Image:       snap.Image,
 		Policy:      string(snap.Policy),
 		VNC:         snap.VNC,
-		Labels:      snap.Labels,
 		System: computerSystemInfo{
 			OS:       info.System.OS,
 			Arch:     info.System.Arch,

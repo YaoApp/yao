@@ -8,9 +8,18 @@ import (
 // Image manages container images on a runtime node.
 type Image interface {
 	Exists(ctx context.Context, ref string) (bool, error)
+	Inspect(ctx context.Context, ref string) (*ImageMeta, error)
 	Pull(ctx context.Context, ref string, opts PullOptions) (<-chan PullProgress, error)
 	Remove(ctx context.Context, ref string, force bool) error
 	List(ctx context.Context) ([]ImageInfo, error)
+}
+
+// ImageMeta holds static metadata extracted from a container image.
+type ImageMeta struct {
+	OS      string // "linux", "windows"
+	Arch    string // "amd64", "arm64"
+	Shell   string // preferred shell: "bash", "sh", "cmd.exe", "pwsh"
+	WorkDir string // default working directory from Dockerfile WORKDIR
 }
 
 // PullOptions configures an image pull operation.

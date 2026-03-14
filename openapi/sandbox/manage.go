@@ -94,7 +94,6 @@ type sandboxResponse struct {
 	Owner        string            `json:"owner"`
 	Status       string            `json:"status"`
 	Policy       string            `json:"policy,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
 	Image        string            `json:"image,omitempty"`
 	Mode         string            `json:"mode,omitempty"`
 	Addr         string            `json:"addr,omitempty"`
@@ -110,7 +109,10 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 	snap := b.Snapshot()
 	info := b.ComputerInfo()
 
-	displayName := info.System.Hostname
+	displayName := info.DisplayName
+	if displayName == "" {
+		displayName = info.System.Hostname
+	}
 	if displayName == "" {
 		displayName = snap.ID
 	}
@@ -137,7 +139,6 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 		Owner:        snap.Owner,
 		Status:       snap.Status,
 		Policy:       string(snap.Policy),
-		Labels:       snap.Labels,
 		Image:        snap.Image,
 		Mode:         mode,
 		Addr:         addr,

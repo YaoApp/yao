@@ -30,6 +30,7 @@ type Box struct {
 	image         string
 	workspaceID   string
 	system        SystemInfo
+	displayName   string
 	workDir       string
 	ws            taiworkspace.FS
 	manager       *Manager
@@ -56,6 +57,7 @@ func (b *Box) ComputerInfo() ComputerInfo {
 		Image:       b.image,
 		Policy:      b.policy,
 		Labels:      b.labels,
+		DisplayName: b.displayName,
 	}
 }
 

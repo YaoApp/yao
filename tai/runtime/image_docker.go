@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/image"
@@ -33,6 +34,44 @@ func (d *dockerImage) Exists(ctx context.Context, ref string) (bool, error) {
 		return false, fmt.Errorf("image inspect %q: %w", ref, err)
 	}
 	return true, nil
+}
+
+func (d *dockerImage) Inspect(ctx context.Context, ref string) (*ImageMeta, error) {
+	inspect, _, err := d.cli.ImageInspectWithRaw(ctx, ref)
+	if err != nil {
+		return nil, fmt.Errorf("image inspect %q: %w", ref, err)
+	}
+
+	meta := &ImageMeta{
+		OS:   inspect.Os,
+		Arch: inspect.Architecture,
+	}
+
+	if inspect.Config != nil {
+		meta.WorkDir = inspect.Config.WorkingDir
+
+		if len(inspect.Config.Shell) > 0 {
+			meta.Shell = inspect.Config.Shell[0]
+		}
+		if meta.Shell == "" {
+			for _, e := range inspect.Config.Env {
+				if strings.HasPrefix(e, "SHELL=") {
+					meta.Shell = e[6:]
+					break
+				}
+			}
+		}
+	}
+
+	if meta.Shell == "" {
+		if strings.EqualFold(meta.OS, "windows") {
+			meta.Shell = "cmd.exe"
+		} else {
+			meta.Shell = "bash"
+		}
+	}
+
+	return meta, nil
 }
 
 func (d *dockerImage) Pull(ctx context.Context, ref string, opts PullOptions) (<-chan PullProgress, error) {

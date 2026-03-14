@@ -17,7 +17,7 @@ import (
 
 // BuildIdentifier determines the Computer identifier based on lifecycle policy
 // and optional metadata override. Returns "" for oneshot (always new).
-func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID string, metadata map[string]any) string {
+func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, workspaceID string, metadata map[string]any) string {
 	if cfg.Lifecycle == "oneshot" {
 		return ""
 	}
@@ -25,7 +25,7 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID stri
 	// Custom identifier from metadata takes precedence.
 	if metadata != nil {
 		if cid, ok := metadata["computer_id"].(string); ok && cid != "" {
-			return fmt.Sprintf("%s-%s", ownerID, cid)
+			return fmt.Sprintf("%s-%s.%s", ownerID, cid, workspaceID)
 		}
 	}
 
@@ -33,7 +33,7 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID stri
 	case "session":
 		return fmt.Sprintf("%s-%s", ownerID, chatID)
 	case "longrunning", "persistent":
-		return fmt.Sprintf("%s-%s", ownerID, assistantID)
+		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
 	default:
 		return ""
 	}
@@ -44,11 +44,6 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID stri
 // Returns the Computer, the resolved identifier, and any error.
 func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager, conn ...connector.Connector) (infra.Computer, string, error) {
 	ownerID := resolveOwnerID(ctx)
-	identifier := BuildIdentifier(cfg, ownerID, ctx.ChatID, ctx.AssistantID, ctx.Metadata)
-
-	// Fill runtime fields.
-	cfg.Owner = ownerID
-	cfg.ID = identifier
 
 	workspaceID := ""
 	if ctx.Metadata != nil {
@@ -59,6 +54,12 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	if workspaceID == "" {
 		workspaceID = ownerID
 	}
+
+	identifier := BuildIdentifier(cfg, ownerID, ctx.ChatID, ctx.AssistantID, workspaceID, ctx.Metadata)
+
+	// Fill runtime fields.
+	cfg.Owner = ownerID
+	cfg.ID = identifier
 	cfg.WorkspaceID = workspaceID
 
 	// Resolve computer_id from metadata to determine kind and nodeID.

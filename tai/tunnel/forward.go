@@ -113,17 +113,26 @@ func resolveTargetPort(c *gin.Context, node *types.NodeMeta) int {
 	return 0
 }
 
-// rewriteRequest clones the request and strips everything up to and including
-// /tai/:taiID from the path, handling any baseURL prefix (e.g. /v1/tai/abc/proxy/x → /proxy/x).
+// rewriteRequest clones the request and strips the Yao-side route prefix,
+// leaving only what the Tai-side handler expects.
+//
+// The Tai httpproxy expects /{containerID}:{port}/..., so the /proxy prefix
+// is stripped. The Tai VNC router expects /vnc/{containerID}/ws, so the /vnc
+// prefix is kept.
+//
+//	/v1/tai/abc/proxy/cid:8080/foo → /cid:8080/foo
+//	/v1/tai/abc/vnc/cid/ws        → /vnc/cid/ws
 func rewriteRequest(orig *http.Request, taiID string) *http.Request {
 	r := orig.Clone(orig.Context())
 
 	marker := "/tai/" + taiID
 	if idx := strings.Index(r.URL.Path, marker); idx >= 0 {
-		r.URL.Path = r.URL.Path[idx+len(marker):]
-		if r.URL.Path == "" {
-			r.URL.Path = "/"
+		rest := r.URL.Path[idx+len(marker):]
+		rest = strings.TrimPrefix(rest, "/proxy")
+		if rest == "" {
+			rest = "/"
 		}
+		r.URL.Path = rest
 	}
 
 	r.RequestURI = r.URL.RequestURI()

@@ -84,8 +84,8 @@ func TestRewriteRequest(t *testing.T) {
 			"proxy_path",
 			"/tai/abc123/proxy/api/v1/data",
 			"abc123",
-			"/proxy/api/v1/data",
-			"/proxy/api/v1/data",
+			"/api/v1/data",
+			"/api/v1/data",
 		},
 		{
 			"vnc_path",
@@ -98,8 +98,8 @@ func TestRewriteRequest(t *testing.T) {
 			"with_query",
 			"/tai/node-1/proxy/api?foo=bar",
 			"node-1",
-			"/proxy/api",
-			"/proxy/api?foo=bar",
+			"/api",
+			"/api?foo=bar",
 		},
 		{
 			"exact_prefix",
@@ -112,8 +112,8 @@ func TestRewriteRequest(t *testing.T) {
 			"with_base_url",
 			"/v1/tai/node-1/proxy/api/v1/data",
 			"node-1",
-			"/proxy/api/v1/data",
-			"/proxy/api/v1/data",
+			"/api/v1/data",
+			"/api/v1/data",
 		},
 		{
 			"with_base_url_vnc",
@@ -121,6 +121,13 @@ func TestRewriteRequest(t *testing.T) {
 			"abc123",
 			"/vnc/__host__/ws",
 			"/vnc/__host__/ws",
+		},
+		{
+			"proxy_container_port",
+			"/v1/tai/abc/proxy/cid123:8080/foo",
+			"abc",
+			"/cid123:8080/foo",
+			"/cid123:8080/foo",
 		},
 		{
 			"no_match",

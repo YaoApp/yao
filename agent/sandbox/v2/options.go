@@ -34,6 +34,7 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		MountMode:   cfg.Computer.MountMode,
 		WorkspaceID: workspaceID,
 		Labels:      cfg.Labels,
+		DisplayName: cfg.DisplayName,
 	}
 
 	if opts.Labels == nil {

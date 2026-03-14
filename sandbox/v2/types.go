@@ -44,6 +44,7 @@ type ComputerInfo struct {
 	Image       string
 	Policy      LifecyclePolicy
 	Labels      map[string]string
+	DisplayName string
 }
 
 // SystemInfo describes the hardware and environment of a Tai node.
@@ -104,6 +105,7 @@ type CreateOptions struct {
 	WorkspaceID string
 	MountMode   string
 	MountPath   string
+	DisplayName string
 }
 
 type ListOptions struct {

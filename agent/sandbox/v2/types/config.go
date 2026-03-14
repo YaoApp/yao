@@ -32,6 +32,7 @@ type SandboxConfig struct {
 	NodeID      string            `json:"-" yaml:"-"`
 	Kind        string            `json:"-" yaml:"-"`
 	WorkspaceID string            `json:"-" yaml:"-"`
+	DisplayName string            `json:"-" yaml:"-"`
 }
 
 // ComputerFilter defines the query parameters for GET /computer/options.
