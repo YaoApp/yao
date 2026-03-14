@@ -52,6 +52,12 @@ func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts
 		}}
 	}
 
+	// tai relay daemon port — always mapped so the host Tai server can
+	// forward arbitrary container ports through the relay.
+	relayPort := nat.Port("2099/tcp")
+	exposedPorts[relayPort] = struct{}{}
+	portBindings[relayPort] = []nat.PortBinding{{HostIP: "127.0.0.1", HostPort: ""}}
+
 	if opts.VNC {
 		hostCfg.CapAdd = append(hostCfg.CapAdd, "SYS_ADMIN")
 		shmSize := opts.Memory / 4
