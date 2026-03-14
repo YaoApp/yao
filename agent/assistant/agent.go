@@ -205,6 +205,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	}()
 
 	// ================================================
+	// Standalone Workspace Loading (no sandbox required)
+	// ================================================
+	// When no sandbox is configured but the user selected a workspace,
+	// load the workspace FS into context so hooks can access ctx.workspace.
+	if !ctx.HasWorkspace() {
+		ast.initStandaloneWorkspace(ctx)
+	}
+
+	// ================================================
 	//  Execute Create Hook
 	// ================================================
 	// Request Create hook ( Optional )

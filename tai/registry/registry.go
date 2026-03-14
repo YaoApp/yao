@@ -401,12 +401,27 @@ func (r *Registry) bridgeTunnelConn(taiID string, targetPort int, localConn net.
 	r.logger.Error("no bridge function configured", "tai_id", taiID, "port", targetPort)
 }
 
+// ChannelIDBytes is the number of random bytes used to generate a channel ID.
+// The resulting hex string is 2× this value (64 characters).
+const ChannelIDBytes = 32
+
+// ChannelIDShortLen is the max characters shown in log messages.
+const ChannelIDShortLen = 16
+
 func generateChannelID() (string, error) {
-	b := make([]byte, 32)
+	b := make([]byte, ChannelIDBytes)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
+}
+
+// ShortChannelID truncates a channel ID for log display.
+func ShortChannelID(id string) string {
+	if len(id) <= ChannelIDShortLen {
+		return id
+	}
+	return id[:ChannelIDShortLen]
 }
 
 type contextCancel struct {

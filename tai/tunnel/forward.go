@@ -2,8 +2,10 @@ package tunnel
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -11,28 +13,51 @@ import (
 	"github.com/yaoapp/yao/tai/types"
 )
 
+const defaultVNCPort = 5900
+
+// forwardRoute holds the structured routing information extracted from the
+// incoming request URL. It is passed to RequestForward so that Yao can
+// populate the TunnelControl proto fields and Tai can route directly without
+// parsing the first packet.
+type forwardRoute struct {
+	channelType   string // "proxy" | "vnc"
+	containerID   string // target container or "__host__"
+	containerPort int    // container-internal port (vnc default 5900)
+	subpath       string // rewritten request path for the container
+}
+
 // HandleForward handles HTTP/VNC/any TCP-level forwarding through the gRPC tunnel.
 // Route: ANY /tai/:taiID/proxy/*path  and  GET /tai/:taiID/vnc/*path
 //
 // It hijacks the browser's raw TCP connection, asks Tai to open a Forward stream
-// to the resolved target port, rewrites the request path, and then performs
+// with explicit routing information, rewrites the request path, and then performs
 // bidirectional byte-level bridging. No protocol parsing beyond HTTP hijack.
 func (h *TunnelHandler) HandleForward(c *gin.Context) {
 	logger := h.logger
 	reg := h.reg
 
 	taiID := c.Param("taiID")
+
 	node, ok := reg.Get(taiID)
 	if !ok || node.Status != "online" {
 		c.JSON(http.StatusBadGateway, gin.H{"error": "tai node not available"})
 		return
 	}
 
-	targetPort := resolveTargetPort(c, node)
-	if targetPort == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "cannot resolve target port"})
+	route, err := resolveRoute(c, node)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	rewrittenReq := rewriteRequest(c.Request, taiID, route)
+	logger.Debug("[forward] "+node.Mode+" → tai",
+		"tai_id", taiID,
+		"type", route.channelType,
+		"container", route.containerID,
+		"container_port", route.containerPort,
+		"path", rewrittenReq.URL.Path,
+	)
 
 	hijacker, ok := c.Writer.(http.Hijacker)
 	if !ok {
@@ -41,20 +66,18 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 	}
 	browserConn, bufrw, err := hijacker.Hijack()
 	if err != nil {
-		logger.Error("hijack failed", "err", err)
+		logger.Error("[forward] hijack failed", "tai_id", taiID, "err", err)
 		return
 	}
 	defer browserConn.Close()
 
-	fwd, err := h.RequestForward(taiID, targetPort)
+	fwd, err := h.RequestForward(taiID, route)
 	if err != nil {
-		logger.Error("request forward failed",
-			"tai_id", taiID, "port", targetPort, "err", err)
+		logger.Error("[forward] stream failed",
+			"tai_id", taiID, "type", route.channelType, "err", err)
 		browserConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
 		return
 	}
-
-	rewrittenReq := rewriteRequest(c.Request, taiID)
 
 	var reqBuf bytes.Buffer
 	rewrittenReq.Write(&reqBuf)
@@ -63,7 +86,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		reqBuf.Write(buffered)
 	}
 	if err := fwd.Send(&taipb.ForwardData{Data: reqBuf.Bytes()}); err != nil {
-		logger.Error("send initial request", "err", err)
+		logger.Error("[forward] send failed", "tai_id", taiID, "err", err)
 		return
 	}
 
@@ -72,6 +95,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		&netConnAdapter{ReadWriteCloser: browserConn},
 		streamConn,
 	)
+	logger.Debug("[forward] closed", "tai_id", taiID)
 }
 
 // HandleForwardLazy is a gin.HandlerFunc that resolves the global TunnelHandler
@@ -86,38 +110,91 @@ func HandleForwardLazy(c *gin.Context) {
 	h.HandleForward(c)
 }
 
-// resolveTargetPort determines the Tai-side port from the route pattern.
-func resolveTargetPort(c *gin.Context, node *types.NodeMeta) int {
+// resolveRoute extracts structured routing info from the request URL path.
+//
+// For proxy requests (/tai/:taiID/proxy/{containerID}:{port}/{subpath}):
+//
+//	channelType = "proxy", containerPort from URL, subpath = remaining path.
+//
+// For VNC requests (/tai/:taiID/vnc/{containerID}/ws):
+//
+//	channelType = "vnc", containerPort = 5900, subpath = /vnc/{containerID}/ws.
+func resolveRoute(c *gin.Context, node *types.NodeMeta) (*forwardRoute, error) {
 	path := c.Request.URL.Path
-
-	if strings.Contains(path, "/vnc/") {
-		if node.Ports.VNC != 0 {
-			return node.Ports.VNC
-		}
-		return 16080
-	}
-	if strings.Contains(path, "/proxy/") {
-		if node.Ports.HTTP != 0 {
-			return node.Ports.HTTP
-		}
-		return 8099
-	}
-	return 0
-}
-
-// rewriteRequest clones the request and strips everything up to and including
-// /tai/:taiID from the path, handling any baseURL prefix (e.g. /v1/tai/abc/proxy/x → /proxy/x).
-func rewriteRequest(orig *http.Request, taiID string) *http.Request {
-	r := orig.Clone(orig.Context())
+	taiID := c.Param("taiID")
 
 	marker := "/tai/" + taiID
-	if idx := strings.Index(r.URL.Path, marker); idx >= 0 {
-		r.URL.Path = r.URL.Path[idx+len(marker):]
-		if r.URL.Path == "" {
-			r.URL.Path = "/"
+	idx := strings.Index(path, marker)
+	if idx < 0 {
+		return nil, fmt.Errorf("cannot locate /tai/%s in path", taiID)
+	}
+	rest := path[idx+len(marker):]
+
+	if strings.HasPrefix(rest, "/vnc/") {
+		// /vnc/{containerID}/ws → containerID, port=5900
+		tail := strings.TrimPrefix(rest, "/vnc/")
+		containerID := tail
+		if slashIdx := strings.IndexByte(tail, '/'); slashIdx >= 0 {
+			containerID = tail[:slashIdx]
 		}
+		if containerID == "" {
+			return nil, fmt.Errorf("missing container ID in VNC path: %s", path)
+		}
+		return &forwardRoute{
+			channelType:   "vnc",
+			containerID:   containerID,
+			containerPort: defaultVNCPort,
+			subpath:       rest, // keep /vnc/{containerID}/ws
+		}, nil
 	}
 
+	if strings.HasPrefix(rest, "/proxy/") {
+		// /proxy/{containerID}:{port}/{subpath}
+		proxyPath := strings.TrimPrefix(rest, "/proxy")
+		// proxyPath = /{containerID}:{port}/{subpath}
+		proxyPath = strings.TrimPrefix(proxyPath, "/")
+		if proxyPath == "" {
+			return nil, fmt.Errorf("empty proxy path")
+		}
+
+		slash := strings.IndexByte(proxyPath, '/')
+		var head, subpath string
+		if slash == -1 {
+			head = proxyPath
+			subpath = "/"
+		} else {
+			head = proxyPath[:slash]
+			subpath = proxyPath[slash:]
+		}
+
+		colon := strings.LastIndexByte(head, ':')
+		if colon < 0 {
+			return nil, fmt.Errorf("missing port in proxy path: %s", path)
+		}
+		containerID := head[:colon]
+		portStr := head[colon+1:]
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid port %q in proxy path: %w", portStr, err)
+		}
+		return &forwardRoute{
+			channelType:   "proxy",
+			containerID:   containerID,
+			containerPort: port,
+			subpath:       subpath,
+		}, nil
+	}
+
+	return nil, fmt.Errorf("unknown route pattern: %s", rest)
+}
+
+// rewriteRequest clones the request and sets the path to the route's subpath.
+//
+// For proxy: the path becomes the subpath (e.g. /foo/bar).
+// For VNC: the path keeps /vnc/{containerID}/ws as-is.
+func rewriteRequest(orig *http.Request, taiID string, route *forwardRoute) *http.Request {
+	r := orig.Clone(orig.Context())
+	r.URL.Path = route.subpath
 	r.RequestURI = r.URL.RequestURI()
 	return r
 }

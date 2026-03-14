@@ -2,6 +2,7 @@ package assistant
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	traceTypes "github.com/yaoapp/yao/trace/types"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // HasSandboxV2 returns true if the assistant has a V2 sandbox configuration.
@@ -46,7 +48,10 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		return nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
 	}
 
-	// 2. Obtain Computer (passes connector for OPENAI_PROXY_* env injection).
+	// 2. Build human-readable DisplayName from real Agent name + Workspace name.
+	cfg.DisplayName = buildBoxDisplayName(ctx, ast.ID, ast.Name)
+
+	// 3. Obtain Computer (passes connector for OPENAI_PROXY_* env injection).
 	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager, conn)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
@@ -54,7 +59,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	}
 	_ = identifier
 
-	// 3. Get Runner.
+	// 4. Get Runner.
 	runner, err := sandboxv2.Get(cfg.Runner.Name)
 	if err != nil {
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
@@ -62,7 +67,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		return nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
 	}
 
-	// 4. Resolve skills directory.
+	// 5. Resolve skills directory.
 	skillsDir := ""
 	if ast.Path != "" {
 		dir := filepath.Join(config.Conf.AppSource, ast.Path, "skills")
@@ -71,7 +76,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 5. Convert MCP servers.
+	// 6. Convert MCP servers.
 	var mcpServers []sandboxTypes.MCPServer
 	if ast.MCP != nil {
 		for _, s := range ast.MCP.Servers {
@@ -83,7 +88,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 6. Runner.Prepare (standard context).
+	// 7. Runner.Prepare (standard context).
 	err = runner.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
 		Computer:   computer,
 		Config:     cfg,
@@ -147,6 +152,15 @@ func (ast *Assistant) executeSandboxV2Stream(
 	// Resolve connector for Stream.
 	conn, _, _ := ast.GetConnector(ctx)
 
+	var tok *sandboxTypes.SandboxToken
+	if ctx.Authorized != nil {
+		var err error
+		tok, err = sandboxv2.IssueSandboxToken(ctx.Authorized.TeamID, ctx.Authorized.UserID)
+		if err != nil {
+			return nil, fmt.Errorf("issue sandbox token: %w", err)
+		}
+	}
+
 	streamReq := &sandboxTypes.StreamRequest{
 		Computer:     computer,
 		Config:       cfg,
@@ -154,6 +168,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Messages:     completionMessages,
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,
+		Token:        tok,
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{
@@ -165,6 +180,54 @@ func (ast *Assistant) executeSandboxV2Stream(
 	}
 
 	return sandboxv2.ExecuteSandboxStream(ctx, execReq, streamHandler)
+}
+
+// initStandaloneWorkspace loads the workspace FS into context when no sandbox
+// is configured but the user selected a workspace (metadata["workspace_id"]).
+func (ast *Assistant) initStandaloneWorkspace(ctx *context.Context) {
+	if ctx.Metadata == nil {
+		return
+	}
+	wsID, _ := ctx.Metadata["workspace_id"].(string)
+	if wsID == "" {
+		return
+	}
+
+	stdCtx := ctx.Context
+	wsFS, err := workspace.M().FS(stdCtx, wsID)
+	if err != nil {
+		log.Printf("[assistant] initStandaloneWorkspace: failed to load workspace %s: %v", wsID, err)
+		return
+	}
+	ctx.SetWorkspace(wsFS)
+}
+
+// buildBoxDisplayName constructs a human-readable display name for a Box
+// using the locale-resolved Agent name and Workspace name (matching the UI list pages).
+func buildBoxDisplayName(ctx *context.Context, assistantID, rawName string) string {
+	agentName := i18n.Tr(assistantID, ctx.Locale, rawName)
+
+	wsName := ""
+	if ctx.Metadata != nil {
+		if wsID, ok := ctx.Metadata["workspace_id"].(string); ok && wsID != "" {
+			if wsm := workspace.M(); wsm != nil {
+				if ws, err := wsm.Get(ctx.Context, wsID); err == nil && ws != nil {
+					wsName = ws.Name
+				}
+			}
+		}
+	}
+
+	if agentName != "" && wsName != "" {
+		return agentName + " / " + wsName
+	}
+	if agentName != "" {
+		return agentName
+	}
+	if wsName != "" {
+		return wsName
+	}
+	return ""
 }
 
 func closeLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {

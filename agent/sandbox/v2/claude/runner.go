@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path"
 	"strings"
 	"time"
@@ -14,12 +15,7 @@ import (
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
-const (
-	defaultWorkDir   = "/workspace"
-	defaultUser      = "sandbox"
-	defaultUserHome  = "/home/sandbox"
-	defaultProxyPort = 3456
-)
+const defaultProxyPort = 3456
 
 // ClaudeRunner implements the Runner interface for Claude CLI (mode=cli).
 type ClaudeRunner struct {
@@ -45,33 +41,30 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 		r.mode = "cli"
 	}
 
-	workDir := resolveWorkDir(req.Config)
+	env := resolveOSEnv(req.Computer, req.Config)
 
-	// Merge user-defined steps with runner-specific steps.
 	steps := append([]types.PrepareStep{}, req.Config.Prepare...)
 
-	// Runner-specific: ensure .claude directory in workDir.
 	if req.SkillsDir != "" {
+		claudeDir := env.pathJoin(env.WorkDir, ".claude")
 		steps = append(steps, types.PrepareStep{
 			Action: "exec",
-			Cmd:    fmt.Sprintf("mkdir -p %s/.claude", workDir),
+			Cmd:    env.mkdirCmd(claudeDir),
 			Once:   true,
 		})
 	}
 
-	// Runner-specific: write MCP config.
 	if len(req.MCPServers) > 0 {
 		r.hasMCP = true
 		r.mcpToolPattern = buildMCPAllowedTools(req.MCPServers)
 		mcpJSON := buildMCPConfig(req.MCPServers)
 		steps = append(steps, types.PrepareStep{
 			Action:  "file",
-			Path:    path.Join(workDir, ".mcp.json"),
+			Path:    env.pathJoin(env.WorkDir, ".mcp.json"),
 			Content: mcpJSON,
 		})
 	}
 
-	// Execute all steps via the injected callback.
 	if req.RunSteps != nil && len(steps) > 0 {
 		if err := req.RunSteps(ctx, steps, req.Computer, req.Config.ID, req.ConfigHash); err != nil {
 			return fmt.Errorf("claude prepare steps: %w", err)
@@ -88,9 +81,8 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		return fmt.Errorf("computer is nil")
 	}
 
-	workDir := resolveWorkDir(req.Config)
+	oe := resolveOSEnv(computer, req.Config)
 
-	// Prepare attachments: resolve __yao.attachment:// URLs, copy files to workspace.
 	if req.ChatID != "" {
 		ws := computer.Workplace()
 		if ws != nil {
@@ -102,90 +94,118 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		}
 	}
 
-	// Detect continuation (existing .claude/projects/ directory).
-	isContinuation := hasExistingSession(ctx, computer, workDir)
+	isContinuation := hasExistingSession(ctx, computer, oe)
 
-	// Build CLI command and env.
-	cmd, env := r.buildCLICommand(req, isContinuation)
+	cmd, env, stdin := r.buildCLICommand(req, oe, isContinuation)
 
-	// Create stream.
-	execStream, err := computer.Stream(ctx, cmd, infra.WithWorkDir(workDir), infra.WithEnv(env))
+	streamOpts := []infra.ExecOption{infra.WithWorkDir(oe.WorkDir), infra.WithEnv(env)}
+	if len(stdin) > 0 {
+		streamOpts = append(streamOpts, infra.WithStdin(stdin))
+	}
+
+	execStream, err := computer.Stream(ctx, cmd, streamOpts...)
 	if err != nil {
 		return fmt.Errorf("computer.Stream: %w", err)
 	}
 
-	// Monitor for context cancellation — kill the process.
-	done := make(chan struct{})
-	defer func() {
-		close(done)
-	}()
+	streamCtx, streamCancel := context.WithCancel(ctx)
+	defer streamCancel()
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			computer.Exec(killCtx, []string{"pkill", "-f", "claude"})
-			execStream.Cancel()
-		case <-done:
+		<-streamCtx.Done()
+		killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		computer.Exec(killCtx, oe.killProcessCmd("claude"))
+		execStream.Cancel()
+	}()
+
+	var stderrBuf strings.Builder
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			n, err := execStream.Stderr.Read(buf)
+			if n > 0 {
+				stderrBuf.Write(buf[:n])
+				chunk := string(buf[:n])
+				if strings.Contains(strings.ToLower(chunk), "error") {
+					streamCancel()
+					io.Copy(&stderrBuf, execStream.Stderr)
+					return
+				}
+			}
+			if err != nil {
+				return
+			}
 		}
 	}()
 
-	// Parse streaming output.
-	parseErr := parseStreamJSON(ctx, execStream.Stdout, handler)
+	parseErr := parseStreamJSON(streamCtx, execStream.Stdout, handler)
 
-	// Wait for process exit.
 	exitCode, waitErr := execStream.Wait()
+	stderrStr := strings.TrimSpace(stderrBuf.String())
+
 	if parseErr != nil {
+		if stderrStr != "" {
+			return fmt.Errorf("%w (stderr: %s)", parseErr, stderrStr)
+		}
 		return parseErr
 	}
 	if waitErr != nil {
+		if stderrStr != "" {
+			return fmt.Errorf("%w (stderr: %s)", waitErr, stderrStr)
+		}
 		return waitErr
 	}
 	if exitCode != 0 {
+		if stderrStr != "" {
+			return fmt.Errorf("claude CLI exited with code %d: %s", exitCode, stderrStr)
+		}
 		return fmt.Errorf("claude CLI exited with code %d", exitCode)
 	}
 	return nil
 }
 
 // Cleanup kills any remaining claude processes.
-// mode=cli: kill all claude CLI processes.
 func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) error {
 	if computer == nil {
 		return nil
 	}
 
 	if r.mode != "service" {
-		computer.Exec(ctx, []string{"sh", "-c", "pkill -f 'claude' || true"})
+		oe := resolveOSEnv(computer, nil)
+		computer.Exec(ctx, oe.killProcessCmd("claude"))
 	}
 
 	return nil
 }
 
 // hasExistingSession checks if a Claude CLI session exists in the workspace.
-func hasExistingSession(ctx context.Context, computer infra.Computer, workDir string) bool {
-	sessionDir := path.Join(workDir, ".claude/projects")
-	result, err := computer.Exec(ctx, []string{"ls", sessionDir})
+func hasExistingSession(ctx context.Context, computer infra.Computer, oe *osEnv) bool {
+	sessionDir := oe.pathJoin(oe.WorkDir, ".claude", "projects")
+	result, err := computer.Exec(ctx, oe.listDirCmd(sessionDir))
 	if err != nil || result.ExitCode != 0 {
 		return false
 	}
 	return strings.TrimSpace(result.Stdout) != ""
 }
 
-// buildCLICommand constructs the Claude CLI command and environment variables.
-func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation bool) ([]string, map[string]string) {
-	workDir := resolveWorkDir(req.Config)
-	userHome := resolveUserHome(req.Config)
-
+// buildCLICommand constructs the Claude CLI command, environment variables, and optional stdin bytes.
+func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, oe *osEnv, isContinuation bool) ([]string, map[string]string, []byte) {
 	env := make(map[string]string)
-	env["HOME"] = workDir
 
-	// User-specific paths (only set when running as non-root user inside container).
-	if userHome != "" {
-		env["XAUTHORITY"] = path.Join(userHome, ".Xauthority")
+	if oe.isWindows() {
+		env["USERPROFILE"] = oe.WorkDir
+		if len(oe.WorkDir) >= 2 && oe.WorkDir[1] == ':' {
+			env["HOMEDRIVE"] = oe.WorkDir[:2]
+			env["HOMEPATH"] = oe.WorkDir[2:]
+		}
+	} else {
+		env["HOME"] = oe.WorkDir
+		if oe.UserHome != "" {
+			env["XAUTHORITY"] = path.Join(oe.UserHome, ".Xauthority")
+		}
 	}
 
-	// Connector environment.
 	if req.Connector != nil {
 		setting := req.Connector.Setting()
 		host, _ := setting["host"].(string)
@@ -209,23 +229,29 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation 
 		}
 	}
 
-	// Secrets from config.
 	if req.Config != nil && len(req.Config.Secrets) > 0 {
 		for k, v := range req.Config.Secrets {
 			env[k] = v
 		}
 	}
 
-	// Build system prompt.
+	if req.Token != nil {
+		if req.Token.Token != "" {
+			env["YAO_TOKEN"] = req.Token.Token
+		}
+		if req.Token.RefreshToken != "" {
+			env["YAO_REFRESH_TOKEN"] = req.Token.RefreshToken
+		}
+	}
+
 	var systemPrompt string
-	envPrompt := buildSandboxEnvPrompt(workDir)
+	envPrompt := buildSandboxEnvPrompt(oe.WorkDir)
 	if !isContinuation && req.SystemPrompt != "" {
 		systemPrompt = req.SystemPrompt + "\n\n" + envPrompt
 	} else if !isContinuation {
 		systemPrompt = envPrompt
 	}
 
-	// Build input JSONL.
 	var inputJSONL string
 	if isContinuation {
 		inputJSONL = buildLastUserMessageJSONL(req.Messages)
@@ -233,10 +259,19 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation 
 		inputJSONL = buildFirstRequestJSONL(req.Messages)
 	}
 
-	// CLI args.
 	var args []string
-	args = append(args, "--dangerously-skip-permissions")
-	args = append(args, "--permission-mode", "bypassPermissions")
+
+	permMode := ""
+	if req.Config != nil && req.Config.Runner.Options != nil {
+		if v, ok := req.Config.Runner.Options["permission_mode"]; ok {
+			permMode = fmt.Sprintf("%v", v)
+		}
+	}
+	if permMode == "bypassPermissions" {
+		args = append(args, "--dangerously-skip-permissions")
+		args = append(args, "--permission-mode", permMode)
+	}
+
 	args = append(args, "--input-format", "stream-json")
 	args = append(args, "--output-format", "stream-json")
 	args = append(args, "--include-partial-messages")
@@ -246,7 +281,6 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation 
 		args = append(args, "--continue")
 	}
 
-	// Runner options pass-through.
 	if req.Config != nil && req.Config.Runner.Options != nil {
 		for key, val := range req.Config.Runner.Options {
 			if flag, ok := claudeArgWhitelist[key]; ok {
@@ -255,39 +289,16 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, isContinuation 
 		}
 	}
 
-	// MCP config (set by Prepare if MCPServers were present).
 	if r.hasMCP {
-		args = append(args, "--mcp-config", path.Join(workDir, ".mcp.json"))
+		mcpPath := oe.pathJoin(oe.WorkDir, ".mcp.json")
+		args = append(args, "--mcp-config", mcpPath)
 		if r.mcpToolPattern != "" {
 			args = append(args, "--allowedTools", r.mcpToolPattern)
 		}
 	}
 
-	// Build bash command with heredoc.
-	var bash strings.Builder
-	if userHome != "" {
-		bash.WriteString(fmt.Sprintf("touch %s/.Xauthority 2>/dev/null; ", userHome))
-	}
-	bash.WriteString("touch \"$HOME/.Xauthority\" 2>/dev/null\n")
-
-	if systemPrompt != "" {
-		promptFile := path.Join(workDir, ".yao/.system-prompt.txt")
-		bash.WriteString(fmt.Sprintf("mkdir -p %s/.yao\n", workDir))
-		bash.WriteString(fmt.Sprintf("cat << 'PROMPTEOF' > %s\n", promptFile))
-		bash.WriteString(systemPrompt)
-		bash.WriteString("\nPROMPTEOF\n")
-		args = append(args, "--append-system-prompt-file", promptFile)
-	}
-
-	bash.WriteString("cat << 'INPUTEOF' | claude -p")
-	for _, arg := range args {
-		bash.WriteString(fmt.Sprintf(" %q", arg))
-	}
-	bash.WriteString(" 2>&1\n")
-	bash.WriteString(inputJSONL)
-	bash.WriteString("\nINPUTEOF")
-
-	return []string{"bash", "-c", bash.String()}, env
+	script, stdin := oe.buildCLIScript(args, systemPrompt, inputJSONL)
+	return oe.shellCmd(script), env, stdin
 }
 
 // buildMCPConfig creates the .mcp.json for Claude CLI based on declared servers.
@@ -372,30 +383,6 @@ When working with GitHub and a token is provided:
 2. Then use gh commands normally (gh repo create, gh pr create, etc.)
 3. Do NOT use curl to call GitHub API directly - always prefer gh CLI
 `, workDir)
-}
-
-// resolveWorkDir returns the configured working directory, falling back to default.
-func resolveWorkDir(cfg *types.SandboxConfig) string {
-	if cfg != nil && cfg.Computer.WorkDir != "" {
-		return cfg.Computer.WorkDir
-	}
-	return defaultWorkDir
-}
-
-// resolveUserHome returns the home directory for the container user.
-// Returns empty string if no user is configured (root or unspecified).
-func resolveUserHome(cfg *types.SandboxConfig) string {
-	if cfg == nil {
-		return defaultUserHome
-	}
-	user := cfg.Computer.User
-	if user == "" {
-		user = defaultUser
-	}
-	if user == "root" {
-		return "/root"
-	}
-	return fmt.Sprintf("/home/%s", user)
 }
 
 var claudeArgWhitelist = map[string]string{

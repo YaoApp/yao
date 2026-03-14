@@ -3,7 +3,10 @@ package sandbox
 import (
 	"context"
 	"fmt"
+	"log"
 	"path/filepath"
+	goruntime "runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -172,7 +175,9 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		return nil, fmt.Errorf("sandbox: node %q has no container runtime", nodeID)
 	}
 
-	taiOpts := m.buildTaiCreateOptions(opts, nodeID, id)
+	sys := inferSystemInfo(ctx, res, opts.Image)
+
+	taiOpts := m.buildTaiCreateOptions(opts, nodeID, id, sys)
 
 	containerID, err := res.Runtime.Create(ctx, taiOpts)
 	if err != nil {
@@ -189,14 +194,9 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		policy = Session
 	}
 
-	sys := SystemInfo{
-		OS:       res.System.OS,
-		Arch:     res.System.Arch,
-		Hostname: res.System.Hostname,
-		NumCPU:   res.System.NumCPU,
-		TotalMem: res.System.TotalMem,
-		Shell:    res.System.Shell,
-		TempDir:  res.System.TempDir,
+	boxWorkDir := opts.WorkDir
+	if boxWorkDir == "" {
+		boxWorkDir = "/workspace"
 	}
 
 	box := &Box{
@@ -214,6 +214,8 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		vnc:          opts.VNC,
 		image:        opts.Image,
 		workspaceID:  opts.WorkspaceID,
+		workDir:      boxWorkDir,
+		displayName:  opts.DisplayName,
 		system:       sys,
 	}
 	box.lastCall.Store(time.Now().UnixMilli())
@@ -342,7 +344,7 @@ func (m *Manager) getNode(name string) (*tai.ConnResources, error) {
 	return res, nil
 }
 
-func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID string) tairuntime.CreateOptions {
+func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID string, sys SystemInfo) tairuntime.CreateOptions {
 	env := make(map[string]string)
 
 	reg := registry.Global()
@@ -366,8 +368,32 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 		"sandbox-node-id": nodeID,
 		"sandbox-policy":  string(opts.Policy),
 	}
+	if opts.VNC {
+		labels["sandbox-vnc"] = "true"
+	}
 	if opts.WorkspaceID != "" {
 		labels["workspace-id"] = opts.WorkspaceID
+	}
+	if opts.DisplayName != "" {
+		labels["sandbox-display-name"] = opts.DisplayName
+	}
+	if sys.OS != "" {
+		labels["sandbox-sys-os"] = sys.OS
+	}
+	if sys.Arch != "" {
+		labels["sandbox-sys-arch"] = sys.Arch
+	}
+	if sys.Hostname != "" {
+		labels["sandbox-sys-hostname"] = sys.Hostname
+	}
+	if sys.NumCPU > 0 {
+		labels["sandbox-sys-numcpu"] = strconv.Itoa(sys.NumCPU)
+	}
+	if sys.TotalMem > 0 {
+		labels["sandbox-sys-totalmem"] = strconv.FormatInt(sys.TotalMem, 10)
+	}
+	if sys.Shell != "" {
+		labels["sandbox-sys-shell"] = sys.Shell
 	}
 	for k, v := range opts.Labels {
 		labels[k] = v
@@ -449,6 +475,19 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 		if c.Name != "" {
 			cid = c.Name
 		}
+		hasVNC := c.Labels["sandbox-vnc"] == "true"
+		if !hasVNC {
+			for _, p := range c.Ports {
+				if p.ContainerPort == 5900 || p.ContainerPort == 6080 {
+					hasVNC = true
+					break
+				}
+			}
+		}
+		sys := systemInfoFromLabels(c.Labels)
+		if sys.OS == "" {
+			sys = inferSystemInfo(ctx, res, c.Image)
+		}
 		box := &Box{
 			id:          sandboxID,
 			containerID: cid,
@@ -459,10 +498,59 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 			createdAt:   time.Now(),
 			image:       c.Image,
 			workspaceID: c.Labels["workspace-id"],
+			vnc:         hasVNC,
+			workDir:     "/workspace",
+			displayName: c.Labels["sandbox-display-name"],
+			system:      sys,
 			manager:     m,
 		}
 		box.lastCall.Store(time.Now().UnixMilli())
 		m.boxes.Store(sandboxID, box)
+	}
+}
+
+// inferSystemInfo derives static SystemInfo for a container from image metadata
+// and Tai host resources. OS/Arch/Shell come from the image; Hostname/NumCPU/TotalMem
+// come from the Tai host.
+func inferSystemInfo(ctx context.Context, res *tai.ConnResources, imageRef string) SystemInfo {
+	sys := SystemInfo{
+		Hostname: res.System.Hostname,
+		NumCPU:   res.System.NumCPU,
+		TotalMem: res.System.TotalMem,
+	}
+
+	if res.Image != nil {
+		meta, err := res.Image.Inspect(ctx, imageRef)
+		if err != nil {
+			log.Printf("[sandbox/v2] image inspect %q: %v (using fallback)", imageRef, err)
+		}
+		if meta != nil {
+			sys.OS = meta.OS
+			sys.Arch = meta.Arch
+			sys.Shell = meta.Shell
+			return sys
+		}
+	}
+
+	sys.OS = "linux"
+	sys.Arch = goruntime.GOARCH
+	sys.Shell = "bash"
+	return sys
+}
+
+// systemInfoFromLabels restores SystemInfo from Docker container labels that
+// were persisted at creation time, so recovery doesn't depend on the Tai node
+// being connected.
+func systemInfoFromLabels(labels map[string]string) SystemInfo {
+	numCPU, _ := strconv.Atoi(labels["sandbox-sys-numcpu"])
+	totalMem, _ := strconv.ParseInt(labels["sandbox-sys-totalmem"], 10, 64)
+	return SystemInfo{
+		OS:       labels["sandbox-sys-os"],
+		Arch:     labels["sandbox-sys-arch"],
+		Hostname: labels["sandbox-sys-hostname"],
+		NumCPU:   numCPU,
+		TotalMem: totalMem,
+		Shell:    labels["sandbox-sys-shell"],
 	}
 }
 

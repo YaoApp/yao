@@ -275,20 +275,7 @@ func (m *Manager) MountPath(ctx context.Context, id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	_ = vol
-	for _, snap := range listNodes() {
-		res, ok := tai.GetResources(snap.TaiID)
-		if !ok {
-			continue
-		}
-		if res.Volume == vol {
-			if res.DataDir == "" {
-				return "", nil
-			}
-			return res.DataDir + "/" + id, nil
-		}
-	}
-	return "", nil
+	return vol.Abs(ctx, id, ".")
 }
 
 // --- internal ---

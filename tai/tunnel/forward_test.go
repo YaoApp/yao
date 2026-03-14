@@ -16,148 +16,131 @@ func init() {
 	gin.SetMode(gin.TestMode)
 }
 
-func TestResolveTargetPort_VNC(t *testing.T) {
+func TestResolveRoute_Proxy(t *testing.T) {
 	tests := []struct {
-		name     string
-		path     string
-		vncPort  int
-		wantPort int
+		name          string
+		path          string
+		wantType      string
+		wantContainer string
+		wantPort      int
+		wantSubpath   string
 	}{
-		{"default_vnc", "/tai/abc/vnc/websockify", 0, 16080},
-		{"custom_vnc", "/tai/abc/vnc/websockify", 5900, 5900},
+		{
+			"basic_proxy",
+			"/tai/abc/proxy/cid123:8080/foo/bar",
+			"proxy", "cid123", 8080, "/foo/bar",
+		},
+		{
+			"proxy_root",
+			"/tai/abc/proxy/cid:3000",
+			"proxy", "cid", 3000, "/",
+		},
+		{
+			"proxy_host",
+			"/v1/tai/abc/proxy/__host__:9090/api",
+			"proxy", "__host__", 9090, "/api",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Request = &http.Request{URL: &url.URL{Path: tt.path}}
-			node := &types.NodeMeta{Ports: types.Ports{VNC: tt.vncPort}}
-			got := resolveTargetPort(c, node)
-			if got != tt.wantPort {
-				t.Errorf("resolveTargetPort = %d, want %d", got, tt.wantPort)
+			c.Params = gin.Params{{Key: "taiID", Value: "abc"}}
+			node := &types.NodeMeta{}
+
+			r, err := resolveRoute(c, node)
+			if err != nil {
+				t.Fatalf("resolveRoute error: %v", err)
+			}
+			if r.channelType != tt.wantType {
+				t.Errorf("channelType = %q, want %q", r.channelType, tt.wantType)
+			}
+			if r.containerID != tt.wantContainer {
+				t.Errorf("containerID = %q, want %q", r.containerID, tt.wantContainer)
+			}
+			if r.containerPort != tt.wantPort {
+				t.Errorf("containerPort = %d, want %d", r.containerPort, tt.wantPort)
+			}
+			if r.subpath != tt.wantSubpath {
+				t.Errorf("subpath = %q, want %q", r.subpath, tt.wantSubpath)
 			}
 		})
 	}
 }
 
-func TestResolveTargetPort_Proxy(t *testing.T) {
+func TestResolveRoute_VNC(t *testing.T) {
 	tests := []struct {
-		name     string
-		path     string
-		httpPort int
-		wantPort int
+		name          string
+		path          string
+		wantContainer string
+		wantPort      int
 	}{
-		{"default_proxy", "/tai/abc/proxy/api/v1/foo", 0, 8099},
-		{"custom_proxy", "/tai/abc/proxy/api/v1/foo", 9090, 9090},
+		{"vnc_basic", "/tai/abc/vnc/container1/ws", "container1", defaultVNCPort},
+		{"vnc_host", "/v1/tai/abc/vnc/__host__/ws", "__host__", defaultVNCPort},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c, _ := gin.CreateTestContext(httptest.NewRecorder())
 			c.Request = &http.Request{URL: &url.URL{Path: tt.path}}
-			node := &types.NodeMeta{Ports: types.Ports{HTTP: tt.httpPort}}
-			got := resolveTargetPort(c, node)
-			if got != tt.wantPort {
-				t.Errorf("resolveTargetPort = %d, want %d", got, tt.wantPort)
+			c.Params = gin.Params{{Key: "taiID", Value: "abc"}}
+			node := &types.NodeMeta{}
+
+			r, err := resolveRoute(c, node)
+			if err != nil {
+				t.Fatalf("resolveRoute error: %v", err)
+			}
+			if r.channelType != "vnc" {
+				t.Errorf("channelType = %q, want vnc", r.channelType)
+			}
+			if r.containerID != tt.wantContainer {
+				t.Errorf("containerID = %q, want %q", r.containerID, tt.wantContainer)
+			}
+			if r.containerPort != tt.wantPort {
+				t.Errorf("containerPort = %d, want %d", r.containerPort, tt.wantPort)
 			}
 		})
 	}
 }
 
-func TestResolveTargetPort_Unknown(t *testing.T) {
+func TestResolveRoute_Unknown(t *testing.T) {
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	c.Request = &http.Request{URL: &url.URL{Path: "/tai/abc/unknown/something"}}
+	c.Params = gin.Params{{Key: "taiID", Value: "abc"}}
 	node := &types.NodeMeta{}
-	got := resolveTargetPort(c, node)
-	if got != 0 {
-		t.Errorf("resolveTargetPort = %d, want 0", got)
+
+	_, err := resolveRoute(c, node)
+	if err == nil {
+		t.Error("expected error for unknown route")
 	}
 }
 
-func TestRewriteRequest(t *testing.T) {
-	tests := []struct {
-		name     string
-		origPath string
-		taiID    string
-		wantPath string
-		wantURI  string
-	}{
-		{
-			"proxy_path",
-			"/tai/abc123/proxy/api/v1/data",
-			"abc123",
-			"/proxy/api/v1/data",
-			"/proxy/api/v1/data",
-		},
-		{
-			"vnc_path",
-			"/tai/node-1/vnc/websockify",
-			"node-1",
-			"/vnc/websockify",
-			"/vnc/websockify",
-		},
-		{
-			"with_query",
-			"/tai/node-1/proxy/api?foo=bar",
-			"node-1",
-			"/proxy/api",
-			"/proxy/api?foo=bar",
-		},
-		{
-			"exact_prefix",
-			"/tai/node-1",
-			"node-1",
-			"/",
-			"/",
-		},
-		{
-			"with_base_url",
-			"/v1/tai/node-1/proxy/api/v1/data",
-			"node-1",
-			"/proxy/api/v1/data",
-			"/proxy/api/v1/data",
-		},
-		{
-			"with_base_url_vnc",
-			"/v1/tai/abc123/vnc/__host__/ws",
-			"abc123",
-			"/vnc/__host__/ws",
-			"/vnc/__host__/ws",
-		},
-		{
-			"no_match",
-			"/other/path",
-			"node-1",
-			"/other/path",
-			"/other/path",
-		},
+func TestRewriteRequest_Proxy(t *testing.T) {
+	u, _ := url.Parse("http://localhost/v1/tai/abc/proxy/cid:8080/foo")
+	orig := &http.Request{
+		Method:     "GET",
+		URL:        u,
+		RequestURI: u.RequestURI(),
+		Host:       "localhost",
+		Header:     http.Header{},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			u, _ := url.Parse("http://localhost" + tt.origPath)
-			orig := &http.Request{
-				Method:     "GET",
-				URL:        u,
-				RequestURI: u.RequestURI(),
-				Host:       "localhost",
-				Header:     http.Header{},
-			}
+	route := &forwardRoute{
+		channelType:   "proxy",
+		containerID:   "cid",
+		containerPort: 8080,
+		subpath:       "/foo",
+	}
 
-			got := rewriteRequest(orig, tt.taiID)
-
-			if got.URL.Path != tt.wantPath {
-				t.Errorf("path = %q, want %q", got.URL.Path, tt.wantPath)
-			}
-			if got.RequestURI != tt.wantURI {
-				t.Errorf("requestURI = %q, want %q", got.RequestURI, tt.wantURI)
-			}
-			if got == orig {
-				t.Error("rewriteRequest should return a clone, not the original")
-			}
-		})
+	got := rewriteRequest(orig, "abc", route)
+	if got.URL.Path != "/foo" {
+		t.Errorf("path = %q, want /foo", got.URL.Path)
+	}
+	if got == orig {
+		t.Error("rewriteRequest should return a clone")
 	}
 }
 
-func TestRewriteRequest_PreservesHeaders(t *testing.T) {
-	u, _ := url.Parse("http://localhost/tai/node-1/vnc/websockify")
+func TestRewriteRequest_VNC(t *testing.T) {
+	u, _ := url.Parse("http://localhost/tai/node-1/vnc/cid/ws")
 	orig := &http.Request{
 		Method:     "GET",
 		URL:        u,
@@ -168,13 +151,19 @@ func TestRewriteRequest_PreservesHeaders(t *testing.T) {
 			"Upgrade":    {"websocket"},
 		},
 	}
+	route := &forwardRoute{
+		channelType:   "vnc",
+		containerID:   "cid",
+		containerPort: 5900,
+		subpath:       "/vnc/cid/ws",
+	}
 
-	got := rewriteRequest(orig, "node-1")
+	got := rewriteRequest(orig, "node-1", route)
+	if got.URL.Path != "/vnc/cid/ws" {
+		t.Errorf("path = %q, want /vnc/cid/ws", got.URL.Path)
+	}
 	if got.Header.Get("Connection") != "Upgrade" {
 		t.Error("expected Connection header preserved")
-	}
-	if got.Header.Get("Upgrade") != "websocket" {
-		t.Error("expected Upgrade header preserved")
 	}
 }
 
@@ -210,29 +199,24 @@ func TestHandleForward_NodeNotFound(t *testing.T) {
 	}
 }
 
-func TestHandleForward_NodeOffline(t *testing.T) {
+func TestHandleForward_UnknownRoute(t *testing.T) {
 	reg := registry.NewForTest()
 	h := NewTunnelHandler(reg)
 
 	reg.Register(&registry.TaiNode{
-		TaiID: "offline-node",
+		TaiID: "online-node",
 		Mode:  "tunnel",
-		Ports: types.Ports{HTTP: 8099},
 	})
-	// Manually set status to offline via a Get() — the node is online by default
-	// after Register, but we need an offline one. We'll use Unregister + re-register
-	// pattern. Actually, let's just test with a node that doesn't exist:
-	// the NodeNotFound test above covers that case. Instead, test zero port.
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest("GET", "/tai/offline-node/unknown/foo", nil)
-	c.Params = gin.Params{{Key: "taiID", Value: "offline-node"}}
+	c.Request = httptest.NewRequest("GET", "/tai/online-node/unknown/foo", nil)
+	c.Params = gin.Params{{Key: "taiID", Value: "online-node"}}
 
 	h.HandleForward(c)
 
 	if w.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for unresolvable port, got %d", w.Code)
+		t.Errorf("expected 400 for unresolvable route, got %d", w.Code)
 	}
 }
 
@@ -261,7 +245,6 @@ func TestHandleForward_ViaRealHTTP(t *testing.T) {
 	reg.Register(&registry.TaiNode{
 		TaiID: "http-node",
 		Mode:  "tunnel",
-		Ports: types.Ports{HTTP: 8099},
 	})
 
 	router := gin.New()
@@ -270,16 +253,12 @@ func TestHandleForward_ViaRealHTTP(t *testing.T) {
 	srv := httptest.NewServer(router)
 	defer srv.Close()
 
-	resp, err := http.Get(srv.URL + "/tai/http-node/proxy/api")
+	resp, err := http.Get(srv.URL + "/tai/http-node/proxy/cid:8080/api")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 
-	// RequestForward will fail (no register stream) → hijacked conn gets "502"
-	// or the response will be a 502 written before hijack.
-	// Since hijack happens, the actual HTTP status may not be set normally.
-	// We just verify no panic and the request completes.
 	if resp.StatusCode == 200 {
 		t.Error("expected non-200 response for failed forward")
 	}

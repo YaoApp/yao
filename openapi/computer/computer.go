@@ -3,6 +3,7 @@ package computer
 import (
 	"context"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -36,6 +37,7 @@ type computerOption struct {
 	Kind        string             `json:"kind"`
 	ID          string             `json:"id"`
 	DisplayName string             `json:"display_name"`
+	ContainerID string             `json:"container_id,omitempty"`
 	NodeID      string             `json:"node_id"`
 	Status      string             `json:"status"`
 	Mode        string             `json:"mode,omitempty"`
@@ -43,7 +45,6 @@ type computerOption struct {
 	Image       string             `json:"image,omitempty"`
 	Policy      string             `json:"policy,omitempty"`
 	VNC         bool               `json:"vnc"`
-	Labels      map[string]string  `json:"labels,omitempty"`
 	System      computerSystemInfo `json:"system"`
 }
 
@@ -80,6 +81,9 @@ func handleOptions(c *gin.Context) {
 	}
 
 	snaps := reg.List()
+	sort.Slice(snaps, func(i, j int) bool {
+		return strings.ToLower(nodeDisplayName(snaps[i])) < strings.ToLower(nodeDisplayName(snaps[j]))
+	})
 
 	// Host entries: nodes with host_exec capability
 	if kindFilter == "" || kindFilter == "host" {
@@ -164,14 +168,18 @@ func matchNodeFilter(s *taitypes.NodeMeta, osFilter, archFilter string, minCPUs 
 	return true
 }
 
+func nodeDisplayName(s taitypes.NodeMeta) string {
+	if s.DisplayName != "" {
+		return s.DisplayName
+	}
+	if s.System.Hostname != "" {
+		return s.System.Hostname
+	}
+	return s.TaiID
+}
+
 func nodeToHostOption(s taitypes.NodeMeta) computerOption {
-	displayName := s.DisplayName
-	if displayName == "" {
-		displayName = s.System.Hostname
-	}
-	if displayName == "" {
-		displayName = s.TaiID
-	}
+	displayName := nodeDisplayName(s)
 
 	status := "stopped"
 	if s.Status == "online" {
@@ -195,6 +203,7 @@ func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
+		VNC:         s.Capabilities.VNC,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,
@@ -206,13 +215,7 @@ func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 }
 
 func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
-	displayName := s.DisplayName
-	if displayName == "" {
-		displayName = s.System.Hostname
-	}
-	if displayName == "" {
-		displayName = s.TaiID
-	}
+	displayName := nodeDisplayName(s)
 
 	status := "stopped"
 	if s.Status == "online" {
@@ -236,6 +239,7 @@ func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
+		VNC:         s.Capabilities.VNC,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,
@@ -250,7 +254,10 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 	snap := b.Snapshot()
 	info := b.ComputerInfo()
 
-	displayName := info.System.Hostname
+	displayName := info.DisplayName
+	if displayName == "" {
+		displayName = info.System.Hostname
+	}
 	if displayName == "" {
 		displayName = snap.ID
 	}
@@ -272,6 +279,7 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 		Kind:        "box",
 		ID:          snap.ID,
 		DisplayName: displayName,
+		ContainerID: snap.ContainerID,
 		NodeID:      snap.NodeID,
 		Status:      snap.Status,
 		Mode:        mode,
@@ -279,7 +287,6 @@ func boxToOption(b *sandboxv2.Box) computerOption {
 		Image:       snap.Image,
 		Policy:      string(snap.Policy),
 		VNC:         snap.VNC,
-		Labels:      snap.Labels,
 		System: computerSystemInfo{
 			OS:       info.System.OS,
 			Arch:     info.System.Arch,

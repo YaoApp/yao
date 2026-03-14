@@ -167,6 +167,17 @@ func (r *remoteStorage) MkdirAll(ctx context.Context, sessionID, path string) er
 	return nil
 }
 
+func (r *remoteStorage) Abs(ctx context.Context, sessionID, path string) (string, error) {
+	resp, err := r.client.Abs(ctx, &pb.FSRequest{
+		SessionId: sessionID,
+		Path:      path,
+	})
+	if err != nil {
+		return "", err
+	}
+	return resp.Path, nil
+}
+
 // SyncPush sends local files to Tai using the manifest-first bidi streaming protocol.
 func (r *remoteStorage) SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error) {
 	start := time.Now()

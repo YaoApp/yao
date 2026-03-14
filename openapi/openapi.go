@@ -27,12 +27,12 @@ import (
 	"github.com/yaoapp/yao/openapi/otp"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/sandbox"
+	openapiTai "github.com/yaoapp/yao/openapi/tai"
 	"github.com/yaoapp/yao/openapi/team"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
 	taiapi "github.com/yaoapp/yao/tai/api"
-	taitunnel "github.com/yaoapp/yao/tai/tunnel"
 )
 
 // Server is the OpenAPI server
@@ -180,7 +180,7 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	sandbox.SetPathPrefix(baseURL)
 	sandboxGroup := group.Group("/sandbox")
 	sandbox.Attach(sandboxGroup, openapi.OAuth)
-	sandbox.AttachManage(sandboxGroup)
+	sandbox.AttachManage(sandboxGroup, openapi.OAuth)
 
 	// Computer option handlers (for InputArea selector)
 	openapiComputer.Attach(group.Group("/computer"), openapi.OAuth)
@@ -191,9 +191,8 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Tai nodes handlers
 	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
 
-	// Tai tunnel: gRPC Forward-based HTTP/VNC transparent proxy
-	group.Any("/tai/:taiID/proxy/*path", taitunnel.HandleForwardLazy)
-	group.Any("/tai/:taiID/vnc/*path", taitunnel.HandleForwardLazy)
+	// Tai forward handlers (proxy + VNC, dispatches tunnel vs local)
+	openapiTai.Attach(group)
 
 	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
 	group.POST("/tai-nodes/register", taiapi.HandleRegister)

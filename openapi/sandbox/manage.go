@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,20 +18,19 @@ import (
 )
 
 // AttachManage registers sandbox management CRUD routes on the given group.
-// oauth.Guard is already applied by the parent Attach call on the same group.
 //   - GET    /              — list sandboxes (filtered by owner)
 //   - POST   /              — create sandbox (owner from token)
 //   - GET    /:id           — get sandbox (owner check)
 //   - DELETE /:id           — remove sandbox (owner check)
 //   - POST   /:id/exec     — execute command (owner check)
 //   - POST   /:id/heartbeat — heartbeat (owner check)
-func AttachManage(group *gin.RouterGroup) {
-	group.GET("", handleList)
-	group.POST("", handleCreate)
-	group.GET("/:id", handleGet)
-	group.DELETE("/:id", handleRemove)
-	group.POST("/:id/exec", handleExec)
-	group.POST("/:id/heartbeat", handleHeartbeat)
+func AttachManage(group *gin.RouterGroup, oauth types.OAuth) {
+	group.GET("", oauth.Guard, handleList)
+	group.POST("", oauth.Guard, handleCreate)
+	group.GET("/:id", oauth.Guard, handleGet)
+	group.DELETE("/:id", oauth.Guard, handleRemove)
+	group.POST("/:id/exec", oauth.Guard, handleExec)
+	group.POST("/:id/heartbeat", oauth.Guard, handleHeartbeat)
 }
 
 // resolveOwner returns TeamID if present, otherwise UserID.
@@ -94,7 +94,6 @@ type sandboxResponse struct {
 	Owner        string            `json:"owner"`
 	Status       string            `json:"status"`
 	Policy       string            `json:"policy,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
 	Image        string            `json:"image,omitempty"`
 	Mode         string            `json:"mode,omitempty"`
 	Addr         string            `json:"addr,omitempty"`
@@ -110,7 +109,10 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 	snap := b.Snapshot()
 	info := b.ComputerInfo()
 
-	displayName := info.System.Hostname
+	displayName := info.DisplayName
+	if displayName == "" {
+		displayName = info.System.Hostname
+	}
 	if displayName == "" {
 		displayName = snap.ID
 	}
@@ -137,7 +139,6 @@ func boxToResponse(b *sandboxv2.Box) sandboxResponse {
 		Owner:        snap.Owner,
 		Status:       snap.Status,
 		Policy:       string(snap.Policy),
-		Labels:       snap.Labels,
 		Image:        snap.Image,
 		Mode:         mode,
 		Addr:         addr,
@@ -196,7 +197,7 @@ func hostToResponse(s taitypes.NodeMeta) sandboxResponse {
 		Policy:      "persistent",
 		Mode:        s.Mode,
 		Addr:        addr,
-		VNC:         false,
+		VNC:         s.Capabilities.VNC,
 		CreatedAt:   s.ConnectedAt,
 		LastActive:  s.LastPing,
 		System: sandboxSystemInfo{
@@ -287,7 +288,7 @@ func handleList(c *gin.Context) {
 	}
 
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].LastActive.After(result[j].LastActive)
+		return strings.ToLower(result[i].DisplayName) < strings.ToLower(result[j].DisplayName)
 	})
 
 	if result == nil {

@@ -12,6 +12,10 @@ func (k *k8sImage) Exists(_ context.Context, _ string) (bool, error) {
 	return true, nil
 }
 
+func (k *k8sImage) Inspect(_ context.Context, _ string) (*ImageMeta, error) {
+	return nil, nil
+}
+
 func (k *k8sImage) Pull(_ context.Context, _ string, _ PullOptions) (<-chan PullProgress, error) {
 	return nil, nil
 }

@@ -30,6 +30,8 @@ type Box struct {
 	image         string
 	workspaceID   string
 	system        SystemInfo
+	displayName   string
+	workDir       string
 	ws            taiworkspace.FS
 	manager       *Manager
 }
@@ -55,6 +57,7 @@ func (b *Box) ComputerInfo() ComputerInfo {
 		Image:       b.image,
 		Policy:      b.policy,
 		Labels:      b.labels,
+		DisplayName: b.displayName,
 	}
 }
 
@@ -193,6 +196,14 @@ func (b *Box) Workspace() taiworkspace.FS {
 	}
 	b.ws = taiworkspace.New(res.Volume, sessionID)
 	return b.ws
+}
+
+// GetWorkDir returns the container-internal working directory for command execution.
+func (b *Box) GetWorkDir() string {
+	if b.workDir != "" {
+		return b.workDir
+	}
+	return "/workspace"
 }
 
 // WorkspaceID returns the workspace ID mounted to this sandbox, or empty string.
