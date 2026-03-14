@@ -191,7 +191,9 @@ func (h *TunnelHandler) Forward(stream taipb.TaiTunnel_ForwardServer) error {
 
 // RequestForward sends an "open" command to Tai via the Register stream and
 // waits for Tai to call back with a Forward stream. Returns the Forward stream.
-func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiTunnel_ForwardServer, error) {
+//
+// route may be nil for raw TCP tunnels (gRPC, Docker API, K8s API).
+func (h *TunnelHandler) RequestForward(taiID string, route *forwardRoute) (taipb.TaiTunnel_ForwardServer, error) {
 	stream := h.reg.GetRegisterStream(taiID)
 	if stream == nil {
 		return nil, fmt.Errorf("tai %s: no active register stream", taiID)
@@ -217,23 +219,30 @@ func (h *TunnelHandler) RequestForward(taiID string, targetPort int) (taipb.TaiT
 		return nil, fmt.Errorf("tai %s: register stream type mismatch", taiID)
 	}
 
+	ctrl := &taipb.TunnelControl{
+		Type:      "open",
+		ChannelId: channelID,
+	}
+	if route != nil {
+		ctrl.ChannelType = route.channelType
+		ctrl.ContainerId = route.containerID
+		ctrl.ContainerPort = int32(route.containerPort)
+	}
+
 	short := registry.ShortChannelID(channelID)
 	h.logger.Debug("[forward] sending open command",
-		"tai_id", taiID, "port", targetPort, "channel_id", short)
+		"tai_id", taiID, "channel_type", ctrl.ChannelType,
+		"container", ctrl.ContainerId, "channel_id", short)
 
 	mu.Lock()
-	sendErr := regStream.Send(&taipb.TunnelControl{
-		Type:       "open",
-		ChannelId:  channelID,
-		TargetPort: int32(targetPort),
-	})
+	sendErr := regStream.Send(ctrl)
 	mu.Unlock()
 	if sendErr != nil {
 		return nil, fmt.Errorf("send open: %w", sendErr)
 	}
 
 	h.logger.Debug("[forward] open sent, waiting for callback",
-		"tai_id", taiID, "port", targetPort, "channel_id", short)
+		"tai_id", taiID, "channel_id", short)
 
 	select {
 	case fwd := <-waitCh:
@@ -261,8 +270,9 @@ func (h *TunnelHandler) connectTunnelNode(taiID string) {
 
 // bridgeConn bridges a local TCP connection to a Tai port via gRPC Forward stream.
 // Called by registry.OpenLocalListener for each accepted TCP connection.
+// Uses raw TCP forwarding (TargetPort only, no container routing).
 func (h *TunnelHandler) bridgeConn(taiID string, targetPort int, localConn net.Conn) {
-	fwd, err := h.RequestForward(taiID, targetPort)
+	fwd, err := h.requestForwardRaw(taiID, targetPort)
 	if err != nil {
 		localConn.Close()
 		h.logger.Error("request forward failed",
@@ -272,6 +282,59 @@ func (h *TunnelHandler) bridgeConn(taiID string, targetPort int, localConn net.C
 
 	streamConn := newForwardConn(fwd)
 	bridgeTCP(localConn, streamConn)
+}
+
+// requestForwardRaw sends an "open" command with only TargetPort (no container
+// routing). Used by bridgeConn for raw TCP tunnels (gRPC, Docker API, K8s API).
+func (h *TunnelHandler) requestForwardRaw(taiID string, targetPort int) (taipb.TaiTunnel_ForwardServer, error) {
+	stream := h.reg.GetRegisterStream(taiID)
+	if stream == nil {
+		return nil, fmt.Errorf("tai %s: no active register stream", taiID)
+	}
+
+	muVal, ok := h.sendMu.Load(taiID)
+	if !ok {
+		return nil, fmt.Errorf("tai %s: no send mutex (stream closing?)", taiID)
+	}
+	mu := muVal.(*sync.Mutex)
+
+	channelID, err := registry.GenerateChannelID()
+	if err != nil {
+		return nil, fmt.Errorf("generate channel_id: %w", err)
+	}
+
+	waitCh := make(chan taipb.TaiTunnel_ForwardServer, 1)
+	h.pending.Store(channelID, waitCh)
+	defer h.pending.Delete(channelID)
+
+	regStream, ok := stream.(taipb.TaiTunnel_RegisterServer)
+	if !ok {
+		return nil, fmt.Errorf("tai %s: register stream type mismatch", taiID)
+	}
+
+	short := registry.ShortChannelID(channelID)
+	h.logger.Debug("[forward] sending open command (raw)",
+		"tai_id", taiID, "port", targetPort, "channel_id", short)
+
+	mu.Lock()
+	sendErr := regStream.Send(&taipb.TunnelControl{
+		Type:       "open",
+		ChannelId:  channelID,
+		TargetPort: int32(targetPort),
+	})
+	mu.Unlock()
+	if sendErr != nil {
+		return nil, fmt.Errorf("send open: %w", sendErr)
+	}
+
+	select {
+	case fwd := <-waitCh:
+		return fwd, nil
+	case <-time.After(10 * time.Second):
+		return nil, fmt.Errorf("tai %s: forward timeout (10s) channel=%s", taiID, short)
+	case <-regStream.Context().Done():
+		return nil, fmt.Errorf("tai %s: register stream closed while waiting for forward", taiID)
+	}
 }
 
 // forwardConn wraps a Forward stream as a net.Conn-like reader/writer.
@@ -364,6 +427,7 @@ func capsFromProto(c *taipb.Capabilities) types.Capabilities {
 		Docker:   c.Docker,
 		K8s:      c.K8S,
 		HostExec: c.HostExec,
+		VNC:      c.Vnc,
 	}
 }
 

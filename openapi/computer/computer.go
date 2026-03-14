@@ -203,7 +203,7 @@ func nodeToHostOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
-		VNC:         s.Ports.VNC > 0,
+		VNC:         s.Capabilities.VNC,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,
@@ -239,7 +239,7 @@ func nodeToNodeOption(s taitypes.NodeMeta) computerOption {
 		Status:      status,
 		Mode:        s.Mode,
 		Addr:        addr,
-		VNC:         s.Ports.VNC > 0,
+		VNC:         s.Capabilities.VNC,
 		System: computerSystemInfo{
 			OS:       s.System.OS,
 			Arch:     s.System.Arch,

@@ -197,7 +197,7 @@ func hostToResponse(s taitypes.NodeMeta) sandboxResponse {
 		Policy:      "persistent",
 		Mode:        s.Mode,
 		Addr:        addr,
-		VNC:         s.Ports.VNC > 0,
+		VNC:         s.Capabilities.VNC,
 		CreatedAt:   s.ConnectedAt,
 		LastActive:  s.LastPing,
 		System: sandboxSystemInfo{

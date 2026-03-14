@@ -294,6 +294,7 @@ func capsFromMap(m map[string]bool) types.Capabilities {
 		Docker:   m["docker"],
 		K8s:      m["k8s"],
 		HostExec: m["host_exec"],
+		VNC:      m["vnc"],
 	}
 }
 

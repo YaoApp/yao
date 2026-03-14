@@ -245,7 +245,7 @@ func TestRequestForward_NoRegisterStream(t *testing.T) {
 
 	reg.Register(&registry.TaiNode{TaiID: "no-stream", Mode: "tunnel"})
 
-	_, err := h.RequestForward("no-stream", 8099)
+	_, err := h.requestForwardRaw("no-stream", 8099)
 	if err == nil {
 		t.Fatal("expected error when no register stream")
 	}
@@ -258,7 +258,7 @@ func TestRequestForward_TypeMismatch(t *testing.T) {
 	reg.Register(&registry.TaiNode{TaiID: "bad-type", Mode: "tunnel"})
 	reg.SetRegisterStream("bad-type", "not-a-stream")
 
-	_, err := h.RequestForward("bad-type", 8099)
+	_, err := h.requestForwardRaw("bad-type", 8099)
 	if err == nil {
 		t.Fatal("expected error for type mismatch")
 	}
@@ -348,7 +348,7 @@ drainLoop:
 	requestDone.Add(1)
 	go func() {
 		defer requestDone.Done()
-		requestResult, requestErr = h.RequestForward(taiID, 8099)
+		requestResult, requestErr = h.requestForwardRaw(taiID, 8099)
 	}()
 
 	// Receive the "open" command
@@ -748,7 +748,7 @@ func TestRequestForward_Timeout(t *testing.T) {
 	// by never sending Forward). We'll use a short context cancel to avoid waiting.
 	done := make(chan error, 1)
 	go func() {
-		_, err := h.RequestForward(taiID, 8099)
+		_, err := h.requestForwardRaw(taiID, 8099)
 		done <- err
 	}()
 
@@ -828,7 +828,7 @@ drained:
 	for i := 0; i < N; i++ {
 		port := 8099 + i
 		go func(port int) {
-			_, err := h.RequestForward(taiID, port)
+			_, err := h.requestForwardRaw(taiID, port)
 			results <- err
 		}(port)
 	}
@@ -926,7 +926,7 @@ drained2:
 	// Start RequestForward
 	fwdResult := make(chan error, 1)
 	go func() {
-		_, err := h.RequestForward(taiID, 8099)
+		_, err := h.requestForwardRaw(taiID, 8099)
 		fwdResult <- err
 	}()
 
@@ -1101,7 +1101,7 @@ proxyDrained:
 	}()
 
 	// Now do an actual RequestForward + simulate browser side
-	fwd, err := h.RequestForward(taiID, 8099)
+	fwd, err := h.requestForwardRaw(taiID, 8099)
 	if err != nil {
 		t.Fatal("RequestForward:", err)
 	}
@@ -1267,7 +1267,7 @@ vncDrained:
 	}()
 
 	// Send WS upgrade request through tunnel
-	fwd, err := h.RequestForward(taiID, 16080)
+	fwd, err := h.requestForwardRaw(taiID, 16080)
 	if err != nil {
 		t.Fatal("RequestForward:", err)
 	}
