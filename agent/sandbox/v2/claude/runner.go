@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"strings"
 	"time"
@@ -41,17 +42,17 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 		r.mode = "cli"
 	}
 
-	env := resolveOSEnv(req.Computer, req.Config)
-
 	steps := append([]types.PrepareStep{}, req.Config.Prepare...)
 
 	if req.SkillsDir != "" {
-		claudeDir := env.pathJoin(env.WorkDir, ".claude")
-		steps = append(steps, types.PrepareStep{
-			Action: "exec",
-			Cmd:    env.mkdirCmd(claudeDir),
-			Once:   true,
-		})
+		ws := req.Computer.Workplace()
+		if ws != nil {
+			src := "local:///" + req.SkillsDir
+			dst := ".claude/skills"
+			if _, err := ws.Copy(src, dst); err != nil {
+				fmt.Fprintf(os.Stderr, "[claude] warn: copy skills %s -> %s: %v\n", src, dst, err)
+			}
+		}
 	}
 
 	if len(req.MCPServers) > 0 {
@@ -60,7 +61,7 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 		mcpJSON := buildMCPConfig(req.MCPServers)
 		steps = append(steps, types.PrepareStep{
 			Action:  "file",
-			Path:    env.pathJoin(env.WorkDir, ".mcp.json"),
+			Path:    ".claude/mcp.json",
 			Content: mcpJSON,
 		})
 	}
@@ -102,6 +103,8 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	if len(stdin) > 0 {
 		streamOpts = append(streamOpts, infra.WithStdin(stdin))
 	}
+
+	fmt.Fprintf(os.Stderr, "[claude] Stream cmd=%v hasMCP=%v isContinuation=%v stdinLen=%d\n", cmd, r.hasMCP, isContinuation, len(stdin))
 
 	execStream, err := computer.Stream(ctx, cmd, streamOpts...)
 	if err != nil {
@@ -157,6 +160,7 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		return waitErr
 	}
 	if exitCode != 0 {
+		fmt.Fprintf(os.Stderr, "[claude] exit code=%d parseErr=%v waitErr=%v stderr=%q\n", exitCode, parseErr, waitErr, stderrStr)
 		if stderrStr != "" {
 			return fmt.Errorf("claude CLI exited with code %d: %s", exitCode, stderrStr)
 		}
@@ -302,7 +306,7 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, oe *osEnv, isCo
 	}
 
 	if r.hasMCP {
-		mcpPath := oe.pathJoin(oe.WorkDir, ".mcp.json")
+		mcpPath := oe.pathJoin(oe.WorkDir, ".claude", "mcp.json")
 		args = append(args, "--mcp-config", mcpPath)
 		if r.mcpToolPattern != "" {
 			args = append(args, "--allowedTools", r.mcpToolPattern)
@@ -327,7 +331,7 @@ func buildMCPConfig(servers []types.MCPServer) []byte {
 		}
 		mcpServers[name] = map[string]any{
 			"command": "tai",
-			"args":    []string{"mcp"},
+			"args":    []string{"mcp", name},
 		}
 	}
 	if len(mcpServers) == 0 {

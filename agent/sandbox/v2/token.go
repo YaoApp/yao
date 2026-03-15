@@ -70,7 +70,7 @@ func IssueSandboxToken(teamID, userID string) (*types.SandboxToken, error) {
 		extraClaims["team_id"] = teamID
 	}
 
-	tokenStr, err := svc.MakeAccessToken("__yao.sandbox", "sandbox:mcp", subject,
+	tokenStr, err := svc.MakeAccessToken("__yao.sandbox", "grpc:mcp", subject,
 		int(accessTokenTTL.Seconds()), extraClaims)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox token: issue access token: %w", err)
@@ -78,7 +78,7 @@ func IssueSandboxToken(teamID, userID string) (*types.SandboxToken, error) {
 
 	tok := &types.SandboxToken{Token: tokenStr}
 
-	refreshStr, err := svc.MakeRefreshToken("__yao.sandbox", "sandbox:mcp", subject,
+	refreshStr, err := svc.MakeRefreshToken("__yao.sandbox", "grpc:mcp", subject,
 		int(refreshTokenTTL.Seconds()), extraClaims)
 	if err != nil {
 		return nil, fmt.Errorf("sandbox token: issue refresh token: %w", err)
