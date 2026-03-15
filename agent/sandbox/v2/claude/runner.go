@@ -227,6 +227,18 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, oe *osEnv, isCo
 			env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
 			env["CLAUDE_CODE_SUBAGENT_MODEL"] = model
 		}
+
+		if thinking, ok := setting["thinking"].(map[string]interface{}); ok {
+			thinkType, _ := thinking["type"].(string)
+			switch thinkType {
+			case "disabled":
+				env["MAX_THINKING_TOKENS"] = "0"
+			case "enabled":
+				if budget, ok := thinking["budget_tokens"].(float64); ok && budget > 0 {
+					env["MAX_THINKING_TOKENS"] = fmt.Sprintf("%d", int(budget))
+				}
+			}
+		}
 	}
 
 	if req.Config != nil && len(req.Config.Secrets) > 0 {

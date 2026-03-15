@@ -51,7 +51,34 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	// 2. Build human-readable DisplayName from real Agent name + Workspace name.
 	cfg.DisplayName = buildBoxDisplayName(ctx, ast.ID, ast.Name)
 
+	// 2.5. Image existence check + pull (for box mode).
+	if cfg.Computer.Image != "" && manager != nil {
+		nodeID, kind, _ := sandboxv2.ResolveNodeID(ctx, cfg, manager)
+		if kind == "box" && nodeID != "" {
+			updateLoadingV2(ctx, loadingMsgID, "sandbox.starting")
+			exists, existsErr := manager.ImageExists(stdCtx, nodeID, cfg.Computer.Image)
+			if existsErr != nil {
+				log.Printf("[sandbox/v2] image exists check failed on node %s: %v", nodeID, existsErr)
+			}
+			if existsErr == nil && !exists {
+				updateLoadingV2(ctx, loadingMsgID, "sandbox.pulling_image")
+				ch, pullErr := manager.PullImage(stdCtx, nodeID, cfg.Computer.Image, infraV2.ImagePullOptions{})
+				if pullErr != nil {
+					log.Printf("[sandbox/v2] image pull failed on node %s: %v (will retry in Create)", nodeID, pullErr)
+				} else if ch != nil {
+					for p := range ch {
+						if p.Error != "" {
+							log.Printf("[sandbox/v2] image pull progress error: %s", p.Error)
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// 3. Obtain Computer (passes connector for OPENAI_PROXY_* env injection).
+	updateLoadingV2(ctx, loadingMsgID, "sandbox.starting")
 	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager, conn)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
@@ -89,6 +116,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	}
 
 	// 7. Runner.Prepare (standard context).
+	updateLoadingV2(ctx, loadingMsgID, "sandbox.configuring")
 	err = runner.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
 		Computer:   computer,
 		Config:     cfg,
@@ -133,11 +161,6 @@ func (ast *Assistant) executeSandboxV2Stream(
 	cfg := ast.SandboxV2
 	manager := infraV2.M()
 
-	// Close the "preparing" loading on first output.
-	if loadingMsgID != "" {
-		closeLoadingV2(ctx, loadingMsgID, "")
-	}
-
 	// Build system prompt.
 	var systemPrompt string
 	if len(ast.Prompts) > 0 {
@@ -172,11 +195,12 @@ func (ast *Assistant) executeSandboxV2Stream(
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{
-		Computer:  computer,
-		Runner:    runner,
-		Config:    cfg,
-		StreamReq: streamReq,
-		Manager:   manager,
+		Computer:     computer,
+		Runner:       runner,
+		Config:       cfg,
+		StreamReq:    streamReq,
+		Manager:      manager,
+		LoadingMsgID: loadingMsgID,
 	}
 
 	return sandboxv2.ExecuteSandboxStream(ctx, execReq, streamHandler)
@@ -228,6 +252,22 @@ func buildBoxDisplayName(ctx *context.Context, assistantID, rawName string) stri
 		return wsName
 	}
 	return ""
+}
+
+func updateLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {
+	if loadingMsgID == "" || ctx == nil || msgKey == "" {
+		return
+	}
+	msg := &message.Message{
+		MessageID:   loadingMsgID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        message.TypeLoading,
+		Props: map[string]any{
+			"message": i18n.T(ctx.Locale, msgKey),
+		},
+	}
+	ctx.Send(msg)
 }
 
 func closeLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {

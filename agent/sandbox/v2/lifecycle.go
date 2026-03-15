@@ -32,6 +32,61 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 	}
 }
 
+// ResolveNodeID determines the target nodeID and computer kind based on
+// metadata and DSL configuration, without creating or acquiring a container.
+// Returns (nodeID, kind, error). kind is "box" or "host".
+func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (string, string, error) {
+	computerID := ""
+	if ctx.Metadata != nil {
+		if cid, ok := ctx.Metadata["computer_id"].(string); ok && cid != "" {
+			computerID = cid
+		}
+	}
+
+	workspaceID := ""
+	if ctx.Metadata != nil {
+		if ws, ok := ctx.Metadata["workspace_id"].(string); ok && ws != "" {
+			workspaceID = ws
+		}
+	}
+	ownerID := resolveOwnerID(ctx)
+	if workspaceID == "" {
+		workspaceID = ownerID
+	}
+
+	if workspaceID != "" && workspaceID != ownerID {
+		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
+		if err == nil && wsNode != "" {
+			computerID = wsNode
+		}
+	}
+
+	if computerID != "" {
+		if node, ok := tai.GetNodeMeta(computerID); ok {
+			hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
+			if node.Capabilities.HostExec && !hasContainerRuntime {
+				return computerID, "host", nil
+			}
+			if node.Capabilities.HostExec && hasContainerRuntime && cfg.Computer.Image == "" {
+				return computerID, "host", nil
+			}
+			if !hasContainerRuntime {
+				return "", "", fmt.Errorf("node %q has no container runtime and no host_exec capability", computerID)
+			}
+			return computerID, "box", nil
+		}
+		return computerID, "box", nil
+	}
+
+	if cfg.Computer.Image == "" {
+		nodeID := cfg.NodeID
+		return nodeID, "host", nil
+	}
+
+	nodeID := cfg.NodeID
+	return nodeID, "box", nil
+}
+
 // GetComputer obtains or creates a Computer for the current request.
 // An optional connector may be passed to inject OPENAI_PROXY_* env vars.
 // Returns the Computer, the resolved identifier, and any error.

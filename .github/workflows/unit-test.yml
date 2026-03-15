@@ -799,7 +799,7 @@ jobs:
           docker run -d --name tai-docker \
             -v /var/run/docker.sock:/var/run/docker.sock \
             -p 19100:19100 -p 8099:8099 -p 12375:12375 -p 16080:16080 \
-            yaoapp/tai:latest server \
+            yaoapp/tai:latest server -direct \
             -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -docker 0.0.0.0:12375
 
           for i in $(seq 1 30); do

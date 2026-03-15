@@ -31,7 +31,7 @@ func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts
 	}
 
 	hostCfg := &container.HostConfig{
-		Binds:      opts.Binds,
+		Binds:      normalizeBinds(opts.Binds),
 		ExtraHosts: []string{"host.tai.internal:host-gateway"},
 	}
 
@@ -281,4 +281,57 @@ func (d *dockerCore) list(ctx context.Context, opts ListOptions) ([]ContainerInf
 		result = append(result, ci)
 	}
 	return result, nil
+}
+
+// normalizeBinds converts Windows-style host paths in Docker bind-mount
+// specifications to WSL2 mount paths that Docker (running in WSL2) accepts.
+// e.g. "D:\volumes\ws-abc:/workspace:rw" -> "/mnt/d/volumes/ws-abc:/workspace:rw"
+//
+// Detection is based on the path content (drive-letter prefix), not runtime.GOOS,
+// because the path may originate from a remote Tai node (Windows) while Yao
+// runs on macOS/Linux.
+func normalizeBinds(binds []string) []string {
+	if len(binds) == 0 {
+		return binds
+	}
+	out := make([]string, len(binds))
+	changed := false
+	for i, b := range binds {
+		out[i] = normalizeWindowsBind(b)
+		if out[i] != b {
+			changed = true
+		}
+	}
+	if !changed {
+		return binds
+	}
+	return out
+}
+
+// normalizeWindowsBind handles a single bind spec "hostPath:containerPath[:mode]".
+// When Yao runs on Windows and Docker runs in WSL2, Windows paths like
+// "D:\volumes\ws-abc" must be converted to "/mnt/d/volumes/ws-abc" because
+// WSL2 mounts Windows drives under /mnt/<lowercase-letter>/.
+func normalizeWindowsBind(bind string) string {
+	if len(bind) < 3 {
+		return bind
+	}
+
+	// Detect drive-letter prefix: "X:\" or "X:/"
+	if bind[1] != ':' || (bind[2] != '\\' && bind[2] != '/') {
+		return bind
+	}
+
+	// Find the next colon after the drive letter colon (the bind separator)
+	idx := strings.Index(bind[2:], ":")
+	if idx < 0 {
+		return bind
+	}
+	hostPath := bind[:2+idx]
+	rest := bind[2+idx:] // starts with ":"
+
+	// Convert "D:\foo\bar" -> "/mnt/d/foo/bar"
+	drive := strings.ToLower(string(hostPath[0]))
+	tail := strings.ReplaceAll(hostPath[2:], `\`, `/`)
+	return "/mnt/" + drive + tail + rest
 }
