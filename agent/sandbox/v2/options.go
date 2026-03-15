@@ -63,6 +63,14 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		}
 		opts.IdleTimeout = d
 	}
+	if opts.IdleTimeout == 0 {
+		switch opts.Policy {
+		case infra.Session:
+			opts.IdleTimeout = infra.DefaultSessionIdleTimeout
+		case infra.LongRunning:
+			opts.IdleTimeout = infra.DefaultLongRunningIdleTimeout
+		}
+	}
 	if cfg.MaxLifetime != "" {
 		d, err := time.ParseDuration(cfg.MaxLifetime)
 		if err != nil {

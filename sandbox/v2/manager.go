@@ -19,20 +19,18 @@ import (
 )
 
 // Manager manages sandbox lifecycle. Node connections are delegated to tai/registry.
+// Idle-timeout and lifecycle enforcement is handled by the sandbox watcher (watcher.go).
 type Manager struct {
-	boxes  sync.Map
-	mu     sync.Mutex
-	cancel context.CancelFunc
+	boxes sync.Map
 }
 
 func newManager() *Manager {
 	return &Manager{}
 }
 
-// Start discovers existing containers from all registered nodes, rebuilds
-// the boxes map, and starts the cleanup loop.
-// If no "local" node is registered yet, it probes the local Docker environment
-// and auto-registers one when available.
+// Start discovers existing containers from all registered nodes and rebuilds
+// the boxes map. If no "local" node is registered yet, it probes the local
+// Docker environment and auto-registers one when available.
 func (m *Manager) Start(ctx context.Context) error {
 	reg := registry.Global()
 	if reg == nil {
@@ -49,9 +47,6 @@ func (m *Manager) Start(ctx context.Context) error {
 		m.recoverBoxes(ctx, snap.TaiID, res)
 	}
 
-	loopCtx, cancel := context.WithCancel(ctx)
-	m.cancel = cancel
-	go m.cleanupLoop(loopCtx)
 	return nil
 }
 
@@ -218,6 +213,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		displayName:  opts.DisplayName,
 		system:       sys,
 	}
+	box.status.Store("running")
 	box.lastCall.Store(time.Now().UnixMilli())
 
 	m.boxes.Store(id, box)
@@ -267,6 +263,31 @@ func (m *Manager) List(_ context.Context, opts ListOptions) ([]*Box, error) {
 	return result, nil
 }
 
+// StartBox starts a stopped sandbox and updates its lastCall timestamp.
+func (m *Manager) StartBox(ctx context.Context, id string) error {
+	v, ok := m.boxes.Load(id)
+	if !ok {
+		return ErrNotFound
+	}
+	b := v.(*Box)
+
+	res, err := m.getNode(b.nodeID)
+	if err != nil {
+		return err
+	}
+	if res.Runtime == nil {
+		return fmt.Errorf("sandbox: node %q has no container runtime", b.nodeID)
+	}
+
+	if err := res.Runtime.Start(ctx, b.containerID); err != nil {
+		return fmt.Errorf("sandbox: start container %s: %w", b.containerID, err)
+	}
+
+	b.status.Store("running")
+	b.touch()
+	return nil
+}
+
 // Remove force-removes a sandbox (SIGKILL + delete).
 func (m *Manager) Remove(ctx context.Context, id string) error {
 	v, ok := m.boxes.Load(id)
@@ -284,56 +305,9 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 	return nil
 }
 
-// Cleanup removes idle/expired sandboxes.
-func (m *Manager) Cleanup(ctx context.Context) error {
-	now := time.Now()
-	m.boxes.Range(func(key, value any) bool {
-		b := value.(*Box)
-		idle := now.Sub(b.lastActiveTime())
-
-		switch b.policy {
-		case OneShot:
-			// handled after Exec
-		case Session:
-			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
-				m.Remove(ctx, b.id)
-			}
-		case LongRunning:
-			if timeout := b.idleTimeout(); timeout > 0 && idle > timeout {
-				if res, err := m.getNode(b.nodeID); err == nil && res.Runtime != nil {
-					res.Runtime.Stop(ctx, b.containerID, b.stopTimeout())
-				}
-			}
-			if lifetime := b.maxLifetime(); lifetime > 0 && now.Sub(b.createdAt) > lifetime {
-				m.Remove(ctx, b.id)
-			}
-		case Persistent:
-			// never auto-cleaned
-		}
-		return true
-	})
-	return nil
-}
-
-// Close stops the cleanup loop. Node connections are managed by the registry.
+// Close is a no-op; lifecycle management is handled by the sandbox watcher.
 func (m *Manager) Close() error {
-	if m.cancel != nil {
-		m.cancel()
-	}
 	return nil
-}
-
-func (m *Manager) cleanupLoop(ctx context.Context) {
-	ticker := time.NewTicker(1 * time.Minute)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ticker.C:
-			m.Cleanup(ctx)
-		case <-ctx.Done():
-			return
-		}
-	}
 }
 
 func (m *Manager) getNode(name string) (*tai.ConnResources, error) {
@@ -488,12 +462,13 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 		if sys.OS == "" {
 			sys = inferSystemInfo(ctx, res, c.Image)
 		}
+		policy := LifecyclePolicy(c.Labels["sandbox-policy"])
 		box := &Box{
 			id:          sandboxID,
 			containerID: cid,
 			nodeID:      c.Labels["sandbox-node-id"],
 			owner:       c.Labels["sandbox-owner"],
-			policy:      LifecyclePolicy(c.Labels["sandbox-policy"]),
+			policy:      policy,
 			labels:      c.Labels,
 			createdAt:   time.Now(),
 			image:       c.Image,
@@ -503,6 +478,12 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 			displayName: c.Labels["sandbox-display-name"],
 			system:      sys,
 			manager:     m,
+		}
+		switch policy {
+		case Session:
+			box.idleTimeoutD = DefaultSessionIdleTimeout
+		case LongRunning:
+			box.idleTimeoutD = DefaultLongRunningIdleTimeout
 		}
 		box.lastCall.Store(time.Now().UnixMilli())
 		m.boxes.Store(sandboxID, box)

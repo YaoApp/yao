@@ -22,16 +22,9 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 		return ""
 	}
 
-	// Custom identifier from metadata takes precedence.
-	if metadata != nil {
-		if cid, ok := metadata["computer_id"].(string); ok && cid != "" {
-			return fmt.Sprintf("%s-%s.%s", ownerID, cid, workspaceID)
-		}
-	}
-
 	switch cfg.Lifecycle {
 	case "session":
-		return fmt.Sprintf("%s-%s", ownerID, chatID)
+		return fmt.Sprintf("%s-%s-%s", ownerID, assistantID, chatID)
 	case "longrunning", "persistent":
 		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
 	default:
@@ -184,8 +177,17 @@ func resolveBox(
 	if identifier != "" {
 		box, err := manager.Get(context.Background(), identifier)
 		if err == nil && box != nil {
-			box.BindWorkplace(workspaceID)
-			return box, identifier, nil
+			if box.IsStopped() {
+				if startErr := manager.StartBox(context.Background(), identifier); startErr != nil {
+					log.Printf("[sandbox/v2] auto-start stopped box %s failed: %v, creating new", identifier, startErr)
+				} else {
+					box.BindWorkplace(workspaceID)
+					return box, identifier, nil
+				}
+			} else {
+				box.BindWorkplace(workspaceID)
+				return box, identifier, nil
+			}
 		}
 	}
 

@@ -22,6 +22,7 @@ type Box struct {
 	lastCall      atomic.Int64
 	lastHeartbeat atomic.Int64
 	processCount  atomic.Int32
+	status        atomic.Value // string: "running", "exited", "stopped", "created", "unknown"
 	idleTimeoutD  time.Duration
 	maxLifetimeD  time.Duration
 	stopTimeoutD  time.Duration
@@ -210,14 +211,18 @@ func (b *Box) GetWorkDir() string {
 func (b *Box) WorkspaceID() string { return b.workspaceID }
 
 // Snapshot returns a local-only BoxInfo snapshot without any remote calls.
-// Status is inferred from local state (not from the container runtime).
+// Status is maintained by the sandbox watcher (see watcher.go).
 func (b *Box) Snapshot() BoxInfo {
+	s, _ := b.status.Load().(string)
+	if s == "" {
+		s = "unknown"
+	}
 	return BoxInfo{
 		ID:           b.id,
 		ContainerID:  b.containerID,
 		NodeID:       b.nodeID,
 		Owner:        b.owner,
-		Status:       "running",
+		Status:       s,
 		Policy:       b.policy,
 		Labels:       b.labels,
 		Image:        b.image,
@@ -313,6 +318,12 @@ func (b *Box) lastActiveTime() time.Time {
 	return time.UnixMilli(ts)
 }
 
+// idleSince returns the timestamp of the last business call (Exec/Stream/VNC/etc).
+// Unlike lastActiveTime, heartbeats do NOT reset this — only real user activity does.
+func (b *Box) idleSince() time.Time {
+	return time.UnixMilli(b.lastCall.Load())
+}
+
 func (b *Box) idleTimeout() time.Duration {
 	return b.idleTimeoutD
 }
@@ -326,4 +337,23 @@ func (b *Box) stopTimeout() time.Duration {
 		return b.stopTimeoutD
 	}
 	return DefaultStopTimeout
+}
+
+// IsStopped reports whether the box's last known status indicates a non-running container.
+func (b *Box) IsStopped() bool {
+	s, _ := b.status.Load().(string)
+	return s == "exited" || s == "stopped"
+}
+
+// inspectStatus queries the container runtime for the real container state.
+func (b *Box) inspectStatus(ctx context.Context) string {
+	res, err := b.manager.getNode(b.nodeID)
+	if err != nil || res.Runtime == nil {
+		return "unknown"
+	}
+	info, err := res.Runtime.Inspect(ctx, b.containerID)
+	if err != nil {
+		return "unknown"
+	}
+	return info.Status
 }
