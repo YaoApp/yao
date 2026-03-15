@@ -350,7 +350,7 @@ func (m *Manager) buildTaiCreateOptions(opts CreateOptions, nodeID, sandboxID st
 	reg := registry.Global()
 	if reg != nil {
 		if snap, ok := reg.Get(nodeID); ok {
-			grpcEnv := BuildGRPCEnv(snap.Mode, snap.Addr, sandboxID)
+			grpcEnv := BuildGRPCEnv(snap.Mode, snap.Ports.GRPC, sandboxID)
 			for k, v := range grpcEnv {
 				env[k] = v
 			}
