@@ -8,6 +8,7 @@ import (
 	"time"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -105,6 +106,19 @@ func ExecuteSandboxStream(
 			}
 		}
 	}()
+
+	if req.LoadingMsgID != "" {
+		waitMsg := &message.Message{
+			MessageID:   req.LoadingMsgID,
+			Delta:       true,
+			DeltaAction: message.DeltaReplace,
+			Type:        message.TypeLoading,
+			Props: map[string]any{
+				"message": i18n.T(ctx.Locale, "sandbox.waiting_response"),
+			},
+		}
+		ctx.Send(waitMsg)
+	}
 
 	var textContent []byte
 	loadingClosed := false

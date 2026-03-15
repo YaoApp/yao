@@ -116,7 +116,6 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	}
 
 	// 7. Runner.Prepare (standard context).
-	updateLoadingV2(ctx, loadingMsgID, "sandbox.configuring")
 	err = runner.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
 		Computer:   computer,
 		Config:     cfg,

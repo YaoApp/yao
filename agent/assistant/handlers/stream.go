@@ -227,32 +227,30 @@ func (s *streamState) handleToolCall(data []byte) int {
 		tc := toolCallArray[0]
 		props = map[string]interface{}{}
 
-		hasStaticFields := false
+		hasIdentity := false
 		if id, ok := tc["id"].(string); ok {
 			props["id"] = id
-			hasStaticFields = true
+			hasIdentity = true
 		}
 		if typ, ok := tc["type"].(string); ok {
 			props["type"] = typ
-			hasStaticFields = true
+			hasIdentity = true
 		}
 		if index, ok := tc["index"].(float64); ok {
 			props["index"] = int(index)
-			hasStaticFields = true
 		}
 		if fn, ok := tc["function"].(map[string]interface{}); ok {
 			if name, ok := fn["name"].(string); ok {
 				props["name"] = name
-				hasStaticFields = true
+				hasIdentity = true
 			}
 			if args, ok := fn["arguments"].(string); ok {
 				props["arguments"] = args
 			}
 		}
 
-		if hasStaticFields {
+		if hasIdentity {
 			// First chunk with id/name/type: merge so all fields are applied.
-			// arguments="" is included but that's fine — subsequent appends build on it.
 			deltaAction = "merge"
 		} else if _, ok := props["arguments"]; ok {
 			// Subsequent chunk with only arguments fragment: append to arguments.

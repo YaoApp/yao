@@ -100,14 +100,14 @@ func init() {
 			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
-			"sandbox.preparing":     "Preparing sandbox environment",
-			"sandbox.ready":         "Sandbox ready",
-			"sandbox.working":       "Working on your request",
-			"sandbox.completed":     "Completed",
-			"sandbox.failed":        "Execution failed",
-			"sandbox.starting":      "Starting sandbox environment",
-			"sandbox.configuring":   "Configuring runtime environment",
-			"sandbox.pulling_image": "Pulling container image",
+			"sandbox.preparing":        "Getting things ready...",
+			"sandbox.ready":            "Sandbox ready",
+			"sandbox.working":          "Working on your request",
+			"sandbox.completed":        "Completed",
+			"sandbox.failed":           "Execution failed",
+			"sandbox.starting":         "Setting up workspace...",
+			"sandbox.pulling_image":    "Preparing environment (first time may take a moment)",
+			"sandbox.waiting_response": "Waiting for AI response...",
 
 			// Sandbox: claude/executor.go - Tool execution messages
 			"sandbox.tool.read":          "Reading file",
@@ -227,14 +227,14 @@ func init() {
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
-			"sandbox.preparing":     "正在准备沙箱环境",
-			"sandbox.ready":         "沙箱环境就绪",
-			"sandbox.working":       "正在处理您的请求",
-			"sandbox.completed":     "处理完成",
-			"sandbox.failed":        "执行失败",
-			"sandbox.starting":      "正在启动沙箱环境",
-			"sandbox.configuring":   "正在配置运行环境",
-			"sandbox.pulling_image": "正在拉取容器镜像",
+			"sandbox.preparing":        "正在准备...",
+			"sandbox.ready":            "就绪",
+			"sandbox.working":          "正在处理您的请求",
+			"sandbox.completed":        "处理完成",
+			"sandbox.failed":           "执行失败",
+			"sandbox.starting":         "正在启动工作区...",
+			"sandbox.pulling_image":    "正在准备运行环境（首次可能需要一点时间）",
+			"sandbox.waiting_response": "等待 AI 响应...",
 
 			// Sandbox: claude/executor.go - Tool execution messages
 			"sandbox.tool.read":          "正在读取文件",
@@ -382,14 +382,14 @@ func init() {
 			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
-			"sandbox.preparing":     "正在准备沙箱环境",
-			"sandbox.ready":         "沙箱环境就绪",
-			"sandbox.working":       "正在处理您的请求",
-			"sandbox.completed":     "处理完成",
-			"sandbox.failed":        "执行失败",
-			"sandbox.starting":      "正在启动沙箱环境",
-			"sandbox.configuring":   "正在配置运行环境",
-			"sandbox.pulling_image": "正在拉取容器镜像",
+			"sandbox.preparing":        "正在准备...",
+			"sandbox.ready":            "就绪",
+			"sandbox.working":          "正在处理您的请求",
+			"sandbox.completed":        "处理完成",
+			"sandbox.failed":           "执行失败",
+			"sandbox.starting":         "正在启动工作区...",
+			"sandbox.pulling_image":    "正在准备运行环境（首次可能需要一点时间）",
+			"sandbox.waiting_response": "等待 AI 响应...",
 
 			// Sandbox: claude/executor.go - Tool execution messages
 			"sandbox.tool.read":          "正在读取文件",

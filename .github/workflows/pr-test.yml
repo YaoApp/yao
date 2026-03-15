@@ -1142,7 +1142,7 @@ jobs:
             -v /tmp/kubeconfig-tai-k8s.yml:/etc/tai/kubeconfig.yml:ro \
             -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
             -e TAI_KUBECONFIG=/etc/tai/kubeconfig.yml \
-            yaoapp/tai:latest server \
+            yaoapp/tai:latest server -direct \
             -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -k8s 0.0.0.0:16443
 
           for i in $(seq 1 30); do

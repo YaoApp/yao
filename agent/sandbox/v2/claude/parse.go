@@ -78,6 +78,10 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 						toolIndex++
 
 						if handler != nil {
+							if messageStarted {
+								handler(message.ChunkMessageEnd, nil)
+								messageStarted = false
+							}
 							if !toolBlockActive {
 								startData := message.EventMessageStartData{
 									MessageID: fmt.Sprintf("sandbox-tool-%d", time.Now().UnixNano()),
@@ -119,6 +123,7 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 								if toolBlockActive {
 									handler(message.ChunkMessageEnd, nil)
 									toolBlockActive = false
+									messageStarted = false
 								}
 								if !messageStarted {
 									startData := message.EventMessageStartData{
