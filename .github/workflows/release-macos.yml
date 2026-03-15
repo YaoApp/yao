@@ -6,6 +6,9 @@ on:
       version:
         description: "Release version (e.g. 1.0.0 or 1.0.0-alpha). Leave empty to read from share/const.go."
         required: false
+  push:
+    tags:
+      - "v*"
 
 permissions:
   contents: write
@@ -107,6 +110,8 @@ jobs:
         run: |
           if [ -n "${{ github.event.inputs.version }}" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           else
             VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
             echo "version=${VERSION}" >> $GITHUB_OUTPUT
@@ -155,7 +160,6 @@ jobs:
           done
 
       - name: Prepare Output and Checksums
-        id: output
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           for ARCH in arm64 amd64; do
@@ -167,7 +171,6 @@ jobs:
           mkdir -p /tmp/checksums
           shasum -a 256 /tmp/yao-output-arm64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-arm64.sha256
           shasum -a 256 /tmp/yao-output-amd64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-amd64.sha256
-          echo "=== Checksums ==="
           cat /tmp/checksums/*.sha256
 
       - name: Upload arm64 Binary
@@ -193,59 +196,3 @@ jobs:
         with:
           name: yao-darwin-amd64-sha256
           path: /tmp/checksums/yao-darwin-amd64.sha256
-
-  # ===================================================================
-  # GitHub Release (if version provided)
-  # ===================================================================
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.event.inputs.version != ''
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Download arm64 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: yao-darwin-arm64
-          path: dist/arm64
-
-      - name: Download amd64 Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: yao-darwin-amd64
-          path: dist/amd64
-
-      - name: Download Checksums
-        uses: actions/download-artifact@v4
-        with:
-          pattern: yao-darwin-*-sha256
-          path: dist/checksums
-          merge-multiple: true
-
-      - name: Prepare Release Files
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          mkdir -p release
-          cp dist/arm64/yao "release/yao-${VERSION}-darwin-arm64"
-          cp dist/amd64/yao "release/yao-${VERSION}-darwin-amd64"
-          cp dist/checksums/*.sha256 release/
-          chmod +x release/yao-*
-          ls -la release/
-
-      - name: Create Tag
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag -a "v${{ github.event.inputs.version }}-macos" -m "Release v${{ github.event.inputs.version }} (macOS)" || true
-          git push origin "v${{ github.event.inputs.version }}-macos" || true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ github.event.inputs.version }}-macos
-          name: Yao v${{ github.event.inputs.version }} (macOS)
-          files: release/*
-          generate_release_notes: true
-          draft: true

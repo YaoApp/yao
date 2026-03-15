@@ -1,0 +1,110 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: ["Release Linux", "Release macOS"]
+    types:
+      - completed
+
+permissions:
+  contents: write
+
+jobs:
+  # ===================================================================
+  # Wait for both workflows to succeed, then create a unified release
+  # ===================================================================
+  release:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      startsWith(github.event.workflow_run.head_branch, 'v')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Version
+        id: version
+        run: |
+          TAG="${{ github.event.workflow_run.head_branch }}"
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Wait for Both Workflows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          echo "Waiting for both Release Linux and Release macOS to complete for $TAG..."
+
+          for i in $(seq 1 60); do
+            LINUX_STATUS=$(gh run list --workflow="Release Linux" --branch="$TAG" --limit=1 --json conclusion --jq '.[0].conclusion // "pending"')
+            MACOS_STATUS=$(gh run list --workflow="Release macOS" --branch="$TAG" --limit=1 --json conclusion --jq '.[0].conclusion // "pending"')
+
+            echo "Attempt $i: Linux=$LINUX_STATUS macOS=$MACOS_STATUS"
+
+            if [ "$LINUX_STATUS" = "success" ] && [ "$MACOS_STATUS" = "success" ]; then
+              echo "Both workflows completed successfully."
+              exit 0
+            fi
+
+            if [ "$LINUX_STATUS" = "failure" ] || [ "$MACOS_STATUS" = "failure" ]; then
+              echo "::error::One or both workflows failed (Linux=$LINUX_STATUS macOS=$MACOS_STATUS)"
+              exit 1
+            fi
+
+            sleep 60
+          done
+
+          echo "::error::Timed out waiting for workflows"
+          exit 1
+
+      - name: Download Linux Artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          LINUX_RUN_ID=$(gh run list --workflow="Release Linux" --branch="$TAG" --limit=1 --json databaseId --jq '.[0].databaseId')
+          mkdir -p dist/linux
+          gh run download "$LINUX_RUN_ID" --name yao-linux --dir dist/linux
+
+      - name: Download macOS Artifacts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          MACOS_RUN_ID=$(gh run list --workflow="Release macOS" --branch="$TAG" --limit=1 --json databaseId --jq '.[0].databaseId')
+          mkdir -p dist/macos
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-arm64 --dir dist/macos
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-amd64 --dir dist/macos
+          gh run download "$MACOS_RUN_ID" --pattern "yao-darwin-*-sha256" --dir dist/macos
+
+      - name: Prepare Release Files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p release
+
+          cp dist/linux/* release/ 2>/dev/null || true
+
+          if [ -f dist/macos/yao-darwin-arm64/yao ]; then
+            cp dist/macos/yao-darwin-arm64/yao "release/yao-${VERSION}-darwin-arm64"
+          elif [ -f dist/macos/yao ]; then
+            cp dist/macos/yao "release/yao-${VERSION}-darwin-arm64"
+          fi
+
+          if [ -f dist/macos/yao-darwin-amd64/yao ]; then
+            cp dist/macos/yao-darwin-amd64/yao "release/yao-${VERSION}-darwin-amd64"
+          fi
+
+          find dist/macos -name "*.sha256" -exec cp {} release/ \;
+
+          chmod +x release/yao-* 2>/dev/null || true
+          echo "=== Release files ==="
+          ls -lh release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Yao v${{ steps.version.outputs.version }}
+          files: release/*
+          generate_release_notes: true

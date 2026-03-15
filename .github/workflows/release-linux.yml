@@ -19,9 +19,8 @@ env:
 jobs:
   # ===================================================================
   # Build Linux Binaries (amd64 + arm64)
-  # Uses the yaoapp/yao-build container which has all cross-compile deps.
   # ===================================================================
-  build-linux:
+  build:
     runs-on: ubuntu-latest
     container:
       image: yaoapp/yao-build:1.0.0
@@ -45,18 +44,6 @@ jobs:
           /app/build.sh
           ls -l /data
 
-      - name: Get Version
-        id: version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Push To R2
         run: |
           for file in /data/*; do
@@ -71,58 +58,10 @@ jobs:
           path: /data/*
 
   # ===================================================================
-  # GitHub Release + Tag
-  # ===================================================================
-  release:
-    needs: build-linux
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Get Version
-        id: version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Download Linux Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: yao-linux
-          path: dist
-
-      - name: List Artifacts
-        run: ls -lh dist/
-
-      - name: Create Tag (if manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}" || true
-          git push origin "v${{ steps.version.outputs.version }}" || true
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}
-          name: Yao v${{ steps.version.outputs.version }}
-          files: dist/*
-          generate_release_notes: true
-
-  # ===================================================================
   # Docker Images (multi-platform linux/amd64 + linux/arm64)
-  # Builds after R2 upload so Dockerfiles can curl binaries from R2.
   # ===================================================================
   docker:
-    needs: build-linux
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
