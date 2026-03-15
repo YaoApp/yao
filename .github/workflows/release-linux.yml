@@ -1,0 +1,219 @@
+name: Release Linux
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0 or 1.0.0-alpha). Leave empty to read from share/const.go."
+        required: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  IMAGE_NAME: yaoapp/yao
+
+jobs:
+  # ===================================================================
+  # Build Linux Binaries (amd64 + arm64)
+  # Uses the yaoapp/yao-build container which has all cross-compile deps.
+  # ===================================================================
+  build-linux:
+    runs-on: ubuntu-latest
+    container:
+      image: yaoapp/yao-build:1.0.0
+    env:
+      CF_ACCESS_KEY_ID: ${{ secrets.CF_ACCESS_KEY_ID }}
+      CF_SECRET_ACCESS_KEY: ${{ secrets.CF_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+    steps:
+      - name: Configure R2 For Cloudflare
+        run: |
+          aws configure set aws_access_key_id $CF_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $CF_SECRET_ACCESS_KEY
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+          aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+
+      - name: Build
+        run: |
+          export PATH=$PATH:/github/home/go/bin
+          /app/build.sh
+          ls -l /data
+
+      - name: Get Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push To R2
+        run: |
+          for file in /data/*; do
+            aws s3 cp "$file" s3://$R2_BUCKET/archives/ \
+              --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
+          done
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-linux
+          path: /data/*
+
+  # ===================================================================
+  # GitHub Release + Tag
+  # ===================================================================
+  release:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-linux
+          path: dist
+
+      - name: List Artifacts
+        run: ls -lh dist/
+
+      - name: Create Tag (if manual dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}" || true
+          git push origin "v${{ steps.version.outputs.version }}" || true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Yao v${{ steps.version.outputs.version }}
+          files: dist/*
+          generate_release_notes: true
+
+  # ===================================================================
+  # Docker Images (multi-platform linux/amd64 + linux/arm64)
+  # Builds after R2 upload so Dockerfiles can curl binaries from R2.
+  # ===================================================================
+  docker:
+    needs: build-linux
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Get Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build & Push Development (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/development
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=amd64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64-dev
+
+      - name: Build & Push Development (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/development
+          platforms: linux/arm64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=arm64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64-dev
+
+      - name: Build & Push Production (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/production
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=amd64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64
+
+      - name: Build & Push Production (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/production
+          platforms: linux/arm64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=arm64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
+
+      - name: Build & Push Slim (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/production-slim
+          platforms: linux/amd64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=amd64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64-slim
+
+      - name: Build & Push Slim (arm64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/production-slim
+          platforms: linux/arm64
+          build-args: |
+            VERSION=${{ steps.version.outputs.version }}-unstable
+            ARCH=arm64
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64-slim
