@@ -22,21 +22,69 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 		return ""
 	}
 
-	// Custom identifier from metadata takes precedence.
-	if metadata != nil {
-		if cid, ok := metadata["computer_id"].(string); ok && cid != "" {
-			return fmt.Sprintf("%s-%s.%s", ownerID, cid, workspaceID)
-		}
-	}
-
 	switch cfg.Lifecycle {
 	case "session":
-		return fmt.Sprintf("%s-%s", ownerID, chatID)
+		return fmt.Sprintf("%s-%s-%s", ownerID, assistantID, chatID)
 	case "longrunning", "persistent":
 		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
 	default:
 		return ""
 	}
+}
+
+// ResolveNodeID determines the target nodeID and computer kind based on
+// metadata and DSL configuration, without creating or acquiring a container.
+// Returns (nodeID, kind, error). kind is "box" or "host".
+func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (string, string, error) {
+	computerID := ""
+	if ctx.Metadata != nil {
+		if cid, ok := ctx.Metadata["computer_id"].(string); ok && cid != "" {
+			computerID = cid
+		}
+	}
+
+	workspaceID := ""
+	if ctx.Metadata != nil {
+		if ws, ok := ctx.Metadata["workspace_id"].(string); ok && ws != "" {
+			workspaceID = ws
+		}
+	}
+	ownerID := resolveOwnerID(ctx)
+	if workspaceID == "" {
+		workspaceID = ownerID
+	}
+
+	if workspaceID != "" && workspaceID != ownerID {
+		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
+		if err == nil && wsNode != "" {
+			computerID = wsNode
+		}
+	}
+
+	if computerID != "" {
+		if node, ok := tai.GetNodeMeta(computerID); ok {
+			hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
+			if node.Capabilities.HostExec && !hasContainerRuntime {
+				return computerID, "host", nil
+			}
+			if node.Capabilities.HostExec && hasContainerRuntime && cfg.Computer.Image == "" {
+				return computerID, "host", nil
+			}
+			if !hasContainerRuntime {
+				return "", "", fmt.Errorf("node %q has no container runtime and no host_exec capability", computerID)
+			}
+			return computerID, "box", nil
+		}
+		return computerID, "box", nil
+	}
+
+	if cfg.Computer.Image == "" {
+		nodeID := cfg.NodeID
+		return nodeID, "host", nil
+	}
+
+	nodeID := cfg.NodeID
+	return nodeID, "box", nil
 }
 
 // GetComputer obtains or creates a Computer for the current request.
@@ -184,8 +232,17 @@ func resolveBox(
 	if identifier != "" {
 		box, err := manager.Get(context.Background(), identifier)
 		if err == nil && box != nil {
-			box.BindWorkplace(workspaceID)
-			return box, identifier, nil
+			if box.IsStopped() {
+				if startErr := manager.StartBox(context.Background(), identifier); startErr != nil {
+					log.Printf("[sandbox/v2] auto-start stopped box %s failed: %v, creating new", identifier, startErr)
+				} else {
+					box.BindWorkplace(workspaceID)
+					return box, identifier, nil
+				}
+			} else {
+				box.BindWorkplace(workspaceID)
+				return box, identifier, nil
+			}
 		}
 	}
 

@@ -23,9 +23,13 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 	scanner.Buffer(buf, 1024*1024)
 
 	messageStarted := false
+	toolBlockActive := false
+	toolIndex := 0
 
 	type toolState struct {
+		id        string
 		name      string
+		index     int
 		inputJSON strings.Builder
 	}
 	var currentTool *toolState
@@ -66,10 +70,41 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 					blockType, _ := cb["type"].(string)
 					if blockType == "tool_use" {
 						toolName, _ := cb["name"].(string)
-						currentTool = &toolState{name: toolName}
+						toolID, _ := cb["id"].(string)
+						if toolID == "" {
+							toolID = fmt.Sprintf("tool_%d_%d", toolIndex, time.Now().UnixNano())
+						}
+						currentTool = &toolState{id: toolID, name: toolName, index: toolIndex}
+						toolIndex++
+
 						if handler != nil {
-							data, _ := json.Marshal(map[string]any{"tool": toolName})
-							if handler(message.ChunkToolCall, data) != 0 {
+							if messageStarted {
+								handler(message.ChunkMessageEnd, nil)
+								messageStarted = false
+							}
+							if !toolBlockActive {
+								startData := message.EventMessageStartData{
+									MessageID: fmt.Sprintf("sandbox-tool-%d", time.Now().UnixNano()),
+									Type:      "tool_call",
+									Timestamp: time.Now().UnixMilli(),
+								}
+								sd, _ := json.Marshal(startData)
+								if handler(message.ChunkMessageStart, sd) != 0 {
+									stopped = true
+									break
+								}
+								toolBlockActive = true
+							}
+							tcData, _ := json.Marshal([]map[string]any{{
+								"index": currentTool.index,
+								"id":    currentTool.id,
+								"type":  "function",
+								"function": map[string]any{
+									"name":      toolName,
+									"arguments": "",
+								},
+							}})
+							if handler(message.ChunkToolCall, tcData) != 0 {
 								stopped = true
 							}
 						}
@@ -82,7 +117,14 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 					switch deltaType {
 					case "text_delta":
 						if text, ok := delta["text"].(string); ok && text != "" {
+							text = strings.ReplaceAll(text, "\r\n", "\n")
+							text = strings.ReplaceAll(text, "\r", "\n")
 							if handler != nil {
+								if toolBlockActive {
+									handler(message.ChunkMessageEnd, nil)
+									toolBlockActive = false
+									messageStarted = false
+								}
 								if !messageStarted {
 									startData := message.EventMessageStartData{
 										MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
@@ -105,6 +147,17 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 						if currentTool != nil {
 							if partial, ok := delta["partial_json"].(string); ok {
 								currentTool.inputJSON.WriteString(partial)
+								if handler != nil {
+									tcData, _ := json.Marshal([]map[string]any{{
+										"index": currentTool.index,
+										"function": map[string]any{
+											"arguments": partial,
+										},
+									}})
+									if handler(message.ChunkToolCall, tcData) != 0 {
+										stopped = true
+									}
+								}
 							}
 						}
 					}
@@ -125,8 +178,53 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 								continue
 							}
 							itemType, _ := ci["type"].(string)
+
+							if itemType == "tool_use" && handler != nil {
+								toolName, _ := ci["name"].(string)
+								toolID, _ := ci["id"].(string)
+								if toolID == "" {
+									toolID = fmt.Sprintf("tool_%d_%d", toolIndex, time.Now().UnixNano())
+								}
+								inputRaw, _ := json.Marshal(ci["input"])
+								idx := toolIndex
+								toolIndex++
+
+								if !toolBlockActive {
+									startData := message.EventMessageStartData{
+										MessageID: fmt.Sprintf("sandbox-tool-%d", time.Now().UnixNano()),
+										Type:      "tool_call",
+										Timestamp: time.Now().UnixMilli(),
+									}
+									sd, _ := json.Marshal(startData)
+									if handler(message.ChunkMessageStart, sd) != 0 {
+										stopped = true
+										break
+									}
+									toolBlockActive = true
+								}
+								tcData, _ := json.Marshal([]map[string]any{{
+									"index": idx,
+									"id":    toolID,
+									"type":  "function",
+									"function": map[string]any{
+										"name":      toolName,
+										"arguments": string(inputRaw),
+									},
+								}})
+								if handler(message.ChunkToolCall, tcData) != 0 {
+									stopped = true
+									break
+								}
+							}
+
 							if itemType == "text" {
 								if text, ok := ci["text"].(string); ok && text != "" && handler != nil && !messageStarted {
+									text = strings.ReplaceAll(text, "\r\n", "\n")
+									text = strings.ReplaceAll(text, "\r", "\n")
+									if toolBlockActive {
+										handler(message.ChunkMessageEnd, nil)
+										toolBlockActive = false
+									}
 									startData := message.EventMessageStartData{
 										MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
 										Type:      "text",
@@ -159,8 +257,14 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 					return fmt.Errorf("Claude CLI error: %s", result)
 				}
 			}
-			if handler != nil && messageStarted {
-				handler(message.ChunkMessageEnd, nil)
+			if handler != nil {
+				if toolBlockActive {
+					handler(message.ChunkMessageEnd, nil)
+					toolBlockActive = false
+				}
+				if messageStarted {
+					handler(message.ChunkMessageEnd, nil)
+				}
 			}
 
 		case "error":

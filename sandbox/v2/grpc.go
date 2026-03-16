@@ -2,53 +2,47 @@ package sandbox
 
 import (
 	"fmt"
-	"net/url"
-	"strconv"
 
 	"github.com/yaoapp/yao/config"
 )
 
-// BuildGRPCEnv builds the gRPC environment variables for a sandbox container
-// based on the Tai node's mode and address from the registry.
-//
-// mode is the TaiNode.Mode ("local", "direct", "tunnel").
-// addr is the TaiNode.Addr (e.g. "tai://host:port" for direct mode).
-// sandboxID is the container's sandbox identifier.
-//
-// The Yao gRPC port is read from config.Conf.GRPC.Port.
-func BuildGRPCEnv(mode, addr, sandboxID string) map[string]string {
-	grpcPort := config.Conf.GRPC.Port
-	if grpcPort == 0 {
-		grpcPort = 9099
-	}
-	portStr := strconv.Itoa(grpcPort)
+const taiHost = "host.tai.internal"
 
+// BuildGRPCEnv builds the gRPC environment variables for a sandbox container.
+//
+// All containers reach the host via "host.tai.internal" (injected by Tai at
+// container creation). The port depends on the mode:
+//
+//   - local:          Yao gRPC port (Tai and Yao on the same machine)
+//   - tunnel/direct:  Tai gRPC port (Tai Gateway forwards to Yao)
+//
+// taiGRPCPort is the Tai node's gRPC port from registration (Ports.GRPC).
+func BuildGRPCEnv(mode string, taiGRPCPort int, sandboxID string) map[string]string {
 	env := map[string]string{
 		"YAO_SANDBOX_ID": sandboxID,
 	}
 
 	switch mode {
 	case "local":
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("host.docker.internal:%s", portStr)
-
-	case "tunnel":
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%s", portStr)
-
-	case "direct":
-		u, err := url.Parse(addr)
-		if err != nil || u.Hostname() == "" {
-			env["YAO_GRPC_ADDR"] = fmt.Sprintf("host.docker.internal:%s", portStr)
-			return env
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
 		}
-		taiHost := u.Hostname()
-		taiPort := u.Port()
-		if taiPort == "" {
-			taiPort = "19100"
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%d", taiHost, port)
+
+	case "tunnel", "direct":
+		port := taiGRPCPort
+		if port == 0 {
+			port = 19100
 		}
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%s", taiHost, taiPort)
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%d", taiHost, port)
 
 	default:
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("host.docker.internal:%s", portStr)
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
+		}
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%d", taiHost, port)
 	}
 	return env
 }

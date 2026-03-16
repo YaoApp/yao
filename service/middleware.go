@@ -11,13 +11,14 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi"
+	servicelog "github.com/yaoapp/yao/service/log"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/sui/api"
 )
 
 // Middlewares the middlewares
 var Middlewares = []gin.HandlerFunc{
-	gin.Logger(),
+	servicelog.AccessLog(),
 	withStaticFileServer,
 }
 

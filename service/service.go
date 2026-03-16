@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/server/http"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi"
+	servicelog "github.com/yaoapp/yao/service/log"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -148,6 +149,8 @@ func Restart(svc *Service, cfg config.Config) error {
 }
 
 func prepare() error {
+	servicelog.InitAccessLog(config.Conf.Root)
+
 	err := share.SessionStart()
 	if err != nil {
 		return err

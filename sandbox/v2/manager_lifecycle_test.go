@@ -46,42 +46,6 @@ func TestHeartbeatUnknownBox(t *testing.T) {
 	}
 }
 
-func TestIdleCleanup(t *testing.T) {
-	skipIfNoDocker(t)
-
-	for _, pc := range testNodes() {
-		pc := pc
-		t.Run(pc.Name, func(t *testing.T) {
-			m := setupManagerForNode(t, &pc)
-			ensureTestImage(t, m, pc.TaiID)
-
-			ctx := context.Background()
-			box, err := m.Create(ctx, sandbox.CreateOptions{
-				Image:       testImage(),
-				Owner:       "test-user",
-				NodeID:      pc.TaiID,
-				Policy:      sandbox.Session,
-				IdleTimeout: 1 * time.Second,
-			})
-			if err != nil {
-				t.Fatalf("Create: %v", err)
-			}
-			boxID := box.ID()
-
-			time.Sleep(2 * time.Second)
-
-			if err := m.Cleanup(ctx); err != nil {
-				t.Fatalf("Cleanup: %v", err)
-			}
-
-			_, err = m.Get(ctx, boxID)
-			if err != sandbox.ErrNotFound {
-				t.Errorf("after idle cleanup, Get err = %v, want ErrNotFound", err)
-			}
-		})
-	}
-}
-
 func TestStartRecovery(t *testing.T) {
 	skipIfNoDocker(t)
 
@@ -114,27 +78,50 @@ func TestStartRecovery(t *testing.T) {
 	}
 }
 
-func TestPersistentNotCleaned(t *testing.T) {
+func TestStartBox(t *testing.T) {
 	skipIfNoDocker(t)
 
 	for _, pc := range testNodes() {
 		pc := pc
 		t.Run(pc.Name, func(t *testing.T) {
 			m := setupManagerForNode(t, &pc)
-
-			box := createTestBox(t, m, pc, func(co *sandbox.CreateOptions) {
-				co.Policy = sandbox.Persistent
-				co.IdleTimeout = 1 * time.Second
-			})
-
-			time.Sleep(2 * time.Second)
-
+			box := createTestBox(t, m, pc)
+			boxID := box.ID()
 			ctx := context.Background()
-			m.Cleanup(ctx)
 
-			_, err := m.Get(ctx, box.ID())
+			if err := box.Stop(ctx); err != nil {
+				t.Fatalf("Stop: %v", err)
+			}
+
+			time.Sleep(500 * time.Millisecond)
+
+			if err := m.StartBox(ctx, boxID); err != nil {
+				t.Fatalf("StartBox: %v", err)
+			}
+
+			info, err := box.Info(ctx)
 			if err != nil {
-				t.Errorf("persistent box should not be cleaned: %v", err)
+				t.Fatalf("Info after StartBox: %v", err)
+			}
+			if info.Status != "running" {
+				t.Errorf("status = %q after StartBox, want running", info.Status)
+			}
+		})
+	}
+}
+
+func TestSnapshotReadsStatus(t *testing.T) {
+	skipIfNoDocker(t)
+
+	for _, pc := range testNodes() {
+		pc := pc
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForNode(t, &pc)
+			box := createTestBox(t, m, pc)
+
+			snap := box.Snapshot()
+			if snap.Status != "running" {
+				t.Errorf("initial snapshot status = %q, want running", snap.Status)
 			}
 		})
 	}

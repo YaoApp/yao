@@ -224,16 +224,17 @@ func (s *streamState) handleToolCall(data []byte) int {
 	var deltaPath string
 
 	if len(toolCallArray) == 1 {
-		// Single tool call - flatten to props root level
 		tc := toolCallArray[0]
 		props = map[string]interface{}{}
 
-		// Static fields (only in first chunk): use merge
+		hasIdentity := false
 		if id, ok := tc["id"].(string); ok {
 			props["id"] = id
+			hasIdentity = true
 		}
 		if typ, ok := tc["type"].(string); ok {
 			props["type"] = typ
+			hasIdentity = true
 		}
 		if index, ok := tc["index"].(float64); ok {
 			props["index"] = int(index)
@@ -241,18 +242,21 @@ func (s *streamState) handleToolCall(data []byte) int {
 		if fn, ok := tc["function"].(map[string]interface{}); ok {
 			if name, ok := fn["name"].(string); ok {
 				props["name"] = name
+				hasIdentity = true
 			}
-			// Arguments field: use append
 			if args, ok := fn["arguments"].(string); ok {
 				props["arguments"] = args
-				// If this chunk has arguments, use append action for arguments field
-				deltaAction = "append"
-				deltaPath = "arguments"
 			}
 		}
 
-		// If no arguments in this chunk, use merge for other fields
-		if deltaAction == "" {
+		if hasIdentity {
+			// First chunk with id/name/type: merge so all fields are applied.
+			deltaAction = "merge"
+		} else if _, ok := props["arguments"]; ok {
+			// Subsequent chunk with only arguments fragment: append to arguments.
+			deltaAction = "append"
+			deltaPath = "arguments"
+		} else {
 			deltaAction = "merge"
 		}
 	} else {

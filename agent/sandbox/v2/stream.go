@@ -8,6 +8,7 @@ import (
 	"time"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -15,11 +16,12 @@ import (
 
 // ExecuteRequest consolidates all parameters for ExecuteSandboxStream.
 type ExecuteRequest struct {
-	Computer  infra.Computer
-	Runner    types.Runner
-	Config    *types.SandboxConfig
-	StreamReq *types.StreamRequest
-	Manager   *infra.Manager
+	Computer     infra.Computer
+	Runner       types.Runner
+	Config       *types.SandboxConfig
+	StreamReq    *types.StreamRequest
+	Manager      *infra.Manager
+	LoadingMsgID string
 }
 
 // ExecuteSandboxStream is the V2 replacement for executeSandboxStream.
@@ -105,8 +107,28 @@ func ExecuteSandboxStream(
 		}
 	}()
 
+	if req.LoadingMsgID != "" {
+		waitMsg := &message.Message{
+			MessageID:   req.LoadingMsgID,
+			Delta:       true,
+			DeltaAction: message.DeltaReplace,
+			Type:        message.TypeLoading,
+			Props: map[string]any{
+				"message": i18n.T(ctx.Locale, "sandbox.waiting_response"),
+			},
+		}
+		ctx.Send(waitMsg)
+	}
+
 	var textContent []byte
+	loadingClosed := false
 	wrappedHandler := func(chunkType message.StreamChunkType, data []byte) int {
+		if !loadingClosed && req.LoadingMsgID != "" {
+			if chunkType == message.ChunkText || chunkType == message.ChunkToolCall || chunkType == message.ChunkMessageStart {
+				closeLoading(ctx, req.LoadingMsgID)
+				loadingClosed = true
+			}
+		}
 		if chunkType == message.ChunkText {
 			textContent = append(textContent, data...)
 		}
@@ -117,6 +139,10 @@ func ExecuteSandboxStream(
 	}
 
 	err := req.Runner.Stream(runnerCtx, req.StreamReq, wrappedHandler)
+
+	if !loadingClosed && req.LoadingMsgID != "" {
+		closeLoading(ctx, req.LoadingMsgID)
+	}
 
 	panicked = false // Normal exit reached.
 
@@ -135,4 +161,21 @@ func ExecuteSandboxStream(
 		resp.Content = string(textContent)
 	}
 	return resp, nil
+}
+
+func closeLoading(ctx *agentContext.Context, loadingMsgID string) {
+	if loadingMsgID == "" || ctx == nil {
+		return
+	}
+	msg := &message.Message{
+		MessageID:   loadingMsgID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        message.TypeLoading,
+		Props: map[string]any{
+			"done":    true,
+			"message": "",
+		},
+	}
+	ctx.Send(msg)
 }

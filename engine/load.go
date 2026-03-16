@@ -34,6 +34,7 @@ import (
 	"github.com/yaoapp/yao/messenger"
 	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
+	"github.com/yaoapp/yao/monitor"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/pipe"
@@ -240,6 +241,14 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Event", Error: err})
+	}
+
+	// Start Monitor Service (watchers registered via init())
+	err = loadStep("Monitor", func() error {
+		return monitor.Start(context.Background())
+	}, callback)
+	if err != nil {
+		warnings = append(warnings, Warning{Widget: "Monitor", Error: err})
 	}
 
 	// Load Uploaders
@@ -454,6 +463,9 @@ func Unload() (err error) {
 			log.Printf("[Robot Agent] Warning: failed to stop robot agent system: %v", stopErr)
 		}
 	}
+
+	// Stop Monitor Service (before event, so watchers can still push events)
+	monitor.Stop()
 
 	// Stop Event Service (before runtime, so in-flight handlers can still use V8)
 	event.Stop(context.Background())

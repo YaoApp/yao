@@ -1,0 +1,88 @@
+name: Notarize macOS
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Release macOS workflow run ID (to download artifacts from)"
+        required: true
+      version:
+        description: "Version used in the release build (e.g. 1.0.0 or 1.0.0-alpha)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  # ===================================================================
+  # Notarize Yao binaries (arm64 + amd64)
+  # ===================================================================
+  notarize:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, amd64]
+    steps:
+      - name: Download Yao Binary
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-${{ matrix.arch }}
+          path: bin
+          run-id: ${{ github.event.inputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode > certs/distribution.cer
+          echo "${{ secrets.APPLE_PRIVATE_KEY }}" | base64 --decode > certs/private_key.p12
+          security verify-cert -c certs/DeveloperIDG2CA.cer
+          security verify-cert -c certs/distribution.cer
+
+      - name: Import Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" -T /usr/bin/codesign
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Verify Signature
+        run: codesign --verify --deep --strict --verbose=2 bin/yao
+
+      - name: Notarize Yao ${{ matrix.arch }}
+        timeout-minutes: 15
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAME_ID: ${{ secrets.APPLE_TEAME_ID }}
+          APPLE_APP_SPEC_PASS: ${{ secrets.APPLE_APP_SPEC_PASS }}
+        run: |
+          zip -j bin/yao.zip bin/yao
+
+          SUBMIT_OUT=$(xcrun notarytool submit bin/yao.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAME_ID" \
+            --password "$APPLE_APP_SPEC_PASS" \
+            --wait --timeout 10m --output-format json 2>&1) || true
+          echo "$SUBMIT_OUT"
+
+          STATUS=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || true)
+          SUB_ID=$(echo "$SUBMIT_OUT" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || true)
+
+          if [ "$STATUS" != "Accepted" ]; then
+            echo "::error::Yao ${{ matrix.arch }} notarization failed (status: $STATUS)"
+            [ -n "$SUB_ID" ] && xcrun notarytool log "$SUB_ID" \
+              --apple-id "$APPLE_ID" \
+              --team-id "$APPLE_TEAME_ID" \
+              --password "$APPLE_APP_SPEC_PASS" || true
+            exit 1
+          fi
+          echo "Yao ${{ matrix.arch }} notarization accepted."

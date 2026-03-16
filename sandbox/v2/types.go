@@ -71,7 +71,11 @@ const (
 	Persistent  LifecyclePolicy = "persistent"
 )
 
-const DefaultStopTimeout = 2 * time.Second
+const (
+	DefaultStopTimeout            = 2 * time.Second
+	DefaultSessionIdleTimeout     = 30 * time.Minute
+	DefaultLongRunningIdleTimeout = 2 * time.Hour
+)
 
 // ---------------------------------------------------------------------------
 // Create / List options

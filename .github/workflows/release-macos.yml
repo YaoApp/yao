@@ -1,64 +1,198 @@
-name: Release MacOS Artifacts
+name: Release macOS
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (e.g. 1.0.0 or 1.0.0-alpha). Leave empty to read from share/const.go."
+        required: false
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 jobs:
-  release:
-    runs-on: "macos-12"
-    timeout-minutes: 120
-
+  # ===================================================================
+  # Build Yao macOS binaries (arm64 + amd64) — one job, both arches
+  # ===================================================================
+  build:
+    runs-on: macos-latest
     steps:
-      - name: Download latest artifacts
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          path: v8go
+
+      - name: Unzip libv8
         run: |
-          echo "Downloading latest artifacts..."
-          ARTIFACT_URL="https://api.github.com/repos/YaoApp/yao/actions/artifacts"
-          ARTIFACT_CONTENT=$(curl -s -H "Accept: application/vnd.github.v3+json" $ARTIFACT_URL)
-          echo $ARTIFACT_CONTENT
-          ARTIFACTS=$(echo $ARTIFACT_CONTENT | jq -r '.artifacts[] | select(.name | contains("yao-macos")) | .id')
-          for id in $ARTIFACTS; do
-              echo "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip"
-              curl -L -H "Accept: application/vnd.github.v3+json" \
-              "https://api.github.com/repos/YaoApp/yao/actions/artifacts/$id/zip" \
-              -o artifact.zip
-              unzip artifact.zip -d ./artifacts
-              rm artifact.zip
-              break
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d $dir $file
+            rm -rf $dir/__MACOSX
           done
-          ls -l ./artifacts
 
-    #   - name: Submit notarization request
-    #     run: |
-    #       echo "Submitting notarization request..."
-    #       UUID=$(xcrun altool --notarize-app --primary-bundle-id "com.example.yourapp" \
-    #         --username "your-apple-id" --password "app-specific-password" \
-    #         --file ./artifacts/your-binary-file)
+      - name: Checkout CUI v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/cui
+          path: cui-v1.0
 
-    #       echo "Notarization UUID: $UUID"
-    #       echo "$UUID" > notarization_uuid.txt
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
 
-    #   - name: Check notarization status
-    #     id: check_notarization
-    #     timeout-minutes: 120
-    #     run: |
-    #       UUID=$(cat notarization_uuid.txt)
-    #       STATUS="in progress"
-    #       while [[ "$STATUS" == "in progress" ]]; do
-    #         STATUS=$(xcrun altool --notarization-info "$UUID" \
-    #           --username "your-apple-id" --password "app-specific-password")
-    #         echo "Notarization status: $STATUS"
-    #         if [[ "$STATUS" == *"success"* ]]; then
-    #           echo "::set-output name=status::success"
-    #           break
-    #         elif [[ "$STATUS" == *"invalid"* ]]; then
-    #           echo "::set-output name=status::failed"
-    #           break
-    #         fi
-    #       done
+      - name: Move Dependencies
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv cui-v1.0 ../
+          mv yao-init ../
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
 
-    #   - name: Create Release
-    #     if: steps.check_notarization.outputs.status == 'success'
-    #     run: |
-    #       echo "Creating a release..."
-    #       VERSION=$(git rev-parse --short HEAD)
-    #       gh release create "v1.0.0-$VERSION" ./artifacts/* --title "Release v0.10.4-$VERSION" --notes "Notarization succeeded. This is the release for version v1.0.0-$VERSION."
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+
+      - name: Setup Go Tools
+        run: make tools
+
+      - name: Get Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
+            echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Make Artifacts macOS
+        run: make artifacts-macos
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+
+      - name: List Build Output
+        run: ls -lh dist/release/
+
+      - name: Install Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          mkdir -p certs
+          echo "${{ secrets.APPLE_DEVELOPERIDG2CA }}" | base64 --decode > certs/DeveloperIDG2CA.cer
+          echo "${{ secrets.APPLE_DISTRIBUTION }}" | base64 --decode > certs/distribution.cer
+          echo "${{ secrets.APPLE_PRIVATE_KEY }}" | base64 --decode > certs/private_key.p12
+          security verify-cert -c certs/DeveloperIDG2CA.cer
+          security verify-cert -c certs/distribution.cer
+
+      - name: Import Certificates
+        env:
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import ./certs/DeveloperIDG2CA.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/distribution.cer -k $KEYCHAIN_PATH -T /usr/bin/codesign
+          security import ./certs/private_key.p12 -k $KEYCHAIN_PATH -P "${{ secrets.APPLE_PRIVATE_KEY_PASSWORD }}" -T /usr/bin/codesign
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Sign Yao Binaries
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          IDENTITY="Developer ID Application: ${{ secrets.APPLE_SIGN }}"
+          for ARCH in arm64 amd64; do
+            BIN="dist/release/yao-${VERSION}-unstable-darwin-${ARCH}"
+            codesign --force --verbose --timestamp --options runtime --sign "$IDENTITY" "$BIN"
+            codesign --verify --deep --strict --verbose=2 "$BIN"
+          done
+
+      - name: Prepare Output and Checksums
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          for ARCH in arm64 amd64; do
+            mkdir -p /tmp/yao-output-${ARCH}
+            cp "dist/release/yao-${VERSION}-unstable-darwin-${ARCH}" "/tmp/yao-output-${ARCH}/yao"
+            chmod +x "/tmp/yao-output-${ARCH}/yao"
+          done
+
+          mkdir -p /tmp/checksums
+          shasum -a 256 /tmp/yao-output-arm64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-arm64.sha256
+          shasum -a 256 /tmp/yao-output-amd64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-amd64.sha256
+          cat /tmp/checksums/*.sha256
+
+      - name: Upload arm64 Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-darwin-arm64
+          path: /tmp/yao-output-arm64/yao
+
+      - name: Upload amd64 Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-darwin-amd64
+          path: /tmp/yao-output-amd64/yao
+
+      - name: Upload arm64 Checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-darwin-arm64-sha256
+          path: /tmp/checksums/yao-darwin-arm64.sha256
+
+      - name: Upload amd64 Checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-darwin-amd64-sha256
+          path: /tmp/checksums/yao-darwin-amd64.sha256
