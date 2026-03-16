@@ -244,6 +244,23 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 							}
 						}
 					}
+
+					// Close any open message from the streaming phase.
+					// stream_event text_deltas set messageStarted=true but
+					// nothing resets it when the turn ends — the assistant
+					// message marks the turn boundary, so we must close
+					// the message here to keep state in sync with the
+					// stream handler (which already sent message_end).
+					if handler != nil {
+						if toolBlockActive {
+							handler(message.ChunkMessageEnd, nil)
+							toolBlockActive = false
+						}
+						if messageStarted {
+							handler(message.ChunkMessageEnd, nil)
+							messageStarted = false
+						}
+					}
 				}
 			}
 

@@ -156,7 +156,9 @@ jobs:
           for ARCH in arm64 amd64; do
             for SUFFIX in "" "-prod"; do
               BIN="dist/release/yao-${VERSION}-darwin-${ARCH}${SUFFIX}"
-              codesign --force --verbose --timestamp --options runtime --sign "$IDENTITY" "$BIN"
+              codesign --force --verbose --timestamp --options runtime \
+                --entitlements .github/codesign/entitlements.plist \
+                --sign "$IDENTITY" "$BIN"
               codesign --verify --deep --strict --verbose=2 "$BIN"
             done
           done
