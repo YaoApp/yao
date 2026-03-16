@@ -93,6 +93,18 @@ jobs:
       - name: Checkout Yao
         uses: actions/checkout@v4
 
+      - name: Set Version from Tag
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow requires a tag (refs/tags/v*). Got: $GITHUB_REF"
+            exit 1
+          fi
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "Setting VERSION to $TAG"
+          sed -i.bak "s/const VERSION = \".*\"/const VERSION = \"${TAG}\"/g" share/const.go
+          rm -f share/const.go.bak
+          grep 'const VERSION' share/const.go
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:

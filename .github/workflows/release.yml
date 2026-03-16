@@ -26,9 +26,10 @@ jobs:
         id: version
         run: |
           TAG="${{ github.event.workflow_run.head_branch }}"
-          VERSION=$(grep 'const VERSION =' share/const.go | awk '{print $4}' | sed 's/"//g')
+          VERSION="${TAG#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "TAG=${TAG} VERSION=${VERSION}"
 
       - name: Wait for Both Workflows
         env:
