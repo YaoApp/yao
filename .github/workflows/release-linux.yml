@@ -37,7 +37,39 @@ jobs:
       - name: Build
         run: |
           export PATH=$PATH:/github/home/go/bin
-          /app/build.sh
+
+          # Clone dependencies
+          cd /app
+          git clone https://github.com/yaoapp/kun.git /app/kun
+          git clone https://github.com/yaoapp/xun.git /app/xun
+          git clone https://github.com/yaoapp/gou.git /app/gou
+          git clone https://github.com/yaoapp/v8go.git /app/v8go
+          git clone https://github.com/yaoapp/cui.git /app/cui-v1.0
+          git clone https://github.com/yaoapp/yao-init.git /app/yao-init
+          git clone https://github.com/yaoapp/yao.git /app/yao
+
+          # Extract libv8
+          files=$(find /app/v8go -name "libv8*.zip")
+          for file in $files; do
+              dir=$(dirname "$file")
+              echo "Extracting $file to directory $dir"
+              unzip -o -d $dir $file
+              rm -rf $dir/__MACOSX
+          done
+
+          # Set VERSION from git tag (required)
+          cd /app/yao
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+              echo "::error::This workflow requires a tag (refs/tags/v*). Got: $GITHUB_REF"
+              exit 1
+          fi
+          TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "Setting VERSION to $TAG_VERSION"
+          sed -i "s/const VERSION = \".*\"/const VERSION = \"${TAG_VERSION}\"/g" share/const.go
+          grep 'const VERSION' share/const.go
+
+          make tools && make artifacts-linux
+          mv /app/yao/dist/release/* /data/
           ls -l /data
 
       - name: Push To R2
@@ -66,8 +98,13 @@ jobs:
       - name: Get Version
         id: version
         run: |
-          VERSION=$(grep 'const VERSION =' share/const.go | awk '{print $4}' | sed 's/"//g')
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow requires a tag (refs/tags/v*). Got: $GITHUB_REF"
+            exit 1
+          fi
+          VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "VERSION=${VERSION}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
