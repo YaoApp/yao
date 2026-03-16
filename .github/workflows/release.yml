@@ -26,7 +26,8 @@ jobs:
         id: version
         run: |
           TAG="${{ github.event.workflow_run.head_branch }}"
-          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          VERSION=$(grep 'const VERSION =' share/const.go | awk '{print $4}' | sed 's/"//g')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
 
       - name: Wait for Both Workflows
@@ -74,28 +75,30 @@ jobs:
           TAG="${{ steps.version.outputs.tag }}"
           MACOS_RUN_ID=$(gh run list --workflow="Release macOS" --branch="$TAG" --limit=1 --json databaseId --jq '.[0].databaseId')
           mkdir -p dist/macos
-          gh run download "$MACOS_RUN_ID" --name yao-darwin-arm64 --dir dist/macos
-          gh run download "$MACOS_RUN_ID" --name yao-darwin-amd64 --dir dist/macos
-          gh run download "$MACOS_RUN_ID" --pattern "yao-darwin-*-sha256" --dir dist/macos
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-arm64 --dir dist/macos/arm64-prod
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-arm64-dev --dir dist/macos/arm64-dev
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-amd64 --dir dist/macos/amd64-prod
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-amd64-dev --dir dist/macos/amd64-dev
+          gh run download "$MACOS_RUN_ID" --name yao-darwin-checksums --dir dist/macos/checksums
 
       - name: Prepare Release Files
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           mkdir -p release
 
+          # Linux artifacts (already named correctly from build.sh)
           cp dist/linux/* release/ 2>/dev/null || true
 
-          if [ -f dist/macos/yao-darwin-arm64/yao ]; then
-            cp dist/macos/yao-darwin-arm64/yao "release/yao-${VERSION}-darwin-arm64"
-          elif [ -f dist/macos/yao ]; then
-            cp dist/macos/yao "release/yao-${VERSION}-darwin-arm64"
-          fi
+          # macOS prod binaries
+          cp dist/macos/arm64-prod/yao "release/yao-${VERSION}-darwin-arm64"
+          cp dist/macos/amd64-prod/yao "release/yao-${VERSION}-darwin-amd64"
 
-          if [ -f dist/macos/yao-darwin-amd64/yao ]; then
-            cp dist/macos/yao-darwin-amd64/yao "release/yao-${VERSION}-darwin-amd64"
-          fi
+          # macOS dev binaries
+          cp dist/macos/arm64-dev/yao "release/yao-${VERSION}-darwin-arm64-dev"
+          cp dist/macos/amd64-dev/yao "release/yao-${VERSION}-darwin-amd64-dev"
 
-          find dist/macos -name "*.sha256" -exec cp {} release/ \;
+          # Checksums
+          cp dist/macos/checksums/*.sha256 release/ 2>/dev/null || true
 
           chmod +x release/yao-* 2>/dev/null || true
           echo "=== Release files ==="

@@ -2,10 +2,6 @@ name: Release Linux
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version (e.g. 1.0.0 or 1.0.0-alpha). Leave empty to read from share/const.go."
-        required: false
   push:
     tags:
       - "v*"
@@ -58,7 +54,7 @@ jobs:
           path: /data/*
 
   # ===================================================================
-  # Docker Images (multi-platform linux/amd64 + linux/arm64)
+  # Docker Images (multi-arch manifest: linux/amd64 + linux/arm64)
   # ===================================================================
   docker:
     needs: build
@@ -70,14 +66,8 @@ jobs:
       - name: Get Version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          fi
+          VERSION=$(grep 'const VERSION =' share/const.go | awk '{print $4}' | sed 's/"//g')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -91,68 +81,26 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_TOKEN }}
 
-      - name: Build & Push Development (amd64)
+      - name: Build & Push Development (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: ./docker/development
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=amd64
+            VERSION=${{ steps.version.outputs.version }}
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64-dev
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-dev
+            ${{ env.IMAGE_NAME }}:dev
 
-      - name: Build & Push Development (arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/development
-          platforms: linux/arm64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=arm64
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64-dev
-
-      - name: Build & Push Production (amd64)
+      - name: Build & Push Production (multi-arch)
         uses: docker/build-push-action@v6
         with:
           context: ./docker/production
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=amd64
+            VERSION=${{ steps.version.outputs.version }}
           push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64
-
-      - name: Build & Push Production (arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/production
-          platforms: linux/arm64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=arm64
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64
-
-      - name: Build & Push Slim (amd64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/production-slim
-          platforms: linux/amd64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=amd64
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-amd64-slim
-
-      - name: Build & Push Slim (arm64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./docker/production-slim
-          platforms: linux/arm64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}-unstable
-            ARCH=arm64
-          push: true
-          tags: ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-arm64-slim
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
+            ${{ env.IMAGE_NAME }}:latest

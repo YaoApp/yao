@@ -1,26 +1,15 @@
 # ===========================================
 #  Yao Development
-#  docker build \
-#    --build-arg VERSION="${VERSION}"  \
-#    --build-arg ARCH="${ARCH}"  \
-#    -t yaoapp/yao-dev:${VERSION}-${ARCH} .
-#
-#  Build:
-#  docker build --platform linux/amd64 --build-arg VERSION=1.0.0 --build-arg ARCH=amd64 -t yaoapp/yao:1.0.0-amd64-dev .
-#  docker build --platform linux/arm64 --build-arg VERSION=1.0.0 --build-arg ARCH=arm64 -t yaoapp/yao:1.0.0-arm64-dev .
-#
-#  Tests:
-#  docker run --rm yaoapp/yao:1.0.0-amd64-dev yao version
-#  docker run -d -p 5099:5099 yaoapp/yao:1.0.0-amd64-dev
-#
+#  docker build --build-arg VERSION="1.0.0-alpha" -t yaoapp/yao:1.0.0-alpha-dev .
+#  docker run --rm yaoapp/yao:1.0.0-alpha-dev yao version
 # ===========================================
 FROM ubuntu:24.04
 ARG VERSION
-ARG ARCH
+ARG TARGETARCH
 RUN groupadd -r yao && useradd -r -g yao yao && \
     apt-get update && \
     apt-get install -y curl sudo procps net-tools
-RUN curl -fsSL "https://pub-80136338e60643edbb55c6ca8a689cf8.r2.dev/archives/yao-${VERSION}-linux-${ARCH}" > /usr/local/bin/yao && \
+RUN curl -fsSL "https://pub-80136338e60643edbb55c6ca8a689cf8.r2.dev/archives/yao-${VERSION}-linux-${TARGETARCH}" > /usr/local/bin/yao && \
     chmod +x /usr/local/bin/yao && \
     mkdir -p /data/app
 

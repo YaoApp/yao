@@ -2,10 +2,6 @@ name: Release macOS
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version (e.g. 1.0.0 or 1.0.0-alpha). Leave empty to read from share/const.go."
-        required: false
   push:
     tags:
       - "v*"
@@ -105,22 +101,14 @@ jobs:
       - name: Setup Go Tools
         run: make tools
 
+      - name: Make Artifacts macOS
+        run: make artifacts-macos
+
       - name: Get Version
         id: version
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          else
-            VERSION=$(cat share/const.go | grep 'const VERSION' | awk '{print $4}' | sed 's/"//g')
-            echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Make Artifacts macOS
-        run: make artifacts-macos
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION=$(grep 'const VERSION =' share/const.go | awk '{print $4}' | sed 's/"//g')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
       - name: List Build Output
         run: ls -lh dist/release/
@@ -154,45 +142,64 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           IDENTITY="Developer ID Application: ${{ secrets.APPLE_SIGN }}"
           for ARCH in arm64 amd64; do
-            BIN="dist/release/yao-${VERSION}-unstable-darwin-${ARCH}"
-            codesign --force --verbose --timestamp --options runtime --sign "$IDENTITY" "$BIN"
-            codesign --verify --deep --strict --verbose=2 "$BIN"
+            for SUFFIX in "" "-prod"; do
+              BIN="dist/release/yao-${VERSION}-darwin-${ARCH}${SUFFIX}"
+              codesign --force --verbose --timestamp --options runtime --sign "$IDENTITY" "$BIN"
+              codesign --verify --deep --strict --verbose=2 "$BIN"
+            done
           done
 
       - name: Prepare Output and Checksums
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           for ARCH in arm64 amd64; do
-            mkdir -p /tmp/yao-output-${ARCH}
-            cp "dist/release/yao-${VERSION}-unstable-darwin-${ARCH}" "/tmp/yao-output-${ARCH}/yao"
-            chmod +x "/tmp/yao-output-${ARCH}/yao"
+            for VARIANT in dev prod; do
+              if [ "$VARIANT" = "dev" ]; then
+                SRC="dist/release/yao-${VERSION}-darwin-${ARCH}"
+              else
+                SRC="dist/release/yao-${VERSION}-darwin-${ARCH}-prod"
+              fi
+              DIR="/tmp/yao-output-${ARCH}-${VARIANT}"
+              mkdir -p "$DIR"
+              cp "$SRC" "$DIR/yao"
+              chmod +x "$DIR/yao"
+            done
           done
 
           mkdir -p /tmp/checksums
-          shasum -a 256 /tmp/yao-output-arm64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-arm64.sha256
-          shasum -a 256 /tmp/yao-output-amd64/yao | awk '{print $1"  yao"}' > /tmp/checksums/yao-darwin-amd64.sha256
+          for ARCH in arm64 amd64; do
+            for VARIANT in dev prod; do
+              shasum -a 256 "/tmp/yao-output-${ARCH}-${VARIANT}/yao" | awk '{print $1"  yao"}' > "/tmp/checksums/yao-darwin-${ARCH}-${VARIANT}.sha256"
+            done
+          done
           cat /tmp/checksums/*.sha256
 
-      - name: Upload arm64 Binary
+      - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: yao-darwin-arm64
-          path: /tmp/yao-output-arm64/yao
+          path: /tmp/yao-output-arm64-prod/yao
+
+      - name: Upload arm64 Dev Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-darwin-arm64-dev
+          path: /tmp/yao-output-arm64-dev/yao
 
       - name: Upload amd64 Binary
         uses: actions/upload-artifact@v4
         with:
           name: yao-darwin-amd64
-          path: /tmp/yao-output-amd64/yao
+          path: /tmp/yao-output-amd64-prod/yao
 
-      - name: Upload arm64 Checksum
+      - name: Upload amd64 Dev Binary
         uses: actions/upload-artifact@v4
         with:
-          name: yao-darwin-arm64-sha256
-          path: /tmp/checksums/yao-darwin-arm64.sha256
+          name: yao-darwin-amd64-dev
+          path: /tmp/yao-output-amd64-dev/yao
 
-      - name: Upload amd64 Checksum
+      - name: Upload Checksums
         uses: actions/upload-artifact@v4
         with:
-          name: yao-darwin-amd64-sha256
-          path: /tmp/checksums/yao-darwin-amd64.sha256
+          name: yao-darwin-checksums
+          path: /tmp/checksums/*.sha256
