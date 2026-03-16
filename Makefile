@@ -565,33 +565,19 @@ artifacts-linux: clean
 
 #   Making artifacts - dev builds (full debug symbols, ~158M)
 	mkdir -p dist
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-unstable-linux-amd64
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -o dist/yao-${VERSION}-unstable-linux-arm64
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -o dist/yao-${VERSION}-linux-amd64
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -o dist/yao-${VERSION}-linux-arm64
 
 #   Making artifacts - prod builds (stripped, ~111M)
 	sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-amd64-prod
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-arm64-prod
-
-#   Making artifacts - prod-upx builds (stripped + compressed, ~45-55M)
-	sed -i.tmp 's/const BUILDOPTIONS = "-s -w (production, stripped)"/const BUILDOPTIONS = "-s -w +upx (production, compressed)"/g' share/const.go && rm -f share/const.go.tmp
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-amd64-prod-upx
-	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-linux-arm64-prod-upx
-
-#   UPX compression for prod-upx builds
-	@if command -v upx > /dev/null 2>&1; then \
-		echo "Compressing with UPX..."; \
-		upx --best dist/yao-${VERSION}-unstable-linux-amd64-prod-upx; \
-		upx --best dist/yao-${VERSION}-unstable-linux-arm64-prod-upx; \
-	else \
-		echo "WARNING: UPX not found, skipping compression"; \
-	fi
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" GOOS=linux GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-linux-amd64-prod
+	CGO_ENABLED=1 CGO_LDFLAGS="-static" LD_LIBRARY_PATH=/usr/lib/gcc-cross/aarch64-linux-gnu/13 GOOS=linux GOARCH=arm64 CC=aarch64-linux-gnu-gcc-13 CXX=aarch64-linux-gnu-g++-13 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-linux-arm64-prod
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-unstable-linux-amd64 version
+	dist/release/yao-${VERSION}-linux-amd64 version
 
 # 	Reset const 
 #	cp -f share/const.goe share/const.go
@@ -639,19 +625,19 @@ artifacts-macos: clean
 
 #   Making artifacts - dev builds (full debug symbols)
 	mkdir -p dist
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-unstable-darwin-amd64
-	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-unstable-darwin-arm64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -o dist/yao-${VERSION}-darwin-amd64
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -o dist/yao-${VERSION}-darwin-arm64
 
 #   Making artifacts - prod builds (stripped, no UPX on macOS)
 	sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp
-	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-darwin-amd64-prod
-	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-unstable-darwin-arm64-prod
+	CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-darwin-amd64-prod
+	CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-darwin-arm64-prod
 
 	mkdir -p dist/release
 	mv dist/yao-*-* dist/release/
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
-	dist/release/yao-${VERSION}-unstable-darwin-amd64 version
+	dist/release/yao-${VERSION}-darwin-amd64 version
 
 
 .PHONY: debug
