@@ -739,7 +739,9 @@ release: prepare
 
 #   MacOS Application Signing
 	@if [ "$(OS)" = "Darwin" ]; then \
-	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
+	    codesign --deep --force --verbose --timestamp --options runtime \
+	        --entitlements .github/codesign/entitlements.plist \
+	        --sign "${APPLE_SIGN}" dist/release/yao ; \
 	fi
 
 # make prod (production build only, ~111M on macOS)
@@ -779,7 +781,9 @@ prod: prepare
 
 #   MacOS Application Signing
 	@if [ "$(OS)" = "Darwin" ]; then \
-	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
+	    codesign --deep --force --verbose --timestamp --options runtime \
+	        --entitlements .github/codesign/entitlements.plist \
+	        --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
 	fi
 
 	@echo ""
@@ -829,8 +833,12 @@ release-all: prepare
 
 #   MacOS Application Signing
 	@if [ "$(OS)" = "Darwin" ]; then \
-	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao ; \
-	    codesign --deep --force --verify --verbose --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
+	    codesign --deep --force --verbose --timestamp --options runtime \
+	        --entitlements .github/codesign/entitlements.plist \
+	        --sign "${APPLE_SIGN}" dist/release/yao ; \
+	    codesign --deep --force --verbose --timestamp --options runtime \
+	        --entitlements .github/codesign/entitlements.plist \
+	        --sign "${APPLE_SIGN}" dist/release/yao-prod ; \
 	fi
 
 	@echo ""
