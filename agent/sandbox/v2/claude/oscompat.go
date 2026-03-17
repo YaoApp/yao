@@ -75,9 +75,15 @@ func (e *osEnv) listDirCmd(dir string) []string {
 }
 
 // killProcessCmd returns a command slice to kill processes matching a pattern.
+// On Windows, uses taskkill /T to kill the entire process tree, which handles
+// child processes (chrome.exe, python3, etc.) that Claude CLI may have spawned.
 func (e *osEnv) killProcessCmd(pattern string) []string {
 	if e.isWindows() {
-		script := fmt.Sprintf("Get-Process | Where-Object {$_.ProcessName -like '*%s*'} | Stop-Process -Force -ErrorAction SilentlyContinue", pattern)
+		// taskkill /F /T kills the process tree; fall back to Stop-Process.
+		script := fmt.Sprintf(
+			"Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like '*%s*'} | ForEach-Object { taskkill /F /T /PID $_.Id 2>$null }; "+
+				"Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like '*%s*'} | Stop-Process -Force -ErrorAction SilentlyContinue",
+			pattern, pattern)
 		return e.shellCmd(script)
 	}
 	return []string{"sh", "-c", fmt.Sprintf("pkill -f '%s' || true", pattern)}
@@ -145,6 +151,23 @@ func (e *osEnv) buildBashScript(args []string, systemPrompt, inputJSONL, workDir
 func (e *osEnv) buildPowerShellScript(args []string, systemPrompt, inputJSONL, workDir, promptFile string) (string, []byte) {
 	var b strings.Builder
 	noBOM := "(New-Object System.Text.UTF8Encoding $false)"
+
+	// Force UTF-8 for both input and output streams.
+	// On CJK Windows the default codepage is often GBK/GB2312 (936)
+	// which corrupts Claude CLI's UTF-8 JSON output.
+	b.WriteString("[Console]::InputEncoding = [System.Text.Encoding]::UTF8\n")
+	b.WriteString("[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n")
+	b.WriteString("$OutputEncoding = [System.Text.Encoding]::UTF8\n")
+
+	// Ensure claude.exe can be found even when Tai runs as a different user.
+	// Claude CLI is typically installed per-user (e.g. C:\Users\X\.local\bin)
+	// which isn't in the PATH when Tai runs as a service or another account.
+	// Scan all user profiles for common install locations.
+	b.WriteString("foreach ($d in (Get-ChildItem 'C:\\Users' -Directory -ErrorAction SilentlyContinue)) {\n")
+	b.WriteString("  $p = Join-Path $d.FullName '.local\\bin'\n")
+	b.WriteString("  if (Test-Path (Join-Path $p 'claude.exe')) { $env:PATH = \"$p;$env:PATH\"; break }\n")
+	b.WriteString("}\n")
+	b.WriteString("if ($env:APPDATA) { $env:PATH = \"$env:APPDATA\\npm;$env:PATH\" }\n")
 
 	yaoDir := e.pathJoin(workDir, ".yao")
 	b.WriteString(fmt.Sprintf("if (!(Test-Path '%s')) { New-Item -ItemType Directory -Path '%s' -Force | Out-Null }\n", yaoDir, yaoDir))
