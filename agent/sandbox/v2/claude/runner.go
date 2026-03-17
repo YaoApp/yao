@@ -3,6 +3,7 @@ package claude
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,6 +27,7 @@ type ClaudeRunner struct {
 	servicePort     int
 	servicePath     string
 	serviceProtocol string
+	streamCompleted bool // set when Stream received "result"; Cleanup skips kill
 }
 
 // New creates a new ClaudeRunner.
@@ -114,8 +116,15 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	streamCtx, streamCancel := context.WithCancel(ctx)
 	defer streamCancel()
 
+	// Kill claude processes only when the context is cancelled externally
+	// (upstream timeout, user interrupt) — NOT on normal return.
 	go func() {
 		<-streamCtx.Done()
+		if ctx.Err() == nil {
+			fmt.Fprintf(os.Stderr, "[claude] streamCtx done: normal return, skipping kill (ctx.Err=nil)\n")
+			return
+		}
+		fmt.Fprintf(os.Stderr, "[claude] streamCtx done: context cancelled externally (ctx.Err=%v), killing processes\n", ctx.Err())
 		killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		computer.Exec(killCtx, oe.killProcessCmd("claude"))
@@ -143,7 +152,17 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	}()
 
 	parseErr := parseStreamJSON(streamCtx, execStream.Stdout, handler)
+	fmt.Fprintf(os.Stderr, "[claude] parseStreamJSON returned: %v\n", parseErr)
 
+	// Received "result" — Claude finished normally. Return immediately.
+	if errors.Is(parseErr, errStreamCompleted) {
+		r.streamCompleted = true
+		fmt.Fprintf(os.Stderr, "[claude] stream completed normally, returning nil\n")
+		return nil
+	}
+
+	// Parse failed or stream ended without "result" — wait for process.
+	fmt.Fprintf(os.Stderr, "[claude] stream did NOT complete normally, waiting for process exit...\n")
 	exitCode, waitErr := execStream.Wait()
 	stderrStr := strings.TrimSpace(stderrBuf.String())
 
@@ -160,7 +179,7 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		return waitErr
 	}
 	if exitCode != 0 {
-		fmt.Fprintf(os.Stderr, "[claude] exit code=%d parseErr=%v waitErr=%v stderr=%q\n", exitCode, parseErr, waitErr, stderrStr)
+		fmt.Fprintf(os.Stderr, "[claude] exit code=%d stderr=%q\n", exitCode, stderrStr)
 		if stderrStr != "" {
 			return fmt.Errorf("claude CLI exited with code %d: %s", exitCode, stderrStr)
 		}
@@ -169,9 +188,16 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	return nil
 }
 
-// Cleanup kills any remaining claude processes.
+// Cleanup kills any remaining claude processes. If the stream completed
+// normally (received "result"), child processes are preserved — the user
+// may have asked Claude to launch a browser, server, etc.
 func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) error {
 	if computer == nil {
+		return nil
+	}
+
+	if r.streamCompleted {
+		fmt.Fprintf(os.Stderr, "[claude] cleanup: stream completed normally, skipping process kill (child processes preserved)\n")
 		return nil
 	}
 
@@ -261,7 +287,7 @@ func (r *ClaudeRunner) buildCLICommand(req *types.StreamRequest, oe *osEnv, isCo
 	}
 
 	var systemPrompt string
-	envPrompt := buildSandboxEnvPrompt(oe.WorkDir)
+	envPrompt := buildSandboxEnvPrompt(oe)
 	if !isContinuation && req.SystemPrompt != "" {
 		systemPrompt = req.SystemPrompt + "\n\n" + envPrompt
 	} else if !isContinuation {
@@ -359,31 +385,32 @@ func buildMCPAllowedTools(servers []types.MCPServer) string {
 	return strings.Join(patterns, ",")
 }
 
-// buildSandboxEnvPrompt generates the sandbox environment prompt with the actual working directory.
-func buildSandboxEnvPrompt(workDir string) string {
+// buildSandboxEnvPrompt generates the sandbox environment prompt with system info and working directory.
+func buildSandboxEnvPrompt(oe *osEnv) string {
+	workDir := oe.WorkDir
+
+	osName := oe.OS
+	if osName == "" {
+		osName = "linux"
+	}
+	shell := oe.Shell
+	if shell == "" {
+		shell = "bash"
+	}
+
+	shellNote := ""
+	if oe.isWindows() {
+		shellNote = `
+- **Desktop Environment**: You have full access to the Windows desktop (GUI applications, browsers, etc.)
+- **Important**: When you launch GUI applications (browsers, editors, etc.), do NOT close them unless explicitly asked — the user expects them to remain open`
+	}
+
 	return fmt.Sprintf(`## Sandbox Environment
 
-You are running in a sandboxed environment with the following setup:
-
+- **Operating System**: %[2]s
+- **Shell**: %[3]s
 - **Working Directory**: %[1]s
-- **Project Structure**: If this is a new project, create a dedicated project folder (e.g., %[1]s/my-project/) and work inside it
-- **File Access**: You have full read/write access to %[1]s
-- **Output Files**: Save all output files to the working directory
-
-When creating new projects:
-1. Create a project directory with a descriptive name
-2. Initialize the project structure inside that directory
-3. Keep all related files organized within the project folder
-
-## IMPORTANT: Restricted Tools
-
-The following tools are NOT available in this environment and you must NOT use them:
-- EnterPlanMode, ExitPlanMode (use regular text to explain plans instead)
-- Task, TaskOutput, TaskStop (complete tasks directly without delegation)
-- AskUserQuestion (make reasonable assumptions instead of asking)
-- Skill, ToolSearch (not supported)
-
-Focus on using the core tools: Bash, Read, Write, Edit, Glob, Grep, WebSearch, WebFetch.
+- **File Access**: You have full read/write access to %[1]s%[4]s
 
 ## User Attachments
 
@@ -391,14 +418,7 @@ User-uploaded files (images, documents, code files, etc.) are placed in %[1]s/.a
 Each chat session has its own subdirectory to avoid conflicts.
 When the user references an attached file, read it from this directory using the Read or Bash tool.
 For image files, you can view them directly as Claude supports vision on local files.
-
-## GitHub CLI (gh) Usage
-
-When working with GitHub and a token is provided:
-1. First authenticate gh CLI using the token: echo "TOKEN" | gh auth login --with-token
-2. Then use gh commands normally (gh repo create, gh pr create, etc.)
-3. Do NOT use curl to call GitHub API directly - always prefer gh CLI
-`, workDir)
+`, workDir, osName, shell, shellNote)
 }
 
 var claudeArgWhitelist = map[string]string{

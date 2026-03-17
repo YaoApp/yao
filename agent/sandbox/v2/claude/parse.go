@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -15,9 +16,28 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
+// errStreamCompleted is a sentinel indicating the parser received the terminal
+// "result" message. It is NOT a real error — callers should treat it as
+// successful completion of the stream.
+var errStreamCompleted = errors.New("claude stream completed")
+
 // parseStreamJSON reads stream-json lines from Claude CLI stdout and
 // pushes them through handler as standard StreamChunkType events.
-func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.StreamFunc) error {
+func parseStreamJSON(ctx context.Context, stdout io.ReadCloser, handler message.StreamFunc) error {
+	// When the context is cancelled (upstream timeout / interrupt), close
+	// stdout so that scanner.Scan() unblocks immediately. Without this,
+	// a failed TerminateProcess (Access is denied) would leave us stuck
+	// forever on the read.
+	doneParsing := make(chan struct{})
+	defer close(doneParsing)
+	go func() {
+		select {
+		case <-ctx.Done():
+			stdout.Close()
+		case <-doneParsing:
+		}
+	}()
+
 	scanner := bufio.NewScanner(stdout)
 	buf := make([]byte, 0, 64*1024)
 	scanner.Buffer(buf, 1024*1024)
@@ -283,6 +303,12 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 					handler(message.ChunkMessageEnd, nil)
 				}
 			}
+			// "result" is the terminal message in Claude CLI's stream-json
+			// protocol. Return immediately instead of continuing to
+			// scanner.Scan(), which would block forever if the process
+			// stays alive (e.g. child processes like chrome.exe keep the
+			// stdout pipe open).
+			return errStreamCompleted
 
 		case "error":
 			var errMsg string
@@ -305,7 +331,17 @@ func parseStreamJSON(_ context.Context, stdout io.ReadCloser, handler message.St
 		}
 	}
 
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		// If the context was cancelled (upstream timeout / interrupt), the
+		// stdout pipe was closed by the goroutine above. The resulting
+		// read error is expected — surface it as context.Canceled so the
+		// caller can handle it uniformly.
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return err
+	}
+	return nil
 }
 
 // buildFirstRequestJSONL builds JSONL with all messages for the first request.

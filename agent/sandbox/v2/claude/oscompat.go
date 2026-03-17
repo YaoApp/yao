@@ -75,9 +75,15 @@ func (e *osEnv) listDirCmd(dir string) []string {
 }
 
 // killProcessCmd returns a command slice to kill processes matching a pattern.
+// On Windows, uses taskkill /T to kill the entire process tree, which handles
+// child processes (chrome.exe, python3, etc.) that Claude CLI may have spawned.
 func (e *osEnv) killProcessCmd(pattern string) []string {
 	if e.isWindows() {
-		script := fmt.Sprintf("Get-Process | Where-Object {$_.ProcessName -like '*%s*'} | Stop-Process -Force -ErrorAction SilentlyContinue", pattern)
+		// taskkill /F /T kills the process tree; fall back to Stop-Process.
+		script := fmt.Sprintf(
+			"Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like '*%s*'} | ForEach-Object { taskkill /F /T /PID $_.Id 2>$null }; "+
+				"Get-Process -ErrorAction SilentlyContinue | Where-Object {$_.ProcessName -like '*%s*'} | Stop-Process -Force -ErrorAction SilentlyContinue",
+			pattern, pattern)
 		return e.shellCmd(script)
 	}
 	return []string{"sh", "-c", fmt.Sprintf("pkill -f '%s' || true", pattern)}
