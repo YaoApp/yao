@@ -104,7 +104,7 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		streamOpts = append(streamOpts, infra.WithStdin(stdin))
 	}
 
-	fmt.Fprintf(os.Stderr, "[claude] Stream cmd=%v hasMCP=%v isContinuation=%v stdinLen=%d\n", cmd, r.hasMCP, isContinuation, len(stdin))
+	fmt.Fprintf(os.Stderr, "[claude] Stream cmd=%v hasMCP=%v isContinuation=%v stdinLen=%d workDir=%q\n", cmd, r.hasMCP, isContinuation, len(stdin), oe.WorkDir)
 
 	execStream, err := computer.Stream(ctx, cmd, streamOpts...)
 	if err != nil {
