@@ -69,7 +69,7 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 	}
 
 	if req.RunSteps != nil && len(steps) > 0 {
-		if err := req.RunSteps(ctx, steps, req.Computer, req.Config.ID, req.ConfigHash); err != nil {
+		if err := req.RunSteps(ctx, steps, req.Computer, req.Config.ID, req.ConfigHash, req.AssistantDir); err != nil {
 			return fmt.Errorf("claude prepare steps: %w", err)
 		}
 	}

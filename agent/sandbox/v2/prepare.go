@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	pathpkg "path/filepath"
 	"strings"
 
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
@@ -17,7 +18,9 @@ const onceMarkerDir = ".yao/prepare"
 // RunPrepareSteps executes a list of PrepareStep actions on the given Computer.
 // file/copy/marker operations use computer.Workplace() (gRPC volume, cross-platform).
 // exec operations use shell via Computer.Exec.
-func RunPrepareSteps(ctx context.Context, steps []types.PrepareStep, computer infra.Computer, assistantID, configHash string) error {
+// assistantDir is the absolute host path to the assistant source directory;
+// copy steps with a relative src resolve against it (host → workspace push).
+func RunPrepareSteps(ctx context.Context, steps []types.PrepareStep, computer infra.Computer, assistantID, configHash, assistantDir string) error {
 	if len(steps) == 0 {
 		return nil
 	}
@@ -52,7 +55,7 @@ func RunPrepareSteps(ctx context.Context, steps []types.PrepareStep, computer in
 		case "file":
 			err = runFileStep(ws, step)
 		case "copy":
-			err = runCopyStep(ws, step)
+			err = runCopyStep(ws, step, assistantDir)
 		case "exec":
 			err = runExecStep(ctx, computer, step)
 		case "process":
@@ -103,7 +106,14 @@ func runFileStep(ws workspace.FS, step types.PrepareStep) error {
 	return nil
 }
 
-func runCopyStep(ws workspace.FS, step types.PrepareStep) error {
+// runCopyStep copies files into the workspace using ws.Copy which supports
+// the "local:///" URI scheme for host-to-workspace transfers.
+//
+// src resolution:
+//   - Already a host URI ("local:///..." or "tmp:///...") → used as-is
+//   - Relative path + assistantDir provided → resolved to "local:///<assistantDir>/<src>"
+//   - Relative path without assistantDir → treated as workspace-internal path
+func runCopyStep(ws workspace.FS, step types.PrepareStep, assistantDir string) error {
 	if step.Src == "" || step.Dst == "" {
 		return fmt.Errorf("copy step requires src and dst")
 	}
@@ -111,22 +121,19 @@ func runCopyStep(ws workspace.FS, step types.PrepareStep) error {
 		return fmt.Errorf("copy step requires workspace")
 	}
 
-	data, err := ws.ReadFile(step.Src)
-	if err != nil {
-		return fmt.Errorf("read src %s: %w", step.Src, err)
+	src := step.Src
+	if !isHostURI(src) && assistantDir != "" {
+		src = "local:///" + pathpkg.Join(assistantDir, src)
 	}
 
-	dir := path.Dir(step.Dst)
-	if dir != "." && dir != "/" {
-		if err := ws.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("mkdir %s: %w", dir, err)
-		}
-	}
-
-	if err := ws.WriteFile(step.Dst, data, 0644); err != nil {
-		return fmt.Errorf("write dst %s: %w", step.Dst, err)
+	if _, err := ws.Copy(src, step.Dst); err != nil {
+		return fmt.Errorf("copy %s -> %s: %w", src, step.Dst, err)
 	}
 	return nil
+}
+
+func isHostURI(s string) bool {
+	return strings.HasPrefix(s, "local:///") || strings.HasPrefix(s, "tmp:///")
 }
 
 func runExecStep(ctx context.Context, computer infra.Computer, step types.PrepareStep) error {

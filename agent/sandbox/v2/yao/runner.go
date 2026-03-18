@@ -21,7 +21,7 @@ func (r *YaoRunner) Name() string { return "yao" }
 // no runner-specific steps. Connector is not required.
 func (r *YaoRunner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 	if req.RunSteps != nil && len(req.Config.Prepare) > 0 {
-		return req.RunSteps(ctx, req.Config.Prepare, req.Computer, req.Config.ID, req.ConfigHash)
+		return req.RunSteps(ctx, req.Config.Prepare, req.Computer, req.Config.ID, req.ConfigHash, req.AssistantDir)
 	}
 	return nil
 }

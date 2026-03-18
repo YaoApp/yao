@@ -94,10 +94,12 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		return nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
 	}
 
-	// 5. Resolve skills directory.
+	// 5. Resolve assistant directory and skills subdirectory.
+	assistantDir := ""
 	skillsDir := ""
 	if ast.Path != "" {
-		dir := filepath.Join(config.Conf.AppSource, ast.Path, "skills")
+		assistantDir = filepath.Join(config.Conf.AppSource, ast.Path)
+		dir := filepath.Join(assistantDir, "skills")
 		if info, e := os.Stat(dir); e == nil && info.IsDir() {
 			skillsDir = dir
 		}
@@ -117,13 +119,14 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 
 	// 7. Runner.Prepare (standard context).
 	err = runner.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
-		Computer:   computer,
-		Config:     cfg,
-		Connector:  conn,
-		SkillsDir:  skillsDir,
-		MCPServers: mcpServers,
-		ConfigHash: ast.ConfigHash,
-		RunSteps:   sandboxv2.RunPrepareSteps,
+		Computer:     computer,
+		Config:       cfg,
+		Connector:    conn,
+		SkillsDir:    skillsDir,
+		AssistantDir: assistantDir,
+		MCPServers:   mcpServers,
+		ConfigHash:   ast.ConfigHash,
+		RunSteps:     sandboxv2.RunPrepareSteps,
 	})
 	if err != nil {
 		runner.Cleanup(stdCtx, computer)
