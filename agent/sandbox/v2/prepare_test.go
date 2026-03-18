@@ -32,7 +32,7 @@ func TestRunPrepareSteps_Exec(t *testing.T) {
 				{Action: "exec", Cmd: "echo world >> /tmp/prep-test"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v", err)
 			}
@@ -67,7 +67,7 @@ func TestRunPrepareSteps_File(t *testing.T) {
 				{Action: "file", Path: "config/test.txt", Content: []byte("file-content-v2")},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v", err)
 			}
@@ -105,7 +105,7 @@ func TestRunPrepareSteps_Copy(t *testing.T) {
 				{Action: "copy", Src: "src.txt", Dst: "dst.txt"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v", err)
 			}
@@ -143,7 +143,7 @@ func TestRunPrepareSteps_OnceMarker(t *testing.T) {
 			hash := "abc123"
 			assistantID := "test-once"
 
-			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, hash, ""); err != nil {
 				t.Fatalf("first run: %v", err)
 			}
 			r1, _ := box.Exec(ctx, []string{"cat", counter})
@@ -151,7 +151,7 @@ func TestRunPrepareSteps_OnceMarker(t *testing.T) {
 				t.Fatalf("first run: got %q, want %q", r1.Stdout, "x")
 			}
 
-			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, hash, ""); err != nil {
 				t.Fatalf("second run: %v", err)
 			}
 			r2, _ := box.Exec(ctx, []string{"cat", counter})
@@ -159,7 +159,7 @@ func TestRunPrepareSteps_OnceMarker(t *testing.T) {
 				t.Errorf("second run: got %q, want %q (once step should be skipped)", r2.Stdout, "x")
 			}
 
-			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, "new-hash"); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, steps, box, assistantID, "new-hash", ""); err != nil {
 				t.Fatalf("third run: %v", err)
 			}
 			r3, _ := box.Exec(ctx, []string{"cat", counter})
@@ -193,10 +193,10 @@ func TestRunPrepareSteps_OnceIsolation(t *testing.T) {
 
 			hash := "same-hash"
 
-			if err := sandboxv2.RunPrepareSteps(ctx, stepsA, box, "assistant-a", hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, stepsA, box, "assistant-a", hash, ""); err != nil {
 				t.Fatalf("assistant-a: %v", err)
 			}
-			if err := sandboxv2.RunPrepareSteps(ctx, stepsB, box, "assistant-b", hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, stepsB, box, "assistant-b", hash, ""); err != nil {
 				t.Fatalf("assistant-b: %v", err)
 			}
 
@@ -209,10 +209,10 @@ func TestRunPrepareSteps_OnceIsolation(t *testing.T) {
 				t.Errorf("assistant-b: got %q, want %q", rB.Stdout, "B")
 			}
 
-			if err := sandboxv2.RunPrepareSteps(ctx, stepsA, box, "assistant-a", hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, stepsA, box, "assistant-a", hash, ""); err != nil {
 				t.Fatalf("assistant-a re-run: %v", err)
 			}
-			if err := sandboxv2.RunPrepareSteps(ctx, stepsB, box, "assistant-b", hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, stepsB, box, "assistant-b", hash, ""); err != nil {
 				t.Fatalf("assistant-b re-run: %v", err)
 			}
 			rA2, _ := box.Exec(ctx, []string{"cat", "/tmp/iso-a"})
@@ -244,7 +244,7 @@ func TestRunPrepareSteps_IgnoreError(t *testing.T) {
 				{Action: "exec", Cmd: "echo survived > /tmp/survived"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v (ignore_error should have prevented failure)", err)
 			}
@@ -274,7 +274,7 @@ func TestRunPrepareSteps_FailOnError(t *testing.T) {
 				{Action: "exec", Cmd: "echo should-not-reach > /tmp/unreachable"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err == nil {
 				t.Fatal("expected error from failing step without ignore_error")
 			}
@@ -303,7 +303,7 @@ func TestRunPrepareSteps_UnknownAction(t *testing.T) {
 				{Action: "unknown_action"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, nil, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, nil, "test-assistant", "", "")
 			if err == nil {
 				t.Fatal("expected error for unknown action")
 			}
@@ -315,7 +315,7 @@ func TestRunPrepareSteps_UnknownAction(t *testing.T) {
 }
 
 func TestRunPrepareSteps_EmptySteps(t *testing.T) {
-	err := sandboxv2.RunPrepareSteps(context.Background(), nil, nil, "test-assistant", "hash")
+	err := sandboxv2.RunPrepareSteps(context.Background(), nil, nil, "test-assistant", "hash", "")
 	if err != nil {
 		t.Fatalf("empty steps should succeed: %v", err)
 	}
@@ -338,7 +338,7 @@ func TestRunPrepareSteps_Background(t *testing.T) {
 				{Action: "exec", Cmd: "echo after-bg > /tmp/after-bg"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v", err)
 			}
@@ -371,7 +371,7 @@ func TestRunPrepareSteps_MixedActions(t *testing.T) {
 				{Action: "copy", Src: "mixed.conf", Dst: "mixed-copy.conf"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, box, "test-assistant", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps: %v", err)
 			}
@@ -425,7 +425,7 @@ func TestRunPrepareSteps_HostExec(t *testing.T) {
 				{Action: "exec", Cmd: cmd},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps on host: %v", err)
 			}
@@ -451,7 +451,7 @@ func TestRunPrepareSteps_HostExecFile(t *testing.T) {
 				{Action: "file", Path: "host-test.txt", Content: []byte("host-file-data")},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps file: %v", err)
 			}
@@ -489,7 +489,7 @@ func TestRunPrepareSteps_HostExecCopy(t *testing.T) {
 				{Action: "copy", Src: "copy-src.txt", Dst: "copy-dst.txt"},
 			}
 
-			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "")
+			err := sandboxv2.RunPrepareSteps(ctx, steps, host, "test-host", "", "")
 			if err != nil {
 				t.Fatalf("RunPrepareSteps copy: %v", err)
 			}
@@ -532,7 +532,7 @@ func TestRunPrepareSteps_HostExecOnce(t *testing.T) {
 			hash := "host-once-hash"
 			aid := "host-once-aid"
 
-			if err := sandboxv2.RunPrepareSteps(ctx, steps, host, aid, hash); err != nil {
+			if err := sandboxv2.RunPrepareSteps(ctx, steps, host, aid, hash, ""); err != nil {
 				t.Fatalf("first run: %v", err)
 			}
 

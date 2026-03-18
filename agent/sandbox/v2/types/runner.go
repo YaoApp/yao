@@ -28,18 +28,21 @@ type MCPServer struct {
 }
 
 // RunStepsFunc is the signature of RunPrepareSteps. Workspace is obtained
-// internally via computer.Workplace().
-type RunStepsFunc func(ctx context.Context, steps []PrepareStep, computer infra.Computer, assistantID, configHash string) error
+// internally via computer.Workplace(). assistantDir is the absolute path to
+// the assistant source directory on the host; copy steps resolve relative src
+// paths against it.
+type RunStepsFunc func(ctx context.Context, steps []PrepareStep, computer infra.Computer, assistantID, configHash, assistantDir string) error
 
 // PrepareRequest carries everything needed by Runner.Prepare.
 type PrepareRequest struct {
-	Computer   infra.Computer
-	Config     *SandboxConfig
-	Connector  connector.Connector
-	SkillsDir  string
-	MCPServers []MCPServer
-	ConfigHash string
-	RunSteps   RunStepsFunc
+	Computer     infra.Computer
+	Config       *SandboxConfig
+	Connector    connector.Connector
+	SkillsDir    string
+	AssistantDir string // absolute host path to the assistant source directory
+	MCPServers   []MCPServer
+	ConfigHash   string
+	RunSteps     RunStepsFunc
 }
 
 // StreamRequest carries everything needed by Runner.Stream.
