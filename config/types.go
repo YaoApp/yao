@@ -14,31 +14,32 @@ func HostHasInternal(host string) bool {
 
 // Config 象传应用引擎配置
 type Config struct {
-	Mode          string     `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
-	AppSource     string     `json:"app,omitempty"  env:"YAO_APP_SOURCE"`                             // The Application Source Root Path default same as Root
-	Root          string     `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // The Application Root Path
-	Lang          string     `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`                // Default language setting
-	TimeZone      string     `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                           // Default TimeZone
-	DataRoot      string     `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // The data root path
-	ExtensionRoot string     `json:"extension_root,omitempty" env:"YAO_EXTENSION_ROOT" envDefault:""` // Plugin, Wasm root PATH, Default is <YAO_ROOT> (<YAO_ROOT>/plugins <YAO_ROOT>/wasms)
-	Host          string     `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // The server host
-	Port          int        `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // The server port
-	Cert          string     `json:"cert,omitempty" env:"YAO_CERT"`                                   // The HTTPS certificate path
-	Key           string     `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
-	Log           string     `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
-	LogMode       string     `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
-	LogMaxSize    int        `json:"log_max_size,omitempty" env:"YAO_LOG_MAX_SIZE" envDefault:"100"`  // The max log size in MB, the default is 100
-	LogMaxAage    int        `json:"log_max_age,omitempty" env:"YAO_LOG_MAX_AGE" envDefault:"7"`      // The max log age in day, the default is 7
-	LogMaxBackups int        `json:"log_max_backups" env:"YAO_LOG_MAX_BACKUPS" envDefault:"3"`        // The max log backups, the default is 3
-	LogLocalTime  bool       `json:"log_local_time" env:"YAO_LOG_LOCAL_TIME" envDefault:"true"`
-	JWTSecret     string     `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                                         // The JWT Secret
-	DB            Database   `json:"db,omitempty"`                                                                      // The database config
-	AllowFrom     []string   `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`                         // Domain list the separator is |
-	Session       Session    `json:"session,omitempty"`                                                                 // Session Config
-	Runtime       Runtime    `json:"runtime,omitempty"`                                                                 // Runtime config
-	Trace         Trace      `json:"trace,omitempty"`                                                                   // Trace config
-	Registry      string     `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
-	GRPC          GRPCConfig `json:"grpc,omitempty"`
+	Mode          string         `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
+	AppSource     string         `json:"app,omitempty"  env:"YAO_APP_SOURCE"`                             // The Application Source Root Path default same as Root
+	Root          string         `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // The Application Root Path
+	Lang          string         `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`                // Default language setting
+	TimeZone      string         `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                           // Default TimeZone
+	DataRoot      string         `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // The data root path
+	ExtensionRoot string         `json:"extension_root,omitempty" env:"YAO_EXTENSION_ROOT" envDefault:""` // Plugin, Wasm root PATH, Default is <YAO_ROOT> (<YAO_ROOT>/plugins <YAO_ROOT>/wasms)
+	Host          string         `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // The server host
+	Port          int            `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // The server port
+	Cert          string         `json:"cert,omitempty" env:"YAO_CERT"`                                   // The HTTPS certificate path
+	Key           string         `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
+	Log           string         `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
+	LogMode       string         `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
+	LogMaxSize    int            `json:"log_max_size,omitempty" env:"YAO_LOG_MAX_SIZE" envDefault:"100"`  // The max log size in MB, the default is 100
+	LogMaxAage    int            `json:"log_max_age,omitempty" env:"YAO_LOG_MAX_AGE" envDefault:"7"`      // The max log age in day, the default is 7
+	LogMaxBackups int            `json:"log_max_backups" env:"YAO_LOG_MAX_BACKUPS" envDefault:"3"`        // The max log backups, the default is 3
+	LogLocalTime  bool           `json:"log_local_time" env:"YAO_LOG_LOCAL_TIME" envDefault:"true"`
+	JWTSecret     string         `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                                         // The JWT Secret
+	DB            Database       `json:"db,omitempty"`                                                                      // The database config
+	AllowFrom     []string       `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`                         // Domain list the separator is |
+	Session       Session        `json:"session,omitempty"`                                                                 // Session Config
+	Runtime       Runtime        `json:"runtime,omitempty"`                                                                 // Runtime config
+	Trace         Trace          `json:"trace,omitempty"`                                                                   // Trace config
+	Registry      string         `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
+	GRPC          GRPCConfig     `json:"grpc,omitempty"`
+	HostExec      HostExecConfig `json:"host_exec,omitempty"`
 }
 
 // GRPCConfig gRPC server configuration
@@ -86,6 +87,15 @@ type Runtime struct {
 	HeapAvailableSize uint64 `json:"heapAvailableSize,omitempty" env:"YAO_RUNTIME_HEAP_AVAILABLE" envDefault:"524288000"` // the isolate will be re-created when the available size is smaller than this value, and the default value is 524288000 (500M)
 	Precompile        bool   `json:"precompile,omitempty" env:"YAO_RUNTIME_PRECOMPILE" envDefault:"false"`                // if true compile scripts when the VM is created. this will increase the load time, but the script will run faster. the default value is false
 	Import            bool   `json:"import,omitempty"  env:"YAO_RUNTIME_IMPORT" envDefault:"true"`                        // If false the import statement will be disabled, the default value is true.
+}
+
+// HostExecConfig controls local host execution capability.
+type HostExecConfig struct {
+	Enabled         bool     `json:"enabled,omitempty" env:"YAO_HOST_EXEC" envDefault:"false"`                         // Enable host execution on local node
+	FullAccess      bool     `json:"full_access,omitempty" env:"YAO_HOST_EXEC_FULL_ACCESS" envDefault:"false"`         // Bypass command/dir checks
+	AllowedCommands []string `json:"allowed_commands,omitempty" env:"YAO_HOST_EXEC_ALLOWED_COMMANDS" envSeparator:","` // Allowed commands (comma-separated)
+	AllowedDirs     []string `json:"allowed_dirs,omitempty" env:"YAO_HOST_EXEC_ALLOWED_DIRS" envSeparator:","`         // Allowed working directories
+	DeniedDirs      []string `json:"denied_dirs,omitempty" env:"YAO_HOST_EXEC_DENIED_DIRS" envSeparator:","`           // Denied directories (higher priority)
 }
 
 // Trace config

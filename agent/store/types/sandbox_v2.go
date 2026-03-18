@@ -7,9 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/yaoapp/gou/application"
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 )
 
@@ -21,18 +21,9 @@ func LoadSandboxConfig(filePath string) (*sandboxTypes.SandboxConfig, error) {
 		return nil, fmt.Errorf("read sandbox config %s: %w", filePath, err)
 	}
 
-	ext := strings.ToLower(filepath.Ext(filePath))
 	var cfg sandboxTypes.SandboxConfig
-
-	switch ext {
-	case ".json", ".yao":
-		if err := jsoniter.Unmarshal(data, &cfg); err != nil {
-			return nil, fmt.Errorf("parse sandbox config (json): %w", err)
-		}
-	default:
-		if err := jsoniter.Unmarshal(data, &cfg); err != nil {
-			return nil, fmt.Errorf("parse sandbox config: %w", err)
-		}
+	if err := application.Parse(filepath.Base(filePath), data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse sandbox config: %w", err)
 	}
 
 	if cfg.Version != sandboxTypes.SandboxVersionV2 {

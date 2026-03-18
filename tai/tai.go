@@ -1,6 +1,8 @@
 package tai
 
 import (
+	"io"
+
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/tai/volume"
@@ -69,10 +71,11 @@ func intOr(v, fallback int) int {
 	return fallback
 }
 
-// RegisterLocal probes the local Docker environment and, if reachable,
-// registers it as the "local" node in the registry with ConnResources.
-// Returns true if a local node was successfully registered.
-// Silently returns false if Docker is not available — this is not an error.
+// RegisterLocal probes the local environment and registers the current host
+// as the "local" node. Capabilities are set based on actual availability:
+// Docker is probed, HostExec is controlled by YAO_HOST_EXEC env var.
+// Always returns true — the local node is always registered (at minimum
+// with Volume capability).
 func RegisterLocal(opts ...Option) bool {
 	reg := registry.Global()
 	if reg == nil {
@@ -93,11 +96,33 @@ func RegisterLocal(opts ...Option) bool {
 	}
 
 	reg.Register(&registry.TaiNode{
-		TaiID: "local",
-		Mode:  "local",
+		TaiID:  "local",
+		Mode:   "local",
+		System: res.System,
+		Capabilities: types.Capabilities{
+			Docker:   res.Runtime != nil,
+			HostExec: res.HostExec != nil,
+		},
 	})
 	reg.SetResources("local", res)
 	return true
+}
+
+// InitLocal initializes the Tai registry and registers the local host as a
+// node in a single call. This is the preferred entry point for application
+// startup.
+//
+// Capabilities are determined by probing the environment:
+//   - Docker reachable  → Docker capability
+//   - YAO_HOST_EXEC=true → HostExec capability (with Policy from env)
+//   - Volume is always available
+func InitLocal(w io.Writer, logMode string, dataDir string) types.Capabilities {
+	registry.InitWithWriter(w, logMode)
+	RegisterLocal(WithDataDir(dataDir))
+	if meta, ok := registry.Global().Get("local"); ok {
+		return meta.Capabilities
+	}
+	return types.Capabilities{}
 }
 
 // GetResources returns the ConnResources for a registered Tai node.

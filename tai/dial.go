@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	yaoconfig "github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/tai/hostexec"
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/proxy"
 	"github.com/yaoapp/yao/tai/registry"
@@ -88,21 +90,32 @@ func DialTunnel(taiID string, reg *registry.Registry, opts ...DialOption) (*Conn
 	return res, nil
 }
 
-// DialLocal establishes connections to the local Docker daemon.
+// DialLocal establishes connections to the local host as a Tai node.
+// Docker is probed but not required — when unavailable the node still
+// provides Volume (and optionally HostExec) capabilities.
 // Does NOT interact with the registry. Caller must call ConnResources.Close().
 func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, error) {
-	sb, err := runtime.NewLocal(addr)
-	if err != nil && vol == nil {
-		return nil, err
-	}
+	sb, _ := runtime.NewLocal(addr) // Docker failure is non-fatal
 
-	res := &ConnResources{DataDir: dataDir}
+	res := &ConnResources{
+		DataDir: dataDir,
+		System:  CollectSystemInfo(),
+	}
 
 	if sb != nil {
 		res.Runtime = sb
 		res.Image = runtime.NewDockerImage(runtime.DockerCli(sb))
 		res.Proxy = proxy.NewLocal(sb)
 		res.VNC = vnc.NewLocal(sb)
+	}
+
+	if yaoconfig.Conf.HostExec.Enabled {
+		res.HostExec = hostexec.NewLocalClient(dataDir, hostexec.Policy{
+			FullAccess:      yaoconfig.Conf.HostExec.FullAccess,
+			AllowedCommands: yaoconfig.Conf.HostExec.AllowedCommands,
+			AllowedDirs:     yaoconfig.Conf.HostExec.AllowedDirs,
+			DeniedDirs:      yaoconfig.Conf.HostExec.DeniedDirs,
+		})
 	}
 
 	if vol != nil {
