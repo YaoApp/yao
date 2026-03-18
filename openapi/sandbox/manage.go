@@ -251,15 +251,15 @@ func handleList(c *gin.Context) {
 
 	var result []sandboxResponse
 
-	// Host entries: list all nodes, filter by ownership + host_exec
+	// Host entries: list registered nodes that have any compute capability.
 	if reg := registry.Global(); reg != nil {
 		snaps := reg.List()
 		for i := range snaps {
 			s := &snaps[i]
-			if !nodeOwnedBy(s, authInfo) {
+			if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
 				continue
 			}
-			if !s.Capabilities.HostExec {
+			if !s.Capabilities.HostExec && !s.Capabilities.Docker {
 				continue
 			}
 			if nodeFilter != "" && s.TaiID != nodeFilter {

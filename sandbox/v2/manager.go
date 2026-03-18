@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path/filepath"
 	goruntime "runtime"
 	"strconv"
 	"sync"
 	"time"
 
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 	tairuntime "github.com/yaoapp/yao/tai/runtime"
@@ -29,15 +27,13 @@ func newManager() *Manager {
 }
 
 // Start discovers existing containers from all registered nodes and rebuilds
-// the boxes map. If no "local" node is registered yet, it probes the local
-// Docker environment and auto-registers one when available.
+// the boxes map. The local node must already be registered by tai.InitLocal()
+// before Start is called.
 func (m *Manager) Start(ctx context.Context) error {
 	reg := registry.Global()
 	if reg == nil {
 		return nil
 	}
-
-	m.ensureLocalNode(reg)
 
 	for _, snap := range reg.List() {
 		res, err := m.getNode(snap.TaiID)
@@ -48,15 +44,6 @@ func (m *Manager) Start(ctx context.Context) error {
 	}
 
 	return nil
-}
-
-// ensureLocalNode delegates to tai.RegisterLocal() which probes the local
-// Docker environment and registers a "local" node in the registry if available.
-// The workspace data directory is derived from config.Conf.DataRoot so that
-// workspace files persist across restarts.
-func (m *Manager) ensureLocalNode(_ *registry.Registry) {
-	dataDir := filepath.Join(config.Conf.DataRoot, "workspaces")
-	tai.RegisterLocal(tai.WithDataDir(dataDir))
 }
 
 // Nodes returns the list of registered Tai nodes from the registry.
@@ -148,6 +135,11 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 				nodeID = targetNode
 			} else {
 				nodeID = node
+				if nodeID == "local" {
+					if ws, e := wsm.Get(ctx, opts.WorkspaceID); e == nil && ws.Owner != "" && ws.Owner != opts.Owner {
+						return nil, fmt.Errorf("sandbox: no permission to mount workspace %q", opts.WorkspaceID)
+					}
+				}
 			}
 		}
 	}

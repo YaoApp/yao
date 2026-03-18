@@ -98,19 +98,15 @@ func handleList(c *gin.Context) {
 	}
 
 	authInfo := authorized.GetInfo(c)
-
-	var snaps []taitypes.NodeMeta
-	if authInfo != nil && authInfo.TeamID != "" {
-		snaps = reg.ListByTeam(authInfo.TeamID)
-	} else if authInfo != nil && authInfo.UserID != "" {
-		snaps = reg.ListByUser(authInfo.UserID)
-	} else {
-		snaps = reg.List()
-	}
+	snaps := reg.List()
 
 	result := make([]nodeResponse, 0, len(snaps))
-	for _, s := range snaps {
-		result = append(result, snapToResponse(s))
+	for i := range snaps {
+		s := &snaps[i]
+		if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
+			continue
+		}
+		result = append(result, snapToResponse(*s))
 	}
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
@@ -130,7 +126,7 @@ func handleGet(c *gin.Context) {
 	}
 
 	authInfo := authorized.GetInfo(c)
-	if !nodeOwnedBy(snap, authInfo) {
+	if snap.Mode != "local" && !nodeOwnedBy(snap, authInfo) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this node"})
 		return
 	}

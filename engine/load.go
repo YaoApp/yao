@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/messenger"
-	"github.com/yaoapp/yao/moapi"
 	"github.com/yaoapp/yao/model"
 	"github.com/yaoapp/yao/monitor"
 	"github.com/yaoapp/yao/openapi"
@@ -45,12 +45,10 @@ import (
 	"github.com/yaoapp/yao/schedule"
 	"github.com/yaoapp/yao/script"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/socket"
 	"github.com/yaoapp/yao/store"
 	sui "github.com/yaoapp/yao/sui/api"
-	tairegistry "github.com/yaoapp/yao/tai/registry"
+	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/task"
-	"github.com/yaoapp/yao/websocket"
 	"github.com/yaoapp/yao/widget"
 	"github.com/yaoapp/yao/widgets"
 
@@ -133,20 +131,22 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "DB", Error: err})
 	}
 
-	// Initialize the Tai node registry (idempotent, safe to call early).
-	loadStep("Registry", func() error {
-		tairegistry.InitWithWriter(config.LogOutput, cfg.LogMode)
-		return nil
-	}, callback)
-
-	// Initialize the Sandbox manager and start it (auto-registers local Docker
-	// node if available, recovers existing containers, starts cleanup loop).
-	err = loadStep("Sandbox", func() error {
+	// Initialize the Tai registry, register local host node, then start the
+	// Sandbox manager (container recovery + cleanup loop).
+	err = loadStep("Registry", func() error {
+		dataDir := filepath.Join(cfg.DataRoot, "workspaces")
+		caps := tai.InitLocal(config.LogOutput, cfg.LogMode, dataDir)
+		if !caps.Docker {
+			log.Println("[Registry] Docker not available")
+		}
+		if caps.HostExec {
+			log.Println("[Registry] Host execution enabled (YAO_HOST_EXEC=true)")
+		}
 		sandbox.Init()
 		return sandbox.M().Start(context.Background())
 	}, callback)
 	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Sandbox", Error: err})
+		warnings = append(warnings, Warning{Widget: "Registry", Error: err})
 	}
 
 	// Load Certs
@@ -300,22 +300,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "API", Error: err})
 	}
 
-	// Load Sockets
-	err = loadStep("Socket", func() error {
-		return socket.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Socket", Error: err})
-	}
-
-	// Load websockets (client mode)
-	err = loadStep("WebSocket", func() error {
-		return websocket.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "WebSocket", Error: err})
-	}
-
 	// Load tasks
 	err = loadStep("Task", func() error {
 		return task.Load(cfg)
@@ -362,14 +346,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "SUI", Error: err})
-	}
-
-	// Load Moapi
-	err = loadStep("Moapi", func() error {
-		return moapi.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Moapi", Error: err})
 	}
 
 	// Load Pipe
@@ -496,8 +472,6 @@ func Unload() (err error) {
 	// importers
 	// tasks
 	// schedules
-	// sockets
-	// websockets
 	// widgets
 	// custom widget
 
@@ -603,18 +577,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = api.Load(cfg) // 加载业务接口 API
 	if err != nil {
 		printErr(cfg.Mode, "API", err)
-	}
-
-	// Load Sockets
-	err = socket.Load(cfg) // Load sockets
-	if err != nil {
-		printErr(cfg.Mode, "Socket", err)
-	}
-
-	// Load websockets (client mode)
-	err = websocket.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "WebSocket", err)
 	}
 
 	// Load tasks

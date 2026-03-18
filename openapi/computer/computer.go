@@ -89,7 +89,7 @@ func handleOptions(c *gin.Context) {
 	if kindFilter == "" || kindFilter == "host" {
 		for i := range snaps {
 			s := &snaps[i]
-			if !nodeOwnedBy(s, authInfo) {
+			if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
 				continue
 			}
 			if !s.Capabilities.HostExec {
@@ -106,7 +106,7 @@ func handleOptions(c *gin.Context) {
 	if kindFilter == "" || kindFilter == "node" {
 		for i := range snaps {
 			s := &snaps[i]
-			if !nodeOwnedBy(s, authInfo) {
+			if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
 				continue
 			}
 			hasRuntime := s.Capabilities.Docker || s.Capabilities.K8s
