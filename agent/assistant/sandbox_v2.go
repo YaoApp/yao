@@ -1,10 +1,12 @@
 package assistant
 
 import (
+	stdContext "context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -140,8 +142,10 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	ctx.SetComputer(computer)
 
 	cleanup := func() {
-		// Defensive fallback — executeSandboxV2Stream defer handles the
-		// normal case; this covers paths that never reach execution.
+		cleanCtx, cancel := stdContext.WithTimeout(stdContext.Background(), 5*time.Second)
+		defer cancel()
+		runner.Cleanup(cleanCtx, computer)
+		sandboxv2.LifecycleAction(cleanCtx, cfg, computer, manager)
 	}
 
 	return runner, computer, cleanup, loadingMsgID, nil
@@ -194,6 +198,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,
 		Token:        tok,
+		Logger:       ctx.Logger,
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{

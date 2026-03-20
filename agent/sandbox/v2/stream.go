@@ -124,7 +124,7 @@ func ExecuteSandboxStream(
 	loadingClosed := false
 	wrappedHandler := func(chunkType message.StreamChunkType, data []byte) int {
 		if !loadingClosed && req.LoadingMsgID != "" {
-			if chunkType == message.ChunkText || chunkType == message.ChunkToolCall || chunkType == message.ChunkMessageStart {
+			if chunkType == message.ChunkText || chunkType == message.ChunkToolCall || chunkType == message.ChunkExecute || chunkType == message.ChunkMessageStart {
 				closeLoading(ctx, req.LoadingMsgID)
 				loadingClosed = true
 			}

@@ -100,6 +100,11 @@ func WithParentID(parentID string) LoggerOption {
 // noopLogger is a shared no-op logger instance
 var noopLogger = &RequestLogger{noop: true}
 
+// NoopLogger returns a shared no-op RequestLogger that silently discards all
+// log calls. Use when a non-nil logger is required but no actual logging is
+// desired (e.g., fallback when StreamRequest.Logger is nil).
+func NoopLogger() *RequestLogger { return noopLogger }
+
 // NewRequestLogger creates a new request-scoped logger with async processing
 func NewRequestLogger(assistantID, chatID, requestID string, opts ...LoggerOption) *RequestLogger {
 	l := &RequestLogger{

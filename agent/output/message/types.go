@@ -75,6 +75,9 @@ const (
 	TypeAudio = "audio" // Audio content
 	TypeVideo = "video" // Video content
 
+	// Agent execution observation types
+	TypeExecute = "execute" // Agent tool execution observation (sandbox CLI agent actions, not LLM tool_call requests)
+
 	// System types (not visible in standard chat clients)
 	TypeAction = "action" // System action (open panel, navigate, etc.) - silent in OpenAI clients
 	TypeEvent  = "event"  // Lifecycle event (stream_start, stream_end, etc.) - CUI only, silent in OpenAI clients
@@ -205,6 +208,34 @@ type VideoProps struct {
 	Loop      bool    `json:"loop,omitempty"`      // Whether to loop
 }
 
+// ExecuteProps defines the standard structure for execute messages.
+// Type: "execute"
+//
+// Represents an autonomous action taken by an external Agent (e.g., Claude CLI
+// in a sandbox container, Codex CLI, or any future CLI-based Agent). Unlike
+// tool_call (which is a call request that Yao dispatches), execute is an
+// observation of an action that already happened inside the Agent's runtime.
+//
+// Lifecycle (via delta merge on the same MessageID):
+//
+//  1. message_start {type: "execute"}
+//  2. ChunkExecute  {tool, tool_id, input, status:"running"}        — merge
+//  3. ChunkExecute  {tool_id, output, status:"completed"}           — merge
+//  4. message_end
+type ExecuteProps struct {
+	Tool   string      `json:"tool"`             // Tool name (e.g., "Bash", "Read", "Write", "mcp__github__search")
+	ToolID string      `json:"tool_id"`          // Agent-side tool call ID (e.g., "toolu_abc123")
+	Input  interface{} `json:"input,omitempty"`  // Tool input (structured, e.g., {"command":"ls -la"})
+	Output interface{} `json:"output,omitempty"` // Tool execution result (via delta merge)
+	Status string      `json:"status"`           // "running" | "completed" | "error"
+
+	IsError  bool `json:"is_error,omitempty"`  // Whether the tool execution failed
+	ExitCode *int `json:"exit_code,omitempty"` // Process exit code (Bash-type tools)
+
+	Runner   string                 `json:"runner,omitempty"`   // Runner identifier (e.g., "claude-cli", "codex-cli")
+	Metadata map[string]interface{} `json:"metadata,omitempty"` // Extensible metadata per runner
+}
+
 // Delta action constants for incremental updates
 const (
 	DeltaAppend  = "append"  // Append (for arrays, strings)
@@ -224,6 +255,7 @@ const (
 	ChunkToolCall StreamChunkType = "tool_call" // Tool/function call
 	ChunkRefusal  StreamChunkType = "refusal"   // Model refusal
 	ChunkMetadata StreamChunkType = "metadata"  // Metadata (usage, finish_reason, etc.)
+	ChunkExecute  StreamChunkType = "execute"   // Agent execution observation (sandbox CLI agent tool use)
 	ChunkError    StreamChunkType = "error"     // Error chunk
 	ChunkUnknown  StreamChunkType = "unknown"   // Unknown/unrecognized chunk type
 

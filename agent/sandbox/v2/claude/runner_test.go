@@ -35,6 +35,14 @@ var cases = []e2eCase{
 	},
 }
 
+var toolCallCases = []e2eCase{
+	{
+		ID:      "tests.sandbox-v2.oneshot-cli",
+		Prompt:  "Run the command 'echo refactor-ok' and tell me the output.",
+		Timeout: 3 * time.Minute,
+	},
+}
+
 func TestSandboxV2_Claude_E2E(t *testing.T) {
 	sandboxtestutils.Prepare(t)
 	defer sandboxtestutils.Clean(t)
@@ -276,4 +284,88 @@ func mapKeys(m map[string]interface{}) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// TestSandboxV2_Claude_ToolCallE2E verifies that tool call execution emits
+// "execute" messages and that usage/result_summary metadata is propagated.
+func TestSandboxV2_Claude_ToolCallE2E(t *testing.T) {
+	sandboxtestutils.Prepare(t)
+	defer sandboxtestutils.Clean(t)
+
+	require.NotNil(t, caller.AgentGetterFunc, "AgentGetterFunc should be registered after Prepare")
+
+	for _, tc := range toolCallCases {
+		tc := tc
+		t.Run(tc.ID+"_tool_call", func(t *testing.T) {
+			agent, err := caller.AgentGetterFunc(tc.ID)
+			require.NoError(t, err, "should load assistant %s", tc.ID)
+
+			timeout := tc.Timeout
+			if timeout == 0 {
+				timeout = 3 * time.Minute
+			}
+
+			chatID := fmt.Sprintf("e2e-tool-%s-%d", tc.ID, time.Now().UnixMilli())
+			ctx := agentcontext.New(
+				context.Background(),
+				&oauthtypes.AuthorizedInfo{
+					TeamID: "test-team-e2e",
+					UserID: "test-user-e2e",
+				},
+				chatID,
+			)
+
+			messages := []agentcontext.Message{
+				{Role: "user", Content: tc.Prompt},
+			}
+
+			done := make(chan struct{})
+			var resp *agentcontext.Response
+			var streamErr error
+
+			go func() {
+				defer close(done)
+				resp, streamErr = agent.Stream(ctx, messages)
+			}()
+
+			select {
+			case <-done:
+			case <-time.After(timeout):
+				t.Fatalf("timeout after %v", timeout)
+			}
+
+			require.NoError(t, streamErr, "Stream should not return error")
+			require.NotNil(t, resp, "response should not be nil")
+			require.NotNil(t, resp.Completion, "completion should not be nil")
+
+			contentStr, ok := resp.Completion.Content.(string)
+			require.True(t, ok, "Content should be a string, got %T", resp.Completion.Content)
+			t.Logf("Response (%d chars): %s", len(contentStr), contentStr)
+
+			assert.Contains(t, strings.ToLower(contentStr), "refactor-ok",
+				"response should contain the command output")
+
+			// ── Verify buffer has execute messages ──
+			require.NotNil(t, ctx.Buffer, "ctx.Buffer should not be nil")
+			msgs := ctx.Buffer.GetMessages()
+			t.Logf("buffer message count: %d", len(msgs))
+
+			var executeCount int
+			for _, m := range msgs {
+				t.Logf("  seq=%d role=%s type=%s streaming=%v props_keys=%v",
+					m.Sequence, m.Role, m.Type, m.IsStreaming, mapKeys(m.Props))
+				if m.Type == "execute" {
+					executeCount++
+					assert.NotNil(t, m.Props, "execute message should have props")
+					if m.Props != nil {
+						if toolName, ok := m.Props["tool"].(string); ok {
+							t.Logf("    execute tool=%s status=%v", toolName, m.Props["status"])
+						}
+					}
+				}
+			}
+			assert.GreaterOrEqual(t, executeCount, 1,
+				"should have at least 1 execute message (tool call)")
+		})
+	}
 }

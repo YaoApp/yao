@@ -46,6 +46,9 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 		case message.ChunkToolCall:
 			return state.handleToolCall(data)
 
+		case message.ChunkExecute:
+			return state.handleExecute(data)
+
 		case message.ChunkMetadata:
 			return state.handleMetadata(data)
 
@@ -72,9 +75,11 @@ type streamState struct {
 	currentGroupID string // Current group ID (shared by all chunks in the group)
 	currentType    string // Track the current message type (text, thinking, tool_call)
 	buffer         []byte
-	chunkCount     int       // Track number of chunks in current group
-	messageSeq     int       // Message sequence number (for generating readable IDs)
-	groupStartTime time.Time // Track when group started
+	chunkCount     int                    // Track number of chunks in current group
+	messageSeq     int                    // Message sequence number (for generating readable IDs)
+	groupStartTime time.Time              // Track when group started
+	lastExecStatus string                 // Last observed execute status in current group ("running", "completed", "error")
+	lastExecProps  map[string]interface{} // Accumulated execute props for the current group (merged across chunks)
 }
 
 // handleStreamStart handles stream start event
@@ -290,11 +295,75 @@ func (s *streamState) handleToolCall(data []byte) int {
 	return 0 // Continue
 }
 
-// handleMetadata handles metadata chunks (usage, finish_reason, etc.)
+// handleExecute handles execute observation chunks from sandbox CLI agents.
+// These represent tool actions observed inside the agent runtime (e.g., Bash, Read, Write).
+func (s *streamState) handleExecute(data []byte) int {
+	if len(data) == 0 {
+		return 0
+	}
+
+	s.currentType = message.TypeExecute
+	s.buffer = append(s.buffer, data...)
+	s.chunkCount++
+	s.messageSeq++
+
+	var props map[string]interface{}
+	if err := jsoniter.Unmarshal(data, &props); err != nil {
+		return 0
+	}
+
+	if st, ok := props["status"].(string); ok {
+		s.lastExecStatus = st
+	}
+
+	if s.lastExecProps == nil {
+		s.lastExecProps = make(map[string]interface{})
+	}
+	for k, v := range props {
+		s.lastExecProps[k] = v
+	}
+
+	deltaAction := "merge"
+
+	msg := &message.Message{
+		ChunkID:     s.ctx.IDGenerator.GenerateChunkID(),
+		MessageID:   s.currentGroupID,
+		Type:        message.TypeExecute,
+		Delta:       true,
+		DeltaAction: deltaAction,
+		Props:       props,
+	}
+
+	if err := s.ctx.Send(msg); err != nil {
+		return 0
+	}
+
+	return 0
+}
+
+// handleMetadata handles metadata chunks (usage, finish_reason, result_summary, etc.)
+// For sandbox CLI agents, this carries token usage and result summaries.
 func (s *streamState) handleMetadata(data []byte) int {
-	// Metadata is usually not displayed to users
-	// Could be logged or stored for analytics
-	return 0 // Continue
+	if len(data) == 0 {
+		return 0
+	}
+
+	var meta map[string]interface{}
+	if err := jsoniter.Unmarshal(data, &meta); err != nil {
+		return 0
+	}
+
+	if usage, ok := meta["usage"]; ok {
+		msg := output.NewEventMessage("token/usage", "", usage)
+		s.ctx.Send(msg)
+	}
+
+	if summary, ok := meta["result_summary"]; ok {
+		msg := output.NewEventMessage("result/summary", "", summary)
+		s.ctx.Send(msg)
+	}
+
+	return 0
 }
 
 // handleError handles error chunks
@@ -341,16 +410,20 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 	shouldSkipHistory := s.ctx.Stack != nil && s.ctx.Stack.Options != nil &&
 		s.ctx.Stack.Options.Skip != nil && s.ctx.Stack.Options.Skip.History
 
-	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory {
+	// Execute messages have two phases sharing the same message_id:
+	//   1. running  — streamed for UI display only, NOT persisted
+	//   2. completed / error — the final state, persisted to the buffer
+	isExecuteRunning := msgType == message.TypeExecute && s.lastExecStatus == "running"
+
+	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory && !isExecuteRunning {
 		assistantID := ""
 		if s.ctx.Stack != nil {
 			assistantID = s.ctx.Stack.AssistantID
 		}
 
-		// Build props based on message type
 		var props map[string]interface{}
-		if msgType == message.TypeToolCall {
-			// For tool calls, try to parse the accumulated buffer as JSON
+		switch msgType {
+		case message.TypeToolCall:
 			var toolCallData interface{}
 			if err := jsoniter.Unmarshal(s.buffer, &toolCallData); err == nil {
 				props = map[string]interface{}{
@@ -361,15 +434,25 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 					"content": string(s.buffer),
 				}
 			}
-		} else {
-			// For text/thinking, content is the accumulated text
+		case message.TypeExecute:
+			if s.lastExecProps != nil {
+				props = make(map[string]interface{}, len(s.lastExecProps))
+				for k, v := range s.lastExecProps {
+					props[k] = v
+				}
+			} else {
+				props = map[string]interface{}{
+					"content": string(s.buffer),
+				}
+			}
+		default:
 			props = map[string]interface{}{
 				"content": string(s.buffer),
 			}
 		}
 
 		s.ctx.Buffer.AddAssistantMessage(
-			s.currentGroupID, // Use the message ID
+			s.currentGroupID,
 			msgType,
 			props,
 			blockID,
@@ -403,6 +486,8 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 	s.currentType = ""
 	s.buffer = []byte{}
 	s.chunkCount = 0
+	s.lastExecStatus = ""
+	s.lastExecProps = nil
 
 	return 0 // Continue
 }
