@@ -64,7 +64,27 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 		return true, nil
 	}
 
-	return false, s.waitForExit(parseErr)
+	exitErr := s.waitForExit(parseErr)
+	if exitErr != nil {
+		if handler != nil {
+			handler(message.ChunkError, []byte(exitErr.Error()))
+		}
+		return false, exitErr
+	}
+
+	s.stderrMu.Lock()
+	stderrStr := strings.TrimSpace(s.stderr.String())
+	s.stderrMu.Unlock()
+	if stderrStr != "" {
+		s.logger.Warn("claude exited with code 0 but stream incomplete and stderr present: %s", stderrStr)
+		errMsg := fmt.Errorf("claude CLI setup failed: %s", stderrStr)
+		if handler != nil {
+			handler(message.ChunkError, []byte(errMsg.Error()))
+		}
+		return false, errMsg
+	}
+
+	return false, nil
 }
 
 // collectStderr reads stderr in a background goroutine.

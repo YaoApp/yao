@@ -68,6 +68,11 @@ func (b *posixBase) ListDirCmd(dir string) []string {
 }
 
 // buildBashScript is the shared bash script builder for macOS/Linux.
+//
+// When a system prompt is present, the script uses `set -e` to ensure that
+// any failure in directory creation or prompt file writing aborts the entire
+// script before Claude CLI is launched. This prevents silent fallback to
+// running without a system prompt.
 func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
 	var s strings.Builder
 
@@ -76,10 +81,12 @@ func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
 	}
 
 	if in.systemPrompt != "" {
+		s.WriteString("set -e\n")
 		s.WriteString(fmt.Sprintf("mkdir -p \"$(dirname %q)\"\n", in.promptFile))
 		s.WriteString(fmt.Sprintf("cat << 'PROMPTEOF' > %s\n", in.promptFile))
 		s.WriteString(in.systemPrompt)
 		s.WriteString("\nPROMPTEOF\n")
+		s.WriteString("set +e\n")
 		in.args = append(in.args, "--append-system-prompt-file", in.promptFile)
 	}
 

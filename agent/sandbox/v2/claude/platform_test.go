@@ -82,6 +82,7 @@ func TestPosixBase_BuildBashScript_NoPrompt(t *testing.T) {
 	assert.Contains(t, script, "--verbose")
 	assert.Contains(t, script, "INPUTEOF")
 	assert.NotContains(t, script, "PROMPTEOF")
+	assert.NotContains(t, script, "set -e", "set -e should not be present when no prompt is written")
 }
 
 func TestPosixBase_BuildBashScript_WithPrompt(t *testing.T) {
@@ -98,6 +99,16 @@ func TestPosixBase_BuildBashScript_WithPrompt(t *testing.T) {
 	assert.Contains(t, script, "PROMPTEOF")
 	assert.Contains(t, script, "You are a helpful assistant.")
 	assert.Contains(t, script, "--append-system-prompt-file")
+
+	promptIdx := strings.Index(script, "PROMPTEOF")
+	claudeIdx := strings.Index(script, "claude -p")
+	assert.True(t, strings.Contains(script, "set -e"), "script should enable set -e before prompt write")
+	assert.True(t, strings.Contains(script, "set +e"), "script should disable set -e before claude command")
+	setEIdx := strings.Index(script, "set -e")
+	setNoEIdx := strings.Index(script, "set +e")
+	assert.Less(t, setEIdx, promptIdx, "set -e should come before PROMPTEOF")
+	assert.Less(t, promptIdx, setNoEIdx, "set +e should come after PROMPTEOF")
+	assert.Less(t, setNoEIdx, claudeIdx, "set +e should come before claude -p")
 }
 
 func TestPosixBase_BuildBashScript_WithXauth(t *testing.T) {
