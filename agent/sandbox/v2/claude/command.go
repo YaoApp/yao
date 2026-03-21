@@ -12,7 +12,7 @@ import (
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
-const defaultProxyPort = 3456
+const defaultA2OPort = 3099
 
 type command struct {
 	shell   []string
@@ -89,17 +89,17 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		if req.Connector.Is(connector.ANTHROPIC) {
 			env["ANTHROPIC_BASE_URL"] = host
 			env["ANTHROPIC_API_KEY"] = key
+			if model != "" {
+				env["ANTHROPIC_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
+				env["CLAUDE_CODE_SUBAGENT_MODEL"] = model
+			}
 		} else {
-			env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d", defaultProxyPort)
+			connectorID := req.Connector.ID()
+			env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/c/%s", defaultA2OPort, connectorID)
 			env["ANTHROPIC_API_KEY"] = "dummy"
-		}
-
-		if model != "" {
-			env["ANTHROPIC_MODEL"] = model
-			env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = model
-			env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = model
-			env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
-			env["CLAUDE_CODE_SUBAGENT_MODEL"] = model
 		}
 
 		if thinking, ok := setting["thinking"].(map[string]interface{}); ok {

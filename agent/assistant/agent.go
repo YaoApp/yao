@@ -190,6 +190,9 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				ctx.Logger.Trace("Computer: %s", ci.BoxID)
 			}
 			ctx.Logger.Trace("Workspace: %s", ast.SandboxV2.WorkspaceID)
+			if conn, _, err := ast.GetConnector(ctx, opts); err == nil && conn != nil {
+				ctx.Logger.Trace("Connector: %s", conn.ID())
+			}
 		}
 	} else if ast.HasSandbox() {
 		ctx.Logger.Phase("Sandbox")
@@ -328,7 +331,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Choose between sandbox execution or direct LLM execution
 		if ast.HasSandboxV2() && v2Runner != nil && v2Computer != nil && v2Runner.Name() != "yao" {
 			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
-			completionResponse, err = ast.executeSandboxV2Stream(ctx, completionMessages, agentNode, streamHandler, v2Runner, v2Computer, v2LoadingMsgID)
+			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
+				Messages:     completionMessages,
+				AgentNode:    agentNode,
+				Handler:      streamHandler,
+				Runner:       v2Runner,
+				Computer:     v2Computer,
+				LoadingMsgID: v2LoadingMsgID,
+				Options:      opts,
+			})
 		} else if ast.HasSandboxV2() && v2Runner != nil && v2Runner.Name() == "yao" {
 			// V2 yao runner: Prepare is done, close loading, fall through to LLM
 			if v2LoadingMsgID != "" {
