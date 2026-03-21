@@ -27,6 +27,7 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 	opts := infra.CreateOptions{
 		ID:          identifier,
 		Owner:       ownerID,
+		NodeID:      cfg.NodeID,
 		Image:       cfg.Computer.Image,
 		WorkDir:     cfg.Computer.WorkDir,
 		User:        cfg.Computer.User,

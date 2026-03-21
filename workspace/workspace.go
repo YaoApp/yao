@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -63,6 +64,14 @@ type NodeInfo struct {
 
 func generateID() string {
 	return fmt.Sprintf("ws-%s", uuid.New().String()[:12])
+}
+
+// DefaultWorkspaceID returns a deterministic workspace ID for the given
+// owner+node pair. The same inputs always produce the same ID, while
+// different nodes produce different IDs.
+func DefaultWorkspaceID(ownerID, nodeID string) string {
+	h := sha256.Sum256([]byte(ownerID + ":" + nodeID))
+	return fmt.Sprintf("ws-%x", h[:6])
 }
 
 func marshalMeta(ws *Workspace) ([]byte, error) {

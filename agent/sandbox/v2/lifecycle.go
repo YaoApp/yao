@@ -6,12 +6,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
+	mathrand "math/rand"
+	"strings"
 
 	"github.com/yaoapp/gou/connector"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -26,7 +29,11 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 	case "session":
 		return fmt.Sprintf("%s-%s-%s", ownerID, assistantID, chatID)
 	case "longrunning", "persistent":
-		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
+		wsKey := workspaceID
+		if wsKey == "" {
+			wsKey = ownerID
+		}
+		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, wsKey)
 	default:
 		return ""
 	}
@@ -50,41 +57,46 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 		}
 	}
 	ownerID := resolveOwnerID(ctx)
-	if workspaceID == "" {
-		workspaceID = ownerID
-	}
 
-	if workspaceID != "" && workspaceID != ownerID {
+	fmt.Printf("[sandbox/v2] ResolveNodeID: computerID=%q workspaceID=%q ownerID=%q image=%q\n", computerID, workspaceID, ownerID, cfg.Computer.Image)
+
+	if workspaceID != "" {
 		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
 		if err == nil && wsNode != "" {
+			fmt.Printf("[sandbox/v2] ResolveNodeID: workspace %s -> node %s\n", workspaceID, wsNode)
 			computerID = wsNode
 		}
 	}
 
-	if computerID != "" {
-		if node, ok := tai.GetNodeMeta(computerID); ok {
-			hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
-			if node.Capabilities.HostExec && !hasContainerRuntime {
-				return computerID, "host", nil
-			}
-			if node.Capabilities.HostExec && hasContainerRuntime && cfg.Computer.Image == "" {
-				return computerID, "host", nil
-			}
-			if !hasContainerRuntime {
-				return "", "", fmt.Errorf("node %q has no container runtime and no host_exec capability", computerID)
-			}
-			return computerID, "box", nil
+	if computerID == "" {
+		pickedID, err := pickNodeByFilter(cfg.Filter, cfg.Computer.Image)
+		if err != nil {
+			return "", "", fmt.Errorf("auto-select node for ResolveNodeID: %w", err)
 		}
+		fmt.Printf("[sandbox/v2] ResolveNodeID: pickNodeByFilter -> %s\n", pickedID)
+		computerID = pickedID
+		cfg.NodeID = pickedID
+	}
+
+	if node, ok := tai.GetNodeMeta(computerID); ok {
+		hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
+		fmt.Printf("[sandbox/v2] ResolveNodeID: node=%q HostExec=%v Docker=%v K8s=%v hasContainer=%v\n", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime)
+		if node.Capabilities.HostExec && !hasContainerRuntime {
+			fmt.Println("[sandbox/v2] ResolveNodeID: -> host (host-only node)")
+			return computerID, "host", nil
+		}
+		if node.Capabilities.HostExec && hasContainerRuntime && cfg.Computer.Image == "" {
+			fmt.Println("[sandbox/v2] ResolveNodeID: -> host (dual-capable, no image)")
+			return computerID, "host", nil
+		}
+		if !hasContainerRuntime {
+			return "", "", fmt.Errorf("node %q has no container runtime and no host_exec capability", computerID)
+		}
+		fmt.Println("[sandbox/v2] ResolveNodeID: -> box")
 		return computerID, "box", nil
 	}
-
-	if cfg.Computer.Image == "" {
-		nodeID := cfg.NodeID
-		return nodeID, "host", nil
-	}
-
-	nodeID := cfg.NodeID
-	return nodeID, "box", nil
+	fmt.Printf("[sandbox/v2] ResolveNodeID: node %q not found in registry, assuming box\n", computerID)
+	return computerID, "box", nil
 }
 
 // GetComputer obtains or creates a Computer for the current request.
@@ -98,9 +110,6 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 		if ws, ok := ctx.Metadata["workspace_id"].(string); ok && ws != "" {
 			workspaceID = ws
 		}
-	}
-	if workspaceID == "" {
-		workspaceID = ownerID
 	}
 
 	identifier := BuildIdentifier(cfg, ownerID, ctx.ChatID, ctx.AssistantID, workspaceID, ctx.Metadata)
@@ -118,9 +127,9 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 		}
 	}
 
-	// Workspace-wins rule: when both workspace_id and computer_id are present,
+	// Workspace-wins rule: when workspace_id is present,
 	// the workspace's bound node takes precedence over computer_id.
-	if workspaceID != "" && workspaceID != ownerID {
+	if workspaceID != "" {
 		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
 		if err == nil && wsNode != "" {
 			if computerID != "" && computerID != wsNode {
@@ -130,11 +139,14 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 		}
 	}
 
+	fmt.Printf("[sandbox/v2] GetComputer: computerID=%q workspaceID=%q ownerID=%q cfgNodeID=%q image=%q\n", computerID, workspaceID, ownerID, cfg.NodeID, cfg.Computer.Image)
+
 	if computerID != "" {
+		fmt.Printf("[sandbox/v2] GetComputer: -> resolveComputerByID(%s)\n", computerID)
 		return resolveComputerByID(cfg, manager, computerID, ownerID, identifier, workspaceID, conn...)
 	}
 
-	// No computer_id: fall back to DSL-based dispatch (original logic).
+	fmt.Println("[sandbox/v2] GetComputer: -> resolveComputerByDSL (no computerID)")
 	return resolveComputerByDSL(cfg, manager, ownerID, identifier, workspaceID, conn...)
 }
 
@@ -150,9 +162,10 @@ func resolveComputerByID(
 	if node, ok := tai.GetNodeMeta(computerID); ok {
 		cfg.NodeID = computerID
 		hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
+		fmt.Printf("[sandbox/v2] resolveComputerByID: node=%q found=true HostExec=%v Docker=%v K8s=%v hasContainer=%v image=%q\n", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime, cfg.Computer.Image)
 
 		if node.Capabilities.HostExec && !hasContainerRuntime {
-			// Host-only node: must use host mode regardless of DSL image config.
+			fmt.Println("[sandbox/v2] resolveComputerByID: -> host (host-only node)")
 			cfg.Kind = "host"
 			host, err := manager.Host(context.Background(), computerID)
 			if err != nil {
@@ -202,23 +215,19 @@ func resolveComputerByDSL(
 	conn ...connector.Connector,
 ) (infra.Computer, string, error) {
 
-	// Host mode: no image → host computer.
-	if cfg.Computer.Image == "" {
-		cfg.Kind = "host"
-		nodeID := cfg.NodeID
-		if nodeID == "" {
-			return nil, identifier, fmt.Errorf("host mode requires a nodeID (set in sandbox.yao or workspace)")
-		}
-		host, err := manager.Host(context.Background(), nodeID)
+	fmt.Printf("[sandbox/v2] resolveComputerByDSL: cfgNodeID=%q image=%q\n", cfg.NodeID, cfg.Computer.Image)
+
+	if cfg.NodeID == "" {
+		pickedID, err := pickNodeByFilter(cfg.Filter, cfg.Computer.Image)
 		if err != nil {
-			return nil, identifier, fmt.Errorf("get host computer: %w", err)
+			return nil, identifier, fmt.Errorf("auto-select node: %w", err)
 		}
-		host.BindWorkplace(workspaceID)
-		return host, identifier, nil
+		fmt.Printf("[sandbox/v2] resolveComputerByDSL: pickNodeByFilter -> %s\n", pickedID)
+		cfg.NodeID = pickedID
 	}
 
-	cfg.Kind = "box"
-	return resolveBox(cfg, manager, ownerID, identifier, workspaceID, conn...)
+	fmt.Printf("[sandbox/v2] resolveComputerByDSL: -> resolveComputerByID(%s)\n", cfg.NodeID)
+	return resolveComputerByID(cfg, manager, cfg.NodeID, ownerID, identifier, workspaceID, conn...)
 }
 
 // resolveBox reuses or creates a box container.
@@ -227,6 +236,11 @@ func resolveBox(
 	ownerID, identifier, workspaceID string,
 	conn ...connector.Connector,
 ) (infra.Computer, string, error) {
+
+	if workspaceID == "" && cfg.NodeID != "" {
+		workspaceID = workspace.DefaultWorkspaceID(ownerID, cfg.NodeID)
+		cfg.WorkspaceID = workspaceID
+	}
 
 	// Reuse: non-empty identifier → try Get first.
 	if identifier != "" {
@@ -255,6 +269,7 @@ func resolveBox(
 	if err != nil {
 		return nil, identifier, fmt.Errorf("build create options: %w", err)
 	}
+	fmt.Printf("[sandbox/v2] resolveBox: createOpts NodeID=%q Image=%q WorkspaceID=%q ID=%q Owner=%q\n", createOpts.NodeID, createOpts.Image, createOpts.WorkspaceID, createOpts.ID, createOpts.Owner)
 
 	// Oneshot with empty identifier: generate a random one.
 	if createOpts.ID == "" {
@@ -308,6 +323,71 @@ func resolveOwnerID(ctx *agentContext.Context) string {
 		}
 	}
 	return "anonymous"
+}
+
+// pickNodeByFilter selects a random online node that satisfies the given filter
+// and image requirement. If image is non-empty, candidate nodes must have a
+// container runtime (Docker or K8s).
+func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error) {
+	reg := registry.Global()
+	if reg == nil {
+		return "", fmt.Errorf("tai registry not initialized")
+	}
+
+	nodes := reg.List()
+	var candidates []string
+	for _, n := range nodes {
+		if n.Status != "online" && n.Status != "" {
+			continue
+		}
+
+		if filter != nil {
+			if filter.OS != "" && !strings.EqualFold(n.System.OS, filter.OS) {
+				continue
+			}
+			if filter.Arch != "" && !strings.EqualFold(n.System.Arch, filter.Arch) {
+				continue
+			}
+			if len(filter.Kind) > 0 {
+				matched := false
+				for _, k := range filter.Kind {
+					switch strings.ToLower(k) {
+					case "host":
+						if n.Capabilities.HostExec {
+							matched = true
+						}
+					case "box":
+						if n.Capabilities.Docker || n.Capabilities.K8s {
+							matched = true
+						}
+					}
+				}
+				if !matched {
+					continue
+				}
+			}
+		}
+
+		if image != "" && !(n.Capabilities.Docker || n.Capabilities.K8s) {
+			continue
+		}
+
+		candidates = append(candidates, n.TaiID)
+	}
+
+	if len(candidates) == 0 {
+		kind := ""
+		os := ""
+		arch := ""
+		if filter != nil {
+			kind = fmt.Sprintf("%v", []string(filter.Kind))
+			os = filter.OS
+			arch = filter.Arch
+		}
+		return "", fmt.Errorf("no online node matches filter (kind=%s os=%s arch=%s image=%s)", kind, os, arch, image)
+	}
+
+	return candidates[mathrand.Intn(len(candidates))], nil
 }
 
 func randomID() string {

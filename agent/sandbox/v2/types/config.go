@@ -35,10 +35,30 @@ type SandboxConfig struct {
 	DisplayName string            `json:"-" yaml:"-"`
 }
 
+// StringOrArray accepts both a single string and an array of strings in JSON/YAML.
+//
+//	"host"          → ["host"]
+//	["host", "box"]  → ["host", "box"]
+type StringOrArray []string
+
+func (s *StringOrArray) UnmarshalJSON(data []byte) error {
+	var str string
+	if err := json.Unmarshal(data, &str); err == nil {
+		*s = []string{str}
+		return nil
+	}
+	var arr []string
+	if err := json.Unmarshal(data, &arr); err == nil {
+		*s = arr
+		return nil
+	}
+	return fmt.Errorf("StringOrArray: expected a string or an array of strings")
+}
+
 // ComputerFilter defines the query parameters for GET /computer/options.
 // Declared in DSL sandbox.filter; frontend passes it through to the API.
 type ComputerFilter struct {
-	Kind    string            `json:"kind,omitempty" yaml:"kind,omitempty"`
+	Kind    StringOrArray     `json:"kind,omitempty" yaml:"kind,omitempty"`
 	Image   string            `json:"image,omitempty" yaml:"image,omitempty"`
 	VNC     *bool             `json:"vnc,omitempty" yaml:"vnc,omitempty"`
 	OS      string            `json:"os,omitempty" yaml:"os,omitempty"`
