@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	kunlog "github.com/yaoapp/kun/log"
 	tgapi "github.com/yaoapp/yao/integrations/telegram"
 )
 
@@ -34,7 +35,7 @@ func (a *Adapter) pollLoop() {
 
 func (a *Adapter) pollAll() {
 	entries := a.snapshot()
-	log.Debug("pollAll bots=%d", len(entries))
+	kunlog.Trace("[robot:telegram] pollAll bots=%d", len(entries))
 	if len(entries) == 0 {
 		return
 	}
@@ -49,7 +50,7 @@ func (a *Adapter) pollAll() {
 		default:
 		}
 
-		log.Debug("polling robot=%s offset=%d", entry.robotID, entry.offset)
+		kunlog.Trace("[robot:telegram] polling robot=%s offset=%d", entry.robotID, entry.offset)
 		groups := []string{"telegram", entry.robotID}
 		msgs, err := entry.bot.GetUpdates(ctx, entry.offset, pollTimeout, groups)
 		if err != nil {

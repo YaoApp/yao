@@ -3,7 +3,6 @@ package workspace
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"mime"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
@@ -417,16 +417,16 @@ func handleReadFile(c *gin.Context) {
 		path = path[1:]
 	}
 
-	fmt.Printf("[workspace] handleReadFile id=%s path=%q\n", c.Param("id"), path)
+	log.Trace("[workspace] handleReadFile id=%s path=%q", c.Param("id"), path)
 
 	data, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
 	if err != nil {
-		fmt.Printf("[workspace] ReadFile error: %v\n", err)
+		log.Trace("[workspace] ReadFile error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("[workspace] ReadFile ok, size=%d, encoding=%q\n", len(data), c.Query("encoding"))
+	log.Trace("[workspace] ReadFile ok, size=%d, encoding=%q", len(data), c.Query("encoding"))
 
 	if c.Query("encoding") == "base64" {
 		response.RespondWithSuccess(c, http.StatusOK, gin.H{
@@ -441,7 +441,7 @@ func handleReadFile(c *gin.Context) {
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
-	fmt.Printf("[workspace] serving ext=%q mime=%q size=%d\n", ext, mimeType, len(data))
+	log.Trace("[workspace] serving ext=%q mime=%q size=%d", ext, mimeType, len(data))
 	c.Data(http.StatusOK, mimeType, data)
 }
 

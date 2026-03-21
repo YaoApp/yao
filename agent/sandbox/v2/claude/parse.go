@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -76,9 +77,9 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		var msg map[string]any
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
 			if len(line) > 200 {
-				fmt.Printf("[claude-parse] JSON unmarshal error: %v (line len=%d, prefix=%q)\n", err, len(line), line[:200])
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line len=%d, prefix=%q)", err, len(line), line[:200])
 			} else {
-				fmt.Printf("[claude-parse] JSON unmarshal error: %v (line=%q)\n", err, line)
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line=%q)", err, line)
 			}
 			continue
 		}
@@ -107,7 +108,7 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 	}
 
 	if err := scanner.Err(); err != nil {
-		fmt.Printf("[claude-parse] scanner error: %v (ctx.Err=%v)\n", err, ctx.Err())
+		log.Trace("[claude-parse] scanner error: %v (ctx.Err=%v)", err, ctx.Err())
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

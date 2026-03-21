@@ -5,11 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"log"
 	mathrand "math/rand"
 	"strings"
 
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -29,11 +29,7 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 	case "session":
 		return fmt.Sprintf("%s-%s-%s", ownerID, assistantID, chatID)
 	case "longrunning", "persistent":
-		wsKey := workspaceID
-		if wsKey == "" {
-			wsKey = ownerID
-		}
-		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, wsKey)
+		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
 	default:
 		return ""
 	}
@@ -58,12 +54,12 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 	}
 	ownerID := resolveOwnerID(ctx)
 
-	fmt.Printf("[sandbox/v2] ResolveNodeID: computerID=%q workspaceID=%q ownerID=%q image=%q\n", computerID, workspaceID, ownerID, cfg.Computer.Image)
+	log.Trace("[sandbox/v2] ResolveNodeID: computerID=%q workspaceID=%q ownerID=%q image=%q", computerID, workspaceID, ownerID, cfg.Computer.Image)
 
 	if workspaceID != "" {
 		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
 		if err == nil && wsNode != "" {
-			fmt.Printf("[sandbox/v2] ResolveNodeID: workspace %s -> node %s\n", workspaceID, wsNode)
+			log.Trace("[sandbox/v2] ResolveNodeID: workspace %s -> node %s", workspaceID, wsNode)
 			computerID = wsNode
 		}
 	}
@@ -73,29 +69,29 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 		if err != nil {
 			return "", "", fmt.Errorf("auto-select node for ResolveNodeID: %w", err)
 		}
-		fmt.Printf("[sandbox/v2] ResolveNodeID: pickNodeByFilter -> %s\n", pickedID)
+		log.Trace("[sandbox/v2] ResolveNodeID: pickNodeByFilter -> %s", pickedID)
 		computerID = pickedID
 		cfg.NodeID = pickedID
 	}
 
 	if node, ok := tai.GetNodeMeta(computerID); ok {
 		hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
-		fmt.Printf("[sandbox/v2] ResolveNodeID: node=%q HostExec=%v Docker=%v K8s=%v hasContainer=%v\n", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime)
+		log.Trace("[sandbox/v2] ResolveNodeID: node=%q HostExec=%v Docker=%v K8s=%v hasContainer=%v", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime)
 		if node.Capabilities.HostExec && !hasContainerRuntime {
-			fmt.Println("[sandbox/v2] ResolveNodeID: -> host (host-only node)")
+			log.Trace("[sandbox/v2] ResolveNodeID: -> host (host-only node)")
 			return computerID, "host", nil
 		}
 		if node.Capabilities.HostExec && hasContainerRuntime && cfg.Computer.Image == "" {
-			fmt.Println("[sandbox/v2] ResolveNodeID: -> host (dual-capable, no image)")
+			log.Trace("[sandbox/v2] ResolveNodeID: -> host (dual-capable, no image)")
 			return computerID, "host", nil
 		}
 		if !hasContainerRuntime {
 			return "", "", fmt.Errorf("node %q has no container runtime and no host_exec capability", computerID)
 		}
-		fmt.Println("[sandbox/v2] ResolveNodeID: -> box")
+		log.Trace("[sandbox/v2] ResolveNodeID: -> box")
 		return computerID, "box", nil
 	}
-	fmt.Printf("[sandbox/v2] ResolveNodeID: node %q not found in registry, assuming box\n", computerID)
+	log.Trace("[sandbox/v2] ResolveNodeID: node %q not found in registry, assuming box", computerID)
 	return computerID, "box", nil
 }
 
@@ -133,20 +129,20 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 		wsNode, err := workspace.M().NodeForWorkspace(context.Background(), workspaceID)
 		if err == nil && wsNode != "" {
 			if computerID != "" && computerID != wsNode {
-				log.Printf("[sandbox/v2] workspace %s bound to node %s overrides computer_id %s", workspaceID, wsNode, computerID)
+				log.Trace("[sandbox/v2] workspace %s bound to node %s overrides computer_id %s", workspaceID, wsNode, computerID)
 			}
 			computerID = wsNode
 		}
 	}
 
-	fmt.Printf("[sandbox/v2] GetComputer: computerID=%q workspaceID=%q ownerID=%q cfgNodeID=%q image=%q\n", computerID, workspaceID, ownerID, cfg.NodeID, cfg.Computer.Image)
+	log.Trace("[sandbox/v2] GetComputer: computerID=%q workspaceID=%q ownerID=%q cfgNodeID=%q image=%q", computerID, workspaceID, ownerID, cfg.NodeID, cfg.Computer.Image)
 
 	if computerID != "" {
-		fmt.Printf("[sandbox/v2] GetComputer: -> resolveComputerByID(%s)\n", computerID)
+		log.Trace("[sandbox/v2] GetComputer: -> resolveComputerByID(%s)", computerID)
 		return resolveComputerByID(cfg, manager, computerID, ownerID, identifier, workspaceID, conn...)
 	}
 
-	fmt.Println("[sandbox/v2] GetComputer: -> resolveComputerByDSL (no computerID)")
+	log.Trace("[sandbox/v2] GetComputer: -> resolveComputerByDSL (no computerID)")
 	return resolveComputerByDSL(cfg, manager, ownerID, identifier, workspaceID, conn...)
 }
 
@@ -162,10 +158,10 @@ func resolveComputerByID(
 	if node, ok := tai.GetNodeMeta(computerID); ok {
 		cfg.NodeID = computerID
 		hasContainerRuntime := node.Capabilities.Docker || node.Capabilities.K8s
-		fmt.Printf("[sandbox/v2] resolveComputerByID: node=%q found=true HostExec=%v Docker=%v K8s=%v hasContainer=%v image=%q\n", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime, cfg.Computer.Image)
+		log.Trace("[sandbox/v2] resolveComputerByID: node=%q found=true HostExec=%v Docker=%v K8s=%v hasContainer=%v image=%q", computerID, node.Capabilities.HostExec, node.Capabilities.Docker, node.Capabilities.K8s, hasContainerRuntime, cfg.Computer.Image)
 
 		if node.Capabilities.HostExec && !hasContainerRuntime {
-			fmt.Println("[sandbox/v2] resolveComputerByID: -> host (host-only node)")
+			log.Trace("[sandbox/v2] resolveComputerByID: -> host (host-only node)")
 			cfg.Kind = "host"
 			host, err := manager.Host(context.Background(), computerID)
 			if err != nil {
@@ -215,18 +211,18 @@ func resolveComputerByDSL(
 	conn ...connector.Connector,
 ) (infra.Computer, string, error) {
 
-	fmt.Printf("[sandbox/v2] resolveComputerByDSL: cfgNodeID=%q image=%q\n", cfg.NodeID, cfg.Computer.Image)
+	log.Trace("[sandbox/v2] resolveComputerByDSL: cfgNodeID=%q image=%q", cfg.NodeID, cfg.Computer.Image)
 
 	if cfg.NodeID == "" {
 		pickedID, err := pickNodeByFilter(cfg.Filter, cfg.Computer.Image)
 		if err != nil {
 			return nil, identifier, fmt.Errorf("auto-select node: %w", err)
 		}
-		fmt.Printf("[sandbox/v2] resolveComputerByDSL: pickNodeByFilter -> %s\n", pickedID)
+		log.Trace("[sandbox/v2] resolveComputerByDSL: pickNodeByFilter -> %s", pickedID)
 		cfg.NodeID = pickedID
 	}
 
-	fmt.Printf("[sandbox/v2] resolveComputerByDSL: -> resolveComputerByID(%s)\n", cfg.NodeID)
+	log.Trace("[sandbox/v2] resolveComputerByDSL: -> resolveComputerByID(%s)", cfg.NodeID)
 	return resolveComputerByID(cfg, manager, cfg.NodeID, ownerID, identifier, workspaceID, conn...)
 }
 
@@ -240,6 +236,10 @@ func resolveBox(
 	if workspaceID == "" && cfg.NodeID != "" {
 		workspaceID = workspace.DefaultWorkspaceID(ownerID, cfg.NodeID)
 		cfg.WorkspaceID = workspaceID
+		if dot := strings.LastIndex(identifier, "."); dot >= 0 {
+			identifier = identifier[:dot+1] + workspaceID
+			cfg.ID = identifier
+		}
 	}
 
 	// Reuse: non-empty identifier → try Get first.
@@ -248,7 +248,7 @@ func resolveBox(
 		if err == nil && box != nil {
 			if box.IsStopped() {
 				if startErr := manager.StartBox(context.Background(), identifier); startErr != nil {
-					log.Printf("[sandbox/v2] auto-start stopped box %s failed: %v, creating new", identifier, startErr)
+					log.Trace("[sandbox/v2] auto-start stopped box %s failed: %v, creating new", identifier, startErr)
 				} else {
 					box.BindWorkplace(workspaceID)
 					return box, identifier, nil
@@ -269,7 +269,7 @@ func resolveBox(
 	if err != nil {
 		return nil, identifier, fmt.Errorf("build create options: %w", err)
 	}
-	fmt.Printf("[sandbox/v2] resolveBox: createOpts NodeID=%q Image=%q WorkspaceID=%q ID=%q Owner=%q\n", createOpts.NodeID, createOpts.Image, createOpts.WorkspaceID, createOpts.ID, createOpts.Owner)
+	log.Trace("[sandbox/v2] resolveBox: createOpts NodeID=%q Image=%q WorkspaceID=%q ID=%q Owner=%q", createOpts.NodeID, createOpts.Image, createOpts.WorkspaceID, createOpts.ID, createOpts.Owner)
 
 	// Oneshot with empty identifier: generate a random one.
 	if createOpts.ID == "" {
@@ -298,7 +298,7 @@ func LifecycleAction(ctx context.Context, cfg *types.SandboxConfig, computer inf
 	case "oneshot":
 		if info.Kind == "box" && manager != nil {
 			if err := manager.Remove(ctx, cfg.ID); err != nil {
-				log.Printf("[sandbox/v2] oneshot remove %s: %v", cfg.ID, err)
+				log.Trace("[sandbox/v2] oneshot remove %s: %v", cfg.ID, err)
 			}
 		}
 

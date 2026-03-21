@@ -183,6 +183,14 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 		sandboxCleanup = v2Cleanup
 		ctx.Logger.PhaseComplete("Sandbox V2")
+		if v2Computer != nil {
+			ci := v2Computer.ComputerInfo()
+			ctx.Logger.Trace("Node: %s (%s)", ci.NodeID, ci.Kind)
+			if ci.BoxID != "" {
+				ctx.Logger.Trace("Computer: %s", ci.BoxID)
+			}
+			ctx.Logger.Trace("Workspace: %s", ast.SandboxV2.WorkspaceID)
+		}
 	} else if ast.HasSandbox() {
 		ctx.Logger.Phase("Sandbox")
 		var err error
