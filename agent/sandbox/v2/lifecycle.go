@@ -1,18 +1,13 @@
 package sandboxv2
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	mathrand "math/rand"
-	"net/http"
 	"strings"
-	"time"
 
-	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
@@ -100,8 +95,8 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 }
 
 // GetComputer obtains or creates a Computer for the current request.
-// Connector config injection is handled via RegisterProxyConfigs after
-// the Computer is obtained.
+// Connector config is injected per-execution inside ClaudeRunner.Stream
+// via "tai a2o config put".
 // Returns the Computer, the resolved identifier, and any error.
 func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (infra.Computer, string, error) {
 	ownerID := resolveOwnerID(ctx)
@@ -386,128 +381,6 @@ func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error
 	}
 
 	return candidates[mathrand.Intn(len(candidates))], nil
-}
-
-const defaultA2OPort = 3099
-
-// a2oConnectorConfig mirrors the tai/a2o ConnectorConfig struct for JSON serialization.
-type a2oConnectorConfig struct {
-	Backend string                 `json:"backend"`
-	Model   string                 `json:"model"`
-	APIKey  string                 `json:"api_key"`
-	Options map[string]interface{} `json:"options,omitempty"`
-}
-
-// RegisterProxyConfigs injects all OpenAI-compatible connector configs into
-// the a2o proxy running inside the container via POST /config.
-// For host mode it uses Go's net/http directly; for box mode it uses computer.Exec.
-func RegisterProxyConfigs(ctx context.Context, computer infra.Computer) error {
-	configs := buildA2OConfigs()
-	if len(configs) == 0 {
-		log.Trace("[sandbox/v2] RegisterProxyConfigs: no OpenAI connectors to register")
-		return nil
-	}
-
-	data, err := json.Marshal(configs)
-	if err != nil {
-		return fmt.Errorf("marshal connector configs: %w", err)
-	}
-
-	info := computer.ComputerInfo()
-	a2oURL := fmt.Sprintf("http://127.0.0.1:%d", defaultA2OPort)
-
-	if info.Kind == "host" {
-		return registerProxyConfigsHTTP(a2oURL, data)
-	}
-	return registerProxyConfigsExec(ctx, computer, data)
-}
-
-func buildA2OConfigs() map[string]*a2oConnectorConfig {
-	configs := make(map[string]*a2oConnectorConfig)
-	for id, conn := range connector.Connectors {
-		if !conn.Is(connector.OPENAI) {
-			continue
-		}
-		settings := conn.Setting()
-		if settings == nil {
-			continue
-		}
-
-		cfg := &a2oConnectorConfig{}
-		if host, ok := settings["host"].(string); ok && host != "" {
-			cfg.Backend = connector.BuildAPIURL(host, "/chat/completions")
-		}
-		if model, ok := settings["model"].(string); ok && model != "" {
-			cfg.Model = model
-		}
-		if key, ok := settings["key"].(string); ok && key != "" {
-			cfg.APIKey = key
-		}
-
-		extra := make(map[string]interface{})
-		for k, v := range settings {
-			switch k {
-			case "host", "model", "key", "proxy", "type":
-				continue
-			default:
-				extra[k] = v
-			}
-		}
-		if len(extra) > 0 {
-			cfg.Options = extra
-		}
-
-		if cfg.Backend != "" {
-			configs[id] = cfg
-		}
-	}
-	return configs
-}
-
-func registerProxyConfigsHTTP(a2oURL string, data []byte) error {
-	client := &http.Client{Timeout: 10 * time.Second}
-	configURL := a2oURL + "/config"
-
-	for attempt := 0; attempt < 10; attempt++ {
-		resp, err := client.Get(a2oURL + "/health")
-		if err == nil {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				break
-			}
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-
-	resp, err := client.Post(configURL, "application/json", bytes.NewReader(data))
-	if err != nil {
-		return fmt.Errorf("POST %s: %w", configURL, err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("POST %s: status %d", configURL, resp.StatusCode)
-	}
-
-	log.Trace("[sandbox/v2] RegisterProxyConfigs(host): injected %d bytes", len(data))
-	return nil
-}
-
-func registerProxyConfigsExec(ctx context.Context, computer infra.Computer, data []byte) error {
-	escaped := strings.ReplaceAll(string(data), "'", "'\\''")
-	healthCmd := fmt.Sprintf("for i in $(seq 1 20); do wget -qO- http://127.0.0.1:%d/health >/dev/null 2>&1 && break; sleep 0.5; done", defaultA2OPort)
-	postCmd := fmt.Sprintf("echo '%s' | wget -qO- --post-data=@- --header='Content-Type: application/json' http://127.0.0.1:%d/config", escaped, defaultA2OPort)
-	script := healthCmd + " && " + postCmd
-
-	result, err := computer.Exec(ctx, []string{"sh", "-c", script})
-	if err != nil {
-		return fmt.Errorf("exec register proxy configs: %w", err)
-	}
-	if result.ExitCode != 0 {
-		return fmt.Errorf("register proxy configs: exit %d, stderr=%s", result.ExitCode, result.Stderr)
-	}
-
-	log.Trace("[sandbox/v2] RegisterProxyConfigs(box): injected %d bytes, stdout=%s", len(data), result.Stdout)
-	return nil
 }
 
 func randomID() string {

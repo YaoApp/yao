@@ -88,11 +88,6 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	}
 	_ = identifier
 
-	// 3.5. Inject connector configs into a2o proxy via HTTP API.
-	if regErr := sandboxv2.RegisterProxyConfigs(stdCtx, computer); regErr != nil {
-		log.Printf("[sandbox/v2] RegisterProxyConfigs: %v (non-fatal)", regErr)
-	}
-
 	// 4. Get Runner.
 	runner, err := sandboxv2.Get(cfg.Runner.Name)
 	if err != nil {

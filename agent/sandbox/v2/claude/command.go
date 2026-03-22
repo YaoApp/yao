@@ -100,6 +100,14 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 			connectorID := req.Connector.ID()
 			env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/c/%s", defaultA2OPort, connectorID)
 			env["ANTHROPIC_API_KEY"] = "dummy"
+			// Use a valid Anthropic model name to pass Claude CLI's local
+			// validation. The a2o proxy ignores this and substitutes the
+			// real backend model from its connector config.
+			env["ANTHROPIC_MODEL"] = "claude-sonnet-4-6"
+			env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "claude-sonnet-4-6"
+			env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "claude-sonnet-4-6"
+			env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "claude-sonnet-4-6"
+			env["CLAUDE_CODE_SUBAGENT_MODEL"] = "claude-sonnet-4-6"
 		}
 
 		if thinking, ok := setting["thinking"].(map[string]interface{}); ok {

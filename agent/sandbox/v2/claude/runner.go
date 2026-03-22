@@ -2,9 +2,13 @@ package claude
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
@@ -82,6 +86,11 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 
 	p := resolvePlatform(computer)
 
+	// Inject connector config into a2o proxy (best-effort, errors ignored).
+	if req.Connector != nil && req.Connector.Is(connector.OPENAI) {
+		injectA2OConfig(ctx, computer, req.Connector)
+	}
+
 	if req.ChatID != "" {
 		if ws := computer.Workplace(); ws != nil {
 			processed, err := prepareAttachments(ctx, req.Messages, req.ChatID, ws)
@@ -129,4 +138,91 @@ func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) err
 	}
 
 	return nil
+}
+
+type a2oConnectorConfig struct {
+	Backend string                 `json:"backend"`
+	Model   string                 `json:"model"`
+	APIKey  string                 `json:"api_key"`
+	Options map[string]interface{} `json:"options,omitempty"`
+}
+
+func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
+	settings := conn.Setting()
+	if settings == nil {
+		return nil
+	}
+
+	cfg := &a2oConnectorConfig{}
+
+	if host, ok := settings["host"].(string); ok && host != "" {
+		cfg.Backend = connector.BuildAPIURL(host, "/chat/completions")
+	} else if proxy, ok := settings["proxy"].(string); ok && proxy != "" {
+		cfg.Backend = connector.BuildAPIURL(proxy, "/chat/completions")
+	}
+	if model, ok := settings["model"].(string); ok && model != "" {
+		cfg.Model = model
+	}
+	if key, ok := settings["key"].(string); ok && key != "" {
+		cfg.APIKey = key
+	}
+
+	extra := make(map[string]interface{})
+	for k, v := range settings {
+		switch k {
+		case "host", "model", "key", "proxy", "type":
+			continue
+		default:
+			extra[k] = v
+		}
+	}
+	if len(extra) > 0 {
+		cfg.Options = extra
+	}
+
+	if cfg.Backend == "" {
+		return nil
+	}
+	return cfg
+}
+
+// injectA2OConfig pushes the connector config to the a2o proxy.
+// For box (Linux container): uses sh pipe since Docker exec stdin may not work.
+// For host: uses WithStdin which works reliably on all platforms.
+// Best-effort: errors are logged and ignored.
+func injectA2OConfig(ctx context.Context, computer infra.Computer, conn connector.Connector) {
+	cfg := buildSingleA2OConfig(conn)
+	if cfg == nil {
+		log.Trace("[claude] injectA2OConfig: no valid config for connector %s", conn.ID())
+		return
+	}
+
+	data, err := json.Marshal(cfg)
+	if err != nil {
+		log.Trace("[claude] injectA2OConfig: marshal error: %v", err)
+		return
+	}
+
+	connID := conn.ID()
+	var result *infra.ExecResult
+
+	info := computer.ComputerInfo()
+	if info.Kind == "host" {
+		result, err = computer.Exec(ctx, []string{"tai", "a2o", "config", "put", connID}, infra.WithStdin(data))
+	} else {
+		escaped := strings.ReplaceAll(string(data), "'", "'\\''")
+		script := fmt.Sprintf("echo '%s' | tai a2o config put %s", escaped, connID)
+		result, err = computer.Exec(ctx, []string{"sh", "-c", script})
+	}
+
+	if err != nil {
+		log.Trace("[claude] injectA2OConfig: exec error (ignored): %v", err)
+		return
+	}
+	if result.ExitCode != 0 {
+		log.Trace("[claude] injectA2OConfig: exit %d stderr=%s (ignored)", result.ExitCode, result.Stderr)
+		return
+	}
+
+	log.Trace("[claude] injectA2OConfig: connector=%s injected ok", connID)
 }
