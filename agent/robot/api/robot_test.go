@@ -36,8 +36,8 @@ func TestGetRobotValidation(t *testing.T) {
 	})
 }
 
-// TestListRobotsValidation tests parameter validation for ListRobots
-func TestListRobotsValidation(t *testing.T) {
+// TestListAllRobotsValidation tests parameter validation for ListAllRobots
+func TestListAllRobotsValidation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -48,7 +48,7 @@ func TestListRobotsValidation(t *testing.T) {
 	ctx := types.NewContext(context.Background(), nil)
 
 	t.Run("applies default pagination when query is nil", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, nil)
+		result, err := api.ListAllRobots(ctx, nil)
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.Equal(t, 1, result.Page)
@@ -56,7 +56,7 @@ func TestListRobotsValidation(t *testing.T) {
 	})
 
 	t.Run("applies default pagination when values are zero", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			Page:     0,
 			PageSize: 0,
 		})
@@ -67,7 +67,7 @@ func TestListRobotsValidation(t *testing.T) {
 	})
 
 	t.Run("caps pagesize at 100", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			Page:     1,
 			PageSize: 500,
 		})

@@ -227,8 +227,8 @@ func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 	}
 	m.mu.RUnlock()
 
-	// Get all cached robots
-	robots := m.cache.ListAll()
+	// Get autonomous robots for clock trigger check
+	robots := m.cache.ListAutonomous()
 
 	for _, robot := range robots {
 		// Skip if robot is not active
@@ -747,8 +747,8 @@ func (m *Manager) scheduleCleanup(robot *types.Robot) {
 
 				// Check if all executions are done
 				if r.RunningCount() == 0 {
-					// Only remove if still non-autonomous
-					// (user might have changed it during execution)
+					// Non-autonomous robots: with full-cache load they will be
+					// re-added on next Load() cycle, so removal is a no-op in practice.
 					if !r.AutonomousMode {
 						m.cache.Remove(memberID)
 					}

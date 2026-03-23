@@ -58,7 +58,7 @@ func processList(p *process.Process) interface{} {
 			filter.TeamID = toString(v)
 		}
 	}
-	result, err := api.ListRobots(ctx, filter)
+	result, err := api.ListAllRobots(ctx, filter)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}

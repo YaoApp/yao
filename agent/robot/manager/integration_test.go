@@ -126,7 +126,7 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		assert.Nil(t, robot, "Inactive robot should not be loaded")
 	})
 
-	t.Run("robot with autonomous_mode=false not loaded", func(t *testing.T) {
+	t.Run("robot with autonomous_mode=false is loaded after full cache", func(t *testing.T) {
 		// Setup: Create a robot with autonomous_mode=false
 		setupIntegrationRobotNonAutonomous(t, "robot_integ_flow_nonauto", "team_integ_flow")
 
@@ -135,9 +135,12 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
-		// Non-autonomous robot should not be in cache
+		// After full-cache load, non-autonomous active robots should also be in cache
 		robot := m.Cache().Get("robot_integ_flow_nonauto")
-		assert.Nil(t, robot, "Non-autonomous robot should not be loaded")
+		assert.NotNil(t, robot, "Non-autonomous active robot should be loaded in cache after full load")
+		if robot != nil {
+			assert.False(t, robot.AutonomousMode)
+		}
 	})
 }
 

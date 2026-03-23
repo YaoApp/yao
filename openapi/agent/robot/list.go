@@ -13,9 +13,9 @@ import (
 	"github.com/yaoapp/yao/openapi/response"
 )
 
-// ListRobots lists robots with pagination and filtering
+// ListAllRobots lists robots with pagination and filtering
 // GET /v1/agent/robots
-func ListRobots(c *gin.Context) {
+func ListAllRobots(c *gin.Context) {
 	// Get authorized information
 	authInfo := authorized.GetInfo(c)
 
@@ -70,7 +70,7 @@ func ListRobots(c *gin.Context) {
 	ctx := &robottypes.Context{}
 
 	// Call API layer
-	result, err := robotapi.ListRobots(ctx, query)
+	result, err := robotapi.ListAllRobots(ctx, query)
 	if err != nil {
 		log.Error("Failed to list robots: %v", err)
 		errorResp := &response.ErrorResponse{

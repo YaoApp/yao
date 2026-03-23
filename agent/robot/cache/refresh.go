@@ -32,18 +32,12 @@ var refresher = &refreshState{}
 func (c *Cache) Refresh(ctx *types.Context, memberID string) error {
 	robot, err := c.LoadByID(ctx, memberID)
 	if err != nil {
-		// If robot not found or no longer autonomous, remove from cache
+		// If robot not found, remove from cache
 		if err == types.ErrRobotNotFound {
 			c.Remove(memberID)
 			return nil
 		}
 		return err
-	}
-
-	// Check if robot is still active and autonomous
-	if !robot.AutonomousMode {
-		c.Remove(memberID)
-		return nil
 	}
 
 	// Update cache
@@ -113,6 +107,20 @@ func (c *Cache) ListAll() []*types.Robot {
 	robots := make([]*types.Robot, 0, len(c.robots))
 	for _, robot := range c.robots {
 		robots = append(robots, robot)
+	}
+	return robots
+}
+
+// ListAutonomous returns all cached robots with AutonomousMode=true.
+func (c *Cache) ListAutonomous() []*types.Robot {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	robots := make([]*types.Robot, 0, len(c.robots)/2)
+	for _, r := range c.robots {
+		if r.AutonomousMode {
+			robots = append(robots, r)
+		}
 	}
 	return robots
 }

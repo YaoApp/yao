@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -54,8 +55,9 @@ func GetRobot(ctx *types.Context, memberID string) (*types.Robot, error) {
 	return robot, nil
 }
 
-// ListRobots returns robots with pagination and filtering
-func ListRobots(ctx *types.Context, query *ListQuery) (*ListResult, error) {
+// ListAllRobots returns robots with pagination and filtering.
+// Cache-first with in-memory filtering and pagination; falls back to DB when Manager is not started.
+func ListAllRobots(ctx *types.Context, query *ListQuery) (*ListResult, error) {
 	if query == nil {
 		query = &ListQuery{}
 	}
@@ -63,21 +65,49 @@ func ListRobots(ctx *types.Context, query *ListQuery) (*ListResult, error) {
 
 	mgr, err := getManager()
 	if err != nil {
-		// Manager not started, load directly from database
-		return listRobotsFromDB(query)
+		return ListRobotsFromDB(query)
 	}
 
-	// If only teamID specified AND explicitly filtering for autonomous_mode=true, use cache
-	// Cache only contains autonomous_mode=true robots
-	// When autonomous_mode is not specified or false, must query database to include all robots
-	if query.TeamID != "" && query.Status == "" && query.Keywords == "" && query.ClockMode == "" &&
-		query.AutonomousMode != nil && *query.AutonomousMode == true {
-		robots := mgr.Cache().List(query.TeamID)
-		return paginateRobots(robots, query), nil
+	var all []*types.Robot
+	if query.TeamID != "" {
+		all = mgr.Cache().List(query.TeamID)
+	} else {
+		all = mgr.Cache().ListAll()
 	}
 
-	// For complex queries, load from database
-	return listRobotsFromDB(query)
+	filtered := make([]*types.Robot, 0, len(all))
+	for _, r := range all {
+		if matchQuery(r, query) {
+			filtered = append(filtered, r)
+		}
+	}
+
+	return paginateRobots(filtered, query), nil
+}
+
+// matchQuery checks whether a robot matches the given query filters.
+// TeamID filtering is handled upstream (cache.List / cache.ListAll).
+func matchQuery(r *types.Robot, q *ListQuery) bool {
+	if q.Status != "" && r.Status != q.Status {
+		return false
+	}
+	if q.AutonomousMode != nil && r.AutonomousMode != *q.AutonomousMode {
+		return false
+	}
+	if q.ClockMode != "" {
+		if r.Config == nil || r.Config.Clock == nil || r.Config.Clock.Mode != q.ClockMode {
+			return false
+		}
+	}
+	if q.Keywords != "" {
+		kw := strings.ToLower(q.Keywords)
+		if !strings.Contains(strings.ToLower(r.DisplayName), kw) &&
+			!strings.Contains(strings.ToLower(r.Bio), kw) &&
+			!strings.Contains(strings.ToLower(r.MemberID), kw) {
+			return false
+		}
+	}
+	return true
 }
 
 // GetRobotStatus returns the runtime status of a robot
@@ -188,8 +218,14 @@ func loadRobotFromDB(memberID string) (*types.Robot, error) {
 	return types.NewRobotFromMap(map[string]interface{}(records[0]))
 }
 
-// listRobotsFromDB loads robots from database with filtering
-func listRobotsFromDB(query *ListQuery) (*ListResult, error) {
+// ListRobotsFromDB loads robots from database with filtering.
+// Exported as a fallback for callers that explicitly need DB queries.
+func ListRobotsFromDB(query *ListQuery) (*ListResult, error) {
+	if query == nil {
+		query = &ListQuery{}
+	}
+	query.applyDefaults()
+
 	m := model.Select(memberModel)
 	if m == nil {
 		return nil, fmt.Errorf("model %s not found", memberModel)
@@ -306,6 +342,26 @@ func paginateRobots(robots []*types.Robot, query *ListQuery) *ListResult {
 	}
 }
 
+// ListAutonomousRobots returns autonomous robots from cache.
+// When teamID is empty, returns all autonomous robots across all teams.
+func ListAutonomousRobots(teamID string) []*types.Robot {
+	mgr, err := getManager()
+	if err != nil {
+		return nil
+	}
+	if teamID == "" {
+		return mgr.Cache().ListAutonomous()
+	}
+	all := mgr.Cache().List(teamID)
+	robots := make([]*types.Robot, 0, len(all))
+	for _, r := range all {
+		if r.AutonomousMode {
+			robots = append(robots, r)
+		}
+	}
+	return robots
+}
+
 // ==================== Robot CRUD API ====================
 // These functions create, update, and delete robots
 // They call store layer for persistence and manage cache
@@ -414,9 +470,6 @@ func CreateRobot(ctx *types.Context, req *CreateRobotRequest) (*RobotResponse, e
 	}
 
 	// Refresh cache if manager is running
-	// Use Refresh() which handles autonomous_mode correctly:
-	// - If autonomous_mode=true: adds to cache for scheduling
-	// - If autonomous_mode=false: does not add to cache
 	mgr, err := getManager()
 	if err == nil && mgr != nil {
 		_ = mgr.Cache().Refresh(ctx, req.MemberID)
@@ -532,12 +585,9 @@ func UpdateRobot(ctx *types.Context, memberID string, req *UpdateRobotRequest) (
 	}
 
 	// Refresh cache if manager is running
-	// Use Refresh() which handles autonomous_mode correctly:
-	// - If autonomous_mode=true: adds to cache for scheduling
-	// - If autonomous_mode=false: removes from cache
 	mgr, err := getManager()
 	if err == nil && mgr != nil {
-		_ = mgr.Cache().Refresh(ctx, memberID) // Ignore error, database is already saved
+		_ = mgr.Cache().Refresh(ctx, memberID)
 	}
 
 	// Notify integrations of updated robot config

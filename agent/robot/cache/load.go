@@ -39,7 +39,7 @@ func SetMemberModel(model string) {
 }
 
 // Load loads all active robots from database with pagination
-// Query: member_type='robot' AND autonomous_mode=true AND status='active'
+// Query: member_type='robot' AND status='active'
 func (c *Cache) Load(ctx *types.Context) error {
 	m := model.Select(memberModel)
 
@@ -60,7 +60,6 @@ func (c *Cache) Load(ctx *types.Context) error {
 			Select: memberFields,
 			Wheres: []model.QueryWhere{
 				{Column: "member_type", Value: "robot"},
-				{Column: "autonomous_mode", Value: true},
 				{Column: "status", Value: "active"},
 			},
 		}, page, pageSize)
