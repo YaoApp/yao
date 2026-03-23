@@ -11,6 +11,8 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent/robot/api"
 	"github.com/yaoapp/yao/agent/robot/manager"
+	"github.com/yaoapp/yao/agent/robot/store"
+	"github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/monitor"
 
@@ -213,27 +215,32 @@ func findWatcher(t *testing.T, name string) monitor.Watcher {
 
 func insertWatcherExec(t *testing.T, execID, memberID, teamID, status string, startTime *time.Time, updatedAt *time.Time) {
 	t.Helper()
-	mod := model.Select("__yao.agent.execution")
-	tableName := mod.MetaData.Table.Name
-	qb := capsule.Query()
+	ctx := context.Background()
+	execStore := store.NewExecutionStore()
 
-	data := map[string]interface{}{
-		"execution_id": execID,
-		"member_id":    memberID,
-		"team_id":      teamID,
-		"trigger_type": "clock",
-		"status":       status,
-		"phase":        "run",
-	}
-	if startTime != nil {
-		data["start_time"] = *startTime
-	}
-	if updatedAt != nil {
-		data["updated_at"] = *updatedAt
+	record := &store.ExecutionRecord{
+		ExecutionID: execID,
+		MemberID:    memberID,
+		TeamID:      teamID,
+		TriggerType: types.TriggerClock,
+		Status:      types.ExecStatus(status),
+		Phase:       types.PhaseRun,
+		StartTime:   startTime,
 	}
 
-	err := qb.Table(tableName).Insert([]map[string]interface{}{data})
+	err := execStore.Save(ctx, record)
 	require.NoError(t, err, "insert execution %s", execID)
+
+	if updatedAt != nil {
+		mod := model.Select("__yao.agent.execution")
+		require.NotNil(t, mod)
+		tableName := mod.MetaData.Table.Name
+		qb := capsule.Query()
+		_, err := qb.Table(tableName).
+			Where("execution_id", execID).
+			Update(map[string]interface{}{"updated_at": updatedAt.Format("2006-01-02 15:04:05")})
+		require.NoError(t, err, "update updated_at for %s", execID)
+	}
 }
 
 func insertWatcherRobot(t *testing.T, memberID, teamID string) {

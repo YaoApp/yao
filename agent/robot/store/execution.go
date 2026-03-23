@@ -920,15 +920,15 @@ func (s *ExecutionStore) parseTime(v interface{}) *time.Time {
 	case *time.Time:
 		return t
 	case string:
-		// Try parsing common time formats
-		formats := []string{
-			time.RFC3339,
-			time.RFC3339Nano,
-			"2006-01-02 15:04:05",
-			"2006-01-02T15:04:05Z",
-		}
-		for _, format := range formats {
+		// Formats that include timezone info — use time.Parse (respects embedded tz)
+		for _, format := range []string{time.RFC3339, time.RFC3339Nano} {
 			if parsed, err := time.Parse(format, t); err == nil {
+				return &parsed
+			}
+		}
+		// Formats without timezone — treat as local time
+		for _, format := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
+			if parsed, err := time.ParseInLocation(format, t, time.Local); err == nil {
 				return &parsed
 			}
 		}
