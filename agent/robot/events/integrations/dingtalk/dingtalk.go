@@ -26,10 +26,11 @@ type Adapter struct {
 
 // botEntry holds the state for one robot's DingTalk integration.
 type botEntry struct {
-	robotID  string
-	clientID string
-	bot      *dtapi.Bot
-	cancelFn context.CancelFunc
+	robotID      string
+	clientID     string
+	clientSecret string
+	bot          *dtapi.Bot
+	cancelFn     context.CancelFunc
 }
 
 // NewAdapter creates a new DingTalk adapter.
@@ -58,7 +59,8 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 	defer a.mu.Unlock()
 
 	if existing, ok := a.bots[robot.MemberID]; ok {
-		if existing.clientID == dtConf.ClientID {
+		if existing.clientID == dtConf.ClientID &&
+			existing.clientSecret == dtConf.ClientSecret {
 			return
 		}
 		a.removeBotLocked(robot.MemberID)
@@ -68,10 +70,11 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	entry := &botEntry{
-		robotID:  robot.MemberID,
-		clientID: dtConf.ClientID,
-		bot:      bot,
-		cancelFn: streamCancel,
+		robotID:      robot.MemberID,
+		clientID:     dtConf.ClientID,
+		clientSecret: dtConf.ClientSecret,
+		bot:          bot,
+		cancelFn:     streamCancel,
 	}
 	a.bots[robot.MemberID] = entry
 	a.appIdx[dtConf.ClientID] = robot.MemberID

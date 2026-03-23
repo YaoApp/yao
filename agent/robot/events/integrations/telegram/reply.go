@@ -41,6 +41,10 @@ func (a *Adapter) Reply(ctx context.Context, msg *agentcontext.Message, metadata
 		return fmt.Errorf("no bot registered for channel metadata (appID=%s)", metadata.AppID)
 	}
 
+	if err := entry.bot.SendTyping(ctx, chatID); err != nil {
+		log.Debug("telegram reply: send typing failed: %v", err)
+	}
+
 	return a.sendContent(ctx, entry.bot, chatID, replyTo, msg.Content)
 }
 

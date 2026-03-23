@@ -25,6 +25,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Integration credential verification (must be before /:id to avoid conflict)
 	group.POST("/integrations/verify", VerifyIntegration) // POST /robots/integrations/verify - Verify integration credentials
 
+	// WeChat iLink Bot QR code login
+	group.POST("/integrations/weixin/qrcode", CreateWeixinQRCode)           // POST /robots/integrations/weixin/qrcode - Create QR session
+	group.GET("/integrations/weixin/qrcode/:session_key", PollWeixinQRCode) // GET  /robots/integrations/weixin/qrcode/:session_key - Poll QR status
+
 	group.GET("/:id", GetRobot)       // GET /robots/:id - Get robot details
 	group.PUT("/:id", UpdateRobot)    // PUT /robots/:id - Update robot
 	group.DELETE("/:id", DeleteRobot) // DELETE /robots/:id - Delete robot

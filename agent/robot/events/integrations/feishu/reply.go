@@ -30,6 +30,10 @@ func (a *Adapter) Reply(ctx context.Context, msg *agentcontext.Message, metadata
 		}
 	}
 
+	if err := entry.bot.SendTyping(ctx, metadata.ChatID); err != nil {
+		log.Debug("feishu reply: send typing failed: %v", err)
+	}
+
 	return a.sendContent(ctx, entry, metadata.ChatID, replyToMsgID, msg.Content)
 }
 

@@ -67,6 +67,8 @@ func (a *Adapter) handleMessages(ctx context.Context, entry *botEntry, cms []*tg
 			Locale:     events.NormalizeLocale(lastCM.LanguageCode),
 			Extra: map[string]any{
 				"tg_message_id": lastCM.MessageID,
+				"sender_id":     strconv.FormatInt(lastCM.SenderID, 10),
+				"app_id":        entry.appID,
 			},
 		},
 	}

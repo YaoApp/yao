@@ -62,6 +62,8 @@ func (a *Adapter) handleMessages(ctx context.Context, entry *botEntry, cms []*dt
 				"session_webhook":   lastCM.SessionWebhook,
 				"conversation_type": lastCM.ConversationType,
 				"dt_message_id":     lastCM.MessageID,
+				"sender_id":         lastCM.SenderID,
+				"app_id":            entry.clientID,
 			},
 		},
 	}
