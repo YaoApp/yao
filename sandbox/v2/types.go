@@ -110,6 +110,7 @@ type CreateOptions struct {
 	MountMode   string
 	MountPath   string
 	DisplayName string
+	Locale      string
 }
 
 type ListOptions struct {

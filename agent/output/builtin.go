@@ -66,6 +66,27 @@ func NewToolCallMessage(id, name, arguments string) *message.Message {
 	}
 }
 
+// NewExecuteMessage creates an execute observation message for sandbox CLI agent actions.
+//
+// tool: the tool name (e.g., "Bash", "Read", "Write")
+// toolID: the agent-side tool call ID
+// input: the tool input (structured, may be nil for status-only updates)
+// status: "running" | "completed" | "error"
+func NewExecuteMessage(tool, toolID string, input interface{}, status string) *message.Message {
+	props := map[string]interface{}{
+		"tool":    tool,
+		"tool_id": toolID,
+		"status":  status,
+	}
+	if input != nil {
+		props["input"] = input
+	}
+	return &message.Message{
+		Type:  message.TypeExecute,
+		Props: props,
+	}
+}
+
 // NewErrorMessage creates an error message
 func NewErrorMessage(msg, code string) *message.Message {
 	return &message.Message{
@@ -135,7 +156,7 @@ func NewVideoMessage(url string) *message.Message {
 // IsBuiltinType checks if a message type is a built-in type
 func IsBuiltinType(msgType string) bool {
 	switch msgType {
-	case message.TypeUserInput, message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
+	case message.TypeUserInput, message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeExecute, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
 		return true
 	default:
 		return false

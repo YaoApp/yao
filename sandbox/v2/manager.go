@@ -6,6 +6,7 @@ import (
 	"log"
 	goruntime "runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,15 +124,20 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 				if targetNode == "" {
 					return nil, fmt.Errorf("sandbox: resolve workspace %q: no available node", opts.WorkspaceID)
 				}
+				wsID := opts.WorkspaceID
+				if wsID == opts.Owner {
+					wsID = workspace.DefaultWorkspaceID(opts.Owner, targetNode)
+				}
 				_, err = wsm.Create(ctx, workspace.CreateOptions{
-					ID:    opts.WorkspaceID,
-					Name:  opts.WorkspaceID,
+					ID:    wsID,
+					Name:  defaultWorkspaceName(opts.Locale),
 					Owner: opts.Owner,
 					Node:  targetNode,
 				})
 				if err != nil {
-					return nil, fmt.Errorf("sandbox: auto-create workspace %q: %w", opts.WorkspaceID, err)
+					return nil, fmt.Errorf("sandbox: auto-create workspace %q: %w", wsID, err)
 				}
+				opts.WorkspaceID = wsID
 				nodeID = targetNode
 			} else {
 				nodeID = node
@@ -480,6 +486,13 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 		box.lastCall.Store(time.Now().UnixMilli())
 		m.boxes.Store(sandboxID, box)
 	}
+}
+
+func defaultWorkspaceName(locale string) string {
+	if strings.HasPrefix(strings.ToLower(locale), "zh") {
+		return "默认工作区"
+	}
+	return "Default Workspace"
 }
 
 // inferSystemInfo derives static SystemInfo for a container from image metadata

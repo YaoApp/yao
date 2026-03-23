@@ -4,30 +4,57 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 	"time"
 
-	goujson "github.com/yaoapp/gou/json"
-	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
-// errStreamCompleted is a sentinel indicating the parser received the terminal
-// "result" message. It is NOT a real error — callers should treat it as
-// successful completion of the stream.
-var errStreamCompleted = errors.New("claude stream completed")
+// streamParser is an explicit state machine for Claude CLI stream-json output.
+//
+// Each tool call gets its own message lifecycle:
+//
+//	content_block_start  -> message_start(id=exec-N-xxx)  + ChunkExecute{tool, status:running}
+//	input_json_delta     -> ChunkExecute{input_delta:...}  (same message group)
+//	content_block_stop   -> message_end(exec-N-xxx)
+//	...later...
+//	user/tool_result     -> message_start(id=exec-N-xxx, reuse!) + ChunkExecute{status:completed, output:...} + message_end
+type streamParser struct {
+	handler   message.StreamFunc
+	completed bool
 
-// parseStreamJSON reads stream-json lines from Claude CLI stdout and
-// pushes them through handler as standard StreamChunkType events.
-func parseStreamJSON(ctx context.Context, stdout io.ReadCloser, handler message.StreamFunc) error {
-	// When the context is cancelled (upstream timeout / interrupt), close
-	// stdout so that scanner.Scan() unblocks immediately. Without this,
-	// a failed TerminateProcess (Access is denied) would leave us stuck
-	// forever on the read.
+	textActive bool
+	toolIndex  int
+	curTool    *toolState
+
+	toolNames     map[string]string // tool_id -> tool_name
+	toolMsgIDs    map[string]string // tool_id -> message_id (for result reuse)
+	toolInputs    map[string]string // tool_id -> full input JSON (for result replay)
+	toolSummaries map[string]string // tool_id -> summary (for result replay)
+}
+
+type toolState struct {
+	id        string
+	name      string
+	msgID     string
+	index     int
+	inputJSON strings.Builder
+}
+
+func newStreamParser(handler message.StreamFunc) *streamParser {
+	return &streamParser{
+		handler:       handler,
+		toolNames:     make(map[string]string),
+		toolMsgIDs:    make(map[string]string),
+		toolInputs:    make(map[string]string),
+		toolSummaries: make(map[string]string),
+	}
+}
+
+func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 	doneParsing := make(chan struct{})
 	defer close(doneParsing)
 	go func() {
@@ -39,20 +66,7 @@ func parseStreamJSON(ctx context.Context, stdout io.ReadCloser, handler message.
 	}()
 
 	scanner := bufio.NewScanner(stdout)
-	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024)
-
-	messageStarted := false
-	toolBlockActive := false
-	toolIndex := 0
-
-	type toolState struct {
-		id        string
-		name      string
-		index     int
-		inputJSON strings.Builder
-	}
-	var currentTool *toolState
+	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -62,280 +76,39 @@ func parseStreamJSON(ctx context.Context, stdout io.ReadCloser, handler message.
 
 		var msg map[string]any
 		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+			if len(line) > 200 {
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line len=%d, prefix=%q)", err, len(line), line[:200])
+			} else {
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line=%q)", err, line)
+			}
 			continue
 		}
 
 		msgType, _ := msg["type"].(string)
-		stopped := false
+		var stopped bool
 
 		switch msgType {
 		case "system":
-			if handler != nil {
-				data, _ := json.Marshal(msg)
-				if handler(message.ChunkMetadata, data) != 0 {
-					stopped = true
-				}
-			}
-
+			stopped = p.handleSystem(msg)
 		case "stream_event":
-			event, _ := msg["event"].(map[string]any)
-			if event == nil {
-				continue
-			}
-			eventType, _ := event["type"].(string)
-
-			switch eventType {
-			case "content_block_start":
-				if cb, ok := event["content_block"].(map[string]any); ok {
-					blockType, _ := cb["type"].(string)
-					if blockType == "tool_use" {
-						toolName, _ := cb["name"].(string)
-						toolID, _ := cb["id"].(string)
-						if toolID == "" {
-							toolID = fmt.Sprintf("tool_%d_%d", toolIndex, time.Now().UnixNano())
-						}
-						currentTool = &toolState{id: toolID, name: toolName, index: toolIndex}
-						toolIndex++
-
-						if handler != nil {
-							if messageStarted {
-								handler(message.ChunkMessageEnd, nil)
-								messageStarted = false
-							}
-							if !toolBlockActive {
-								startData := message.EventMessageStartData{
-									MessageID: fmt.Sprintf("sandbox-tool-%d", time.Now().UnixNano()),
-									Type:      "tool_call",
-									Timestamp: time.Now().UnixMilli(),
-								}
-								sd, _ := json.Marshal(startData)
-								if handler(message.ChunkMessageStart, sd) != 0 {
-									stopped = true
-									break
-								}
-								toolBlockActive = true
-							}
-							tcData, _ := json.Marshal([]map[string]any{{
-								"index": currentTool.index,
-								"id":    currentTool.id,
-								"type":  "function",
-								"function": map[string]any{
-									"name":      toolName,
-									"arguments": "",
-								},
-							}})
-							if handler(message.ChunkToolCall, tcData) != 0 {
-								stopped = true
-							}
-						}
-					}
-				}
-
-			case "content_block_delta":
-				if delta, ok := event["delta"].(map[string]any); ok {
-					deltaType, _ := delta["type"].(string)
-					switch deltaType {
-					case "text_delta":
-						if text, ok := delta["text"].(string); ok && text != "" {
-							text = strings.ReplaceAll(text, "\r\n", "\n")
-							text = strings.ReplaceAll(text, "\r", "\n")
-							if handler != nil {
-								if toolBlockActive {
-									handler(message.ChunkMessageEnd, nil)
-									toolBlockActive = false
-									messageStarted = false
-								}
-								if !messageStarted {
-									startData := message.EventMessageStartData{
-										MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
-										Type:      "text",
-										Timestamp: time.Now().UnixMilli(),
-									}
-									sd, _ := json.Marshal(startData)
-									if handler(message.ChunkMessageStart, sd) != 0 {
-										stopped = true
-										break
-									}
-									messageStarted = true
-								}
-								if handler(message.ChunkText, []byte(text)) != 0 {
-									stopped = true
-								}
-							}
-						}
-					case "input_json_delta":
-						if currentTool != nil {
-							if partial, ok := delta["partial_json"].(string); ok {
-								currentTool.inputJSON.WriteString(partial)
-								if handler != nil {
-									tcData, _ := json.Marshal([]map[string]any{{
-										"index": currentTool.index,
-										"function": map[string]any{
-											"arguments": partial,
-										},
-									}})
-									if handler(message.ChunkToolCall, tcData) != 0 {
-										stopped = true
-									}
-								}
-							}
-						}
-					}
-				}
-
-			case "content_block_stop":
-				currentTool = nil
-			}
-
+			stopped = p.handleStreamEvent(msg)
 		case "assistant":
-			if msgData, ok := msg["message"].(map[string]any); ok {
-				stopReason, _ := msgData["stop_reason"].(string)
-				if stopReason != "" {
-					if contentArr, ok := msgData["content"].([]any); ok {
-						for _, item := range contentArr {
-							ci, ok := item.(map[string]any)
-							if !ok {
-								continue
-							}
-							itemType, _ := ci["type"].(string)
-
-							if itemType == "tool_use" && handler != nil {
-								toolName, _ := ci["name"].(string)
-								toolID, _ := ci["id"].(string)
-								if toolID == "" {
-									toolID = fmt.Sprintf("tool_%d_%d", toolIndex, time.Now().UnixNano())
-								}
-								inputRaw, _ := json.Marshal(ci["input"])
-								idx := toolIndex
-								toolIndex++
-
-								if !toolBlockActive {
-									startData := message.EventMessageStartData{
-										MessageID: fmt.Sprintf("sandbox-tool-%d", time.Now().UnixNano()),
-										Type:      "tool_call",
-										Timestamp: time.Now().UnixMilli(),
-									}
-									sd, _ := json.Marshal(startData)
-									if handler(message.ChunkMessageStart, sd) != 0 {
-										stopped = true
-										break
-									}
-									toolBlockActive = true
-								}
-								tcData, _ := json.Marshal([]map[string]any{{
-									"index": idx,
-									"id":    toolID,
-									"type":  "function",
-									"function": map[string]any{
-										"name":      toolName,
-										"arguments": string(inputRaw),
-									},
-								}})
-								if handler(message.ChunkToolCall, tcData) != 0 {
-									stopped = true
-									break
-								}
-							}
-
-							if itemType == "text" {
-								if text, ok := ci["text"].(string); ok && text != "" && handler != nil && !messageStarted {
-									text = strings.ReplaceAll(text, "\r\n", "\n")
-									text = strings.ReplaceAll(text, "\r", "\n")
-									if toolBlockActive {
-										handler(message.ChunkMessageEnd, nil)
-										toolBlockActive = false
-									}
-									startData := message.EventMessageStartData{
-										MessageID: fmt.Sprintf("sandbox-%d", time.Now().UnixNano()),
-										Type:      "text",
-										Timestamp: time.Now().UnixMilli(),
-									}
-									sd, _ := json.Marshal(startData)
-									if handler(message.ChunkMessageStart, sd) != 0 {
-										stopped = true
-										break
-									}
-									if handler(message.ChunkText, []byte(text)) != 0 {
-										stopped = true
-										break
-									}
-									messageStarted = true
-								}
-							}
-						}
-					}
-
-					// Close any open message from the streaming phase.
-					// stream_event text_deltas set messageStarted=true but
-					// nothing resets it when the turn ends — the assistant
-					// message marks the turn boundary, so we must close
-					// the message here to keep state in sync with the
-					// stream handler (which already sent message_end).
-					if handler != nil {
-						if toolBlockActive {
-							handler(message.ChunkMessageEnd, nil)
-							toolBlockActive = false
-						}
-						if messageStarted {
-							handler(message.ChunkMessageEnd, nil)
-							messageStarted = false
-						}
-					}
-				}
-			}
-
+			stopped = p.handleAssistant(msg)
+		case "user":
+			stopped = p.handleUser(msg)
 		case "result":
-			isError, _ := msg["is_error"].(bool)
-			if isError {
-				if result, ok := msg["result"].(string); ok {
-					if handler != nil {
-						handler(message.ChunkError, []byte(result))
-					}
-					return fmt.Errorf("Claude CLI error: %s", result)
-				}
-			}
-			if handler != nil {
-				if toolBlockActive {
-					handler(message.ChunkMessageEnd, nil)
-					toolBlockActive = false
-				}
-				if messageStarted {
-					handler(message.ChunkMessageEnd, nil)
-				}
-			}
-			// "result" is the terminal message in Claude CLI's stream-json
-			// protocol. Return immediately instead of continuing to
-			// scanner.Scan(), which would block forever if the process
-			// stays alive (e.g. child processes like chrome.exe keep the
-			// stdout pipe open).
-			return errStreamCompleted
-
+			return p.handleResult(msg)
 		case "error":
-			var errMsg string
-			switch e := msg["error"].(type) {
-			case string:
-				errMsg = e
-			case map[string]any:
-				errMsg, _ = e["message"].(string)
-			}
-			if errMsg != "" {
-				if handler != nil {
-					handler(message.ChunkError, []byte(errMsg))
-				}
-				return fmt.Errorf("Claude CLI error: %s", errMsg)
-			}
+			return p.handleError(msg)
 		}
 
 		if stopped {
-			break
+			return nil
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		// If the context was cancelled (upstream timeout / interrupt), the
-		// stdout pipe was closed by the goroutine above. The resulting
-		// read error is expected — surface it as context.Canceled so the
-		// caller can handle it uniformly.
+		log.Trace("[claude-parse] scanner error: %v (ctx.Err=%v)", err, ctx.Err())
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -344,53 +117,422 @@ func parseStreamJSON(ctx context.Context, stdout io.ReadCloser, handler message.
 	return nil
 }
 
-// buildFirstRequestJSONL builds JSONL with all messages for the first request.
-func buildFirstRequestJSONL(messages []agentContext.Message) string {
-	var lines []string
-	for _, msg := range messages {
-		if msg.Role == "system" {
-			continue
-		}
-		content := msg.Content
-		if content == nil {
-			content = ""
-		}
-		streamMsg := map[string]any{
-			"type": string(msg.Role),
-			"message": map[string]any{
-				"role":    string(msg.Role),
-				"content": content,
-			},
-		}
-		data, _ := json.Marshal(streamMsg)
-		lines = append(lines, string(data))
+// --- Message lifecycle helpers ---
+
+func (p *streamParser) beginMessageWithID(id, msgType string) (stopped bool) {
+	startData := message.EventMessageStartData{
+		MessageID: id,
+		Type:      msgType,
+		Timestamp: time.Now().UnixMilli(),
 	}
-	return strings.Join(lines, "\n")
+	sd, _ := json.Marshal(startData)
+	return p.handler != nil && p.handler(message.ChunkMessageStart, sd) != 0
 }
 
-// buildLastUserMessageJSONL builds JSONL with only the last user message.
-func buildLastUserMessageJSONL(messages []agentContext.Message) string {
-	for i := len(messages) - 1; i >= 0; i-- {
-		if messages[i].Role == "user" {
-			content := messages[i].Content
-			if content == nil {
-				content = ""
-			}
-			msg := map[string]any{
-				"type": "user",
-				"message": map[string]any{
-					"role":    "user",
-					"content": content,
-				},
-			}
-			data, _ := json.Marshal(msg)
-			return string(data)
+func (p *streamParser) beginMessage(msgType string) (messageID string, stopped bool) {
+	id := fmt.Sprintf("sandbox-%s-%s", msgType, message.GenerateNanoID())
+	return id, p.beginMessageWithID(id, msgType)
+}
+
+func (p *streamParser) endMessage() {
+	if p.handler != nil {
+		p.handler(message.ChunkMessageEnd, nil)
+	}
+}
+
+func (p *streamParser) closeTextMessage() {
+	if p.textActive {
+		p.endMessage()
+		p.textActive = false
+	}
+}
+
+func (p *streamParser) ensureTextMessage() (stopped bool) {
+	if !p.textActive {
+		_, stopped = p.beginMessage("text")
+		if stopped {
+			return true
+		}
+		p.textActive = true
+	}
+	return false
+}
+
+func (p *streamParser) emitText(text string) (stopped bool) {
+	text = strings.ReplaceAll(text, "\r\n", "\n")
+	text = strings.ReplaceAll(text, "\r", "\n")
+	return p.handler != nil && p.handler(message.ChunkText, []byte(text)) != 0
+}
+
+func (p *streamParser) emitExecute(props map[string]any) (stopped bool) {
+	data, _ := json.Marshal(props)
+	return p.handler != nil && p.handler(message.ChunkExecute, data) != 0
+}
+
+func (p *streamParser) emitMetadata(data map[string]any) {
+	if p.handler == nil {
+		return
+	}
+	encoded, _ := json.Marshal(data)
+	p.handler(message.ChunkMetadata, encoded)
+}
+
+// extractSummary builds a short human-readable summary from the tool input JSON.
+func extractSummary(toolName string, inputJSON string) string {
+	if inputJSON == "" {
+		return ""
+	}
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(inputJSON), &obj); err != nil {
+		return ""
+	}
+
+	switch strings.ToLower(toolName) {
+	case "bash", "execute":
+		if cmd, ok := obj["command"].(string); ok {
+			return truncate(cmd, 80)
+		}
+	case "write", "create":
+		if fp, ok := obj["file_path"].(string); ok {
+			return fp
+		}
+	case "read":
+		if fp, ok := obj["file_path"].(string); ok {
+			return fp
+		}
+	case "edit":
+		if fp, ok := obj["file_path"].(string); ok {
+			return fp
+		}
+	}
+
+	// Fallback: try common field names
+	for _, key := range []string{"path", "file_path", "command", "url", "query"} {
+		if v, ok := obj[key].(string); ok {
+			return truncate(v, 80)
 		}
 	}
 	return ""
 }
 
-// Suppress unused import warnings — goujson.Parse is used for tool description
-// parsing in V1 and will be used for detailed tool descriptions in future.
-var _ = goujson.Parse
-var _ = log.Printf
+func truncate(s string, max int) string {
+	s = strings.TrimSpace(s)
+	s = strings.ReplaceAll(s, "\n", " ")
+	if len(s) > max {
+		return s[:max] + "..."
+	}
+	return s
+}
+
+// --- Event handlers ---
+
+func (p *streamParser) handleSystem(msg map[string]any) (stopped bool) {
+	if p.handler != nil {
+		data, _ := json.Marshal(msg)
+		return p.handler(message.ChunkMetadata, data) != 0
+	}
+	return false
+}
+
+func (p *streamParser) handleStreamEvent(msg map[string]any) (stopped bool) {
+	event, _ := msg["event"].(map[string]any)
+	if event == nil {
+		return false
+	}
+	eventType, _ := event["type"].(string)
+
+	switch eventType {
+	case "content_block_start":
+		return p.onContentBlockStart(event)
+	case "content_block_delta":
+		return p.onContentBlockDelta(event)
+	case "content_block_stop":
+		return p.onContentBlockStop()
+	}
+	return false
+}
+
+func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) {
+	cb, ok := event["content_block"].(map[string]any)
+	if !ok {
+		return false
+	}
+	blockType, _ := cb["type"].(string)
+	if blockType != "tool_use" {
+		return false
+	}
+
+	p.closeTextMessage()
+
+	toolName, _ := cb["name"].(string)
+	toolID, _ := cb["id"].(string)
+	if toolID == "" {
+		toolID = fmt.Sprintf("tool_%d_%d", p.toolIndex, time.Now().UnixNano())
+	}
+
+	msgID, stopped := p.beginMessage("execute")
+	if stopped {
+		return true
+	}
+
+	p.curTool = &toolState{id: toolID, name: toolName, msgID: msgID, index: p.toolIndex}
+	p.toolIndex++
+	p.toolNames[toolID] = toolName
+	p.toolMsgIDs[toolID] = msgID
+
+	if p.handler == nil {
+		return false
+	}
+
+	return p.emitExecute(map[string]any{
+		"tool":    toolName,
+		"tool_id": toolID,
+		"status":  "running",
+		"runner":  "claude-cli",
+	})
+}
+
+func (p *streamParser) onContentBlockStop() (stopped bool) {
+	if p.curTool != nil {
+		toolID := p.curTool.id
+		inputStr := p.curTool.inputJSON.String()
+		if inputStr != "" {
+			p.toolInputs[toolID] = inputStr
+			summary := extractSummary(p.curTool.name, inputStr)
+			if summary != "" {
+				p.toolSummaries[toolID] = summary
+				p.emitExecute(map[string]any{
+					"summary": summary,
+				})
+			}
+		}
+		p.endMessage()
+		p.curTool = nil
+	}
+	return false
+}
+
+func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) {
+	delta, ok := event["delta"].(map[string]any)
+	if !ok {
+		return false
+	}
+
+	deltaType, _ := delta["type"].(string)
+
+	switch deltaType {
+	case "text_delta":
+		text, _ := delta["text"].(string)
+		if text == "" {
+			return false
+		}
+		if p.ensureTextMessage() {
+			return true
+		}
+		return p.emitText(text)
+
+	case "input_json_delta":
+		if p.curTool == nil {
+			return false
+		}
+		partial, _ := delta["partial_json"].(string)
+		if partial == "" {
+			return false
+		}
+		p.curTool.inputJSON.WriteString(partial)
+		if p.handler != nil {
+			return p.emitExecute(map[string]any{
+				"input_delta": p.curTool.inputJSON.String(),
+			})
+		}
+	}
+	return false
+}
+
+func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
+	msgData, _ := msg["message"].(map[string]any)
+	if msgData == nil {
+		return false
+	}
+
+	if usage, ok := msgData["usage"].(map[string]any); ok {
+		p.emitMetadata(map[string]any{
+			"usage": usage,
+		})
+	}
+
+	stopReason, _ := msgData["stop_reason"].(string)
+	if stopReason == "" {
+		return false
+	}
+
+	contentArr, _ := msgData["content"].([]any)
+	for _, item := range contentArr {
+		ci, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		itemType, _ := ci["type"].(string)
+
+		if itemType == "tool_use" && p.handler != nil {
+			p.closeTextMessage()
+
+			toolName, _ := ci["name"].(string)
+			toolID, _ := ci["id"].(string)
+			if toolID == "" {
+				toolID = fmt.Sprintf("tool_%d_%d", p.toolIndex, time.Now().UnixNano())
+			}
+
+			msgID, stopped := p.beginMessage("execute")
+			if stopped {
+				return true
+			}
+
+			p.toolIndex++
+			p.toolNames[toolID] = toolName
+			p.toolMsgIDs[toolID] = msgID
+
+			inputRaw, _ := json.Marshal(ci["input"])
+			inputStr := string(inputRaw)
+			p.toolInputs[toolID] = inputStr
+			summary := extractSummary(toolName, inputStr)
+			p.toolSummaries[toolID] = summary
+
+			if p.emitExecute(map[string]any{
+				"tool":    toolName,
+				"tool_id": toolID,
+				"input":   json.RawMessage(inputRaw),
+				"summary": summary,
+				"status":  "running",
+				"runner":  "claude-cli",
+			}) {
+				p.endMessage()
+				return true
+			}
+			p.endMessage()
+		}
+
+		if itemType == "text" {
+			text, _ := ci["text"].(string)
+			if text == "" || p.handler == nil {
+				continue
+			}
+			if p.ensureTextMessage() {
+				return true
+			}
+			if p.emitText(text) {
+				return true
+			}
+		}
+	}
+
+	p.closeTextMessage()
+	return false
+}
+
+func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
+	msgData, _ := msg["message"].(map[string]any)
+	if msgData == nil {
+		return false
+	}
+
+	contentArr, _ := msgData["content"].([]interface{})
+	for _, item := range contentArr {
+		ci, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		ciType, _ := ci["type"].(string)
+		if ciType != "tool_result" {
+			continue
+		}
+
+		toolUseID, _ := ci["tool_use_id"].(string)
+		content := ci["content"]
+		isError, _ := ci["is_error"].(bool)
+
+		status := "completed"
+		if isError {
+			status = "error"
+		}
+
+		execProps := map[string]any{
+			"tool_id":  toolUseID,
+			"output":   content,
+			"status":   status,
+			"is_error": isError,
+		}
+		if name, ok := p.toolNames[toolUseID]; ok {
+			execProps["tool"] = name
+		}
+		if input, ok := p.toolInputs[toolUseID]; ok {
+			execProps["input"] = json.RawMessage(input)
+		}
+		if summary, ok := p.toolSummaries[toolUseID]; ok {
+			execProps["summary"] = summary
+		}
+
+		if reuseMsgID, ok := p.toolMsgIDs[toolUseID]; ok {
+			if p.beginMessageWithID(reuseMsgID, "execute") {
+				return true
+			}
+		} else {
+			if _, stopped := p.beginMessage("execute"); stopped {
+				return true
+			}
+		}
+
+		if p.emitExecute(execProps) {
+			p.endMessage()
+			return true
+		}
+		p.endMessage()
+	}
+	return false
+}
+
+func (p *streamParser) handleResult(msg map[string]any) error {
+	isError, _ := msg["is_error"].(bool)
+	if isError {
+		if result, ok := msg["result"].(string); ok {
+			if p.handler != nil {
+				p.handler(message.ChunkError, []byte(result))
+			}
+			return fmt.Errorf("Claude CLI error: %s", result)
+		}
+	}
+
+	p.closeTextMessage()
+
+	if p.handler != nil {
+		p.emitMetadata(map[string]any{
+			"result_summary": map[string]any{
+				"total_cost_usd": msg["total_cost_usd"],
+				"duration_ms":    msg["duration_ms"],
+				"num_turns":      msg["num_turns"],
+				"usage":          msg["usage"],
+			},
+		})
+	}
+
+	p.completed = true
+	return nil
+}
+
+func (p *streamParser) handleError(msg map[string]any) error {
+	var errMsg string
+	switch e := msg["error"].(type) {
+	case string:
+		errMsg = e
+	case map[string]any:
+		errMsg, _ = e["message"].(string)
+	}
+	if errMsg != "" {
+		if p.handler != nil {
+			p.handler(message.ChunkError, []byte(errMsg))
+		}
+		return fmt.Errorf("Claude CLI error: %s", errMsg)
+	}
+	return nil
+}

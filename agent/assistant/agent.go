@@ -183,6 +183,17 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		}
 		sandboxCleanup = v2Cleanup
 		ctx.Logger.PhaseComplete("Sandbox V2")
+		if v2Computer != nil {
+			ci := v2Computer.ComputerInfo()
+			ctx.Logger.Trace("Node: %s (%s)", ci.NodeID, ci.Kind)
+			if ci.BoxID != "" {
+				ctx.Logger.Trace("Computer: %s", ci.BoxID)
+			}
+			ctx.Logger.Trace("Workspace: %s", ast.SandboxV2.WorkspaceID)
+			if conn, _, err := ast.GetConnector(ctx, opts); err == nil && conn != nil {
+				ctx.Logger.Trace("Connector: %s", conn.ID())
+			}
+		}
 	} else if ast.HasSandbox() {
 		ctx.Logger.Phase("Sandbox")
 		var err error
@@ -320,7 +331,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		// Choose between sandbox execution or direct LLM execution
 		if ast.HasSandboxV2() && v2Runner != nil && v2Computer != nil && v2Runner.Name() != "yao" {
 			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
-			completionResponse, err = ast.executeSandboxV2Stream(ctx, completionMessages, agentNode, streamHandler, v2Runner, v2Computer, v2LoadingMsgID)
+			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
+				Messages:     completionMessages,
+				AgentNode:    agentNode,
+				Handler:      streamHandler,
+				Runner:       v2Runner,
+				Computer:     v2Computer,
+				LoadingMsgID: v2LoadingMsgID,
+				Options:      opts,
+			})
 		} else if ast.HasSandboxV2() && v2Runner != nil && v2Runner.Name() == "yao" {
 			// V2 yao runner: Prepare is done, close loading, fall through to LLM
 			if v2LoadingMsgID != "" {
@@ -690,12 +709,6 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler message.S
 		return
 	}
 
-	// Check if context is cancelled - if so, skip handler call to avoid blocking
-	if ctx.Context != nil && ctx.Context.Err() != nil {
-		ctx.Logger.Debug("Context cancelled, skipping sendAgentStreamEnd handler call")
-		return
-	}
-
 	endData := &message.EventStreamEndData{
 		RequestID:  ctx.RequestID(),
 		ContextID:  ctx.ID,
@@ -727,24 +740,16 @@ func (ast *Assistant) sendStreamEndOnError(ctx *context.Context, handler message
 // handleInterrupt handles the interrupt signal
 // This is called by the interrupt listener when a signal is received
 func (ast *Assistant) handleInterrupt(ctx *context.Context, signal *context.InterruptSignal) error {
-	// Handle based on interrupt type
 	switch signal.Type {
 	case context.InterruptForce:
-		// Force interrupt: context is already cancelled in handleSignal
-		// LLM streaming will detect ctx.Interrupt.Context().Done() and stop
-		ctx.Logger.Debug("Force interrupt: stopping current operations immediately")
-
+		ctx.Logger.Debug("Force interrupt received")
+		if ctx.Buffer != nil {
+			ctx.Buffer.FailCurrentStep(context.ResumeStatusInterrupted,
+				fmt.Errorf("interrupted by user"))
+		}
 	case context.InterruptGraceful:
-		ctx.Logger.Debug("Graceful interrupt: will process after current step completes")
-		// Graceful interrupt: let current operation complete
-		// The signal is stored in current/pending, can be checked at checkpoints
+		ctx.Logger.Debug("Graceful interrupt received: messages=%d", len(signal.Messages))
 	}
-
-	// TODO: Implement actual interrupt handling logic:
-	// 1. For graceful: wait for current step, then merge messages and restart
-	// 2. For force: immediately stop and restart with new messages
-	// 3. Call Interrupted Hook if configured
-	// 4. Decide whether to continue, restart, or abort based on Hook response
 
 	return nil
 }

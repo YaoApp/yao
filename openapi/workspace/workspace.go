@@ -3,17 +3,19 @@ package workspace
 import (
 	"context"
 	"encoding/base64"
-	"fmt"
 	"io"
 	"mime"
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
+	"github.com/yaoapp/yao/tai/registry"
 	ws "github.com/yaoapp/yao/workspace"
 )
 
@@ -96,13 +98,24 @@ type renameRequest struct {
 }
 
 type workspaceResponse struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	Owner     string            `json:"owner"`
-	Node      string            `json:"node"`
-	Labels    map[string]string `json:"labels,omitempty"`
-	CreatedAt string            `json:"created_at"`
-	UpdatedAt string            `json:"updated_at"`
+	ID               string            `json:"id"`
+	Name             string            `json:"name"`
+	Owner            string            `json:"owner"`
+	Node             string            `json:"node"`
+	NodeName         string            `json:"node_name,omitempty"`
+	NodeOS           string            `json:"node_os,omitempty"`
+	NodeArch         string            `json:"node_arch,omitempty"`
+	NodeKind         string            `json:"node_kind,omitempty"`
+	NodeOnline       bool              `json:"node_online"`
+	NodeCapabilities map[string]bool   `json:"node_capabilities,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	CreatedAt        string            `json:"created_at"`
+	UpdatedAt        string            `json:"updated_at"`
+}
+
+type optionsResponse struct {
+	Data           []workspaceResponse `json:"data"`
+	HasOnlineNodes bool                `json:"has_online_nodes"`
 }
 
 func toResponse(w *ws.Workspace) workspaceResponse {
@@ -178,12 +191,13 @@ func handleList(c *gin.Context) {
 }
 
 // handleOptions returns workspace options for the InputArea selector.
-// Reuses the same logic as handleList (Manager.List with owner+node filter).
-// Separated as a dedicated endpoint for clear API responsibility boundary.
+// Each workspace is enriched with its node's display info (name, OS, arch, kind, online).
+// The response also includes has_online_nodes so the frontend can determine sendBlocked
+// even when the workspace list is empty.
 func handleOptions(c *gin.Context) {
 	m := mgr()
 	if m == nil {
-		response.RespondWithSuccess(c, http.StatusOK, []workspaceResponse{})
+		response.RespondWithSuccess(c, http.StatusOK, optionsResponse{Data: []workspaceResponse{}})
 		return
 	}
 
@@ -192,21 +206,95 @@ func handleOptions(c *gin.Context) {
 
 	list, err := m.List(context.Background(), ws.ListOptions{
 		Owner: owner,
-		Node:  c.Query("node"),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
+	nodeMap := buildNodeMap()
+	hasOnline := false
+	for _, n := range nodeMap {
+		if n.online {
+			hasOnline = true
+			break
+		}
+	}
+
 	result := make([]workspaceResponse, 0, len(list))
 	for _, w := range list {
-		result = append(result, toResponse(w))
+		r := toResponse(w)
+		if info, ok := nodeMap[w.Node]; ok {
+			r.NodeName = info.displayName
+			r.NodeOS = info.os
+			r.NodeArch = info.arch
+			r.NodeKind = info.kind
+			r.NodeOnline = info.online
+			r.NodeCapabilities = info.capabilities
+		}
+		result = append(result, r)
 	}
 	sort.Slice(result, func(i, j int) bool {
 		return result[i].CreatedAt > result[j].CreatedAt
 	})
-	response.RespondWithSuccess(c, http.StatusOK, result)
+
+	response.RespondWithSuccess(c, http.StatusOK, optionsResponse{
+		Data:           result,
+		HasOnlineNodes: hasOnline,
+	})
+}
+
+type nodeInfo struct {
+	displayName  string
+	os           string
+	arch         string
+	kind         string
+	online       bool
+	capabilities map[string]bool
+}
+
+func buildNodeMap() map[string]nodeInfo {
+	reg := registry.Global()
+	if reg == nil {
+		return nil
+	}
+	nodes := reg.List()
+	m := make(map[string]nodeInfo, len(nodes))
+	for _, n := range nodes {
+		kind := "node"
+		if n.Mode == "local" {
+			kind = "host"
+		}
+		name := n.DisplayName
+		if name == "" {
+			name = n.System.Hostname
+		}
+		if name == "" {
+			name = n.TaiID
+		}
+		caps := map[string]bool{}
+		if n.Capabilities.HostExec {
+			caps["host_exec"] = true
+		}
+		if n.Capabilities.Docker {
+			caps["docker"] = true
+		}
+		if n.Capabilities.K8s {
+			caps["k8s"] = true
+		}
+		if n.Capabilities.VNC {
+			caps["vnc"] = true
+		}
+		m[n.TaiID] = nodeInfo{
+			displayName:  name,
+			os:           strings.ToLower(n.System.OS),
+			arch:         strings.ToLower(n.System.Arch),
+			kind:         kind,
+			online:       n.Status == "online" || n.Status == "",
+			capabilities: caps,
+		}
+	}
+	return m
 }
 
 func handleCreate(c *gin.Context) {
@@ -329,16 +417,16 @@ func handleReadFile(c *gin.Context) {
 		path = path[1:]
 	}
 
-	fmt.Printf("[workspace] handleReadFile id=%s path=%q\n", c.Param("id"), path)
+	log.Trace("[workspace] handleReadFile id=%s path=%q", c.Param("id"), path)
 
 	data, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
 	if err != nil {
-		fmt.Printf("[workspace] ReadFile error: %v\n", err)
+		log.Trace("[workspace] ReadFile error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	fmt.Printf("[workspace] ReadFile ok, size=%d, encoding=%q\n", len(data), c.Query("encoding"))
+	log.Trace("[workspace] ReadFile ok, size=%d, encoding=%q", len(data), c.Query("encoding"))
 
 	if c.Query("encoding") == "base64" {
 		response.RespondWithSuccess(c, http.StatusOK, gin.H{
@@ -353,7 +441,7 @@ func handleReadFile(c *gin.Context) {
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
 	}
-	fmt.Printf("[workspace] serving ext=%q mime=%q size=%d\n", ext, mimeType, len(data))
+	log.Trace("[workspace] serving ext=%q mime=%q size=%d", ext, mimeType, len(data))
 	c.Data(http.StatusOK, mimeType, data)
 }
 

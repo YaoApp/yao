@@ -1,10 +1,12 @@
 package assistant
 
 import (
+	stdContext "context"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -77,9 +79,9 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 3. Obtain Computer (passes connector for OPENAI_PROXY_* env injection).
+	// 3. Obtain Computer.
 	updateLoadingV2(ctx, loadingMsgID, "sandbox.starting")
-	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager, conn)
+	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
 		return nil, nil, nil, "", fmt.Errorf("getComputer failed: %w", err)
@@ -140,25 +142,32 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	ctx.SetComputer(computer)
 
 	cleanup := func() {
-		// Defensive fallback — executeSandboxV2Stream defer handles the
-		// normal case; this covers paths that never reach execution.
+		cleanCtx, cancel := stdContext.WithTimeout(stdContext.Background(), 5*time.Second)
+		defer cancel()
+		runner.Cleanup(cleanCtx, computer)
+		sandboxv2.LifecycleAction(cleanCtx, cfg, computer, manager)
 	}
 
 	return runner, computer, cleanup, loadingMsgID, nil
 }
 
+// sandboxV2StreamParams groups arguments for executeSandboxV2Stream.
+type sandboxV2StreamParams struct {
+	Messages     []context.Message
+	AgentNode    traceTypes.Node
+	Handler      message.StreamFunc
+	Runner       sandboxTypes.Runner
+	Computer     infraV2.Computer
+	LoadingMsgID string
+	Options      *context.Options
+}
+
 // executeSandboxV2Stream calls the V2 Runner.Stream and wraps it in the
 // standard completion response.
 func (ast *Assistant) executeSandboxV2Stream(
-	ctx *context.Context,
-	completionMessages []context.Message,
-	agentNode traceTypes.Node,
-	streamHandler message.StreamFunc,
-	runner sandboxTypes.Runner,
-	computer infraV2.Computer,
-	loadingMsgID string,
+	ctx *context.Context, p *sandboxV2StreamParams,
 ) (*context.CompletionResponse, error) {
-	_ = agentNode
+	_ = p.AgentNode
 
 	cfg := ast.SandboxV2
 	manager := infraV2.M()
@@ -166,16 +175,16 @@ func (ast *Assistant) executeSandboxV2Stream(
 	// Build system prompt.
 	var systemPrompt string
 	if len(ast.Prompts) > 0 {
-		for _, p := range ast.Prompts {
-			if p.Role == "system" && p.Content != "" {
-				systemPrompt = p.Content
+		for _, pr := range ast.Prompts {
+			if pr.Role == "system" && pr.Content != "" {
+				systemPrompt = pr.Content
 				break
 			}
 		}
 	}
 
-	// Resolve connector for Stream.
-	conn, _, _ := ast.GetConnector(ctx)
+	// Resolve connector for Stream (respects user-selected connector via opts).
+	conn, _, _ := ast.GetConnector(ctx, p.Options)
 
 	var tok *sandboxTypes.SandboxToken
 	if ctx.Authorized != nil {
@@ -187,25 +196,26 @@ func (ast *Assistant) executeSandboxV2Stream(
 	}
 
 	streamReq := &sandboxTypes.StreamRequest{
-		Computer:     computer,
+		Computer:     p.Computer,
 		Config:       cfg,
 		Connector:    conn,
-		Messages:     completionMessages,
+		Messages:     p.Messages,
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,
 		Token:        tok,
+		Logger:       ctx.Logger,
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{
-		Computer:     computer,
-		Runner:       runner,
+		Computer:     p.Computer,
+		Runner:       p.Runner,
 		Config:       cfg,
 		StreamReq:    streamReq,
 		Manager:      manager,
-		LoadingMsgID: loadingMsgID,
+		LoadingMsgID: p.LoadingMsgID,
 	}
 
-	return sandboxv2.ExecuteSandboxStream(ctx, execReq, streamHandler)
+	return sandboxv2.ExecuteSandboxStream(ctx, execReq, p.Handler)
 }
 
 // initStandaloneWorkspace loads the workspace FS into context when no sandbox
