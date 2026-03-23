@@ -64,6 +64,8 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
+
 		// Verify robot is loaded into cache
 		robot := m.Cache().Get("robot_integ_clock_times1")
 		require.NotNil(t, robot, "Robot should be loaded into cache")
@@ -99,6 +101,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
 		exec.Reset()
 
 		// Trigger at 10:30 (not configured)
@@ -130,6 +133,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
 		exec.Reset()
 
 		// Trigger at 09:00 on Saturday (not configured)
@@ -160,6 +164,8 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -192,6 +198,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
 		exec.Reset()
 
 		loc, _ := time.LoadLocation("Asia/Shanghai")
@@ -239,11 +246,13 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 			"every": "30m",
 		})
 
-		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
+		m, exec := createClockTestManager(t, 10*time.Second, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -270,6 +279,8 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -305,11 +316,13 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 			"every": "1h", // Long interval
 		})
 
-		m, exec := createClockTestManager(t, 100*time.Millisecond, 3, 20)
+		m, exec := createClockTestManager(t, 10*time.Second, 3, 20)
 
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -360,6 +373,8 @@ func TestIntegrationClockDaemonMode(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
+
 		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
@@ -384,6 +399,8 @@ func TestIntegrationClockDaemonMode(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -433,6 +450,8 @@ func TestIntegrationClockTimezone(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
+		time.Sleep(500 * time.Millisecond)
+
 		exec.Reset()
 
 		ctx := types.NewContext(context.Background(), nil)
@@ -470,6 +489,8 @@ func TestIntegrationClockTimezone(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 
@@ -543,6 +564,8 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 		defer mgr.Stop()
 
+		time.Sleep(500 * time.Millisecond)
+
 		exec.Reset()
 
 		// Trigger at matching time
@@ -597,6 +620,8 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		require.NoError(t, err)
 		defer mgr.Stop()
 
+		time.Sleep(500 * time.Millisecond)
+
 		exec.Reset()
 
 		// Trigger at matching time
@@ -646,6 +671,8 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		err = mgr.Start()
 		require.NoError(t, err)
 		defer mgr.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		exec.Reset()
 

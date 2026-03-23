@@ -135,6 +135,16 @@ func getManager() (*manager.Manager, error) {
 	return globalManager, nil
 }
 
+// GetManager returns the global manager instance, or nil if not started.
+func GetManager() *manager.Manager {
+	managerMu.RLock()
+	defer managerMu.RUnlock()
+	if globalManager == nil || !globalManager.IsStarted() {
+		return nil
+	}
+	return globalManager
+}
+
 // SetManager sets the global manager instance (for testing)
 func SetManager(m *manager.Manager) {
 	managerMu.Lock()
