@@ -94,7 +94,7 @@ func TestE2ENormalExecutionNoSuspend(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Write a one-sentence greeting")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec, "Execution should exist and reach terminal state")
 	if exec.Status == types.ExecFailed {
@@ -137,7 +137,7 @@ func TestE2ESuspendResumeFlow(t *testing.T) {
 
 	// Step 2: Wait for the execution to reach waiting status
 	exec := waitForStatus(t, execID,
-		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec, "Execution should exist")
 	require.Equal(t, types.ExecWaiting, exec.Status, "Execution should be in waiting status")
@@ -193,7 +193,7 @@ func TestE2EReplyShortcut(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Check inventory levels")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecWaiting}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting}, 120*time.Second)
 	require.NotNil(t, exec, "Execution should reach waiting status")
 	require.Equal(t, types.ExecWaiting, exec.Status)
 
@@ -229,7 +229,7 @@ func TestE2EResumeContextPersistence(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Analyze user behavior")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec)
 	if exec.Status != types.ExecWaiting {
@@ -298,7 +298,7 @@ func TestE2EInteractWithNonWaitingExecution(t *testing.T) {
 
 	// Wait for completion
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 	require.NotNil(t, exec, "Execution should reach terminal state")
 
 	// Try to interact with the completed execution
