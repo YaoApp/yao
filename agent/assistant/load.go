@@ -1101,8 +1101,15 @@ func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
 
 // extractSandboxVersion tries to read the "version" field from a sandbox config value.
 func extractSandboxVersion(v any) string {
-	if m, ok := v.(map[string]any); ok {
-		if ver, ok := m["version"].(string); ok {
+	switch sb := v.(type) {
+	case *sandboxTypes.SandboxConfig:
+		if sb != nil {
+			return sb.Version
+		}
+	case sandboxTypes.SandboxConfig:
+		return sb.Version
+	case map[string]any:
+		if ver, ok := sb["version"].(string); ok {
 			return ver
 		}
 	}
