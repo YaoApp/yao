@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/yaoapp/gou/model"
-	"github.com/yaoapp/kun/maps"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	robotcache "github.com/yaoapp/yao/agent/robot/cache"
 	events "github.com/yaoapp/yao/agent/robot/events"
@@ -22,6 +20,7 @@ type Adapter interface {
 	Apply(ctx context.Context, robot *robottypes.Robot)
 	Remove(ctx context.Context, robotID string)
 	Reply(ctx context.Context, msg *agentcontext.Message, metadata *events.MessageMetadata) error
+	Shutdown()
 }
 
 // Dispatcher distributes Robot integration configs to platform adapters.
@@ -48,7 +47,7 @@ func (d *Dispatcher) Start(ctx context.Context) error {
 
 	events.RegisterReplyFunc(d.reply)
 
-	ch := make(chan *eventtypes.Event, 64)
+	ch := make(chan *eventtypes.Event, 256)
 	d.subID = event.Subscribe("robot.config.*", ch)
 	go d.watch(ctx, ch)
 
@@ -81,76 +80,29 @@ func (d *Dispatcher) reply(ctx context.Context, msg *agentcontext.Message, metad
 	return lastErr
 }
 
-// Stop unsubscribes from events.
+// Stop unsubscribes from events and shuts down all adapters.
 func (d *Dispatcher) Stop() {
 	close(d.stopCh)
 	if d.subID != "" {
 		event.Unsubscribe(d.subID)
 	}
+	for name, adapter := range d.adapters {
+		adapter.Shutdown()
+		log.Info("integration dispatcher: adapter %s shutdown", name)
+	}
 	log.Info("integration dispatcher: stopped")
 }
 
 func (d *Dispatcher) loadAll(ctx context.Context) {
-	robots := d.loadIntegrationRobots()
+	robots := d.robotCache.ListAll()
+	count := 0
 	for _, robot := range robots {
-		d.robotCache.Add(robot)
-		d.apply(ctx, robot)
+		if robot.Config != nil && robot.Config.Integrations != nil && len(parseIntegrations(robot.Config.Integrations)) > 0 {
+			d.apply(ctx, robot)
+			count++
+		}
 	}
-	log.Info("integration dispatcher: initial load complete, %d robots with integrations", len(robots))
-}
-
-// loadIntegrationRobots queries all active robots that have a non-null
-// robot_config (which may contain integrations). This is independent of
-// autonomous_mode so non-autonomous robots with Telegram etc. are included.
-func (d *Dispatcher) loadIntegrationRobots() []*robottypes.Robot {
-	m := model.Select("__yao.member")
-	fields := []interface{}{
-		"id", "member_id", "team_id", "display_name", "bio",
-		"system_prompt", "robot_status", "autonomous_mode",
-		"robot_config", "robot_email", "agents", "mcp_servers",
-		"manager_id", "language_model",
-	}
-
-	page := 1
-	pageSize := 100
-	var result []*robottypes.Robot
-
-	for {
-		res, err := m.Paginate(model.QueryParam{
-			Select: fields,
-			Wheres: []model.QueryWhere{
-				{Column: "member_type", Value: "robot"},
-				{Column: "status", Value: "active"},
-			},
-		}, page, pageSize)
-		if err != nil {
-			log.Error("loadIntegrationRobots: query failed page=%d: %v", page, err)
-			break
-		}
-
-		data, ok := res.Get("data").([]maps.MapStr)
-		if !ok || len(data) == 0 {
-			break
-		}
-
-		for _, record := range data {
-			robot, err := robottypes.NewRobotFromMap(map[string]interface{}(record))
-			if err != nil {
-				continue
-			}
-			if robot.Config != nil && robot.Config.Integrations != nil && len(parseIntegrations(robot.Config.Integrations)) > 0 {
-				result = append(result, robot)
-			}
-		}
-
-		total, _ := res.Get("total").(int)
-		if page*pageSize >= total {
-			break
-		}
-		page++
-	}
-
-	return result
+	log.Info("integration dispatcher: initial load complete, %d robots with integrations", count)
 }
 
 // apply parses which integrations the robot has configured,
@@ -186,6 +138,9 @@ func parseIntegrations(intg *robottypes.Integrations) []string {
 	}
 	if intg.Discord != nil {
 		keys = append(keys, "discord")
+	}
+	if intg.Weixin != nil {
+		keys = append(keys, "weixin")
 	}
 	return keys
 }

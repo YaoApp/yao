@@ -39,7 +39,7 @@ func TestCacheLoad(t *testing.T) {
 
 	// Count should be at least 2 (may have other robots in DB)
 	count := c.Count()
-	assert.GreaterOrEqual(t, count, 2, "Should load at least 2 active autonomous robots")
+	assert.GreaterOrEqual(t, count, 2, "Should load at least 2 active robots")
 
 	// Verify first robot
 	robot1 := c.Get("robot_test_sales_001")

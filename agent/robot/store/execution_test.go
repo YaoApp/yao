@@ -231,6 +231,41 @@ func TestExecutionStoreList(t *testing.T) {
 			assert.Equal(t, types.ExecCompleted, r.Status)
 		}
 	})
+
+	t.Run("list_with_statuses_returns_matching", func(t *testing.T) {
+		result, err := s.ListByStatuses(ctx,
+			[]types.ExecStatus{types.ExecRunning, types.ExecFailed},
+			&store.ListOptions{MemberID: "member_list_002"})
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(result.Data))
+		for _, r := range result.Data {
+			assert.True(t, r.Status == types.ExecRunning || r.Status == types.ExecFailed,
+				"expected running or failed, got %s", r.Status)
+		}
+	})
+
+	t.Run("list_with_statuses_empty_result", func(t *testing.T) {
+		result, err := s.ListByStatuses(ctx,
+			[]types.ExecStatus{types.ExecWaiting, types.ExecConfirming},
+			&store.ListOptions{MemberID: "member_list_001"})
+		require.NoError(t, err)
+		assert.NotNil(t, result.Data)
+		assert.Equal(t, 0, len(result.Data))
+	})
+
+	t.Run("list_with_statuses_single_status", func(t *testing.T) {
+		resultStatuses, err := s.ListByStatuses(ctx,
+			[]types.ExecStatus{types.ExecCompleted},
+			&store.ListOptions{MemberID: "member_list_001"})
+		require.NoError(t, err)
+
+		resultStatus, err := s.List(ctx, &store.ListOptions{
+			Status:   types.ExecCompleted,
+			MemberID: "member_list_001",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, len(resultStatus.Data), len(resultStatuses.Data))
+	})
 }
 
 // TestExecutionStoreUpdatePhase tests updating phase and phase data

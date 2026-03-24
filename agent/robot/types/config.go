@@ -28,6 +28,7 @@ type Integrations struct {
 	Feishu   *FeishuConfig   `json:"feishu,omitempty"`
 	DingTalk *DingTalkConfig `json:"dingtalk,omitempty"`
 	Discord  *DiscordConfig  `json:"discord,omitempty"`
+	Weixin   *WeixinConfig   `json:"weixin,omitempty"`
 }
 
 // TelegramConfig holds Telegram Bot integration settings.
@@ -271,6 +272,16 @@ func (r *Resources) GetPhaseAgent(phase Phase) string {
 type MCPConfig struct {
 	ID    string   `json:"id"`
 	Tools []string `json:"tools,omitempty"` // empty = all
+}
+
+// WeixinConfig holds WeChat iLink Bot integration settings.
+type WeixinConfig struct {
+	Enabled    bool   `json:"enabled"`
+	BotToken   string `json:"bot_token"`
+	AccountID  string `json:"account_id,omitempty"`   // ilink_bot_id
+	APIHost    string `json:"api_host,omitempty"`     // custom API host
+	BaseURL    string `json:"base_url,omitempty"`     // alias for api_host
+	CDNBaseURL string `json:"cdn_base_url,omitempty"` // custom CDN base URL
 }
 
 // Event - event trigger config

@@ -12,6 +12,7 @@ import (
 	robotcache "github.com/yaoapp/yao/agent/robot/cache"
 	events "github.com/yaoapp/yao/agent/robot/events"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/event"
 	eventtypes "github.com/yaoapp/yao/event/types"
 )
@@ -38,6 +39,8 @@ func (m *mockAdapter) Remove(ctx context.Context, robotID string) {
 func (m *mockAdapter) Reply(ctx context.Context, msg *agentcontext.Message, metadata *events.MessageMetadata) error {
 	return nil
 }
+
+func (m *mockAdapter) Shutdown() {}
 
 func (m *mockAdapter) getApplied() []*robottypes.Robot {
 	m.mu.Lock()
@@ -239,6 +242,13 @@ func TestConfigDeleted_TriggersRemove(t *testing.T) {
 }
 
 func TestConfigCreated_RobotNotInCache(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test")
+	}
+
+	testutils.Prepare(t)
+	defer testutils.Clean(t)
+
 	setupEventBus(t)
 	cache := robotcache.New()
 
@@ -248,7 +258,7 @@ func TestConfigCreated_RobotNotInCache(t *testing.T) {
 	require.NoError(t, d.Start(context.Background()))
 	defer d.Stop()
 
-	// Push event but don't add robot to cache
+	// Push event but don't add robot to cache — triggers LoadByID DB fallback
 	event.Push(context.Background(), events.RobotConfigCreated, events.RobotConfigPayload{
 		MemberID: "r-ghost", TeamID: "team1",
 	})

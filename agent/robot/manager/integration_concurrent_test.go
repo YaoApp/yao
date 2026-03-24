@@ -66,7 +66,7 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 		)
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 5, QueueSize: 50},
 		}
 		m := manager.NewWithConfig(config)
@@ -112,7 +112,7 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 		exec := executor.NewDryRunWithDelay(50 * time.Millisecond)
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 5, QueueSize: 50},
 		}
 		m := manager.NewWithConfig(config)
@@ -176,7 +176,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		)
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 10, QueueSize: 50}, // Many workers
 		}
 		m := manager.NewWithConfig(config)
@@ -213,7 +213,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		exec := executor.NewDryRunWithDelay(300 * time.Millisecond) // Slow execution
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 10, QueueSize: 100},
 		}
 		m := manager.NewWithConfig(config)
@@ -282,7 +282,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		}
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 10, QueueSize: 50},
 		}
 		m := manager.NewWithConfig(config)
@@ -353,7 +353,7 @@ func TestIntegrationGlobalPoolLimit(t *testing.T) {
 		)
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 3, QueueSize: 100}, // Only 3 workers
 		}
 		m := manager.NewWithConfig(config)
@@ -394,7 +394,7 @@ func TestIntegrationGlobalPoolLimit(t *testing.T) {
 		exec := executor.NewDryRunWithDelay(500 * time.Millisecond) // Slow execution
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 1, QueueSize: 5}, // Small queue
 		}
 		m := manager.NewWithConfig(config)
@@ -456,7 +456,7 @@ func TestIntegrationPriorityExecution(t *testing.T) {
 		}
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 1, QueueSize: 50}, // Single worker for ordering
 		}
 		m := manager.NewWithConfig(config)
@@ -465,6 +465,8 @@ func TestIntegrationPriorityExecution(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		ctx := types.NewContext(context.Background(), nil)
 
@@ -505,7 +507,7 @@ func TestIntegrationPriorityExecution(t *testing.T) {
 		}
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 1, QueueSize: 50},
 		}
 		m := manager.NewWithConfig(config)
@@ -514,6 +516,8 @@ func TestIntegrationPriorityExecution(t *testing.T) {
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
+
+		time.Sleep(500 * time.Millisecond)
 
 		ctx := types.NewContext(context.Background(), nil)
 

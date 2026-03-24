@@ -52,9 +52,9 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		// Setup: Create a robot with times mode clock config
 		setupIntegrationRobotTimes(t, "robot_integ_flow_clock", "team_integ_flow")
 
-		// Create manager with fast tick interval for testing
+		// Create manager with slow tick interval to avoid auto-tick interference
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 5, QueueSize: 50},
 		}
 		m := manager.NewWithConfig(config)
@@ -126,7 +126,7 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		assert.Nil(t, robot, "Inactive robot should not be loaded")
 	})
 
-	t.Run("robot with autonomous_mode=false not loaded", func(t *testing.T) {
+	t.Run("robot with autonomous_mode=false is loaded after full cache", func(t *testing.T) {
 		// Setup: Create a robot with autonomous_mode=false
 		setupIntegrationRobotNonAutonomous(t, "robot_integ_flow_nonauto", "team_integ_flow")
 
@@ -135,9 +135,12 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		require.NoError(t, err)
 		defer m.Stop()
 
-		// Non-autonomous robot should not be in cache
+		// After full-cache load, non-autonomous active robots should also be in cache
 		robot := m.Cache().Get("robot_integ_flow_nonauto")
-		assert.Nil(t, robot, "Non-autonomous robot should not be loaded")
+		assert.NotNil(t, robot, "Non-autonomous active robot should be loaded in cache after full load")
+		if robot != nil {
+			assert.False(t, robot.AutonomousMode)
+		}
 	})
 }
 
@@ -243,7 +246,7 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 		})
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 20},
 			Executor:     exec,
 		}
@@ -251,6 +254,8 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 
 		err := m.Start()
 		require.NoError(t, err)
+
+		time.Sleep(500 * time.Millisecond)
 
 		// Trigger execution
 		ctx := types.NewContext(context.Background(), nil)
@@ -284,7 +289,7 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 		})
 
 		config := &manager.Config{
-			TickInterval: 100 * time.Millisecond,
+			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 20},
 			Executor:     exec,
 		}
@@ -292,6 +297,8 @@ func TestIntegrationPhaseProgression(t *testing.T) {
 
 		err := m.Start()
 		require.NoError(t, err)
+
+		time.Sleep(500 * time.Millisecond)
 
 		// Trigger execution via human trigger
 		ctx := types.NewContext(context.Background(), nil)
@@ -595,17 +602,28 @@ func setupIntegrationRobotNonAutonomous(t *testing.T, memberID, teamID string) {
 	}
 }
 
-// cleanupIntegrationRobots removes all integration test robots
+// cleanupIntegrationRobots removes all integration test robots and their
+// non-terminal execution records to prevent recovery interference.
 func cleanupIntegrationRobots(t *testing.T) {
 	qb := capsule.Query()
+
+	// Clean up execution records for integration robots to prevent
+	// recoverExecutions from picking them up during Start().
+	execModel := model.Select("__yao.agent.execution")
+	if execModel != nil {
+		_, err := qb.Table(execModel.MetaData.Table.Name).
+			Where("member_id", "like", "robot_integ_%").
+			WhereIn("status", []interface{}{"running", "paused", "pending", "waiting", "confirming"}).
+			Delete()
+		if err != nil {
+			t.Logf("Warning: execution cleanup error: %v", err)
+		}
+	}
+
 	m := model.Select("__yao.member")
 	tableName := m.MetaData.Table.Name
-
-	// Delete all robots with member_id starting with "robot_integ_"
-	// Using LIKE pattern for cleanup
 	_, err := qb.Table(tableName).Where("member_id", "like", "robot_integ_%").Delete()
 	if err != nil {
-		// Log but don't fail - cleanup errors are not critical
 		t.Logf("Warning: cleanup error: %v", err)
 	}
 }

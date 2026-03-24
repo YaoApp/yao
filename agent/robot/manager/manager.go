@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/agent/robot/cache"
+	"github.com/yaoapp/yao/agent/robot/events"
 	"github.com/yaoapp/yao/agent/robot/executor"
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/trigger"
 	"github.com/yaoapp/yao/agent/robot/types"
+	"github.com/yaoapp/yao/event"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -138,6 +140,9 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("failed to load robots: %w", err)
 	}
 
+	// Recover non-terminal executions from previous server lifecycle
+	pendingNotifications := m.recoverExecutions(m.ctx)
+
 	// Set completion callback to clean up ExecutionController when execution finishes
 	m.pool.SetOnComplete(func(execID, memberID string, status types.ExecStatus) {
 		// Remove from ExecutionController (cleans up in-memory tracking)
@@ -163,6 +168,15 @@ func (m *Manager) Start() error {
 	m.cache.StartAutoRefresh(ctx, nil)
 
 	m.started = true
+
+	if len(pendingNotifications) > 0 {
+		go func() {
+			for _, n := range pendingNotifications {
+				_, _ = event.Push(context.Background(), events.ExecRecovered, n)
+			}
+		}()
+	}
+
 	return nil
 }
 
@@ -227,8 +241,8 @@ func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 	}
 	m.mu.RUnlock()
 
-	// Get all cached robots
-	robots := m.cache.ListAll()
+	// Get autonomous robots for clock trigger check
+	robots := m.cache.ListAutonomous()
 
 	for _, robot := range robots {
 		// Skip if robot is not active
@@ -747,8 +761,8 @@ func (m *Manager) scheduleCleanup(robot *types.Robot) {
 
 				// Check if all executions are done
 				if r.RunningCount() == 0 {
-					// Only remove if still non-autonomous
-					// (user might have changed it during execution)
+					// Non-autonomous robots: with full-cache load they will be
+					// re-added on next Load() cycle, so removal is a no-op in practice.
 					if !r.AutonomousMode {
 						m.cache.Remove(memberID)
 					}
@@ -792,6 +806,11 @@ func (m *Manager) Pool() *pool.Pool {
 // Executor returns the internal executor
 func (m *Manager) Executor() types.Executor {
 	return m.executor
+}
+
+// ExecController returns the internal execution controller
+func (m *Manager) ExecController() *trigger.ExecutionController {
+	return m.execController
 }
 
 // IsStarted returns true if manager is started

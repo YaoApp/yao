@@ -60,6 +60,8 @@ func (a *Adapter) handleMessages(ctx context.Context, entry *botEntry, cms []*fs
 			Locale:     events.NormalizeLocale(lastCM.LanguageCode),
 			Extra: map[string]any{
 				"feishu_message_id": lastCM.MessageID,
+				"sender_id":         lastCM.SenderID,
+				"app_id":            entry.appID,
 			},
 		},
 	}

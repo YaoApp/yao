@@ -11,6 +11,7 @@ import (
 	dcadapter "github.com/yaoapp/yao/agent/robot/events/integrations/discord"
 	fsadapter "github.com/yaoapp/yao/agent/robot/events/integrations/feishu"
 	"github.com/yaoapp/yao/agent/robot/events/integrations/telegram"
+	weixinadapter "github.com/yaoapp/yao/agent/robot/events/integrations/weixin"
 	"github.com/yaoapp/yao/agent/robot/logger"
 	"github.com/yaoapp/yao/agent/robot/manager"
 	"github.com/yaoapp/yao/agent/robot/types"
@@ -65,6 +66,7 @@ func Start() error {
 		"feishu":   fsadapter.NewAdapter(),
 		"dingtalk": dtadapter.NewAdapter(),
 		"discord":  dcadapter.NewAdapter(),
+		"weixin":   weixinadapter.NewAdapter(),
 	}
 	globalDispatcher = integrations.NewDispatcher(globalManager.Cache(), adapters)
 	if err := globalDispatcher.Start(context.Background()); err != nil {
@@ -133,6 +135,16 @@ func getManager() (*manager.Manager, error) {
 		return nil, fmt.Errorf("robot agent system not started")
 	}
 	return globalManager, nil
+}
+
+// GetManager returns the global manager instance, or nil if not started.
+func GetManager() *manager.Manager {
+	managerMu.RLock()
+	defer managerMu.RUnlock()
+	if globalManager == nil || !globalManager.IsStarted() {
+		return nil
+	}
+	return globalManager
 }
 
 // SetManager sets the global manager instance (for testing)

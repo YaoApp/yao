@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent/robot/types"
 )
 
@@ -65,7 +66,8 @@ type ListOptions struct {
 	MemberID        string             `json:"member_id,omitempty"`
 	TeamID          string             `json:"team_id,omitempty"`
 	Status          types.ExecStatus   `json:"status,omitempty"`
-	ExcludeStatuses []types.ExecStatus `json:"exclude_statuses,omitempty"`
+	Statuses        []types.ExecStatus `json:"statuses,omitempty"`         // Multi-status IN query; takes priority over Status when non-empty
+	ExcludeStatuses []types.ExecStatus `json:"exclude_statuses,omitempty"` // Exclude these statuses (ne)
 	TriggerType     types.TriggerType  `json:"trigger_type,omitempty"`
 	Page            int                `json:"page,omitempty"`
 	PageSize        int                `json:"pagesize,omitempty"`
@@ -171,7 +173,11 @@ func (s *ExecutionStore) List(ctx context.Context, opts *ListOptions) (*ListResu
 		if opts.TeamID != "" {
 			wheres = append(wheres, model.QueryWhere{Column: "team_id", Value: opts.TeamID})
 		}
-		if opts.Status != "" {
+		if len(opts.Statuses) > 0 {
+			// Backward compat: use the first status for simple equality filter.
+			// For multi-status IN queries, use ListByStatuses() instead.
+			wheres = append(wheres, model.QueryWhere{Column: "status", Value: string(opts.Statuses[0])})
+		} else if opts.Status != "" {
 			wheres = append(wheres, model.QueryWhere{Column: "status", Value: string(opts.Status)})
 		}
 		for _, es := range opts.ExcludeStatuses {
@@ -227,6 +233,80 @@ func (s *ExecutionStore) List(ctx context.Context, opts *ListOptions) (*ListResu
 	return &ListResult{
 		Data:     records,
 		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+	}, nil
+}
+
+// ListByStatuses queries executions matching any of the given statuses using
+// capsule.Query() with WhereIn, which works reliably (unlike model.Paginate
+// with OP:"in" or multiple "ne" conditions).
+func (s *ExecutionStore) ListByStatuses(ctx context.Context, statuses []types.ExecStatus, opts *ListOptions) (*ListResult, error) {
+	if len(statuses) == 0 {
+		return &ListResult{Data: []*ExecutionRecord{}, Total: 0, Page: 1, PageSize: 20}, nil
+	}
+
+	mod := model.Select(s.modelID)
+	if mod == nil {
+		return nil, fmt.Errorf("model %s not found", s.modelID)
+	}
+	tableName := mod.MetaData.Table.Name
+
+	statusStrs := make([]interface{}, len(statuses))
+	for i, st := range statuses {
+		statusStrs[i] = string(st)
+	}
+
+	page := 1
+	pageSize := 20
+	if opts != nil {
+		if opts.Page > 0 {
+			page = opts.Page
+		}
+		if opts.PageSize > 0 {
+			pageSize = opts.PageSize
+			if pageSize > 100 {
+				pageSize = 100
+			}
+		}
+	}
+	offset := (page - 1) * pageSize
+
+	qb := capsule.Query()
+
+	// Count query
+	countQB := qb.Table(tableName).WhereIn("status", statusStrs)
+	if opts != nil && opts.MemberID != "" {
+		countQB = countQB.Where("member_id", opts.MemberID)
+	}
+	total, err := countQB.Count()
+	if err != nil {
+		return nil, fmt.Errorf("failed to count executions by statuses: %w", err)
+	}
+
+	// Data query
+	dataQB := qb.Table(tableName).WhereIn("status", statusStrs)
+	if opts != nil && opts.MemberID != "" {
+		dataQB = dataQB.Where("member_id", opts.MemberID)
+	}
+	rows, err := dataQB.OrderBy("start_time", "desc").Limit(pageSize).Offset(offset).Get()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list executions by statuses: %w", err)
+	}
+
+	records := make([]*ExecutionRecord, 0, len(rows))
+	for _, row := range rows {
+		rowMap := map[string]interface{}(row)
+		record, err := s.mapToRecord(rowMap)
+		if err != nil {
+			continue
+		}
+		records = append(records, record)
+	}
+
+	return &ListResult{
+		Data:     records,
+		Total:    int(total),
 		Page:     page,
 		PageSize: pageSize,
 	}, nil
@@ -840,15 +920,15 @@ func (s *ExecutionStore) parseTime(v interface{}) *time.Time {
 	case *time.Time:
 		return t
 	case string:
-		// Try parsing common time formats
-		formats := []string{
-			time.RFC3339,
-			time.RFC3339Nano,
-			"2006-01-02 15:04:05",
-			"2006-01-02T15:04:05Z",
-		}
-		for _, format := range formats {
+		// Formats that include timezone info — use time.Parse (respects embedded tz)
+		for _, format := range []string{time.RFC3339, time.RFC3339Nano} {
 			if parsed, err := time.Parse(format, t); err == nil {
+				return &parsed
+			}
+		}
+		// Formats without timezone — treat as local time
+		for _, format := range []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05Z"} {
+			if parsed, err := time.ParseInLocation(format, t, time.Local); err == nil {
 				return &parsed
 			}
 		}

@@ -58,7 +58,8 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 	defer a.mu.Unlock()
 
 	if existing, ok := a.bots[robot.MemberID]; ok {
-		if existing.bot.Token() == dcConf.BotToken {
+		if existing.bot.Token() == dcConf.BotToken &&
+			existing.appID == dcConf.AppID {
 			return
 		}
 		a.removeBotLocked(robot.MemberID)

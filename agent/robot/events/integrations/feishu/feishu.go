@@ -26,10 +26,11 @@ type Adapter struct {
 
 // botEntry holds the state for one robot's Feishu integration.
 type botEntry struct {
-	robotID  string
-	appID    string
-	bot      *fsapi.Bot
-	cancelFn context.CancelFunc // cancels the event subscription goroutine
+	robotID   string
+	appID     string
+	appSecret string
+	bot       *fsapi.Bot
+	cancelFn  context.CancelFunc // cancels the event subscription goroutine
 }
 
 // NewAdapter creates a new Feishu adapter.
@@ -58,7 +59,8 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 	defer a.mu.Unlock()
 
 	if existing, ok := a.bots[robot.MemberID]; ok {
-		if existing.appID == fsConf.AppID {
+		if existing.appID == fsConf.AppID &&
+			existing.appSecret == fsConf.AppSecret {
 			return
 		}
 		a.removeBotLocked(robot.MemberID)
@@ -68,10 +70,11 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 
 	streamCtx, streamCancel := context.WithCancel(context.Background())
 	entry := &botEntry{
-		robotID:  robot.MemberID,
-		appID:    fsConf.AppID,
-		bot:      bot,
-		cancelFn: streamCancel,
+		robotID:   robot.MemberID,
+		appID:     fsConf.AppID,
+		appSecret: fsConf.AppSecret,
+		bot:       bot,
+		cancelFn:  streamCancel,
 	}
 	a.bots[robot.MemberID] = entry
 	a.appIdx[fsConf.AppID] = robot.MemberID

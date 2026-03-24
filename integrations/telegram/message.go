@@ -11,6 +11,19 @@ import (
 	"github.com/yaoapp/yao/attachment"
 )
 
+// SendTyping sends a "typing" chat action to indicate the bot is preparing a response.
+func (b *Bot) SendTyping(ctx context.Context, chatID int64) error {
+	sdk, err := b.sdk()
+	if err != nil {
+		return err
+	}
+	_, err = sdk.SendChatAction(ctx, &bot.SendChatActionParams{
+		ChatID: chatID,
+		Action: models.ChatActionTyping,
+	})
+	return err
+}
+
 // SendMessage sends a message to a chat. If the text contains Markdown formatting,
 // it is automatically converted to Telegram-compatible HTML.
 func (b *Bot) SendMessage(ctx context.Context, chatID int64, text string, replyTo int64) error {

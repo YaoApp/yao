@@ -12,6 +12,13 @@ import (
 	"github.com/yaoapp/yao/attachment"
 )
 
+// SendTyping is a placeholder for typing indicator support.
+// Feishu does not provide a public typing status API; this is a no-op
+// so callers can use a uniform interface across all adapters.
+func (b *Bot) SendTyping(ctx context.Context, chatID string) error {
+	return nil
+}
+
 // SendTextMessage sends a text message to a chat.
 func (b *Bot) SendTextMessage(ctx context.Context, chatID, text string) (string, error) {
 	content, _ := json.Marshal(map[string]string{"text": text})

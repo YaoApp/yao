@@ -35,6 +35,16 @@ type monitorService struct {
 	started  bool
 }
 
+// GetWatcher returns a registered watcher by name, or nil if not found.
+func GetWatcher(name string) Watcher {
+	svc.mu.Lock()
+	defer svc.mu.Unlock()
+	if entry, ok := svc.watchers[name]; ok {
+		return entry.watcher
+	}
+	return nil
+}
+
 // Register adds a watcher. Call before Start (typically in init).
 // Registering a watcher with the same name replaces the previous one.
 func Register(w Watcher) {

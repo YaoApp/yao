@@ -67,6 +67,8 @@ func (a *Adapter) handleMessages(ctx context.Context, entry *botEntry, cms []*dc
 				"discord_message_id": lastCM.MessageID,
 				"guild_id":           lastCM.GuildID,
 				"is_dm":              lastCM.IsDM,
+				"sender_id":          lastCM.AuthorID,
+				"app_id":             entry.appID,
 			},
 		},
 	}

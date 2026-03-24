@@ -30,6 +30,7 @@ type Adapter struct {
 type botEntry struct {
 	robotID string
 	appID   string
+	host    string
 	bot     *tgapi.Bot // bound to this robot's token
 	offset  int64      // polling offset
 }
@@ -65,7 +66,9 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 	defer a.mu.Unlock()
 
 	if existing, ok := a.bots[robot.MemberID]; ok {
-		if existing.bot.Token() == tgConf.BotToken {
+		if existing.bot.Token() == tgConf.BotToken &&
+			existing.appID == tgConf.AppID &&
+			existing.host == tgConf.Host {
 			return
 		}
 		a.removeBotLocked(robot.MemberID)
@@ -78,6 +81,7 @@ func (a *Adapter) Apply(ctx context.Context, robot *robottypes.Robot) {
 	entry := &botEntry{
 		robotID: robot.MemberID,
 		appID:   tgConf.AppID,
+		host:    tgConf.Host,
 		bot:     tgapi.NewBot(tgConf.BotToken, tgConf.WebhookSecret, opts...),
 	}
 	a.bots[robot.MemberID] = entry

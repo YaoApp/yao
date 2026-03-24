@@ -67,6 +67,7 @@ const (
 	ExecCompleted = "robot.exec.completed"
 	ExecFailed    = "robot.exec.failed"
 	ExecCancelled = "robot.exec.cancelled"
+	ExecRecovered = "robot.exec.recovered"
 	Delivery      = "robot.delivery"
 	Message       = "robot.message"
 )

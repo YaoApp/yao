@@ -77,3 +77,6 @@ registry/manager/DESIGN*.md
 tai/testdata/
 agent/sandbox/docs/*.md
 tai/docs/refactor-registration.md
+agent/robot/ROBOT-WATCHER-IMPROVEMENT.md
+agent/robot/ROBOT-IM-INTEGRATION-IMPROVEMENT.md
+agent/robot/ROBOT-CACHE-IMPROVEMENT.md

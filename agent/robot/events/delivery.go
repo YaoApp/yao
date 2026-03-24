@@ -104,10 +104,14 @@ func (h *robotHandler) handleDelivery(ctx context.Context, ev *eventtypes.Event,
 				for k, v := range payload.Extra {
 					extra[k] = v
 				}
+				senderID, _ := payload.Extra["sender_id"].(string)
+				appID, _ := payload.Extra["app_id"].(string)
 				metadata := &MessageMetadata{
-					Channel: channel,
-					ChatID:  chatID,
-					Extra:   extra,
+					Channel:  channel,
+					ChatID:   chatID,
+					SenderID: senderID,
+					AppID:    appID,
+					Extra:    extra,
 				}
 				if err := reply(ctx, msg, metadata); err != nil {
 					log.Error("delivery handler: integration reply failed channel=%s execution=%s: %v", channel, payload.ExecutionID, err)

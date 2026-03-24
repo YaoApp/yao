@@ -78,7 +78,7 @@ func TestAPIFullLifecycle(t *testing.T) {
 		assert.Equal(t, 5, status.MaxRunning)
 
 		// 5. List robots
-		listResult, err := api.ListRobots(ctx, &api.ListQuery{
+		listResult, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:   "team_api_001",
 			Page:     1,
 			PageSize: 10,
@@ -145,8 +145,8 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 		assert.Equal(t, types.RobotIdle, robot.Status)
 	})
 
-	t.Run("ListRobots filters by team", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+	t.Run("ListAllRobots filters by team", func(t *testing.T) {
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:   "team_api_query",
 			Page:     1,
 			PageSize: 10,
@@ -165,9 +165,9 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 		}
 	})
 
-	t.Run("ListRobots pagination works", func(t *testing.T) {
+	t.Run("ListAllRobots pagination works", func(t *testing.T) {
 		// Page 1 with size 1
-		result1, err := api.ListRobots(ctx, &api.ListQuery{
+		result1, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:   "team_api_query",
 			Page:     1,
 			PageSize: 1,
@@ -176,7 +176,7 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 		require.GreaterOrEqual(t, len(result1.Data), 1, "Should have at least 1 robot on page 1")
 
 		// Page 2 with size 1
-		result2, err := api.ListRobots(ctx, &api.ListQuery{
+		result2, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:   "team_api_query",
 			Page:     2,
 			PageSize: 1,
@@ -188,8 +188,8 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 		assert.NotEqual(t, result1.Data[0].MemberID, result2.Data[0].MemberID)
 	})
 
-	t.Run("ListRobots filters by keywords", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+	t.Run("ListAllRobots filters by keywords", func(t *testing.T) {
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			Keywords: "robot_api_query_001",
 			Page:     1,
 			PageSize: 10,
@@ -205,8 +205,8 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 	})
 }
 
-// TestListRobotsAutonomousModeFilter tests the autonomous_mode filter
-func TestListRobotsAutonomousModeFilter(t *testing.T) {
+// TestListAllRobotsAutonomousModeFilter tests the autonomous_mode filter
+func TestListAllRobotsAutonomousModeFilter(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
@@ -224,8 +224,8 @@ func TestListRobotsAutonomousModeFilter(t *testing.T) {
 
 	ctx := types.NewContext(context.Background(), nil)
 
-	t.Run("ListRobots returns all robots when autonomous_mode is nil", func(t *testing.T) {
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+	t.Run("ListAllRobots returns all robots when autonomous_mode is nil", func(t *testing.T) {
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:   "team_api_mode",
 			Page:     1,
 			PageSize: 10,
@@ -237,9 +237,9 @@ func TestListRobotsAutonomousModeFilter(t *testing.T) {
 		assert.Equal(t, 3, result.Total)
 	})
 
-	t.Run("ListRobots filters by autonomous_mode=true", func(t *testing.T) {
+	t.Run("ListAllRobots filters by autonomous_mode=true", func(t *testing.T) {
 		autonomousMode := true
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:         "team_api_mode",
 			AutonomousMode: &autonomousMode,
 			Page:           1,
@@ -255,9 +255,9 @@ func TestListRobotsAutonomousModeFilter(t *testing.T) {
 		}
 	})
 
-	t.Run("ListRobots filters by autonomous_mode=false", func(t *testing.T) {
+	t.Run("ListAllRobots filters by autonomous_mode=false", func(t *testing.T) {
 		autonomousMode := false
-		result, err := api.ListRobots(ctx, &api.ListQuery{
+		result, err := api.ListAllRobots(ctx, &api.ListQuery{
 			TeamID:         "team_api_mode",
 			AutonomousMode: &autonomousMode,
 			Page:           1,
