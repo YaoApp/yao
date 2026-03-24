@@ -52,10 +52,10 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		// Setup: Create a robot with times mode clock config
 		setupIntegrationRobotTimes(t, "robot_integ_flow_clock", "team_integ_flow")
 
-		// Create manager with slow tick interval to avoid auto-tick interference
 		config := &manager.Config{
 			TickInterval: 10 * time.Second,
 			PoolConfig:   &pool.Config{WorkerSize: 5, QueueSize: 50},
+			Executor:     executor.NewDryRun(),
 		}
 		m := manager.NewWithConfig(config)
 
@@ -91,7 +91,7 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		setupIntegrationRobotTimes(t, "robot_integ_flow_db1", "team_integ_flow")
 		setupIntegrationRobotInterval(t, "robot_integ_flow_db2", "team_integ_flow")
 
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
@@ -116,7 +116,7 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		// Setup: Create an inactive robot
 		setupIntegrationRobotInactive(t, "robot_integ_flow_inactive", "team_integ_flow")
 
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
@@ -130,7 +130,7 @@ func TestIntegrationSchedulingFlow(t *testing.T) {
 		// Setup: Create a robot with autonomous_mode=false
 		setupIntegrationRobotNonAutonomous(t, "robot_integ_flow_nonauto", "team_integ_flow")
 
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		require.NoError(t, err)
 		defer m.Stop()
