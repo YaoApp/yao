@@ -52,25 +52,33 @@ func (r *Robot) CanRun() bool {
 	return len(r.executions) < r.Config.Quota.GetMax()
 }
 
-// TryAcquireSlot atomically checks if robot can run and reserves a slot
-// Returns true if slot was acquired, false if quota is full
-// This prevents race conditions between CanRun() check and AddExecution()
+// TryAcquireSlot atomically checks if robot can run and reserves a slot.
+// Returns true if slot was acquired, false if quota is full.
+// Idempotent: if exec.ID already exists in tracking, the entry is updated
+// and true is returned without consuming an additional slot. This supports
+// the Tick pre-acquisition pattern where the slot is reserved early and
+// later confirmed by the executor with a richer Execution object.
 func (r *Robot) TryAcquireSlot(exec *Execution) bool {
 	r.execMu.Lock()
 	defer r.execMu.Unlock()
 
-	// Get max quota
+	// Idempotent: same ID already tracked — update in place
+	if r.executions != nil {
+		if _, exists := r.executions[exec.ID]; exists {
+			r.executions[exec.ID] = exec
+			return true
+		}
+	}
+
 	maxQuota := 2 // default
 	if r.Config != nil {
 		maxQuota = r.Config.Quota.GetMax()
 	}
 
-	// Check if we can add
 	if len(r.executions) >= maxQuota {
-		return false // quota full
+		return false
 	}
 
-	// Reserve slot by adding execution
 	if r.executions == nil {
 		r.executions = make(map[string]*Execution)
 	}

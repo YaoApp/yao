@@ -66,10 +66,10 @@ func (w *Worker) run() {
 
 // execute processes a single queue item
 func (w *Worker) execute(item *QueueItem) {
-	// Pre-check if robot can run (non-atomic, just for early rejection)
-	// The actual atomic check happens inside Executor.Execute() via TryAcquireSlot()
-	if !item.Robot.CanRun() {
-		// Robot likely at quota, re-enqueue for later
+	// Pre-check if robot can run (non-atomic, just for early rejection).
+	// Skip for jobs whose slot was pre-acquired by Tick — they already hold
+	// a reserved slot and will pass TryAcquireSlot idempotently.
+	if item.Robot.GetExecution(item.ExecID) == nil && !item.Robot.CanRun() {
 		w.requeue(item, "quota pre-check failed")
 		return
 	}
