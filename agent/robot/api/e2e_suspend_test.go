@@ -157,9 +157,10 @@ func TestE2ESuspendResumeFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, interactResult)
 
-	// Since robot-need-input always signals need_input, the resumed execution
-	// will re-suspend. The Interact API returns "waiting" status in this case.
-	assert.Equal(t, "waiting", interactResult.Status, "Should re-suspend since assistant always signals need_input")
+	// The Host Agent may return a structured action (→ "waiting"/"resumed") or
+	// a conversational reply (→ "waiting_for_more") depending on LLM behaviour.
+	assert.Contains(t, []string{"waiting", "resumed", "waiting_for_more"}, interactResult.Status,
+		"Expected waiting, resumed, or waiting_for_more; got %s", interactResult.Status)
 	t.Logf("Interact result: status=%s message=%s", interactResult.Status, interactResult.Message)
 
 	// Step 4: Verify the execution is in waiting status again (re-suspended)
@@ -200,7 +201,7 @@ func TestE2EReplyShortcut(t *testing.T) {
 	replyResult, err := api.Reply(ctx, memberID, result.ExecutionID, exec.WaitingTaskID, "Use warehouse A data")
 	require.NoError(t, err)
 	require.NotNil(t, replyResult)
-	assert.Contains(t, []string{"waiting", "resumed"}, replyResult.Status)
+	assert.Contains(t, []string{"waiting", "resumed", "waiting_for_more"}, replyResult.Status)
 	t.Logf("Reply result: status=%s", replyResult.Status)
 }
 

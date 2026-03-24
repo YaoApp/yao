@@ -390,6 +390,7 @@ func LoadPath(path string) (*Assistant, error) {
 			return nil, fmt.Errorf("load sandbox.yao: %w", sbErr)
 		}
 		data["__sandbox_v2"] = sbCfg
+		data["sandbox"] = sbCfg
 	}
 
 	ast, err := loadMap(data)

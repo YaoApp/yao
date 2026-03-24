@@ -305,11 +305,23 @@ func ListAssistantTags(c *gin.Context) {
 
 	// Parse filter parameters
 	typeParam := strings.TrimSpace(c.Query("type"))
-	if typeParam == "" {
-		typeParam = "assistant" // Default type
-	}
 	connector := strings.TrimSpace(c.Query("connector"))
 	keywords := strings.TrimSpace(c.Query("keywords"))
+
+	// Parse types (multiple, comma-separated for IN query)
+	var types []string
+	if typesParam := c.Query("types"); typesParam != "" {
+		for _, t := range strings.Split(typesParam, ",") {
+			if trimmed := strings.TrimSpace(t); trimmed != "" {
+				types = append(types, trimmed)
+			}
+		}
+	}
+
+	// Set default type only if neither type nor types is specified
+	if typeParam == "" && len(types) == 0 {
+		typeParam = "assistant"
+	}
 
 	// Parse boolean filters
 	var builtIn, mentionable, automated *bool
@@ -326,6 +338,7 @@ func ListAssistantTags(c *gin.Context) {
 	// Build filter
 	filter := BuildAssistantFilter(AssistantFilterParams{
 		Type:        typeParam,
+		Types:       types,
 		Connector:   connector,
 		Keywords:    keywords,
 		BuiltIn:     builtIn,

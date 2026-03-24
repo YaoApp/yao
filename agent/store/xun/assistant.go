@@ -14,6 +14,13 @@ import (
 	"github.com/yaoapp/yao/agent/store/types"
 )
 
+func sandboxForDB(a *types.AssistantModel) interface{} {
+	if a.SandboxV2 != nil {
+		return a.SandboxV2
+	}
+	return a.Sandbox
+}
+
 // SaveAssistant saves assistant information
 func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error) {
 	if assistant == nil {
@@ -165,7 +172,7 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		"db":                assistant.DB,
 		"mcp":               assistant.MCP,
 		"workflow":          assistant.Workflow,
-		"sandbox":           assistant.Sandbox,
+		"sandbox":           sandboxForDB(assistant),
 		"placeholder":       assistant.Placeholder,
 		"locales":           assistant.Locales,
 		"uses":              assistant.Uses,
@@ -763,12 +770,12 @@ func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) 
 func (store *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...string) ([]types.Tag, error) {
 	qb := store.query.New().Table(store.getAssistantTable())
 
-	// Apply type filter (default to "assistant")
-	typeFilter := "assistant"
-	if filter.Type != "" {
-		typeFilter = filter.Type
+	// Apply type filter
+	if len(filter.Types) > 0 {
+		qb.WhereIn("type", filter.Types)
+	} else if filter.Type != "" {
+		qb.Where("type", filter.Type)
 	}
-	qb.Where("type", typeFilter)
 
 	// Apply custom query filter function (for permission filtering)
 	if filter.QueryFilter != nil {
@@ -895,10 +902,7 @@ func (store *Xun) translate(model *types.AssistantModel, assistantID string, loc
 		}
 	}
 
-	// Translate tags
-	if translated := i18n.Translate(assistantID, locale, model.Tags); translated != nil {
-		if tags, ok := translated.([]string); ok {
-			model.Tags = tags
-		}
-	}
+	// Tags are NOT translated — they serve as filter keys and must remain
+	// in their original (English) form so that filter.tags round-trips
+	// correctly through the LIKE query on the DB column.
 }

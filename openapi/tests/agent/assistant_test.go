@@ -297,7 +297,8 @@ func TestListAssistants(t *testing.T) {
 
 	t.Run("ListAssistantsSandboxReturnsBool", func(t *testing.T) {
 		// Verify sandbox field is returned as boolean (not JSON object) in list response
-		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants?pagesize=5&types=assistant", nil)
+		// and V2 sandboxes include computer_filter
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants?pagesize=20&types=assistant", nil)
 		assert.NoError(t, err)
 		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
 
@@ -314,13 +315,26 @@ func TestListAssistants(t *testing.T) {
 
 		data, hasData := response["data"].([]interface{})
 		if hasData && len(data) > 0 {
-			a, ok := data[0].(map[string]interface{})
-			if ok {
+			for _, item := range data {
+				a, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
 				sandboxVal, exists := a["sandbox"]
-				assert.True(t, exists, "sandbox field should be present in default list fields")
-				_, isBool := sandboxVal.(bool)
-				assert.True(t, isBool, "sandbox should be a boolean value, got %T", sandboxVal)
-				t.Logf("sandbox field correctly returned as bool: %v", sandboxVal)
+				assert.True(t, exists, "sandbox field should be present")
+				isSandbox, isBool := sandboxVal.(bool)
+				assert.True(t, isBool, "sandbox should be a boolean, got %T", sandboxVal)
+
+				if isSandbox {
+					// V2 sandbox assistants should have computer_filter if configured
+					if cf, hasCF := a["computer_filter"]; hasCF {
+						cfMap, isMap := cf.(map[string]interface{})
+						assert.True(t, isMap, "computer_filter should be a map when present, got %T", cf)
+						if isMap {
+							t.Logf("Found computer_filter with kind=%v for assistant %v", cfMap["kind"], a["assistant_id"])
+						}
+					}
+				}
 			}
 		}
 	})
@@ -781,6 +795,101 @@ func TestAssistantEdgeCases(t *testing.T) {
 	})
 }
 
+// TestListAssistantsSandboxV2 tests sandbox V2 identification and computer_filter in responses
+func TestListAssistantsSandboxV2(t *testing.T) {
+	serverURL := testutils.Prepare(t)
+	defer testutils.Clean()
+
+	baseURL := ""
+	if openapi.Server != nil && openapi.Server.Config != nil {
+		baseURL = openapi.Server.Config.BaseURL
+	}
+
+	client := testutils.RegisterTestClient(t, "Agent Sandbox V2 Test Client", []string{"https://localhost/callback"})
+	defer testutils.CleanupTestClient(t, client.ClientID)
+	tokenInfo := testutils.ObtainAccessToken(t, serverURL, client.ClientID, client.ClientSecret, "https://localhost/callback", "openid profile")
+
+	t.Run("ListAssistantsSandboxV2WithComputerFilter", func(t *testing.T) {
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants?sandbox=true&types=assistant", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		if hasData {
+			for _, item := range data {
+				a, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+
+				sandboxVal, exists := a["sandbox"]
+				assert.True(t, exists, "sandbox field should exist")
+				isSandbox, isBool := sandboxVal.(bool)
+				assert.True(t, isBool, "sandbox should be bool, got %T", sandboxVal)
+				assert.True(t, isSandbox, "sandbox should be true when filtered by sandbox=true")
+
+				if cf, hasCF := a["computer_filter"]; hasCF && cf != nil {
+					cfMap, isMap := cf.(map[string]interface{})
+					assert.True(t, isMap, "computer_filter should be a map, got %T", cf)
+					if isMap {
+						_, hasKind := cfMap["kind"]
+						assert.True(t, hasKind, "computer_filter should contain kind field")
+						t.Logf("V2 sandbox assistant %v has computer_filter.kind=%v", a["assistant_id"], cfMap["kind"])
+					}
+				}
+			}
+			t.Logf("Checked %d sandbox assistants for V2 computer_filter", len(data))
+		}
+	})
+
+	t.Run("ListAssistantsComputerFilterInResponse", func(t *testing.T) {
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants?sandbox=true&pagesize=20", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var response map[string]interface{}
+		err = json.NewDecoder(resp.Body).Decode(&response)
+		assert.NoError(t, err)
+
+		data, hasData := response["data"].([]interface{})
+		v2Count := 0
+		if hasData {
+			for _, item := range data {
+				a, ok := item.(map[string]interface{})
+				if !ok {
+					continue
+				}
+				if cf, hasCF := a["computer_filter"]; hasCF && cf != nil {
+					v2Count++
+					cfMap, isMap := cf.(map[string]interface{})
+					if isMap {
+						t.Logf("Assistant %v: computer_filter=%v", a["assistant_id"], cfMap)
+					}
+				}
+			}
+		}
+		t.Logf("Found %d assistants with computer_filter out of %d sandbox assistants", v2Count, len(data))
+	})
+}
+
 // TestListAssistantTags tests the assistant tags endpoint
 func TestListAssistantTags(t *testing.T) {
 	serverURL := testutils.Prepare(t)
@@ -942,6 +1051,51 @@ func TestListAssistantTags(t *testing.T) {
 		assert.NoError(t, err)
 
 		t.Logf("Successfully retrieved %d tags with keywords filter", len(tags))
+	})
+
+	t.Run("ListAssistantTagsWithTypesFilter", func(t *testing.T) {
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?types=assistant,robot", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
+		assert.NoError(t, err)
+
+		if len(tags) > 0 {
+			tag, ok := tags[0].(map[string]interface{})
+			if ok {
+				assert.Contains(t, tag, "value", "Tag should have value field")
+				assert.Contains(t, tag, "label", "Tag should have label field")
+			}
+		}
+		t.Logf("Successfully retrieved %d tags with types=assistant,robot", len(tags))
+	})
+
+	t.Run("ListAssistantTagsWithTypesAndKeywords", func(t *testing.T) {
+		req, err := http.NewRequest("GET", serverURL+baseURL+"/agent/assistants/tags?types=assistant,robot&keywords=test", nil)
+		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp)
+		defer resp.Body.Close()
+
+		assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var tags []interface{}
+		err = json.NewDecoder(resp.Body).Decode(&tags)
+		assert.NoError(t, err)
+
+		t.Logf("Successfully retrieved %d tags with types+keywords", len(tags))
 	})
 
 	t.Run("ListAssistantTagsUnauthorized", func(t *testing.T) {
