@@ -216,18 +216,26 @@ func TestQuotaDefaults(t *testing.T) {
 }
 
 func TestResourcesGetPhaseAgent(t *testing.T) {
-	t.Run("nil resources - returns default", func(t *testing.T) {
+	t.Run("nil resources without global resolver - returns empty", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = nil
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
 		var resources *types.Resources
 		agent := resources.GetPhaseAgent(types.PhaseGoals)
-		assert.Equal(t, "__yao.goals", agent)
+		assert.Equal(t, "", agent)
 	})
 
-	t.Run("phase not configured - returns default", func(t *testing.T) {
+	t.Run("phase not configured without global resolver - returns empty", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = nil
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
 		resources := &types.Resources{
 			Phases: map[types.Phase]string{},
 		}
 		agent := resources.GetPhaseAgent(types.PhaseGoals)
-		assert.Equal(t, "__yao.goals", agent)
+		assert.Equal(t, "", agent)
 	})
 
 	t.Run("custom phase agent", func(t *testing.T) {
@@ -240,14 +248,80 @@ func TestResourcesGetPhaseAgent(t *testing.T) {
 		assert.Equal(t, "custom.goals.agent", agent)
 	})
 
-	t.Run("all phases default names", func(t *testing.T) {
+	t.Run("global resolver fallback", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = func(phase types.Phase) string {
+			return "global." + string(phase)
+		}
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
 		resources := &types.Resources{}
-		assert.Equal(t, "__yao.inspiration", resources.GetPhaseAgent(types.PhaseInspiration))
-		assert.Equal(t, "__yao.goals", resources.GetPhaseAgent(types.PhaseGoals))
-		assert.Equal(t, "__yao.tasks", resources.GetPhaseAgent(types.PhaseTasks))
-		assert.Equal(t, "__yao.run", resources.GetPhaseAgent(types.PhaseRun))
-		assert.Equal(t, "__yao.delivery", resources.GetPhaseAgent(types.PhaseDelivery))
-		assert.Equal(t, "__yao.learning", resources.GetPhaseAgent(types.PhaseLearning))
+		assert.Equal(t, "global.inspiration", resources.GetPhaseAgent(types.PhaseInspiration))
+		assert.Equal(t, "global.goals", resources.GetPhaseAgent(types.PhaseGoals))
+		assert.Equal(t, "global.tasks", resources.GetPhaseAgent(types.PhaseTasks))
+		assert.Equal(t, "global.run", resources.GetPhaseAgent(types.PhaseRun))
+		assert.Equal(t, "global.delivery", resources.GetPhaseAgent(types.PhaseDelivery))
+		assert.Equal(t, "global.learning", resources.GetPhaseAgent(types.PhaseLearning))
+	})
+
+	t.Run("per-robot override takes precedence over global resolver", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = func(phase types.Phase) string {
+			return "global." + string(phase)
+		}
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
+		resources := &types.Resources{
+			Phases: map[types.Phase]string{
+				types.PhaseGoals: "my-app.goals",
+			},
+		}
+		assert.Equal(t, "my-app.goals", resources.GetPhaseAgent(types.PhaseGoals))
+		assert.Equal(t, "global.inspiration", resources.GetPhaseAgent(types.PhaseInspiration))
+	})
+}
+
+func TestResolvePhaseAgent(t *testing.T) {
+	t.Run("nil config without global resolver", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = nil
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
+		assert.Equal(t, "", types.ResolvePhaseAgent(nil, types.PhaseGoals))
+	})
+
+	t.Run("nil config with global resolver", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = func(phase types.Phase) string {
+			return "global." + string(phase)
+		}
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
+		assert.Equal(t, "global.goals", types.ResolvePhaseAgent(nil, types.PhaseGoals))
+	})
+
+	t.Run("config with resources override", func(t *testing.T) {
+		config := &types.Config{
+			Resources: &types.Resources{
+				Phases: map[types.Phase]string{
+					types.PhaseDelivery: "app.delivery",
+				},
+			},
+		}
+		assert.Equal(t, "app.delivery", types.ResolvePhaseAgent(config, types.PhaseDelivery))
+	})
+
+	t.Run("string phase argument", func(t *testing.T) {
+		orig := types.GlobalPhaseAgentResolver
+		types.GlobalPhaseAgentResolver = func(phase types.Phase) string {
+			if phase == "validation" {
+				return "app.validation"
+			}
+			return ""
+		}
+		defer func() { types.GlobalPhaseAgentResolver = orig }()
+
+		assert.Equal(t, "app.validation", types.ResolvePhaseAgent(nil, "validation"))
 	})
 }
 

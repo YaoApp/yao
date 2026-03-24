@@ -35,10 +35,10 @@ func (e *Executor) RunInspiration(ctx *robottypes.Context, exec *robottypes.Exec
 		clock = robottypes.NewClockContext(time.Now(), "")
 	}
 
-	// Get agent ID for inspiration phase
-	agentID := "__yao.inspiration" // default
-	if robot.Config != nil && robot.Config.Resources != nil {
-		agentID = robot.Config.Resources.GetPhaseAgent(robottypes.PhaseInspiration)
+	// Get agent ID for inspiration phase (per-robot config > global Uses > empty)
+	agentID := robottypes.ResolvePhaseAgent(robot.Config, robottypes.PhaseInspiration)
+	if agentID == "" {
+		return fmt.Errorf("no Inspiration Agent configured (set uses.inspiration in agent.yml or resources.phases in robot config)")
 	}
 
 	// Build prompt using InputFormatter

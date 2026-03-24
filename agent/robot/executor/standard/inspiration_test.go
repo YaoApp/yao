@@ -215,13 +215,13 @@ func TestRunInspirationWithDefaultAgent(t *testing.T) {
 
 	ctx := types.NewContext(context.Background(), testAuth())
 
-	t.Run("uses default agent when not configured", func(t *testing.T) {
+	t.Run("uses global Uses config when per-robot resources not set", func(t *testing.T) {
 		robot := &types.Robot{
 			MemberID: "test-robot-1",
 			TeamID:   "test-team-1",
 			Config: &types.Config{
 				Identity: &types.Identity{Role: "Test Robot"},
-				// No Resources configured - should use default __yao.inspiration
+				// No Resources configured — falls back to global uses.inspiration
 			},
 		}
 		exec := createTestExecution(robot, types.TriggerClock)
@@ -229,9 +229,8 @@ func TestRunInspirationWithDefaultAgent(t *testing.T) {
 		e := standard.New()
 		err := e.RunInspiration(ctx, exec, nil)
 
-		// This will fail if __yao.inspiration doesn't exist
-		// In test environment, we expect it to fail with "agent not found"
-		// In production, it would use the default agent
+		// With global Uses configured (agent.yml: uses.inspiration = "robot.inspiration"),
+		// the call should succeed. Without global config, it would error.
 		if err != nil {
 			assert.Contains(t, err.Error(), "call failed")
 		}

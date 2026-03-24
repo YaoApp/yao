@@ -418,11 +418,13 @@ func (v *Validator) hasAgentRules(rules []string) bool {
 
 // validateSemantic performs semantic validation using the Validation Agent
 func (v *Validator) validateSemantic(task *robottypes.Task, output interface{}) *robottypes.ValidationResult {
-	// Get validation agent ID
-	validationAgentID := "__yao.validation" // default
-	if v.robot.Config != nil && v.robot.Config.Resources != nil {
-		if customID, ok := v.robot.Config.Resources.Phases["validation"]; ok && customID != "" {
-			validationAgentID = customID
+	// Get validation agent ID (per-robot config > global Uses > empty)
+	validationAgentID := robottypes.ResolvePhaseAgent(v.robot.Config, "validation")
+	if validationAgentID == "" {
+		return &robottypes.ValidationResult{
+			Passed: false,
+			Score:  0,
+			Issues: []string{"no Validation Agent configured (set uses.validation in agent.yml or resources.phases in robot config)"},
 		}
 	}
 
