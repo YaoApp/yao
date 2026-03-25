@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
@@ -20,6 +21,7 @@ type ClaudeRunner struct {
 	hasMCP         bool
 	mcpToolPattern string
 	lastCompleted  bool
+	lastChatID     string
 	logger         *agentContext.RequestLogger
 }
 
@@ -107,7 +109,10 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		r.logger = agentContext.NoopLogger()
 	}
 
-	sess, err := startSession(ctx, computer, p, cmd, r.logger)
+	chatID := req.ChatID
+	r.lastChatID = chatID
+
+	sess, err := startSession(ctx, computer, p, cmd, chatID, r.logger)
 	if err != nil {
 		return err
 	}
@@ -117,6 +122,15 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	r.logger.Debug("Stream: runStream returned completed=%v err=%v", completed, err)
 	if completed {
 		sess.shutdown()
+		if chatID != "" {
+			assistantID := ""
+			if req.Config != nil {
+				assistantID = req.Config.ID
+			}
+			storeKey := "claude-session:" + assistantID + ":" + chatID
+			sessionUUID := chatIDToSessionUUID(assistantID, chatID)
+			markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
+		}
 	}
 	return err
 }
@@ -137,7 +151,11 @@ func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) err
 
 	if r.mode != "service" {
 		p := resolvePlatform(computer)
-		computer.Exec(ctx, p.KillCmd("claude"))
+		if r.lastChatID != "" {
+			computer.Exec(ctx, p.KillSessionCmd(sanitizeSessionName(r.lastChatID)))
+		} else {
+			computer.Exec(ctx, p.KillCmd("claude"))
+		}
 	}
 
 	return nil

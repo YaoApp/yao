@@ -92,7 +92,7 @@ func TestBuildArgs_Default(t *testing.T) {
 	r := &ClaudeRunner{}
 	p := testPlatform()
 
-	args := buildArgs(req, r, p, false, "")
+	args := buildArgs(req, r, p, false, "", "")
 	assert.Contains(t, args, "--input-format")
 	assert.Contains(t, args, "stream-json")
 	assert.Contains(t, args, "--output-format")
@@ -106,7 +106,7 @@ func TestBuildArgs_Continuation(t *testing.T) {
 	r := &ClaudeRunner{}
 	p := testPlatform()
 
-	args := buildArgs(req, r, p, true, "")
+	args := buildArgs(req, r, p, true, "", "")
 	assert.Contains(t, args, "--continue")
 }
 
@@ -124,7 +124,7 @@ func TestBuildArgs_PermissionMode(t *testing.T) {
 	r := &ClaudeRunner{}
 	p := testPlatform()
 
-	args := buildArgs(req, r, p, false, "")
+	args := buildArgs(req, r, p, false, "", "")
 	assert.Contains(t, args, "--dangerously-skip-permissions")
 	assert.Contains(t, args, "--permission-mode")
 }
@@ -135,7 +135,7 @@ func TestBuildArgs_MCP(t *testing.T) {
 	r := &ClaudeRunner{hasMCP: true, mcpToolPattern: "mcp__yao__*"}
 	p := testPlatform()
 
-	args := buildArgs(req, r, p, false, "test-assistant")
+	args := buildArgs(req, r, p, false, "test-assistant", "")
 	assert.Contains(t, args, "--mcp-config")
 	assert.Contains(t, args, "--allowedTools")
 	assert.Contains(t, args, "mcp__yao__*")
@@ -166,7 +166,7 @@ func TestBuildArgs_WhitelistOptions(t *testing.T) {
 	r := &ClaudeRunner{}
 	p := testPlatform()
 
-	args := buildArgs(req, r, p, false, "")
+	args := buildArgs(req, r, p, false, "", "")
 	assert.Contains(t, args, "--max-turns")
 }
 
@@ -382,3 +382,97 @@ func (f *fakeComputer) Stream(_ context.Context, _ []string, _ ...infra.ExecOpti
 }
 func (f *fakeComputer) VNC(_ context.Context) (string, error)                    { return "", nil }
 func (f *fakeComputer) Proxy(_ context.Context, _ int, _ string) (string, error) { return "", nil }
+
+// --- chatIDToSessionUUID ---
+
+func TestChatIDToSessionUUID_Deterministic(t *testing.T) {
+	u1 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
+	u2 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
+	assert.Equal(t, u1, u2, "same inputs should produce same UUID")
+}
+
+func TestChatIDToSessionUUID_DifferentAssistant(t *testing.T) {
+	u1 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
+	u2 := chatIDToSessionUUID("asst-2", "robot_m1_e1")
+	assert.NotEqual(t, u1, u2, "different assistantID should produce different UUID")
+}
+
+func TestChatIDToSessionUUID_ValidFormat(t *testing.T) {
+	u := chatIDToSessionUUID("asst-1", "robot_m1_e1")
+	assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`, u)
+}
+
+// --- sanitizeSessionName ---
+
+func TestSanitizeSessionName_Normal(t *testing.T) {
+	assert.Equal(t, "yao-robot_m1_e1", sanitizeSessionName("robot_m1_e1"))
+}
+
+func TestSanitizeSessionName_SpecialChars(t *testing.T) {
+	assert.Equal(t, "yao-user_s__chat_", sanitizeSessionName("user's \"chat\""))
+}
+
+func TestSanitizeSessionName_Empty(t *testing.T) {
+	assert.Equal(t, "yao-", sanitizeSessionName(""))
+}
+
+// --- buildArgs with session ---
+
+func TestBuildArgs_SessionID_NewSession(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = newFakeComputer("/workspace")
+	r := &ClaudeRunner{}
+	p := testPlatform()
+
+	args := buildArgs(req, r, p, false, "asst-1", "robot_m1_e1")
+	assert.Contains(t, args, "--session-id")
+	assert.Contains(t, args, "--name")
+	assert.Contains(t, args, "yao-robot_m1_e1")
+	assert.NotContains(t, args, "--resume")
+	assert.NotContains(t, args, "--continue")
+
+	sidIdx := -1
+	for i, a := range args {
+		if a == "--session-id" {
+			sidIdx = i
+			break
+		}
+	}
+	require.Greater(t, sidIdx, -1)
+	assert.Regexp(t, `^[0-9a-f]{8}-`, args[sidIdx+1])
+}
+
+func TestBuildArgs_SessionID_Continuation(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = newFakeComputer("/workspace")
+	r := &ClaudeRunner{}
+	p := testPlatform()
+
+	args := buildArgs(req, r, p, true, "asst-1", "robot_m1_e1")
+	assert.Contains(t, args, "--resume")
+	assert.Contains(t, args, "--name")
+	assert.NotContains(t, args, "--session-id")
+	assert.NotContains(t, args, "--continue")
+
+	resumeIdx := -1
+	for i, a := range args {
+		if a == "--resume" {
+			resumeIdx = i
+			break
+		}
+	}
+	require.Greater(t, resumeIdx, -1)
+	assert.Regexp(t, `^[0-9a-f]{8}-`, args[resumeIdx+1])
+}
+
+func TestBuildArgs_EmptyChatID_Continuation(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = newFakeComputer("/workspace")
+	r := &ClaudeRunner{}
+	p := testPlatform()
+
+	args := buildArgs(req, r, p, true, "", "")
+	assert.Contains(t, args, "--continue")
+	assert.NotContains(t, args, "--session-id")
+	assert.NotContains(t, args, "--name")
+}

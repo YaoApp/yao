@@ -262,6 +262,27 @@ func TestWindows_ShellCmd_Cmd(t *testing.T) {
 	assert.Equal(t, []string{"cmd.exe", "/C", "echo hello"}, cmd)
 }
 
+func TestPosixBase_KillSessionCmd(t *testing.T) {
+	b := newTestPosixBase("linux")
+	cmd := b.KillSessionCmd("yao-robot_m1_e1")
+	require.Len(t, cmd, 3)
+	assert.Equal(t, "sh", cmd[0])
+	assert.Equal(t, "-c", cmd[1])
+	assert.Contains(t, cmd[2], "pkill -9 -f")
+	assert.Contains(t, cmd[2], "yao-robot_m1_e1")
+	assert.Contains(t, cmd[2], "|| true")
+}
+
+func TestWindows_KillSessionCmd(t *testing.T) {
+	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
+	cmd := w.KillSessionCmd("yao-robot_m1_e1")
+	require.Len(t, cmd, 4)
+	assert.Equal(t, "pwsh", cmd[0])
+	assert.Contains(t, cmd[3], "CommandLine")
+	assert.Contains(t, cmd[3], "yao-robot_m1_e1")
+	assert.Contains(t, cmd[3], "taskkill")
+}
+
 func TestWindows_KillCmd(t *testing.T) {
 	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
 	cmd := w.KillCmd("claude")

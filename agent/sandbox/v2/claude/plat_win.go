@@ -76,6 +76,15 @@ func (w *windowsPlatform) KillCmd(pattern string) []string {
 	return w.ShellCmd(script)
 }
 
+func (w *windowsPlatform) KillSessionCmd(sessionName string) []string {
+	script := fmt.Sprintf(
+		"Get-Process -ErrorAction SilentlyContinue | "+
+			"Where-Object { $_.CommandLine -like '*%s*' } | "+
+			"ForEach-Object { taskkill /F /T /PID $_.Id 2>$null }",
+		sessionName)
+	return w.ShellCmd(script)
+}
+
 func (w *windowsPlatform) ListDirCmd(dir string) []string {
 	return w.ShellCmd(fmt.Sprintf("Get-ChildItem -Name '%s'", dir))
 }

@@ -20,6 +20,7 @@ type platform interface {
 	RootDir() string
 	ShellCmd(script string) []string
 	KillCmd(pattern string) []string
+	KillSessionCmd(sessionName string) []string
 	ListDirCmd(dir string) []string
 	ConfigDir() string
 	XauthoritySetup(workDir string) string
@@ -61,6 +62,10 @@ func (b *posixBase) ShellCmd(script string) []string {
 
 func (b *posixBase) KillCmd(pattern string) []string {
 	return []string{"sh", "-c", fmt.Sprintf("pkill -f '%s' || true", pattern)}
+}
+
+func (b *posixBase) KillSessionCmd(sessionName string) []string {
+	return []string{"sh", "-c", fmt.Sprintf("pkill -9 -f '%s' || true", sessionName)}
 }
 
 func (b *posixBase) ListDirCmd(dir string) []string {
