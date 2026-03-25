@@ -404,9 +404,12 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.C
 	// Use ChatID for multi-turn conversations, empty for single calls
 	agentCtx := agentcontext.New(ctx.Context, authorized, c.ChatID)
 
-	// Set locale if available
+	// Propagate locale to agent context; fall back to "en" so that
+	// i18n.Tr / buildBoxDisplayName always resolve {{name}} templates.
 	if ctx.Locale != "" {
 		agentCtx.Locale = ctx.Locale
+	} else {
+		agentCtx.Locale = "en"
 	}
 
 	// Use noop logger to suppress LLM debug output for robot executions

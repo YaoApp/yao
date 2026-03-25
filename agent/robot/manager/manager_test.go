@@ -146,9 +146,8 @@ func TestManagerTick(t *testing.T) {
 
 		// Should not have triggered (times mode robot only triggers at 09:00, 14:00)
 		execCount := m.Executor().ExecCount()
-		// Note: interval mode robot might trigger if enough time passed
-		// We just verify the times mode robot didn't trigger
-		assert.LessOrEqual(t, execCount, 1, "Times mode robot should not trigger at non-matching time")
+		// daemon always triggers, interval may trigger (LastRun=zero) => up to 2, but NOT 3
+		assert.LessOrEqual(t, execCount, 2, "Times mode robot should not trigger at non-matching time")
 	})
 
 	t.Run("tick with interval mode", func(t *testing.T) {

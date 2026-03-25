@@ -460,6 +460,7 @@ func (m *Manager) TriggerManual(ctx *types.Context, memberID string, trigger typ
 	// Create a new context with the cancellable context from ExecutionController
 	// This allows Stop() to propagate cancellation to the executor
 	execCtx := types.NewContext(ctrlExec.Context(), ctx.Auth)
+	execCtx.Locale = ctx.Locale
 
 	// Submit to pool with the cancellable context and execution control
 	// The control interface allows executor to check pause state and wait if paused
