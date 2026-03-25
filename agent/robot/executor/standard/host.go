@@ -18,12 +18,10 @@ func (e *Executor) CallHostAgent(ctx *robottypes.Context, robot *robottypes.Robo
 		return nil, fmt.Errorf("robot cannot be nil")
 	}
 
-	agentID := ""
-	if robot.Config != nil && robot.Config.Resources != nil {
-		agentID = robot.Config.Resources.GetPhaseAgent(robottypes.PhaseHost)
-	}
+	// Get agent ID for host phase (per-robot config > global Uses > empty)
+	agentID := robottypes.ResolvePhaseAgent(robot.Config, robottypes.PhaseHost)
 	if agentID == "" {
-		return nil, fmt.Errorf("no Host Agent configured for robot %s", robot.MemberID)
+		return nil, fmt.Errorf("no Host Agent configured for robot %s (set uses.host in agent.yml or resources.phases in robot config)", robot.MemberID)
 	}
 
 	inputJSON, err := json.Marshal(input)

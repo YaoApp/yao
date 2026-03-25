@@ -179,6 +179,9 @@ func AssistantToResponse(assistant *agenttypes.AssistantModel, hasSandbox bool) 
 	}
 
 	result["sandbox"] = hasSandbox
+	if assistant.ComputerFilter != nil {
+		result["computer_filter"] = assistant.ComputerFilter
+	}
 	return result
 }
 
@@ -192,7 +195,7 @@ func AssistantsToResponse(assistants []*agenttypes.AssistantModel) []map[string]
 
 	result := make([]map[string]interface{}, 0, len(assistants))
 	for _, a := range assistants {
-		hasSandbox := a.Sandbox != nil
+		hasSandbox := a.Sandbox != nil || a.IsSandbox
 		FilterBuiltInAssistant(a)
 		result = append(result, AssistantToResponse(a, hasSandbox))
 	}

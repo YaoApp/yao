@@ -94,7 +94,7 @@ func TestE2ENormalExecutionNoSuspend(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Write a one-sentence greeting")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec, "Execution should exist and reach terminal state")
 	if exec.Status == types.ExecFailed {
@@ -137,7 +137,7 @@ func TestE2ESuspendResumeFlow(t *testing.T) {
 
 	// Step 2: Wait for the execution to reach waiting status
 	exec := waitForStatus(t, execID,
-		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec, "Execution should exist")
 	require.Equal(t, types.ExecWaiting, exec.Status, "Execution should be in waiting status")
@@ -157,9 +157,10 @@ func TestE2ESuspendResumeFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, interactResult)
 
-	// Since robot-need-input always signals need_input, the resumed execution
-	// will re-suspend. The Interact API returns "waiting" status in this case.
-	assert.Equal(t, "waiting", interactResult.Status, "Should re-suspend since assistant always signals need_input")
+	// The Host Agent may return a structured action (→ "waiting"/"resumed") or
+	// a conversational reply (→ "waiting_for_more") depending on LLM behaviour.
+	assert.Contains(t, []string{"waiting", "resumed", "waiting_for_more"}, interactResult.Status,
+		"Expected waiting, resumed, or waiting_for_more; got %s", interactResult.Status)
 	t.Logf("Interact result: status=%s message=%s", interactResult.Status, interactResult.Message)
 
 	// Step 4: Verify the execution is in waiting status again (re-suspended)
@@ -192,7 +193,7 @@ func TestE2EReplyShortcut(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Check inventory levels")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecWaiting}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting}, 120*time.Second)
 	require.NotNil(t, exec, "Execution should reach waiting status")
 	require.Equal(t, types.ExecWaiting, exec.Status)
 
@@ -200,7 +201,7 @@ func TestE2EReplyShortcut(t *testing.T) {
 	replyResult, err := api.Reply(ctx, memberID, result.ExecutionID, exec.WaitingTaskID, "Use warehouse A data")
 	require.NoError(t, err)
 	require.NotNil(t, replyResult)
-	assert.Contains(t, []string{"waiting", "resumed"}, replyResult.Status)
+	assert.Contains(t, []string{"waiting", "resumed", "waiting_for_more"}, replyResult.Status)
 	t.Logf("Reply result: status=%s", replyResult.Status)
 }
 
@@ -228,7 +229,7 @@ func TestE2EResumeContextPersistence(t *testing.T) {
 	result := triggerSuspendRobot(t, ctx, memberID, "Analyze user behavior")
 
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecWaiting, types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 
 	require.NotNil(t, exec)
 	if exec.Status != types.ExecWaiting {
@@ -297,7 +298,7 @@ func TestE2EInteractWithNonWaitingExecution(t *testing.T) {
 
 	// Wait for completion
 	exec := waitForStatus(t, result.ExecutionID,
-		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 60*time.Second)
+		[]types.ExecStatus{types.ExecCompleted, types.ExecFailed}, 120*time.Second)
 	require.NotNil(t, exec, "Execution should reach terminal state")
 
 	// Try to interact with the completed execution

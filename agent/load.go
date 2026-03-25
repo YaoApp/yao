@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/agent/assistant"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	searchDefaults "github.com/yaoapp/yao/agent/search/defaults"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	storeMongo "github.com/yaoapp/yao/agent/store/mongo"
@@ -71,6 +72,15 @@ func Load(cfg config.Config) error {
 	}
 
 	agentDSL = &setting
+
+	// Register global phase agent resolver for robot pipeline.
+	// Robot executor falls back to this when no per-robot override is configured.
+	robottypes.GlobalPhaseAgentResolver = func(phase robottypes.Phase) string {
+		if agentDSL == nil || agentDSL.Uses == nil {
+			return ""
+		}
+		return agentDSL.Uses.GetPhaseAgent(string(phase))
+	}
 
 	// Store Setting
 	err = initStore()
@@ -477,6 +487,13 @@ func resolveEnvStrings(setting *types.DSL) {
 		setting.Uses.Keyword = helper.EnvString(setting.Uses.Keyword)
 		setting.Uses.QueryDSL = helper.EnvString(setting.Uses.QueryDSL)
 		setting.Uses.Rerank = helper.EnvString(setting.Uses.Rerank)
+		setting.Uses.Inspiration = helper.EnvString(setting.Uses.Inspiration)
+		setting.Uses.Goals = helper.EnvString(setting.Uses.Goals)
+		setting.Uses.Tasks = helper.EnvString(setting.Uses.Tasks)
+		setting.Uses.Delivery = helper.EnvString(setting.Uses.Delivery)
+		setting.Uses.Learning = helper.EnvString(setting.Uses.Learning)
+		setting.Uses.Host = helper.EnvString(setting.Uses.Host)
+		setting.Uses.Validation = helper.EnvString(setting.Uses.Validation)
 	}
 
 	setting.Cache = helper.EnvString(setting.Cache)

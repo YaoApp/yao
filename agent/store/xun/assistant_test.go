@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -2079,6 +2080,80 @@ func TestGetAssistantTags(t *testing.T) {
 			t.Fatalf("Failed to get tags with complex filter: %v", err)
 		}
 		t.Logf("Found %d tags with complex permission filter", len(tagsComplex))
+	})
+
+	t.Run("GetTagsWithTypesFilter", func(t *testing.T) {
+		uniqueTag := fmt.Sprintf("types-tag-%d", time.Now().UnixNano())
+		robotTag := fmt.Sprintf("robot-tag-%d", time.Now().UnixNano())
+
+		assistants := []types.AssistantModel{
+			{
+				Name:      "Types Tag Assistant",
+				Type:      "assistant",
+				Connector: "openai",
+				Tags:      []string{uniqueTag, "shared"},
+				Share:     "private",
+			},
+			{
+				Name:      "Types Tag Robot",
+				Type:      "robot",
+				Connector: "openai",
+				Tags:      []string{robotTag, "shared"},
+				Share:     "private",
+			},
+		}
+
+		for _, asst := range assistants {
+			_, err := store.SaveAssistant(&asst)
+			if err != nil {
+				t.Fatalf("Failed to create assistant: %v", err)
+			}
+		}
+
+		tags, err := store.GetAssistantTags(types.AssistantFilter{
+			Types: []string{"assistant", "robot"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with types filter: %v", err)
+		}
+
+		tagValues := make(map[string]bool)
+		for _, tag := range tags {
+			tagValues[tag.Value] = true
+		}
+
+		assert.True(t, tagValues[uniqueTag], "Should contain assistant-type tag %s", uniqueTag)
+		assert.True(t, tagValues[robotTag], "Should contain robot-type tag %s", robotTag)
+		assert.True(t, tagValues["shared"], "Should contain shared tag")
+		t.Logf("Found %d tags for types=[assistant,robot]", len(tags))
+	})
+
+	t.Run("GetTagsWithSingleTypeVsTypes", func(t *testing.T) {
+		tagsSingleType, err := store.GetAssistantTags(types.AssistantFilter{
+			Type: "assistant",
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with single type: %v", err)
+		}
+
+		tagsSliceType, err := store.GetAssistantTags(types.AssistantFilter{
+			Types: []string{"assistant"},
+		})
+		if err != nil {
+			t.Fatalf("Failed to get tags with types slice: %v", err)
+		}
+
+		assert.Equal(t, len(tagsSingleType), len(tagsSliceType),
+			"Type='assistant' and Types=['assistant'] should return same number of tags")
+
+		singleSet := make(map[string]bool)
+		for _, tag := range tagsSingleType {
+			singleSet[tag.Value] = true
+		}
+		for _, tag := range tagsSliceType {
+			assert.True(t, singleSet[tag.Value],
+				"Tag %q from Types query should also appear in Type query", tag.Value)
+		}
 	})
 }
 

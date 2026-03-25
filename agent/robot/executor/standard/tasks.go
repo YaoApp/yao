@@ -37,10 +37,10 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 		return fmt.Errorf("goals not available for task planning")
 	}
 
-	// Get agent ID for tasks phase
-	agentID := "__yao.tasks" // default
-	if robot.Config != nil && robot.Config.Resources != nil {
-		agentID = robot.Config.Resources.GetPhaseAgent(robottypes.PhaseTasks)
+	// Get agent ID for tasks phase (per-robot config > global Uses > empty)
+	agentID := robottypes.ResolvePhaseAgent(robot.Config, robottypes.PhaseTasks)
+	if agentID == "" {
+		return fmt.Errorf("no Tasks Agent configured (set uses.tasks in agent.yml or resources.phases in robot config)")
 	}
 
 	// Build prompt with goals and available resources

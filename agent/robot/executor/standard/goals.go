@@ -32,10 +32,10 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 	locale := getEffectiveLocale(robot, exec.Input)
 	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "planning_goals"))
 
-	// Get agent ID for goals phase
-	agentID := "__yao.goals" // default
-	if robot.Config != nil && robot.Config.Resources != nil {
-		agentID = robot.Config.Resources.GetPhaseAgent(robottypes.PhaseGoals)
+	// Get agent ID for goals phase (per-robot config > global Uses > empty)
+	agentID := robottypes.ResolvePhaseAgent(robot.Config, robottypes.PhaseGoals)
+	if agentID == "" {
+		return fmt.Errorf("no Goals Agent configured (set uses.goals in agent.yml or resources.phases in robot config)")
 	}
 
 	// Build prompt based on trigger type

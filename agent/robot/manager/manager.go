@@ -274,13 +274,28 @@ func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 		//     continue
 		// }
 
-		// Pre-generate execution ID and track for pause/resume/stop
-		// We need to track BEFORE submit so we can pass the cancellable context to the executor
+		// Pre-generate execution ID
 		execID := pool.GenerateExecID()
+
+		// Pre-acquire execution slot to prevent daemon-mode race condition:
+		// Without this, CanRun() stays true between Tick and worker dequeue,
+		// causing duplicate submissions on every tick interval.
+		preExec := &types.Execution{
+			ID:          execID,
+			MemberID:    robot.MemberID,
+			TeamID:      robot.TeamID,
+			TriggerType: types.TriggerClock,
+			Status:      types.ExecPending,
+			StartTime:   now,
+		}
+		if !robot.TryAcquireSlot(preExec) {
+			continue
+		}
+
+		// Track for pause/resume/stop — after slot is acquired
 		ctrlExec := m.execController.Track(execID, robot.MemberID, robot.TeamID)
 
 		// Create context with robot's own identity and cancellable context
-		// Clock-triggered executions run as the robot itself
 		robotAuth := m.buildRobotAuth(robot)
 		execCtx := types.NewContext(ctrlExec.Context(), robotAuth)
 
@@ -290,10 +305,8 @@ func (m *Manager) Tick(parentCtx context.Context, now time.Time) error {
 		// Submit to pool with the cancellable context and execution control
 		_, err := m.pool.SubmitWithID(execCtx, robot, types.TriggerClock, clockCtx, execID, ctrlExec)
 		if err != nil {
-			// If submission failed, untrack the execution
+			robot.RemoveExecution(execID)
 			m.execController.Untrack(execID)
-			// Log error but continue with other robots
-			// In production, this would be logged properly
 			continue
 		}
 

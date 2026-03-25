@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/capsule"
 	agentcontext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/robot/executor"
 	"github.com/yaoapp/yao/agent/robot/manager"
 	"github.com/yaoapp/yao/agent/robot/pool"
 	"github.com/yaoapp/yao/agent/robot/types"
@@ -89,10 +90,10 @@ func TestManagerTick(t *testing.T) {
 	defer cleanupTestRobots(t)
 
 	t.Run("tick with times mode - matching time", func(t *testing.T) {
-		// Create manager with short tick interval for testing
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 10},
+			Executor:     executor.NewDryRun(),
 		}
 		m := manager.NewWithConfig(config)
 
@@ -121,6 +122,7 @@ func TestManagerTick(t *testing.T) {
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 10},
+			Executor:     executor.NewDryRun(),
 		}
 		m := manager.NewWithConfig(config)
 
@@ -153,6 +155,7 @@ func TestManagerTick(t *testing.T) {
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 10},
+			Executor:     executor.NewDryRun(),
 		}
 		m := manager.NewWithConfig(config)
 
@@ -181,6 +184,7 @@ func TestManagerTick(t *testing.T) {
 		config := &manager.Config{
 			TickInterval: 100 * time.Millisecond,
 			PoolConfig:   &pool.Config{WorkerSize: 2, QueueSize: 10},
+			Executor:     executor.NewDryRun(),
 		}
 		m := manager.NewWithConfig(config)
 
@@ -295,7 +299,7 @@ func TestManagerClockModes(t *testing.T) {
 	defer cleanupTestRobots(t)
 
 	t.Run("times mode - day matching", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -315,7 +319,7 @@ func TestManagerClockModes(t *testing.T) {
 	})
 
 	t.Run("times mode - day not matching", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -336,7 +340,7 @@ func TestManagerClockModes(t *testing.T) {
 	})
 
 	t.Run("daemon mode - always triggers when idle", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -374,7 +378,7 @@ func TestManagerTimezoneDedup(t *testing.T) {
 	defer cleanupTestRobots(t)
 
 	t.Run("times mode - same minute same day should not trigger twice", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -414,7 +418,7 @@ func TestManagerTimezoneDedup(t *testing.T) {
 	})
 
 	t.Run("times mode - different day should trigger again", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -444,7 +448,7 @@ func TestManagerTimezoneDedup(t *testing.T) {
 	})
 
 	t.Run("times mode - cross-timezone day boundary", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()
@@ -477,7 +481,7 @@ func TestManagerTimezoneDedup(t *testing.T) {
 	})
 
 	t.Run("times mode - UTC vs local timezone comparison", func(t *testing.T) {
-		m := manager.New()
+		m := manager.NewWithConfig(&manager.Config{Executor: executor.NewDryRun()})
 		err := m.Start()
 		assert.NoError(t, err)
 		defer m.Stop()

@@ -28,11 +28,9 @@ func resolveHostAssistantID(ctx context.Context, memberID string) (string, *robo
 		return "", nil, fmt.Errorf("failed to parse robot config: %w", err)
 	}
 
-	var hostID string
-	if config != nil && config.Resources != nil {
-		hostID = config.Resources.GetPhaseAgent(robottypes.PhaseHost)
-	} else {
-		hostID = "__yao." + string(robottypes.PhaseHost)
+	hostID := robottypes.ResolvePhaseAgent(config, robottypes.PhaseHost)
+	if hostID == "" {
+		return "", nil, fmt.Errorf("no Host Agent configured for robot %s (set uses.host in agent.yml or resources.phases in robot config)", memberID)
 	}
 
 	return hostID, record, nil

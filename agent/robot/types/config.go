@@ -258,14 +258,47 @@ type Resources struct {
 	MCP    []MCPConfig      `json:"mcp,omitempty"`
 }
 
-// GetPhaseAgent returns agent ID for phase (default: __yao.{phase})
+// GlobalPhaseAgentResolver is called by GetPhaseAgent when no per-robot override
+// is configured. Set by the agent package at init time to read from Uses config.
+// Returns empty string if the phase has no global default.
+var GlobalPhaseAgentResolver func(phase Phase) string
+
+// GetPhaseAgent returns agent ID for a pipeline phase.
+// Priority: per-robot Resources.Phases > global Uses config > empty string.
 func (r *Resources) GetPhaseAgent(phase Phase) string {
 	if r != nil && r.Phases != nil {
 		if id, ok := r.Phases[phase]; ok && id != "" {
 			return id
 		}
 	}
-	return "__yao." + string(phase)
+	if GlobalPhaseAgentResolver != nil {
+		return GlobalPhaseAgentResolver(phase)
+	}
+	return ""
+}
+
+// ResolvePhaseAgent resolves the agent ID for a phase from robot config.
+// It delegates to Resources.GetPhaseAgent which handles the full priority chain:
+// per-robot Resources.Phases > GlobalPhaseAgentResolver (Uses config) > empty.
+// The phase parameter accepts both Phase type and raw string (e.g. "validation").
+func ResolvePhaseAgent(config *Config, phase interface{}) string {
+	var p Phase
+	switch v := phase.(type) {
+	case Phase:
+		p = v
+	case string:
+		p = Phase(v)
+	default:
+		return ""
+	}
+
+	if config != nil && config.Resources != nil {
+		return config.Resources.GetPhaseAgent(p)
+	}
+	if GlobalPhaseAgentResolver != nil {
+		return GlobalPhaseAgentResolver(p)
+	}
+	return ""
 }
 
 // MCPConfig - MCP server configuration

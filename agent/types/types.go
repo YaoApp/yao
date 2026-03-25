@@ -52,6 +52,42 @@ type Uses struct {
 	Keyword  string `json:"keyword,omitempty" yaml:"keyword,omitempty"`   // Keyword extraction: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 	QueryDSL string `json:"querydsl,omitempty" yaml:"querydsl,omitempty"` // QueryDSL generation: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
 	Rerank   string `json:"rerank,omitempty" yaml:"rerank,omitempty"`     // Result reranking: "builtin", "<assistant-id>", "mcp:<server>.<tool>"
+
+	// Robot pipeline phase agents (application-level, not bundled as system agents)
+	// Empty means no default — must be configured per-robot via resources.phases or here globally.
+	Inspiration string `json:"inspiration,omitempty" yaml:"inspiration,omitempty"` // P0: Inspiration phase agent
+	Goals       string `json:"goals,omitempty" yaml:"goals,omitempty"`             // P1: Goals planning agent
+	Tasks       string `json:"tasks,omitempty" yaml:"tasks,omitempty"`             // P2: Task breakdown agent
+	Delivery    string `json:"delivery,omitempty" yaml:"delivery,omitempty"`       // P4: Delivery composition agent
+	Learning    string `json:"learning,omitempty" yaml:"learning,omitempty"`       // P5: Learning extraction agent
+	Host        string `json:"host,omitempty" yaml:"host,omitempty"`               // Host: Human interaction agent
+	Validation  string `json:"validation,omitempty" yaml:"validation,omitempty"`   // Validation: Task output validation agent
+}
+
+// GetPhaseAgent returns the globally configured agent ID for a robot pipeline phase.
+// Returns empty string if no global default is set for the phase.
+func (u *Uses) GetPhaseAgent(phase string) string {
+	if u == nil {
+		return ""
+	}
+	switch phase {
+	case "inspiration":
+		return u.Inspiration
+	case "goals":
+		return u.Goals
+	case "tasks":
+		return u.Tasks
+	case "delivery":
+		return u.Delivery
+	case "learning":
+		return u.Learning
+	case "host":
+		return u.Host
+	case "validation":
+		return u.Validation
+	default:
+		return ""
+	}
 }
 
 // System configures connectors for system agents

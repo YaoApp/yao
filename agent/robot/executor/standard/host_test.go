@@ -31,6 +31,11 @@ func TestCallHostAgent_NilRobot(t *testing.T) {
 
 // H2: no Host Agent configured
 func TestCallHostAgent_NoHostAgent(t *testing.T) {
+	// Temporarily clear the global resolver so no fallback is available
+	orig := robottypes.GlobalPhaseAgentResolver
+	robottypes.GlobalPhaseAgentResolver = nil
+	defer func() { robottypes.GlobalPhaseAgentResolver = orig }()
+
 	e := standard.New()
 	ctx := robottypes.NewContext(context.Background(), nil)
 

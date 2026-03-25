@@ -11,8 +11,18 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 )
+
+func extractSandboxVersion(v any) string {
+	if m, ok := v.(map[string]any); ok {
+		if ver, ok := m["version"].(string); ok {
+			return ver
+		}
+	}
+	return ""
+}
 
 // ToKnowledgeBase converts various types to KnowledgeBase
 func ToKnowledgeBase(v interface{}) (*KnowledgeBase, error) {
@@ -426,9 +436,20 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 
 	// Sandbox
 	if sandbox, ok := data["sandbox"]; ok && sandbox != nil {
-		sb, err := ToSandbox(sandbox)
-		if err == nil {
-			model.Sandbox = sb
+		if extractSandboxVersion(sandbox) == sandboxTypes.SandboxVersionV2 {
+			sb, err := ToSandboxV2(sandbox)
+			if err == nil {
+				model.SandboxV2 = sb
+				model.IsSandbox = true
+				if sb.Filter != nil {
+					model.ComputerFilter = sb.Filter
+				}
+			}
+		} else {
+			sb, err := ToSandbox(sandbox)
+			if err == nil {
+				model.Sandbox = sb
+			}
 		}
 	}
 

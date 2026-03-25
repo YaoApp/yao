@@ -59,6 +59,8 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 	parser := newStreamParser(handler)
 	parseErr := parser.parse(s.ctx, s.exec.Stdout)
 
+	s.logger.Debug("runStream: parse returned completed=%v parseErr=%v", parser.completed, parseErr)
+
 	if parser.completed {
 		s.logger.Info("claude stream completed normally")
 		return true, nil
@@ -125,6 +127,26 @@ func (s *session) watchCancel() func() {
 		}
 	}()
 	return func() { close(done) }
+}
+
+// shutdown terminates the claude process after a normal stream completion.
+//
+// Claude CLI's stream-json mode has a known bug where the process hangs
+// indefinitely after emitting the "result" event (anthropics/claude-code#25629).
+// There is no graceful exit mechanism, so we must kill the process externally.
+//
+// We send SIGKILL (-9) to processes named exactly "claude". SIGKILL cannot be
+// caught, so Claude CLI has no opportunity to run its SIGTERM handler which
+// would actively terminate child processes (web servers, etc.). Those children
+// survive because they run in separate process groups/sessions.
+func (s *session) shutdown() {
+	s.logger.Info("shutting down completed claude exec session")
+	killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	result, err := s.computer.Exec(killCtx, []string{"sh", "-c", "pkill -9 -x claude || true"})
+	s.logger.Debug("shutdown: pkill -9 -x claude exitCode=%d err=%v", result.ExitCode, err)
+	s.exec.Cancel()
 }
 
 // waitForExit waits for the Claude process to exit with timeout protection.

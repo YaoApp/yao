@@ -326,6 +326,12 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 		if text == "" {
 			return false
 		}
+		// If there is no active text message and this delta is only
+		// whitespace, buffer it instead of opening a brand-new message
+		// group just for spaces/indentation between tool calls.
+		if !p.textActive && strings.TrimSpace(text) == "" {
+			return false
+		}
 		if p.ensureTextMessage() {
 			return true
 		}
@@ -447,6 +453,12 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		if ciType != "tool_result" {
 			continue
 		}
+
+		// Close any open text message before opening an execute message,
+		// otherwise textActive stays true while currentGroupID gets
+		// overwritten by the execute message lifecycle, causing subsequent
+		// text chunks to be emitted without a message_id.
+		p.closeTextMessage()
 
 		toolUseID, _ := ci["tool_use_id"].(string)
 		content := ci["content"]

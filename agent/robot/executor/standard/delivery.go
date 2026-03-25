@@ -28,9 +28,10 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 	locale := getEffectiveLocale(robot, exec.Input)
 	e.updateUIFields(ctx, exec, "", getLocalizedMessage(locale, "generating_delivery"))
 
-	agentID := "__yao.delivery"
-	if robot.Config != nil && robot.Config.Resources != nil {
-		agentID = robot.Config.Resources.GetPhaseAgent(robottypes.PhaseDelivery)
+	// Get agent ID for delivery phase (per-robot config > global Uses > empty)
+	agentID := robottypes.ResolvePhaseAgent(robot.Config, robottypes.PhaseDelivery)
+	if agentID == "" {
+		return fmt.Errorf("no Delivery Agent configured (set uses.delivery in agent.yml or resources.phases in robot config)")
 	}
 
 	formatter := NewInputFormatter()

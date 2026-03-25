@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/yaoapp/gou/connector"
@@ -52,7 +51,7 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 			src := "local:///" + req.SkillsDir
 			dst := prefix + "/skills"
 			if _, err := ws.Copy(src, dst); err != nil {
-				fmt.Fprintf(os.Stderr, "[claude] warn: copy skills %s -> %s: %v\n", src, dst, err)
+				r.logger.Warn("copy skills %s -> %s: %v", src, dst, err)
 			}
 		}
 	}
@@ -115,6 +114,10 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 
 	completed, err := sess.runStream(handler)
 	r.lastCompleted = completed
+	r.logger.Debug("Stream: runStream returned completed=%v err=%v", completed, err)
+	if completed {
+		sess.shutdown()
+	}
 	return err
 }
 
