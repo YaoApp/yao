@@ -68,10 +68,28 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 	scanner := bufio.NewScanner(stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 
+	startTime := time.Now()
+	lineCount := 0
+	lastHeartbeat := time.Now()
+	lastEventType := ""
+
+	log.Trace("[claude-parse] stream started")
+
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
 			continue
+		}
+		lineCount++
+
+		if time.Since(lastHeartbeat) > 30*time.Second {
+			builderLen := 0
+			if p.curTool != nil {
+				builderLen = p.curTool.inputJSON.Len()
+			}
+			log.Trace("[claude-parse] heartbeat: lines=%d elapsed=%v lastEvent=%s toolBuilderLen=%d",
+				lineCount, time.Since(startTime).Round(time.Second), lastEventType, builderLen)
+			lastHeartbeat = time.Now()
 		}
 
 		var msg map[string]any
@@ -85,6 +103,7 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		}
 
 		msgType, _ := msg["type"].(string)
+		lastEventType = msgType
 		var stopped bool
 
 		switch msgType {
@@ -97,15 +116,21 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		case "user":
 			stopped = p.handleUser(msg)
 		case "result":
+			log.Trace("[claude-parse] stream ended: lines=%d elapsed=%v completed=true", lineCount, time.Since(startTime).Round(time.Second))
 			return p.handleResult(msg)
 		case "error":
+			log.Trace("[claude-parse] stream ended with error: lines=%d elapsed=%v", lineCount, time.Since(startTime).Round(time.Second))
 			return p.handleError(msg)
 		}
 
 		if stopped {
+			log.Trace("[claude-parse] stream stopped by handler: lines=%d elapsed=%v", lineCount, time.Since(startTime).Round(time.Second))
 			return nil
 		}
 	}
+
+	log.Trace("[claude-parse] stream ended: lines=%d elapsed=%v completed=%v scanErr=%v",
+		lineCount, time.Since(startTime).Round(time.Second), p.completed, scanner.Err())
 
 	if err := scanner.Err(); err != nil {
 		log.Trace("[claude-parse] scanner error: %v (ctx.Err=%v)", err, ctx.Err())
@@ -346,6 +371,10 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 			return false
 		}
 		p.curTool.inputJSON.WriteString(partial)
+		builderLen := p.curTool.inputJSON.Len()
+		if builderLen > 0 && builderLen%100000 < len(partial) {
+			log.Trace("[claude-parse] WARN: tool %s inputJSON growing: %d bytes", p.curTool.name, builderLen)
+		}
 		if p.handler != nil {
 			return p.emitExecute(map[string]any{
 				"input_delta": p.curTool.inputJSON.String(),
@@ -381,10 +410,15 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 		itemType, _ := ci["type"].(string)
 
 		if itemType == "tool_use" && p.handler != nil {
+			toolID, _ := ci["id"].(string)
+
+			if _, alreadyStreamed := p.toolNames[toolID]; alreadyStreamed && toolID != "" {
+				continue
+			}
+
 			p.closeTextMessage()
 
 			toolName, _ := ci["name"].(string)
-			toolID, _ := ci["id"].(string)
 			if toolID == "" {
 				toolID = fmt.Sprintf("tool_%d_%d", p.toolIndex, time.Now().UnixNano())
 			}

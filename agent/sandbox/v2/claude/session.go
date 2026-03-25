@@ -31,8 +31,8 @@ func startSession(ctx context.Context, computer infra.Computer, p platform, cmd 
 		opts = append(opts, infra.WithStdin(cmd.stdin))
 	}
 
-	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s stdinLen=%d",
-		cmd.shell, cmd.workDir, p.OS(), len(cmd.stdin))
+	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s stdinLen=%d chatID=%s",
+		cmd.shell, cmd.workDir, p.OS(), len(cmd.stdin), chatID)
 
 	execStream, err := computer.Stream(ctx, cmd.shell, opts...)
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *session) watchCancel() func() {
 // would actively terminate child processes (web servers, etc.). Those children
 // survive because they run in separate process groups/sessions.
 func (s *session) shutdown() {
-	s.logger.Info("shutting down completed claude exec session")
+	s.logger.Info("shutting down completed claude exec session: chatID=%s", s.chatID)
 	killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
