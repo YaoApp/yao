@@ -191,7 +191,7 @@ func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages
 	}
 
 	// Convert robot context to agent context
-	agentCtx := c.buildAgentContext(ctx)
+	agentCtx := c.buildAgentContext(ctx, assistantID)
 	defer agentCtx.Release() // IMPORTANT: Release agent context to prevent resource leaks
 
 	// Call assistant with streaming
@@ -294,7 +294,7 @@ func (c *AgentCaller) CallStream(ctx *robottypes.Context, assistantID string, me
 		}
 	}
 
-	agentCtx := c.buildAgentContext(ctx)
+	agentCtx := c.buildAgentContext(ctx, assistantID)
 	defer agentCtx.Release()
 
 	response, err := ast.Stream(agentCtx, messages, opts)
@@ -353,7 +353,7 @@ func (c *AgentCaller) CallStreamRaw(ctx *robottypes.Context, assistantID string,
 		opts.OnMessage = onMessage
 	}
 
-	agentCtx := c.buildAgentContext(ctx)
+	agentCtx := c.buildAgentContext(ctx, assistantID)
 	defer agentCtx.Release()
 
 	response, err := ast.Stream(agentCtx, messages, opts)
@@ -390,7 +390,7 @@ func (c *AgentCaller) CallWithMessagesStreamRaw(ctx *robottypes.Context, assista
 }
 
 // buildAgentContext converts robot context to agent context
-func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.Context {
+func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context, assistantID string) *agentcontext.Context {
 	// Build authorized info for agent context
 	var authorized *oauthtypes.AuthorizedInfo
 	if ctx.Auth != nil {
@@ -403,6 +403,7 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.C
 	// Create a new agent context
 	// Use ChatID for multi-turn conversations, empty for single calls
 	agentCtx := agentcontext.New(ctx.Context, authorized, c.ChatID)
+	agentCtx.AssistantID = assistantID
 
 	// Propagate locale to agent context; fall back to "en" so that
 	// i18n.Tr / buildBoxDisplayName always resolve {{name}} templates.
