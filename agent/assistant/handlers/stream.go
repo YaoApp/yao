@@ -117,7 +117,6 @@ func (s *streamState) handleMessageStart(data []byte) int {
 		startData.ThreadID = s.ctx.Stack.ID
 	}
 
-	// Initialize message state with the correct message ID
 	s.inGroup = true
 	s.currentGroupID = messageID
 	s.buffer = []byte{}
@@ -381,7 +380,6 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		return 0
 	}
 
-	// Calculate duration
 	durationMs := time.Since(s.groupStartTime).Milliseconds()
 
 	// Use the tracked message type (thinking, text, tool_call, etc.)

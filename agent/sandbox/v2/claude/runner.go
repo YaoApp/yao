@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/kun/log"
@@ -20,6 +21,7 @@ type ClaudeRunner struct {
 	hasMCP         bool
 	mcpToolPattern string
 	lastCompleted  bool
+	lastChatID     string
 	logger         *agentContext.RequestLogger
 }
 
@@ -107,16 +109,37 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 		r.logger = agentContext.NoopLogger()
 	}
 
-	sess, err := startSession(ctx, computer, p, cmd, r.logger)
+	chatID := req.ChatID
+	r.lastChatID = chatID
+	assistantID := ""
+	if req.Config != nil {
+		assistantID = req.Config.ID
+	}
+
+	log.Trace("[claude-runner] Stream started: assistantID=%s chatID=%s promptLen=%d", assistantID, chatID, len(cmd.shell))
+
+	sess, err := startSession(ctx, computer, p, cmd, chatID, r.logger)
 	if err != nil {
 		return err
 	}
 
+	streamStart := time.Now()
 	completed, err := sess.runStream(handler)
 	r.lastCompleted = completed
-	r.logger.Debug("Stream: runStream returned completed=%v err=%v", completed, err)
+	elapsed := time.Since(streamStart).Round(time.Second)
+	log.Trace("[claude-runner] Stream finished: assistantID=%s chatID=%s completed=%v elapsed=%v err=%v", assistantID, chatID, completed, elapsed, err)
+	r.logger.Debug("Stream: runStream returned completed=%v err=%v elapsed=%v", completed, err, elapsed)
 	if completed {
 		sess.shutdown()
+		if chatID != "" {
+			assistantID := ""
+			if req.Config != nil {
+				assistantID = req.Config.ID
+			}
+			storeKey := "claude-session:" + assistantID + ":" + chatID
+			sessionUUID := chatIDToSessionUUID(assistantID, chatID)
+			markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
+		}
 	}
 	return err
 }
@@ -128,6 +151,8 @@ func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) err
 		return nil
 	}
 
+	log.Trace("[claude-runner] Cleanup: chatID=%s lastCompleted=%v", r.lastChatID, r.lastCompleted)
+
 	if r.lastCompleted {
 		if r.logger != nil {
 			r.logger.Info("cleanup: stream completed normally, preserving child processes")
@@ -137,7 +162,11 @@ func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) err
 
 	if r.mode != "service" {
 		p := resolvePlatform(computer)
-		computer.Exec(ctx, p.KillCmd("claude"))
+		if r.lastChatID != "" {
+			computer.Exec(ctx, p.KillSessionCmd(sanitizeSessionName(r.lastChatID)))
+		} else {
+			computer.Exec(ctx, p.KillCmd("claude"))
+		}
 	}
 
 	return nil

@@ -22,16 +22,17 @@ type session struct {
 	stderr   strings.Builder
 	stderrMu sync.Mutex
 	logger   *agentContext.RequestLogger
+	chatID   string
 }
 
-func startSession(ctx context.Context, computer infra.Computer, p platform, cmd command, logger *agentContext.RequestLogger) (*session, error) {
+func startSession(ctx context.Context, computer infra.Computer, p platform, cmd command, chatID string, logger *agentContext.RequestLogger) (*session, error) {
 	opts := []infra.ExecOption{infra.WithWorkDir(cmd.workDir), infra.WithEnv(cmd.env)}
 	if len(cmd.stdin) > 0 {
 		opts = append(opts, infra.WithStdin(cmd.stdin))
 	}
 
-	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s stdinLen=%d",
-		cmd.shell, cmd.workDir, p.OS(), len(cmd.stdin))
+	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s stdinLen=%d chatID=%s",
+		cmd.shell, cmd.workDir, p.OS(), len(cmd.stdin), chatID)
 
 	execStream, err := computer.Stream(ctx, cmd.shell, opts...)
 	if err != nil {
@@ -44,6 +45,7 @@ func startSession(ctx context.Context, computer infra.Computer, p platform, cmd 
 		plat:     p,
 		exec:     execStream,
 		logger:   logger,
+		chatID:   chatID,
 	}, nil
 }
 
@@ -111,6 +113,19 @@ func (s *session) collectStderr() {
 	}()
 }
 
+// killProcess terminates the Claude CLI process. When chatID is available,
+// uses KillSessionCmd for precise matching; otherwise falls back to KillCmd.
+func (s *session) killProcess(ctx context.Context) {
+	if s.chatID != "" {
+		name := sanitizeSessionName(s.chatID)
+		result, err := s.computer.Exec(ctx, s.plat.KillSessionCmd(name))
+		s.logger.Debug("killProcess: KillSessionCmd(%s) exitCode=%d err=%v", name, result.ExitCode, err)
+		return
+	}
+	result, err := s.computer.Exec(ctx, s.plat.KillCmd("claude"))
+	s.logger.Debug("killProcess: KillCmd(claude) exitCode=%d err=%v", result.ExitCode, err)
+}
+
 // watchCancel monitors context cancellation and kills the Claude process.
 // Returns a cleanup function that must be deferred.
 func (s *session) watchCancel() func() {
@@ -121,7 +136,7 @@ func (s *session) watchCancel() func() {
 			s.logger.Info("context cancelled, killing claude: %v", s.ctx.Err())
 			killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			s.computer.Exec(killCtx, s.plat.KillCmd("claude"))
+			s.killProcess(killCtx)
 			s.exec.Cancel()
 		case <-done:
 		}
@@ -140,12 +155,11 @@ func (s *session) watchCancel() func() {
 // would actively terminate child processes (web servers, etc.). Those children
 // survive because they run in separate process groups/sessions.
 func (s *session) shutdown() {
-	s.logger.Info("shutting down completed claude exec session")
+	s.logger.Info("shutting down completed claude exec session: chatID=%s", s.chatID)
 	killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result, err := s.computer.Exec(killCtx, []string{"sh", "-c", "pkill -9 -x claude || true"})
-	s.logger.Debug("shutdown: pkill -9 -x claude exitCode=%d err=%v", result.ExitCode, err)
+	s.killProcess(killCtx)
 	s.exec.Cancel()
 }
 

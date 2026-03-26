@@ -4,15 +4,47 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
+	"github.com/yaoapp/gou/store"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
 const defaultA2OPort = 3099
+
+var yaoSessionNS = uuid.MustParse("f47ac10b-58cc-4372-a567-0e02b2c3d479")
+
+var safeNameRe = regexp.MustCompile(`[^a-zA-Z0-9_\-.]`)
+
+func chatIDToSessionUUID(assistantID, chatID string) string {
+	return uuid.NewSHA1(yaoSessionNS, []byte(assistantID+":"+chatID)).String()
+}
+
+func sanitizeSessionName(chatID string) string {
+	return "yao-" + safeNameRe.ReplaceAllString(chatID, "_")
+}
+
+func chatSessionExists(storeKey string) bool {
+	s, err := store.Get("__yao.store")
+	if err != nil {
+		return false
+	}
+	return s.Has(storeKey)
+}
+
+func markChatSession(storeKey, sessionUUID string, ttl time.Duration) {
+	s, err := store.Get("__yao.store")
+	if err != nil {
+		return
+	}
+	s.Set(storeKey, sessionUUID, ttl)
+}
 
 type command struct {
 	shell   []string
@@ -28,10 +60,18 @@ func (r *ClaudeRunner) buildCommand(ctx context.Context, req *types.StreamReques
 	if req.Config != nil {
 		assistantID = req.Config.ID
 	}
+	chatID := req.ChatID
 
-	isContinuation := hasExistingSession(ctx, computer, p, assistantID)
+	var isContinuation bool
+	if chatID != "" {
+		storeKey := "claude-session:" + assistantID + ":" + chatID
+		isContinuation = chatSessionExists(storeKey)
+	} else {
+		isContinuation = hasExistingSession(ctx, computer, p, assistantID)
+	}
+
 	env := buildEnv(req, p)
-	args := buildArgs(req, r, p, isContinuation, assistantID)
+	args := buildArgs(req, r, p, isContinuation, assistantID, chatID)
 	inputJSONL := buildInput(req.Messages, isContinuation)
 
 	var systemPrompt string
@@ -141,7 +181,7 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	return env
 }
 
-func buildArgs(req *types.StreamRequest, r *ClaudeRunner, p platform, isContinuation bool, assistantID string) []string {
+func buildArgs(req *types.StreamRequest, r *ClaudeRunner, p platform, isContinuation bool, assistantID, chatID string) []string {
 	var args []string
 
 	permMode := ""
@@ -160,7 +200,16 @@ func buildArgs(req *types.StreamRequest, r *ClaudeRunner, p platform, isContinua
 	args = append(args, "--include-partial-messages")
 	args = append(args, "--verbose")
 
-	if isContinuation {
+	if chatID != "" {
+		sessionUUID := chatIDToSessionUUID(assistantID, chatID)
+		sessionName := sanitizeSessionName(chatID)
+		if isContinuation {
+			args = append(args, "--resume", sessionUUID)
+		} else {
+			args = append(args, "--session-id", sessionUUID)
+		}
+		args = append(args, "--name", sessionName)
+	} else if isContinuation {
 		args = append(args, "--continue")
 	}
 

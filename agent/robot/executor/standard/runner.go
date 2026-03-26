@@ -8,6 +8,7 @@ import (
 
 	"github.com/yaoapp/gou/mcp"
 	"github.com/yaoapp/gou/process"
+	kunlog "github.com/yaoapp/kun/log"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
@@ -145,6 +146,9 @@ func (r *Runner) executeAssistantTask(task *robottypes.Task, taskCtx *RunnerCont
 	if taskCtx.SystemPrompt != "" {
 		input = "## Context\n\n" + taskCtx.SystemPrompt + "\n\n## Task\n\n" + input
 	}
+
+	kunlog.Trace("[robot-runner] executeAssistantTask: task=%s assistant=%s promptLen=%d prevResults=%d",
+		task.ID, task.ExecutorID, len(input), len(taskCtx.PreviousResults))
 
 	r.log.logTaskInput(task, input)
 
@@ -338,5 +342,7 @@ func (r *Runner) FormatPreviousResultsAsContext(results []robottypes.TaskResult)
 		sb.WriteString("\n")
 	}
 
+	contextLen := sb.Len()
+	kunlog.Trace("[robot-runner] FormatPreviousResultsAsContext: results=%d totalLen=%d", len(results), contextLen)
 	return sb.String()
 }

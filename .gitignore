@@ -80,3 +80,5 @@ tai/docs/refactor-registration.md
 agent/robot/ROBOT-WATCHER-IMPROVEMENT.md
 agent/robot/ROBOT-IM-INTEGRATION-IMPROVEMENT.md
 agent/robot/ROBOT-CACHE-IMPROVEMENT.md
+sandbox/v2/PID-KILL-UPGRADE.md
+sandbox/v2/*.md

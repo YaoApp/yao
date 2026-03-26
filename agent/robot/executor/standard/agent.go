@@ -2,8 +2,10 @@ package standard
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/yaoapp/gou/text"
+	kunlog "github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -190,27 +192,31 @@ func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages
 		Connector: c.Connector,
 	}
 
-	// Convert robot context to agent context
-	agentCtx := c.buildAgentContext(ctx)
-	defer agentCtx.Release() // IMPORTANT: Release agent context to prevent resource leaks
+	agentCtx := c.buildAgentContext(ctx, assistantID)
+	defer func() {
+		kunlog.Trace("[robot-agent] releasing context: assistantID=%s chatID=%s", assistantID, c.ChatID)
+		agentCtx.Release()
+	}()
 
-	// Call assistant with streaming
+	callStart := time.Now()
+	kunlog.Trace("[robot-agent] Call started: assistantID=%s chatID=%s", assistantID, c.ChatID)
+
 	response, err := ast.Stream(agentCtx, messages, opts)
 	if err != nil {
+		kunlog.Trace("[robot-agent] Call failed: assistantID=%s elapsed=%v err=%v", assistantID, time.Since(callStart).Round(time.Second), err)
 		return nil, fmt.Errorf("assistant call failed: %w", err)
 	}
 
-	// Build result
+	kunlog.Trace("[robot-agent] Call completed: assistantID=%s elapsed=%v", assistantID, time.Since(callStart).Round(time.Second))
+
 	result := &CallResult{
 		Response: response,
 	}
 
-	// Extract Next hook data
 	if response.Next != nil {
 		result.Next = response.Next
 	}
 
-	// Extract Content from Completion
 	if response.Completion != nil {
 		if content, ok := response.Completion.Content.(string); ok {
 			result.Content = content
@@ -294,13 +300,22 @@ func (c *AgentCaller) CallStream(ctx *robottypes.Context, assistantID string, me
 		}
 	}
 
-	agentCtx := c.buildAgentContext(ctx)
-	defer agentCtx.Release()
+	agentCtx := c.buildAgentContext(ctx, assistantID)
+	defer func() {
+		kunlog.Trace("[robot-agent] releasing context (CallStream): assistantID=%s chatID=%s", assistantID, c.ChatID)
+		agentCtx.Release()
+	}()
+
+	callStart := time.Now()
+	kunlog.Trace("[robot-agent] CallStream started: assistantID=%s chatID=%s", assistantID, c.ChatID)
 
 	response, err := ast.Stream(agentCtx, messages, opts)
 	if err != nil {
+		kunlog.Trace("[robot-agent] CallStream failed: assistantID=%s elapsed=%v err=%v", assistantID, time.Since(callStart).Round(time.Second), err)
 		return nil, fmt.Errorf("assistant call failed: %w", err)
 	}
+
+	kunlog.Trace("[robot-agent] CallStream completed: assistantID=%s elapsed=%v", assistantID, time.Since(callStart).Round(time.Second))
 
 	result := &CallResult{Response: response}
 	if response.Next != nil {
@@ -353,13 +368,22 @@ func (c *AgentCaller) CallStreamRaw(ctx *robottypes.Context, assistantID string,
 		opts.OnMessage = onMessage
 	}
 
-	agentCtx := c.buildAgentContext(ctx)
-	defer agentCtx.Release()
+	agentCtx := c.buildAgentContext(ctx, assistantID)
+	defer func() {
+		kunlog.Trace("[robot-agent] releasing context (CallStreamRaw): assistantID=%s chatID=%s", assistantID, c.ChatID)
+		agentCtx.Release()
+	}()
+
+	callStart := time.Now()
+	kunlog.Trace("[robot-agent] CallStreamRaw started: assistantID=%s chatID=%s", assistantID, c.ChatID)
 
 	response, err := ast.Stream(agentCtx, messages, opts)
 	if err != nil {
+		kunlog.Trace("[robot-agent] CallStreamRaw failed: assistantID=%s elapsed=%v err=%v", assistantID, time.Since(callStart).Round(time.Second), err)
 		return nil, fmt.Errorf("assistant call failed: %w", err)
 	}
+
+	kunlog.Trace("[robot-agent] CallStreamRaw completed: assistantID=%s elapsed=%v", assistantID, time.Since(callStart).Round(time.Second))
 
 	result := &CallResult{Response: response}
 	if response.Next != nil {
@@ -390,7 +414,7 @@ func (c *AgentCaller) CallWithMessagesStreamRaw(ctx *robottypes.Context, assista
 }
 
 // buildAgentContext converts robot context to agent context
-func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.Context {
+func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context, assistantID string) *agentcontext.Context {
 	// Build authorized info for agent context
 	var authorized *oauthtypes.AuthorizedInfo
 	if ctx.Auth != nil {
@@ -403,10 +427,14 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.C
 	// Create a new agent context
 	// Use ChatID for multi-turn conversations, empty for single calls
 	agentCtx := agentcontext.New(ctx.Context, authorized, c.ChatID)
+	agentCtx.AssistantID = assistantID
 
-	// Set locale if available
+	// Propagate locale to agent context; fall back to "en" so that
+	// i18n.Tr / buildBoxDisplayName always resolve {{name}} templates.
 	if ctx.Locale != "" {
 		agentCtx.Locale = ctx.Locale
+	} else {
+		agentCtx.Locale = "en"
 	}
 
 	// Use noop logger to suppress LLM debug output for robot executions
@@ -416,6 +444,7 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context) *agentcontext.C
 	}
 	agentCtx.Logger = agentcontext.Noop()
 
+	kunlog.Trace("[robot-agent] context built: assistantID=%s chatID=%s contextID=%s", assistantID, c.ChatID, agentCtx.ID)
 	return agentCtx
 }
 
