@@ -23,11 +23,13 @@ func withTestRootPool(t *testing.T, ca *testCA, revoked []*big.Int) {
 	pool := x509.NewCertPool()
 	pool.AddCert(ca.Cert)
 	rootPool = pool
-	rootPoolOnce = sync.Once{}
-	rootPoolOnce.Do(func() {}) // mark as done so RootPool() returns our pool
+	doneOnce := &sync.Once{}
+	doneOnce.Do(func() {}) // pre-mark as done so RootPool() returns our pool
+	rootPoolOnce = doneOnce
 	revokedSerials = revoked
-	revokedOnce = sync.Once{}
-	revokedOnce.Do(func() {}) // mark as done
+	doneOnce2 := &sync.Once{}
+	doneOnce2.Do(func() {})
+	revokedOnce = doneOnce2
 
 	t.Cleanup(func() {
 		rootPool = origPool

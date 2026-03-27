@@ -19,10 +19,10 @@ var rootCA2PEM []byte
 var revokedJSON []byte
 
 var (
-	rootPoolOnce sync.Once
+	rootPoolOnce = &sync.Once{}
 	rootPool     *x509.CertPool
 
-	revokedOnce    sync.Once
+	revokedOnce    = &sync.Once{}
 	revokedSerials []*big.Int
 )
 
