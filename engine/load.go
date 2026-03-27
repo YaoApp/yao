@@ -23,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/cert"
+	"github.com/yaoapp/yao/commercial"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/data"
@@ -148,6 +149,12 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Registry", Error: err})
 	}
+
+	// Load Commercial License
+	loadStep("License", func() error {
+		commercial.Load(cfg.Root, "yao")
+		return nil
+	}, callback)
 
 	// Load Certs
 	err = loadStep("Cert", func() error {
