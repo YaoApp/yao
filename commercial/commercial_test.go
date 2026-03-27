@@ -506,3 +506,82 @@ func TestCertsSubdirectoryFallback(t *testing.T) {
 		t.Fatalf("expected Source=file, got %s", License.Source)
 	}
 }
+
+func TestMachineIDEmpty(t *testing.T) {
+	// No machine_id in cert → valid on any machine
+	root, err := generateRootCA("Test Root CA", 10*365*24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withTestRootPool(t, root, nil)
+
+	opts := defaultLicenseOpts()
+	// defaultLicenseOpts has no OIDMachineID → empty
+	leaf, err := generateLicenseCert(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "license.pem"), leaf.CertPEM, 0644)
+	Load(dir, "yao")
+
+	if !License.Valid {
+		t.Fatalf("expected Valid=true when machine_id is empty, got: %s", License.Error)
+	}
+}
+
+func TestMachineIDMatch(t *testing.T) {
+	// machine_id in cert matches current machine → valid
+	root, err := generateRootCA("Test Root CA", 10*365*24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withTestRootPool(t, root, nil)
+
+	thisID := currentMachineID()
+	opts := defaultLicenseOpts()
+	opts.Extensions = append(opts.Extensions, ExtensionValue{OID: OIDMachineID, Value: thisID})
+	leaf, err := generateLicenseCert(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "license.pem"), leaf.CertPEM, 0644)
+	Load(dir, "yao")
+
+	if !License.Valid {
+		t.Fatalf("expected Valid=true when machine_id matches, got: %s", License.Error)
+	}
+	if License.MachineID != thisID {
+		t.Fatalf("expected MachineID=%s, got %s", thisID, License.MachineID)
+	}
+}
+
+func TestMachineIDMismatch(t *testing.T) {
+	// machine_id in cert does not match current machine → invalid
+	root, err := generateRootCA("Test Root CA", 10*365*24*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withTestRootPool(t, root, nil)
+
+	opts := defaultLicenseOpts()
+	opts.Extensions = append(opts.Extensions, ExtensionValue{OID: OIDMachineID, Value: "000000000000000000000000deadbeef"})
+	leaf, err := generateLicenseCert(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "license.pem"), leaf.CertPEM, 0644)
+	Load(dir, "yao")
+
+	if License.Valid {
+		t.Fatal("expected Valid=false when machine_id does not match")
+	}
+	if License.Error == "" {
+		t.Fatal("expected Error to be set")
+	}
+}

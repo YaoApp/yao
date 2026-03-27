@@ -31,6 +31,9 @@ var (
 	OIDAllowSSO             = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 15099, 1, 3, 6}
 	OIDSupportLevel         = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 15099, 1, 3, 7}
 
+	// Binding (optional — if present, must match at runtime)
+	OIDMachineID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 15099, 1, 5, 1}
+
 	// Issuance (internal tracking)
 	OIDIssuerID = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 15099, 1, 4, 1}
 	OIDOrderID  = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 15099, 1, 4, 2}

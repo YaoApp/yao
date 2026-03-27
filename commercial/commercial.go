@@ -1,6 +1,7 @@
 package commercial
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"fmt"
@@ -150,6 +151,17 @@ func verify(pemData []byte, product string) (*LicenseInfo, error) {
 		return info, nil
 	}
 
+	// Machine ID binding: if the certificate specifies a machine ID,
+	// it must match the current runtime machine ID.
+	// Empty machine_id means no binding — runs on any machine.
+	if info.MachineID != "" {
+		if got := currentMachineID(); got != info.MachineID {
+			info.Valid = false
+			info.Error = "certificate machine_id does not match this host"
+			return info, nil
+		}
+	}
+
 	info.Valid = true
 	return info, nil
 }
@@ -195,6 +207,8 @@ func parseExtensions(cert *x509.Certificate, info *LicenseInfo) {
 			info.Domain = val
 		case ext.Id.Equal(OIDAppID):
 			info.AppID = val
+		case ext.Id.Equal(OIDMachineID):
+			info.MachineID = val
 
 		// Quota
 		case ext.Id.Equal(OIDMaxUsers):
@@ -259,4 +273,24 @@ func atoi(s string) int {
 func toBool(s string) bool {
 	s = strings.TrimSpace(strings.ToLower(s))
 	return s == "true" || s == "1" || s == "yes"
+}
+
+// currentMachineID returns a deterministic identifier for the current host,
+// using the same algorithm as tai/machine.ID():
+//   - macOS:   IOPlatformUUID via ioreg
+//   - Linux:   /etc/machine-id
+//   - Windows: HKLM MachineGuid registry value
+//   - fallback: sha256("tai-fallback:" + hostname)[:16]
+//
+// Implemented via platform-specific machine_{os}.go files in this package.
+func currentMachineID() string {
+	if id := platformMachineID(); id != "" {
+		return id
+	}
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		hostname = "unknown"
+	}
+	h := sha256.Sum256([]byte("tai-fallback:" + hostname))
+	return fmt.Sprintf("%x", h[:16])
 }

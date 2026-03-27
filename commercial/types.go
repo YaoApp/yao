@@ -25,11 +25,12 @@ type LicenseInfo struct {
 	Issuer          string `json:"issuer"`
 
 	// Scope
-	Product []string `json:"product"`
-	Edition string   `json:"edition"` // "community" | "starter" | "pro" | "enterprise"
-	Env     []string `json:"env,omitempty"`
-	Domain  string   `json:"domain,omitempty"`
-	AppID   string   `json:"app_id,omitempty"`
+	Product   []string `json:"product"`
+	Edition   string   `json:"edition"` // "community" | "starter" | "pro" | "enterprise"
+	Env       []string `json:"env,omitempty"`
+	Domain    string   `json:"domain,omitempty"`
+	AppID     string   `json:"app_id,omitempty"`
+	MachineID string   `json:"machine_id,omitempty"` // if set, must match runtime machine ID
 
 	// Quota (0 = unlimited)
 	MaxUsers     int `json:"max_users"`
