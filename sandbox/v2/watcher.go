@@ -34,14 +34,53 @@ func (w *sandboxWatcher) Check(ctx context.Context) []monitor.Alert {
 				Target:  "box:" + b.id,
 				Message: fmt.Sprintf("status %s → %s", old, status),
 			})
+			if status == "running" && old != "running" {
+				b.touch()
+				alerts = append(alerts, monitor.Alert{
+					Level:  monitor.Trace,
+					Target: "box:" + b.id,
+					Message: fmt.Sprintf("touch on resume, lastCall reset to %s",
+						time.UnixMilli(b.lastCall.Load()).Format(time.RFC3339)),
+				})
+			}
 		}
 
 		if status != "running" {
 			return true
 		}
 
+		// maxLifetime: independent of idle — prevents indefinitely running containers
+		if b.policy == LongRunning {
+			if lifetime := b.maxLifetime(); lifetime > 0 {
+				age := time.Since(b.createdAt)
+				if age > lifetime {
+					alerts = append(alerts, monitor.Alert{
+						Level:   monitor.Warn,
+						Target:  "box:" + b.id,
+						Message: fmt.Sprintf("lifetime expired (%s), removing", lifetime),
+						Action:  func(ctx context.Context) { mgr.Remove(ctx, b.id) },
+					})
+				} else {
+					alerts = append(alerts, monitor.Alert{
+						Level:  monitor.Trace,
+						Target: "box:" + b.id,
+						Message: fmt.Sprintf("lifetime remaining %s (max=%s)",
+							(lifetime - age).Round(time.Second), lifetime),
+					})
+				}
+			}
+		}
+
 		idle := time.Since(b.idleSince())
 		timeout := b.idleTimeout()
+
+		alerts = append(alerts, monitor.Alert{
+			Level:  monitor.Trace,
+			Target: "box:" + b.id,
+			Message: fmt.Sprintf("heartbeat status=%s policy=%s idle=%s timeout=%s",
+				status, b.policy, idle.Round(time.Second), timeout),
+		})
+
 		if timeout <= 0 || idle <= timeout {
 			return true
 		}
@@ -66,19 +105,6 @@ func (w *sandboxWatcher) Check(ctx context.Context) []monitor.Alert {
 					b.Stop(ctx)
 				},
 			})
-		}
-
-		if b.policy == LongRunning {
-			if lifetime := b.maxLifetime(); lifetime > 0 && time.Since(b.createdAt) > lifetime {
-				alerts = append(alerts, monitor.Alert{
-					Level:   monitor.Warn,
-					Target:  "box:" + b.id,
-					Message: fmt.Sprintf("lifetime expired (%s), removing", lifetime),
-					Action: func(ctx context.Context) {
-						mgr.Remove(ctx, b.id)
-					},
-				})
-			}
 		}
 
 		return true

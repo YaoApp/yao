@@ -58,10 +58,16 @@ var langs = map[string]string{
 	"Force migrate":                         "强制更新数据表结构",
 	"Migrate is not allowed on production mode.": "Migrate 不能再生产环境下使用",
 	"Upgrade yao to latest version":              "升级 yao 到最新版本",
+	"Current version:":                           "当前版本:",
+	"Latest version: ":                           "最新版本: ",
+	"Checking latest version...":                 "正在检查最新版本...",
 	"🎉Current version is the latest🎉":            "🎉当前版本是最新的🎉",
 	"Do you want to update to %s ? (y/n): ":      "是否更新到 %s ? (y/n): ",
 	"Invalid input":                              "输入错误",
 	"Canceled upgrade":                           "已取消更新",
+	"Downloading...":                             "正在下载...",
+	"Progress:":                                  "进度:",
+	"Available assets:":                          "可用的制品:",
 	"Error occurred while updating binary: %s":   "更新二进制文件时出错: %s",
 	"🎉Successfully updated to version: %s🎉":      "🎉成功更新到版本: %s🎉",
 	"Print all version information":              "显示详细版本信息",
@@ -201,7 +207,7 @@ func init() {
 		agentCmd,
 		mcpCmd,
 		robotCmd,
-		// upgradeCmd,
+		upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))
