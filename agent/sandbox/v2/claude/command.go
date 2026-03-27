@@ -72,7 +72,7 @@ func (r *ClaudeRunner) buildCommand(ctx context.Context, req *types.StreamReques
 
 	env := buildEnv(req, p)
 	args := buildArgs(req, r, p, isContinuation, assistantID, chatID)
-	inputJSONL := buildInput(req.Messages, isContinuation)
+	inputJSONL := buildLastUserMessageJSONL(req.Messages)
 
 	var systemPrompt string
 	envPrompt := buildSandboxEnvPrompt(p, workDir)
@@ -236,13 +236,6 @@ func buildArgs(req *types.StreamRequest, r *ClaudeRunner, p platform, isContinua
 	return args
 }
 
-func buildInput(messages []agentContext.Message, isContinuation bool) string {
-	if isContinuation {
-		return buildLastUserMessageJSONL(messages)
-	}
-	return buildFirstRequestJSONL(messages)
-}
-
 func buildSandboxEnvPrompt(p platform, workDir string) string {
 	osName := p.OS()
 	if osName == "" {
@@ -321,32 +314,6 @@ func buildMCPAllowedTools(servers []types.MCPServer) string {
 		return "mcp__yao__*"
 	}
 	return strings.Join(patterns, ",")
-}
-
-// buildFirstRequestJSONL builds the input JSONL for a new (non-continuation)
-// Claude CLI session. Per the stream-json input protocol, only user messages
-// should be sent; Claude CLI manages its own assistant history internally.
-func buildFirstRequestJSONL(messages []agentContext.Message) string {
-	var lines []string
-	for _, msg := range messages {
-		if msg.Role != "user" {
-			continue
-		}
-		content := msg.Content
-		if content == nil {
-			content = ""
-		}
-		streamMsg := map[string]any{
-			"type": "user",
-			"message": map[string]any{
-				"role":    "user",
-				"content": content,
-			},
-		}
-		data, _ := json.Marshal(streamMsg)
-		lines = append(lines, string(data))
-	}
-	return strings.Join(lines, "\n")
 }
 
 func buildLastUserMessageJSONL(messages []agentContext.Message) string {

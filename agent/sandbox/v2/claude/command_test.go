@@ -170,86 +170,43 @@ func TestBuildArgs_WhitelistOptions(t *testing.T) {
 	assert.Contains(t, args, "--max-turns")
 }
 
-// --- buildInput ---
+// --- buildLastUserMessageJSONL (was buildInput / buildFirstRequestJSONL) ---
 
-func TestBuildInput_FirstRequest(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "user", Content: "hello"},
-		{Role: "assistant", Content: "hi"},
-	}
-	result := buildInput(msgs, false)
-	lines := strings.Split(strings.TrimSpace(result), "\n")
-	assert.Len(t, lines, 1, "first request only includes user messages")
-	assert.Contains(t, lines[0], "hello")
-	assert.NotContains(t, result, "hi")
-}
-
-func TestBuildInput_Continuation(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "user", Content: "first question"},
-		{Role: "assistant", Content: "first answer"},
-		{Role: "user", Content: "follow up"},
-	}
-	result := buildInput(msgs, true)
-	var parsed map[string]any
-	err := json.Unmarshal([]byte(result), &parsed)
-	require.NoError(t, err)
-	assert.Equal(t, "user", parsed["type"])
-	msg, _ := parsed["message"].(map[string]any)
-	assert.Equal(t, "follow up", msg["content"])
-}
-
-// --- buildFirstRequestJSONL ---
-
-func TestBuildFirstRequestJSONL_SkipsSystem(t *testing.T) {
+func TestBuildLastUserMessageJSONL_SkipsSystem(t *testing.T) {
 	msgs := []agentContext.Message{
 		{Role: "system", Content: "system prompt"},
 		{Role: "user", Content: "hello"},
 	}
-	result := buildFirstRequestJSONL(msgs)
-	lines := strings.Split(strings.TrimSpace(result), "\n")
-	assert.Len(t, lines, 1, "system messages should be skipped")
-	assert.Contains(t, lines[0], "hello")
+	result := buildLastUserMessageJSONL(msgs)
+	var parsed map[string]any
+	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, "user", parsed["type"])
+	msg, _ := parsed["message"].(map[string]any)
+	assert.Equal(t, "hello", msg["content"])
 }
 
-func TestBuildFirstRequestJSONL_OnlyUserMessages(t *testing.T) {
+func TestBuildLastUserMessageJSONL_OnlyLastUser(t *testing.T) {
 	msgs := []agentContext.Message{
 		{Role: "user", Content: "q1"},
 		{Role: "assistant", Content: "a1"},
 		{Role: "user", Content: "q2"},
 	}
-	result := buildFirstRequestJSONL(msgs)
-	lines := strings.Split(strings.TrimSpace(result), "\n")
-	assert.Len(t, lines, 2, "only user messages should be included")
-	for _, line := range lines {
-		var parsed map[string]any
-		err := json.Unmarshal([]byte(line), &parsed)
-		require.NoError(t, err)
-		assert.Equal(t, "user", parsed["type"])
-		msg, _ := parsed["message"].(map[string]any)
-		assert.Equal(t, "user", msg["role"])
-	}
+	result := buildLastUserMessageJSONL(msgs)
+	var parsed map[string]any
+	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
+	require.NoError(t, err)
+	assert.Equal(t, "user", parsed["type"])
+	msg, _ := parsed["message"].(map[string]any)
+	assert.Equal(t, "q2", msg["content"])
+	assert.NotContains(t, result, "q1")
 }
 
-func TestBuildFirstRequestJSONL_AssistantOnlyMessages(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "assistant", Content: "a1"},
-		{Role: "assistant", Content: "a2"},
-		{Role: "assistant", Content: "a3"},
-		{Role: "user", Content: "q1"},
-	}
-	result := buildFirstRequestJSONL(msgs)
-	lines := strings.Split(strings.TrimSpace(result), "\n")
-	assert.Len(t, lines, 1, "only the user message should be included")
-	assert.Contains(t, lines[0], "q1")
-	assert.NotContains(t, result, "a1")
-}
-
-func TestBuildFirstRequestJSONL_NilContent(t *testing.T) {
+func TestBuildLastUserMessageJSONL_NilContent(t *testing.T) {
 	msgs := []agentContext.Message{
 		{Role: "user", Content: nil},
 	}
-	result := buildFirstRequestJSONL(msgs)
+	result := buildLastUserMessageJSONL(msgs)
 	var parsed map[string]any
 	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
 	require.NoError(t, err)
