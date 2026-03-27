@@ -15,8 +15,8 @@ import (
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
-// ClaudeRunner implements the Runner interface for Claude CLI (mode=cli).
-type ClaudeRunner struct {
+// Runner implements the sandbox Runner interface for Claude CLI (mode=cli).
+type Runner struct {
 	mode           string
 	hasMCP         bool
 	mcpToolPattern string
@@ -25,21 +25,22 @@ type ClaudeRunner struct {
 	logger         *agentContext.RequestLogger
 }
 
-// New creates a new ClaudeRunner.
-func New() *ClaudeRunner {
-	return &ClaudeRunner{mode: "cli"}
+// New creates a new Runner.
+func New() *Runner {
+	return &Runner{mode: "cli"}
 }
 
-func (r *ClaudeRunner) Name() string { return "claude" }
+// Name returns the runner identifier.
+func (r *Runner) Name() string { return "claude" }
 
 // Prepare executes user-defined and runner-specific prepare steps.
-func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
+func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 	r.mode = req.Config.Runner.Mode
 	if r.mode == "" {
 		r.mode = "cli"
 	}
 
-	assistantID := req.Config.ID
+	assistantID := req.AssistantID
 	prefix := ".yao/assistants/" + assistantID
 	if assistantID == "" {
 		prefix = ".claude"
@@ -70,7 +71,7 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 	}
 
 	if req.RunSteps != nil && len(steps) > 0 {
-		if err := req.RunSteps(ctx, steps, req.Computer, req.Config.ID, req.ConfigHash, req.AssistantDir); err != nil {
+		if err := req.RunSteps(ctx, steps, req.Computer, req.AssistantID, req.ConfigHash, req.AssistantDir); err != nil {
 			return fmt.Errorf("claude prepare steps: %w", err)
 		}
 	}
@@ -79,7 +80,7 @@ func (r *ClaudeRunner) Prepare(ctx context.Context, req *types.PrepareRequest) e
 }
 
 // Stream executes the Claude CLI and streams output to handler.
-func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, handler message.StreamFunc) error {
+func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler message.StreamFunc) error {
 	computer := req.Computer
 	if computer == nil {
 		return fmt.Errorf("computer is nil")
@@ -111,10 +112,7 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 
 	chatID := req.ChatID
 	r.lastChatID = chatID
-	assistantID := ""
-	if req.Config != nil {
-		assistantID = req.Config.ID
-	}
+	assistantID := req.AssistantID
 
 	log.Trace("[claude-runner] Stream started: assistantID=%s chatID=%s promptLen=%d", assistantID, chatID, len(cmd.shell))
 
@@ -132,10 +130,6 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 	if completed {
 		sess.shutdown()
 		if chatID != "" {
-			assistantID := ""
-			if req.Config != nil {
-				assistantID = req.Config.ID
-			}
 			storeKey := "claude-session:" + assistantID + ":" + chatID
 			sessionUUID := chatIDToSessionUUID(assistantID, chatID)
 			markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
@@ -146,7 +140,7 @@ func (r *ClaudeRunner) Stream(ctx context.Context, req *types.StreamRequest, han
 
 // Cleanup kills any remaining claude processes. If the stream completed
 // normally (received "result"), child processes are preserved.
-func (r *ClaudeRunner) Cleanup(ctx context.Context, computer infra.Computer) error {
+func (r *Runner) Cleanup(ctx context.Context, computer infra.Computer) error {
 	if computer == nil {
 		return nil
 	}

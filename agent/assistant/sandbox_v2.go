@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
+	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	traceTypes "github.com/yaoapp/yao/trace/types"
@@ -124,6 +125,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		Computer:     computer,
 		Config:       cfg,
 		Connector:    conn,
+		AssistantID:  ast.ID,
 		SkillsDir:    skillsDir,
 		AssistantDir: assistantDir,
 		MCPServers:   mcpServers,
@@ -172,10 +174,12 @@ func (ast *Assistant) executeSandboxV2Stream(
 	cfg := ast.SandboxV2
 	manager := infraV2.M()
 
-	// Build system prompt.
+	// Build system prompt (parse $CTX variables the same way as buildSystemPrompts).
 	var systemPrompt string
 	if len(ast.Prompts) > 0 {
-		for _, pr := range ast.Prompts {
+		ctxVars := ast.buildContextVariables(ctx)
+		parsed := store.Prompts(ast.Prompts).Parse(ctxVars)
+		for _, pr := range parsed {
 			if pr.Role == "system" && pr.Content != "" {
 				systemPrompt = pr.Content
 				break
@@ -199,6 +203,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Computer:     p.Computer,
 		Config:       cfg,
 		Connector:    conn,
+		AssistantID:  ast.ID,
 		Messages:     p.Messages,
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,
