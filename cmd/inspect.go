@@ -16,6 +16,7 @@ var inspectCmd = &cobra.Command{
 	Long:  L("Show app configure"),
 	Run: func(cmd *cobra.Command, args []string) {
 		Boot()
+		commercial.Load(config.Conf.Root, "yao")
 		engine.InspectExtTools()
 		res := maps.Map{
 			"version": share.VERSION,

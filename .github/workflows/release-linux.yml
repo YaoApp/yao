@@ -35,9 +35,6 @@ jobs:
           aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
 
       - name: Build
-        env:
-          ROOT_CA_1: ${{ secrets.YAO_ROOT_CA_1_PEM }}
-          ROOT_CA_2: ${{ secrets.YAO_ROOT_CA_2_PEM }}
         run: |
           export PATH=$PATH:/github/home/go/bin
 
@@ -50,16 +47,6 @@ jobs:
           git clone https://github.com/yaoapp/cui.git /app/cui-v1.0
           git clone https://github.com/yaoapp/yao-init.git /app/yao-init
           git clone https://github.com/yaoapp/yao.git /app/yao
-
-          # Inject commercial license root certificates from GitHub Secrets
-          if [ -n "$ROOT_CA_1" ]; then
-            echo "$ROOT_CA_1" | base64 -d > /app/yao/commercial/roots/root-ca-1.pem
-            echo "Injected root-ca-1.pem"
-          fi
-          if [ -n "$ROOT_CA_2" ]; then
-            echo "$ROOT_CA_2" | base64 -d > /app/yao/commercial/roots/root-ca-2.pem
-            echo "Injected root-ca-2.pem"
-          fi
 
           # Extract libv8
           files=$(find /app/v8go -name "libv8*.zip")

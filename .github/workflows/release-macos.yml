@@ -105,20 +105,6 @@ jobs:
           rm -f share/const.go.bak
           grep 'const VERSION' share/const.go
 
-      - name: Inject License Root Certificates
-        env:
-          ROOT_CA_1: ${{ secrets.YAO_ROOT_CA_1_PEM }}
-          ROOT_CA_2: ${{ secrets.YAO_ROOT_CA_2_PEM }}
-        run: |
-          if [ -n "$ROOT_CA_1" ]; then
-            echo "$ROOT_CA_1" | base64 -d > commercial/roots/root-ca-1.pem
-            echo "Injected root-ca-1.pem"
-          fi
-          if [ -n "$ROOT_CA_2" ]; then
-            echo "$ROOT_CA_2" | base64 -d > commercial/roots/root-ca-2.pem
-            echo "Injected root-ca-2.pem"
-          fi
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
