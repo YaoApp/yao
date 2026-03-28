@@ -115,6 +115,14 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	assistantID := req.AssistantID
 
 	log.Trace("[claude-runner] Stream started: assistantID=%s chatID=%s promptLen=%d", assistantID, chatID, len(cmd.shell))
+	r.logger.Debug("env vars passed to session (%d total):", len(cmd.env))
+	for k, v := range cmd.env {
+		if strings.HasPrefix(k, "CTX_") || k == "CLAUDE_CONFIG_DIR" || k == "HOME" || k == "WORKDIR" {
+			r.logger.Debug("  %s=%s", k, v)
+		} else {
+			r.logger.Debug("  %s=(set, len=%d)", k, len(v))
+		}
+	}
 
 	sess, err := startSession(ctx, computer, p, cmd, chatID, r.logger)
 	if err != nil {
