@@ -130,11 +130,11 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 			env["ANTHROPIC_BASE_URL"] = host
 			env["ANTHROPIC_API_KEY"] = key
 			if model != "" {
-				env["ANTHROPIC_MODEL"] = "claude-sonnet-4-6"
-				env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "claude-sonnet-4-6"
-				env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "claude-sonnet-4-6"
-				env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "claude-sonnet-4-6"
-				env["CLAUDE_CODE_SUBAGENT_MODEL"] = "claude-sonnet-4-6"
+				env["ANTHROPIC_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = model
+				env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
+				env["CLAUDE_CODE_SUBAGENT_MODEL"] = model
 			}
 		} else {
 			connectorID := req.Connector.ID()
