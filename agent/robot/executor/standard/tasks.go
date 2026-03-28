@@ -55,6 +55,7 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 	caller := NewAgentCaller()
 	caller.log = newExecLogger(robot, exec.ID)
 	caller.Connector = robot.LanguageModel
+	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
 		return fmt.Errorf("tasks agent (%s) call failed: %w", agentID, err)

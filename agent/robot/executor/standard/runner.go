@@ -134,6 +134,7 @@ func (r *Runner) executeAssistantTask(task *robottypes.Task, taskCtx *RunnerCont
 	caller := NewAgentCaller()
 	caller.log = r.log
 	caller.Connector = r.robot.LanguageModel
+	caller.Workspace = r.robot.Workspace
 	caller.ChatID = r.chatID
 
 	messages := r.BuildAssistantMessages(task, taskCtx)

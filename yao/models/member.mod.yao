@@ -215,6 +215,15 @@
       "nullable": true
     },
     {
+      "name": "workspace",
+      "type": "string",
+      "label": "Workspace",
+      "comment": "Workspace ID bound to this robot member (nullable = not bound)",
+      "length": 255,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "cost_limit",
       "type": "decimal",
       "label": "Cost Limit (USD/month)",

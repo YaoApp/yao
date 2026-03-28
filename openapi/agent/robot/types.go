@@ -41,6 +41,7 @@ type CreateRobotRequest struct {
 	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents (JSON array)
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers (JSON array)
 	LanguageModel string      `json:"language_model,omitempty"` // Language model name
+	Workspace     string      `json:"workspace,omitempty"`      // Workspace ID bound to this robot
 
 	// Limits
 	CostLimit float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
@@ -73,6 +74,7 @@ type UpdateRobotRequest struct {
 	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers
 	LanguageModel *string     `json:"language_model,omitempty"` // Language model name
+	Workspace     *string     `json:"workspace,omitempty"`      // Workspace ID (nil=no change, ""=unbind)
 
 	// Limits
 	CostLimit *float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
@@ -115,6 +117,7 @@ type Response struct {
 	Agents        interface{} `json:"agents,omitempty"`
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`
 	LanguageModel string      `json:"language_model,omitempty"`
+	Workspace     string      `json:"workspace,omitempty"`
 
 	// Limits
 	CostLimit float64 `json:"cost_limit,omitempty"`
@@ -186,6 +189,7 @@ func NewResponse(r *robotapi.RobotResponse) *Response {
 		Agents:            r.Agents,
 		MCPServers:        r.MCPServers,
 		LanguageModel:     r.LanguageModel,
+		Workspace:         r.Workspace,
 		CostLimit:         r.CostLimit,
 		InvitedBy:         r.InvitedBy,
 		JoinedAt:          r.JoinedAt,
@@ -215,6 +219,7 @@ func (r *CreateRobotRequest) ToAPICreateRequest() *robotapi.CreateRobotRequest {
 		Agents:            r.Agents,
 		MCPServers:        r.MCPServers,
 		LanguageModel:     r.LanguageModel,
+		Workspace:         r.Workspace,
 		CostLimit:         r.CostLimit,
 	}
 }
@@ -238,6 +243,7 @@ func (r *UpdateRobotRequest) ToAPIUpdateRequest() *robotapi.UpdateRobotRequest {
 		Agents:            r.Agents,
 		MCPServers:        r.MCPServers,
 		LanguageModel:     r.LanguageModel,
+		Workspace:         r.Workspace,
 		CostLimit:         r.CostLimit,
 	}
 }

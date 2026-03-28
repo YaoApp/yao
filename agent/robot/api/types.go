@@ -144,7 +144,7 @@ type CreateRobotRequest struct {
 	AutonomousMode *bool  `json:"autonomous_mode,omitempty"` // Whether autonomous mode is enabled
 
 	// Communication
-	RobotEmail        string      `json:"robot_email,omitempty"`        // Robot email address
+	RobotEmail        string      `json:"robot_email,omitempty"`        // Deprecated: Robot email address
 	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"` // Email whitelist (JSON array)
 	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"` // Email filter rules (JSON array)
 
@@ -153,6 +153,7 @@ type CreateRobotRequest struct {
 	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents (JSON array)
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers (JSON array)
 	LanguageModel string      `json:"language_model,omitempty"` // Language model name
+	Workspace     string      `json:"workspace,omitempty"`      // Workspace ID bound to this robot
 
 	// Limits
 	CostLimit float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
@@ -179,7 +180,7 @@ type UpdateRobotRequest struct {
 	AutonomousMode *bool   `json:"autonomous_mode,omitempty"` // Autonomous mode
 
 	// Communication
-	RobotEmail        *string     `json:"robot_email,omitempty"`        // Robot email address
+	RobotEmail        *string     `json:"robot_email,omitempty"`        // Deprecated: Robot email address
 	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"` // Email whitelist
 	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"` // Email filter rules
 
@@ -188,6 +189,7 @@ type UpdateRobotRequest struct {
 	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers
 	LanguageModel *string     `json:"language_model,omitempty"` // Language model name
+	Workspace     *string     `json:"workspace,omitempty"`      // Workspace ID (nil=no change, ""=unbind)
 
 	// Limits
 	CostLimit *float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
@@ -226,6 +228,7 @@ type RobotResponse struct {
 	Agents        interface{} `json:"agents,omitempty"`
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`
 	LanguageModel string      `json:"language_model,omitempty"`
+	Workspace     string      `json:"workspace,omitempty"`
 
 	// Limits
 	CostLimit float64 `json:"cost_limit,omitempty"`

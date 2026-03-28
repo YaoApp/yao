@@ -362,7 +362,7 @@ func (u *DefaultUser) CreateRobotMember(ctx context.Context, teamID string, robo
 	robotFields := []string{
 		"role_id", "system_prompt", "manager_id", "robot_email", "authorized_senders", "email_filter_rules",
 		"robot_config", "agents", "mcp_servers",
-		"language_model", "cost_limit", "autonomous_mode", "robot_status",
+		"language_model", "workspace", "cost_limit", "autonomous_mode", "robot_status",
 		"notes", "metadata",
 		"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
 	}
@@ -444,7 +444,7 @@ func (u *DefaultUser) UpdateRobotMember(ctx context.Context, memberID string, ro
 	robotFields := []string{
 		"role_id", "system_prompt", "manager_id", "robot_email", "authorized_senders", "email_filter_rules",
 		"robot_config", "agents", "mcp_servers",
-		"language_model", "cost_limit", "autonomous_mode", "robot_status",
+		"language_model", "workspace", "cost_limit", "autonomous_mode", "robot_status",
 		"notes", "metadata", "status",
 		"__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
 	}

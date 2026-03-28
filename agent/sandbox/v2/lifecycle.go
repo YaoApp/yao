@@ -60,6 +60,8 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 		if err == nil && wsNode != "" {
 			log.Trace("[sandbox/v2] ResolveNodeID: workspace %s -> node %s", workspaceID, wsNode)
 			computerID = wsNode
+		} else if err != nil {
+			log.Warn("[sandbox/v2] ResolveNodeID: workspace %s not found or deleted, falling back to auto-select: %v", workspaceID, err)
 		}
 	}
 
@@ -132,6 +134,8 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 				log.Trace("[sandbox/v2] workspace %s bound to node %s overrides computer_id %s", workspaceID, wsNode, computerID)
 			}
 			computerID = wsNode
+		} else if err != nil {
+			log.Warn("[sandbox/v2] GetComputer: workspace %s not found or deleted, falling back: %v", workspaceID, err)
 		}
 	}
 

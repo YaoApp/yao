@@ -1152,6 +1152,7 @@ func TestMemberCreateRobot(t *testing.T) {
 				"mcp_tools":          []string{"filesystem", "database"},
 				"autonomous_mode":    "enabled",
 				"cost_limit":         100.50,
+				"workspace":          "ws-test-create",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1374,6 +1375,9 @@ func TestMemberCreateRobot(t *testing.T) {
 							if tc.body["prompt"] != nil {
 								assert.Equal(t, tc.body["prompt"], member["system_prompt"], "Should have correct system_prompt")
 							}
+							if tc.body["workspace"] != nil {
+								assert.Equal(t, "ws-test-create", member["workspace"], "Should have correct workspace")
+							}
 						}
 					}
 				}
@@ -1595,6 +1599,7 @@ func TestMemberUpdateRobot(t *testing.T) {
 			"llm":             "gpt-3.5-turbo",
 			"autonomous_mode": "disabled",
 			"cost_limit":      50.0,
+			"workspace":       "ws-initial",
 		}
 		robotBodyBytes, _ := json.Marshal(robotBody)
 		robotReq, _ := http.NewRequest("POST", serverURL+baseURL+"/user/teams/"+teamID+"/members/robots", bytes.NewBuffer(robotBodyBytes))
@@ -1655,6 +1660,7 @@ func TestMemberUpdateRobot(t *testing.T) {
 				"cost_limit":         100.0,
 				"status":             "active",
 				"robot_status":       "working",
+				"workspace":          "ws-updated",
 			},
 			map[string]string{
 				"Authorization": "Bearer " + tokenInfo.AccessToken,
@@ -1679,6 +1685,7 @@ func TestMemberUpdateRobot(t *testing.T) {
 						assert.Equal(t, fmt.Sprintf("https://example.com/avatars/full-%s.png", testUUID), member["avatar"])
 						assert.Equal(t, "Updated system prompt", member["system_prompt"])
 						assert.Equal(t, "gpt-4", member["language_model"])
+						assert.Equal(t, "ws-updated", member["workspace"], "Should have correct workspace")
 					}
 				}
 			},
@@ -1969,6 +1976,35 @@ func TestMemberUpdateRobot(t *testing.T) {
 						// Original fields should remain
 						assert.Equal(t, "Test Robot 14", member["display_name"], "Name should remain unchanged")
 						assert.Equal(t, "gpt-3.5-turbo", member["language_model"], "LLM should remain unchanged")
+					}
+				}
+			},
+		},
+		{
+			"update workspace to unbind",
+			func() (string, string) { return createTestRobot("15") },
+			map[string]interface{}{
+				"workspace": "",
+			},
+			map[string]string{
+				"Authorization": "Bearer " + tokenInfo.AccessToken,
+			},
+			200,
+			"should unbind workspace by setting to empty string",
+			func(t *testing.T, memberID string) {
+				getMemberURL := serverURL + baseURL + "/user/teams/" + teamID + "/members/" + memberID
+				getReq, _ := http.NewRequest("GET", getMemberURL, nil)
+				getReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
+				client := &http.Client{}
+				getResp, err := client.Do(getReq)
+				assert.NoError(t, err)
+				if getResp != nil {
+					defer getResp.Body.Close()
+					if getResp.StatusCode == 200 {
+						var member map[string]interface{}
+						body, _ := io.ReadAll(getResp.Body)
+						json.Unmarshal(body, &member)
+						assert.Empty(t, member["workspace"], "Workspace should be empty after unbinding")
 					}
 				}
 			},

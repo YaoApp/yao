@@ -37,6 +37,13 @@ func (l *execLogger) connector() string {
 	return ""
 }
 
+func (l *execLogger) workspace() string {
+	if l.robot != nil {
+		return l.robot.Workspace
+	}
+	return ""
+}
+
 // ---------------------------------------------------------------------------
 // P2: Task Overview
 // ---------------------------------------------------------------------------
@@ -51,6 +58,7 @@ func (l *execLogger) logTaskOverview(tasks []robottypes.Task) {
 		"phase":          "tasks",
 		"task_count":     len(tasks),
 		"language_model": l.connector(),
+		"workspace":      l.workspace(),
 	}).Info("P2 task overview: %d tasks generated", len(tasks))
 }
 
@@ -68,6 +76,9 @@ func (l *execLogger) devTaskOverview(tasks []robottypes.Task) {
 	sb.WriteString(fmt.Sprintf("%s  Exec:      %s%s%s\n", w, v, l.execID, r))
 	if l.connector() != "" {
 		sb.WriteString(fmt.Sprintf("%s  Model:     %s%s%s\n", w, v, l.connector(), r))
+	}
+	if l.workspace() != "" {
+		sb.WriteString(fmt.Sprintf("%s  Workspace: %s%s%s\n", w, v, l.workspace(), r))
 	}
 	sb.WriteString(fmt.Sprintf("%s%s%s\n", w, strings.Repeat("─", 60), r))
 	for i, t := range tasks {
