@@ -478,6 +478,8 @@ func (m *Manager) recoverBoxes(ctx context.Context, nodeID string, res *tai.Conn
 			manager:     m,
 		}
 		switch policy {
+		case OneShot:
+			box.idleTimeoutD = DefaultOneShotIdleTimeout
 		case Session:
 			box.idleTimeoutD = DefaultSessionIdleTimeout
 		case LongRunning:
