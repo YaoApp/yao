@@ -64,8 +64,6 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 	}
 	if opts.IdleTimeout == 0 {
 		switch opts.Policy {
-		case infra.OneShot:
-			opts.IdleTimeout = infra.DefaultOneShotIdleTimeout
 		case infra.Session:
 			opts.IdleTimeout = infra.DefaultSessionIdleTimeout
 		case infra.LongRunning:

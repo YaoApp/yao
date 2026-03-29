@@ -73,7 +73,6 @@ const (
 
 const (
 	DefaultStopTimeout            = 2 * time.Second
-	DefaultOneShotIdleTimeout     = 30 * time.Minute
 	DefaultSessionIdleTimeout     = 30 * time.Minute
 	DefaultLongRunningIdleTimeout = 2 * time.Hour
 )

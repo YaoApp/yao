@@ -86,16 +86,6 @@ func (w *sandboxWatcher) Check(ctx context.Context) []monitor.Alert {
 		}
 
 		switch b.policy {
-		case OneShot:
-			alerts = append(alerts, monitor.Alert{
-				Level:   monitor.Warn,
-				Target:  "box:" + b.id,
-				Message: fmt.Sprintf("oneshot idle expired (idle=%s, timeout=%s), removing", idle.Round(time.Second), timeout),
-				Action: func(ctx context.Context) {
-					mgr.Remove(ctx, b.id)
-				},
-			})
-
 		case Session:
 			alerts = append(alerts, monitor.Alert{
 				Level:   monitor.Warn,
