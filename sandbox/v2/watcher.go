@@ -71,6 +71,31 @@ func (w *sandboxWatcher) Check(ctx context.Context) []monitor.Alert {
 			}
 		}
 
+		// OneShot safety net: these containers should have been removed by
+		// LifecycleAction right after execution. If they still exist after
+		// DefaultOneShotMaxAge it means cleanup failed (e.g. process crash,
+		// cfg.ID race before the fix). Remove them based on createdAt so we
+		// never kill a container that is still actively executing.
+		if b.policy == OneShot {
+			age := time.Since(b.createdAt)
+			if age > DefaultOneShotMaxAge {
+				alerts = append(alerts, monitor.Alert{
+					Level:   monitor.Warn,
+					Target:  "box:" + b.id,
+					Message: fmt.Sprintf("oneshot exceeded max age (%s > %s), removing", age.Round(time.Second), DefaultOneShotMaxAge),
+					Action:  func(ctx context.Context) { mgr.Remove(ctx, b.id) },
+				})
+			} else {
+				alerts = append(alerts, monitor.Alert{
+					Level:  monitor.Trace,
+					Target: "box:" + b.id,
+					Message: fmt.Sprintf("oneshot age %s (max=%s)",
+						age.Round(time.Second), DefaultOneShotMaxAge),
+				})
+			}
+			return true
+		}
+
 		idle := time.Since(b.idleSince())
 		timeout := b.idleTimeout()
 

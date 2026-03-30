@@ -171,11 +171,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var v2Computer infraV2.Computer
 	var v2LoadingMsgID string
 
+	var v2Cfg *sandboxTypes.SandboxConfig
 	if ast.HasSandboxV2() {
 		ctx.Logger.Phase("Sandbox V2")
 		var err error
 		var v2Cleanup func()
-		v2Runner, v2Computer, v2Cleanup, v2LoadingMsgID, err = ast.initSandboxV2(ctx, opts)
+		v2Runner, v2Computer, v2Cfg, v2Cleanup, v2LoadingMsgID, err = ast.initSandboxV2(ctx, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
@@ -189,7 +190,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			if ci.BoxID != "" {
 				ctx.Logger.Trace("Computer: %s", ci.BoxID)
 			}
-			ctx.Logger.Trace("Workspace: %s", ast.SandboxV2.WorkspaceID)
+			ctx.Logger.Trace("Workspace: %s", v2Cfg.WorkspaceID)
 			if conn, _, err := ast.GetConnector(ctx, opts); err == nil && conn != nil {
 				ctx.Logger.Trace("Connector: %s", conn.ID())
 			}
@@ -337,6 +338,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				Handler:      streamHandler,
 				Runner:       v2Runner,
 				Computer:     v2Computer,
+				Config:       v2Cfg,
 				LoadingMsgID: v2LoadingMsgID,
 				Options:      opts,
 			})
