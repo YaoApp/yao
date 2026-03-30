@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -165,7 +166,7 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 
 	if req.Config != nil && len(req.Config.Secrets) > 0 {
 		for k, v := range req.Config.Secrets {
-			env[k] = v
+			env[k] = str.EnvVar(v)
 		}
 	}
 

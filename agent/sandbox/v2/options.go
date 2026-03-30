@@ -1,34 +1,14 @@
 package sandboxv2
 
 import (
-	"encoding/base64"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
+	"github.com/yaoapp/kun/str"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
-
-// resolveEnvRef resolves $ENV.XXX and $ENV_B64.XXX references.
-// $ENV.XXX      → os.Getenv("XXX")
-// $ENV_B64.XXX  → base64-decode(os.Getenv("XXX")), useful for multi-line
-//
-//	values like SSH private keys.
-func resolveEnvRef(value string) string {
-	if strings.HasPrefix(value, "$ENV_B64.") {
-		raw := os.Getenv(value[9:])
-		if decoded, err := base64.StdEncoding.DecodeString(raw); err == nil {
-			return string(decoded)
-		}
-		return raw
-	}
-	if strings.HasPrefix(value, "$ENV.") {
-		return os.Getenv(value[5:])
-	}
-	return value
-}
 
 // BuildCreateOptions converts a SandboxConfig into the V2 infrastructure
 // CreateOptions. Connector config injection is handled separately via the
@@ -132,10 +112,10 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 	if envSize > 0 {
 		opts.Env = make(map[string]string, envSize)
 		for k, v := range cfg.Environment {
-			opts.Env[k] = resolveEnvRef(v)
+			opts.Env[k] = str.EnvVar(v)
 		}
 		for k, v := range cfg.Secrets {
-			opts.Env[k] = resolveEnvRef(v)
+			opts.Env[k] = str.EnvVar(v)
 		}
 	}
 
@@ -147,7 +127,7 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 	if cfg.Computer.VNC.Enabled {
 		opts.Env["VNC_ENABLED"] = "true"
 		if cfg.Computer.VNC.Password != "" {
-			opts.Env["VNC_PASSWORD"] = resolveEnvRef(cfg.Computer.VNC.Password)
+			opts.Env["VNC_PASSWORD"] = str.EnvVar(cfg.Computer.VNC.Password)
 		}
 		if cfg.Computer.VNC.Resolution != "" {
 			opts.Env["VNC_RESOLUTION"] = cfg.Computer.VNC.Resolution
