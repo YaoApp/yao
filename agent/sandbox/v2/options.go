@@ -1,6 +1,7 @@
 package sandboxv2
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
@@ -10,8 +11,19 @@ import (
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
-// resolveEnvRef resolves $ENV.XXX references to os.Getenv("XXX").
+// resolveEnvRef resolves $ENV.XXX and $ENV_B64.XXX references.
+// $ENV.XXX      → os.Getenv("XXX")
+// $ENV_B64.XXX  → base64-decode(os.Getenv("XXX")), useful for multi-line
+//
+//	values like SSH private keys.
 func resolveEnvRef(value string) string {
+	if strings.HasPrefix(value, "$ENV_B64.") {
+		raw := os.Getenv(value[9:])
+		if decoded, err := base64.StdEncoding.DecodeString(raw); err == nil {
+			return string(decoded)
+		}
+		return raw
+	}
 	if strings.HasPrefix(value, "$ENV.") {
 		return os.Getenv(value[5:])
 	}
