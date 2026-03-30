@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
+	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	traceTypes "github.com/yaoapp/yao/trace/types"
@@ -25,12 +26,16 @@ func (ast *Assistant) HasSandboxV2() bool {
 }
 
 // initSandboxV2 initializes the V2 sandbox: obtains a Computer, gets a Runner,
-// runs Prepare, and returns the runner, computer, cleanup closure, loading
-// message ID, and any error.
+// runs Prepare, and returns the runner, computer, a per-request copy of the
+// SandboxConfig, cleanup closure, loading message ID, and any error.
+//
+// A shallow copy of ast.SandboxV2 is made so that concurrent requests to the
+// same assistant each get their own mutable config (Owner, ID, NodeID, etc.).
 func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options) (
-	sandboxTypes.Runner, infraV2.Computer, func(), string, error,
+	sandboxTypes.Runner, infraV2.Computer, *sandboxTypes.SandboxConfig, func(), string, error,
 ) {
-	cfg := ast.SandboxV2
+	cfgCopy := *ast.SandboxV2
+	cfg := &cfgCopy
 	manager := infraV2.M()
 
 	loadingMsg := &message.Message{
@@ -47,7 +52,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	conn, _, err := ast.GetConnector(ctx, opts)
 	if err != nil && cfg.Runner.Name != "yao" {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
+		return nil, nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
 	}
 
 	// 2. Build human-readable DisplayName from real Agent name + Workspace name.
@@ -84,7 +89,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, "", fmt.Errorf("getComputer failed: %w", err)
+		return nil, nil, nil, nil, "", fmt.Errorf("getComputer failed: %w", err)
 	}
 	_ = identifier
 
@@ -93,7 +98,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	if err != nil {
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
+		return nil, nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
 	}
 
 	// 5. Resolve assistant directory and skills subdirectory.
@@ -124,6 +129,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		Computer:     computer,
 		Config:       cfg,
 		Connector:    conn,
+		AssistantID:  ast.ID,
 		SkillsDir:    skillsDir,
 		AssistantDir: assistantDir,
 		MCPServers:   mcpServers,
@@ -134,7 +140,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		runner.Cleanup(stdCtx, computer)
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, "", fmt.Errorf("runner.Prepare: %w", err)
+		return nil, nil, nil, nil, "", fmt.Errorf("runner.Prepare: %w", err)
 	}
 
 	// Inject computer + workspace into context so Create/Next hooks
@@ -148,7 +154,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		sandboxv2.LifecycleAction(cleanCtx, cfg, computer, manager)
 	}
 
-	return runner, computer, cleanup, loadingMsgID, nil
+	return runner, computer, cfg, cleanup, loadingMsgID, nil
 }
 
 // sandboxV2StreamParams groups arguments for executeSandboxV2Stream.
@@ -158,6 +164,7 @@ type sandboxV2StreamParams struct {
 	Handler      message.StreamFunc
 	Runner       sandboxTypes.Runner
 	Computer     infraV2.Computer
+	Config       *sandboxTypes.SandboxConfig
 	LoadingMsgID string
 	Options      *context.Options
 }
@@ -169,13 +176,15 @@ func (ast *Assistant) executeSandboxV2Stream(
 ) (*context.CompletionResponse, error) {
 	_ = p.AgentNode
 
-	cfg := ast.SandboxV2
+	cfg := p.Config
 	manager := infraV2.M()
 
-	// Build system prompt.
+	// Build system prompt (parse $CTX variables the same way as buildSystemPrompts).
 	var systemPrompt string
 	if len(ast.Prompts) > 0 {
-		for _, pr := range ast.Prompts {
+		ctxVars := ast.buildContextVariables(ctx)
+		parsed := store.Prompts(ast.Prompts).Parse(ctxVars)
+		for _, pr := range parsed {
 			if pr.Role == "system" && pr.Content != "" {
 				systemPrompt = pr.Content
 				break
@@ -199,6 +208,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Computer:     p.Computer,
 		Config:       cfg,
 		Connector:    conn,
+		AssistantID:  ast.ID,
 		Messages:     p.Messages,
 		SystemPrompt: systemPrompt,
 		ChatID:       ctx.ChatID,

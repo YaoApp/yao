@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
@@ -24,9 +23,11 @@ type ExecuteRequest struct {
 	LoadingMsgID string
 }
 
-// ExecuteSandboxStream is the V2 replacement for executeSandboxStream.
-// It calls runner.Stream, handles interrupts, and performs cleanup/lifecycle
-// in defer.
+// ExecuteSandboxStream runs runner.Stream and bridges agentContext interrupts.
+//
+// Cleanup (runner.Cleanup + LifecycleAction) is NOT performed here; the caller
+// (agent.go sandboxCleanup closure) is responsible for all lifecycle management
+// so that cleanup happens exactly once regardless of code path.
 func ExecuteSandboxStream(
 	ctx *agentContext.Context,
 	req *ExecuteRequest,
@@ -38,42 +39,6 @@ func ExecuteSandboxStream(
 	}
 
 	stdCtx := ctx.Context
-	panicked := true // Assume panic; set false on normal exit.
-
-	// Resolve stop timeout from config (default 2s).
-	stopTimeout := 2 * time.Second
-	if req.Config != nil && req.Config.StopTimeout != "" {
-		if d, err := time.ParseDuration(req.Config.StopTimeout); err == nil {
-			stopTimeout = d
-		}
-	}
-
-	// Panic recovery (registered first, executes last in LIFO order).
-	defer func() {
-		if r := recover(); r != nil {
-			log.Printf("[sandbox/v2] panic in stream: %v", r)
-			cleanCtx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-			defer cancel()
-			req.Runner.Cleanup(cleanCtx, req.Computer)
-			LifecycleAction(cleanCtx, req.Config, req.Computer, req.Manager)
-		}
-	}()
-
-	// Lifecycle action (registered second, executes second-to-last).
-	defer func() {
-		if !panicked {
-			LifecycleAction(stdCtx, req.Config, req.Computer, req.Manager)
-		}
-	}()
-
-	// Runner cleanup (registered last, executes first).
-	defer func() {
-		if !panicked {
-			cleanCtx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-			defer cancel()
-			req.Runner.Cleanup(cleanCtx, req.Computer)
-		}
-	}()
 
 	// Build a cancellable runnerCtx that bridges agentContext interrupts.
 	runnerCtx, cancelRunner := context.WithCancel(stdCtx)
@@ -143,8 +108,6 @@ func ExecuteSandboxStream(
 	if !loadingClosed && req.LoadingMsgID != "" {
 		closeLoading(ctx, req.LoadingMsgID)
 	}
-
-	panicked = false // Normal exit reached.
 
 	if err != nil {
 		if errors.Is(err, context.Canceled) {

@@ -33,7 +33,7 @@ type RobotRecord struct {
 	ManagerID    string `json:"manager_id"`    // Direct manager user_id (who manages this robot)
 
 	// Communication
-	RobotEmail        string      `json:"robot_email"`                  // Robot email address
+	RobotEmail        string      `json:"robot_email"`                  // Deprecated: Robot email address
 	AuthorizedSenders interface{} `json:"authorized_senders,omitempty"` // Email whitelist (JSON array)
 	EmailFilterRules  interface{} `json:"email_filter_rules,omitempty"` // Email filter rules (JSON array)
 
@@ -42,6 +42,7 @@ type RobotRecord struct {
 	Agents        interface{} `json:"agents,omitempty"`         // Accessible agents (JSON array)
 	MCPServers    interface{} `json:"mcp_servers,omitempty"`    // MCP servers (JSON array)
 	LanguageModel string      `json:"language_model,omitempty"` // Language model name
+	Workspace     string      `json:"workspace,omitempty"`      // Workspace ID bound to this robot
 
 	// Limits
 	CostLimit float64 `json:"cost_limit,omitempty"` // Monthly cost limit USD
@@ -117,6 +118,7 @@ var robotFields = []interface{}{
 	"agents",
 	"mcp_servers",
 	"language_model",
+	"workspace",
 
 	// Limits
 	"cost_limit",
@@ -435,6 +437,9 @@ func (s *RobotStore) recordToMap(record *RobotRecord) map[string]interface{} {
 	if record.LanguageModel != "" {
 		data["language_model"] = record.LanguageModel
 	}
+	if record.Workspace != "" {
+		data["workspace"] = record.Workspace
+	}
 
 	// Limits
 	if record.CostLimit > 0 {
@@ -547,6 +552,9 @@ func (s *RobotStore) mapToRecord(row map[string]interface{}) (*RobotRecord, erro
 	if v, ok := row["language_model"].(string); ok {
 		record.LanguageModel = v
 	}
+	if v, ok := row["workspace"].(string); ok {
+		record.Workspace = v
+	}
 
 	// Limits
 	if v := row["cost_limit"]; v != nil {
@@ -596,6 +604,8 @@ func (r *RobotRecord) ToRobot() (*types.Robot, error) {
 		SystemPrompt:   r.SystemPrompt,
 		AutonomousMode: r.AutonomousMode,
 		RobotEmail:     r.RobotEmail,
+		LanguageModel:  r.LanguageModel,
+		Workspace:      r.Workspace,
 	}
 
 	// Parse robot_status
@@ -678,6 +688,8 @@ func FromRobot(robot *types.Robot) *RobotRecord {
 		RobotStatus:    string(robot.Status),
 		AutonomousMode: robot.AutonomousMode,
 		RobotEmail:     robot.RobotEmail,
+		LanguageModel:  robot.LanguageModel,
+		Workspace:      robot.Workspace,
 		MemberType:     "robot",
 		Status:         "active",
 	}

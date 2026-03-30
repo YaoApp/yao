@@ -185,12 +185,18 @@ func TestRegister_Ping(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	pong, err := stream.Recv()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pong.Type != "pong" {
-		t.Errorf("expected pong, got %q", pong.Type)
+	// Loop until we receive "pong"; skip "open" frames that may arrive from
+	// the asynchronous connectTunnelNode goroutine if a real gRPC endpoint
+	// happens to be reachable in the test environment.
+	for {
+		pong, err := stream.Recv()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if pong.Type == "pong" {
+			break
+		}
+		// skip unexpected frames (e.g. "open" from connectTunnelNode)
 	}
 
 	stream.CloseSend()

@@ -315,6 +315,9 @@ func GinMemberCreateRobot(c *gin.Context) {
 	if req.LanguageModel != "" {
 		baseData["language_model"] = req.LanguageModel
 	}
+	if req.Workspace != "" {
+		baseData["workspace"] = req.Workspace
+	}
 	if len(req.Agents) > 0 {
 		baseData["agents"] = req.Agents
 	}
@@ -430,6 +433,9 @@ func GinMemberUpdateRobot(c *gin.Context) {
 	}
 	if req.LanguageModel != "" {
 		updateData["language_model"] = req.LanguageModel
+	}
+	if req.Workspace != nil {
+		updateData["workspace"] = *req.Workspace
 	}
 	if req.Status != "" {
 		updateData["status"] = req.Status
@@ -1591,6 +1597,7 @@ func mapToMemberDetailResponse(data maps.MapStr) MemberDetailResponse {
 		SystemPrompt:      utils.ToString(data["system_prompt"]),
 		ManagerID:         utils.ToString(data["manager_id"]),
 		LanguageModel:     utils.ToString(data["language_model"]),
+		Workspace:         utils.ToString(data["workspace"]),
 		CostLimit:         utils.ToFloat64(data["cost_limit"]),
 		AutonomousMode:    data["autonomous_mode"], // Keep original type (bool or string)
 		LastRobotActivity: utils.ToTimeString(data["last_robot_activity"]),

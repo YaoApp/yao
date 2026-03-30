@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/commercial"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 )
@@ -52,6 +53,9 @@ type YaoMetadata struct {
 	GRPC      string                 `json:"grpc,omitempty"`      // gRPC server address (e.g., "127.0.0.1:9099")
 	Optional  map[string]interface{} `json:"optional,omitempty"`  // Optional settings
 
+	// Commercial license
+	License *commercial.PublicInfo `json:"license,omitempty"`
+
 	// Developer information
 	Developer *share.Developer `json:"developer,omitempty"`
 }
@@ -75,6 +79,9 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 		GRPC:        resolveGRPCAddr(c),
 		Optional:    share.App.Optional,
 	}
+
+	// Include license info
+	metadata.License = commercial.GetPublicInfo()
 
 	// Include developer info if available
 	if share.App.Developer.ID != "" || share.App.Developer.Name != "" {

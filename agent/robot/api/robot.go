@@ -199,7 +199,7 @@ func loadRobotFromDB(memberID string) (*types.Robot, error) {
 			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
 			"robot_config", "robot_email", "agents", "mcp_servers",
-			"manager_id", "language_model",
+			"manager_id", "language_model", "workspace",
 		},
 		Wheres: []model.QueryWhere{
 			{Column: "member_id", Value: memberID},
@@ -268,7 +268,7 @@ func ListRobotsFromDB(query *ListQuery) (*ListResult, error) {
 			"id", "member_id", "team_id", "display_name", "bio",
 			"system_prompt", "robot_status", "autonomous_mode",
 			"robot_config", "robot_email", "agents", "mcp_servers",
-			"language_model",
+			"language_model", "workspace",
 		},
 		Wheres: wheres,
 		Orders: orders,
@@ -444,6 +444,7 @@ func CreateRobot(ctx *types.Context, req *CreateRobotRequest) (*RobotResponse, e
 		Agents:        req.Agents,
 		MCPServers:    req.MCPServers,
 		LanguageModel: req.LanguageModel,
+		Workspace:     req.Workspace,
 
 		// Limits
 		CostLimit: req.CostLimit,
@@ -558,6 +559,9 @@ func UpdateRobot(ctx *types.Context, memberID string, req *UpdateRobotRequest) (
 	}
 	if req.LanguageModel != nil {
 		existing.LanguageModel = *req.LanguageModel
+	}
+	if req.Workspace != nil {
+		existing.Workspace = *req.Workspace
 	}
 
 	// Limits
@@ -684,6 +688,7 @@ func recordToResponse(record *store.RobotRecord) *RobotResponse {
 		Agents:        record.Agents,
 		MCPServers:    record.MCPServers,
 		LanguageModel: record.LanguageModel,
+		Workspace:     record.Workspace,
 
 		CostLimit:    record.CostLimit,
 		InvitedBy:    record.InvitedBy,

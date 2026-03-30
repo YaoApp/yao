@@ -23,6 +23,7 @@ import (
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/cert"
+	"github.com/yaoapp/yao/commercial"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/data"
@@ -94,6 +95,27 @@ func loadStep(name string, loadFunc func() error, callback func(string, string))
 	return err
 }
 
+// LoadForMigrate loads only the minimal modules needed for schema migration:
+// application config, database connection, and models (with auto-migrate).
+func LoadForMigrate(cfg config.Config) (warnings []Warning, err error) {
+	defer func() { err = exception.Catch(recover()) }()
+	exception.Mode = cfg.Mode
+
+	if err = loadApp(cfg.AppSource); err != nil {
+		return append(warnings, Warning{Widget: "Load Application", Error: err}), err
+	}
+
+	if err = share.DBConnect(cfg.DB); err != nil {
+		return append(warnings, Warning{Widget: "DB", Error: err}), err
+	}
+
+	if err = model.Load(cfg); err != nil {
+		warnings = append(warnings, Warning{Widget: "Model", Error: err})
+	}
+
+	return warnings, err
+}
+
 // Load application engine
 func Load(cfg config.Config, options LoadOption, progressCallback ...func(string, string)) (warnings []Warning, err error) {
 
@@ -148,6 +170,12 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Registry", Error: err})
 	}
+
+	// Load Commercial License
+	loadStep("License", func() error {
+		commercial.Load(cfg.Root, "yao")
+		return nil
+	}, callback)
 
 	// Load Certs
 	err = loadStep("Cert", func() error {

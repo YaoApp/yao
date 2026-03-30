@@ -457,6 +457,7 @@ type MemberDetailResponse struct {
 	Agents            []string               `json:"agents,omitempty"`
 	MCPServers        []string               `json:"mcp_servers,omitempty"`
 	LanguageModel     string                 `json:"language_model,omitempty"`
+	Workspace         string                 `json:"workspace,omitempty"`
 	CostLimit         float64                `json:"cost_limit,omitempty"`
 	AutonomousMode    interface{}            `json:"autonomous_mode,omitempty"` // Can be bool or string
 	LastRobotActivity string                 `json:"last_robot_activity,omitempty"`
@@ -480,6 +481,7 @@ type CreateRobotMemberRequest struct {
 	ManagerID         string   `json:"report_to,omitempty"`            // Direct manager user ID
 	SystemPrompt      string   `json:"prompt" binding:"required"`      // Identity & role prompt
 	LanguageModel     string   `json:"llm,omitempty"`                  // Language model (e.g., "gpt-4")
+	Workspace         string   `json:"workspace,omitempty"`            // Workspace ID bound to this robot
 	Agents            []string `json:"agents,omitempty"`               // Accessible agents
 	MCPServers        []string `json:"mcp_tools,omitempty"`            // MCP servers/tools
 	AutonomousMode    string   `json:"autonomous_mode,omitempty"`      // "enabled" or "disabled"
@@ -499,6 +501,7 @@ type UpdateRobotMemberRequest struct {
 	ManagerID         string   `json:"report_to,omitempty"`          // Direct manager user ID
 	SystemPrompt      string   `json:"prompt,omitempty"`             // Identity & role prompt
 	LanguageModel     string   `json:"llm,omitempty"`                // Language model (e.g., "gpt-4")
+	Workspace         *string  `json:"workspace"`                    // Workspace ID (nil=no change, ""=unbind)
 	Agents            []string `json:"agents,omitempty"`             // Accessible agents
 	MCPServers        []string `json:"mcp_tools,omitempty"`          // MCP servers/tools
 	AutonomousMode    string   `json:"autonomous_mode,omitempty"`    // "enabled" or "disabled"

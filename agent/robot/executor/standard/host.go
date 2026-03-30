@@ -32,6 +32,8 @@ func (e *Executor) CallHostAgent(ctx *robottypes.Context, robot *robottypes.Robo
 	kunlog.Info("calling Host Agent %s for scenario=%s chatID=%s", agentID, input.Scenario, chatID)
 
 	caller := NewConversationCaller(chatID)
+	caller.Connector = robot.LanguageModel
+	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, string(inputJSON))
 	if err != nil {
 		return nil, fmt.Errorf("host agent (%s) call failed: %w", agentID, err)

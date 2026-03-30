@@ -60,6 +60,8 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 		if err == nil && wsNode != "" {
 			log.Trace("[sandbox/v2] ResolveNodeID: workspace %s -> node %s", workspaceID, wsNode)
 			computerID = wsNode
+		} else if err != nil {
+			log.Warn("[sandbox/v2] ResolveNodeID: workspace %s not found or deleted, falling back to auto-select: %v", workspaceID, err)
 		}
 	}
 
@@ -132,6 +134,8 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 				log.Trace("[sandbox/v2] workspace %s bound to node %s overrides computer_id %s", workspaceID, wsNode, computerID)
 			}
 			computerID = wsNode
+		} else if err != nil {
+			log.Warn("[sandbox/v2] GetComputer: workspace %s not found or deleted, falling back: %v", workspaceID, err)
 		}
 	}
 
@@ -280,24 +284,30 @@ func resolveBox(
 
 // LifecycleAction performs the post-request lifecycle operation based on policy.
 // Called in defer after executeSandboxStream completes.
+//
+// NOTE: cfg.ID must NOT be used here — it is a shared mutable field on the
+// Assistant struct and is overwritten by concurrent requests. The authoritative
+// box ID is computer.ComputerInfo().BoxID, which is set once when the Box is
+// created and never changes.
 func LifecycleAction(ctx context.Context, cfg *types.SandboxConfig, computer infra.Computer, manager *infra.Manager) {
 	if computer == nil || cfg == nil {
 		return
 	}
 
 	info := computer.ComputerInfo()
+	boxID := info.BoxID // use the box's own immutable ID, not cfg.ID
 
 	switch cfg.Lifecycle {
 	case "oneshot":
 		if info.Kind == "box" && manager != nil {
-			if err := manager.Remove(ctx, cfg.ID); err != nil {
-				log.Trace("[sandbox/v2] oneshot remove %s: %v", cfg.ID, err)
+			if err := manager.Remove(ctx, boxID); err != nil {
+				log.Trace("[sandbox/v2] oneshot remove %s: %v", boxID, err)
 			}
 		}
 
 	case "session", "longrunning":
 		if info.Kind == "box" && manager != nil {
-			manager.Heartbeat(cfg.ID, false, 0) // active=false: request finished, start idle timer
+			manager.Heartbeat(boxID, false, 0) // active=false: request finished, start idle timer
 		}
 
 	case "persistent":

@@ -36,8 +36,8 @@ var migrateCmd = &cobra.Command{
 			exception.New(L("Migrate is not allowed on production mode."), 403).Throw()
 		}
 
-		// 加载数据模型
-		loadWarnings, err := engine.Load(config.Conf, engine.LoadOption{Action: "migrate"})
+		// 仅加载 Application、DB 连接和 Model（含自动 migrate），不启动完整 Engine
+		loadWarnings, err := engine.LoadForMigrate(config.Conf)
 		if err != nil {
 			fmt.Println(color.RedString(L("Fatal: %s"), err.Error()))
 			os.Exit(1)

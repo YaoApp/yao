@@ -167,7 +167,7 @@ var (
 		"member_id", "team_id", "user_id", "member_type", "display_name", "bio", "avatar", "email", "role_id", "is_owner", "status",
 		"system_prompt", "manager_id", "robot_email", "authorized_senders", "email_filter_rules",
 		"robot_config", "agents", "mcp_servers",
-		"language_model", "cost_limit", "autonomous_mode", "last_robot_activity", "robot_status",
+		"language_model", "workspace", "cost_limit", "autonomous_mode", "last_robot_activity", "robot_status",
 		"invitation_id", "invited_by", "invited_at", "joined_at", "invitation_token",
 		"invitation_expires_at", "last_active_at",
 		"login_count", "notes", "metadata", "created_at", "updated_at",

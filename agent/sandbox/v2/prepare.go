@@ -93,6 +93,7 @@ func runFileStep(ws workspace.FS, step types.PrepareStep) error {
 		return fmt.Errorf("file step requires workspace")
 	}
 
+	step.Path = expandTilde(step.Path)
 	dir := path.Dir(step.Path)
 	if dir != "." && dir != "/" {
 		if err := ws.MkdirAll(dir, 0755); err != nil {
@@ -126,14 +127,28 @@ func runCopyStep(ws workspace.FS, step types.PrepareStep, assistantDir string) e
 		src = "local:///" + pathpkg.Join(assistantDir, src)
 	}
 
-	if _, err := ws.Copy(src, step.Dst); err != nil {
-		return fmt.Errorf("copy %s -> %s: %w", src, step.Dst, err)
+	dst := expandTilde(step.Dst)
+	if _, err := ws.Copy(src, dst); err != nil {
+		return fmt.Errorf("copy %s -> %s: %w", src, dst, err)
 	}
 	return nil
 }
 
 func isHostURI(s string) bool {
 	return strings.HasPrefix(s, "local:///") || strings.HasPrefix(s, "tmp:///")
+}
+
+// expandTilde replaces a leading "~/" with the empty string so the path
+// becomes relative to the workspace root (which is HOME inside the sandbox).
+// Paths without "~/" are returned unchanged.
+func expandTilde(p string) string {
+	if strings.HasPrefix(p, "~/") {
+		return p[2:]
+	}
+	if p == "~" {
+		return "."
+	}
+	return p
 }
 
 func runExecStep(ctx context.Context, computer infra.Computer, step types.PrepareStep) error {

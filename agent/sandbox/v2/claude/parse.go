@@ -172,6 +172,30 @@ func (p *streamParser) closeTextMessage() {
 	}
 }
 
+// closeCurrentTool closes the in-flight streaming tool message (if any),
+// flushing its accumulated input and emitting message_end. This must be
+// called before opening a new message group so that the downstream handler
+// never sees interleaved message_start/message_end pairs.
+func (p *streamParser) closeCurrentTool() {
+	if p.curTool == nil {
+		return
+	}
+	toolID := p.curTool.id
+	inputStr := p.curTool.inputJSON.String()
+	if inputStr != "" {
+		p.toolInputs[toolID] = inputStr
+		summary := extractSummary(p.curTool.name, inputStr)
+		if summary != "" {
+			p.toolSummaries[toolID] = summary
+			p.emitExecute(map[string]any{
+				"summary": summary,
+			})
+		}
+	}
+	p.endMessage()
+	p.curTool = nil
+}
+
 func (p *streamParser) ensureTextMessage() (stopped bool) {
 	if !p.textActive {
 		_, stopped = p.beginMessage("text")
@@ -318,22 +342,7 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 }
 
 func (p *streamParser) onContentBlockStop() (stopped bool) {
-	if p.curTool != nil {
-		toolID := p.curTool.id
-		inputStr := p.curTool.inputJSON.String()
-		if inputStr != "" {
-			p.toolInputs[toolID] = inputStr
-			summary := extractSummary(p.curTool.name, inputStr)
-			if summary != "" {
-				p.toolSummaries[toolID] = summary
-				p.emitExecute(map[string]any{
-					"summary": summary,
-				})
-			}
-		}
-		p.endMessage()
-		p.curTool = nil
-	}
+	p.closeCurrentTool()
 	return false
 }
 
@@ -417,6 +426,7 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			}
 
 			p.closeTextMessage()
+			p.closeCurrentTool()
 
 			toolName, _ := ci["name"].(string)
 			if toolID == "" {
@@ -488,11 +498,16 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 			continue
 		}
 
-		// Close any open text message before opening an execute message,
-		// otherwise textActive stays true while currentGroupID gets
-		// overwritten by the execute message lifecycle, causing subsequent
-		// text chunks to be emitted without a message_id.
+		// Close any open text message before opening an execute message.
 		p.closeTextMessage()
+
+		// When Claude CLI executes tools in parallel, tool_result messages
+		// can arrive while a new tool_use is still streaming. The downstream
+		// handler (stream.go) tracks only a single currentGroupID, so we
+		// must close the in-flight streaming tool message before opening
+		// the result message — otherwise the message_start/message_end
+		// pairs become interleaved and chunks lose their message_id.
+		p.closeCurrentTool()
 
 		toolUseID, _ := ci["tool_use_id"].(string)
 		content := ci["content"]

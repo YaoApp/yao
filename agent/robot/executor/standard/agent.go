@@ -49,6 +49,10 @@ type AgentCaller struct {
 	// When non-empty, passed as opts.Connector to ast.Stream so the agent uses the Robot's model.
 	Connector string
 
+	// Workspace is the workspace ID bound to the Robot.
+	// When non-empty, injected into agentCtx.Metadata["workspace_id"] for sandbox node resolution.
+	Workspace string
+
 	// log is an optional structured logger; when set, Call emits agent-call logs.
 	log *execLogger
 }
@@ -443,6 +447,13 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context, assistantID str
 		agentCtx.Logger.Close()
 	}
 	agentCtx.Logger = agentcontext.Noop()
+
+	if c.Workspace != "" {
+		if agentCtx.Metadata == nil {
+			agentCtx.Metadata = map[string]interface{}{}
+		}
+		agentCtx.Metadata["workspace_id"] = c.Workspace
+	}
 
 	kunlog.Trace("[robot-agent] context built: assistantID=%s chatID=%s contextID=%s", assistantID, c.ChatID, agentCtx.ID)
 	return agentCtx

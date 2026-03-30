@@ -326,17 +326,19 @@ func (m *Manager) callHostAgentForScenario(ctx *types.Context, robot *types.Robo
 		Scenario: scenario,
 		Messages: []agentcontext.Message{{Role: "user", Content: message}},
 		Context:  hostCtx,
-	}, chatID)
+	}, chatID, robot)
 }
 
 // callHostAgent calls the Host Agent assistant and parses output.
-func (m *Manager) callHostAgent(ctx *types.Context, agentID string, input *types.HostInput, chatID string) (*types.HostOutput, error) {
+func (m *Manager) callHostAgent(ctx *types.Context, agentID string, input *types.HostInput, chatID string, robot *types.Robot) (*types.HostOutput, error) {
 	inputJSON, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal host input: %w", err)
 	}
 
 	caller := standard.NewConversationCaller(chatID)
+	caller.Connector = robot.LanguageModel
+	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, string(inputJSON))
 	if err != nil {
 		return nil, fmt.Errorf("host agent (%s) call failed: %w", agentID, err)
@@ -728,16 +730,18 @@ func (m *Manager) callHostAgentForScenarioStream(ctx *types.Context, robot *type
 		Scenario: scenario,
 		Messages: []agentcontext.Message{{Role: "user", Content: msg}},
 		Context:  hostCtx,
-	}, chatID, streamFn)
+	}, chatID, robot, streamFn)
 }
 
-func (m *Manager) callHostAgentStream(ctx *types.Context, agentID string, input *types.HostInput, chatID string, streamFn standard.StreamCallback) (*types.HostOutput, error) {
+func (m *Manager) callHostAgentStream(ctx *types.Context, agentID string, input *types.HostInput, chatID string, robot *types.Robot, streamFn standard.StreamCallback) (*types.HostOutput, error) {
 	inputJSON, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal host input: %w", err)
 	}
 
 	caller := standard.NewConversationCaller(chatID)
+	caller.Connector = robot.LanguageModel
+	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessagesStream(ctx, agentID, string(inputJSON), streamFn)
 	if err != nil {
 		return nil, fmt.Errorf("host agent (%s) call failed: %w", agentID, err)
@@ -895,7 +899,7 @@ func (m *Manager) callHostAgentForScenarioStreamRaw(ctx *types.Context, robot *t
 		Scenario: scenario,
 		Messages: []agentcontext.Message{{Role: "user", Content: msg}},
 		Context:  hostCtx,
-	}, chatID, onMessage)
+	}, chatID, robot, onMessage)
 }
 
 // callHostAgentStreamRaw calls the Host Agent with CUI raw message streaming.
@@ -903,7 +907,7 @@ func (m *Manager) callHostAgentForScenarioStreamRaw(ctx *types.Context, robot *t
 // so the frontend never sees raw decision JSON. If the final result is a decision,
 // the buffered chunks are discarded and a clean reply is sent instead. If the
 // result is a normal conversation turn, buffered chunks are flushed through.
-func (m *Manager) callHostAgentStreamRaw(ctx *types.Context, agentID string, input *types.HostInput, chatID string, onMessage agentcontext.OnMessageFunc) (*types.HostOutput, error) {
+func (m *Manager) callHostAgentStreamRaw(ctx *types.Context, agentID string, input *types.HostInput, chatID string, robot *types.Robot, onMessage agentcontext.OnMessageFunc) (*types.HostOutput, error) {
 	inputJSON, err := json.Marshal(input)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal host input: %w", err)
@@ -956,6 +960,8 @@ func (m *Manager) callHostAgentStreamRaw(ctx *types.Context, agentID string, inp
 	}
 
 	caller := standard.NewConversationCaller(chatID)
+	caller.Connector = robot.LanguageModel
+	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessagesStreamRaw(ctx, agentID, string(inputJSON), wrappedOnMessage)
 	if err != nil {
 		return nil, fmt.Errorf("host agent (%s) call failed: %w", agentID, err)

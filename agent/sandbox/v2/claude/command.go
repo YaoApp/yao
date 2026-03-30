@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
+	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -53,13 +54,10 @@ type command struct {
 	workDir string
 }
 
-func (r *ClaudeRunner) buildCommand(ctx context.Context, req *types.StreamRequest, p platform) command {
+func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p platform) command {
 	computer := req.Computer
 	workDir := computer.GetWorkDir()
-	assistantID := ""
-	if req.Config != nil {
-		assistantID = req.Config.ID
-	}
+	assistantID := req.AssistantID
 	chatID := req.ChatID
 
 	var isContinuation bool
@@ -110,14 +108,17 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	for k, v := range p.HomeEnv(workDir) {
 		env[k] = v
 	}
+	env["WORKDIR"] = workDir
 
-	assistantID := ""
-	if req.Config != nil {
-		assistantID = req.Config.ID
-	}
+	assistantID := req.AssistantID
 	if assistantID != "" {
 		configDir := p.PathJoin(workDir, ".yao", "assistants", assistantID)
 		env["CLAUDE_CONFIG_DIR"] = configDir
+		env["CTX_ASSISTANT_ID"] = assistantID
+		// CTX_SKILLS_DIR: absolute path to the skills directory inside the sandbox.
+		// Use this in skill scripts instead of constructing the path manually,
+		// so it works correctly on all platforms (Linux, macOS, Windows).
+		env["CTX_SKILLS_DIR"] = p.PathJoin(workDir, ".yao", "assistants", assistantID, "skills")
 	}
 
 	if req.Connector != nil {
@@ -165,7 +166,7 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 
 	if req.Config != nil && len(req.Config.Secrets) > 0 {
 		for k, v := range req.Config.Secrets {
-			env[k] = v
+			env[k] = str.EnvVar(v)
 		}
 	}
 
@@ -181,7 +182,7 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	return env
 }
 
-func buildArgs(req *types.StreamRequest, r *ClaudeRunner, p platform, isContinuation bool, assistantID, chatID string) []string {
+func buildArgs(req *types.StreamRequest, r *Runner, p platform, isContinuation bool, assistantID, chatID string) []string {
 	var args []string
 
 	permMode := ""
@@ -248,12 +249,18 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 
 	shellNote := p.EnvPromptNote()
 
+	envVarSyntax := "$VAR_NAME"
+	if osName == "windows" {
+		envVarSyntax = "$env:VAR_NAME"
+	}
+
 	return fmt.Sprintf(`## Sandbox Environment
 
 - **Operating System**: %[2]s
 - **Shell**: %[3]s
 - **Working Directory**: %[1]s
-- **File Access**: You have full read/write access to %[1]s%[4]s
+- **File Access**: You have full read/write access to %[1]s
+- **Environment variable syntax**: `+"`%[5]s`"+` (e.g. `+"`$CTX_SKILLS_DIR`"+` on POSIX, `+"`$env:CTX_SKILLS_DIR`"+` on Windows)%[4]s
 
 ## User Attachments
 
@@ -261,7 +268,7 @@ User-uploaded files (images, documents, code files, etc.) are placed in %[1]s/.a
 Each chat session has its own subdirectory to avoid conflicts.
 When the user references an attached file, read it from this directory using the Read or Bash tool.
 For image files, you can view them directly as Claude supports vision on local files.
-`, workDir, osName, shell, shellNote)
+`, workDir, osName, shell, shellNote, envVarSyntax)
 }
 
 func hasExistingSession(ctx context.Context, computer infra.Computer, p platform, assistantID string) bool {

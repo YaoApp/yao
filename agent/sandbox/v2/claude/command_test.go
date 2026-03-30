@@ -33,7 +33,8 @@ func TestBuildEnv_HomeEnv(t *testing.T) {
 
 func TestBuildEnv_ConfigDirIsolation(t *testing.T) {
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{ID: "my-assistant"},
+		Config:      &types.SandboxConfig{ID: "my-assistant"},
+		AssistantID: "my-assistant",
 	}
 	req.Computer = newFakeComputer("/workspace")
 	p := testPlatform()
@@ -89,7 +90,7 @@ func TestBuildEnv_Secrets(t *testing.T) {
 func TestBuildArgs_Default(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, false, "", "")
@@ -103,7 +104,7 @@ func TestBuildArgs_Default(t *testing.T) {
 func TestBuildArgs_Continuation(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, true, "", "")
@@ -121,7 +122,7 @@ func TestBuildArgs_PermissionMode(t *testing.T) {
 		},
 	}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, false, "", "")
@@ -132,7 +133,7 @@ func TestBuildArgs_PermissionMode(t *testing.T) {
 func TestBuildArgs_MCP(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{hasMCP: true, mcpToolPattern: "mcp__yao__*"}
+	r := &Runner{hasMCP: true, mcpToolPattern: "mcp__yao__*"}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, false, "test-assistant", "")
@@ -163,7 +164,7 @@ func TestBuildArgs_WhitelistOptions(t *testing.T) {
 		},
 	}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, false, "", "")
@@ -378,7 +379,7 @@ func TestSanitizeSessionName_Empty(t *testing.T) {
 func TestBuildArgs_SessionID_NewSession(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, false, "asst-1", "robot_m1_e1")
@@ -402,7 +403,7 @@ func TestBuildArgs_SessionID_NewSession(t *testing.T) {
 func TestBuildArgs_SessionID_Continuation(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, true, "asst-1", "robot_m1_e1")
@@ -425,7 +426,7 @@ func TestBuildArgs_SessionID_Continuation(t *testing.T) {
 func TestBuildArgs_EmptyChatID_Continuation(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
 	req.Computer = newFakeComputer("/workspace")
-	r := &ClaudeRunner{}
+	r := &Runner{}
 	p := testPlatform()
 
 	args := buildArgs(req, r, p, true, "", "")
