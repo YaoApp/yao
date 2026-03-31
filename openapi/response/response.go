@@ -408,7 +408,6 @@ func SendAccessTokenCookieWithDuration(c *gin.Context, accessToken string, durat
 func SendRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
 	options := NewSecureCookieOptions().
 		WithMaxAge(maxAge).
-		WithPath("/auth").
 		WithSameSite("Strict")
 	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
 }
@@ -417,7 +416,6 @@ func SendRefreshTokenCookie(c *gin.Context, refreshToken string, maxAge int) {
 func SendRefreshTokenCookieWithExpiry(c *gin.Context, refreshToken string, expires time.Time) {
 	options := NewSecureCookieOptions().
 		WithExpires(expires).
-		WithPath("/auth").
 		WithSameSite("Strict")
 	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
 }
@@ -426,7 +424,6 @@ func SendRefreshTokenCookieWithExpiry(c *gin.Context, refreshToken string, expir
 func SendRefreshTokenCookieWithDuration(c *gin.Context, refreshToken string, duration time.Duration) {
 	options := NewSecureCookieOptions().
 		WithDuration(duration).
-		WithPath("/auth").
 		WithSameSite("Strict")
 	SendSecureCookieWithOptions(c, "refresh_token", refreshToken, options)
 }
@@ -442,10 +439,9 @@ func DeleteAllAuthCookies(c *gin.Context) {
 	DeleteSecureCookie(c, "session_id")
 	DeleteSecureCookie(c, "access_token")
 
-	// Also delete refresh token with its specific path
+	// Also delete refresh token cookie
 	options := NewSecureCookieOptions().
-		WithMaxAge(-1).
-		WithPath("/auth")
+		WithMaxAge(-1)
 	SendSecureCookieWithOptions(c, "refresh_token", "", options)
 }
 
