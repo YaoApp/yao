@@ -63,6 +63,14 @@ func withStaticFileServer(c *gin.Context) {
 		return
 	}
 
+	// Content negotiation: .md suffix or Accept: text/markdown
+	if strings.HasSuffix(c.Request.URL.Path, ".md") {
+		c.Set("content_type", "markdown")
+		c.Request.URL.Path = strings.TrimSuffix(c.Request.URL.Path, ".md")
+	} else if strings.Contains(c.GetHeader("Accept"), "text/markdown") {
+		c.Set("content_type", "markdown")
+	}
+
 	// Rewrite
 	for _, rewrite := range rewriteRules {
 		// log.Debug("Rewrite: %s => %s", c.Request.URL.Path, rewrite.Replacement)
@@ -87,6 +95,18 @@ func withStaticFileServer(c *gin.Context) {
 		if err != nil {
 			log.Error("Sui Reqeust Error: %s", err.Error())
 			c.AbortWithStatusJSON(code, gin.H{"code": code, "message": err.Error()})
+			return
+		}
+
+		// Content negotiation: serve raw markdown instead of HTML
+		if ct, exists := c.Get("content_type"); exists && ct == "markdown" {
+			raw, contentType, code, err := r.RenderRaw("markdown")
+			if err != nil {
+				c.AbortWithStatusJSON(code, gin.H{"code": code, "message": err.Error()})
+				return
+			}
+			c.Data(code, contentType, []byte(raw))
+			c.Done()
 			return
 		}
 
