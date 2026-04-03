@@ -430,3 +430,46 @@ func buildProfileUpdateRequest(data map[string]interface{}) ProfileUpdateRequest
 
 	return req
 }
+
+// GinProfileProviders returns the current user's linked OAuth accounts
+func GinProfileProviders(c *gin.Context) {
+	authInfo := authorized.GetInfo(c)
+	if authInfo == nil || authInfo.UserID == "" {
+		response.RespondWithError(c, response.StatusUnauthorized, &response.ErrorResponse{
+			Code:             response.ErrInvalidClient.Code,
+			ErrorDescription: "User not authenticated",
+		})
+		return
+	}
+
+	provider, err := getUserProvider()
+	if err != nil {
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to get user provider",
+		})
+		return
+	}
+
+	accounts, err := provider.GetUserOAuthAccounts(c.Request.Context(), authInfo.UserID)
+	if err != nil {
+		log.Error("Failed to get OAuth accounts for user %s: %v", authInfo.UserID, err)
+		response.RespondWithError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Failed to retrieve linked accounts",
+		})
+		return
+	}
+
+	if accounts == nil {
+		accounts = []maps.MapStrAny{}
+	}
+
+	for i := range accounts {
+		if email, ok := accounts[i]["email"].(string); ok && email != "" {
+			accounts[i]["email"] = MaskEmail(email)
+		}
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, accounts)
+}
