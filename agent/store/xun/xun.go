@@ -187,6 +187,17 @@ func (store *Xun) parseJSONFields(data map[string]interface{}, fields []string) 
 	}
 }
 
+// getDriver returns the database driver name for dialect-aware SQL.
+// Defaults to "mysql" if the driver cannot be determined.
+func (store *Xun) getDriver() string {
+	if store.query != nil {
+		if driver, err := store.query.Driver(); err == nil {
+			return driver
+		}
+	}
+	return "mysql"
+}
+
 // GenerateAssistantID generates a random-looking 6-digit ID
 func (store *Xun) GenerateAssistantID() (string, error) {
 	maxAttempts := 10 // Maximum number of attempts to generate a unique ID

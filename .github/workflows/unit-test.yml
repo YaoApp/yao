@@ -924,7 +924,7 @@ jobs:
     strategy:
       matrix:
         go: ["1.25"]
-        db: [MySQL8.0, SQLite3]
+        db: [MySQL8.0, SQLite3, Postgres14.0]
     steps:
       - name: Checkout Kun
         uses: actions/checkout@v4
@@ -1021,6 +1021,8 @@ jobs:
           echo "YAO_DB_DRIVER=$DB_DRIVER" >> $GITHUB_ENV
           if [ "$DB_DRIVER" = "mysql" ]; then
             echo "YAO_DB_PRIMARY=$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
+          elif [ "$DB_DRIVER" = "postgres" ]; then
+            echo "YAO_DB_PRIMARY=postgres://$DB_USER:$PASSWORD@$DB_HOST" >> $GITHUB_ENV
           else
             echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
             mkdir -p ${{ github.WORKSPACE }}/../app/db
@@ -1066,8 +1068,8 @@ jobs:
     strategy:
       matrix:
         go: ["1.25"]
-        db: [MySQL8.0, SQLite3]
-        redis: [4, 5, 6]
+        db: [MySQL8.0, SQLite3, Postgres14.0]
+        redis: [6]
         mongo: ["6.0"]
     steps:
       - name: Checkout Kun

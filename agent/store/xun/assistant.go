@@ -382,16 +382,15 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 	}
 
 	// Apply sandbox filter (true = has sandbox config, false = no sandbox config)
-	// MySQL JSON columns distinguish between SQL NULL and JSON literal null.
-	// CAST(sandbox AS CHAR) returns 'null' for JSON null and NULL for SQL NULL.
+	// DB JSON columns distinguish between SQL NULL and JSON literal null.
+	// Dialect-specific: MySQL uses CAST(... AS CHAR), PG uses ::text, SQLite uses CAST(... AS TEXT).
 	if filter.Sandbox != nil {
+		notNull, isNull := store.sandboxRawSQL()
 		if *filter.Sandbox {
-			qb.WhereNotNull("sandbox").
-				WhereRaw("CAST(`sandbox` AS CHAR) <> 'null'")
+			qb.WhereNotNull("sandbox").WhereRaw(notNull)
 		} else {
 			qb.Where(func(qb query.Query) {
-				qb.WhereNull("sandbox").
-					OrWhereRaw("CAST(`sandbox` AS CHAR) = 'null'")
+				qb.WhereNull("sandbox").OrWhereRaw(isNull)
 			})
 		}
 	}
@@ -905,4 +904,17 @@ func (store *Xun) translate(model *types.AssistantModel, assistantID string, loc
 	// Tags are NOT translated — they serve as filter keys and must remain
 	// in their original (English) form so that filter.tags round-trips
 	// correctly through the LIKE query on the DB column.
+}
+
+// sandboxRawSQL returns dialect-specific raw SQL fragments for sandbox JSON null detection.
+// Returns (notNullExpr, isNullExpr) for filtering sandbox field.
+func (store *Xun) sandboxRawSQL() (string, string) {
+	switch store.getDriver() {
+	case "postgres":
+		return `"sandbox"::text <> 'null'`, `"sandbox"::text = 'null'`
+	case "sqlite3":
+		return `CAST(sandbox AS TEXT) <> 'null'`, `CAST(sandbox AS TEXT) = 'null'`
+	default:
+		return "CAST(`sandbox` AS CHAR) <> 'null'", "CAST(`sandbox` AS CHAR) = 'null'"
+	}
 }

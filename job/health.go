@@ -315,28 +315,30 @@ func (dc *DataCleaner) shouldRunCleanup() bool {
 	return time.Since(dc.lastCleanupTime) >= 24*time.Hour
 }
 
-// performCleanup performs the actual data cleanup
+// performCleanup performs the actual data cleanup.
+// Deletion order: logs -> executions -> jobs (children first) to avoid
+// foreign key violations on databases that enforce referential integrity (e.g. PostgreSQL).
 func (dc *DataCleaner) performCleanup() error {
 	log.Info("Starting daily data cleanup...")
 
 	cutoffTime := time.Now().AddDate(0, 0, -dc.retentionDays)
 
-	// Clean up jobs (excluding running jobs)
-	deletedJobs, err := dc.cleanupJobs(cutoffTime)
+	// Clean up logs first (leaf records)
+	deletedLogs, err := dc.cleanupLogs(cutoffTime)
 	if err != nil {
-		return fmt.Errorf("failed to cleanup jobs: %w", err)
+		return fmt.Errorf("failed to cleanup logs: %w", err)
 	}
 
-	// Clean up executions
+	// Clean up executions (reference jobs)
 	deletedExecutions, err := dc.cleanupExecutions(cutoffTime)
 	if err != nil {
 		return fmt.Errorf("failed to cleanup executions: %w", err)
 	}
 
-	// Clean up logs
-	deletedLogs, err := dc.cleanupLogs(cutoffTime)
+	// Clean up jobs last (parent records)
+	deletedJobs, err := dc.cleanupJobs(cutoffTime)
 	if err != nil {
-		return fmt.Errorf("failed to cleanup logs: %w", err)
+		return fmt.Errorf("failed to cleanup jobs: %w", err)
 	}
 
 	log.Info("Data cleanup completed: %d jobs, %d executions, %d logs deleted",
