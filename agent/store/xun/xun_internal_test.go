@@ -81,6 +81,32 @@ func TestSandboxRawSQLAllDialects(t *testing.T) {
 	assert.Contains(t, isNull, "=")
 }
 
+func TestJsonLikeExpr(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	store, err := NewXun(typeSetting("default"))
+	assert.NoError(t, err)
+	xunStore := store.(*Xun)
+
+	expr := xunStore.jsonLikeExpr("tags")
+	assert.Contains(t, expr, "LIKE ?")
+
+	driver := xunStore.getDriver()
+	switch driver {
+	case "postgres":
+		assert.Contains(t, expr, `"tags"::text`)
+	default:
+		assert.Equal(t, "tags LIKE ?", expr)
+	}
+}
+
+func TestJsonLikeExprFallback(t *testing.T) {
+	store := &Xun{}
+	expr := store.jsonLikeExpr("tags")
+	assert.Equal(t, "tags LIKE ?", expr)
+}
+
 func TestToDBTime(t *testing.T) {
 	assert.Equal(t, int64(0), toDBTime(0))
 	assert.Equal(t, int64(1234567890), toDBTime(1234567890))

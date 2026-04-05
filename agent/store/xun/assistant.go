@@ -319,25 +319,20 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 	if len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
-				// For each tag, we need to match it as part of a JSON array
-				// This will match both single tag arrays ["tag1"] and multi-tag arrays ["tag1","tag2"]
 				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
-				if i == 0 {
-					qb.Where("tags", "like", pattern)
-				} else {
-					qb.OrWhere("tags", "like", pattern)
-				}
+				store.whereJsonLike(qb, "tags", pattern, i > 0)
 			}
 		})
 	}
 
 	// Apply keyword filter if provided
 	if filter.Keywords != "" {
+		kw := fmt.Sprintf("%%%s%%", filter.Keywords)
 		qb.Where(func(qb query.Query) {
-			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("capabilities", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("locales", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+			qb.Where("name", "like", kw).
+				OrWhere("description", "like", kw).
+				OrWhere("capabilities", "like", kw)
+			store.whereJsonLike(qb, "locales", kw, true)
 		})
 	}
 
@@ -714,20 +709,17 @@ func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) 
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
 				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
-				if i == 0 {
-					qb.Where("tags", "like", pattern)
-				} else {
-					qb.OrWhere("tags", "like", pattern)
-				}
+				store.whereJsonLike(qb, "tags", pattern, i > 0)
 			}
 		})
 	}
 
 	// Apply keyword filter if provided
 	if filter.Keywords != "" {
+		kw := fmt.Sprintf("%%%s%%", filter.Keywords)
 		qb.Where(func(qb query.Query) {
-			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+			qb.Where("name", "like", kw).
+				OrWhere("description", "like", kw)
 		})
 	}
 
