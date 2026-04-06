@@ -214,6 +214,24 @@ func GetTimeFormat(locale string) string {
 	}
 }
 
+// NanoToTime converts a UnixNano int64 to UTC time.Time.
+// Returns zero time for zero input.
+func NanoToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	return time.Unix(ns/1e9, ns%1e9).UTC()
+}
+
+// TimeToNano converts time.Time to UnixNano int64.
+// Returns 0 for zero time.
+func TimeToNano(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixNano()
+}
+
 // DBTimeFormats contains all time formats recognized by database drivers (MySQL, PostgreSQL, SQLite).
 // Ordered from most specific to least specific for efficient parsing.
 var DBTimeFormats = []string{

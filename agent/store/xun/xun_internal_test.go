@@ -2,6 +2,7 @@ package xun
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/xun/capsule"
@@ -105,16 +106,22 @@ func TestJsonContainsValueFallback(t *testing.T) {
 	assert.Equal(t, `"test"`, val, "Default (mysql) strips % wrappers")
 }
 
-func TestToDBTime(t *testing.T) {
-	assert.Equal(t, int64(0), toDBTime(0))
-	assert.Equal(t, int64(1234567890), toDBTime(1234567890))
-	assert.Equal(t, int64(-1), toDBTime(-1))
+func TestNanoToTime(t *testing.T) {
+	assert.True(t, nanoToTime(0).IsZero(), "zero input returns zero time")
+
+	ns := int64(1609459200000000000) // 2021-01-01 00:00:00 UTC
+	got := nanoToTime(ns)
+	assert.Equal(t, 2021, got.Year())
+	assert.Equal(t, time.January, got.Month())
+	assert.Equal(t, 1, got.Day())
+	assert.Equal(t, time.UTC, got.Location(), "must be UTC")
 }
 
-func TestFromDBTime(t *testing.T) {
-	assert.Equal(t, int64(0), fromDBTime(0))
-	assert.Equal(t, int64(1234567890), fromDBTime(1234567890))
-	assert.Equal(t, int64(-1), fromDBTime(-1))
+func TestTimeToNano(t *testing.T) {
+	assert.Equal(t, int64(0), timeToNano(time.Time{}), "zero time returns 0")
+
+	ts := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	assert.Equal(t, int64(1609459200000000000), timeToNano(ts))
 }
 
 func init() {

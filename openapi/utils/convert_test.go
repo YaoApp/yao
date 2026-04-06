@@ -118,5 +118,56 @@ func TestToTimeStringWithPGFormats(t *testing.T) {
 	}
 }
 
+func TestNanoToTime(t *testing.T) {
+	t.Run("Zero", func(t *testing.T) {
+		assert.True(t, NanoToTime(0).IsZero())
+	})
+
+	t.Run("ValidTimestamp", func(t *testing.T) {
+		ns := int64(1609459200000000000) // 2021-01-01 00:00:00 UTC
+		got := NanoToTime(ns)
+		assert.Equal(t, 2021, got.Year())
+		assert.Equal(t, time.January, got.Month())
+		assert.Equal(t, 1, got.Day())
+		assert.Equal(t, 0, got.Hour())
+		assert.Equal(t, time.UTC, got.Location())
+	})
+
+	t.Run("PreservesNanoseconds", func(t *testing.T) {
+		ns := int64(1609459200123456789)
+		got := NanoToTime(ns)
+		assert.Equal(t, 123456789, got.Nanosecond())
+	})
+
+	t.Run("Negative", func(t *testing.T) {
+		got := NanoToTime(-1)
+		assert.False(t, got.IsZero())
+		assert.Equal(t, time.UTC, got.Location())
+	})
+}
+
+func TestTimeToNano(t *testing.T) {
+	t.Run("Zero", func(t *testing.T) {
+		assert.Equal(t, int64(0), TimeToNano(time.Time{}))
+	})
+
+	t.Run("ValidTime", func(t *testing.T) {
+		ts := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+		assert.Equal(t, int64(1609459200000000000), TimeToNano(ts))
+	})
+
+	t.Run("WithNanoseconds", func(t *testing.T) {
+		ts := time.Date(2021, 1, 1, 0, 0, 0, 123456789, time.UTC)
+		assert.Equal(t, int64(1609459200123456789), TimeToNano(ts))
+	})
+
+	t.Run("RoundTrip", func(t *testing.T) {
+		original := time.Date(2026, 3, 26, 15, 30, 45, 123456789, time.UTC)
+		ns := TimeToNano(original)
+		restored := NanoToTime(ns)
+		assert.True(t, original.Equal(restored))
+	})
+}
+
 func strPtr(s string) *string { return &s }
 func int64Ptr(i int64) *int64 { return &i }

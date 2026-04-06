@@ -65,15 +65,5 @@ func getInt64(data map[string]interface{}, key string) int64 {
 	return utils.ToInt64(v)
 }
 
-// toDBTime converts UnixNano timestamp to database BIGINT format
-func toDBTime(unixNano int64) int64 {
-	if unixNano == 0 {
-		return 0
-	}
-	return unixNano
-}
-
-// fromDBTime converts database BIGINT timestamp to UnixNano
-func fromDBTime(dbTime int64) int64 {
-	return dbTime
-}
+func nanoToTime(ns int64) time.Time { return utils.NanoToTime(ns) }
+func timeToNano(t time.Time) int64  { return utils.TimeToNano(t) }

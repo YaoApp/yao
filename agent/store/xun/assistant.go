@@ -69,22 +69,20 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 	data["automated"] = assistant.Automated
 	data["disable_global_prompts"] = assistant.DisableGlobalPrompts
 
-	// Set timestamps
-	now := time.Now().UnixNano()
+	// Use UTC time.Time so the DB driver serialises correctly for all dialects
+	// (PostgreSQL timestamptz, MySQL datetime, SQLite text) with no TZ ambiguity.
+	now := time.Now().UTC()
 	if exists {
-		// Update: set updated_at, keep created_at unchanged
 		if assistant.UpdatedAt == 0 {
 			data["updated_at"] = now
 		} else {
-			data["updated_at"] = assistant.UpdatedAt
+			data["updated_at"] = nanoToTime(assistant.UpdatedAt)
 		}
-		// Don't modify created_at on update
 	} else {
-		// Create: set created_at, updated_at is null
 		if assistant.CreatedAt == 0 {
 			data["created_at"] = now
 		} else {
-			data["created_at"] = assistant.CreatedAt
+			data["created_at"] = nanoToTime(assistant.CreatedAt)
 		}
 		data["updated_at"] = nil
 	}
@@ -272,8 +270,8 @@ func (store *Xun) UpdateAssistant(assistantID string, updates map[string]interfa
 		}
 	}
 
-	// Always update updated_at timestamp
-	data["updated_at"] = types.ToMySQLTime(time.Now().UnixNano())
+	// Always update updated_at timestamp (UTC time.Time for dialect portability)
+	data["updated_at"] = time.Now().UTC()
 
 	if len(data) == 0 {
 		return fmt.Errorf("no valid fields to update")
