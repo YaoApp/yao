@@ -32,6 +32,7 @@ func TestProcessComponent(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 	prepare(t)
+	clear(t)
 	testData(t)
 
 	args := []interface{}{
