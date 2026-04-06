@@ -863,6 +863,12 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 
 // prepareUserKBCollection prepares KB collection for user (called asynchronously after login)
 func prepareUserKBCollection(userID, teamID, locale string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Warn("prepareUserKBCollection recovered from panic: %v", r)
+		}
+	}()
+
 	// Get global KB setting
 	kbSetting := assistant.GetGlobalKBSetting()
 	if kbSetting == nil || kbSetting.Chat == nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -16,6 +17,8 @@ type HealthChecker struct {
 	interval time.Duration
 	ctx      context.Context
 	cancel   context.CancelFunc
+	done     chan struct{}
+	started  atomic.Bool
 }
 
 var globalHealthChecker *HealthChecker
@@ -27,11 +30,20 @@ func NewHealthChecker(interval time.Duration) *HealthChecker {
 		interval: interval,
 		ctx:      ctx,
 		cancel:   cancel,
+		done:     make(chan struct{}),
 	}
 }
 
 // Start starts the health check goroutine
 func (hc *HealthChecker) Start() {
+	hc.started.Store(true)
+	defer close(hc.done)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Health checker recovered from panic: %v", r)
+		}
+	}()
+
 	ticker := time.NewTicker(hc.interval)
 	defer ticker.Stop()
 
@@ -40,7 +52,7 @@ func (hc *HealthChecker) Start() {
 	for {
 		select {
 		case <-ticker.C:
-			if err := hc.performHealthCheck(); err != nil {
+			if err := hc.safePerformHealthCheck(); err != nil {
 				log.Error("Health check failed: %v", err)
 			}
 		case <-hc.ctx.Done():
@@ -50,10 +62,27 @@ func (hc *HealthChecker) Start() {
 	}
 }
 
-// Stop stops the health checker
+// safePerformHealthCheck wraps performHealthCheck with panic recovery
+func (hc *HealthChecker) safePerformHealthCheck() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("health check panic: %v", r)
+		}
+	}()
+	return hc.performHealthCheck()
+}
+
+// Stop stops the health checker and waits for the goroutine to exit
 func (hc *HealthChecker) Stop() {
 	if hc.cancel != nil {
 		hc.cancel()
+	}
+	if hc.started.Load() {
+		select {
+		case <-hc.done:
+		case <-time.After(5 * time.Second):
+			log.Error("Health checker stop timed out")
+		}
 	}
 }
 
@@ -261,6 +290,8 @@ func GetHealthChecker() *HealthChecker {
 type DataCleaner struct {
 	ctx             context.Context
 	cancel          context.CancelFunc
+	done            chan struct{}
+	started         atomic.Bool
 	retentionDays   int
 	lastCleanupTime time.Time
 }
@@ -273,14 +304,22 @@ func NewDataCleaner(retentionDays int) *DataCleaner {
 	return &DataCleaner{
 		ctx:             ctx,
 		cancel:          cancel,
+		done:            make(chan struct{}),
 		retentionDays:   retentionDays,
-		lastCleanupTime: time.Now(), // Initialize to avoid immediate cleanup on startup
+		lastCleanupTime: time.Now(),
 	}
 }
 
 // Start starts the daily data cleanup routine
 func (dc *DataCleaner) Start() {
-	// Check every hour if daily cleanup is needed
+	dc.started.Store(true)
+	defer close(dc.done)
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("Data cleaner recovered from panic: %v", r)
+		}
+	}()
+
 	ticker := time.NewTicker(1 * time.Hour)
 	defer ticker.Stop()
 
@@ -290,7 +329,7 @@ func (dc *DataCleaner) Start() {
 		select {
 		case <-ticker.C:
 			if dc.shouldRunCleanup() {
-				if err := dc.performCleanup(); err != nil {
+				if err := dc.safePerformCleanup(); err != nil {
 					log.Error("Data cleanup failed: %v", err)
 				} else {
 					dc.lastCleanupTime = time.Now()
@@ -303,10 +342,27 @@ func (dc *DataCleaner) Start() {
 	}
 }
 
-// Stop stops the data cleaner
+// safePerformCleanup wraps performCleanup with panic recovery
+func (dc *DataCleaner) safePerformCleanup() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("data cleanup panic: %v", r)
+		}
+	}()
+	return dc.performCleanup()
+}
+
+// Stop stops the data cleaner and waits for the goroutine to exit
 func (dc *DataCleaner) Stop() {
 	if dc.cancel != nil {
 		dc.cancel()
+	}
+	if dc.started.Load() {
+		select {
+		case <-dc.done:
+		case <-time.After(5 * time.Second):
+			log.Error("Data cleaner stop timed out")
+		}
 	}
 }
 
