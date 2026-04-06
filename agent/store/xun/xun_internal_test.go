@@ -81,7 +81,7 @@ func TestSandboxRawSQLAllDialects(t *testing.T) {
 	assert.Contains(t, isNull, "=")
 }
 
-func TestJsonLikeExpr(t *testing.T) {
+func TestJsonContainsValue(t *testing.T) {
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -89,22 +89,20 @@ func TestJsonLikeExpr(t *testing.T) {
 	assert.NoError(t, err)
 	xunStore := store.(*Xun)
 
-	expr := xunStore.jsonLikeExpr("tags")
-	assert.Contains(t, expr, "LIKE ?")
-
 	driver := xunStore.getDriver()
+	val := xunStore.jsonContainsValue(`%"admin"%`)
 	switch driver {
-	case "postgres":
-		assert.Contains(t, expr, `"tags"::text`)
+	case "sqlite3":
+		assert.Equal(t, `%"admin"%`, val, "SQLite keeps LIKE pattern as-is")
 	default:
-		assert.Equal(t, "tags LIKE ?", expr)
+		assert.Equal(t, `"admin"`, val, "PG/MySQL strips % wrappers for JSON value")
 	}
 }
 
-func TestJsonLikeExprFallback(t *testing.T) {
+func TestJsonContainsValueFallback(t *testing.T) {
 	store := &Xun{}
-	expr := store.jsonLikeExpr("tags")
-	assert.Equal(t, "tags LIKE ?", expr)
+	val := store.jsonContainsValue(`%"test"%`)
+	assert.Equal(t, `"test"`, val, "Default (mysql) strips % wrappers")
 }
 
 func TestToDBTime(t *testing.T) {

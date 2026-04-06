@@ -2,6 +2,7 @@ package xun
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -198,33 +199,13 @@ func (store *Xun) getDriver() string {
 	return "mysql"
 }
 
-// jsonLikeExpr returns a dialect-specific SQL expression for LIKE on a JSON column.
-// PostgreSQL requires casting json/jsonb to text before applying LIKE.
-func (store *Xun) jsonLikeExpr(column string) string {
-	switch store.getDriver() {
-	case "postgres":
-		return fmt.Sprintf(`"%s"::text LIKE ?`, column)
-	default:
-		return column + " LIKE ?"
+// jsonContainsValue formats a value for WhereJSONContains.
+// PG/MySQL need JSON string (e.g. `"tag"`), SQLite needs LIKE pattern (e.g. `%"tag"%`).
+func (store *Xun) jsonContainsValue(value string) string {
+	if store.getDriver() == "sqlite3" {
+		return value
 	}
-}
-
-// whereJsonLike applies a LIKE condition on a JSON column with proper dialect handling.
-func (store *Xun) whereJsonLike(qb query.Query, column, pattern string, or bool) {
-	if store.getDriver() == "postgres" {
-		expr := fmt.Sprintf(`"%s"::text LIKE ?`, column)
-		if or {
-			qb.OrWhereRaw(expr, pattern)
-		} else {
-			qb.WhereRaw(expr, pattern)
-		}
-	} else {
-		if or {
-			qb.OrWhere(column, "like", pattern)
-		} else {
-			qb.Where(column, "like", pattern)
-		}
-	}
+	return strings.TrimSuffix(strings.TrimPrefix(value, "%"), "%")
 }
 
 // GenerateAssistantID generates a random-looking 6-digit ID

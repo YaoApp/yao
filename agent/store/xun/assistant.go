@@ -319,8 +319,12 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 	if len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
-				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
-				store.whereJsonLike(qb, "tags", pattern, i > 0)
+				val := store.jsonContainsValue(fmt.Sprintf("%%\"%s\"%%", tag))
+				if i == 0 {
+					qb.WhereJSONContains("tags", val)
+				} else {
+					qb.OrWhereJSONContains("tags", val)
+				}
 			}
 		})
 	}
@@ -332,7 +336,8 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 			qb.Where("name", "like", kw).
 				OrWhere("description", "like", kw).
 				OrWhere("capabilities", "like", kw)
-			store.whereJsonLike(qb, "locales", kw, true)
+			localeVal := store.jsonContainsValue(kw)
+			qb.OrWhereJSONContains("locales", localeVal)
 		})
 	}
 
@@ -708,8 +713,12 @@ func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) 
 	if len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
-				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
-				store.whereJsonLike(qb, "tags", pattern, i > 0)
+				val := store.jsonContainsValue(fmt.Sprintf("%%\"%s\"%%", tag))
+				if i == 0 {
+					qb.WhereJSONContains("tags", val)
+				} else {
+					qb.OrWhereJSONContains("tags", val)
+				}
 			}
 		})
 	}
@@ -900,6 +909,9 @@ func (store *Xun) translate(model *types.AssistantModel, assistantID string, loc
 
 // sandboxRawSQL returns dialect-specific raw SQL fragments for sandbox JSON null detection.
 // Returns (notNullExpr, isNullExpr) for filtering sandbox field.
+// WhereRaw is used here because this is a JSON literal `null` comparison, not a JSON array
+// contains query. Each dialect requires different casting to compare the JSON value as text.
+// No bind parameters are needed (pure string comparison), so no placeholder issues.
 func (store *Xun) sandboxRawSQL() (string, string) {
 	switch store.getDriver() {
 	case "postgres":
