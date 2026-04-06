@@ -1,7 +1,7 @@
 package types
 
 import (
-	"time"
+	"github.com/yaoapp/yao/openapi/utils"
 )
 
 // Map converts the OIDCUserInfo to a map[string]interface{}, excluding empty values
@@ -67,7 +67,7 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 	}
 
 	// Convert and add UpdatedAt if not nil
-	if converted := unixToMySQL(user.UpdatedAt); converted != nil {
+	if converted := utils.UnixToDBTimestamp(user.UpdatedAt); converted != nil {
 		result["updated_at"] = converted
 	}
 
@@ -132,7 +132,7 @@ func (user OIDCUserInfo) Map() map[string]interface{} {
 		if user.YaoTeam.Description != "" {
 			teamMap["description"] = user.YaoTeam.Description
 		}
-		if converted := unixToMySQL(user.YaoTeam.UpdatedAt); converted != nil {
+		if converted := utils.UnixToDBTimestamp(user.YaoTeam.UpdatedAt); converted != nil {
 			teamMap["updated_at"] = converted
 		}
 		if len(teamMap) > 0 {
@@ -264,7 +264,7 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 
 	// Updated_at field
 	if updatedAt, ok := user["updated_at"]; ok {
-		if converted := toUnixTimestamp(updatedAt); converted != nil {
+		if converted := utils.ToUnixTimestamp(updatedAt); converted != nil {
 			if unixTime, ok := converted.(int64); ok {
 				userInfo.UpdatedAt = &unixTime
 			}
@@ -336,7 +336,7 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 			team.Description = description
 		}
 		if updatedAt, ok := teamData["updated_at"]; ok {
-			if converted := toUnixTimestamp(updatedAt); converted != nil {
+			if converted := utils.ToUnixTimestamp(updatedAt); converted != nil {
 				if unixTime, ok := converted.(int64); ok {
 					team.UpdatedAt = &unixTime
 				}
@@ -382,97 +382,4 @@ func MakeOIDCUserInfo(user map[string]interface{}) *OIDCUserInfo {
 	}
 
 	return userInfo
-}
-
-// unixToMySQL converts interface{} to MySQL DATETIME string
-func unixToMySQL(val interface{}) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	var unixTime int64
-	switch v := val.(type) {
-	case int64:
-		unixTime = v
-	case *int64:
-		if v == nil {
-			return nil
-		}
-		unixTime = *v
-	case int:
-		unixTime = int64(v)
-	case float64:
-		unixTime = int64(v)
-	default:
-		return nil
-	}
-
-	return time.Unix(unixTime, 0).UTC().Format("2006-01-02 15:04:05")
-}
-
-// mysqlToUnix converts interface{} to Unix timestamp
-func mysqlToUnix(val interface{}) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	var dateTime string
-	switch v := val.(type) {
-	case string:
-		dateTime = v
-	case *string:
-		if v == nil {
-			return nil
-		}
-		dateTime = *v
-	default:
-		return nil
-	}
-
-	if dateTime == "" {
-		return nil
-	}
-
-	// Try MySQL DATETIME format
-	if t, err := time.Parse("2006-01-02 15:04:05", dateTime); err == nil {
-		return t.Unix()
-	}
-
-	// Try ISO format as fallback
-	if t, err := time.Parse("2006-01-02T15:04:05Z", dateTime); err == nil {
-		return t.Unix()
-	}
-
-	return nil
-}
-
-// toUnixTimestamp converts any interface{} to Unix timestamp
-func toUnixTimestamp(val interface{}) interface{} {
-	if val == nil {
-		return nil
-	}
-
-	switch v := val.(type) {
-	case int64:
-		return v
-	case *int64:
-		if v == nil {
-			return nil
-		}
-		return *v
-	case int:
-		return int64(v)
-	case float64:
-		return int64(v)
-	case string:
-		// Handle MySQL DATETIME or ISO format
-		return mysqlToUnix(v)
-	case *string:
-		if v == nil {
-			return nil
-		}
-		return mysqlToUnix(*v)
-	default:
-		return nil
-	}
 }

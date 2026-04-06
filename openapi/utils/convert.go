@@ -178,22 +178,12 @@ func ToTimeString(v interface{}) string {
 		}
 		return val.Format(time.RFC3339)
 	case string:
-		// Try to parse as RFC3339 first
-		if t, err := time.Parse(time.RFC3339, val); err == nil {
-			return t.Format(time.RFC3339)
-		}
-		// Try to parse as other common formats
-		formats := []string{
-			"2006-01-02 15:04:05",
-			"2006-01-02T15:04:05Z",
-			"2006-01-02T15:04:05.000Z",
-		}
-		for _, format := range formats {
+		for _, format := range DBTimeFormats {
 			if t, err := time.Parse(format, val); err == nil {
 				return t.Format(time.RFC3339)
 			}
 		}
-		return val // Return as-is if can't parse
+		return val
 	case int64:
 		// Assume unix timestamp
 		if val > 0 {
@@ -224,6 +214,131 @@ func GetTimeFormat(locale string) string {
 	}
 }
 
+// NanoToTime converts a UnixNano int64 to UTC time.Time.
+// Returns zero time for zero input.
+func NanoToTime(ns int64) time.Time {
+	if ns == 0 {
+		return time.Time{}
+	}
+	return time.Unix(ns/1e9, ns%1e9).UTC()
+}
+
+// TimeToNano converts time.Time to UnixNano int64.
+// Returns 0 for zero time.
+func TimeToNano(t time.Time) int64 {
+	if t.IsZero() {
+		return 0
+	}
+	return t.UnixNano()
+}
+
+// DBTimeFormats contains all time formats recognized by database drivers (MySQL, PostgreSQL, SQLite).
+// Ordered from most specific to least specific for efficient parsing.
+var DBTimeFormats = []string{
+	"2006-01-02 15:04:05",
+	"2006-01-02 15:04:05.999999",
+	"2006-01-02 15:04:05.999999-07",
+	"2006-01-02 15:04:05.999999+00",
+	"2006-01-02T15:04:05Z",
+	"2006-01-02T15:04:05",
+	"2006-01-02T15:04:05.000Z",
+	time.RFC3339,
+	time.RFC3339Nano,
+}
+
+// DBTimestampToUnix converts a database timestamp string (interface{}) to a Unix timestamp (int64).
+// Supports MySQL DATETIME, PostgreSQL timestamptz (fractional seconds, timezone offsets),
+// ISO 8601, RFC3339, and RFC3339Nano. Returns nil for nil, empty, or unparseable input.
+func DBTimestampToUnix(val interface{}) interface{} {
+	if val == nil {
+		return nil
+	}
+
+	var dateTime string
+	switch v := val.(type) {
+	case string:
+		dateTime = v
+	case *string:
+		if v == nil {
+			return nil
+		}
+		dateTime = *v
+	default:
+		return nil
+	}
+
+	if dateTime == "" {
+		return nil
+	}
+
+	for _, format := range DBTimeFormats {
+		if t, err := time.Parse(format, dateTime); err == nil {
+			return t.Unix()
+		}
+	}
+	return nil
+}
+
+// UnixToDBTimestamp converts a Unix timestamp (int64, *int64, int, float64) to a standard
+// DATETIME string "2006-01-02 15:04:05" in UTC. Compatible with MySQL, PostgreSQL, and SQLite.
+// Returns nil for nil or unsupported types.
+func UnixToDBTimestamp(val interface{}) interface{} {
+	if val == nil {
+		return nil
+	}
+
+	var unixTime int64
+	switch v := val.(type) {
+	case int64:
+		unixTime = v
+	case *int64:
+		if v == nil {
+			return nil
+		}
+		unixTime = *v
+	case int:
+		unixTime = int64(v)
+	case float64:
+		unixTime = int64(v)
+	default:
+		return nil
+	}
+
+	return time.Unix(unixTime, 0).UTC().Format("2006-01-02 15:04:05")
+}
+
+// ToUnixTimestamp converts any interface{} value to a Unix timestamp (int64).
+// Handles numeric types directly and parses string/DB timestamp formats via DBTimestampToUnix.
+// Returns nil for nil or unsupported types.
+func ToUnixTimestamp(val interface{}) interface{} {
+	if val == nil {
+		return nil
+	}
+
+	switch v := val.(type) {
+	case int64:
+		return v
+	case *int64:
+		if v == nil {
+			return nil
+		}
+		return *v
+	case int:
+		return int64(v)
+	case float64:
+		return int64(v)
+	case string:
+		return DBTimestampToUnix(v)
+	case *string:
+		if v == nil {
+			return nil
+		}
+		return DBTimestampToUnix(*v)
+	default:
+		return nil
+	}
+}
+
 // FormatTimeWithLocale formats a time value (time.Time, *time.Time, or string) using the specified format
 // If the input is already a string, it will parse it first and then reformat it
 // Returns empty string if the value cannot be parsed
@@ -245,21 +360,13 @@ func FormatTimeWithLocale(v interface{}, targetFormat string) string {
 			return ""
 		}
 	case string:
-		// Try parsing with common formats
-		formats := []string{
-			"2006-01-02 15:04:05",
-			"2006-01-02T15:04:05Z",
-			"2006-01-02T15:04:05",
-			time.RFC3339,
-		}
-		for _, format := range formats {
+		for _, format := range DBTimeFormats {
 			t, err = time.Parse(format, val)
 			if err == nil {
 				break
 			}
 		}
 		if err != nil {
-			// If all parsing attempts failed, return the original string
 			return val
 		}
 	default:

@@ -82,3 +82,4 @@ agent/robot/ROBOT-IM-INTEGRATION-IMPROVEMENT.md
 agent/robot/ROBOT-CACHE-IMPROVEMENT.md
 sandbox/v2/PID-KILL-UPGRADE.md
 sandbox/v2/*.md
+POSTGRESQL_COMPAT.md

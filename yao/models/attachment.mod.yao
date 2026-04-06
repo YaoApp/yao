@@ -102,7 +102,7 @@
       "comment": "User-specified complete file path",
       "length": 1000,
       "nullable": true,
-      "index": true
+      "index": false
     },
     {
       "name": "path",
@@ -111,7 +111,7 @@
       "comment": "Actual storage path for the file",
       "length": 1000,
       "nullable": false,
-      "index": true
+      "index": false
     },
     {
       "name": "groups",

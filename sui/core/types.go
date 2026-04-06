@@ -375,15 +375,25 @@ type PageConfig struct {
 
 // PageSetting is the struct for the page setting
 type PageSetting struct {
-	Title       string   `json:"title,omitempty"`
-	Guard       string   `json:"guard,omitempty"`
-	CacheStore  string   `json:"cacheStore,omitempty"`
-	Cache       int      `json:"cache,omitempty"`
-	Root        string   `json:"root,omitempty"`
-	DataCache   int      `json:"dataCache,omitempty"`
-	Description string   `json:"description,omitempty"`
-	SEO         *PageSEO `json:"seo,omitempty"`
-	API         *PageAPI `json:"api,omitempty"`
+	Title       string       `json:"title,omitempty"`
+	Guard       string       `json:"guard,omitempty"`
+	CacheStore  string       `json:"cacheStore,omitempty"`
+	Cache       int          `json:"cache,omitempty"`
+	Root        string       `json:"root,omitempty"`
+	DataCache   int          `json:"dataCache,omitempty"`
+	Description string       `json:"description,omitempty"`
+	SEO         *PageSEO     `json:"seo,omitempty"`
+	API         *PageAPI     `json:"api,omitempty"`
+	Markdown    *PageProcess `json:"markdown,omitempty"`
+}
+
+// PageProcess binds a handler to a content negotiation output.
+// "method" calls the page's own backend.ts function (preferred);
+// "process" calls a global Yao process as fallback.
+type PageProcess struct {
+	Method  string   `json:"method,omitempty"`
+	Process string   `json:"process,omitempty"`
+	In      []string `json:"in,omitempty"`
 }
 
 // PageConfigRendered is the struct for the page config rendered

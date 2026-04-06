@@ -571,6 +571,8 @@ func dbconnect(t *testing.T, cfg config.Config) {
 	switch cfg.DB.Driver {
 	case "sqlite3":
 		capsule.AddConn("primary", "sqlite3", cfg.DB.Primary[0]).SetAsGlobal()
+	case "postgres":
+		capsule.AddConn("primary", "postgres", cfg.DB.Primary[0]).SetAsGlobal()
 	default:
 		capsule.AddConn("primary", "mysql", cfg.DB.Primary[0]).SetAsGlobal()
 	}

@@ -250,8 +250,9 @@ func attachSubscription(group *gin.RouterGroup, oauth types.OAuth) {
 
 // User profile management
 func attachProfile(group *gin.RouterGroup, oauth types.OAuth) {
-	group.GET("/profile", oauth.Guard, GinProfileGet)    // Get user profile
-	group.PUT("/profile", oauth.Guard, GinProfileUpdate) // Update user profile
+	group.GET("/profile", oauth.Guard, GinProfileGet)                 // Get user profile
+	group.PUT("/profile", oauth.Guard, GinProfileUpdate)              // Update user profile
+	group.GET("/profile/providers", oauth.Guard, GinProfileProviders) // Get linked OAuth providers
 }
 
 // User management (CRUD)

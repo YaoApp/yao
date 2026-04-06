@@ -31,6 +31,7 @@ import (
 	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
+	"github.com/yaoapp/yao/job"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/messenger"
@@ -476,6 +477,10 @@ func Unload() (err error) {
 
 	// Stop Runtime
 	err = runtime.Stop()
+
+	// Stop Job health checker and data cleaner before closing DB
+	job.StopHealthChecker()
+	job.StopDataCleaner()
 
 	// Close DB
 	err = share.DBClose()

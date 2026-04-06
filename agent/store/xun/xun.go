@@ -2,6 +2,7 @@ package xun
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -185,6 +186,26 @@ func (store *Xun) parseJSONFields(data map[string]interface{}, fields []string) 
 			}
 		}
 	}
+}
+
+// getDriver returns the database driver name for dialect-aware SQL.
+// Defaults to "mysql" if the driver cannot be determined.
+func (store *Xun) getDriver() string {
+	if store.query != nil {
+		if driver, err := store.query.Driver(); err == nil {
+			return driver
+		}
+	}
+	return "mysql"
+}
+
+// jsonContainsValue formats a value for WhereJSONContains.
+// PG/MySQL need JSON string (e.g. `"tag"`), SQLite needs LIKE pattern (e.g. `%"tag"%`).
+func (store *Xun) jsonContainsValue(value string) string {
+	if store.getDriver() == "sqlite3" {
+		return value
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(value, "%"), "%")
 }
 
 // GenerateAssistantID generates a random-looking 6-digit ID

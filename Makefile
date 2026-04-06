@@ -41,6 +41,12 @@ unit-test:
 		if grep -q "^--- FAIL" tmp.out; then \
 			rm tmp.out; \
 			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
 		elif grep -q "build failed" tmp.out; then \
 			rm tmp.out; \
 			exit 1; \
@@ -65,6 +71,12 @@ unit-test-core:
 		$(GO) test -tags $(TESTTAGS) -v -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_' $$d > tmp.out; \
 		cat tmp.out; \
 		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
 			rm tmp.out; \
 			exit 1; \
 		elif grep -q "build failed" tmp.out; then \
@@ -357,6 +369,12 @@ unit-test-grpc:
 			$$d > tmp.out; \
 		cat tmp.out; \
 		if grep -q "^--- FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^FAIL" tmp.out; then \
+			rm tmp.out; \
+			exit 1; \
+		elif grep -q "^panic:" tmp.out; then \
 			rm tmp.out; \
 			exit 1; \
 		elif grep -q "build failed" tmp.out; then \

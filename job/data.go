@@ -1204,7 +1204,7 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 			case float64:
 				cleanMap[key] = val != 0
 			case string:
-				cleanMap[key] = val == "true" || val == "1"
+				cleanMap[key] = val == "true" || val == "1" || val == "t"
 			default:
 				cleanMap[key] = value
 			}
@@ -1213,9 +1213,12 @@ func mapToStruct(m maps.MapStr, v interface{}) error {
 			if str, ok := value.(string); ok && str != "" {
 				// Try multiple time formats
 				formats := []string{
-					"2006-01-02 15:04:05",                 // MySQL format
-					"2006-01-02T15:04:05Z07:00",           // RFC3339
-					"2006-01-02T15:04:05.999999999Z07:00", // RFC3339 with nanoseconds
+					"2006-01-02 15:04:05",
+					"2006-01-02 15:04:05.999999",
+					"2006-01-02 15:04:05.999999-07",
+					"2006-01-02 15:04:05.999999+00",
+					"2006-01-02T15:04:05Z07:00",
+					"2006-01-02T15:04:05.999999999Z07:00",
 					time.RFC3339,
 					time.RFC3339Nano,
 				}

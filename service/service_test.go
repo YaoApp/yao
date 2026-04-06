@@ -33,10 +33,13 @@ func TestStartStop(t *testing.T) {
 	}
 	defer srv.Stop()
 
-	<-srv.Event()
+	port, err := srv.http.Port()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// API Server
-	req := test.NewRequest(cfg.Port).Route("/api/__yao/app/setting")
+	req := test.NewRequest(port).Route("/api/__yao/app/setting")
 	res, err := req.Get()
 	if err != nil {
 		t.Fatal(err)
@@ -49,7 +52,7 @@ func TestStartStop(t *testing.T) {
 	assert.True(t, len(data["name"].(string)) > 0)
 
 	// Public
-	req = test.NewRequest(cfg.Port).Route("/")
+	req = test.NewRequest(port).Route("/")
 	res, err = req.Get()
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +61,7 @@ func TestStartStop(t *testing.T) {
 	assert.Equal(t, "Hello World\n", res.Body())
 
 	// XGEN
-	req = test.NewRequest(cfg.Port).Route("/admin/")
+	req = test.NewRequest(port).Route("/admin/")
 	res, err = req.Get()
 	if err != nil {
 		t.Fatal(err)

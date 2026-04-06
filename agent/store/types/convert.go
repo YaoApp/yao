@@ -326,12 +326,28 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 		model.CreatedAt = createdAt
 	} else if createdAt, ok := data["created_at"].(float64); ok {
 		model.CreatedAt = int64(createdAt)
+	} else if createdAt, ok := data["created_at"].(time.Time); ok {
+		model.CreatedAt = createdAt.UnixNano()
+	} else if createdAt, ok := data["created_at"].(string); ok && createdAt != "" {
+		if ts, err := time.Parse(time.RFC3339Nano, createdAt); err == nil {
+			model.CreatedAt = ts.UnixNano()
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", createdAt); err == nil {
+			model.CreatedAt = ts.UnixNano()
+		}
 	}
 
 	if updatedAt, ok := data["updated_at"].(int64); ok {
 		model.UpdatedAt = updatedAt
 	} else if updatedAt, ok := data["updated_at"].(float64); ok {
 		model.UpdatedAt = int64(updatedAt)
+	} else if updatedAt, ok := data["updated_at"].(time.Time); ok {
+		model.UpdatedAt = updatedAt.UnixNano()
+	} else if updatedAt, ok := data["updated_at"].(string); ok && updatedAt != "" {
+		if ts, err := time.Parse(time.RFC3339Nano, updatedAt); err == nil {
+			model.UpdatedAt = ts.UnixNano()
+		} else if ts, err := time.Parse("2006-01-02 15:04:05", updatedAt); err == nil {
+			model.UpdatedAt = ts.UnixNano()
+		}
 	}
 
 	// Tags (string array)

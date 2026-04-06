@@ -69,22 +69,20 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 	data["automated"] = assistant.Automated
 	data["disable_global_prompts"] = assistant.DisableGlobalPrompts
 
-	// Set timestamps
-	now := time.Now().UnixNano()
+	// Use UTC time.Time so the DB driver serialises correctly for all dialects
+	// (PostgreSQL timestamptz, MySQL datetime, SQLite text) with no TZ ambiguity.
+	now := time.Now().UTC()
 	if exists {
-		// Update: set updated_at, keep created_at unchanged
 		if assistant.UpdatedAt == 0 {
 			data["updated_at"] = now
 		} else {
-			data["updated_at"] = assistant.UpdatedAt
+			data["updated_at"] = nanoToTime(assistant.UpdatedAt)
 		}
-		// Don't modify created_at on update
 	} else {
-		// Create: set created_at, updated_at is null
 		if assistant.CreatedAt == 0 {
 			data["created_at"] = now
 		} else {
-			data["created_at"] = assistant.CreatedAt
+			data["created_at"] = nanoToTime(assistant.CreatedAt)
 		}
 		data["updated_at"] = nil
 	}
@@ -272,8 +270,8 @@ func (store *Xun) UpdateAssistant(assistantID string, updates map[string]interfa
 		}
 	}
 
-	// Always update updated_at timestamp
-	data["updated_at"] = types.ToMySQLTime(time.Now().UnixNano())
+	// Always update updated_at timestamp (UTC time.Time for dialect portability)
+	data["updated_at"] = time.Now().UTC()
 
 	if len(data) == 0 {
 		return fmt.Errorf("no valid fields to update")
@@ -319,13 +317,11 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 	if len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
-				// For each tag, we need to match it as part of a JSON array
-				// This will match both single tag arrays ["tag1"] and multi-tag arrays ["tag1","tag2"]
-				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
+				val := store.jsonContainsValue(fmt.Sprintf("%%\"%s\"%%", tag))
 				if i == 0 {
-					qb.Where("tags", "like", pattern)
+					qb.WhereJSONContains("tags", val)
 				} else {
-					qb.OrWhere("tags", "like", pattern)
+					qb.OrWhereJSONContains("tags", val)
 				}
 			}
 		})
@@ -333,11 +329,13 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 
 	// Apply keyword filter if provided
 	if filter.Keywords != "" {
+		kw := fmt.Sprintf("%%%s%%", filter.Keywords)
 		qb.Where(func(qb query.Query) {
-			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("capabilities", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("locales", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+			qb.Where("name", "like", kw).
+				OrWhere("description", "like", kw).
+				OrWhere("capabilities", "like", kw)
+			localeVal := store.jsonContainsValue(kw)
+			qb.OrWhereJSONContains("locales", localeVal)
 		})
 	}
 
@@ -382,16 +380,15 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 	}
 
 	// Apply sandbox filter (true = has sandbox config, false = no sandbox config)
-	// MySQL JSON columns distinguish between SQL NULL and JSON literal null.
-	// CAST(sandbox AS CHAR) returns 'null' for JSON null and NULL for SQL NULL.
+	// DB JSON columns distinguish between SQL NULL and JSON literal null.
+	// Dialect-specific: MySQL uses CAST(... AS CHAR), PG uses ::text, SQLite uses CAST(... AS TEXT).
 	if filter.Sandbox != nil {
+		notNull, isNull := store.sandboxRawSQL()
 		if *filter.Sandbox {
-			qb.WhereNotNull("sandbox").
-				WhereRaw("CAST(`sandbox` AS CHAR) <> 'null'")
+			qb.WhereNotNull("sandbox").WhereRaw(notNull)
 		} else {
 			qb.Where(func(qb query.Query) {
-				qb.WhereNull("sandbox").
-					OrWhereRaw("CAST(`sandbox` AS CHAR) = 'null'")
+				qb.WhereNull("sandbox").OrWhereRaw(isNull)
 			})
 		}
 	}
@@ -714,11 +711,11 @@ func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) 
 	if len(filter.Tags) > 0 {
 		qb.Where(func(qb query.Query) {
 			for i, tag := range filter.Tags {
-				pattern := fmt.Sprintf("%%\"%s\"%%", tag)
+				val := store.jsonContainsValue(fmt.Sprintf("%%\"%s\"%%", tag))
 				if i == 0 {
-					qb.Where("tags", "like", pattern)
+					qb.WhereJSONContains("tags", val)
 				} else {
-					qb.OrWhere("tags", "like", pattern)
+					qb.OrWhereJSONContains("tags", val)
 				}
 			}
 		})
@@ -726,9 +723,10 @@ func (store *Xun) DeleteAssistants(filter types.AssistantFilter) (int64, error) 
 
 	// Apply keyword filter if provided
 	if filter.Keywords != "" {
+		kw := fmt.Sprintf("%%%s%%", filter.Keywords)
 		qb.Where(func(qb query.Query) {
-			qb.Where("name", "like", fmt.Sprintf("%%%s%%", filter.Keywords)).
-				OrWhere("description", "like", fmt.Sprintf("%%%s%%", filter.Keywords))
+			qb.Where("name", "like", kw).
+				OrWhere("description", "like", kw)
 		})
 	}
 
@@ -905,4 +903,20 @@ func (store *Xun) translate(model *types.AssistantModel, assistantID string, loc
 	// Tags are NOT translated — they serve as filter keys and must remain
 	// in their original (English) form so that filter.tags round-trips
 	// correctly through the LIKE query on the DB column.
+}
+
+// sandboxRawSQL returns dialect-specific raw SQL fragments for sandbox JSON null detection.
+// Returns (notNullExpr, isNullExpr) for filtering sandbox field.
+// WhereRaw is used here because this is a JSON literal `null` comparison, not a JSON array
+// contains query. Each dialect requires different casting to compare the JSON value as text.
+// No bind parameters are needed (pure string comparison), so no placeholder issues.
+func (store *Xun) sandboxRawSQL() (string, string) {
+	switch store.getDriver() {
+	case "postgres":
+		return `"sandbox"::text <> 'null'`, `"sandbox"::text = 'null'`
+	case "sqlite3":
+		return `CAST(sandbox AS TEXT) <> 'null'`, `CAST(sandbox AS TEXT) = 'null'`
+	default:
+		return "CAST(`sandbox` AS CHAR) <> 'null'", "CAST(`sandbox` AS CHAR) = 'null'"
+	}
 }

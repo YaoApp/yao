@@ -72,6 +72,7 @@ func (page *Page) ExportConfig() string {
 		"dataCache":  page.Config.DataCache,
 		"api":        page.Config.API,
 		"root":       page.Root,
+		"markdown":   page.Config.Markdown,
 	})
 
 	if err != nil {

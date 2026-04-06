@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/application"
+	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/sui/core"
@@ -192,6 +193,122 @@ func (r *Request) Render() (string, int, error) {
 	}
 
 	return html, 200, nil
+}
+
+// RenderRaw serves alternative content types (e.g. markdown) by invoking the
+// handler declared in the page config, skipping data scripts and HTML rendering.
+// "method" calls the page's backend.ts function; "process" calls a global Yao process.
+func (r *Request) RenderRaw(kind string) (string, string, int, error) {
+
+	// Load or build cache (same as Render)
+	var c *core.Cache = nil
+	if !r.Request.DisableCache() {
+		c = core.GetCache(r.File)
+	}
+	if c == nil {
+		var status int
+		var err error
+		c, status, err = r.MakeCache()
+		if err != nil {
+			return "", "", status, err
+		}
+	}
+
+	// Guard
+	code, err := r.Guard(c)
+	if err != nil {
+		return "", "", code, err
+	}
+
+	// Parse config to find the handler
+	if c.Config == "" {
+		return "", "", 404, fmt.Errorf("page does not support %s output", kind)
+	}
+
+	var conf core.PageConfig
+	if err := jsoniter.UnmarshalFromString(c.Config, &conf); err != nil {
+		return "", "", 500, fmt.Errorf("config parse error: %s", err.Error())
+	}
+
+	// Resolve the handler from config by kind
+	var handler *core.PageProcess
+	switch kind {
+	case "markdown":
+		handler = conf.Markdown
+	}
+
+	if handler == nil || (handler.Method == "" && handler.Process == "") {
+		return "", "", 404, fmt.Errorf("page does not support %s output", kind)
+	}
+
+	// Resolve arguments
+	args := make([]interface{}, len(handler.In))
+	for i, expr := range handler.In {
+		args[i] = r.resolveArg(expr)
+	}
+
+	var result interface{}
+
+	if handler.Method != "" {
+		// Call backend.ts function via the page's compiled script
+		if c.Script == nil {
+			return "", "", 500, fmt.Errorf("page has no backend script")
+		}
+		r.Request.Script = c.Script
+		result, err = c.Script.Call(r.Request, handler.Method, args...)
+		if err != nil {
+			return "", "", 500, fmt.Errorf("backend script error: %s", err.Error())
+		}
+	} else {
+		// Fallback: call a global Yao process
+		p, err := process.Of(handler.Process, args...)
+		if err != nil {
+			return "", "", 500, fmt.Errorf("process error: %s", err.Error())
+		}
+		result, err = p.Exec()
+		if err != nil {
+			return "", "", 500, fmt.Errorf("process exec error: %s", err.Error())
+		}
+	}
+
+	content := ""
+	switch v := result.(type) {
+	case string:
+		content = v
+	case []byte:
+		content = string(v)
+	default:
+		return "", "", 500, fmt.Errorf("handler must return string, got %T", result)
+	}
+
+	contentType := "text/markdown; charset=utf-8"
+	return content, contentType, 200, nil
+}
+
+// resolveArg replaces $param.*, $query.* placeholders with actual request values.
+func (r *Request) resolveArg(expr string) interface{} {
+	if strings.HasPrefix(expr, "$param.") {
+		key := expr[7:]
+		if val, ok := r.Request.Params[key]; ok {
+			return val
+		}
+		return ""
+	}
+	if strings.HasPrefix(expr, "$query.") {
+		key := expr[7:]
+		if r.Request.Query.Has(key) {
+			return r.Request.Query.Get(key)
+		}
+		return ""
+	}
+	if strings.HasPrefix(expr, "$header.") {
+		key := expr[8:]
+		if r.Request.Headers.Has(key) {
+			return r.Request.Headers.Get(key)
+		}
+		return ""
+	}
+	return expr
 }
 
 // MakeCache is the cache for the page API.

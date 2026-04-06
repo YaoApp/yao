@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/agent/search"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	store "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/openapi/utils"
 	sui "github.com/yaoapp/yao/sui/core"
 )
 
@@ -147,8 +148,8 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"uses":                   ast.Uses,
 		"search":                 ast.Search,
 		"dependencies":           ast.Dependencies,
-		"created_at":             store.ToMySQLTime(ast.CreatedAt),
-		"updated_at":             store.ToMySQLTime(ast.UpdatedAt),
+		"created_at":             utils.NanoToTime(ast.CreatedAt),
+		"updated_at":             utils.NanoToTime(ast.UpdatedAt),
 	}
 }
 
