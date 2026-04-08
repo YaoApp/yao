@@ -129,6 +129,15 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		return err
 	}
 
+	// Mark session in store immediately after CLI process starts.
+	// Claude CLI creates session files on disk at startup, so subsequent
+	// requests must use --resume (not --session-id) even if this stream fails.
+	if chatID != "" {
+		storeKey := "claude-session:" + assistantID + ":" + chatID
+		sessionUUID := chatIDToSessionUUID(assistantID, chatID)
+		markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
+	}
+
 	streamStart := time.Now()
 	completed, err := sess.runStream(handler)
 	r.lastCompleted = completed
@@ -137,11 +146,6 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	r.logger.Debug("Stream: runStream returned completed=%v err=%v elapsed=%v", completed, err, elapsed)
 	if completed {
 		sess.shutdown()
-		if chatID != "" {
-			storeKey := "claude-session:" + assistantID + ":" + chatID
-			sessionUUID := chatIDToSessionUUID(assistantID, chatID)
-			markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
-		}
 	}
 	return err
 }
