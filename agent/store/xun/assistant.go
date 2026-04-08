@@ -3,6 +3,7 @@ package xun
 import (
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -333,9 +334,8 @@ func (store *Xun) GetAssistants(filter types.AssistantFilter, locale ...string) 
 		qb.Where(func(qb query.Query) {
 			qb.Where("name", "like", kw).
 				OrWhere("description", "like", kw).
-				OrWhere("capabilities", "like", kw)
-			localeVal := store.jsonContainsValue(kw)
-			qb.OrWhereJSONContains("locales", localeVal)
+				OrWhere("capabilities", "like", kw).
+				OrWhereRaw(store.localesLikeSQL(filter.Keywords))
 		})
 	}
 
@@ -903,6 +903,25 @@ func (store *Xun) translate(model *types.AssistantModel, assistantID string, loc
 	// Tags are NOT translated — they serve as filter keys and must remain
 	// in their original (English) form so that filter.tags round-trips
 	// correctly through the LIKE query on the DB column.
+}
+
+// localesLikeSQL returns a dialect-specific raw SQL fragment for LIKE on the locales JSON column.
+// PostgreSQL's json type does not support the LIKE operator directly; cast to text is required.
+// The keyword is escaped and inlined (no bind parameter) to avoid placeholder incompatibility
+// across dialects in WhereRaw (PostgreSQL uses $N, MySQL/SQLite use ?).
+func (store *Xun) localesLikeSQL(keyword string) string {
+	escaped := strings.ReplaceAll(keyword, "'", "''")
+	escaped = strings.ReplaceAll(escaped, "%", "\\%")
+	escaped = strings.ReplaceAll(escaped, "_", "\\_")
+	pattern := "'%" + escaped + "%'"
+	switch store.getDriver() {
+	case "postgres":
+		return fmt.Sprintf(`"locales"::text LIKE %s`, pattern)
+	case "sqlite3":
+		return fmt.Sprintf("`locales` LIKE %s", pattern)
+	default:
+		return fmt.Sprintf("`locales` LIKE %s", pattern)
+	}
 }
 
 // sandboxRawSQL returns dialect-specific raw SQL fragments for sandbox JSON null detection.

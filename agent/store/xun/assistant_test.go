@@ -1070,6 +1070,70 @@ func TestSaveAssistant(t *testing.T) {
 		}
 	})
 
+	t.Run("KeywordsSearchLocales", func(t *testing.T) {
+		uniqueLocaleText := fmt.Sprintf("localekw-%d", time.Now().UnixNano())
+		assistant := &types.AssistantModel{
+			Name:      "Locale Search Test",
+			Type:      "assistant",
+			Connector: "openai",
+			Share:     "private",
+			Locales: i18n.Map{
+				"zh-cn": i18n.I18n{
+					Locale:   "zh-cn",
+					Messages: map[string]any{"name": uniqueLocaleText},
+				},
+			},
+		}
+
+		id, err := store.SaveAssistant(assistant)
+		if err != nil {
+			t.Fatalf("Failed to save assistant with locales: %v", err)
+		}
+		defer store.DeleteAssistant(id)
+
+		response, err := store.GetAssistants(types.AssistantFilter{
+			Keywords: uniqueLocaleText,
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Keywords search with locales should not error: %v", err)
+		}
+
+		found := false
+		for _, a := range response.Data {
+			if a.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected to find assistant by locale text keyword search")
+		}
+
+		// Partial match should also work
+		partial := uniqueLocaleText[:10]
+		response2, err := store.GetAssistants(types.AssistantFilter{
+			Keywords: partial,
+			Page:     1,
+			PageSize: 20,
+		})
+		if err != nil {
+			t.Fatalf("Partial keywords search should not error: %v", err)
+		}
+
+		found = false
+		for _, a := range response2.Data {
+			if a.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Error("Expected to find assistant by partial locale text keyword search")
+		}
+	})
+
 	t.Run("UpdateSandbox", func(t *testing.T) {
 		assistant := &types.AssistantModel{
 			Name:      "Update Sandbox Test",

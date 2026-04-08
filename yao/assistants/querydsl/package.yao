@@ -3,8 +3,5 @@
   "description": "Build database queries",
   "type": "worker",
   "uses": { "search": "disabled" },
-  "options": {
-    "max_tokens": 8192,
-    "temperature": 0.2
-  }
+  "options": { "max_tokens": 8192 }
 }

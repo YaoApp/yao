@@ -3,8 +3,5 @@
   "description": "Check if references are needed",
   "type": "worker",
   "uses": { "search": "disabled" },
-  "options": {
-    "max_tokens": 200,
-    "temperature": 0.1
-  }
+  "options": { "max_tokens": 200 }
 }
