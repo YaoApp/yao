@@ -233,6 +233,8 @@ func initAssistant() error {
 			Prompt:     agentDSL.System.Prompt,
 			NeedSearch: agentDSL.System.NeedSearch,
 			Entity:     agentDSL.System.Entity,
+			Vision:     agentDSL.System.Vision,
+			Voice:      agentDSL.System.Voice,
 		})
 	}
 
@@ -472,6 +474,8 @@ func resolveEnvStrings(setting *types.DSL) {
 		setting.System.RobotPrompt = helper.EnvString(setting.System.RobotPrompt)
 		setting.System.NeedSearch = helper.EnvString(setting.System.NeedSearch)
 		setting.System.Entity = helper.EnvString(setting.System.Entity)
+		setting.System.Vision = helper.EnvString(setting.System.Vision)
+		setting.System.Voice = helper.EnvString(setting.System.Voice)
 	}
 
 	if setting.Uses != nil {

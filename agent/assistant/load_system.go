@@ -27,6 +27,8 @@ var systemAgents = []string{
 	"robot_prompt",
 	"needsearch",
 	"entity",
+	"vision",
+	"fetch",
 }
 
 // SystemConfig holds the system agents connector configuration
@@ -40,6 +42,8 @@ type SystemConfig struct {
 	RobotPrompt string // Connector for __yao.robot_prompt agent
 	NeedSearch  string // Connector for __yao.needsearch agent
 	Entity      string // Connector for __yao.entity agent
+	Vision      string // Connector for vision capabilities
+	Voice       string // Connector for voice/STT capabilities
 }
 
 // systemConfig holds the system agents configuration (global variable like others in load.go)
@@ -237,6 +241,14 @@ func resolveSystemConnector(agentID string) string {
 			if systemConfig.Entity != "" {
 				return systemConfig.Entity
 			}
+		case "__yao.vision":
+			if systemConfig.Vision != "" {
+				return systemConfig.Vision
+			}
+		case "__yao.voice":
+			if systemConfig.Voice != "" {
+				return systemConfig.Voice
+			}
 		}
 
 		// Try system default
@@ -251,6 +263,40 @@ func resolveSystemConnector(agentID string) string {
 	}
 
 	// Fallback: find first connector that supports tool calling
+	return findCapableConnector()
+}
+
+// GetVisionConnector returns the connector for vision capabilities.
+// Priority: system.vision > system.default > defaultConnector > findCapableConnector
+func GetVisionConnector() string {
+	if systemConfig != nil {
+		if systemConfig.Vision != "" {
+			return systemConfig.Vision
+		}
+		if systemConfig.Default != "" {
+			return systemConfig.Default
+		}
+	}
+	if defaultConnector != "" {
+		return defaultConnector
+	}
+	return findCapableConnector()
+}
+
+// GetVoiceConnector returns the connector for voice/STT capabilities.
+// Priority: system.voice > system.default > defaultConnector > findCapableConnector
+func GetVoiceConnector() string {
+	if systemConfig != nil {
+		if systemConfig.Voice != "" {
+			return systemConfig.Voice
+		}
+		if systemConfig.Default != "" {
+			return systemConfig.Default
+		}
+	}
+	if defaultConnector != "" {
+		return defaultConnector
+	}
 	return findCapableConnector()
 }
 

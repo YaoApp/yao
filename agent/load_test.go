@@ -228,6 +228,8 @@ func TestResolveEnvStrings(t *testing.T) {
 				RobotPrompt: "$ENV.TEST_CONNECTOR",
 				NeedSearch:  "$ENV.TEST_CONNECTOR",
 				Entity:      "$ENV.TEST_CONNECTOR",
+				Vision:      "$ENV.TEST_CONNECTOR",
+				Voice:       "$ENV.TEST_CONNECTOR",
 			},
 		}
 		resolveEnvStrings(setting)
@@ -240,6 +242,25 @@ func TestResolveEnvStrings(t *testing.T) {
 		assert.Equal(t, "openai.gpt-5", setting.System.RobotPrompt)
 		assert.Equal(t, "openai.gpt-5", setting.System.NeedSearch)
 		assert.Equal(t, "openai.gpt-5", setting.System.Entity)
+		assert.Equal(t, "openai.gpt-5", setting.System.Vision)
+		assert.Equal(t, "openai.gpt-5", setting.System.Voice)
+	})
+
+	t.Run("SystemVisionVoiceSeparateEnv", func(t *testing.T) {
+		t.Setenv("TEST_VISION_CONN", "openai.gpt-4o")
+		t.Setenv("TEST_VOICE_CONN", "whisper-1")
+		setting := &types.DSL{
+			System: &types.System{
+				Default: "$ENV.TEST_CONNECTOR",
+				Vision:  "$ENV.TEST_VISION_CONN",
+				Voice:   "$ENV.TEST_VOICE_CONN",
+			},
+		}
+		resolveEnvStrings(setting)
+
+		assert.Equal(t, "openai.gpt-5", setting.System.Default)
+		assert.Equal(t, "openai.gpt-4o", setting.System.Vision)
+		assert.Equal(t, "whisper-1", setting.System.Voice)
 	})
 
 	t.Run("UsesFields", func(t *testing.T) {

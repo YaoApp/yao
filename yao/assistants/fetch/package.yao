@@ -1,0 +1,9 @@
+{
+  "name": "Fetch Helper",
+  "description": "Fetch and extract content from URLs",
+  "type": "worker",
+  "automated": true,
+  "public": true,
+  "uses": { "search": "disabled" },
+  "options": {}
+}
