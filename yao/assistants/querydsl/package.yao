@@ -2,6 +2,8 @@
   "name": "Query Builder",
   "description": "Build database queries",
   "type": "worker",
+  "automated": true,
+  "public": true,
   "uses": { "search": "disabled" },
   "options": { "max_tokens": 8192 }
 }

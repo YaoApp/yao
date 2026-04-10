@@ -1,0 +1,7 @@
+{
+  "name": "Vision Helper",
+  "description": "Analyze images when the main model doesn't support vision",
+  "type": "worker",
+  "uses": { "search": "disabled" },
+  "options": {}
+}

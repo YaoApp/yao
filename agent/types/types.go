@@ -101,6 +101,8 @@ type System struct {
 	RobotPrompt string `json:"robot_prompt,omitempty" yaml:"robot_prompt,omitempty"` // Connector for __yao.robot_prompt agent
 	NeedSearch  string `json:"needsearch,omitempty" yaml:"needsearch,omitempty"`     // Connector for __yao.needsearch agent
 	Entity      string `json:"entity,omitempty" yaml:"entity,omitempty"`             // Connector for __yao.entity agent
+	Vision      string `json:"vision,omitempty" yaml:"vision,omitempty"`             // Connector for vision capabilities
+	Voice       string `json:"voice,omitempty" yaml:"voice,omitempty"`               // Connector for voice/STT capabilities
 }
 
 // Mention Structure
