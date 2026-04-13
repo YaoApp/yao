@@ -85,6 +85,14 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 		promptFile = p.PathJoin(workDir, ".yao", ".system-prompt.txt")
 	}
 
+	// On continuation turns the system prompt is not re-sent, but the previously
+	// written prompt file is still on disk. Pass --append-system-prompt-file so
+	// Claude keeps the same constraints (e.g. workspace path rules) across the
+	// entire session without injecting a duplicate system turn.
+	if isContinuation {
+		args = append(args, "--append-system-prompt-file", promptFile)
+	}
+
 	script, stdin := p.BuildScript(scriptInput{
 		args:         args,
 		systemPrompt: systemPrompt,

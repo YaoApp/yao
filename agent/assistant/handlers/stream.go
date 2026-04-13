@@ -408,12 +408,15 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 	shouldSkipHistory := s.ctx.Stack != nil && s.ctx.Stack.Options != nil &&
 		s.ctx.Stack.Options.Skip != nil && s.ctx.Stack.Options.Skip.History
 
-	// Execute messages have two phases sharing the same message_id:
-	//   1. running  — streamed for UI display only, NOT persisted
+	// Execute messages have two (or more) phases sharing the same message_id:
+	//   1. running / suspended / resumed — streamed for UI display only, NOT persisted
 	//   2. completed / error — the final state, persisted to the buffer
-	isExecuteRunning := msgType == message.TypeExecute && s.lastExecStatus == "running"
+	// Only persist when we have an explicit terminal status.
+	isExecuteFinal := msgType == message.TypeExecute &&
+		(s.lastExecStatus == "completed" || s.lastExecStatus == "error")
+	skipExecute := msgType == message.TypeExecute && !isExecuteFinal
 
-	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory && !isExecuteRunning {
+	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory && !skipExecute {
 		assistantID := ""
 		if s.ctx.Stack != nil {
 			assistantID = s.ctx.Stack.AssistantID
