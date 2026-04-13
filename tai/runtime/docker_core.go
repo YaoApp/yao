@@ -106,6 +106,7 @@ func (d *dockerCore) exec(ctx context.Context, id string, cmd []string, opts Exe
 		Cmd:          cmd,
 		WorkingDir:   opts.WorkDir,
 		Env:          envSlice(opts.Env),
+		User:         opts.User,
 		AttachStdout: true,
 		AttachStderr: true,
 	}
@@ -143,6 +144,7 @@ func (d *dockerCore) execStream(ctx context.Context, id string, cmd []string, op
 		Cmd:          cmd,
 		WorkingDir:   opts.WorkDir,
 		Env:          envSlice(opts.Env),
+		User:         opts.User,
 		AttachStdin:  true,
 		AttachStdout: true,
 		AttachStderr: true,

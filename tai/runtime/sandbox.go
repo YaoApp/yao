@@ -70,6 +70,7 @@ type ContainerInfo struct {
 type ExecOptions struct {
 	WorkDir string
 	Env     map[string]string
+	User    string // container exec user; empty = container default (container.Config.User)
 }
 
 // ExecResult holds output from an exec command.

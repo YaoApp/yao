@@ -93,6 +93,7 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 	result, err := res.Runtime.Exec(ctx, b.containerID, cmd, tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
+		User:    "sandbox",
 	})
 	if err != nil {
 		return nil, err
@@ -123,6 +124,7 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 	handle, err := res.Runtime.ExecStream(ctx, b.containerID, cmd, tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
+		User:    "sandbox",
 	})
 	if err != nil {
 		return nil, err
