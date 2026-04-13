@@ -57,4 +57,5 @@ type StreamRequest struct {
 	ChatID       string
 	Token        *SandboxToken               // current user's sandbox token for MCP callbacks
 	Logger       *agentContext.RequestLogger // request-scoped logger propagated from agent context
+	UserExplicit bool                        // true when the user explicitly selected the primary connector
 }

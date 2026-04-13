@@ -203,6 +203,11 @@ func (ast *Assistant) buildContextVariables(ctx *context.Context) map[string]str
 		}
 	}
 
+	// Workspace info
+	if workspaceID, err := ctx.GetWorkspaceID(); err == nil {
+		vars["WORKSPACE_ID"] = workspaceID
+	}
+
 	if ctx == nil {
 		return vars
 	}

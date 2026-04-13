@@ -105,6 +105,15 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	env := make(map[string]string)
 	workDir := req.Computer.GetWorkDir()
 
+	// Workspace ID
+	workspace := req.Computer.Workplace()
+	if workspace != nil {
+		workspaceID, err := workspace.GetID()
+		if err == nil {
+			env["CTX_WORKSPACE_ID"] = workspaceID
+		}
+	}
+
 	for k, v := range p.HomeEnv(workDir) {
 		env[k] = v
 	}
@@ -127,6 +136,12 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		key, _ := setting["key"].(string)
 		model, _ := setting["model"].(string)
 
+		roleConnectors := getRoleConnectors(req)
+		getConn := func(id string) connector.Connector {
+			c, _ := connector.Connectors[id]
+			return c
+		}
+
 		if req.Connector.Is(connector.ANTHROPIC) {
 			env["ANTHROPIC_BASE_URL"] = host
 			env["ANTHROPIC_API_KEY"] = key
@@ -137,18 +152,48 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 				env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
 				env["CLAUDE_CODE_SUBAGENT_MODEL"] = model
 			}
+
+			if len(roleConnectors) > 0 {
+				primaryHost := host
+				for role, rm := range claudeRoleEnvMap {
+					if role == "primary" {
+						continue
+					}
+					rc := resolveRoleConnector(role, roleConnectors, req.UserExplicit, getConn)
+					if rc == nil {
+						continue
+					}
+					rcHost := connectorHost(rc)
+					if rcHost == primaryHost && supportsProtocol(rc, "anthropic") {
+						rcModel, _ := rc.Setting()["model"].(string)
+						if rcModel != "" {
+							env[rm.EnvVar] = rcModel
+						}
+					}
+				}
+			}
 		} else {
 			connectorID := req.Connector.ID()
 			env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/c/%s", defaultA2OPort, connectorID)
 			env["ANTHROPIC_API_KEY"] = "dummy"
-			// Use a valid Anthropic model name to pass Claude CLI's local
-			// validation. The a2o proxy ignores this and substitutes the
-			// real backend model from its connector config.
 			env["ANTHROPIC_MODEL"] = "claude-sonnet-4-6"
 			env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "claude-sonnet-4-6"
 			env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "claude-sonnet-4-6"
 			env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "claude-sonnet-4-6"
 			env["CLAUDE_CODE_SUBAGENT_MODEL"] = "claude-sonnet-4-6"
+
+			if len(roleConnectors) > 0 {
+				for role, rm := range claudeRoleEnvMap {
+					if role == "primary" {
+						continue
+					}
+					rc := resolveRoleConnector(role, roleConnectors, req.UserExplicit, getConn)
+					if rc == nil {
+						continue
+					}
+					env[rm.EnvVar] = rm.ModelName
+				}
+			}
 		}
 
 		if thinking, ok := setting["thinking"].(map[string]interface{}); ok {
@@ -342,6 +387,77 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 		}
 	}
 	return ""
+}
+
+// claudeRoleEnvMap maps abstract Yao model roles to Claude CLI environment
+// variables and virtual model name identifiers used as A2O route keys.
+// ModelName uniqueness is only required among roles that have independent
+// connectors (i.e. are added to the A2O routes map).
+var claudeRoleEnvMap = map[string]struct {
+	EnvVar    string
+	ModelName string
+}{
+	"primary":  {EnvVar: "ANTHROPIC_MODEL", ModelName: "claude-sonnet-4-6"},
+	"heavy":    {EnvVar: "ANTHROPIC_DEFAULT_OPUS_MODEL", ModelName: "claude-opus-4-6"},
+	"light":    {EnvVar: "ANTHROPIC_DEFAULT_HAIKU_MODEL", ModelName: "claude-haiku-4-5"},
+	"subagent": {EnvVar: "CLAUDE_CODE_SUBAGENT_MODEL", ModelName: "claude-subagent-4-6"},
+	"vision":   {EnvVar: "ANTHROPIC_DEFAULT_SONNET_MODEL", ModelName: "claude-vision-4-5"},
+}
+
+func connectorHost(c connector.Connector) string {
+	if c == nil {
+		return ""
+	}
+	host, _ := c.Setting()["host"].(string)
+	return host
+}
+
+func connectorProtocols(c connector.Connector) []string {
+	if c == nil {
+		return nil
+	}
+	setting := c.Setting()
+	if ps, ok := setting["protocols"].([]string); ok && len(ps) > 0 {
+		return ps
+	}
+	if c.Is(connector.ANTHROPIC) {
+		return []string{"anthropic"}
+	}
+	return []string{"openai"}
+}
+
+func supportsProtocol(c connector.Connector, proto string) bool {
+	for _, p := range connectorProtocols(c) {
+		if p == proto {
+			return true
+		}
+	}
+	return false
+}
+
+// resolveRoleConnector determines which connector to use for a given role.
+// Returns nil when the role should use the primary connector (caller decides).
+func resolveRoleConnector(
+	role string,
+	roleConnectors map[string]*types.RoleConnector,
+	userExplicit bool,
+	getConnector func(id string) connector.Connector,
+) connector.Connector {
+	rc, ok := roleConnectors[role]
+	if !ok || rc == nil {
+		return nil
+	}
+	if rc.Override == "user" && userExplicit {
+		return nil
+	}
+	return getConnector(rc.Connector)
+}
+
+func getRoleConnectors(req *types.StreamRequest) map[string]*types.RoleConnector {
+	if req.Config == nil {
+		return nil
+	}
+	return req.Config.Runner.Connectors
 }
 
 var claudeArgWhitelist = map[string]string{

@@ -214,6 +214,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		ChatID:       ctx.ChatID,
 		Token:        tok,
 		Logger:       ctx.Logger,
+		UserExplicit: p.Options != nil && p.Options.Connector != "",
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{

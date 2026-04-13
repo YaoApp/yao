@@ -90,7 +90,12 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 
 	// Inject connector config into a2o proxy (best-effort, errors ignored).
 	if req.Connector != nil && req.Connector.Is(connector.OPENAI) {
-		injectA2OConfig(ctx, computer, req.Connector)
+		roleConnectors := resolveAllRoleConnectors(req)
+		if len(roleConnectors) > 0 {
+			injectA2OConfigWithRoutes(ctx, computer, req.Connector, roleConnectors)
+		} else {
+			injectA2OConfig(ctx, computer, req.Connector)
+		}
 	}
 
 	if req.ChatID != "" {
@@ -179,10 +184,11 @@ func (r *Runner) Cleanup(ctx context.Context, computer infra.Computer) error {
 }
 
 type a2oConnectorConfig struct {
-	Backend string                 `json:"backend"`
-	Model   string                 `json:"model"`
-	APIKey  string                 `json:"api_key"`
-	Options map[string]interface{} `json:"options,omitempty"`
+	Backend string                         `json:"backend"`
+	Model   string                         `json:"model"`
+	APIKey  string                         `json:"api_key"`
+	Options map[string]interface{}         `json:"options,omitempty"`
+	Routes  map[string]*a2oConnectorConfig `json:"routes,omitempty"`
 }
 
 func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
@@ -222,6 +228,80 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 		return nil
 	}
 	return cfg
+}
+
+// resolveAllRoleConnectors resolves all declared role connectors and returns
+// a map of virtual model name -> connector for roles that have independent connectors.
+func resolveAllRoleConnectors(req *types.StreamRequest) map[string]connector.Connector {
+	roleConns := getRoleConnectors(req)
+	if len(roleConns) == 0 {
+		return nil
+	}
+
+	result := make(map[string]connector.Connector)
+	for role, rm := range claudeRoleEnvMap {
+		if role == "primary" {
+			continue
+		}
+		rc := resolveRoleConnector(role, roleConns, req.UserExplicit, func(id string) connector.Connector {
+			c, _ := connector.Connectors[id]
+			return c
+		})
+		if rc == nil {
+			continue
+		}
+		result[rm.ModelName] = rc
+	}
+	return result
+}
+
+// injectA2OConfigWithRoutes pushes the primary connector config along with
+// role-based routes to the a2o proxy. Each route maps a virtual model name
+// to a different backend connector.
+func injectA2OConfigWithRoutes(ctx context.Context, computer infra.Computer, primaryConn connector.Connector, roleConnectors map[string]connector.Connector) {
+	primaryCfg := buildSingleA2OConfig(primaryConn)
+	if primaryCfg == nil {
+		log.Trace("[claude] injectA2OConfigWithRoutes: no valid primary config for connector %s", primaryConn.ID())
+		return
+	}
+
+	routes := make(map[string]*a2oConnectorConfig, len(roleConnectors))
+	for modelName, rc := range roleConnectors {
+		routeCfg := buildSingleA2OConfig(rc)
+		if routeCfg != nil {
+			routes[modelName] = routeCfg
+		}
+	}
+	primaryCfg.Routes = routes
+
+	data, err := json.Marshal(primaryCfg)
+	if err != nil {
+		log.Trace("[claude] injectA2OConfigWithRoutes: marshal error: %v", err)
+		return
+	}
+
+	connID := primaryConn.ID()
+	var result *infra.ExecResult
+
+	info := computer.ComputerInfo()
+	if info.Kind == "host" {
+		result, err = computer.Exec(ctx, []string{"tai", "a2o", "config", "put", connID}, infra.WithStdin(data))
+	} else {
+		escaped := strings.ReplaceAll(string(data), "'", "'\\''")
+		script := fmt.Sprintf("echo '%s' | tai a2o config put %s", escaped, connID)
+		result, err = computer.Exec(ctx, []string{"sh", "-c", script})
+	}
+
+	if err != nil {
+		log.Trace("[claude] injectA2OConfigWithRoutes: exec error (ignored): %v", err)
+		return
+	}
+	if result.ExitCode != 0 {
+		log.Trace("[claude] injectA2OConfigWithRoutes: exit %d stderr=%s (ignored)", result.ExitCode, result.Stderr)
+		return
+	}
+
+	log.Trace("[claude] injectA2OConfigWithRoutes: connector=%s injected with %d routes", connID, len(routes))
 }
 
 // injectA2OConfig pushes the connector config to the a2o proxy.

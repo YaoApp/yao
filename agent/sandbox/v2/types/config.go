@@ -83,9 +83,39 @@ type ComputerConfig struct {
 
 // RunnerConfig identifies which Runner to use and how.
 type RunnerConfig struct {
-	Name    string         `json:"name" yaml:"name"`
-	Mode    string         `json:"mode,omitempty" yaml:"mode,omitempty"`
-	Options map[string]any `json:"options,omitempty" yaml:"options,omitempty"`
+	Name       string                    `json:"name" yaml:"name"`
+	Mode       string                    `json:"mode,omitempty" yaml:"mode,omitempty"`
+	Options    map[string]any            `json:"options,omitempty" yaml:"options,omitempty"`
+	Connectors map[string]*RoleConnector `json:"connectors,omitempty" yaml:"connectors,omitempty"`
+}
+
+// RoleConnector maps an abstract model role to a connector.
+// Accepts both a plain string and a structured object in JSON/YAML:
+//
+//	"thinking"                              → {Connector: "thinking", Override: "force"}
+//	{"connector": "thinking", "override": "user"} → as-is
+type RoleConnector struct {
+	Connector string `json:"connector"`
+	Override  string `json:"override,omitempty"` // "force" (default) or "user"
+}
+
+func (r *RoleConnector) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		r.Connector = s
+		r.Override = "force"
+		return nil
+	}
+	type alias RoleConnector
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return fmt.Errorf("RoleConnector: expected a string or {connector, override} object")
+	}
+	*r = RoleConnector(a)
+	if r.Override == "" {
+		r.Override = "force"
+	}
+	return nil
 }
 
 // PrepareStep is a single action executed during Runner.Prepare.
