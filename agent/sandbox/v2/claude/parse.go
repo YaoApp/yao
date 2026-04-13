@@ -19,16 +19,20 @@ import (
 //
 //	content_block_start  -> message_start(id=exec-N-xxx)  + ChunkExecute{tool, status:running}
 //	input_json_delta     -> ChunkExecute{input_delta:...}  (same message group)
-//	content_block_stop   -> message_end(exec-N-xxx)
+//	content_block_stop   -> message_end(exec-N-xxx)         (streaming phase ends, tool kept in buffer)
 //	...later...
 //	user/tool_result     -> message_start(id=exec-N-xxx, reuse!) + ChunkExecute{status:completed, output:...} + message_end
+//
+// For parallel tool calls, multiple tools may be in-flight simultaneously.
+// The tools buffer keeps each tool's state until its tool_result arrives.
 type streamParser struct {
 	handler   message.StreamFunc
 	completed bool
 
-	textActive bool
-	toolIndex  int
-	curTool    *toolState
+	textActive   bool
+	toolIndex    int
+	activeToolID string                // tool currently receiving content_block_delta
+	tools        map[string]*toolState // tool_id -> buffered tool state
 
 	toolNames     map[string]string // tool_id -> tool_name
 	toolMsgIDs    map[string]string // tool_id -> message_id (for result reuse)
@@ -47,11 +51,19 @@ type toolState struct {
 func newStreamParser(handler message.StreamFunc) *streamParser {
 	return &streamParser{
 		handler:       handler,
+		tools:         make(map[string]*toolState),
 		toolNames:     make(map[string]string),
 		toolMsgIDs:    make(map[string]string),
 		toolInputs:    make(map[string]string),
 		toolSummaries: make(map[string]string),
 	}
+}
+
+func (p *streamParser) activeTool() *toolState {
+	if p.activeToolID == "" {
+		return nil
+	}
+	return p.tools[p.activeToolID]
 }
 
 func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
@@ -84,8 +96,8 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 
 		if time.Since(lastHeartbeat) > 30*time.Second {
 			builderLen := 0
-			if p.curTool != nil {
-				builderLen = p.curTool.inputJSON.Len()
+			if t := p.activeTool(); t != nil {
+				builderLen = t.inputJSON.Len()
 			}
 			log.Trace("[claude-parse] heartbeat: lines=%d elapsed=%v lastEvent=%s toolBuilderLen=%d",
 				lineCount, time.Since(startTime).Round(time.Second), lastEventType, builderLen)
@@ -172,28 +184,52 @@ func (p *streamParser) closeTextMessage() {
 	}
 }
 
-// closeCurrentTool closes the in-flight streaming tool message (if any),
-// flushing its accumulated input and emitting message_end. This must be
-// called before opening a new message group so that the downstream handler
-// never sees interleaved message_start/message_end pairs.
-func (p *streamParser) closeCurrentTool() {
-	if p.curTool == nil {
+// closeStreamingTool closes the currently streaming tool's message group,
+// flushing accumulated input and emitting message_end. The tool remains
+// in p.tools so handleUser can later reuse its msgID for the completed phase.
+func (p *streamParser) closeStreamingTool() {
+	t := p.activeTool()
+	if t == nil {
 		return
 	}
-	toolID := p.curTool.id
-	inputStr := p.curTool.inputJSON.String()
+	inputStr := t.inputJSON.String()
 	if inputStr != "" {
-		p.toolInputs[toolID] = inputStr
-		summary := extractSummary(p.curTool.name, inputStr)
+		p.toolInputs[t.id] = inputStr
+		summary := extractSummary(t.name, inputStr)
 		if summary != "" {
-			p.toolSummaries[toolID] = summary
+			p.toolSummaries[t.id] = summary
 			p.emitExecute(map[string]any{
 				"summary": summary,
 			})
 		}
 	}
 	p.endMessage()
-	p.curTool = nil
+	p.activeToolID = ""
+}
+
+// suspendStreamingTool temporarily closes the active tool's message group
+// (emits message_end) so another message group can be opened. The tool
+// remains in p.tools and p.activeToolID is cleared. Call resumeStreamingTool
+// to reopen it.
+func (p *streamParser) suspendStreamingTool() {
+	t := p.activeTool()
+	if t == nil {
+		return
+	}
+	p.endMessage()
+	p.activeToolID = ""
+}
+
+// resumeStreamingTool reopens a previously suspended tool's message group
+// by emitting a new message_start with the same msgID, and restores it as
+// the active streaming tool.
+func (p *streamParser) resumeStreamingTool(toolID string) {
+	t, ok := p.tools[toolID]
+	if !ok {
+		return
+	}
+	p.beginMessageWithID(t.msgID, "execute")
+	p.activeToolID = toolID
 }
 
 func (p *streamParser) ensureTextMessage() (stopped bool) {
@@ -255,7 +291,6 @@ func extractSummary(toolName string, inputJSON string) string {
 		}
 	}
 
-	// Fallback: try common field names
 	for _, key := range []string{"path", "file_path", "command", "url", "query"} {
 		if v, ok := obj[key].(string); ok {
 			return truncate(v, 80)
@@ -324,7 +359,9 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 		return true
 	}
 
-	p.curTool = &toolState{id: toolID, name: toolName, msgID: msgID, index: p.toolIndex}
+	ts := &toolState{id: toolID, name: toolName, msgID: msgID, index: p.toolIndex}
+	p.tools[toolID] = ts
+	p.activeToolID = toolID
 	p.toolIndex++
 	p.toolNames[toolID] = toolName
 	p.toolMsgIDs[toolID] = msgID
@@ -342,7 +379,7 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 }
 
 func (p *streamParser) onContentBlockStop() (stopped bool) {
-	p.closeCurrentTool()
+	p.closeStreamingTool()
 	return false
 }
 
@@ -360,9 +397,6 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 		if text == "" {
 			return false
 		}
-		// If there is no active text message and this delta is only
-		// whitespace, buffer it instead of opening a brand-new message
-		// group just for spaces/indentation between tool calls.
 		if !p.textActive && strings.TrimSpace(text) == "" {
 			return false
 		}
@@ -372,21 +406,22 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 		return p.emitText(text)
 
 	case "input_json_delta":
-		if p.curTool == nil {
+		t := p.activeTool()
+		if t == nil {
 			return false
 		}
 		partial, _ := delta["partial_json"].(string)
 		if partial == "" {
 			return false
 		}
-		p.curTool.inputJSON.WriteString(partial)
-		builderLen := p.curTool.inputJSON.Len()
+		t.inputJSON.WriteString(partial)
+		builderLen := t.inputJSON.Len()
 		if builderLen > 0 && builderLen%100000 < len(partial) {
-			log.Trace("[claude-parse] WARN: tool %s inputJSON growing: %d bytes", p.curTool.name, builderLen)
+			log.Trace("[claude-parse] WARN: tool %s inputJSON growing: %d bytes", t.name, builderLen)
 		}
 		if p.handler != nil {
 			return p.emitExecute(map[string]any{
-				"input_delta": p.curTool.inputJSON.String(),
+				"input_delta": t.inputJSON.String(),
 			})
 		}
 	}
@@ -426,7 +461,7 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			}
 
 			p.closeTextMessage()
-			p.closeCurrentTool()
+			p.closeStreamingTool()
 
 			toolName, _ := ci["name"].(string)
 			if toolID == "" {
@@ -498,18 +533,25 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 			continue
 		}
 
-		// Close any open text message before opening an execute message.
+		toolUseID, _ := ci["tool_use_id"].(string)
+
+		// If the result belongs to the actively streaming tool, close its
+		// streaming phase (emits message_end for the running group).
+		if p.activeToolID == toolUseID {
+			p.closeStreamingTool()
+		}
+
+		// If a DIFFERENT tool is currently streaming, we must suspend its
+		// message group before opening the completed-result group, because
+		// the downstream handler only tracks one currentGroupID at a time.
+		suspendedToolID := ""
+		if p.activeToolID != "" && p.activeToolID != toolUseID {
+			suspendedToolID = p.activeToolID
+			p.suspendStreamingTool()
+		}
+
 		p.closeTextMessage()
 
-		// When Claude CLI executes tools in parallel, tool_result messages
-		// can arrive while a new tool_use is still streaming. The downstream
-		// handler (stream.go) tracks only a single currentGroupID, so we
-		// must close the in-flight streaming tool message before opening
-		// the result message — otherwise the message_start/message_end
-		// pairs become interleaved and chunks lose their message_id.
-		p.closeCurrentTool()
-
-		toolUseID, _ := ci["tool_use_id"].(string)
 		content := ci["content"]
 		isError, _ := ci["is_error"].(bool)
 
@@ -549,6 +591,14 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 			return true
 		}
 		p.endMessage()
+
+		delete(p.tools, toolUseID)
+
+		// Resume the suspended tool's message group so subsequent
+		// content_block_delta events land in the correct group.
+		if suspendedToolID != "" {
+			p.resumeStreamingTool(suspendedToolID)
+		}
 	}
 	return false
 }
