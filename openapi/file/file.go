@@ -21,6 +21,9 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Protect all endpoints with OAuth
 	group.Use(oauth.Guard)
 
+	// Bundle multiple files into a ZIP archive (must be before /:uploaderID)
+	group.POST("/bundle", bundle)
+
 	// Upload a file (supports chunked upload)
 	group.POST("/:uploaderID", upload)
 

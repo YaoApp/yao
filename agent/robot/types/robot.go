@@ -404,10 +404,12 @@ type DeliveryContent struct {
 
 // DeliveryAttachment - Task output attachment with metadata
 type DeliveryAttachment struct {
-	Title       string `json:"title"`                 // Human-readable title
-	Description string `json:"description,omitempty"` // What this artifact is
-	TaskID      string `json:"task_id,omitempty"`     // Which task produced this
-	File        string `json:"file"`                  // Wrapper: __<uploader>://<fileID>
+	Title       string `json:"title"`                  // Human-readable title
+	Description string `json:"description,omitempty"`  // What this artifact is
+	TaskID      string `json:"task_id,omitempty"`      // Which task produced this
+	File        string `json:"file"`                   // Wrapper: __<uploader>://<fileID>, workspace://, or URL
+	Size        int64  `json:"size,omitempty"`         // File size in bytes
+	ContentType string `json:"content_type,omitempty"` // MIME type
 }
 
 // DeliveryRequest - pushed to Delivery Center (no channels - center decides based on preferences)
