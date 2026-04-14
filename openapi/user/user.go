@@ -325,6 +325,9 @@ func attachThirdParty(group *gin.RouterGroup, oauth types.OAuth) {
 	thirdParty.POST("/:provider/authorize/prepare", authbackPrepare) // OAuth authorization prepare - migrated from /signin/oauth/:provider/authorize/prepare
 	thirdParty.POST("/:provider/callback", authback)                 // Handle OAuth callback - migrated from /signin/oauth/:provider/authback
 
+	// Device Flow (RFC 8628) - pre-login endpoints, no Guard
+	thirdParty.POST("/:provider/device/authorize", deviceAuthorize) // Initiate Device Flow with IdP
+	thirdParty.POST("/:provider/device/token", deviceToken)         // Poll IdP token endpoint
 }
 
 func placeholder(c *gin.Context) {
