@@ -154,6 +154,8 @@ type Provider struct {
 	Color                 string                  `json:"color,omitempty"`
 	TextColor             string                  `json:"text_color,omitempty"`
 	ClientID              string                  `json:"client_id,omitempty"`
+	DeviceClientID        string                  `json:"device_client_id,omitempty"`     // Device Flow (RFC 8628) dedicated client_id, e.g. Google "TVs and Limited Input devices" type
+	DeviceClientSecret    string                  `json:"device_client_secret,omitempty"` // Device Flow dedicated client_secret (Google TV type has its own secret)
 	ClientSecret          string                  `json:"client_secret,omitempty"`
 	ClientSecretGenerator *SecretGenerator        `json:"client_secret_generator,omitempty"`
 	Scopes                []string                `json:"scopes,omitempty"`
@@ -175,10 +177,11 @@ type SecretGenerator struct {
 
 // Endpoints represents the OAuth endpoints
 type Endpoints struct {
-	Authorization string `json:"authorization,omitempty"`
-	Token         string `json:"token,omitempty"`
-	UserInfo      string `json:"user_info,omitempty"`
-	JWKS          string `json:"jwks,omitempty"` // JSON Web Key Set endpoint for token verification
+	Authorization       string `json:"authorization,omitempty"`
+	Token               string `json:"token,omitempty"`
+	UserInfo            string `json:"user_info,omitempty"`
+	JWKS                string `json:"jwks,omitempty"`                 // JSON Web Key Set endpoint for token verification
+	DeviceAuthorization string `json:"device_authorization,omitempty"` // RFC 8628 Device Authorization endpoint
 }
 
 // ==== API Types ====
@@ -225,6 +228,50 @@ type OAuthTokenRequest struct {
 	ClientID     string `json:"client_id" form:"client_id"`
 	ClientSecret string `json:"client_secret" form:"client_secret"`
 	RedirectURI  string `json:"redirect_uri,omitempty" form:"redirect_uri,omitempty"`
+}
+
+// ==== Device Flow (RFC 8628) Types ====
+
+// DeviceAuthRequest represents the request to initiate Device Flow with a third-party IdP
+type DeviceAuthRequest struct {
+	Locale string `json:"locale,omitempty" form:"locale"`
+}
+
+// DeviceAuthResponse represents the response from IdP device authorization endpoint
+type DeviceAuthResponse struct {
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURL         string `json:"verification_url,omitempty"` // Google uses verification_url instead of verification_uri
+	VerificationURIComplete string `json:"verification_uri_complete,omitempty"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
+}
+
+// GetVerificationURI returns the verification URI, preferring verification_uri over verification_url
+func (r *DeviceAuthResponse) GetVerificationURI() string {
+	if r.VerificationURI != "" {
+		return r.VerificationURI
+	}
+	return r.VerificationURL
+}
+
+// DeviceTokenRequest represents the request to poll IdP token endpoint during Device Flow
+type DeviceTokenRequest struct {
+	DeviceCode string `json:"device_code" form:"device_code" binding:"required"`
+	Locale     string `json:"locale,omitempty" form:"locale"`
+}
+
+// DeviceTokenResponse represents the response for Device Flow token polling
+type DeviceTokenResponse struct {
+	Status                string `json:"status"` // "pending" | "success" | "expired" | "denied" | "slow_down"
+	IDToken               string `json:"id_token,omitempty"`
+	AccessToken           string `json:"access_token,omitempty"`
+	RefreshToken          string `json:"refresh_token,omitempty"`
+	ExpiresIn             int    `json:"expires_in,omitempty"`
+	RefreshTokenExpiresIn int    `json:"refresh_token_expires_in,omitempty"`
+	SessionID             string `json:"session_id,omitempty"`
+	MFAEnabled            bool   `json:"mfa_enabled,omitempty"`
 }
 
 // OAuthUserInfoResponse is an alias for OIDC standard user information type

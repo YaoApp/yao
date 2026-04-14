@@ -225,6 +225,8 @@ func loadProviders(_ string) error {
 		// Process ENV variables in the provider configuration
 		provider.ClientID = replaceENVVar(provider.ClientID)
 		provider.ClientSecret = replaceENVVar(provider.ClientSecret)
+		provider.DeviceClientID = replaceENVVar(provider.DeviceClientID)
+		provider.DeviceClientSecret = replaceENVVar(provider.DeviceClientSecret)
 
 		// Store the provider globally
 		providers[providerID] = &provider
