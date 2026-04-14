@@ -8,6 +8,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/gou/connector"
+	gouTypes "github.com/yaoapp/gou/types"
+	"github.com/yaoapp/xun/dbal/query"
+	"github.com/yaoapp/xun/dbal/schema"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
@@ -433,4 +437,347 @@ func TestBuildArgs_EmptyChatID_Continuation(t *testing.T) {
 	assert.Contains(t, args, "--continue")
 	assert.NotContains(t, args, "--session-id")
 	assert.NotContains(t, args, "--name")
+}
+
+// --- fakeConnector implements connector.Connector for unit tests ---
+
+type fakeConnector struct {
+	id       string
+	typ      int
+	settings map[string]interface{}
+}
+
+func (f *fakeConnector) Register(string, string, []byte) error { return nil }
+func (f *fakeConnector) Query() (query.Query, error)           { return nil, nil }
+func (f *fakeConnector) Schema() (schema.Schema, error)        { return nil, nil }
+func (f *fakeConnector) Close() error                          { return nil }
+func (f *fakeConnector) ID() string                            { return f.id }
+func (f *fakeConnector) Is(t int) bool                         { return f.typ == t }
+func (f *fakeConnector) Setting() map[string]interface{}       { return f.settings }
+func (f *fakeConnector) GetMetaInfo() gouTypes.MetaInfo        { return gouTypes.MetaInfo{} }
+
+func newOpenAIConnector(id, host, model, key string) *fakeConnector {
+	return &fakeConnector{
+		id:  id,
+		typ: connector.OPENAI,
+		settings: map[string]interface{}{
+			"host":  host,
+			"model": model,
+			"key":   key,
+		},
+	}
+}
+
+func newAnthropicConnector(id, host, model, key string) *fakeConnector {
+	return &fakeConnector{
+		id:  id,
+		typ: connector.ANTHROPIC,
+		settings: map[string]interface{}{
+			"host":  host,
+			"model": model,
+			"key":   key,
+		},
+	}
+}
+
+func newDualProtoConnector(id, host, model, key string) *fakeConnector {
+	return &fakeConnector{
+		id:  id,
+		typ: connector.OPENAI,
+		settings: map[string]interface{}{
+			"host":      host,
+			"model":     model,
+			"key":       key,
+			"protocols": []string{"openai", "anthropic"},
+		},
+	}
+}
+
+// --- helper functions tests ---
+
+func TestConnectorHost(t *testing.T) {
+	c := newOpenAIConnector("test", "https://api.openai.com", "gpt-4", "k")
+	assert.Equal(t, "https://api.openai.com", connectorHost(c))
+	assert.Equal(t, "", connectorHost(nil))
+}
+
+func TestConnectorProtocols(t *testing.T) {
+	oai := newOpenAIConnector("oai", "https://api.openai.com", "gpt-4", "k")
+	assert.Equal(t, []string{"openai"}, connectorProtocols(oai))
+
+	anth := newAnthropicConnector("anth", "https://api.anthropic.com", "claude", "k")
+	assert.Equal(t, []string{"anthropic"}, connectorProtocols(anth))
+
+	dual := newDualProtoConnector("dual", "https://api.yao.run", "model", "k")
+	assert.Equal(t, []string{"openai", "anthropic"}, connectorProtocols(dual))
+
+	assert.Nil(t, connectorProtocols(nil))
+}
+
+func TestSupportsProtocol(t *testing.T) {
+	dual := newDualProtoConnector("dual", "https://api.yao.run", "model", "k")
+	assert.True(t, supportsProtocol(dual, "anthropic"))
+	assert.True(t, supportsProtocol(dual, "openai"))
+	assert.False(t, supportsProtocol(dual, "grpc"))
+
+	oai := newOpenAIConnector("oai", "https://api.openai.com", "gpt-4", "k")
+	assert.False(t, supportsProtocol(oai, "anthropic"))
+	assert.True(t, supportsProtocol(oai, "openai"))
+}
+
+func TestResolveRoleConnector_Undeclared(t *testing.T) {
+	roles := map[string]*types.RoleConnector{}
+	result := resolveRoleConnector("heavy", roles, false, func(id string) connector.Connector { return nil })
+	assert.Nil(t, result)
+}
+
+func TestResolveRoleConnector_Force(t *testing.T) {
+	heavyConn := newOpenAIConnector("thinking", "https://api.thinking.com", "think-model", "k")
+	roles := map[string]*types.RoleConnector{
+		"heavy": {Connector: "thinking", Override: "force"},
+	}
+	result := resolveRoleConnector("heavy", roles, true, func(id string) connector.Connector {
+		if id == "thinking" {
+			return heavyConn
+		}
+		return nil
+	})
+	assert.Equal(t, heavyConn, result)
+}
+
+func TestResolveRoleConnector_UserExplicit(t *testing.T) {
+	roles := map[string]*types.RoleConnector{
+		"heavy": {Connector: "thinking", Override: "user"},
+	}
+	result := resolveRoleConnector("heavy", roles, true, func(id string) connector.Connector {
+		return newOpenAIConnector("thinking", "h", "m", "k")
+	})
+	assert.Nil(t, result, "override=user + userExplicit=true => use user's connector")
+}
+
+func TestResolveRoleConnector_UserNotExplicit(t *testing.T) {
+	heavyConn := newOpenAIConnector("thinking", "h", "m", "k")
+	roles := map[string]*types.RoleConnector{
+		"heavy": {Connector: "thinking", Override: "user"},
+	}
+	result := resolveRoleConnector("heavy", roles, false, func(id string) connector.Connector {
+		if id == "thinking" {
+			return heavyConn
+		}
+		return nil
+	})
+	assert.Equal(t, heavyConn, result, "override=user + userExplicit=false => use sandbox connector")
+}
+
+// --- buildEnv with multi-connector ---
+
+func registerTestConnectors(t *testing.T, connectors map[string]connector.Connector) func() {
+	t.Helper()
+	for id, c := range connectors {
+		connector.Connectors[id] = c
+	}
+	return func() {
+		for id := range connectors {
+			delete(connector.Connectors, id)
+		}
+	}
+}
+
+func TestBuildEnv_OpenAI_SingleConnector(t *testing.T) {
+	oai := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: oai,
+	}
+	req.Computer = newFakeComputer("/workspace")
+	p := testPlatform()
+
+	env := buildEnv(req, p)
+	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "127.0.0.1")
+	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "kimi")
+	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_MODEL"])
+	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_DEFAULT_OPUS_MODEL"])
+}
+
+func TestBuildEnv_OpenAI_MultiConnector(t *testing.T) {
+	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
+	vision := newOpenAIConnector("vision-conn", "https://api.vision.com", "vis-model", "sk-v")
+
+	cleanup := registerTestConnectors(t, map[string]connector.Connector{
+		"vision-conn": vision,
+	})
+	defer cleanup()
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{
+			Runner: types.RunnerConfig{
+				Connectors: map[string]*types.RoleConnector{
+					"vision": {Connector: "vision-conn", Override: "force"},
+				},
+			},
+		},
+		Connector: primary,
+	}
+	req.Computer = newFakeComputer("/workspace")
+	p := testPlatform()
+
+	env := buildEnv(req, p)
+	assert.Equal(t, "claude-vision-4-5", env["ANTHROPIC_DEFAULT_SONNET_MODEL"],
+		"vision role should get its virtual model name for A2O routing")
+	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_MODEL"],
+		"primary should keep default virtual model")
+}
+
+func TestBuildEnv_Anthropic_SingleConnector(t *testing.T) {
+	anth := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant-test")
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: anth,
+	}
+	req.Computer = newFakeComputer("/workspace")
+	p := testPlatform()
+
+	env := buildEnv(req, p)
+	assert.Equal(t, "https://api.anthropic.com", env["ANTHROPIC_BASE_URL"])
+	assert.Equal(t, "sk-ant-test", env["ANTHROPIC_API_KEY"])
+	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_MODEL"])
+}
+
+func TestBuildEnv_Anthropic_MultiConnector_Compatible(t *testing.T) {
+	primary := newAnthropicConnector("claude", "https://api.yao.run", "claude-sonnet-4-20250514", "sk-ant")
+	lightConn := newDualProtoConnector("light-conn", "https://api.yao.run", "claude-haiku-3-5-20241022", "sk-light")
+
+	cleanup := registerTestConnectors(t, map[string]connector.Connector{
+		"light-conn": lightConn,
+	})
+	defer cleanup()
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{
+			Runner: types.RunnerConfig{
+				Connectors: map[string]*types.RoleConnector{
+					"light": {Connector: "light-conn", Override: "force"},
+				},
+			},
+		},
+		Connector: primary,
+	}
+	req.Computer = newFakeComputer("/workspace")
+	p := testPlatform()
+
+	env := buildEnv(req, p)
+	assert.Equal(t, "claude-haiku-3-5-20241022", env["ANTHROPIC_DEFAULT_HAIKU_MODEL"],
+		"compatible connector: use real model name")
+	assert.Equal(t, "https://api.yao.run", env["ANTHROPIC_BASE_URL"],
+		"primary base URL unchanged")
+}
+
+// --- buildSingleA2OConfig + injectA2OConfigWithRoutes ---
+
+func TestBuildSingleA2OConfig_Basic(t *testing.T) {
+	conn := newOpenAIConnector("test", "https://api.openai.com", "gpt-4", "sk-test")
+	cfg := buildSingleA2OConfig(conn)
+	require.NotNil(t, cfg)
+	assert.Contains(t, cfg.Backend, "api.openai.com")
+	assert.Contains(t, cfg.Backend, "chat/completions")
+	assert.Equal(t, "gpt-4", cfg.Model)
+	assert.Equal(t, "sk-test", cfg.APIKey)
+}
+
+func TestBuildSingleA2OConfig_Nil(t *testing.T) {
+	conn := &fakeConnector{id: "empty", typ: connector.OPENAI, settings: map[string]interface{}{}}
+	cfg := buildSingleA2OConfig(conn)
+	assert.Nil(t, cfg, "no host => nil config")
+}
+
+func TestInjectA2OConfigWithRoutes_BuildsCorrectJSON(t *testing.T) {
+	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-kimi")
+	vision := newOpenAIConnector("vision", "https://api.vision.com", "vis-model", "sk-v")
+
+	roleConnectors := map[string]connector.Connector{
+		"claude-vision-4-5": vision,
+	}
+
+	primaryCfg := buildSingleA2OConfig(primary)
+	require.NotNil(t, primaryCfg)
+
+	routes := make(map[string]*a2oConnectorConfig, len(roleConnectors))
+	for modelName, rc := range roleConnectors {
+		routeCfg := buildSingleA2OConfig(rc)
+		if routeCfg != nil {
+			routes[modelName] = routeCfg
+		}
+	}
+	primaryCfg.Routes = routes
+
+	data, err := json.Marshal(primaryCfg)
+	require.NoError(t, err)
+
+	var parsed map[string]interface{}
+	require.NoError(t, json.Unmarshal(data, &parsed))
+
+	routesMap, ok := parsed["routes"].(map[string]interface{})
+	require.True(t, ok, "routes should be present in JSON")
+	assert.Len(t, routesMap, 1)
+
+	visionRoute, ok := routesMap["claude-vision-4-5"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "vis-model", visionRoute["model"])
+	assert.Contains(t, visionRoute["backend"], "api.vision.com")
+}
+
+func TestResolveAllRoleConnectors_Empty(t *testing.T) {
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: newOpenAIConnector("test", "h", "m", "k"),
+	}
+	result := resolveAllRoleConnectors(req)
+	assert.Nil(t, result)
+}
+
+func TestResolveAllRoleConnectors_WithRoles(t *testing.T) {
+	vision := newOpenAIConnector("vis", "https://vis.com", "vis-m", "sk")
+	cleanup := registerTestConnectors(t, map[string]connector.Connector{"vis": vision})
+	defer cleanup()
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{
+			Runner: types.RunnerConfig{
+				Connectors: map[string]*types.RoleConnector{
+					"vision": {Connector: "vis", Override: "force"},
+				},
+			},
+		},
+		Connector: newOpenAIConnector("primary", "h", "m", "k"),
+	}
+	result := resolveAllRoleConnectors(req)
+	assert.Len(t, result, 1)
+	assert.Equal(t, vision, result["claude-vision-4-5"])
+}
+
+func TestBuildEnv_Anthropic_MultiConnector_Incompatible(t *testing.T) {
+	primary := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant")
+	visionConn := newOpenAIConnector("vision-oai", "https://api.openai.com", "gpt-4o", "sk-oai")
+
+	cleanup := registerTestConnectors(t, map[string]connector.Connector{
+		"vision-oai": visionConn,
+	})
+	defer cleanup()
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{
+			Runner: types.RunnerConfig{
+				Connectors: map[string]*types.RoleConnector{
+					"vision": {Connector: "vision-oai", Override: "force"},
+				},
+			},
+		},
+		Connector: primary,
+	}
+	req.Computer = newFakeComputer("/workspace")
+	p := testPlatform()
+
+	env := buildEnv(req, p)
+	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_DEFAULT_SONNET_MODEL"],
+		"incompatible connector: vision should keep primary model (different host, no anthropic protocol)")
 }

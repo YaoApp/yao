@@ -559,3 +559,11 @@ func (ctx *Context) MergeMetadata(metadata map[string]interface{}) {
 		ctx.Metadata[k] = v
 	}
 }
+
+// GetWorkspaceID returns the ID of the workspace
+func (ctx *Context) GetWorkspaceID() (string, error) {
+	if ctx.workspace == nil {
+		return "", nil
+	}
+	return ctx.workspace.GetID()
+}

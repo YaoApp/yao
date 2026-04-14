@@ -216,9 +216,10 @@ func (m *Manager) ListDir(ctx context.Context, id string, path string) ([]DirEnt
 	result := make([]DirEntry, len(entries))
 	for i, e := range entries {
 		result[i] = DirEntry{
-			Name:  e.Path,
-			IsDir: e.IsDir,
-			Size:  e.Size,
+			Name:    e.Path,
+			IsDir:   e.IsDir,
+			Size:    e.Size,
+			ModTime: e.Mtime,
 		}
 	}
 	return result, nil
@@ -314,7 +315,8 @@ func listNodes() []taitypes.NodeMeta {
 
 // DirEntry represents a file or directory entry in a workspace listing.
 type DirEntry struct {
-	Name  string `json:"name"`
-	IsDir bool   `json:"is_dir"`
-	Size  int64  `json:"size"`
+	Name    string    `json:"name"`
+	IsDir   bool      `json:"is_dir"`
+	Size    int64     `json:"size"`
+	ModTime time.Time `json:"mod_time,omitempty"`
 }

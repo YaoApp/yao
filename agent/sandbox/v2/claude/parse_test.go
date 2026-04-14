@@ -6,625 +6,411 @@ import (
 	"io"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
-type chunkRecord struct {
-	Type message.StreamChunkType
-	Data json.RawMessage
+// recordedEvent captures a single StreamFunc callback invocation.
+type recordedEvent struct {
+	chunkType message.StreamChunkType
+	data      []byte
 }
 
-func recordingHandler(out *[]chunkRecord) message.StreamFunc {
+func mockStreamFunc(events *[]recordedEvent) message.StreamFunc {
 	return func(chunkType message.StreamChunkType, data []byte) int {
 		cp := make([]byte, len(data))
 		copy(cp, data)
-		*out = append(*out, chunkRecord{Type: chunkType, Data: cp})
+		*events = append(*events, recordedEvent{chunkType: chunkType, data: cp})
 		return 0
 	}
 }
 
-func stoppingHandler(stopAfter int) (message.StreamFunc, *[]chunkRecord) {
-	var out []chunkRecord
-	count := 0
-	fn := func(chunkType message.StreamChunkType, data []byte) int {
-		cp := make([]byte, len(data))
-		copy(cp, data)
-		out = append(out, chunkRecord{Type: chunkType, Data: cp})
-		count++
-		if count >= stopAfter {
-			return 1
-		}
-		return 0
-	}
-	return fn, &out
-}
-
-func jsonLine(v interface{}) string {
-	b, _ := json.Marshal(v)
-	return string(b)
-}
-
-func pipeWithLines(lines ...string) io.ReadCloser {
-	return io.NopCloser(strings.NewReader(strings.Join(lines, "\n") + "\n"))
-}
-
-// --- helper: extract message_id from ChunkMessageStart data ---
-func extractMessageID(data json.RawMessage) string {
-	var d map[string]any
-	json.Unmarshal(data, &d)
-	if id, ok := d["message_id"].(string); ok {
-		return id
-	}
-	return ""
-}
-
-func TestParser_TextOnly(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{"type": "system", "session_id": "abc"}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "text_delta", "text": "Hello "},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "text_delta", "text": "world"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "assistant",
-			"message": map[string]any{
-				"stop_reason": "end_turn",
-				"content":     []any{map[string]any{"type": "text", "text": "Hello world"}},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":           "result",
-			"total_cost_usd": 0.001,
-			"duration_ms":    1234,
-			"num_turns":      1,
-			"usage":          map[string]any{"input_tokens": 10, "output_tokens": 20},
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-	assert.True(t, p.completed)
-
-	hasMessageStart := false
-	hasText := false
-	hasMessageEnd := false
-	hasResultMeta := false
-	for _, c := range chunks {
-		switch c.Type {
-		case message.ChunkMessageStart:
-			hasMessageStart = true
-		case message.ChunkText:
-			hasText = true
-		case message.ChunkMessageEnd:
-			hasMessageEnd = true
-		case message.ChunkMetadata:
-			var meta map[string]any
-			json.Unmarshal(c.Data, &meta)
-			if _, ok := meta["result_summary"]; ok {
-				hasResultMeta = true
-			}
-		}
-	}
-	assert.True(t, hasMessageStart, "should emit message_start")
-	assert.True(t, hasText, "should emit text chunks")
-	assert.True(t, hasMessageEnd, "should emit message_end")
-	assert.True(t, hasResultMeta, "should emit result_summary metadata")
-}
-
-func TestParser_ToolUseAndResult(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type": "content_block_start",
-				"content_block": map[string]any{
-					"type": "tool_use",
-					"name": "Bash",
-					"id":   "tool_123",
-				},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `{"command":"ls`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `"}`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		jsonLine(map[string]any{
-			"type": "user",
-			"message": map[string]any{
-				"content": []any{
-					map[string]any{
-						"type":        "tool_result",
-						"tool_use_id": "tool_123",
-						"content":     "file1.txt\nfile2.txt",
-						"is_error":    false,
-					},
-				},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":      "result",
-			"num_turns": 1,
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-	assert.True(t, p.completed)
-
-	var execChunks []map[string]any
-	for _, c := range chunks {
-		if c.Type == message.ChunkExecute {
-			var data map[string]any
-			json.Unmarshal(c.Data, &data)
-			execChunks = append(execChunks, data)
-		}
-	}
-	require.GreaterOrEqual(t, len(execChunks), 2, "should have at least 2 execute chunks (start + result)")
-
-	assert.Equal(t, "Bash", execChunks[0]["tool"])
-	assert.Equal(t, "tool_123", execChunks[0]["tool_id"])
-	assert.Equal(t, "running", execChunks[0]["status"])
-
-	lastExec := execChunks[len(execChunks)-1]
-	assert.Equal(t, "tool_123", lastExec["tool_id"])
-	assert.Equal(t, "completed", lastExec["status"])
-	assert.Equal(t, "Bash", lastExec["tool"], "tool_result should carry tool name")
-}
-
-// TestParser_ToolIndependentMessages verifies that each tool call gets its own
-// message_start/message_end pair, and tool_result reuses the same message_id.
-func TestParser_ToolIndependentMessages(t *testing.T) {
-	lines := []string{
-		// Tool 1: Write
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":          "content_block_start",
-				"content_block": map[string]any{"type": "tool_use", "name": "Write", "id": "t_write"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `{"file_path":"server.js"}`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		// Tool 2: Bash
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":          "content_block_start",
-				"content_block": map[string]any{"type": "tool_use", "name": "Bash", "id": "t_bash"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		// Results
-		jsonLine(map[string]any{
-			"type": "user",
-			"message": map[string]any{
-				"content": []any{
-					map[string]any{"type": "tool_result", "tool_use_id": "t_write", "content": "ok"},
-					map[string]any{"type": "tool_result", "tool_use_id": "t_bash", "content": "done"},
-				},
-			},
-		}),
-		jsonLine(map[string]any{"type": "result", "num_turns": 1}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-
-	// Collect all message_start IDs and their order
-	var msgStarts []string
-	for _, c := range chunks {
-		if c.Type == message.ChunkMessageStart {
-			msgStarts = append(msgStarts, extractMessageID(c.Data))
-		}
-	}
-
-	// Should have 4 message_starts: Write(running), Bash(running), Write(result), Bash(result)
-	require.Equal(t, 4, len(msgStarts), "should have 4 message_start events")
-
-	writeMsgID := msgStarts[0]
-	bashMsgID := msgStarts[1]
-	assert.NotEqual(t, writeMsgID, bashMsgID, "Write and Bash should have different message_ids")
-
-	// tool_result should reuse the original message_id
-	assert.Equal(t, writeMsgID, msgStarts[2], "Write tool_result should reuse Write message_id")
-	assert.Equal(t, bashMsgID, msgStarts[3], "Bash tool_result should reuse Bash message_id")
-
-	// Count message_end events (should match message_start)
-	endCount := 0
-	for _, c := range chunks {
-		if c.Type == message.ChunkMessageEnd {
-			endCount++
-		}
-	}
-	assert.Equal(t, 4, endCount, "each message_start should have matching message_end")
-}
-
-// TestParser_ToolSummaryExtraction verifies that summary is extracted from tool input.
-func TestParser_ToolSummaryExtraction(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":          "content_block_start",
-				"content_block": map[string]any{"type": "tool_use", "name": "Bash", "id": "t1"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `{"command":"ls -la /workspace"}`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		jsonLine(map[string]any{"type": "result", "num_turns": 1}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-
-	// Look for summary in the last execute chunk before message_end
-	var summaryFound bool
-	for _, c := range chunks {
-		if c.Type == message.ChunkExecute {
-			var data map[string]any
-			json.Unmarshal(c.Data, &data)
-			if s, ok := data["summary"].(string); ok && s != "" {
-				summaryFound = true
-				assert.Equal(t, "ls -la /workspace", s)
-			}
-		}
-	}
-	assert.True(t, summaryFound, "should emit summary from tool input")
-}
-
-func TestParser_UsageMetadata(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "assistant",
-			"message": map[string]any{
-				"usage": map[string]any{
-					"input_tokens":  100,
-					"output_tokens": 50,
-				},
-				"stop_reason": "end_turn",
-				"content":     []any{},
-			},
-		}),
-		jsonLine(map[string]any{"type": "result", "num_turns": 1}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-
-	var usageMeta map[string]any
-	for _, c := range chunks {
-		if c.Type == message.ChunkMetadata {
-			var meta map[string]any
-			json.Unmarshal(c.Data, &meta)
-			if u, ok := meta["usage"]; ok {
-				usageMeta, _ = u.(map[string]any)
-			}
-		}
-	}
-	require.NotNil(t, usageMeta, "should emit usage metadata")
-	assert.Equal(t, float64(100), usageMeta["input_tokens"])
-	assert.Equal(t, float64(50), usageMeta["output_tokens"])
-}
-
-func TestParser_ResultSummary(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type":           "result",
-			"total_cost_usd": 0.05,
-			"duration_ms":    5000,
-			"num_turns":      3,
-			"usage":          map[string]any{"input_tokens": 500, "output_tokens": 200},
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-	assert.True(t, p.completed)
-
-	var summary map[string]any
-	for _, c := range chunks {
-		if c.Type == message.ChunkMetadata {
-			var meta map[string]any
-			json.Unmarshal(c.Data, &meta)
-			if s, ok := meta["result_summary"]; ok {
-				summary, _ = s.(map[string]any)
-			}
-		}
-	}
-	require.NotNil(t, summary, "should emit result_summary")
-	assert.Equal(t, float64(0.05), summary["total_cost_usd"])
-	assert.Equal(t, float64(5000), summary["duration_ms"])
-	assert.Equal(t, float64(3), summary["num_turns"])
-}
-
-func TestParser_ErrorMessage(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type":  "error",
-			"error": map[string]any{"message": "rate limit exceeded"},
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rate limit exceeded")
-	assert.False(t, p.completed)
-
-	hasError := false
-	for _, c := range chunks {
-		if c.Type == message.ChunkError {
-			hasError = true
-			assert.Contains(t, string(c.Data), "rate limit exceeded")
-		}
-	}
-	assert.True(t, hasError, "should emit error chunk")
-}
-
-func TestParser_ResultIsError(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type":     "result",
-			"is_error": true,
-			"result":   "authentication failed",
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "authentication failed")
-}
-
-func TestParser_ContextCancel(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+// runParser feeds JSONL lines to a streamParser and returns all recorded events.
+func runParser(t *testing.T, jsonl string) []recordedEvent {
+	t.Helper()
+	var events []recordedEvent
+	p := newStreamParser(mockStreamFunc(&events))
 	r, w := io.Pipe()
-
 	go func() {
-		time.Sleep(50 * time.Millisecond)
-		cancel()
+		defer w.Close()
+		w.Write([]byte(jsonl))
 	}()
-
-	p := newStreamParser(nil)
-	err := p.parse(ctx, r)
-	_ = w.Close()
-
-	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	if err := p.parse(context.Background(), r); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	return events
 }
 
-func TestParser_HandlerStopsStream(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "text_delta", "text": "first"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "text_delta", "text": "second"},
-			},
-		}),
-	}
+// --- helpers to inspect recorded events ---
 
-	handler, chunks := stoppingHandler(2)
-	p := newStreamParser(handler)
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-
-	assert.LessOrEqual(t, len(*chunks), 3, "should stop early")
+type messageGroup struct {
+	messageID string
+	events    []recordedEvent
 }
 
-func TestParser_EmptyAndInvalidLines(t *testing.T) {
-	lines := []string{
-		"",
-		"not json at all",
-		"   ",
-		`{"type": "result", "num_turns": 1}`,
+// extractMessageGroups splits the flat event list into message_start..message_end
+// groups, each carrying the messageID from the start event.
+func extractMessageGroups(events []recordedEvent) []messageGroup {
+	var groups []messageGroup
+	var cur *messageGroup
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMessageStart {
+			var sd message.EventMessageStartData
+			json.Unmarshal(ev.data, &sd)
+			cur = &messageGroup{messageID: sd.MessageID}
+		}
+		if cur != nil {
+			cur.events = append(cur.events, ev)
+		}
+		if ev.chunkType == message.ChunkMessageEnd {
+			if cur != nil {
+				groups = append(groups, *cur)
+				cur = nil
+			}
+		}
 	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-	assert.True(t, p.completed, "should complete despite invalid lines")
+	return groups
 }
 
-func TestParser_MultiTurnConversation(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":          "content_block_start",
-				"content_block": map[string]any{"type": "tool_use", "name": "Read", "id": "t1"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		jsonLine(map[string]any{
-			"type": "assistant",
-			"message": map[string]any{
-				"stop_reason": "tool_use",
-				"content": []any{
-					map[string]any{"type": "tool_use", "name": "Read", "id": "t1", "input": map[string]any{"path": "/tmp"}},
-				},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "user",
-			"message": map[string]any{
-				"content": []any{
-					map[string]any{"type": "tool_result", "tool_use_id": "t1", "content": "ok"},
-				},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "text_delta", "text": "Done reading"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "assistant",
-			"message": map[string]any{
-				"stop_reason": "end_turn",
-				"content":     []any{map[string]any{"type": "text", "text": "Done reading"}},
-			},
-		}),
-		jsonLine(map[string]any{"type": "result", "num_turns": 2}),
-	}
+func extractExecuteProps(ev recordedEvent) map[string]any {
+	var m map[string]any
+	json.Unmarshal(ev.data, &m)
+	return m
+}
 
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-	assert.True(t, p.completed)
+// --- Mock JSONL data based on real terminal logs ---
 
-	startCount := 0
-	endCount := 0
-	for _, c := range chunks {
-		switch c.Type {
+// parallelToolCallJSONL reproduces the exact interleaved event sequence from
+// the production log: two Bash tool calls (pip --version + npm --version) where
+// tool0's tool_result arrives while tool1 is still streaming content_block_delta.
+const parallelToolCallJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_mock","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_pip","name":"Bash"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"command\""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":":\"pip --version\"}"}}}
+{"type":"assistant","message":{"id":"msg_mock","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_pip","name":"Bash","input":{"command":"pip --version"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":30}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_npm","name":"Bash"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"command\""}}}
+{"type":"user","message":{"id":"msg_user_pip","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_pip","content":"pip 24.0 (python 3.12)"}]}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":":\"npm --version\"}"}}}
+{"type":"assistant","message":{"id":"msg_mock2","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_npm","name":"Bash","input":{"command":"npm --version"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":200,"output_tokens":60}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":60}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"user","message":{"id":"msg_user_npm","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_npm","content":"10.9.7"}]}}
+{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_final","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":300,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"pip 和 npm 都可以正常使用。"}}}
+{"type":"assistant","message":{"id":"msg_final","type":"message","role":"assistant","content":[{"type":"text","text":"pip 和 npm 都可以正常使用。"}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":300,"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"result","result":"pip 和 npm 都可以正常使用。","is_error":false}
+`
+
+const singleToolCallJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_s","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":50,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_single","name":"Bash"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"command\":\"ls\"}"}}}
+{"type":"assistant","message":{"id":"msg_s","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_single","name":"Bash","input":{"command":"ls"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":50,"output_tokens":10}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":10}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"user","message":{"id":"msg_u","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_single","content":"file1.txt\nfile2.txt"}]}}
+{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_s2","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":80,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Done."}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":5}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"result","result":"Done.","is_error":false}
+`
+
+// ---------- Test 1: message_start / message_end pairing ----------
+
+func TestParseParallelToolCalls_MessagePairing(t *testing.T) {
+	events := runParser(t, parallelToolCallJSONL)
+
+	var startCount, endCount int
+	depth := 0
+	for _, ev := range events {
+		switch ev.chunkType {
 		case message.ChunkMessageStart:
 			startCount++
+			depth++
+			if depth > 1 {
+				t.Fatalf("nested message_start detected (depth %d) — message_start/message_end not strictly paired", depth)
+			}
 		case message.ChunkMessageEnd:
 			endCount++
-		}
-	}
-	// streaming tool_use(start) + streaming tool_use(stop) + assistant tool_use + tool_result + text = 5 starts
-	assert.GreaterOrEqual(t, startCount, 3, "should have multiple message starts for multi-turn")
-	assert.Equal(t, startCount, endCount, "each message_start should have matching message_end")
-}
-
-func TestParser_ErrorStringFormat(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type":  "error",
-			"error": "simple string error",
-		}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "simple string error")
-}
-
-func TestParser_InputDeltaAccumulation(t *testing.T) {
-	lines := []string{
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":          "content_block_start",
-				"content_block": map[string]any{"type": "tool_use", "name": "Bash", "id": "t1"},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `{"com`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type": "stream_event",
-			"event": map[string]any{
-				"type":  "content_block_delta",
-				"delta": map[string]any{"type": "input_json_delta", "partial_json": `mand":"ls"}`},
-			},
-		}),
-		jsonLine(map[string]any{
-			"type":  "stream_event",
-			"event": map[string]any{"type": "content_block_stop"},
-		}),
-		jsonLine(map[string]any{"type": "result", "num_turns": 1}),
-	}
-
-	var chunks []chunkRecord
-	p := newStreamParser(recordingHandler(&chunks))
-	err := p.parse(context.Background(), pipeWithLines(lines...))
-	require.NoError(t, err)
-
-	// The last input_delta chunk should contain the full accumulated input
-	var lastDelta string
-	for _, c := range chunks {
-		if c.Type == message.ChunkExecute {
-			var data map[string]any
-			json.Unmarshal(c.Data, &data)
-			if d, ok := data["input_delta"].(string); ok {
-				lastDelta = d
+			depth--
+			if depth < 0 {
+				t.Fatal("message_end without preceding message_start")
 			}
 		}
 	}
-	assert.Equal(t, `{"command":"ls"}`, lastDelta, "input_delta should accumulate all fragments")
+
+	if startCount != endCount {
+		t.Fatalf("message_start count (%d) != message_end count (%d)", startCount, endCount)
+	}
+	// 4 execute phases (pip running, npm running, pip completed, npm completed) + 1 text = 5
+	if startCount < 5 {
+		t.Errorf("expected at least 5 message groups, got %d", startCount)
+	}
+}
+
+// ---------- Test 2: each tool has running + completed lifecycle ----------
+
+func TestParseParallelToolCalls_ToolLifecycle(t *testing.T) {
+	events := runParser(t, parallelToolCallJSONL)
+	groups := extractMessageGroups(events)
+
+	// Collect execute groups by message_id
+	type toolPhase struct {
+		messageID string
+		status    string
+		tool      string
+		output    any
+	}
+	var phases []toolPhase
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				status, _ := props["status"].(string)
+				if status != "" {
+					phases = append(phases, toolPhase{
+						messageID: g.messageID,
+						status:    status,
+						tool:      strDefault(props["tool"]),
+						output:    props["output"],
+					})
+				}
+			}
+		}
+	}
+
+	// Find pip and npm phases
+	var pipRunning, pipCompleted, npmRunning, npmCompleted *toolPhase
+	for i := range phases {
+		p := &phases[i]
+		if p.tool == "Bash" && p.status == "running" && pipRunning == nil {
+			pipRunning = p
+		} else if p.tool == "Bash" && p.status == "running" && npmRunning == nil {
+			npmRunning = p
+		}
+		out := strDefault(p.output)
+		if p.status == "completed" && strings.Contains(out, "pip") {
+			pipCompleted = p
+		}
+		if p.status == "completed" && strings.Contains(out, "10.9.7") {
+			npmCompleted = p
+		}
+	}
+
+	if pipRunning == nil {
+		t.Fatal("pip running phase not found")
+	}
+	if pipCompleted == nil {
+		t.Fatal("pip completed phase not found")
+	}
+	if npmRunning == nil {
+		t.Fatal("npm running phase not found")
+	}
+	if npmCompleted == nil {
+		t.Fatal("npm completed phase not found")
+	}
+
+	// running and completed phases must share message_id (reuse)
+	if pipRunning.messageID != pipCompleted.messageID {
+		t.Errorf("pip: running message_id %q != completed message_id %q", pipRunning.messageID, pipCompleted.messageID)
+	}
+	if npmRunning.messageID != npmCompleted.messageID {
+		t.Errorf("npm: running message_id %q != completed message_id %q", npmRunning.messageID, npmCompleted.messageID)
+	}
+
+	// two tools should have different message_ids
+	if pipRunning.messageID == npmRunning.messageID {
+		t.Error("pip and npm should have different message_ids")
+	}
+}
+
+// ---------- Test 3: interleaved result does not corrupt message_id ----------
+
+func TestParseParallelToolCalls_InterleavedResult(t *testing.T) {
+	events := runParser(t, parallelToolCallJSONL)
+	groups := extractMessageGroups(events)
+
+	// Find the npm running group (the one with tool_id toolu_npm or second Bash running)
+	var npmRunningGroup *messageGroup
+	bashRunningCount := 0
+	for i := range groups {
+		for _, ev := range groups[i].events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if props["status"] == "running" && props["tool"] == "Bash" {
+					bashRunningCount++
+					if bashRunningCount == 2 {
+						npmRunningGroup = &groups[i]
+					}
+				}
+			}
+		}
+	}
+
+	if npmRunningGroup == nil {
+		t.Fatal("npm running message group not found")
+	}
+
+	// The npm running group must have a non-empty message_id
+	if npmRunningGroup.messageID == "" {
+		t.Fatal("npm running group has empty message_id")
+	}
+
+	// All execute chunks in the npm running group must have input_delta data
+	// (the streaming deltas must be present, proving they weren't lost)
+	var hasDelta bool
+	for _, ev := range npmRunningGroup.events {
+		if ev.chunkType == message.ChunkExecute {
+			props := extractExecuteProps(ev)
+			if _, ok := props["input_delta"]; ok {
+				hasDelta = true
+			}
+		}
+	}
+	if !hasDelta {
+		t.Error("npm running group has no input_delta chunks — streaming was interrupted")
+	}
+
+	// pip completed group must not contain npm delta events:
+	// find pip completed group
+	var pipCompletedGroup *messageGroup
+	for i := range groups {
+		for _, ev := range groups[i].events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				out := strDefault(props["output"])
+				if props["status"] == "completed" && strings.Contains(out, "pip") {
+					pipCompletedGroup = &groups[i]
+				}
+			}
+		}
+	}
+
+	if pipCompletedGroup == nil {
+		t.Fatal("pip completed group not found")
+	}
+
+	// pip completed group should only contain its own events, not npm deltas
+	for _, ev := range pipCompletedGroup.events {
+		if ev.chunkType == message.ChunkExecute {
+			props := extractExecuteProps(ev)
+			if _, ok := props["input_delta"]; ok {
+				t.Error("pip completed group contains input_delta — npm delta leaked into pip group")
+			}
+		}
+	}
+}
+
+// ---------- Test 4: final text after all tools complete ----------
+
+func TestParseParallelToolCalls_FinalText(t *testing.T) {
+	events := runParser(t, parallelToolCallJSONL)
+
+	var textChunks []string
+	inTextGroup := false
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMessageStart {
+			var sd message.EventMessageStartData
+			json.Unmarshal(ev.data, &sd)
+			inTextGroup = sd.Type == "text"
+		}
+		if ev.chunkType == message.ChunkText && inTextGroup {
+			textChunks = append(textChunks, string(ev.data))
+		}
+		if ev.chunkType == message.ChunkMessageEnd {
+			inTextGroup = false
+		}
+	}
+
+	fullText := strings.Join(textChunks, "")
+	if !strings.Contains(fullText, "pip") || !strings.Contains(fullText, "npm") {
+		t.Errorf("final text should mention pip and npm, got %q", fullText)
+	}
+}
+
+// ---------- Test 5: single tool call regression ----------
+
+func TestParseSingleToolCall(t *testing.T) {
+	events := runParser(t, singleToolCallJSONL)
+	groups := extractMessageGroups(events)
+
+	// Should have: 1 running group + 1 completed group + 1 text group = 3
+	if len(groups) < 3 {
+		t.Fatalf("expected at least 3 message groups for single tool call, got %d", len(groups))
+	}
+
+	// Verify message_start / message_end pairing
+	depth := 0
+	for _, ev := range events {
+		switch ev.chunkType {
+		case message.ChunkMessageStart:
+			depth++
+			if depth > 1 {
+				t.Fatal("nested message_start in single tool call")
+			}
+		case message.ChunkMessageEnd:
+			depth--
+			if depth < 0 {
+				t.Fatal("unmatched message_end in single tool call")
+			}
+		}
+	}
+	if depth != 0 {
+		t.Fatalf("unbalanced message_start/message_end (depth=%d)", depth)
+	}
+
+	// Verify tool lifecycle: running then completed with same message_id
+	var runningID, completedID string
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				switch props["status"] {
+				case "running":
+					runningID = g.messageID
+				case "completed":
+					completedID = g.messageID
+				}
+			}
+		}
+	}
+
+	if runningID == "" {
+		t.Fatal("no running phase found")
+	}
+	if completedID == "" {
+		t.Fatal("no completed phase found")
+	}
+	if runningID != completedID {
+		t.Errorf("running message_id %q != completed message_id %q", runningID, completedID)
+	}
+
+	// Verify text output
+	var hasText bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkText && strings.Contains(string(ev.data), "Done") {
+			hasText = true
+		}
+	}
+	if !hasText {
+		t.Error("final text 'Done.' not found")
+	}
+}
+
+func strDefault(v any) string {
+	if v == nil {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
 }

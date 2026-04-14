@@ -34,6 +34,9 @@ type FS interface {
 
 	// GetRoot returns the absolute path of this workspace's root directory on the host filesystem.
 	GetRoot() (string, error)
+
+	// GetID returns the ID of this workspace.
+	GetID() (string, error)
 }
 
 // New creates an FS backed by the given Volume for the specified session.
@@ -124,6 +127,10 @@ func (w *workspaceFS) MkdirAll(name string, _ os.FileMode) error {
 
 func (w *workspaceFS) GetRoot() (string, error) {
 	return w.vol.Abs(context.Background(), w.session, ".")
+}
+
+func (w *workspaceFS) GetID() (string, error) {
+	return w.session, nil
 }
 
 func (w *workspaceFS) Close() error { return nil }
