@@ -18,7 +18,7 @@ import (
 )
 
 const githubReleasesAPI = "https://api.github.com/repos/YaoApp/yao/releases/latest"
-const cdnFallbackBase = "https://get.yaoapps.com/releases/yao"
+const cdnFallbackBase = "https://get.yaoapps.com/yao"
 
 // Upgrade command flags
 var (
@@ -164,7 +164,7 @@ func resolveLatest() (string, string, error) {
 
 // resolveFromCDN fetches latest.json from the given CDN base URL.
 // The URL should point to the directory containing latest.json,
-// e.g. "https://get.yaoapps.com/releases/yao".
+// e.g. "https://get.yaoapps.com/yao".
 func resolveFromCDN(base string) (string, string, error) {
 	url := strings.TrimRight(base, "/") + "/latest.json"
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -438,5 +438,5 @@ func copyFile(src, dst string) error {
 func init() {
 	upgradeCmd.Flags().BoolVarP(&upgradeYes, "yes", "y", false, L("Skip interactive confirmation"))
 	upgradeCmd.Flags().BoolVar(&upgradeCheck, "check", false, L("Only check for updates and print JSON result"))
-	upgradeCmd.Flags().StringVar(&upgradeSource, "source", "", L("Custom download source URL (e.g. https://get.yaoapps.com/releases/yao)"))
+	upgradeCmd.Flags().StringVar(&upgradeSource, "source", "", L("Custom download source URL (e.g. https://get.yaoapps.com/yao)"))
 }
