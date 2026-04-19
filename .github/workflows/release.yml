@@ -24,9 +24,18 @@ jobs:
 
       - name: Get Version
         id: version
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Prefer head_branch from upstream (works for first-level workflow_run)
           TAG="${{ github.event.workflow_run.head_branch }}"
-          VERSION="${TAG#v}"
+          if [[ "$TAG" =~ ^v ]]; then
+            VERSION="${TAG#v}"
+          else
+            # Fallback: get from latest GitHub Release
+            TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
+            VERSION="${TAG#v}"
+          fi
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "TAG=${TAG} VERSION=${VERSION}"

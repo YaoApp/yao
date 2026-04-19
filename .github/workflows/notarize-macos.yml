@@ -18,7 +18,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: notarize-${{ github.event.workflow_run.head_branch || github.run_id }}
+  group: notarize-${{ github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -29,8 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       startsWith(github.event.workflow_run.head_branch, 'v'))
+      github.event.workflow_run.conclusion == 'success'
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       run_id: ${{ steps.resolve.outputs.run_id }}
@@ -43,21 +42,24 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
             RUN_ID="${{ github.event.inputs.run_id }}"
-            if [ -z "$VERSION" ]; then
-              TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
-              VERSION="${TAG#v}"
-            fi
-            if [ -z "$RUN_ID" ]; then
-              RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
-                --workflow="Release macOS" --branch="v${VERSION}" --limit=1 \
-                --json databaseId --jq '.[0].databaseId')
-            fi
-          else
-            TAG="${{ github.event.workflow_run.head_branch }}"
+          fi
+
+          # Auto-detect version from latest GitHub Release
+          if [ -z "$VERSION" ]; then
+            TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
             VERSION="${TAG#v}"
+          fi
+
+          if [ -z "$VERSION" ]; then
+            echo "::error::Could not determine version from latest release"
+            exit 1
+          fi
+
+          # Auto-detect macOS build run_id
+          if [ -z "$RUN_ID" ]; then
             RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
-              --workflow="Release macOS" --branch="${TAG}" --limit=1 \
-              --json databaseId --jq '.[0].databaseId')
+              --workflow="Release macOS" --branch="v${VERSION}" --limit=1 \
+              --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId')
           fi
 
           if [ -z "$VERSION" ] || [ -z "$RUN_ID" ]; then
