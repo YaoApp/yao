@@ -217,3 +217,100 @@ jobs:
         with:
           name: yao-darwin-checksums
           path: /tmp/checksums/*.sha256
+
+  # ===================================================================
+  # GitHub Release + R2 Upload (macOS binaries)
+  # ===================================================================
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow requires a tag. Got: $GITHUB_REF"
+            exit 1
+          fi
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Download macOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-arm64
+          path: artifacts/arm64-prod
+
+      - name: Download arm64 Dev
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-arm64-dev
+          path: artifacts/arm64-dev
+
+      - name: Download amd64 Prod
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-amd64
+          path: artifacts/amd64-prod
+
+      - name: Download amd64 Dev
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-amd64-dev
+          path: artifacts/amd64-dev
+
+      - name: Download Checksums
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-darwin-checksums
+          path: artifacts/checksums
+
+      - name: Prepare Release Files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p release
+          cp artifacts/arm64-prod/yao "release/yao-${VERSION}-darwin-arm64"
+          cp artifacts/amd64-prod/yao "release/yao-${VERSION}-darwin-amd64"
+          cp artifacts/arm64-dev/yao "release/yao-${VERSION}-darwin-arm64-dev"
+          cp artifacts/amd64-dev/yao "release/yao-${VERSION}-darwin-amd64-dev"
+          cp artifacts/checksums/*.sha256 release/ 2>/dev/null || true
+          chmod +x release/yao-*
+          ls -lh release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Yao v${{ steps.version.outputs.version }}
+          files: release/*
+          generate_release_notes: true
+
+      - name: Upload macOS binaries to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET || 'releases' }}
+        run: |
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+
+          VERSION="${{ steps.version.outputs.version }}"
+          PREFIX="yao/${VERSION}"
+
+          for PLATFORM in darwin-arm64 darwin-amd64; do
+            FILE="release/yao-${VERSION}-${PLATFORM}"
+            NAME="yao-${VERSION}-${PLATFORM}"
+            sha256sum "$FILE" | awk '{print $1}' > "/tmp/${NAME}.sha256"
+
+            aws s3 cp "$FILE" "s3://${R2_BUCKET}/${PREFIX}/${NAME}" \
+              --endpoint-url "$R2_ENDPOINTS" \
+              --content-type "application/octet-stream"
+            aws s3 cp "/tmp/${NAME}.sha256" "s3://${R2_BUCKET}/${PREFIX}/${NAME}.sha256" \
+              --endpoint-url "$R2_ENDPOINTS" \
+              --content-type "text/plain"
+            echo "Uploaded: ${NAME} + ${NAME}.sha256"
+          done

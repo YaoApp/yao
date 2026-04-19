@@ -2,7 +2,7 @@ name: Notarize macOS
 
 on:
   workflow_run:
-    workflows: ["Release"]
+    workflows: ["Release macOS"]
     types: [completed]
   workflow_dispatch:
     inputs:
@@ -18,7 +18,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: notarize-${{ github.run_id }}
+  group: notarize-${{ github.event.workflow_run.head_branch || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -29,7 +29,8 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
     outputs:
       version: ${{ steps.resolve.outputs.version }}
       run_id: ${{ steps.resolve.outputs.run_id }}
@@ -42,24 +43,19 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ github.event.inputs.version }}"
             RUN_ID="${{ github.event.inputs.run_id }}"
-          fi
-
-          # Auto-detect version from latest GitHub Release
-          if [ -z "$VERSION" ]; then
-            TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
+            if [ -z "$VERSION" ]; then
+              TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
+              VERSION="${TAG#v}"
+            fi
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+                --workflow="Release macOS" --branch="v${VERSION}" --limit=1 \
+                --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId')
+            fi
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
             VERSION="${TAG#v}"
-          fi
-
-          if [ -z "$VERSION" ]; then
-            echo "::error::Could not determine version from latest release"
-            exit 1
-          fi
-
-          # Auto-detect macOS build run_id
-          if [ -z "$RUN_ID" ]; then
-            RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
-              --workflow="Release macOS" --branch="v${VERSION}" --limit=1 \
-              --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId')
+            RUN_ID="${{ github.event.workflow_run.id }}"
           fi
 
           if [ -z "$VERSION" ] || [ -z "$RUN_ID" ]; then
@@ -146,7 +142,7 @@ jobs:
           echo "Yao ${{ matrix.arch }} notarization accepted."
 
   # ===================================================================
-  # After both architectures finish: verify R2 assets + trigger CDN
+  # After both architectures finish: wait for Linux R2, then trigger CDN
   # ===================================================================
   finalize:
     needs: [resolve, notarize]
@@ -168,7 +164,7 @@ jobs:
           aws configure set default.region us-east-1
           aws configure set default.s3.signature_version s3v4
 
-      - name: Verify all platform assets on R2
+      - name: Wait for all platform assets on R2
         run: |
           VERSION="${{ needs.resolve.outputs.version }}"
           PREFIX="yao/${VERSION}"
@@ -180,25 +176,29 @@ jobs:
             "linux-arm64"
           )
 
-          MISSING=0
-          for P in "${PLATFORMS[@]}"; do
-            KEY="${PREFIX}/yao-${VERSION}-${P}"
-            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
-              echo "::warning::Missing asset: ${KEY}"
-              MISSING=$((MISSING+1))
+          for ATTEMPT in $(seq 1 30); do
+            MISSING=0
+            for P in "${PLATFORMS[@]}"; do
+              KEY="${PREFIX}/yao-${VERSION}-${P}"
+              if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+                MISSING=$((MISSING+1))
+              fi
+              if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}.sha256" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+                MISSING=$((MISSING+1))
+              fi
+            done
+
+            if [ "$MISSING" -eq 0 ]; then
+              echo "All 4 platform assets verified on R2."
+              exit 0
             fi
-            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}.sha256" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
-              echo "::warning::Missing sha256: ${KEY}.sha256"
-              MISSING=$((MISSING+1))
-            fi
+
+            echo "Attempt $ATTEMPT: $MISSING asset(s) still missing, waiting 30s..."
+            sleep 30
           done
 
-          if [ "$MISSING" -gt 0 ]; then
-            echo "::error::$MISSING required asset(s) missing on R2."
-            echo "Ensure release.yml has completed successfully before running notarize."
-            exit 1
-          fi
-          echo "All 4 platform assets verified on R2."
+          echo "::error::Timed out waiting for all platform assets on R2."
+          exit 1
 
       - name: Trigger CDN latest.json update
         env:
