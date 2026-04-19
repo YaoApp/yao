@@ -154,7 +154,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
       R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET || 'get-yaoapps' }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET || 'releases' }}
     steps:
       - name: Checkout (for gh CLI context)
         uses: actions/checkout@v4
@@ -169,7 +169,7 @@ jobs:
       - name: Verify all platform assets on R2
         run: |
           VERSION="${{ needs.resolve.outputs.version }}"
-          PREFIX="releases/yao/${VERSION}"
+          PREFIX="yao/${VERSION}"
 
           PLATFORMS=(
             "darwin-arm64"

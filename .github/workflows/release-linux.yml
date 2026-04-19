@@ -86,6 +86,27 @@ jobs:
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "VERSION=${VERSION}"
 
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-linux
+          path: artifacts
+
+      - name: Prepare Docker Contexts
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ls -la artifacts/
+
+          # Development image uses dev (unstripped) binaries
+          cp "artifacts/yao-${VERSION}-linux-amd64" docker/development/yao-amd64
+          cp "artifacts/yao-${VERSION}-linux-arm64" docker/development/yao-arm64
+          chmod +x docker/development/yao-*
+
+          # Production image uses prod (stripped) binaries
+          cp "artifacts/yao-${VERSION}-linux-amd64-prod" docker/production/yao-amd64
+          cp "artifacts/yao-${VERSION}-linux-arm64-prod" docker/production/yao-arm64
+          chmod +x docker/production/yao-*
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -103,8 +124,6 @@ jobs:
         with:
           context: ./docker/development
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}-dev
@@ -115,8 +134,6 @@ jobs:
         with:
           context: ./docker/production
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ steps.version.outputs.version }}
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
