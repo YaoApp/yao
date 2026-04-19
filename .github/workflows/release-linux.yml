@@ -20,20 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: yaoapp/yao-build:1.0.0
-    env:
-      CF_ACCESS_KEY_ID: ${{ secrets.CF_ACCESS_KEY_ID }}
-      CF_SECRET_ACCESS_KEY: ${{ secrets.CF_SECRET_ACCESS_KEY }}
-      R2_BUCKET: ${{ secrets.R2_BUCKET }}
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
     steps:
-      - name: Configure R2 For Cloudflare
-        run: |
-          aws configure set aws_access_key_id $CF_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $CF_SECRET_ACCESS_KEY
-          aws configure set default.region us-east-1
-          aws configure set default.s3.signature_version s3v4
-          aws configure set default.s3.endpoint_url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
-
       - name: Build
         run: |
           export PATH=$PATH:/github/home/go/bin
@@ -71,13 +58,6 @@ jobs:
           make tools && make artifacts-linux
           mv /app/yao/dist/release/* /data/
           ls -l /data
-
-      - name: Push To R2
-        run: |
-          for file in /data/*; do
-            aws s3 cp "$file" s3://$R2_BUCKET/archives/ \
-              --endpoint-url https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com
-          done
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

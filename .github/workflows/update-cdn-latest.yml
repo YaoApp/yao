@@ -1,0 +1,120 @@
+name: Update CDN latest.json
+
+# Assembles releases/yao/latest.json after all platform binaries are on R2.
+#
+# Normally triggered automatically by notarize-macos.yml's finalize job after
+# notarization completes. Can also be triggered manually as a fallback.
+#
+# Prerequisites: release.yml must have uploaded all 4 platform binaries to R2.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Engine version to publish (e.g. 1.0.0 or 1.0.0-alpha)"
+        required: true
+      mark_latest:
+        description: "Also update releases/yao/latest.json (set false for pre-releases you want on CDN but not as latest)"
+        required: false
+        default: "true"
+
+permissions:
+  contents: read
+
+jobs:
+  publish-latest:
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET || 'get-yaoapps' }}
+      CDN_BASE: https://get.yaoapps.com
+    steps:
+      - name: Configure AWS CLI
+        run: |
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+
+      - name: Verify platform assets exist
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          PREFIX="releases/yao/${VERSION}"
+
+          PLATFORMS=(
+            "darwin-arm64"
+            "darwin-amd64"
+            "linux-amd64"
+            "linux-arm64"
+          )
+
+          MISSING=0
+          for P in "${PLATFORMS[@]}"; do
+            KEY="${PREFIX}/yao-${VERSION}-${P}"
+            echo "Checking s3://${R2_BUCKET}/${KEY}"
+            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+              echo "::warning::Missing asset: ${KEY}"
+              MISSING=$((MISSING+1))
+            fi
+            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}.sha256" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+              echo "::warning::Missing sha256: ${KEY}.sha256"
+              MISSING=$((MISSING+1))
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::error::$MISSING required asset(s) are missing on R2. Run platform CI workflows first."
+            exit 1
+          fi
+          echo "All platform assets verified."
+
+      - name: Build latest.json
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          RELEASED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          python3 <<PY > /tmp/latest.json
+          import json
+          version = "${VERSION}"
+          base = "${CDN_BASE}/releases/yao/${VERSION}"
+          assets = {
+              "darwin-arm64": f"{base}/yao-{version}-darwin-arm64",
+              "darwin-amd64": f"{base}/yao-{version}-darwin-amd64",
+              "linux-amd64":  f"{base}/yao-{version}-linux-amd64",
+              "linux-arm64":  f"{base}/yao-{version}-linux-arm64",
+          }
+          sha256 = {
+              "darwin-arm64": f"{base}/yao-{version}-darwin-arm64.sha256",
+              "darwin-amd64": f"{base}/yao-{version}-darwin-amd64.sha256",
+              "linux-amd64":  f"{base}/yao-{version}-linux-amd64.sha256",
+              "linux-arm64":  f"{base}/yao-{version}-linux-arm64.sha256",
+          }
+          data = {
+              "version": version,
+              "released_at": "${RELEASED_AT}",
+              "assets": assets,
+              "sha256": sha256,
+          }
+          print(json.dumps(data, indent=2, ensure_ascii=False))
+          PY
+
+          cat /tmp/latest.json
+
+      - name: Upload versioned latest.json
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          aws s3 cp /tmp/latest.json \
+            "s3://${R2_BUCKET}/releases/yao/${VERSION}/latest.json" \
+            --endpoint-url "$R2_ENDPOINTS" \
+            --content-type "application/json" \
+            --cache-control "public, max-age=60"
+
+      - name: Promote to releases/yao/latest.json
+        if: ${{ github.event.inputs.mark_latest != 'false' }}
+        run: |
+          aws s3 cp /tmp/latest.json \
+            "s3://${R2_BUCKET}/releases/yao/latest.json" \
+            --endpoint-url "$R2_ENDPOINTS" \
+            --content-type "application/json" \
+            --cache-control "public, max-age=60"
+          echo "Promoted to releases/yao/latest.json"
