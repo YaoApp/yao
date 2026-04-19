@@ -87,8 +87,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           mkdir -p release
 
-          # Linux artifacts (already named correctly from build.sh)
-          cp dist/linux/* release/ 2>/dev/null || true
+          # Linux prod binaries (canonical name = prod/stripped)
+          cp "dist/linux/yao-${VERSION}-linux-amd64-prod" "release/yao-${VERSION}-linux-amd64"
+          cp "dist/linux/yao-${VERSION}-linux-arm64-prod" "release/yao-${VERSION}-linux-arm64"
+
+          # Linux dev binaries
+          cp "dist/linux/yao-${VERSION}-linux-amd64" "release/yao-${VERSION}-linux-amd64-dev"
+          cp "dist/linux/yao-${VERSION}-linux-arm64" "release/yao-${VERSION}-linux-arm64-dev"
 
           # macOS prod binaries
           cp dist/macos/arm64-prod/yao "release/yao-${VERSION}-darwin-arm64"
@@ -112,3 +117,34 @@ jobs:
           name: Yao v${{ steps.version.outputs.version }}
           files: release/*
           generate_release_notes: true
+
+      - name: Upload all binaries to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET || 'get-yaoapps' }}
+        run: |
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+
+          VERSION="${{ steps.version.outputs.version }}"
+          PREFIX="releases/yao/${VERSION}"
+
+          echo "Uploading release binaries to R2: ${PREFIX}"
+
+          for file in release/yao-${VERSION}-*; do
+            name=$(basename "$file")
+            case "$name" in *-dev|*-prod|*.sha256) continue ;; esac
+
+            sha256sum "$file" | awk '{print $1}' > "/tmp/${name}.sha256"
+
+            aws s3 cp "$file" "s3://${R2_BUCKET}/${PREFIX}/${name}" \
+              --endpoint-url "$R2_ENDPOINTS" \
+              --content-type "application/octet-stream"
+            aws s3 cp "/tmp/${name}.sha256" "s3://${R2_BUCKET}/${PREFIX}/${name}.sha256" \
+              --endpoint-url "$R2_ENDPOINTS" \
+              --content-type "text/plain"
+
+            echo "Uploaded: ${name} + ${name}.sha256"
+          done

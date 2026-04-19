@@ -1,23 +1,79 @@
 name: Notarize macOS
 
 on:
+  workflow_run:
+    workflows: ["Release"]
+    types: [completed]
   workflow_dispatch:
     inputs:
-      run_id:
-        description: "Release macOS workflow run ID (to download artifacts from)"
-        required: true
       version:
-        description: "Version used in the release build (e.g. 1.0.0 or 1.0.0-alpha)"
-        required: true
+        description: "Version (auto-detected from latest release if empty)"
+        required: false
+      run_id:
+        description: "Release macOS workflow run ID (auto-detected if empty)"
+        required: false
 
 permissions:
   contents: write
+  actions: write
+
+concurrency:
+  group: notarize-${{ github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
+  # ===================================================================
+  # Resolve version + macOS build run_id automatically
+  # ===================================================================
+  resolve:
+    runs-on: ubuntu-latest
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       startsWith(github.event.workflow_run.head_branch, 'v'))
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+      run_id: ${{ steps.resolve.outputs.run_id }}
+    steps:
+      - name: Resolve version and run_id
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+            RUN_ID="${{ github.event.inputs.run_id }}"
+            if [ -z "$VERSION" ]; then
+              TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q '.tagName')
+              VERSION="${TAG#v}"
+            fi
+            if [ -z "$RUN_ID" ]; then
+              RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+                --workflow="Release macOS" --branch="v${VERSION}" --limit=1 \
+                --json databaseId --jq '.[0].databaseId')
+            fi
+          else
+            TAG="${{ github.event.workflow_run.head_branch }}"
+            VERSION="${TAG#v}"
+            RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow="Release macOS" --branch="${TAG}" --limit=1 \
+              --json databaseId --jq '.[0].databaseId')
+          fi
+
+          if [ -z "$VERSION" ] || [ -z "$RUN_ID" ]; then
+            echo "::error::Failed to resolve version='${VERSION}' run_id='${RUN_ID}'"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "run_id=${RUN_ID}" >> $GITHUB_OUTPUT
+          echo "Resolved: version=${VERSION} run_id=${RUN_ID}"
+
   # ===================================================================
   # Notarize Yao binaries (arm64 + amd64)
   # ===================================================================
   notarize:
+    needs: resolve
     runs-on: macos-latest
     strategy:
       matrix:
@@ -28,7 +84,7 @@ jobs:
         with:
           name: yao-darwin-${{ matrix.arch }}
           path: bin
-          run-id: ${{ github.event.inputs.run_id }}
+          run-id: ${{ needs.resolve.outputs.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Certificates
@@ -86,3 +142,68 @@ jobs:
             exit 1
           fi
           echo "Yao ${{ matrix.arch }} notarization accepted."
+
+  # ===================================================================
+  # After both architectures finish: verify R2 assets + trigger CDN
+  # ===================================================================
+  finalize:
+    needs: [resolve, notarize]
+    runs-on: ubuntu-latest
+    if: success()
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET || 'get-yaoapps' }}
+    steps:
+      - name: Checkout (for gh CLI context)
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+
+      - name: Configure AWS CLI
+        run: |
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+
+      - name: Verify all platform assets on R2
+        run: |
+          VERSION="${{ needs.resolve.outputs.version }}"
+          PREFIX="releases/yao/${VERSION}"
+
+          PLATFORMS=(
+            "darwin-arm64"
+            "darwin-amd64"
+            "linux-amd64"
+            "linux-arm64"
+          )
+
+          MISSING=0
+          for P in "${PLATFORMS[@]}"; do
+            KEY="${PREFIX}/yao-${VERSION}-${P}"
+            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+              echo "::warning::Missing asset: ${KEY}"
+              MISSING=$((MISSING+1))
+            fi
+            if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}.sha256" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
+              echo "::warning::Missing sha256: ${KEY}.sha256"
+              MISSING=$((MISSING+1))
+            fi
+          done
+
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::error::$MISSING required asset(s) missing on R2."
+            echo "Ensure release.yml has completed successfully before running notarize."
+            exit 1
+          fi
+          echo "All 4 platform assets verified on R2."
+
+      - name: Trigger CDN latest.json update
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.resolve.outputs.version }}"
+          gh workflow run update-cdn-latest.yml \
+            -f version="${VERSION}" \
+            -f mark_latest="true"
+          echo "Triggered update-cdn-latest.yml for ${VERSION}"
