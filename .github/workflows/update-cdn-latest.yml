@@ -5,7 +5,8 @@ name: Update CDN latest.json
 # Normally triggered automatically by notarize-macos.yml's finalize job after
 # notarization completes. Can also be triggered manually as a fallback.
 #
-# Prerequisites: release.yml must have uploaded all 4 platform binaries to R2.
+# Prerequisites: release-linux.yml and release-macos.yml must have uploaded
+# all 4 platform binaries to R2.
 
 on:
   workflow_dispatch:
