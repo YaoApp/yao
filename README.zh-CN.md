@@ -4,8 +4,10 @@ Yao 是一个开源的 AI Agent 和 Web 应用运行时，以单一二进制的�
 
 ![Mission Control](docs/mission-control.png)
 
-**🏠 官网：** [https://yaoagents.com](https://yaoagents.com) &nbsp;|&nbsp;
-**📚 文档：** [https://yaoagents.com/docs](https://yaoagents.com/docs) &nbsp;|&nbsp;
+**🏠 官网：** [https://yaoagents.com](https://yaoagents.com)
+
+**📚 文档：** [https://yaoagents.com/docs](https://yaoagents.com/docs)
+
 **⬇️ 桌面客户端：** [https://yaoagents.com/download](https://yaoagents.com/download)
 
 [English](README.md)

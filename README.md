@@ -4,8 +4,10 @@ Yao is an open-source runtime for building AI agents and web applications — sh
 
 ![Mission Control](docs/mission-control.png)
 
-**🏠 Homepage:** [https://yaoagents.com](https://yaoagents.com) &nbsp;|&nbsp;
-**📚 Docs:** [https://yaoagents.com/docs](https://yaoagents.com/docs) &nbsp;|&nbsp;
+**🏠 Homepage:** [https://yaoagents.com](https://yaoagents.com)
+
+**📚 Docs:** [https://yaoagents.com/docs](https://yaoagents.com/docs)
+
 **⬇️ Desktop App:** [https://yaoagents.com/download](https://yaoagents.com/download)
 
 ---
