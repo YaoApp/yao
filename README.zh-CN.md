@@ -1,83 +1,73 @@
-# Yao
+# Yao — AI 时代的应用运行时
 
-[![UnitTest](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml/badge.svg)](https://github.com/YaoApp/yao/actions/workflows/unit-test.yml)
-[![codecov](https://codecov.io/gh/YaoApp/yao/branch/main/graph/badge.svg?token=294Y05U71J)](https://codecov.io/gh/YaoApp/yao)
+Yao 是一个开源的 AI Agent 和 Web 应用运行时，以单一二进制的形式发布，下载即用。
 
-https://github.com/YaoApp/yao/assets/1842210/6b23ac89-ef6e-4c24-874f-753a98370dec
+![Mission Control](docs/mission-control.png)
+
+**🏠 官网：** [https://yaoagents.com](https://yaoagents.com)
+
+**📚 文档：** [https://yaoagents.com/docs](https://yaoagents.com/docs)
+
+**🖥️ Yao Desktop：** [https://yaoagents.com/download](https://yaoagents.com/download)
 
 [English](README.md)
 
-YAO 是一款开源应用引擎，使用 Golang 编写，以一个命令行工具的形式存在, 下载即用。适合用于开发业务系统、网站/APP API 接口、管理后台、自建低代码平台等。
+---
 
-YAO 采用 flow-based 的编程模式，通过编写 YAO DSL (JSON 格式逻辑描述) 或使用 JavaScript 编写处理器，实现各种功能。 YAO DSL 可以有多种编写方式:
+## 工作原理
 
-1. 纯手工编写
+Yao Agent 本质上是一个**笼子，而不是动物**。放进去的东西决定行为，笼子保证可控。
 
-2. 使用自动化脚本，根据上下文逻辑生成
+每个请求都经过同一套管道：
 
-3. 使用可视化编辑器，通过“拖拉拽”制作
+![Pipeline](docs/pipeline.png)
 
-官网: [https://yaoapps.com](https://yaoapps.com)
+`Create Hook` 在执行器前运行 —— 注入上下文、施加约束、路由请求。  
+`Next Hook` 在执行器后运行 —— 校验输出、触发下游动作、驱动多步循环。  
+**AI 负责干活，你来划定边界。**
 
-文档: [https://yaoapps.com/doc](https://yaoapps.com/doc)
+### 三种模式
 
-## 最新版本下载安装 (推荐)
+| 模式 | 执行器 | 适用场景 |
+|------|--------|---------|
+| **LLM** | OpenAI、Anthropic 等 | 对话助手、问答、内容生成 |
+| **CLI Agent** | 容器中的 OpenCode、Claude Code、Codex | Computer Use、沙箱隔离、SKILL 生态 |
+| **纯 Hook** | 你自己的 TypeScript 代码 | 确定性逻辑、菜单路由、无需 AI 的业务流程 |
 
-https://github.com/YaoApp/xgen-dev-app
+三种模式共享同一套 Hook 接口，可以自由混合 —— 在一个 `Create Hook` 里，部分请求走 LLM，部分用纯代码处理。
 
-## 演示
+---
 
-![界面](docs/yao-setup-demo.jpg)
+## 功能特性
 
-使用 YAO 开发的应用
+### Agent 框架
 
-| 应用                 | 简介                         | 代码仓库                                |
-| -------------------- | ---------------------------- | --------------------------------------- |
-| yaoapp/yao-examples  | Yao 应用示例                 | https://github.com/YaoApp/yao-examples  |
-| yaoapp/yao-knowledge | ChatGPT 驱动的知识管理库应用 | https://github.com/YaoApp/yao-knowledge |
-| yaoapp/xgen-dev-app  | 演示应用 (演示)              | https://github.com/YaoApp/xgen-dev-app  |
-| yaoapp/demo-project  | 工程项目管理演示应用(演示)   | https://github.com/yaoapp/demo-project  |
-| yaoapp/demo-finance  | 财务管理演示应用(演示)       | https://github.com/yaoapp/demo-finance  |
-| yaoapp/demo-plm      | 生产项目管理演示应用(演示)   | https://github.com/yaoapp/demo-plm      |
+- **TypeScript Hook** — `Create` 和 `Next` 两个钩子拦截每一次请求；内置 V8 引擎
+- **原生 MCP 支持** — 通过 process、SSE 或 STDIO 传输协议接入工具
+- **Memory API** — 四个作用域：请求级、会话级、用户级、团队级
+- **多 Agent 协作** — 委派给专属 Agent 或并行调用多个 Agent
+- **CLI Agent / 沙箱** — 在隔离容器中运行 Claude Code 等 CLI 程序，支持 VNC 桌面
+- **Skills 生态** — 将可复用的能力包（`SKILL.md`）挂载到任意 CLI Agent
 
-## 介绍
+### 全栈运行时
 
-Yao 是一个只需使用 JSON 即可创建数据库模型、编写 API 接口、描述管理后台界面的应用引擎，使用 Yao 构建的应用可运行在云端或物联网设备上。 开发者不需要写一行代码，就可以拥有 10 倍生产力。
+一个二进制文件包含所有能力：
 
-Yao 基于 **flow-based** 编程思想，采用 **Go** 语言开发，支持多种方式扩展数据流处理器。这使得 Yao 具有极好的**通用性**，大部分场景下可以代替编程语言, 在复用性和编码效率上是传统编程语言的 **10 倍**；应用性能和资源占比上优于 **PHP**, **JAVA** 等语言。
+- **数据模型** — 用 JSON/YAML 定义数据库表和关联关系
+- **REST API** — 将路由映射到模型查询或 TypeScript 处理器
+- **SUI 页面** — 组件化 Web UI，支持服务端渲染
+- **Chat UI（CUI）** — 内置对话界面，开箱即用
+- **TypeScript** — 内置 V8 引擎，不依赖 Node.js
+- **单一二进制** — 支持 ARM64/x64，宿主机无需 Python、Node 或容器
 
-Yao 内置了一套数据管理系统，通过编写 **JSON** 描述界面布局，即可实现 90% 常见界面交互功能，特别适合快速制作各类管理后台、CRM、ERP 等企业内部系统。对于特殊交互功能亦可通过编写扩展组件或 HTML 页面的方式实现。内置管理系统与 Yao 并不耦合，亦可采用 **VUE**, **React** 等任意前端技术实现管理界面。
+### 内置搜索
 
-## 安装
+- **向量搜索** — 支持 OpenAI 或 FastEmbed 嵌入模型
+- **知识图谱** — 实体关系检索
+- **GraphRAG** — 向量 + 图谱混合搜索
 
-Yao v0.10.4 使用说明
+---
 
-https://github.com/YaoApp/xgen-dev-app/blob/main/README.zh-CN.md
+## 关于名字
 
-## 入门指南
-
-详细说明请看[文档](https://yaoapps.com/doc/%E4%BB%8B%E7%BB%8D/%E5%85%A5%E9%97%A8%E6%8C%87%E5%8D%97)
-
-### 创建应用
-
-#### 新建一个空白应用
-
-新建一个应用目录，进入应用目录，运行 `yao start` 命令, 启动安装界面。
-
-```bash
-mkdir -p /data/app  # 创建应用目录
-cd /data/app  # 进入应用目录
-yao start # 启动安装界面
-```
-
-**默认账号**
-
-- 用户名: **xiang@iqka.com**
-
-- 密码: **A123456p+**
-
-![安装界面](docs/yao-setup-step2.jpg)
-
-## 关于 Yao
-
-Yao 的名字源于汉字**爻(yáo)**，是构成八卦的基本符号。八卦，是上古大神伏羲观测总结自然规律后，创造的一个可以指代万事万物的符号体系。爻，有阴阳两种状态，就像 0 和 1。爻的阴阳转换，驱动八卦更替，以此来总结记录事物的发展规律。
+Yao 的名字源于汉字**爻（yáo）**，是构成八卦的基本符号。八卦，是上古大神伏羲观测自然规律后创造的符号体系。爻有阴阳两种状态，就像 0 和 1。爻的阴阳转换，驱动八卦更替，记录事物的发展规律。
