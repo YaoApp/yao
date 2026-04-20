@@ -8,7 +8,7 @@ Yao is an open-source runtime for building AI agents and web applications — sh
 
 **📚 Docs:** [https://yaoagents.com/docs](https://yaoagents.com/docs)
 
-**⬇️ Desktop App:** [https://yaoagents.com/download](https://yaoagents.com/download)
+**🖥️ Yao Desktop:** [https://yaoagents.com/download](https://yaoagents.com/download)
 
 ---
 
