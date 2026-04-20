@@ -1,65 +1,69 @@
-# Yao — Build Autonomous Agents. Just Define the Role.
+# Yao — App Runtime for the AI Era
 
-Yao is an open-source engine for autonomous agents — event-driven, proactive, and self-scheduling.
+Yao is an open-source runtime for building AI agents and web applications — shipped as a single binary.
 
 ![Mission Control](docs/mission-control.png)
 
-**Quick Links:**
-
-**🏠 Homepage:** [https://yaoapps.com](https://yaoapps.com)
-
-**🚀 Quick Start:** [https://yaoapps.com/docs/documentation/en-us/getting-started](https://yaoapps.com/docs/documentation/en-us/getting-started#quickstart)
-
-**📚 Documentation:** [https://yaoapps.com/docs](https://yaoapps.com/docs)
-
-**✨ Why Yao?** [https://yaoapps.com/docs/why-yao](https://yaoapps.com/docs/documentation/en-us/getting-started/why-yao)
-
-**🤖 Yao Agents:** [https://github.com/YaoAgents/awesome](https://github.com/YaoAgents/awesome) ( Preview )
+**🏠 Homepage:** [https://yaoagents.com](https://yaoagents.com) &nbsp;|&nbsp;
+**📚 Docs:** [https://yaoagents.com/docs](https://yaoagents.com/docs) &nbsp;|&nbsp;
+**⬇️ Desktop App:** [https://yaoagents.com/download](https://yaoagents.com/download)
 
 ---
 
-## What Makes Yao Different?
+## How It Works
 
-| Traditional AI Assistants     | Yao Autonomous Agents                 |
-| ----------------------------- | ------------------------------------- |
-| Entry point: Chatbox          | Entry point: Email, Events, Schedules |
-| Passive: You ask, they answer | Proactive: They work autonomously     |
-| Role: Tool                    | Role: Team member                     |
+Think of Yao Agent as a **cage, not an animal**. What you put inside determines the behavior; the cage keeps it controlled.
 
-> The entry point is not a chatbox — it's email, events, and scheduled tasks.
+Every request flows through the same pipeline:
+
+![Pipeline](docs/pipeline.png)
+
+`Create Hook` runs before the executor — inject context, enforce constraints, route requests.  
+`Next Hook` runs after — validate output, trigger downstream actions, drive multi-step loops.  
+**The AI does the heavy lifting. You define the boundaries.**
+
+### Three Modes
+
+| Mode | Executor | When to use |
+|------|----------|-------------|
+| **LLM** | OpenAI, Anthropic, etc. | Conversational assistants, Q&A, content generation |
+| **CLI Agent** | OpenCode, Claude Code, Codex in a container | Computer use, sandbox isolation, SKILL ecosystem |
+| **Pure Hook** | Your own TypeScript code | Deterministic logic, routing, menu flows — no AI needed |
+
+All three share the same Hook interface. You can mix them freely — route some requests through the LLM, handle others with pure code, all inside a single `Create Hook`.
 
 ---
 
 ## Features
 
-### Autonomous Agent Framework
+### Agent Framework
 
-Build agents that work like real team members:
-
-- **Three Trigger Modes** — Clock (scheduled), Human (email/message), Event (webhook/database)
-- **Six-Phase Execution** — Inspiration → Goals → Tasks → Run → Deliver → Learn
-- **Multi-Agent Orchestration** — Agents delegate, collaborate, and compose dynamically
-- **Continuous Learning** — Agents accumulate experience in private knowledge bases
-
-### Native MCP Support
-
-Integrate tools without writing adapters:
-
-- **Process Transport** — Map Yao processes directly to MCP tools
-- **External Servers** — Connect via SSE or STDIO
-- **Schema Mapping** — Declarative input/output schemas
-
-### Built-in GraphRAG
-
-- **Vector Search** — Embeddings with OpenAI/FastEmbed
-- **Knowledge Graph** — Entity-relationship retrieval
-- **Hybrid Search** — Combine vector similarity with graph traversal
+- **TypeScript Hooks** — `Create` and `Next` hooks intercept every request; built-in V8 engine
+- **Native MCP Support** — Connect tools via process, SSE, or STDIO transport
+- **Memory API** — Four scopes: request-level, session, user, team
+- **Multi-Agent** — Delegate to specialist agents or call agents in parallel
+- **CLI Agent / Sandbox** — Run Claude Code (or other CLI runners) in an isolated container with VNC desktop support
+- **Skills Ecosystem** — Drop reusable capability packs (`SKILL.md`) into any CLI Agent
 
 ### Full-Stack Runtime
 
 Everything in a single executable:
 
-- **All-in-One** — Data, API, Agent, UI in one engine
-- **TypeScript Support** — Built-in V8 engine
-- **Single Binary** — No Node.js, Python, or containers required
-- **Edge-Ready** — Runs on ARM64/x64 devices
+- **Data Models** — Define database tables and relations in JSON/YAML
+- **REST APIs** — Map routes to model queries or TypeScript processors
+- **SUI Pages** — Component-based web UI with server-side rendering
+- **Chat UI (CUI)** — Built-in conversation interface for agents
+- **TypeScript** — Built-in V8 engine; no Node.js required
+- **Single Binary** — Runs on ARM64/x64; no Python, Node, or containers needed on the host
+
+### Built-in Search
+
+- **Vector Search** — Embeddings with OpenAI or FastEmbed
+- **Knowledge Graph** — Entity-relationship retrieval
+- **GraphRAG** — Hybrid vector + graph search
+
+---
+
+## About the Name
+
+Yao (爻, yáo) is the fundamental symbol in the I Ching — the building block of the eight trigrams. Like a binary digit, it has two states. Their combinations describe the patterns of everything.
