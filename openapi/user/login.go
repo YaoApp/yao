@@ -1039,3 +1039,90 @@ func SendLoginCookies(c *gin.Context, loginResponse *LoginResponse, sessionID st
 		response.SendAccessTokenCookieWithExpiry(c, accessToken, accessExpires)
 	}
 }
+
+// GinTokenLogin handles POST /user/token/login.
+// Accepts a pre-signed access token (e.g. from oauth.token.Make), verifies it,
+// issues a full session (cookies + id_token), and returns user info for CUI AfterLogin.
+// Designed for automation / testing scenarios where interactive login is not practical.
+func GinTokenLogin(c *gin.Context) {
+	// Read token from Authorization header or JSON body
+	token := c.GetHeader("Authorization")
+	if token != "" {
+		token = strings.TrimPrefix(token, "Bearer ")
+	}
+	if token == "" {
+		var body struct {
+			Token string `json:"token"`
+		}
+		if err := c.ShouldBindJSON(&body); err == nil {
+			token = body.Token
+		}
+	}
+	if token == "" {
+		response.RespondWithError(c, http.StatusBadRequest, &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "access token is required (Authorization header or JSON body)",
+		})
+		return
+	}
+
+	if oauth.OAuth == nil {
+		response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{
+			Code:             "server_error",
+			ErrorDescription: "oauth service not initialized",
+		})
+		return
+	}
+
+	claims, err := oauth.OAuth.VerifyToken(token)
+	if err != nil {
+		response.RespondWithError(c, http.StatusUnauthorized, &response.ErrorResponse{
+			Code:             "invalid_token",
+			ErrorDescription: fmt.Sprintf("token verification failed: %v", err),
+		})
+		return
+	}
+
+	subject := claims.Subject
+	if subject == "" {
+		response.RespondWithError(c, http.StatusUnauthorized, &response.ErrorResponse{
+			Code:             "invalid_token",
+			ErrorDescription: "token has no subject claim",
+		})
+		return
+	}
+
+	// Look up user by the extra user_id claim first, fall back to subject
+	userID := subject
+	if claims.Extra != nil {
+		if uid, ok := claims.Extra["user_id"].(string); ok && uid != "" {
+			userID = uid
+		}
+	}
+
+	teamID := claims.TeamID
+
+	// Delegate to the standard login path which handles scopes, subject,
+	// team/member lookup, and all other details correctly.
+	var loginResp *LoginResponse
+	if teamID != "" {
+		loginResp, err = LoginByTeamID(userID, teamID, nil)
+	} else {
+		loginResp, err = LoginByUserID(userID, nil)
+	}
+	if err != nil {
+		response.RespondWithError(c, http.StatusInternalServerError, &response.ErrorResponse{
+			Code:             "server_error",
+			ErrorDescription: fmt.Sprintf("login failed: %v", err),
+		})
+		return
+	}
+
+	sid := session.ID()
+	SendLoginCookies(c, loginResp, sid)
+
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{
+		"status":   "success",
+		"id_token": loginResp.IDToken,
+	})
+}

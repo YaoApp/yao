@@ -93,6 +93,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.GET("/entry", getEntryConfig)         // Get unified auth entry config (public)
 	group.GET("/entry/captcha", getCaptcha)     // Get captcha for login/register (public)
 	group.POST("/entry/verify", GinEntryVerify) // Verify login/register email or mobile (public)
+	group.POST("/token/login", GinTokenLogin)   // Token login for automation/testing (public)
 
 	// Register a new user
 	group.POST("/entry/register", oauth.Guard, GinEntryRegister)     // Register a new user
