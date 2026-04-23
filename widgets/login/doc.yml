@@ -1,0 +1,14 @@
+group: yao.login
+type: process
+desc: "Login widget processes for user authentication"
+entries:
+  - name: admin
+    desc: Authenticate an admin user with email or mobile, password, and captcha verification
+    args:
+      - name: payload
+        type: object
+        required: true
+        desc: "Login payload with captcha.id (string), captcha.code (string), password (string), and either email (string) or mobile (string); optional sid (string) for session ID"
+    return:
+      type: object
+      desc: "Object with expires_at (number, token expiry unix timestamp), token (string, JWT), user (object with id, name, type, email, mobile, extra, status), and menus (app menu data)"

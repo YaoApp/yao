@@ -1,0 +1,37 @@
+group: widget
+type: process
+entries:
+  - name: apis
+    desc: Get all loaded widget API definitions
+    args: []
+    return:
+      type: any
+      desc: Map of all registered widget APIs
+
+  - name: actions
+    desc: Get all loaded widget action definitions
+    args: []
+    return:
+      type: any
+      desc: Map of all registered widget actions
+
+  - name: models
+    desc: Get all loaded widget model definitions
+    args: []
+    return:
+      type: any
+      desc: Map of all registered widget models
+
+  - name: fields
+    desc: Get all loaded widget field definitions
+    args: []
+    return:
+      type: any
+      desc: Map of all registered widget fields
+
+  - name: filters
+    desc: Get all loaded widget filter definitions
+    args: []
+    return:
+      type: any
+      desc: Map of all registered widget filters

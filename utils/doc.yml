@@ -1,0 +1,377 @@
+group: utils
+type: process
+entries:
+  # throw
+  - name: throw.Forbidden
+    desc: Throw a 403 Forbidden exception
+    args:
+      - name: message
+        type: string
+        required: false
+        desc: "Error message (default: \"Access denied\")"
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: throw.Unauthorized
+    desc: Throw a 401 Unauthorized exception
+    args:
+      - name: message
+        type: string
+        required: false
+        desc: "Error message (default: \"Authentication required\")"
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: throw.NotFound
+    desc: Throw a 404 Not Found exception
+    args:
+      - name: message
+        type: string
+        required: false
+        desc: "Error message (default: \"Resource not found\")"
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: throw.BadRequest
+    desc: Throw a 400 Bad Request exception
+    args:
+      - name: message
+        type: string
+        required: false
+        desc: "Error message (default: \"Bad Request\")"
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: throw.InternalError
+    desc: Throw a 500 Internal Server Error exception
+    args:
+      - name: message
+        type: string
+        required: false
+        desc: "Error message (default: \"Internal Error\")"
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: throw.Exception
+    desc: Throw a custom exception with specified message and HTTP status code
+    args:
+      - name: message
+        type: string
+        required: true
+        desc: Error message
+      - name: code
+        type: number
+        required: true
+        desc: HTTP status code
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  # fmt
+  - name: fmt.Printf
+    desc: Print formatted output to stdout
+    args:
+      - name: format
+        type: string
+        required: true
+        desc: Format string (Go fmt style)
+      - name: args
+        type: any
+        required: false
+        desc: Values to format (variadic)
+    return:
+      type: "null"
+      desc: Returns null
+
+  - name: fmt.ColorPrintf
+    desc: Print colored formatted output to stdout
+    args:
+      - name: color
+        type: string
+        required: true
+        desc: "Color name: red, green, yellow, blue, magenta, cyan, white, black, hired, higreen, etc."
+      - name: format
+        type: string
+        required: true
+        desc: Format string (Go fmt style)
+      - name: args
+        type: any
+        required: false
+        desc: Values to format (variadic)
+    return:
+      type: "null"
+      desc: Returns null
+
+  # str
+  - name: str.Join
+    desc: Join array elements into a string with a separator
+    args:
+      - name: array
+        type: array
+        required: true
+        desc: Array of values to join
+      - name: separator
+        type: string
+        required: true
+        desc: Separator string
+    return:
+      type: string
+      desc: Joined string
+
+  - name: str.JoinPath
+    desc: Join path segments into a file path
+    args:
+      - name: paths
+        type: string
+        required: true
+        desc: Path segments to join (variadic, minimum 2 segments required)
+    return:
+      type: string
+      desc: Joined file path
+
+  - name: str.UUID
+    desc: Generate a new UUID v4 string
+    args: []
+    return:
+      type: string
+      desc: UUID string (e.g. "550e8400-e29b-41d4-a716-446655440000")
+
+  - name: str.Pinyin
+    desc: Convert Chinese characters to Pinyin
+    args:
+      - name: text
+        type: string
+        required: true
+        desc: Chinese text to convert
+      - name: options
+        type: object
+        required: false
+        desc: "Options: {tone: bool|\"mark\"|\"number\"|\"none\", heteronym: bool, separator: string}"
+    return:
+      type: string
+      desc: Pinyin string
+
+  # tree
+  - name: tree.Flatten
+    desc: Flatten a tree structure into a flat array
+    args:
+      - name: array
+        type: array
+        required: true
+        desc: Tree-structured array to flatten
+      - name: options
+        type: object
+        required: false
+        desc: "Options: {primary: \"id\", children: \"children\", parent: \"parent\"}"
+    return:
+      type: array
+      desc: Flat array with parent references
+
+  # now / time
+  - name: now.Time
+    desc: Get the current time as a string
+    args: []
+    return:
+      type: string
+      desc: "Current time in HH:MM:SS format (e.g. \"15:04:05\")"
+
+  - name: now.Date
+    desc: Get the current date as a string
+    args: []
+    return:
+      type: string
+      desc: "Current date in YYYY-MM-DD format (e.g. \"2006-01-02\")"
+
+  - name: now.DateTime
+    desc: Get the current date and time as a string
+    args: []
+    return:
+      type: string
+      desc: "Current datetime in YYYY-MM-DD HH:MM:SS format"
+
+  - name: now.Timestamp
+    desc: Get the current Unix timestamp in seconds
+    args: []
+    return:
+      type: number
+      desc: Unix timestamp in seconds
+
+  - name: now.Timestampms
+    desc: Get the current Unix timestamp in milliseconds
+    args: []
+    return:
+      type: number
+      desc: Unix timestamp in milliseconds
+
+  # url
+  - name: url.ParseQuery
+    desc: Parse a URL query string into key-value pairs
+    args:
+      - name: queryString
+        type: string
+        required: true
+        desc: "URL query string (e.g. \"key1=val1&key2=val2\")"
+    return:
+      type: object
+      desc: Parsed query parameters as map of string to string array
+
+  - name: url.QueryParam
+    desc: Convert URL values or map to QueryParam object
+    args:
+      - name: values
+        type: any
+        required: true
+        desc: "URL values: url.Values, map[string][]string, or map[string]interface{}"
+    return:
+      type: object
+      desc: QueryParam object
+
+  - name: url.ParseURL
+    desc: Parse a URL string into its components
+    args:
+      - name: url
+        type: string
+        required: true
+        desc: URL string to parse
+    return:
+      type: object
+      desc: "Parsed URL with scheme, host, domain, path, port, query, and url fields"
+
+  # json
+  - name: json.Validate
+    desc: "[Warning: under development] Validate JSON data against rules"
+    args:
+      - name: data
+        type: object
+        required: true
+        desc: JSON data to validate
+      - name: rules
+        type: array
+        required: true
+        desc: "Validation rules (e.g. [{\"haskey\": \"fieldName\"}])"
+    return:
+      type: bool
+      desc: True if validation passes, false otherwise
+
+  # jsonschema
+  - name: jsonschema.ValidateSchema
+    desc: Validate a JSON Schema structure
+    args:
+      - name: schema
+        type: any
+        required: true
+        desc: "JSON Schema to validate (map, string, or bytes)"
+    return:
+      type: any
+      desc: "Null if valid, error message string if invalid"
+
+  - name: jsonschema.Validate
+    desc: Validate data against a JSON Schema
+    args:
+      - name: schema
+        type: any
+        required: true
+        desc: "JSON Schema (map, string, or bytes)"
+      - name: data
+        type: any
+        required: true
+        desc: Data to validate against the schema
+    return:
+      type: any
+      desc: "Null if valid, error message string if invalid"
+
+  # captcha (0.10.5+)
+  - name: captcha.Generate
+    desc: Generate a captcha image/audio with customizable options
+    args:
+      - name: options
+        type: object
+        required: true
+        desc: "Options: {width, height, length, type, lang, background}"
+    return:
+      type: object
+      desc: "Object with id and content (base64 image/audio)"
+
+  - name: captcha.Validate
+    desc: Validate a captcha code
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Captcha ID returned by Generate
+      - name: code
+        type: string
+        required: true
+        desc: User-entered captcha code
+    return:
+      type: bool
+      desc: True if valid; throws exception if invalid
+
+  - name: captcha.Get
+    desc: Get the captcha code by ID (for testing purposes)
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Captcha ID
+    return:
+      type: string
+      desc: The captcha answer code
+
+  # otp (0.10.5+)
+  - name: otp.Generate
+    desc: Generate a one-time password (OTP) code
+    args:
+      - name: options
+        type: object
+        required: true
+        desc: "Options: {length: number, expiration: number (seconds), type: string}"
+    return:
+      type: object
+      desc: "Object with id and code"
+
+  - name: otp.Validate
+    desc: Validate a one-time password (OTP) code
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: OTP ID returned by Generate
+      - name: code
+        type: string
+        required: true
+        desc: OTP code to validate
+      - name: clear
+        type: bool
+        required: false
+        desc: "Whether to clear the OTP after validation (default: true)"
+    return:
+      type: bool
+      desc: True if valid; throws exception if invalid or expired
+
+  - name: otp.Get
+    desc: Get the OTP code by ID (for testing purposes)
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: OTP ID
+    return:
+      type: string
+      desc: The OTP code
+
+  - name: otp.Delete
+    desc: Delete an OTP code by ID
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: OTP ID to delete
+    return:
+      type: "null"
+      desc: Returns null

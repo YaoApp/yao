@@ -60,7 +60,7 @@ func ListLogs(c *gin.Context) {
 	// Build query parameters
 	param := model.QueryParam{
 		Orders: []model.QueryOrder{
-			{Column: "timestamp", Option: "desc"}, // 日志按时间戳倒序
+			{Column: "timestamp", Option: "desc"},
 		},
 	}
 
@@ -150,7 +150,7 @@ func ListExecutionLogs(c *gin.Context) {
 			{Column: "execution_id", Value: executionID},
 		},
 		Orders: []model.QueryOrder{
-			{Column: "timestamp", Option: "desc"}, // 日志按时间戳倒序
+			{Column: "timestamp", Option: "desc"},
 		},
 	}
 

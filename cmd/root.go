@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/cmd/agent"
+	yaodoc "github.com/yaoapp/yao/cmd/doc"
 	"github.com/yaoapp/yao/cmd/mcp"
 	"github.com/yaoapp/yao/cmd/robot"
 	"github.com/yaoapp/yao/cmd/sui"
@@ -167,6 +168,18 @@ var robotCmd = &cobra.Command{
 	},
 }
 
+var docCmd = &cobra.Command{
+	Use:   "doc",
+	Short: "Documentation and API reference",
+	Long:  "Browse and validate documentation for processes, JS runtime APIs, and more",
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Help()
+	},
+}
+
 // Command initialize
 func init() {
 
@@ -192,6 +205,10 @@ func init() {
 	// Robot
 	robotCmd.AddCommand(robot.AddCmd)
 
+	// Doc
+	docCmd.AddCommand(yaodoc.ProcessCmd)
+	docCmd.AddCommand(yaodoc.RuntimeCmd)
+
 	rootCmd.AddCommand(
 		versionCmd,
 		migrateCmd,
@@ -210,6 +227,7 @@ func init() {
 		agentCmd,
 		mcpCmd,
 		robotCmd,
+		docCmd,
 		upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)

@@ -1,0 +1,171 @@
+group: crypto
+type: process
+entries:
+  - name: Hash
+    desc: Compute a cryptographic hash of a string value
+    args:
+      - name: algorithm
+        type: string
+        required: true
+        desc: "Hash algorithm: MD4, MD5, SHA1, SHA224, SHA256, SHA384, SHA512, MD5SHA1, RIPEMD160, SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHA512_224, SHA512_256, BLAKE2s_256, BLAKE2b_256, BLAKE2b_384, BLAKE2b_512"
+      - name: value
+        type: string
+        required: true
+        desc: String value to hash
+    return:
+      type: string
+      desc: Hex-encoded hash string
+
+  - name: Hmac
+    desc: Compute a Keyed-Hash Message Authentication Code (HMAC)
+    args:
+      - name: algorithm
+        type: string
+        required: true
+        desc: "Hash algorithm: MD4, MD5, SHA1, SHA224, SHA256, SHA384, SHA512, etc."
+      - name: value
+        type: string
+        required: true
+        desc: String value to hash
+      - name: key
+        type: string
+        required: true
+        desc: Secret key for HMAC
+      - name: encoding
+        type: string
+        required: false
+        desc: "Output encoding: \"base64\" for base64 output (default: hex)"
+    return:
+      type: string
+      desc: HMAC hash string (hex or base64 encoded)
+
+  - name: hmacwith
+    desc: Compute HMAC with advanced encoding options for key, value, and output
+    args:
+      - name: option
+        type: object
+        required: true
+        desc: "Encoding options: {key: \"base64\"|\"hex\", value: \"base64\"|\"hex\", output: \"base64\"|\"hex\", algo: \"SHA256\"}"
+      - name: value
+        type: string
+        required: true
+        desc: Value to hash (encoding specified in option)
+      - name: key
+        type: string
+        required: true
+        desc: Secret key (encoding specified in option)
+    return:
+      type: string
+      desc: HMAC hash string with specified output encoding
+
+  - name: rsa2sign
+    desc: Create an RSA-SHA2 digital signature
+    args:
+      - name: privateKey
+        type: string
+        required: true
+        desc: RSA private key in PEM format
+      - name: algorithm
+        type: string
+        required: true
+        desc: "Hash algorithm: SHA256, SHA384, SHA512, etc."
+      - name: value
+        type: string
+        required: true
+        desc: Data to sign
+      - name: encoding
+        type: string
+        required: false
+        desc: "Output encoding: \"base64\" for base64 output (default: hex)"
+    return:
+      type: string
+      desc: Digital signature string (hex or base64 encoded)
+
+  - name: rsa2verify
+    desc: Verify an RSA-SHA2 digital signature
+    args:
+      - name: publicKey
+        type: string
+        required: true
+        desc: RSA public key in PEM format
+      - name: algorithm
+        type: string
+        required: true
+        desc: "Hash algorithm: SHA256, SHA384, SHA512, etc."
+      - name: value
+        type: string
+        required: true
+        desc: Original data that was signed
+      - name: signature
+        type: string
+        required: true
+        desc: Signature to verify (hex or base64 encoded)
+      - name: encoding
+        type: string
+        required: false
+        desc: "Signature encoding: \"base64\" if signature is base64-encoded (default: hex)"
+    return:
+      type: bool
+      desc: True if signature is valid
+
+  - name: aes256encrypt
+    desc: Encrypt data using AES-256 algorithm
+    args:
+      - name: algorithm
+        type: string
+        required: true
+        desc: "AES mode: \"GCM\""
+      - name: key
+        type: string
+        required: true
+        desc: AES-256 encryption key (32 bytes)
+      - name: nonce
+        type: string
+        required: true
+        desc: Nonce/IV for encryption
+      - name: text
+        type: string
+        required: true
+        desc: Plaintext to encrypt
+      - name: additionalData
+        type: string
+        required: false
+        desc: Additional authenticated data (AAD) for GCM mode
+      - name: encoding
+        type: string
+        required: false
+        desc: "Output encoding: \"base64\" for base64 output (default: hex)"
+    return:
+      type: string
+      desc: Encrypted ciphertext (hex or base64 encoded)
+
+  - name: aes256decrypt
+    desc: Decrypt data using AES-256 algorithm
+    args:
+      - name: algorithm
+        type: string
+        required: true
+        desc: "AES mode: \"GCM\""
+      - name: key
+        type: string
+        required: true
+        desc: AES-256 decryption key (32 bytes)
+      - name: nonce
+        type: string
+        required: true
+        desc: Nonce/IV used during encryption
+      - name: ciphertext
+        type: string
+        required: true
+        desc: Encrypted data to decrypt (hex or base64 encoded)
+      - name: additionalData
+        type: string
+        required: false
+        desc: Additional authenticated data (AAD) used during encryption
+      - name: encoding
+        type: string
+        required: false
+        desc: "Input encoding: \"base64\" if ciphertext is base64-encoded (default: hex)"
+    return:
+      type: string
+      desc: Decrypted plaintext

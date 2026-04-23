@@ -1,0 +1,62 @@
+group: yao.dashboard
+type: process
+entries:
+  - name: setting
+    desc: Get the setting configuration of a dashboard widget
+    args:
+      - name: dashboardId
+        type: string
+        required: true
+        desc: Dashboard widget ID
+    return:
+      type: any
+      desc: Dashboard setting from the configured action handler
+
+  - name: xgen
+    desc: Get the Xgen UI configuration for a dashboard widget with permission filtering
+    args:
+      - name: dashboardId
+        type: string
+        required: true
+        desc: Dashboard widget ID
+      - name: data
+        type: object
+        required: false
+        desc: Additional data for generating the configuration
+    return:
+      type: object
+      desc: Xgen configuration object with permission-based field exclusions
+
+  - name: component
+    desc: Execute a cloud component query within a dashboard widget
+    args:
+      - name: dashboardId
+        type: string
+        required: true
+        desc: Dashboard widget ID
+      - name: xpath
+        type: string
+        required: true
+        desc: Component XPath (URL-encoded)
+      - name: method
+        type: string
+        required: true
+        desc: Component method name (URL-encoded)
+      - name: query
+        type: object
+        required: false
+        desc: Query parameters for the component
+    return:
+      type: any
+      desc: Component query execution result
+
+  - name: data
+    desc: Get the data for a dashboard widget
+    args:
+      - name: dashboardId
+        type: string
+        required: true
+        desc: Dashboard widget ID
+    return:
+      type: any
+      desc: Dashboard data from the configured action handler

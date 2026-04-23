@@ -1,0 +1,177 @@
+group: attachment
+type: process
+desc: "File attachment management processes for uploading, reading, listing, and managing files"
+entries:
+  - name: Save
+    desc: Save a file from base64 data URI or plain base64 string
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID (e.g. \"default\", \"__yao.attachment\")"
+      - name: content
+        type: string
+        required: true
+        desc: "Base64 data URI (e.g. \"data:image/png;base64,xxxx\") or plain base64 string"
+      - name: filename
+        type: string
+        required: false
+        desc: "Original filename; auto-generated from content type if omitted"
+      - name: option
+        type: object
+        required: false
+        desc: "Upload options: groups (array), gzip (bool), compress_image (bool), compress_size (number), public (bool), share (string: \"private\" or \"team\")"
+    return:
+      type: object
+      desc: "File object with file_id, path, bytes, created_at, filename, content_type, and status fields"
+
+  - name: Read
+    desc: Read file content as a base64 data URI
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to read"
+    return:
+      type: string
+      desc: "Base64 data URI string (e.g. \"data:image/png;base64,xxxx\")"
+
+  - name: Info
+    desc: Get file metadata information
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to query"
+    return:
+      type: object
+      desc: "File object with file_id, path, bytes, created_at, filename, content_type, and status fields"
+
+  - name: List
+    desc: List files with pagination and filtering
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: option
+        type: object
+        required: false
+        desc: "List options: page (number), page_size (number, max 100), filters (object), order_by (string), select (array of field names)"
+    return:
+      type: object
+      desc: "Paginated result with files (array), total (number), page (number), page_size (number), and total_pages (number)"
+
+  - name: Delete
+    desc: Delete a file by ID
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to delete"
+    return:
+      type: bool
+      desc: "True on success"
+
+  - name: Exists
+    desc: Check if a file exists
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to check"
+    return:
+      type: bool
+      desc: "True if the file exists"
+
+  - name: URL
+    desc: Get the URL for a file
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID"
+    return:
+      type: string
+      desc: "File URL string"
+
+  - name: SaveText
+    desc: Save parsed text content for a file
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to save text for"
+      - name: text
+        type: string
+        required: true
+        desc: "Text content to save"
+    return:
+      type: bool
+      desc: "True on success"
+
+  - name: GetText
+    desc: Get parsed text content for a file
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID"
+      - name: fileID
+        type: string
+        required: true
+        desc: "File ID to get text for"
+      - name: fullContent
+        type: bool
+        required: false
+        desc: "If true, return full content; if false (default), return preview (first 2000 chars)"
+    return:
+      type: string
+      desc: "Text content string"
+
+  - name: Zip
+    desc: Package multiple attachment files into a zip archive and upload it
+    args:
+      - name: uploaderID
+        type: string
+        required: true
+        desc: "Uploader/manager ID (e.g. \"__yao.attachment\")"
+      - name: fileIDs
+        type: array
+        required: true
+        desc: "Array of file ID strings to include in the zip"
+      - name: zipFilename
+        type: string
+        required: true
+        desc: "Output zip filename (e.g. \"archive.zip\"); .zip extension added automatically if missing"
+      - name: option
+        type: object
+        required: false
+        desc: "Upload options for the zip file: groups (array), gzip (bool), public (bool), share (string)"
+    return:
+      type: object
+      desc: "Uploaded zip file object with file_id, filename, bytes, and other file metadata"
