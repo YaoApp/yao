@@ -1,0 +1,21 @@
+group: seeds
+type: process
+entries:
+  - name: import
+    desc: Import seed data from a file (CSV, XLSX, JSON, JSONC/Yao) into a model table
+    args:
+      - name: filename
+        type: string
+        required: true
+        desc: "Seed file name relative to the seeds directory (e.g. \"users.csv\", \"data.xlsx\", \"records.json\")"
+      - name: modelName
+        type: string
+        required: true
+        desc: Target model name to import data into
+      - name: options
+        type: object
+        required: false
+        desc: "Import options: {chunk_size: number, duplicate: \"ignore\"|\"error\"|\"update\"|\"abort\", mode: \"batch\"|\"each\"}"
+    return:
+      type: object
+      desc: "Import result: {total, success, failure, ignore, errors: [{row, message, code, data}]}"

@@ -1,0 +1,473 @@
+group: xiang.helper
+type: process
+entries:
+  # Array operations
+  - name: ArrayPluck
+    desc: "[Deprecated: use utils.arr.Pluck] Merge multiple record sets into one by plucking specified columns"
+    args:
+      - name: columns
+        type: array
+        required: true
+        desc: Array of column names to pluck
+      - name: data
+        type: object
+        required: true
+        desc: Map of column names to value arrays
+    return:
+      type: array
+      desc: Merged array of records
+
+  - name: ArraySplit
+    desc: "[Deprecated: use utils.arr.Split] Split an array of records into columns and values"
+    args:
+      - name: records
+        type: array
+        required: true
+        desc: Array of record objects
+    return:
+      type: object
+      desc: "Object with columns (string[]) and values (any[][])"
+
+  - name: ArrayColumn
+    desc: "[Deprecated: use utils.arr.Column] Extract values of a specified field from an array of records"
+    args:
+      - name: records
+        type: array
+        required: true
+        desc: Array of record objects
+      - name: name
+        type: string
+        required: true
+        desc: Field name to extract
+    return:
+      type: array
+      desc: Array of field values
+
+  - name: ArrayKeep
+    desc: "[Deprecated: use utils.arr.Keep] Keep only specified keys in each record"
+    args:
+      - name: records
+        type: array
+        required: true
+        desc: Array of record objects
+      - name: columns
+        type: array
+        required: true
+        desc: Array of key names to keep
+    return:
+      type: array
+      desc: Filtered array of records
+
+  - name: ArrayTree
+    desc: "[Deprecated: use utils.arr.Tree] Convert a flat array of records into a tree structure"
+    args:
+      - name: records
+        type: array
+        required: true
+        desc: Array of record objects
+      - name: setting
+        type: object
+        required: true
+        desc: "Tree settings: {primary, parent, children, etc.}"
+    return:
+      type: array
+      desc: Tree-structured array
+
+  - name: ArrayUnique
+    desc: "[Deprecated: use utils.arr.Unique] Remove duplicate values from an array"
+    args:
+      - name: array
+        type: array
+        required: true
+        desc: Array to deduplicate
+    return:
+      type: array
+      desc: Array with duplicates removed
+
+  - name: ArrayMapSet
+    desc: "[Deprecated: use utils.arr.MapSet] Set a field value on every map in an array"
+    args:
+      - name: records
+        type: array
+        required: true
+        desc: Array of map objects
+      - name: key
+        type: string
+        required: true
+        desc: Key to set in each map
+      - name: value
+        type: any
+        required: true
+        desc: Value to set
+    return:
+      type: array
+      desc: Modified array
+
+  - name: ArrayIndexes
+    desc: "[Deprecated: use utils.arr.Indexes] Return the index numbers of an array"
+    args:
+      - name: array
+        type: array
+        required: true
+        desc: Input array
+    return:
+      type: array
+      desc: Array of integer indexes
+
+  - name: ArrayGet
+    desc: "[Deprecated: use utils.arr.Get] Get an element at a specified index from an array"
+    args:
+      - name: array
+        type: array
+        required: true
+        desc: Input array
+      - name: index
+        type: number
+        required: true
+        desc: Index to retrieve
+    return:
+      type: any
+      desc: Element at the given index, or null if out of range
+
+  # Map operations
+  - name: MapKeys
+    desc: "[Deprecated: use utils.map.Keys] Return all keys of a map"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+    return:
+      type: array
+      desc: Array of key strings
+
+  - name: MapValues
+    desc: "[Deprecated: use utils.map.Values] Return all values of a map"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+    return:
+      type: array
+      desc: Array of values
+
+  - name: MapGet
+    desc: "[Deprecated: use utils.map.Get] Get a value by key from a map (supports dot notation)"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+      - name: key
+        type: string
+        required: true
+        desc: Key name (supports dot notation for nested access)
+    return:
+      type: any
+      desc: Value at the given key
+
+  - name: MapSet
+    desc: "[Deprecated: use utils.map.Set] Set a key-value pair in a map (supports dot notation)"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+      - name: key
+        type: string
+        required: true
+        desc: Key name (supports dot notation for nested access)
+      - name: value
+        type: any
+        required: true
+        desc: Value to set
+    return:
+      type: object
+      desc: Modified map
+
+  - name: MapDel
+    desc: "[Deprecated: use utils.map.Del] Delete a key from a map"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+      - name: key
+        type: string
+        required: true
+        desc: Key name to delete
+    return:
+      type: object
+      desc: Modified map
+
+  - name: MapMultiDel
+    desc: "[Deprecated: use utils.map.DelMany] Delete multiple keys from a map"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+      - name: keys
+        type: string
+        required: true
+        desc: Keys to delete (variadic)
+    return:
+      type: object
+      desc: Modified map
+
+  - name: MapToArray
+    desc: "[Deprecated: use utils.map.Array] Convert a map to an array of key-value objects"
+    args:
+      - name: record
+        type: object
+        required: true
+        desc: Input map
+    return:
+      type: array
+      desc: "Array of {key, value} objects"
+
+  # String operations
+  - name: StrConcat
+    desc: "[Deprecated: use utils.str.Concat] Concatenate multiple values into a string"
+    args:
+      - name: values
+        type: any
+        required: true
+        desc: Values to concatenate (variadic, minimum 2)
+    return:
+      type: string
+      desc: Concatenated string
+
+  - name: HexToString
+    desc: "[Deprecated: use utils.str.Hex] Encode a string or byte array to hexadecimal"
+    args:
+      - name: input
+        type: any
+        required: true
+        desc: String or byte array to encode
+    return:
+      type: string
+      desc: Hex-encoded string
+
+  # Captcha
+  - name: Captcha
+    desc: "[Deprecated: use utils.captcha.Make] Generate a captcha image/audio"
+    args:
+      - name: params
+        type: any
+        required: true
+        desc: "URL-style params with width, height, length, type, lang, background"
+    return:
+      type: object
+      desc: "Object with id and content (base64 image/audio data)"
+
+  - name: CaptchaValidate
+    desc: "[Deprecated: use utils.captcha.Verify] Validate a captcha code"
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Captcha ID
+      - name: code
+        type: string
+        required: true
+        desc: User-entered captcha code
+    return:
+      type: bool
+      desc: True if valid; throws exception if invalid
+
+  # Password
+  - name: PasswordValidate
+    desc: "[Deprecated: use utils.pwd.Verify] Validate a password against a bcrypt hash"
+    args:
+      - name: password
+        type: string
+        required: true
+        desc: Plain text password
+      - name: passwordHash
+        type: string
+        required: true
+        desc: Bcrypt hash to compare against
+    return:
+      type: bool
+      desc: True if password matches; throws exception if invalid
+
+  # JWT
+  - name: JwtMake
+    desc: "[Deprecated: use utils.jwt.Make] Generate a JWT token"
+    args:
+      - name: id
+        type: number
+        required: true
+        desc: User ID
+      - name: data
+        type: object
+        required: true
+        desc: Custom claims data
+      - name: option
+        type: object
+        required: false
+        desc: "Options: {subject, audience, issuer, timeout (seconds), sid, expires_at}"
+    return:
+      type: object
+      desc: "JWT token object with token string and expires_at timestamp"
+
+  - name: JwtValidate
+    desc: "[Deprecated: use utils.jwt.Verify] Validate and parse a JWT token"
+    args:
+      - name: token
+        type: string
+        required: true
+        desc: JWT token string
+    return:
+      type: object
+      desc: "Decoded JWT claims: {id, sid, data, ...standard claims}"
+
+  # Flow control
+  - name: For
+    desc: "[Deprecated: use utils.flow.For] Execute a process in a loop from start to end"
+    args:
+      - name: from
+        type: number
+        required: true
+        desc: Start index (inclusive)
+      - name: to
+        type: number
+        required: true
+        desc: End index (exclusive)
+      - name: process
+        type: object
+        required: true
+        desc: "Process definition: {process: \"name\", args: [\"::key\", \"::value\"]}"
+    return:
+      type: "null"
+      desc: Returns null
+
+  - name: Each
+    desc: "[Deprecated: use utils.flow.Each] Iterate over a value (array, map, or integer) and execute a process"
+    args:
+      - name: data
+        type: any
+        required: true
+        desc: Value to iterate over (array, map, or integer)
+      - name: process
+        type: object
+        required: true
+        desc: "Process definition: {process: \"name\", args: [\"::key\", \"::value\"]}"
+    return:
+      type: "null"
+      desc: Returns null
+
+  - name: Case
+    desc: "[Deprecated: use utils.flow.Case] Execute the first process whose conditions are met"
+    args:
+      - name: cases
+        type: object
+        required: true
+        desc: "Case objects (variadic): {when: [{...conditions}], process: \"name\", args: [...]}"
+    return:
+      type: any
+      desc: Return value from the matched process, or null if no match
+
+  - name: IF
+    desc: "[Deprecated: use utils.flow.IF] Conditional execution with optional else branch"
+    args:
+      - name: condition
+        type: object
+        required: true
+        desc: "Primary condition: {when: [{...conditions}], process: \"name\", args: [...]}"
+      - name: else
+        type: object
+        required: false
+        desc: "Else condition: {when: [{...conditions}], process: \"name\", args: [...]}"
+    return:
+      type: any
+      desc: Return value from the executed process, or null
+
+  - name: Throw
+    desc: "[Deprecated: use utils.flow.Throw] Throw an exception with a message and HTTP status code"
+    args:
+      - name: message
+        type: string
+        required: true
+        desc: Error message
+      - name: code
+        type: number
+        required: true
+        desc: HTTP status code
+    return:
+      type: void
+      desc: Does not return; throws exception
+
+  - name: Return
+    desc: "[Deprecated: use utils.flow.Return] Return all arguments as-is"
+    args:
+      - name: values
+        type: any
+        required: false
+        desc: Values to return (variadic)
+    return:
+      type: array
+      desc: Array of all passed arguments
+
+  # Environment
+  - name: EnvGet
+    desc: "[Deprecated: use utils.env.Get] Get an environment variable value"
+    args:
+      - name: name
+        type: string
+        required: true
+        desc: Environment variable name
+    return:
+      type: string
+      desc: Environment variable value
+
+  - name: EnvSet
+    desc: "[Deprecated: use utils.env.Set] Set an environment variable"
+    args:
+      - name: name
+        type: string
+        required: true
+        desc: Environment variable name
+      - name: value
+        type: string
+        required: true
+        desc: Value to set
+    return:
+      type: any
+      desc: Error on failure, null on success
+
+  - name: EnvMultiGet
+    desc: "[Deprecated: use utils.env.GetMany] Get multiple environment variable values"
+    args:
+      - name: names
+        type: string
+        required: true
+        desc: Environment variable names (variadic)
+    return:
+      type: object
+      desc: Map of variable names to their values
+
+  - name: EnvMultiSet
+    desc: "[Deprecated: use utils.env.SetMany] Set multiple environment variables"
+    args:
+      - name: envs
+        type: object
+        required: true
+        desc: Map of variable names to values
+    return:
+      type: any
+      desc: Error on failure, null on success
+
+  # Print
+  - name: Print
+    desc: "[Deprecated: use utils.fmt.Print] Print values to stdout (debug dump)"
+    args:
+      - name: values
+        type: any
+        required: true
+        desc: Values to print (variadic)
+    return:
+      type: "null"
+      desc: Returns null

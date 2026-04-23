@@ -1,0 +1,84 @@
+group: yao.app
+type: process
+desc: "Application widget processes for settings, menus, icons, setup, and services"
+entries:
+  - name: setting
+    desc: Return the application DSL settings with i18n translation applied
+    args:
+      - name: payload
+        type: object
+        required: false
+        desc: "Optional object with sid (session ID), lang (language code e.g. \"en-us\"), and now (unix timestamp)"
+    return:
+      type: object
+      desc: "Application DSL object with name, version, description, theme, lang, menu, optional, sid, logo, and favicon fields"
+
+  - name: xgen
+    desc: Return the merged Xgen settings including app config, login config, agent config, tools, and knowledge base
+    args:
+      - name: payload
+        type: object
+        required: false
+        desc: "Optional object with sid (session ID), lang (language code e.g. \"en-us\"), and now (unix timestamp)"
+    return:
+      type: object
+      desc: "Xgen settings object with name, description, version, yao, cui, theme, lang, mode, apiPrefix, token, optional, login, agent, tools, openapi, kb, logo, favicon, and sid fields"
+
+  - name: menu
+    desc: Return the application menu list by delegating to the configured menu.process
+    args:
+      - name: args
+        type: any
+        required: false
+        desc: "Arguments forwarded to the configured menu process"
+    return:
+      type: any
+      desc: "Menu data returned by the configured menu process"
+
+  - name: icons
+    desc: Return the content of an application icon file from the icons/ directory
+    args:
+      - name: name
+        type: string
+        required: true
+        desc: "Icon filename (e.g. \"app.ico\", \"app.png\")"
+    return:
+      type: string
+      desc: "Icon file content as string"
+
+  - name: setup
+    desc: Run the application setup process and return home/admin URLs with translated settings
+    args:
+      - name: payload
+        type: object
+        required: true
+        desc: "Setup payload object; may include sid (session ID); include 'error' key to trigger a test error"
+    return:
+      type: object
+      desc: "Object with home (string URL), admin (string URL), and setting (translated app DSL)"
+
+  - name: check
+    desc: Run the application check process for setup validation
+    args:
+      - name: payload
+        type: object
+        required: true
+        desc: "Check payload object; include 'error' key to trigger a test error"
+    return:
+      type: "null"
+      desc: "Returns null on success, throws exception on error"
+
+  - name: service
+    desc: Call a named application service script method with arguments
+    args:
+      - name: name
+        type: string
+        required: true
+        desc: "Service script name (resolves to __yao_service.<name> V8 script)"
+      - name: payload
+        type: object
+        required: true
+        desc: "Object with method (string, required) and args (array, optional) fields"
+    return:
+      type: any
+      desc: "Return value from the service method call"

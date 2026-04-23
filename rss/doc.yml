@@ -1,0 +1,66 @@
+group: rss
+type: process
+desc: "RSS/Atom feed parsing, validation, building, discovery, and fetching processes"
+entries:
+  - name: parse
+    desc: Parse an RSS 2.0 or Atom 1.0 XML string into a unified Feed object with auto-format detection and podcast metadata extraction
+    args:
+      - name: data
+        type: string
+        required: true
+        desc: "Feed XML string to parse"
+    return:
+      type: object
+      desc: "Feed object with format, title, link, description, language, updated, items (array), and podcast (object or null) fields"
+
+  - name: validate
+    desc: Check whether a string is a valid RSS 2.0 or Atom 1.0 feed
+    args:
+      - name: data
+        type: string
+        required: true
+        desc: "Feed XML string to validate"
+    return:
+      type: any
+      desc: "True (bool) if valid; error description string if invalid"
+
+  - name: discover
+    desc: Extract feed URLs from HTML, Markdown, or plain text content using regex-based detection (no network requests)
+    args:
+      - name: text
+        type: string
+        required: true
+        desc: "Text content to scan for feed URLs"
+    return:
+      type: array
+      desc: "Array of FeedLink objects with url, title, and type fields"
+
+  - name: build
+    desc: Generate an XML feed document from a Feed object
+    args:
+      - name: feed
+        type: object
+        required: true
+        desc: "Feed object (same structure as rss.parse output)"
+      - name: format
+        type: string
+        required: false
+        desc: "Output format: \"rss\" (default) or \"atom\""
+    return:
+      type: string
+      desc: "XML feed document string"
+
+  - name: fetch
+    desc: Fetch a remote RSS/Atom feed by URL and return the parsed Feed with HTTP metadata for conditional polling
+    args:
+      - name: url
+        type: string
+        required: true
+        desc: "Feed URL to fetch"
+      - name: options
+        type: object
+        required: false
+        desc: "Fetch options: user_agent (string), timeout (number, seconds), etag (string, for If-None-Match), last_modified (string, for If-Modified-Since)"
+    return:
+      type: object
+      desc: "FetchResult with feed (object or null), status_code (number), etag (string), last_modified (string), and not_modified (bool) fields"

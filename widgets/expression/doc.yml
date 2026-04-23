@@ -1,0 +1,32 @@
+group: yao.expression
+type: process
+entries:
+  - name: selectoption
+    desc: Convert input values into an array of label/value select options
+    args:
+      - name: input
+        type: any
+        required: true
+        desc: "Comma-separated string, or array of strings/numbers/maps"
+      - name: labelField
+        type: string
+        required: false
+        desc: "Field name to use as label when input items are maps (default: name)"
+      - name: valueField
+        type: string
+        required: false
+        desc: "Field name to use as value when input items are maps (default: id)"
+    return:
+      type: array
+      desc: Array of objects with label and value fields
+
+  - name: trimspace
+    desc: Trim leading and trailing whitespace from a string
+    args:
+      - name: input
+        type: string
+        required: true
+        desc: String to trim
+    return:
+      type: string
+      desc: Trimmed string

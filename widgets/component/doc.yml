@@ -1,0 +1,24 @@
+group: yao.component
+type: process
+entries:
+  - name: getoptions
+    desc: Get select options by querying a model or query engine with configurable label/value mapping
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: Query parameters map for filtering results
+      - name: props
+        type: object
+        required: true
+        desc: "Component props containing a query object with engine, from, labelField, valueField, wheres, and other query configuration"
+    return:
+      type: array
+      desc: "Array of option objects with label, value, and optional icon and color fields"
+
+  - name: selectoptions
+    desc: "[Deprecated] Use yao.component.getoptions instead. Always throws a 400 error"
+    args: []
+    return:
+      type: void
+      desc: Never returns; always throws a deprecation error

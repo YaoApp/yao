@@ -1,0 +1,80 @@
+group: robot
+type: process
+entries:
+  - name: get
+    desc: Get a robot's details by member ID
+    args:
+      - name: memberID
+        type: string
+        required: true
+        desc: The member ID of the robot to retrieve
+    return:
+      type: object
+      desc: Robot detail object
+
+  - name: list
+    desc: List all robots with optional filtering and pagination
+    args:
+      - name: filter
+        type: object
+        required: false
+        desc: "Filter options: page (number), pagesize (number), status (string), search (string, keywords), team_id (string)"
+    return:
+      type: object
+      desc: Paginated list of robots
+
+  - name: status
+    desc: Get the current status of a robot by member ID
+    args:
+      - name: memberID
+        type: string
+        required: true
+        desc: The member ID of the robot
+    return:
+      type: object
+      desc: Robot status object
+
+  - name: executions
+    desc: List executions for a robot with optional filtering and pagination
+    args:
+      - name: memberID
+        type: string
+        required: true
+        desc: The member ID of the robot
+      - name: filter
+        type: object
+        required: false
+        desc: "Filter options: page (number), pagesize (number), status (string, execution status), trigger (string, trigger type)"
+    return:
+      type: object
+      desc: Paginated list of execution records
+
+  - name: execution
+    desc: Get a specific execution record by member ID and execution ID
+    args:
+      - name: memberID
+        type: string
+        required: true
+        desc: The member ID of the robot (reserved for permission scoping)
+      - name: executionID
+        type: string
+        required: true
+        desc: The execution ID to retrieve
+    return:
+      type: object
+      desc: Execution status and details
+
+  - name: updateChatTitle
+    desc: Update the title of a chat session
+    args:
+      - name: chatID
+        type: string
+        required: true
+        desc: The chat session ID to update
+      - name: title
+        type: string
+        required: true
+        desc: The new title for the chat session
+    return:
+      type: "null"
+      desc: Returns null on success

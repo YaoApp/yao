@@ -1,0 +1,264 @@
+group: user
+type: process
+entries:
+  # Profile
+  - name: profile.get
+    desc: Get the current user's profile information
+    args:
+      - name: options
+        type: object
+        required: false
+        desc: "Optional flags: {team: bool, member: bool, type: bool} to include team, member, or type info"
+    return:
+      type: object
+      desc: User profile data in OIDC format with optional team/member/type info
+
+  - name: profile.update
+    desc: Update the current user's profile information
+    args:
+      - name: data
+        type: object
+        required: true
+        desc: "Profile fields to update (name, given_name, family_name, nickname, picture, gender, locale, theme, metadata, etc.)"
+    return:
+      type: object
+      desc: "Object with user_id and message"
+
+  # Team Management
+  - name: team.list
+    desc: List teams owned by the current user with pagination and filtering
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: "Query parameters: {status, name, page, pagesize}"
+    return:
+      type: object
+      desc: Paginated team list with data array and pagination info
+
+  - name: team.get
+    desc: Get details of a specific team the current user is a member of
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID to retrieve
+    return:
+      type: object
+      desc: Team details including name, description, logo, owner_id, status, settings
+
+  - name: team.create
+    desc: Create a new team with the current user as owner
+    args:
+      - name: data
+        type: object
+        required: true
+        desc: "Team data: {name, description, settings, ...}"
+    return:
+      type: object
+      desc: "Object with team_id of the created team"
+
+  - name: team.update
+    desc: Update an existing team owned by the current user
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID to update
+      - name: data
+        type: object
+        required: true
+        desc: "Fields to update: {name, description, settings, ...}"
+    return:
+      type: object
+      desc: "Object with message"
+
+  - name: team.delete
+    desc: Delete a team owned by the current user (removes all members first)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID to delete
+    return:
+      type: object
+      desc: "Object with message"
+
+  # Team Member Management
+  - name: member.list
+    desc: List members of a team with advanced filtering and pagination
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: params
+        type: object
+        required: true
+        desc: "Query parameters: {page, pagesize, status, member_type, role_id, email, display_name, order, fields, locale}"
+    return:
+      type: object
+      desc: Paginated member list with data array and pagination info
+
+  - name: member.get
+    desc: Get details of a specific team member
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: memberID
+        type: string
+        required: true
+        desc: Member ID (business key)
+    return:
+      type: object
+      desc: Member details including role, status, display_name, robot config, etc.
+
+  - name: member.update
+    desc: Update a team member (owner only, for role/status changes)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: memberID
+        type: string
+        required: true
+        desc: Member ID (business key)
+      - name: data
+        type: object
+        required: true
+        desc: "Fields to update: {role_id, status, settings, last_activity}"
+    return:
+      type: object
+      desc: "Object with message"
+
+  - name: member.profile.get
+    desc: Get a team member's profile (display_name, bio, avatar, email)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: userID
+        type: string
+        required: true
+        desc: "User ID of the member (not member_id)"
+    return:
+      type: object
+      desc: Member profile data with user_id, team_id, display_name, bio, avatar, email
+
+  - name: member.profile.update
+    desc: Update a team member's own profile (display_name, bio, avatar, email)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: userID
+        type: string
+        required: true
+        desc: "User ID of the member (not member_id)"
+      - name: data
+        type: object
+        required: true
+        desc: "Profile fields to update: {display_name, bio, avatar, email}"
+    return:
+      type: object
+      desc: "Object with user_id and message"
+
+  - name: member.delete
+    desc: Remove a member from a team (owner only)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: memberID
+        type: string
+        required: true
+        desc: Member ID (business key)
+    return:
+      type: object
+      desc: "Object with message"
+
+  # Team Invitation Management
+  - name: team.invitation.list
+    desc: List pending invitations for a team with pagination
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: params
+        type: object
+        required: true
+        desc: "Query parameters: {status, page, pagesize}"
+    return:
+      type: object
+      desc: Paginated invitation list with data array and pagination info
+
+  - name: team.invitation.get
+    desc: Get details of a specific team invitation
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: invitationID
+        type: string
+        required: true
+        desc: Invitation ID (business key)
+    return:
+      type: object
+      desc: Invitation details including status, role, invited_by, expiry, etc.
+
+  - name: team.invitation.create
+    desc: Create a new team invitation (owner only)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: data
+        type: object
+        required: true
+        desc: "Invitation data: {user_id, email, member_type, role_id, message, expiry, settings}"
+    return:
+      type: object
+      desc: "Object with invitation_id"
+
+  - name: team.invitation.resend
+    desc: Resend a pending team invitation with a new token and extended expiry
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: invitationID
+        type: string
+        required: true
+        desc: Invitation ID (business key)
+      - name: locale
+        type: string
+        required: false
+        desc: "Locale for email template (default: \"en\")"
+    return:
+      type: object
+      desc: "Object with message"
+
+  - name: team.invitation.delete
+    desc: Cancel a pending team invitation (owner only)
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: invitationID
+        type: string
+        required: true
+        desc: Invitation ID (business key)
+    return:
+      type: object
+      desc: "Object with message"

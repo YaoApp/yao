@@ -1,0 +1,25 @@
+group: llm
+type: process
+entries:
+  - name: ChatCompletions
+    desc: Universal LLM chat completions that auto-detects connector type and routes accordingly
+    args:
+      - name: connector
+        type: string
+        required: true
+        desc: Connector ID (supports any type, e.g. openai, anthropic)
+      - name: messages
+        type: array
+        required: true
+        desc: "Message array in OpenAI format: each element is an object with role, content (string or multimodal array), and optional name, tool_call_id, tool_calls"
+      - name: opts
+        type: object
+        required: false
+        desc: "Completion options: temperature, max_tokens, and other model parameters"
+      - name: callback
+        type: function
+        required: false
+        desc: "Streaming callback function that receives data chunks; signature: func(data []byte) int"
+    return:
+      type: object
+      desc: "OpenAI-compatible response: { id, object, created, model, choices: [{ index, message: { role, content, tool_calls? }, finish_reason }], usage? }"

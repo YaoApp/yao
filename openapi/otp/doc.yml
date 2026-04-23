@@ -1,0 +1,50 @@
+group: otp
+type: process
+entries:
+  - name: create
+    desc: Create a new OTP code with associated payload data for login or verification
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: "OTP creation parameters: team_id, member_id, user_id, expires_in, redirect, scope, token_expires_in, consume"
+    return:
+      type: string
+      desc: The generated OTP code
+
+  - name: verify
+    desc: Verify an OTP code and return its associated payload without consuming it
+    args:
+      - name: code
+        type: string
+        required: true
+        desc: The OTP code to verify
+    return:
+      type: object
+      desc: The payload associated with the OTP code (team_id, member_id, user_id, redirect, scope, etc.)
+
+  - name: login
+    desc: Verify an OTP code and perform login, returning access tokens and redirect URL
+    args:
+      - name: code
+        type: string
+        required: true
+        desc: The OTP code to authenticate with
+      - name: locale
+        type: string
+        required: false
+        desc: Locale for login context (e.g. "en", "zh-CN")
+    return:
+      type: object
+      desc: Login result with access_token, id_token, refresh_token, expires_in, redirect, etc.
+
+  - name: revoke
+    desc: Revoke an OTP code, making it no longer usable
+    args:
+      - name: code
+        type: string
+        required: true
+        desc: The OTP code to revoke
+    return:
+      type: "null"
+      desc: Returns null on success

@@ -1,0 +1,96 @@
+group: pipe
+type: process
+entries:
+  - name: run
+    desc: Run a loaded pipeline by its registered ID
+    args:
+      - name: pipeId
+        type: string
+        required: true
+        desc: Registered pipeline ID
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the pipeline execution"
+    return:
+      type: any
+      desc: Pipeline execution result
+
+  - name: create
+    desc: Create a new pipeline from a DSL string and run it immediately
+    args:
+      - name: dsl
+        type: string
+        required: true
+        desc: Pipeline DSL definition as a YAML/JSON string
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the pipeline execution"
+    return:
+      type: any
+      desc: Pipeline execution result
+
+  - name: createwith
+    desc: Create a new pipeline from DSL with global data and run it immediately
+    args:
+      - name: dsl
+        type: string
+        required: true
+        desc: Pipeline DSL definition as a YAML/JSON string
+      - name: global
+        type: object
+        required: true
+        desc: Global data map merged with process global context
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the pipeline execution"
+    return:
+      type: any
+      desc: Pipeline execution result
+
+  - name: resume
+    desc: Resume a paused pipeline context by its context ID
+    args:
+      - name: contextId
+        type: string
+        required: true
+        desc: Pipeline context ID to resume
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the resumed pipeline"
+    return:
+      type: any
+      desc: Resumed pipeline execution result
+
+  - name: resumewith
+    desc: Resume a paused pipeline context with additional global data
+    args:
+      - name: contextId
+        type: string
+        required: true
+        desc: Pipeline context ID to resume
+      - name: global
+        type: object
+        required: true
+        desc: Global data map merged with process global context
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the resumed pipeline"
+    return:
+      type: any
+      desc: Resumed pipeline execution result
+
+  - name: close
+    desc: Close and clean up a pipeline context
+    args:
+      - name: contextId
+        type: string
+        required: true
+        desc: Pipeline context ID to close
+    return:
+      type: "null"
+      desc: Returns null on success

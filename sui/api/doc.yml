@@ -1,0 +1,772 @@
+group: sui
+type: process
+entries:
+  - name: setting
+    desc: Get the SUI instance settings
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+    return:
+      type: object
+      desc: SUI setting object
+
+  - name: render
+    desc: "[Internal] Render an HTML fragment by route. Do not use in scripts or flows, use template.render instead"
+    args:
+      - name: context
+        type: external
+        required: true
+        desc: Gin request context (*gin.Context)
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: payload
+        type: object
+        required: true
+        desc: "Render payload containing name (render target), data (template data), and option (render options)"
+    return:
+      type: string
+      desc: Rendered HTML string
+
+  - name: run
+    desc: "[Internal] Execute a page backend script method. Do not use in scripts or flows"
+    args:
+      - name: context
+        type: external
+        required: true
+        desc: Gin request context (*gin.Context)
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: payload
+        type: object
+        required: true
+        desc: "Execution payload with method (string, required) and args (array, optional)"
+    return:
+      type: any
+      desc: Script execution result
+
+  - name: template.get
+    desc: List all templates in the SUI instance
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+    return:
+      type: array
+      desc: Array of template objects
+
+  - name: template.find
+    desc: Find a template by ID
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: object
+      desc: Template object
+
+  - name: template.asset
+    desc: Get a template asset file content and MIME type
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: path
+        type: string
+        required: true
+        desc: Asset file path within the template
+      - name: width
+        type: number
+        required: false
+        desc: Optional image width for resizing
+      - name: height
+        type: number
+        required: false
+        desc: Optional image height for resizing
+    return:
+      type: object
+      desc: "Object with content (asset data) and type (MIME type)"
+
+  - name: template.assetupload
+    desc: Upload an asset file to a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: file
+        type: any
+        required: true
+        desc: "File data: *gin.Context (form upload with field 'file') or base64-encoded string"
+      - name: filename
+        type: string
+        required: false
+        desc: "Filename when uploading as base64 string (default: file.png)"
+    return:
+      type: any
+      desc: "Upload result: object with data and header (form upload), or file path string (base64)"
+
+  - name: template.render
+    desc: Compile and render a template page to HTML
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: source
+        type: string
+        required: true
+        desc: Page source path
+      - name: data
+        type: object
+        required: true
+        desc: Template data for rendering
+      - name: option
+        type: object
+        required: false
+        desc: "Render options with theme, locale, and data fields"
+      - name: request
+        type: object
+        required: false
+        desc: Override request object for rendering context
+    return:
+      type: string
+      desc: Rendered HTML string
+
+  - name: locale.get
+    desc: Get available locales for a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of locale select options, or empty array if none
+
+  - name: theme.get
+    desc: Get available themes for a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of theme objects
+
+  - name: block.get
+    desc: List all blocks in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of block objects
+
+  - name: block.find
+    desc: Get the source code of a block by ID
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: blockId
+        type: string
+        required: true
+        desc: Block ID (trailing .js suffix is stripped)
+    return:
+      type: string
+      desc: Block source code
+
+  - name: block.Media
+    desc: Get the media asset of a block
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: blockId
+        type: string
+        required: true
+        desc: Block ID (trailing .js suffix is stripped)
+    return:
+      type: object
+      desc: "Object with content (media data) and type (MIME type)"
+
+  - name: block.export
+    desc: Export block layout items from a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of block layout items
+
+  - name: component.get
+    desc: List all components in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of component objects
+
+  - name: component.find
+    desc: Get the source code of a component by ID
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: componentId
+        type: string
+        required: true
+        desc: Component ID (trailing .js suffix is stripped)
+    return:
+      type: string
+      desc: Component source code
+
+  - name: page.tree
+    desc: Get the page tree under a route
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: false
+        desc: "Route path (defaults to /index if empty)"
+    return:
+      type: object
+      desc: Page tree structure
+
+  - name: page.get
+    desc: List all pages in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+    return:
+      type: array
+      desc: Array of page objects
+
+  - name: page.save
+    desc: Save a page source to the given route
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: source
+        type: any
+        required: true
+        desc: "Page source: RequestSource object, *gin.Context, JSON string, or map"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.savetemp
+    desc: Temporarily save a page source (requires source.uid)
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: source
+        type: any
+        required: true
+        desc: "Page source with uid field required: RequestSource object, *gin.Context, JSON string, or map"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.create
+    desc: Create a new empty page and optionally save initial source
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: source
+        type: any
+        required: false
+        desc: "Optional initial page source to save"
+      - name: payload
+        type: object
+        required: false
+        desc: "Optional payload with route (override) and title fields"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.duplicate
+    desc: Duplicate a page to a new route
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: sourceRoute
+        type: string
+        required: true
+        desc: Source page route to copy from
+      - name: payload
+        type: object
+        required: false
+        desc: "Object with route (required, target path) and title (optional)"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.rename
+    desc: Rename (move) a page to a new route
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: sourceRoute
+        type: string
+        required: true
+        desc: Current page route
+      - name: payload
+        type: object
+        required: true
+        desc: "Object with route field (required, new route path)"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.remove
+    desc: Remove a page from the template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path to remove
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: page.exist
+    desc: Check if a page exists at the given route
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path to check
+    return:
+      type: bool
+      desc: True if the page exists
+
+  - name: page.asset
+    desc: Get the CSS or JS/TS asset content of a page
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: file
+        type: string
+        required: true
+        desc: "Asset file path (.css, .js, or .ts extension)"
+    return:
+      type: object
+      desc: "Object with content (asset data) and type (MIME type)"
+
+  - name: editor.render
+    desc: Render a page for the editor view
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+    return:
+      type: any
+      desc: Editor render result
+
+  - name: editor.source
+    desc: Get page source code by kind for the editor
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: kind
+        type: string
+        required: true
+        desc: "Source kind: page, style, script, or data"
+    return:
+      type: any
+      desc: Source code content for the specified kind
+
+  - name: editor.renderaftersavetemp
+    desc: Temporarily save page source then render for the editor
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: source
+        type: any
+        required: true
+        desc: Page source to save temporarily (requires uid)
+      - name: extra
+        type: any
+        required: false
+        desc: Additional arguments passed to the editor render
+    return:
+      type: any
+      desc: Editor render result
+
+  - name: editor.sourceaftersavetemp
+    desc: Temporarily save page source then get editor source
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: source
+        type: any
+        required: true
+        desc: Page source to save temporarily (requires uid)
+      - name: extra
+        type: any
+        required: false
+        desc: Additional arguments passed to the editor source
+    return:
+      type: any
+      desc: Source code content for the specified kind
+
+  - name: media.search
+    desc: Search media assets in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: driver
+        type: string
+        required: true
+        desc: "Media driver name (e.g., local)"
+      - name: query
+        type: any
+        required: false
+        desc: "Search query parameters: map or url.Values. Supports page, pagesize, and template fields"
+    return:
+      type: any
+      desc: Media search results
+
+  - name: preview.render
+    desc: Render a page for preview
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: referer
+        type: string
+        required: false
+        desc: Optional referer URL
+    return:
+      type: string
+      desc: Preview HTML string
+
+  - name: build.all
+    desc: Build all pages in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: option
+        type: object
+        required: true
+        desc: "Build options with ssr (bool), asset_root (string), and data (object) fields"
+    return:
+      type: any
+      desc: Array of warnings if any, otherwise null
+
+  - name: build.page
+    desc: Build a single page in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: option
+        type: object
+        required: true
+        desc: "Build options with ssr (bool) and asset_root (string) fields"
+      - name: extra
+        type: any
+        required: false
+        desc: Reserved
+      - name: data
+        type: object
+        required: false
+        desc: Additional data for the build
+    return:
+      type: any
+      desc: Array of warnings if any, otherwise null
+
+  - name: trans.all
+    desc: Extract and translate all pages in a template
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: option
+        type: object
+        required: true
+        desc: "Translation options with ssr (bool), asset_root (string), and data (object) fields"
+    return:
+      type: any
+      desc: Array of warnings if any, otherwise null
+
+  - name: trans.page
+    desc: Extract and translate a single page
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: route
+        type: string
+        required: true
+        desc: Page route path
+      - name: option
+        type: object
+        required: true
+        desc: "Translation options with ssr (bool) and asset_root (string) fields"
+      - name: extra
+        type: any
+        required: false
+        desc: Reserved
+      - name: data
+        type: object
+        required: false
+        desc: Additional data for the translation
+    return:
+      type: any
+      desc: Array of warnings if any, otherwise null
+
+  - name: sync.assetfile
+    desc: "[Deprecated] Sync a single asset file in a template"
+    args:
+      - name: instance
+        type: string
+        required: true
+        desc: SUI instance name
+      - name: templateId
+        type: string
+        required: true
+        desc: Template ID
+      - name: filename
+        type: string
+        required: true
+        desc: Asset filename to sync
+      - name: option
+        type: object
+        required: true
+        desc: "Sync options with ssr (bool), asset_root (string), and data (object) fields"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: types.QueryParam
+    desc: "[Deprecated] Convert various input formats to a query parameter structure"
+    args:
+      - name: input
+        type: any
+        required: true
+        desc: "Input data: url.Values, map[string][]string, map[string]interface{}, or any serializable value"
+    return:
+      type: any
+      desc: Converted query parameter structure

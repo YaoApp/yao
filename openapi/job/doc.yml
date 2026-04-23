@@ -1,0 +1,166 @@
+group: job
+type: process
+entries:
+  # Job Management
+  - name: jobs.list
+    desc: List jobs with pagination and optional query parameters
+    args:
+      - name: page
+        type: number
+        required: false
+        desc: "Page number (default: 1)"
+      - name: pagesize
+        type: number
+        required: false
+        desc: "Number of records per page (default: 20)"
+      - name: params
+        type: object
+        required: false
+        desc: Query parameters with wheres, orders, etc.
+    return:
+      type: object
+      desc: Paginated job list with data array and pagination info
+
+  - name: jobs.get
+    desc: Get a specific job by its ID
+    args:
+      - name: jobID
+        type: string
+        required: true
+        desc: Job ID to retrieve
+    return:
+      type: object
+      desc: Job instance details including status, schedule, last_run_at, next_run_at, etc.
+
+  - name: jobs.count
+    desc: Count jobs matching query parameters
+    args:
+      - name: params
+        type: object
+        required: false
+        desc: Query parameters with wheres conditions
+    return:
+      type: object
+      desc: "Object with count"
+
+  - name: jobs.stop
+    desc: Stop a running job
+    args:
+      - name: jobID
+        type: string
+        required: true
+        desc: Job ID to stop
+    return:
+      type: object
+      desc: "Object with message and job_id"
+
+  # Execution Management
+  - name: executions.list
+    desc: List executions for a specific job
+    args:
+      - name: jobID
+        type: string
+        required: true
+        desc: Job ID to list executions for
+    return:
+      type: object
+      desc: "Object with executions array and count"
+
+  - name: executions.get
+    desc: Get a specific execution by its ID
+    args:
+      - name: executionID
+        type: string
+        required: true
+        desc: Execution ID to retrieve
+      - name: params
+        type: object
+        required: false
+        desc: Optional query parameters
+    return:
+      type: object
+      desc: Execution details including status, progress, started_at, ended_at, duration, etc.
+
+  - name: executions.count
+    desc: Count executions for a specific job
+    args:
+      - name: jobID
+        type: string
+        required: true
+        desc: Job ID to count executions for
+      - name: params
+        type: object
+        required: false
+        desc: Optional query parameters with wheres conditions
+    return:
+      type: object
+      desc: "Object with count"
+
+  - name: executions.stop
+    desc: Stop a running execution (stops the parent job)
+    args:
+      - name: executionID
+        type: string
+        required: true
+        desc: Execution ID to stop
+    return:
+      type: object
+      desc: "Object with message, execution_id, and job_id"
+
+  # Log Management
+  - name: logs.list
+    desc: List logs for a specific job with pagination
+    args:
+      - name: jobID
+        type: string
+        required: true
+        desc: Job ID to list logs for
+      - name: page
+        type: number
+        required: false
+        desc: "Page number (default: 1)"
+      - name: pagesize
+        type: number
+        required: false
+        desc: "Number of records per page (default: 50)"
+      - name: params
+        type: object
+        required: false
+        desc: Optional query parameters with wheres conditions (level, execution_id filters)
+    return:
+      type: object
+      desc: Paginated log list with data array and pagination info
+
+  # Category Management
+  - name: categories.list
+    desc: List job categories with optional filtering
+    args:
+      - name: params
+        type: object
+        required: false
+        desc: Query parameters with wheres conditions (enabled, system filters)
+    return:
+      type: object
+      desc: "Object with categories array and count"
+
+  - name: categories.get
+    desc: Get a specific job category by its ID
+    args:
+      - name: categoryID
+        type: string
+        required: true
+        desc: Category ID to retrieve
+    return:
+      type: object
+      desc: Category details including name, description, enabled status, etc.
+
+  - name: categories.count
+    desc: Count job categories matching query parameters
+    args:
+      - name: params
+        type: object
+        required: false
+        desc: Query parameters with wheres conditions
+    return:
+      type: object
+      desc: "Object with count"

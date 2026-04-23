@@ -1,0 +1,13 @@
+group: pipes
+type: process
+entries:
+  - name: "*"
+    desc: "Run a loaded pipeline by ID. Called as pipes.<pipe_id> with the pipe ID as the process name suffix"
+    args:
+      - name: args
+        type: any
+        required: false
+        desc: "Variable arguments passed to the pipeline execution"
+    return:
+      type: any
+      desc: Pipeline execution result

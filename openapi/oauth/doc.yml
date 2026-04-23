@@ -1,0 +1,48 @@
+group: oauth
+type: process
+entries:
+  - name: token.Make
+    desc: Generate an OAuth access token with explicit parameters
+    args:
+      - name: clientID
+        type: string
+        required: true
+        desc: OAuth client ID embedded in the token
+      - name: scope
+        type: string
+        required: true
+        desc: Token scope (space-separated)
+      - name: subject
+        type: string
+        required: true
+        desc: JWT subject claim
+      - name: expiresIn
+        type: number
+        required: true
+        desc: Token lifetime in seconds
+      - name: extraClaims
+        type: object
+        required: false
+        desc: Additional JWT claims (e.g. user_id, team_id)
+    return:
+      type: string
+      desc: The generated access token string
+
+  - name: token.MakeByUser
+    desc: Generate an OAuth access token for a team member by looking up user and team from the database
+    args:
+      - name: teamID
+        type: string
+        required: true
+        desc: Team ID
+      - name: memberID
+        type: string
+        required: true
+        desc: Member ID (business ID)
+      - name: expiresIn
+        type: number
+        required: false
+        desc: "Token lifetime in seconds (default: 86400 = 24h)"
+    return:
+      type: string
+      desc: The generated access token string

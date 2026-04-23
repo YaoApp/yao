@@ -1,0 +1,103 @@
+group: sitemap
+type: process
+desc: "Sitemap parsing, validation, discovery, fetching, and streaming build processes"
+entries:
+  - name: parse
+    desc: Parse a sitemap XML string into a unified ParseResult, auto-detecting urlset or sitemapindex format
+    args:
+      - name: data
+        type: string
+        required: true
+        desc: "Sitemap XML string to parse"
+    return:
+      type: object
+      desc: "ParseResult with type (\"urlset\" or \"sitemapindex\"), urls (array of URL objects), and sitemaps (array of SitemapEntry objects)"
+
+  - name: validate
+    desc: Check whether a string is a valid sitemap XML document
+    args:
+      - name: data
+        type: string
+        required: true
+        desc: "Sitemap XML string to validate"
+    return:
+      type: any
+      desc: "True (bool) if valid; error description string if invalid"
+
+  - name: parserobo
+    desc: Extract sitemap URLs from robots.txt content (pure text parsing, no HTTP)
+    args:
+      - name: text
+        type: string
+        required: true
+        desc: "robots.txt content"
+    return:
+      type: array
+      desc: "Array of sitemap URL strings"
+
+  - name: discover
+    desc: Discover sitemap files for a domain via robots.txt and well-known paths, recursively expanding sitemapindex files
+    args:
+      - name: domain
+        type: string
+        required: true
+        desc: "Domain to discover sitemaps for (e.g. \"example.com\")"
+      - name: options
+        type: object
+        required: false
+        desc: "Options: user_agent (string), timeout (number, seconds)"
+    return:
+      type: object
+      desc: "DiscoverResult with sitemaps (array of SitemapLink objects with url, source, url_count, content_size, encoding, last_modified, etag) and total_urls (number)"
+
+  - name: fetch
+    desc: Fetch and parse URLs from sitemaps for a domain with pagination support
+    args:
+      - name: domain
+        type: string
+        required: true
+        desc: "Domain to fetch sitemaps for (e.g. \"example.com\")"
+      - name: options
+        type: object
+        required: false
+        desc: "Options: offset (number), limit (number, default/max 50000), user_agent (string), timeout (number, seconds)"
+    return:
+      type: object
+      desc: "FetchResult with urls (array of URL objects with loc, lastmod, changefreq, priority, images, videos, news) and total (number)"
+
+  - name: build.open
+    desc: Open a new streaming sitemap writer and return a UUID handle
+    args:
+      - name: options
+        type: object
+        required: true
+        desc: "Build options: dir (string, output directory path, required), base_url (string, URL prefix for index references, required if multiple files)"
+    return:
+      type: string
+      desc: "UUID handle string for use with build.write and build.close"
+
+  - name: build.write
+    desc: Write a batch of URLs to an open sitemap writer, automatically splitting at 50,000 URLs per file
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: "UUID handle from build.open"
+      - name: urls
+        type: array
+        required: true
+        desc: "Array of URL objects with loc (required), lastmod, changefreq, priority, images, videos, and news fields"
+    return:
+      type: "null"
+      desc: "Returns null on success"
+
+  - name: build.close
+    desc: Finalize the sitemap output, generate a sitemapindex if needed, and clean up the handle
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: "UUID handle from build.open"
+    return:
+      type: object
+      desc: "BuildResult with index (string, sitemap_index.xml path or empty), files (array of file paths), and total (number of URLs written)"

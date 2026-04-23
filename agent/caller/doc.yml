@@ -1,0 +1,13 @@
+group: agent
+type: process
+entries:
+  - name: Call
+    desc: Call an agent from contexts without agent.Context, enabling agent-to-agent communication
+    args:
+      - name: request
+        type: object
+        required: true
+        desc: "Request object with fields: assistant_id (string, required), messages (array of message objects, required), model (string, connector override), skip (object, skip config), metadata (object, passed to hooks), locale (string), route (string), chat_id (string, auto-generated if empty), timeout (number, seconds, default 600)"
+    return:
+      type: object
+      desc: "Result object: { agent_id (string), response (object, full agent response), content (string, extracted text), error (string, error message if failed) }"

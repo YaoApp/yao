@@ -1,0 +1,118 @@
+group: kb
+type: process
+entries:
+  # Collection Management
+  - name: collection.create
+    desc: Create a new knowledge base collection with embedding configuration
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: "Collection parameters: {id, metadata: {name, description}, embedding_provider_id, embedding_option_id, locale, config: {distance, index_type, m, ef_construction, ef_search}}"
+    return:
+      type: object
+      desc: "Object with collection_id and message"
+
+  - name: collection.remove
+    desc: Remove a collection and all its documents
+    args:
+      - name: collectionID
+        type: string
+        required: true
+        desc: Collection ID to remove
+    return:
+      type: object
+      desc: "Object with collection_id, removed status, documents_removed count, and message"
+
+  - name: collection.get
+    desc: Retrieve a collection by its ID
+    args:
+      - name: collectionID
+        type: string
+        required: true
+        desc: Collection ID to retrieve
+    return:
+      type: object
+      desc: Collection details including metadata, embedding config, status, etc.
+
+  - name: collection.exists
+    desc: Check if a collection exists
+    args:
+      - name: collectionID
+        type: string
+        required: true
+        desc: Collection ID to check
+    return:
+      type: object
+      desc: "Object with collection_id and exists (bool)"
+
+  - name: collection.list
+    desc: List collections with pagination and filtering
+    args:
+      - name: filter
+        type: object
+        required: false
+        desc: "Filter parameters: {page, pagesize, keywords, status, embedding_provider_id, system, select, sort}"
+    return:
+      type: object
+      desc: Paginated result with data array, page, pagesize, total, pagecnt, next, prev
+
+  - name: collection.updatemetadata
+    desc: Update the metadata of an existing collection
+    args:
+      - name: collectionID
+        type: string
+        required: true
+        desc: Collection ID to update
+      - name: params
+        type: object
+        required: true
+        desc: "Update parameters: {metadata: {name, description}}"
+    return:
+      type: object
+      desc: "Object with collection_id and message"
+
+  # Document Management
+  - name: documents.addfile
+    desc: Add a document to a collection from an uploaded file
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: File upload parameters including collection_id and file data
+    return:
+      type: object
+      desc: Document creation result with document_id
+
+  - name: documents.addtext
+    desc: Add a document to a collection from raw text content
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: Text document parameters including collection_id, content, and metadata
+    return:
+      type: object
+      desc: Document creation result with document_id
+
+  - name: documents.addurl
+    desc: Add a document to a collection by fetching content from a URL
+    args:
+      - name: params
+        type: object
+        required: true
+        desc: URL document parameters including collection_id and URL
+    return:
+      type: object
+      desc: Document creation result with document_id
+
+  - name: documents.getcontents
+    desc: Retrieve content for one or more documents by their IDs
+    args:
+      - name: documentIDs
+        type: any
+        required: true
+        desc: "A single document ID (string) or an array of document IDs"
+    return:
+      type: array
+      desc: Array of objects with document_id, name, content, content_type, etc.

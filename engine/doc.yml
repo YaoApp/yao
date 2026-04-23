@@ -1,0 +1,92 @@
+group: utils.app
+type: process
+desc: "Utility and app bootstrap processes for health checks and system inspection"
+entries:
+  # ── utils.app (current) ──────────────────────────────────────────
+  - name: Ping
+    desc: Return engine name, version, and application root path
+    args: []
+    return:
+      type: object
+      desc: "Object with engine, version, and root fields"
+
+  - name: Inspect
+    desc: Return detailed system information including version, CUI, build name, config, and external tools
+    args: []
+    return:
+      type: object
+      desc: "Object with VERSION, CUI, BUILDNAME, CONFIG, and optionally TOOLS fields"
+
+  # ── xiang.main (deprecated, aliased to utils.app) ───────────────
+  - name: Ping
+    group: xiang.main
+    desc: "[Deprecated: use utils.app.Ping] Return engine name, version, and application root path"
+    args: []
+    return:
+      type: object
+      desc: "Object with engine, version, and root fields"
+
+  - name: Inspect
+    group: xiang.main
+    desc: "[Deprecated: use utils.app.Inspect] Return detailed system information"
+    args: []
+    return:
+      type: object
+      desc: "Object with VERSION, CUI, BUILDNAME, CONFIG, and optionally TOOLS fields"
+
+  - name: Favicon
+    group: xiang.main
+    desc: "[Deprecated] Return the application favicon (currently returns null)"
+    args: []
+    return:
+      type: "null"
+      desc: "Always returns null"
+
+  - name: FileContent
+    group: xiang.main
+    desc: "[Deprecated] Return file content from storage (currently returns null)"
+    args:
+      - name: filename
+        type: string
+        required: false
+        desc: "File path to read (handler is disabled)"
+      - name: encode
+        type: bool
+        required: false
+        desc: "Whether to base64 encode the content (handler is disabled)"
+    return:
+      type: "null"
+      desc: "Always returns null"
+
+  - name: AppFileContent
+    group: xiang.main
+    desc: "[Deprecated] Return application data file content (currently returns null)"
+    args:
+      - name: filename
+        type: string
+        required: false
+        desc: "Application data file path to read (handler is disabled)"
+      - name: encode
+        type: bool
+        required: false
+        desc: "Whether to base64 encode the content (handler is disabled)"
+    return:
+      type: "null"
+      desc: "Always returns null"
+
+  # ── xiang.sys (deprecated aliases) ──────────────────────────────
+  - name: Ping
+    group: xiang.sys
+    desc: "[Deprecated: use utils.app.Ping] Alias of xiang.main.Ping"
+    args: []
+    return:
+      type: object
+      desc: "Object with engine, version, and root fields"
+
+  - name: Inspect
+    group: xiang.sys
+    desc: "[Deprecated: use utils.app.Inspect] Alias of xiang.main.Inspect"
+    args: []
+    return:
+      type: object
+      desc: "Object with VERSION, CUI, BUILDNAME, CONFIG, and optionally TOOLS fields"

@@ -1,0 +1,678 @@
+group: excel
+type: process
+entries:
+  # File operations
+  - name: open
+    desc: Open an Excel file and return a handle for subsequent operations
+    args:
+      - name: file
+        type: string
+        required: true
+        desc: File path relative to the data directory
+      - name: writable
+        type: bool
+        required: false
+        desc: "Whether to open in writable mode (default: false)"
+    return:
+      type: string
+      desc: Handle string for referencing the opened file
+
+  - name: close
+    desc: Close an opened Excel file and release resources
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: save
+    desc: Save the current state of an opened Excel file to disk
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: sheets
+    desc: Get the list of sheet names in an Excel file
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+    return:
+      type: array
+      desc: Array of sheet name strings
+
+  # Sheet operations
+  - name: sheet.create
+    desc: Create a new sheet in an Excel file
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Name for the new sheet
+    return:
+      type: number
+      desc: Index of the created sheet
+
+  - name: sheet.read
+    desc: Read all data from a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: array
+      desc: 2D array of sheet data
+
+  - name: sheet.update
+    desc: Update a sheet with new data (overwrites existing content)
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name
+      - name: data
+        type: array
+        required: true
+        desc: 2D array of data to write
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: sheet.delete
+    desc: Delete a sheet from an Excel file
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name to delete
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: sheet.copy
+    desc: Copy a sheet to a new sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: source
+        type: string
+        required: true
+        desc: Source sheet name
+      - name: target
+        type: string
+        required: true
+        desc: Target sheet name
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: sheet.list
+    desc: List all sheets with their metadata
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+    return:
+      type: array
+      desc: Array of sheet information objects
+
+  - name: sheet.exists
+    desc: Check if a sheet exists in an Excel file
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name to check
+    return:
+      type: bool
+      desc: True if the sheet exists
+
+  - name: sheet.rows
+    desc: Read a range of rows from a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name
+      - name: start
+        type: number
+        required: true
+        desc: Start row index (0-based)
+      - name: size
+        type: number
+        required: true
+        desc: Number of rows to read
+    return:
+      type: array
+      desc: 2D array of row data
+
+  - name: sheet.dimension
+    desc: Get the dimensions (rows and columns count) of a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: name
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: object
+      desc: "Object with rows and cols counts (e.g. {rows: 100, cols: 10})"
+
+  # Read operations
+  - name: read.cell
+    desc: Read the value of a single cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\", \"B2\")"
+    return:
+      type: string
+      desc: Cell value as string
+
+  - name: read.row
+    desc: Read all rows from a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: array
+      desc: 2D array of all row data
+
+  - name: read.column
+    desc: Read all columns from a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: array
+      desc: 2D array of column data
+
+  # Write operations
+  - name: write.cell
+    desc: Write a value to a single cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\")"
+      - name: value
+        type: any
+        required: true
+        desc: Value to write
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: write.row
+    desc: Write values to a row starting from a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Starting cell reference (e.g. \"A1\")"
+      - name: values
+        type: array
+        required: true
+        desc: Array of values to write across the row
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: write.column
+    desc: Write values to a column starting from a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Starting cell reference (e.g. \"A1\")"
+      - name: values
+        type: array
+        required: true
+        desc: Array of values to write down the column
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: write.all
+    desc: Write a 2D array of data starting from a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Starting cell reference (e.g. \"A1\")"
+      - name: values
+        type: array
+        required: true
+        desc: 2D array of values (array of row arrays)
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  # Style & formatting
+  - name: set.style
+    desc: Apply a style to a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\")"
+      - name: styleID
+        type: number
+        required: true
+        desc: Style ID to apply
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.formula
+    desc: Set a formula for a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\")"
+      - name: formula
+        type: string
+        required: true
+        desc: "Excel formula string (e.g. \"=SUM(A1:A10)\")"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.link
+    desc: Set a hyperlink for a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\")"
+      - name: link
+        type: string
+        required: true
+        desc: Hyperlink URL
+      - name: text
+        type: string
+        required: true
+        desc: Link type or display text
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.richtext
+    desc: Set rich text content for a cell
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\")"
+      - name: richText
+        type: array
+        required: true
+        desc: "Array of rich text run objects: [{text: \"...\"}]"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.comment
+    desc: Set a comment on a sheet
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: comment
+        type: object
+        required: true
+        desc: Comment data object
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.rowheight
+    desc: Set the height of a row
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: row
+        type: number
+        required: true
+        desc: Row number (1-based)
+      - name: height
+        type: number
+        required: true
+        desc: Row height in points
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.columnwidth
+    desc: Set the width of columns in a range
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: startCol
+        type: string
+        required: true
+        desc: "Start column letter (e.g. \"A\")"
+      - name: endCol
+        type: string
+        required: true
+        desc: "End column letter (e.g. \"D\")"
+      - name: width
+        type: number
+        required: true
+        desc: Column width
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.mergecell
+    desc: Merge a range of cells
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: start
+        type: string
+        required: true
+        desc: "Top-left cell reference (e.g. \"A1\")"
+      - name: end
+        type: string
+        required: true
+        desc: "Bottom-right cell reference (e.g. \"D4\")"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  - name: set.unmergecell
+    desc: Unmerge a range of cells
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+      - name: start
+        type: string
+        required: true
+        desc: "Top-left cell reference (e.g. \"A1\")"
+      - name: end
+        type: string
+        required: true
+        desc: "Bottom-right cell reference (e.g. \"D4\")"
+    return:
+      type: "null"
+      desc: Returns null on success
+
+  # Iterator operations
+  - name: each.openrow
+    desc: Open a row iterator for streaming row-by-row reading
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: string
+      desc: Iterator ID for use with nextrow/closerow
+
+  - name: each.closerow
+    desc: Close a row iterator and release resources
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Iterator ID from each.openrow
+    return:
+      type: "null"
+      desc: Returns null
+
+  - name: each.nextrow
+    desc: Get the next row from the iterator; returns null when exhausted
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Iterator ID from each.openrow
+    return:
+      type: array
+      desc: Array of cell values for the row, or null if no more rows
+
+  - name: each.opencolumn
+    desc: Open a column iterator for streaming column-by-column reading
+    args:
+      - name: handle
+        type: string
+        required: true
+        desc: File handle from excel.open
+      - name: sheet
+        type: string
+        required: true
+        desc: Sheet name
+    return:
+      type: string
+      desc: Iterator ID for use with nextcolumn/closecolumn
+
+  - name: each.closecolumn
+    desc: Close a column iterator and release resources
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Iterator ID from each.opencolumn
+    return:
+      type: "null"
+      desc: Returns null
+
+  - name: each.nextcolumn
+    desc: Get the next column from the iterator; returns null when exhausted
+    args:
+      - name: id
+        type: string
+        required: true
+        desc: Iterator ID from each.opencolumn
+    return:
+      type: array
+      desc: Array of cell values for the column, or null if no more columns
+
+  # Conversion utilities
+  - name: convert.columnnametonumber
+    desc: "Convert a column letter name to a number (e.g. \"A\" -> 1, \"Z\" -> 26)"
+    args:
+      - name: name
+        type: string
+        required: true
+        desc: "Column letter name (e.g. \"A\", \"AB\")"
+    return:
+      type: number
+      desc: Column number (1-based)
+
+  - name: convert.columnnumbertoname
+    desc: "Convert a column number to a letter name (e.g. 1 -> \"A\", 26 -> \"Z\")"
+    args:
+      - name: number
+        type: number
+        required: true
+        desc: Column number (1-based)
+    return:
+      type: string
+      desc: Column letter name
+
+  - name: convert.cellnametocoordinates
+    desc: "Convert a cell name to column and row coordinates (e.g. \"B3\" -> [2, 3])"
+    args:
+      - name: cell
+        type: string
+        required: true
+        desc: "Cell reference (e.g. \"A1\", \"B3\")"
+    return:
+      type: array
+      desc: "[column, row] coordinates (1-based)"
+
+  - name: convert.coordinatestocellname
+    desc: "Convert column and row coordinates to a cell name (e.g. 2, 3 -> \"B3\")"
+    args:
+      - name: col
+        type: number
+        required: true
+        desc: Column number (1-based)
+      - name: row
+        type: number
+        required: true
+        desc: Row number (1-based)
+    return:
+      type: string
+      desc: "Cell reference string (e.g. \"B3\")"

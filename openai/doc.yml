@@ -1,0 +1,97 @@
+group: openai
+type: process
+entries:
+  - name: tiktoken
+    desc: Count the number of tokens for a given model and input text
+    args:
+      - name: model
+        type: string
+        required: true
+        desc: Model name for tokenization (e.g. "gpt-3.5-turbo", "gpt-4")
+      - name: input
+        type: string
+        required: true
+        desc: Input text to tokenize
+    return:
+      type: number
+      desc: Number of tokens in the input text
+
+  - name: embeddings
+    desc: Create embedding vectors representing the input text
+    args:
+      - name: model
+        type: string
+        required: true
+        desc: AI connector name (e.g. "openai")
+      - name: input
+        type: any
+        required: true
+        desc: Input text or array of texts to embed
+      - name: user
+        type: string
+        required: false
+        desc: Unique identifier for the end-user
+    return:
+      type: object
+      desc: Embedding response with vector data
+
+  - name: chat.completions
+    desc: Create a chat completion response for the given messages
+    args:
+      - name: model
+        type: string
+        required: true
+        desc: AI connector name (e.g. "openai")
+      - name: messages
+        type: array
+        required: true
+        desc: "Array of message objects with role and content fields"
+      - name: options
+        type: object
+        required: false
+        desc: "Additional options: temperature, max_tokens, etc."
+      - name: callback
+        type: function
+        required: false
+        desc: Callback function for streaming responses; receives each chunk and returns an int status
+    return:
+      type: object
+      desc: Chat completion response object
+
+  - name: audio.transcriptions
+    desc: Transcribe audio from base64-encoded data into text
+    args:
+      - name: model
+        type: string
+        required: true
+        desc: AI connector name (e.g. "openai.whisper-1")
+      - name: dataBase64
+        type: string
+        required: true
+        desc: Base64-encoded audio data
+      - name: options
+        type: object
+        required: false
+        desc: "Additional options: language, model override, etc."
+    return:
+      type: object
+      desc: "Transcription result (e.g. {\"text\": \"...\"})"
+
+  - name: audio.transcriptionsfile
+    desc: Transcribe audio from a file path using streaming upload (no base64 overhead)
+    args:
+      - name: connector
+        type: string
+        required: true
+        desc: AI connector name (e.g. "openai.whisper-1")
+      - name: filePath
+        type: string
+        required: true
+        desc: Absolute OS file path to the audio file
+      - name: options
+        type: object
+        required: false
+        desc: "Additional options: language, model override, etc."
+    return:
+      type: object
+      desc: "Transcription result (e.g. {\"text\": \"...\"})"
