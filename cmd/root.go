@@ -187,6 +187,7 @@ func init() {
 	suiCmd.AddCommand(sui.WatchCmd)
 	suiCmd.AddCommand(sui.BuildCmd)
 	suiCmd.AddCommand(sui.TransCmd)
+	suiCmd.AddCommand(sui.TestCmd)
 
 	// Agent
 	agentCmd.AddCommand(agent.TestCmd)

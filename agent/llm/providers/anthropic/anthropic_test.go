@@ -16,7 +16,7 @@ import (
 	"github.com/yaoapp/yao/test"
 )
 
-// testConnectorID uses the cheapest model (Claude Haiku 3.5) to save tokens
+// testConnectorID uses the cheapest model (Claude Haiku 4.5) to save tokens
 const testConnectorID = "claude.haiku-3_0"
 
 // TestAnthropicStreamBasic tests basic streaming completion with Anthropic API
@@ -214,7 +214,7 @@ func TestAnthropicStreamRetry(t *testing.T) {
 	connDSL := `{
 		"type": "anthropic",
 		"options": {
-			"model": "claude-3-5-haiku-20241022",
+			"model": "claude-haiku-4-5-20251001",
 			"key": "sk-ant-invalid-key-should-fail"
 		}
 	}`
