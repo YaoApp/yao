@@ -1,7 +1,6 @@
 name: Release Linux
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - "v*"
@@ -174,16 +173,49 @@ jobs:
           cp "artifacts/yao-${VERSION}-linux-amd64" "release/yao-${VERSION}-linux-amd64-dev"
           cp "artifacts/yao-${VERSION}-linux-arm64" "release/yao-${VERSION}-linux-arm64-dev"
           chmod +x release/yao-*
+
+          for ARCH in amd64 arm64; do
+            sha256sum "release/yao-${VERSION}-linux-${ARCH}" | awk '{print $1}' > "release/yao-linux-${ARCH}-prod.sha256"
+            sha256sum "release/yao-${VERSION}-linux-${ARCH}-dev" | awk '{print $1}' > "release/yao-linux-${ARCH}-dev.sha256"
+          done
           ls -lh release/
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: Yao v${{ steps.version.outputs.version }}
-          files: release/*
-          generate_release_notes: true
-          make_latest: false
+      - name: Wait for Draft Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          for i in $(seq 1 30); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+              echo "Draft release found for $TAG."
+              exit 0
+            fi
+            echo "Waiting for draft release... ($i/30)"
+            sleep 10
+          done
+          echo "::error::Timed out waiting for draft release $TAG"
+          exit 1
+
+      - name: Upload Assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          gh release upload "$TAG" release/* --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish Release if Complete
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          ASSET_COUNT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
+          echo "Current assets: $ASSET_COUNT / 16"
+          if [ "$ASSET_COUNT" -ge 16 ]; then
+            echo "All assets present, publishing release..."
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          else
+            echo "Assets incomplete ($ASSET_COUNT/16), waiting for other workflow to publish."
+          fi
 
       - name: Upload Linux binaries to R2
         env:
