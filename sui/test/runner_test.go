@@ -166,7 +166,7 @@ func TestRunnerWithFailAndSkip(t *testing.T) {
 			assert.Equal(t, "passed", r.Status)
 		case "TestRuntimeError":
 			assert.Equal(t, "error", r.Status)
-			assert.Contains(t, r.Error, "deliberate runtime error")
+			assert.Contains(t, r.Error, "deliberate execution error")
 		}
 	}
 }

@@ -166,12 +166,18 @@ func runExecStep(ctx context.Context, computer infra.Computer, step types.Prepar
 		}
 	}
 
-	rootDir := "/"
-	if isWindowsComputer(computer) {
-		rootDir = `C:\`
+	workDir := computer.GetWorkDir()
+	if workDir == "" {
+		workDir = "/"
+		if isWindowsComputer(computer) {
+			workDir = `C:\`
+		}
 	}
 
-	result, err := computer.Exec(ctx, shellWrap(kind, script), infra.WithWorkDir(rootDir))
+	result, err := computer.Exec(ctx, shellWrap(kind, script),
+		infra.WithWorkDir(workDir),
+		infra.WithEnv(map[string]string{"HOME": workDir}),
+	)
 	if err != nil {
 		return err
 	}
