@@ -104,6 +104,72 @@ func TestOpenCode_Session(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Scenario 4: No vision connector — read.ts should NOT be copied
+// ---------------------------------------------------------------------------
+
+func TestOpenCode_NoVision_ReadToolNotCopied(t *testing.T) {
+	sandboxtestutils.Prepare(t)
+	defer sandboxtestutils.Clean(t)
+	require.NotNil(t, caller.AgentGetterFunc)
+
+	const assistantID = "tests.sandbox-v2.opencode-oneshot-cli"
+	agent, err := caller.AgentGetterFunc(assistantID)
+	require.NoError(t, err)
+
+	chatID := fmt.Sprintf("e2e-novision-%d", time.Now().UnixMilli())
+	ctx := agentcontext.New(
+		context.Background(),
+		&oauthtypes.AuthorizedInfo{TeamID: "test-team-e2e", UserID: "test-user-e2e"},
+		chatID,
+	)
+
+	resp := streamAndWait(t, agent, ctx,
+		`Check if the file $HOME/.config/opencode/tools/read.ts exists. `+
+			`Reply with exactly "READ_EXISTS" if it does, or "READ_MISSING" if it does not. Nothing else.`,
+		defaultTimeout,
+	)
+
+	require.NotNil(t, resp.Completion)
+	content := strings.ToLower(contentString(t, resp))
+	t.Logf("NoVision check: %s", content)
+	assert.Contains(t, content, "read_missing",
+		"without vision connector, read.ts should NOT be copied")
+}
+
+// ---------------------------------------------------------------------------
+// Scenario 5: With vision connector — read.ts SHOULD be copied
+// ---------------------------------------------------------------------------
+
+func TestOpenCode_Vision_ReadToolCopied(t *testing.T) {
+	sandboxtestutils.Prepare(t)
+	defer sandboxtestutils.Clean(t)
+	require.NotNil(t, caller.AgentGetterFunc)
+
+	const assistantID = "tests.sandbox-v2.opencode-vision-cli"
+	agent, err := caller.AgentGetterFunc(assistantID)
+	require.NoError(t, err)
+
+	chatID := fmt.Sprintf("e2e-vision-%d", time.Now().UnixMilli())
+	ctx := agentcontext.New(
+		context.Background(),
+		&oauthtypes.AuthorizedInfo{TeamID: "test-team-e2e", UserID: "test-user-e2e"},
+		chatID,
+	)
+
+	resp := streamAndWait(t, agent, ctx,
+		`Check if the file $HOME/.config/opencode/tools/read.ts exists. `+
+			`Reply with exactly "READ_EXISTS" if it does, or "READ_MISSING" if it does not. Nothing else.`,
+		defaultTimeout,
+	)
+
+	require.NotNil(t, resp.Completion)
+	content := strings.ToLower(contentString(t, resp))
+	t.Logf("Vision check: %s", content)
+	assert.Contains(t, content, "read_exists",
+		"with vision connector, read.ts SHOULD be copied")
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 

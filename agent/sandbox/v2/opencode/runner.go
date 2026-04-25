@@ -75,15 +75,20 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 		}
 	}
 
-	// 4. Copy custom tools into OpenCode global config dir ($HOME/.config/opencode/tools/).
-	// Bun resolves symlinks and breaks module resolution (opencode#11001), so use cp.
-	// HOME is set to workDir (/workspace) at runtime, so this lands in persistent storage.
-	steps = append(steps, types.PrepareStep{
-		Action:      "exec",
-		Cmd:         "mkdir -p $HOME/.config/opencode/tools && for f in /opt/opencode-tools/*.ts; do [ -f \"$f\" ] && cp -f \"$f\" $HOME/.config/opencode/tools/; done",
-		Once:        true,
-		IgnoreError: true,
-	})
+	// 4. Copy custom tools (e.g. read.ts for vision) into OpenCode global
+	// config dir ($HOME/.config/opencode/tools/).  Only needed when a
+	// vision connector is configured — the custom read tool overrides the
+	// built-in read to route image files through the vision API.
+	if req.Config != nil && req.Config.Runner.Connectors != nil {
+		if vc, ok := req.Config.Runner.Connectors["vision"]; ok && vc != nil && vc.Connector != "" {
+			steps = append(steps, types.PrepareStep{
+				Action:      "exec",
+				Cmd:         "mkdir -p $HOME/.config/opencode/tools && for f in /opt/opencode-tools/*.ts; do [ -f \"$f\" ] && cp -f \"$f\" $HOME/.config/opencode/tools/; done",
+				Once:        true,
+				IgnoreError: true,
+			})
+		}
+	}
 
 	// 5. Generate opencode.json (project config at workspace root)
 	configJSON := buildOpenCodeConfig(req, r.mcpServers)
