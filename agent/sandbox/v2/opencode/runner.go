@@ -81,9 +81,10 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 	// built-in read to route image files through the vision API.
 	if req.Config != nil && req.Config.Runner.Connectors != nil {
 		if vc, ok := req.Config.Runner.Connectors["vision"]; ok && vc != nil && vc.Connector != "" {
+			p := resolvePlatform(req.Computer)
 			steps = append(steps, types.PrepareStep{
 				Action:      "exec",
-				Cmd:         "mkdir -p $HOME/.config/opencode/tools && for f in /opt/opencode-tools/*.ts; do [ -f \"$f\" ] && cp -f \"$f\" $HOME/.config/opencode/tools/; done",
+				Cmd:         visionCopyCmd(p),
 				Once:        true,
 				IgnoreError: true,
 			})
@@ -230,4 +231,16 @@ func (r *Runner) Cleanup(ctx context.Context, computer infra.Computer) error {
 	}
 
 	return nil
+}
+
+// visionCopyCmd returns the shell command to copy custom OpenCode tools
+// (e.g. read.ts for vision) from the container image path into the user's
+// config directory. Platform-aware: bash for POSIX, PowerShell for Windows.
+func visionCopyCmd(p platform) string {
+	if p.OS() == "windows" {
+		return `$d = Join-Path $env:USERPROFILE '.config\opencode\tools'; ` +
+			`if (!(Test-Path $d)) { New-Item -ItemType Directory -Path $d -Force | Out-Null }; ` +
+			`Copy-Item 'C:\opt\opencode-tools\*.ts' $d -Force -ErrorAction SilentlyContinue`
+	}
+	return `mkdir -p $HOME/.config/opencode/tools && for f in /opt/opencode-tools/*.ts; do [ -f "$f" ] && cp -f "$f" $HOME/.config/opencode/tools/; done`
 }

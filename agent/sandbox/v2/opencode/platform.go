@@ -51,6 +51,10 @@ func resolvePlatform(computer infra.Computer) platform {
 	workDir := computer.GetWorkDir()
 	shell := sys.Shell
 
+	if osName == "windows" {
+		return newWindowsPlatform(workDir, shell)
+	}
+
 	base := posixBase{os: osName, workDir: workDir, shell: shell}
 	if base.shell == "" {
 		base.shell = "bash"

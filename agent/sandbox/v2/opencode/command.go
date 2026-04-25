@@ -66,7 +66,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, attachmentPa
 
 	stdinMsg := buildStdinMessage(req.Messages, attachmentPaths)
 
-	script := shellQuote("opencode", args...)
+	script := shellQuoteForPlatform(p, "opencode", args...)
 
 	return command{
 		shell:   p.ShellCmd(script),
@@ -255,12 +255,18 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 		shell = "bash"
 	}
 
+	envVarSyntax := "$VAR_NAME"
+	if osName == "windows" {
+		envVarSyntax = "$env:VAR_NAME"
+	}
+
 	return fmt.Sprintf(`## Sandbox Environment
 
 - **Operating System**: %[2]s
 - **Shell**: %[3]s
 - **Working Directory**: %[1]s
 - **File Access**: You have full read/write access to %[1]s
+- **Environment variable syntax**: `+"`%[4]s`"+`
 
 ## User Attachments
 
@@ -268,7 +274,7 @@ User-uploaded files are placed in %[1]s/.attachments/{chatID}/
 Each chat session has its own subdirectory.
 When the user attaches files, their paths are listed at the top of the message.
 **Read these files yourself** using the Read or Bash tool — they are NOT passed as CLI arguments.
-`, workDir, osName, shell)
+`, workDir, osName, shell, envVarSyntax)
 }
 
 func getProviderPrefix(conn connector.Connector) string {
@@ -302,13 +308,38 @@ func getRoleConnectors(req *types.StreamRequest) map[string]*types.RoleConnector
 	return req.Config.Runner.Connectors
 }
 
-// shellQuote builds a shell-safe command string from program and args.
+// shellQuoteForPlatform builds a shell-safe command string. On Windows
+// (PowerShell) it uses single quotes with ” escaping; on POSIX it uses
+// single quotes with '\” escaping.
+func shellQuoteForPlatform(p platform, program string, args ...string) string {
+	if p.OS() == "windows" {
+		return shellQuotePowerShell(program, args...)
+	}
+	return shellQuote(program, args...)
+}
+
+// shellQuote builds a POSIX shell-safe command string from program and args.
 func shellQuote(program string, args ...string) string {
 	parts := make([]string, 0, 1+len(args))
 	parts = append(parts, program)
 	for _, a := range args {
 		if a == "" || strings.ContainsAny(a, " \t\n\"'\\$`!#&|;(){}[]<>?*~") {
 			parts = append(parts, "'"+strings.ReplaceAll(a, "'", `'\''`)+"'")
+		} else {
+			parts = append(parts, a)
+		}
+	}
+	return strings.Join(parts, " ")
+}
+
+// shellQuotePowerShell builds a PowerShell-safe command string. In PowerShell,
+// single-quoted strings escape embedded single quotes by doubling them (”).
+func shellQuotePowerShell(program string, args ...string) string {
+	parts := make([]string, 0, 1+len(args))
+	parts = append(parts, program)
+	for _, a := range args {
+		if a == "" || strings.ContainsAny(a, " \t\n\"'\\$`!#&|;(){}[]<>?*~") {
+			parts = append(parts, "'"+strings.ReplaceAll(a, "'", "''")+"'")
 		} else {
 			parts = append(parts, a)
 		}
