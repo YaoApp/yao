@@ -55,23 +55,11 @@ type TurnResponse struct {
 	// Content is the text content from LLM completion
 	Content interface{} `json:"content,omitempty"`
 
-	// ToolCalls contains the tool calls made by the agent
-	ToolCalls []ToolCallInfo `json:"tool_calls,omitempty"`
+	// ToolCalls contains the tool calls made by the agent (uses TraceToolCall for full details)
+	ToolCalls []TraceToolCall `json:"tool_calls,omitempty"`
 
 	// Next is the data returned from Next hook
 	Next interface{} `json:"next,omitempty"`
-}
-
-// ToolCallInfo contains information about a tool call
-type ToolCallInfo struct {
-	// Tool is the tool name
-	Tool string `json:"tool"`
-
-	// Arguments are the tool call arguments
-	Arguments interface{} `json:"arguments,omitempty"`
-
-	// Result is the tool execution result
-	Result interface{} `json:"result,omitempty"`
 }
 
 // CheckpointResult represents the result of a checkpoint validation

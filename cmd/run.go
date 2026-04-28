@@ -28,8 +28,48 @@ var runAuthPath string
 var runCmd = &cobra.Command{
 	Use:   "run",
 	Short: L("Execute process"),
-	Long:  L("Execute process"),
+	Long: L(`Execute a Yao process by name with optional arguments.
+
+IMPORTANT: Run this command from the Yao application root directory (where app.yao is located),
+  or use the -a flag to specify the application path.
+
+Usage:
+  yao run [flags] <process> [args...]
+
+Arguments:
+  Arguments are passed positionally to the process. Each argument is parsed as follows:
+    - Plain string:    passed as-is (e.g.  hello  →  "hello")
+    - Numeric string:  auto-converted to number (e.g.  42  →  42)
+    - ::{ ... } prefix: parsed as JSON object (e.g.  '::{\"name\":\"test\"}'  →  map)
+    - ::[ ... ] prefix: parsed as JSON array  (e.g.  '::[1,2,3]'  →  []int)
+
+  The :: prefix is REQUIRED when passing structured data (objects, arrays, query params).
+  Without ::, the argument is treated as a plain string, not parsed as JSON.
+
+  Examples:
+    yao run models.user.Find 1 '::{"select":["id","name"]}'
+    yao run models.user.Create '::{"name":"test","age":20}'
+    yao run scripts.demo.Hello world 42
+
+AI Integration:
+  When called by AI agents or automated scripts, use --silent (-s) to suppress
+  [robot:*] and other noisy console output that interferes with result parsing.
+  Only the process return value is printed to stdout in silent mode.
+
+  Example (AI recommended):
+    yao run -s models.user.Find 1 '::{"select":["id","name"]}'
+    yao run -s models.user.Create '::{"name":"test","status":"active"}'`),
 	Run: func(cmd *cobra.Command, args []string) {
+
+		// Propagate silent flag to global config so libraries
+		// (e.g. agent/robot/logger) can suppress stdout output.
+		config.Silent = runSilent
+
+		if len(args) < 1 {
+			color.Red(L("Error: process name is required") + "\n\n")
+			cmd.Help()
+			os.Exit(1)
+		}
 
 		// Resolve credential: --auth flag > ~/.yao/credentials > nil (local mode)
 		cred := resolveCredential()
@@ -44,7 +84,7 @@ var runCmd = &cobra.Command{
 }
 
 func init() {
-	runCmd.PersistentFlags().BoolVarP(&runSilent, "silent", "s", false, L("Silent mode"))
+	runCmd.PersistentFlags().BoolVarP(&runSilent, "silent", "s", false, L("Silent mode: suppress [robot:*] and other noisy console output (recommended for AI/scripts)"))
 	runCmd.PersistentFlags().StringVar(&runAuthPath, "auth", "", L("Path to credentials file"))
 }
 
@@ -65,16 +105,6 @@ func resolveCredential() *Credential {
 
 // runGRPC executes a process via the remote gRPC server.
 func runGRPC(cred *Credential, args []string) {
-	if len(args) < 1 {
-		if !runSilent {
-			color.Red(L("Not enough arguments\n"))
-			color.White(share.BUILDNAME + " help\n")
-		} else {
-			fmt.Print(L("Not enough arguments\n"))
-		}
-		os.Exit(1)
-	}
-
 	if cred.GRPCAddr == "" {
 		color.Red("  %s\n", L("No gRPC address in credentials. Please re-login."))
 		os.Exit(1)
@@ -161,15 +191,6 @@ func runLocal(args []string) {
 
 	cfg := config.Conf
 	cfg.Session.IsCLI = true
-	if len(args) < 1 {
-		if !runSilent {
-			color.Red(L("Not enough arguments\n"))
-			color.White(share.BUILDNAME + " help\n")
-			return
-		}
-		fmt.Print(L("Not enough arguments\n"))
-		return
-	}
 
 	loadWarnings, err := engine.Load(cfg, engine.LoadOption{Action: "run"})
 	if err != nil {

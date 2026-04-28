@@ -43,6 +43,9 @@ type ScriptTestResult struct {
 	// Error contains the error message if the test failed
 	Error string `json:"error,omitempty"`
 
+	// StackTrace contains the source-mapped stack trace for runtime errors
+	StackTrace string `json:"stack_trace,omitempty"`
+
 	// Assertion contains assertion failure details
 	Assertion *ScriptAssertionInfo `json:"assertion,omitempty"`
 

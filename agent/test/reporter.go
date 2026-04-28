@@ -57,6 +57,9 @@ func (r *JSONLReporter) Write(report *Report, w io.Writer) error {
 			if result.Error != "" {
 				resultEvent["error"] = result.Error
 			}
+			if result.Trace != nil {
+				resultEvent["trace"] = result.Trace
+			}
 			if err := writeJSONLineToWriter(writer, resultEvent); err != nil {
 				return err
 			}
@@ -220,6 +223,11 @@ func (r *MarkdownReporter) Write(report *Report, w io.Writer) error {
 			if result.Error != "" {
 				sb.WriteString(fmt.Sprintf("**Error:** %s\n\n", result.Error))
 			}
+
+			// Expand Trace for non-passed cases
+			if result.Status != StatusPassed && result.Trace != nil {
+				writeMarkdownTrace(&sb, result.Trace)
+			}
 		}
 	}
 
@@ -252,6 +260,43 @@ func (r *MarkdownReporter) Write(report *Report, w io.Writer) error {
 	return err
 }
 
+// writeMarkdownTrace writes a Trace section in Markdown format.
+func writeMarkdownTrace(sb *strings.Builder, trace *Trace) {
+	if trace.Completion != nil {
+		sb.WriteString("**Completion**\n\n")
+		if trace.Completion.Model != "" {
+			sb.WriteString(fmt.Sprintf("- Model: `%s`\n", trace.Completion.Model))
+		}
+		if trace.Completion.Refusal != "" {
+			sb.WriteString(fmt.Sprintf("- Refusal: %s\n", trace.Completion.Refusal))
+		}
+		if trace.Completion.ReasoningContent != "" {
+			sb.WriteString(fmt.Sprintf("- Reasoning: %s\n", truncateString(trace.Completion.ReasoningContent, 200)))
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(trace.ToolCalls) > 0 {
+		sb.WriteString("**Tool Calls**\n\n")
+		sb.WriteString("| Server | Tool | Status | Arguments |\n")
+		sb.WriteString("| ------ | ---- | ------ | --------- |\n")
+		for _, tc := range trace.ToolCalls {
+			status := "OK"
+			if tc.Error != "" {
+				status = "ERR: " + truncateString(tc.Error, 40)
+			}
+			argsStr := ""
+			if tc.Arguments != nil {
+				if b, err := jsoniter.Marshal(tc.Arguments); err == nil {
+					argsStr = truncateString(string(b), 60)
+				}
+			}
+			sb.WriteString(fmt.Sprintf("| %s | %s | %s | `%s` |\n", tc.Server, tc.Tool, status, argsStr))
+		}
+		sb.WriteString("\n")
+	}
+}
+
 // HTMLReporter generates HTML format reports
 type HTMLReporter struct{}
 
@@ -267,7 +312,19 @@ func (r *HTMLReporter) Generate(report *Report) error {
 
 // Write writes the report in HTML format
 func (r *HTMLReporter) Write(report *Report, w io.Writer) error {
-	tmpl, err := template.New("report").Parse(htmlTemplate)
+	funcMap := template.FuncMap{
+		"traceJSON": func(trace *Trace) string {
+			if trace == nil {
+				return ""
+			}
+			b, err := jsoniter.MarshalIndent(trace, "", "  ")
+			if err != nil {
+				return err.Error()
+			}
+			return string(b)
+		},
+	}
+	tmpl, err := template.New("report").Funcs(funcMap).Parse(htmlTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse HTML template: %w", err)
 	}
@@ -489,6 +546,7 @@ const htmlTemplate = `<!DOCTYPE html>
                     <td>{{.DurationMs}}ms</td>
                     <td>
                         {{if .Error}}<div class="error-msg">{{.Error}}</div>{{end}}
+                        {{if and (ne (printf "%s" .Status) "passed") .Trace}}<details><summary>Trace</summary><pre style="white-space:pre-wrap;font-size:0.8rem;margin-top:0.5rem;color:var(--text-secondary);">{{traceJSON .Trace}}</pre></details>{{end}}
                     </td>
                 </tr>
                 {{end}}

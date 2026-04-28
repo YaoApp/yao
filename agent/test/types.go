@@ -160,6 +160,9 @@ type Options struct {
 	// Simulator is the default simulator agent ID for dynamic mode
 	// Can be overridden per test case in JSONL
 	Simulator string `json:"simulator,omitempty"`
+
+	// JSONOutput outputs results in JSON format for AI/script consumption
+	JSONOutput bool `json:"json_output,omitempty"`
 }
 
 // ContextConfig represents custom context configuration from JSON file
@@ -642,11 +645,45 @@ type Result struct {
 	// Error contains the error message if status is failed/error/timeout
 	Error string `json:"error,omitempty"`
 
+	// Trace contains full execution details for AI-driven failure diagnosis.
+	// Includes LLM completion info, all tool/MCP calls with arguments and results, and Next hook data.
+	Trace *Trace `json:"trace,omitempty"`
+
 	// Options contains the context options used for this test case
 	Options *CaseOptions `json:"options,omitempty"`
 
 	// Metadata contains additional result metadata
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+}
+
+// Trace contains full execution details for AI-driven failure diagnosis.
+// It captures the complete chain: LLM completion -> tool/MCP calls -> Next hook,
+// enabling AI to understand exactly what happened during test execution.
+type Trace struct {
+	Completion *CompletionTrace `json:"completion,omitempty"`
+	ToolCalls  []TraceToolCall  `json:"tool_calls,omitempty"`
+	Next       interface{}      `json:"next,omitempty"`
+}
+
+// CompletionTrace captures LLM completion details.
+type CompletionTrace struct {
+	Model            string      `json:"model,omitempty"`
+	Role             string      `json:"role,omitempty"`
+	Content          interface{} `json:"content,omitempty"`
+	ReasoningContent string      `json:"reasoning_content,omitempty"`
+	Refusal          string      `json:"refusal,omitempty"`
+}
+
+// TraceToolCall contains the complete lifecycle of a single tool/MCP call:
+// request (ID, arguments) matched with response (server, result, error).
+// MCP tool calls may execute in parallel; the ID field links request to response.
+type TraceToolCall struct {
+	ID        string      `json:"id,omitempty"`
+	Server    string      `json:"server,omitempty"`
+	Tool      string      `json:"tool"`
+	Arguments interface{} `json:"arguments,omitempty"`
+	Result    interface{} `json:"result,omitempty"`
+	Error     string      `json:"error,omitempty"`
 }
 
 // RunDetail represents the result of a single run in stability testing

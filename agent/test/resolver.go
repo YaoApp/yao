@@ -323,6 +323,21 @@ func MergeOptions(opts *Options, defaults *Options) *Options {
 	if opts.FailFast {
 		result.FailFast = opts.FailFast
 	}
+	if opts.BeforeAll != "" {
+		result.BeforeAll = opts.BeforeAll
+	}
+	if opts.AfterAll != "" {
+		result.AfterAll = opts.AfterAll
+	}
+	if opts.DryRun {
+		result.DryRun = opts.DryRun
+	}
+	if opts.Simulator != "" {
+		result.Simulator = opts.Simulator
+	}
+	if opts.JSONOutput {
+		result.JSONOutput = opts.JSONOutput
+	}
 
 	return &result
 }

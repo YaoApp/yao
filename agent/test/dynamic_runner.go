@@ -572,7 +572,8 @@ func (r *DynamicRunner) allRequiredCheckpointsReached(result *DynamicResult) boo
 	return true
 }
 
-// buildTurnResponse builds a TurnResponse from the agent response
+// buildTurnResponse builds a TurnResponse from the agent response.
+// Reuses the same merge logic as buildTrace to correctly associate parallel MCP calls.
 func buildTurnResponse(response *context.Response) *TurnResponse {
 	if response == nil {
 		return nil
@@ -580,44 +581,16 @@ func buildTurnResponse(response *context.Response) *TurnResponse {
 
 	tr := &TurnResponse{}
 
-	// Extract completion content
 	if response.Completion != nil {
 		tr.Content = response.Completion.Content
-
-		// Extract tool calls from completion
-		if len(response.Completion.ToolCalls) > 0 {
-			for _, tc := range response.Completion.ToolCalls {
-				tr.ToolCalls = append(tr.ToolCalls, ToolCallInfo{
-					Tool:      tc.Function.Name,
-					Arguments: tc.Function.Arguments,
-				})
-			}
-		}
 	}
 
-	// Add tool results
-	if len(response.Tools) > 0 {
-		// If we already have tool calls from completion, match results
-		if len(tr.ToolCalls) > 0 {
-			for i, toolResult := range response.Tools {
-				if i < len(tr.ToolCalls) {
-					tr.ToolCalls[i].Result = toolResult.Result
-				}
-			}
-		} else {
-			// Create tool call entries from results
-			for _, toolResult := range response.Tools {
-				tr.ToolCalls = append(tr.ToolCalls, ToolCallInfo{
-					Tool:      toolResult.Tool,
-					Arguments: toolResult.Arguments,
-					Result:    toolResult.Result,
-				})
-			}
-		}
-	}
-
-	// Extract Next hook data
-	if response.Next != nil && !isEmptyValue(response.Next) {
+	// Build tool call list with full details via the shared buildTrace helper
+	trace := buildTrace(response)
+	if trace != nil {
+		tr.ToolCalls = trace.ToolCalls
+		tr.Next = trace.Next
+	} else if response.Next != nil && !isEmptyValue(response.Next) {
 		tr.Next = response.Next
 	}
 
