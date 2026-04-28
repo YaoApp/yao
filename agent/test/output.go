@@ -257,6 +257,69 @@ func (w *OutputWriter) DirectOutput(output interface{}) {
 	}
 }
 
+// DirectOutputJSON outputs a complete JSON object with output, trace and duration.
+// Designed for AI/script consumption via --json flag.
+func (w *OutputWriter) DirectOutputJSON(output interface{}, trace *Trace, duration time.Duration) {
+	payload := map[string]interface{}{
+		"output":      output,
+		"duration_ms": duration.Milliseconds(),
+	}
+	if trace != nil {
+		payload["trace"] = trace
+	}
+	jsonBytes, err := jsoniter.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		fmt.Printf("%v\n", output)
+		return
+	}
+	fmt.Println(string(jsonBytes))
+}
+
+// DirectTrace prints a human-readable summary of tool calls from a Trace.
+// Only prints when there are tool calls; skipped when trace is nil or empty.
+func (w *OutputWriter) DirectTrace(trace *Trace) {
+	if trace == nil || len(trace.ToolCalls) == 0 {
+		return
+	}
+
+	fmt.Println()
+	color.New(color.FgHiBlack).Println("--- Tool Calls ---")
+	for _, tc := range trace.ToolCalls {
+		prefix := tc.Tool
+		if tc.Server != "" {
+			prefix = tc.Server + "/" + tc.Tool
+		}
+
+		status := "OK"
+		if tc.Error != "" {
+			status = "ERR: " + truncateString(tc.Error, 60)
+		}
+
+		argsStr := ""
+		if tc.Arguments != nil {
+			if b, err := jsoniter.Marshal(tc.Arguments); err == nil {
+				argsStr = truncateString(string(b), 80)
+			}
+		}
+
+		if argsStr != "" {
+			color.New(color.FgHiBlack).Printf("  %s → %s (args: %s)\n", prefix, status, argsStr)
+		} else {
+			color.New(color.FgHiBlack).Printf("  %s → %s\n", prefix, status)
+		}
+	}
+}
+
+// ScriptOutputJSON outputs the complete script test report as JSON.
+func (w *OutputWriter) ScriptOutputJSON(report *ScriptTestReport) {
+	jsonBytes, err := jsoniter.MarshalIndent(report, "", "  ")
+	if err != nil {
+		fmt.Printf("{\"error\": %q}\n", err.Error())
+		return
+	}
+	fmt.Println(string(jsonBytes))
+}
+
 // ScriptTestSummary prints the script test summary
 func (w *OutputWriter) ScriptTestSummary(summary *ScriptTestSummary, duration time.Duration) {
 	w.SubHeader("Summary")

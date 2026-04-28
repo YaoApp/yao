@@ -63,6 +63,10 @@ func (r *Executor) RunScriptTests() (*Report, error) {
 	// Convert to standard report for unified output handling
 	report := scriptReport.ToReport()
 
+	if r.opts.JSONOutput {
+		r.output.ScriptOutputJSON(scriptReport)
+	}
+
 	// Write output if specified
 	if r.opts.OutputFile != "" {
 		err = r.writeOutput(report)
@@ -73,8 +77,9 @@ func (r *Executor) RunScriptTests() (*Report, error) {
 		}
 	}
 
-	// Print final result
-	r.output.FinalResult(!report.HasFailures())
+	if !r.opts.JSONOutput {
+		r.output.FinalResult(!report.HasFailures())
+	}
 
 	return report, nil
 }
@@ -119,6 +124,7 @@ func (r *Executor) RunDirect() (*Report, error) {
 	}
 
 	// Run the agent
+	start := time.Now()
 	response, err := ast.Stream(ctx, messages, opts)
 
 	// Check for timeout
@@ -131,9 +137,17 @@ func (r *Executor) RunDirect() (*Report, error) {
 		return nil, err
 	}
 
-	// Extract and print output directly
+	// Extract output and build trace
 	output := extractOutput(response)
-	r.output.DirectOutput(output)
+	trace := buildTrace(response)
+	duration := time.Since(start)
+
+	if r.opts.JSONOutput {
+		r.output.DirectOutputJSON(output, trace, duration)
+	} else {
+		r.output.DirectOutput(output)
+		r.output.DirectTrace(trace)
+	}
 
 	// Determine connector: user-specified > agent default
 	connector := r.opts.Connector
@@ -499,8 +513,9 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		return result
 	}
 
-	// Extract output
+	// Extract output and build trace for diagnostics
 	result.Output = extractOutput(response)
+	result.Trace = buildTrace(response)
 
 	// Validate result using asserter (with response for tool_called assertions)
 	asserter := NewAsserter().WithResponse(response)
@@ -855,6 +870,99 @@ func isEmptyValue(v interface{}) bool {
 	}
 
 	return false
+}
+
+// buildTrace builds a Trace from the full agent response.
+// It merges Completion.ToolCalls (request-side: ID, name, arguments) with
+// response.Tools (result-side: server, result, error) by matching ToolCallID,
+// so parallel MCP calls are correctly associated.
+func buildTrace(response *context.Response) *Trace {
+	if response == nil {
+		return nil
+	}
+
+	trace := &Trace{}
+
+	if response.Completion != nil {
+		trace.Completion = &CompletionTrace{
+			Model:            response.Completion.Model,
+			Role:             response.Completion.Role,
+			Content:          response.Completion.Content,
+			ReasoningContent: response.Completion.ReasoningContent,
+			Refusal:          response.Completion.Refusal,
+		}
+	}
+
+	// Build tool call index from results keyed by ToolCallID
+	resultByID := make(map[string]*context.ToolCallResponse, len(response.Tools))
+	for i := range response.Tools {
+		if response.Tools[i].ToolCallID != "" {
+			resultByID[response.Tools[i].ToolCallID] = &response.Tools[i]
+		}
+	}
+
+	// Merge request-side (Completion.ToolCalls) with result-side (response.Tools)
+	if response.Completion != nil && len(response.Completion.ToolCalls) > 0 {
+		for i, tc := range response.Completion.ToolCalls {
+			var args interface{}
+			if tc.Function.Arguments != "" {
+				if err := jsoniter.UnmarshalFromString(tc.Function.Arguments, &args); err != nil {
+					args = tc.Function.Arguments
+				}
+			}
+			entry := TraceToolCall{
+				ID:        tc.ID,
+				Tool:      tc.Function.Name,
+				Arguments: args,
+			}
+			if r, ok := resultByID[tc.ID]; ok {
+				entry.Server = r.Server
+				entry.Result = r.Result
+				entry.Error = r.Error
+			} else if i < len(response.Tools) {
+				entry.Server = response.Tools[i].Server
+				entry.Result = response.Tools[i].Result
+				entry.Error = response.Tools[i].Error
+			}
+			entry.Tool = stripServerPrefix(entry.Tool, entry.Server)
+			trace.ToolCalls = append(trace.ToolCalls, entry)
+		}
+	} else if len(response.Tools) > 0 {
+		for _, t := range response.Tools {
+			trace.ToolCalls = append(trace.ToolCalls, TraceToolCall{
+				ID:        t.ToolCallID,
+				Server:    t.Server,
+				Tool:      stripServerPrefix(t.Tool, t.Server),
+				Arguments: t.Arguments,
+				Result:    t.Result,
+				Error:     t.Error,
+			})
+		}
+	}
+
+	if response.Next != nil && !isEmptyValue(response.Next) {
+		trace.Next = response.Next
+	}
+
+	if trace.Completion == nil && len(trace.ToolCalls) == 0 && trace.Next == nil {
+		return nil
+	}
+
+	return trace
+}
+
+// stripServerPrefix removes the "{server}__" prefix from an encoded tool name.
+// MCP tools are internally encoded as "server__tool" (e.g. "echo__ping"),
+// but for trace output we display the original tool name since server is a separate field.
+func stripServerPrefix(tool, server string) string {
+	if server == "" {
+		return tool
+	}
+	prefix := server + "__"
+	if strings.HasPrefix(tool, prefix) {
+		return tool[len(prefix):]
+	}
+	return tool
 }
 
 // validateOutput validates the actual output against expected

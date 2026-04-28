@@ -47,7 +47,7 @@ func (l *Logger) prefix() string {
 
 func (l *Logger) Trace(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Printf("%s  → %s %s%s\n", gray, l.prefix(), msg, reset)
 	}
 	kunlog.Trace("%s %s", l.prefix(), msg)
@@ -55,7 +55,7 @@ func (l *Logger) Trace(format string, args ...interface{}) {
 
 func (l *Logger) Debug(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Printf("%s  • %s %s%s\n", gray, l.prefix(), msg, reset)
 	}
 	kunlog.Debug("%s %s", l.prefix(), msg)
@@ -63,7 +63,7 @@ func (l *Logger) Debug(format string, args ...interface{}) {
 
 func (l *Logger) Info(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Printf("%s  ℹ %s %s%s\n", cyan, l.prefix(), msg, reset)
 	}
 	kunlog.Info("%s %s", l.prefix(), msg)
@@ -71,7 +71,7 @@ func (l *Logger) Info(format string, args ...interface{}) {
 
 func (l *Logger) Warn(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Printf("%s  ⚠ %s %s%s\n", yellow, l.prefix(), msg, reset)
 	}
 	kunlog.Warn("%s %s", l.prefix(), msg)
@@ -79,7 +79,7 @@ func (l *Logger) Warn(format string, args ...interface{}) {
 
 func (l *Logger) Error(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Printf("%s  ✗ %s %s%s\n", red, l.prefix(), msg, reset)
 	}
 	kunlog.Error("%s %s", l.prefix(), msg)
@@ -94,7 +94,7 @@ func IsDev() bool {
 // Use for rich multi-line output (box-style logs, tables, etc.)
 // that should bypass the standard single-line prefix format.
 func Raw(s string) {
-	if config.IsDevelopment() {
+	if config.IsDevelopment() && !config.Silent {
 		fmt.Print(s)
 	}
 }

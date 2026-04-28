@@ -284,3 +284,7 @@ func CloseLog() {
 func IsDevelopment() bool {
 	return Conf.Mode == "development"
 }
+
+// Silent indicates whether stdout output should be suppressed
+// (set by `yao run -s/--silent`).
+var Silent bool

@@ -207,9 +207,12 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 		return nil, err
 	}
 
-	// Print header
-	r.output.Header("Script Test")
-	r.output.Info("Script: %s", scriptInfo.TestPath)
+	quiet := r.opts.JSONOutput
+
+	if !quiet {
+		r.output.Header("Script Test")
+		r.output.Info("Script: %s", scriptInfo.TestPath)
+	}
 
 	// Discover tests
 	tests, err := DiscoverTests(scriptInfo.TestPath)
@@ -223,12 +226,14 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid -run pattern: %w", err)
 		}
-		r.output.Info("Tests: %d functions (filtered by: %s)", len(tests), r.opts.Run)
-	} else {
+		if !quiet {
+			r.output.Info("Tests: %d functions (filtered by: %s)", len(tests), r.opts.Run)
+		}
+	} else if !quiet {
 		r.output.Info("Tests: %d functions", len(tests))
 	}
 
-	if len(tests) == 0 {
+	if len(tests) == 0 && !quiet {
 		r.output.Warning("No tests to run")
 	}
 
@@ -240,7 +245,9 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to load context file: %w", err)
 		}
-		r.output.Info("Context: %s", r.opts.ContextFile)
+		if !quiet {
+			r.output.Info("Context: %s", r.opts.ContextFile)
+		}
 	}
 
 	// Create environment with optional context config
@@ -250,8 +257,10 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 	} else {
 		env = NewEnvironment(r.opts.UserID, r.opts.TeamID)
 	}
-	r.output.Info("User: %s", env.UserID)
-	r.output.Info("Team: %s", env.TeamID)
+	if !quiet {
+		r.output.Info("User: %s", env.UserID)
+		r.output.Info("Team: %s", env.TeamID)
+	}
 
 	// Load all scripts from src directory (including the test file)
 	// This ensures imports can be resolved properly
@@ -260,7 +269,9 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load scripts: %w", err)
 	}
-	r.output.Info("Loaded: %d scripts", loadedCount)
+	if !quiet {
+		r.output.Info("Loaded: %d scripts", loadedCount)
+	}
 
 	// Create report
 	report := &ScriptTestReport{
@@ -276,7 +287,9 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 	}
 
 	// Run tests
-	r.output.SubHeader("Running Tests")
+	if !quiet {
+		r.output.SubHeader("Running Tests")
+	}
 
 	for _, tc := range tests {
 		result := r.runScriptTest(tc, scriptInfo, env)
@@ -304,15 +317,20 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 	report.Summary.DurationMs = time.Since(startTime).Milliseconds()
 	report.Metadata.CompletedAt = time.Now()
 
-	// Print summary
-	r.output.ScriptTestSummary(report.Summary, time.Since(startTime))
+	// Print summary (skip in JSON mode, handled by caller)
+	if !r.opts.JSONOutput {
+		r.output.ScriptTestSummary(report.Summary, time.Since(startTime))
+	}
 
 	return report, nil
 }
 
 // runScriptTest runs a single script test function
 func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo, env *Environment) *ScriptTestResult {
-	r.output.TestStart(tc.Name, "", 1)
+	quiet := r.opts.JSONOutput
+	if !quiet {
+		r.output.TestStart(tc.Name, "", 1)
+	}
 	startTime := time.Now()
 
 	result := &ScriptTestResult{
@@ -338,14 +356,24 @@ func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo,
 	if err != nil {
 		result.Status = StatusError
 		result.Error = err.Error()
-		r.output.TestResult(result.Status, duration)
-		r.output.TestError(result.Error)
+		if jse, ok := err.(*jsErrorWithTrace); ok {
+			result.StackTrace = jse.stackTrace
+		}
+		if !quiet {
+			r.output.TestResult(result.Status, duration)
+			r.output.TestError(result.Error)
+			if result.StackTrace != "" {
+				r.output.TestError(result.StackTrace)
+			}
+		}
 		return result
 	}
 
 	if testingT.Skipped() {
 		result.Status = StatusSkipped
-		r.output.TestResult(result.Status, duration)
+		if !quiet {
+			r.output.TestResult(result.Status, duration)
+		}
 		return result
 	}
 
@@ -356,12 +384,16 @@ func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo,
 			result.Error = errors[0]
 		}
 		result.Assertion = testingT.AssertionInfo()
-		r.output.TestResult(result.Status, duration)
-		r.output.TestError(result.Error)
+		if !quiet {
+			r.output.TestResult(result.Status, duration)
+			r.output.TestError(result.Error)
+		}
 		return result
 	}
 
-	r.output.TestResult(result.Status, duration)
+	if !quiet {
+		r.output.TestResult(result.Status, duration)
+	}
 	return result
 }
 
@@ -516,6 +548,12 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 			// Assertion failure - already recorded
 			return nil
 		}
+		if jserr, ok := err.(*v8go.JSError); ok {
+			return &jsErrorWithTrace{
+				message:    jserr.Message,
+				stackTrace: v8.StackTrace(jserr, nil),
+			}
+		}
 		return fmt.Errorf("test function error: %w", err)
 	}
 
@@ -540,6 +578,16 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 // This is called once during initialization
 func RegisterTestingGlobals() {
 	v8.RegisterFunction("__testing_log", testingLogEmbed)
+}
+
+// jsErrorWithTrace wraps a V8 JS error with source-mapped stack trace
+type jsErrorWithTrace struct {
+	message    string
+	stackTrace string
+}
+
+func (e *jsErrorWithTrace) Error() string {
+	return e.message
 }
 
 // testingLogEmbed provides a console.log-like function for tests
