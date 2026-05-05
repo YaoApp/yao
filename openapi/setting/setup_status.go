@@ -45,7 +45,9 @@ func handleSetupStatus(c *gin.Context) {
 	bannerDismissed := false
 	onboardingCompleted := false
 	if setting.Global != nil {
-		prefs, _ := setting.Global.GetMerged(info.UserID, info.TeamID, preferenceNS)
+		// Read user-scope only: these are personal preferences that must not
+		// inherit from system/team scopes.
+		prefs, _ := setting.Global.Get(preferenceScope(info), preferenceNS)
 		if prefs != nil {
 			if v, ok := prefs["banner_dismissed"].(bool); ok {
 				bannerDismissed = v
