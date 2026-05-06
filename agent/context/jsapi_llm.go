@@ -14,6 +14,9 @@ type LlmAPI interface {
 	// Returns *llm.Result or error information
 	Stream(connector string, messages []interface{}, opts map[string]interface{}) interface{}
 
+	// GenerateImage generates an image from a text prompt using an image generation model
+	GenerateImage(connector string, prompt string, opts map[string]interface{}) interface{}
+
 	// Parallel LLM call methods - inspired by JavaScript Promise
 	// All waits for all LLM calls to complete (like Promise.all)
 	All(requests []interface{}) []interface{}
@@ -67,6 +70,9 @@ func (ctx *Context) newLlmObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 
 	// Single LLM call method
 	llmObj.Set("Stream", ctx.llmStreamMethod(iso))
+
+	// Image generation method
+	llmObj.Set("GenerateImage", ctx.llmGenerateImageMethod(iso))
 
 	// Parallel LLM call methods - inspired by JavaScript Promise
 	llmObj.Set("All", ctx.llmAllMethod(iso))
@@ -154,6 +160,54 @@ func (ctx *Context) llmStreamMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 		}
 
 		// Convert result to JS value
+		jsVal, err := bridge.JsValue(v8ctx, result)
+		if err != nil {
+			return bridge.JsException(v8ctx, "failed to convert result: "+err.Error())
+		}
+
+		return jsVal
+	})
+}
+
+// llmGenerateImageMethod implements ctx.llm.GenerateImage(connector, prompt, options?)
+// Usage: const result = ctx.llm.GenerateImage("dall-e-3", "A sunset over mountains", { size: "1024x1024" })
+// Returns: { connector, image (base64), format, error }
+func (ctx *Context) llmGenerateImageMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
+	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
+		v8ctx := info.Context()
+		args := info.Args()
+
+		if len(args) < 2 {
+			return bridge.JsException(v8ctx, "GenerateImage requires connector and prompt parameters")
+		}
+
+		if !args[0].IsString() {
+			return bridge.JsException(v8ctx, "connector must be a string")
+		}
+		connectorID := args[0].String()
+
+		if !args[1].IsString() {
+			return bridge.JsException(v8ctx, "prompt must be a string")
+		}
+		prompt := args[1].String()
+
+		var opts map[string]interface{}
+		if len(args) >= 3 && !args[2].IsUndefined() && !args[2].IsNull() {
+			goVal, err := bridge.GoValue(args[2], v8ctx)
+			if err == nil {
+				if optsMap, ok := goVal.(map[string]interface{}); ok {
+					opts = optsMap
+				}
+			}
+		}
+
+		llmAPI := ctx.Llm()
+		if llmAPI == nil {
+			return bridge.JsException(v8ctx, "LLM API not available")
+		}
+
+		result := llmAPI.GenerateImage(connectorID, prompt, opts)
+
 		jsVal, err := bridge.JsValue(v8ctx, result)
 		if err != nil {
 			return bridge.JsException(v8ctx, "failed to convert result: "+err.Error())

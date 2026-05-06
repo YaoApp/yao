@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	gouMCP "github.com/yaoapp/gou/mcp"
 	mcpProcess "github.com/yaoapp/gou/mcp/process"
 	"github.com/yaoapp/yao/agent/context"
@@ -266,30 +267,26 @@ func (ast *Assistant) buildSandboxOptions(ctx *context.Context, opts *context.Op
 		execOpts.ConnectorType = "openai"
 	}
 
+	// Extract standard fields via LLMConnector when available, fallback to Setting()
 	setting := conn.Setting()
-	if host, ok := setting["host"].(string); ok {
-		execOpts.ConnectorHost = host
-	}
-	if key, ok := setting["key"].(string); ok {
-		execOpts.ConnectorKey = key
-	}
-	if model, ok := setting["model"].(string); ok {
-		execOpts.Model = model
-	}
-
-	// Extract extra connector options (thinking, max_tokens, temperature, etc.)
-	// These are backend-specific parameters that need to be passed through to the proxy
-	connectorOptions := make(map[string]interface{})
-	for k, v := range setting {
-		// Skip standard fields that are already handled
-		switch k {
-		case "host", "key", "model", "azure", "capabilities":
-			continue
-		default:
-			// Include all other fields as extra options
-			connectorOptions[k] = v
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		execOpts.ConnectorHost = lc.GetURL()
+		execOpts.ConnectorKey = lc.GetKey()
+		execOpts.Model = lc.GetModel()
+	} else {
+		if host, ok := setting["host"].(string); ok {
+			execOpts.ConnectorHost = host
+		}
+		if key, ok := setting["key"].(string); ok {
+			execOpts.ConnectorKey = key
+		}
+		if model, ok := setting["model"].(string); ok {
+			execOpts.Model = model
 		}
 	}
+
+	// Whitelist-filter remaining settings for sandbox proxy options
+	connectorOptions := connector.FilterRequestBodyParams(setting, conn)
 	if len(connectorOptions) > 0 {
 		execOpts.ConnectorOptions = connectorOptions
 		ctx.Logger.Debug("Connector options extracted: %v", connectorOptions)

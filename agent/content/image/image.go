@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/attachment"
+	toolsImage "github.com/yaoapp/yao/tools/image"
 )
 
 // Image handles image content
@@ -65,24 +66,27 @@ func (h *Image) Parse(ctx *agentContext.Context, content agentContext.ContentPar
 		return h.base64(ctx, content, visionFormat)
 	}
 
-	// Model doesn't support vision - check cache first, then use vision agent/MCP
-	// Try to get cached text (from attachment's content_preview)
+	// Model doesn't support vision - fallback chain:
+	// 1. Cache -> 2. Uses.Vision (explicit config) -> 3. tools/vision (auto) -> 4. Placeholder text
+
 	cachedText, found, err := h.readFromCache(ctx, content.ImageURL.URL)
 	if err == nil && found {
-		// Cache hit! Return as text content
 		return agentContext.ContentPart{
 			Type: agentContext.ContentText,
 			Text: cachedText,
 		}, nil, nil
 	}
 
-	// No cache, try to use vision agent/MCP
 	if h.options.CompletionOptions != nil && h.options.CompletionOptions.Uses != nil && h.options.CompletionOptions.Uses.Vision != "" {
 		return h.agent(ctx, content)
 	}
 
-	// No vision support and no vision tool specified, return error
-	return content, nil, fmt.Errorf("model doesn't support vision and no vision tool specified in uses.Vision")
+	if text, err := h.readImageWithTools(ctx, content); err == nil {
+		h.saveToCache(ctx, content.ImageURL.URL, text)
+		return agentContext.ContentPart{Type: agentContext.ContentText, Text: text}, nil, nil
+	}
+
+	return agentContext.ContentPart{Type: agentContext.ContentText, Text: "[Image content - vision model not available]"}, nil, nil
 }
 
 // base64 encodes image content to base64 (for vision support)
@@ -358,6 +362,37 @@ func (h *Image) callMCPVisionTool(ctx *agentContext.Context, serverID string, co
 	h.sendLoadingDone(ctx, loadingID)
 
 	return result, err
+}
+
+// readImageWithTools calls tools/vision.ReadImage to convert image to text
+// using a vision-capable model resolved via llmprovider.
+func (h *Image) readImageWithTools(ctx *agentContext.Context, content agentContext.ContentPart) (string, error) {
+	if ctx.Authorized == nil {
+		return "", fmt.Errorf("no auth info available for vision model resolution")
+	}
+
+	src := wrapperToAttachURI(content.ImageURL.URL)
+
+	loadingID := h.sendLoading(ctx, i18n.T(ctx.Locale, "content.image.analyzing"))
+
+	resp, err := toolsImage.ReadImage(ctx.Context, src, "Please describe this image in detail.", 1080, ctx.Authorized, "")
+
+	h.sendLoadingDone(ctx, loadingID)
+
+	if err != nil {
+		return "", err
+	}
+	return resp.Content, nil
+}
+
+// wrapperToAttachURI converts __uploader://fileID to attach://uploader/fileID
+// format expected by tools/vision.readBytes.
+func wrapperToAttachURI(url string) string {
+	uploaderName, fileID, ok := attachment.Parse(url)
+	if !ok {
+		return url
+	}
+	return "attach://" + uploaderName + "/" + fileID
 }
 
 // sendLoading sends a loading message and returns the message ID

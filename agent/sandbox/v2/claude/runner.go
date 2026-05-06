@@ -8,11 +8,14 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tools"
 )
 
 // Runner implements the sandbox Runner interface for Claude CLI (mode=cli).
@@ -47,6 +50,18 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 	}
 
 	steps := append([]types.PrepareStep{}, req.Config.Prepare...)
+
+	if ws := req.Computer.Workplace(); ws != nil {
+		if err := shared.InjectSystemSkills(ws, tools.SkillsFS, ".claude/skills"); err != nil {
+			r.logger.Warn("inject system skills: %v", err)
+		}
+		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", tools.SystemPrompt); err != nil {
+			r.logger.Warn("append CLAUDE.md: %v", err)
+		}
+		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", tools.SystemPrompt); err != nil {
+			r.logger.Warn("append AGENTS.md: %v", err)
+		}
+	}
 
 	if req.SkillsDir != "" {
 		ws := req.Computer.Workplace()
@@ -184,11 +199,13 @@ func (r *Runner) Cleanup(ctx context.Context, computer infra.Computer) error {
 }
 
 type a2oConnectorConfig struct {
-	Backend string                         `json:"backend"`
-	Model   string                         `json:"model"`
-	APIKey  string                         `json:"api_key"`
-	Options map[string]interface{}         `json:"options,omitempty"`
-	Routes  map[string]*a2oConnectorConfig `json:"routes,omitempty"`
+	Backend         string                         `json:"backend"`
+	Model           string                         `json:"model"`
+	APIKey          string                         `json:"api_key"`
+	AuthMode        string                         `json:"auth_mode,omitempty"`
+	MaxOutputTokens int                            `json:"max_output_tokens,omitempty"`
+	Options         map[string]interface{}         `json:"options,omitempty"`
+	Routes          map[string]*a2oConnectorConfig `json:"routes,omitempty"`
 }
 
 func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
@@ -199,29 +216,39 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 
 	cfg := &a2oConnectorConfig{}
 
-	if host, ok := settings["host"].(string); ok && host != "" {
-		cfg.Backend = connector.BuildAPIURL(host, "/chat/completions")
-	} else if proxy, ok := settings["proxy"].(string); ok && proxy != "" {
-		cfg.Backend = connector.BuildAPIURL(proxy, "/chat/completions")
-	}
-	if model, ok := settings["model"].(string); ok && model != "" {
-		cfg.Model = model
-	}
-	if key, ok := settings["key"].(string); ok && key != "" {
-		cfg.APIKey = key
-	}
-
-	extra := make(map[string]interface{})
-	for k, v := range settings {
-		switch k {
-		case "host", "model", "key", "proxy", "type":
-			continue
-		default:
-			extra[k] = v
+	// Extract standard fields via LLMConnector methods when available
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		if url := lc.GetURL(); url != "" {
+			cfg.Backend = connector.BuildAPIURL(url, "/chat/completions")
+		}
+		cfg.Model = lc.GetModel()
+		cfg.APIKey = lc.GetKey()
+		cfg.AuthMode = string(lc.GetAuthMode())
+		if caps := lc.GetCapabilities(); caps != nil && caps.MaxOutputTokens > 0 {
+			cfg.MaxOutputTokens = caps.MaxOutputTokens
+		}
+	} else {
+		if host, ok := settings["host"].(string); ok && host != "" {
+			cfg.Backend = connector.BuildAPIURL(host, "/chat/completions")
+		} else if proxy, ok := settings["proxy"].(string); ok && proxy != "" {
+			cfg.Backend = connector.BuildAPIURL(proxy, "/chat/completions")
+		}
+		if model, ok := settings["model"].(string); ok && model != "" {
+			cfg.Model = model
+		}
+		if key, ok := settings["key"].(string); ok && key != "" {
+			cfg.APIKey = key
 		}
 	}
+
+	// Whitelist-filter remaining settings for the options field
+	extra := connector.FilterRequestBodyParams(settings, conn)
 	if len(extra) > 0 {
 		cfg.Options = extra
+	}
+
+	if cfg.MaxOutputTokens == 0 {
+		cfg.MaxOutputTokens = defaultA2OMaxOutputTokens
 	}
 
 	if cfg.Backend == "" {
@@ -230,27 +257,25 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 	return cfg
 }
 
-// resolveAllRoleConnectors resolves all declared role connectors and returns
-// a map of virtual model name -> connector for roles that have independent connectors.
+// resolveAllRoleConnectors maps pre-resolved role connectors from req.Roles
+// to actual model names used as A2O proxy route keys.
 func resolveAllRoleConnectors(req *types.StreamRequest) map[string]connector.Connector {
-	roleConns := getRoleConnectors(req)
-	if len(roleConns) == 0 {
+	if len(req.Roles) == 0 {
 		return nil
 	}
 
 	result := make(map[string]connector.Connector)
-	for role, rm := range claudeRoleEnvMap {
-		if role == "primary" {
-			continue
+	for _, rc := range req.Roles {
+		var model string
+		if lc, ok := rc.(goullm.LLMConnector); ok {
+			model = lc.GetModel()
 		}
-		rc := resolveRoleConnector(role, roleConns, req.UserExplicit, func(id string) connector.Connector {
-			c, _ := connector.Connectors[id]
-			return c
-		})
-		if rc == nil {
-			continue
+		if model == "" {
+			model, _ = rc.Setting()["model"].(string)
 		}
-		result[rm.ModelName] = rc
+		if model != "" {
+			result[model] = rc
+		}
 	}
 	return result
 }

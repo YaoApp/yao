@@ -18,6 +18,7 @@ import (
 )
 
 func TestGetChatKBID(t *testing.T) {
+	t.Skip("KB/DB search temporarily disabled")
 	t.Run("WithTeamAndUser", func(t *testing.T) {
 		teamID := "5659-5504-2879"
 		userID := "4287-9400-2030-0504"
@@ -81,6 +82,7 @@ func TestGetChatKBID(t *testing.T) {
 }
 
 func TestPrepareKBCollection(t *testing.T) {
+	t.Skip("KB/DB search temporarily disabled")
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 

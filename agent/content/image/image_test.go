@@ -117,11 +117,12 @@ func TestParseWithoutVisionSupport(t *testing.T) {
 	}
 
 	handler := image.New(options)
-	_, _, err := handler.Parse(ctx, content)
+	result, _, err := handler.Parse(ctx, content)
 
-	// Should return error because no vision support and no vision tool specified
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "no vision tool specified")
+	// Should return placeholder text (no error) when no vision support
+	assert.NoError(t, err)
+	assert.Equal(t, agentContext.ContentText, result.Type)
+	assert.Contains(t, result.Text, "Image content")
 }
 
 // TestParseWithEmptyURL tests parsing image with empty URL

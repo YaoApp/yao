@@ -3,9 +3,11 @@ package web
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/types"
+	"github.com/yaoapp/yao/tools/websearch"
 )
 
 // Handler implements web search
@@ -35,7 +37,7 @@ func (h *Handler) Search(req *types.Request) (*types.Result, error) {
 func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Request) (*types.Result, error) {
 	switch {
 	case h.usesWeb == "builtin" || h.usesWeb == "":
-		return h.builtinSearch(req)
+		return h.builtinSearch(ctx, req)
 	case strings.HasPrefix(h.usesWeb, "mcp:"):
 		return h.mcpSearch(req)
 	default:
@@ -54,33 +56,43 @@ func (h *Handler) SearchWithContext(ctx *agentContext.Context, req *types.Reques
 	}
 }
 
-// builtinSearch uses Tavily/Serper/SerpAPI directly
-func (h *Handler) builtinSearch(req *types.Request) (*types.Result, error) {
-	// Determine provider from config
-	providerName := "tavily" // default
-	if h.config != nil && h.config.Provider != "" {
-		providerName = h.config.Provider
+// builtinSearch delegates to tools/websearch which reads Settings → ENV config.
+func (h *Handler) builtinSearch(ctx *agentContext.Context, req *types.Request) (*types.Result, error) {
+	startTime := time.Now()
+
+	limit := req.Limit
+	if limit <= 0 {
+		limit = 10
 	}
 
-	switch providerName {
-	case "tavily":
-		return NewTavilyProvider(h.config).Search(req)
-	case "serper":
-		// Serper (serper.dev) - POST request with X-API-KEY header
-		return NewSerperProvider(h.config).Search(req)
-	case "serpapi":
-		// SerpAPI (serpapi.com) - GET request with api_key parameter
-		return NewSerpAPIProvider(h.config).Search(req)
-	default:
-		return &types.Result{
-			Type:   types.SearchTypeWeb,
-			Query:  req.Query,
-			Source: req.Source,
-			Items:  []*types.ResultItem{},
-			Total:  0,
-			Error:  fmt.Sprintf("Unknown provider: %s (supported: tavily, serper, serpapi)", providerName),
-		}, nil
+	var userID, teamID string
+	if ctx != nil && ctx.Authorized != nil {
+		userID = ctx.Authorized.UserID
+		teamID = ctx.Authorized.TeamID
 	}
+
+	results := websearch.Search(req.Query, limit, userID, teamID)
+
+	items := make([]*types.ResultItem, 0, len(results))
+	for _, r := range results {
+		items = append(items, &types.ResultItem{
+			Type:    types.SearchTypeWeb,
+			Title:   r.Title,
+			Content: r.Content,
+			URL:     r.URL,
+			Score:   r.Score,
+			Source:  req.Source,
+		})
+	}
+
+	return &types.Result{
+		Type:     types.SearchTypeWeb,
+		Query:    req.Query,
+		Source:   req.Source,
+		Items:    items,
+		Total:    len(items),
+		Duration: time.Since(startTime).Milliseconds(),
+	}, nil
 }
 
 // agentSearch delegates to an assistant for AI-powered search

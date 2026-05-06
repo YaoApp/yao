@@ -1,0 +1,10 @@
+{
+  "name": "yao-image",
+  "transport": "process",
+  "description": "Image tools for reading, generating, and managing images",
+  "tools": {
+    "image_read": "tools.image_read",
+    "image_generate": "tools.image_generate",
+    "image_providers": "tools.image_providers"
+  }
+}

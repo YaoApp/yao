@@ -2,6 +2,7 @@
   "name": "Robot Prompt Generator",
   "description": "Generate system prompts for autonomous robots",
   "type": "worker",
+  "connector": "use::default",
   "uses": { "search": "disabled" },
-  "options": { }
+  "options": {}
 }

@@ -77,7 +77,15 @@ func parseContentParts(ctx *agentContext.Context, message agentContext.Message, 
 	for _, part := range content {
 		parsedPart, refs, err := parseContentPart(ctx, part, options)
 		if err != nil {
-			parts = append(parts, part)
+			if part.Type == agentContext.ContentImageURL {
+				parts = append(parts, agentContext.ContentPart{
+					Type: agentContext.ContentText,
+					Text: "[Image content could not be processed]",
+				})
+			} else {
+				parts = append(parts, part)
+			}
+			log.Error("Failed to parse content part type=%s: %v", part.Type, err)
 			continue
 		}
 		parts = append(parts, parsedPart)

@@ -161,9 +161,6 @@ func (ast *Assistant) Validate() error {
 	if ast.Name == "" {
 		return fmt.Errorf("name is required")
 	}
-	if ast.Connector == "" {
-		return fmt.Errorf("connector is required")
-	}
 	return nil
 }
 

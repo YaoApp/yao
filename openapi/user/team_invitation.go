@@ -21,6 +21,7 @@ import (
 	messengertypes "github.com/yaoapp/yao/messenger/types"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
+	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/openapi/utils"
 	"github.com/yaoapp/yao/share"
@@ -1221,11 +1222,9 @@ func teamInvitationCreate(ctx context.Context, userID, teamID string, invitation
 		// Use the saved requestBaseURL and settings (not from invitationData, as they were lost in DB operation)
 		// Send email asynchronously to improve user experience
 		go func() {
-			// Use background context for async operation
 			bgCtx := context.Background()
+			bgCtx = context.WithValue(bgCtx, "identity", &oauthTypes.AuthorizedInfo{UserID: userID, TeamID: teamID})
 
-			// Use createdMember data (from database) for email sending
-			// This ensures we have the actual stored values including properly formatted timestamps
 			emailData := maps.MapStrAny{}
 			for k, v := range createdMember {
 				emailData[k] = v
@@ -1364,8 +1363,8 @@ func teamInvitationResend(ctx context.Context, userID, teamID, invitationID, req
 
 	// Send new invitation email (asynchronously)
 	go func() {
-		// Use background context for async operation
 		bgCtx := context.Background()
+		bgCtx = context.WithValue(bgCtx, "identity", &oauthTypes.AuthorizedInfo{UserID: userID, TeamID: teamID})
 		err := sendTeamInvitationEmail(bgCtx, inviteeEmail, inviterName, teamName, newToken, invitationID, invitationData)
 		if err != nil {
 			log.Error("Failed to resend invitation email: %v", err)

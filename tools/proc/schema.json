@@ -1,0 +1,21 @@
+{
+  "name": "process_call",
+  "description": "Execute a Yao process by name. Supports models, schemas, stores, flows, and scripts.",
+  "process": "tools.process_call",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Process name (e.g. models.user.Find)"
+      },
+      "args": {
+        "type": "array",
+        "description": "Process arguments",
+        "items": {}
+      }
+    },
+    "required": ["name"]
+  },
+  "x-process-args": ["$args.name", "$args.args"]
+}

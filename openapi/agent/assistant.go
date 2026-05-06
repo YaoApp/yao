@@ -175,7 +175,7 @@ func ListAssistants(c *gin.Context) {
 
 	// Convert sandbox to boolean and filter built-in sensitive fields
 	resp := map[string]interface{}{
-		"data":      AssistantsToResponse(result.Data),
+		"data":      AssistantsToResponse(result.Data, authInfo),
 		"total":     result.Total,
 		"page":      result.Page,
 		"pagesize":  result.PageSize,
@@ -274,7 +274,7 @@ func GetAssistant(c *gin.Context) {
 	// Convert sandbox to boolean and filter built-in sensitive fields
 	hasSandbox := assistant.Sandbox != nil
 	FilterBuiltInAssistant(assistant)
-	resp := AssistantToResponse(assistant, hasSandbox)
+	resp := AssistantToResponse(assistant, hasSandbox, authInfo)
 
 	// Return the result with standard response format
 	response.RespondWithSuccess(c, response.StatusOK, resp)
@@ -602,7 +602,11 @@ func GetAssistantInfo(c *gin.Context) {
 		return
 	}
 
-	response.RespondWithSuccess(c, response.StatusOK, ast.GetInfo(locale))
+	info := ast.GetInfo(locale)
+	resolved, raw := resolveConnectorForResponse(info.Connector, authInfo)
+	info.Connector = resolved
+	info.ConnectorRaw = raw
+	response.RespondWithSuccess(c, response.StatusOK, info)
 }
 
 // checkAssistantPermission checks if the user has permission to access the assistant

@@ -52,6 +52,10 @@ func (h *robotHandler) handleDelivery(ctx context.Context, ev *eventtypes.Event,
 		return
 	}
 
+	if ev.Auth != nil {
+		ctx = context.WithValue(ctx, "identity", ev.Auth)
+	}
+
 	deliveryCtx := &robottypes.DeliveryContext{
 		MemberID:    payload.MemberID,
 		ExecutionID: payload.ExecutionID,

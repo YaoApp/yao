@@ -881,20 +881,11 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 // Init init the assistant
 // Choose the connector and initialize the assistant
 func (ast *Assistant) initialize() error {
-
-	conn := defaultConnector
-	if ast.Connector != "" {
-		conn = ast.Connector
-	}
-	ast.Connector = conn
-
-	// Register scripts as process handlers
 	if len(ast.Scripts) > 0 {
 		if err := ast.RegisterScripts(); err != nil {
 			return fmt.Errorf("failed to register scripts: %w", err)
 		}
 	}
-
 	return nil
 }
 

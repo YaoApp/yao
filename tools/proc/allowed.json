@@ -1,0 +1,15 @@
+{
+  "name": "process_allowed",
+  "description": "Check which processes are allowed for process_call. Without a name, returns all allowed rules. With a name, checks if that specific process is allowed.",
+  "process": "tools.process_allowed",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Process name to check (optional, omit to list all rules)"
+      }
+    }
+  },
+  "x-process-args": ["$args.name"]
+}

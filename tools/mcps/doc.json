@@ -1,0 +1,10 @@
+{
+  "name": "yao-doc",
+  "transport": "process",
+  "description": "Yao process documentation tools",
+  "tools": {
+    "doc_list": "tools.doc_list",
+    "doc_inspect": "tools.doc_inspect",
+    "doc_validate": "tools.doc_validate"
+  }
+}

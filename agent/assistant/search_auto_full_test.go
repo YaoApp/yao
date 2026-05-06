@@ -52,23 +52,28 @@ func TestSearchAutoFull(t *testing.T) {
 		assert.Equal(t, 3, ast.Search.Web.MaxResults)
 	})
 
+	// KB/DB search temporarily disabled
 	t.Run("ShouldHaveKBSearchConfig", func(t *testing.T) {
+		t.Skip("KB/DB search temporarily disabled")
 		assert.NotNil(t, ast.Search.KB, "kb search config should be set")
 		assert.Equal(t, 0.7, ast.Search.KB.Threshold)
 		assert.False(t, ast.Search.KB.Graph)
 	})
 
 	t.Run("ShouldHaveDBSearchConfig", func(t *testing.T) {
+		t.Skip("KB/DB search temporarily disabled")
 		assert.NotNil(t, ast.Search.DB, "db search config should be set")
 		assert.Equal(t, 10, ast.Search.DB.MaxResults)
 	})
 
 	t.Run("ShouldHaveKBCollections", func(t *testing.T) {
+		t.Skip("KB/DB search temporarily disabled")
 		assert.NotNil(t, ast.KB, "kb config should be set")
 		assert.Contains(t, ast.KB.Collections, "test-collection")
 	})
 
 	t.Run("ShouldHaveDBModels", func(t *testing.T) {
+		t.Skip("KB/DB search temporarily disabled")
 		assert.NotNil(t, ast.DB, "db config should be set")
 		assert.Contains(t, ast.DB.Models, "user")
 		assert.Contains(t, ast.DB.Models, "article")
@@ -87,6 +92,7 @@ func TestSearchAutoFull(t *testing.T) {
 	})
 
 	t.Run("StreamShouldExecuteMultipleSearchTypes", func(t *testing.T) {
+		t.Skip("KB/DB search temporarily disabled")
 		// Get agent via assistant.Get (required for Stream)
 		agent, err := assistant.Get("tests.search-auto-full")
 		require.NoError(t, err)

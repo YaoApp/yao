@@ -37,13 +37,22 @@ func TestProcessGet(t *testing.T) {
 	setupRegistry(t)
 	createViaProcess(t, "proc-get")
 
+	// Default: masked
 	p := process.New("llmprovider.get", "proc-get")
 	result, err := p.Exec()
 	require.NoError(t, err)
 
 	m := toMapResult(t, result)
 	assert.Equal(t, "proc-get", m["key"])
-	assert.Equal(t, "sk-proc-test", m["api_key"])
+	assert.NotEqual(t, "sk-proc-test", m["api_key"], "default should be masked")
+
+	// withKey=true: plain text
+	p2 := process.New("llmprovider.get", "proc-get", true)
+	result2, err := p2.Exec()
+	require.NoError(t, err)
+
+	m2 := toMapResult(t, result2)
+	assert.Equal(t, "sk-proc-test", m2["api_key"], "withKey=true should return plain text")
 }
 
 func TestProcessGetMasked(t *testing.T) {

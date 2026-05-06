@@ -1,0 +1,9 @@
+{
+  "name": "yao-process",
+  "transport": "process",
+  "description": "Yao process execution tool",
+  "tools": {
+    "process_call": "tools.process_call",
+    "process_allowed": "tools.process_allowed"
+  }
+}

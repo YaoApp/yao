@@ -2,6 +2,7 @@
   "name": "Fetch Helper",
   "description": "Fetch and extract content from URLs",
   "type": "worker",
+  "connector": "use::default",
   "automated": true,
   "public": true,
   "uses": { "search": "disabled" },

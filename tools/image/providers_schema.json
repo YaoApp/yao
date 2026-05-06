@@ -1,0 +1,17 @@
+{
+  "name": "image_providers",
+  "description": "List available image providers. Default lists image generation providers; pass capability='vision' to list vision (image reading) providers.",
+  "process": "tools.image_providers",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "capability": {
+        "type": "string",
+        "description": "Filter by capability: 'image_generation' (default) or 'vision'.",
+        "default": "image_generation",
+        "enum": ["image_generation", "vision"]
+      }
+    }
+  },
+  "x-process-args": ["$args.capability"]
+}

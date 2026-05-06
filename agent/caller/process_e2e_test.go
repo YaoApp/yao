@@ -273,14 +273,14 @@ func TestProcessCall_Timeout_Short(t *testing.T) {
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
-	// Set timeout=2 seconds — LLM round-trip will certainly exceed this.
+	// Set timeout=1 second — LLM round-trip will certainly exceed this.
 	// Verifies that the timeout parameter is respected and produces an error.
 	proc := newLLMProcess(t, "agent.call", map[string]interface{}{
 		"assistant_id": "tests.simple-greeting",
 		"messages": []interface{}{
 			map[string]interface{}{"role": "user", "content": "Tell me a very long story about the history of computing."},
 		},
-		"timeout": 2,
+		"timeout": 1,
 	})
 
 	err := proc.Execute()

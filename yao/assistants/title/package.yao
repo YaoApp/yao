@@ -2,6 +2,7 @@
   "name": "Title Generator",
   "description": "Generate conversation titles",
   "type": "worker",
+  "connector": "use::light",
   "uses": { "search": "disabled" },
-  "options": { }
+  "options": {}
 }

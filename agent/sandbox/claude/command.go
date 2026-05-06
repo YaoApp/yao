@@ -372,9 +372,12 @@ func buildEnvironment(opts *Options, systemPrompt string) map[string]string {
 		}
 	}
 
-	// Note: System prompt and max_turns are passed via CLI flags in BuildCommand
-	// CLAUDE_SYSTEM_PROMPT environment variable is NOT supported by Claude CLI
-	// --append-system-prompt or --system-prompt flags must be used instead
+	// Prevent Claude CLI from using an excessive max_tokens that the backend
+	// API will reject. In OpenAI-proxy mode the hardcoded model is
+	// claude-sonnet-4-6 whose limit is 16384.
+	if opts.ConnectorType != "anthropic" {
+		env["CLAUDE_CODE_MAX_OUTPUT_TOKENS"] = "16384"
+	}
 
 	return env
 }

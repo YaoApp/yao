@@ -91,7 +91,7 @@ func parseSearchField(search any) *SearchIntent {
 		if v {
 			return &SearchIntent{
 				NeedSearch:  true,
-				SearchTypes: []string{"web", "kb", "db"},
+				SearchTypes: []string{"web"}, // TODO: 恢复 KB/DB 搜索时改回 []string{"web", "kb", "db"}
 				Confidence:  1.0,
 				Reason:      "enabled by hook",
 			}

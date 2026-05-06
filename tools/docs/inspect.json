@@ -1,0 +1,16 @@
+{
+  "name": "doc_inspect",
+  "description": "Get detailed documentation for a specific Yao process, including arguments, return type, and methods.",
+  "process": "tools.doc_inspect",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Process name (e.g. models.user.Find)"
+      }
+    },
+    "required": ["name"]
+  },
+  "x-process-args": ["$args.name"]
+}

@@ -31,6 +31,37 @@ func SetJSAPIFactory() {
 	}
 }
 
+// GenerateImage implements LlmAPI.GenerateImage - generates an image from a text prompt
+func (api *JSAPI) GenerateImage(connectorID string, prompt string, opts map[string]interface{}) interface{} {
+	result := &ImageGenResult{
+		Connector: connectorID,
+	}
+
+	conn, err := connector.Select(connectorID)
+	if err != nil {
+		result.Error = fmt.Sprintf("failed to select connector %s: %v", connectorID, err)
+		return result
+	}
+
+	resp, err := GenerateImage(conn, prompt, opts)
+	if err != nil {
+		result.Error = fmt.Sprintf("image generation failed: %v", err)
+		return result
+	}
+
+	result.Image = resp.Image
+	result.Format = resp.Format
+	return result
+}
+
+// ImageGenResult is the return type for GenerateImage JSAPI
+type ImageGenResult struct {
+	Connector string `json:"connector"`
+	Image     string `json:"image,omitempty"`
+	Format    string `json:"format,omitempty"`
+	Error     string `json:"error,omitempty"`
+}
+
 // Stream implements LlmAPI.Stream - calls LLM with streaming output to ctx.Writer
 func (api *JSAPI) Stream(connectorID string, messages []interface{}, opts map[string]interface{}) interface{} {
 	return api.StreamWithHandler(connectorID, messages, opts, nil)

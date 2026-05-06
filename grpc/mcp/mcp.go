@@ -8,11 +8,36 @@ import (
 	"google.golang.org/grpc/status"
 
 	goumcp "github.com/yaoapp/gou/mcp"
+	"github.com/yaoapp/yao/grpc/auth"
 	"github.com/yaoapp/yao/grpc/pb"
 )
 
 // Handler implements the MCP gRPC methods.
 type Handler struct{}
+
+// grpcAuthProvider adapts gRPC AuthorizedInfo to the AuthorizedProvider
+// interface expected by gou/mcp/process for propagating auth to process calls.
+type grpcAuthProvider struct {
+	m map[string]interface{}
+}
+
+func (p *grpcAuthProvider) GetAuthorizedMap() map[string]interface{} { return p.m }
+
+func authProviderFromCtx(ctx context.Context) *grpcAuthProvider {
+	info := auth.GetAuthorizedInfo(ctx)
+	if info == nil {
+		return nil
+	}
+	return &grpcAuthProvider{m: map[string]interface{}{
+		"sub":        info.Subject,
+		"client_id":  info.ClientID,
+		"scope":      info.Scope,
+		"session_id": info.SessionID,
+		"user_id":    info.UserID,
+		"team_id":    info.TeamID,
+		"tenant_id":  info.TenantID,
+	}}
+}
 
 // MCPListTools lists all available MCP tools for a given session.
 func (h *Handler) MCPListTools(ctx context.Context, req *pb.MCPListRequest) (*pb.MCPListResponse, error) {
@@ -48,7 +73,12 @@ func (h *Handler) MCPCallTool(ctx context.Context, req *pb.MCPCallRequest) (*pb.
 		}
 	}
 
-	resp, err := client.CallTool(ctx, req.Tool, args)
+	var extraArgs []interface{}
+	if ap := authProviderFromCtx(ctx); ap != nil {
+		extraArgs = append(extraArgs, ap)
+	}
+
+	resp, err := client.CallTool(ctx, req.Tool, args, extraArgs...)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "CallTool failed: %v", err)
 	}

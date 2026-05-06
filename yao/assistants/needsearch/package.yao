@@ -2,6 +2,7 @@
   "name": "Reference Checker",
   "description": "Check if references are needed",
   "type": "worker",
+  "connector": "use::light",
   "uses": { "search": "disabled" },
   "options": { "max_tokens": 200 }
 }

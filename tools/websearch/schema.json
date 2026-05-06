@@ -1,0 +1,18 @@
+{
+  "name": "web_search",
+  "description": "Search the web for real-time information. Returns structured results with title, URL, and content snippet.",
+  "process": "tools.web_search",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": { "type": "string", "description": "Search query" },
+      "limit": {
+        "type": "integer",
+        "description": "Max results (default 10)",
+        "default": 10
+      }
+    },
+    "required": ["query"]
+  },
+  "x-process-args": ["$args.query", "$args.limit"]
+}

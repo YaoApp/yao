@@ -1,0 +1,30 @@
+# 开源许可证
+
+Yao Engine 基于修改版 Apache License 2.0 授权，并附加以下额外条款：
+
+1. 商业使用条款：
+   Yao Engine 可用于商业用途，但在以下情况下须向 Infinite Wisdom Software 获取商业授权许可：
+
+   a. 商标与品牌要求
+
+   - 不得删除或修改 Yao Engine / Yao Agents / Tai / Tai Link 控制台/应用程序的徽标及版权信息
+   - 徽标和版权信息仅可在持有通过 Yao 开发者证书颁发的授权证书时方可更改
+
+   b. 授权验证要求
+
+   - 必须保留 Yao 证书验证逻辑、流程及相关页面（已在代码注释中标注）
+   - 无论使用目的如何，必须维持完整的 Yao 证书验证系统
+
+   c. 企业规模要求
+
+   - 员工人数达到 50 人及以上，或年收入超过 100 万美元的企业，须向 Infinite Wisdom Software 购买商业授权许可。
+   - 如需获取商业授权，请访问 https://yaoagents.com/enterprise 联系我们。
+
+2. 贡献者协议：
+   作为贡献者，您需同意以下条款：
+   a. Infinite Wisdom Software 可视需要对本开源协议进行更严格或更宽松的调整。
+   b. 您贡献的代码可被用于商业用途，包括但不限于云服务业务运营。
+
+其他所有权利与限制遵循 Apache License 2.0（http://www.apache.org/licenses/LICENSE-2.0）。
+
+© 2026 Infinite Wisdom Software.

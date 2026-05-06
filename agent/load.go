@@ -19,6 +19,7 @@ import (
 	"github.com/yaoapp/yao/agent/store/xun"
 	"github.com/yaoapp/yao/agent/types"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/llmprovider"
 )
 
 var agentDSL *types.DSL
@@ -226,15 +227,18 @@ func initAssistant() error {
 	// Set system agents configuration
 	if agentDSL.System != nil {
 		assistant.SetSystemConfig(&assistant.SystemConfig{
-			Default:    agentDSL.System.Default,
-			Keyword:    agentDSL.System.Keyword,
-			QueryDSL:   agentDSL.System.QueryDSL,
-			Title:      agentDSL.System.Title,
-			Prompt:     agentDSL.System.Prompt,
-			NeedSearch: agentDSL.System.NeedSearch,
-			Entity:     agentDSL.System.Entity,
-			Vision:     agentDSL.System.Vision,
-			Voice:      agentDSL.System.Voice,
+			Default:     agentDSL.System.Default,
+			Light:       agentDSL.System.Light,
+			Vision:      agentDSL.System.Vision,
+			Audio:       agentDSL.System.Audio,
+			Heavy:       agentDSL.System.Heavy,
+			Keyword:     agentDSL.System.Keyword,
+			QueryDSL:    agentDSL.System.QueryDSL,
+			Title:       agentDSL.System.Title,
+			Prompt:      agentDSL.System.Prompt,
+			RobotPrompt: agentDSL.System.RobotPrompt,
+			NeedSearch:  agentDSL.System.NeedSearch,
+			Entity:      agentDSL.System.Entity,
 		})
 	}
 
@@ -453,6 +457,22 @@ func GetSearchConfig() *searchTypes.Config {
 	return agentDSL.Search
 }
 
+// SyncLLMDefaults writes the agent.yml system role defaults into setting.Global.
+// Must be called after both llmprovider.Init() and setting.Init() have completed.
+func SyncLLMDefaults() error {
+	if agentDSL == nil || agentDSL.System == nil {
+		return nil
+	}
+	if llmprovider.Global == nil {
+		return fmt.Errorf("llmprovider.Global not initialized")
+	}
+	roles := buildSystemRoles(agentDSL.System)
+	if len(roles) == 0 {
+		return nil
+	}
+	return llmprovider.Global.SetDefaults(roles)
+}
+
 // defaultAssistant get the default assistant
 func defaultAssistant() (*assistant.Assistant, error) {
 	if agentDSL.Uses == nil || agentDSL.Uses.Default == "" {
@@ -461,12 +481,34 @@ func defaultAssistant() (*assistant.Assistant, error) {
 	return assistant.Get(agentDSL.Uses.Default)
 }
 
+// buildSystemRoles converts the System config block into a role→connectorID map
+// for llmprovider.SetDefaults. Only role-level keys are written here; per-agent
+// overrides (keyword, title, querydsl, etc.) are consumed by resolveSystemConnector.
+func buildSystemRoles(sys *types.System) map[string]string {
+	roles := make(map[string]string)
+	add := func(role, cid string) {
+		if cid != "" {
+			roles[role] = cid
+		}
+	}
+	add("default", sys.Default)
+	add("light", sys.Light)
+	add("vision", sys.Vision)
+	add("audio", sys.Audio)
+	add("heavy", sys.Heavy)
+	return roles
+}
+
 // resolveEnvStrings resolves $ENV.XXX references in agent.yml string fields.
 // agent.yml is parsed via yaml.Unmarshal which does not handle $ENV substitution,
 // unlike connector files which call helper.EnvString explicitly during Register.
 func resolveEnvStrings(setting *types.DSL) {
 	if setting.System != nil {
 		setting.System.Default = helper.EnvString(setting.System.Default)
+		setting.System.Light = helper.EnvString(setting.System.Light)
+		setting.System.Vision = helper.EnvString(setting.System.Vision)
+		setting.System.Audio = helper.EnvString(setting.System.Audio)
+		setting.System.Heavy = helper.EnvString(setting.System.Heavy)
 		setting.System.Keyword = helper.EnvString(setting.System.Keyword)
 		setting.System.QueryDSL = helper.EnvString(setting.System.QueryDSL)
 		setting.System.Title = helper.EnvString(setting.System.Title)
@@ -474,8 +516,6 @@ func resolveEnvStrings(setting *types.DSL) {
 		setting.System.RobotPrompt = helper.EnvString(setting.System.RobotPrompt)
 		setting.System.NeedSearch = helper.EnvString(setting.System.NeedSearch)
 		setting.System.Entity = helper.EnvString(setting.System.Entity)
-		setting.System.Vision = helper.EnvString(setting.System.Vision)
-		setting.System.Voice = helper.EnvString(setting.System.Voice)
 	}
 
 	if setting.Uses != nil {

@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/utils/jsonschema"
 )
 
@@ -155,12 +156,11 @@ func buildAdapters(cap *goullm.Capabilities) []adapters.CapabilityAdapter {
 	// Tool call adapter
 	result = append(result, adapters.NewToolCallAdapter(cap.ToolCalls))
 
-	// Vision adapter
+	// Vision adapter (always registered to strip unsupported image content)
 	visionSupport, visionFormat := context.GetVisionSupport(cap)
 	if visionSupport {
 		result = append(result, adapters.NewVisionAdapter(true, visionFormat))
-	} else if cap.Vision != nil {
-		// Vision explicitly disabled, add adapter to remove image content
+	} else {
 		result = append(result, adapters.NewVisionAdapter(false, context.VisionFormatNone))
 	}
 
@@ -385,16 +385,10 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
-	// Get connector settings
-	setting := p.Connector.Setting()
-	host, ok := setting["host"].(string)
-	if !ok || host == "" {
-		return nil, fmt.Errorf("no host found in connector settings")
-	}
-
-	key, ok := setting["key"].(string)
-	if !ok || key == "" {
-		return nil, fmt.Errorf("API key is not set")
+	// Get connector settings via LLMConnector or fallback
+	host, key, err := p.resolveHostKey()
+	if err != nil {
+		return nil, err
 	}
 
 	// Build URL
@@ -409,9 +403,9 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Create HTTP request with proxy support
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
-		SetHeader("Authorization", fmt.Sprintf("Bearer %s", key)).
 		SetHeader("Accept", "text/event-stream").
-		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
+		SetHeader("User-Agent", "YaoEngine/"+share.VERSION)
+	setAuthHeaders(req, p.Connector, key)
 
 	// Accumulate response data
 	accumulator := &streamAccumulator{
@@ -498,16 +492,18 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 				accumulator.role = delta.Role
 			}
 
-			// Handle reasoning content (DeepSeek R1)
-			if delta.ReasoningContent != "" {
-				// Start thinking message if not active
+			reasoningText := delta.ReasoningContent
+			if reasoningText == "" {
+				reasoningText = delta.Reasoning
+			}
+			if reasoningText != "" {
 				if !messageTracker.active || messageTracker.messageType != message.ChunkThinking {
 					messageTracker.startMessage(message.ChunkThinking, handler)
 				}
 
-				accumulator.reasoningContent += delta.ReasoningContent
+				accumulator.reasoningContent += reasoningText
 				if handler != nil {
-					handler(message.ChunkThinking, []byte(delta.ReasoningContent))
+					handler(message.ChunkThinking, []byte(reasoningText))
 					messageTracker.incrementChunk()
 				}
 			}
@@ -922,16 +918,10 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
-	// Get connector settings
-	setting := p.Connector.Setting()
-	host, ok := setting["host"].(string)
-	if !ok || host == "" {
-		return nil, fmt.Errorf("no host found in connector settings")
-	}
-
-	key, ok := setting["key"].(string)
-	if !ok || key == "" {
-		return nil, fmt.Errorf("API key is not set")
+	// Get connector settings via LLMConnector or fallback
+	host, key, err := p.resolveHostKey()
+	if err != nil {
+		return nil, err
 	}
 
 	// Build URL
@@ -940,8 +930,8 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 	// Create HTTP request with proxy support
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
-		SetHeader("Authorization", fmt.Sprintf("Bearer %s", key)).
-		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
+		SetHeader("User-Agent", "YaoEngine/"+share.VERSION)
+	setAuthHeaders(req, p.Connector, key)
 
 	// Make request
 	resp := req.Post(requestBody)
@@ -1006,7 +996,7 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 		Model:             fullResp.Model,
 		Role:              string(choice.Message.Role),
 		Content:           content,
-		ReasoningContent:  choice.Message.ReasoningContent,
+		ReasoningContent:  reasoningOrFallback(choice.Message.ReasoningContent, choice.Message.Reasoning),
 		ToolCalls:         choice.Message.ToolCalls,
 		FinishReason:      choice.FinishReason,
 		Usage:             fullResp.Usage,
@@ -1038,12 +1028,6 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 	model, ok := setting["model"].(string)
 	if !ok || model == "" {
 		return nil, fmt.Errorf("model is not set in connector")
-	}
-
-	// Get thinking setting from connector (for models that support reasoning/thinking mode)
-	var thinkingSetting interface{}
-	if thinking, exists := setting["thinking"]; exists {
-		thinkingSetting = thinking
 	}
 
 	// Convert messages to API format
@@ -1099,6 +1083,10 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 			apiMsg["tool_calls"] = msg.ToolCalls
 		}
 
+		if msg.ReasoningContent != "" {
+			apiMsg["reasoning_content"] = msg.ReasoningContent
+		}
+
 		if msg.Refusal != nil {
 			apiMsg["refusal"] = *msg.Refusal
 		}
@@ -1120,11 +1108,19 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 
 	// Use max_completion_tokens (modern API parameter for GPT-5+)
 	// GPT-5 models only support max_completion_tokens (not max_tokens)
-	if options.MaxCompletionTokens != nil {
-		body["max_completion_tokens"] = *options.MaxCompletionTokens
-	} else if options.MaxTokens != nil {
-		// Fallback: convert MaxTokens to max_completion_tokens for compatibility
-		body["max_completion_tokens"] = *options.MaxTokens
+	if options.MaxCompletionTokens != nil || options.MaxTokens != nil {
+		maxTokens := 0
+		if options.MaxCompletionTokens != nil {
+			maxTokens = *options.MaxCompletionTokens
+		} else {
+			maxTokens = *options.MaxTokens
+		}
+		if lc, ok := p.Connector.(goullm.LLMConnector); ok {
+			if caps := lc.GetCapabilities(); caps != nil && caps.MaxOutputTokens > 0 && maxTokens > caps.MaxOutputTokens {
+				maxTokens = caps.MaxOutputTokens
+			}
+		}
+		body["max_completion_tokens"] = maxTokens
 	}
 
 	if options.TopP != nil {
@@ -1202,9 +1198,14 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 		body["audio"] = options.Audio
 	}
 
-	// Add thinking parameter for models that support reasoning/thinking mode
-	if thinkingSetting != nil {
-		body["thinking"] = thinkingSetting
+	// Merge connector-level body params (thinking, reasoning, enable_thinking, etc.)
+	// filtered through the SupportedParams / default whitelist.
+	// CompletionOptions (per-call) take precedence over connector defaults.
+	connParams := connector.FilterRequestBodyParams(setting, p.Connector)
+	for k, v := range connParams {
+		if _, exists := body[k]; !exists {
+			body[k] = v
+		}
 	}
 
 	return body, nil
@@ -1288,4 +1289,45 @@ func isRetryableError(err error) bool {
 	}
 
 	return false
+}
+
+// resolveHostKey extracts host and key via LLMConnector or Setting() fallback.
+func (p *Provider) resolveHostKey() (host, key string, err error) {
+	if lc, ok := p.Connector.(goullm.LLMConnector); ok {
+		host = lc.GetURL()
+		key = lc.GetKey()
+	} else {
+		setting := p.Connector.Setting()
+		host, _ = setting["host"].(string)
+		key, _ = setting["key"].(string)
+	}
+	if host == "" {
+		return "", "", fmt.Errorf("no host found in connector settings")
+	}
+	if key == "" {
+		return "", "", fmt.Errorf("API key is not set")
+	}
+	return host, key, nil
+}
+
+// setAuthHeaders sets authentication headers based on LLMConnector.GetAuthMode().
+func setAuthHeaders(req *http.Request, conn connector.Connector, key string) {
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		switch lc.GetAuthMode() {
+		case goullm.AuthAPIKey:
+			req.SetHeader("api-key", key)
+			return
+		case goullm.AuthXAPIKey:
+			req.SetHeader("x-api-key", key)
+			return
+		}
+	}
+	req.SetHeader("Authorization", fmt.Sprintf("Bearer %s", key))
+}
+
+func reasoningOrFallback(primary, fallback string) string {
+	if primary != "" {
+		return primary
+	}
+	return fallback
 }

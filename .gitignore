@@ -84,3 +84,6 @@ sandbox/v2/PID-KILL-UPGRADE.md
 sandbox/v2/*.md
 POSTGRESQL_COMPAT.md
 openapi/setting/*.md
+agent/docs/design/*.md
+tools/README.md
+tools/TOOL-REGISTRATION.md

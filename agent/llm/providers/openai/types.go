@@ -30,7 +30,8 @@ type Delta struct {
 type DeltaContent struct {
 	Role             string          `json:"role,omitempty"`
 	Content          string          `json:"content,omitempty"`
-	ReasoningContent string          `json:"reasoning_content,omitempty"` // DeepSeek R1 reasoning
+	ReasoningContent string          `json:"reasoning_content,omitempty"` // DeepSeek direct API
+	Reasoning        string          `json:"reasoning,omitempty"`         // OpenRouter
 	ToolCalls        []ToolCallDelta `json:"tool_calls,omitempty"`
 	Refusal          string          `json:"refusal,omitempty"`
 }
@@ -60,7 +61,8 @@ type CompletionResponseFull struct {
 		Message struct {
 			Role             context.MessageRole `json:"role"`
 			Content          interface{}         `json:"content,omitempty"`           // string or array
-			ReasoningContent string              `json:"reasoning_content,omitempty"` // DeepSeek R1 reasoning
+			ReasoningContent string              `json:"reasoning_content,omitempty"` // DeepSeek direct API
+			Reasoning        string              `json:"reasoning,omitempty"`         // OpenRouter
 			ToolCalls        []context.ToolCall  `json:"tool_calls,omitempty"`
 			Refusal          *string             `json:"refusal,omitempty"`
 		} `json:"message"`

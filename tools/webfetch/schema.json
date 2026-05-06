@@ -1,0 +1,19 @@
+{
+  "name": "web_fetch",
+  "description": "Fetch a web page and return its content. Supports markdown and HTML output formats.",
+  "process": "tools.web_fetch",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "url": { "type": "string", "description": "URL to fetch" },
+      "format": {
+        "type": "string",
+        "description": "Output format: markdown or html (default markdown)",
+        "enum": ["markdown", "html"],
+        "default": "markdown"
+      }
+    },
+    "required": ["url"]
+  },
+  "x-process-args": ["$args.url", "$args.format"]
+}

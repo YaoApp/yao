@@ -2,6 +2,7 @@
   "name": "Query Builder",
   "description": "Build database queries",
   "type": "worker",
+  "connector": "use::default",
   "automated": true,
   "public": true,
   "uses": { "search": "disabled" },

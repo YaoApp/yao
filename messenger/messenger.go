@@ -20,6 +20,7 @@ import (
 	"github.com/yaoapp/yao/messenger/providers/twilio"
 	"github.com/yaoapp/yao/messenger/template"
 	"github.com/yaoapp/yao/messenger/types"
+	"github.com/yaoapp/yao/setting"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -50,7 +51,18 @@ func Load(cfg config.Config) error {
 		return err
 	}
 	if !exists {
-		log.Warn("[Messenger] messengers directory not found, skip loading messenger")
+		log.Warn("[Messenger] messengers directory not found, creating empty instance for dynamic resolution")
+		Instance = &Service{
+			config: &types.Config{Global: types.GlobalConfig{
+				RetryAttempts: 3,
+				RetryDelay:    2 * time.Second,
+				Timeout:       30 * time.Second,
+			}},
+			providers:       make(map[string]types.Provider),
+			providersByType: make(map[types.MessageType][]types.Provider),
+			channels:        make(map[string]types.Channel),
+			defaults:        make(map[string]string),
+		}
 		return nil
 	}
 
@@ -236,8 +248,16 @@ func createMailgunProvider(config types.ProviderConfig) (types.Provider, error) 
 	return mailgun.NewMailgunProviderWithTemplateManager(config, template.Global)
 }
 
-// Send sends a message using the specified channel or default provider
+// Send sends a message using the specified channel or default provider.
+// If ctx carries an Identity (key "identity"), dynamic SMTP resolution uses
+// user/team scope; otherwise system-scope is tried. Falls back to static
+// .yao providers when dynamic resolution yields nothing.
 func (m *Service) Send(ctx context.Context, channel string, message *types.Message) error {
+	id, _ := ctx.Value("identity").(setting.Identity)
+	if provider := m.resolveSettingProvider(id, message.Type); provider != nil {
+		return m.sendViaProvider(ctx, provider, message)
+	}
+
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -299,43 +319,43 @@ func (m *Service) SendWithProvider(ctx context.Context, providerName string, mes
 	return fmt.Errorf("failed to send message after %d attempts: %w", maxAttempts, lastErr)
 }
 
-// SendT sends a message using a template
+// SendT sends a message using a template.
+// Like Send, it tries dynamic SMTP resolution first (via ctx Identity),
+// then falls back to static .yao providers.
 // messageType is optional - if not specified, the first available template type will be used
 func (m *Service) SendT(ctx context.Context, channel string, templateID string, data types.TemplateData, messageType ...types.MessageType) error {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
-
 	// Determine which message type to use
 	var msgType types.MessageType
 	if len(messageType) > 0 {
-		// Use specified message type
 		msgType = messageType[0]
 	} else {
-		// Get available template types and use the first one
 		availableTypes := template.Global.GetAvailableTypes(templateID)
 		if len(availableTypes) == 0 {
 			return fmt.Errorf("template not found: %s", templateID)
 		}
-		// Convert TemplateType to MessageType
 		msgType = templateTypeToMessageType(availableTypes[0])
 	}
 
-	// Get provider for this channel and message type
+	id, _ := ctx.Value("identity").(setting.Identity)
+	if provider := m.resolveSettingProvider(id, msgType); provider != nil {
+		templateType := messageTypeToTemplateType(msgType)
+		return provider.SendT(ctx, templateID, templateType, data)
+	}
+
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
+
 	providerName := m.getProviderForChannel(channel, string(msgType))
 	if providerName == "" {
 		return fmt.Errorf("no provider configured for channel %s with message type %s", channel, msgType)
 	}
 
-	// Get the provider
 	provider, exists := m.providers[providerName]
 	if !exists {
 		return fmt.Errorf("provider not found: %s", providerName)
 	}
 
-	// Convert MessageType back to TemplateType
 	templateType := messageTypeToTemplateType(msgType)
-
-	// Call provider's SendT method
 	return provider.SendT(ctx, templateID, templateType, data)
 }
 
@@ -907,6 +927,132 @@ func parseChannelsConfig(channelsConfig map[string]interface{}, defaults map[str
 			}
 		}
 	}
+}
+
+// resolveSettingProvider tries to build a mailer.Provider from UI-configured
+// SMTP settings stored in setting.Global.  id may be nil – in that case
+// system-scope settings are used.
+func (m *Service) resolveSettingProvider(id setting.Identity, messageType types.MessageType) types.Provider {
+	if messageType != types.MessageTypeEmail {
+		return nil
+	}
+	if setting.Global == nil {
+		return nil
+	}
+
+	userID, teamID := "", ""
+	if id != nil {
+		userID = id.GetUserID()
+		teamID = id.GetTeamID()
+	}
+
+	cfg, err := setting.Global.GetMerged(userID, teamID, "smtp")
+	if err != nil || cfg == nil {
+		return nil
+	}
+
+	if enabled, ok := cfg["enabled"].(bool); ok && !enabled {
+		return nil
+	}
+
+	host, _ := cfg["host"].(string)
+	username, _ := cfg["username"].(string)
+	password, _ := cfg["password"].(string)
+	fromEmail, _ := cfg["from_email"].(string)
+	fromName, _ := cfg["from_name"].(string)
+	encryption, _ := cfg["encryption"].(string)
+
+	if host == "" || username == "" {
+		return nil
+	}
+
+	if password != "" {
+		password = setting.Decrypt(password)
+	}
+
+	from := fromEmail
+	if from == "" {
+		from = username
+	}
+	if fromName != "" {
+		from = fromName + " <" + from + ">"
+	}
+
+	useTLS, useSSL := false, false
+	switch encryption {
+	case "ssl":
+		useSSL = true
+	case "tls", "starttls":
+		useTLS = true
+	}
+
+	port := 587
+	switch v := cfg["port"].(type) {
+	case float64:
+		port = int(v)
+	case int:
+		port = v
+	case int64:
+		port = int(v)
+	}
+
+	providerCfg := types.ProviderConfig{
+		Name: "setting-smtp", Connector: "mailer", Enabled: true,
+		Options: map[string]interface{}{
+			"smtp": map[string]interface{}{
+				"host": host, "port": port,
+				"username": username, "password": password,
+				"from": from, "use_tls": useTLS, "use_ssl": useSSL,
+			},
+		},
+	}
+
+	provider, err := mailer.NewMailerProvider(providerCfg)
+	if err != nil {
+		log.Warn("[Messenger] Failed to create dynamic SMTP provider: %v", err)
+		return nil
+	}
+	return provider
+}
+
+// sendViaProvider validates the message and sends it through the given provider
+// with the configured retry logic.
+func (m *Service) sendViaProvider(ctx context.Context, provider types.Provider, message *types.Message) error {
+	if err := m.validateMessage(message); err != nil {
+		return fmt.Errorf("message validation failed: %w", err)
+	}
+
+	maxAttempts := m.config.Global.RetryAttempts
+	if maxAttempts <= 0 {
+		maxAttempts = 1
+	}
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("send cancelled: %w", ctx.Err())
+		default:
+		}
+
+		err := provider.Send(ctx, message)
+		if err == nil {
+			log.Info("[Messenger] Message sent via dynamic provider (attempt %d/%d)", attempt, maxAttempts)
+			return nil
+		}
+
+		lastErr = err
+		if attempt < maxAttempts {
+			log.Warn("[Messenger] Dynamic send attempt %d/%d failed: %v", attempt, maxAttempts, err)
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("send cancelled during retry: %w", ctx.Err())
+			case <-time.After(m.config.Global.RetryDelay):
+			}
+		}
+	}
+
+	return fmt.Errorf("failed to send message via dynamic provider after %d attempts: %w", maxAttempts, lastErr)
 }
 
 // validateMessage validates a message before sending

@@ -2,11 +2,13 @@ package agent
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/dbal/query"
 	agenttypes "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -160,10 +162,49 @@ func FilterBuiltInAssistant(assistant *agenttypes.AssistantModel) {
 	}
 }
 
+// resolveConnectorForResponse resolves a "use::" prefixed connector value
+// to the actual connector ID for API responses.
+// Returns (resolvedID, rawValue). rawValue is non-empty only when the original was a use:: prefix.
+func resolveConnectorForResponse(connectorValue string, identity llmprovider.Identity) (string, string) {
+	if !strings.HasPrefix(connectorValue, "use::") {
+		return connectorValue, ""
+	}
+
+	role := strings.TrimPrefix(connectorValue, "use::")
+	if role == "" {
+		role = "default"
+	}
+
+	if identity != nil && llmprovider.Global != nil {
+		if cid, err := llmprovider.Global.GetRoleBy(role, identity); err == nil && cid != "" {
+			return cid, connectorValue
+		}
+	}
+	if llmprovider.Global != nil {
+		if cid, err := llmprovider.Global.GetRole(role); err == nil && cid != "" {
+			return cid, connectorValue
+		}
+	}
+	return connectorValue, connectorValue
+}
+
+// applyConnectorResolve resolves the connector field in a response map.
+func applyConnectorResolve(result map[string]interface{}, identity llmprovider.Identity) {
+	connVal, ok := result["connector"].(string)
+	if !ok || connVal == "" {
+		return
+	}
+	resolved, raw := resolveConnectorForResponse(connVal, identity)
+	result["connector"] = resolved
+	if raw != "" {
+		result["connector_raw"] = raw
+	}
+}
+
 // AssistantToResponse converts an AssistantModel to a response map,
 // replacing the sandbox JSON object with a boolean indicating whether sandbox is configured.
 // hasSandbox must be captured before FilterBuiltInAssistant clears the Sandbox field.
-func AssistantToResponse(assistant *agenttypes.AssistantModel, hasSandbox bool) map[string]interface{} {
+func AssistantToResponse(assistant *agenttypes.AssistantModel, hasSandbox bool, identity llmprovider.Identity) map[string]interface{} {
 	if assistant == nil {
 		return nil
 	}
@@ -182,13 +223,14 @@ func AssistantToResponse(assistant *agenttypes.AssistantModel, hasSandbox bool) 
 	if assistant.ComputerFilter != nil {
 		result["computer_filter"] = assistant.ComputerFilter
 	}
+	applyConnectorResolve(result, identity)
 	return result
 }
 
 // AssistantsToResponse converts a slice of AssistantModel to response maps,
 // replacing sandbox with a boolean for each assistant.
 // Captures sandbox state before filtering, then applies FilterBuiltInAssistant.
-func AssistantsToResponse(assistants []*agenttypes.AssistantModel) []map[string]interface{} {
+func AssistantsToResponse(assistants []*agenttypes.AssistantModel, identity llmprovider.Identity) []map[string]interface{} {
 	if assistants == nil {
 		return nil
 	}
@@ -197,7 +239,7 @@ func AssistantsToResponse(assistants []*agenttypes.AssistantModel) []map[string]
 	for _, a := range assistants {
 		hasSandbox := a.Sandbox != nil || a.IsSandbox
 		FilterBuiltInAssistant(a)
-		result = append(result, AssistantToResponse(a, hasSandbox))
+		result = append(result, AssistantToResponse(a, hasSandbox, identity))
 	}
 	return result
 }

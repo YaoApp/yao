@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tools"
 )
 
 // Runner implements the sandbox Runner interface for OpenCode CLI.
@@ -47,6 +48,19 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 
 	steps := append([]types.PrepareStep{}, req.Config.Prepare...)
 
+	// 0. Inject system tool SKILLs + prompts (before assistant-specific skills copy)
+	if ws := req.Computer.Workplace(); ws != nil {
+		if err := shared.InjectSystemSkills(ws, tools.SkillsFS, ".claude/skills"); err != nil {
+			log.Warn("[opencode-runner] inject system skills: %v", err)
+		}
+		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", tools.SystemPrompt); err != nil {
+			log.Warn("[opencode-runner] append CLAUDE.md: %v", err)
+		}
+		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", tools.SystemPrompt); err != nil {
+			log.Warn("[opencode-runner] append AGENTS.md: %v", err)
+		}
+	}
+
 	// 1. Skills copy (aligned with Claude Runner)
 	if req.SkillsDir != "" {
 		ws := req.Computer.Workplace()
@@ -79,16 +93,14 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 	// config dir ($HOME/.config/opencode/tools/).  Only needed when a
 	// vision connector is configured — the custom read tool overrides the
 	// built-in read to route image files through the vision API.
-	if req.Config != nil && req.Config.Runner.Connectors != nil {
-		if vc, ok := req.Config.Runner.Connectors["vision"]; ok && vc != nil && vc.Connector != "" {
-			p := resolvePlatform(req.Computer)
-			steps = append(steps, types.PrepareStep{
-				Action:      "exec",
-				Cmd:         visionCopyCmd(p),
-				Once:        true,
-				IgnoreError: true,
-			})
-		}
+	if _, ok := req.Roles["vision"]; ok {
+		p := resolvePlatform(req.Computer)
+		steps = append(steps, types.PrepareStep{
+			Action:      "exec",
+			Cmd:         visionCopyCmd(p),
+			Once:        true,
+			IgnoreError: true,
+		})
 	}
 
 	// 5. Generate opencode.json (project config at workspace root)

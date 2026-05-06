@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 )
@@ -70,19 +69,9 @@ func GetCompletionRequest(c *gin.Context, cache store.Store) (*CompletionRequest
 		Mode:    GetMode(c, completionReq),
 	}
 
-	// Try to extract custom connector from model field
-	// If model is a valid connector ID, set it to opts.Connector
-	// Otherwise, keep the standard OpenAI-compatible behavior (model as assistant ID)
-	if completionReq != nil && completionReq.Model != "" {
-		// Check if model is a valid connector (not containing "-yao_" which indicates assistant ID format)
-		if !strings.Contains(completionReq.Model, "-yao_") {
-			// Try to validate if it's a real connector
-			if _, err := connector.Select(completionReq.Model); err == nil {
-				// It's a valid connector, use it
-				opts.Connector = completionReq.Model
-			}
-			// If not a valid connector, ignore it (keep opts.Connector empty to use assistant's default)
-		}
+	// Pass model as connector ID; downstream ResolveConnector handles validation + lazy loading
+	if completionReq != nil && completionReq.Model != "" && !strings.Contains(completionReq.Model, "-yao_") {
+		opts.Connector = completionReq.Model
 	}
 
 	// Initialize interrupt controller

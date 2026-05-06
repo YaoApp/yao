@@ -1,0 +1,30 @@
+{
+  "name": "image_read",
+  "description": "Read and analyze an image using a vision-capable model.",
+  "process": "tools.image_read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "image_path": {
+        "type": "string",
+        "description": "Path or URI of the image to analyze. Accepts: local file path, URL (http/https), workspace://, attach://, yao://, or data URI."
+      },
+      "prompt": {
+        "type": "string",
+        "description": "What to analyze about the image (default: describe in detail)",
+        "default": "Please describe this image in detail."
+      },
+      "max_size": {
+        "type": "integer",
+        "description": "Max dimension in pixels for the longest edge. Image is resized (preserving aspect ratio) before sending to the vision model. Default 1080.",
+        "default": 1080
+      },
+      "provider": {
+        "type": "string",
+        "description": "Vision provider connector ID (e.g. from image_providers with capability='vision'). If omitted, uses the default vision model."
+      }
+    },
+    "required": ["image_path"]
+  },
+  "x-process-args": ["$args.image_path", "$args.prompt", "$args.max_size", "$args.provider"]
+}

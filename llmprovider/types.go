@@ -1,5 +1,12 @@
 package llmprovider
 
+// Identity abstracts a caller's user/team context for scope-aware lookups.
+// Implemented by oauthTypes.AuthorizedInfo and any struct with UserID/TeamID.
+type Identity interface {
+	GetUserID() string
+	GetTeamID() string
+}
+
 // Provider represents a configured LLM provider (one vendor connection with multiple models).
 // Fields align with the frontend ProviderConfig interface.
 type Provider struct {
@@ -22,10 +29,14 @@ type Provider struct {
 // ModelInfo describes a single model within a provider.
 // Fields align with the frontend ModelInfo interface.
 type ModelInfo struct {
-	ID           string   `json:"id" yaml:"id"`
-	Name         string   `json:"name" yaml:"name"`
-	Capabilities []string `json:"capabilities" yaml:"capabilities"`
-	Enabled      bool     `json:"enabled" yaml:"enabled"`
+	ID              string                 `json:"id" yaml:"id"`
+	Model           string                 `json:"model,omitempty" yaml:"model,omitempty"`
+	Name            string                 `json:"name" yaml:"name"`
+	Capabilities    []string               `json:"capabilities" yaml:"capabilities"`
+	Enabled         bool                   `json:"enabled" yaml:"enabled"`
+	MaxInputTokens  int                    `json:"max_input_tokens,omitempty" yaml:"max_input_tokens,omitempty"`
+	MaxOutputTokens int                    `json:"max_output_tokens,omitempty" yaml:"max_output_tokens,omitempty"`
+	Options         map[string]interface{} `json:"options,omitempty" yaml:"options,omitempty"`
 }
 
 // ProviderOwner identifies who owns a provider.
@@ -60,6 +71,7 @@ type ProviderFilter struct {
 type ProviderPreset struct {
 	Key           string      `json:"key" yaml:"key"`
 	Name          string      `json:"name" yaml:"name"`
+	Locale        string      `json:"locale,omitempty" yaml:"locale,omitempty"`
 	Type          string      `json:"type" yaml:"type"`
 	APIURL        string      `json:"api_url" yaml:"api_url"`
 	RequireKey    bool        `json:"require_key" yaml:"require_key"`
@@ -74,9 +86,6 @@ type ProviderTestResult struct {
 	Message   string `json:"message"`
 	LatencyMs int64  `json:"latency_ms,omitempty"`
 }
-
-// RoleAssignment maps model roles to specific provider+model pairs.
-type RoleAssignment map[string]RoleTarget
 
 // RoleTarget identifies a provider and model for a given role.
 type RoleTarget struct {

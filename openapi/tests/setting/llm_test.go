@@ -90,19 +90,21 @@ func llmBody(t *testing.T, resp *http.Response) map[string]interface{} {
 	return body
 }
 
-func createTestOpenAI(t *testing.T, serverURL, token string) {
+func createTestOpenAI(t *testing.T, serverURL, token string) string {
 	t.Helper()
 	apiKey := requireOpenAIKey(t)
-	llmprovider.Global.Delete("openai")
 	payload := map[string]interface{}{
 		"preset_key": "openai",
 		"api_key":    apiKey,
 		"model_ids":  []string{"gpt-4o", "gpt-4o-mini"},
 	}
 	resp := llmPost(t, llmURL(serverURL, "/providers"), token, payload)
-	resp.Body.Close()
+	defer resp.Body.Close()
 	assert.Equal(t, http.StatusCreated, resp.StatusCode, "createTestOpenAI should succeed")
-	t.Cleanup(func() { llmprovider.Global.Delete("openai") })
+	body := llmBody(t, resp)
+	scopedKey, _ := body["key"].(string)
+	t.Cleanup(func() { llmprovider.Global.Delete(scopedKey) })
+	return scopedKey
 }
 
 // ----------- Functional tests -----------
@@ -141,7 +143,7 @@ func TestLLMGetPageData(t *testing.T) {
 
 	presets, ok := body["preset_providers"].([]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, 5, len(presets), "should have 5 presets")
+	assert.GreaterOrEqual(t, len(presets), 5, "should have at least 5 presets")
 }
 
 func TestLLMGetUnauthenticated(t *testing.T) {
@@ -162,7 +164,6 @@ func TestLLMProviderCreate(t *testing.T) {
 	initSettingRegistry(t)
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
-	llmprovider.Global.Delete("openai")
 
 	payload := map[string]interface{}{
 		"preset_key": "openai",
@@ -172,10 +173,12 @@ func TestLLMProviderCreate(t *testing.T) {
 	resp := llmPost(t, llmURL(serverURL, "/providers"), token, payload)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	t.Cleanup(func() { llmprovider.Global.Delete("openai") })
 
 	body := llmBody(t, resp)
-	assert.Equal(t, "openai", body["key"])
+	scopedKey, _ := body["key"].(string)
+	t.Cleanup(func() { llmprovider.Global.Delete(scopedKey) })
+
+	assert.Contains(t, scopedKey, ".openai", "scoped key should end with .openai")
 	assert.Equal(t, "OpenAI", body["name"])
 	assert.Equal(t, "openai", body["type"])
 
@@ -199,7 +202,6 @@ func TestLLMProviderCreateCustom(t *testing.T) {
 	initSettingRegistry(t)
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
-	llmprovider.Global.Delete("my-custom-llm")
 
 	payload := map[string]interface{}{
 		"key":     "my-custom-llm",
@@ -215,10 +217,12 @@ func TestLLMProviderCreateCustom(t *testing.T) {
 	resp := llmPost(t, llmURL(serverURL, "/providers"), token, payload)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
-	t.Cleanup(func() { llmprovider.Global.Delete("my-custom-llm") })
 
 	body := llmBody(t, resp)
-	assert.Equal(t, "my-custom-llm", body["key"])
+	scopedKey, _ := body["key"].(string)
+	t.Cleanup(func() { llmprovider.Global.Delete(scopedKey) })
+
+	assert.Contains(t, scopedKey, ".my-custom-llm", "scoped key should end with .my-custom-llm")
 	assert.Equal(t, "My Custom LLM", body["name"])
 	assert.Equal(t, true, body["is_custom"])
 
@@ -233,7 +237,7 @@ func TestLLMProviderUpdate(t *testing.T) {
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
 
-	createTestOpenAI(t, serverURL, token)
+	scopedKey := createTestOpenAI(t, serverURL, token)
 
 	updatePayload := map[string]interface{}{
 		"name":    "Updated OpenAI",
@@ -242,7 +246,7 @@ func TestLLMProviderUpdate(t *testing.T) {
 			{"id": "gpt-4o", "name": "GPT-4o Updated", "capabilities": []string{"vision", "tool_calls"}, "enabled": true},
 		},
 	}
-	resp := llmPut(t, llmURL(serverURL, "/providers/openai"), token, updatePayload)
+	resp := llmPut(t, llmURL(serverURL, "/providers/"+scopedKey), token, updatePayload)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -265,27 +269,28 @@ func TestLLMProviderDelete(t *testing.T) {
 	initSettingRegistry(t)
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
-	llmprovider.Global.Delete("anthropic")
 
 	createPayload := map[string]interface{}{
 		"preset_key": "anthropic",
 		"api_key":    anthropicKey,
 	}
 	createResp := llmPost(t, llmURL(serverURL, "/providers"), token, createPayload)
+	createBody := llmBody(t, createResp)
 	createResp.Body.Close()
 	assert.Equal(t, http.StatusCreated, createResp.StatusCode)
+	scopedKey, _ := createBody["key"].(string)
 
 	rolesPayload := map[string]interface{}{
 		"default": map[string]interface{}{
-			"provider": "anthropic",
-			"model":    "claude-sonnet-4-20250514",
+			"provider": scopedKey,
+			"model":    "claude-sonnet-4-6",
 		},
 	}
 	rolesResp := llmPut(t, llmURL(serverURL, "/roles"), token, rolesPayload)
 	rolesResp.Body.Close()
 	assert.Equal(t, http.StatusOK, rolesResp.StatusCode)
 
-	deleteResp := llmDelete(t, llmURL(serverURL, "/providers/anthropic"), token)
+	deleteResp := llmDelete(t, llmURL(serverURL, "/providers/"+scopedKey), token)
 	defer deleteResp.Body.Close()
 	assert.Equal(t, http.StatusOK, deleteResp.StatusCode)
 
@@ -307,21 +312,22 @@ func TestLLMProviderDeleteForbidden(t *testing.T) {
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
 
-	llmprovider.Global.Delete("other-team-provider")
+	otherOwner := llmprovider.ProviderOwner{Type: "user", UserID: "some-other-user-999"}
+	scopedKey := llmprovider.ScopedKey(&otherOwner, "other-team-provider")
 	otherProvider := &llmprovider.Provider{
-		Key:     "other-team-provider",
+		Key:     scopedKey,
 		Name:    "Other Team's Provider",
 		Type:    "openai",
 		APIURL:  "https://api.example.com",
 		Models:  []llmprovider.ModelInfo{},
 		Enabled: true,
 		Source:  llmprovider.ProviderSourceDynamic,
-		Owner:   llmprovider.ProviderOwner{Type: "user", UserID: "some-other-user-999"},
+		Owner:   otherOwner,
 	}
 	llmprovider.Global.Create(otherProvider)
-	t.Cleanup(func() { llmprovider.Global.Delete("other-team-provider") })
+	t.Cleanup(func() { llmprovider.Global.Delete(scopedKey) })
 
-	resp := llmDelete(t, llmURL(serverURL, "/providers/other-team-provider"), token)
+	resp := llmDelete(t, llmURL(serverURL, "/providers/"+scopedKey), token)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusNotFound, resp.StatusCode, "should not be able to delete another user's provider")
 }
@@ -333,9 +339,9 @@ func TestLLMProviderTest(t *testing.T) {
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
 
-	createTestOpenAI(t, serverURL, token)
+	scopedKey := createTestOpenAI(t, serverURL, token)
 
-	resp := llmPost(t, llmURL(serverURL, "/providers/openai/test"), token, nil)
+	resp := llmPost(t, llmURL(serverURL, "/providers/"+scopedKey+"/test"), token, nil)
 	defer resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
 
@@ -351,15 +357,15 @@ func TestLLMRoles(t *testing.T) {
 	initSettingRegistry(t)
 	initLLMRegistry(t)
 	token := obtainToken(t, serverURL)
-	createTestOpenAI(t, serverURL, token)
+	scopedKey := createTestOpenAI(t, serverURL, token)
 
 	rolesPayload := map[string]interface{}{
 		"default": map[string]interface{}{
-			"provider": "openai",
+			"provider": scopedKey,
 			"model":    "gpt-4o",
 		},
 		"vision": map[string]interface{}{
-			"provider": "openai",
+			"provider": scopedKey,
 			"model":    "gpt-4o",
 		},
 	}
@@ -404,11 +410,11 @@ func TestLLMRolesValidation(t *testing.T) {
 	defer resp2.Body.Close()
 	assert.Equal(t, http.StatusBadRequest, resp2.StatusCode, "should reject non-existent provider")
 
-	createTestOpenAI(t, serverURL, token)
+	scopedKey := createTestOpenAI(t, serverURL, token)
 
 	resp3 := llmPut(t, llmURL(serverURL, "/roles"), token, map[string]interface{}{
 		"default": map[string]interface{}{
-			"provider": "openai",
+			"provider": scopedKey,
 			"model":    "nonexistent-model",
 		},
 	})

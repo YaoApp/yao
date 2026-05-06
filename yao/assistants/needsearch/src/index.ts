@@ -50,7 +50,7 @@ function Next(
         ? parsed.search_types.filter(
             (t) =>
               typeof t === "string" &&
-              ["web", "kb", "db"].includes(t.toLowerCase())
+              ["web"].includes(t.toLowerCase()) // TODO: KB/DB search temporarily disabled. Original: ["web", "kb", "db"]
           )
         : [];
       result.confidence =
@@ -76,13 +76,12 @@ function extractFromText(text: string): SearchResult {
   const lower = text.toLowerCase();
 
   // Check for explicit indicators
+  // TODO: KB/DB search temporarily disabled. Original includes "kb" and "db".
   const needSearch =
     lower.includes("true") ||
     lower.includes("need") ||
     lower.includes("search") ||
-    lower.includes("web") ||
-    lower.includes("kb") ||
-    lower.includes("db");
+    lower.includes("web");
 
   const noSearch =
     lower.includes("false") ||
@@ -90,12 +89,13 @@ function extractFromText(text: string): SearchResult {
     lower.includes("not need");
 
   // Extract search types
+  // TODO: KB/DB search temporarily disabled. Re-enable when ready.
   const searchTypes: string[] = [];
   if (lower.includes("web")) searchTypes.push("web");
-  if (lower.includes("kb") || lower.includes("knowledge"))
-    searchTypes.push("kb");
-  if (lower.includes("db") || lower.includes("database"))
-    searchTypes.push("db");
+  // if (lower.includes("kb") || lower.includes("knowledge"))
+  //   searchTypes.push("kb");
+  // if (lower.includes("db") || lower.includes("database"))
+  //   searchTypes.push("db");
 
   // Determine need_search
   const need = noSearch ? false : needSearch && searchTypes.length > 0;

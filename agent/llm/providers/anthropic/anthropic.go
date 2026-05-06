@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/share"
 )
 
 // Provider Anthropic Messages API provider
@@ -44,11 +45,11 @@ func buildAdapters(cap *goullm.Capabilities) []adapters.CapabilityAdapter {
 	// Tool call adapter
 	result = append(result, adapters.NewToolCallAdapter(cap.ToolCalls))
 
-	// Vision adapter
+	// Vision adapter (always registered to strip unsupported image content)
 	visionSupport, visionFormat := context.GetVisionSupport(cap)
 	if visionSupport {
 		result = append(result, adapters.NewVisionAdapter(true, visionFormat))
-	} else if cap.Vision != nil {
+	} else {
 		result = append(result, adapters.NewVisionAdapter(false, context.VisionFormatNone))
 	}
 
@@ -201,21 +202,10 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
-	// Get connector settings
-	setting := p.Connector.Setting()
-	host, ok := setting["host"].(string)
-	if !ok || host == "" {
-		return nil, fmt.Errorf("no host found in connector settings")
-	}
-
-	key, ok := setting["key"].(string)
-	if !ok || key == "" {
-		return nil, fmt.Errorf("API key is not set")
-	}
-
-	version := "2023-06-01"
-	if v, ok := setting["version"].(string); ok && v != "" {
-		version = v
+	// Get connector settings via LLMConnector or fallback
+	host, key, version, err := p.resolveHostKeyVersion()
+	if err != nil {
+		return nil, err
 	}
 
 	// Build URL: host/v1/messages
@@ -227,13 +217,13 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 		})
 	}
 
-	// Create HTTP request with Anthropic auth headers
+	// Create HTTP request with auth headers
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
-		SetHeader("x-api-key", key).
 		SetHeader("anthropic-version", version).
 		SetHeader("Accept", "text/event-stream").
-		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
+		SetHeader("User-Agent", "YaoEngine/"+share.VERSION)
+	setAnthropicAuthHeaders(req, p.Connector, key)
 
 	// Accumulate response data
 	accumulator := &streamAccumulator{
@@ -678,31 +668,20 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 		return nil, fmt.Errorf("failed to build request body: %w", err)
 	}
 
-	// Get connector settings
-	setting := p.Connector.Setting()
-	host, ok := setting["host"].(string)
-	if !ok || host == "" {
-		return nil, fmt.Errorf("no host found in connector settings")
-	}
-
-	key, ok := setting["key"].(string)
-	if !ok || key == "" {
-		return nil, fmt.Errorf("API key is not set")
-	}
-
-	version := "2023-06-01"
-	if v, ok := setting["version"].(string); ok && v != "" {
-		version = v
+	// Get connector settings via LLMConnector or fallback
+	host, key, version, err := p.resolveHostKeyVersion()
+	if err != nil {
+		return nil, err
 	}
 
 	url := buildAPIURL(host, "/messages")
 
-	// Create HTTP request
+	// Create HTTP request with auth headers
 	req := http.New(url).
 		SetHeader("Content-Type", "application/json").
-		SetHeader("x-api-key", key).
 		SetHeader("anthropic-version", version).
-		SetHeader("User-Agent", "YaoAgent/1.0 (+https://yaoagents.com)")
+		SetHeader("User-Agent", "YaoEngine/"+share.VERSION)
+	setAnthropicAuthHeaders(req, p.Connector, key)
 
 	resp := req.Post(requestBody)
 	if resp.Code != 200 {
@@ -915,6 +894,11 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 	} else if mt, ok := setting["max_tokens"].(int); ok && mt > 0 {
 		maxTokens = mt
 	}
+	if lc, ok := p.Connector.(goullm.LLMConnector); ok {
+		if caps := lc.GetCapabilities(); caps != nil && caps.MaxOutputTokens > 0 && maxTokens > caps.MaxOutputTokens {
+			maxTokens = caps.MaxOutputTokens
+		}
+	}
 	body["max_tokens"] = maxTokens
 
 	// Temperature
@@ -942,9 +926,13 @@ func (p *Provider) buildRequestBody(messages []context.Message, options *context
 		body["tool_choice"] = convertToolChoice(options.ToolChoice)
 	}
 
-	// Thinking configuration from connector settings
-	if thinking, exists := setting["thinking"]; exists && thinking != nil {
-		body["thinking"] = thinking
+	// Merge connector-level body params (thinking, etc.)
+	// filtered through the SupportedParams / default whitelist.
+	connParams := connector.FilterRequestBodyParams(setting, p.Connector)
+	for k, v := range connParams {
+		if _, exists := body[k]; !exists {
+			body[k] = v
+		}
 	}
 
 	return body, nil
@@ -1175,4 +1163,48 @@ func isRetryableError(err error) bool {
 	}
 
 	return false
+}
+
+// resolveHostKeyVersion extracts host, key, and version via LLMConnector or Setting().
+// Setting() is called at most once, and only when needed.
+func (p *Provider) resolveHostKeyVersion() (host, key, version string, err error) {
+	setting := p.Connector.Setting()
+
+	if lc, ok := p.Connector.(goullm.LLMConnector); ok {
+		host = lc.GetURL()
+		key = lc.GetKey()
+	} else {
+		host, _ = setting["host"].(string)
+		key, _ = setting["key"].(string)
+	}
+
+	// Version is Anthropic-specific, not on LLMConnector interface
+	version = "2023-06-01"
+	if v, ok := setting["version"].(string); ok && v != "" {
+		version = v
+	}
+
+	if host == "" {
+		return "", "", "", fmt.Errorf("no host found in connector settings")
+	}
+	if key == "" {
+		return "", "", "", fmt.Errorf("API key is not set")
+	}
+	return host, key, version, nil
+}
+
+// setAnthropicAuthHeaders sets auth headers based on LLMConnector.GetAuthMode().
+func setAnthropicAuthHeaders(req *http.Request, conn connector.Connector, key string) {
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		switch lc.GetAuthMode() {
+		case goullm.AuthAPIKey:
+			req.SetHeader("api-key", key)
+			return
+		case goullm.AuthBearer:
+			req.SetHeader("Authorization", fmt.Sprintf("Bearer %s", key))
+			return
+		}
+	}
+	// Default for Anthropic: x-api-key
+	req.SetHeader("x-api-key", key)
 }

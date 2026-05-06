@@ -125,6 +125,144 @@ func TestGetMasked(t *testing.T) {
 	assert.Contains(t, got.APIKey, "xxxx")
 }
 
+// ---------------------------------------------------------------------------
+// withKey behavior
+// ---------------------------------------------------------------------------
+
+func TestGet_DefaultMasked(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	got, err := r.Get("test-openai")
+	require.NoError(t, err)
+	assert.NotEqual(t, "sk-test-xxxxx", got.APIKey, "Get() default should mask APIKey")
+	assert.Contains(t, got.APIKey, "*")
+}
+
+func TestGet_WithKeyTrue(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	got, err := r.Get("test-openai", true)
+	require.NoError(t, err)
+	assert.Equal(t, "sk-test-xxxxx", got.APIKey, "Get(key, true) should return plain text APIKey")
+}
+
+func TestGetByConnectorID_DefaultMasked(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	created, err := r.Create(&p)
+	require.NoError(t, err)
+
+	got, err := r.GetByConnectorID(created.ConnectorID)
+	require.NoError(t, err)
+	assert.NotEqual(t, "sk-test-xxxxx", got.APIKey, "GetByConnectorID() default should mask")
+	assert.Contains(t, got.APIKey, "*")
+}
+
+func TestGetByConnectorID_WithKeyTrue(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	created, err := r.Create(&p)
+	require.NoError(t, err)
+
+	got, err := r.GetByConnectorID(created.ConnectorID, true)
+	require.NoError(t, err)
+	assert.Equal(t, "sk-test-xxxxx", got.APIKey, "GetByConnectorID(cid, true) should return plain text")
+}
+
+func TestList_DefaultMasked(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	list, err := r.List(&llmprovider.ProviderFilter{Source: llmprovider.ProviderSourceDynamic})
+	require.NoError(t, err)
+	require.True(t, len(list) > 0)
+
+	for _, item := range list {
+		assert.NotEqual(t, "sk-test-xxxxx", item.APIKey, "List() default should mask all APIKeys")
+	}
+}
+
+func TestList_WithKeyTrue(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	list, err := r.List(&llmprovider.ProviderFilter{Source: llmprovider.ProviderSourceDynamic}, true)
+	require.NoError(t, err)
+
+	found := false
+	for _, item := range list {
+		if item.Key == "test-openai" {
+			found = true
+			assert.Equal(t, "sk-test-xxxxx", item.APIKey, "List(filter, true) should return plain text")
+		}
+	}
+	assert.True(t, found)
+}
+
+func TestGetMasked_EqualsGetDefault(t *testing.T) {
+	r := setupRegistry(t)
+	p := testProvider
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	fromGet, err := r.Get("test-openai")
+	require.NoError(t, err)
+
+	fromGetMasked, err := r.GetMasked("test-openai")
+	require.NoError(t, err)
+
+	assert.Equal(t, fromGet.APIKey, fromGetMasked.APIKey, "GetMasked should equal Get (both masked by default)")
+}
+
+func TestListModels_ConnectorHasRealKey(t *testing.T) {
+	r := setupRegistry(t)
+
+	owner := llmprovider.ProviderOwner{Type: "user", UserID: "rk-user"}
+	p := llmprovider.Provider{
+		Key:    llmprovider.ScopedKey(&owner, "realkey-prov"),
+		Name:   "RealKey Test",
+		Type:   "openai",
+		APIURL: "https://api.openai.com",
+		APIKey: "sk-real-secret-key-12345",
+		Models: []llmprovider.ModelInfo{
+			{ID: "gpt-4o", Name: "GPT-4o", Capabilities: []string{"streaming"}, Enabled: true},
+		},
+		Enabled: true,
+		Owner:   owner,
+	}
+	_, err := r.Create(&p)
+	require.NoError(t, err)
+
+	opts := r.ListModelsByUser("rk-user")
+	require.True(t, len(opts) > 0, "should have at least one model option")
+
+	var modelCID string
+	for _, o := range opts {
+		if o.Label == "RealKey Test / GPT-4o" {
+			modelCID = o.Value
+			break
+		}
+	}
+	require.NotEmpty(t, modelCID, "should find the model option")
+
+	conn, err := connector.Select(modelCID)
+	require.NoError(t, err, "model connector should be registered")
+
+	s := conn.Setting()
+	key, _ := s["key"].(string)
+	assert.Equal(t, "sk-real-secret-key-12345", key, "connector should have the real API key, not masked")
+}
+
 func TestGetLazy(t *testing.T) {
 	r := setupRegistry(t)
 
@@ -153,13 +291,14 @@ func TestGetLazy(t *testing.T) {
 func TestList(t *testing.T) {
 	r := setupRegistry(t)
 
+	p2Owner := llmprovider.ProviderOwner{Type: "user", UserID: "123"}
 	providers := []llmprovider.Provider{
 		{Key: "p1", Name: "Provider 1", Type: "openai", Enabled: true,
 			Models: []llmprovider.ModelInfo{{ID: "gpt-4o", Name: "GPT-4o", Capabilities: []string{"vision", "tool_calls"}, Enabled: true}},
 			Owner:  llmprovider.ProviderOwner{Type: "system"}},
-		{Key: "p2", Name: "Provider 2", Type: "anthropic", Enabled: false,
+		{Key: llmprovider.ScopedKey(&p2Owner, "p2"), Name: "Provider 2", Type: "anthropic", Enabled: false,
 			Models: []llmprovider.ModelInfo{{ID: "claude-3", Name: "Claude 3", Capabilities: []string{"tool_calls"}, Enabled: true}},
-			Owner:  llmprovider.ProviderOwner{Type: "user", UserID: "123"}},
+			Owner:  p2Owner},
 		{Key: "p3", Name: "Provider 3", Type: "openai", Enabled: true,
 			Models: []llmprovider.ModelInfo{{ID: "gpt-4o-mini", Name: "GPT-4o Mini", Capabilities: []string{"streaming"}, Enabled: true}},
 			Owner:  llmprovider.ProviderOwner{Type: "system"}},
@@ -241,7 +380,7 @@ func TestList(t *testing.T) {
 		require.NoError(t, err)
 		found := false
 		for _, p := range list {
-			if p.Key == "p2" {
+			if p.Name == "Provider 2" {
 				found = true
 			}
 		}
@@ -369,13 +508,13 @@ func TestEncryptionRoundTrip(t *testing.T) {
 	_, err := r.Create(&p)
 	require.NoError(t, err)
 
-	got, err := r.Get("test-encrypted")
+	got, err := r.Get("test-encrypted", true)
 	require.NoError(t, err)
-	assert.Equal(t, "sk-test-xxxxx", got.APIKey, "APIKey should be decrypted on read")
+	assert.Equal(t, "sk-test-xxxxx", got.APIKey, "APIKey should be decrypted on read with withKey=true")
 
-	masked, err := r.GetMasked("test-encrypted")
+	masked, err := r.Get("test-encrypted")
 	require.NoError(t, err)
-	assert.NotEqual(t, "sk-test-xxxxx", masked.APIKey)
+	assert.NotEqual(t, "sk-test-xxxxx", masked.APIKey, "Get without withKey should mask")
 	assert.Contains(t, masked.APIKey, "xxxx")
 
 	// Verify raw store value is encrypted
@@ -476,8 +615,9 @@ func TestOwnerPrefixedIDs(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.key, func(t *testing.T) {
+			scopedKey := llmprovider.ScopedKey(&tc.owner, tc.key)
 			p := llmprovider.Provider{
-				Key:     tc.key,
+				Key:     scopedKey,
 				Name:    tc.key,
 				Type:    "openai",
 				APIURL:  "https://api.openai.com",

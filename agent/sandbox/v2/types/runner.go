@@ -38,7 +38,8 @@ type PrepareRequest struct {
 	Computer     infra.Computer
 	Config       *SandboxConfig
 	Connector    connector.Connector
-	AssistantID  string // the assistant's own ID (e.g. "yao/postman")
+	Roles        map[string]connector.Connector // pre-resolved role matrix from llmprovider
+	AssistantID  string                         // the assistant's own ID (e.g. "yao/postman")
 	SkillsDir    string
 	AssistantDir string // absolute host path to the assistant source directory
 	MCPServers   []MCPServer
@@ -51,7 +52,8 @@ type StreamRequest struct {
 	Computer     infra.Computer
 	Config       *SandboxConfig
 	Connector    connector.Connector
-	AssistantID  string // the assistant's own ID (e.g. "yao/postman")
+	Roles        map[string]connector.Connector // pre-resolved role matrix from llmprovider
+	AssistantID  string                         // the assistant's own ID (e.g. "yao/postman")
 	Messages     []agentContext.Message
 	SystemPrompt string
 	ChatID       string

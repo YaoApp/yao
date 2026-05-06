@@ -1,0 +1,8 @@
+{
+  "name": "Loop Fallback",
+  "description": "Synthesize tool call results into natural language when tool loop fails or reaches max turns",
+  "type": "worker",
+  "connector": "use::light",
+  "uses": { "search": "disabled" },
+  "options": {}
+}

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -63,9 +62,7 @@ func GetGRPCAgentRequest(parent context.Context, input GRPCAgentInput) ([]Messag
 	}
 
 	if connectorID := getStringOpt(rawOpts, "connector"); connectorID != "" {
-		if _, err := connector.Select(connectorID); err == nil {
-			opts.Connector = connectorID
-		}
+		opts.Connector = connectorID
 	}
 
 	ctx.Interrupt = NewInterruptController()

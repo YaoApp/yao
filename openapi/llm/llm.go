@@ -6,6 +6,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/connector"
 	agentllm "github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/llmprovider"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
@@ -34,7 +36,6 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 func listProviders(c *gin.Context) {
 	allProviders := make([]Provider, 0)
 
-	// Parse filter parameters from query string
 	filtersParam := c.Query("filters")
 	var filters []string
 	if filtersParam != "" {
@@ -44,49 +45,62 @@ func listProviders(c *gin.Context) {
 		}
 	}
 
-	for _, opt := range connector.AIConnectors {
-		connType := getConnectorType(opt.Value)
-		if connType == "openai" || connType == "anthropic" {
-			conn, ok := connector.Connectors[opt.Value]
-			if !ok {
-				continue
-			}
+	info := authorized.GetInfo(c)
 
-			capabilities := getCapabilitiesFromConn(conn)
+	var opts []connector.Option
+	if llmprovider.Global != nil {
+		opts = llmprovider.Global.ListModelsBy(info)
+	} else {
+		opts = connector.AIConnectors
+	}
 
-			// Apply capability filters
-			if len(filters) > 0 && !matchesFilters(capabilities, filters) {
-				continue
-			}
-
-			allProviders = append(allProviders, Provider{
-				Label:        opt.Label,
-				Value:        opt.Value,
-				Type:         connType,
-				Builtin:      conn.GetMetaInfo().Builtin,
-				Capabilities: capabilities,
-			})
+	for _, opt := range opts {
+		var conn connector.Connector
+		var err error
+		if llmprovider.Global != nil {
+			conn, err = llmprovider.Global.GetModel(opt.Value)
+		} else {
+			conn, err = connector.Select(opt.Value)
 		}
+		if err != nil {
+			continue
+		}
+
+		connType := connectorType(conn)
+		if connType != "openai" && connType != "anthropic" {
+			continue
+		}
+
+		capabilities := getCapabilitiesFromConn(conn)
+
+		if isNonChatModel(capabilities) && !hasFilter(filters, "embedding") && !hasFilter(filters, "image_generation") {
+			continue
+		}
+
+		if len(filters) > 0 && !matchesFilters(capabilities, filters) {
+			continue
+		}
+
+		allProviders = append(allProviders, Provider{
+			Label:        opt.Label,
+			Value:        opt.Value,
+			Type:         connType,
+			Builtin:      conn.GetMetaInfo().Builtin,
+			Capabilities: capabilities,
+		})
 	}
 
 	response.RespondWithSuccess(c, response.StatusOK, allProviders)
 }
 
-// getConnectorType retrieves the connector type by checking the global connector map
-func getConnectorType(id string) string {
-	conn, ok := connector.Connectors[id]
-	if !ok {
-		return "unknown"
-	}
-
+// connectorType returns the type string for a connector.
+func connectorType(conn connector.Connector) string {
 	if conn.Is(connector.OPENAI) {
 		return "openai"
 	}
-
 	if conn.Is(connector.ANTHROPIC) {
 		return "anthropic"
 	}
-
 	return "unknown"
 }
 
@@ -100,6 +114,27 @@ func getCapabilitiesFromConn(conn connector.Connector) map[string]interface{} {
 	return agentllm.ToMap(caps)
 }
 
+// isNonChatModel returns true if capabilities indicate a non-chat model (embedding or image generation).
+func isNonChatModel(caps map[string]interface{}) bool {
+	if v, ok := caps["embedding"].(bool); ok && v {
+		return true
+	}
+	if v, ok := caps["image_generation"].(bool); ok && v {
+		return true
+	}
+	return false
+}
+
+// hasFilter checks whether a specific filter string is present in the filters list.
+func hasFilter(filters []string, name string) bool {
+	for _, f := range filters {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}
+
 // matchesFilters checks if capabilities match all requested filters
 // Filters are matched case-insensitively and support the following capability keys:
 // - vision: true or string value like "openai", "claude"
@@ -110,6 +145,8 @@ func getCapabilitiesFromConn(conn connector.Connector) map[string]interface{} {
 // - streaming: bool
 // - json: bool
 // - multimodal: bool
+// - embedding: bool
+// - image_generation: bool
 // - temperature_adjustable: bool
 func matchesFilters(capabilities map[string]interface{}, filters []string) bool {
 	if capabilities == nil {

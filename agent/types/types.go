@@ -93,7 +93,14 @@ func (u *Uses) GetPhaseAgent(phase string) string {
 // System configures connectors for system agents
 // ===============================
 type System struct {
-	Default     string `json:"default,omitempty" yaml:"default,omitempty"`           // Default connector for all system agents
+	// Role-level defaults (written to llmprovider via SetDefaults)
+	Default string `json:"default,omitempty" yaml:"default,omitempty"` // Default connector for the "default" role
+	Light   string `json:"light,omitempty" yaml:"light,omitempty"`     // Default connector for the "light" role (titles, keywords, summaries)
+	Vision  string `json:"vision,omitempty" yaml:"vision,omitempty"`   // Default connector for the "vision" role
+	Audio   string `json:"audio,omitempty" yaml:"audio,omitempty"`     // Default connector for the "audio" role
+	Heavy   string `json:"heavy,omitempty" yaml:"heavy,omitempty"`     // Default connector for the "heavy" role (complex reasoning)
+
+	// Per-agent overrides (optional, highest priority — bypasses role resolution)
 	Keyword     string `json:"keyword,omitempty" yaml:"keyword,omitempty"`           // Connector for __yao.keyword agent
 	QueryDSL    string `json:"querydsl,omitempty" yaml:"querydsl,omitempty"`         // Connector for __yao.querydsl agent
 	Title       string `json:"title,omitempty" yaml:"title,omitempty"`               // Connector for __yao.title agent
@@ -101,8 +108,6 @@ type System struct {
 	RobotPrompt string `json:"robot_prompt,omitempty" yaml:"robot_prompt,omitempty"` // Connector for __yao.robot_prompt agent
 	NeedSearch  string `json:"needsearch,omitempty" yaml:"needsearch,omitempty"`     // Connector for __yao.needsearch agent
 	Entity      string `json:"entity,omitempty" yaml:"entity,omitempty"`             // Connector for __yao.entity agent
-	Vision      string `json:"vision,omitempty" yaml:"vision,omitempty"`             // Connector for vision capabilities
-	Voice       string `json:"voice,omitempty" yaml:"voice,omitempty"`               // Connector for voice/STT capabilities
 }
 
 // Mention Structure

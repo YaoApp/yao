@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -15,6 +16,7 @@ import (
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/llmprovider"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 	"github.com/yaoapp/yao/workspace"
@@ -25,15 +27,22 @@ func (ast *Assistant) HasSandboxV2() bool {
 	return ast.SandboxV2 != nil
 }
 
+// sandboxV2InitResult bundles everything returned by initSandboxV2.
+type sandboxV2InitResult struct {
+	Runner       sandboxTypes.Runner
+	Computer     infraV2.Computer
+	Config       *sandboxTypes.SandboxConfig
+	Cleanup      func()
+	LoadingMsgID string
+	Roles        map[string]connector.Connector
+}
+
 // initSandboxV2 initializes the V2 sandbox: obtains a Computer, gets a Runner,
-// runs Prepare, and returns the runner, computer, a per-request copy of the
-// SandboxConfig, cleanup closure, loading message ID, and any error.
+// resolves the role matrix, runs Prepare, and returns the result.
 //
 // A shallow copy of ast.SandboxV2 is made so that concurrent requests to the
 // same assistant each get their own mutable config (Owner, ID, NodeID, etc.).
-func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options) (
-	sandboxTypes.Runner, infraV2.Computer, *sandboxTypes.SandboxConfig, func(), string, error,
-) {
+func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options) (*sandboxV2InitResult, error) {
 	cfgCopy := *ast.SandboxV2
 	cfg := &cfgCopy
 	manager := infraV2.M()
@@ -52,8 +61,11 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	conn, _, err := ast.GetConnector(ctx, opts)
 	if err != nil && cfg.Runner.Name != "yao" {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, nil, "", fmt.Errorf("get connector: %w", err)
+		return nil, fmt.Errorf("get connector: %w", err)
 	}
+
+	// 1b. Resolve role matrix once; passed to both Prepare and Stream.
+	roles := resolveRoles(conn, ctx.Authorized)
 
 	// 2. Build human-readable DisplayName from real Agent name + Workspace name.
 	cfg.DisplayName = buildBoxDisplayName(ctx, ast.ID, ast.Name)
@@ -89,7 +101,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, nil, "", fmt.Errorf("getComputer failed: %w", err)
+		return nil, fmt.Errorf("getComputer failed: %w", err)
 	}
 	_ = identifier
 
@@ -98,7 +110,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	if err != nil {
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, nil, "", fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
+		return nil, fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
 	}
 
 	// 5. Resolve assistant directory and skills subdirectory.
@@ -129,6 +141,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		Computer:     computer,
 		Config:       cfg,
 		Connector:    conn,
+		Roles:        roles,
 		AssistantID:  ast.ID,
 		SkillsDir:    skillsDir,
 		AssistantDir: assistantDir,
@@ -140,11 +153,9 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		runner.Cleanup(stdCtx, computer)
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, nil, nil, nil, "", fmt.Errorf("runner.Prepare: %w", err)
+		return nil, fmt.Errorf("runner.Prepare: %w", err)
 	}
 
-	// Inject computer + workspace into context so Create/Next hooks
-	// can access ctx.computer and ctx.workspace.
 	ctx.SetComputer(computer)
 
 	cleanup := func() {
@@ -154,7 +165,14 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		sandboxv2.LifecycleAction(cleanCtx, cfg, computer, manager)
 	}
 
-	return runner, computer, cfg, cleanup, loadingMsgID, nil
+	return &sandboxV2InitResult{
+		Runner:       runner,
+		Computer:     computer,
+		Config:       cfg,
+		Cleanup:      cleanup,
+		LoadingMsgID: loadingMsgID,
+		Roles:        roles,
+	}, nil
 }
 
 // sandboxV2StreamParams groups arguments for executeSandboxV2Stream.
@@ -167,6 +185,7 @@ type sandboxV2StreamParams struct {
 	Config       *sandboxTypes.SandboxConfig
 	LoadingMsgID string
 	Options      *context.Options
+	Roles        map[string]connector.Connector
 }
 
 // executeSandboxV2Stream calls the V2 Runner.Stream and wraps it in the
@@ -208,6 +227,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Computer:     p.Computer,
 		Config:       cfg,
 		Connector:    conn,
+		Roles:        p.Roles,
 		AssistantID:  ast.ID,
 		Messages:     p.Messages,
 		SystemPrompt: systemPrompt,
@@ -227,6 +247,25 @@ func (ast *Assistant) executeSandboxV2Stream(
 	}
 
 	return sandboxv2.ExecuteSandboxStream(ctx, execReq, p.Handler)
+}
+
+// resolveRoles builds the role → connector map using the llmprovider role system.
+// The primary connector (user-selected or system default) becomes "default";
+// other roles (heavy, light, vision) are fetched from llmprovider settings.
+func resolveRoles(conn connector.Connector, identity llmprovider.Identity) map[string]connector.Connector {
+	roles := map[string]connector.Connector{}
+	if conn != nil {
+		roles["default"] = conn
+	}
+	if llmprovider.Global == nil || identity == nil {
+		return roles
+	}
+	for _, role := range []string{"heavy", "light", "vision"} {
+		if c, err := llmprovider.Global.GetRoleModelBy(role, identity); err == nil {
+			roles[role] = c
+		}
+	}
+	return roles
 }
 
 // initStandaloneWorkspace loads the workspace FS into context when no sandbox

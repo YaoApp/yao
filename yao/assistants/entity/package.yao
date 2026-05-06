@@ -2,7 +2,7 @@
   "name": "Entity Extractor",
   "description": "Extract entities and relationships",
   "type": "worker",
+  "connector": "use::light",
   "uses": { "search": "disabled" },
   "options": { "max_tokens": 2000 }
 }
-

@@ -1,0 +1,13 @@
+{
+  "name": "doc_validate",
+  "description": "Check if a Yao process has documentation. Returns validation status and suggestions for similar processes if not found.",
+  "process": "tools.doc_validate",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "description": "Process name to validate" }
+    },
+    "required": ["name"]
+  },
+  "x-process-args": ["$args.name"]
+}

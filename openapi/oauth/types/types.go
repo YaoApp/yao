@@ -635,6 +635,22 @@ type AuthorizedInfo struct {
 	Constraints DataConstraints `json:"constraints,omitempty"`
 }
 
+// GetUserID implements llmprovider.Identity.
+func (auth *AuthorizedInfo) GetUserID() string {
+	if auth == nil {
+		return ""
+	}
+	return auth.UserID
+}
+
+// GetTeamID implements llmprovider.Identity.
+func (auth *AuthorizedInfo) GetTeamID() string {
+	if auth == nil {
+		return ""
+	}
+	return auth.TeamID
+}
+
 // AuthorizedToMap converts AuthorizedInfo to map[string]interface{}
 // This is useful for passing authorized information to runtime bridges (e.g., V8)
 func (auth *AuthorizedInfo) AuthorizedToMap() map[string]interface{} {

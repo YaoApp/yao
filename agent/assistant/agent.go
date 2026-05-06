@@ -2,20 +2,19 @@ package assistant
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/connector"
 	goullm "github.com/yaoapp/gou/llm"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant/handlers"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
-	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
-	infraV2 "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/llmprovider"
 )
 
 // Stream stream the agent
@@ -167,30 +166,25 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	var sandboxLoadingMsgID string
 
 	// V2 sandbox state
-	var v2Runner sandboxTypes.Runner
-	var v2Computer infraV2.Computer
-	var v2LoadingMsgID string
-
-	var v2Cfg *sandboxTypes.SandboxConfig
+	var v2Init *sandboxV2InitResult
 	if ast.HasSandboxV2() {
 		ctx.Logger.Phase("Sandbox V2")
 		var err error
-		var v2Cleanup func()
-		v2Runner, v2Computer, v2Cfg, v2Cleanup, v2LoadingMsgID, err = ast.initSandboxV2(ctx, opts)
+		v2Init, err = ast.initSandboxV2(ctx, opts)
 		if err != nil {
 			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
-		sandboxCleanup = v2Cleanup
+		sandboxCleanup = v2Init.Cleanup
 		ctx.Logger.PhaseComplete("Sandbox V2")
-		if v2Computer != nil {
-			ci := v2Computer.ComputerInfo()
+		if v2Init.Computer != nil {
+			ci := v2Init.Computer.ComputerInfo()
 			ctx.Logger.Trace("Node: %s (%s)", ci.NodeID, ci.Kind)
 			if ci.BoxID != "" {
 				ctx.Logger.Trace("Computer: %s", ci.BoxID)
 			}
-			ctx.Logger.Trace("Workspace: %s", v2Cfg.WorkspaceID)
+			ctx.Logger.Trace("Workspace: %s", v2Init.Config.WorkspaceID)
 			if conn, _, err := ast.GetConnector(ctx, opts); err == nil && conn != nil {
 				ctx.Logger.Trace("Connector: %s", conn.ID())
 			}
@@ -330,22 +324,23 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		// Execute the LLM streaming call
 		// Choose between sandbox execution or direct LLM execution
-		if ast.HasSandboxV2() && v2Runner != nil && v2Computer != nil && v2Runner.Name() != "yao" {
+		if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Computer != nil && v2Init.Runner.Name() != "yao" {
 			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
 			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
 				Messages:     completionMessages,
 				AgentNode:    agentNode,
 				Handler:      streamHandler,
-				Runner:       v2Runner,
-				Computer:     v2Computer,
-				Config:       v2Cfg,
-				LoadingMsgID: v2LoadingMsgID,
+				Runner:       v2Init.Runner,
+				Computer:     v2Init.Computer,
+				Config:       v2Init.Config,
+				LoadingMsgID: v2Init.LoadingMsgID,
 				Options:      opts,
+				Roles:        v2Init.Roles,
 			})
-		} else if ast.HasSandboxV2() && v2Runner != nil && v2Runner.Name() == "yao" {
+		} else if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Runner.Name() == "yao" {
 			// V2 yao runner: Prepare is done, close loading, fall through to LLM
-			if v2LoadingMsgID != "" {
-				closeLoadingV2(ctx, v2LoadingMsgID, "")
+			if v2Init.LoadingMsgID != "" {
+				closeLoadingV2(ctx, v2Init.LoadingMsgID, "")
 			}
 			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
 		} else if ast.HasSandbox() {
@@ -570,11 +565,47 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
+	} else if len(toolCallResponses) > 0 && !ast.HasSandbox() && !ast.isToolLoopDisabled() {
+		// No Next hook + has tool results + not sandbox → tool loop
+		ctx.Logger.Debug("Entering tool loop for tool result processing")
+		loopResponse, loopCompletion, loopTools, err := ast.executeToolLoop(ctx, &ToolLoopParams{
+			CompletionMessages: completionMessages,
+			CompletionOptions:  completionOptions,
+			CompletionResponse: completionResponse,
+			ToolCallResponses:  toolCallResponses,
+			FullMessages:       fullMessages,
+			AgentNode:          agentNode,
+			StreamHandler:      streamHandler,
+			CreateResponse:     createResponse,
+			Opts:               opts,
+		})
+		if err != nil {
+			// Fallback to __yao.loop_fallback delegation
+			ctx.Logger.Warn("Tool loop failed: %v, falling back to loop_fallback", err)
+			fallbackDelegate := ast.buildLoopFallbackDelegate(ctx, fullMessages, completionResponse, toolCallResponses)
+			delegateResponse, delegateErr := ast.handleDelegation(ctx, fallbackDelegate, streamHandler)
+			if delegateErr != nil {
+				ctx.Logger.Warn("loop_fallback also failed: %v, using standard response", delegateErr)
+				finalResponse = ast.buildStandardResponse(&NextProcessContext{
+					Context:            ctx,
+					CompletionResponse: completionResponse,
+					FullMessages:       fullMessages,
+					ToolCallResponses:  toolCallResponses,
+					StreamHandler:      streamHandler,
+					CreateResponse:     createResponse,
+				})
+			} else {
+				finalResponse = delegateResponse
+			}
+		} else {
+			completionResponse = loopCompletion
+			toolCallResponses = loopTools
+			finalResponse = loopResponse
+		}
 	} else {
-		// No Next hook: use standard response
+		// No tool calls, sandbox mode, or loop disabled: standard response
 		finalResponse = ast.buildStandardResponse(&NextProcessContext{
 			Context:            ctx,
-			NextResponse:       nil,
 			CompletionResponse: completionResponse,
 			FullMessages:       fullMessages,
 			ToolCallResponses:  toolCallResponses,
@@ -627,35 +658,41 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	return finalResponse, nil
 }
 
-// GetConnector get the connector object, capabilities, and error with priority:
-// opts.Connector > ast.Connector > defaultConnector (fallback)
+// GetConnector get the connector object, capabilities, and error.
+// Priority: opts.Connector > ast.Connector (may be "use::<role>") > "default" role > legacy fallback
 // Note: opts.Connector may be set by Create hook's applyOptionsAdjustments
-// Returns: (connector, capabilities, error)
 func (ast *Assistant) GetConnector(ctx *context.Context, opts ...*context.Options) (connector.Connector, *goullm.Capabilities, error) {
-	connectorID := ast.Connector
+	cid := ast.Connector
 	if len(opts) > 0 && opts[0] != nil && opts[0].Connector != "" {
-		connectorID = opts[0].Connector
+		cid = opts[0].Connector
 	}
 
-	if connectorID == "" {
-		connectorID = defaultConnector
+	// Extract identity for role-based resolution
+	var identity llmprovider.Identity
+	if ctx != nil && ctx.Authorized != nil {
+		identity = ctx.Authorized
 	}
 
-	if connectorID == "" {
-		return nil, nil, fmt.Errorf("connector not specified")
+	// Unified resolution: explicit connector / use:: prefix / empty → all handled
+	conn, caps, err := llm.ResolveConnector(cid, identity)
+	if err == nil {
+		return conn, caps, nil
+	}
+	// Legacy fallback
+	if defaultConnector != "" {
+		if conn, err := connector.Select(defaultConnector); err == nil {
+			log.Warn("[LLM] Connector %s resolve failed, fallback to %s", cid, defaultConnector)
+			return conn, llm.GetCapabilitiesFromConn(conn), nil
+		}
+	}
+	if fallback := findCapableConnector(); fallback != "" {
+		if conn, err := connector.Select(fallback); err == nil {
+			log.Warn("[LLM] Connector %s resolve failed, fallback to %s (auto-detected)", cid, fallback)
+			return conn, llm.GetCapabilitiesFromConn(conn), nil
+		}
 	}
 
-	conn, err := connector.Select(connectorID)
-	if err != nil && connectorID != defaultConnector && defaultConnector != "" {
-		log.Printf("[Assistant] connector %q not found, falling back to default %q", connectorID, defaultConnector)
-		conn, err = connector.Select(defaultConnector)
-	}
-	if err != nil {
-		return nil, nil, err
-	}
-
-	capabilities := llm.GetCapabilitiesFromConn(conn)
-	return conn, capabilities, nil
+	return nil, nil, fmt.Errorf("connector not specified")
 }
 
 // Info get the assistant information
@@ -794,9 +831,10 @@ func (ast *Assistant) buildToolRetryMessages(
 
 	// Add assistant message with tool calls
 	assistantMsg := context.Message{
-		Role:      context.RoleAssistant,
-		Content:   completionResponse.Content,
-		ToolCalls: completionResponse.ToolCalls,
+		Role:             context.RoleAssistant,
+		Content:          completionResponse.Content,
+		ReasoningContent: completionResponse.ReasoningContent,
+		ToolCalls:        completionResponse.ToolCalls,
 	}
 	retryMessages = append(retryMessages, assistantMsg)
 

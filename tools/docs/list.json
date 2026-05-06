@@ -1,0 +1,20 @@
+{
+  "name": "doc_list",
+  "description": "List or search Yao process documentation. Returns matching entries with name, group, and description.",
+  "process": "tools.doc_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "keyword": {
+        "type": "string",
+        "description": "Search keyword (empty to list all)"
+      },
+      "limit": {
+        "type": "integer",
+        "description": "Max results (default 20)",
+        "default": 20
+      }
+    }
+  },
+  "x-process-args": ["$args.keyword", "$args.limit"]
+}

@@ -212,6 +212,7 @@ type AssistantInfo struct {
 	Avatar           string                       `json:"avatar,omitempty"`
 	Description      string                       `json:"description,omitempty"`
 	Connector        string                       `json:"connector,omitempty"`
+	ConnectorRaw     string                       `json:"connector_raw,omitempty"`
 	ConnectorOptions *ConnectorOptions            `json:"connector_options,omitempty"`
 	Modes            []string                     `json:"modes,omitempty"`
 	DefaultMode      string                       `json:"default_mode,omitempty"`
@@ -432,7 +433,7 @@ type AssistantModel struct {
 	Type                 string                       `json:"type,omitempty"`                   // Assistant Type, default is assistant
 	Name                 string                       `json:"name,omitempty"`                   // Assistant Name
 	Avatar               string                       `json:"avatar,omitempty"`                 // Assistant Avatar
-	Connector            string                       `json:"connector"`                        // AI Connector (default connector)
+	Connector            string                       `json:"connector"`                        // AI Connector (default connector, or "use::<role>" for role-based resolution)
 	ConnectorOptions     *ConnectorOptions            `json:"connector_options,omitempty"`      // Connector selection options for user to choose from
 	Path                 string                       `json:"path,omitempty"`                   // Assistant Path
 	BuiltIn              bool                         `json:"built_in,omitempty"`               // Whether this is a built-in assistant

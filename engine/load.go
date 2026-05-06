@@ -448,6 +448,11 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Setting Registry", Error: err})
 	}
 
+	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
+	if err := agent.SyncLLMDefaults(); err != nil {
+		warnings = append(warnings, Warning{Widget: "LLM Defaults Sync", Error: err})
+	}
+
 	for name, hook := range LoadHooks {
 		err = hook(cfg)
 		if err != nil {
@@ -719,6 +724,11 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		if err != nil {
 			printErr(cfg.Mode, "Setting Registry", err)
 		}
+	}
+
+	// Sync agent.yml system defaults into setting.Global (must run after llmprovider + setting init)
+	if err := agent.SyncLLMDefaults(); err != nil {
+		printErr(cfg.Mode, "LLM Defaults Sync", err)
 	}
 
 	// Load OpenAPI

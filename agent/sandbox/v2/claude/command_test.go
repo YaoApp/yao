@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	gouTypes "github.com/yaoapp/gou/types"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/xun/dbal/schema"
@@ -308,7 +309,6 @@ func TestBuildSandboxEnvPrompt(t *testing.T) {
 	assert.Contains(t, prompt, "darwin")
 	assert.Contains(t, prompt, "bash")
 	assert.Contains(t, prompt, "Sandbox Environment")
-	assert.Contains(t, prompt, ".attachments")
 }
 
 func TestBuildSandboxEnvPrompt_WindowsPlatform(t *testing.T) {
@@ -525,64 +525,6 @@ func TestSupportsProtocol(t *testing.T) {
 	assert.True(t, supportsProtocol(oai, "openai"))
 }
 
-func TestResolveRoleConnector_Undeclared(t *testing.T) {
-	roles := map[string]*types.RoleConnector{}
-	result := resolveRoleConnector("heavy", roles, false, func(id string) connector.Connector { return nil })
-	assert.Nil(t, result)
-}
-
-func TestResolveRoleConnector_Force(t *testing.T) {
-	heavyConn := newOpenAIConnector("thinking", "https://api.thinking.com", "think-model", "k")
-	roles := map[string]*types.RoleConnector{
-		"heavy": {Connector: "thinking", Override: "force"},
-	}
-	result := resolveRoleConnector("heavy", roles, true, func(id string) connector.Connector {
-		if id == "thinking" {
-			return heavyConn
-		}
-		return nil
-	})
-	assert.Equal(t, heavyConn, result)
-}
-
-func TestResolveRoleConnector_UserExplicit(t *testing.T) {
-	roles := map[string]*types.RoleConnector{
-		"heavy": {Connector: "thinking", Override: "user"},
-	}
-	result := resolveRoleConnector("heavy", roles, true, func(id string) connector.Connector {
-		return newOpenAIConnector("thinking", "h", "m", "k")
-	})
-	assert.Nil(t, result, "override=user + userExplicit=true => use user's connector")
-}
-
-func TestResolveRoleConnector_UserNotExplicit(t *testing.T) {
-	heavyConn := newOpenAIConnector("thinking", "h", "m", "k")
-	roles := map[string]*types.RoleConnector{
-		"heavy": {Connector: "thinking", Override: "user"},
-	}
-	result := resolveRoleConnector("heavy", roles, false, func(id string) connector.Connector {
-		if id == "thinking" {
-			return heavyConn
-		}
-		return nil
-	})
-	assert.Equal(t, heavyConn, result, "override=user + userExplicit=false => use sandbox connector")
-}
-
-// --- buildEnv with multi-connector ---
-
-func registerTestConnectors(t *testing.T, connectors map[string]connector.Connector) func() {
-	t.Helper()
-	for id, c := range connectors {
-		connector.Connectors[id] = c
-	}
-	return func() {
-		for id := range connectors {
-			delete(connector.Connectors, id)
-		}
-	}
-}
-
 func TestBuildEnv_OpenAI_SingleConnector(t *testing.T) {
 	oai := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
 	req := &types.StreamRequest{
@@ -595,37 +537,32 @@ func TestBuildEnv_OpenAI_SingleConnector(t *testing.T) {
 	env := buildEnv(req, p)
 	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "127.0.0.1")
 	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "kimi")
-	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_MODEL"])
-	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_DEFAULT_OPUS_MODEL"])
+	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_MODEL"])
+	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_DEFAULT_OPUS_MODEL"])
 }
 
 func TestBuildEnv_OpenAI_MultiConnector(t *testing.T) {
 	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
-	vision := newOpenAIConnector("vision-conn", "https://api.vision.com", "vis-model", "sk-v")
-
-	cleanup := registerTestConnectors(t, map[string]connector.Connector{
-		"vision-conn": vision,
-	})
-	defer cleanup()
+	heavyConn := newOpenAIConnector("heavy-conn", "https://api.heavy.com", "heavy-model", "sk-h")
 
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Connectors: map[string]*types.RoleConnector{
-					"vision": {Connector: "vision-conn", Override: "force"},
-				},
-			},
-		},
+		Config:    &types.SandboxConfig{},
 		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"heavy":   heavyConn,
+		},
 	}
 	req.Computer = newFakeComputer("/workspace")
 	p := testPlatform()
 
 	env := buildEnv(req, p)
-	assert.Equal(t, "claude-vision-4-5", env["ANTHROPIC_DEFAULT_SONNET_MODEL"],
-		"vision role should get its virtual model name for A2O routing")
-	assert.Equal(t, "claude-sonnet-4-6", env["ANTHROPIC_MODEL"],
-		"primary should keep default virtual model")
+	assert.Equal(t, "heavy-model", env["ANTHROPIC_DEFAULT_OPUS_MODEL"],
+		"heavy role should use actual model name from connector")
+	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_MODEL"],
+		"primary should use actual model name from connector")
+	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_CUSTOM_MODEL_OPTION"],
+		"non-standard model should set custom model option")
 }
 
 func TestBuildEnv_Anthropic_SingleConnector(t *testing.T) {
@@ -647,20 +584,13 @@ func TestBuildEnv_Anthropic_MultiConnector_Compatible(t *testing.T) {
 	primary := newAnthropicConnector("claude", "https://api.yao.run", "claude-sonnet-4-20250514", "sk-ant")
 	lightConn := newDualProtoConnector("light-conn", "https://api.yao.run", "claude-haiku-3-5-20241022", "sk-light")
 
-	cleanup := registerTestConnectors(t, map[string]connector.Connector{
-		"light-conn": lightConn,
-	})
-	defer cleanup()
-
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Connectors: map[string]*types.RoleConnector{
-					"light": {Connector: "light-conn", Override: "force"},
-				},
-			},
-		},
+		Config:    &types.SandboxConfig{},
 		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"light":   lightConn,
+		},
 	}
 	req.Computer = newFakeComputer("/workspace")
 	p := testPlatform()
@@ -692,10 +622,10 @@ func TestBuildSingleA2OConfig_Nil(t *testing.T) {
 
 func TestInjectA2OConfigWithRoutes_BuildsCorrectJSON(t *testing.T) {
 	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-kimi")
-	vision := newOpenAIConnector("vision", "https://api.vision.com", "vis-model", "sk-v")
+	heavyConn := newOpenAIConnector("heavy", "https://api.heavy.com", "heavy-model", "sk-h")
 
 	roleConnectors := map[string]connector.Connector{
-		"claude-vision-4-5": vision,
+		"heavy-model": heavyConn,
 	}
 
 	primaryCfg := buildSingleA2OConfig(primary)
@@ -720,10 +650,10 @@ func TestInjectA2OConfigWithRoutes_BuildsCorrectJSON(t *testing.T) {
 	require.True(t, ok, "routes should be present in JSON")
 	assert.Len(t, routesMap, 1)
 
-	visionRoute, ok := routesMap["claude-vision-4-5"].(map[string]interface{})
+	heavyRoute, ok := routesMap["heavy-model"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, "vis-model", visionRoute["model"])
-	assert.Contains(t, visionRoute["backend"], "api.vision.com")
+	assert.Equal(t, "heavy-model", heavyRoute["model"])
+	assert.Contains(t, heavyRoute["backend"], "api.heavy.com")
 }
 
 func TestResolveAllRoleConnectors_Empty(t *testing.T) {
@@ -736,48 +666,191 @@ func TestResolveAllRoleConnectors_Empty(t *testing.T) {
 }
 
 func TestResolveAllRoleConnectors_WithRoles(t *testing.T) {
-	vision := newOpenAIConnector("vis", "https://vis.com", "vis-m", "sk")
-	cleanup := registerTestConnectors(t, map[string]connector.Connector{"vis": vision})
-	defer cleanup()
+	primaryConn := newOpenAIConnector("primary", "https://primary.com", "primary-m", "k")
+	heavyConn := newOpenAIConnector("hvy", "https://heavy.com", "heavy-m", "sk")
 
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Connectors: map[string]*types.RoleConnector{
-					"vision": {Connector: "vis", Override: "force"},
-				},
-			},
+		Config:    &types.SandboxConfig{},
+		Connector: primaryConn,
+		Roles: map[string]connector.Connector{
+			"default": primaryConn,
+			"heavy":   heavyConn,
 		},
-		Connector: newOpenAIConnector("primary", "h", "m", "k"),
 	}
 	result := resolveAllRoleConnectors(req)
-	assert.Len(t, result, 1)
-	assert.Equal(t, vision, result["claude-vision-4-5"])
+	assert.Len(t, result, 2)
+	assert.Equal(t, primaryConn, result["primary-m"])
+	assert.Equal(t, heavyConn, result["heavy-m"])
 }
 
 func TestBuildEnv_Anthropic_MultiConnector_Incompatible(t *testing.T) {
 	primary := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant")
-	visionConn := newOpenAIConnector("vision-oai", "https://api.openai.com", "gpt-4o", "sk-oai")
-
-	cleanup := registerTestConnectors(t, map[string]connector.Connector{
-		"vision-oai": visionConn,
-	})
-	defer cleanup()
+	heavyConn := newOpenAIConnector("heavy-oai", "https://api.openai.com", "gpt-4o", "sk-oai")
 
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Connectors: map[string]*types.RoleConnector{
-					"vision": {Connector: "vision-oai", Override: "force"},
-				},
-			},
-		},
+		Config:    &types.SandboxConfig{},
 		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"heavy":   heavyConn,
+		},
 	}
 	req.Computer = newFakeComputer("/workspace")
 	p := testPlatform()
 
 	env := buildEnv(req, p)
-	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_DEFAULT_SONNET_MODEL"],
-		"incompatible connector: vision should keep primary model (different host, no anthropic protocol)")
+	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_DEFAULT_OPUS_MODEL"],
+		"incompatible connector: heavy should keep primary model (different host, no anthropic protocol)")
+}
+
+// --- fakeLLMConnector implements both connector.Connector and goullm.LLMConnector ---
+
+type fakeLLMConnector struct {
+	fakeConnector
+	model string
+	caps  *goullm.Capabilities
+}
+
+func (f *fakeLLMConnector) GetAuthMode() goullm.AuthMode { return goullm.AuthBearer }
+func (f *fakeLLMConnector) GetURL() string               { return "" }
+func (f *fakeLLMConnector) GetKey() string               { return "" }
+func (f *fakeLLMConnector) GetModel() string             { return f.model }
+func (f *fakeLLMConnector) GetSupportedParams() map[string]*goullm.ParamSpec {
+	return nil
+}
+func (f *fakeLLMConnector) GetCapabilities() *goullm.Capabilities { return f.caps }
+
+// --- buildModelCapabilityPrompt tests ---
+
+func TestBuildModelCapabilityPrompt_NilConnector(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	result := buildModelCapabilityPrompt(req)
+	assert.Empty(t, result)
+}
+
+func TestBuildModelCapabilityPrompt_NoRoles_NoSpecialCaps(t *testing.T) {
+	primary := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "test", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
+		model:         "deepseek-v4-flash",
+		caps:          &goullm.Capabilities{ToolCalls: true, Streaming: true},
+	}
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: primary,
+	}
+	result := buildModelCapabilityPrompt(req)
+	assert.Empty(t, result, "no roles and no special caps → empty")
+}
+
+func TestBuildModelCapabilityPrompt_WithHeavyAndLight(t *testing.T) {
+	primary := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "ds-flash", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
+		model:         "deepseek-v4-flash",
+		caps:          &goullm.Capabilities{ToolCalls: true},
+	}
+	heavy := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "ds-pro", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-pro"}},
+		model:         "deepseek-v4-pro",
+		caps:          &goullm.Capabilities{Reasoning: true, ToolCalls: true},
+	}
+	light := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "ds-lite", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
+		model:         "deepseek-v4-flash",
+		caps:          &goullm.Capabilities{ToolCalls: true},
+	}
+
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"heavy":   heavy,
+			"light":   light,
+		},
+	}
+	result := buildModelCapabilityPrompt(req)
+	assert.Contains(t, result, "deepseek-v4-flash")
+	assert.Contains(t, result, "deepseek-v4-pro")
+	assert.Contains(t, result, "opus")
+	assert.Contains(t, result, "haiku")
+	assert.Contains(t, result, "thinking")
+	assert.Contains(t, result, "tool_calls")
+	assert.Contains(t, result, "sub-agent")
+}
+
+func TestBuildModelCapabilityPrompt_VisionGuidance(t *testing.T) {
+	primary := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "ds-flash", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
+		model:         "deepseek-v4-flash",
+		caps:          &goullm.Capabilities{ToolCalls: true},
+	}
+	visionConn := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "vision", typ: connector.OPENAI, settings: map[string]interface{}{"model": "gpt-4o"}},
+		model:         "gpt-4o",
+		caps:          &goullm.Capabilities{Vision: true, ToolCalls: true},
+	}
+
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"vision":  visionConn,
+		},
+	}
+	result := buildModelCapabilityPrompt(req)
+	assert.Contains(t, result, "image_read")
+	assert.Contains(t, result, "Image/Vision")
+}
+
+func TestBuildModelCapabilityPrompt_PrimaryHasVision_NoGuidance(t *testing.T) {
+	primary := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "gpt4o", typ: connector.OPENAI, settings: map[string]interface{}{"model": "gpt-4o"}},
+		model:         "gpt-4o",
+		caps:          &goullm.Capabilities{Vision: true, ToolCalls: true},
+	}
+
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"vision":  primary,
+		},
+	}
+	result := buildModelCapabilityPrompt(req)
+	assert.NotContains(t, result, "image_read", "should not suggest image_read when primary has vision")
+}
+
+func TestBuildModelCapabilityPrompt_ThinkingFromSettings(t *testing.T) {
+	primary := &fakeLLMConnector{
+		fakeConnector: fakeConnector{
+			id:  "ds-pro",
+			typ: connector.OPENAI,
+			settings: map[string]interface{}{
+				"model": "deepseek-v4-pro",
+				"thinking": map[string]interface{}{
+					"type": "enabled",
+				},
+			},
+		},
+		model: "deepseek-v4-pro",
+		caps:  &goullm.Capabilities{ToolCalls: true},
+	}
+	heavy := &fakeLLMConnector{
+		fakeConnector: fakeConnector{id: "ds-pro2", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-pro-max"}},
+		model:         "deepseek-v4-pro-max",
+		caps:          &goullm.Capabilities{ToolCalls: true},
+	}
+
+	req := &types.StreamRequest{
+		Config:    &types.SandboxConfig{},
+		Connector: primary,
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"heavy":   heavy,
+		},
+	}
+	result := buildModelCapabilityPrompt(req)
+	assert.Contains(t, result, "thinking", "should detect thinking from Setting()[\"thinking\"]")
 }

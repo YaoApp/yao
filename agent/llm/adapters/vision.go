@@ -53,19 +53,28 @@ func (a *VisionAdapter) removeImageContent(messages []context.Message) []context
 	for _, msg := range messages {
 		processedMsg := msg
 
-		// Handle multimodal content (array of map)
-		if contentParts, ok := msg.Content.([]map[string]interface{}); ok {
+		if contentParts, ok := msg.Content.([]context.ContentPart); ok {
+			filtered := make([]context.ContentPart, 0)
+			for _, part := range contentParts {
+				if part.Type != context.ContentImageURL {
+					filtered = append(filtered, part)
+				}
+			}
+			if len(filtered) == 0 {
+				processedMsg.Content = "[Image content not supported by this model]"
+			} else {
+				processedMsg.Content = filtered
+			}
+		} else if contentParts, ok := msg.Content.([]map[string]interface{}); ok {
 			filteredParts := make([]map[string]interface{}, 0)
 
 			for _, part := range contentParts {
 				partType, _ := part["type"].(string)
-				// Skip image content
 				if partType != "image_url" && partType != "image" {
 					filteredParts = append(filteredParts, part)
 				}
 			}
 
-			// If all parts were filtered out, add placeholder text
 			if len(filteredParts) == 0 {
 				processedMsg.Content = "[Image content not supported by this model]"
 			} else if len(filteredParts) == 1 {

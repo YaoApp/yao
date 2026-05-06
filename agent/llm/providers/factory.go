@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/llm/providers/anthropic"
 	"github.com/yaoapp/yao/agent/llm/providers/openai"
@@ -61,16 +62,23 @@ func DetectAPIFormat(conn connector.Connector) string {
 		return "openai"
 	}
 
-	// Check connector settings for host URL patterns as fallback
-	settings := conn.Setting()
-	if settings != nil {
-		if host, ok := settings["host"].(string); ok {
-			if contains(host, "anthropic.com") || contains(host, "api.kimi.com/coding") {
-				return "anthropic"
-			}
-			if contains(host, "deepseek.com") {
-				return "openai"
-			}
+	// Try LLMConnector for typed URL access, fall back to Setting() map
+	var host string
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		host = lc.GetURL()
+	}
+	if host == "" {
+		if settings := conn.Setting(); settings != nil {
+			host, _ = settings["host"].(string)
+		}
+	}
+
+	if host != "" {
+		if contains(host, "anthropic.com") || contains(host, "api.kimi.com/coding") {
+			return "anthropic"
+		}
+		if contains(host, "deepseek.com") {
+			return "openai"
 		}
 	}
 

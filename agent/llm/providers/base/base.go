@@ -140,15 +140,30 @@ func (p *Provider) GetConnectorStringSetting(key string) (string, error) {
 
 // GetModel gets the model name from connector settings
 func (p *Provider) GetModel() (string, error) {
+	if lc, ok := p.Connector.(llm.LLMConnector); ok {
+		if m := lc.GetModel(); m != "" {
+			return m, nil
+		}
+	}
 	return p.GetConnectorStringSetting("model")
 }
 
 // GetAPIKey gets the API key from connector settings
 func (p *Provider) GetAPIKey() (string, error) {
+	if lc, ok := p.Connector.(llm.LLMConnector); ok {
+		if k := lc.GetKey(); k != "" {
+			return k, nil
+		}
+	}
 	return p.GetConnectorStringSetting("key")
 }
 
 // GetHost gets the host URL from connector settings
 func (p *Provider) GetHost() (string, error) {
+	if lc, ok := p.Connector.(llm.LLMConnector); ok {
+		if u := lc.GetURL(); u != "" {
+			return u, nil
+		}
+	}
 	return p.GetConnectorStringSetting("host")
 }

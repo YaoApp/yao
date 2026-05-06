@@ -219,3 +219,39 @@ type SandboxPageData struct {
 	Registry SandboxRegistryConfig     `json:"registry"`
 	Images   map[string][]SandboxImage `json:"images"`
 }
+
+// ---------------------------------------------------------------------------
+// Setup Status
+// ---------------------------------------------------------------------------
+
+type Checkpoint struct {
+	Status   string `json:"status"`
+	Required bool   `json:"required"`
+	Label    string `json:"label"`
+	Path     string `json:"path"`
+	Detail   string `json:"detail,omitempty"`
+}
+
+type SetupStatus struct {
+	Completed           bool                  `json:"completed"`
+	Checkpoints         map[string]Checkpoint `json:"checkpoints"`
+	OnboardingCompleted bool                  `json:"onboarding_completed"`
+	BannerDismissed     bool                  `json:"banner_dismissed"`
+}
+
+type AssistantSetupStatus struct {
+	AssistantID   string                `json:"assistant_id"`
+	AssistantName string                `json:"assistant_name"`
+	Ready         bool                  `json:"ready"`
+	Checkpoints   map[string]Checkpoint `json:"checkpoints"`
+}
+
+// ---------------------------------------------------------------------------
+// User Preference
+// ---------------------------------------------------------------------------
+
+type PreferenceData struct {
+	EmailNotification   *bool `json:"email_notification,omitempty"`
+	BannerDismissed     *bool `json:"banner_dismissed,omitempty"`
+	OnboardingCompleted *bool `json:"onboarding_completed,omitempty"`
+}

@@ -375,12 +375,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		return []ToolCallResult{result}, true
 	}
 
-	// Check if result is an error
-	if callResult.IsError {
-		result.Error = fmt.Errorf("MCP tool error")
-		result.IsRetryableError = false // MCP internal error is not retryable
-	}
-
 	// Serialize the Content field only ([]ToolContent)
 	contentBytes, err := jsoniter.Marshal(callResult.Content)
 	if err != nil {
@@ -396,6 +390,19 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 	}
 
 	result.Content = string(contentBytes)
+
+	// Check if result is an error — include actual content so LLM can see the details
+	if callResult.IsError {
+		result.Error = fmt.Errorf("tool call error: %s", result.Content)
+		result.IsRetryableError = isRetryableToolError(result.Error)
+		ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolCall.Function.Name, result.Content, result.IsRetryableError)
+		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
+		if toolNode != nil {
+			toolNode.Fail(result.Error)
+		}
+		return []ToolCallResult{result}, true
+	}
+
 	ctx.Logger.ToolComplete(toolCall.Function.Name, true)
 
 	if toolNode != nil {
@@ -545,7 +552,7 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	// Prepare parallel trace inputs
 	var parallelInputs []types.TraceParallelInput
 	mcpCalls := make([]mcpTypes.ToolCall, 0, len(toolCalls))
-	callMap := make(map[string]agentContext.ToolCall)
+	orderedCalls := make([]agentContext.ToolCall, 0, len(toolCalls))
 
 	for _, tc := range toolCalls {
 		_, toolName, ok := ParseMCPToolName(tc.Function.Name)
@@ -565,7 +572,7 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 			Name:      toolName,
 			Arguments: args,
 		})
-		callMap[toolName] = tc
+		orderedCalls = append(orderedCalls, tc)
 		ctx.Logger.ToolStart(tc.Function.Name)
 
 		// Add trace input for this tool
@@ -606,10 +613,8 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 			if node != nil {
 				node.Fail(err)
 			}
-			if i < len(mcpCalls) {
-				if tc, ok := callMap[mcpCalls[i].Name]; ok {
-					ctx.Logger.ToolComplete(tc.Function.Name, false)
-				}
+			if i < len(orderedCalls) {
+				ctx.Logger.ToolComplete(orderedCalls[i].Function.Name, false)
 			}
 		}
 		return nil, true
@@ -621,7 +626,7 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 
 	for i, mcpResult := range mcpResponse.Results {
 		toolName := mcpCalls[i].Name
-		originalCall := callMap[toolName]
+		originalCall := orderedCalls[i]
 		var toolNode types.Node
 		if i < len(toolNodes) {
 			toolNode = toolNodes[i]
@@ -809,19 +814,12 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 				toolNode.Fail(err)
 			}
 		} else {
-			// Check if result is an error
-			if mcpResult.IsError {
-				result.Error = fmt.Errorf("MCP tool error")
-				result.IsRetryableError = false // MCP internal error is not retryable
-				hasErrors = true
-			}
-
 			// Serialize the Content field only ([]ToolContent)
 			contentBytes, err := jsoniter.Marshal(mcpResult.Content)
 			if err != nil {
 				result.Error = err
 				result.Content = fmt.Sprintf("Failed to serialize result: %v", err)
-				result.IsRetryableError = false // Serialization error is not retryable
+				result.IsRetryableError = false
 				hasErrors = true
 				ctx.Logger.ToolComplete(tc.Function.Name, false)
 				if toolNode != nil {
@@ -829,11 +827,24 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 				}
 			} else {
 				result.Content = string(contentBytes)
-				ctx.Logger.ToolComplete(tc.Function.Name, !mcpResult.IsError)
-				if toolNode != nil {
-					toolNode.Complete(map[string]any{
-						"result": mcpResult.Content,
-					})
+
+				// Check if result is an error — include actual content so LLM can see the details
+				if mcpResult.IsError {
+					result.Error = fmt.Errorf("tool call error: %s", result.Content)
+					result.IsRetryableError = isRetryableToolError(result.Error)
+					hasErrors = true
+					ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolName, result.Content, result.IsRetryableError)
+					ctx.Logger.ToolComplete(tc.Function.Name, false)
+					if toolNode != nil {
+						toolNode.Fail(result.Error)
+					}
+				} else {
+					ctx.Logger.ToolComplete(tc.Function.Name, true)
+					if toolNode != nil {
+						toolNode.Complete(map[string]any{
+							"result": mcpResult.Content,
+						})
+					}
 				}
 			}
 		}

@@ -1,0 +1,9 @@
+{
+  "name": "yao-web",
+  "transport": "process",
+  "description": "Web search and fetch tools",
+  "tools": {
+    "web_search": "tools.web_search",
+    "web_fetch": "tools.web_fetch"
+  }
+}

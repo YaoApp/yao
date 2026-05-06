@@ -47,8 +47,15 @@ func (r *Registry) SetEncryptionKey(key string) {
 	r.encKey = key
 }
 
+// shouldExposeKey returns true when the caller explicitly requests plain-text APIKey.
+func shouldExposeKey(withKey []bool) bool {
+	return len(withKey) > 0 && withKey[0]
+}
+
 // Get retrieves a provider by key. Lazily ensures its connector is registered.
-func (r *Registry) Get(key string) (*Provider, error) {
+// By default the APIKey is masked; pass withKey=true to get the plain-text key
+// (only for internal LLM-request paths).
+func (r *Registry) Get(key string, withKey ...bool) (*Provider, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -58,18 +65,48 @@ func (r *Registry) Get(key string) (*Provider, error) {
 	}
 
 	_ = ensureConnector(p)
+
+	if !shouldExposeKey(withKey) {
+		cp := *p
+		cp.APIKey = maskAPIKey(cp.APIKey)
+		return &cp, nil
+	}
 	return p, nil
 }
 
-// GetMasked retrieves a provider with the API key masked for display.
-func (r *Registry) GetMasked(key string) (*Provider, error) {
-	p, err := r.Get(key)
+// GetByConnectorID finds a provider by its ConnectorID field (linear scan).
+// Use when the caller has a ConnectorID but not the store Key.
+// By default the APIKey is masked; pass withKey=true to get the plain-text key.
+func (r *Registry) GetByConnectorID(cid string, withKey ...bool) (*Provider, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	keys, err := indexGet(r.store, r.cache)
 	if err != nil {
 		return nil, err
 	}
-	cp := *p
-	cp.APIKey = maskAPIKey(cp.APIKey)
-	return &cp, nil
+
+	for _, key := range keys {
+		p, err := storeGet(r.store, r.cache, key, r.encKey)
+		if err != nil {
+			continue
+		}
+		if p.ConnectorID == cid {
+			_ = ensureConnector(p)
+			if !shouldExposeKey(withKey) {
+				cp := *p
+				cp.APIKey = maskAPIKey(cp.APIKey)
+				return &cp, nil
+			}
+			return p, nil
+		}
+	}
+	return nil, fmt.Errorf("provider with connector_id %q not found", cid)
+}
+
+// Deprecated: GetMasked is equivalent to Get(key) since Get now masks by default.
+func (r *Registry) GetMasked(key string) (*Provider, error) {
+	return r.Get(key)
 }
 
 // Create adds a new provider. Persists, caches, registers connector, and updates index.
@@ -161,7 +198,8 @@ func (r *Registry) Delete(key string) error {
 }
 
 // List returns providers matching the filter.
-func (r *Registry) List(filter *ProviderFilter) ([]Provider, error) {
+// By default the APIKey is masked; pass withKey=true to get plain-text keys.
+func (r *Registry) List(filter *ProviderFilter, withKey ...bool) ([]Provider, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -170,6 +208,7 @@ func (r *Registry) List(filter *ProviderFilter) ([]Provider, error) {
 		return nil, err
 	}
 
+	expose := shouldExposeKey(withKey)
 	var result []Provider
 	for _, key := range keys {
 		p, err := storeGet(r.store, r.cache, key, r.encKey)
@@ -180,7 +219,9 @@ func (r *Registry) List(filter *ProviderFilter) ([]Provider, error) {
 			continue
 		}
 		cp := *p
-		cp.APIKey = maskAPIKey(cp.APIKey)
+		if !expose {
+			cp.APIKey = maskAPIKey(cp.APIKey)
+		}
 		result = append(result, cp)
 	}
 	return result, nil
@@ -217,7 +258,7 @@ func (r *Registry) Reload() error {
 
 // GetConnector returns the runtime connector for a given provider key.
 func (r *Registry) GetConnector(key string) (connector.Connector, error) {
-	p, err := r.Get(key)
+	p, err := r.Get(key, true)
 	if err != nil {
 		return nil, err
 	}

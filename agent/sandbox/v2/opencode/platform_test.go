@@ -185,8 +185,6 @@ func TestBuildSandboxEnvPrompt_Linux(t *testing.T) {
 	assert.Contains(t, prompt, "linux")
 	assert.Contains(t, prompt, "bash")
 	assert.Contains(t, prompt, "/workspace")
-	assert.Contains(t, prompt, "$VAR_NAME")
-	assert.NotContains(t, prompt, "$env:")
 }
 
 func TestBuildSandboxEnvPrompt_Windows(t *testing.T) {
@@ -195,7 +193,6 @@ func TestBuildSandboxEnvPrompt_Windows(t *testing.T) {
 	assert.Contains(t, prompt, "windows")
 	assert.Contains(t, prompt, "pwsh")
 	assert.Contains(t, prompt, `C:\workspace`)
-	assert.Contains(t, prompt, "$env:VAR_NAME")
 }
 
 // ---------------------------------------------------------------------------

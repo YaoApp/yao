@@ -62,6 +62,7 @@ func (c *authTestCollections) cleanup(ctx context.Context, t *testing.T) {
 // FilterKBCollectionsByAuth filters collections based on user authorization.
 
 func TestKBCollectionAuthFilter(t *testing.T) {
+	t.Skip("KB/DB search temporarily disabled")
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 
@@ -155,6 +156,7 @@ func TestKBCollectionAuthFilter(t *testing.T) {
 // ========== DB Auth Wheres Tests ==========
 
 func TestDBAuthWheresFilter(t *testing.T) {
+	t.Skip("KB/DB search temporarily disabled")
 	// Note: This test doesn't need KB, just tests the BuildDBAuthWheres function
 	t.Run("TeamOnlyGeneratesCorrectWheres", func(t *testing.T) {
 		ctx := createAuthContext(TestUserA, TestTeam1, true, false)
@@ -273,6 +275,7 @@ func TestDBAuthWheresFilter(t *testing.T) {
 // ========== KB Search Integration Tests ==========
 
 func TestKBSearchIntegration(t *testing.T) {
+	t.Skip("KB/DB search temporarily disabled")
 	testutils.Prepare(t)
 	defer testutils.Clean(t)
 

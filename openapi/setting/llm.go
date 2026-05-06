@@ -3,8 +3,10 @@ package setting
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +18,7 @@ import (
 	"github.com/yaoapp/yao/setting"
 )
 
-const llmRolesNS = "llm.roles"
+var llmRolesNS = llmprovider.RolesNamespace
 
 func llmEnsureEncKey() {
 	if llmprovider.Global != nil && config.Conf.DB.AESKey != "" {
@@ -61,6 +63,9 @@ func enrichProvider(p *llmprovider.Provider) map[string]interface{} {
 		if preset := llmprovider.GetPreset(p.PresetKey); preset != nil {
 			m["is_cloud"] = preset.IsCloud
 			m["url_editable"] = preset.URLEditable
+		} else if p.PresetKey == "yaoagents" {
+			m["is_cloud"] = true
+			m["url_editable"] = false
 		}
 	}
 
@@ -81,35 +86,350 @@ func llmModelsURL(apiURL string) string {
 	return apiURL + "/v1/models"
 }
 
-// llmValidateKey tests connectivity by calling GET {apiURL}/models.
-// providerType controls the auth header format (anthropic uses x-api-key).
+// llmCompletionURL builds the chat/messages endpoint URL.
+func llmCompletionURL(providerType, apiURL string) string {
+	endpoint := "chat/completions"
+	if providerType == "anthropic" {
+		endpoint = "messages"
+	}
+	if strings.HasSuffix(apiURL, "/") {
+		return apiURL + endpoint
+	}
+	return apiURL + "/v1/" + endpoint
+}
+
+// llmSetAuthHeader sets the appropriate auth header for the provider type.
+func llmSetAuthHeader(req *http.Request, providerType, apiKey string) {
+	if apiKey == "" {
+		return
+	}
+	if providerType == "anthropic" {
+		req.Header.Set("x-api-key", apiKey)
+		req.Header.Set("anthropic-version", "2023-06-01")
+	} else {
+		req.Header.Set("Authorization", "Bearer "+apiKey)
+	}
+}
+
+// llmValidateKey tests connectivity and API key validity using a three-step
+// approach that works across all provider types (OpenAI, Anthropic, and
+// third-party compatible APIs) without incurring any token costs:
+//
+//  1. POST to real completion endpoint with empty messages (zero cost).
+//     401/403 → invalid key. Other response → connection works, proceed.
+//  2. GET /models to confirm key validity.
+//     200 → key valid. 401/403 → invalid key. 404 → endpoint unsupported,
+//     trust step-1 result. Other → report error.
+//  3. If step-1 returned 404 (model-based routing, e.g. NVIDIA) AND step-2
+//     returned 200, the /models endpoint may be public. Pick the first model
+//     from the response and POST again with that real model + empty messages.
 func llmValidateKey(providerType, apiURL, apiKey string) error {
-	url := llmModelsURL(apiURL)
 	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", url, nil)
+
+	// --- Step 1: POST real endpoint with fake model + empty messages ---
+	postURL := llmCompletionURL(providerType, apiURL)
+	req, err := http.NewRequest("POST", postURL, strings.NewReader(`{"model":"_","messages":[]}`))
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}
-	if apiKey != "" {
-		if providerType == "anthropic" {
-			req.Header.Set("x-api-key", apiKey)
-			req.Header.Set("anthropic-version", "2023-06-01")
-		} else {
-			req.Header.Set("Authorization", "Bearer "+apiKey)
-		}
-	}
+	req.Header.Set("Content-Type", "application/json")
+	llmSetAuthHeader(req, providerType, apiKey)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("connection failed: %w", err)
 	}
-	defer resp.Body.Close()
+	resp.Body.Close()
+
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return fmt.Errorf("invalid API key (HTTP %d)", resp.StatusCode)
 	}
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server returned HTTP %d", resp.StatusCode)
+	postStatus := resp.StatusCode
+
+	// --- Step 2: GET /models to confirm key ---
+	req2, err := http.NewRequest("GET", llmModelsURL(apiURL), nil)
+	if err != nil {
+		return nil
+	}
+	llmSetAuthHeader(req2, providerType, apiKey)
+
+	resp2, err := client.Do(req2)
+	if err != nil {
+		return nil // POST connected, GET network failure is non-fatal
+	}
+
+	modelsStatus := resp2.StatusCode
+	var modelsBody []byte
+	if modelsStatus == http.StatusOK {
+		modelsBody, _ = io.ReadAll(resp2.Body)
+	}
+	resp2.Body.Close()
+
+	if modelsStatus == http.StatusUnauthorized || modelsStatus == http.StatusForbidden {
+		return fmt.Errorf("invalid API key (HTTP %d)", modelsStatus)
+	}
+	if modelsStatus == http.StatusNotFound {
+		return nil
+	}
+	if modelsStatus == http.StatusOK {
+		if postStatus == http.StatusNotFound && len(modelsBody) > 0 {
+			return llmValidateWithModel(client, providerType, apiURL, apiKey, modelsBody)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("server returned HTTP %d", modelsStatus)
+}
+
+// llmValidateWithModel is the step-3 fallback for providers whose /models
+// endpoint is public (always 200). It picks the first model from the /models
+// response and POSTs to the completion endpoint with that model + empty
+// messages to trigger a real auth check.
+func llmValidateWithModel(client *http.Client, providerType, apiURL, apiKey string, modelsBody []byte) error {
+	var parsed struct {
+		Data []struct {
+			ID string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(modelsBody, &parsed); err != nil || len(parsed.Data) == 0 {
+		return nil
+	}
+
+	postURL := llmCompletionURL(providerType, apiURL)
+	body := fmt.Sprintf(`{"model":%q,"messages":[]}`, parsed.Data[0].ID)
+	req, err := http.NewRequest("POST", postURL, strings.NewReader(body))
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("Content-Type", "application/json")
+	llmSetAuthHeader(req, providerType, apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		return fmt.Errorf("invalid API key (HTTP %d)", resp.StatusCode)
 	}
 	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Cloud preset helpers
+// ---------------------------------------------------------------------------
+
+var (
+	cloudModelCache    []map[string]interface{}
+	cloudModelCacheURL string
+	cloudModelCacheMu  sync.Mutex
+)
+
+func buildCloudPreset(info *oauthTypes.AuthorizedInfo) {
+	var saved map[string]interface{}
+	if setting.Global != nil {
+		saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+	}
+
+	apiURL := resolveCloudAPIURL(saved)
+	preset := llmprovider.ProviderPreset{
+		Key:        "yaoagents",
+		Name:       "Yao Agents",
+		Type:       "openai",
+		APIURL:     apiURL,
+		RequireKey: false,
+		IsCloud:    true,
+	}
+
+	status, _ := saved["status"].(string)
+	if status == "connected" {
+		if encKey, _ := saved["api_key"].(string); encKey != "" {
+			raw := fetchCloudModels(apiURL, cloudDecrypt(encKey))
+			if len(raw) > 0 {
+				rawJSON, _ := json.Marshal(raw)
+				var models []llmprovider.ModelInfo
+				if err := json.Unmarshal(rawJSON, &models); err == nil {
+					for i := range models {
+						models[i].Enabled = true
+					}
+					preset.DefaultModels = models
+				}
+			}
+		}
+	}
+
+	llmprovider.RegisterPreset(preset)
+}
+
+func resolveCloudAPIURL(saved map[string]interface{}) string {
+	if saved != nil {
+		if v, ok := saved["api_url"].(string); ok && v != "" {
+			return v
+		}
+	}
+	def := cloudDefaultRegion()
+	return def.APIURL
+}
+
+func fetchCloudModels(apiURL, apiKey string) []map[string]interface{} {
+	cloudModelCacheMu.Lock()
+	if cloudModelCache != nil && cloudModelCacheURL == apiURL {
+		cached := cloudModelCache
+		cloudModelCacheMu.Unlock()
+		return cached
+	}
+	cloudModelCacheMu.Unlock()
+
+	url := apiURL
+	if strings.HasSuffix(url, "/") {
+		url += "v1/models"
+	} else {
+		url += "/v1/models"
+	}
+
+	client := &http.Client{Timeout: 15 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil
+	}
+
+	var result struct {
+		Data []map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil
+	}
+
+	models := make([]map[string]interface{}, 0, len(result.Data))
+	for _, item := range result.Data {
+		m := mapCloudModel(item)
+		if m != nil {
+			models = append(models, m)
+		}
+	}
+
+	cloudModelCacheMu.Lock()
+	cloudModelCache = models
+	cloudModelCacheURL = apiURL
+	cloudModelCacheMu.Unlock()
+
+	return models
+}
+
+func invalidateCloudModelCache() {
+	cloudModelCacheMu.Lock()
+	cloudModelCache = nil
+	cloudModelCacheURL = ""
+	cloudModelCacheMu.Unlock()
+}
+
+func mapCloudModel(item map[string]interface{}) map[string]interface{} {
+	id, _ := item["id"].(string)
+	if id == "" {
+		return nil
+	}
+
+	name := id
+	if label, ok := item["label"].(string); ok && label != "" {
+		name = strings.TrimPrefix(label, "Yao Agents / ")
+		name = strings.TrimPrefix(name, "Yao Agents /")
+	}
+
+	caps := make([]string, 0)
+	mode, _ := item["mode"].(string)
+	switch mode {
+	case "embedding":
+		caps = append(caps, "embedding")
+	case "audio_transcription", "audio_speech":
+		caps = append(caps, "audio")
+	case "image_generation":
+		caps = append(caps, "image_generation")
+	default:
+		if getBool(item, "supports_streaming") {
+			caps = append(caps, "streaming")
+		}
+		if getBool(item, "supports_function_calling") {
+			caps = append(caps, "tool_calls")
+		}
+		if getBool(item, "supports_vision") {
+			caps = append(caps, "vision")
+		}
+		if getBool(item, "supports_response_schema") {
+			caps = append(caps, "json")
+		}
+		if getBool(item, "supports_reasoning") {
+			caps = append(caps, "reasoning")
+		}
+		if getBool(item, "supports_audio_input") {
+			caps = append(caps, "audio")
+		}
+	}
+
+	m := map[string]interface{}{
+		"id":           id,
+		"name":         name,
+		"capabilities": caps,
+	}
+
+	if v, ok := getNumber(item, "max_input_tokens"); ok && v > 0 {
+		m["max_input_tokens"] = int(v)
+	}
+	if v, ok := getNumber(item, "max_output_tokens"); ok && v > 0 {
+		m["max_output_tokens"] = int(v)
+	}
+	opts := map[string]interface{}{}
+	if dp, ok := item["params"].(map[string]interface{}); ok {
+		for k, v := range dp {
+			opts[k] = v
+		}
+	}
+	if at, ok := item["api_type"].(string); ok && at != "" {
+		opts["_connector_type"] = at
+	}
+	if len(opts) > 0 {
+		m["options"] = opts
+	}
+
+	return m
+}
+
+func getBool(m map[string]interface{}, key string) bool {
+	if m == nil {
+		return false
+	}
+	v, ok := m[key].(bool)
+	return ok && v
+}
+
+func getNumber(m map[string]interface{}, key string) (float64, bool) {
+	if m == nil {
+		return 0, false
+	}
+	switch v := m[key].(type) {
+	case float64:
+		return v, true
+	case json.Number:
+		f, err := v.Float64()
+		return f, err == nil
+	}
+	return 0, false
 }
 
 // ---------------------------------------------------------------------------
@@ -124,9 +444,10 @@ func handleLLMTest(c *gin.Context) {
 	}
 
 	var input struct {
-		APIURL string `json:"api_url"`
-		APIKey string `json:"api_key"`
-		Type   string `json:"type"`
+		APIURL     string `json:"api_url"`
+		APIKey     string `json:"api_key"`
+		Type       string `json:"type"`
+		RequireKey *bool  `json:"require_key"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		respondError(c, http.StatusBadRequest, "invalid request body")
@@ -136,40 +457,22 @@ func handleLLMTest(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, "api_url is required")
 		return
 	}
-
-	url := llmModelsURL(input.APIURL)
-	start := time.Now()
-	client := &http.Client{Timeout: 10 * time.Second}
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err.Error())
+	if input.APIKey == "" && (input.RequireKey == nil || *input.RequireKey) {
+		response.RespondWithSuccess(c, http.StatusOK, llmprovider.ProviderTestResult{
+			Success: false,
+			Message: "API Key is required",
+		})
 		return
 	}
-	if input.APIKey != "" {
-		if input.Type == "anthropic" {
-			req.Header.Set("x-api-key", input.APIKey)
-			req.Header.Set("anthropic-version", "2023-06-01")
-		} else {
-			req.Header.Set("Authorization", "Bearer "+input.APIKey)
-		}
-	}
 
-	resp, err := client.Do(req)
+	start := time.Now()
+	err := llmValidateKey(input.Type, input.APIURL, input.APIKey)
 	latency := time.Since(start).Milliseconds()
 
 	if err != nil {
 		response.RespondWithSuccess(c, http.StatusOK, llmprovider.ProviderTestResult{
 			Success: false,
-			Message: fmt.Sprintf("Connection failed: %s", err.Error()),
-		})
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		response.RespondWithSuccess(c, http.StatusOK, llmprovider.ProviderTestResult{
-			Success: false,
-			Message: fmt.Sprintf("Server returned HTTP %d", resp.StatusCode),
+			Message: err.Error(),
 		})
 		return
 	}
@@ -216,7 +519,15 @@ func handleLLMGet(c *gin.Context) {
 		roles = make(map[string]interface{})
 	}
 
-	presetList := llmprovider.GetPresets()
+	buildCloudPreset(info)
+
+	locale := c.Query("locale")
+	var presetList []llmprovider.ProviderPreset
+	if locale != "" {
+		presetList = llmprovider.GetPresetsForLocale(locale)
+	} else {
+		presetList = llmprovider.GetPresets()
+	}
 	presetIface := make([]interface{}, len(presetList))
 	for i, p := range presetList {
 		raw, _ := json.Marshal(p)
@@ -259,6 +570,7 @@ func handleLLMRoles(c *gin.Context) {
 
 	llmEnsureEncKey()
 
+	var staleRoles []string
 	for roleName, target := range body {
 		targetMap, ok := target.(map[string]interface{})
 		if !ok {
@@ -275,16 +587,16 @@ func handleLLMRoles(c *gin.Context) {
 
 		p, err := llmprovider.Global.Get(providerKey)
 		if err != nil {
-			respondError(c, http.StatusBadRequest, fmt.Sprintf("provider \"%s\" not found", providerKey))
-			return
+			staleRoles = append(staleRoles, roleName)
+			continue
 		}
 		if !p.Enabled {
-			respondError(c, http.StatusBadRequest, fmt.Sprintf("provider \"%s\" is not enabled", providerKey))
-			return
+			staleRoles = append(staleRoles, roleName)
+			continue
 		}
 		if err := llmCheckOwnership(p, info); err != nil {
-			respondError(c, http.StatusBadRequest, fmt.Sprintf("provider \"%s\" not found", providerKey))
-			return
+			staleRoles = append(staleRoles, roleName)
+			continue
 		}
 
 		modelFound := false
@@ -295,9 +607,15 @@ func handleLLMRoles(c *gin.Context) {
 			}
 		}
 		if !modelFound {
-			respondError(c, http.StatusBadRequest, fmt.Sprintf("model \"%s\" not found in provider \"%s\"", modelID, providerKey))
-			return
+			staleRoles = append(staleRoles, roleName)
 		}
+	}
+	for _, role := range staleRoles {
+		delete(body, role)
+	}
+	if _, ok := body["default"]; !ok {
+		respondError(c, http.StatusBadRequest, "\"default\" role: the assigned provider no longer exists, please re-select")
+		return
 	}
 
 	if setting.Global == nil {
@@ -344,12 +662,16 @@ func handleLLMProviderCreate(c *gin.Context) {
 
 	if presetKey != "" {
 		preset := llmprovider.GetPreset(presetKey)
+		if preset == nil && presetKey == "yaoagents" {
+			buildCloudPreset(info)
+			preset = llmprovider.GetPreset(presetKey)
+		}
 		if preset == nil {
 			respondError(c, http.StatusBadRequest, fmt.Sprintf("unknown preset: %s", presetKey))
 			return
 		}
 
-		provider.Key = presetKey
+		provider.Key = llmprovider.ScopedKey(owner, presetKey)
 		provider.Name = preset.Name
 		provider.Type = preset.Type
 		provider.APIURL = preset.APIURL
@@ -376,12 +698,23 @@ func handleLLMProviderCreate(c *gin.Context) {
 			}
 			for _, m := range preset.DefaultModels {
 				if idSet[m.ID] {
+					m.Enabled = true
 					provider.Models = append(provider.Models, m)
 				}
 			}
 		} else {
 			provider.Models = make([]llmprovider.ModelInfo, len(preset.DefaultModels))
 			copy(provider.Models, preset.DefaultModels)
+		}
+
+		if preset.IsCloud && provider.APIKey == "" {
+			var saved map[string]interface{}
+			if setting.Global != nil {
+				saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+			}
+			if encKey, _ := saved["api_key"].(string); encKey != "" {
+				provider.APIKey = cloudDecrypt(encKey)
+			}
 		}
 	} else {
 		provider.IsCustom = true
@@ -391,7 +724,7 @@ func handleLLMProviderCreate(c *gin.Context) {
 			respondError(c, http.StatusBadRequest, "key is required for custom provider")
 			return
 		}
-		provider.Key = key
+		provider.Key = llmprovider.ScopedKey(owner, key)
 
 		name, _ := body["name"].(string)
 		if name == "" {
@@ -469,7 +802,7 @@ func handleLLMProviderUpdate(c *gin.Context) {
 
 	llmEnsureEncKey()
 
-	existing, err := llmprovider.Global.Get(key)
+	existing, err := llmprovider.Global.Get(key, true)
 	if err != nil {
 		respondError(c, http.StatusNotFound, fmt.Sprintf("provider \"%s\" not found", key))
 		return
@@ -633,7 +966,7 @@ func handleLLMProviderTest(c *gin.Context) {
 
 	llmEnsureEncKey()
 
-	p, err := llmprovider.Global.Get(key)
+	p, err := llmprovider.Global.Get(key, true)
 	if err != nil {
 		respondError(c, http.StatusNotFound, fmt.Sprintf("provider \"%s\" not found", key))
 		return

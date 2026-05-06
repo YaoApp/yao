@@ -1,13 +1,13 @@
 # Open Source License
 
-Yao App Engine is licensed under a modified version of the Apache License 2.0, with the following additional conditions:
+Yao Engine is licensed under a modified version of the Apache License 2.0, with the following additional conditions:
 
 1. Commercial Usage Terms:
-   Yao App Engine may be utilized commercially, A commercial license from the producer is required if:
+   Yao Engine may be utilized commercially, A commercial license from the producer is required if:
 
    a. Trademark and Branding Requirements
 
-   - The Yao App Engine console/application logo and copyright information must not be removed or modified
+   - The Yao Engine / Yao Agents / Tai / Tai Link console/application logo and copyright information must not be removed or modified
    - Logo and copyright information can only be changed with an authorization certificate issued through Yao Developer Certificate
 
    b. Authorization Verification Requirements
@@ -15,10 +15,16 @@ Yao App Engine is licensed under a modified version of the Apache License 2.0, w
    - The Yao certificate verification logic, processes, and related pages (marked in code comments) must be preserved
    - The complete Yao certificate verification system must be maintained regardless of usage purpose
 
+   c. Enterprise Scale Requirements
+
+   - Organizations with 50 or more employees, or with annual revenue exceeding USD 1,000,000, must obtain a commercial license from Infinite Wisdom Software.
+   - To obtain a commercial license, please contact us at https://yaoagents.com/enterprise
+
 2. Contributor Agreement:
-   - The producer reserves the right to modify the open-source agreement terms
-   - Contributed code may be used for commercial purposes, including cloud business operations
+   As a contributor, you should agree that:
+   a. Infinite Wisdom Software can adjust the open-source agreement to be more strict or relaxed as deemed necessary.
+   b. Your contributed code may be used for commercial purposes, including but not limited to its cloud business operations.
 
 All other rights and restrictions follow the Apache License 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
 
-© 2025 Infinite Wisdom Software.
+© 2026 Infinite Wisdom Software.

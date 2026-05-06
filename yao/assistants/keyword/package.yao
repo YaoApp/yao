@@ -2,6 +2,7 @@
   "name": "Keyword Extractor",
   "description": "Extract search keywords",
   "type": "worker",
+  "connector": "use::light",
   "uses": { "search": "disabled" },
   "options": { "max_tokens": 500 }
 }

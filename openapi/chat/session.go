@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/assistant"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
+	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
@@ -100,6 +101,10 @@ func GetChat(c *gin.Context) {
 	// Check permission
 	hasPermission, err := checkChatPermission(chatStore, authInfo, chatID, true)
 	if err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -120,16 +125,10 @@ func GetChat(c *gin.Context) {
 	// Get chat
 	chat, err := chatStore.GetChat(chatID)
 	if err != nil {
-		// Check if it's a "not found" error
-		if strings.Contains(err.Error(), "not found") {
-			errorResp := &response.ErrorResponse{
-				Code:             response.ErrInvalidRequest.Code,
-				ErrorDescription: "Chat not found",
-			}
-			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
 			return
 		}
-
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -183,6 +182,10 @@ func UpdateChat(c *gin.Context) {
 	// Check permission (write access)
 	hasPermission, err := checkChatPermission(chatStore, authInfo, chatID, false)
 	if err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -228,6 +231,10 @@ func UpdateChat(c *gin.Context) {
 
 	// Update chat
 	if err := chatStore.UpdateChat(chatID, updates); err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -273,6 +280,10 @@ func DeleteChat(c *gin.Context) {
 	// Check permission (write access)
 	hasPermission, err := checkChatPermission(chatStore, authInfo, chatID, false)
 	if err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -292,6 +303,10 @@ func DeleteChat(c *gin.Context) {
 
 	// Delete chat
 	if err := chatStore.DeleteChat(chatID); err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -341,6 +356,10 @@ func GetMessages(c *gin.Context) {
 	// Check permission (read access)
 	hasPermission, err := checkChatPermission(chatStore, authInfo, chatID, true)
 	if err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -364,6 +383,10 @@ func GetMessages(c *gin.Context) {
 	// Get messages
 	messages, err := chatStore.GetMessages(chatID, filter)
 	if err != nil {
+		if isNotFoundError(err) {
+			respondNotFound(c, chatID)
+			return
+		}
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrServerError.Code,
 			ErrorDescription: err.Error(),
@@ -378,6 +401,7 @@ func GetMessages(c *gin.Context) {
 	// Collect unique assistant IDs from messages and fetch their info
 	assistantIDs := collectAssistantIDs(messages)
 	assistants := assistant.GetInfoByIDs(assistantIDs, locale)
+	resolveAssistantInfoConnectors(assistants, authInfo)
 
 	response.RespondWithSuccess(c, response.StatusOK, gin.H{
 		"chat_id":    chatID,
@@ -549,6 +573,18 @@ func buildMessageFilter(c *gin.Context) storetypes.MessageFilter {
 	return filter
 }
 
+func isNotFoundError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "not found")
+}
+
+func respondNotFound(c *gin.Context, chatID string) {
+	errorResp := &response.ErrorResponse{
+		Code:             "resource_not_found",
+		ErrorDescription: "Chat " + chatID + " not found",
+	}
+	response.RespondWithError(c, response.StatusNotFound, errorResp)
+}
+
 // checkChatPermission checks if the user has permission to access the chat
 // readable: true for read access, false for write access
 func checkChatPermission(chatStore storetypes.ChatStore, authInfo *oauthtypes.AuthorizedInfo, chatID string, readable bool) (bool, error) {
@@ -597,4 +633,33 @@ func checkChatPermission(chatStore storetypes.ChatStore, authInfo *oauthtypes.Au
 	}
 
 	return false, nil
+}
+
+// resolveAssistantInfoConnectors resolves use:: prefixed connectors in a map of AssistantInfo.
+func resolveAssistantInfoConnectors(infos map[string]*storetypes.AssistantInfo, identity llmprovider.Identity) {
+	for _, info := range infos {
+		if info == nil || !strings.HasPrefix(info.Connector, "use::") {
+			continue
+		}
+		role := strings.TrimPrefix(info.Connector, "use::")
+		if role == "" {
+			role = "default"
+		}
+		raw := info.Connector
+		if identity != nil && llmprovider.Global != nil {
+			if cid, err := llmprovider.Global.GetRoleBy(role, identity); err == nil && cid != "" {
+				info.ConnectorRaw = raw
+				info.Connector = cid
+				continue
+			}
+		}
+		if llmprovider.Global != nil {
+			if cid, err := llmprovider.Global.GetRole(role); err == nil && cid != "" {
+				info.ConnectorRaw = raw
+				info.Connector = cid
+				continue
+			}
+		}
+		info.ConnectorRaw = raw
+	}
 }

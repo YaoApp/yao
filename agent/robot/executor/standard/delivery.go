@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/gou/process"
 	kunlog "github.com/yaoapp/kun/log"
 	robotevents "github.com/yaoapp/yao/agent/robot/events"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
@@ -98,7 +99,16 @@ func (e *Executor) pushDeliveryEvent(ctx *robottypes.Context, exec *robottypes.E
 		}
 	}
 
-	_, err := event.Push(ctx.Context, robotevents.Delivery, robotevents.DeliveryPayload{
+	eventCtx := ctx.Context
+	if ctx.Auth != nil {
+		eventCtx = event.WithAuth(eventCtx, &process.AuthorizedInfo{
+			UserID:  ctx.Auth.UserID,
+			TeamID:  ctx.Auth.TeamID,
+			Subject: ctx.Auth.Subject,
+		})
+	}
+
+	_, err := event.Push(eventCtx, robotevents.Delivery, robotevents.DeliveryPayload{
 		ExecutionID: exec.ID,
 		MemberID:    exec.MemberID,
 		TeamID:      exec.TeamID,

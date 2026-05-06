@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
@@ -121,14 +122,15 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	// like browsers should be nohup'd; this prevents accidental 2-min hangs.
 	env["OPENCODE_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS"] = "30000"
 
-	if req.Connector != nil {
-		setting := req.Connector.Setting()
+	primaryConn := resolvePrimaryConnector(req.Connector, req.Roles)
+	if primaryConn != nil {
+		setting := primaryConn.Setting()
 		key, _ := setting["key"].(string)
 		if key != "" {
 			env["YAO_PROVIDER_KEY"] = key
 		}
 
-		if req.Connector.Is(connector.ANTHROPIC) {
+		if primaryConn.Is(connector.ANTHROPIC) {
 			apiKey, _ := setting["key"].(string)
 			if apiKey != "" {
 				env["ANTHROPIC_API_KEY"] = apiKey
@@ -174,8 +176,9 @@ func buildArgs(req *types.StreamRequest, r *Runner, isContinuation bool, chatID 
 		args = append(args, "--continue", "--session", sessionID)
 	}
 
-	if req.Connector != nil {
-		if mid := connectorModelID(req.Connector); mid != "" {
+	primaryConn := resolvePrimaryConnector(req.Connector, req.Roles)
+	if primaryConn != nil {
+		if mid := connectorModelID(primaryConn); mid != "" {
 			args = append(args, "--model", mid)
 		}
 	}
@@ -255,26 +258,13 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 		shell = "bash"
 	}
 
-	envVarSyntax := "$VAR_NAME"
-	if osName == "windows" {
-		envVarSyntax = "$env:VAR_NAME"
-	}
-
 	return fmt.Sprintf(`## Sandbox Environment
 
 - **Operating System**: %[2]s
 - **Shell**: %[3]s
 - **Working Directory**: %[1]s
 - **File Access**: You have full read/write access to %[1]s
-- **Environment variable syntax**: `+"`%[4]s`"+`
-
-## User Attachments
-
-User-uploaded files are placed in %[1]s/.attachments/{chatID}/
-Each chat session has its own subdirectory.
-When the user attaches files, their paths are listed at the top of the message.
-**Read these files yourself** using the Read or Bash tool — they are NOT passed as CLI arguments.
-`, workDir, osName, shell, envVarSyntax)
+`, workDir, osName, shell)
 }
 
 func getProviderPrefix(conn connector.Connector) string {
@@ -282,30 +272,6 @@ func getProviderPrefix(conn connector.Connector) string {
 		return "anthropic"
 	}
 	return "openai"
-}
-
-// resolveRoleConnector determines which connector to use for a given role.
-func resolveRoleConnector(
-	role string,
-	roleConnectors map[string]*types.RoleConnector,
-	userExplicit bool,
-	getConnector func(id string) connector.Connector,
-) connector.Connector {
-	rc, ok := roleConnectors[role]
-	if !ok || rc == nil {
-		return nil
-	}
-	if rc.Override == "user" && userExplicit {
-		return nil
-	}
-	return getConnector(rc.Connector)
-}
-
-func getRoleConnectors(req *types.StreamRequest) map[string]*types.RoleConnector {
-	if req.Config == nil {
-		return nil
-	}
-	return req.Config.Runner.Connectors
 }
 
 // shellQuoteForPlatform builds a shell-safe command string. On Windows
@@ -349,10 +315,16 @@ func shellQuotePowerShell(program string, args ...string) string {
 
 // connectorModelID returns the "provider/model" string matching the
 // provider ID used in opencode.json (see buildProviderConfig).
+// Uses LLMConnector interface first (consistent with buildProviderConfig).
 func connectorModelID(c connector.Connector) string {
-	setting := c.Setting()
-	modelName, _ := setting["model"].(string)
-	host, _ := setting["host"].(string)
+	host := connectorHost(c)
+	var modelName string
+	if lc, ok := c.(goullm.LLMConnector); ok {
+		modelName = lc.GetModel()
+	}
+	if modelName == "" {
+		modelName, _ = c.Setting()["model"].(string)
+	}
 
 	if c.Is(connector.ANTHROPIC) {
 		return "anthropic/" + modelName
@@ -368,19 +340,15 @@ func connectorModelID(c connector.Connector) string {
 // consumed by opencode.json provider blocks (via {env:...} references) and
 // by the custom read.ts tool (for vision API calls).
 func injectRoleEnvVars(env map[string]string, req *types.StreamRequest) {
-	if req.Config == nil || req.Config.Runner.Connectors == nil {
+	if len(req.Roles) == 0 {
 		return
 	}
 	for role, spec := range openCodeRoleMap {
 		if spec.EnvKeyPrefix == "" {
 			continue
 		}
-		rc, ok := req.Config.Runner.Connectors[role]
-		if !ok || rc == nil || rc.Connector == "" {
-			continue
-		}
-		c, exists := connector.Connectors[rc.Connector]
-		if !exists || c == nil {
+		c, ok := req.Roles[role]
+		if !ok || c == nil {
 			continue
 		}
 		setting := c.Setting()
@@ -399,6 +367,11 @@ func injectRoleEnvVars(env map[string]string, req *types.StreamRequest) {
 func connectorHost(c connector.Connector) string {
 	if c == nil {
 		return ""
+	}
+	if lc, ok := c.(goullm.LLMConnector); ok {
+		if u := lc.GetURL(); u != "" {
+			return strings.TrimSpace(u)
+		}
 	}
 	host, _ := c.Setting()["host"].(string)
 	return strings.TrimSpace(host)
