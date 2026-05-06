@@ -1,8 +1,8 @@
-package vision
+package image
 
 import (
 	"encoding/base64"
-	"image"
+	stdimage "image"
 	"image/color"
 	_ "image/jpeg"
 	"image/png"
@@ -15,7 +15,7 @@ import (
 )
 
 func makePNG(w, h int) []byte {
-	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	img := stdimage.NewRGBA(stdimage.Rect(0, 0, w, h))
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
 			img.Set(x, y, color.RGBA{R: 255, G: 0, B: 0, A: 255})
@@ -45,7 +45,7 @@ func TestResizeImage_LargeImage(t *testing.T) {
 	if mime != "image/jpeg" {
 		t.Errorf("mime = %q, want image/jpeg", mime)
 	}
-	img, _, err := image.Decode(strings.NewReader(string(data)))
+	img, _, err := stdimage.Decode(strings.NewReader(string(data)))
 	if err != nil {
 		t.Fatalf("failed to decode resized image: %v", err)
 	}

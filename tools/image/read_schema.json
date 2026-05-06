@@ -18,9 +18,13 @@
         "type": "integer",
         "description": "Max dimension in pixels for the longest edge. Image is resized (preserving aspect ratio) before sending to the vision model. Default 1080.",
         "default": 1080
+      },
+      "provider": {
+        "type": "string",
+        "description": "Vision provider connector ID (e.g. from image_providers with capability='vision'). If omitted, uses the default vision model."
       }
     },
     "required": ["image_path"]
   },
-  "x-process-args": ["$args.image_path", "$args.prompt", "$args.max_size"]
+  "x-process-args": ["$args.image_path", "$args.prompt", "$args.max_size", "$args.provider"]
 }

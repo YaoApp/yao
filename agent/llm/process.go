@@ -16,6 +16,7 @@ import (
 
 func init() {
 	process.Register("llm.ChatCompletions", ProcessChatCompletions)
+	process.Register("llm.ImageGeneration", ProcessImageGeneration)
 }
 
 // ProcessChatCompletions implements the llm.ChatCompletions Process.
@@ -153,6 +154,55 @@ func ProcessChatCompletions(p *process.Process) interface{} {
 	// 12. Convert CompletionResponse to OpenAI-compatible format
 	//     { choices: [{ message: { role, content } }], id, model, ... }
 	return toOpenAIFormat(response)
+}
+
+// ProcessImageGeneration implements the llm.ImageGeneration Process.
+//
+// Usage:
+//
+//	Process("llm.ImageGeneration", connectorID, prompt)
+//	Process("llm.ImageGeneration", connectorID, prompt, opts)
+//
+// Args:
+//   - connectorID (string): Connector ID for an image generation model
+//   - prompt      (string): Text description of the image to generate
+//   - opts        (map):    Optional. size, quality, style, n, etc.
+//
+// Returns: { image (base64), format (png) }
+func ProcessImageGeneration(p *process.Process) interface{} {
+	p.ValidateArgNums(2)
+
+	connectorID := p.ArgsString(0)
+	if connectorID == "" {
+		return newErrorResponse("llm.ImageGeneration: connector is required")
+	}
+
+	prompt := p.ArgsString(1)
+	if prompt == "" {
+		return newErrorResponse("llm.ImageGeneration: prompt is required")
+	}
+
+	var opts map[string]interface{}
+	if p.NumOfArgs() > 2 && p.Args[2] != nil {
+		if o, ok := p.Args[2].(map[string]interface{}); ok {
+			opts = o
+		}
+	}
+
+	conn, _, err := selectWithCapabilities(connectorID)
+	if err != nil {
+		return newErrorResponse(fmt.Sprintf("llm.ImageGeneration: connector %s not found: %v", connectorID, err))
+	}
+
+	resp, err := GenerateImage(conn, prompt, opts)
+	if err != nil {
+		return newErrorResponse(fmt.Sprintf("llm.ImageGeneration: %v", err))
+	}
+
+	return map[string]interface{}{
+		"image":  resp.Image,
+		"format": resp.Format,
+	}
 }
 
 // toOpenAIFormat converts CompletionResponse to OpenAI chat.completions format

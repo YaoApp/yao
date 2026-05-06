@@ -12,7 +12,7 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/attachment"
-	"github.com/yaoapp/yao/tools/vision"
+	toolsImage "github.com/yaoapp/yao/tools/image"
 )
 
 // Image handles image content
@@ -375,7 +375,7 @@ func (h *Image) readImageWithTools(ctx *agentContext.Context, content agentConte
 
 	loadingID := h.sendLoading(ctx, i18n.T(ctx.Locale, "content.image.analyzing"))
 
-	resp, err := vision.ReadImage(ctx.Context, src, "Please describe this image in detail.", 1080, ctx.Authorized)
+	resp, err := toolsImage.ReadImage(ctx.Context, src, "Please describe this image in detail.", 1080, ctx.Authorized, "")
 
 	h.sendLoadingDone(ctx, loadingID)
 

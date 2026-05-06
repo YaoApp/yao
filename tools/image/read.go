@@ -1,4 +1,4 @@
-package vision
+package image
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
-	"image"
+	stdimage "image"
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
@@ -28,8 +28,8 @@ import (
 	ws "github.com/yaoapp/yao/workspace"
 )
 
-//go:embed schema.json
-var SchemaJSON []byte
+//go:embed read_schema.json
+var ReadSchemaJSON []byte
 
 // ImageReadResponse is the return type for image_read.
 type ImageReadResponse struct {
@@ -40,7 +40,8 @@ type ImageReadResponse struct {
 // ReadImage reads and analyzes an image using the vision model.
 // It resolves the image from src, finds a vision-capable connector via llmprovider,
 // and returns the model's text description.
-func ReadImage(goCtx context.Context, src string, prompt string, maxSize int, authInfo *oauthTypes.AuthorizedInfo) (*ImageReadResponse, error) {
+// provider is optional; when non-empty it overrides the default "use::vision" role.
+func ReadImage(goCtx context.Context, src string, prompt string, maxSize int, authInfo *oauthTypes.AuthorizedInfo, provider string) (*ImageReadResponse, error) {
 	if prompt == "" {
 		prompt = "Please describe this image in detail."
 	}
@@ -53,7 +54,11 @@ func ReadImage(goCtx context.Context, src string, prompt string, maxSize int, au
 		return nil, fmt.Errorf("resolve image: %w", err)
 	}
 
-	conn, caps, err := agentLLM.ResolveConnector("use::vision", authInfo)
+	connectorRole := "use::vision"
+	if provider != "" {
+		connectorRole = provider
+	}
+	conn, caps, err := agentLLM.ResolveConnector(connectorRole, authInfo)
 	if err != nil {
 		return nil, fmt.Errorf("resolve vision connector: %w", err)
 	}
@@ -87,8 +92,8 @@ func ReadImage(goCtx context.Context, src string, prompt string, maxSize int, au
 	}, nil
 }
 
-// Handler is the tools.image_read process handler.
-func Handler(proc *process.Process) interface{} {
+// ReadHandler is the tools.image_read process handler.
+func ReadHandler(proc *process.Process) interface{} {
 	src := proc.ArgsString(0)
 	if src == "" {
 		return map[string]interface{}{"error": "image_path is required: provide a file path, URL, or URI"}
@@ -103,6 +108,7 @@ func Handler(proc *process.Process) interface{} {
 		proc.ArgsString(1, "Please describe this image in detail."),
 		proc.ArgsInt(2, 1080),
 		authInfo,
+		proc.ArgsString(3),
 	)
 	if err != nil {
 		return map[string]interface{}{"error": err.Error()}
@@ -188,7 +194,7 @@ func httpGet(rawURL string) ([]byte, error) {
 // resizeImage decodes, resizes (longest edge <= maxSize), re-encodes as JPEG.
 // Returns original bytes unchanged when already small enough or if decode fails.
 func resizeImage(data []byte, maxSize int) ([]byte, string) {
-	img, _, err := image.Decode(bytes.NewReader(data))
+	img, _, err := stdimage.Decode(bytes.NewReader(data))
 	if err != nil {
 		return data, http.DetectContentType(data)
 	}
@@ -205,7 +211,7 @@ func resizeImage(data []byte, maxSize int) ([]byte, string) {
 	if newH < 1 {
 		newH = 1
 	}
-	dst := image.NewRGBA(image.Rect(0, 0, newW, newH))
+	dst := stdimage.NewRGBA(stdimage.Rect(0, 0, newW, newH))
 	draw.BiLinear.Scale(dst, dst.Bounds(), img, bounds, draw.Over, nil)
 	var buf bytes.Buffer
 	if err := jpeg.Encode(&buf, dst, &jpeg.Options{Quality: 85}); err != nil {

@@ -23,3 +23,22 @@ entries:
     return:
       type: object
       desc: "OpenAI-compatible response: { id, object, created, model, choices: [{ index, message: { role, content, tool_calls? }, finish_reason }], usage? }"
+
+  - name: ImageGeneration
+    desc: Generate an image from a text prompt using an image generation model
+    args:
+      - name: connector
+        type: string
+        required: true
+        desc: Connector ID for an image generation model (e.g. dall-e-3)
+      - name: prompt
+        type: string
+        required: true
+        desc: Text description of the image to generate
+      - name: opts
+        type: object
+        required: false
+        desc: "Generation options: size (1024x1024), quality, style, n, etc."
+    return:
+      type: object
+      desc: "Image generation result: { image (base64), format (png) }"

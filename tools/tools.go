@@ -9,8 +9,8 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/tools/docs"
+	"github.com/yaoapp/yao/tools/image"
 	"github.com/yaoapp/yao/tools/proc"
-	"github.com/yaoapp/yao/tools/vision"
 	"github.com/yaoapp/yao/tools/webfetch"
 	"github.com/yaoapp/yao/tools/websearch"
 )
@@ -24,8 +24,8 @@ var mcpProcessDSL []byte
 //go:embed mcps/doc.json
 var mcpDocDSL []byte
 
-//go:embed mcps/vision.json
-var mcpVisionDSL []byte
+//go:embed mcps/image.json
+var mcpImageDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -36,7 +36,9 @@ func init() {
 		"doc_list":        docs.ListHandler,
 		"doc_inspect":     docs.InspectHandler,
 		"doc_validate":    docs.ValidateHandler,
-		"image_read":      vision.Handler,
+		"image_read":      image.ReadHandler,
+		"image_generate":  image.GenerateHandler,
+		"image_providers": image.ProvidersHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -45,8 +47,8 @@ func init() {
 		proc.SchemaJSON, proc.AllowedSchemaJSON)
 	registerMCPServer(mcpDocDSL, "yao-doc",
 		docs.ListSchemaJSON, docs.InspectSchemaJSON, docs.ValidateSchemaJSON)
-	registerMCPServer(mcpVisionDSL, "yao-vision",
-		vision.SchemaJSON)
+	registerMCPServer(mcpImageDSL, "yao-image",
+		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.ProvidersSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

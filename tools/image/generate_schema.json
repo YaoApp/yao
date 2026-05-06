@@ -1,0 +1,25 @@
+{
+  "name": "image_generate",
+  "description": "Generate an image from a text prompt using an image generation model (e.g. DALL-E, Seedream).",
+  "process": "tools.image_generate",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "prompt": {
+        "type": "string",
+        "description": "Text description of the image to generate."
+      },
+      "provider": {
+        "type": "string",
+        "description": "Provider connector ID (e.g. 'llm.my-openai:dall-e-3'). Use image_providers to list available options. If omitted, the first available image generation provider is used."
+      },
+      "size": {
+        "type": "string",
+        "description": "Image dimensions (default: 1024x1024). Common values: 1024x1024, 1024x1792, 1792x1024.",
+        "default": "1024x1024"
+      }
+    },
+    "required": ["prompt"]
+  },
+  "x-process-args": ["$args.prompt", "$args.provider", "$args.size"]
+}

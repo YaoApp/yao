@@ -388,7 +388,7 @@ func buildModelCapabilityPrompt(req *types.StreamRequest) string {
 	if !primaryHasVision {
 		if _, hasVisionRole := req.Roles["vision"]; hasVisionRole {
 			guidance = append(guidance,
-				"**Image/Vision**: Your current model cannot process images directly. Use the `image_read` system tool (`tai tool image_read`) to analyze images — see the yao-vision skill for details",
+				"**Image/Vision**: Your current model cannot process images directly. Use the `image_read` system tool (`tai tool image_read`) to analyze images — see the yao-image skill for details",
 			)
 		}
 	}

@@ -87,7 +87,7 @@
       enabled: false
     - id: tencent-hy3-preview
       model: tencent/hy3-preview:free
-      name: 混元 3 Preview (Free)
+      name: Hunyuan 3 Preview (Free)
       max_input_tokens: 262144
       max_output_tokens: 262144
       capabilities: [tool_calls, streaming, json]
@@ -97,7 +97,7 @@
       enabled: false
     - id: tencent-hy3-preview-reasoning-high
       model: tencent/hy3-preview:free
-      name: 混元 3 Preview Reasoning (Free)
+      name: Hunyuan 3 Preview Reasoning (Free)
       max_input_tokens: 262144
       max_output_tokens: 262144
       capabilities: [tool_calls, streaming, json, reasoning]
@@ -193,7 +193,7 @@
       enabled: false
 
 # ─── OpenAI ─────────────────────────────────────────────
-# reasoning_effort 档位: low | medium | high (5.4-mini/o4-mini)
+# reasoning_effort levels: low | medium | high (5.4-mini/o4-mini)
 #                         low | medium | high | xhigh (5.5/5.4/codex/5)
 - key: openai
   name: OpenAI
@@ -470,6 +470,23 @@
     - id: tts-1-hd
       name: TTS-1 HD
       capabilities: [audio]
+      enabled: false
+    # --- Image Generation ---
+    - id: gpt-image-2
+      name: GPT Image 2
+      capabilities: [image_generation]
+      enabled: false
+    - id: gpt-image-1.5
+      name: GPT Image 1.5
+      capabilities: [image_generation]
+      enabled: false
+    - id: gpt-image-1
+      name: GPT Image 1
+      capabilities: [image_generation]
+      enabled: false
+    - id: gpt-image-1-mini
+      name: GPT Image 1 Mini
+      capabilities: [image_generation]
       enabled: false
 
 # ─── DeepSeek (OpenAI) ──────────────────────────────────
@@ -856,6 +873,22 @@
       max_output_tokens: 65536
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
+    # --- Image Generation ---
+    - id: imagen-4
+      model: models/imagen-4.0-generate-001
+      name: Imagen 4
+      capabilities: [image_generation]
+      enabled: false
+    - id: imagen-4-ultra
+      model: models/imagen-4.0-ultra-generate-001
+      name: Imagen 4 Ultra
+      capabilities: [image_generation]
+      enabled: false
+    - id: imagen-4-fast
+      model: models/imagen-4.0-fast-generate-001
+      name: Imagen 4 Fast
+      capabilities: [image_generation]
+      enabled: false
 
 # ─── xAI (Grok) ────────────────────────────────────────
 # grok-4.x: reasoning.enabled true|false
@@ -920,6 +953,19 @@
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         reasoning_effort: high
+      enabled: false
+    # --- Image Generation ---
+    - id: grok-imagine-image
+      name: Grok Imagine
+      capabilities: [image_generation]
+      enabled: false
+    - id: grok-imagine-image-pro
+      name: Grok Imagine Pro
+      capabilities: [image_generation]
+      enabled: false
+    - id: grok-imagine-image-quality
+      name: Grok Imagine Quality
+      capabilities: [image_generation]
       enabled: false
 
 # ─── MiniMax (International) ────────────────────────────
@@ -1389,6 +1435,19 @@
       name: 豆包 Embedding Large
       max_input_tokens: 4096
       capabilities: [embedding]
+      enabled: false
+    # --- 图片生成 ---
+    - id: doubao-seedream-5-0-260128
+      name: 豆包 Seedream 5.0
+      capabilities: [image_generation]
+      enabled: false
+    - id: doubao-seedream-4-5-251128
+      name: 豆包 Seedream 4.5
+      capabilities: [image_generation]
+      enabled: false
+    - id: doubao-seedream-4-0-250828
+      name: 豆包 Seedream 4.0
+      capabilities: [image_generation]
       enabled: false
 
 # ─── 腾讯混元 MaaS ─────────────────────────────────────
