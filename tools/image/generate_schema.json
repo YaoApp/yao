@@ -17,9 +17,13 @@
         "type": "string",
         "description": "Image dimensions (default: 1024x1024). Common values: 1024x1024, 1024x1792, 1792x1024.",
         "default": "1024x1024"
+      },
+      "model": {
+        "type": "string",
+        "description": "Model name to use (e.g. 'doubao-seedream-4-5-251128', 'dall-e-3'). Overrides the provider's default model. If omitted, the provider's default model is used."
       }
     },
     "required": ["prompt"]
   },
-  "x-process-args": ["$args.prompt", "$args.provider", "$args.size"]
+  "x-process-args": ["$args.prompt", "$args.provider", "$args.size", "$args.model"]
 }
