@@ -21,6 +21,7 @@ func GenerateHandler(proc *process.Process) interface{} {
 
 	provider := proc.ArgsString(1)
 	size := proc.ArgsString(2, "1024x1024")
+	model := proc.ArgsString(3)
 
 	authInfo := authorized.ProcessAuthInfo(proc)
 	if authInfo == nil {
@@ -41,6 +42,9 @@ func GenerateHandler(proc *process.Process) interface{} {
 	}
 
 	options := map[string]interface{}{"size": size}
+	if model != "" {
+		options["model"] = model
+	}
 	resp, err := agentLLM.GenerateImage(conn, prompt, options)
 	if err != nil {
 		return map[string]interface{}{"error": fmt.Sprintf("image generation failed: %v", err)}

@@ -2,6 +2,8 @@ package claude
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -25,6 +27,11 @@ const defaultA2OMaxOutputTokens = 16384
 var yaoSessionNS = uuid.MustParse("f47ac10b-58cc-4372-a567-0e02b2c3d479")
 
 var safeNameRe = regexp.MustCompile(`[^a-zA-Z0-9_\-.]`)
+
+func hashUserID(raw string) string {
+	h := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(h[:8]) // 16 hex chars — short yet collision-safe
+}
 
 func chatIDToSessionUUID(assistantID, chatID string) string {
 	return uuid.NewSHA1(yaoSessionNS, []byte(assistantID+":"+chatID)).String()
@@ -233,6 +240,21 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		env["ANTHROPIC_CUSTOM_MODEL_OPTION"],
 		env["ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES"])
 	logger.Debug("claude-env: MAX_THINKING_TOKENS=%s", env["MAX_THINKING_TOKENS"])
+
+	// Override metadata.user_id with a sanitized value.
+	// Claude CLI sets metadata.user_id to a JSON object that third-party
+	// Anthropic-compatible APIs (e.g. DeepSeek) reject because the value
+	// doesn't match ^[a-zA-Z0-9_-]+$.
+	if _, ok := env["CLAUDE_CODE_EXTRA_BODY"]; !ok {
+		uid := "yao-sandbox"
+		if req.Config != nil && req.Config.Owner != "" {
+			uid = hashUserID(req.Config.Owner)
+		} else if assistantID != "" {
+			uid = hashUserID(assistantID)
+		}
+		env["CLAUDE_CODE_EXTRA_BODY"] = fmt.Sprintf(`{"metadata":{"user_id":"%s"}}`, uid)
+	}
+	logger.Debug("claude-env: EXTRA_BODY=%s", env["CLAUDE_CODE_EXTRA_BODY"])
 
 	return env
 }
