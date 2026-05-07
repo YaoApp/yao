@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	events "github.com/yaoapp/yao/agent/robot/events"
 	"github.com/yaoapp/yao/attachment"
 	weixinapi "github.com/yaoapp/yao/integrations/weixin"
+	"github.com/yaoapp/yao/workspace"
 )
 
 func (a *Adapter) Reply(ctx context.Context, msg *agentcontext.Message, metadata *events.MessageMetadata) error {
@@ -168,7 +170,37 @@ func (a *Adapter) sendMediaFromURL(ctx context.Context, entry *botEntry, toUserI
 	var plaintext []byte
 	var contentType string
 
-	if isWrapper(fileURL) {
+	if strings.HasPrefix(fileURL, "workspace://") {
+		rest := strings.TrimPrefix(fileURL, "workspace://")
+		slashIdx := strings.Index(rest, "/")
+		if slashIdx < 0 {
+			return fmt.Errorf("invalid workspace URL: %s", fileURL)
+		}
+		wsID := rest[:slashIdx]
+		filePath := rest[slashIdx+1:]
+
+		wsm := workspace.M()
+		if wsm == nil {
+			return fmt.Errorf("workspace manager not initialized")
+		}
+
+		wsFS, err := wsm.FS(ctx, wsID)
+		if err != nil {
+			return fmt.Errorf("open workspace %s: %w", wsID, err)
+		}
+		defer wsFS.Close()
+
+		plaintext, err = wsFS.ReadFile(filePath)
+		if err != nil {
+			return fmt.Errorf("read workspace file %s/%s: %w", wsID, filePath, err)
+		}
+		contentType = mimeFromExt(filepath.Ext(filePath))
+		if fileName == "" {
+			fileName = filepath.Base(filePath)
+		}
+		log.Info("weixin sendMedia: workspace read bytes=%d contentType=%q fileName=%q", len(plaintext), contentType, fileName)
+
+	} else if isWrapper(fileURL) {
 		managerName, fileID, err := parseWrapper(fileURL)
 		if err != nil {
 			return err
@@ -289,6 +321,37 @@ func parseWrapper(wrapper string) (managerName, fileID string, err error) {
 func toContentParts(content interface{}) ([]agentcontext.ContentPart, bool) {
 	parts, ok := content.([]agentcontext.ContentPart)
 	return parts, ok
+}
+
+func mimeFromExt(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".pdf":
+		return "application/pdf"
+	case ".html", ".htm":
+		return "text/html"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".webp":
+		return "image/webp"
+	case ".md":
+		return "text/markdown"
+	case ".txt":
+		return "text/plain"
+	case ".csv":
+		return "text/csv"
+	case ".json":
+		return "application/json"
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func (a *Adapter) resolveByAccountID(accountID string) *botEntry {
