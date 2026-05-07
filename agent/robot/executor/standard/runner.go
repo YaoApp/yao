@@ -10,16 +10,24 @@ import (
 	"github.com/yaoapp/gou/process"
 	kunlog "github.com/yaoapp/kun/log"
 	agentcontext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/llm"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
+	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
 // Runner handles execution of individual tasks
 type Runner struct {
-	ctx    *robottypes.Context
-	robot  *robottypes.Robot
-	config *RunConfig
-	chatID string // execution-level chatID for conversation persistence (§8.4)
-	log    *execLogger
+	ctx                *robottypes.Context
+	robot              *robottypes.Robot
+	config             *RunConfig
+	chatID             string // execution-level chatID for conversation persistence (§8.4)
+	log                *execLogger
+	wsFS               taiworkspace.FS // workspace file system (nil if unavailable)
+	execDir            string          // workspace-relative execution directory (e.g. "robots/<id>/<exec_id>")
+	lastPromptSnapshot string          // captured prompt text for workspace .input.md
+	currentTaskIndex   int             // current task index for workspace prompt building
+	currentExec        *robottypes.Execution
+	locale             string // effective locale for this execution (e.g. "zh", "en")
 }
 
 // NewRunner creates a new task runner
@@ -47,12 +55,15 @@ type RunnerContext struct {
 
 // BuildTaskContext builds context for a task including previous results
 func (r *Runner) BuildTaskContext(exec *robottypes.Execution, taskIndex int) *RunnerContext {
+	r.currentTaskIndex = taskIndex
+	r.currentExec = exec
+
 	ctx := &RunnerContext{
 		Goals:        exec.Goals,
 		SystemPrompt: r.robot.SystemPrompt,
 	}
 
-	// Include results from previous tasks (with bounds check)
+	// Include results from previous tasks (with bounds check) — kept for fallback
 	if taskIndex > 0 && len(exec.Results) > 0 {
 		endIndex := taskIndex
 		if endIndex > len(exec.Results) {
@@ -132,26 +143,56 @@ func (r *Runner) executeNonAssistantTask(task *robottypes.Task, taskCtx *RunnerC
 // Returns the extracted output, the raw CallResult (for need_input detection), and any error.
 func (r *Runner) executeAssistantTask(task *robottypes.Task, taskCtx *RunnerContext) (interface{}, *CallResult, error) {
 	caller := NewAgentCaller()
+	caller.Mode = "task"
 	caller.log = r.log
-	caller.Connector = r.robot.LanguageModel
+	if r.robot.LanguageModel != "" {
+		if _, _, err := llm.ResolveConnector(r.robot.LanguageModel, nil); err == nil {
+			caller.Connector = r.robot.LanguageModel
+		} else {
+			kunlog.Warn("[robot-runner] connector %s invalid, using agent default: %v",
+				r.robot.LanguageModel, err)
+		}
+	}
 	caller.Workspace = r.robot.Workspace
 	caller.ChatID = r.chatID
 
-	messages := r.BuildAssistantMessages(task, taskCtx)
-	input := r.FormatMessagesAsText(messages)
+	var input string
+	workspacePromptUsed := false
+
+	// Use workspace-based prompt when available
+	if r.wsFS != nil {
+		manifest, err := r.readManifest()
+		if err == nil {
+			taskInstructions := r.FormatMessagesAsText(task.Messages)
+			input = r.buildWorkspacePrompt(manifest, r.currentTaskIndex, task, taskInstructions)
+			workspacePromptUsed = (input != "")
+		}
+	}
+
+	// Fallback to legacy in-memory context
+	if input == "" {
+		messages := r.BuildAssistantMessages(task, taskCtx)
+		input = r.FormatMessagesAsText(messages)
+	}
 
 	if strings.TrimSpace(input) == "" {
 		return nil, nil, fmt.Errorf("no valid input messages for task %s", task.ID)
 	}
 
-	if taskCtx.SystemPrompt != "" {
+	// Only inject robot system prompt for legacy (non-workspace) path.
+	// In workspace mode the agent's own prompts.yml defines its role;
+	// injecting the robot's dispatcher prompt would confuse the executor.
+	if taskCtx.SystemPrompt != "" && !workspacePromptUsed {
 		input = "## Context\n\n" + taskCtx.SystemPrompt + "\n\n## Task\n\n" + input
 	}
+
+	// Capture prompt snapshot for workspace .input.md
+	r.lastPromptSnapshot = input
 
 	kunlog.Trace("[robot-runner] executeAssistantTask: task=%s assistant=%s promptLen=%d prevResults=%d",
 		task.ID, task.ExecutorID, len(input), len(taskCtx.PreviousResults))
 
-	r.log.logTaskInput(task, input)
+	r.log.logTaskInput(task, input, caller.Connector)
 
 	result, err := caller.CallWithMessages(r.ctx, task.ExecutorID, input)
 	if err != nil {

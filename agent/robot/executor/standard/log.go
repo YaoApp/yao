@@ -103,9 +103,9 @@ func (l *execLogger) devTaskOverview(tasks []robottypes.Task) {
 // P3: Task Input
 // ---------------------------------------------------------------------------
 
-func (l *execLogger) logTaskInput(task *robottypes.Task, prompt string) {
+func (l *execLogger) logTaskInput(task *robottypes.Task, prompt string, actualConnector string) {
 	if config.IsDevelopment() {
-		l.devTaskInput(task, prompt)
+		l.devTaskInput(task, prompt, actualConnector)
 	}
 	kunlog.With(kunlog.F{
 		"robot_id":       l.robotID(),
@@ -115,17 +115,23 @@ func (l *execLogger) logTaskInput(task *robottypes.Task, prompt string) {
 		"executor_id":    task.ExecutorID,
 		"prompt_len":     len(prompt),
 		"language_model": l.connector(),
+		"connector":      actualConnector,
 	}).Info("Task input: %s [%s]", task.ID, task.ExecutorID)
 }
 
-func (l *execLogger) devTaskInput(task *robottypes.Task, prompt string) {
+func (l *execLogger) devTaskInput(task *robottypes.Task, prompt string, actualConnector string) {
 	w := logger.Gray
 	v := logger.White
 	r := logger.Reset
 
+	connLabel := actualConnector
+	if connLabel == "" {
+		connLabel = "agent-default"
+	}
+
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s  ▶ Task %s%s%s [%s:%s]  Prompt: %d chars%s\n",
-		w, v, task.ID, w, task.ExecutorType, task.ExecutorID, len(prompt), r))
+	sb.WriteString(fmt.Sprintf("%s  ▶ Task %s%s%s [%s:%s]  Connector: %s%s%s  Prompt: %d chars%s\n",
+		w, v, task.ID, w, task.ExecutorType, task.ExecutorID, v, connLabel, w, len(prompt), r))
 
 	logger.Raw(sb.String())
 }
@@ -190,18 +196,19 @@ func (l *execLogger) devTaskOutput(task *robottypes.Task, result *robottypes.Tas
 // Agent Call
 // ---------------------------------------------------------------------------
 
-func (l *execLogger) logAgentCall(agentID string, result *CallResult) {
+func (l *execLogger) logAgentCall(agentID string, connector string, result *CallResult) {
 	if result == nil {
 		return
 	}
 	if config.IsDevelopment() {
-		l.devAgentCall(agentID, result)
+		l.devAgentCall(agentID, connector, result)
 	}
 
 	fields := kunlog.F{
 		"robot_id":       l.robotID(),
 		"execution_id":   l.execID,
 		"agent_id":       agentID,
+		"connector":      connector,
 		"content_len":    len(result.Content),
 		"language_model": l.connector(),
 	}
@@ -209,14 +216,19 @@ func (l *execLogger) logAgentCall(agentID string, result *CallResult) {
 		fields["next_type"] = fmt.Sprintf("%T", result.Next)
 		fields["next_len"] = outputLen(result.Next)
 	}
-	kunlog.With(fields).Info("Agent call: %s (content=%d, next=%T)", agentID, len(result.Content), result.Next)
+	kunlog.With(fields).Info("Agent call: %s (connector=%s, content=%d, next=%T)", agentID, connector, len(result.Content), result.Next)
 }
 
-func (l *execLogger) devAgentCall(agentID string, result *CallResult) {
+func (l *execLogger) devAgentCall(agentID string, connector string, result *CallResult) {
 	w := logger.Gray
 	v := logger.White
 	c := logger.Cyan
 	r := logger.Reset
+
+	displayConn := connector
+	if displayConn == "" {
+		displayConn = "agent-default"
+	}
 
 	nextInfo := "—"
 	if result.Next != nil {
@@ -224,8 +236,8 @@ func (l *execLogger) devAgentCall(agentID string, result *CallResult) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%s  → Agent(%s%s%s) Content: %s%d%s chars  Next: %s%s%s\n",
-		c, v, agentID, c, v, len(result.Content), w, v, nextInfo, r))
+	sb.WriteString(fmt.Sprintf("%s  → Agent(%s%s%s)  Connector: %s%s%s  Content: %s%d%s chars  Next: %s%s%s\n",
+		c, v, agentID, c, v, displayConn, c, v, len(result.Content), w, v, nextInfo, r))
 
 	logger.Raw(sb.String())
 }

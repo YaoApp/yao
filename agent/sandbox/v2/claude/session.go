@@ -63,6 +63,10 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 
 	s.logger.Debug("runStream: parse returned completed=%v parseErr=%v", parser.completed, parseErr)
 
+	if !parser.completed && parseErr != nil {
+		s.exec.Cancel()
+	}
+
 	if parser.completed {
 		s.logger.Info("claude stream completed normally")
 		return true, nil

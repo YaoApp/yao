@@ -183,6 +183,7 @@ func (f *InputFormatter) FormatAvailableResourcesWithLocale(robot *robottypes.Ro
 				capabilities := i18n.Translate(agentID, locale, ast.Capabilities).(string)
 				sb.WriteString(fmt.Sprintf("  - **Capabilities**: %s\n", capabilities))
 			}
+
 		}
 		sb.WriteString("\n")
 	}

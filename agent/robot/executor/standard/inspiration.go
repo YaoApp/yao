@@ -53,7 +53,6 @@ func (e *Executor) RunInspiration(ctx *robottypes.Context, exec *robottypes.Exec
 
 	// Call agent
 	caller := NewAgentCaller()
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {

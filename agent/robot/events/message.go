@@ -73,6 +73,7 @@ func callHostAgent(ctx context.Context, payload *MessagePayload) (*MessageResult
 
 	authorized := &oauthtypes.AuthorizedInfo{
 		UserID: payload.Metadata.SenderID,
+		TeamID: record.TeamID,
 	}
 	chatID := fmt.Sprintf("%s:%s", payload.Metadata.Channel, payload.Metadata.ChatID)
 	agentCtx := agentcontext.New(ctx, authorized, chatID)

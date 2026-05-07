@@ -7,6 +7,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -185,6 +186,8 @@ func (d *dockerCore) execStream(ctx context.Context, id string, cmd []string, op
 		Stdout: stdoutR,
 		Stderr: stderrR,
 		Wait: func() (int, error) {
+			ticker := time.NewTicker(500 * time.Millisecond)
+			defer ticker.Stop()
 			for {
 				inspect, err := d.cli.ContainerExecInspect(execCtx, execResp.ID)
 				if err != nil {
@@ -192,6 +195,11 @@ func (d *dockerCore) execStream(ctx context.Context, id string, cmd []string, op
 				}
 				if !inspect.Running {
 					return inspect.ExitCode, nil
+				}
+				select {
+				case <-execCtx.Done():
+					return -1, execCtx.Err()
+				case <-ticker.C:
 				}
 			}
 		},

@@ -14,6 +14,7 @@ type InterveneRequest struct {
 	Messages     []agentcontext.Message `json:"messages"`                // user input (text, images, files)
 	PlanTime     *time.Time             `json:"plan_time,omitempty"`     // for action=plan
 	ExecutorMode ExecutorMode           `json:"executor_mode,omitempty"` // optional: override robot config
+	Locale       string                 `json:"locale,omitempty"`        // language for UI display (e.g., "en", "zh")
 }
 
 // EventRequest - event trigger request

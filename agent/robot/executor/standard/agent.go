@@ -53,6 +53,11 @@ type AgentCaller struct {
 	// When non-empty, injected into agentCtx.Metadata["workspace_id"] for sandbox node resolution.
 	Workspace string
 
+	// Mode is the agent execution mode (e.g., "task" for robot P3 execution).
+	// When non-empty, injected into agentCtx.Metadata["mode"] (exposed as $CTX.MODE
+	// in prompt templates) and into opts.Mode for framework-level buffer/chat recording.
+	Mode string
+
 	// log is an optional structured logger; when set, Call emits agent-call logs.
 	log *execLogger
 }
@@ -194,6 +199,7 @@ func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages
 			Search:  c.SkipSearch,
 		},
 		Connector: c.Connector,
+		Mode:      c.Mode,
 	}
 
 	agentCtx := c.buildAgentContext(ctx, assistantID)
@@ -228,7 +234,7 @@ func (c *AgentCaller) Call(ctx *robottypes.Context, assistantID string, messages
 	}
 
 	if c.log != nil {
-		c.log.logAgentCall(assistantID, result)
+		c.log.logAgentCall(assistantID, c.Connector, result)
 	}
 
 	return result, nil
@@ -276,6 +282,7 @@ func (c *AgentCaller) CallStream(ctx *robottypes.Context, assistantID string, me
 			Search:  c.SkipSearch,
 		},
 		Connector: c.Connector,
+		Mode:      c.Mode,
 	}
 
 	// Hook OnMessage to intercept streaming chunks and forward to callback
@@ -332,7 +339,7 @@ func (c *AgentCaller) CallStream(ctx *robottypes.Context, assistantID string, me
 	}
 
 	if c.log != nil {
-		c.log.logAgentCall(assistantID, result)
+		c.log.logAgentCall(assistantID, c.Connector, result)
 	}
 
 	return result, nil
@@ -366,6 +373,7 @@ func (c *AgentCaller) CallStreamRaw(ctx *robottypes.Context, assistantID string,
 			Search:  c.SkipSearch,
 		},
 		Connector: c.Connector,
+		Mode:      c.Mode,
 	}
 
 	if onMessage != nil {
@@ -400,7 +408,7 @@ func (c *AgentCaller) CallStreamRaw(ctx *robottypes.Context, assistantID string,
 	}
 
 	if c.log != nil {
-		c.log.logAgentCall(assistantID, result)
+		c.log.logAgentCall(assistantID, c.Connector, result)
 	}
 
 	return result, nil
@@ -448,11 +456,16 @@ func (c *AgentCaller) buildAgentContext(ctx *robottypes.Context, assistantID str
 	}
 	agentCtx.Logger = agentcontext.Noop()
 
-	if c.Workspace != "" {
+	if c.Workspace != "" || c.Mode != "" {
 		if agentCtx.Metadata == nil {
 			agentCtx.Metadata = map[string]interface{}{}
 		}
-		agentCtx.Metadata["workspace_id"] = c.Workspace
+		if c.Workspace != "" {
+			agentCtx.Metadata["workspace_id"] = c.Workspace
+		}
+		if c.Mode != "" {
+			agentCtx.Metadata["MODE"] = c.Mode
+		}
 	}
 
 	kunlog.Trace("[robot-agent] context built: assistantID=%s chatID=%s contextID=%s", assistantID, c.ChatID, agentCtx.ID)

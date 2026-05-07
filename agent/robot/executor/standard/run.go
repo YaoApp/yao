@@ -2,8 +2,10 @@ package standard
 
 import (
 	"fmt"
+	"path"
 	"time"
 
+	kunlog "github.com/yaoapp/kun/log"
 	robotevents "github.com/yaoapp/yao/agent/robot/events"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/event"
@@ -53,9 +55,6 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		config = DefaultRunConfig()
 	}
 
-	// Determine locale for UI messages
-	locale := getEffectiveLocale(robot, exec.Input)
-
 	// Determine start index and restore results from resume context
 	startIndex := 0
 	if exec.ResumeContext != nil {
@@ -67,6 +66,26 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 
 	// Create task runner with execution-level chatID (§8.4)
 	runner := NewRunner(ctx, robot, config, exec.ChatID, exec.ID)
+	if ctx.Locale != "" {
+		runner.locale = ctx.Locale
+	} else {
+		runner.locale = getEffectiveLocale(robot, exec.Input)
+	}
+
+	// Initialize workspace for file-based context
+	wsFS, err := ensureRobotWorkspace(ctx, robot)
+	if err != nil {
+		kunlog.Warn("[robot-run] workspace unavailable, falling back to in-memory context: %v", err)
+	} else {
+		execDir := path.Join("robots", robot.MemberID, exec.ID)
+		if mkErr := wsFS.MkdirAll(execDir, 0755); mkErr != nil {
+			kunlog.Warn("[robot-run] mkdir %s: %v", execDir, mkErr)
+		} else {
+			runner.wsFS = wsFS
+			runner.execDir = execDir
+			runner.initManifest(exec)
+		}
+	}
 
 	// Execute tasks sequentially from startIndex
 	for i := startIndex; i < len(exec.Tasks); i++ {
@@ -80,7 +99,7 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 		}
 
 		// Update UI field with current task description (i18n)
-		taskName := formatTaskProgressName(task, i, len(exec.Tasks), locale)
+		taskName := formatTaskProgressName(task, i, len(exec.Tasks), runner.locale)
 		e.updateUIFields(ctx, exec, "", taskName)
 
 		// Mark task as running
@@ -127,7 +146,10 @@ func (e *Executor) RunExecution(ctx *robottypes.Context, exec *robottypes.Execut
 			})
 		}
 
-		// Store result
+		// Write task files to workspace (non-blocking, errors logged)
+		runner.writeTaskOutput(task, result, runner.lastPromptSnapshot)
+
+		// Store result (in-memory, for persistence + resume)
 		exec.Results = append(exec.Results, *result)
 
 		// Persist completed/failed state to database

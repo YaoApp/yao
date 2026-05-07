@@ -1,0 +1,60 @@
+workspace: |
+  ## Workspace
+
+  Execution directory: {{.ExecDir}}
+
+  ### Available Files
+  {{range .Files}}
+  - {{.Path}} — {{.Desc}}
+  {{- end}}
+
+  ### Your Task Directory
+
+  Write any output files to: {{.TaskDir}}
+
+context: |
+  ## Execution Context
+
+  Goals: {{.Goals}}
+  {{- if .Locale}}
+  Language: {{.Locale}}
+  {{- end}}
+  Mode: automated-pipeline
+  {{- if .FailureWarning}}
+
+  ⚠ {{.FailureWarning}}
+  {{- end}}
+  {{if .CompletedTasks}}
+  ### Completed Tasks
+  {{range .CompletedTasks}}
+  {{.Seq}}. [{{.ID}}] {{.Description}} ({{.ExecutorType}}: {{.Executor}}) ✓
+     Summary: {{.Summary}}
+  {{- if .KeyOutputs}}
+     Key outputs: {{.KeyOutputs}}
+  {{- end}}
+  {{- if .HasFiles}}
+     Files: {{.Files}}
+  {{- end}}
+  {{end}}
+  {{- end}}
+  {{- if .FailedTasks}}
+  ### Failed Tasks
+  {{range .FailedTasks}}
+  {{.Seq}}. [{{.ID}}] {{.Description}} ✗
+     Error: {{.Error}}
+  {{end}}
+  {{- end}}
+  ### Current Task
+
+  {{.CurrentOrder}}. [{{.CurrentID}}] {{.CurrentDesc}} ({{.CurrentType}}: {{.CurrentExec}})
+
+instructions: |
+  ## Task Instructions
+
+  {{.TaskInstructions}}
+  {{- if .ExpectedOutput}}
+
+  ### Expected Output
+
+  {{.ExpectedOutput}}
+  {{- end}}
