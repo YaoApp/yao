@@ -498,10 +498,10 @@ func TestBufferGetStepsForResume(t *testing.T) {
 
 		steps := buffer.GetStepsForResume(context.ResumeStatusFailed)
 		require.NotNil(t, steps)
-		assert.Len(t, steps, 2)
+		assert.Len(t, steps, 1)
 
-		// Current step should be marked as failed
-		assert.Equal(t, context.ResumeStatusFailed, steps[1].Status)
+		// Only the failed step should be returned
+		assert.Equal(t, context.ResumeStatusFailed, steps[0].Status)
 	})
 
 	t.Run("InterruptedRequest", func(t *testing.T) {
@@ -516,8 +516,8 @@ func TestBufferGetStepsForResume(t *testing.T) {
 
 		steps := buffer.GetStepsForResume(context.ResumeStatusInterrupted)
 		require.NotNil(t, steps)
-		assert.Len(t, steps, 3)
-		assert.Equal(t, context.ResumeStatusInterrupted, steps[2].Status)
+		assert.Len(t, steps, 1)
+		assert.Equal(t, context.ResumeStatusInterrupted, steps[0].Status)
 	})
 }
 
@@ -1014,10 +1014,10 @@ func TestBufferCompleteWorkflow(t *testing.T) {
 		// Get steps for resume
 		steps := buffer.GetStepsForResume(context.ResumeStatusInterrupted)
 		require.NotNil(t, steps)
-		assert.Len(t, steps, 2)
+		assert.Len(t, steps, 1)
 
-		// Last step should be interrupted with space snapshot
-		lastStep := steps[len(steps)-1]
+		// Only the interrupted step should be returned
+		lastStep := steps[0]
 		assert.Equal(t, context.ResumeStatusInterrupted, lastStep.Status)
 		assert.NotNil(t, lastStep.SpaceSnapshot)
 		assert.Equal(t, "previous conversation", lastStep.SpaceSnapshot["user_context"])
