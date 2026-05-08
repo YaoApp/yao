@@ -3,6 +3,7 @@ package weixin
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	agentcontext "github.com/yaoapp/yao/agent/context"
@@ -113,12 +114,23 @@ func (a *Adapter) handleMessage(ctx context.Context, entry *botEntry, msg *weixi
 			parts = append(parts, map[string]interface{}{"type": "text", "text": content})
 		}
 		for _, m := range mediaItems {
-			parts = append(parts, map[string]interface{}{
-				"type":      "file",
-				"file_url":  m.Wrapper,
-				"mime_type": m.MimeType,
-				"file_name": m.FileName,
-			})
+			if strings.HasPrefix(m.MimeType, "image/") {
+				parts = append(parts, map[string]interface{}{
+					"type": "image_url",
+					"image_url": map[string]interface{}{
+						"url":    m.Wrapper,
+						"detail": "auto",
+					},
+				})
+			} else {
+				parts = append(parts, map[string]interface{}{
+					"type": "file",
+					"file": map[string]interface{}{
+						"url":      m.Wrapper,
+						"filename": m.FileName,
+					},
+				})
+			}
 		}
 		msgContent = parts
 	}

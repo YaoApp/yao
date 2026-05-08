@@ -33,6 +33,15 @@ func (h *robotHandler) handleMessage(ctx context.Context, ev *eventtypes.Event, 
 	result, err := callHostAgent(ctx, &payload)
 	if err != nil {
 		log.Error("message handler: host agent call failed robot=%s: %v", payload.RobotID, err)
+
+		if reply := getReplyFunc(); reply != nil {
+			errMsg := friendlyErrorMessage(payload.Metadata.Locale)
+			_ = reply(ctx, &agentcontext.Message{
+				Role:    agentcontext.RoleAssistant,
+				Content: errMsg,
+			}, payload.Metadata)
+		}
+
 		if ev.IsCall {
 			resp <- eventtypes.Result{Err: err}
 		}
@@ -231,6 +240,13 @@ func resolveHostAssistantID(ctx context.Context, memberID string) (string, *robo
 	}
 
 	return hostID, record, nil
+}
+
+func friendlyErrorMessage(locale string) string {
+	if strings.HasPrefix(locale, "zh") {
+		return "抱歉，处理您的消息时出现了问题，请稍后重试。"
+	}
+	return "Sorry, there was a problem processing your message. Please try again later."
 }
 
 func taskDeployedMessage(execID string, locale string) string {

@@ -91,12 +91,23 @@ func buildContentParts(cm *dtapi.ConvertedMessage) []interface{} {
 		if url == "" {
 			url = mi.URL
 		}
-		parts = append(parts, map[string]interface{}{
-			"type":      "file",
-			"file_url":  url,
-			"mime_type": mi.MimeType,
-			"file_name": mi.FileName,
-		})
+		if strings.HasPrefix(mi.MimeType, "image/") {
+			parts = append(parts, map[string]interface{}{
+				"type": "image_url",
+				"image_url": map[string]interface{}{
+					"url":    url,
+					"detail": "auto",
+				},
+			})
+		} else {
+			parts = append(parts, map[string]interface{}{
+				"type": "file",
+				"file": map[string]interface{}{
+					"url":      url,
+					"filename": mi.FileName,
+				},
+			})
+		}
 	}
 
 	return parts

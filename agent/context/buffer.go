@@ -382,9 +382,14 @@ func (b *ChatBuffer) GetStepsForResume(finalStatus string) []*BufferedStep {
 		b.currentStep.Status = finalStatus
 	}
 
-	// Return all steps (they will all have the context for recovery)
-	result := make([]*BufferedStep, len(b.steps))
-	copy(result, b.steps)
+	// Only return steps with valid resume status (failed or interrupted)
+	result := make([]*BufferedStep, 0, len(b.steps))
+	for _, step := range b.steps {
+		if step.Status != ResumeStatusFailed && step.Status != ResumeStatusInterrupted {
+			continue
+		}
+		result = append(result, step)
+	}
 	return result
 }
 
