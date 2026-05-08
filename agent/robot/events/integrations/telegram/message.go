@@ -93,12 +93,23 @@ func buildContentParts(cm *tgapi.ConvertedMessage) []interface{} {
 		if mi.Wrapper == "" {
 			continue
 		}
-		parts = append(parts, map[string]interface{}{
-			"type":      "file",
-			"file_url":  mi.Wrapper,
-			"mime_type": mi.MimeType,
-			"file_name": mi.FileName,
-		})
+		if strings.HasPrefix(mi.MimeType, "image/") {
+			parts = append(parts, map[string]interface{}{
+				"type": "image_url",
+				"image_url": map[string]interface{}{
+					"url":    mi.Wrapper,
+					"detail": "auto",
+				},
+			})
+		} else {
+			parts = append(parts, map[string]interface{}{
+				"type": "file",
+				"file": map[string]interface{}{
+					"url":      mi.Wrapper,
+					"filename": mi.FileName,
+				},
+			})
+		}
 	}
 
 	return parts

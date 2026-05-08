@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"path/filepath"
+
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/gou/text"
 	agentcontext "github.com/yaoapp/yao/agent/context"
@@ -21,6 +23,7 @@ import (
 	eventtypes "github.com/yaoapp/yao/event/types"
 	"github.com/yaoapp/yao/messenger"
 	messengerTypes "github.com/yaoapp/yao/messenger/types"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // handleDelivery routes delivery content to configured channels (email, webhook, process).
@@ -432,6 +435,15 @@ func convertAttachments(ctx context.Context, attachments []robottypes.DeliveryAt
 
 	result := make([]messengerTypes.Attachment, 0, len(attachments))
 	for _, att := range attachments {
+		// Handle workspace:// URIs — read file content from workspace FS
+		if strings.HasPrefix(att.File, "workspace://") {
+			wsAtt := convertWorkspaceAttachment(ctx, att)
+			if wsAtt != nil {
+				result = append(result, *wsAtt)
+			}
+			continue
+		}
+
 		uploader, fileID, isWrapper := attachment.Parse(att.File)
 		if !isWrapper {
 			log.Warn("convertAttachments: skipping non-wrapper file value=%q title=%q", att.File, att.Title)
@@ -479,6 +491,87 @@ func convertAttachments(ctx context.Context, attachments []robottypes.DeliveryAt
 		})
 	}
 	return result
+}
+
+// convertWorkspaceAttachment reads a file from workspace:// URI and returns a messenger attachment.
+// URI format: workspace://<wsID>/<path>
+func convertWorkspaceAttachment(ctx context.Context, att robottypes.DeliveryAttachment) *messengerTypes.Attachment {
+	uri := att.File
+	// Strip "workspace://" prefix
+	rest := strings.TrimPrefix(uri, "workspace://")
+	slashIdx := strings.Index(rest, "/")
+	if slashIdx < 0 {
+		log.Warn("convertWorkspaceAttachment: invalid URI %q — no path after wsID", uri)
+		return nil
+	}
+	wsID := rest[:slashIdx]
+	filePath := rest[slashIdx+1:]
+	if wsID == "" || filePath == "" {
+		log.Warn("convertWorkspaceAttachment: empty wsID or path in URI %q", uri)
+		return nil
+	}
+
+	wsm := workspace.M()
+	if wsm == nil {
+		log.Warn("convertWorkspaceAttachment: workspace manager not available for URI %q", uri)
+		return nil
+	}
+
+	wsFS, err := wsm.FS(ctx, wsID)
+	if err != nil {
+		log.Warn("convertWorkspaceAttachment: cannot get FS for workspace %q: %v", wsID, err)
+		return nil
+	}
+
+	content, err := wsFS.ReadFile(filePath)
+	if err != nil {
+		log.Warn("convertWorkspaceAttachment: failed to read %q from workspace %q: %v", filePath, wsID, err)
+		return nil
+	}
+
+	filename := filepath.Base(filePath)
+	if att.Title != "" {
+		filename = att.Title
+	}
+
+	contentType := mimeFromExtDelivery(filepath.Ext(filename))
+	log.Info("convertWorkspaceAttachment: added workspace attachment filename=%q contentType=%q size=%d uri=%q",
+		filename, contentType, len(content), uri)
+
+	return &messengerTypes.Attachment{
+		Filename:    filename,
+		ContentType: contentType,
+		Content:     content,
+	}
+}
+
+func mimeFromExtDelivery(ext string) string {
+	switch strings.ToLower(ext) {
+	case ".pdf":
+		return "application/pdf"
+	case ".html", ".htm":
+		return "text/html"
+	case ".png":
+		return "image/png"
+	case ".jpg", ".jpeg":
+		return "image/jpeg"
+	case ".gif":
+		return "image/gif"
+	case ".csv":
+		return "text/csv"
+	case ".json":
+		return "application/json"
+	case ".md":
+		return "text/markdown"
+	case ".txt":
+		return "text/plain"
+	case ".xlsx":
+		return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	case ".pptx":
+		return "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+	default:
+		return "application/octet-stream"
+	}
 }
 
 func attachmentManagerKeys() []string {

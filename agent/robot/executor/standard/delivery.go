@@ -3,6 +3,7 @@ package standard
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	robotevents "github.com/yaoapp/yao/agent/robot/events"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	"github.com/yaoapp/yao/event"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // RunDelivery executes P4: Delivery phase
@@ -36,14 +38,36 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 	}
 
 	formatter := NewInputFormatter()
-	userContent := formatter.FormatDeliveryInput(exec, robot)
+
+	// Try workspace-based delivery input (manifest summaries instead of raw output inline)
+	var userContent string
+	if robot.Workspace != "" {
+		wsm := workspace.M()
+		if wsm != nil {
+			wsFS, err := wsm.FS(ctx, robot.Workspace)
+			if err == nil {
+				execDir := path.Join("robots", robot.MemberID, exec.ID)
+				data, err := wsFS.ReadFile(path.Join(execDir, "manifest.json"))
+				if err == nil {
+					var manifest Manifest
+					if json.Unmarshal(data, &manifest) == nil {
+						userContent = formatter.FormatDeliveryInputWithManifest(exec, robot, &manifest, robot.Workspace, execDir, locale)
+					}
+				}
+			}
+		}
+	}
+
+	// Fallback to legacy full-output inline
+	if userContent == "" {
+		userContent = formatter.FormatDeliveryInput(exec, robot)
+	}
 
 	if userContent == "" {
 		return fmt.Errorf("no content available for delivery generation")
 	}
 
 	caller := NewAgentCaller()
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
@@ -410,6 +434,106 @@ func (f *InputFormatter) FormatDeliveryInput(exec *robottypes.Execution, robot *
 		sb.WriteString(fmt.Sprintf("### Summary\n\n- **Total Tasks**: %d\n- **Succeeded**: %d\n- **Failed**: %d\n\n",
 			len(exec.Results), successCount, failCount))
 	}
+
+	return sb.String()
+}
+
+// FormatDeliveryInputWithManifest formats delivery input using workspace manifest summaries
+// instead of inlining full task outputs. This drastically reduces token usage.
+func (f *InputFormatter) FormatDeliveryInputWithManifest(
+	exec *robottypes.Execution,
+	robot *robottypes.Robot,
+	manifest *Manifest,
+	wsID string,
+	execDir string,
+	locale string,
+) string {
+	if exec == nil || manifest == nil {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	// Robot Identity (same as legacy)
+	if robot != nil && robot.Config != nil && robot.Config.Identity != nil {
+		sb.WriteString("## Robot Identity\n\n")
+		sb.WriteString(fmt.Sprintf("- **Role**: %s\n", robot.Config.Identity.Role))
+		if len(robot.Config.Identity.Duties) > 0 {
+			sb.WriteString("- **Duties**: ")
+			sb.WriteString(strings.Join(robot.Config.Identity.Duties, ", "))
+			sb.WriteString("\n")
+		}
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString("## Execution Context\n\n")
+	sb.WriteString(fmt.Sprintf("- **Trigger**: %s\n", exec.TriggerType))
+	sb.WriteString(fmt.Sprintf("- **Status**: %s\n", exec.Status))
+	if locale != "" {
+		sb.WriteString(fmt.Sprintf("- **Language**: %s\n", locale))
+	}
+	sb.WriteString(fmt.Sprintf("- **Start Time**: %s\n", exec.StartTime.Format("2006-01-02 15:04:05")))
+	if exec.EndTime != nil {
+		duration := exec.EndTime.Sub(exec.StartTime)
+		sb.WriteString(fmt.Sprintf("- **Duration**: %s\n", duration.String()))
+	}
+	sb.WriteString("\n")
+
+	sb.WriteString("## Goals\n\n")
+	sb.WriteString(manifest.Goals)
+	sb.WriteString("\n\n")
+
+	// Results from manifest summaries
+	sb.WriteString("## Results (P3)\n\n")
+	successCount := 0
+	failCount := 0
+
+	for _, t := range manifest.Tasks {
+		if t.Status == "completed" {
+			successCount++
+			sb.WriteString(fmt.Sprintf("### ✓ Task: %s\n\n", t.ID))
+		} else if t.Status == "failed" {
+			failCount++
+			sb.WriteString(fmt.Sprintf("### ✗ Task: %s\n\n", t.ID))
+		} else {
+			continue
+		}
+
+		sb.WriteString(fmt.Sprintf("- **Description**: %s\n", t.Description))
+		sb.WriteString(fmt.Sprintf("- **Executor**: %s (%s)\n", t.Executor, t.ExecutorType))
+
+		if t.Summary != "" {
+			sb.WriteString(fmt.Sprintf("- **Summary**: %s\n", t.Summary))
+		}
+		if len(t.KeyOutputs) > 0 {
+			sb.WriteString(fmt.Sprintf("- **Key Outputs**: %s\n", strings.Join(t.KeyOutputs, ", ")))
+		}
+
+		// File references — use existing URI if present, otherwise build from execDir
+		if len(t.Files) > 0 {
+			sb.WriteString("- **Artifacts**:\n")
+			for _, file := range t.Files {
+				uri := file.URI
+				if uri == "" {
+					uri = fmt.Sprintf("workspace://%s/%s/%s/%s", wsID, execDir, t.ID, file.Name)
+				}
+				sb.WriteString(fmt.Sprintf("  - [%s](%s)", file.Name, uri))
+				if file.Desc != "" {
+					sb.WriteString(fmt.Sprintf(" — %s", file.Desc))
+				}
+				sb.WriteString("\n")
+			}
+		}
+
+		// Full output file reference
+		outputURI := fmt.Sprintf("workspace://%s/%s/%s.output.md", wsID, execDir, t.ID)
+		sb.WriteString(fmt.Sprintf("- **Full Output**: [%s.output.md](%s)\n", t.ID, outputURI))
+
+		sb.WriteString("\n")
+	}
+
+	sb.WriteString(fmt.Sprintf("### Summary\n\n- **Total Tasks**: %d\n- **Succeeded**: %d\n- **Failed**: %d\n\n",
+		successCount+failCount, successCount, failCount))
 
 	return sb.String()
 }

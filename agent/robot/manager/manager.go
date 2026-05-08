@@ -524,6 +524,7 @@ func (m *Manager) Intervene(ctx *types.Context, req *types.InterveneRequest) (*t
 		Action:   req.Action,
 		Messages: req.Messages,
 		UserID:   ctx.UserID(),
+		Locale:   req.Locale,
 	}
 
 	// Handle plan.add action - schedule for later

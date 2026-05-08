@@ -11,6 +11,7 @@ import (
 
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 )
 
 // streamParser is an explicit state machine for Claude CLI stream-json output.
@@ -77,8 +78,7 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		}
 	}()
 
-	scanner := bufio.NewScanner(stdout)
-	scanner.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
+	reader := bufio.NewReaderSize(stdout, 64*1024)
 
 	startTime := time.Now()
 	lineCount := 0
@@ -87,9 +87,22 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 
 	log.Trace("[claude-parse] stream started")
 
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
+	for {
+		line, skipped, err := shared.ReadJSONLine(reader)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			return err
+		}
+		if skipped {
+			log.Warn("[claude-parse] skipped oversized JSONL line (>%dMB)", shared.MaxLineSize/1024/1024)
+			continue
+		}
+		if len(line) == 0 {
 			continue
 		}
 		lineCount++
@@ -105,11 +118,11 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		}
 
 		var msg map[string]any
-		if err := json.Unmarshal([]byte(line), &msg); err != nil {
+		if err := json.Unmarshal(line, &msg); err != nil {
 			if len(line) > 200 {
-				log.Trace("[claude-parse] JSON unmarshal error: %v (line len=%d, prefix=%q)", err, len(line), line[:200])
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line len=%d, prefix=%q)", err, len(line), string(line[:200]))
 			} else {
-				log.Trace("[claude-parse] JSON unmarshal error: %v (line=%q)", err, line)
+				log.Trace("[claude-parse] JSON unmarshal error: %v (line=%q)", err, string(line))
 			}
 			continue
 		}
@@ -141,16 +154,9 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		}
 	}
 
-	log.Trace("[claude-parse] stream ended: lines=%d elapsed=%v completed=%v scanErr=%v",
-		lineCount, time.Since(startTime).Round(time.Second), p.completed, scanner.Err())
+	log.Trace("[claude-parse] stream ended: lines=%d elapsed=%v completed=%v",
+		lineCount, time.Since(startTime).Round(time.Second), p.completed)
 
-	if err := scanner.Err(); err != nil {
-		log.Trace("[claude-parse] scanner error: %v (ctx.Err=%v)", err, ctx.Err())
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		return err
-	}
 	return nil
 }
 

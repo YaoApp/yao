@@ -111,6 +111,7 @@ func triggerHuman(ctx *types.Context, mgr managerInterface, memberID string, req
 		Messages:     req.Messages,
 		PlanTime:     req.PlanAt,
 		ExecutorMode: req.ExecutorMode,
+		Locale:       req.Locale,
 	}
 
 	// Call manager's Intervene

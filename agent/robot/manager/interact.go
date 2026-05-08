@@ -337,7 +337,6 @@ func (m *Manager) callHostAgent(ctx *types.Context, agentID string, input *types
 	}
 
 	caller := standard.NewConversationCaller(chatID)
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, string(inputJSON))
 	if err != nil {
@@ -740,7 +739,6 @@ func (m *Manager) callHostAgentStream(ctx *types.Context, agentID string, input 
 	}
 
 	caller := standard.NewConversationCaller(chatID)
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessagesStream(ctx, agentID, string(inputJSON), streamFn)
 	if err != nil {
@@ -960,7 +958,6 @@ func (m *Manager) callHostAgentStreamRaw(ctx *types.Context, agentID string, inp
 	}
 
 	caller := standard.NewConversationCaller(chatID)
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessagesStreamRaw(ctx, agentID, string(inputJSON), wrappedOnMessage)
 	if err != nil {

@@ -96,12 +96,23 @@ func buildContentParts(cm *dcapi.ConvertedMessage) []interface{} {
 		if url == "" {
 			continue
 		}
-		parts = append(parts, map[string]interface{}{
-			"type":      "file",
-			"file_url":  url,
-			"mime_type": mi.ContentType,
-			"file_name": mi.FileName,
-		})
+		if strings.HasPrefix(mi.ContentType, "image/") {
+			parts = append(parts, map[string]interface{}{
+				"type": "image_url",
+				"image_url": map[string]interface{}{
+					"url":    url,
+					"detail": "auto",
+				},
+			})
+		} else {
+			parts = append(parts, map[string]interface{}{
+				"type": "file",
+				"file": map[string]interface{}{
+					"url":      url,
+					"filename": mi.FileName,
+				},
+			})
+		}
 	}
 
 	return parts

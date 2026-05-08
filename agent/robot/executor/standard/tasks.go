@@ -2,7 +2,9 @@ package standard
 
 import (
 	"fmt"
+	"strings"
 
+	kunlog "github.com/yaoapp/kun/log"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 )
@@ -54,7 +56,6 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 	// Call agent
 	caller := NewAgentCaller()
 	caller.log = newExecLogger(robot, exec.ID)
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
@@ -79,6 +80,9 @@ func (e *Executor) RunTasks(ctx *robottypes.Context, exec *robottypes.Execution,
 	if err != nil {
 		return fmt.Errorf("tasks agent (%s) returned invalid task structure: %w", agentID, err)
 	}
+
+	// Normalize executor IDs and types against available resources
+	NormalizeTaskExecutors(tasks, robot)
 
 	// Validate tasks
 	if err := ValidateTasks(tasks); err != nil {
@@ -394,4 +398,82 @@ func ValidateMCPTask(task *robottypes.Task) error {
 		return fmt.Errorf("MCP task %s: mcp_tool field is required", task.ID)
 	}
 	return nil
+}
+
+// NormalizeTaskExecutors fixes LLM-generated executor_id and executor_type
+// against the robot's actual resource lists. It handles two common LLM errors:
+//  1. Partial executor_id (e.g. "report-writer" instead of "yao.report-writer")
+//  2. Wrong executor_type (e.g. classifying an assistant as "mcp")
+func NormalizeTaskExecutors(tasks []robottypes.Task, robot *robottypes.Robot) {
+	if robot == nil || robot.Config == nil || robot.Config.Resources == nil {
+		return
+	}
+
+	agentSet := make(map[string]bool, len(robot.Config.Resources.Agents))
+	for _, id := range robot.Config.Resources.Agents {
+		agentSet[id] = true
+	}
+
+	mcpSet := make(map[string]bool, len(robot.Config.Resources.MCP))
+	for _, m := range robot.Config.Resources.MCP {
+		mcpSet[m.ID] = true
+	}
+
+	for i := range tasks {
+		task := &tasks[i]
+		origID := task.ExecutorID
+		origType := task.ExecutorType
+
+		// Skip process tasks — they are not in resource lists
+		if task.ExecutorType == robottypes.ExecutorProcess {
+			continue
+		}
+
+		// Step 1: Try exact match first
+		if agentSet[task.ExecutorID] {
+			task.ExecutorType = robottypes.ExecutorAssistant
+			if origType != task.ExecutorType {
+				kunlog.Trace("[normalize] task %s: executor_type %s -> %s (crosscheck)", task.ID, origType, task.ExecutorType)
+			}
+			continue
+		}
+		if mcpSet[task.ExecutorID] {
+			task.ExecutorType = robottypes.ExecutorMCP
+			if origType != task.ExecutorType {
+				kunlog.Trace("[normalize] task %s: executor_type %s -> %s (crosscheck)", task.ID, origType, task.ExecutorType)
+			}
+			continue
+		}
+
+		// Step 2: Suffix match — LLM may omit namespace prefix
+		if match := suffixMatch(task.ExecutorID, robot.Config.Resources.Agents); match != "" {
+			task.ExecutorID = match
+			task.ExecutorType = robottypes.ExecutorAssistant
+			kunlog.Trace("[normalize] task %s: executor_id %s -> %s (suffix match)", task.ID, origID, match)
+			continue
+		}
+
+		mcpIDs := make([]string, 0, len(robot.Config.Resources.MCP))
+		for _, m := range robot.Config.Resources.MCP {
+			mcpIDs = append(mcpIDs, m.ID)
+		}
+		if match := suffixMatch(task.ExecutorID, mcpIDs); match != "" {
+			task.ExecutorID = match
+			task.ExecutorType = robottypes.ExecutorMCP
+			kunlog.Trace("[normalize] task %s: executor_id %s -> %s (suffix match)", task.ID, origID, match)
+			continue
+		}
+	}
+}
+
+// suffixMatch finds the first entry in candidates that ends with "."+partial
+// (or equals partial exactly, which is already handled by the caller).
+func suffixMatch(partial string, candidates []string) string {
+	suffix := "." + partial
+	for _, c := range candidates {
+		if strings.HasSuffix(c, suffix) {
+			return c
+		}
+	}
+	return ""
 }

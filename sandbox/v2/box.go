@@ -2,7 +2,9 @@ package sandbox
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -121,11 +123,33 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 		return nil, err
 	}
 
-	handle, err := res.Runtime.ExecStream(ctx, b.containerID, cmd, tairuntime.ExecOptions{
+	execOpts := tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
 		User:    "sandbox",
-	})
+	}
+
+	handle, err := res.Runtime.ExecStream(ctx, b.containerID, cmd, execOpts)
+	if err != nil && strings.Contains(err.Error(), "500 Internal Server Error") {
+		select {
+		case <-ctx.Done():
+			return nil, fmt.Errorf("exec create failed: %w (ctx cancelled, no retry)", err)
+		case <-time.After(2 * time.Second):
+		}
+
+		status := b.inspectStatus(ctx)
+		if status != "running" {
+			return nil, fmt.Errorf("exec create failed: %w (container status: %s)", err, status)
+		}
+
+		var retryErr error
+		handle, retryErr = res.Runtime.ExecStream(ctx, b.containerID, cmd, execOpts)
+		if retryErr != nil {
+			return nil, fmt.Errorf("exec create failed after retry: %w (original: %v)", retryErr, err)
+		}
+		err = nil
+	}
+
 	if err != nil {
 		return nil, err
 	}

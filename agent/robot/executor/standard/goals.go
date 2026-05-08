@@ -84,7 +84,6 @@ func (e *Executor) RunGoals(ctx *robottypes.Context, exec *robottypes.Execution,
 
 	// Call agent
 	caller := NewAgentCaller()
-	caller.Connector = robot.LanguageModel
 	caller.Workspace = robot.Workspace
 	result, err := caller.CallWithMessages(ctx, agentID, userContent)
 	if err != nil {
