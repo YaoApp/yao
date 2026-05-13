@@ -1,0 +1,16 @@
+{
+  "name": "agent_download",
+  "description": "Download a smith-namespace agent into the development directory for editing. Restricted to the 'smith' namespace only. For read-only reference of other agents, use agent_reference instead.",
+  "process": "tools.agent_download",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Agent ID in dot notation, must be smith namespace (e.g. 'smith.weather')"
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "agent_connectors",
+  "description": "Get the current user's LLM connector matrix. Returns connector metadata for each role (default, heavy, light, vision, etc.) without API keys. Use this to understand available models and their capabilities.",
+  "process": "tools.agent_connectors",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "x-process-args": []
+}

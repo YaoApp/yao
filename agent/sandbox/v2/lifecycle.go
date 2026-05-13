@@ -329,8 +329,9 @@ func resolveOwnerID(ctx *agentContext.Context) string {
 }
 
 // pickNodeByFilter selects a random online node that satisfies the given filter
-// and image requirement. If image is non-empty, candidate nodes must have a
-// container runtime (Docker or K8s).
+// and image requirement. If image is non-empty, nodes with a container runtime
+// (Docker or K8s) are preferred; if none are available, host_exec nodes are
+// accepted as fallback (ResolveNodeID will resolve them to host mode).
 func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error) {
 	reg := registry.Global()
 	if reg == nil {
@@ -339,6 +340,7 @@ func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error
 
 	nodes := reg.List()
 	var candidates []string
+	var hostExecFallback []string
 	for _, n := range nodes {
 		if n.Status != "online" && n.Status != "" {
 			continue
@@ -372,10 +374,18 @@ func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error
 		}
 
 		if image != "" && !(n.Capabilities.Docker || n.Capabilities.K8s) {
+			if n.Capabilities.HostExec {
+				hostExecFallback = append(hostExecFallback, n.TaiID)
+			}
 			continue
 		}
 
 		candidates = append(candidates, n.TaiID)
+	}
+
+	if len(candidates) == 0 && len(hostExecFallback) > 0 {
+		log.Trace("[sandbox/v2] pickNodeByFilter: no container node for image %q, falling back to host_exec node", image)
+		candidates = hostExecFallback
 	}
 
 	if len(candidates) == 0 {

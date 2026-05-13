@@ -140,6 +140,10 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	}
 	env["WORKDIR"] = workDir
 
+	if req.Locale != "" {
+		env["CTX_LOCALE"] = req.Locale
+	}
+
 	assistantID := req.AssistantID
 	if assistantID != "" {
 		configDir := p.PathJoin(workDir, ".yao", "assistants", assistantID)

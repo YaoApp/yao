@@ -235,6 +235,7 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Token:        tok,
 		Logger:       ctx.Logger,
 		UserExplicit: p.Options != nil && p.Options.Connector != "",
+		Locale:       ctx.Locale,
 	}
 
 	execReq := &sandboxv2.ExecuteRequest{

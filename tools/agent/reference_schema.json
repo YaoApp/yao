@@ -1,0 +1,16 @@
+{
+  "name": "agent_reference",
+  "description": "Download agent source code from the host into the .references/ directory for read-only study. Any agent across all namespaces can be downloaded. Use this to study existing agent patterns before building your own.",
+  "process": "tools.agent_reference",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Agent ID in dot notation (e.g. 'yao.slides', 'yao.keeper')"
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id"]
+}

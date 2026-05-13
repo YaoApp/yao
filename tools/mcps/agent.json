@@ -1,0 +1,12 @@
+{
+  "name": "yao-agent",
+  "transport": "process",
+  "description": "Agent management tools for listing, downloading, deploying agents, and querying connector matrix",
+  "tools": {
+    "agent_list": "tools.agent_list",
+    "agent_download": "tools.agent_download",
+    "agent_reference": "tools.agent_reference",
+    "agent_deploy": "tools.agent_deploy",
+    "agent_connectors": "tools.agent_connectors"
+  }
+}
