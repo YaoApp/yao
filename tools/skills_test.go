@@ -12,6 +12,7 @@ func TestSkillsFS_ContainsAllSkills(t *testing.T) {
 		"skills/yao-process/SKILL.md": false,
 		"skills/yao-doc/SKILL.md":     false,
 		"skills/yao-image/SKILL.md":   false,
+		"skills/yao-agent/SKILL.md":   false,
 	}
 
 	err := fs.WalkDir(SkillsFS, "skills", func(path string, d fs.DirEntry, err error) error {
@@ -43,6 +44,7 @@ func TestSkillsFS_FrontmatterFields(t *testing.T) {
 		{"skills/yao-process/SKILL.md", "yao-process"},
 		{"skills/yao-doc/SKILL.md", "yao-doc"},
 		{"skills/yao-image/SKILL.md", "yao-image"},
+		{"skills/yao-agent/SKILL.md", "yao-agent"},
 	}
 
 	for _, s := range skills {

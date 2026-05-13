@@ -76,8 +76,12 @@ You have access to Yao system tools via the `tai` command in bash.
 | `doc_list`        | yao-doc             | Search/list available process documentation         |
 | `doc_inspect`     | yao-doc             | Get detailed docs for a specific process            |
 | `doc_validate`    | yao-doc             | Validate a process name and get suggestions         |
-| `image_read`      | yao-image           | Read and analyze images using a vision model        |
-| `image_generate`  | yao-image           | Generate images from text prompts                   |
-| `image_providers` | yao-image           | List available image generation or vision providers |
+| `image_read`       | yao-image           | Read and analyze images using a vision model        |
+| `image_generate`   | yao-image           | Generate images from text prompts                   |
+| `image_providers`  | yao-image           | List available image generation or vision providers |
+| `agent_list`       | yao-agent           | List available agents on the host                   |
+| `agent_download`   | yao-agent           | Download agent source code for reference            |
+| `agent_deploy`     | yao-agent           | Deploy agent code to host (smith namespace only)    |
+| `agent_connectors` | yao-agent           | Get LLM connector matrix (no keys)                 |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.

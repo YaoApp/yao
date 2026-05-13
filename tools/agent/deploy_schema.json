@@ -1,0 +1,20 @@
+{
+  "name": "agent_deploy",
+  "description": "Deploy agent source code from the sandbox development directory to the host. Restricted to the 'smith' namespace only.",
+  "process": "tools.agent_deploy",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Agent ID in dot notation (e.g. 'smith.weather'). Must use 'smith' namespace."
+      },
+      "message": {
+        "type": "string",
+        "description": "Optional deploy message for logging purposes."
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id", "$args.message"]
+}

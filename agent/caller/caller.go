@@ -15,3 +15,7 @@ type AgentCaller interface {
 // AgentGetterFunc is a function type that gets an agent by ID
 // This should be set by the assistant package during initialization
 var AgentGetterFunc func(agentID string) (AgentCaller, error)
+
+// AssistantReloadFunc reloads a single assistant from disk after deploy.
+// Set by the assistant package during initialization.
+var AssistantReloadFunc func(id string) error

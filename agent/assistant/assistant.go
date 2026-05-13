@@ -3,6 +3,7 @@ package assistant
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/yao/agent/caller"
@@ -25,6 +26,28 @@ func init() {
 		}
 		// Return a wrapper that implements AgentCaller interface
 		return &agentCallerWrapper{ast: ast}, nil
+	}
+
+	// Initialize AssistantReloadFunc for hot-reload after deploy
+	caller.AssistantReloadFunc = func(id string) error {
+		p := "/assistants/" + strings.Replace(id, ".", "/", 1)
+		ast, err := LoadPath(p)
+		if err != nil {
+			return err
+		}
+		ast.BuiltIn = true
+		ast.Readonly = true
+		if ast.Tags == nil {
+			ast.Tags = []string{}
+		}
+		if err := ast.Save(); err != nil {
+			return err
+		}
+		if err := ast.initialize(); err != nil {
+			return err
+		}
+		loaded.Put(ast)
+		return nil
 	}
 
 	// Initialize Agent JSAPI factory for ctx.agent.* methods

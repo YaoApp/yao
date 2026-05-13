@@ -1,0 +1,16 @@
+{
+  "name": "agent_download",
+  "description": "Download agent source code from the host into the sandbox development directory. Use this to study existing agents as reference. Any agent can be downloaded (read-only reference).",
+  "process": "tools.agent_download",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Agent ID in dot notation (e.g. 'yao.slides', 'smith.weather')"
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id"]
+}

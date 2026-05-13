@@ -1,0 +1,15 @@
+{
+  "name": "agent_list",
+  "description": "List available agents on the host. Returns agent ID, name, description, and capabilities. Optionally filter by namespace.",
+  "process": "tools.agent_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "namespace": {
+        "type": "string",
+        "description": "Optional namespace filter (e.g. 'yao', 'smith'). If omitted, lists all agents."
+      }
+    }
+  },
+  "x-process-args": ["$args.namespace"]
+}

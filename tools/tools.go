@@ -8,6 +8,7 @@ import (
 	mcpTypes "github.com/yaoapp/gou/mcp/types"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/tools/agent"
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	"github.com/yaoapp/yao/tools/proc"
@@ -27,18 +28,25 @@ var mcpDocDSL []byte
 //go:embed mcps/image.json
 var mcpImageDSL []byte
 
+//go:embed mcps/agent.json
+var mcpAgentDSL []byte
+
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
-		"web_search":      websearch.Handler,
-		"web_fetch":       webfetch.Handler,
-		"process_call":    proc.Handler,
-		"process_allowed": proc.AllowedHandler,
-		"doc_list":        docs.ListHandler,
-		"doc_inspect":     docs.InspectHandler,
-		"doc_validate":    docs.ValidateHandler,
-		"image_read":      image.ReadHandler,
-		"image_generate":  image.GenerateHandler,
-		"image_providers": image.ProvidersHandler,
+		"web_search":       websearch.Handler,
+		"web_fetch":        webfetch.Handler,
+		"process_call":     proc.Handler,
+		"process_allowed":  proc.AllowedHandler,
+		"doc_list":         docs.ListHandler,
+		"doc_inspect":      docs.InspectHandler,
+		"doc_validate":     docs.ValidateHandler,
+		"image_read":       image.ReadHandler,
+		"image_generate":   image.GenerateHandler,
+		"image_providers":  image.ProvidersHandler,
+		"agent_list":       agent.ListHandler,
+		"agent_download":   agent.DownloadHandler,
+		"agent_deploy":     agent.DeployHandler,
+		"agent_connectors": agent.ConnectorsHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -49,6 +57,9 @@ func init() {
 		docs.ListSchemaJSON, docs.InspectSchemaJSON, docs.ValidateSchemaJSON)
 	registerMCPServer(mcpImageDSL, "yao-image",
 		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.ProvidersSchemaJSON)
+	registerMCPServer(mcpAgentDSL, "yao-agent",
+		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.DeploySchemaJSON,
+		agent.ConnectorsSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

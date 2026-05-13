@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 
 	goumcp "github.com/yaoapp/gou/mcp"
@@ -28,7 +29,7 @@ func authProviderFromCtx(ctx context.Context) *grpcAuthProvider {
 	if info == nil {
 		return nil
 	}
-	return &grpcAuthProvider{m: map[string]interface{}{
+	m := map[string]interface{}{
 		"sub":        info.Subject,
 		"client_id":  info.ClientID,
 		"scope":      info.Scope,
@@ -36,7 +37,16 @@ func authProviderFromCtx(ctx context.Context) *grpcAuthProvider {
 		"user_id":    info.UserID,
 		"team_id":    info.TeamID,
 		"tenant_id":  info.TenantID,
-	}}
+	}
+	if md, ok := metadata.FromIncomingContext(ctx); ok {
+		if ids := md.Get("x-workspace-id"); len(ids) > 0 && ids[0] != "" {
+			m["workspace_id"] = ids[0]
+		}
+		if ids := md.Get("x-sandbox-id"); len(ids) > 0 && ids[0] != "" {
+			m["sandbox_id"] = ids[0]
+		}
+	}
+	return &grpcAuthProvider{m: m}
 }
 
 // MCPListTools lists all available MCP tools for a given session.
