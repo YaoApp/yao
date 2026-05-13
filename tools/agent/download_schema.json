@@ -1,13 +1,13 @@
 {
   "name": "agent_download",
-  "description": "Download agent source code from the host into the sandbox development directory. Use this to study existing agents as reference. Any agent can be downloaded (read-only reference).",
+  "description": "Download a smith-namespace agent into the development directory for editing. Restricted to the 'smith' namespace only. For read-only reference of other agents, use agent_reference instead.",
   "process": "tools.agent_download",
   "inputSchema": {
     "type": "object",
     "properties": {
       "id": {
         "type": "string",
-        "description": "Agent ID in dot notation (e.g. 'yao.slides', 'smith.weather')"
+        "description": "Agent ID in dot notation, must be smith namespace (e.g. 'smith.weather')"
       }
     },
     "required": ["id"]

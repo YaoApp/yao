@@ -80,7 +80,8 @@ You have access to Yao system tools via the `tai` command in bash.
 | `image_generate`   | yao-image           | Generate images from text prompts                   |
 | `image_providers`  | yao-image           | List available image generation or vision providers |
 | `agent_list`       | yao-agent           | List available agents on the host                   |
-| `agent_download`   | yao-agent           | Download agent source code for reference            |
+| `agent_download`   | yao-agent           | Download smith agent for editing (smith only)       |
+| `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |
 | `agent_deploy`     | yao-agent           | Deploy agent code to host (smith namespace only)    |
 | `agent_connectors` | yao-agent           | Get LLM connector matrix (no keys)                 |
 

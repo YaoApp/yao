@@ -60,4 +60,5 @@ type StreamRequest struct {
 	Token        *SandboxToken               // current user's sandbox token for MCP callbacks
 	Logger       *agentContext.RequestLogger // request-scoped logger propagated from agent context
 	UserExplicit bool                        // true when the user explicitly selected the primary connector
+	Locale       string                      // user locale (e.g. "zh-cn", "en-us") for i18n in MCP tools
 }

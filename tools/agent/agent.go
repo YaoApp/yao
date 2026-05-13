@@ -22,6 +22,9 @@ var DownloadSchemaJSON []byte
 //go:embed deploy_schema.json
 var DeploySchemaJSON []byte
 
+//go:embed reference_schema.json
+var ReferenceSchemaJSON []byte
+
 //go:embed connectors_schema.json
 var ConnectorsSchemaJSON []byte
 
@@ -66,6 +69,21 @@ func extractWorkspaceID(proc *process.Process) string {
 		return ids[0]
 	}
 	return ""
+}
+
+func extractLocale(proc *process.Process) string {
+	if proc.Context == nil {
+		return "en-us"
+	}
+	md, ok := metadata.FromIncomingContext(proc.Context)
+	if !ok {
+		return "en-us"
+	}
+	vals := md.Get("x-locale")
+	if len(vals) > 0 && vals[0] != "" {
+		return strings.ToLower(vals[0])
+	}
+	return "en-us"
 }
 
 func validateID(id string) error {

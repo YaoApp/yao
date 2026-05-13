@@ -45,6 +45,9 @@ func authProviderFromCtx(ctx context.Context) *grpcAuthProvider {
 		if ids := md.Get("x-sandbox-id"); len(ids) > 0 && ids[0] != "" {
 			m["sandbox_id"] = ids[0]
 		}
+		if vals := md.Get("x-locale"); len(vals) > 0 && vals[0] != "" {
+			m["locale"] = vals[0]
+		}
 	}
 	return &grpcAuthProvider{m: m}
 }

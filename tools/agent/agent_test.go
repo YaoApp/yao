@@ -204,6 +204,7 @@ func TestSchemaJSON_NonEmpty(t *testing.T) {
 	schemas := map[string][]byte{
 		"ListSchemaJSON":       ListSchemaJSON,
 		"DownloadSchemaJSON":   DownloadSchemaJSON,
+		"ReferenceSchemaJSON":  ReferenceSchemaJSON,
 		"DeploySchemaJSON":     DeploySchemaJSON,
 		"ConnectorsSchemaJSON": ConnectorsSchemaJSON,
 	}
@@ -396,12 +397,65 @@ func TestDownloadHandler_InvalidID(t *testing.T) {
 	}
 }
 
+func TestDownloadHandler_WrongNamespace(t *testing.T) {
+	proc := &process.Process{Args: []interface{}{"yao.slides"}}
+	result := DownloadHandler(proc)
+	m := result.(map[string]interface{})
+	errMsg, has := m["error"]
+	if !has {
+		t.Fatal("expected error for non-smith namespace")
+	}
+	if !contains(errMsg.(string), "smith") {
+		t.Errorf("error = %q, want substring 'smith'", errMsg)
+	}
+	if !contains(errMsg.(string), "agent_reference") {
+		t.Errorf("error = %q, should suggest agent_reference", errMsg)
+	}
+}
+
 func TestDownloadHandler_MissingWorkspace(t *testing.T) {
+	proc := &process.Process{
+		Args:    []interface{}{"smith.test"},
+		Context: context.Background(),
+	}
+	result := DownloadHandler(proc)
+	m := result.(map[string]interface{})
+	errMsg, has := m["error"]
+	if !has {
+		t.Fatal("expected error when workspace_id is missing")
+	}
+	if !contains(errMsg.(string), "workspace_id") {
+		t.Errorf("error = %q, want substring 'workspace_id'", errMsg)
+	}
+}
+
+func TestReferenceHandler_MissingID(t *testing.T) {
+	proc := &process.Process{Args: []interface{}{""}}
+	result := ReferenceHandler(proc)
+	m := result.(map[string]interface{})
+	if _, has := m["error"]; !has {
+		t.Error("expected error for empty id")
+	}
+}
+
+func TestReferenceHandler_InvalidID(t *testing.T) {
+	cases := []string{"no/slash", "a..b", ""}
+	for _, id := range cases {
+		proc := &process.Process{Args: []interface{}{id}}
+		result := ReferenceHandler(proc)
+		m := result.(map[string]interface{})
+		if _, has := m["error"]; !has {
+			t.Errorf("ReferenceHandler(%q) expected error", id)
+		}
+	}
+}
+
+func TestReferenceHandler_MissingWorkspace(t *testing.T) {
 	proc := &process.Process{
 		Args:    []interface{}{"yao.slides"},
 		Context: context.Background(),
 	}
-	result := DownloadHandler(proc)
+	result := ReferenceHandler(proc)
 	m := result.(map[string]interface{})
 	errMsg, has := m["error"]
 	if !has {
@@ -425,6 +479,57 @@ func TestDeployHandler_MissingWorkspace(t *testing.T) {
 	}
 	if !contains(errMsg.(string), "workspace_id") {
 		t.Errorf("error = %q, want substring 'workspace_id'", errMsg)
+	}
+}
+
+// --- extractLocale tests ---
+
+func TestExtractLocale_WithMetadata(t *testing.T) {
+	md := metadata.Pairs("x-locale", "zh-cn")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	proc := &process.Process{Context: ctx}
+
+	locale := extractLocale(proc)
+	if locale != "zh-cn" {
+		t.Errorf("extractLocale = %q, want %q", locale, "zh-cn")
+	}
+}
+
+func TestExtractLocale_UpperCase(t *testing.T) {
+	md := metadata.Pairs("x-locale", "ZH-CN")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	proc := &process.Process{Context: ctx}
+
+	locale := extractLocale(proc)
+	if locale != "zh-cn" {
+		t.Errorf("extractLocale = %q, want %q (should lowercase)", locale, "zh-cn")
+	}
+}
+
+func TestExtractLocale_NoMetadata(t *testing.T) {
+	proc := &process.Process{Context: context.Background()}
+	locale := extractLocale(proc)
+	if locale != "en-us" {
+		t.Errorf("extractLocale without metadata = %q, want default %q", locale, "en-us")
+	}
+}
+
+func TestExtractLocale_NilContext(t *testing.T) {
+	proc := &process.Process{}
+	locale := extractLocale(proc)
+	if locale != "en-us" {
+		t.Errorf("extractLocale with nil context = %q, want default %q", locale, "en-us")
+	}
+}
+
+func TestExtractLocale_EmptyValue(t *testing.T) {
+	md := metadata.Pairs("x-locale", "")
+	ctx := metadata.NewIncomingContext(context.Background(), md)
+	proc := &process.Process{Context: ctx}
+
+	locale := extractLocale(proc)
+	if locale != "en-us" {
+		t.Errorf("extractLocale with empty value = %q, want default %q", locale, "en-us")
 	}
 }
 

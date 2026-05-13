@@ -8,6 +8,7 @@ import (
 
 	goufs "github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/agent/i18n"
 )
 
 // ListHandler handles the agent_list tool.
@@ -17,6 +18,8 @@ func ListHandler(proc *process.Process) interface{} {
 	if len(proc.Args) > 0 {
 		namespace = proc.ArgsString(0)
 	}
+
+	locale := extractLocale(proc)
 
 	app, err := goufs.Get("app")
 	if err != nil {
@@ -70,14 +73,74 @@ func ListHandler(proc *process.Process) interface{} {
 				continue
 			}
 
+			name := pkg.Name
+			description := pkg.Description
+			capabilities := pkg.Capabilities
+			resolveLocaleFields(agentDir, locale, &name, &description, &capabilities)
+
 			agents = append(agents, agentInfo{
 				ID:           id,
-				Name:         pkg.Name,
-				Description:  pkg.Description,
-				Capabilities: pkg.Capabilities,
+				Name:         name,
+				Description:  description,
+				Capabilities: capabilities,
 			})
 		}
 	}
 
 	return map[string]interface{}{"agents": agents}
+}
+
+// resolveLocaleFields replaces {{ key }} templates in name/description using
+// the agent's locales/ directory. Falls back gracefully: exact locale →
+// language code (e.g. "zh") → en-us → raw template.
+func resolveLocaleFields(agentDir, locale string, fields ...*string) {
+	hasTemplate := false
+	for _, f := range fields {
+		if strings.Contains(*f, "{{") {
+			hasTemplate = true
+			break
+		}
+	}
+	if !hasTemplate {
+		return
+	}
+
+	locales, err := i18n.GetLocales(agentDir)
+	if err != nil || len(locales) == 0 {
+		return
+	}
+	locales = locales.Flatten()
+
+	li := findLocale(locales, locale)
+	if li == nil {
+		return
+	}
+
+	for _, f := range fields {
+		if parsed := li.Parse(*f); parsed != nil {
+			if s, ok := parsed.(string); ok {
+				*f = s
+			}
+		}
+	}
+}
+
+func findLocale(locales i18n.Map, locale string) *i18n.I18n {
+	locale = strings.ToLower(locale)
+	if li, ok := locales[locale]; ok {
+		return &li
+	}
+	parts := strings.SplitN(locale, "-", 2)
+	if len(parts) > 1 {
+		if li, ok := locales[parts[0]]; ok {
+			return &li
+		}
+	}
+	if li, ok := locales["en-us"]; ok {
+		return &li
+	}
+	if li, ok := locales["en"]; ok {
+		return &li
+	}
+	return nil
 }

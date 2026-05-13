@@ -45,6 +45,7 @@ func init() {
 		"image_providers":  image.ProvidersHandler,
 		"agent_list":       agent.ListHandler,
 		"agent_download":   agent.DownloadHandler,
+		"agent_reference":  agent.ReferenceHandler,
 		"agent_deploy":     agent.DeployHandler,
 		"agent_connectors": agent.ConnectorsHandler,
 	})
@@ -58,8 +59,8 @@ func init() {
 	registerMCPServer(mcpImageDSL, "yao-image",
 		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.ProvidersSchemaJSON)
 	registerMCPServer(mcpAgentDSL, "yao-agent",
-		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.DeploySchemaJSON,
-		agent.ConnectorsSchemaJSON)
+		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.ReferenceSchemaJSON,
+		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {
