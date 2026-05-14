@@ -24,7 +24,7 @@ type ScriptRunner struct {
 func NewScriptRunner(opts *Options) *ScriptRunner {
 	return &ScriptRunner{
 		opts:   opts,
-		output: NewOutputWriter(opts.Verbose),
+		output: NewOutputWriterWithWriter(opts.Verbose, opts.Writer, opts.EventWriter),
 	}
 }
 
@@ -317,8 +317,8 @@ func (r *ScriptRunner) Run() (*ScriptTestReport, error) {
 	report.Summary.DurationMs = time.Since(startTime).Milliseconds()
 	report.Metadata.CompletedAt = time.Now()
 
-	// Print summary (skip in JSON mode, handled by caller)
-	if !r.opts.JSONOutput {
+	// Print summary (skip text in local JSON mode; emit event in gRPC JSON mode)
+	if !r.opts.JSONOutput || r.opts.EventWriter != nil {
 		r.output.ScriptTestSummary(report.Summary, time.Since(startTime))
 	}
 
@@ -360,10 +360,10 @@ func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo,
 			result.StackTrace = jse.stackTrace
 		}
 		if !quiet {
-			r.output.TestResult(result.Status, duration)
-			r.output.TestError(result.Error)
+			r.output.TestResult(tc.Name, result.Status, duration)
+			r.output.TestError(tc.Name, result.Error)
 			if result.StackTrace != "" {
-				r.output.TestError(result.StackTrace)
+				r.output.TestError(tc.Name, result.StackTrace)
 			}
 		}
 		return result
@@ -372,7 +372,7 @@ func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo,
 	if testingT.Skipped() {
 		result.Status = StatusSkipped
 		if !quiet {
-			r.output.TestResult(result.Status, duration)
+			r.output.TestResult(tc.Name, result.Status, duration)
 		}
 		return result
 	}
@@ -385,14 +385,14 @@ func (r *ScriptRunner) runScriptTest(tc *ScriptTestCase, scriptInfo *ScriptInfo,
 		}
 		result.Assertion = testingT.AssertionInfo()
 		if !quiet {
-			r.output.TestResult(result.Status, duration)
-			r.output.TestError(result.Error)
+			r.output.TestResult(tc.Name, result.Status, duration)
+			r.output.TestError(tc.Name, result.Error)
 		}
 		return result
 	}
 
 	if !quiet {
-		r.output.TestResult(result.Status, duration)
+		r.output.TestResult(tc.Name, result.Status, duration)
 	}
 	return result
 }
@@ -574,12 +574,6 @@ func (r *ScriptRunner) executeTestFunction(tc *ScriptTestCase, scriptInfo *Scrip
 	return nil
 }
 
-// RegisterTestingGlobals registers testing-related global functions for V8
-// This is called once during initialization
-func RegisterTestingGlobals() {
-	v8.RegisterFunction("__testing_log", testingLogEmbed)
-}
-
 // jsErrorWithTrace wraps a V8 JS error with source-mapped stack trace
 type jsErrorWithTrace struct {
 	message    string
@@ -588,22 +582,4 @@ type jsErrorWithTrace struct {
 
 func (e *jsErrorWithTrace) Error() string {
 	return e.message
-}
-
-// testingLogEmbed provides a console.log-like function for tests
-func testingLogEmbed(iso *v8go.Isolate) *v8go.FunctionTemplate {
-	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		args := info.Args()
-		parts := make([]string, len(args))
-		for i, arg := range args {
-			goVal, err := bridge.GoValue(arg, info.Context())
-			if err != nil {
-				parts[i] = arg.String()
-			} else {
-				parts[i] = fmt.Sprintf("%v", goVal)
-			}
-		}
-		fmt.Println(strings.Join(parts, " "))
-		return v8go.Undefined(iso)
-	})
 }

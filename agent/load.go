@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
+	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	searchDefaults "github.com/yaoapp/yao/agent/search/defaults"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	storeMongo "github.com/yaoapp/yao/agent/store/mongo"
@@ -23,6 +24,19 @@ import (
 )
 
 var agentDSL *types.DSL
+
+// GlobalRunner returns the global default runner name from agent.yml.
+// Returns "" if not configured.
+func GlobalRunner() string {
+	if agentDSL == nil {
+		return ""
+	}
+	return agentDSL.Runner
+}
+
+func init() {
+	sandboxv2.GlobalRunnerFunc = GlobalRunner
+}
 
 // Load load AIGC
 func Load(cfg config.Config) error {
@@ -541,4 +555,5 @@ func resolveEnvStrings(setting *types.DSL) {
 	}
 
 	setting.Cache = helper.EnvString(setting.Cache)
+	setting.Runner = helper.EnvString(setting.Runner)
 }

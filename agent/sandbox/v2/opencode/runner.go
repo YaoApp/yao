@@ -30,7 +30,7 @@ func New() *Runner {
 	return &Runner{mode: "cli"}
 }
 
-// Name returns the runner identifier. Must NOT be "yao" (see agent.go branching).
+// Name returns the runner identifier. Must NOT be "yaocode" (see agent.go branching).
 func (r *Runner) Name() string { return "opencode" }
 
 // Prepare executes user-defined and runner-specific prepare steps.

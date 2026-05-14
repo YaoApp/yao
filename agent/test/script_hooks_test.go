@@ -95,7 +95,7 @@ func TestHookExecutorExecuteBefore(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	testCase := &agenttest.Case{
 		ID:    "TEST001",
@@ -123,7 +123,7 @@ func TestHookExecutorExecuteAfter(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	testCase := &agenttest.Case{
 		ID:    "TEST002",
@@ -155,7 +155,7 @@ func TestHookExecutorExecuteBeforeAll(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	testCases := []*agenttest.Case{
 		{ID: "T001", Input: "Test 1"},
@@ -183,7 +183,7 @@ func TestHookExecutorExecuteAfterAll(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	results := []*agenttest.Result{
 		{ID: "T001", Status: agenttest.StatusPassed, DurationMs: 100},
@@ -209,7 +209,7 @@ func TestHookExecutorFunctionNotFound(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	testCase := &agenttest.Case{
 		ID:    "TEST001",
@@ -230,7 +230,7 @@ func TestHookExecutorScriptNotFound(t *testing.T) {
 	// Load agent test scripts
 	test.LoadAgentTestScripts(t, hooksTestAgent)
 
-	executor := agenttest.NewHookExecutor(true)
+	executor := agenttest.NewHookExecutor(true, nil, nil)
 
 	testCase := &agenttest.Case{
 		ID:    "TEST001",

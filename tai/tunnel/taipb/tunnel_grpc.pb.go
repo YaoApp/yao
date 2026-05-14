@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v4.25.0
-// source: tunnel/proto/tunnel.proto
+// source: tai/tunnel/proto/tunnel.proto
 
 package taipb
 
@@ -147,5 +147,5 @@ var TaiTunnel_ServiceDesc = grpc.ServiceDesc{
 			ClientStreams: true,
 		},
 	},
-	Metadata: "tunnel/proto/tunnel.proto",
+	Metadata: "tai/tunnel/proto/tunnel.proto",
 }

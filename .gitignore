@@ -25,6 +25,7 @@ tests/data/*
 !tests/data/assets
 debug.log
 yao-test
+!bin/yao-test
 dev.sh
 logs
 logs/application.log
@@ -87,3 +88,5 @@ openapi/setting/*.md
 agent/docs/design/*.md
 tools/README.md
 tools/TOOL-REGISTRATION.md
+docs/*.md
+agent/sandbox/v2/docs/*.md

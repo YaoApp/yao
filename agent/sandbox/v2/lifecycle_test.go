@@ -116,7 +116,7 @@ func TestGetComputer_BoxCreate(t *testing.T) {
 			meta := map[string]any{"workspace_id": wsID}
 			ctx := makeAgentCtx("team-t1", "", "chat-1", "ast-1", meta)
 
-			computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}
@@ -161,7 +161,7 @@ func TestGetComputer_BoxReuse(t *testing.T) {
 			meta := map[string]any{"workspace_id": wsID}
 			ctx := makeAgentCtx("team-reuse", "", "chat-reuse", "ast-1", meta)
 
-			computer1, id1, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer1, id1, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("first GetComputer: %v", err)
 			}
@@ -173,7 +173,7 @@ func TestGetComputer_BoxReuse(t *testing.T) {
 				Computer:  types.ComputerConfig{Image: testImage()},
 				NodeID:    nc.TaiID,
 			}
-			computer2, id2, err := sandboxv2.GetComputer(ctx, cfg2, m)
+			computer2, id2, err := sandboxv2.GetComputer(ctx, cfg2, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("second GetComputer: %v", err)
 			}
@@ -212,7 +212,7 @@ func TestGetComputer_WorkspaceBindAlways(t *testing.T) {
 			meta := map[string]any{"workspace_id": wsID}
 			ctx := makeAgentCtx("team-ws", "", "chat-ws", "ast-ws", meta)
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}
@@ -250,7 +250,7 @@ func TestGetComputer_WorkspaceFallbackOwner(t *testing.T) {
 			}
 			ctx := makeAgentCtx(ownerID, "", "chat-fb", "ast-fb", nil)
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}
@@ -285,7 +285,7 @@ func TestGetComputer_OwnerPriority(t *testing.T) {
 			NodeID:   nc.TaiID,
 		}
 		ctx := makeAgentCtx("my-team", "my-user", "c", "a", map[string]any{"workspace_id": wsID})
-		_, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+		_, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 		if err != nil {
 			t.Fatalf("GetComputer: %v", err)
 		}
@@ -305,7 +305,7 @@ func TestGetComputer_OwnerPriority(t *testing.T) {
 			NodeID:   nc.TaiID,
 		}
 		ctx := makeAgentCtx("", "my-user", "c", "a", map[string]any{"workspace_id": wsID})
-		_, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+		_, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 		if err != nil {
 			t.Fatalf("GetComputer: %v", err)
 		}
@@ -325,7 +325,7 @@ func TestGetComputer_OwnerPriority(t *testing.T) {
 			NodeID:   nc.TaiID,
 		}
 		ctx := makeAgentCtx("", "", "c", "a", map[string]any{"workspace_id": wsID})
-		_, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+		_, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 		if err != nil {
 			t.Fatalf("GetComputer: %v", err)
 		}
@@ -352,7 +352,7 @@ func TestGetComputer_HostMode(t *testing.T) {
 			}
 			ctx := makeAgentCtx("team-host", "", "chat-host", "ast-host", nil)
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer host: %v", err)
 			}
@@ -388,7 +388,7 @@ func TestGetComputer_HostMissingNodeID(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-err", "", "c", "a", nil)
 
-	_, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+	_, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 	if err == nil {
 		t.Fatal("expected error for host mode without nodeID")
 	}
@@ -421,7 +421,7 @@ func TestLifecycleAction_Oneshot(t *testing.T) {
 			}
 			ctx := makeAgentCtx("team-oneshot", "", "c", "a", map[string]any{"workspace_id": wsID})
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}
@@ -458,7 +458,7 @@ func TestLifecycleAction_Session(t *testing.T) {
 			}
 			ctx := makeAgentCtx("team-sess", "", "chat-sess", "ast-sess", map[string]any{"workspace_id": wsID})
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}
@@ -497,7 +497,7 @@ func TestLifecycleAction_Persistent(t *testing.T) {
 			}
 			ctx := makeAgentCtx("team-pers", "", "chat-pers", "ast-pers", map[string]any{"workspace_id": wsID})
 
-			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m)
+			computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
 			if err != nil {
 				t.Fatalf("GetComputer: %v", err)
 			}

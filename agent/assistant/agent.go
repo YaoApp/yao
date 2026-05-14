@@ -324,8 +324,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		// Execute the LLM streaming call
 		// Choose between sandbox execution or direct LLM execution
-		if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Computer != nil && v2Init.Runner.Name() != "yao" {
-			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
+		if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil {
+			// V2 Sandbox execution path — all runners (yaocode/tai/claude/opencode)
 			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
 				Messages:     completionMessages,
 				AgentNode:    agentNode,
@@ -337,12 +337,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				Options:      opts,
 				Roles:        v2Init.Roles,
 			})
-		} else if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Runner.Name() == "yao" {
-			// V2 yao runner: Prepare is done, close loading, fall through to LLM
-			if v2Init.LoadingMsgID != "" {
-				closeLoadingV2(ctx, v2Init.LoadingMsgID, "")
-			}
-			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
 		} else if ast.HasSandbox() {
 			// V1 Sandbox execution path (Claude CLI, Cursor CLI, etc.)
 			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor, sandboxLoadingMsgID)

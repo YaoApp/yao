@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/llmprovider"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/setting"
 	traceTypes "github.com/yaoapp/yao/trace/types"
 	"github.com/yaoapp/yao/workspace"
 )
@@ -57,23 +58,93 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 
 	stdCtx := ctx.Context
 
-	// 1. Resolve connector (before Computer so proxy env vars can be injected).
+	// 1. Runner resolution (three-layer dispatch).
+	globalRunner := ""
+	if sandboxv2.GlobalRunnerFunc != nil {
+		globalRunner = sandboxv2.GlobalRunnerFunc()
+	}
+	runnerName, err := sandboxv2.ResolveRunner("", &cfg.Runner, globalRunner)
+	if err != nil {
+		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+		return nil, fmt.Errorf("resolve runner: %w", err)
+	}
+	mode := sandboxv2.ResolveMode(runnerName, cfg.Computer.Image)
+
+	// 2. Local short-circuit: yaocode runner runs in-process, no Computer needed.
+	if mode == "local" {
+		r, rErr := sandboxv2.Get(runnerName)
+		if rErr != nil {
+			closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+			return nil, fmt.Errorf("get runner %q: %w", runnerName, rErr)
+		}
+
+		conn, _, _ := ast.GetConnector(ctx, opts)
+		roles := resolveRoles(conn, ctx.Authorized)
+
+		assistantDir := ""
+		skillsDir := ""
+		if ast.Path != "" {
+			assistantDir = filepath.Join(config.Conf.AppSource, ast.Path)
+			dir := filepath.Join(assistantDir, "skills")
+			if info, e := os.Stat(dir); e == nil && info.IsDir() {
+				skillsDir = dir
+			}
+		}
+
+		var mcpServers []sandboxTypes.MCPServer
+		if ast.MCP != nil {
+			for _, s := range ast.MCP.Servers {
+				mcpServers = append(mcpServers, sandboxTypes.MCPServer{
+					ServerID:  s.ServerID,
+					Resources: s.Resources,
+					Tools:     s.Tools,
+				})
+			}
+		}
+
+		if err := r.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
+			Computer:     nil,
+			Config:       cfg,
+			Connector:    conn,
+			Roles:        roles,
+			AssistantID:  ast.ID,
+			SkillsDir:    skillsDir,
+			AssistantDir: assistantDir,
+			MCPServers:   mcpServers,
+			ConfigHash:   ast.ConfigHash,
+			RunSteps:     sandboxv2.RunPrepareSteps,
+		}); err != nil {
+			closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+			return nil, fmt.Errorf("runner.Prepare: %w", err)
+		}
+
+		return &sandboxV2InitResult{
+			Runner:       r,
+			Config:       cfg,
+			Cleanup:      func() {},
+			LoadingMsgID: loadingMsgID,
+			Roles:        roles,
+		}, nil
+	}
+
+	// 3. Remote runner path: resolve connector.
 	conn, _, err := ast.GetConnector(ctx, opts)
-	if err != nil && cfg.Runner.Name != "yao" {
+	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
 		return nil, fmt.Errorf("get connector: %w", err)
 	}
 
-	// 1b. Resolve role matrix once; passed to both Prepare and Stream.
 	roles := resolveRoles(conn, ctx.Authorized)
 
-	// 2. Build human-readable DisplayName from real Agent name + Workspace name.
 	cfg.DisplayName = buildBoxDisplayName(ctx, ast.ID, ast.Name)
 
-	// 2.5. Image existence check + pull (for box mode).
+	// 4. Image existence check + pull (for box mode).
 	if cfg.Computer.Image != "" && manager != nil {
-		nodeID, kind, _ := sandboxv2.ResolveNodeID(ctx, cfg, manager)
-		if kind == "box" && nodeID != "" {
+		nodeID, kind, resolveErr := sandboxv2.ResolveNodeID(ctx, cfg, manager, runnerName, mode)
+		if resolveErr != nil {
+			log.Printf("[sandbox/v2] ResolveNodeID pre-check failed (will retry in GetComputer): %v", resolveErr)
+		}
+		if resolveErr == nil && kind == "box" && nodeID != "" {
 			updateLoadingV2(ctx, loadingMsgID, "sandbox.starting")
 			exists, existsErr := manager.ImageExists(stdCtx, nodeID, cfg.Computer.Image)
 			if existsErr != nil {
@@ -81,7 +152,13 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 			}
 			if existsErr == nil && !exists {
 				updateLoadingV2(ctx, loadingMsgID, "sandbox.pulling_image")
-				ch, pullErr := manager.PullImage(stdCtx, nodeID, cfg.Computer.Image, infraV2.ImagePullOptions{})
+				var pullUserID, pullTeamID string
+				if ctx.Authorized != nil {
+					pullUserID = ctx.Authorized.UserID
+					pullTeamID = ctx.Authorized.TeamID
+				}
+				pullOpts := buildImagePullOptions(pullUserID, pullTeamID)
+				ch, pullErr := manager.PullImage(stdCtx, nodeID, cfg.Computer.Image, pullOpts)
 				if pullErr != nil {
 					log.Printf("[sandbox/v2] image pull failed on node %s: %v (will retry in Create)", nodeID, pullErr)
 				} else if ch != nil {
@@ -96,24 +173,29 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 3. Obtain Computer.
+	// 5. Obtain Computer.
 	updateLoadingV2(ctx, loadingMsgID, "sandbox.starting")
-	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager)
+	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, manager, runnerName, mode)
 	if err != nil {
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
 		return nil, fmt.Errorf("getComputer failed: %w", err)
 	}
 	_ = identifier
 
-	// 4. Get Runner.
-	runner, err := sandboxv2.Get(cfg.Runner.Name)
+	if computer == nil {
+		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+		return nil, fmt.Errorf("GetComputer returned nil computer for runner=%s mode=%s", runnerName, mode)
+	}
+
+	// 6. Get Runner.
+	runner, err := sandboxv2.Get(runnerName)
 	if err != nil {
 		sandboxv2.LifecycleAction(stdCtx, cfg, computer, manager)
 		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
-		return nil, fmt.Errorf("get runner %q: %w", cfg.Runner.Name, err)
+		return nil, fmt.Errorf("get runner %q: %w", runnerName, err)
 	}
 
-	// 5. Resolve assistant directory and skills subdirectory.
+	// 7. Resolve assistant directory and skills subdirectory.
 	assistantDir := ""
 	skillsDir := ""
 	if ast.Path != "" {
@@ -124,7 +206,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 6. Convert MCP servers.
+	// 8. Convert MCP servers.
 	var mcpServers []sandboxTypes.MCPServer
 	if ast.MCP != nil {
 		for _, s := range ast.MCP.Servers {
@@ -136,7 +218,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		}
 	}
 
-	// 7. Runner.Prepare (standard context).
+	// 9. Runner.Prepare (standard context).
 	err = runner.Prepare(stdCtx, &sandboxTypes.PrepareRequest{
 		Computer:     computer,
 		Config:       cfg,
@@ -331,6 +413,32 @@ func updateLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {
 		},
 	}
 	ctx.Send(msg)
+}
+
+// buildImagePullOptions returns ImagePullOptions with registry credentials
+// injected from the global SandboxRegistryConfig if available.
+func buildImagePullOptions(userID, teamID string) infraV2.ImagePullOptions {
+	opts := infraV2.ImagePullOptions{}
+	if setting.Global == nil {
+		return opts
+	}
+
+	saved, err := setting.Global.GetMerged(userID, teamID, "sandbox.registry")
+	if err != nil || len(saved) == 0 {
+		return opts
+	}
+
+	url, _ := saved["registry_url"].(string)
+	user, _ := saved["username"].(string)
+	pass, _ := saved["password"].(string)
+	if url != "" && user != "" {
+		opts.Auth = &infraV2.RegistryAuth{
+			Server:   url,
+			Username: user,
+			Password: pass,
+		}
+	}
+	return opts
 }
 
 func closeLoadingV2(ctx *context.Context, loadingMsgID, msgKey string) {

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v4.25.0
-// source: tunnel/proto/tunnel.proto
+// source: tai/tunnel/proto/tunnel.proto
 
 package taipb
 
@@ -35,9 +35,9 @@ type TunnelControl struct {
 	// Carried on "open" (Yao → Tai)
 	ChannelId     string `protobuf:"bytes,10,opt,name=channel_id,json=channelId,proto3" json:"channel_id,omitempty"`
 	TargetPort    int32  `protobuf:"varint,11,opt,name=target_port,json=targetPort,proto3" json:"target_port,omitempty"`
-	ChannelType   string `protobuf:"bytes,12,opt,name=channel_type,json=channelType,proto3" json:"channel_type,omitempty"`        // "proxy" | "vnc" | "" (legacy/raw TCP)
-	ContainerId   string `protobuf:"bytes,13,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`        // target container or "__host__"
-	ContainerPort int32  `protobuf:"varint,14,opt,name=container_port,json=containerPort,proto3" json:"container_port,omitempty"` // container-internal port (vnc default 5900)
+	ChannelType   string `protobuf:"bytes,12,opt,name=channel_type,json=channelType,proto3" json:"channel_type,omitempty"`
+	ContainerId   string `protobuf:"bytes,13,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	ContainerPort int32  `protobuf:"varint,14,opt,name=container_port,json=containerPort,proto3" json:"container_port,omitempty"`
 	// Carried on "registered" (Yao → Tai)
 	TaiId         string `protobuf:"bytes,20,opt,name=tai_id,json=taiId,proto3" json:"tai_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -46,7 +46,7 @@ type TunnelControl struct {
 
 func (x *TunnelControl) Reset() {
 	*x = TunnelControl{}
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[0]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -58,7 +58,7 @@ func (x *TunnelControl) String() string {
 func (*TunnelControl) ProtoMessage() {}
 
 func (x *TunnelControl) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[0]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -71,7 +71,7 @@ func (x *TunnelControl) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TunnelControl.ProtoReflect.Descriptor instead.
 func (*TunnelControl) Descriptor() ([]byte, []int) {
-	return file_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{0}
+	return file_tai_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *TunnelControl) GetType() string {
@@ -181,7 +181,7 @@ type ForwardData struct {
 
 func (x *ForwardData) Reset() {
 	*x = ForwardData{}
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[1]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -193,7 +193,7 @@ func (x *ForwardData) String() string {
 func (*ForwardData) ProtoMessage() {}
 
 func (x *ForwardData) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[1]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -206,7 +206,7 @@ func (x *ForwardData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForwardData.ProtoReflect.Descriptor instead.
 func (*ForwardData) Descriptor() ([]byte, []int) {
-	return file_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{1}
+	return file_tai_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ForwardData) GetData() []byte {
@@ -229,7 +229,7 @@ type Ports struct {
 
 func (x *Ports) Reset() {
 	*x = Ports{}
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[2]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -241,7 +241,7 @@ func (x *Ports) String() string {
 func (*Ports) ProtoMessage() {}
 
 func (x *Ports) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[2]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -254,7 +254,7 @@ func (x *Ports) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ports.ProtoReflect.Descriptor instead.
 func (*Ports) Descriptor() ([]byte, []int) {
-	return file_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{2}
+	return file_tai_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Ports) GetGrpc() int32 {
@@ -298,13 +298,14 @@ type Capabilities struct {
 	K8S           bool                   `protobuf:"varint,2,opt,name=k8s,proto3" json:"k8s,omitempty"`
 	HostExec      bool                   `protobuf:"varint,3,opt,name=host_exec,json=hostExec,proto3" json:"host_exec,omitempty"`
 	Vnc           bool                   `protobuf:"varint,4,opt,name=vnc,proto3" json:"vnc,omitempty"`
+	Runners       []string               `protobuf:"bytes,5,rep,name=runners,proto3" json:"runners,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Capabilities) Reset() {
 	*x = Capabilities{}
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[3]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -316,7 +317,7 @@ func (x *Capabilities) String() string {
 func (*Capabilities) ProtoMessage() {}
 
 func (x *Capabilities) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[3]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -329,7 +330,7 @@ func (x *Capabilities) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Capabilities.ProtoReflect.Descriptor instead.
 func (*Capabilities) Descriptor() ([]byte, []int) {
-	return file_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{3}
+	return file_tai_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Capabilities) GetDocker() bool {
@@ -360,6 +361,13 @@ func (x *Capabilities) GetVnc() bool {
 	return false
 }
 
+func (x *Capabilities) GetRunners() []string {
+	if x != nil {
+		return x.Runners
+	}
+	return nil
+}
+
 type SystemInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Os            string                 `protobuf:"bytes,1,opt,name=os,proto3" json:"os,omitempty"`
@@ -372,7 +380,7 @@ type SystemInfo struct {
 
 func (x *SystemInfo) Reset() {
 	*x = SystemInfo{}
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[4]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -384,7 +392,7 @@ func (x *SystemInfo) String() string {
 func (*SystemInfo) ProtoMessage() {}
 
 func (x *SystemInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_tunnel_proto_tunnel_proto_msgTypes[4]
+	mi := &file_tai_tunnel_proto_tunnel_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -397,7 +405,7 @@ func (x *SystemInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SystemInfo.ProtoReflect.Descriptor instead.
 func (*SystemInfo) Descriptor() ([]byte, []int) {
-	return file_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{4}
+	return file_tai_tunnel_proto_tunnel_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SystemInfo) GetOs() string {
@@ -428,11 +436,11 @@ func (x *SystemInfo) GetShell() string {
 	return ""
 }
 
-var File_tunnel_proto_tunnel_proto protoreflect.FileDescriptor
+var File_tai_tunnel_proto_tunnel_proto protoreflect.FileDescriptor
 
-const file_tunnel_proto_tunnel_proto_rawDesc = "" +
+const file_tai_tunnel_proto_tunnel_proto_rawDesc = "" +
 	"\n" +
-	"\x19tunnel/proto/tunnel.proto\x12\n" +
+	"\x1dtai/tunnel/proto/tunnel.proto\x12\n" +
 	"tai.tunnel\"\xe3\x03\n" +
 	"\rTunnelControl\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x17\n" +
@@ -460,12 +468,13 @@ const file_tunnel_proto_tunnel_proto_rawDesc = "" +
 	"\x04http\x18\x02 \x01(\x05R\x04http\x12\x10\n" +
 	"\x03vnc\x18\x03 \x01(\x05R\x03vnc\x12\x16\n" +
 	"\x06docker\x18\x04 \x01(\x05R\x06docker\x12\x10\n" +
-	"\x03k8s\x18\x05 \x01(\x05R\x03k8s\"g\n" +
+	"\x03k8s\x18\x05 \x01(\x05R\x03k8s\"\x81\x01\n" +
 	"\fCapabilities\x12\x16\n" +
 	"\x06docker\x18\x01 \x01(\bR\x06docker\x12\x10\n" +
 	"\x03k8s\x18\x02 \x01(\bR\x03k8s\x12\x1b\n" +
 	"\thost_exec\x18\x03 \x01(\bR\bhostExec\x12\x10\n" +
-	"\x03vnc\x18\x04 \x01(\bR\x03vnc\"b\n" +
+	"\x03vnc\x18\x04 \x01(\bR\x03vnc\x12\x18\n" +
+	"\arunners\x18\x05 \x03(\tR\arunners\"b\n" +
 	"\n" +
 	"SystemInfo\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +
@@ -474,29 +483,29 @@ const file_tunnel_proto_tunnel_proto_rawDesc = "" +
 	"\x05shell\x18\x04 \x01(\tR\x05shell2\x92\x01\n" +
 	"\tTaiTunnel\x12D\n" +
 	"\bRegister\x12\x19.tai.tunnel.TunnelControl\x1a\x19.tai.tunnel.TunnelControl(\x010\x01\x12?\n" +
-	"\aForward\x12\x17.tai.tunnel.ForwardData\x1a\x17.tai.tunnel.ForwardData(\x010\x01B$Z\"github.com/yaoapp/tai/tunnel/taipbb\x06proto3"
+	"\aForward\x12\x17.tai.tunnel.ForwardData\x1a\x17.tai.tunnel.ForwardData(\x010\x01B(Z&github.com/yaoapp/yao/tai/tunnel/taipbb\x06proto3"
 
 var (
-	file_tunnel_proto_tunnel_proto_rawDescOnce sync.Once
-	file_tunnel_proto_tunnel_proto_rawDescData []byte
+	file_tai_tunnel_proto_tunnel_proto_rawDescOnce sync.Once
+	file_tai_tunnel_proto_tunnel_proto_rawDescData []byte
 )
 
-func file_tunnel_proto_tunnel_proto_rawDescGZIP() []byte {
-	file_tunnel_proto_tunnel_proto_rawDescOnce.Do(func() {
-		file_tunnel_proto_tunnel_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tunnel_proto_tunnel_proto_rawDesc), len(file_tunnel_proto_tunnel_proto_rawDesc)))
+func file_tai_tunnel_proto_tunnel_proto_rawDescGZIP() []byte {
+	file_tai_tunnel_proto_tunnel_proto_rawDescOnce.Do(func() {
+		file_tai_tunnel_proto_tunnel_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tai_tunnel_proto_tunnel_proto_rawDesc), len(file_tai_tunnel_proto_tunnel_proto_rawDesc)))
 	})
-	return file_tunnel_proto_tunnel_proto_rawDescData
+	return file_tai_tunnel_proto_tunnel_proto_rawDescData
 }
 
-var file_tunnel_proto_tunnel_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
-var file_tunnel_proto_tunnel_proto_goTypes = []any{
+var file_tai_tunnel_proto_tunnel_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_tai_tunnel_proto_tunnel_proto_goTypes = []any{
 	(*TunnelControl)(nil), // 0: tai.tunnel.TunnelControl
 	(*ForwardData)(nil),   // 1: tai.tunnel.ForwardData
 	(*Ports)(nil),         // 2: tai.tunnel.Ports
 	(*Capabilities)(nil),  // 3: tai.tunnel.Capabilities
 	(*SystemInfo)(nil),    // 4: tai.tunnel.SystemInfo
 }
-var file_tunnel_proto_tunnel_proto_depIdxs = []int32{
+var file_tai_tunnel_proto_tunnel_proto_depIdxs = []int32{
 	2, // 0: tai.tunnel.TunnelControl.ports:type_name -> tai.tunnel.Ports
 	3, // 1: tai.tunnel.TunnelControl.caps:type_name -> tai.tunnel.Capabilities
 	4, // 2: tai.tunnel.TunnelControl.system:type_name -> tai.tunnel.SystemInfo
@@ -511,26 +520,26 @@ var file_tunnel_proto_tunnel_proto_depIdxs = []int32{
 	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_tunnel_proto_tunnel_proto_init() }
-func file_tunnel_proto_tunnel_proto_init() {
-	if File_tunnel_proto_tunnel_proto != nil {
+func init() { file_tai_tunnel_proto_tunnel_proto_init() }
+func file_tai_tunnel_proto_tunnel_proto_init() {
+	if File_tai_tunnel_proto_tunnel_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tunnel_proto_tunnel_proto_rawDesc), len(file_tunnel_proto_tunnel_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_tunnel_proto_tunnel_proto_rawDesc), len(file_tai_tunnel_proto_tunnel_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_tunnel_proto_tunnel_proto_goTypes,
-		DependencyIndexes: file_tunnel_proto_tunnel_proto_depIdxs,
-		MessageInfos:      file_tunnel_proto_tunnel_proto_msgTypes,
+		GoTypes:           file_tai_tunnel_proto_tunnel_proto_goTypes,
+		DependencyIndexes: file_tai_tunnel_proto_tunnel_proto_depIdxs,
+		MessageInfos:      file_tai_tunnel_proto_tunnel_proto_msgTypes,
 	}.Build()
-	File_tunnel_proto_tunnel_proto = out.File
-	file_tunnel_proto_tunnel_proto_goTypes = nil
-	file_tunnel_proto_tunnel_proto_depIdxs = nil
+	File_tai_tunnel_proto_tunnel_proto = out.File
+	file_tai_tunnel_proto_tunnel_proto_goTypes = nil
+	file_tai_tunnel_proto_tunnel_proto_depIdxs = nil
 }

@@ -65,9 +65,8 @@ func (s *yaoServer) Shell(ctx context.Context, req *pb.ShellRequest) (*pb.ShellR
 	return s.shell.Shell(ctx, req)
 }
 
-// V2 stubs — Stream and ShellStream depend on gou/stream package.
 func (s *yaoServer) Stream(req *pb.RunRequest, stream grpc.ServerStreamingServer[pb.Chunk]) error {
-	return status.Error(codes.Unimplemented, "Stream not implemented (V2)")
+	return s.run.Stream(req, stream)
 }
 
 func (s *yaoServer) ShellStream(req *pb.ShellRequest, stream grpc.ServerStreamingServer[pb.Chunk]) error {

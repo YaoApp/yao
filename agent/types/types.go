@@ -22,6 +22,10 @@ type DSL struct {
 	// If not set, fallback to the first connector that supports the required capabilities
 	System *System `json:"system,omitempty" yaml:"system,omitempty"`
 
+	// Runner (global default for all assistants)
+	// ===============================
+	Runner string `json:"runner,omitempty" yaml:"runner,omitempty"` // Global default runner (e.g. "yaocode", "claude")
+
 	// Global External Settings
 	// ===============================
 	KB     *store.KBSetting    `json:"kb,omitempty" yaml:"kb,omitempty"`         // The knowledge base configuration loaded from agent/kb.yml

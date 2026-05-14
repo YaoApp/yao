@@ -28,6 +28,10 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Assistant Actions
 	// group.POST("/assistants/:id/call", agent.HandleAssistantCall) // POST /assistants/:id/call - Execute assistant API
 
+	// Runner & image queries
+	group.GET("/runners", ListRunners)
+	group.GET("/images", ListImages)
+
 	// Robot routes - Attach as sub-router
 	// Routes: GET/POST /robots, GET/PUT/DELETE /robots/:id, GET /robots/:id/status
 	robot.Attach(group.Group("/robots"), oauth)

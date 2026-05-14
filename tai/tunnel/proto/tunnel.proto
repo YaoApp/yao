@@ -23,8 +23,11 @@ message TunnelControl {
     SystemInfo system   = 8;
 
     // Carried on "open" (Yao → Tai)
-    string channel_id   = 10;
-    int32  target_port  = 11;
+    string channel_id     = 10;
+    int32  target_port    = 11;
+    string channel_type   = 12;
+    string container_id   = 13;
+    int32  container_port = 14;
 
     // Carried on "registered" (Yao → Tai)
     string tai_id       = 20;
@@ -46,6 +49,8 @@ message Capabilities {
     bool docker    = 1;
     bool k8s       = 2;
     bool host_exec = 3;
+    bool vnc       = 4;
+    repeated string runners = 5;
 }
 
 message SystemInfo {

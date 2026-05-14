@@ -1,18 +1,24 @@
 package agent
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fatih/color"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
 	"github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/test"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
+	grpcclient "github.com/yaoapp/yao/grpc/client"
 	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/share"
 )
@@ -39,6 +45,7 @@ var (
 	testSimulator string // --simulator flag for default simulator agent in dynamic mode
 	testJSON      bool   // --json flag for machine-readable JSON output
 	testScripts   string // --scripts flag for script unit test module
+	testAuthPath  string // --auth flag for credential file
 )
 
 // TestCmd is the agent test command
@@ -105,6 +112,11 @@ Common flags:
                 "locale": "en-us"
               }
 
+Remote execution:
+  When credentials are available (via --auth <path> or ~/.yao/credentials),
+  tests are executed on the remote Yao server via gRPC with real-time progress
+  streaming. This matches the 'yao run' gRPC mode.
+
 AI Integration (recommended flags):
   --json    Output full JSON with trace diagnostics (completion details, all MCP tool calls
             with server/arguments/results/errors, and Next hook data). Use this when an AI
@@ -167,14 +179,11 @@ Output formats for file mode (-o flag extension):
 
 		// For message mode, agent must be specified or resolvable from cwd
 		if inputMode == test.InputModeMessage && testAgent == "" {
-			// Try to find app root from current directory
 			cwd, err := os.Getwd()
 			if err != nil {
 				color.Red(L("Error: failed to get current directory")+": %s\n", err.Error())
 				os.Exit(1)
 			}
-
-			// Try to find package.yao from cwd
 			resolver := test.NewResolver()
 			_, err = resolver.ResolveFromPath(cwd)
 			if err != nil {
@@ -183,28 +192,36 @@ Output formats for file mode (-o flag extension):
 			}
 		}
 
+		// gRPC delegation: when credentials are available, delegate to a running Yao server.
+		cred := resolveTestCredential()
+		if cred != nil {
+			exitCode := testGRPC(cred, inputMode)
+			os.Exit(exitCode)
+		}
+
+		// No credentials: local execution only.
+		if testVerbose {
+			color.Yellow("No credentials found — running in local mode. Remote runners (tai/claude/opencode) require:\n")
+			color.Yellow("  1. A running Yao server: yao start\n")
+			color.Yellow("  2. Login or generate credentials: yao token make --member <user_id> --team <team_id> --save\n\n")
+		}
+
 		// Find app root directory
-		// Priority: -a flag > YAO_ROOT env > auto-detect from path
 		var err error
 
 		if appPath == "" {
-			// Check YAO_ROOT environment variable
 			if yaoRoot := os.Getenv("YAO_ROOT"); yaoRoot != "" {
 				appPath = yaoRoot
 			}
 		}
 
 		if appPath == "" {
-			// Auto-detect from path
 			if inputMode == test.InputModeFile {
-				// For file mode, find app root from input file path
 				appPath, err = findAppRoot(testInput)
 			} else {
-				// For message mode, find app root from current directory
 				cwd, _ := os.Getwd()
 				appPath, err = findAppRoot(cwd)
 			}
-
 			if err != nil {
 				color.Red("Error: %s\n", err.Error())
 				color.Yellow(L("Hint: Make sure you're in a Yao application directory or specify --app flag") + "\n")
@@ -299,16 +316,153 @@ Output formats for file mode (-o flag extension):
 	},
 }
 
+// testCredential mirrors cmd.Credential for use within the cmd/agent package.
+type testCredential struct {
+	Server       string `json:"server"`
+	GRPCAddr     string `json:"grpc_addr,omitempty"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token,omitempty"`
+}
+
+// resolveTestCredential loads credentials from --auth flag or default path.
+func resolveTestCredential() *testCredential {
+	if testAuthPath != "" {
+		cred, err := loadTestCredential(testAuthPath)
+		if err != nil {
+			color.Red("  %s %s\n", L("Failed to load credentials:"), err)
+			os.Exit(1)
+		}
+		return cred
+	}
+	cred, _ := loadTestCredentialDefault()
+	return cred
+}
+
+func loadTestCredentialDefault() (*testCredential, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
+	path := filepath.Join(home, ".yao", "credentials")
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return nil, nil
+	}
+	return loadTestCredential(path)
+}
+
+func loadTestCredential(path string) (*testCredential, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read credentials: %w", err)
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(raw)))
+	if err != nil {
+		return nil, fmt.Errorf("decode credentials: %w", err)
+	}
+	var cred testCredential
+	if err := json.Unmarshal(decoded, &cred); err != nil {
+		return nil, fmt.Errorf("unmarshal credentials: %w", err)
+	}
+	return &cred, nil
+}
+
+// testGRPC delegates the test execution to a remote Yao server via gRPC Stream.
+// It streams real-time progress output and receives the final *test.Report.
+func testGRPC(cred *testCredential, inputMode test.InputMode) int {
+	if cred.GRPCAddr == "" {
+		color.Red("  %s\n", L("No gRPC address in credentials. Please re-login."))
+		return 1
+	}
+
+	if !testJSON {
+		color.Green(L("Remote test via gRPC: %s\n"), cred.GRPCAddr)
+	}
+
+	// Parse timeout
+	timeout := 5 * time.Minute
+	if testTimeout != "" {
+		if d, err := time.ParseDuration(testTimeout); err == nil {
+			timeout = d
+		}
+	}
+
+	// Build options to send to server
+	opts := &test.Options{
+		Input:       testInput,
+		InputMode:   inputMode,
+		OutputFile:  testOutput,
+		AgentID:     testAgent,
+		Connector:   testConnector,
+		UserID:      testUser,
+		TeamID:      testTeam,
+		ContextFile: testContext,
+		ReporterID:  testReporter,
+		Runs:        testRuns,
+		Run:         testRun,
+		Timeout:     timeout,
+		Parallel:    testParallel,
+		Verbose:     testVerbose,
+		FailFast:    testFailFast,
+		BeforeAll:   testBefore,
+		AfterAll:    testAfter,
+		DryRun:      testDryRun,
+		Simulator:   testSimulator,
+		JSONOutput:  testJSON,
+	}
+
+	optsJSON, err := jsoniter.Marshal(opts)
+	if err != nil {
+		color.Red("  %s %s\n", L("Failed to marshal options:"), err.Error())
+		return 1
+	}
+
+	tm := grpcclient.NewTokenManager(cred.AccessToken, cred.RefreshToken, "")
+	client, err := grpcclient.Dial(cred.GRPCAddr, tm)
+	if err != nil {
+		color.Red("  %s %s\n", L("gRPC connect failed:"), err.Error())
+		return 1
+	}
+	defer client.Close()
+
+	var reportJSON []byte
+	err = client.Stream(context.Background(), "agent.test.Run", optsJSON, 0, func(data []byte, done bool) error {
+		if done {
+			reportJSON = data
+			return nil
+		}
+		// Real-time progress: write server output directly to stdout
+		os.Stdout.Write(data)
+		return nil
+	})
+	if err != nil {
+		color.Red("  %s %s\n", L("Test execution failed:"), err.Error())
+		return 1
+	}
+
+	// Parse report to determine exit code
+	if len(reportJSON) > 0 {
+		var report test.Report
+		if json.Unmarshal(reportJSON, &report) == nil {
+			if report.Error != "" {
+				color.Red("  %s %s\n", L("Error:"), report.Error)
+				return 1
+			}
+			if report.HasFailures() {
+				return 1
+			}
+		}
+	}
+
+	return 0
+}
+
 // findAppRoot finds the Yao application root directory by looking for app.yao
-// It traverses up from the given path until it finds app.yao or reaches the filesystem root
 func findAppRoot(startPath string) (string, error) {
-	// Get absolute path
 	absPath, err := filepath.Abs(startPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get absolute path: %w", err)
 	}
 
-	// If it's a file, start from its directory
 	info, err := os.Stat(absPath)
 	if err != nil {
 		return "", fmt.Errorf("path not found: %s", absPath)
@@ -321,20 +475,15 @@ func findAppRoot(startPath string) (string, error) {
 		dir = filepath.Dir(absPath)
 	}
 
-	// Traverse up to find app.yao
 	for {
-		// Check for app.yao, app.json, or app.jsonc
 		for _, appFile := range []string{"app.yao", "app.json", "app.jsonc"} {
 			appFilePath := filepath.Join(dir, appFile)
 			if _, err := os.Stat(appFilePath); err == nil {
 				return dir, nil
 			}
 		}
-
-		// Move to parent directory
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			// Reached root, no app.yao found
 			break
 		}
 		dir = parent
@@ -367,4 +516,5 @@ func init() {
 	TestCmd.Flags().StringVar(&testSimulator, "simulator", "", L("Default simulator agent for dynamic mode (e.g., tests.simulator-agent)"))
 	TestCmd.Flags().BoolVar(&testJSON, "json", false, L("Output full JSON with trace diagnostics: completion, MCP tool calls (server/args/result/error), Next hook (recommended for AI)"))
 	TestCmd.Flags().StringVar(&testScripts, "scripts", "", L("Script module to test (use with -n): -n expense --scripts tools → runs assistants/expense/src/tools_test.ts"))
+	TestCmd.Flags().StringVar(&testAuthPath, "auth", "", L("Path to credentials file for gRPC remote execution"))
 }

@@ -21,10 +21,11 @@ type Ports struct {
 
 // Capabilities describes what features a Tai node supports.
 type Capabilities struct {
-	Docker   bool `json:"docker"`
-	K8s      bool `json:"k8s"`
-	HostExec bool `json:"host_exec"`
-	VNC      bool `json:"vnc"`
+	Docker   bool     `json:"docker"`
+	K8s      bool     `json:"k8s"`
+	HostExec bool     `json:"host_exec"`
+	VNC      bool     `json:"vnc"`
+	Runners  []string `json:"runners,omitempty"`
 }
 
 // SystemInfo describes the host machine running Tai.

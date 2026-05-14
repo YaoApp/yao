@@ -34,10 +34,148 @@ func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, wor
 	}
 }
 
+// ResolveRunner determines which runner to use.
+// Priority: userPref > sandbox.yao runner.name > globalRunner > fallback "yaocode".
+// The special value "use::default" is treated as "not set" at each level,
+// allowing the next level in the chain to take effect.
+func ResolveRunner(userPref string, runnerCfg *types.RunnerConfig, globalRunner string) (string, error) {
+	var runner string
+
+	// 1. User explicit preference (skip "use::default")
+	if userPref != "" && userPref != "use::default" {
+		runner = userPref
+	}
+
+	// 2. sandbox.yao runner.name (skip "use::default")
+	if runner == "" && runnerCfg != nil && runnerCfg.Name != "" && runnerCfg.Name != "use::default" {
+		runner = runnerCfg.Name
+	}
+
+	// 3. agent.yml global runner (skip "use::default")
+	if runner == "" && globalRunner != "" && globalRunner != "use::default" {
+		runner = globalRunner
+	}
+
+	// 4. Fallback
+	if runner == "" {
+		runner = "yaocode"
+	}
+
+	// Backward-compat alias mapping
+	runner = canonicalRunner(runner)
+
+	if !containsRunner(SupportedRunners, runner) {
+		return "", fmt.Errorf("unknown runner %q (supported: %v)", runner, SupportedRunners)
+	}
+
+	// Validate against sandbox.yao supports list
+	if runnerCfg != nil && len(runnerCfg.Supports) > 0 {
+		if !containsRunner(runnerCfg.Supports, runner) {
+			return "", fmt.Errorf("runner %q not supported by this assistant (supports: %v)", runner, runnerCfg.Supports)
+		}
+	}
+
+	return runner, nil
+}
+
+// ResolveMode determines the execution mode based on runner and image.
+//   - "yaocode" → always "local"
+//   - image present → "box"
+//   - otherwise → "host"
+func ResolveMode(runner, image string) string {
+	if runner == "yaocode" {
+		return "local"
+	}
+	if image != "" {
+		return "box"
+	}
+	return "host"
+}
+
+// pickNode selects an online node that supports the given runner and mode.
+// Falls back to InferRunners for legacy nodes with empty Runners lists.
+func pickNode(runner, mode, image string, filter *types.ComputerFilter) (string, error) {
+	reg := registry.Global()
+	if reg == nil {
+		return "", fmt.Errorf("tai registry not initialized")
+	}
+
+	nodes := reg.List()
+	var candidates []string
+
+	for _, n := range nodes {
+		if n.Status != "online" && n.Status != "" {
+			continue
+		}
+
+		nodeRunners := n.Capabilities.Runners
+		if len(nodeRunners) == 0 {
+			nodeRunners = InferRunners(n, image)
+		}
+		if !containsRunner(nodeRunners, runner) {
+			continue
+		}
+
+		// OS/Arch/Kind filter
+		if filter != nil {
+			if filter.OS != "" && !strings.EqualFold(n.System.OS, filter.OS) {
+				continue
+			}
+			if filter.Arch != "" && !strings.EqualFold(n.System.Arch, filter.Arch) {
+				continue
+			}
+			if len(filter.Kind) > 0 {
+				matched := false
+				for _, k := range filter.Kind {
+					switch strings.ToLower(k) {
+					case "host":
+						if n.Capabilities.HostExec {
+							matched = true
+						}
+					case "box":
+						if n.Capabilities.Docker || n.Capabilities.K8s {
+							matched = true
+						}
+					}
+				}
+				if !matched {
+					continue
+				}
+			}
+		}
+
+		// Mode capability check
+		switch mode {
+		case "box":
+			if !(n.Capabilities.Docker || n.Capabilities.K8s) {
+				continue
+			}
+		case "host":
+			if !n.Capabilities.HostExec {
+				continue
+			}
+		case "local":
+			// in-process, no extra capability needed
+		}
+
+		candidates = append(candidates, n.TaiID)
+	}
+
+	if len(candidates) == 0 {
+		return "", fmt.Errorf("no online node supports runner=%s mode=%s", runner, mode)
+	}
+
+	return candidates[mathrand.Intn(len(candidates))], nil
+}
+
 // ResolveNodeID determines the target nodeID and computer kind based on
 // metadata and DSL configuration, without creating or acquiring a container.
-// Returns (nodeID, kind, error). kind is "box" or "host".
-func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (string, string, error) {
+// Returns (nodeID, kind, error). kind is "box", "host", or "local".
+func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager, runner, mode string) (string, string, error) {
+	if runner == "yaocode" && mode == "local" {
+		return "local", "local", nil
+	}
+
 	computerID := ""
 	if ctx.Metadata != nil {
 		if cid, ok := ctx.Metadata["computer_id"].(string); ok && cid != "" {
@@ -66,11 +204,11 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 	}
 
 	if computerID == "" {
-		pickedID, err := pickNodeByFilter(cfg.Filter, cfg.Computer.Image)
+		pickedID, err := pickNode(runner, mode, cfg.Computer.Image, cfg.Filter)
 		if err != nil {
 			return "", "", fmt.Errorf("auto-select node for ResolveNodeID: %w", err)
 		}
-		log.Trace("[sandbox/v2] ResolveNodeID: pickNodeByFilter -> %s", pickedID)
+		log.Trace("[sandbox/v2] ResolveNodeID: pickNode -> %s", pickedID)
 		computerID = pickedID
 		cfg.NodeID = pickedID
 	}
@@ -100,7 +238,7 @@ func ResolveNodeID(ctx *agentContext.Context, cfg *types.SandboxConfig, manager 
 // Connector config is injected per-execution inside ClaudeRunner.Stream
 // via "tai a2o config put".
 // Returns the Computer, the resolved identifier, and any error.
-func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager) (infra.Computer, string, error) {
+func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager, runner, mode string) (infra.Computer, string, error) {
 	ownerID := resolveOwnerID(ctx)
 
 	workspaceID := ""
@@ -147,7 +285,7 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	}
 
 	log.Trace("[sandbox/v2] GetComputer: -> resolveComputerByDSL (no computerID)")
-	return resolveComputerByDSL(cfg, manager, ownerID, identifier, workspaceID)
+	return resolveComputerByDSL(cfg, manager, ownerID, identifier, workspaceID, runner, mode)
 }
 
 // resolveComputerByID dispatches based on the runtime computer_id from metadata.
@@ -210,17 +348,17 @@ func resolveComputerByID(
 // resolveComputerByDSL dispatches based on DSL static configuration (cfg.Computer.Image).
 func resolveComputerByDSL(
 	cfg *types.SandboxConfig, manager *infra.Manager,
-	ownerID, identifier, workspaceID string,
+	ownerID, identifier, workspaceID, runner, mode string,
 ) (infra.Computer, string, error) {
 
-	log.Trace("[sandbox/v2] resolveComputerByDSL: cfgNodeID=%q image=%q", cfg.NodeID, cfg.Computer.Image)
+	log.Trace("[sandbox/v2] resolveComputerByDSL: cfgNodeID=%q image=%q runner=%q mode=%q", cfg.NodeID, cfg.Computer.Image, runner, mode)
 
 	if cfg.NodeID == "" {
-		pickedID, err := pickNodeByFilter(cfg.Filter, cfg.Computer.Image)
+		pickedID, err := pickNode(runner, mode, cfg.Computer.Image, cfg.Filter)
 		if err != nil {
 			return nil, identifier, fmt.Errorf("auto-select node: %w", err)
 		}
-		log.Trace("[sandbox/v2] resolveComputerByDSL: pickNodeByFilter -> %s", pickedID)
+		log.Trace("[sandbox/v2] resolveComputerByDSL: pickNode -> %s", pickedID)
 		cfg.NodeID = pickedID
 	}
 
@@ -328,10 +466,7 @@ func resolveOwnerID(ctx *agentContext.Context) string {
 	return "anonymous"
 }
 
-// pickNodeByFilter selects a random online node that satisfies the given filter
-// and image requirement. If image is non-empty, nodes with a container runtime
-// (Docker or K8s) are preferred; if none are available, host_exec nodes are
-// accepted as fallback (ResolveNodeID will resolve them to host mode).
+// Deprecated: use pickNode instead, which supports runner/mode filtering.
 func pickNodeByFilter(filter *types.ComputerFilter, image string) (string, error) {
 	reg := registry.Global()
 	if reg == nil {

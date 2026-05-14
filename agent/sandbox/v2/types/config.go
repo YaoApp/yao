@@ -87,6 +87,7 @@ type RunnerConfig struct {
 	Mode       string                    `json:"mode,omitempty" yaml:"mode,omitempty"`
 	Options    map[string]any            `json:"options,omitempty" yaml:"options,omitempty"`
 	Connectors map[string]*RoleConnector `json:"connectors,omitempty" yaml:"connectors,omitempty"`
+	Supports   []string                  `json:"supports,omitempty" yaml:"supports,omitempty"`
 }
 
 // RoleConnector maps an abstract model role to a connector.

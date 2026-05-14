@@ -34,8 +34,8 @@ func ExecuteSandboxStream(
 	handler message.StreamFunc,
 ) (*agentContext.CompletionResponse, error) {
 
-	if req.Runner == nil || req.Computer == nil {
-		return nil, fmt.Errorf("runner and computer are required")
+	if req.Runner == nil {
+		return nil, fmt.Errorf("runner is required")
 	}
 
 	stdCtx := ctx.Context
