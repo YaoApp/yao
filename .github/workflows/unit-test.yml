@@ -48,12 +48,15 @@ env:
   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
   TEST_MOAPI_MIRROR: https://api.openai.com
 
-  # DeepSeek API Configuration
+  # DeepSeek API Configuration (Volcengine)
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   DEEPSEEK_API_PROXY: ${{ secrets.DEEPSEEK_API_PROXY }}
   DEEPSEEK_MODELS_R1: ${{ secrets.DEEPSEEK_MODELS_R1 }}
   DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
   DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
+
+  # DeepSeek V4 Flash (official API)
+  DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
 
   # Search API Configuration
   TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
