@@ -28,7 +28,7 @@ func TestLoadSandboxBasicAssistant(t *testing.T) {
 	// Verify basic fields
 	assert.Equal(t, "tests.sandbox.basic", ast.ID)
 	assert.Equal(t, "Sandbox Basic Test", ast.Name)
-	assert.Equal(t, "deepseek.v3", ast.Connector)
+	assert.Equal(t, "deepseek.v4-flash", ast.Connector)
 
 	// Verify sandbox configuration
 	require.NotNil(t, ast.Sandbox, "Sandbox should be configured")
@@ -51,7 +51,7 @@ func TestLoadSandboxHooksAssistant(t *testing.T) {
 	// Verify basic fields
 	assert.Equal(t, "tests.sandbox.hooks", ast.ID)
 	assert.Equal(t, "Sandbox Hooks Test", ast.Name)
-	assert.Equal(t, "deepseek.v3", ast.Connector)
+	assert.Equal(t, "deepseek.v4-flash", ast.Connector)
 
 	// Verify sandbox configuration
 	require.NotNil(t, ast.Sandbox, "Sandbox should be configured")
@@ -77,7 +77,7 @@ func TestLoadSandboxFullAssistant(t *testing.T) {
 	// Verify basic fields
 	assert.Equal(t, "tests.sandbox.full", ast.ID)
 	assert.Equal(t, "Sandbox Full Test", ast.Name)
-	assert.Equal(t, "deepseek.v3", ast.Connector)
+	assert.Equal(t, "deepseek.v4-flash", ast.Connector)
 
 	// Verify sandbox configuration
 	require.NotNil(t, ast.Sandbox, "Sandbox should be configured")

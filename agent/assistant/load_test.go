@@ -86,7 +86,7 @@ func TestLoadPath(t *testing.T) {
 		assert.NotNil(t, assistant.ConnectorOptions.Connectors)
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o")
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o-mini")
-		assert.Contains(t, assistant.ConnectorOptions.Connectors, "deepseek")
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "deepseek.v4-flash")
 		assert.NotNil(t, assistant.ConnectorOptions.Filters)
 		assert.Len(t, assistant.ConnectorOptions.Filters, 2)
 	})
