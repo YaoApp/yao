@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 )
 
 // copyDirectory copy the directory
@@ -27,11 +26,6 @@ func copyDirectory(scrDir, dest string) error {
 		fileInfo, err := os.Stat(sourcePath)
 		if err != nil {
 			return err
-		}
-
-		stat, ok := fileInfo.Sys().(*syscall.Stat_t)
-		if !ok {
-			return fmt.Errorf("failed to get raw syscall.Stat_t data for '%s'", sourcePath)
 		}
 
 		switch fileInfo.Mode() & os.ModeType {
@@ -56,7 +50,7 @@ func copyDirectory(scrDir, dest string) error {
 			}
 		}
 
-		if err := os.Lchown(destPath, int(stat.Uid), int(stat.Gid)); err != nil {
+		if err := applyOwnership(fileInfo, destPath); err != nil {
 			return err
 		}
 

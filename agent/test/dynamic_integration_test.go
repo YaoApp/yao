@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
 

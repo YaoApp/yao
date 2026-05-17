@@ -72,10 +72,10 @@ type openAIRequest struct {
 }
 
 type openAIChoice struct {
-	Index        int                `json:"index"`
-	Delta        *openAIDelta       `json:"delta,omitempty"`
-	Message      *openAIMessage     `json:"message,omitempty"`
-	FinishReason *string            `json:"finish_reason"`
+	Index        int            `json:"index"`
+	Delta        *openAIDelta   `json:"delta,omitempty"`
+	Message      *openAIMessage `json:"message,omitempty"`
+	FinishReason *string        `json:"finish_reason"`
 }
 
 type openAIDelta struct {

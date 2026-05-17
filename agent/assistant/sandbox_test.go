@@ -12,8 +12,8 @@ import (
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentContext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
 

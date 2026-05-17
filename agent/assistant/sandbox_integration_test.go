@@ -10,8 +10,8 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 	"github.com/yaoapp/yao/agent/sandbox/claude"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
 

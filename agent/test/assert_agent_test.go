@@ -7,8 +7,8 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 	"rogchap.com/v8go"
 )

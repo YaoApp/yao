@@ -8,6 +8,7 @@ on:
       - "agent/**"
       - "unit-test/agent/**"
       - ".github/workflows/agent-unit-test.yml"
+      - ".github/actions/setup-yao/**"
 
 env:
   REPO_KUN: ${{ github.repository_owner }}/kun

@@ -8,8 +8,8 @@ import (
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/agent/testutils"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
 
