@@ -175,23 +175,23 @@ jobs:
           mkdir -p "$APP_DIR/db" "$APP_DIR/logs" "$DATA_DIR/pids" \
             "$DATA_DIR/tai-docker" "$DATA_DIR/tai-hostexec" "$DATA_DIR/fakehome"
 
-          cat > "$APP_DIR/.env" <<'ENVEOF'
-YAO_ENV=development
-YAO_HOST=127.0.0.1
-YAO_PORT=6099
-YAO_GRPC_HOST=127.0.0.1
-YAO_GRPC_PORT=6199
-YAO_DB_DRIVER=sqlite3
-YAO_DB_PRIMARY=./db/agent-test.db
-YAO_JWT_SECRET=test-jwt-secret-agent-unit
-YAO_DB_AESKEY=test-aes-key-agent-unit!
-YAO_LOG=./logs/application.log
-YAO_LOG_MODE=TEXT
-YAO_SESSION_STORE=file
-YAO_SESSION_FILE=./db/.session
-YAO_CLIENT_ID=test-agent-client-id-00000000000
-MOCK_LLM_HOST=http://127.0.0.1:6920
-ENVEOF
+          printf '%s\n' \
+            "YAO_ENV=development" \
+            "YAO_HOST=127.0.0.1" \
+            "YAO_PORT=6099" \
+            "YAO_GRPC_HOST=127.0.0.1" \
+            "YAO_GRPC_PORT=6199" \
+            "YAO_DB_DRIVER=sqlite3" \
+            "YAO_DB_PRIMARY=./db/agent-test.db" \
+            "YAO_JWT_SECRET=test-jwt-secret-agent-unit" \
+            "YAO_DB_AESKEY=test-aes-key-agent-unit!" \
+            "YAO_LOG=./logs/application.log" \
+            "YAO_LOG_MODE=TEXT" \
+            "YAO_SESSION_STORE=file" \
+            "YAO_SESSION_FILE=./db/.session" \
+            "YAO_CLIENT_ID=test-agent-client-id-00000000000" \
+            "MOCK_LLM_HOST=http://127.0.0.1:6920" \
+            > "$APP_DIR/.env"
 
       # ── 10. Start services ──────────────────────────────────────────
       - name: Start Mock LLM
@@ -204,6 +204,10 @@ ENVEOF
             curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" && break
             sleep 1
           done
+          curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" > /dev/null 2>&1 || {
+            echo "::error::Mock LLM failed to start"
+            exit 1
+          }
 
       - name: Start Yao Server
         shell: bash
