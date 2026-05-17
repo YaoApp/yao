@@ -90,9 +90,9 @@ runs:
         mv xun ../
         mv gou ../
         mv v8go ../
-        [ -d app ] && mv app ../
+        [ -d app ] && mv app ../ || true
         mv extension ../
-        [ -d yao-init ] && mv yao-init ../
+        [ -d yao-init ] && mv yao-init ../ || true
 
     # -- Setup Apple Private Key (if provided) --
     - name: Setup Apple Private Key
