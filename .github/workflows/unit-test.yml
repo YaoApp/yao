@@ -309,6 +309,7 @@ jobs:
   # Agent Tests (agent, aigc) - Run once with SQLite
   # =============================================================================
   agent-test:
+    if: false # Paused: replaced by agent-unit-test.yml
     runs-on: ubuntu-latest
     services:
       qdrant:
@@ -464,6 +465,7 @@ jobs:
   # Robot Tests (all agent/robot/... packages) - Unit + E2E with real LLM calls
   # =============================================================================
   robot-test:
+    if: false # Paused: replaced by agent-unit-test.yml
     runs-on: ubuntu-latest
     services:
       mcp-everything:

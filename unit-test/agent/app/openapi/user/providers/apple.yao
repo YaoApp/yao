@@ -1,0 +1,24 @@
+{
+  "client_id": "$ENV.APPLE_SERVICE_ID",
+  "client_secret_generator": {
+    "type": "JWT_ES256", // JWT_APPLE / JWT_ES256 for Apple JWT
+    "expires_in": "90d", // Client secret expiration time, default is 90 days. (It's not the token expiration time)
+    "private_key": "$ENV.APPLE_PRIVATE_KEY_PATH", // Private key path, relative to the openapi/certs directory
+    "header": { "kid": "$ENV.APPLE_KEY_ID", "alg": "ES256" },
+    "payload": {
+      "sub": "$ENV.APPLE_SERVICE_ID",
+      "iss": "$ENV.APPLE_TEAM_ID",
+      "aud": "https://appleid.apple.com"
+    }
+  },
+  "scopes": ["name", "email"],
+  "response_mode": "form_post",
+  "user_info_source": "id_token",
+  "endpoints": {
+    "authorization": "https://appleid.apple.com/auth/authorize",
+    "token": "https://appleid.apple.com/auth/token",
+    "jwks": "https://appleid.apple.com/auth/keys"
+  },
+  "mapping": "apple",
+  "register": { "auto": true } // Auto register user if not exists
+}

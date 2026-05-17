@@ -1,0 +1,340 @@
+name: Agent Unit Test (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "unit-test/agent/**"
+
+env:
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+  DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+
+  YAO_PORT: "6099"
+  YAO_GRPC_PORT: "6199"
+  MOCK_LLM_PORT: "6920"
+  MOCK_LLM_HOST: "http://127.0.0.1:6920"
+  TAI_DOCKER_GRPC_PORT: "6100"
+  TAI_HOSTEXEC_GRPC_PORT: "6110"
+
+jobs:
+  agent-test-windows:
+    name: ${{ matrix.platform }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-2022, windows-11-arm]
+        go: ["1.26"]
+
+    steps:
+      # ── 1. Checkout dependency repos ──────────────────────────────────
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai
+
+      # ── 2. Unzip libv8 ────────────────────────────────────────────────
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      # ── 3. Move deps to parent directory ──────────────────────────────
+      - name: Move dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+          mv tai ../
+
+      # ── 4. Checkout yao itself ────────────────────────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ── 5. Setup Go ──────────────────────────────────────────────────
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      # ── 6. Install LLVM (clang + lld) ────────────────────────────────
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      # ── 7. Build tools ───────────────────────────────────────────────
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      # ── 8. Build test binaries ────────────────────────────────────────
+      - name: Build Mock LLM
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.build/test"
+          cd unit-test/agent/mock-llm
+          go build -o "$GITHUB_WORKSPACE/.build/test/mock-llm.exe" .
+
+      - name: Build Yao (x64)
+        if: runner.arch == 'X64'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+        run: |
+          go build -o "$GITHUB_WORKSPACE/.build/test/yao.exe" .
+          go build -tags ci -o "$GITHUB_WORKSPACE/.build/test/ci-token.exe" ./cmd/ci-token
+
+      - name: Build Yao (ARM64)
+        if: runner.arch == 'ARM64'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: python ${{ github.workspace }}/../v8go/deps/clang_arm64_cc.py
+          CXX: python ${{ github.workspace }}/../v8go/deps/clang_arm64_cxx.py
+        run: |
+          go build -o "$GITHUB_WORKSPACE/.build/test/yao.exe" .
+          go build -tags ci -o "$GITHUB_WORKSPACE/.build/test/ci-token.exe" ./cmd/ci-token
+
+      - name: Build Tai
+        shell: bash
+        env:
+          CGO_ENABLED: "0"
+        run: |
+          cd ../tai
+          go build -o "$GITHUB_WORKSPACE/.build/test/tai.exe" .
+
+      # ── 9. Setup test application ─────────────────────────────────────
+      - name: Setup Test Application
+        shell: bash
+        run: |
+          APP_DIR="$GITHUB_WORKSPACE/unit-test/agent/app"
+          BUILD_DIR="$GITHUB_WORKSPACE/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          mkdir -p "$APP_DIR/db" "$APP_DIR/logs" "$DATA_DIR/pids" \
+            "$DATA_DIR/tai-docker" "$DATA_DIR/tai-hostexec" "$DATA_DIR/fakehome"
+
+          cat > "$APP_DIR/.env" <<'ENVEOF'
+YAO_ENV=development
+YAO_HOST=127.0.0.1
+YAO_PORT=6099
+YAO_GRPC_HOST=127.0.0.1
+YAO_GRPC_PORT=6199
+YAO_DB_DRIVER=sqlite3
+YAO_DB_PRIMARY=./db/agent-test.db
+YAO_JWT_SECRET=test-jwt-secret-agent-unit
+YAO_DB_AESKEY=test-aes-key-agent-unit!
+YAO_LOG=./logs/application.log
+YAO_LOG_MODE=TEXT
+YAO_SESSION_STORE=file
+YAO_SESSION_FILE=./db/.session
+YAO_CLIENT_ID=test-agent-client-id-00000000000
+MOCK_LLM_HOST=http://127.0.0.1:6920
+ENVEOF
+
+      # ── 10. Start services ──────────────────────────────────────────
+      - name: Start Mock LLM
+        shell: bash
+        run: |
+          "$GITHUB_WORKSPACE/.build/test/mock-llm.exe" \
+            -port $MOCK_LLM_PORT \
+            -fixtures unit-test/agent/mock-llm/fixtures &
+          for i in $(seq 1 15); do
+            curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" && break
+            sleep 1
+          done
+
+      - name: Start Yao Server
+        shell: bash
+        run: |
+          APP_DIR="$GITHUB_WORKSPACE/unit-test/agent/app"
+          BUILD_DIR="$GITHUB_WORKSPACE/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+
+          cd "$APP_DIR"
+          export YAO_ROOT="$APP_DIR"
+          "$BUILD_DIR/yao.exe" start > "$DATA_DIR/yao-server.log" 2>&1 &
+          echo $! > "$DATA_DIR/pids/yao.pid"
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null 2>&1; then
+              echo "Yao server ready (${i}s)"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null 2>&1 || {
+            echo "::error::Yao server failed to start"
+            cat "$DATA_DIR/yao-server.log"
+            exit 1
+          }
+
+      - name: Initialize Application Data
+        shell: bash
+        run: |
+          APP_DIR="$GITHUB_WORKSPACE/unit-test/agent/app"
+          BUILD_DIR="$GITHUB_WORKSPACE/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          cd "$APP_DIR"
+
+          HOME="$DATA_DIR/fakehome" "$BUILD_DIR/yao.exe" run scripts.setup.Init true
+          HOME="$DATA_DIR/fakehome" "$BUILD_DIR/yao.exe" run scripts.setup.SetupTestUsers \
+            2>&1 | tee "$DATA_DIR/yao-test-users.log"
+
+          if grep -q "__TEST_USERS_ENV_BEGIN__" "$DATA_DIR/yao-test-users.log"; then
+            sed -n '/__TEST_USERS_ENV_BEGIN__/,/__TEST_USERS_ENV_END__/p' \
+              "$DATA_DIR/yao-test-users.log" | grep -v "__TEST_USERS_ENV" \
+              > "$APP_DIR/db/.test-users.env"
+          fi
+
+      - name: Generate Tai Credentials & Start Tai
+        shell: bash
+        run: |
+          APP_DIR="$GITHUB_WORKSPACE/unit-test/agent/app"
+          BUILD_DIR="$GITHUB_WORKSPACE/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          source "$APP_DIR/db/.test-users.env"
+
+          gen_cred() {
+            local TAI_ID=$1 CRED_PATH=$2
+            TOKEN=$(HOME="$DATA_DIR/fakehome" "$BUILD_DIR/ci-token.exe" \
+              -app "$APP_DIR" \
+              -client-id "ci-$TAI_ID" \
+              -subject "ci-$TAI_ID" \
+              -user-id "$TEST_ROOT_USER_ID" \
+              -team-id "$TEST_ROOT_TEAM_ID" \
+              -scope "tai:tunnel" \
+              -ttl "24h" 2>/dev/null)
+            JSON="{\"client_id\":\"ci-${TAI_ID}\",\"tai_id\":\"\",\"machine_id\":\"ci-${TAI_ID}\",\"server\":\"http://127.0.0.1:${YAO_PORT}\",\"yao_grpc_addr\":\"127.0.0.1:${YAO_GRPC_PORT}\",\"access_token\":\"${TOKEN}\",\"scope\":\"tai:tunnel\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"registered\":false}"
+            mkdir -p "$(dirname "$CRED_PATH")"
+            printf '%s' "$JSON" | base64 | tr -d '\n' > "$CRED_PATH"
+          }
+
+          gen_cred "tai-docker" "$DATA_DIR/tai-docker/credentials"
+          gen_cred "tai-hostexec" "$DATA_DIR/tai-hostexec/credentials"
+
+          # Windows has no Docker — tai-docker runs without container support
+          TAI_CREDENTIALS="$DATA_DIR/tai-docker/credentials" \
+            "$BUILD_DIR/tai.exe" server \
+              -grpc "127.0.0.1:$TAI_DOCKER_GRPC_PORT" \
+              -data "$DATA_DIR/tai-docker" \
+              -display-name "ci-tai-docker" \
+              "http://127.0.0.1:$YAO_PORT" \
+            > "$DATA_DIR/tai-docker.log" 2>&1 &
+
+          TAI_CREDENTIALS="$DATA_DIR/tai-hostexec/credentials" \
+            "$BUILD_DIR/tai.exe" server \
+              -host-exec \
+              -grpc "127.0.0.1:$TAI_HOSTEXEC_GRPC_PORT" \
+              -data "$DATA_DIR/tai-hostexec" \
+              -display-name "ci-tai-hostexec" \
+              "http://127.0.0.1:$YAO_PORT" \
+            > "$DATA_DIR/tai-hostexec.log" 2>&1 &
+
+          sleep 5
+
+          echo "=== Verifying Tai processes ==="
+          curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null && echo "yao-server: OK"
+          echo "tai-docker log (last 5 lines):"
+          tail -5 "$DATA_DIR/tai-docker.log" 2>/dev/null || true
+          echo "tai-hostexec log (last 5 lines):"
+          tail -5 "$DATA_DIR/tai-hostexec.log" 2>/dev/null || true
+
+      # ── 11. Run tests ─────────────────────────────────────────────────
+      - name: Run Smoke Test (x64)
+        if: runner.arch == 'X64'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: alpine:latest
+        run: |
+          source "$GITHUB_WORKSPACE/unit-test/agent/app/db/.test-users.env" 2>/dev/null || true
+          go test -p 1 -v -count=1 -timeout 120s -run TestEnvironmentReady ./agent
+
+      - name: Run Smoke Test (ARM64)
+        if: runner.arch == 'ARM64'
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: python ${{ github.workspace }}/../v8go/deps/clang_arm64_cc.py
+          CXX: python ${{ github.workspace }}/../v8go/deps/clang_arm64_cxx.py
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: alpine:latest
+        run: |
+          source "$GITHUB_WORKSPACE/unit-test/agent/app/db/.test-users.env" 2>/dev/null || true
+          go test -p 1 -v -count=1 -timeout 120s -run TestEnvironmentReady ./agent
+
+      # ── 12. Upload logs on failure ────────────────────────────────────
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-test-logs-${{ matrix.platform }}
+          path: |
+            ${{ github.workspace }}/.build/test/data/*.log
+            ${{ github.workspace }}/unit-test/agent/app/logs/

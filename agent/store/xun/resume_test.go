@@ -7,13 +7,13 @@ import (
 
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestSaveResume tests batch saving resume records
 func TestSaveResume(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -284,7 +284,7 @@ func TestSaveResume(t *testing.T) {
 
 // TestGetResume tests retrieving resume records
 func TestGetResume(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -354,7 +354,7 @@ func TestGetResume(t *testing.T) {
 
 // TestGetLastResume tests retrieving the last resume record
 func TestGetLastResume(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -434,7 +434,7 @@ func TestGetLastResume(t *testing.T) {
 
 // TestGetResumeByStackID tests retrieving records by stack ID
 func TestGetResumeByStackID(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -516,7 +516,7 @@ func TestGetResumeByStackID(t *testing.T) {
 
 // TestGetStackPath tests retrieving the stack path
 func TestGetStackPath(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -618,7 +618,7 @@ func TestGetStackPath(t *testing.T) {
 
 // TestDeleteResume tests deleting resume records
 func TestDeleteResume(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -688,7 +688,7 @@ func TestDeleteResume(t *testing.T) {
 
 // TestResumeCompleteWorkflow tests a complete resume/retry workflow
 func TestResumeCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{

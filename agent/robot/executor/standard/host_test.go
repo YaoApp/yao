@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -63,7 +65,8 @@ func TestCallHostAgent_ValidJSONResponse(t *testing.T) {
 		t.Skip("Requires assistant framework and LLM")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	e := standard.New()
@@ -103,7 +106,8 @@ func TestCallHostAgent_PlaintextFallback(t *testing.T) {
 		t.Skip("Requires assistant framework and LLM")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	e := standard.New()
@@ -142,7 +146,8 @@ func TestCallHostAgent_BadJSONStructureFallback(t *testing.T) {
 		t.Skip("Requires assistant framework and LLM")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	e := standard.New()
@@ -188,7 +193,8 @@ func TestCallHostAgent_AssistantNotFound(t *testing.T) {
 		t.Skip("Requires assistant framework initialization")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	e := standard.New()

@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // Integration tests for the Robot Agent API
@@ -40,7 +42,8 @@ func TestAPIFullLifecycle(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	// Cleanup test data
@@ -120,7 +123,8 @@ func TestAPIRobotQueryWithData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)
@@ -211,7 +215,8 @@ func TestListAllRobotsAutonomousModeFilter(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)
@@ -280,7 +285,8 @@ func TestAPIExecutionQueryWithData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestExecutions(t)
@@ -380,7 +386,8 @@ func TestAPITriggerWithData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)

@@ -1,0 +1,105 @@
+# Workspaces - Workspace Management (CRUD + File Operations)
+# namespace: workspace
+# resource: workspaces
+# actions: read, write, delete, files
+# levels: all, own, team
+
+# ============ Read Workspaces ============
+
+workspace:workspaces:read:all:
+  description: "List and get all workspaces"
+  endpoints:
+    - GET /workspace
+    - GET /workspace/options
+    - GET /workspace/:id
+
+workspace:workspaces:read:own:
+  owner: true
+  description: "List and get own workspaces"
+  endpoints:
+    - GET /workspace
+    - GET /workspace/options
+    - GET /workspace/:id
+
+workspace:workspaces:read:team:
+  team: true
+  description: "List and get team workspaces"
+  endpoints:
+    - GET /workspace
+    - GET /workspace/options
+    - GET /workspace/:id
+
+# ============ Write (Create/Update) Workspaces ============
+
+workspace:workspaces:write:all:
+  description: "Create and update all workspaces"
+  endpoints:
+    - POST /workspace
+    - PUT /workspace/:id
+
+workspace:workspaces:write:own:
+  owner: true
+  description: "Create and update own workspaces"
+  endpoints:
+    - POST /workspace
+    - PUT /workspace/:id
+
+workspace:workspaces:write:team:
+  team: true
+  description: "Create and update team workspaces"
+  endpoints:
+    - POST /workspace
+    - PUT /workspace/:id
+
+# ============ Delete Workspaces ============
+
+workspace:workspaces:delete:all:
+  description: "Delete all workspaces"
+  endpoints:
+    - DELETE /workspace/:id
+
+workspace:workspaces:delete:own:
+  owner: true
+  description: "Delete own workspaces"
+  endpoints:
+    - DELETE /workspace/:id
+
+workspace:workspaces:delete:team:
+  team: true
+  description: "Delete team workspaces"
+  endpoints:
+    - DELETE /workspace/:id
+
+# ============ File Operations ============
+
+workspace:workspaces:files:all:
+  description: "Manage files in all workspaces"
+  endpoints:
+    - GET /workspace/:id/files
+    - GET /workspace/:id/files/*path
+    - PUT /workspace/:id/files/*path
+    - DELETE /workspace/:id/files/*path
+    - POST /workspace/:id/mkdir
+    - POST /workspace/:id/rename
+
+workspace:workspaces:files:own:
+  owner: true
+  description: "Manage files in own workspaces"
+  endpoints:
+    - GET /workspace/:id/files
+    - GET /workspace/:id/files/*path
+    - PUT /workspace/:id/files/*path
+    - DELETE /workspace/:id/files/*path
+    - POST /workspace/:id/mkdir
+    - POST /workspace/:id/rename
+
+workspace:workspaces:files:team:
+  team: true
+  description: "Manage files in team workspaces"
+  endpoints:
+    - GET /workspace/:id/files
+    - GET /workspace/:id/files/*path
+    - PUT /workspace/:id/files/*path
+    - DELETE /workspace/:id/files/*path
+    - POST /workspace/:id/mkdir
+    - POST /workspace/:id/rename

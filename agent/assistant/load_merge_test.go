@@ -12,7 +12,7 @@ import (
 // TestLoadPathMerge tests loading the merge test assistant
 // This verifies that global config is properly merged with assistant-specific config
 func TestLoadPathMerge(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/merge")
@@ -108,7 +108,7 @@ func TestLoadPathMerge(t *testing.T) {
 // TestLoadPathMergeOverride tests loading the merge-override test assistant
 // This verifies that assistant config completely overrides global config
 func TestLoadPathMergeOverride(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/merge-override")
@@ -182,7 +182,7 @@ func TestLoadPathMergeOverride(t *testing.T) {
 // TestLoadPathMergeEmpty tests loading the merge-empty test assistant
 // This verifies that assistant with no uses/search config inherits all from global
 func TestLoadPathMergeEmpty(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/merge-empty")
@@ -248,7 +248,7 @@ func TestLoadPathMergeEmpty(t *testing.T) {
 // TestLoadPathUsesAndSearchMerge tests loading fullfields assistant
 // This verifies that uses and search configs are properly loaded and merged
 func TestLoadPathUsesAndSearchMerge(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/fullfields")
@@ -298,7 +298,7 @@ func TestLoadPathUsesAndSearchMerge(t *testing.T) {
 
 // TestLoadPathSearchAssistant tests loading the dedicated search test assistant
 func TestLoadPathSearchAssistant(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/search")

@@ -1,0 +1,6 @@
+menu_id,parent,name,description,icon,path,type,sort,status,public,share
+items_chat,,"{""en"":""Chat"",""zh-cn"":""聊天对话""}","{""en"":""Chat with AI Experts"",""zh-cn"":""与AI专家对话""}","{""name"":""material-sms"",""size"":22}",/chat,items,100,enabled,1,team
+items_experts,,"{""en"":""AI Experts"",""zh-cn"":""AI 专家""}","{""en"":""Manage AI Experts"",""zh-cn"":""管理AI专家""}","{""name"":""material-assistant"",""size"":22}",/assistants,items,110,enabled,1,team
+items_mission_control,,"{""en"":""Mission Control"",""zh-cn"":""任务中心""}","{""en"":""Manage task agents"",""zh-cn"":""管理任务智能体""}","{""name"":""material-rocket_launch"",""size"":22}",/mission-control,items,115,enabled,1,team
+setting_computers,,"{""en"":""Computers"",""zh-cn"":""电脑""}","{""en"":""Open Computers"",""zh-cn"":""打开电脑""}","{""name"":""material-computer"",""size"":22}",/computers/list,setting,890,enabled,1,team
+setting_workspace,,"{""en"":""Workspace"",""zh-cn"":""工作空间""}","{""en"":""Open Workspace"",""zh-cn"":""打开工作空间""}","{""name"":""material-folder"",""size"":22}",/workspace/list,setting,900,enabled,1,team

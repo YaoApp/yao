@@ -21,6 +21,7 @@ const testConnectorID = "claude.haiku-3_0"
 
 // TestAnthropicStreamBasic tests basic streaming completion with Anthropic API
 func TestAnthropicStreamBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -101,6 +102,7 @@ func TestAnthropicStreamBasic(t *testing.T) {
 
 // TestAnthropicStreamWithToolCalls tests streaming with tool calls via Anthropic API
 func TestAnthropicStreamWithToolCalls(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -208,6 +210,7 @@ func TestAnthropicStreamWithToolCalls(t *testing.T) {
 
 // TestAnthropicStreamRetry tests error handling with invalid API key
 func TestAnthropicStreamRetry(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -24,7 +24,7 @@ func newMCPTestContext() *context.Context {
 
 // TestMCPListResources tests MCP.ListResources from JavaScript
 func TestMCPListResources(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -61,7 +61,7 @@ func TestMCPListResources(t *testing.T) {
 
 // TestMCPReadResource tests MCP.ReadResource from JavaScript
 func TestMCPReadResource(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -96,7 +96,7 @@ func TestMCPReadResource(t *testing.T) {
 
 // TestMCPListTools tests MCP.ListTools from JavaScript
 func TestMCPListTools(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -135,7 +135,7 @@ func TestMCPListTools(t *testing.T) {
 
 // TestMCPCallTool tests MCP.CallTool from JavaScript
 func TestMCPCallTool(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -170,7 +170,7 @@ func TestMCPCallTool(t *testing.T) {
 
 // TestMCPCallTools tests MCP.CallTools from JavaScript
 func TestMCPCallTools(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -212,7 +212,7 @@ func TestMCPCallTools(t *testing.T) {
 
 // TestMCPCallToolsParallel tests MCP.CallToolsParallel from JavaScript
 func TestMCPCallToolsParallel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -254,7 +254,7 @@ func TestMCPCallToolsParallel(t *testing.T) {
 
 // TestMCPListPrompts tests MCP.ListPrompts from JavaScript
 func TestMCPListPrompts(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -291,7 +291,7 @@ func TestMCPListPrompts(t *testing.T) {
 
 // TestMCPGetPrompt tests MCP.GetPrompt from JavaScript
 func TestMCPGetPrompt(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -326,7 +326,7 @@ func TestMCPGetPrompt(t *testing.T) {
 
 // TestMCPListSamples tests MCP.ListSamples from JavaScript
 func TestMCPListSamples(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -361,7 +361,7 @@ func TestMCPListSamples(t *testing.T) {
 
 // TestMCPGetSample tests MCP.GetSample from JavaScript
 func TestMCPGetSample(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()
@@ -398,7 +398,7 @@ func TestMCPGetSample(t *testing.T) {
 
 // TestMCPJsApiWithTrace tests MCP operations with trace from JavaScript
 func TestMCPJsApiWithTrace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newMCPTestContext()

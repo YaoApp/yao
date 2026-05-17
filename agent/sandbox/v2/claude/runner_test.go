@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/agent/caller"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	sandboxtestutils "github.com/yaoapp/yao/agent/sandbox/v2/testutils"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/attachment"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
@@ -44,6 +45,7 @@ var toolCallCases = []e2eCase{
 }
 
 func TestSandboxV2_Claude_E2E(t *testing.T) {
+	testutils.SkipWithoutTai(t, "TAI_TEST_GRPC")
 	sandboxtestutils.Prepare(t)
 	defer sandboxtestutils.Clean(t)
 
@@ -144,6 +146,7 @@ func TestSandboxV2_Claude_E2E(t *testing.T) {
 }
 
 func TestSandboxV2_Claude_Attachments(t *testing.T) {
+	testutils.SkipWithoutTai(t, "TAI_TEST_GRPC")
 	sandboxtestutils.Prepare(t)
 	defer sandboxtestutils.Clean(t)
 
@@ -289,6 +292,7 @@ func mapKeys(m map[string]interface{}) []string {
 // TestSandboxV2_Claude_ToolCallE2E verifies that tool call execution emits
 // "execute" messages and that usage/result_summary metadata is propagated.
 func TestSandboxV2_Claude_ToolCallE2E(t *testing.T) {
+	testutils.SkipWithoutTai(t, "TAI_TEST_GRPC")
 	sandboxtestutils.Prepare(t)
 	defer sandboxtestutils.Clean(t)
 

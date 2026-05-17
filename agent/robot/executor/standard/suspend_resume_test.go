@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -23,7 +25,8 @@ func TestRunExecutionResumeContext(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -225,7 +228,8 @@ func TestExecuteWithControlSuspend(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("returns ErrExecutionSuspended without marking as failed", func(t *testing.T) {

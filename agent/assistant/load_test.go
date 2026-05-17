@@ -9,15 +9,16 @@ import (
 	"github.com/yaoapp/yao/agent/assistant"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 func prepare(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 }
 
 func prepareAgent(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	err := agent.Load(config.Conf)
 	require.NoError(t, err, "agent.Load should succeed")
 }
@@ -37,7 +38,7 @@ func TestLoadPath(t *testing.T) {
 		assert.Equal(t, "Full Fields Test Assistant", assistant.Name)
 		assert.Equal(t, "assistant", assistant.Type)
 		assert.Equal(t, "/api/__yao/app/icons/app.png", assistant.Avatar)
-		assert.Equal(t, "gpt-4o", assistant.Connector)
+		assert.Equal(t, "openai.mock", assistant.Connector)
 		assert.Equal(t, "/assistants/tests/fullfields", assistant.Path)
 		assert.Equal(t, "Test assistant with all available fields for unit testing", assistant.Description)
 
@@ -84,8 +85,8 @@ func TestLoadPath(t *testing.T) {
 		assert.NotNil(t, assistant.ConnectorOptions.Optional)
 		assert.True(t, *assistant.ConnectorOptions.Optional)
 		assert.NotNil(t, assistant.ConnectorOptions.Connectors)
-		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o")
-		assert.Contains(t, assistant.ConnectorOptions.Connectors, "gpt-4o-mini")
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "openai.mock")
+		assert.Contains(t, assistant.ConnectorOptions.Connectors, "openai.mock")
 		assert.Contains(t, assistant.ConnectorOptions.Connectors, "deepseek.v4-flash")
 		assert.NotNil(t, assistant.ConnectorOptions.Filters)
 		assert.Len(t, assistant.ConnectorOptions.Filters, 2)
@@ -222,7 +223,7 @@ func TestLoadPathMCPTest(t *testing.T) {
 
 	assert.Equal(t, "tests.mcptest", assistant.ID)
 	assert.Equal(t, "MCP Test Assistant", assistant.Name)
-	assert.Equal(t, "gpt-4o", assistant.Connector)
+	assert.Equal(t, "openai.mock", assistant.Connector)
 
 	// MCP configuration
 	assert.NotNil(t, assistant.MCP)

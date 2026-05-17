@@ -70,7 +70,7 @@ func TestParseWithMissingURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -99,7 +99,7 @@ func TestParseWithEmptyURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -131,7 +131,7 @@ func TestParseWithLocalPDFAndVisionSupport(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Check if test file exists
@@ -178,7 +178,7 @@ func TestParseWithLocalPDFAndVisionAgent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Check if test file exists
@@ -228,7 +228,7 @@ func TestParseMultiWithLocalPDF(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Check if test file exists
@@ -277,7 +277,7 @@ func TestParseWithUnsupportedSource(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -309,7 +309,7 @@ func TestParseWithNonExistentFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -341,7 +341,7 @@ func TestSilentLoadingOption(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{

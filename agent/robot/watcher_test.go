@@ -27,7 +27,7 @@ func TestRobotTasksWatcher(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("detects_zombie_running_execution", func(t *testing.T) {

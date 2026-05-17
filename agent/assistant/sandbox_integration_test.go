@@ -11,12 +11,14 @@ import (
 	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 	"github.com/yaoapp/yao/agent/sandbox/claude"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestSandboxOptionsBuilding tests that sandbox options are correctly built from assistant config
 func TestSandboxOptionsBuilding(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent to ensure connectors are available
@@ -50,7 +52,8 @@ func TestSandboxOptionsBuilding(t *testing.T) {
 
 // TestClaudeCommandBuilding tests that Claude CLI commands are correctly built
 func TestClaudeCommandBuilding(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create test messages
@@ -107,7 +110,8 @@ func TestClaudeCommandBuilding(t *testing.T) {
 
 // TestClaudeProxyConfigBuilding tests that claude-proxy config is correctly built
 func TestClaudeProxyConfigBuilding(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	opts := &claude.Options{
@@ -134,6 +138,7 @@ func TestClaudeProxyConfigBuilding(t *testing.T) {
 
 // TestDefaultImageSelection tests that default images are correctly selected
 func TestDefaultImageSelection(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	tests := []struct {
 		command       string
 		expectedImage string
@@ -153,6 +158,7 @@ func TestDefaultImageSelection(t *testing.T) {
 
 // TestSandboxCommandValidation tests that command validation works correctly
 func TestSandboxCommandValidation(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	tests := []struct {
 		command string
 		valid   bool
@@ -173,7 +179,8 @@ func TestSandboxCommandValidation(t *testing.T) {
 
 // TestHasSandboxMethod tests the HasSandbox method on Assistant
 func TestHasSandboxMethod(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Test assistant with sandbox

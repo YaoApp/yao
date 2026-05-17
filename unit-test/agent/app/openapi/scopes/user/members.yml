@@ -1,0 +1,64 @@
+# Members - Team Member Management
+# namespace: user
+# resource: members
+# actions: read, write, delete
+# levels: own, team
+
+# ============ User Context - Manage Own Team Members ============
+
+user:members:read:own:
+  owner: true
+  description: "Read members of own teams (where user is owner)"
+  endpoints:
+    - GET /user/teams/:id/members
+    - GET /user/teams/:id/members/check-robot-email
+    - GET /user/teams/:id/members/:member_id
+    - GET /user/teams/:id/members/:member_id/profile
+
+user:members:write:own:
+  owner: true
+  description: "Manage members of own teams (add/update)"
+  endpoints:
+    - POST /user/teams/:id/members/robots
+    - PUT /user/teams/:id/members/:member_id
+    - PUT /user/teams/:id/members/robots/:member_id
+    - PUT /user/teams/:id/members/:member_id/profile
+
+user:members:delete:own:
+  owner: true
+  description: "Remove members from own teams"
+  endpoints:
+    - DELETE /user/teams/:id/members/:member_id
+
+# ============ Team Context - Team Member Management ============
+
+user:members:read:team:
+  team: true
+  description: "Read current team members"
+  endpoints:
+    - GET /user/teams/:id/members
+    - GET /user/teams/:id/members/check-robot-email
+    - GET /user/teams/:id/members/:member_id
+    - GET /user/teams/:id/members/:member_id/profile
+
+user:members:write:team:
+  team: true
+  description: "Manage current team members (add/update)"
+  endpoints:
+    - POST /user/teams/:id/members/robots
+    - PUT /user/teams/:id/members/:member_id
+    - PUT /user/teams/:id/members/robots/:member_id
+
+user:members:write:own:profile:
+  owner: true
+  team: true
+  description: "Update own member profile in team context"
+  endpoints:
+    - PUT /user/teams/:id/members/:member_id/profile
+
+user:members:delete:team:
+  team: true
+  description: "Remove members from current team"
+  endpoints:
+    - DELETE /user/teams/:id/members/:member_id
+

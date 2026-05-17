@@ -41,7 +41,7 @@ func TestAgentNextStandard(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -78,7 +78,7 @@ func TestAgentNextCustomData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -120,7 +120,7 @@ func TestAgentNextDelegate(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -156,7 +156,7 @@ func TestAgentNextConditional(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -204,7 +204,7 @@ func TestAgentWithoutNextHook(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")

@@ -1,0 +1,26 @@
+# Search - Knowledge Base Search
+# namespace: kb
+# resource: search
+# actions: execute
+# levels: all, own, team
+
+kb:search:execute:all:
+  description: "Search all knowledge bases"
+  endpoints:
+    - POST /kb/search
+    - POST /kb/search/multi
+
+kb:search:execute:own:
+  owner: true
+  description: "Search own knowledge bases"
+  endpoints:
+    - POST /kb/search
+    - POST /kb/search/multi
+
+kb:search:execute:team:
+  team: true
+  description: "Search team knowledge bases"
+  endpoints:
+    - POST /kb/search
+    - POST /kb/search/multi
+

@@ -11,13 +11,14 @@ import (
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestDynamicRunner_CoffeeOrder tests a complete dynamic mode flow:
 // Simulator acts as a customer ordering coffee, agent handles the order
 func TestDynamicRunner_CoffeeOrder(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -77,7 +78,7 @@ func TestDynamicRunner_CoffeeOrder(t *testing.T) {
 
 // TestDynamicRunner_WithInitialInput tests dynamic mode with initial user input
 func TestDynamicRunner_WithInitialInput(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -115,7 +116,7 @@ func TestDynamicRunner_WithInitialInput(t *testing.T) {
 
 // TestDynamicRunner_OptionalCheckpoint tests optional checkpoint behavior
 func TestDynamicRunner_OptionalCheckpoint(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -162,7 +163,7 @@ func TestDynamicRunner_OptionalCheckpoint(t *testing.T) {
 
 // TestDynamicRunner_MaxTurnsExceeded tests behavior when max turns is exceeded
 func TestDynamicRunner_MaxTurnsExceeded(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -209,7 +210,7 @@ func TestDynamicRunner_MaxTurnsExceeded(t *testing.T) {
 
 // TestDynamicRunner_CheckpointOrdering tests that checkpoint ordering is enforced
 func TestDynamicRunner_CheckpointOrderingEnforced(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents

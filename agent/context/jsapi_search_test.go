@@ -56,7 +56,7 @@ func getResponseContent(res *context.HookCreateResponse) string {
 // Skip: requires external API key (Tavily/Serper)
 func TestSearchJSAPI_Web(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily/Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the search-jsapi test assistant
@@ -98,7 +98,7 @@ func TestSearchJSAPI_Web(t *testing.T) {
 // Skip: requires external API key (Tavily/Serper)
 func TestSearchJSAPI_WebWithSites(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily/Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -140,7 +140,7 @@ func TestSearchJSAPI_WebWithSites(t *testing.T) {
 
 // TestSearchJSAPI_KB tests ctx.search.KB() via Create Hook (skeleton)
 func TestSearchJSAPI_KB(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -167,7 +167,7 @@ func TestSearchJSAPI_KB(t *testing.T) {
 
 // TestSearchJSAPI_DB tests ctx.search.DB() via Create Hook (skeleton)
 func TestSearchJSAPI_DB(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -196,7 +196,7 @@ func TestSearchJSAPI_DB(t *testing.T) {
 // Skip: requires external API key (Tavily/Serper)
 func TestSearchJSAPI_All(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily/Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -239,7 +239,7 @@ func TestSearchJSAPI_All(t *testing.T) {
 // Skip: requires external API key (Tavily/Serper)
 func TestSearchJSAPI_Any(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily/Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -278,7 +278,7 @@ func TestSearchJSAPI_Any(t *testing.T) {
 // Skip: requires external API key (Tavily/Serper)
 func TestSearchJSAPI_Race(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily/Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -315,7 +315,7 @@ func TestSearchJSAPI_Race(t *testing.T) {
 
 // TestSearchJSAPI_InvalidCommand tests invalid test command
 func TestSearchJSAPI_InvalidCommand(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")
@@ -334,7 +334,7 @@ func TestSearchJSAPI_InvalidCommand(t *testing.T) {
 
 // TestSearchJSAPI_UnknownMethod tests unknown test method
 func TestSearchJSAPI_UnknownMethod(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.search-jsapi")

@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard
 
 import (
@@ -250,7 +252,8 @@ func TestLLMSummarize(t *testing.T) {
 		t.Skip("skipping integration test (requires real LLM)")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 	setupLLMProvider(t)
 
@@ -298,7 +301,8 @@ func TestUpdateManifestForTaskWithLLMSummary(t *testing.T) {
 		t.Skip("skipping integration test (requires real LLM)")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 	setupLLMProvider(t)
 

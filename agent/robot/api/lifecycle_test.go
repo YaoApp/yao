@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 import (
@@ -15,7 +17,8 @@ func TestLifecycle(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("start and stop cycle", func(t *testing.T) {

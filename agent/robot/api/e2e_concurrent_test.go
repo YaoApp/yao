@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // End-to-end tests for Concurrent execution
@@ -41,7 +43,8 @@ func TestE2EConcurrentMultipleRobots(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -139,7 +142,8 @@ func TestE2EConcurrentSameRobotMultipleTriggers(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -231,7 +235,8 @@ func TestE2EConcurrentQuotaEnforcement(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -297,7 +302,8 @@ func TestE2EConcurrentMixedTriggerTypes(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)

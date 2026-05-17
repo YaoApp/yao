@@ -1,0 +1,21 @@
+{
+  "id": "msg-fixture-anthropic-think-001",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "thinking",
+      "thinking": "Let me analyze this question step by step. The user is asking about the capital of France, which is a straightforward factual question."
+    },
+    {
+      "type": "text",
+      "text": "The capital of France is Paris."
+    }
+  ],
+  "model": "claude-haiku-4-5-20251001",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 15,
+    "output_tokens": 45
+  }
+}

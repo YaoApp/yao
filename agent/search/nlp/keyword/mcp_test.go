@@ -19,7 +19,7 @@ func TestMCPProviderWithAssistantConfig(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -48,7 +48,7 @@ func TestMCPProviderWithCustomOptions(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -88,7 +88,7 @@ func TestMCPProviderServerNotFound(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -109,7 +109,7 @@ func TestMCPProviderToolNotFound(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -129,7 +129,7 @@ func TestMCPProviderEmptyContent(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context

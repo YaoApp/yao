@@ -532,3 +532,192 @@ jobs:
           else
             echo "All verification checks PASSED"
           fi
+
+  # =============================================================================
+  # Agent Unit Tests (Tier 1+2): Pure unit + app context, SQLite only
+  # =============================================================================
+  agent-unit:
+    needs: setup-and-verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout yao-agent-test
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-agent-test
+          path: ../yao-agent-test
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          checkout-init: "false"
+
+      - name: Setup SQLite
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../yao-agent-test/data/db
+          echo "YAO_AGENT_TEST_APPLICATION=${{ github.WORKSPACE }}/../yao-agent-test" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../yao-agent-test/data/db/yao.db" >> $GITHUB_ENV
+
+      - name: Run Agent Unit Tests
+        run: |
+          go test -count=1 -timeout 300s \
+            ./agent \
+            ./agent/assistant/... ./agent/context/... ./agent/store/... \
+            ./agent/output/... ./agent/caller/... ./agent/content/... \
+            ./agent/test/... ./agent/memory/... ./agent/i18n/... \
+            ./agent/llm/resolve/... ./agent/llm/image/... \
+            ./agent/robot/types/... ./agent/robot/trigger/... ./agent/robot/pool/... \
+            ./agent/robot/cache/... ./agent/robot/utils/... \
+            -skip 'TestE2E|TestSandbox|TestLLM'
+
+  # =============================================================================
+  # Agent LLM Mock Tests (Tier 3): mock-llm + DB, no real API keys
+  # =============================================================================
+  agent-llm-mock:
+    needs: setup-and-verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout yao-agent-test
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-agent-test
+          path: ../yao-agent-test
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          checkout-init: "false"
+
+      - name: Build and start mock-llm
+        run: |
+          cd unit-test/agent/mock-llm
+          go build -o $RUNNER_TEMP/mock-llm .
+          $RUNNER_TEMP/mock-llm -port 9999 &
+          sleep 2
+          curl -sf http://localhost:9999/healthz || exit 1
+
+      - name: Setup environment
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../yao-agent-test/data/db
+          echo "YAO_AGENT_TEST_APPLICATION=${{ github.WORKSPACE }}/../yao-agent-test" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../yao-agent-test/data/db/yao.db" >> $GITHUB_ENV
+          echo "MOCK_LLM_HOST=http://localhost:9999" >> $GITHUB_ENV
+
+      - name: Run Agent LLM Mock Tests
+        run: |
+          MOCK_LLM_HOST=http://localhost:9999 \
+          go test -count=1 -timeout 300s \
+            ./agent/llm/providers/... ./agent/search/... \
+            -skip 'TestE2E'
+
+  # =============================================================================
+  # Agent Sandbox Tests (Tier 4): mock-llm + Tai Tunnel modes
+  # =============================================================================
+  agent-sandbox:
+    needs: setup-and-verify
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout yao-agent-test
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-agent-test
+          path: ../yao-agent-test
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          checkout-init: "true"
+          apple-private-key: ${{ secrets.APPLE_PRIVATE_KEY_USER }}
+
+      - name: Load sandbox-v2 env
+        run: grep -vE '^\s*#|^\s*$' .github/env/sandbox-v2.env >> $GITHUB_ENV
+
+      - name: Build and start mock-llm
+        run: |
+          cd unit-test/agent/mock-llm
+          go build -o $RUNNER_TEMP/mock-llm .
+          $RUNNER_TEMP/mock-llm -port 9999 &
+          sleep 2
+          curl -sf http://localhost:9999/healthz || exit 1
+
+      - name: Setup environment
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../yao-agent-test/data/db
+          echo "YAO_AGENT_TEST_APPLICATION=${{ github.WORKSPACE }}/../yao-agent-test" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../yao-agent-test/data/db/yao.db" >> $GITHUB_ENV
+          echo "MOCK_LLM_HOST=http://localhost:9999" >> $GITHUB_ENV
+
+      - name: Run Agent Sandbox Tests
+        run: |
+          MOCK_LLM_HOST=http://localhost:9999 \
+          go test -count=1 -timeout 600s -tags remote \
+            ./agent/sandbox/v2/...
+
+  # =============================================================================
+  # Agent E2E Tests (Tier 5): Real LLM APIs — only job with secrets
+  # =============================================================================
+  agent-e2e:
+    needs: agent-llm-mock
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Checkout yao-agent-test
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-agent-test
+          path: ../yao-agent-test
+
+      - name: Setup Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          checkout-init: "false"
+
+      - name: Setup environment
+        run: |
+          mkdir -p ${{ github.WORKSPACE }}/../yao-agent-test/data/db
+          echo "YAO_AGENT_TEST_APPLICATION=${{ github.WORKSPACE }}/../yao-agent-test" >> $GITHUB_ENV
+          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../yao-agent-test/data/db/yao.db" >> $GITHUB_ENV
+
+      - name: Run Agent E2E Tests
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
+        run: |
+          go test -count=1 -timeout 900s -tags e2e \
+            ./agent/assistant/... ./agent/robot/... \
+            -run 'TestE2E'

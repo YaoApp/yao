@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 	"github.com/yaoapp/yao/trace"
 )
 
 func TestContextNew_PreservesAuthorizedInfo(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create authorized info
@@ -37,7 +37,7 @@ func TestContextNew_PreservesAuthorizedInfo(t *testing.T) {
 }
 
 func TestContextTrace_SavesAuthorizedInfo(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create authorized info
@@ -80,7 +80,7 @@ func TestContextTrace_SavesAuthorizedInfo(t *testing.T) {
 }
 
 func TestContextNew_NilAuthorized(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create context with nil authorized info (should not panic)

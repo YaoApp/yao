@@ -18,7 +18,7 @@ func TestRobotStoreSave(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -145,7 +145,7 @@ func TestRobotStoreGet(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -192,7 +192,7 @@ func TestRobotStoreList(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -285,7 +285,7 @@ func TestRobotStoreDelete(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -333,7 +333,7 @@ func TestRobotStoreUpdateConfig(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -381,7 +381,7 @@ func TestRobotStoreUpdateStatus(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -438,7 +438,7 @@ func TestRobotRecordConversion(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("converts_record_to_robot", func(t *testing.T) {

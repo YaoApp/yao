@@ -8,12 +8,13 @@ import (
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 	"rogchap.com/v8go"
 )
 
 func TestAsserter_AgentAssertion(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent (includes assistants)
@@ -101,7 +102,7 @@ func TestAsserter_AgentAssertion(t *testing.T) {
 }
 
 func TestAsserter_AgentAssertion_InvalidAgent(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent (includes assistants)
@@ -126,7 +127,7 @@ func TestAsserter_AgentAssertion_InvalidAgent(t *testing.T) {
 }
 
 func TestAsserter_MapToAssertion_WithUseAndOptions(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent (includes assistants)
@@ -160,7 +161,7 @@ func TestAsserter_MapToAssertion_WithUseAndOptions(t *testing.T) {
 
 // TestTestingT_AssertAgent tests the JSAPI t.assert.Agent() method
 func TestTestingT_AssertAgent(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent (includes assistants)

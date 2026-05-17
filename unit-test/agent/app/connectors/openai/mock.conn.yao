@@ -1,0 +1,9 @@
+{
+  "label": "Mock OpenAI",
+  "type": "openai",
+  "options": {
+    "model": "mock-gpt-4o-mini",
+    "host": "$ENV.MOCK_LLM_HOST",
+    "key": "mock-key-not-validated"
+  }
+}

@@ -21,7 +21,7 @@ func TestLlm_Stream_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create authorized info for the context
@@ -40,12 +40,12 @@ func TestLlm_Stream_V8(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			try {
-				const result = ctx.llm.Stream("gpt-4o-mini", [
-					{ role: "user", content: "Say hello in one word" }
-				], {
-					temperature: 0.1,
-					max_tokens: 10
-				});
+			const result = ctx.llm.Stream("openai.mock", [
+				{ role: "user", content: "Say hello in one word" }
+			], {
+				temperature: 0.1,
+				max_tokens: 10
+			});
 				
 				return {
 					success: true,
@@ -71,7 +71,7 @@ func TestLlm_Stream_V8(t *testing.T) {
 	}
 	require.True(t, success, "Test should succeed, error: %v", result["error"])
 
-	assert.Equal(t, "gpt-4o-mini", result["connector"])
+	assert.Equal(t, "openai.mock", result["connector"])
 
 	hasContent, _ := result["has_content"].(bool)
 	assert.True(t, hasContent, "Should have content in response")
@@ -86,7 +86,7 @@ func TestLlm_Stream_WithCallback_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -106,12 +106,12 @@ func TestLlm_Stream_WithCallback_V8(t *testing.T) {
 				let callbackCount = 0;
 				let receivedTypes = [];
 				
-				const result = ctx.llm.Stream("gpt-4o-mini", [
-					{ role: "user", content: "Say hi" }
-				], {
-					temperature: 0.1,
-					max_tokens: 10,
-					onChunk: function(msg) {
+			const result = ctx.llm.Stream("openai.mock", [
+				{ role: "user", content: "Say hi" }
+			], {
+				temperature: 0.1,
+				max_tokens: 10,
+				onChunk: function(msg) {
 						callbackCount++;
 						if (msg && msg.type) {
 							receivedTypes.push(msg.type);
@@ -156,7 +156,7 @@ func TestLlm_All_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -174,17 +174,17 @@ func TestLlm_All_V8(t *testing.T) {
 		function test(ctx) {
 			try {
 				const results = ctx.llm.All([
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'one'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					},
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'two'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					}
-				]);
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'one'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				},
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'two'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				}
+			]);
 				
 				return {
 					success: true,
@@ -235,7 +235,7 @@ func TestLlm_All_WithCallback_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -255,18 +255,18 @@ func TestLlm_All_WithCallback_V8(t *testing.T) {
 				let callbackCount = 0;
 				let indexesSeen = new Set();
 				
-				const results = ctx.llm.All([
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'A'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					},
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'B'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					}
-				], {
+			const results = ctx.llm.All([
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'A'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				},
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'B'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				}
+			], {
 					onChunk: function(connectorID, index, msg) {
 						callbackCount++;
 						indexesSeen.add(index);
@@ -313,7 +313,7 @@ func TestLlm_Any_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -330,18 +330,18 @@ func TestLlm_Any_V8(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			try {
-				const results = ctx.llm.Any([
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'hello'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					},
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'world'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					}
-				]);
+			const results = ctx.llm.Any([
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'hello'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				},
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'world'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				}
+			]);
 				
 				// Any returns array with single successful result
 				return {
@@ -384,7 +384,7 @@ func TestLlm_Race_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -401,18 +401,18 @@ func TestLlm_Race_V8(t *testing.T) {
 	res, err := v8.Call(v8.CallOptions{}, `
 		function test(ctx) {
 			try {
-				const results = ctx.llm.Race([
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'fast'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					},
-					{
-						connector: "gpt-4o-mini",
-						messages: [{ role: "user", content: "Say 'slow'" }],
-						options: { temperature: 0.1, max_tokens: 5 }
-					}
-				]);
+			const results = ctx.llm.Race([
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'fast'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				},
+				{
+					connector: "openai.mock",
+					messages: [{ role: "user", content: "Say 'slow'" }],
+					options: { temperature: 0.1, max_tokens: 5 }
+				}
+			]);
 				
 				// Race returns array with single result (first to complete)
 				return {
@@ -447,7 +447,7 @@ func TestLlm_Race_V8(t *testing.T) {
 	assert.True(t, hasResult, "Should have a result")
 
 	firstConnector, _ := result["first_connector"].(string)
-	assert.Equal(t, "gpt-4o-mini", firstConnector, "First result should have connector")
+	assert.Equal(t, "openai.mock", firstConnector, "First result should have connector")
 }
 
 // TestLlm_Stream_InvalidConnector_V8 tests error handling for invalid connector
@@ -456,7 +456,7 @@ func TestLlm_Stream_InvalidConnector_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{

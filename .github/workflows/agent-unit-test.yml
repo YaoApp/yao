@@ -1,0 +1,238 @@
+name: Agent Unit Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "unit-test/agent/**"
+
+env:
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+  DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+
+  YAO_PORT: "6099"
+  YAO_GRPC_PORT: "6199"
+  MOCK_LLM_PORT: "6920"
+  MOCK_LLM_HOST: "http://127.0.0.1:6920"
+  TAI_DOCKER_GRPC_PORT: "6100"
+  TAI_HOSTEXEC_GRPC_PORT: "6110"
+
+jobs:
+  agent-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        go: ["1.25"]
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Setup Yao Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          go-version: ${{ matrix.go }}
+          checkout-app: "true"
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai-src
+
+      - name: Move Tai Source
+        run: mv tai-src ../tai
+
+      - name: Build Mock LLM
+        run: |
+          mkdir -p ${{ github.workspace }}/.build/test
+          cd unit-test/agent/mock-llm
+          go build -o ${{ github.workspace }}/.build/test/mock-llm .
+
+      - name: Build Yao
+        run: go build -o ${{ github.workspace }}/.build/test/yao .
+
+      - name: Build CI Token
+        run: go build -tags ci -o ${{ github.workspace }}/.build/test/ci-token ./cmd/ci-token
+
+      - name: Build Tai
+        run: |
+          cd ../tai
+          go build -o ${{ github.workspace }}/.build/test/tai .
+
+      - name: Start Mock LLM
+        run: |
+          ${{ github.workspace }}/.build/test/mock-llm \
+            -port $MOCK_LLM_PORT \
+            -fixtures unit-test/agent/mock-llm/fixtures &
+          echo $! > ${{ github.workspace }}/.build/test/mock-llm.pid
+          for i in $(seq 1 15); do
+            curl -sf http://127.0.0.1:$MOCK_LLM_PORT/healthz && break
+            sleep 1
+          done
+
+      - name: Setup Test Application
+        run: |
+          APP_DIR="${{ github.workspace }}/unit-test/agent/app"
+          BUILD_DIR="${{ github.workspace }}/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          mkdir -p "$APP_DIR/db" "$APP_DIR/logs" "$DATA_DIR/pids" \
+            "$DATA_DIR/tai-docker" "$DATA_DIR/tai-hostexec" "$DATA_DIR/fakehome"
+
+          cat > "$APP_DIR/.env" <<'ENVEOF'
+YAO_ENV=development
+YAO_HOST=127.0.0.1
+YAO_PORT=6099
+YAO_GRPC_HOST=127.0.0.1
+YAO_GRPC_PORT=6199
+YAO_DB_DRIVER=sqlite3
+YAO_DB_PRIMARY=./db/agent-test.db
+YAO_JWT_SECRET=test-jwt-secret-agent-unit
+YAO_DB_AESKEY=test-aes-key-agent-unit!
+YAO_LOG=./logs/application.log
+YAO_LOG_MODE=TEXT
+YAO_SESSION_STORE=file
+YAO_SESSION_FILE=./db/.session
+YAO_CLIENT_ID=test-agent-client-id-00000000000
+MOCK_LLM_HOST=http://127.0.0.1:6920
+ENVEOF
+
+      - name: Start Yao Server
+        run: |
+          APP_DIR="${{ github.workspace }}/unit-test/agent/app"
+          BUILD_DIR="${{ github.workspace }}/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+
+          cd "$APP_DIR"
+          export YAO_ROOT="$APP_DIR"
+          "$BUILD_DIR/yao" start > "$DATA_DIR/yao-server.log" 2>&1 &
+          echo $! > "$DATA_DIR/pids/yao.pid"
+
+          for i in $(seq 1 60); do
+            if curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null 2>&1; then
+              echo "Yao server ready (${i}s)"
+              break
+            fi
+            sleep 1
+          done
+          curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null 2>&1 || {
+            echo "::error::Yao server failed to start"
+            cat "$DATA_DIR/yao-server.log"
+            exit 1
+          }
+
+      - name: Initialize Application Data
+        run: |
+          APP_DIR="${{ github.workspace }}/unit-test/agent/app"
+          BUILD_DIR="${{ github.workspace }}/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          cd "$APP_DIR"
+
+          HOME="$DATA_DIR/fakehome" "$BUILD_DIR/yao" run scripts.setup.Init true
+          HOME="$DATA_DIR/fakehome" "$BUILD_DIR/yao" run scripts.setup.SetupTestUsers \
+            2>&1 | tee "$DATA_DIR/yao-test-users.log"
+
+          if grep -q "__TEST_USERS_ENV_BEGIN__" "$DATA_DIR/yao-test-users.log"; then
+            sed -n '/__TEST_USERS_ENV_BEGIN__/,/__TEST_USERS_ENV_END__/p' \
+              "$DATA_DIR/yao-test-users.log" | grep -v "__TEST_USERS_ENV" \
+              > "$APP_DIR/db/.test-users.env"
+          fi
+
+      - name: Generate Tai Credentials
+        run: |
+          APP_DIR="${{ github.workspace }}/unit-test/agent/app"
+          BUILD_DIR="${{ github.workspace }}/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+          source "$APP_DIR/db/.test-users.env"
+
+          gen_cred() {
+            local TAI_ID=$1 CRED_PATH=$2
+            TOKEN=$(HOME="$DATA_DIR/fakehome" "$BUILD_DIR/ci-token" \
+              -app "$APP_DIR" \
+              -client-id "ci-$TAI_ID" \
+              -subject "ci-$TAI_ID" \
+              -user-id "$TEST_ROOT_USER_ID" \
+              -team-id "$TEST_ROOT_TEAM_ID" \
+              -scope "tai:tunnel" \
+              -ttl "24h" 2>/dev/null)
+            JSON="{\"client_id\":\"ci-${TAI_ID}\",\"tai_id\":\"\",\"machine_id\":\"ci-${TAI_ID}\",\"server\":\"http://127.0.0.1:${YAO_PORT}\",\"yao_grpc_addr\":\"127.0.0.1:${YAO_GRPC_PORT}\",\"access_token\":\"${TOKEN}\",\"scope\":\"tai:tunnel\",\"expires_at\":\"2099-01-01T00:00:00Z\",\"registered\":false}"
+            mkdir -p "$(dirname "$CRED_PATH")"
+            printf '%s' "$JSON" | base64 | tr -d '\n' > "$CRED_PATH"
+          }
+
+          gen_cred "tai-docker" "$DATA_DIR/tai-docker/credentials"
+          gen_cred "tai-hostexec" "$DATA_DIR/tai-hostexec/credentials"
+
+      - name: Start Tai Instances
+        run: |
+          BUILD_DIR="${{ github.workspace }}/.build/test"
+          DATA_DIR="$BUILD_DIR/data"
+
+          TAI_CREDENTIALS="$DATA_DIR/tai-docker/credentials" \
+            "$BUILD_DIR/tai" server \
+              -grpc "127.0.0.1:$TAI_DOCKER_GRPC_PORT" \
+              -data "$DATA_DIR/tai-docker" \
+              -display-name "ci-tai-docker" \
+              "http://127.0.0.1:$YAO_PORT" \
+            > "$DATA_DIR/tai-docker.log" 2>&1 &
+          echo $! > "$DATA_DIR/pids/tai-docker.pid"
+
+          TAI_CREDENTIALS="$DATA_DIR/tai-hostexec/credentials" \
+            "$BUILD_DIR/tai" server \
+              -host-exec \
+              -grpc "127.0.0.1:$TAI_HOSTEXEC_GRPC_PORT" \
+              -data "$DATA_DIR/tai-hostexec" \
+              -display-name "ci-tai-hostexec" \
+              "http://127.0.0.1:$YAO_PORT" \
+            > "$DATA_DIR/tai-hostexec.log" 2>&1 &
+          echo $! > "$DATA_DIR/pids/tai-hostexec.pid"
+
+          sleep 5
+          for name in tai-docker tai-hostexec; do
+            pid=$(cat "$DATA_DIR/pids/${name}.pid" 2>/dev/null)
+            if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+              echo "$name is running (PID $pid)"
+            else
+              echo "::error::$name failed to start"
+              cat "$DATA_DIR/${name}.log"
+              exit 1
+            fi
+          done
+
+      - name: Verify Environment
+        run: |
+          echo "=== Environment Verification ==="
+          curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" > /dev/null && echo "mock-llm: OK"
+          curl -sf "http://127.0.0.1:$YAO_PORT/.well-known/yao" > /dev/null && echo "yao-server: OK"
+          echo "tai-docker: PID $(cat ${{ github.workspace }}/.build/test/data/pids/tai-docker.pid)"
+          echo "tai-hostexec: PID $(cat ${{ github.workspace }}/.build/test/data/pids/tai-hostexec.pid)"
+
+      - name: Run Smoke Test
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: alpine:latest
+        run: |
+          source "${{ github.workspace }}/unit-test/agent/app/db/.test-users.env" 2>/dev/null || true
+          go test -v -count=1 -timeout 120s -run TestEnvironmentReady ./agent
+
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-test-logs
+          path: |
+            ${{ github.workspace }}/.build/test/data/*.log
+            ${{ github.workspace }}/unit-test/agent/app/logs/

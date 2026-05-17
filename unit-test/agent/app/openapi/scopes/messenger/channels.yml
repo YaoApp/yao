@@ -1,0 +1,10 @@
+# Channels - Messenger Channel Management
+# namespace: messenger
+# resource: channels
+# actions: read
+# levels: all
+
+messenger:channels:read:all:
+  description: "Read all available messenger channels"
+  endpoints:
+    - GET /messenger/channels

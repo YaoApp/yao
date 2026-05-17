@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -23,7 +25,8 @@ func TestRunGoalsBasic(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -79,7 +82,8 @@ func TestRunGoalsHumanTrigger(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -154,7 +158,8 @@ func TestRunGoalsEventTrigger(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -200,7 +205,8 @@ func TestRunGoalsErrorHandling(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -274,7 +280,8 @@ func TestRunGoalsFallbackBehavior(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -303,7 +310,8 @@ func TestParseDeliveryFromGoalsResponse(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())

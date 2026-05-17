@@ -17,7 +17,7 @@ import (
 
 // TestLoadStoreWithSource tests loading assistant from database with Source field
 func TestLoadStoreWithSource(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create assistant with Source
@@ -101,7 +101,7 @@ function Create(ctx, messages) {
 
 // TestLoadStoreWithoutSource tests loading assistant from database without Source field
 func TestLoadStoreWithoutSource(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create assistant without Source
@@ -205,7 +205,7 @@ func newStoreTestContext(chatID, assistantID string) *context.Context {
 
 // TestLoadStoreWithSourceExecuteHook tests that Source-based script is properly compiled and can execute
 func TestLoadStoreWithSourceExecuteHook(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create assistant with a working Create hook
@@ -284,7 +284,7 @@ function Create(ctx: any, messages: any[]): any {
 
 // TestLoadStoreWithPromptPresets tests loading assistant with prompt presets from database
 func TestLoadStoreWithPromptPresets(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-with-presets"
@@ -354,7 +354,7 @@ func TestLoadStoreWithPromptPresets(t *testing.T) {
 
 // TestLoadStoreWithDisableGlobalPrompts tests loading assistant with disable_global_prompts flag
 func TestLoadStoreWithDisableGlobalPrompts(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-disable-global"
@@ -397,7 +397,7 @@ func TestLoadStoreWithDisableGlobalPrompts(t *testing.T) {
 
 // TestLoadStoreCaching tests that loaded assistants are cached
 func TestLoadStoreCaching(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-caching"
@@ -443,7 +443,7 @@ func TestLoadStoreCaching(t *testing.T) {
 
 // TestLoadStoreNotFound tests loading non-existent assistant
 func TestLoadStoreNotFound(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistant.GetCache().Clear()
@@ -454,7 +454,7 @@ func TestLoadStoreNotFound(t *testing.T) {
 
 // TestLoadStoreWithAllFields tests loading assistant with comprehensive fields
 func TestLoadStoreWithAllFields(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-all-fields"
@@ -600,7 +600,7 @@ function Create(ctx: any, messages: any[]): any {
 
 // TestLoadStoreHookWithTypeScript tests that TypeScript features work in Source field
 func TestLoadStoreHookWithTypeScript(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-typescript-hook"
@@ -724,7 +724,7 @@ function Create(ctx: CreateContext, messages: Message[]): CreateResponse | null 
 
 // TestLoadStoreHookReturnNull tests that hook returning null works correctly
 func TestLoadStoreHookReturnNull(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-hook-null"
@@ -775,7 +775,7 @@ function Create(ctx: any, messages: any[]): any {
 
 // TestLoadStoreHookWithPromptPreset tests that hook can return prompt_preset
 func TestLoadStoreHookWithPromptPreset(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-hook-preset"
@@ -871,7 +871,7 @@ function Create(ctx: any, messages: any[]): any {
 
 // TestLoadStoreHookDisableGlobalPrompts tests that hook can disable global prompts
 func TestLoadStoreHookDisableGlobalPrompts(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-hook-disable-global"
@@ -947,7 +947,7 @@ function Create(ctx: any, messages: any[]): any {
 
 // TestLoadStoreWithSearchConfig tests loading assistant with search configuration from database
 func TestLoadStoreWithSearchConfig(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-with-search"
@@ -1089,7 +1089,7 @@ func TestLoadStoreWithSearchConfig(t *testing.T) {
 
 // TestLoadStoreWithPartialSearchConfig tests loading assistant with partial search configuration
 func TestLoadStoreWithPartialSearchConfig(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-partial-search"
@@ -1149,7 +1149,7 @@ func TestLoadStoreWithPartialSearchConfig(t *testing.T) {
 
 // TestLoadStoreWithoutSearchConfig tests loading assistant without search configuration
 func TestLoadStoreWithoutSearchConfig(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	assistantID := "test.store-no-search"

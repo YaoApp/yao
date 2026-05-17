@@ -9,7 +9,7 @@ import (
 )
 
 func TestLoadProcessIntegration(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// After testutils.Prepare, all assistants should be loaded and scripts registered
@@ -89,7 +89,7 @@ func TestLoadProcessIntegration(t *testing.T) {
 }
 
 func TestLoadProcessMultipleAssistants(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Test that multiple assistants can have their scripts registered

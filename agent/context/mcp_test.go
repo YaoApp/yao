@@ -6,7 +6,7 @@ import (
 
 	"github.com/yaoapp/gou/mcp/types"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -27,7 +27,7 @@ func newTestMCPContext() *context.Context {
 
 // TestListResources tests the ListResources function
 func TestListResources(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -64,7 +64,7 @@ func TestListResources(t *testing.T) {
 
 // TestReadResource tests the ReadResource function
 func TestReadResource(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -106,7 +106,7 @@ func TestReadResource(t *testing.T) {
 
 // TestListTools tests the ListTools function
 func TestListTools(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -145,7 +145,7 @@ func TestListTools(t *testing.T) {
 
 // TestCallTool tests the CallTool function
 func TestCallTool(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -212,7 +212,7 @@ func TestCallTool(t *testing.T) {
 
 // TestCallTools tests the CallTools function (sequential)
 func TestCallTools(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -256,7 +256,7 @@ func TestCallTools(t *testing.T) {
 
 // TestCallToolsParallel tests the CallToolsParallel function
 func TestCallToolsParallel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -294,7 +294,7 @@ func TestCallToolsParallel(t *testing.T) {
 
 // TestListPrompts tests the ListPrompts function
 func TestListPrompts(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -330,7 +330,7 @@ func TestListPrompts(t *testing.T) {
 
 // TestGetPrompt tests the GetPrompt function
 func TestGetPrompt(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -377,7 +377,7 @@ func TestGetPrompt(t *testing.T) {
 
 // TestListSamples tests the ListSamples function
 func TestListSamples(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -419,7 +419,7 @@ func TestListSamples(t *testing.T) {
 
 // TestGetSample tests the GetSample function
 func TestGetSample(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()
@@ -461,7 +461,7 @@ func TestGetSample(t *testing.T) {
 
 // TestMCPWithTrace tests MCP operations with trace
 func TestMCPWithTrace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := newTestMCPContext()

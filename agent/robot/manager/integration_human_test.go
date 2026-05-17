@@ -28,7 +28,7 @@ func TestIntegrationHumanIntervention(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -130,7 +130,7 @@ func TestIntegrationHumanInterventionErrors(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -258,7 +258,7 @@ func TestIntegrationHumanInterventionMultimodal(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -358,7 +358,7 @@ func TestIntegrationHumanInterventionAllActions(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -411,7 +411,7 @@ func TestIntegrationHumanInterventionPlanAdd(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)

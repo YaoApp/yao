@@ -27,7 +27,7 @@ func TestSerperProviderWithAssistantConfig(t *testing.T) {
 	}
 	skipIfNoSerperKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant to get its config
@@ -91,7 +91,7 @@ func TestSerperProviderWithSiteRestriction(t *testing.T) {
 	}
 	skipIfNoSerperKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -137,7 +137,7 @@ func TestSerperProviderWithMultipleSites(t *testing.T) {
 	}
 	skipIfNoSerperKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -187,7 +187,7 @@ func TestSerperProviderWithTimeRange(t *testing.T) {
 	}
 	skipIfNoSerperKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -270,7 +270,7 @@ func TestSerperProviderMaxResults(t *testing.T) {
 	}
 	skipIfNoSerperKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant

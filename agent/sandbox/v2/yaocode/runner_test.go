@@ -11,10 +11,12 @@ import (
 	"github.com/yaoapp/yao/agent/caller"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	sandboxtestutils "github.com/yaoapp/yao/agent/sandbox/v2/testutils"
+	"github.com/yaoapp/yao/agent/testutils"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 )
 
 func TestSandboxV2_Yao_JSAPI(t *testing.T) {
+	testutils.SkipWithoutTai(t, "TAI_TEST_GRPC")
 	sandboxtestutils.Prepare(t)
 	defer sandboxtestutils.Clean(t)
 

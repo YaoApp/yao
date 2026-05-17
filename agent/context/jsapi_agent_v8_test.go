@@ -22,7 +22,7 @@ func TestAgent_Call_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create authorized info for the context
@@ -83,7 +83,7 @@ func TestAgent_Call_WithOptions_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -138,7 +138,7 @@ func TestAgent_All_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -202,7 +202,7 @@ func TestAgent_Any_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -265,7 +265,7 @@ func TestAgent_Race_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -328,7 +328,7 @@ func TestAgent_ErrorHandling_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -374,7 +374,7 @@ func TestAgent_EmptyRequests_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -413,7 +413,7 @@ func TestAgent_InvalidArguments_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -454,7 +454,7 @@ func TestAgent_Call_WithCallback_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -533,7 +533,7 @@ func TestAgent_Call_WithCallback_Stop_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -597,7 +597,7 @@ func TestAgent_All_WithGlobalCallback_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{

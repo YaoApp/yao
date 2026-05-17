@@ -18,7 +18,7 @@ func TestMCP_All_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -104,7 +104,7 @@ func TestMCP_All_WithError_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -190,7 +190,7 @@ func TestMCP_Any_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -244,7 +244,7 @@ func TestMCP_Any_AllFail_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -298,7 +298,7 @@ func TestMCP_Race_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -352,7 +352,7 @@ func TestMCP_All_ResultContent_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -434,7 +434,7 @@ func TestMCP_All_MultipleTools_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -495,7 +495,7 @@ func TestMCP_CallTool_ParsedResult_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{
@@ -565,7 +565,7 @@ func TestMCP_CallToolsParallel_ParsedResult_V8(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	authorized := &types.AuthorizedInfo{

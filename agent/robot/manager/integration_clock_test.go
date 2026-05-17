@@ -41,7 +41,7 @@ func TestIntegrationClockTimesMode(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -231,7 +231,7 @@ func TestIntegrationClockIntervalMode(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -355,7 +355,7 @@ func TestIntegrationClockDaemonMode(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -429,7 +429,7 @@ func TestIntegrationClockTimezone(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -518,7 +518,7 @@ func TestIntegrationClockEdgeCases(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)

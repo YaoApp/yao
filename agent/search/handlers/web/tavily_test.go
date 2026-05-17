@@ -17,7 +17,7 @@ func TestTavilyProviderWithAssistantConfig(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-tavily test assistant to get its config
@@ -80,7 +80,7 @@ func TestTavilyProviderWithSiteRestriction(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-tavily test assistant
@@ -171,7 +171,7 @@ func TestTavilyProviderMaxResults(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-tavily test assistant

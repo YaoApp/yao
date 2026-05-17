@@ -19,7 +19,7 @@ func TestExecutionStoreSave(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Clean up any existing test data
@@ -101,7 +101,7 @@ func TestExecutionStoreGet(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -149,7 +149,7 @@ func TestExecutionStoreList(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -274,7 +274,7 @@ func TestExecutionStoreUpdatePhase(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -391,7 +391,7 @@ func TestExecutionStoreUpdateStatus(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -501,7 +501,7 @@ func TestExecutionStoreUpdateCurrent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -546,7 +546,7 @@ func TestExecutionStoreUpdateUIFields(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -645,7 +645,7 @@ func TestExecutionStoreUpdateTasks(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -800,7 +800,7 @@ func TestExecutionStoreDelete(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -851,7 +851,7 @@ func TestExecutionRecordConversion(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("converts_from_execution", func(t *testing.T) {
@@ -1067,7 +1067,7 @@ func TestExecutionStoreListResults(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -1147,7 +1147,7 @@ func TestExecutionStoreCountResults(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)
@@ -1191,7 +1191,7 @@ func TestExecutionStoreListActivities(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestExecutions(t)

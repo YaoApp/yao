@@ -52,7 +52,7 @@ func TestJSAPI_Web_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_KB(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -70,7 +70,7 @@ func TestJSAPI_KB(t *testing.T) {
 }
 
 func TestJSAPI_KB_WithOptions(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -94,7 +94,7 @@ func TestJSAPI_KB_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_DB(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -112,7 +112,7 @@ func TestJSAPI_DB(t *testing.T) {
 }
 
 func TestJSAPI_DB_WithOptions(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -135,7 +135,7 @@ func TestJSAPI_DB_WithOptions(t *testing.T) {
 }
 
 func TestJSAPI_All(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -171,7 +171,7 @@ func TestJSAPI_All(t *testing.T) {
 }
 
 func TestJSAPI_Any(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{
@@ -205,7 +205,7 @@ func TestJSAPI_Any(t *testing.T) {
 }
 
 func TestJSAPI_Race(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	api := search.NewJSAPI(nil, &types.Config{

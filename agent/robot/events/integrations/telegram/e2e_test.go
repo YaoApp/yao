@@ -158,7 +158,7 @@ func TestE2E_Adapter_Apply_Update(t *testing.T) {
 // and processes them through handleMessages.
 func TestE2E_Adapter_PollAll(t *testing.T) {
 	skipIfNoToken(t)
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	pending := confirmPendingUpdates(t)
@@ -229,7 +229,7 @@ func TestE2E_Adapter_Dedup(t *testing.T) {
 // GetUpdates → ConvertedMessage → handleMessages → event.Push
 func TestE2E_Adapter_HandleMessages_Integration(t *testing.T) {
 	skipIfNoToken(t)
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	b := newTestBot()

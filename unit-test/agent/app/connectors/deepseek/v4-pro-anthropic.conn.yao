@@ -1,0 +1,14 @@
+{
+  "label": "DeepSeek V4 Pro (Anthropic)",
+  "type": "anthropic",
+  "options": {
+    "model": "deepseek-v4-pro",
+    "host": "https://api.deepseek.com",
+    "key": "$ENV.DEEPSEEK_V4_API_KEY",
+    "thinking": { "type": "disabled" },
+    "capabilities": {
+      "tool_calls": true,
+      "streaming": true
+    }
+  }
+}

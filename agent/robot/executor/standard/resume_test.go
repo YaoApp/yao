@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -37,7 +39,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		e := standard.New()
@@ -55,7 +58,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())
@@ -83,7 +87,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())
@@ -117,7 +122,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())
@@ -146,7 +152,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())
@@ -186,7 +193,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		// Use robot-need-input assistant that suspends
@@ -218,7 +226,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())
@@ -252,7 +261,8 @@ func TestResume(t *testing.T) {
 			t.Skip("Requires database")
 		}
 
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 		defer testutils.Clean(t)
 
 		ctx := types.NewContext(context.Background(), testAuth())

@@ -18,7 +18,7 @@ func TestIntegration_Call_RealAgent(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the simple-greeting agent
@@ -75,7 +75,7 @@ func TestIntegration_All_RealAgents(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create authorized info for the context
@@ -140,7 +140,7 @@ func TestIntegration_Any_RealAgents(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create authorized info for the context
@@ -211,7 +211,7 @@ func TestIntegration_Race_RealAgents(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create authorized info for the context

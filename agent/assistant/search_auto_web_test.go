@@ -38,7 +38,7 @@ func newSearchAutoTestContext(chatID, assistantID string) *context.Context {
 }
 
 func TestSearchAutoWeb(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/search-auto-web")

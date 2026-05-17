@@ -24,7 +24,7 @@ func TestManagerStartStop(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -82,7 +82,7 @@ func TestManagerTick(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -217,7 +217,7 @@ func TestManagerTriggerManual(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -290,7 +290,7 @@ func TestManagerClockModes(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -369,7 +369,7 @@ func TestManagerTimezoneDedup(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -516,7 +516,7 @@ func TestManagerGoroutineLeak(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -564,7 +564,7 @@ func TestManagerComponents(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -898,7 +898,7 @@ func TestManagerIntervene(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -1031,7 +1031,7 @@ func TestManagerHandleEvent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -1137,7 +1137,7 @@ func TestManagerExecutionControl(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)
@@ -1409,7 +1409,7 @@ func TestManagerLazyLoadNonAutonomous(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupTestRobots(t)

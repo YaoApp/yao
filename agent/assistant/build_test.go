@@ -41,7 +41,7 @@ func newTestContext(chatID, assistantID string) *context.Context {
 
 // TestBuildRequest tests the BuildRequest function
 func TestBuildRequest(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.buildrequest")

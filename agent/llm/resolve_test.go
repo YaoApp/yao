@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/setting"
 	"github.com/yaoapp/yao/test"
@@ -31,7 +32,7 @@ func (m *mockIdentity) GetTeamID() string { return m.TeamID }
 
 func setupResolveTest(t *testing.T) string {
 	t.Helper()
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 
 	err := setting.Init()
 	require.NoError(t, err)
@@ -108,7 +109,7 @@ func TestResolveConnector_UseLightWithIdentity(t *testing.T) {
 }
 
 func TestResolveConnector_UseLightNoProvider(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	saved := llmprovider.Global

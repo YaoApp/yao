@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -22,7 +24,8 @@ func TestFormatAvailableResourcesIntegration(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	formatter := standard.NewInputFormatter()
@@ -266,7 +269,8 @@ func TestFormatAvailableResourcesTableFormat(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	formatter := standard.NewInputFormatter()
@@ -305,7 +309,8 @@ func TestFormatClockContextWithRobotIntegration(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	formatter := standard.NewInputFormatter()

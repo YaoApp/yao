@@ -37,7 +37,7 @@ func newSearchAutoDisabledTestContext(chatID, assistantID string) *context.Conte
 }
 
 func TestSearchAutoDisabled(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/search-auto-disabled")

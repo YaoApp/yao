@@ -18,7 +18,7 @@ import (
 // BenchmarkSimpleStandardMode benchmarks simple scenario in standard V8 mode
 // Run with: go test -bench=BenchmarkSimpleStandardMode -benchmem -benchtime=100x
 func BenchmarkSimpleStandardMode(b *testing.B) {
-	testutils.Prepare(&testing.T{})
+	testutils.PrepareAgent(&testing.T{})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -45,7 +45,7 @@ func BenchmarkSimpleStandardMode(b *testing.B) {
 // BenchmarkSimplePerformanceMode benchmarks simple scenario in performance V8 mode
 // Run with: go test -bench=BenchmarkSimplePerformanceMode -benchmem -benchtime=100x
 func BenchmarkSimplePerformanceMode(b *testing.B) {
-	testutils.Prepare(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -76,7 +76,7 @@ func BenchmarkSimplePerformanceMode(b *testing.B) {
 // BenchmarkBusinessStandardMode benchmarks business scenarios in standard V8 mode
 // Run with: go test -bench=BenchmarkBusinessStandardMode -benchmem -benchtime=100x
 func BenchmarkBusinessStandardMode(b *testing.B) {
-	testutils.Prepare(&testing.T{})
+	testutils.PrepareAgent(&testing.T{})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -106,7 +106,7 @@ func BenchmarkBusinessStandardMode(b *testing.B) {
 // BenchmarkBusinessPerformanceMode benchmarks business scenarios in performance V8 mode
 // Run with: go test -bench=BenchmarkBusinessPerformanceMode -benchmem -benchtime=100x
 func BenchmarkBusinessPerformanceMode(b *testing.B) {
-	testutils.Prepare(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -141,7 +141,7 @@ func BenchmarkBusinessPerformanceMode(b *testing.B) {
 // Simulates concurrent users with isolate creation/disposal per request
 // Run with: go test -bench=BenchmarkConcurrentSimpleStandardMode -benchmem -benchtime=100x
 func BenchmarkConcurrentSimpleStandardMode(b *testing.B) {
-	testutils.Prepare(&testing.T{})
+	testutils.PrepareAgent(&testing.T{})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -173,7 +173,7 @@ func BenchmarkConcurrentSimpleStandardMode(b *testing.B) {
 // Simulates 100 users simultaneously using the system with isolate pool
 // Run with: go test -bench=BenchmarkConcurrentSimplePerformanceMode -benchmem -benchtime=100x
 func BenchmarkConcurrentSimplePerformanceMode(b *testing.B) {
-	testutils.Prepare(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -205,7 +205,7 @@ func BenchmarkConcurrentSimplePerformanceMode(b *testing.B) {
 // Tests various scenarios with concurrent users and isolate creation/disposal per request
 // Run with: go test -bench=BenchmarkConcurrentBusinessStandardMode -benchmem -benchtime=100x
 func BenchmarkConcurrentBusinessStandardMode(b *testing.B) {
-	testutils.Prepare(&testing.T{})
+	testutils.PrepareAgent(&testing.T{})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")
@@ -240,7 +240,7 @@ func BenchmarkConcurrentBusinessStandardMode(b *testing.B) {
 // Tests various scenarios with 100 concurrent users with isolate pool
 // Run with: go test -bench=BenchmarkConcurrentBusinessPerformanceMode -benchmem -benchtime=100x
 func BenchmarkConcurrentBusinessPerformanceMode(b *testing.B) {
-	testutils.Prepare(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(&testing.T{}, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(&testing.T{})
 
 	agent, err := assistant.Get("tests.create")

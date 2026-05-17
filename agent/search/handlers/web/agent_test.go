@@ -20,7 +20,7 @@ func TestAgentProviderWithAssistantConfig(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-agent-caller test assistant to get its config
@@ -83,7 +83,7 @@ func TestAgentProviderWithSiteRestriction(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create AgentProvider
@@ -125,7 +125,7 @@ func TestAgentProviderWithTimeRange(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create AgentProvider
@@ -160,7 +160,7 @@ func TestAgentProviderNotFound(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create AgentProvider with non-existent agent
@@ -190,7 +190,7 @@ func TestAgentProviderWithoutContext(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create AgentProvider
@@ -218,7 +218,7 @@ func TestWebHandlerAgentMode(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create handler with agent mode

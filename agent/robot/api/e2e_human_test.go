@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // End-to-end tests for Human intervention trigger flow
@@ -43,7 +45,8 @@ func TestE2EHumanTriggerFullFlow(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -151,7 +154,8 @@ func TestE2EHumanTriggerWithMultimodalInput(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -224,7 +228,8 @@ func TestE2EHumanTriggerAllActions(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)

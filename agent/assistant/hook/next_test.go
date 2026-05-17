@@ -54,7 +54,7 @@ func newTestContextForNext(chatID, assistantID string) *context.Context {
 
 // TestNext tests the Next hook
 func TestNext(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.next")

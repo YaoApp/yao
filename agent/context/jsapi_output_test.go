@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -43,7 +43,7 @@ func (m *testMockResponseWriter) WriteHeader(statusCode int) {
 // TestJsValueSend test the Send method on Context
 func TestJsValueSend(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -109,7 +109,7 @@ func TestJsValueSend(t *testing.T) {
 // TestJsValueSendDeltaUpdates test delta updates in Send
 func TestJsValueSendDeltaUpdates(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -160,7 +160,7 @@ func TestJsValueSendDeltaUpdates(t *testing.T) {
 // TestJsValueSendMultipleTypes test sending different message types
 func TestJsValueSendMultipleTypes(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -239,7 +239,7 @@ func TestJsValueSendMultipleTypes(t *testing.T) {
 // TestJsValueSendErrorHandling test error handling in Send
 func TestJsValueSendErrorHandling(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -274,7 +274,7 @@ func TestJsValueSendErrorHandling(t *testing.T) {
 // TestJsValueSendWithCUIAccept test Send with CUI accept types
 func TestJsValueSendWithCUIAccept(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	acceptTypes := []context.Accept{context.AcceptWebCUI, context.AccepNativeCUI, context.AcceptDesktopCUI}
@@ -316,7 +316,7 @@ func TestJsValueSendWithCUIAccept(t *testing.T) {
 // TestJsValueSendChainedCalls test chained Send calls
 func TestJsValueSendChainedCalls(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -353,7 +353,7 @@ func TestJsValueSendChainedCalls(t *testing.T) {
 // TestJsValueIDGenerators test ID generator methods
 func TestJsValueIDGenerators(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -426,7 +426,7 @@ func TestJsValueIDGenerators(t *testing.T) {
 // TestJsValueSendWithBlockID test Send with block_id parameter
 func TestJsValueSendWithBlockID(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -479,7 +479,7 @@ func TestJsValueSendWithBlockID(t *testing.T) {
 // TestJsValueReplace test ctx.Replace method
 func TestJsValueReplace(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -522,7 +522,7 @@ func TestJsValueReplace(t *testing.T) {
 // TestJsValueAppend test ctx.Append method
 func TestJsValueAppend(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -568,7 +568,7 @@ func TestJsValueAppend(t *testing.T) {
 // TestJsValueMerge test ctx.Merge method
 func TestJsValueMerge(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -622,7 +622,7 @@ func TestJsValueMerge(t *testing.T) {
 // TestJsValueSet test ctx.Set method
 func TestJsValueSet(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -676,7 +676,7 @@ func TestJsValueSet(t *testing.T) {
 // TestJsValueBlockIDInheritance test that delta operations inherit block_id
 func TestJsValueBlockIDInheritance(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -726,7 +726,7 @@ func TestJsValueBlockIDInheritance(t *testing.T) {
 // TestJsValueEndBlock tests the EndBlock method on Context
 func TestJsValueEndBlock(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Setup mock writer
@@ -782,7 +782,7 @@ func TestJsValueEndBlock(t *testing.T) {
 // TestJsValueSendStream tests the SendStream method on Context
 func TestJsValueSendStream(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Setup mock writer
@@ -840,7 +840,7 @@ func TestJsValueSendStream(t *testing.T) {
 // TestJsValueSendStreamWithBlockID tests SendStream with block_id parameter
 func TestJsValueSendStreamWithBlockID(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -890,7 +890,7 @@ func TestJsValueSendStreamWithBlockID(t *testing.T) {
 // TestJsValueEnd tests the End method on Context
 func TestJsValueEnd(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -942,7 +942,7 @@ func TestJsValueEnd(t *testing.T) {
 // TestJsValueEndWithFinalContent tests End with final content parameter
 func TestJsValueEndWithFinalContent(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -994,7 +994,7 @@ func TestJsValueEndWithFinalContent(t *testing.T) {
 // TestJsValueStreamingWorkflow tests the complete streaming workflow: SendStream -> Append -> End
 func TestJsValueStreamingWorkflow(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1057,7 +1057,7 @@ func TestJsValueStreamingWorkflow(t *testing.T) {
 // TestJsValueSendStreamStringShorthand tests SendStream with string shorthand
 func TestJsValueSendStreamStringShorthand(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1099,7 +1099,7 @@ func TestJsValueSendStreamStringShorthand(t *testing.T) {
 // TestJsValueEndErrorHandling tests error handling in End method
 func TestJsValueEndErrorHandling(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1135,7 +1135,7 @@ func TestJsValueEndErrorHandling(t *testing.T) {
 // TestJsValueEndWithInvalidMessageID tests End with invalid messageId type
 func TestJsValueEndWithInvalidMessageID(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1171,7 +1171,7 @@ func TestJsValueEndWithInvalidMessageID(t *testing.T) {
 // TestJsValueSendStreamErrorHandling tests error handling in SendStream method
 func TestJsValueSendStreamErrorHandling(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1207,7 +1207,7 @@ func TestJsValueSendStreamErrorHandling(t *testing.T) {
 // TestJsValueMultipleStreams tests handling multiple concurrent streaming messages
 func TestJsValueMultipleStreams(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mockWriter := newTestMockResponseWriter()
@@ -1260,7 +1260,7 @@ func TestJsValueMultipleStreams(t *testing.T) {
 // TestJsValueSendVsSendStream tests the difference between Send and SendStream
 func TestJsValueSendVsSendStream(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Test Send - should auto-send message_end

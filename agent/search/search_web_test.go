@@ -19,7 +19,7 @@ import (
 // Skip: requires external API key (Tavily)
 func TestWebSearch_Tavily(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Tavily)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-tavily test assistant
@@ -62,7 +62,7 @@ func TestWebSearch_Tavily(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_Serper(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -104,7 +104,7 @@ func TestWebSearch_Serper(t *testing.T) {
 // Skip: requires external API key (SerpAPI)
 func TestWebSearch_SerpAPI(t *testing.T) {
 	t.Skip("Skipping: requires external API key (SerpAPI)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant
@@ -150,7 +150,7 @@ func TestWebSearch_SerpAPI(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_All(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -190,7 +190,7 @@ func TestWebSearch_All(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_Any(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -229,7 +229,7 @@ func TestWebSearch_Any(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_Race(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -271,7 +271,7 @@ func TestWebSearch_Race(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_BuildReferences(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant
@@ -317,7 +317,7 @@ func TestWebSearch_BuildReferences(t *testing.T) {
 // Skip: requires external API key (Serper)
 func TestWebSearch_SiteRestriction(t *testing.T) {
 	t.Skip("Skipping: requires external API key (Serper)")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serper test assistant

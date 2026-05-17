@@ -1,0 +1,30 @@
+# VNC - Sandbox VNC Access
+# namespace: sandbox
+# resource: vnc
+# actions: read
+# levels: all, own, team
+
+# ============ Read VNC Status ============
+
+sandbox:vnc:read:all:
+  description: "Access all sandbox VNC sessions"
+  endpoints:
+    - GET /sandbox/:id/vnc
+    - GET /sandbox/:id/vnc/client
+    - GET /sandbox/:id/vnc/ws
+
+sandbox:vnc:read:own:
+  owner: true
+  description: "Access own sandbox VNC sessions"
+  endpoints:
+    - GET /sandbox/:id/vnc
+    - GET /sandbox/:id/vnc/client
+    - GET /sandbox/:id/vnc/ws
+
+sandbox:vnc:read:team:
+  team: true
+  description: "Access team sandbox VNC sessions"
+  endpoints:
+    - GET /sandbox/:id/vnc
+    - GET /sandbox/:id/vnc/client
+    - GET /sandbox/:id/vnc/ws

@@ -1,0 +1,74 @@
+# Completions - Chat Completion Management
+# namespace: chat
+# resource: completions
+# actions: read, write, delete
+# levels: all, own, team
+
+# ============ Read Completions ============
+
+chat:completions:read:all:
+  description: "Read all chat completions"
+  endpoints:
+    - GET /chat/completions
+    - GET /chat/completions/:completion_id
+    - GET /chat/completions/:completion_id/messages
+
+chat:completions:read:own:
+  owner: true
+  description: "Read own chat completions"
+  endpoints:
+    - GET /chat/completions
+    - GET /chat/completions/:completion_id
+    - GET /chat/completions/:completion_id/messages
+
+chat:completions:read:team:
+  team: true
+  description: "Read team chat completions"
+  endpoints:
+    - GET /chat/completions
+    - GET /chat/completions/:completion_id
+    - GET /chat/completions/:completion_id/messages
+
+# ============ Write Completions ============
+
+chat:completions:write:all:
+  description: "Create and update all chat completions"
+  endpoints:
+    - POST /chat/completions
+    - PUT /chat/completions
+    - POST /chat/completions/:context_id/append
+
+chat:completions:write:own:
+  owner: true
+  description: "Create and update own chat completions"
+  endpoints:
+    - POST /chat/completions
+    - PUT /chat/completions
+    - POST /chat/completions/:context_id/append
+
+chat:completions:write:team:
+  team: true
+  description: "Create and update team chat completions"
+  endpoints:
+    - POST /chat/completions
+    - PUT /chat/completions
+    - POST /chat/completions/:context_id/append
+
+# ============ Delete Completions ============
+
+chat:completions:delete:all:
+  description: "Delete all chat completions"
+  endpoints:
+    - DELETE /chat/completions/:completion_id
+
+chat:completions:delete:own:
+  owner: true
+  description: "Delete own chat completions"
+  endpoints:
+    - DELETE /chat/completions/:completion_id
+
+chat:completions:delete:team:
+  team: true
+  description: "Delete team chat completions"
+  endpoints:
+    - DELETE /chat/completions/:completion_id

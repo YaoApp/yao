@@ -1,0 +1,199 @@
+# Robots - Agent Robot Management
+# namespace: agent
+# resource: robots
+# actions: read, write, delete, execute, trigger
+# levels: all, own, team
+
+# ============ Read Permissions ============
+
+agent:robots:read:all:
+  description: "Read all robots"
+  endpoints:
+    - GET /agent/robots
+    - GET /agent/robots/:id
+    - GET /agent/robots/:id/status
+    - GET /agent/robots/:id/host
+
+agent:robots:read:own:
+  owner: true
+  description: "Read own robots"
+  endpoints:
+    - GET /agent/robots
+    - GET /agent/robots/:id
+    - GET /agent/robots/:id/status
+    - GET /agent/robots/:id/host
+
+agent:robots:read:team:
+  team: true
+  description: "Read team robots"
+  endpoints:
+    - GET /agent/robots
+    - GET /agent/robots/:id
+    - GET /agent/robots/:id/status
+    - GET /agent/robots/:id/host
+
+# ============ Write Permissions ============
+
+agent:robots:write:all:
+  description: "Create and update all robots"
+  endpoints:
+    - POST /agent/robots
+    - PUT /agent/robots/:id
+    - POST /agent/robots/integrations/verify
+    - POST /agent/robots/integrations/weixin/qrcode
+    - GET /agent/robots/integrations/weixin/qrcode/:session_key
+
+agent:robots:write:own:
+  owner: true
+  description: "Create and update own robots"
+  endpoints:
+    - POST /agent/robots
+    - PUT /agent/robots/:id
+    - POST /agent/robots/integrations/verify
+    - POST /agent/robots/integrations/weixin/qrcode
+    - GET /agent/robots/integrations/weixin/qrcode/:session_key
+
+agent:robots:write:team:
+  team: true
+  description: "Create and update team robots"
+  endpoints:
+    - POST /agent/robots
+    - PUT /agent/robots/:id
+    - POST /agent/robots/integrations/verify
+    - POST /agent/robots/integrations/weixin/qrcode
+    - GET /agent/robots/integrations/weixin/qrcode/:session_key
+
+# ============ Delete Permissions ============
+
+agent:robots:delete:all:
+  description: "Delete all robots"
+  endpoints:
+    - DELETE /agent/robots/:id
+
+agent:robots:delete:own:
+  owner: true
+  description: "Delete own robots"
+  endpoints:
+    - DELETE /agent/robots/:id
+
+agent:robots:delete:team:
+  team: true
+  description: "Delete team robots"
+  endpoints:
+    - DELETE /agent/robots/:id
+
+# ============ Execution Permissions ============
+# Read and control robot executions (inherits from parent robot permission)
+
+agent:robots:execute:all:
+  description: "Read and control all robot executions"
+  endpoints:
+    - GET /agent/robots/:id/executions
+    - GET /agent/robots/:id/executions/:exec_id
+    - POST /agent/robots/:id/executions/:exec_id/pause
+    - POST /agent/robots/:id/executions/:exec_id/resume
+    - POST /agent/robots/:id/executions/:exec_id/cancel
+
+agent:robots:execute:own:
+  owner: true
+  description: "Read and control own robot executions"
+  endpoints:
+    - GET /agent/robots/:id/executions
+    - GET /agent/robots/:id/executions/:exec_id
+    - POST /agent/robots/:id/executions/:exec_id/pause
+    - POST /agent/robots/:id/executions/:exec_id/resume
+    - POST /agent/robots/:id/executions/:exec_id/cancel
+
+agent:robots:execute:team:
+  team: true
+  description: "Read and control team robot executions"
+  endpoints:
+    - GET /agent/robots/:id/executions
+    - GET /agent/robots/:id/executions/:exec_id
+    - POST /agent/robots/:id/executions/:exec_id/pause
+    - POST /agent/robots/:id/executions/:exec_id/resume
+    - POST /agent/robots/:id/executions/:exec_id/cancel
+
+# ============ Trigger Permissions ============
+# Trigger, intervene, and interact with robot executions
+
+agent:robots:trigger:all:
+  description: "Trigger, intervene, and interact with all robot executions"
+  endpoints:
+    - POST /agent/robots/:id/trigger
+    - POST /agent/robots/:id/executions/:exec_id/intervene
+    - POST /agent/robots/:id/interact
+    - POST /agent/robots/:id/executions/:exec_id/tasks/:task_id/reply
+    - POST /agent/robots/:id/executions/:exec_id/confirm
+    - POST /agent/robots/:id/completions
+    - POST /agent/robots/:id/completions/:context_id/append
+    - POST /agent/robots/:id/execute
+
+agent:robots:trigger:own:
+  owner: true
+  description: "Trigger, intervene, and interact with own robot executions"
+  endpoints:
+    - POST /agent/robots/:id/trigger
+    - POST /agent/robots/:id/executions/:exec_id/intervene
+    - POST /agent/robots/:id/interact
+    - POST /agent/robots/:id/executions/:exec_id/tasks/:task_id/reply
+    - POST /agent/robots/:id/executions/:exec_id/confirm
+    - POST /agent/robots/:id/completions
+    - POST /agent/robots/:id/completions/:context_id/append
+    - POST /agent/robots/:id/execute
+
+agent:robots:trigger:team:
+  team: true
+  description: "Trigger, intervene, and interact with team robot executions"
+  endpoints:
+    - POST /agent/robots/:id/trigger
+    - POST /agent/robots/:id/executions/:exec_id/intervene
+    - POST /agent/robots/:id/interact
+    - POST /agent/robots/:id/executions/:exec_id/tasks/:task_id/reply
+    - POST /agent/robots/:id/executions/:exec_id/confirm
+    - POST /agent/robots/:id/completions
+    - POST /agent/robots/:id/completions/:context_id/append
+    - POST /agent/robots/:id/execute
+
+# ============ Results Permissions ============
+# Read robot execution results (completed executions with delivery content)
+
+agent:robots:results:all:
+  description: "Read all robot results"
+  endpoints:
+    - GET /agent/robots/:id/results
+    - GET /agent/robots/:id/results/:result_id
+
+agent:robots:results:own:
+  owner: true
+  description: "Read own robot results"
+  endpoints:
+    - GET /agent/robots/:id/results
+    - GET /agent/robots/:id/results/:result_id
+
+agent:robots:results:team:
+  team: true
+  description: "Read team robot results"
+  endpoints:
+    - GET /agent/robots/:id/results
+    - GET /agent/robots/:id/results/:result_id
+
+# ============ Activities Permissions ============
+# Read team robot activities (cross-robot activity feed)
+
+agent:robots:activities:all:
+  description: "Read all robot activities"
+  endpoints:
+    - GET /agent/robots/activities
+
+agent:robots:activities:own:
+  owner: true
+  description: "Read own robot activities"
+  endpoints:
+    - GET /agent/robots/activities
+
+agent:robots:activities:team:
+  team: true
+  description: "Read team robot activities"
+  endpoints:
+    - GET /agent/robots/activities

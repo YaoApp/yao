@@ -26,7 +26,7 @@ func TestRealWorldSimpleScenario(t *testing.T) {
 		t.Skip("Skipping real world test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -57,7 +57,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 		t.Skip("Skipping real world test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -227,7 +227,7 @@ func TestRealWorldTraceIntensive(t *testing.T) {
 		t.Skip("Skipping real world test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -260,7 +260,7 @@ func TestRealWorldStressSimple(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -320,7 +320,7 @@ func TestRealWorldStressMCP(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -410,7 +410,7 @@ func TestRealWorldStressFullWorkflow(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -490,7 +490,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")
@@ -641,7 +641,7 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld")

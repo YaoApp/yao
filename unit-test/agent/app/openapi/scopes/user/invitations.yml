@@ -1,0 +1,49 @@
+# Invitations - Team Invitation Management
+# namespace: user
+# resource: invitations
+# actions: read, write, delete
+# levels: own, team
+
+# ============ User Context - Manage Own Team Invitations ============
+
+user:invitations:read:own:
+  owner: true
+  description: "Read invitations of own teams (where user is owner)"
+  endpoints:
+    - GET /user/teams/:id/invitations
+    - GET /user/teams/:id/invitations/:invitation_id
+
+user:invitations:write:own:
+  owner: true
+  description: "Create and resend invitations for own teams"
+  endpoints:
+    - POST /user/teams/:id/invitations
+    - PUT /user/teams/:id/invitations/:invitation_id/resend
+
+user:invitations:delete:own:
+  owner: true
+  description: "Cancel invitations from own teams"
+  endpoints:
+    - DELETE /user/teams/:id/invitations/:invitation_id
+
+# ============ Team Context - Manage Current Team Invitations ============
+
+user:invitations:read:team:
+  team: true
+  description: "Read current team invitations"
+  endpoints:
+    - GET /user/teams/:id/invitations
+    - GET /user/teams/:id/invitations/:invitation_id
+
+user:invitations:write:team:
+  team: true
+  description: "Create and resend invitations for current team"
+  endpoints:
+    - POST /user/teams/:id/invitations
+    - PUT /user/teams/:id/invitations/:invitation_id/resend
+
+user:invitations:delete:team:
+  team: true
+  description: "Cancel invitations from current team"
+  endpoints:
+    - DELETE /user/teams/:id/invitations/:invitation_id

@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -37,7 +37,7 @@ func parseCompletionRequestData(c *gin.Context) (*context.CompletionRequest, err
 }
 
 func TestGetMessages_FromBody(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -84,7 +84,7 @@ func TestGetMessages_FromBody(t *testing.T) {
 }
 
 func TestGetMessages_FromQuery(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -118,7 +118,7 @@ func TestGetMessages_FromQuery(t *testing.T) {
 }
 
 func TestGetMessages_EmptyMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -145,7 +145,7 @@ func TestGetMessages_EmptyMessages(t *testing.T) {
 }
 
 func TestGetChatID_FromQuery(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -173,7 +173,7 @@ func TestGetChatID_FromQuery(t *testing.T) {
 }
 
 func TestGetChatID_FromHeader(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -202,7 +202,7 @@ func TestGetChatID_FromHeader(t *testing.T) {
 }
 
 func TestGetChatID_FromMetadata(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -245,7 +245,7 @@ func TestGetChatID_FromMetadata(t *testing.T) {
 }
 
 func TestGetChatID_FromMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -327,7 +327,7 @@ func TestGetChatID_FromMessages(t *testing.T) {
 }
 
 func TestGetChatID_Priority(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -845,7 +845,7 @@ func TestGetMetadata_EmptyData(t *testing.T) {
 }
 
 func TestGetCompletionRequest_WriterInitialized(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -912,7 +912,7 @@ func TestGetCompletionRequest_WriterInitialized(t *testing.T) {
 }
 
 func TestGetCompletionRequest_ChatIDFallback(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1106,7 +1106,7 @@ func TestGetSkip_OnlyHistorySet(t *testing.T) {
 }
 
 func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1171,7 +1171,7 @@ func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
 }
 
 func TestGetMode_FromQuery(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1188,7 +1188,7 @@ func TestGetMode_FromQuery(t *testing.T) {
 }
 
 func TestGetMode_FromHeader(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1206,7 +1206,7 @@ func TestGetMode_FromHeader(t *testing.T) {
 }
 
 func TestGetMode_FromMetadata(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1229,7 +1229,7 @@ func TestGetMode_FromMetadata(t *testing.T) {
 }
 
 func TestGetMode_Priority(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)
@@ -1254,7 +1254,7 @@ func TestGetMode_Priority(t *testing.T) {
 }
 
 func TestGetMode_Empty(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	gin.SetMode(gin.TestMode)

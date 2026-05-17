@@ -11,7 +11,7 @@ import (
 
 // TestSandboxDebugHasSandbox tests the HasSandbox method directly
 func TestSandboxDebugHasSandbox(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	testCases := []struct {
@@ -55,7 +55,7 @@ func TestSandboxDebugHasSandbox(t *testing.T) {
 
 // TestSandboxDebugPrompts tests if Prompts is set (affects execution path)
 func TestSandboxDebugPrompts(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("tests.sandbox.basic")

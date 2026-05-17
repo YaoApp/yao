@@ -246,7 +246,7 @@ func TestConfigCreated_RobotNotInCache(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	setupEventBus(t)

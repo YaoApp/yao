@@ -14,6 +14,7 @@ import (
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/test"
 )
@@ -30,7 +31,7 @@ func TestMain(m *testing.M) {
 
 // TestSaveAssistant tests creating and updating assistants
 func TestSaveAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create a new xun store
@@ -1364,7 +1365,7 @@ func TestSaveAssistant(t *testing.T) {
 
 // TestDeleteAssistant tests deleting a single assistant
 func TestDeleteAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1411,7 +1412,7 @@ func TestDeleteAssistant(t *testing.T) {
 
 // TestGetAssistant tests retrieving a single assistant
 func TestGetAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1478,7 +1479,7 @@ func TestGetAssistant(t *testing.T) {
 
 // TestGetAssistants tests retrieving multiple assistants with filtering and pagination
 func TestGetAssistants(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1791,7 +1792,7 @@ func TestGetAssistants(t *testing.T) {
 
 // TestDeleteAssistants tests bulk deletion with filters
 func TestDeleteAssistants(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1917,7 +1918,7 @@ func TestDeleteAssistants(t *testing.T) {
 
 // TestGetAssistantTags tests retrieving unique tags
 func TestGetAssistantTags(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2223,7 +2224,7 @@ func TestGetAssistantTags(t *testing.T) {
 
 // TestAssistantPermissionFields tests permission management fields
 func TestAssistantPermissionFields(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2353,7 +2354,7 @@ func TestAssistantPermissionFields(t *testing.T) {
 
 // TestEmptyStringAsNull tests that empty strings are stored as NULL in database
 func TestEmptyStringAsNull(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2455,7 +2456,7 @@ func TestEmptyStringAsNull(t *testing.T) {
 
 // TestGetAssistantWithLocale tests retrieving assistant with locale translation
 func TestGetAssistantWithLocale(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2580,7 +2581,7 @@ func TestGetAssistantWithLocale(t *testing.T) {
 
 // TestGetAssistantsWithLocale tests retrieving multiple assistants with locale translation
 func TestGetAssistantsWithLocale(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2692,7 +2693,7 @@ func TestGetAssistantsWithLocale(t *testing.T) {
 
 // TestGetAssistantsWithQueryFilter tests using QueryFilter for permission filtering
 func TestGetAssistantsWithQueryFilter(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -2936,7 +2937,7 @@ func TestGetAssistantsWithQueryFilter(t *testing.T) {
 
 // TestUpdateAssistant tests the UpdateAssistant method for incremental updates
 func TestUpdateAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -3890,7 +3891,7 @@ func TestUpdateAssistant(t *testing.T) {
 
 // TestAssistantCompleteWorkflow tests a complete workflow
 func TestAssistantCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{

@@ -45,7 +45,7 @@ func TestRealWorldNextStandard(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -88,7 +88,7 @@ func TestRealWorldNextCustomData(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -136,7 +136,7 @@ func TestRealWorldNextDelegate(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -180,7 +180,7 @@ func TestRealWorldNextProcessTools(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -251,7 +251,7 @@ func TestRealWorldNextErrorRecovery(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -299,7 +299,7 @@ func TestRealWorldNextConditional(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")
@@ -377,7 +377,7 @@ func TestRealWorldNextDefault(t *testing.T) {
 		t.Skip("Skipping real world Next Hook test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.realworld-next")

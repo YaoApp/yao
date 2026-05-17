@@ -1,0 +1,11 @@
+# Servers - MCP Server Management
+# namespace: mcp
+# resource: servers
+# actions: read
+# levels: all
+
+mcp:servers:read:all:
+  description: "Read all MCP servers (loaded MCP clients from user perspective)"
+  endpoints:
+    - GET /mcp/servers
+

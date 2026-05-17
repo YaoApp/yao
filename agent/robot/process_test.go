@@ -23,7 +23,7 @@ import (
 // ============================================================================
 
 func TestProcessUpdateChatTitle(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	chatStore := assistant.GetChatStore()
@@ -96,7 +96,7 @@ func TestProcessUpdateChatTitle(t *testing.T) {
 // ============================================================================
 
 func TestProcessGet(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("ErrorOnNotFound", func(t *testing.T) {
@@ -112,7 +112,7 @@ func TestProcessGet(t *testing.T) {
 // ============================================================================
 
 func TestProcessList(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("ReturnsListWithNoFilter", func(t *testing.T) {
@@ -141,7 +141,7 @@ func TestProcessList(t *testing.T) {
 // ============================================================================
 
 func TestProcessStatus(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("ErrorOnNotFound", func(t *testing.T) {
@@ -157,7 +157,7 @@ func TestProcessStatus(t *testing.T) {
 // ============================================================================
 
 func TestProcessExecutions(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("ReturnsEmptyForUnknownRobot", func(t *testing.T) {
@@ -191,7 +191,7 @@ func TestProcessExecutions(t *testing.T) {
 // ============================================================================
 
 func TestProcessExecution(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("ErrorOnNonExistentExecution", func(t *testing.T) {
@@ -207,7 +207,7 @@ func TestProcessExecution(t *testing.T) {
 // ============================================================================
 
 func TestProcessArgumentValidation(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("UpdateChatTitle_RequiresTwoArgs", func(t *testing.T) {
@@ -245,7 +245,7 @@ func TestProcessUpdateChatTitleIntegration(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	chatStore := assistant.GetChatStore()

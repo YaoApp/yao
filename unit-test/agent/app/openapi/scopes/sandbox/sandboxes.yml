@@ -1,0 +1,87 @@
+# Sandboxes - Sandbox Management (CRUD + Exec)
+# namespace: sandbox
+# resource: sandboxes
+# actions: read, write, exec, delete
+# levels: all, own, team
+
+# ============ Read Sandboxes ============
+
+sandbox:sandboxes:read:all:
+  description: "List and get all sandboxes"
+  endpoints:
+    - GET /sandbox
+    - GET /sandbox/:id
+
+sandbox:sandboxes:read:own:
+  owner: true
+  description: "List and get own sandboxes"
+  endpoints:
+    - GET /sandbox
+    - GET /sandbox/:id
+
+sandbox:sandboxes:read:team:
+  team: true
+  description: "List and get team sandboxes"
+  endpoints:
+    - GET /sandbox
+    - GET /sandbox/:id
+
+# ============ Write (Create) Sandboxes ============
+
+sandbox:sandboxes:write:all:
+  description: "Create sandboxes"
+  endpoints:
+    - POST /sandbox
+
+sandbox:sandboxes:write:own:
+  owner: true
+  description: "Create own sandboxes"
+  endpoints:
+    - POST /sandbox
+
+sandbox:sandboxes:write:team:
+  team: true
+  description: "Create team sandboxes"
+  endpoints:
+    - POST /sandbox
+
+# ============ Execute Commands ============
+
+sandbox:sandboxes:exec:all:
+  description: "Execute commands in all sandboxes"
+  endpoints:
+    - POST /sandbox/:id/exec
+    - POST /sandbox/:id/heartbeat
+
+sandbox:sandboxes:exec:own:
+  owner: true
+  description: "Execute commands in own sandboxes"
+  endpoints:
+    - POST /sandbox/:id/exec
+    - POST /sandbox/:id/heartbeat
+
+sandbox:sandboxes:exec:team:
+  team: true
+  description: "Execute commands in team sandboxes"
+  endpoints:
+    - POST /sandbox/:id/exec
+    - POST /sandbox/:id/heartbeat
+
+# ============ Delete Sandboxes ============
+
+sandbox:sandboxes:delete:all:
+  description: "Remove all sandboxes"
+  endpoints:
+    - DELETE /sandbox/:id
+
+sandbox:sandboxes:delete:own:
+  owner: true
+  description: "Remove own sandboxes"
+  endpoints:
+    - DELETE /sandbox/:id
+
+sandbox:sandboxes:delete:team:
+  team: true
+  description: "Remove team sandboxes"
+  endpoints:
+    - DELETE /sandbox/:id

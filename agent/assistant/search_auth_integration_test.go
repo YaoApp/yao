@@ -63,7 +63,7 @@ func (c *authTestCollections) cleanup(ctx context.Context, t *testing.T) {
 
 func TestKBCollectionAuthFilter(t *testing.T) {
 	t.Skip("KB/DB search temporarily disabled")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	if kb.API == nil {
@@ -276,7 +276,7 @@ func TestDBAuthWheresFilter(t *testing.T) {
 
 func TestKBSearchIntegration(t *testing.T) {
 	t.Skip("KB/DB search temporarily disabled")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	if kb.API == nil {

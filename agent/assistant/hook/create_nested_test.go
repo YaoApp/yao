@@ -12,7 +12,7 @@ import (
 // TestNestedScriptCall tests nested script calls with V8 context sharing
 // This test calls: hook -> scripts.tests.create.NestedCall -> GetRoles/GetRole -> models
 func TestNestedScriptCall(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -56,7 +56,7 @@ func TestNestedScriptCall(t *testing.T) {
 // TestNestedScriptCallConcurrent tests nested script calls under high concurrency
 // Simulates 100 concurrent users making nested script calls
 func TestNestedScriptCallConcurrent(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")

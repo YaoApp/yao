@@ -1,0 +1,27 @@
+# Nodes - Tai Node Registry (Read-only)
+# namespace: nodes
+# resource: nodes
+# actions: read
+# levels: all, own, team
+
+# ============ Read Nodes ============
+
+nodes:nodes:read:all:
+  description: "List and get all Tai nodes"
+  endpoints:
+    - GET /nodes
+    - GET /nodes/:id
+
+nodes:nodes:read:own:
+  owner: true
+  description: "List and get own Tai nodes"
+  endpoints:
+    - GET /nodes
+    - GET /nodes/:id
+
+nodes:nodes:read:team:
+  team: true
+  description: "List and get team Tai nodes"
+  endpoints:
+    - GET /nodes
+    - GET /nodes/:id

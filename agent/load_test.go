@@ -44,21 +44,16 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("LoadGlobalPrompts", func(t *testing.T) {
-		// Global prompts should be loaded from agent/prompts.yml
-		assert.NotNil(t, agent.GlobalPrompts)
-		assert.Greater(t, len(agent.GlobalPrompts), 0)
+		require.NotNil(t, agent.GlobalPrompts)
+		require.Greater(t, len(agent.GlobalPrompts), 0)
 
-		// First prompt should be system role
 		assert.Equal(t, "system", agent.GlobalPrompts[0].Role)
-
-		// Content should contain system context info (with variables not yet parsed)
 		assert.Contains(t, agent.GlobalPrompts[0].Content, "$SYS.")
 	})
 
 	t.Run("LoadKBConfig", func(t *testing.T) {
-		// KB configuration should be loaded from agent/kb.yml
-		assert.NotNil(t, agent.KB)
-		assert.NotNil(t, agent.KB.Chat)
+		require.NotNil(t, agent.KB)
+		require.NotNil(t, agent.KB.Chat)
 
 		// Verify chat KB settings
 		assert.Equal(t, "__yao.openai", agent.KB.Chat.EmbeddingProviderID)
@@ -91,11 +86,8 @@ func TestLoad(t *testing.T) {
 	})
 
 	t.Run("LoadSearchConfig", func(t *testing.T) {
-		// Search configuration should be loaded from agent/search.yml
-		assert.NotNil(t, agent.Search)
-
-		// Verify web config
-		assert.NotNil(t, agent.Search.Web)
+		require.NotNil(t, agent.Search)
+		require.NotNil(t, agent.Search.Web)
 		assert.Equal(t, "tavily", agent.Search.Web.Provider)
 		assert.Equal(t, 10, agent.Search.Web.MaxResults)
 

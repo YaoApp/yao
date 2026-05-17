@@ -20,7 +20,7 @@ func TestRecoveryOnRestart(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("marks_running_as_failed_on_restart", func(t *testing.T) {

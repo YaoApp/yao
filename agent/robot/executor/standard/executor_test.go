@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -23,7 +25,8 @@ func TestExecutorPersistence(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("persists_execution_record_on_start", func(t *testing.T) {
@@ -130,7 +133,8 @@ func TestExecutorGoalsInjection(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("goals_injected_from_trigger_input_data", func(t *testing.T) {

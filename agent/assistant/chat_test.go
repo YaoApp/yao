@@ -83,7 +83,7 @@ func TestGetChatKBID(t *testing.T) {
 
 func TestPrepareKBCollection(t *testing.T) {
 	t.Skip("KB/DB search temporarily disabled")
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get assistant
@@ -187,7 +187,7 @@ func TestPrepareKBCollection(t *testing.T) {
 }
 
 func TestInitializeConversation(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -238,7 +238,7 @@ func TestInitializeConversation(t *testing.T) {
 // =============================================================================
 
 func TestBufferInitialization(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -302,7 +302,7 @@ func TestBufferInitialization(t *testing.T) {
 }
 
 func TestBufferUserInput(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -376,7 +376,7 @@ func TestBufferUserInput(t *testing.T) {
 }
 
 func TestBufferStepTracking(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -475,7 +475,7 @@ func TestBufferStepTracking(t *testing.T) {
 }
 
 func TestFlushBuffer(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -687,7 +687,7 @@ func TestFlushBuffer(t *testing.T) {
 }
 
 func TestEnsureChat(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")
@@ -821,7 +821,7 @@ func TestEnsureChat(t *testing.T) {
 // This is required for Host Agent: robot_id is passed in metadata so that
 // ListChats with chat_id_prefix=robot_{id}_ can filter by robot.
 func TestEnsureChatMetadata(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("mohe")

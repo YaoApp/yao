@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-fixture-openai-001",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Hello! I'm a fixture response from gpt-4o-mini. How can I help you today?"
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 12,
+    "completion_tokens": 18,
+    "total_tokens": 30
+  }
+}

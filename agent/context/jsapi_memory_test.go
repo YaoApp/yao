@@ -9,13 +9,13 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/memory"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 )
 
 func TestMemoryUserNamespace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -67,7 +67,7 @@ func TestMemoryUserNamespace(t *testing.T) {
 }
 
 func TestMemoryTeamNamespace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -108,7 +108,7 @@ func TestMemoryTeamNamespace(t *testing.T) {
 }
 
 func TestMemoryChatNamespace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -153,7 +153,7 @@ func TestMemoryChatNamespace(t *testing.T) {
 }
 
 func TestMemoryContextNamespace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -194,7 +194,7 @@ func TestMemoryContextNamespace(t *testing.T) {
 }
 
 func TestMemoryHasAndDel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -243,7 +243,7 @@ func TestMemoryHasAndDel(t *testing.T) {
 }
 
 func TestMemoryIncrDecr(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -292,7 +292,7 @@ func TestMemoryIncrDecr(t *testing.T) {
 }
 
 func TestMemoryKeysAndLen(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Use unique IDs to avoid data pollution from other tests
@@ -342,7 +342,7 @@ func TestMemoryKeysAndLen(t *testing.T) {
 }
 
 func TestMemoryClear(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -386,7 +386,7 @@ func TestMemoryClear(t *testing.T) {
 }
 
 func TestMemoryGetDel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -432,7 +432,7 @@ func TestMemoryGetDel(t *testing.T) {
 }
 
 func TestMemoryIsolation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create two different memory instances
@@ -482,7 +482,7 @@ func TestMemoryIsolation(t *testing.T) {
 }
 
 func TestMemoryNoMemory(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := &context.Context{
@@ -511,7 +511,7 @@ func TestMemoryNoMemory(t *testing.T) {
 }
 
 func TestMemoryWithAuthorizedInfo(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Use context.New to create context with authorized info

@@ -19,6 +19,7 @@ import (
 
 // TestOpenAIStreamBasic tests basic streaming completion with short output
 func TestOpenAIStreamBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -106,6 +107,7 @@ func TestOpenAIStreamBasic(t *testing.T) {
 
 // TestOpenAIPostBasic tests basic non-streaming completion
 func TestOpenAIPostBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -180,6 +182,7 @@ func TestOpenAIPostBasic(t *testing.T) {
 
 // TestOpenAIStreamWithToolCalls tests streaming with tool calls and JSON schema validation
 func TestOpenAIStreamWithToolCalls(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -294,6 +297,7 @@ func TestOpenAIStreamWithToolCalls(t *testing.T) {
 
 // TestOpenAIPostWithToolCalls tests non-streaming with tool calls
 func TestOpenAIPostWithToolCalls(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -410,6 +414,7 @@ func TestOpenAIPostWithToolCalls(t *testing.T) {
 
 // TestOpenAIStreamWithInvalidToolCall tests that invalid tool calls trigger validation error
 func TestOpenAIStreamWithInvalidToolCall(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -499,6 +504,7 @@ func TestOpenAIStreamWithInvalidToolCall(t *testing.T) {
 
 // TestOpenAIStreamRetry tests the retry mechanism with invalid API key
 func TestOpenAIStreamRetry(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -568,6 +574,7 @@ func TestOpenAIStreamRetry(t *testing.T) {
 
 // TestOpenAIStreamChunkTypes tests that stream handler receives correct chunk types
 func TestOpenAIStreamChunkTypes(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -624,6 +631,7 @@ func TestOpenAIStreamChunkTypes(t *testing.T) {
 
 // TestOpenAIStreamErrorCallback tests that errors are sent to stream handler
 func TestOpenAIStreamErrorCallback(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -695,6 +703,7 @@ func TestOpenAIStreamErrorCallback(t *testing.T) {
 
 // TestOpenAIToolCallValidationRetry tests automatic tool call validation retry with LLM feedback
 func TestOpenAIToolCallValidationRetry(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -798,6 +807,7 @@ func TestOpenAIToolCallValidationRetry(t *testing.T) {
 
 // TestOpenAIJSONMode tests JSON mode response formatting
 func TestOpenAIJSONMode(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -884,6 +894,7 @@ func TestOpenAIJSONMode(t *testing.T) {
 
 // TestOpenAIJSONModePost tests JSON mode with non-streaming
 func TestOpenAIJSONModePost(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -954,6 +965,7 @@ func TestOpenAIJSONModePost(t *testing.T) {
 
 // TestOpenAIJSONSchema tests JSON mode with strict schema validation
 func TestOpenAIJSONSchema(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -1100,6 +1112,7 @@ func TestOpenAIJSONSchema(t *testing.T) {
 
 // TestOpenAIJSONSchemaPost tests JSON schema with non-streaming
 func TestOpenAIJSONSchemaPost(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -1210,6 +1223,7 @@ func TestOpenAIJSONSchemaPost(t *testing.T) {
 
 // TestOpenAIProxySupport tests that HTTP proxy configuration is respected
 func TestOpenAIProxySupport(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -1240,6 +1254,7 @@ func TestOpenAIProxySupport(t *testing.T) {
 // LLM layer sends group_start/end for individual messages (thinking, text, tool_call)
 // Note: stream_start/end and Agent-level blocks are handled at Agent level
 func TestOpenAIStreamLifecycleEvents(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -1345,6 +1360,7 @@ func TestOpenAIStreamLifecycleEvents(t *testing.T) {
 
 // TestOpenAIStreamContextCancellation tests that stream respects context cancellation
 func TestOpenAIStreamContextCancellation(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -1418,6 +1434,7 @@ func TestOpenAIStreamContextCancellation(t *testing.T) {
 
 // TestOpenAIStreamWithTemperature tests different temperature settings
 func TestOpenAIStreamWithTemperature(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

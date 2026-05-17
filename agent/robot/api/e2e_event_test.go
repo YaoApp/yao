@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // End-to-end tests for Event trigger flow
@@ -42,7 +44,8 @@ func TestE2EEventTriggerFullFlow(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -152,7 +155,8 @@ func TestE2EEventTriggerDatabaseEvent(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -223,7 +227,8 @@ func TestE2EEventTriggerVariousEventTypes(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -293,7 +298,8 @@ func TestE2EEventTriggerWithComplexData(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)

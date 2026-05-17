@@ -1,3 +1,5 @@
+//go:build e2e
+
 package standard_test
 
 import (
@@ -22,7 +24,8 @@ func TestRunInspirationBasic(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -70,7 +73,8 @@ func TestRunInspirationClockContext(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -119,7 +123,8 @@ func TestRunInspirationRobotIdentity(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -162,7 +167,8 @@ func TestRunInspirationErrorHandling(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())
@@ -210,7 +216,8 @@ func TestRunInspirationWithDefaultAgent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuth())

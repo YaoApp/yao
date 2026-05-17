@@ -27,7 +27,7 @@ func TestIntegrationEventTrigger(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -144,7 +144,7 @@ func TestIntegrationEventTriggerErrors(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -289,7 +289,7 @@ func TestIntegrationEventTriggerTypes(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -361,7 +361,7 @@ func TestIntegrationEventTriggerSources(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -401,7 +401,7 @@ func TestIntegrationEventTriggerWithEmptyData(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)

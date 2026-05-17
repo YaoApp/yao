@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -23,7 +23,7 @@ func newReleaseTestContext() *context.Context {
 
 // TestContextRelease tests explicit Release() method on Context
 func TestContextRelease(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newReleaseTestContext()
@@ -67,7 +67,7 @@ func TestContextRelease(t *testing.T) {
 
 // TestTraceRelease tests explicit Release() method on Trace
 func TestTraceRelease(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newReleaseTestContext()
@@ -120,7 +120,7 @@ func TestTraceRelease(t *testing.T) {
 
 // TestContextReleaseWithTrace tests that releasing Context also releases Trace
 func TestContextReleaseWithTrace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newReleaseTestContext()
@@ -159,7 +159,7 @@ func TestContextReleaseWithTrace(t *testing.T) {
 
 // TestTryFinallyPattern tests the try-finally pattern with Release()
 func TestTryFinallyPattern(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newReleaseTestContext()
@@ -202,7 +202,7 @@ func TestTryFinallyPattern(t *testing.T) {
 
 // TestNoOpTraceRelease tests that no-op Trace also has Release method
 func TestNoOpTraceRelease(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Context without trace initialization
@@ -248,7 +248,7 @@ func TestNoOpTraceRelease(t *testing.T) {
 
 // TestTryFinallyPatternWithError tests try-finally with error handling
 func TestTryFinallyPatternWithError(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newReleaseTestContext()

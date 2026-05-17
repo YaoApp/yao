@@ -1,0 +1,10 @@
+team:edit:
+  description: "Edit team"
+team:member:invite:
+  description: "Invite team members"
+team:member:robot:create:
+  description: "Create robot team members"
+team:member:robot:edit:
+  description: "Edit robot team members"
+team:member:remove:
+  description: "Remove team members"

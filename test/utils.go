@@ -382,6 +382,8 @@ func Prepare(t *testing.T, cfg config.Config, opts ...interface{}) {
 	var path = filepath.Join(os.Getenv(appRootEnv), "data", "stores")
 	os.RemoveAll(path)
 
+	cleanSQLiteFiles()
+
 	root := os.Getenv(appRootEnv)
 	var app application.Application
 	var err error
@@ -421,6 +423,7 @@ func Prepare(t *testing.T, cfg config.Config, opts ...interface{}) {
 	}
 	application.Load(app)
 
+	cfg.AppSource = root
 	cfg.DataRoot = filepath.Join(root, "data")
 
 	// if cfg.DataRoot == "" {
@@ -509,6 +512,21 @@ func Clean() {
 	// Remove the data store
 	var path = filepath.Join(os.Getenv("YAO_TEST_APPLICATION"), "data", "stores")
 	os.RemoveAll(path)
+
+	cleanSQLiteFiles()
+}
+
+// cleanSQLiteFiles removes the SQLite database and its WAL/SHM journal files
+// so that the next test package starts with a fresh schema (no "index already
+// exists" errors from prior migrations).
+func cleanSQLiteFiles() {
+	primary := os.Getenv("YAO_DB_PRIMARY")
+	if primary == "" {
+		return
+	}
+	for _, suffix := range []string{"", "-shm", "-wal"} {
+		os.Remove(primary + suffix)
+	}
 }
 
 // Start the test server

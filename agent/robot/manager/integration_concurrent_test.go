@@ -33,7 +33,7 @@ func TestIntegrationConcurrentExecution(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -146,7 +146,7 @@ func TestIntegrationQuotaEnforcement(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -321,7 +321,7 @@ func TestIntegrationGlobalPoolLimit(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -430,7 +430,7 @@ func TestIntegrationPriorityExecution(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)

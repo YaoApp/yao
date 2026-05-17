@@ -18,7 +18,7 @@ import (
 
 // TestGoroutineLeakDetailed performs detailed goroutine leak analysis
 func TestGoroutineLeakDetailed(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -90,7 +90,7 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 
 // TestGoroutineLeakByComponent tests each component separately
 func TestGoroutineLeakByComponent(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -168,7 +168,7 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 
 // TestGoroutineLeakWithoutRelease tests if Release() fixes the leak
 func TestGoroutineLeakWithoutRelease(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")

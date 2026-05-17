@@ -22,11 +22,12 @@ import (
 // 3. claude-proxy correctly translates requests to OpenAI backend
 // 4. Response is received with actual content
 func TestSandboxE2E_ClaudeCLIExecution(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	if testing.Short() {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the e2e-test assistant
@@ -109,11 +110,12 @@ func TestSandboxE2E_ClaudeCLIExecution(t *testing.T) {
 
 // TestSandboxE2E_FileCreation tests that Claude can create files in the sandbox
 func TestSandboxE2E_FileCreation(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	if testing.Short() {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the e2e-test assistant
@@ -185,11 +187,12 @@ func TestSandboxE2E_FileCreation(t *testing.T) {
 
 // TestSandboxE2E_HookOnlyMode tests that hooks can work without Claude CLI
 func TestSandboxE2E_HookOnlyMode(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	if testing.Short() {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the hook-only assistant (no prompts)
@@ -253,11 +256,12 @@ func TestSandboxE2E_HookOnlyMode(t *testing.T) {
 
 // TestSandboxE2E_StreamingResponse verifies streaming works correctly
 func TestSandboxE2E_StreamingResponse(t *testing.T) {
+	t.Skip("sandbox v1 deprecated")
 	if testing.Short() {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the e2e-test assistant

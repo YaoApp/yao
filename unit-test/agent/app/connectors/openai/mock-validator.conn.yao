@@ -1,0 +1,9 @@
+{
+  "label": "Mock Validator",
+  "type": "openai",
+  "options": {
+    "model": "mock-validator",
+    "host": "$ENV.MOCK_LLM_HOST",
+    "key": "mock-key-not-validated"
+  }
+}

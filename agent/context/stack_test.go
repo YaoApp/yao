@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 func TestNewStack(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	traceID := "12345678"
@@ -55,7 +55,7 @@ func TestNewStack(t *testing.T) {
 }
 
 func TestNewStack_GenerateTraceID(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Empty traceID should generate a UUID
@@ -72,7 +72,7 @@ func TestNewStack_GenerateTraceID(t *testing.T) {
 }
 
 func TestNewChildStack(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create parent stack
@@ -120,7 +120,7 @@ func TestNewChildStack(t *testing.T) {
 }
 
 func TestStackComplete(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
@@ -156,7 +156,7 @@ func TestStackComplete(t *testing.T) {
 }
 
 func TestStackFail(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
@@ -179,7 +179,7 @@ func TestStackFail(t *testing.T) {
 }
 
 func TestStackTimeout(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	stack := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})
@@ -196,7 +196,7 @@ func TestStackTimeout(t *testing.T) {
 }
 
 func TestEnterStack_RootCreation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -240,7 +240,7 @@ func TestEnterStack_RootCreation(t *testing.T) {
 }
 
 func TestEnterStack_ChildCreation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -284,7 +284,7 @@ func TestEnterStack_ChildCreation(t *testing.T) {
 }
 
 func TestEnterStack_DoneCallback(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -324,7 +324,7 @@ func TestEnterStack_DoneCallback(t *testing.T) {
 }
 
 func TestContextGetAllStacks(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -349,7 +349,7 @@ func TestContextGetAllStacks(t *testing.T) {
 }
 
 func TestContextGetStackByID(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -377,7 +377,7 @@ func TestContextGetStackByID(t *testing.T) {
 }
 
 func TestContextGetStacksByTraceID(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -406,7 +406,7 @@ func TestContextGetStacksByTraceID(t *testing.T) {
 }
 
 func TestContextGetRootStack(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -437,7 +437,7 @@ func TestContextGetRootStack(t *testing.T) {
 }
 
 func TestStackClone(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	original := context.NewStack("12345678", "test-assistant", context.RefererAPI, &context.Options{})

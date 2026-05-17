@@ -1,0 +1,11 @@
+{
+  "label": "Simple Greeting",
+  "description": "Minimal test agent for environment validation",
+  "connector": "openai/mock",
+  "prompts": [
+    {
+      "role": "system",
+      "content": "You are a simple greeting assistant. When the user says hello, respond with 'Hello! I am the test agent.'"
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 import (
@@ -17,7 +19,8 @@ func TestGetExecutionValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -42,7 +45,8 @@ func TestListExecutionsValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -79,7 +83,8 @@ func TestPauseExecutionValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -103,7 +108,8 @@ func TestResumeExecutionValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -127,7 +133,8 @@ func TestStopExecutionValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -151,7 +158,8 @@ func TestGetExecutionStatusValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -176,7 +184,8 @@ func TestExecutionControlWithManagerStarted(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	// Start manager

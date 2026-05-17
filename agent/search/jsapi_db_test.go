@@ -25,7 +25,7 @@ func TestJSAPI_DB_Integration(t *testing.T) {
 	}
 
 	// Initialize test environment (loads models, database, query engine, etc.)
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context

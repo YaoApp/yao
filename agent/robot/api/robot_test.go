@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 import (
@@ -17,7 +19,8 @@ func TestGetRobotValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
@@ -42,7 +45,8 @@ func TestListAllRobotsValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -83,7 +87,8 @@ func TestGetRobotStatusValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	t.Run("returns error for empty member_id", func(t *testing.T) {
@@ -110,7 +115,8 @@ func TestCreateRobotValidation(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), nil)
@@ -164,7 +170,8 @@ func TestCreateRobot(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	// Cleanup before and after
@@ -268,7 +275,8 @@ func TestUpdateRobot(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)
@@ -375,7 +383,8 @@ func TestRemoveRobot(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)
@@ -425,7 +434,8 @@ func TestGetRobotResponse(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupAPITestRobots(t)

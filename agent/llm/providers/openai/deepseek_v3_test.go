@@ -16,6 +16,7 @@ import (
 
 // TestDeepSeekV3StreamBasic tests basic streaming completion with DeepSeek V3
 func TestDeepSeekV3StreamBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -125,6 +126,7 @@ func TestDeepSeekV3StreamBasic(t *testing.T) {
 
 // TestDeepSeekV3PostBasic tests basic non-streaming completion
 func TestDeepSeekV3PostBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -214,6 +216,7 @@ func TestDeepSeekV3PostBasic(t *testing.T) {
 
 // TestDeepSeekV3WithToolCalls tests V3 with tool calls
 func TestDeepSeekV3WithToolCalls(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -304,6 +307,7 @@ func TestDeepSeekV3WithToolCalls(t *testing.T) {
 
 // TestDeepSeekV3NoReasoningEffort tests that V3 ignores reasoning_effort parameter
 func TestDeepSeekV3NoReasoningEffort(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

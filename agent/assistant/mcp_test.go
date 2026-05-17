@@ -15,7 +15,7 @@ import (
 )
 
 func TestMCPToolName(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	tests := []struct {
@@ -73,7 +73,7 @@ func TestMCPToolName(t *testing.T) {
 }
 
 func TestParseMCPToolName(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	tests := []struct {
@@ -179,7 +179,7 @@ func TestParseMCPToolName(t *testing.T) {
 }
 
 func TestMCPToolName_RoundTrip(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	tests := []struct {
@@ -244,7 +244,7 @@ func TestMCPToolName_RoundTrip(t *testing.T) {
 
 // TestMCPToolContextPassing tests that agent context is correctly passed to MCP tools
 func TestMCPToolContextPassing(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get the echo MCP client
@@ -324,7 +324,7 @@ func TestMCPToolContextPassing(t *testing.T) {
 
 // TestMCPToolContextPassingParallel tests that agent context is correctly passed in parallel calls
 func TestMCPToolContextPassingParallel(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get the echo MCP client

@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -17,7 +18,7 @@ import (
 // 1. Use generator-agent to generate test cases
 // 2. Run the generated tests against simple-greeting agent
 func TestRunner_AgentDrivenInput(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -48,7 +49,7 @@ func TestRunner_AgentDrivenInput(t *testing.T) {
 
 // TestRunner_AgentDrivenInput_DryRun tests dry-run mode
 func TestRunner_AgentDrivenInput_DryRun(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -79,7 +80,7 @@ func TestRunner_AgentDrivenInput_DryRun(t *testing.T) {
 
 // TestRunner_FileInput tests loading test cases from JSONL file
 func TestRunner_FileInput(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -128,7 +129,7 @@ func TestRunner_FileInput(t *testing.T) {
 
 // TestRunner_DirectMessage tests direct message mode
 func TestRunner_DirectMessage(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -157,7 +158,7 @@ func TestRunner_DirectMessage(t *testing.T) {
 
 // TestRunner_WithBeforeAfter tests before/after hooks
 func TestRunner_WithBeforeAfter(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -195,7 +196,7 @@ func TestRunner_WithBeforeAfter(t *testing.T) {
 
 // TestRunner_Parallel tests parallel execution
 func TestRunner_Parallel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents
@@ -238,7 +239,7 @@ func TestRunner_Parallel(t *testing.T) {
 
 // TestRunner_FailFast tests fail-fast behavior
 func TestRunner_FailFast(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agents

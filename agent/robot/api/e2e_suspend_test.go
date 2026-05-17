@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // End-to-end tests for V2 Suspend/Resume flow
@@ -77,7 +79,8 @@ func TestE2ENormalExecutionNoSuspend(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ESuspendRobots(t)
@@ -116,7 +119,8 @@ func TestE2ESuspendResumeFlow(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ESuspendRobots(t)
@@ -176,7 +180,8 @@ func TestE2EReplyShortcut(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ESuspendRobots(t)
@@ -212,7 +217,8 @@ func TestE2EResumeContextPersistence(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ESuspendRobots(t)
@@ -261,7 +267,8 @@ func TestE2EResumeContextPersistence(t *testing.T) {
 // TestE2EInteractRequiresExecutionID tests that Interact API returns error when
 // execution_id is not provided (Host Agent deferred).
 func TestE2EInteractRequiresExecutionID(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	ctx := types.NewContext(context.Background(), testAuthSuspend())
@@ -280,7 +287,8 @@ func TestE2EInteractWithNonWaitingExecution(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ESuspendRobots(t)

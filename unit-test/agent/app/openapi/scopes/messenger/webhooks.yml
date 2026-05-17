@@ -1,0 +1,14 @@
+# Webhooks - Messenger Webhook Endpoints
+# namespace: messenger
+# resource: webhooks
+# actions: receive
+# levels: public
+
+# Note: Webhook endpoints are PUBLIC and do NOT require OAuth authentication
+# They are handled by external messenger platforms (e.g., WeChat, Telegram, etc.)
+
+messenger:webhooks:receive:public:
+  description: "Receive webhook events from messenger providers (PUBLIC - no authentication required)"
+  endpoints:
+    - GET /messenger/webhook/:provider
+    - POST /messenger/webhook/:provider

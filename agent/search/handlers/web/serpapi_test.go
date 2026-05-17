@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,13 +12,21 @@ import (
 	"github.com/yaoapp/yao/agent/testutils"
 )
 
+func requireSerpAPIKey(t *testing.T) {
+	t.Helper()
+	if os.Getenv("SERPAPI_API_KEY") == "" {
+		t.Skip("Skipping: SERPAPI_API_KEY not set")
+	}
+}
+
 // TestSerpAPIProviderWithAssistantConfig tests SerpAPIProvider using web-serpapi assistant config
 func TestSerpAPIProviderWithAssistantConfig(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
+	requireSerpAPIKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant to get its config
@@ -80,7 +89,7 @@ func TestSerpAPIProviderWithSiteRestriction(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant
@@ -125,7 +134,7 @@ func TestSerpAPIProviderWithMultipleSites(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant
@@ -174,7 +183,7 @@ func TestSerpAPIProviderWithTimeRange(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant
@@ -255,8 +264,9 @@ func TestSerpAPIProviderMaxResults(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
+	requireSerpAPIKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant
@@ -312,8 +322,9 @@ func TestSerpAPIProviderWithBingEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test")
 	}
+	requireSerpAPIKey(t)
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-serpapi test assistant to get base config

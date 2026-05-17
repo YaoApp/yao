@@ -38,7 +38,7 @@ func newKeywordTestContext(chatID, assistantID string) *context.Context {
 }
 
 func TestSearchAutoKeyword(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.LoadPath("/assistants/tests/search-auto-keyword")
@@ -132,7 +132,7 @@ func TestSearchAutoKeyword(t *testing.T) {
 }
 
 func TestSearchAutoKeywordNotConfigured(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Use the search-auto-web assistant which does NOT have uses.keyword configured

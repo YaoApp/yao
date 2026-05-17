@@ -11,7 +11,7 @@ import (
 )
 
 func TestScriptsProcessFlow(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get the mcpload assistant
@@ -114,7 +114,7 @@ func TestScriptsProcessFlow(t *testing.T) {
 }
 
 func TestScriptsProcessUsing(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get the mcpload assistant
@@ -185,7 +185,7 @@ func TestScriptsProcessUsing(t *testing.T) {
 }
 
 func TestScriptsProcessError(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get the mcpload assistant

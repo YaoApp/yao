@@ -13,7 +13,7 @@ import (
 )
 
 func TestMCPProviderWithSearchRerank(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newMCPTestContext(t)
@@ -41,7 +41,7 @@ func TestMCPProviderWithSearchRerank(t *testing.T) {
 }
 
 func TestMCPProviderWithTopN(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newMCPTestContext(t)
@@ -72,7 +72,7 @@ func TestMCPProviderInvalidFormat(t *testing.T) {
 }
 
 func TestMCPProviderServerNotFound(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newMCPTestContext(t)
@@ -91,7 +91,7 @@ func TestMCPProviderServerNotFound(t *testing.T) {
 }
 
 func TestMCPProviderToolNotFound(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newMCPTestContext(t)
@@ -123,7 +123,7 @@ func TestMCPProviderWithoutContext(t *testing.T) {
 }
 
 func TestMCPProviderEmptyItems(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newMCPTestContext(t)

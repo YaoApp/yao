@@ -29,7 +29,7 @@ func TestProcessCall_LLM_Basic(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM (source env.local.sh)")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := newLLMProcess(t, "agent.call", map[string]interface{}{
@@ -59,7 +59,7 @@ func TestProcessCall_LLM_MultipleMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := newLLMProcess(t, "agent.call", map[string]interface{}{
@@ -84,7 +84,7 @@ func TestProcessCall_LLM_WithMetadata(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := newLLMProcess(t, "agent.call", map[string]interface{}{
@@ -112,7 +112,7 @@ func TestProcessCall_LLM_SkipOutputForced(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Explicitly pass skip.output=false — headless context MUST force it to true
@@ -145,7 +145,7 @@ func TestProcessCall_CreateHook_Default(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Send a generic message — Create Hook routes to scenarioDefault
@@ -171,7 +171,7 @@ func TestProcessCall_CreateHook_ReturnFull(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Send "return_full" — Create Hook returns full HookCreateResponse with custom messages
@@ -202,7 +202,7 @@ func TestProcessCall_NextHook_Standard(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Send "standard" — Next Hook returns null, standard LLM response is used
@@ -228,7 +228,7 @@ func TestProcessCall_NextHook_CustomData(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires real LLM")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Send "return_custom_data" — Next Hook returns custom data
@@ -267,16 +267,13 @@ func TestProcessCall_NextHook_CustomData(t *testing.T) {
 // ============================================================================
 
 func TestProcessCall_Timeout_Short(t *testing.T) {
-	if testing.Short() {
-		t.Skip("Skipping: requires real LLM (source env.local.sh)")
-	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
-	// Set timeout=1 second — LLM round-trip will certainly exceed this.
-	// Verifies that the timeout parameter is respected and produces an error.
+	// Uses the slow-greeting assistant whose mock connector delays 3s.
+	// With timeout=1s the context deadline fires reliably.
 	proc := newLLMProcess(t, "agent.call", map[string]interface{}{
-		"assistant_id": "tests.simple-greeting",
+		"assistant_id": "tests.slow-greeting",
 		"messages": []interface{}{
 			map[string]interface{}{"role": "user", "content": "Tell me a very long story about the history of computing."},
 		},
@@ -306,7 +303,7 @@ func TestProcessCall_Timeout_Short(t *testing.T) {
 // ============================================================================
 
 func TestProcessCall_Error_MissingAssistantID(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := process.New("agent.call", map[string]interface{}{
@@ -322,7 +319,7 @@ func TestProcessCall_Error_MissingAssistantID(t *testing.T) {
 }
 
 func TestProcessCall_Error_EmptyMessages(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := process.New("agent.call", map[string]interface{}{
@@ -337,7 +334,7 @@ func TestProcessCall_Error_EmptyMessages(t *testing.T) {
 }
 
 func TestProcessCall_Error_InvalidArgument(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Pass a string instead of map — json.Marshal will succeed but Unmarshal will fail
@@ -349,7 +346,7 @@ func TestProcessCall_Error_InvalidArgument(t *testing.T) {
 }
 
 func TestProcessCall_Error_NoArgument(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := process.New("agent.call")
@@ -363,7 +360,7 @@ func TestProcessCall_Error_NonexistentAgent(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping: requires environment")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	proc := process.New("agent.call", map[string]interface{}{

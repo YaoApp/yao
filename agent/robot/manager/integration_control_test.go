@@ -31,7 +31,7 @@ func TestIntegrationExecutionPauseResume(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -155,7 +155,7 @@ func TestIntegrationExecutionStop(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -226,7 +226,7 @@ func TestIntegrationListExecutions(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)
@@ -359,7 +359,7 @@ func TestIntegrationMultipleControlOperations(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cleanupIntegrationRobots(t)

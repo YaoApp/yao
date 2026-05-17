@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	infraSandbox "github.com/yaoapp/yao/sandbox"
 	"github.com/yaoapp/yao/test"
 )
@@ -101,7 +101,7 @@ func (e *realSandboxExecutor) GetVNCUrl() string {
 
 // TestJsSandboxNotAvailable tests ctx.sandbox when not configured
 func TestJsSandboxNotAvailable(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ctx := context.New(stdContext.Background(), nil, "test-chat-no-sandbox")
@@ -129,7 +129,7 @@ func TestJsSandboxNotAvailable(t *testing.T) {
 
 // TestJsSandboxWriteFile tests ctx.sandbox.WriteFile via JavaScript
 func TestJsSandboxWriteFile(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)
@@ -183,7 +183,7 @@ func TestJsSandboxWriteFile(t *testing.T) {
 
 // TestJsSandboxReadFile tests ctx.sandbox.ReadFile via JavaScript
 func TestJsSandboxReadFile(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)
@@ -237,7 +237,7 @@ func TestJsSandboxReadFile(t *testing.T) {
 
 // TestJsSandboxListDir tests ctx.sandbox.ListDir via JavaScript
 func TestJsSandboxListDir(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)
@@ -305,7 +305,7 @@ func TestJsSandboxListDir(t *testing.T) {
 
 // TestJsSandboxExec tests ctx.sandbox.Exec via JavaScript
 func TestJsSandboxExec(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)
@@ -357,7 +357,7 @@ func TestJsSandboxExec(t *testing.T) {
 
 // TestJsSandboxWorkdir tests ctx.sandbox.workdir property via JavaScript
 func TestJsSandboxWorkdir(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)
@@ -407,7 +407,7 @@ func TestJsSandboxWorkdir(t *testing.T) {
 
 // TestJsSandboxCompleteWorkflow tests a complete workflow via JavaScript
 func TestJsSandboxCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	manager := createTestSandboxManager(t)

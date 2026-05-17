@@ -1,0 +1,17 @@
+{
+  "id": "msg-fixture-anthropic-mt-001",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Based on our conversation so far, the weather in Tokyo is typically mild in spring with temperatures around 15-20°C."
+    }
+  ],
+  "model": "claude-haiku-4-5-20251001",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 80,
+    "output_tokens": 30
+  }
+}

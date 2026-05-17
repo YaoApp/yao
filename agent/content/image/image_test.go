@@ -58,7 +58,7 @@ func TestParseWithVisionSupport(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create capabilities with vision support
@@ -95,7 +95,7 @@ func TestParseWithoutVisionSupport(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create capabilities WITHOUT vision support
@@ -131,7 +131,7 @@ func TestParseWithEmptyURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -162,7 +162,7 @@ func TestParseWithNilImageURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -237,7 +237,7 @@ func TestParseDataURIPassthrough(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	capabilities := &openai.Capabilities{
@@ -274,7 +274,7 @@ func TestParseWithVisionAgent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create capabilities WITHOUT vision support
@@ -319,7 +319,7 @@ func TestParseWithForceUsesVisionAgent(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create capabilities WITH vision support

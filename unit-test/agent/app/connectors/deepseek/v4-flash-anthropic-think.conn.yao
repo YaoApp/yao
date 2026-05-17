@@ -1,0 +1,15 @@
+{
+  "label": "DeepSeek V4 Flash Thinking (Anthropic)",
+  "type": "anthropic",
+  "options": {
+    "model": "deepseek-v4-flash",
+    "host": "https://api.deepseek.com",
+    "key": "$ENV.DEEPSEEK_V4_API_KEY",
+    "thinking": { "type": "enabled" },
+    "capabilities": {
+      "tool_calls": true,
+      "reasoning": true,
+      "streaming": true
+    }
+  }
+}

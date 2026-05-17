@@ -9,13 +9,13 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestCreateChat tests creating chat sessions
 func TestCreateChat(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -200,7 +200,7 @@ func TestCreateChat(t *testing.T) {
 
 // TestGetChat tests retrieving chat sessions
 func TestGetChat(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -277,7 +277,7 @@ func TestGetChat(t *testing.T) {
 
 // TestUpdateChat tests updating chat sessions
 func TestUpdateChat(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -553,7 +553,7 @@ func TestUpdateChat(t *testing.T) {
 
 // TestDeleteChat tests deleting chat sessions
 func TestDeleteChat(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -623,7 +623,7 @@ func TestDeleteChat(t *testing.T) {
 
 // TestListChats tests listing chat sessions
 func TestListChats(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -870,7 +870,7 @@ func TestListChats(t *testing.T) {
 
 // TestListChatsByUserAndTeam tests filtering chats by UserID and TeamID
 func TestListChatsByUserAndTeam(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1088,7 +1088,7 @@ func TestListChatsByUserAndTeam(t *testing.T) {
 
 // TestChatCompleteWorkflow tests a complete chat workflow
 func TestChatCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{

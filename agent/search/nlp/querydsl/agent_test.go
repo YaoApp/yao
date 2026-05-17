@@ -26,7 +26,7 @@ func TestAgentProvider_Generate(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the querydsl-agent assistant
@@ -99,7 +99,7 @@ func TestAgentProvider_Generate_Error(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -135,7 +135,7 @@ func TestGenerator_Agent_Integration(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -194,7 +194,7 @@ func TestAgentProvider_Generate_WithRetry(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the querydsl-agent-retry assistant

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -32,7 +32,7 @@ func TestStressContextCreationAndRelease(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	iterations := 1000
@@ -96,7 +96,7 @@ func TestStressTraceOperations(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	iterations := 500
@@ -169,7 +169,7 @@ func TestStressMCPOperations(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	iterations := 500
@@ -232,7 +232,7 @@ func TestStressConcurrentContexts(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	goroutines := 50
@@ -310,7 +310,7 @@ func TestStressNoOpTracePerformance(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	iterations := 1000
@@ -378,7 +378,7 @@ func TestStressReleasePatterns(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	iterations := 200
@@ -483,7 +483,7 @@ func TestStressLongRunningTrace(t *testing.T) {
 		t.Skip("Skipping stress test in short mode")
 	}
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := newStressTestContext("long-running-test")

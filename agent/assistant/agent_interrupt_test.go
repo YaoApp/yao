@@ -62,7 +62,7 @@ func newTestContextWithInterrupt(chatID, assistantID string) (*context.Context, 
 
 // TestAgentInterruptGraceful tests graceful interrupt during agent stream
 func TestAgentInterruptGraceful(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.interrupt")
@@ -152,7 +152,7 @@ func TestAgentInterruptGraceful(t *testing.T) {
 
 // TestAgentInterruptForce tests force interrupt during agent stream
 func TestAgentInterruptForce(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.interrupt")
@@ -245,7 +245,7 @@ func TestAgentInterruptForce(t *testing.T) {
 
 // TestAgentMultipleInterrupts tests multiple interrupts during stream
 func TestAgentMultipleInterrupts(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.interrupt")

@@ -17,7 +17,7 @@ func TestCacheBasic(t *testing.T) {
 	assert.Equal(t, 0, cache.Len(), "Expected empty cache")
 
 	// Create test assistants
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast1, err := assistant.Get("tests.mcpload")
@@ -43,7 +43,7 @@ func TestCacheBasic(t *testing.T) {
 }
 
 func TestCacheLRU(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(2)
@@ -75,7 +75,7 @@ func TestCacheLRU(t *testing.T) {
 }
 
 func TestCacheRemove(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(2)
@@ -101,7 +101,7 @@ func TestCacheRemove(t *testing.T) {
 }
 
 func TestCacheClear(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(3)
@@ -130,7 +130,7 @@ func TestCacheClear(t *testing.T) {
 }
 
 func TestCacheLRUEviction(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(2)
@@ -162,7 +162,7 @@ func TestCacheLRUEviction(t *testing.T) {
 }
 
 func TestCacheConcurrent(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(10)
@@ -225,7 +225,7 @@ func TestCacheNilInput(t *testing.T) {
 }
 
 func TestCacheAll(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	cache := assistant.NewCache(5)

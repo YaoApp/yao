@@ -1,0 +1,66 @@
+# Collections - Knowledge Base Collection Management
+# namespace: kb
+# resource: collections
+# actions: read, write, delete
+# levels: all, own, team
+
+kb:collections:read:all:
+  description: "Read all knowledge base collections"
+  endpoints:
+    - GET /kb/collections
+    - GET /kb/collections/:collectionID
+    - GET /kb/collections/:collectionID/exists
+
+kb:collections:read:own:
+  owner: true
+  description: "Read own knowledge base collections"
+  endpoints:
+    - GET /kb/collections
+    - GET /kb/collections/:collectionID
+    - GET /kb/collections/:collectionID/exists
+
+kb:collections:read:team:
+  team: true
+  description: "Read team knowledge base collections"
+  endpoints:
+    - GET /kb/collections
+    - GET /kb/collections/:collectionID
+    - GET /kb/collections/:collectionID/exists
+
+kb:collections:write:all:
+  description: "Create and update all collections"
+  endpoints:
+    - POST /kb/collections
+    - PUT /kb/collections/:collectionID/metadata
+
+kb:collections:write:own:
+  owner: true
+  description: "Create and update own collections"
+  endpoints:
+    - POST /kb/collections
+    - PUT /kb/collections/:collectionID/metadata
+
+kb:collections:write:team:
+  team: true
+  description: "Create and update team collections"
+  endpoints:
+    - POST /kb/collections
+    - PUT /kb/collections/:collectionID/metadata
+
+kb:collections:delete:all:
+  description: "Delete all collections"
+  endpoints:
+    - DELETE /kb/collections/:collectionID
+
+kb:collections:delete:own:
+  owner: true
+  description: "Delete own collections"
+  endpoints:
+    - DELETE /kb/collections/:collectionID
+
+kb:collections:delete:team:
+  team: true
+  description: "Delete team collections"
+  endpoints:
+    - DELETE /kb/collections/:collectionID
+

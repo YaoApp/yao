@@ -14,7 +14,7 @@ import (
 )
 
 func TestAgentProviderWithAssistantConfig(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the rerank-agent assistant
@@ -48,7 +48,7 @@ func TestAgentProviderWithAssistantConfig(t *testing.T) {
 }
 
 func TestAgentProviderWithTopN(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newTestContext(t)
@@ -83,7 +83,7 @@ func TestAgentProviderWithoutContext(t *testing.T) {
 }
 
 func TestAgentProviderAgentNotFound(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newTestContext(t)
@@ -100,7 +100,7 @@ func TestAgentProviderAgentNotFound(t *testing.T) {
 }
 
 func TestAgentProviderEmptyItems(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ctx := newTestContext(t)

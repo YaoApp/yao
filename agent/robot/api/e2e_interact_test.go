@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 import (
@@ -26,7 +28,8 @@ func TestE2EInteractNewAssignment(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupInteractRobots(t)
@@ -81,7 +84,8 @@ func TestE2EInteractStream(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupInteractRobots(t)
@@ -151,7 +155,8 @@ func TestE2EInteractMultiTurn(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupInteractRobots(t)
@@ -210,7 +215,8 @@ func TestE2EInteractStreamMultiTurn(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupInteractRobots(t)

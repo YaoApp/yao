@@ -49,7 +49,7 @@ func newHistoryTestContext(chatID string) *agentcontext.Context {
 // =============================================================================
 
 func TestWithHistory(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Get assistant
@@ -383,7 +383,7 @@ func TestWithHistory(t *testing.T) {
 // =============================================================================
 
 func TestHistoryLoading(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("tests.history")
@@ -756,7 +756,7 @@ func TestHistoryLoading(t *testing.T) {
 // =============================================================================
 
 func TestHistoryEdgeCases(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	ast, err := assistant.Get("tests.history")

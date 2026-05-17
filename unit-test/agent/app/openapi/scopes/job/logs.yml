@@ -1,0 +1,25 @@
+# Logs - Job Log Management
+# namespace: job
+# resource: logs
+# actions: read
+# levels: all, own, team
+
+job:logs:read:all:
+  description: "Read all job logs"
+  endpoints:
+    - GET /job/jobs/:jobID/logs
+    - GET /job/executions/:executionID/logs
+
+job:logs:read:own:
+  owner: true
+  description: "Read own job logs"
+  endpoints:
+    - GET /job/jobs/:jobID/logs
+    - GET /job/executions/:executionID/logs
+
+job:logs:read:team:
+  team: true
+  description: "Read team job logs"
+  endpoints:
+    - GET /job/jobs/:jobID/logs
+    - GET /job/executions/:executionID/logs

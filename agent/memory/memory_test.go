@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent/memory"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 func TestMemoryNew(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create memory with default stores
@@ -34,7 +34,7 @@ func TestMemoryNew(t *testing.T) {
 }
 
 func TestMemoryPartialIDs(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Create memory with only user and chat
@@ -50,7 +50,7 @@ func TestMemoryPartialIDs(t *testing.T) {
 }
 
 func TestNamespaceBasicOperations(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -120,7 +120,7 @@ func TestNamespaceBasicOperations(t *testing.T) {
 }
 
 func TestNamespaceIsolation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	t.Run("User isolation", func(t *testing.T) {
@@ -357,7 +357,7 @@ func TestNamespaceIsolation(t *testing.T) {
 }
 
 func TestNamespaceIncrDecr(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "", "", "")
@@ -382,7 +382,7 @@ func TestNamespaceIncrDecr(t *testing.T) {
 }
 
 func TestNamespaceListOperations(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "", "", "")
@@ -412,7 +412,7 @@ func TestNamespaceListOperations(t *testing.T) {
 }
 
 func TestNamespaceSetOperations(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "", "", "")
@@ -430,7 +430,7 @@ func TestNamespaceSetOperations(t *testing.T) {
 }
 
 func TestNamespaceTTL(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "", "", "", "ctx1")
@@ -456,7 +456,7 @@ func TestNamespaceTTL(t *testing.T) {
 }
 
 func TestMemoryClear(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -483,7 +483,7 @@ func TestMemoryClear(t *testing.T) {
 }
 
 func TestMemoryStats(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -504,7 +504,7 @@ func TestMemoryStats(t *testing.T) {
 }
 
 func TestManager(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mgr := memory.NewManagerWithDefaults()
@@ -530,7 +530,7 @@ func TestManager(t *testing.T) {
 }
 
 func TestGetSpace(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "team1", "chat1", "ctx1")
@@ -547,7 +547,7 @@ func TestGetSpace(t *testing.T) {
 }
 
 func TestNamespaceGetMultiSetMulti(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "", "", "")
@@ -576,7 +576,7 @@ func TestNamespaceGetMultiSetMulti(t *testing.T) {
 }
 
 func TestNamespaceGetDel(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	mem, err := memory.New(nil, "user1", "", "", "")

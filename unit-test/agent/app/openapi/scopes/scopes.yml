@@ -1,0 +1,40 @@
+# Global scopes configuration
+
+# Default action for unmatched API endpoints
+default: deny # Options: deny / allow
+
+# Public endpoints (accessible without authentication)
+public:
+  - GET /user/entry
+  - GET /user/entry/captcha
+  - POST /user/entry/verify
+  - GET /user/teams/invitations/:invitation_id
+  - POST /otp/login
+  # OAuth - Device Flow (RFC 8628, for desktop clients)
+  - POST /user/oauth/:provider/device/authorize
+  - POST /user/oauth/:provider/device/token
+
+# Default endpoint rules (can be overridden by specific scopes)
+endpoints:
+  # Sandbox Management
+  - GET /sandbox/* allow
+  - POST /sandbox/* allow
+  - DELETE /sandbox/* allow
+
+  # Computer Options
+  - GET /computer/* allow
+
+  # Workspace Management
+  - GET /workspace/* allow
+  - POST /workspace/* allow
+  - PUT /workspace/* allow
+  - DELETE /workspace/* allow
+
+  # Nodes (read-only)
+  - GET /nodes/* allow
+
+  # Setting Management - Scope-based control (see setting/*.yml)
+  # /setting/cloud has dedicated scope files; other /setting/* endpoints
+  # fall through to blanket allow until they get their own scope files.
+  - GET /setting/system allow
+  - POST /setting/system/* allow

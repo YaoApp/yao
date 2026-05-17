@@ -7,6 +7,7 @@ import (
 	"github.com/yaoapp/yao/agent"
 	agenttest "github.com/yaoapp/yao/agent/test"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -134,7 +135,7 @@ func TestInputSource_ToInputMode(t *testing.T) {
 }
 
 func TestGenerateTestCases(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent (includes assistants)

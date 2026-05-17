@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-fixture-openai-mt-001",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Based on our previous conversation, I can confirm that the weather in San Francisco is 18°C and partly cloudy."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 120,
+    "completion_tokens": 28,
+    "total_tokens": 148
+  }
+}

@@ -79,7 +79,7 @@ func TestParseWithMissingURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	options := newTestOptions()
@@ -103,7 +103,7 @@ func TestParseWithLocalTextFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	txtPath := getTestFilePath("text.txt")
@@ -138,7 +138,7 @@ func TestParseWithLocalMarkdownFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	mdPath := getTestFilePath("test.md")
@@ -173,7 +173,7 @@ func TestParseWithLocalCodeFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	tsPath := getTestFilePath("code.ts")
@@ -211,7 +211,7 @@ func TestParseWithLocalYaoFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	yaoPath := getTestFilePath("hero.mod.yao")
@@ -246,7 +246,7 @@ func TestParseWithLocalJsonFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	jsonPath := getTestFilePath("test.json")
@@ -281,7 +281,7 @@ func TestParseWithNonExistentFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	options := newTestOptions()
@@ -308,7 +308,7 @@ func TestParseRawWithLocalFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	txtPath := getTestFilePath("text.txt")

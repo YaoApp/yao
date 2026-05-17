@@ -18,6 +18,7 @@ import (
 
 // TestDeepSeekR1StreamBasic tests basic streaming completion with DeepSeek R1
 func TestDeepSeekR1StreamBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -195,6 +196,7 @@ func TestDeepSeekR1StreamBasic(t *testing.T) {
 
 // TestDeepSeekR1PostBasic tests basic non-streaming completion
 func TestDeepSeekR1PostBasic(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -283,6 +285,7 @@ func TestDeepSeekR1PostBasic(t *testing.T) {
 
 // TestDeepSeekR1LogicPuzzle tests DeepSeek R1's reasoning with a logic puzzle
 func TestDeepSeekR1LogicPuzzle(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

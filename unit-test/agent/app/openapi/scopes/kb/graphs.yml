@@ -1,0 +1,51 @@
+# Graphs - Knowledge Graph Management
+# namespace: kb
+# resource: graphs
+# actions: read, write
+# levels: all, own, team
+
+kb:graphs:read:all:
+  description: "Read all knowledge graphs"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/graph
+    - GET /kb/documents/:docID/segments/:segmentID/entities
+    - GET /kb/documents/:docID/segments/:segmentID/relationships
+    - GET /kb/documents/:docID/segments/:segmentID/relationships/by-entities
+
+kb:graphs:read:own:
+  owner: true
+  description: "Read own knowledge graphs"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/graph
+    - GET /kb/documents/:docID/segments/:segmentID/entities
+    - GET /kb/documents/:docID/segments/:segmentID/relationships
+    - GET /kb/documents/:docID/segments/:segmentID/relationships/by-entities
+
+kb:graphs:read:team:
+  team: true
+  description: "Read team knowledge graphs"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/graph
+    - GET /kb/documents/:docID/segments/:segmentID/entities
+    - GET /kb/documents/:docID/segments/:segmentID/relationships
+    - GET /kb/documents/:docID/segments/:segmentID/relationships/by-entities
+
+kb:graphs:write:all:
+  description: "Extract knowledge graphs for all segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/extract
+    - POST /kb/documents/:docID/segments/:segmentID/extract/async
+
+kb:graphs:write:own:
+  owner: true
+  description: "Extract knowledge graphs for own segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/extract
+    - POST /kb/documents/:docID/segments/:segmentID/extract/async
+
+kb:graphs:write:team:
+  team: true
+  description: "Extract knowledge graphs for team segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/extract
+    - POST /kb/documents/:docID/segments/:segmentID/extract/async

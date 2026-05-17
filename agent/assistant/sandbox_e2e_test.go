@@ -57,7 +57,7 @@ func TestSandboxBasicE2E(t *testing.T) {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the basic sandbox assistant
@@ -125,7 +125,7 @@ func TestSandboxHooksE2E(t *testing.T) {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the hooks sandbox assistant
@@ -170,7 +170,7 @@ func TestSandboxFullE2E(t *testing.T) {
 		t.Skip("Skipping sandbox E2E test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the full sandbox assistant
@@ -222,7 +222,7 @@ func TestSandboxContextAccess(t *testing.T) {
 		t.Skip("Skipping sandbox context access test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the hooks sandbox assistant
@@ -270,7 +270,7 @@ func TestSandboxMCPToolCall(t *testing.T) {
 		t.Skip("Skipping sandbox MCP tool call test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the full sandbox assistant (has MCP echo tool)
@@ -359,7 +359,7 @@ func TestSandboxMCPEchoTool(t *testing.T) {
 		t.Skip("Skipping sandbox MCP echo test in short mode")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the full sandbox assistant
@@ -417,7 +417,7 @@ Show me the exact response from the tool.`,
 
 // TestSandboxLoadConfiguration verifies that sandbox assistants load correctly
 func TestSandboxLoadConfiguration(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	testCases := []struct {

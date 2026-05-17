@@ -53,7 +53,7 @@ func newTestContext(chatID, assistantID string) *context.Context {
 
 // TestCreate test the create hook
 func TestCreate(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")

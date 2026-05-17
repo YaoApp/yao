@@ -1,0 +1,45 @@
+# Cloud Service - Setting Management
+# namespace: setting
+# resource: cloud
+# actions: read, write
+# levels: all, own, team
+
+setting:cloud:read:all:
+  description: "Read cloud service configuration"
+  endpoints:
+    - GET /setting/cloud
+
+setting:cloud:read:own:
+  owner: true
+  description: "Read own cloud service configuration"
+  endpoints:
+    - GET /setting/cloud
+
+setting:cloud:read:team:
+  team: true
+  description: "Read team cloud service configuration"
+  endpoints:
+    - GET /setting/cloud
+
+setting:cloud:write:all:
+  description: "Update cloud service configuration"
+  endpoints:
+    - PUT /setting/cloud
+    - POST /setting/cloud/test
+    - POST /setting/cloud/refresh
+
+setting:cloud:write:own:
+  owner: true
+  description: "Update own cloud service configuration"
+  endpoints:
+    - PUT /setting/cloud
+    - POST /setting/cloud/test
+    - POST /setting/cloud/refresh
+
+setting:cloud:write:team:
+  team: true
+  description: "Update team cloud service configuration"
+  endpoints:
+    - PUT /setting/cloud
+    - POST /setting/cloud/test
+    - POST /setting/cloud/refresh

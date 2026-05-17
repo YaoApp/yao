@@ -5,7 +5,7 @@ import (
 
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -19,7 +19,7 @@ func getTestCache(t *testing.T) store.Store {
 }
 
 func TestGetChatIDByMessages_NewConversation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -59,7 +59,7 @@ func TestGetChatIDByMessages_NewConversation(t *testing.T) {
 }
 
 func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -131,7 +131,7 @@ func TestGetChatIDByMessages_ContinuousConversation(t *testing.T) {
 }
 
 func TestGetChatIDByMessages_DifferentConversations(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -173,7 +173,7 @@ func TestGetChatIDByMessages_DifferentConversations(t *testing.T) {
 }
 
 func TestGetChatIDByMessages_MultiModalContent(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -221,7 +221,7 @@ func TestGetChatIDByMessages_MultiModalContent(t *testing.T) {
 }
 
 func TestGetChatIDByMessages_WithToolCalls(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -277,7 +277,7 @@ func TestGetChatIDByMessages_WithToolCalls(t *testing.T) {
 }
 
 func TestCacheChatID_EmptyMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -289,7 +289,7 @@ func TestCacheChatID_EmptyMessages(t *testing.T) {
 }
 
 func TestCacheChatID_EmptyChatID(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)
@@ -308,7 +308,7 @@ func TestCacheChatID_EmptyChatID(t *testing.T) {
 }
 
 func TestGetChatIDByMessages_EmptyMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cache := getTestCache(t)

@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	agenttest "github.com/yaoapp/yao/agent/test"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
@@ -67,7 +67,7 @@ func TestParseHookRef(t *testing.T) {
 
 func TestHookExecutorLoadTestScripts(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts using the utility function
@@ -89,7 +89,7 @@ func TestHookExecutorLoadTestScripts(t *testing.T) {
 
 func TestHookExecutorExecuteBefore(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts
@@ -117,7 +117,7 @@ func TestHookExecutorExecuteBefore(t *testing.T) {
 
 func TestHookExecutorExecuteAfter(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts
@@ -149,7 +149,7 @@ func TestHookExecutorExecuteAfter(t *testing.T) {
 
 func TestHookExecutorExecuteBeforeAll(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts
@@ -177,7 +177,7 @@ func TestHookExecutorExecuteBeforeAll(t *testing.T) {
 
 func TestHookExecutorExecuteAfterAll(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts
@@ -203,7 +203,7 @@ func TestHookExecutorExecuteAfterAll(t *testing.T) {
 
 func TestHookExecutorFunctionNotFound(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts
@@ -224,7 +224,7 @@ func TestHookExecutorFunctionNotFound(t *testing.T) {
 
 func TestHookExecutorScriptNotFound(t *testing.T) {
 	// Prepare test environment
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent test scripts

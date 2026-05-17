@@ -7,13 +7,13 @@ import (
 
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestSaveMessages tests batch saving messages
 func TestSaveMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -443,7 +443,7 @@ func TestSaveMessages(t *testing.T) {
 
 // TestGetMessages tests retrieving messages with filters
 func TestGetMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -736,7 +736,7 @@ func TestGetMessages(t *testing.T) {
 
 // TestUpdateMessage tests updating messages
 func TestUpdateMessage(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -890,7 +890,7 @@ func TestUpdateMessage(t *testing.T) {
 
 // TestDeleteMessages tests deleting messages
 func TestDeleteMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1002,7 +1002,7 @@ func TestDeleteMessages(t *testing.T) {
 
 // TestMessageCompleteWorkflow tests a complete message workflow
 func TestMessageCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -1144,7 +1144,7 @@ func TestMessageCompleteWorkflow(t *testing.T) {
 
 // TestConcurrentMessages tests concurrent message storage
 func TestConcurrentMessages(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{

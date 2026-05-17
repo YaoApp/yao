@@ -10,7 +10,7 @@ import (
 
 // TestBuildRequest_MCP tests MCP tool integration in BuildRequest
 func TestBuildRequest_MCP(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.mcptest")

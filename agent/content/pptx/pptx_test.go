@@ -51,7 +51,7 @@ func TestParseWithMissingURL(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	options := newTestOptions()
@@ -75,7 +75,7 @@ func TestParseWithLocalPptx(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	pptxPath := getTestFilePath("pptx.pptx")
@@ -110,7 +110,7 @@ func TestParseWithNonExistentFile(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	options := newTestOptions()

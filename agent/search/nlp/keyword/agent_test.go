@@ -20,7 +20,7 @@ func TestAgentProviderWithAssistantConfig(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the keyword-agent assistant that will provide keywords
@@ -55,7 +55,7 @@ func TestAgentProviderWithCustomOptions(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context
@@ -94,7 +94,7 @@ func TestAgentProviderAgentNotFound(t *testing.T) {
 	}
 
 	// Initialize test environment
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create test context

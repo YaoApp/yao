@@ -65,6 +65,7 @@ import (
 
 // TestTemperatureDeepSeekR1AutoReset tests that DeepSeek R1 automatically resets temperature to 1.0
 func TestTemperatureDeepSeekR1AutoReset(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -117,6 +118,7 @@ func TestTemperatureDeepSeekR1AutoReset(t *testing.T) {
 
 // TestTemperatureGPT4oPreserved tests that GPT-4o preserves custom temperature
 func TestTemperatureGPT4oPreserved(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -167,6 +169,7 @@ func TestTemperatureGPT4oPreserved(t *testing.T) {
 
 // TestTemperatureDeepSeekV3Preserved tests that DeepSeek V3 preserves custom temperature
 func TestTemperatureDeepSeekV3Preserved(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 
@@ -267,6 +270,7 @@ func TestTemperatureDeepSeekV3Preserved(t *testing.T) {
 
 // TestTemperatureNoTemperatureProvided tests that models work when no temperature is provided
 func TestTemperatureNoTemperatureProvided(t *testing.T) {
+	t.Skip("migrated to mock_test.go / e2e_test.go")
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

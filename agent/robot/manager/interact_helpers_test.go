@@ -43,7 +43,7 @@ func TestCreateConfirmingExecution(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		robot := &types.Robot{MemberID: "member-hl1", TeamID: "team-hl1"}
@@ -71,7 +71,7 @@ func TestCreateConfirmingExecution(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		robot := &types.Robot{MemberID: "member-hl1b", TeamID: "team-hl1b"}
@@ -92,7 +92,7 @@ func TestAdjustExecution(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -116,7 +116,7 @@ func TestAdjustExecution(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -153,7 +153,7 @@ func TestAdjustExecution(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -179,7 +179,7 @@ func TestInjectTask(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -204,7 +204,7 @@ func TestInjectTask(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -241,7 +241,7 @@ func TestInjectTask(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		ctx := types.NewContext(context.Background(), nil)
 		record := &store.ExecutionRecord{
@@ -347,7 +347,7 @@ func TestProcessHostActionAdjust(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Requires database")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 	m := &Manager{}
 	ctx := types.NewContext(context.Background(), nil)
@@ -428,7 +428,7 @@ func TestProcessHostActionAddTask(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Requires database")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 	m := &Manager{}
 	ctx := types.NewContext(context.Background(), nil)
@@ -542,7 +542,7 @@ func TestProcessHostActionCancel(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Requires database")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("cancel waiting execution", func(t *testing.T) {
@@ -602,7 +602,7 @@ func TestHandleInteractValidationExtended(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database and cache")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		// Would require a full Manager with cache — tested via E2E
 	})
@@ -656,7 +656,7 @@ func TestProcessHostActionConfirmRequiresPool(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Requires database")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 	m := &Manager{started: false}
 	ctx := types.NewContext(context.Background(), nil)
@@ -755,7 +755,7 @@ func TestHandleInteractRouting(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database and cache")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 
 		m := &Manager{started: true, cache: cache.New()}
@@ -771,7 +771,7 @@ func TestHandleInteractRouting(t *testing.T) {
 		if testing.Short() {
 			t.Skip("Requires database and cache")
 		}
-		testutils.Prepare(t)
+		testutils.PrepareAgent(t)
 		defer testutils.Clean(t)
 		m := &Manager{started: true, cache: cache.New()}
 		ctx := types.NewContext(context.Background(), nil)
@@ -789,7 +789,7 @@ func TestCancelExecutionStatusValidation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Requires database")
 	}
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("CE2: non-existent execution returns error", func(t *testing.T) {

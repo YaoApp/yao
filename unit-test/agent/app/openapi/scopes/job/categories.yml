@@ -1,0 +1,11 @@
+# Categories - Job Category Management
+# namespace: job
+# resource: categories
+# actions: read
+# levels: all
+
+job:categories:read:all:
+  description: "Read job categories"
+  endpoints:
+    - GET /job/categories
+    - GET /job/categories/:categoryID

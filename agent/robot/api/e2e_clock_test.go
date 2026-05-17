@@ -1,3 +1,5 @@
+//go:build e2e
+
 package api_test
 
 // End-to-end tests for Clock trigger flow
@@ -41,7 +43,8 @@ func TestE2EClockTriggerFullFlow(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -165,7 +168,8 @@ func TestE2EClockTriggerPhaseProgression(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)
@@ -241,7 +245,8 @@ func TestE2EClockTriggerDataPersistence(t *testing.T) {
 		t.Skip("Skipping E2E test - requires real LLM calls")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
+	testutils.RequireE2EKeys(t)
 	defer testutils.Clean(t)
 
 	cleanupE2ERobots(t)

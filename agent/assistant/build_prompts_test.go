@@ -57,7 +57,7 @@ func newMinimalTestContext() *context.Context {
 }
 
 func TestBuildSystemPromptsIntegration(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("AssistantWithLocale", func(t *testing.T) {
@@ -128,7 +128,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 	})
 
 	t.Run("MetadataTypeConversion", func(t *testing.T) {
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -156,7 +156,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 	})
 
 	t.Run("AuthorizedInfoPrivacy", func(t *testing.T) {
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -194,7 +194,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		})
 		defer assistant.SetGlobalPrompts(nil)
 
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -234,7 +234,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		})
 		defer assistant.SetGlobalPrompts(nil)
 
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -286,7 +286,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		})
 		defer assistant.SetGlobalPrompts(nil)
 
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -334,7 +334,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		})
 		defer assistant.SetGlobalPrompts(nil)
 
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -514,7 +514,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		defer assistant.SetGlobalPrompts(nil)
 
 		// Load an assistant that does NOT disable global prompts
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 		require.False(t, ast.DisableGlobalPrompts)
 
@@ -549,7 +549,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 		defer assistant.SetGlobalPrompts(nil)
 
 		// Load an assistant that does NOT disable global prompts
-		ast, err := assistant.Get("yaobots")
+		ast, err := assistant.Get("tests.simple-greeting")
 		require.NoError(t, err)
 
 		ctx := newMinimalTestContext()
@@ -613,7 +613,7 @@ func TestBuildSystemPromptsIntegration(t *testing.T) {
 
 // TestPromptPresetAssistant tests the tests.promptpreset assistant with Create Hook
 func TestPromptPresetAssistant(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	t.Run("LoadPromptPresetAssistant", func(t *testing.T) {

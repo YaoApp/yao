@@ -10,7 +10,7 @@ import (
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/test"
 	"rogchap.com/v8go"
@@ -19,7 +19,7 @@ import (
 // TestJsValue test the JsValue function
 func TestJsValue(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "ChatID-123456")
@@ -63,7 +63,7 @@ func testContextJsvalueFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 // TestJsValueConcurrent test the JsValue function with concurrent requests
 func TestJsValueConcurrent(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	v8.RegisterFunction("testContextJsvalue", testContextJsvalueEmbed)
@@ -133,7 +133,7 @@ func TestJsValueConcurrent(t *testing.T) {
 // TestJsValueRegistrationAndCleanup test the object registration and cleanup mechanism
 func TestJsValueRegistrationAndCleanup(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	v8.RegisterFunction("testContextRegistration", testContextRegistrationEmbed)
@@ -203,7 +203,7 @@ func testContextRegistrationFunction(info *v8go.FunctionCallbackInfo) *v8go.Valu
 // TestJsValueAllFields test that all Context fields are properly exported to JavaScript
 func TestJsValueAllFields(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	authInfo := &types.AuthorizedInfo{
@@ -386,7 +386,7 @@ func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 // TestJsValueTrace test the Trace method on Context
 func TestJsValueTrace(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")
@@ -448,7 +448,7 @@ func TestJsValueTrace(t *testing.T) {
 // TestJsValueAuthorizedAndMetadata test the authorized and metadata fields
 func TestJsValueAuthorizedAndMetadata(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	authInfo := &types.AuthorizedInfo{
@@ -547,7 +547,7 @@ func testAuthorizedMetadataFunction(info *v8go.FunctionCallbackInfo) *v8go.Value
 // TestJsValueAuthorizedNil test when authorized is nil
 func TestJsValueAuthorizedNil(t *testing.T) {
 
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	cxt := context.New(stdContext.Background(), nil, "test-chat-id")

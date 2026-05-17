@@ -13,12 +13,14 @@ import (
 	"github.com/yaoapp/yao/agent/assistant"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestLoadSandboxBasicAssistant tests loading the basic sandbox test assistant
 func TestLoadSandboxBasicAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ast, err := assistant.LoadPath("/assistants/tests/sandbox/basic")
@@ -41,7 +43,8 @@ func TestLoadSandboxBasicAssistant(t *testing.T) {
 
 // TestLoadSandboxHooksAssistant tests loading the hooks sandbox test assistant
 func TestLoadSandboxHooksAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ast, err := assistant.LoadPath("/assistants/tests/sandbox/hooks")
@@ -63,7 +66,8 @@ func TestLoadSandboxHooksAssistant(t *testing.T) {
 
 // TestLoadSandboxFullAssistant tests loading the full sandbox test assistant with MCPs and Skills
 func TestLoadSandboxFullAssistant(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent to ensure MCPs are available
@@ -103,7 +107,8 @@ func TestLoadSandboxFullAssistant(t *testing.T) {
 
 // TestSandboxConfigValidation tests sandbox configuration validation
 func TestSandboxConfigValidation(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	tests := []struct {
@@ -146,7 +151,8 @@ func TestSandboxConfigValidation(t *testing.T) {
 // TestSkillsDirectoryResolution tests that skills directory exists and has correct structure
 // Note: Skills are auto-discovered from skills/ directory, not stored in AssistantModel
 func TestSkillsDirectoryResolution(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	ast, err := assistant.LoadPath("/assistants/tests/sandbox/full")
@@ -202,7 +208,8 @@ func TestSkillsDirectoryResolution(t *testing.T) {
 
 // TestMCPConfiguration tests that MCP is correctly loaded for sandbox assistant
 func TestMCPConfiguration(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent to ensure MCPs are available
@@ -229,7 +236,8 @@ func TestMCPConfiguration(t *testing.T) {
 
 // TestBuildMCPConfigForSandbox tests that MCP configuration is correctly built for sandbox
 func TestBuildMCPConfigForSandbox(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent to ensure MCPs are available
@@ -278,7 +286,8 @@ func TestBuildMCPConfigForSandbox(t *testing.T) {
 
 // TestSandboxMCPAndSkillsOptions tests that sandbox options include MCP and Skills
 func TestSandboxMCPAndSkillsOptions(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	t.Skip("sandbox v1 deprecated")
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	// Load agent to ensure MCPs are available

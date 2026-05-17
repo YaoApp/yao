@@ -20,7 +20,7 @@ import (
 // TestMemoryLeakStandardMode checks for memory leaks in standard V8 mode
 // Run with: go test -run=TestMemoryLeakStandardMode -v
 func TestMemoryLeakStandardMode(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -108,7 +108,7 @@ func TestMemoryLeakStandardMode(t *testing.T) {
 // TestMemoryLeakPerformanceMode checks for memory leaks in performance V8 mode
 // Run with: go test -run=TestMemoryLeakPerformanceMode -v
 func TestMemoryLeakPerformanceMode(t *testing.T) {
-	testutils.Prepare(t, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(t, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -193,7 +193,7 @@ func TestMemoryLeakPerformanceMode(t *testing.T) {
 // TestMemoryLeakBusinessScenarios checks for memory leaks with business logic
 // Run with: go test -run=TestMemoryLeakBusinessScenarios -v
 func TestMemoryLeakBusinessScenarios(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -284,7 +284,7 @@ func TestMemoryLeakBusinessScenarios(t *testing.T) {
 // TestMemoryLeakConcurrent checks for memory leaks under concurrent load
 // Run with: go test -run=TestMemoryLeakConcurrent -v
 func TestMemoryLeakConcurrent(t *testing.T) {
-	testutils.Prepare(t, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(t, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -369,7 +369,7 @@ func TestMemoryLeakConcurrent(t *testing.T) {
 // TestMemoryLeakNestedCalls checks for memory leaks with nested script calls
 // Run with: go test -run=TestMemoryLeakNestedCalls -v
 func TestMemoryLeakNestedCalls(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -445,7 +445,7 @@ func TestMemoryLeakNestedCalls(t *testing.T) {
 // TestMemoryLeakNestedConcurrent checks for memory leaks with concurrent nested calls
 // Run with: go test -run=TestMemoryLeakNestedConcurrent -v
 func TestMemoryLeakNestedConcurrent(t *testing.T) {
-	testutils.Prepare(t, test.PrepareOption{V8Mode: "performance"})
+	testutils.PrepareAgent(t, test.PrepareOption{V8Mode: "performance"})
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")
@@ -531,7 +531,7 @@ func TestMemoryLeakNestedConcurrent(t *testing.T) {
 // TestIsolateDisposal verifies that isolates are properly disposed in standard mode
 // Run with: go test -run=TestIsolateDisposal -v
 func TestIsolateDisposal(t *testing.T) {
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	agent, err := assistant.Get("tests.create")

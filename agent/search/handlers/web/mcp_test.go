@@ -17,7 +17,7 @@ func TestMCPProviderWithAssistantConfig(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Load the web-mcp test assistant to get its config
@@ -79,7 +79,7 @@ func TestMCPProviderWithSiteRestriction(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create MCPProvider
@@ -115,7 +115,7 @@ func TestMCPProviderWithTimeRange(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create MCPProvider
@@ -161,7 +161,7 @@ func TestMCPProviderNotFound(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create MCPProvider with non-existent server
@@ -189,7 +189,7 @@ func TestWebHandlerMCPMode(t *testing.T) {
 		t.Skip("Skipping integration test")
 	}
 
-	testutils.Prepare(t)
+	testutils.PrepareAgent(t)
 	defer testutils.Clean(t)
 
 	// Create handler with MCP mode

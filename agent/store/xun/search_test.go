@@ -7,13 +7,13 @@ import (
 
 	"github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/agent/store/xun"
-	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/test"
 )
 
 // TestSaveSearch tests saving search records
 func TestSaveSearch(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -380,7 +380,7 @@ func TestSaveSearch(t *testing.T) {
 
 // TestGetSearches tests retrieving search records
 func TestGetSearches(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -456,7 +456,7 @@ func TestGetSearches(t *testing.T) {
 
 // TestGetReference tests retrieving a single reference
 func TestGetReference(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -553,7 +553,7 @@ func TestGetReference(t *testing.T) {
 
 // TestDeleteSearches tests deleting search records
 func TestDeleteSearches(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
@@ -611,7 +611,7 @@ func TestDeleteSearches(t *testing.T) {
 
 // TestSearchCompleteWorkflow tests a complete search workflow
 func TestSearchCompleteWorkflow(t *testing.T) {
-	test.Prepare(t, config.Conf)
+	testutils.PrepareAgent(t)
 	defer test.Clean()
 
 	store, err := xun.NewXun(types.Setting{
