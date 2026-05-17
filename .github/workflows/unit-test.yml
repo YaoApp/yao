@@ -182,6 +182,7 @@ jobs:
   # KB Tests (kb) - Run once with SQLite (requires Qdrant, Neo4j, FastEmbed)
   # =============================================================================
   kb-test:
+    if: false # Paused: migrating to new test environment
     runs-on: ubuntu-latest
     services:
       qdrant:
@@ -574,6 +575,7 @@ jobs:
   # Sandbox Tests (requires Docker) - Run with Docker-in-Docker
   # =============================================================================
   sandbox-test:
+    if: false # Paused: migrating to new test environment
     runs-on: ubuntu-latest
     services:
       mongodb:
@@ -689,6 +691,7 @@ jobs:
   # Full sandbox/v2 integration tests are run locally.
   # =============================================================================
   sandbox-v2-test:
+    if: false # Paused: migrating to new test environment
     runs-on: ubuntu-latest
     services:
       mongodb:
