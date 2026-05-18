@@ -237,8 +237,9 @@ func extractLastAnthropicUserMessage(messages json.RawMessage) string {
 		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(messages, &msgs); err != nil {
-		log.Printf("failed to parse messages for echo: %v", err)
-		return "echo: (failed to parse messages)"
+		log.Printf("[DIAG] failed to parse messages for echo (anthropic): %v", err)
+		log.Printf("[DIAG] raw messages JSON: %s", string(messages))
+		return "echo: (failed to parse messages) " + err.Error()
 	}
 	for i := len(msgs) - 1; i >= 0; i-- {
 		if msgs[i].Role == "user" {

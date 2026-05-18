@@ -93,7 +93,8 @@ jobs:
         run: |
           ${{ github.workspace }}/.build/test/mock-llm \
             -port $MOCK_LLM_PORT \
-            -fixtures unit-test/agent/mock-llm/fixtures &
+            -fixtures unit-test/agent/mock-llm/fixtures \
+            > ${{ github.workspace }}/.build/test/mock-llm.log 2>&1 &
           echo $! > ${{ github.workspace }}/.build/test/mock-llm.pid
           for i in $(seq 1 15); do
             curl -sf http://127.0.0.1:$MOCK_LLM_PORT/healthz && break
@@ -128,11 +129,18 @@ jobs:
         run: |
           go test -v -count=1 -timeout 600s ./sandbox/v2/... ./agent/sandbox/v2/...
 
+      - name: Dump mock-llm logs
+        if: failure()
+        run: |
+          echo "=== mock-llm.log ==="
+          cat ${{ github.workspace }}/.build/test/mock-llm.log || echo "(no log file)"
+
       - name: Upload Logs on Failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: agent-test-logs-${{ matrix.db }}
           path: |
+            ${{ github.workspace }}/.build/test/mock-llm.log
             ${{ github.workspace }}/.build/test/data/*.log
             ${{ github.workspace }}/unit-test/agent/app/logs/
