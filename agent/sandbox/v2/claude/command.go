@@ -534,6 +534,7 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 			if content == nil {
 				content = ""
 			}
+			fmt.Printf("[TRACE-SANDBOX] buildLastUserMessageJSONL: content type=%T value=%v\n", content, truncateForLog(content, 200))
 			msg := map[string]any{
 				"type": "user",
 				"message": map[string]any{
@@ -542,10 +543,19 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 				},
 			}
 			data, _ := json.Marshal(msg)
+			fmt.Printf("[TRACE-SANDBOX] buildLastUserMessageJSONL: jsonl=%s\n", truncateForLog(string(data), 300))
 			return string(data)
 		}
 	}
 	return ""
+}
+
+func truncateForLog(v any, maxLen int) string {
+	s := fmt.Sprintf("%v", v)
+	if len(s) > maxLen {
+		return s[:maxLen] + "...(truncated)"
+	}
+	return s
 }
 
 // claudeRoleEnvMap maps abstract Yao model roles to Claude CLI environment

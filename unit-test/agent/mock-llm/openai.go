@@ -251,6 +251,14 @@ func extractLastUserMessage(messages json.RawMessage) string {
 		log.Printf("failed to parse messages for echo: %v", err)
 		return "echo: (failed to parse messages)"
 	}
+	fmt.Printf("[TRACE-SANDBOX] mock-llm received %d messages\n", len(msgs))
+	for i, m := range msgs {
+		preview := string(m.Content)
+		if len(preview) > 150 {
+			preview = preview[:150] + "..."
+		}
+		fmt.Printf("[TRACE-SANDBOX] [%d] role=%s content_preview=%s\n", i, m.Role, preview)
+	}
 	for i := len(msgs) - 1; i >= 0; i-- {
 		if msgs[i].Role == "user" {
 			var text string
