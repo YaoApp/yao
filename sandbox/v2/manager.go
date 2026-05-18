@@ -625,21 +625,11 @@ func (m *Manager) waitEntrypoint(ctx context.Context, rt tairuntime.Runtime, con
 		}
 		result, err := rt.Exec(ctx, containerID, probe, opts)
 		if err == nil && result.ExitCode == 0 {
-			log.Printf("[sandbox/v2] waitEntrypoint: ready after %d retries (container=%s)", i+1, containerID)
 			return nil
 		}
-		log.Printf("[sandbox/v2] waitEntrypoint: retry %d/%d wait=%v err=%v exitCode=%d (container=%s)",
-			i+1, 9, wait, err, exitCodeOr(result, -1), containerID)
 		if wait < 2*time.Second {
 			wait *= 2
 		}
 	}
 	return fmt.Errorf("entrypoint UID mapping not ready after 9 retries")
-}
-
-func exitCodeOr(r *tairuntime.ExecResult, fallback int) int {
-	if r != nil {
-		return r.ExitCode
-	}
-	return fallback
 }
