@@ -1,0 +1,16 @@
+# Global prompts for all assistants
+# These prompts are prepended to assistant prompts unless disable_global_prompts is true
+#
+# Supported variables:
+# - $SYS.TIME, $SYS.DATE, $SYS.DATETIME, $SYS.TIMEZONE, $SYS.WEEKDAY
+# - $SYS.YEAR, $SYS.MONTH, $SYS.DAY, $SYS.HOUR, $SYS.MINUTE, $SYS.SECOND
+# - $ENV.XXX - Environment variables
+# - $CTX.XXX - Context variables (passed at runtime)
+# - @assets/xxx - File content from agent/assets/ directory
+
+- role: system
+  content: |
+    # System Context
+    Current Time: $SYS.DATETIME
+    Timezone: $SYS.TIMEZONE
+    Weekday: $SYS.WEEKDAY

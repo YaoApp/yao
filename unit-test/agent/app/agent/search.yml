@@ -1,0 +1,33 @@
+web:
+  provider: tavily
+  max_results: 10
+
+kb:
+  threshold: 0.7
+  graph: false
+
+db:
+  max_results: 20
+
+keyword:
+  max_keywords: 10
+  language: auto
+
+querydsl:
+  strict: false
+
+rerank:
+  top_n: 10
+
+citation:
+  format: "#ref:{id}"
+  auto_inject_prompt: true
+
+weights:
+  user: 1.0
+  hook: 0.8
+  auto: 0.6
+
+options:
+  skip_threshold: 5
+
