@@ -262,10 +262,14 @@ func extractLastUserMessage(messages json.RawMessage) string {
 				Text string `json:"text"`
 			}
 			if err := json.Unmarshal(msgs[i].Content, &blocks); err == nil {
+				last := ""
 				for _, b := range blocks {
 					if b.Type == "text" {
-						return "echo: " + b.Text
+						last = b.Text
 					}
+				}
+				if last != "" {
+					return "echo: " + last
 				}
 			}
 		}
