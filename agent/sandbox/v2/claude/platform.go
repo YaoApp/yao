@@ -81,6 +81,13 @@ func (b *posixBase) ListDirCmd(dir string) []string {
 func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
 	var s strings.Builder
 
+	// DEBUG: container permission diagnostics (remove after CI root-cause analysis)
+	s.WriteString("echo '[DIAG] whoami='$(whoami)' uid='$(id -u)' gid='$(id -g) >&2\n")
+	s.WriteString("echo '[DIAG] /workspace stat='$(stat -c '%u:%g %a' /workspace 2>/dev/null || echo N/A) >&2\n")
+	s.WriteString("echo '[DIAG] /workspace ls:' >&2; ls -la /workspace/ >&2 2>&1 || true\n")
+	s.WriteString("echo '[DIAG] sandbox passwd='$(grep ^sandbox /etc/passwd 2>/dev/null || echo N/A) >&2\n")
+	s.WriteString("echo '[DIAG] touch test:' >&2; touch /workspace/.diag-test && rm -f /workspace/.diag-test && echo '[DIAG] write OK' >&2 || echo '[DIAG] write FAILED' >&2\n")
+
 	if xauthCmd != "" {
 		s.WriteString(xauthCmd)
 	}
