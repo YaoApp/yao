@@ -114,14 +114,6 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 		promptFile:   promptFile,
 	})
 
-	fmt.Printf("[TRACE-SANDBOX] === buildCommand ===\n")
-	fmt.Printf("[TRACE-SANDBOX] assistantID=%s chatID=%s isContinuation=%v\n", assistantID, chatID, isContinuation)
-	fmt.Printf("[TRACE-SANDBOX] env=%v\n", env)
-	fmt.Printf("[TRACE-SANDBOX] args=%v\n", args)
-	fmt.Printf("[TRACE-SANDBOX] systemPrompt len=%d\n", len(systemPrompt))
-	fmt.Printf("[TRACE-SANDBOX] inputJSONL=%s\n", inputJSONL)
-	fmt.Printf("[TRACE-SANDBOX] script=%s\n", script)
-
 	return command{
 		shell:   p.ShellCmd(script),
 		env:     env,
@@ -542,7 +534,6 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 			if content == nil {
 				content = ""
 			}
-			fmt.Printf("[TRACE-SANDBOX] buildLastUserMessageJSONL: content type=%T value=%v\n", content, truncateForLog(content, 200))
 			msg := map[string]any{
 				"type": "user",
 				"message": map[string]any{
@@ -551,19 +542,10 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 				},
 			}
 			data, _ := json.Marshal(msg)
-			fmt.Printf("[TRACE-SANDBOX] buildLastUserMessageJSONL: jsonl=%s\n", truncateForLog(string(data), 300))
 			return string(data)
 		}
 	}
 	return ""
-}
-
-func truncateForLog(v any, maxLen int) string {
-	s := fmt.Sprintf("%v", v)
-	if len(s) > maxLen {
-		return s[:maxLen] + "...(truncated)"
-	}
-	return s
 }
 
 // claudeRoleEnvMap maps abstract Yao model roles to Claude CLI environment

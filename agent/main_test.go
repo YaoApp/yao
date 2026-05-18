@@ -9,5 +9,7 @@ import (
 
 func TestMain(m *testing.M) {
 	testprepare.MustLoadEnv()
-	os.Exit(m.Run())
+	code := m.Run()
+	testprepare.Cleanup()
+	os.Exit(code)
 }

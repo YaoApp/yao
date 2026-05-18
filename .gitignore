@@ -99,6 +99,7 @@ unit-test/*/*.md
 unit-test/agent/env/secrets.env
 unit-test/agent/env/local.env
 unit-test/agent/env/agent-test.env
+unit-test/agent/env/agent-test-pg.env
 unit-test/agent/env/.env.local
 unit-test/agent/app/.env
 unit-test/agent/app/db/

@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	_ "github.com/yaoapp/gou/encoding"
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/store"
 	_ "github.com/yaoapp/gou/text"
 
 	"github.com/yaoapp/yao/agent"
@@ -495,9 +496,18 @@ func cleanupApp() {
 	yaogrpc.Stop()
 	event.Stop(context.Background())
 	runtime.Stop()
+	flushStores()
 	_ = share.DBClose()
 	os.RemoveAll(filepath.Join(agentAppDir, "data", "stores"))
 	cleanSQLite()
+}
+
+// flushStores drains pending async writes in all xun-backed stores
+// so that data written during the test run is persisted before DB close.
+func flushStores() {
+	for _, s := range store.Pools {
+		s.Flush()
+	}
 }
 
 func parseAppYao(t *testing.T) {

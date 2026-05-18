@@ -201,9 +201,20 @@ func MustLoadEnv() {
 //  3. Set path variables: YAO_ROOT, YAO_AGENT_TEST_APPLICATION, YAO_TEST_APPLICATION
 func loadAgentTestEnv() error {
 	agentDir := filepath.Join(yaoSrcRoot, "unit-test", "agent")
+
 	envFile := filepath.Join(agentDir, "env", "agent-test.env")
+	if testDB := os.Getenv("YAO_TEST_DB"); testDB == "postgres" {
+		pgFile := filepath.Join(agentDir, "env", "agent-test-pg.env")
+		if _, err := os.Stat(pgFile); err == nil {
+			envFile = pgFile
+			fmt.Printf("[testprepare] YAO_TEST_DB=postgres → using %s\n", pgFile)
+		} else {
+			fmt.Printf("[testprepare] YAO_TEST_DB=postgres but %s not found, falling back to agent-test.env\n", pgFile)
+		}
+	}
+
 	if _, err := os.Stat(envFile); os.IsNotExist(err) {
-		return fmt.Errorf("agent-test.env not found at %s", envFile)
+		return fmt.Errorf("env file not found at %s", envFile)
 	}
 
 	// Parse all key=val pairs from agent-test.env
