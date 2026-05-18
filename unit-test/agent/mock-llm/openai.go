@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -47,11 +46,17 @@ func handleOpenAI(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	fmt.Printf("[TRACE-SANDBOX] === OpenAI request from %s ===\n", r.RemoteAddr)
+	fmt.Printf("[TRACE-SANDBOX] URL: %s\n", r.URL.Path)
+	fmt.Printf("[TRACE-SANDBOX] Body (%d bytes): %s\n", len(body), string(body))
+
 	var req openAIRequest
 	if err := json.Unmarshal(body, &req); err != nil {
+		fmt.Printf("[TRACE-SANDBOX] JSON parse error: %v\n", err)
 		http.Error(w, `{"error":{"message":"invalid JSON"}}`, http.StatusBadRequest)
 		return
 	}
+	fmt.Printf("[TRACE-SANDBOX] Model: %s, Stream: %v\n", req.Model, req.Stream)
 
 	if r.Header.Get(MockModeHeader) == "" {
 		mode = detectModeFromModel(req.Model)
@@ -243,44 +248,55 @@ func buildOpenAIContent(mode MockMode, req *openAIRequest) string {
 }
 
 func extractLastUserMessage(messages json.RawMessage) string {
+	fmt.Printf("[TRACE-SANDBOX] --- extractLastUserMessage ---\n")
+	fmt.Printf("[TRACE-SANDBOX] raw messages: %s\n", string(messages))
+
 	var msgs []struct {
 		Role    string          `json:"role"`
 		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(messages, &msgs); err != nil {
-		log.Printf("failed to parse messages for echo: %v", err)
+		fmt.Printf("[TRACE-SANDBOX] PARSE ERROR: %v\n", err)
 		return "echo: (failed to parse messages)"
 	}
-	fmt.Printf("[TRACE-SANDBOX] mock-llm received %d messages\n", len(msgs))
+	fmt.Printf("[TRACE-SANDBOX] parsed %d messages\n", len(msgs))
 	for i, m := range msgs {
-		preview := string(m.Content)
-		if len(preview) > 150 {
-			preview = preview[:150] + "..."
-		}
-		fmt.Printf("[TRACE-SANDBOX] [%d] role=%s content_preview=%s\n", i, m.Role, preview)
+		fmt.Printf("[TRACE-SANDBOX] msg[%d] role=%s content=%s\n", i, m.Role, string(m.Content))
 	}
+
 	for i := len(msgs) - 1; i >= 0; i-- {
 		if msgs[i].Role == "user" {
+			fmt.Printf("[TRACE-SANDBOX] found last user msg at index %d\n", i)
+
 			var text string
 			if err := json.Unmarshal(msgs[i].Content, &text); err == nil {
+				fmt.Printf("[TRACE-SANDBOX] content is string: %s\n", text)
 				return "echo: " + text
 			}
+			fmt.Printf("[TRACE-SANDBOX] content is NOT string, trying array...\n")
+
 			var blocks []struct {
 				Type string `json:"type"`
 				Text string `json:"text"`
 			}
 			if err := json.Unmarshal(msgs[i].Content, &blocks); err == nil {
+				fmt.Printf("[TRACE-SANDBOX] content is array with %d blocks\n", len(blocks))
 				last := ""
-				for _, b := range blocks {
+				for j, b := range blocks {
+					fmt.Printf("[TRACE-SANDBOX] block[%d] type=%s text_len=%d text_preview=%.200s\n", j, b.Type, len(b.Text), b.Text)
 					if b.Type == "text" {
 						last = b.Text
 					}
 				}
 				if last != "" {
+					fmt.Printf("[TRACE-SANDBOX] returning last text block (len=%d)\n", len(last))
 					return "echo: " + last
 				}
+			} else {
+				fmt.Printf("[TRACE-SANDBOX] content is NOT array either: %v\n", err)
 			}
 		}
 	}
+	fmt.Printf("[TRACE-SANDBOX] no user message found!\n")
 	return "echo: (no user message found)"
 }

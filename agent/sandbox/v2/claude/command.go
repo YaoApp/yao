@@ -114,6 +114,14 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 		promptFile:   promptFile,
 	})
 
+	fmt.Printf("[TRACE-SANDBOX] === buildCommand ===\n")
+	fmt.Printf("[TRACE-SANDBOX] assistantID=%s chatID=%s isContinuation=%v\n", assistantID, chatID, isContinuation)
+	fmt.Printf("[TRACE-SANDBOX] env=%v\n", env)
+	fmt.Printf("[TRACE-SANDBOX] args=%v\n", args)
+	fmt.Printf("[TRACE-SANDBOX] systemPrompt len=%d\n", len(systemPrompt))
+	fmt.Printf("[TRACE-SANDBOX] inputJSONL=%s\n", inputJSONL)
+	fmt.Printf("[TRACE-SANDBOX] script=%s\n", script)
+
 	return command{
 		shell:   p.ShellCmd(script),
 		env:     env,
