@@ -244,17 +244,30 @@ func buildOpenAIContent(mode MockMode, req *openAIRequest) string {
 
 func extractLastUserMessage(messages json.RawMessage) string {
 	var msgs []struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
+		Role    string          `json:"role"`
+		Content json.RawMessage `json:"content"`
 	}
 	if err := json.Unmarshal(messages, &msgs); err != nil {
-		log.Printf("[DIAG] failed to parse messages for echo: %v", err)
-		log.Printf("[DIAG] raw messages JSON: %s", string(messages))
-		return "echo: (failed to parse messages) " + err.Error()
+		log.Printf("failed to parse messages for echo: %v", err)
+		return "echo: (failed to parse messages)"
 	}
 	for i := len(msgs) - 1; i >= 0; i-- {
 		if msgs[i].Role == "user" {
-			return "echo: " + msgs[i].Content
+			var text string
+			if err := json.Unmarshal(msgs[i].Content, &text); err == nil {
+				return "echo: " + text
+			}
+			var blocks []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			}
+			if err := json.Unmarshal(msgs[i].Content, &blocks); err == nil {
+				for _, b := range blocks {
+					if b.Type == "text" {
+						return "echo: " + b.Text
+					}
+				}
+			}
 		}
 	}
 	return "echo: (no user message found)"
