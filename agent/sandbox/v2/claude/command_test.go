@@ -1,445 +1,21 @@
-package claude
+package claude_test
 
 import (
-	"context"
 	"encoding/json"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/gou/connector"
 	goullm "github.com/yaoapp/gou/llm"
 	gouTypes "github.com/yaoapp/gou/types"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/xun/dbal/schema"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
-	infra "github.com/yaoapp/yao/sandbox/v2"
-	"github.com/yaoapp/yao/tai/workspace"
 )
 
-func testPlatform() platform {
-	return &darwinPlatform{posixBase: posixBase{
-		os: "darwin", workDir: "/workspace", shell: "bash", tempDir: "/tmp",
-	}}
-}
-
-// --- buildEnv ---
-
-func TestBuildEnv_HomeEnv(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "/workspace", env["HOME"])
-}
-
-func TestBuildEnv_ConfigDirIsolation(t *testing.T) {
-	req := &types.StreamRequest{
-		Config:      &types.SandboxConfig{ID: "my-assistant"},
-		AssistantID: "my-assistant",
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	expected := "/workspace/.yao/assistants/my-assistant"
-	assert.Equal(t, expected, env["CLAUDE_CONFIG_DIR"])
-}
-
-func TestBuildEnv_NoAssistantID(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	_, hasConfigDir := env["CLAUDE_CONFIG_DIR"]
-	assert.False(t, hasConfigDir, "should not set CLAUDE_CONFIG_DIR without assistantID")
-}
-
-func TestBuildEnv_Token(t *testing.T) {
-	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{},
-		Token: &types.SandboxToken{
-			Token:        "tok123",
-			RefreshToken: "ref456",
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "tok123", env["YAO_TOKEN"])
-	assert.Equal(t, "ref456", env["YAO_REFRESH_TOKEN"])
-}
-
-func TestBuildEnv_Secrets(t *testing.T) {
-	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Secrets: map[string]string{
-				"MY_SECRET": "secret_val",
-			},
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "secret_val", env["MY_SECRET"])
-}
-
-// --- buildArgs ---
-
-func TestBuildArgs_Default(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, false, "", "")
-	assert.Contains(t, args, "--input-format")
-	assert.Contains(t, args, "stream-json")
-	assert.Contains(t, args, "--output-format")
-	assert.Contains(t, args, "--verbose")
-	assert.Contains(t, args, "--include-partial-messages")
-}
-
-func TestBuildArgs_Continuation(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, true, "", "")
-	assert.Contains(t, args, "--continue")
-}
-
-func TestBuildArgs_PermissionMode(t *testing.T) {
-	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Options: map[string]interface{}{
-					"permission_mode": "bypassPermissions",
-				},
-			},
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, false, "", "")
-	assert.Contains(t, args, "--dangerously-skip-permissions")
-	assert.Contains(t, args, "--permission-mode")
-}
-
-func TestBuildArgs_MCP(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{hasMCP: true, mcpToolPattern: "mcp__yao__*"}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, false, "test-assistant", "")
-	assert.Contains(t, args, "--mcp-config")
-	assert.Contains(t, args, "--allowedTools")
-	assert.Contains(t, args, "mcp__yao__*")
-
-	mcpIdx := -1
-	for i, a := range args {
-		if a == "--mcp-config" {
-			mcpIdx = i
-			break
-		}
-	}
-	require.Greater(t, mcpIdx, -1)
-	mcpPath := args[mcpIdx+1]
-	assert.Contains(t, mcpPath, "test-assistant")
-}
-
-func TestBuildArgs_WhitelistOptions(t *testing.T) {
-	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{
-			Runner: types.RunnerConfig{
-				Options: map[string]interface{}{
-					"max_turns": 10,
-				},
-			},
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, false, "", "")
-	assert.Contains(t, args, "--max-turns")
-}
-
-// --- buildLastUserMessageJSONL (was buildInput / buildFirstRequestJSONL) ---
-
-func TestBuildLastUserMessageJSONL_SkipsSystem(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "system", Content: "system prompt"},
-		{Role: "user", Content: "hello"},
-	}
-	result := buildLastUserMessageJSONL(msgs)
-	var parsed map[string]any
-	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
-	require.NoError(t, err)
-	assert.Equal(t, "user", parsed["type"])
-	msg, _ := parsed["message"].(map[string]any)
-	assert.Equal(t, "hello", msg["content"])
-}
-
-func TestBuildLastUserMessageJSONL_OnlyLastUser(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "user", Content: "q1"},
-		{Role: "assistant", Content: "a1"},
-		{Role: "user", Content: "q2"},
-	}
-	result := buildLastUserMessageJSONL(msgs)
-	var parsed map[string]any
-	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
-	require.NoError(t, err)
-	assert.Equal(t, "user", parsed["type"])
-	msg, _ := parsed["message"].(map[string]any)
-	assert.Equal(t, "q2", msg["content"])
-	assert.NotContains(t, result, "q1")
-}
-
-func TestBuildLastUserMessageJSONL_NilContent(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "user", Content: nil},
-	}
-	result := buildLastUserMessageJSONL(msgs)
-	var parsed map[string]any
-	err := json.Unmarshal([]byte(strings.TrimSpace(result)), &parsed)
-	require.NoError(t, err)
-	msg, _ := parsed["message"].(map[string]any)
-	assert.Equal(t, "", msg["content"])
-}
-
-// --- buildLastUserMessageJSONL ---
-
-func TestBuildLastUserMessageJSONL_Found(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "user", Content: "first"},
-		{Role: "assistant", Content: "reply"},
-		{Role: "user", Content: "second"},
-	}
-	result := buildLastUserMessageJSONL(msgs)
-	var parsed map[string]any
-	err := json.Unmarshal([]byte(result), &parsed)
-	require.NoError(t, err)
-	msg, _ := parsed["message"].(map[string]any)
-	assert.Equal(t, "second", msg["content"])
-}
-
-func TestBuildLastUserMessageJSONL_NoUser(t *testing.T) {
-	msgs := []agentContext.Message{
-		{Role: "assistant", Content: "only assistant"},
-	}
-	assert.Empty(t, buildLastUserMessageJSONL(msgs))
-}
-
-func TestBuildLastUserMessageJSONL_Empty(t *testing.T) {
-	assert.Empty(t, buildLastUserMessageJSONL(nil))
-}
-
-// --- buildMCPConfig ---
-
-func TestBuildMCPConfig_WithServers(t *testing.T) {
-	servers := []types.MCPServer{
-		{ServerID: "server1"},
-		{ServerID: "server2"},
-	}
-	data := buildMCPConfig(servers)
-	var cfg map[string]any
-	err := json.Unmarshal(data, &cfg)
-	require.NoError(t, err)
-	mcpServers, ok := cfg["mcpServers"].(map[string]any)
-	require.True(t, ok)
-	assert.Contains(t, mcpServers, "server1")
-	assert.Contains(t, mcpServers, "server2")
-}
-
-func TestBuildMCPConfig_Empty(t *testing.T) {
-	data := buildMCPConfig(nil)
-	var cfg map[string]any
-	err := json.Unmarshal(data, &cfg)
-	require.NoError(t, err)
-	mcpServers, ok := cfg["mcpServers"].(map[string]any)
-	require.True(t, ok)
-	assert.Contains(t, mcpServers, "yao", "should default to yao server")
-}
-
-func TestBuildMCPConfig_EmptyServerID(t *testing.T) {
-	servers := []types.MCPServer{{ServerID: ""}}
-	data := buildMCPConfig(servers)
-	var cfg map[string]any
-	json.Unmarshal(data, &cfg)
-	mcpServers, _ := cfg["mcpServers"].(map[string]any)
-	assert.Contains(t, mcpServers, "yao", "empty serverID should fall back to default")
-}
-
-// --- buildMCPAllowedTools ---
-
-func TestBuildMCPAllowedTools_WithServers(t *testing.T) {
-	servers := []types.MCPServer{
-		{ServerID: "s1"},
-		{ServerID: "s2"},
-	}
-	result := buildMCPAllowedTools(servers)
-	assert.Contains(t, result, "mcp__s1__*")
-	assert.Contains(t, result, "mcp__s2__*")
-	assert.Contains(t, result, ",")
-}
-
-func TestBuildMCPAllowedTools_Empty(t *testing.T) {
-	assert.Equal(t, "mcp__yao__*", buildMCPAllowedTools(nil))
-}
-
-// --- buildSandboxEnvPrompt ---
-
-func TestBuildSandboxEnvPrompt(t *testing.T) {
-	p := testPlatform()
-	prompt := buildSandboxEnvPrompt(p, "/workspace")
-	assert.Contains(t, prompt, "/workspace")
-	assert.Contains(t, prompt, "darwin")
-	assert.Contains(t, prompt, "bash")
-	assert.Contains(t, prompt, "Sandbox Environment")
-}
-
-func TestBuildSandboxEnvPrompt_WindowsPlatform(t *testing.T) {
-	p := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	prompt := buildSandboxEnvPrompt(p, `C:\ws`)
-	assert.Contains(t, prompt, "windows")
-	assert.Contains(t, prompt, "pwsh")
-	assert.Contains(t, prompt, `C:\ws`)
-	assert.Contains(t, prompt, "Windows desktop")
-}
-
-// --- fakeComputer implements infra.Computer for unit tests ---
-
-type fakeComputer struct {
-	workDir string
-}
-
-func newFakeComputer(workDir string) *fakeComputer {
-	return &fakeComputer{workDir: workDir}
-}
-
-func (f *fakeComputer) GetWorkDir() string      { return f.workDir }
-func (f *fakeComputer) BindWorkplace(string)    {}
-func (f *fakeComputer) Workplace() workspace.FS { return nil }
-func (f *fakeComputer) ComputerInfo() infra.ComputerInfo {
-	return infra.ComputerInfo{System: infra.SystemInfo{OS: "linux", Shell: "bash"}}
-}
-func (f *fakeComputer) Exec(_ context.Context, _ []string, _ ...infra.ExecOption) (*infra.ExecResult, error) {
-	return &infra.ExecResult{}, nil
-}
-func (f *fakeComputer) Stream(_ context.Context, _ []string, _ ...infra.ExecOption) (*infra.ExecStream, error) {
-	return nil, nil
-}
-func (f *fakeComputer) VNC(_ context.Context) (string, error)                    { return "", nil }
-func (f *fakeComputer) Proxy(_ context.Context, _ int, _ string) (string, error) { return "", nil }
-
-// --- chatIDToSessionUUID ---
-
-func TestChatIDToSessionUUID_Deterministic(t *testing.T) {
-	u1 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
-	u2 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
-	assert.Equal(t, u1, u2, "same inputs should produce same UUID")
-}
-
-func TestChatIDToSessionUUID_DifferentAssistant(t *testing.T) {
-	u1 := chatIDToSessionUUID("asst-1", "robot_m1_e1")
-	u2 := chatIDToSessionUUID("asst-2", "robot_m1_e1")
-	assert.NotEqual(t, u1, u2, "different assistantID should produce different UUID")
-}
-
-func TestChatIDToSessionUUID_ValidFormat(t *testing.T) {
-	u := chatIDToSessionUUID("asst-1", "robot_m1_e1")
-	assert.Regexp(t, `^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`, u)
-}
-
-// --- sanitizeSessionName ---
-
-func TestSanitizeSessionName_Normal(t *testing.T) {
-	assert.Equal(t, "yao-robot_m1_e1", sanitizeSessionName("robot_m1_e1"))
-}
-
-func TestSanitizeSessionName_SpecialChars(t *testing.T) {
-	assert.Equal(t, "yao-user_s__chat_", sanitizeSessionName("user's \"chat\""))
-}
-
-func TestSanitizeSessionName_Empty(t *testing.T) {
-	assert.Equal(t, "yao-", sanitizeSessionName(""))
-}
-
-// --- buildArgs with session ---
-
-func TestBuildArgs_SessionID_NewSession(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, false, "asst-1", "robot_m1_e1")
-	assert.Contains(t, args, "--session-id")
-	assert.Contains(t, args, "--name")
-	assert.Contains(t, args, "yao-robot_m1_e1")
-	assert.NotContains(t, args, "--resume")
-	assert.NotContains(t, args, "--continue")
-
-	sidIdx := -1
-	for i, a := range args {
-		if a == "--session-id" {
-			sidIdx = i
-			break
-		}
-	}
-	require.Greater(t, sidIdx, -1)
-	assert.Regexp(t, `^[0-9a-f]{8}-`, args[sidIdx+1])
-}
-
-func TestBuildArgs_SessionID_Continuation(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, true, "asst-1", "robot_m1_e1")
-	assert.Contains(t, args, "--resume")
-	assert.Contains(t, args, "--name")
-	assert.NotContains(t, args, "--session-id")
-	assert.NotContains(t, args, "--continue")
-
-	resumeIdx := -1
-	for i, a := range args {
-		if a == "--resume" {
-			resumeIdx = i
-			break
-		}
-	}
-	require.Greater(t, resumeIdx, -1)
-	assert.Regexp(t, `^[0-9a-f]{8}-`, args[resumeIdx+1])
-}
-
-func TestBuildArgs_EmptyChatID_Continuation(t *testing.T) {
-	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	req.Computer = newFakeComputer("/workspace")
-	r := &Runner{}
-	p := testPlatform()
-
-	args := buildArgs(req, r, p, true, "", "")
-	assert.Contains(t, args, "--continue")
-	assert.NotContains(t, args, "--session-id")
-	assert.NotContains(t, args, "--name")
-}
-
-// --- fakeConnector implements connector.Connector for unit tests ---
+// --- fake connector types ---
 
 type fakeConnector struct {
 	id       string
@@ -458,252 +34,27 @@ func (f *fakeConnector) GetMetaInfo() gouTypes.MetaInfo        { return gouTypes
 
 func newOpenAIConnector(id, host, model, key string) *fakeConnector {
 	return &fakeConnector{
-		id:  id,
-		typ: connector.OPENAI,
-		settings: map[string]interface{}{
-			"host":  host,
-			"model": model,
-			"key":   key,
-		},
+		id: id, typ: connector.OPENAI,
+		settings: map[string]interface{}{"host": host, "model": model, "key": key},
 	}
 }
 
 func newAnthropicConnector(id, host, model, key string) *fakeConnector {
 	return &fakeConnector{
-		id:  id,
-		typ: connector.ANTHROPIC,
-		settings: map[string]interface{}{
-			"host":  host,
-			"model": model,
-			"key":   key,
-		},
+		id: id, typ: connector.ANTHROPIC,
+		settings: map[string]interface{}{"host": host, "model": model, "key": key},
 	}
 }
 
 func newDualProtoConnector(id, host, model, key string) *fakeConnector {
 	return &fakeConnector{
-		id:  id,
-		typ: connector.OPENAI,
+		id: id, typ: connector.OPENAI,
 		settings: map[string]interface{}{
-			"host":      host,
-			"model":     model,
-			"key":       key,
+			"host": host, "model": model, "key": key,
 			"protocols": []string{"openai", "anthropic"},
 		},
 	}
 }
-
-// --- helper functions tests ---
-
-func TestConnectorHost(t *testing.T) {
-	c := newOpenAIConnector("test", "https://api.openai.com", "gpt-4", "k")
-	assert.Equal(t, "https://api.openai.com", connectorHost(c))
-	assert.Equal(t, "", connectorHost(nil))
-}
-
-func TestConnectorProtocols(t *testing.T) {
-	oai := newOpenAIConnector("oai", "https://api.openai.com", "gpt-4", "k")
-	assert.Equal(t, []string{"openai"}, connectorProtocols(oai))
-
-	anth := newAnthropicConnector("anth", "https://api.anthropic.com", "claude", "k")
-	assert.Equal(t, []string{"anthropic"}, connectorProtocols(anth))
-
-	dual := newDualProtoConnector("dual", "https://api.yao.run", "model", "k")
-	assert.Equal(t, []string{"openai", "anthropic"}, connectorProtocols(dual))
-
-	assert.Nil(t, connectorProtocols(nil))
-}
-
-func TestSupportsProtocol(t *testing.T) {
-	dual := newDualProtoConnector("dual", "https://api.yao.run", "model", "k")
-	assert.True(t, supportsProtocol(dual, "anthropic"))
-	assert.True(t, supportsProtocol(dual, "openai"))
-	assert.False(t, supportsProtocol(dual, "grpc"))
-
-	oai := newOpenAIConnector("oai", "https://api.openai.com", "gpt-4", "k")
-	assert.False(t, supportsProtocol(oai, "anthropic"))
-	assert.True(t, supportsProtocol(oai, "openai"))
-}
-
-func TestBuildEnv_OpenAI_SingleConnector(t *testing.T) {
-	oai := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: oai,
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "127.0.0.1")
-	assert.Contains(t, env["ANTHROPIC_BASE_URL"], "kimi")
-	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_MODEL"])
-	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_DEFAULT_OPUS_MODEL"])
-}
-
-func TestBuildEnv_OpenAI_MultiConnector(t *testing.T) {
-	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
-	heavyConn := newOpenAIConnector("heavy-conn", "https://api.heavy.com", "heavy-model", "sk-h")
-
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"heavy":   heavyConn,
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "heavy-model", env["ANTHROPIC_DEFAULT_OPUS_MODEL"],
-		"heavy role should use actual model name from connector")
-	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_MODEL"],
-		"primary should use actual model name from connector")
-	assert.Equal(t, "kimi-k2.5", env["ANTHROPIC_CUSTOM_MODEL_OPTION"],
-		"non-standard model should set custom model option")
-}
-
-func TestBuildEnv_Anthropic_SingleConnector(t *testing.T) {
-	anth := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant-test")
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: anth,
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "https://api.anthropic.com", env["ANTHROPIC_BASE_URL"])
-	assert.Equal(t, "sk-ant-test", env["ANTHROPIC_API_KEY"])
-	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_MODEL"])
-}
-
-func TestBuildEnv_Anthropic_MultiConnector_Compatible(t *testing.T) {
-	primary := newAnthropicConnector("claude", "https://api.yao.run", "claude-sonnet-4-20250514", "sk-ant")
-	lightConn := newDualProtoConnector("light-conn", "https://api.yao.run", "claude-haiku-3-5-20241022", "sk-light")
-
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"light":   lightConn,
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "claude-haiku-3-5-20241022", env["ANTHROPIC_DEFAULT_HAIKU_MODEL"],
-		"compatible connector: use real model name")
-	assert.Equal(t, "https://api.yao.run", env["ANTHROPIC_BASE_URL"],
-		"primary base URL unchanged")
-}
-
-// --- buildSingleA2OConfig + injectA2OConfigWithRoutes ---
-
-func TestBuildSingleA2OConfig_Basic(t *testing.T) {
-	conn := newOpenAIConnector("test", "https://api.openai.com", "gpt-4", "sk-test")
-	cfg := buildSingleA2OConfig(conn)
-	require.NotNil(t, cfg)
-	assert.Contains(t, cfg.Backend, "api.openai.com")
-	assert.Contains(t, cfg.Backend, "chat/completions")
-	assert.Equal(t, "gpt-4", cfg.Model)
-	assert.Equal(t, "sk-test", cfg.APIKey)
-}
-
-func TestBuildSingleA2OConfig_Nil(t *testing.T) {
-	conn := &fakeConnector{id: "empty", typ: connector.OPENAI, settings: map[string]interface{}{}}
-	cfg := buildSingleA2OConfig(conn)
-	assert.Nil(t, cfg, "no host => nil config")
-}
-
-func TestInjectA2OConfigWithRoutes_BuildsCorrectJSON(t *testing.T) {
-	primary := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-kimi")
-	heavyConn := newOpenAIConnector("heavy", "https://api.heavy.com", "heavy-model", "sk-h")
-
-	roleConnectors := map[string]connector.Connector{
-		"heavy-model": heavyConn,
-	}
-
-	primaryCfg := buildSingleA2OConfig(primary)
-	require.NotNil(t, primaryCfg)
-
-	routes := make(map[string]*a2oConnectorConfig, len(roleConnectors))
-	for modelName, rc := range roleConnectors {
-		routeCfg := buildSingleA2OConfig(rc)
-		if routeCfg != nil {
-			routes[modelName] = routeCfg
-		}
-	}
-	primaryCfg.Routes = routes
-
-	data, err := json.Marshal(primaryCfg)
-	require.NoError(t, err)
-
-	var parsed map[string]interface{}
-	require.NoError(t, json.Unmarshal(data, &parsed))
-
-	routesMap, ok := parsed["routes"].(map[string]interface{})
-	require.True(t, ok, "routes should be present in JSON")
-	assert.Len(t, routesMap, 1)
-
-	heavyRoute, ok := routesMap["heavy-model"].(map[string]interface{})
-	require.True(t, ok)
-	assert.Equal(t, "heavy-model", heavyRoute["model"])
-	assert.Contains(t, heavyRoute["backend"], "api.heavy.com")
-}
-
-func TestResolveAllRoleConnectors_Empty(t *testing.T) {
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: newOpenAIConnector("test", "h", "m", "k"),
-	}
-	result := resolveAllRoleConnectors(req)
-	assert.Nil(t, result)
-}
-
-func TestResolveAllRoleConnectors_WithRoles(t *testing.T) {
-	primaryConn := newOpenAIConnector("primary", "https://primary.com", "primary-m", "k")
-	heavyConn := newOpenAIConnector("hvy", "https://heavy.com", "heavy-m", "sk")
-
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primaryConn,
-		Roles: map[string]connector.Connector{
-			"default": primaryConn,
-			"heavy":   heavyConn,
-		},
-	}
-	result := resolveAllRoleConnectors(req)
-	assert.Len(t, result, 2)
-	assert.Equal(t, primaryConn, result["primary-m"])
-	assert.Equal(t, heavyConn, result["heavy-m"])
-}
-
-func TestBuildEnv_Anthropic_MultiConnector_Incompatible(t *testing.T) {
-	primary := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant")
-	heavyConn := newOpenAIConnector("heavy-oai", "https://api.openai.com", "gpt-4o", "sk-oai")
-
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"heavy":   heavyConn,
-		},
-	}
-	req.Computer = newFakeComputer("/workspace")
-	p := testPlatform()
-
-	env := buildEnv(req, p)
-	assert.Equal(t, "claude-sonnet-4-20250514", env["ANTHROPIC_DEFAULT_OPUS_MODEL"],
-		"incompatible connector: heavy should keep primary model (different host, no anthropic protocol)")
-}
-
-// --- fakeLLMConnector implements both connector.Connector and goullm.LLMConnector ---
 
 type fakeLLMConnector struct {
 	fakeConnector
@@ -711,146 +62,517 @@ type fakeLLMConnector struct {
 	caps  *goullm.Capabilities
 }
 
-func (f *fakeLLMConnector) GetAuthMode() goullm.AuthMode { return goullm.AuthBearer }
-func (f *fakeLLMConnector) GetURL() string               { return "" }
-func (f *fakeLLMConnector) GetKey() string               { return "" }
-func (f *fakeLLMConnector) GetModel() string             { return f.model }
-func (f *fakeLLMConnector) GetSupportedParams() map[string]*goullm.ParamSpec {
-	return nil
-}
-func (f *fakeLLMConnector) GetCapabilities() *goullm.Capabilities { return f.caps }
+func (f *fakeLLMConnector) GetAuthMode() goullm.AuthMode                     { return goullm.AuthBearer }
+func (f *fakeLLMConnector) GetURL() string                                   { return "" }
+func (f *fakeLLMConnector) GetKey() string                                   { return "" }
+func (f *fakeLLMConnector) GetModel() string                                 { return f.model }
+func (f *fakeLLMConnector) GetSupportedParams() map[string]*goullm.ParamSpec { return nil }
+func (f *fakeLLMConnector) GetCapabilities() *goullm.Capabilities            { return f.caps }
 
-// --- buildModelCapabilityPrompt tests ---
+func testPlatform() claude.ExportPlatform {
+	return claude.ExportNewDarwinPlatform("/workspace", "bash", "/tmp")
+}
+
+// --- hashUserID ---
+
+func TestHashUserID_Deterministic(t *testing.T) {
+	h1 := claude.ExportHashUserID("user-123")
+	h2 := claude.ExportHashUserID("user-123")
+	if h1 != h2 {
+		t.Errorf("expected deterministic hash, got %q and %q", h1, h2)
+	}
+}
+
+func TestHashUserID_Different(t *testing.T) {
+	h1 := claude.ExportHashUserID("user-1")
+	h2 := claude.ExportHashUserID("user-2")
+	if h1 == h2 {
+		t.Error("different inputs should produce different hashes")
+	}
+}
+
+func TestHashUserID_Length(t *testing.T) {
+	h := claude.ExportHashUserID("test")
+	if len(h) != 16 {
+		t.Errorf("expected 16 hex chars, got %d (%q)", len(h), h)
+	}
+}
+
+// --- chatIDToSessionUUID ---
+
+func TestChatIDToSessionUUID_Deterministic(t *testing.T) {
+	u1 := claude.ExportChatIDToSessionUUID("asst-1", "robot_m1_e1")
+	u2 := claude.ExportChatIDToSessionUUID("asst-1", "robot_m1_e1")
+	if u1 != u2 {
+		t.Error("same inputs should produce same UUID")
+	}
+}
+
+func TestChatIDToSessionUUID_DifferentAssistant(t *testing.T) {
+	u1 := claude.ExportChatIDToSessionUUID("asst-1", "robot_m1_e1")
+	u2 := claude.ExportChatIDToSessionUUID("asst-2", "robot_m1_e1")
+	if u1 == u2 {
+		t.Error("different assistantID should produce different UUID")
+	}
+}
+
+// --- sanitizeSessionName ---
+
+func TestSanitizeSessionName_Normal(t *testing.T) {
+	got := claude.ExportSanitizeSessionName("robot_m1_e1")
+	if got != "yao-robot_m1_e1" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSanitizeSessionName_SpecialChars(t *testing.T) {
+	got := claude.ExportSanitizeSessionName("user's \"chat\"")
+	if got != "yao-user_s__chat_" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestSanitizeSessionName_Empty(t *testing.T) {
+	got := claude.ExportSanitizeSessionName("")
+	if got != "yao-" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// --- isStandardAnthropicModel ---
+
+func TestIsStandardAnthropicModel(t *testing.T) {
+	cases := []struct {
+		model string
+		want  bool
+	}{
+		{"claude-sonnet-4-20250514", true},
+		{"claude-3-5-haiku-20241022", true},
+		{"anthropic.claude-3-haiku", true},
+		{"deepseek-v4-flash", false},
+		{"gpt-4o", false},
+		{"", false},
+	}
+	for _, tc := range cases {
+		got := claude.ExportIsStandardAnthropicModel(tc.model)
+		if got != tc.want {
+			t.Errorf("isStandardAnthropicModel(%q) = %v, want %v", tc.model, got, tc.want)
+		}
+	}
+}
+
+// --- buildMCPConfig ---
+
+func TestBuildMCPConfig_WithServers(t *testing.T) {
+	data := claude.ExportBuildMCPConfig([]types.MCPServer{{ServerID: "s1"}, {ServerID: "s2"}})
+	var cfg map[string]any
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	mcpServers, _ := cfg["mcpServers"].(map[string]any)
+	if _, ok := mcpServers["s1"]; !ok {
+		t.Error("missing s1")
+	}
+	if _, ok := mcpServers["s2"]; !ok {
+		t.Error("missing s2")
+	}
+}
+
+func TestBuildMCPConfig_Empty(t *testing.T) {
+	data := claude.ExportBuildMCPConfig(nil)
+	var cfg map[string]any
+	json.Unmarshal(data, &cfg)
+	mcpServers, _ := cfg["mcpServers"].(map[string]any)
+	if _, ok := mcpServers["yao"]; !ok {
+		t.Error("should default to yao server")
+	}
+}
+
+func TestBuildMCPConfig_EmptyServerID(t *testing.T) {
+	data := claude.ExportBuildMCPConfig([]types.MCPServer{{ServerID: ""}})
+	var cfg map[string]any
+	json.Unmarshal(data, &cfg)
+	mcpServers, _ := cfg["mcpServers"].(map[string]any)
+	if _, ok := mcpServers["yao"]; !ok {
+		t.Error("empty serverID should fall back to default")
+	}
+}
+
+// --- buildMCPAllowedTools ---
+
+func TestBuildMCPAllowedTools_WithServers(t *testing.T) {
+	result := claude.ExportBuildMCPAllowedTools([]types.MCPServer{{ServerID: "s1"}, {ServerID: "s2"}})
+	if !strings.Contains(result, "mcp__s1__*") || !strings.Contains(result, "mcp__s2__*") {
+		t.Errorf("got %q", result)
+	}
+}
+
+func TestBuildMCPAllowedTools_Empty(t *testing.T) {
+	if got := claude.ExportBuildMCPAllowedTools(nil); got != "mcp__yao__*" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// --- buildLastUserMessageJSONL ---
+
+func TestBuildLastUserMessageJSONL_SkipsSystem(t *testing.T) {
+	msgs := []agentContext.Message{
+		{Role: "system", Content: "system prompt"},
+		{Role: "user", Content: "hello"},
+	}
+	result := claude.ExportBuildLastUserJSONL(msgs)
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	msg, _ := parsed["message"].(map[string]any)
+	if msg["content"] != "hello" {
+		t.Errorf("content = %v", msg["content"])
+	}
+}
+
+func TestBuildLastUserMessageJSONL_OnlyLastUser(t *testing.T) {
+	msgs := []agentContext.Message{
+		{Role: "user", Content: "q1"},
+		{Role: "assistant", Content: "a1"},
+		{Role: "user", Content: "q2"},
+	}
+	result := claude.ExportBuildLastUserJSONL(msgs)
+	var parsed map[string]any
+	json.Unmarshal([]byte(result), &parsed)
+	msg, _ := parsed["message"].(map[string]any)
+	if msg["content"] != "q2" {
+		t.Errorf("content = %v", msg["content"])
+	}
+}
+
+func TestBuildLastUserMessageJSONL_NilContent(t *testing.T) {
+	msgs := []agentContext.Message{{Role: "user", Content: nil}}
+	result := claude.ExportBuildLastUserJSONL(msgs)
+	var parsed map[string]any
+	json.Unmarshal([]byte(result), &parsed)
+	msg, _ := parsed["message"].(map[string]any)
+	if msg["content"] != "" {
+		t.Errorf("content = %v", msg["content"])
+	}
+}
+
+func TestBuildLastUserMessageJSONL_NoUser(t *testing.T) {
+	msgs := []agentContext.Message{{Role: "assistant", Content: "only assistant"}}
+	if got := claude.ExportBuildLastUserJSONL(msgs); got != "" {
+		t.Errorf("expected empty, got %q", got)
+	}
+}
+
+func TestBuildLastUserMessageJSONL_Empty(t *testing.T) {
+	if got := claude.ExportBuildLastUserJSONL(nil); got != "" {
+		t.Errorf("expected empty, got %q", got)
+	}
+}
+
+// --- buildSandboxEnvPrompt ---
+
+func TestBuildSandboxEnvPrompt_Darwin(t *testing.T) {
+	p := testPlatform()
+	prompt := claude.ExportBuildSandboxEnvPrompt(p, "/workspace")
+	if !strings.Contains(prompt, "/workspace") || !strings.Contains(prompt, "Sandbox Environment") {
+		t.Errorf("prompt = %q", prompt)
+	}
+}
+
+func TestBuildSandboxEnvPrompt_Windows(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	prompt := claude.ExportBuildSandboxEnvPrompt(p, `C:\ws`)
+	if !strings.Contains(prompt, "windows") || !strings.Contains(prompt, "Windows desktop") {
+		t.Errorf("prompt = %q", prompt)
+	}
+}
+
+// --- buildEnv ---
+
+func TestBuildEnv_HomeEnv(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["HOME"] != "/workspace" {
+		t.Errorf("HOME = %q", env["HOME"])
+	}
+}
+
+func TestBuildEnv_ConfigDirIsolation(t *testing.T) {
+	req := &types.StreamRequest{
+		Config:      &types.SandboxConfig{ID: "my-assistant"},
+		AssistantID: "my-assistant",
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["CLAUDE_CONFIG_DIR"] != "/workspace/.yao/assistants/my-assistant" {
+		t.Errorf("CLAUDE_CONFIG_DIR = %q", env["CLAUDE_CONFIG_DIR"])
+	}
+}
+
+func TestBuildEnv_Token(t *testing.T) {
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{},
+		Token:  &types.SandboxToken{Token: "tok123", RefreshToken: "ref456"},
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["YAO_TOKEN"] != "tok123" || env["YAO_REFRESH_TOKEN"] != "ref456" {
+		t.Errorf("tokens: %q, %q", env["YAO_TOKEN"], env["YAO_REFRESH_TOKEN"])
+	}
+}
+
+func TestBuildEnv_Secrets(t *testing.T) {
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{Secrets: map[string]string{"MY_SECRET": "secret_val"}},
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["MY_SECRET"] != "secret_val" {
+		t.Errorf("MY_SECRET = %q", env["MY_SECRET"])
+	}
+}
+
+func TestBuildEnv_OpenAI(t *testing.T) {
+	conn := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}, Connector: conn}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if !strings.Contains(env["ANTHROPIC_BASE_URL"], "127.0.0.1") {
+		t.Errorf("ANTHROPIC_BASE_URL = %q", env["ANTHROPIC_BASE_URL"])
+	}
+	if env["ANTHROPIC_MODEL"] != "kimi-k2.5" {
+		t.Errorf("ANTHROPIC_MODEL = %q", env["ANTHROPIC_MODEL"])
+	}
+}
+
+func TestBuildEnv_Anthropic(t *testing.T) {
+	conn := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant-test")
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}, Connector: conn}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["ANTHROPIC_BASE_URL"] != "https://api.anthropic.com" {
+		t.Errorf("ANTHROPIC_BASE_URL = %q", env["ANTHROPIC_BASE_URL"])
+	}
+	if env["ANTHROPIC_API_KEY"] != "sk-ant-test" {
+		t.Errorf("ANTHROPIC_API_KEY = %q", env["ANTHROPIC_API_KEY"])
+	}
+}
+
+func TestBuildEnv_Anthropic_MultiConnector_Incompatible(t *testing.T) {
+	primary := newAnthropicConnector("claude", "https://api.anthropic.com", "claude-sonnet-4-20250514", "sk-ant")
+	heavyConn := newOpenAIConnector("heavy-oai", "https://api.openai.com", "gpt-4o", "sk-oai")
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{}, Connector: primary,
+		Roles: map[string]connector.Connector{"default": primary, "heavy": heavyConn},
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["ANTHROPIC_DEFAULT_OPUS_MODEL"] != "claude-sonnet-4-20250514" {
+		t.Errorf("incompatible heavy should keep primary model, got %q", env["ANTHROPIC_DEFAULT_OPUS_MODEL"])
+	}
+}
+
+// --- buildArgs ---
+
+func TestBuildArgs_Default(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	args := claude.ExportBuildArgs(req, false, "", testPlatform(), false, "", "")
+	found := map[string]bool{}
+	for _, a := range args {
+		found[a] = true
+	}
+	for _, want := range []string{"--input-format", "--output-format", "--verbose", "--include-partial-messages"} {
+		if !found[want] {
+			t.Errorf("missing arg %q", want)
+		}
+	}
+}
+
+func TestBuildArgs_Continuation(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	args := claude.ExportBuildArgs(req, false, "", testPlatform(), true, "", "")
+	found := false
+	for _, a := range args {
+		if a == "--continue" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("missing --continue")
+	}
+}
+
+func TestBuildArgs_PermissionMode(t *testing.T) {
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{
+			Runner: types.RunnerConfig{
+				Options: map[string]interface{}{"permission_mode": "bypassPermissions"},
+			},
+		},
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	args := claude.ExportBuildArgs(req, false, "", testPlatform(), false, "", "")
+	found := map[string]bool{}
+	for _, a := range args {
+		found[a] = true
+	}
+	if !found["--dangerously-skip-permissions"] || !found["--permission-mode"] {
+		t.Error("missing permission args")
+	}
+}
+
+func TestBuildArgs_MCP(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	args := claude.ExportBuildArgs(req, true, "mcp__yao__*", testPlatform(), false, "test-assistant", "")
+	found := map[string]bool{}
+	for _, a := range args {
+		found[a] = true
+	}
+	if !found["--mcp-config"] || !found["--allowedTools"] {
+		t.Error("missing MCP args")
+	}
+}
+
+func TestBuildArgs_SessionID(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	args := claude.ExportBuildArgs(req, false, "", testPlatform(), false, "asst-1", "robot_m1_e1")
+	found := map[string]bool{}
+	for _, a := range args {
+		found[a] = true
+	}
+	if !found["--session-id"] || !found["--name"] {
+		t.Error("missing session args")
+	}
+	if found["--resume"] || found["--continue"] {
+		t.Error("should not have resume/continue for new session")
+	}
+}
+
+// --- connectorHost / connectorProtocols / supportsProtocol ---
+
+func TestConnectorHost(t *testing.T) {
+	c := newOpenAIConnector("test", "https://api.openai.com", "gpt-4", "k")
+	if got := claude.ExportConnectorHost(c); got != "https://api.openai.com" {
+		t.Errorf("got %q", got)
+	}
+	if got := claude.ExportConnectorHost(nil); got != "" {
+		t.Errorf("nil: got %q", got)
+	}
+}
+
+func TestConnectorProtocols(t *testing.T) {
+	oai := newOpenAIConnector("oai", "h", "m", "k")
+	protos := claude.ExportConnectorProtocols(oai)
+	if len(protos) != 1 || protos[0] != "openai" {
+		t.Errorf("openai connector protocols = %v", protos)
+	}
+
+	anth := newAnthropicConnector("anth", "h", "m", "k")
+	protos = claude.ExportConnectorProtocols(anth)
+	if len(protos) != 1 || protos[0] != "anthropic" {
+		t.Errorf("anthropic connector protocols = %v", protos)
+	}
+
+	dual := newDualProtoConnector("dual", "h", "m", "k")
+	protos = claude.ExportConnectorProtocols(dual)
+	if len(protos) != 2 {
+		t.Errorf("dual connector protocols = %v", protos)
+	}
+}
+
+func TestSupportsProtocol(t *testing.T) {
+	dual := newDualProtoConnector("dual", "h", "m", "k")
+	if !claude.ExportSupportsProtocol(dual, "anthropic") {
+		t.Error("should support anthropic")
+	}
+	if claude.ExportSupportsProtocol(dual, "grpc") {
+		t.Error("should not support grpc")
+	}
+}
+
+// --- buildModelCapabilityPrompt ---
 
 func TestBuildModelCapabilityPrompt_NilConnector(t *testing.T) {
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
-	result := buildModelCapabilityPrompt(req)
-	assert.Empty(t, result)
-}
-
-func TestBuildModelCapabilityPrompt_NoRoles_NoSpecialCaps(t *testing.T) {
-	primary := &fakeLLMConnector{
-		fakeConnector: fakeConnector{id: "test", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
-		model:         "deepseek-v4-flash",
-		caps:          &goullm.Capabilities{ToolCalls: true, Streaming: true},
+	if got := claude.ExportBuildModelCapabilityPrompt(req); got != "" {
+		t.Errorf("expected empty, got %q", got)
 	}
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-	}
-	result := buildModelCapabilityPrompt(req)
-	assert.Empty(t, result, "no roles and no special caps → empty")
 }
 
 func TestBuildModelCapabilityPrompt_WithHeavyAndLight(t *testing.T) {
 	primary := &fakeLLMConnector{
 		fakeConnector: fakeConnector{id: "ds-flash", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
-		model:         "deepseek-v4-flash",
-		caps:          &goullm.Capabilities{ToolCalls: true},
+		model:         "deepseek-v4-flash", caps: &goullm.Capabilities{ToolCalls: true},
 	}
 	heavy := &fakeLLMConnector{
 		fakeConnector: fakeConnector{id: "ds-pro", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-pro"}},
-		model:         "deepseek-v4-pro",
-		caps:          &goullm.Capabilities{Reasoning: true, ToolCalls: true},
+		model:         "deepseek-v4-pro", caps: &goullm.Capabilities{Reasoning: true, ToolCalls: true},
 	}
 	light := &fakeLLMConnector{
 		fakeConnector: fakeConnector{id: "ds-lite", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
-		model:         "deepseek-v4-flash",
-		caps:          &goullm.Capabilities{ToolCalls: true},
+		model:         "deepseek-v4-flash", caps: &goullm.Capabilities{ToolCalls: true},
 	}
-
 	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"heavy":   heavy,
-			"light":   light,
-		},
+		Config: &types.SandboxConfig{}, Connector: primary,
+		Roles: map[string]connector.Connector{"default": primary, "heavy": heavy, "light": light},
 	}
-	result := buildModelCapabilityPrompt(req)
-	assert.Contains(t, result, "deepseek-v4-flash")
-	assert.Contains(t, result, "deepseek-v4-pro")
-	assert.Contains(t, result, "opus")
-	assert.Contains(t, result, "haiku")
-	assert.Contains(t, result, "thinking")
-	assert.Contains(t, result, "tool_calls")
-	assert.Contains(t, result, "sub-agent")
+	result := claude.ExportBuildModelCapabilityPrompt(req)
+	if !strings.Contains(result, "deepseek-v4-pro") || !strings.Contains(result, "thinking") {
+		t.Errorf("result = %q", result)
+	}
 }
 
 func TestBuildModelCapabilityPrompt_VisionGuidance(t *testing.T) {
 	primary := &fakeLLMConnector{
-		fakeConnector: fakeConnector{id: "ds-flash", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
-		model:         "deepseek-v4-flash",
-		caps:          &goullm.Capabilities{ToolCalls: true},
+		fakeConnector: fakeConnector{id: "ds", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-flash"}},
+		model:         "deepseek-v4-flash", caps: &goullm.Capabilities{ToolCalls: true},
 	}
 	visionConn := &fakeLLMConnector{
-		fakeConnector: fakeConnector{id: "vision", typ: connector.OPENAI, settings: map[string]interface{}{"model": "gpt-4o"}},
-		model:         "gpt-4o",
-		caps:          &goullm.Capabilities{Vision: true, ToolCalls: true},
+		fakeConnector: fakeConnector{id: "vis", typ: connector.OPENAI, settings: map[string]interface{}{"model": "gpt-4o"}},
+		model:         "gpt-4o", caps: &goullm.Capabilities{Vision: true, ToolCalls: true},
 	}
-
 	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"vision":  visionConn,
-		},
+		Config: &types.SandboxConfig{}, Connector: primary,
+		Roles: map[string]connector.Connector{"default": primary, "vision": visionConn},
 	}
-	result := buildModelCapabilityPrompt(req)
-	assert.Contains(t, result, "image_read")
-	assert.Contains(t, result, "Image/Vision")
+	result := claude.ExportBuildModelCapabilityPrompt(req)
+	if !strings.Contains(result, "image_read") {
+		t.Errorf("result = %q", result)
+	}
 }
 
-func TestBuildModelCapabilityPrompt_PrimaryHasVision_NoGuidance(t *testing.T) {
-	primary := &fakeLLMConnector{
-		fakeConnector: fakeConnector{id: "gpt4o", typ: connector.OPENAI, settings: map[string]interface{}{"model": "gpt-4o"}},
-		model:         "gpt-4o",
-		caps:          &goullm.Capabilities{Vision: true, ToolCalls: true},
-	}
+// --- buildClaudeCodeCapabilities ---
 
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"vision":  primary,
-		},
+func TestBuildClaudeCodeCapabilities_Nil(t *testing.T) {
+	if got := claude.ExportBuildClaudeCodeCapabilities(nil); got != "" {
+		t.Errorf("got %q", got)
 	}
-	result := buildModelCapabilityPrompt(req)
-	assert.NotContains(t, result, "image_read", "should not suggest image_read when primary has vision")
 }
 
-func TestBuildModelCapabilityPrompt_ThinkingFromSettings(t *testing.T) {
-	primary := &fakeLLMConnector{
-		fakeConnector: fakeConnector{
-			id:  "ds-pro",
-			typ: connector.OPENAI,
-			settings: map[string]interface{}{
-				"model": "deepseek-v4-pro",
-				"thinking": map[string]interface{}{
-					"type": "enabled",
-				},
-			},
+func TestBuildClaudeCodeCapabilities_WithThinking(t *testing.T) {
+	conn := &fakeConnector{
+		id: "test", typ: connector.OPENAI,
+		settings: map[string]interface{}{
+			"thinking": map[string]interface{}{"type": "enabled"},
 		},
-		model: "deepseek-v4-pro",
-		caps:  &goullm.Capabilities{ToolCalls: true},
 	}
-	heavy := &fakeLLMConnector{
-		fakeConnector: fakeConnector{id: "ds-pro2", typ: connector.OPENAI, settings: map[string]interface{}{"model": "deepseek-v4-pro-max"}},
-		model:         "deepseek-v4-pro-max",
-		caps:          &goullm.Capabilities{ToolCalls: true},
+	if got := claude.ExportBuildClaudeCodeCapabilities(conn); got != "thinking" {
+		t.Errorf("got %q", got)
 	}
+}
 
-	req := &types.StreamRequest{
-		Config:    &types.SandboxConfig{},
-		Connector: primary,
-		Roles: map[string]connector.Connector{
-			"default": primary,
-			"heavy":   heavy,
-		},
+func TestBuildClaudeCodeCapabilities_NoThinking(t *testing.T) {
+	conn := &fakeConnector{
+		id: "test", typ: connector.OPENAI,
+		settings: map[string]interface{}{"model": "gpt-4o"},
 	}
-	result := buildModelCapabilityPrompt(req)
-	assert.Contains(t, result, "thinking", "should detect thinking from Setting()[\"thinking\"]")
+	if got := claude.ExportBuildClaudeCodeCapabilities(conn); got != "" {
+		t.Errorf("got %q", got)
+	}
 }

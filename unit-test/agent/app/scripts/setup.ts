@@ -260,27 +260,137 @@ const ALPHA_USERS: TestUser[] = [
   },
 ];
 
-const BETA_TEAM = {
-  name: "Beta Team",
-  display_name: "Beta Team",
-  description: "Test team B for permission isolation tests",
+const BETA_OPENAI_TEAM = {
+  name: "BetaOpenAI Team",
+  display_name: "BetaOpenAI Team",
+  description: "E2E test team — OpenAI protocol (deepseek via OpenAI-compatible API)",
   status: "active",
   type: "other",
   is_verified: true,
   role_id: "user:*",
 };
 
-const BETA_USERS: TestUser[] = [
+const BETA_OPENAI_USERS: TestUser[] = [
   {
-    email: "beta-owner@test.local",
-    name: "Beta Owner",
+    email: "beta-openai-owner@test.local",
+    name: "BetaOpenAI Owner",
     role_id: "user:*",
     teamRole: "team:owner",
     is_owner: true,
   },
   {
-    email: "beta-member@test.local",
-    name: "Beta Member",
+    email: "beta-openai-admin@test.local",
+    name: "BetaOpenAI Admin",
+    role_id: "user:*",
+    teamRole: "team:admin",
+    is_owner: false,
+  },
+  {
+    email: "beta-openai-member@test.local",
+    name: "BetaOpenAI Member",
+    role_id: "user:*",
+    teamRole: "team:member",
+    is_owner: false,
+  },
+];
+
+const BETA_ANTHROPIC_TEAM = {
+  name: "BetaAnthropic Team",
+  display_name: "BetaAnthropic Team",
+  description: "E2E test team — Anthropic protocol (deepseek via Anthropic-compatible API)",
+  status: "active",
+  type: "other",
+  is_verified: true,
+  role_id: "user:*",
+};
+
+const BETA_ANTHROPIC_USERS: TestUser[] = [
+  {
+    email: "beta-anthropic-owner@test.local",
+    name: "BetaAnthropic Owner",
+    role_id: "user:*",
+    teamRole: "team:owner",
+    is_owner: true,
+  },
+  {
+    email: "beta-anthropic-admin@test.local",
+    name: "BetaAnthropic Admin",
+    role_id: "user:*",
+    teamRole: "team:admin",
+    is_owner: false,
+  },
+  {
+    email: "beta-anthropic-member@test.local",
+    name: "BetaAnthropic Member",
+    role_id: "user:*",
+    teamRole: "team:member",
+    is_owner: false,
+  },
+];
+
+const BETA_HAIKU_TEAM = {
+  name: "BetaHaiku Team",
+  display_name: "BetaHaiku Team",
+  description:
+    "E2E test team — native Anthropic Haiku (for Attachments/vision)",
+  status: "active",
+  type: "other",
+  is_verified: true,
+  role_id: "user:*",
+};
+
+const BETA_HAIKU_USERS: TestUser[] = [
+  {
+    email: "beta-haiku-owner@test.local",
+    name: "BetaHaiku Owner",
+    role_id: "user:*",
+    teamRole: "team:owner",
+    is_owner: true,
+  },
+  {
+    email: "beta-haiku-admin@test.local",
+    name: "BetaHaiku Admin",
+    role_id: "user:*",
+    teamRole: "team:admin",
+    is_owner: false,
+  },
+  {
+    email: "beta-haiku-member@test.local",
+    name: "BetaHaiku Member",
+    role_id: "user:*",
+    teamRole: "team:member",
+    is_owner: false,
+  },
+];
+
+const BETA_GPT4O_TEAM = {
+  name: "BetaGPT4o Team",
+  display_name: "BetaGPT4o Team",
+  description: "E2E test team — native OpenAI GPT-4o (for Attachments/vision)",
+  status: "active",
+  type: "other",
+  is_verified: true,
+  role_id: "user:*",
+};
+
+const BETA_GPT4O_USERS: TestUser[] = [
+  {
+    email: "beta-gpt4o-owner@test.local",
+    name: "BetaGPT4o Owner",
+    role_id: "user:*",
+    teamRole: "team:owner",
+    is_owner: true,
+  },
+  {
+    email: "beta-gpt4o-admin@test.local",
+    name: "BetaGPT4o Admin",
+    role_id: "user:*",
+    teamRole: "team:admin",
+    is_owner: false,
+  },
+  {
+    email: "beta-gpt4o-member@test.local",
+    name: "BetaGPT4o Member",
     role_id: "user:*",
     teamRole: "team:member",
     is_owner: false,
@@ -380,37 +490,78 @@ function SetupTestUsers() {
   const alpha = createTeamWithUsers(ALPHA_TEAM, ALPHA_USERS, alphaOwner);
   log.Info(`Alpha Team created: team_id=${alpha.teamId}`);
 
-  const betaOwner = BETA_USERS.find((u) => u.is_owner)!;
-  const beta = createTeamWithUsers(BETA_TEAM, BETA_USERS, betaOwner);
-  log.Info(`Beta Team created: team_id=${beta.teamId}`);
+  const betaOpenAIOwner = BETA_OPENAI_USERS.find((u) => u.is_owner)!;
+  const betaOpenAI = createTeamWithUsers(BETA_OPENAI_TEAM, BETA_OPENAI_USERS, betaOpenAIOwner);
+  log.Info(`BetaOpenAI Team created: team_id=${betaOpenAI.teamId}`);
 
-  const rootUsers = Process("models.__yao.user.Get", {
-    wheres: [{ column: "email", value: ROOT_USER.email }],
-    limit: 1,
+  const betaAnthropicOwner = BETA_ANTHROPIC_USERS.find((u) => u.is_owner)!;
+  const betaAnthropic = createTeamWithUsers(BETA_ANTHROPIC_TEAM, BETA_ANTHROPIC_USERS, betaAnthropicOwner);
+  log.Info(`BetaAnthropic Team created: team_id=${betaAnthropic.teamId}`);
+
+  const betaHaikuOwner = BETA_HAIKU_USERS.find((u) => u.is_owner)!;
+  const betaHaiku = createTeamWithUsers(BETA_HAIKU_TEAM, BETA_HAIKU_USERS, betaHaikuOwner);
+  log.Info(`BetaHaiku Team created: team_id=${betaHaiku.teamId}`);
+
+  const betaGPT4oOwner = BETA_GPT4O_USERS.find((u) => u.is_owner)!;
+  const betaGPT4o = createTeamWithUsers(BETA_GPT4O_TEAM, BETA_GPT4O_USERS, betaGPT4oOwner);
+  log.Info(`BetaGPT4o Team created: team_id=${betaGPT4o.teamId}`);
+
+  // Alpha Team: all roles use mock connector (for Unit/Sandbox tests).
+  setupTeamLLMRoles(alpha.teamId, {
+    default: { provider: "openai.mock", model: "" },
+    vision: { provider: "openai.mock", model: "" },
+    heavy: { provider: "openai.mock", model: "" },
+    light: { provider: "openai.mock", model: "" },
   });
-  const rootUserId = rootUsers && rootUsers.length > 0 ? rootUsers[0].user_id : "";
-  const rootTeams = Process("models.__yao.team.Get", {
-    wheres: [{ column: "owner_id", value: rootUserId }],
-    limit: 1,
+  log.Info(`Alpha Team LLM roles configured (mock)`);
+
+  // BetaOpenAI Team: OpenAI-compatible protocol (deepseek.v4-flash).
+  setupTeamLLMRoles(betaOpenAI.teamId, {
+    default: { provider: "deepseek.v4-flash", model: "" },
+    vision: { provider: "openai.gpt-4o-mini", model: "" },
+    heavy: { provider: "deepseek.v4-flash", model: "" },
+    light: { provider: "deepseek.v4-flash", model: "" },
   });
-  const rootTeamId = rootTeams && rootTeams.length > 0 ? rootTeams[0].team_id : "";
+  log.Info(`BetaOpenAI Team LLM roles configured (deepseek-flash openai + gpt-4o-mini)`);
 
-  const envContent = [
-    `TEST_ROOT_USER_ID=${rootUserId}`,
-    `TEST_ROOT_TEAM_ID=${rootTeamId}`,
-    `TEST_ALPHA_TEAM_ID=${alpha.teamId}`,
-    `TEST_ALPHA_OWNER_USER_ID=${alpha.userIds["alpha-owner@test.local"]}`,
-    `TEST_ALPHA_ADMIN_USER_ID=${alpha.userIds["alpha-admin@test.local"]}`,
-    `TEST_ALPHA_MEMBER_USER_ID=${alpha.userIds["alpha-member@test.local"]}`,
-    `TEST_BETA_TEAM_ID=${beta.teamId}`,
-    `TEST_BETA_OWNER_USER_ID=${beta.userIds["beta-owner@test.local"]}`,
-    `TEST_BETA_MEMBER_USER_ID=${beta.userIds["beta-member@test.local"]}`,
-    "",
-  ].join("\n");
+  // BetaAnthropic Team: Anthropic-compatible protocol (deepseek.v4-flash-anthropic).
+  setupTeamLLMRoles(betaAnthropic.teamId, {
+    default: { provider: "deepseek.v4-flash-anthropic", model: "" },
+    vision: { provider: "openai.gpt-4o-mini", model: "" },
+    heavy: { provider: "deepseek.v4-flash-anthropic", model: "" },
+    light: { provider: "deepseek.v4-flash-anthropic", model: "" },
+  });
+  log.Info(`BetaAnthropic Team LLM roles configured (deepseek-flash anthropic + gpt-4o-mini)`);
 
-  console.log("__TEST_USERS_ENV_BEGIN__");
-  console.log(envContent);
-  console.log("__TEST_USERS_ENV_END__");
+  // BetaHaiku Team: native Anthropic Haiku (for Attachments/vision tests).
+  setupTeamLLMRoles(betaHaiku.teamId, {
+    default: { provider: "anthropic.haiku", model: "" },
+    vision: { provider: "anthropic.haiku", model: "" },
+    heavy: { provider: "anthropic.haiku", model: "" },
+    light: { provider: "anthropic.haiku", model: "" },
+  });
+  log.Info(`BetaHaiku Team LLM roles configured (anthropic.haiku)`);
+
+  // BetaGPT4o Team: native OpenAI GPT-4o (for Attachments/vision tests).
+  setupTeamLLMRoles(betaGPT4o.teamId, {
+    default: { provider: "openai.gpt-4o", model: "" },
+    vision: { provider: "openai.gpt-4o", model: "" },
+    heavy: { provider: "openai.gpt-4o", model: "" },
+    light: { provider: "openai.gpt-4o", model: "" },
+  });
+  log.Info(`BetaGPT4o Team LLM roles configured (openai.gpt-4o)`);
 
   log.Info("=== Test users setup completed ===");
+}
+
+function setupTeamLLMRoles(
+  teamId: string,
+  roles: Record<string, { provider: string; model: string }>
+) {
+  Process(
+    "setting.set",
+    { scope: "team", team_id: teamId },
+    "llm.roles",
+    roles
+  );
 }

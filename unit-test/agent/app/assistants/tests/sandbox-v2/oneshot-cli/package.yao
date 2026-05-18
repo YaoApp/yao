@@ -1,0 +1,7 @@
+{
+  "name": "Sandbox V2 Oneshot CLI",
+  "description": "V2 sandbox: oneshot lifecycle + Claude CLI mode. New container per request.",
+  "connector": "use::default",
+  "uses": { "search": "disabled" },
+  "tags": ["Test", "SandboxV2"]
+}

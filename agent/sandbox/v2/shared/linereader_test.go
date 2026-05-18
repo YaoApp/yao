@@ -1,19 +1,28 @@
-package shared
+package shared_test
 
 import (
 	"bufio"
 	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 	"testing"
+
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
+
+func TestMain(m *testing.M) {
+	testprepare.MustLoadEnv()
+	os.Exit(m.Run())
+}
 
 func TestReadJSONLine_ShortLine(t *testing.T) {
 	input := `{"type":"system","text":"hello"}` + "\n"
 	r := bufio.NewReaderSize(strings.NewReader(input), 64*1024)
 
-	line, skipped, err := ReadJSONLine(r)
+	line, skipped, err := shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -29,7 +38,7 @@ func TestReadJSONLine_EmptyLine(t *testing.T) {
 	input := "\n" + `{"type":"ok"}` + "\n"
 	r := bufio.NewReaderSize(strings.NewReader(input), 64*1024)
 
-	line, skipped, err := ReadJSONLine(r)
+	line, skipped, err := shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -40,7 +49,7 @@ func TestReadJSONLine_EmptyLine(t *testing.T) {
 		t.Fatalf("expected empty line, got %d bytes", len(line))
 	}
 
-	line, skipped, err = ReadJSONLine(r)
+	line, skipped, err = shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -53,11 +62,11 @@ func TestReadJSONLine_EmptyLine(t *testing.T) {
 }
 
 func TestReadJSONLine_MediumLine(t *testing.T) {
-	payload := strings.Repeat("x", 200*1024) // 200KB — exceeds 64KB buffer, requires multiple ReadLine chunks
+	payload := strings.Repeat("x", 200*1024)
 	input := payload + "\n"
 	r := bufio.NewReaderSize(strings.NewReader(input), 64*1024)
 
-	line, skipped, err := ReadJSONLine(r)
+	line, skipped, err := shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -70,23 +79,12 @@ func TestReadJSONLine_MediumLine(t *testing.T) {
 }
 
 func TestReadJSONLine_OversizedLine(t *testing.T) {
-	saved := MaxLineSize
-	defer func() {
-		// MaxLineSize is a const; we test by embedding a smaller threshold.
-		// Since we can't reassign a const, we build a line that exceeds 50MB.
-		// Instead, we use a custom helper to keep the test fast.
-		_ = saved
-	}()
-
-	// Build a line just over MaxLineSize. To keep allocations reasonable
-	// in tests, we use a custom reader that streams repeated bytes.
-	totalSize := MaxLineSize + 1024 // slightly over 50MB
+	totalSize := shared.MaxLineSize + 1024
 	src := &repeatingReader{char: 'A', remaining: totalSize}
-	// Append a newline + a short "next" line so we can verify recovery.
 	combined := io.MultiReader(src, strings.NewReader("\n{\"type\":\"ok\"}\n"))
 	r := bufio.NewReaderSize(combined, 64*1024)
 
-	line, skipped, err := ReadJSONLine(r)
+	line, skipped, err := shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -97,8 +95,7 @@ func TestReadJSONLine_OversizedLine(t *testing.T) {
 		t.Fatalf("expected nil line when skipped, got %d bytes", len(line))
 	}
 
-	// Next line should be readable normally
-	line, skipped, err = ReadJSONLine(r)
+	line, skipped, err = shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("unexpected error reading next line: %v", err)
 	}
@@ -113,20 +110,18 @@ func TestReadJSONLine_OversizedLine(t *testing.T) {
 func TestReadJSONLine_EOF(t *testing.T) {
 	r := bufio.NewReaderSize(strings.NewReader(""), 64*1024)
 
-	_, _, err := ReadJSONLine(r)
+	_, _, err := shared.ReadJSONLine(r)
 	if err != io.EOF {
 		t.Fatalf("expected io.EOF, got %v", err)
 	}
 }
 
 func TestReadJSONLine_EOFDuringDrain(t *testing.T) {
-	// Oversized line without trailing newline — EOF during drain
-	totalSize := MaxLineSize + 1024
+	totalSize := shared.MaxLineSize + 1024
 	src := &repeatingReader{char: 'B', remaining: totalSize}
 	r := bufio.NewReaderSize(src, 64*1024)
 
-	_, skipped, err := ReadJSONLine(r)
-	// During drain, ReadLine will eventually hit EOF
+	_, skipped, err := shared.ReadJSONLine(r)
 	if err == nil && !skipped {
 		t.Fatal("expected either error or skip")
 	}
@@ -136,14 +131,11 @@ func TestReadJSONLine_EOFDuringDrain(t *testing.T) {
 }
 
 func TestReadJSONLine_MultiLineMixed(t *testing.T) {
-	// Line 1: normal short
-	// Line 2: oversized
-	// Line 3: normal short (verify recovery)
 	var buf bytes.Buffer
 	buf.WriteString(`{"type":"start"}`)
 	buf.WriteByte('\n')
 
-	oversized := strings.Repeat("Z", MaxLineSize+100)
+	oversized := strings.Repeat("Z", shared.MaxLineSize+100)
 	buf.WriteString(oversized)
 	buf.WriteByte('\n')
 
@@ -152,8 +144,7 @@ func TestReadJSONLine_MultiLineMixed(t *testing.T) {
 
 	r := bufio.NewReaderSize(&buf, 64*1024)
 
-	// Line 1
-	line, skipped, err := ReadJSONLine(r)
+	line, skipped, err := shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("line 1 error: %v", err)
 	}
@@ -164,8 +155,7 @@ func TestReadJSONLine_MultiLineMixed(t *testing.T) {
 		t.Fatalf("line 1 unexpected: %q", string(line))
 	}
 
-	// Line 2 (oversized)
-	line, skipped, err = ReadJSONLine(r)
+	line, skipped, err = shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("line 2 error: %v", err)
 	}
@@ -176,8 +166,7 @@ func TestReadJSONLine_MultiLineMixed(t *testing.T) {
 		t.Fatal("line 2 should return nil")
 	}
 
-	// Line 3 (recovery)
-	line, skipped, err = ReadJSONLine(r)
+	line, skipped, err = shared.ReadJSONLine(r)
 	if err != nil {
 		t.Fatalf("line 3 error: %v", err)
 	}
@@ -193,7 +182,7 @@ func TestReadJSONLine_IOError(t *testing.T) {
 	expectedErr := fmt.Errorf("simulated IO failure")
 	r := bufio.NewReaderSize(&errorReader{err: expectedErr}, 64*1024)
 
-	_, _, err := ReadJSONLine(r)
+	_, _, err := shared.ReadJSONLine(r)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -202,8 +191,6 @@ func TestReadJSONLine_IOError(t *testing.T) {
 	}
 }
 
-// repeatingReader streams a single character `remaining` times without a newline,
-// then returns io.EOF. Used to test oversized lines without allocating huge buffers.
 type repeatingReader struct {
 	char      byte
 	remaining int
@@ -224,7 +211,6 @@ func (r *repeatingReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
-// errorReader always returns the configured error.
 type errorReader struct {
 	err error
 }

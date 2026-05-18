@@ -1,0 +1,11 @@
+uses:
+  default: "tests.simple-greeting"
+
+system:
+  default: "openai.mock"
+
+store:
+  max_size: 20
+  expiration: "90d"
+
+cache: "__yao.agent.cache"

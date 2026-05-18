@@ -93,6 +93,7 @@ tools/README.md
 tools/TOOL-REGISTRATION.md
 docs/*.md
 agent/sandbox/v2/docs/*.md
+!unit-test/agent/scripts/*.sh
 unit-test/*.md
 unit-test/agent/env/secrets.env
 unit-test/agent/env/local.env

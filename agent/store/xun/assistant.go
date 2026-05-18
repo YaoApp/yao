@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/store/types"
 )
@@ -638,9 +639,20 @@ func (store *Xun) GetAssistant(assistantID string, fields []string, locale ...st
 	}
 
 	if sandbox, has := data["sandbox"]; has && sandbox != nil {
-		sb, err := types.ToSandbox(sandbox)
-		if err == nil {
-			model.Sandbox = sb
+		if types.ExtractSandboxVersion(sandbox) == sandboxTypes.SandboxVersionV2 {
+			sb, err := types.ToSandboxV2(sandbox)
+			if err == nil {
+				model.SandboxV2 = sb
+				model.IsSandbox = true
+				if sb.Filter != nil {
+					model.ComputerFilter = sb.Filter
+				}
+			}
+		} else {
+			sb, err := types.ToSandbox(sandbox)
+			if err == nil {
+				model.Sandbox = sb
+			}
 		}
 	}
 

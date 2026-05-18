@@ -1,15 +1,17 @@
-package opencode
+package opencode_test
 
 import (
+	"strings"
 	"testing"
 
 	agentContext "github.com/yaoapp/yao/agent/context"
+	opencode "github.com/yaoapp/yao/agent/sandbox/v2/opencode"
 )
 
 func TestChatIDToSessionID(t *testing.T) {
-	id1 := chatIDToSessionID("assistant-1", "chat-1")
-	id2 := chatIDToSessionID("assistant-1", "chat-1")
-	id3 := chatIDToSessionID("assistant-1", "chat-2")
+	id1 := opencode.ChatIDToSessionID("assistant-1", "chat-1")
+	id2 := opencode.ChatIDToSessionID("assistant-1", "chat-1")
+	id3 := opencode.ChatIDToSessionID("assistant-1", "chat-2")
 
 	if id1 != id2 {
 		t.Error("same inputs should produce same session ID")
@@ -32,9 +34,9 @@ func TestSanitizeSessionName(t *testing.T) {
 		{"chat@special#chars", "yao-oc-chat_special_chars"},
 	}
 	for _, tc := range cases {
-		got := sanitizeSessionName(tc.input)
+		got := opencode.SanitizeSessionName(tc.input)
 		if got != tc.want {
-			t.Errorf("sanitizeSessionName(%q) = %q, want %q", tc.input, got, tc.want)
+			t.Errorf("SanitizeSessionName(%q) = %q, want %q", tc.input, got, tc.want)
 		}
 	}
 }
@@ -77,9 +79,9 @@ func TestLastUserText(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := lastUserText(tc.messages)
+			got := opencode.LastUserText(tc.messages)
 			if got != tc.want {
-				t.Errorf("lastUserText() = %q, want %q", got, tc.want)
+				t.Errorf("LastUserText() = %q, want %q", got, tc.want)
 			}
 		})
 	}
@@ -91,55 +93,46 @@ func TestBuildStdinMessage(t *testing.T) {
 	}
 
 	t.Run("no attachments", func(t *testing.T) {
-		got := buildStdinMessage(msgs, nil)
+		got := opencode.BuildStdinMessage(msgs, nil)
 		if got != "把这个会议纪要的关键内容提取出来" {
 			t.Errorf("unexpected: %q", got)
 		}
 	})
 
 	t.Run("with attachments", func(t *testing.T) {
-		got := buildStdinMessage(msgs, []string{"/workspace/.attachments/abc/test.txt"})
-		if !strContains(got, "/workspace/.attachments/abc/test.txt") {
+		got := opencode.BuildStdinMessage(msgs, []string{"/workspace/.attachments/abc/test.txt"})
+		if !strings.Contains(got, "/workspace/.attachments/abc/test.txt") {
 			t.Error("should contain attachment path")
 		}
-		if !strContains(got, "把这个会议纪要的关键内容提取出来") {
+		if !strings.Contains(got, "把这个会议纪要的关键内容提取出来") {
 			t.Error("should contain user message")
 		}
 	})
 
 	t.Run("empty message", func(t *testing.T) {
-		got := buildStdinMessage(nil, []string{"/workspace/file.txt"})
-		if !strContains(got, "/workspace/file.txt") {
+		got := opencode.BuildStdinMessage(nil, []string{"/workspace/file.txt"})
+		if !strings.Contains(got, "/workspace/file.txt") {
 			t.Error("should contain attachment path even without message")
 		}
 	})
 }
 
 func TestBuildSandboxEnvPrompt(t *testing.T) {
-	p := &posixBase{os: "linux", shell: "bash"}
-	prompt := buildSandboxEnvPrompt(p, "/workspace")
+	p := opencode.NewPosixBase("linux", "", "bash")
+	prompt := opencode.BuildSandboxEnvPrompt(p, "/workspace")
 	if prompt == "" {
 		t.Error("prompt should not be empty")
 	}
-	if !strContains(prompt, "/workspace") {
+	if !strings.Contains(prompt, "/workspace") {
 		t.Error("prompt should mention workspace path")
 	}
-	if !strContains(prompt, "linux") {
+	if !strings.Contains(prompt, "linux") {
 		t.Error("prompt should mention OS")
 	}
 }
 
 func TestGetProviderPrefix(t *testing.T) {
-	if p := getProviderPrefix(nil); p != "openai" {
+	if p := opencode.GetProviderPrefix(nil); p != "openai" {
 		t.Errorf("nil connector should give openai, got %s", p)
 	}
-}
-
-func strContains(s, sub string) bool {
-	for i := 0; i <= len(s)-len(sub); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }

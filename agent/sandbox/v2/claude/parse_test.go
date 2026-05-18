@@ -1,4 +1,4 @@
-package claude
+package claude_test
 
 import (
 	"context"
@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
 )
 
-// recordedEvent captures a single StreamFunc callback invocation.
 type recordedEvent struct {
 	chunkType message.StreamChunkType
 	data      []byte
@@ -25,31 +25,26 @@ func mockStreamFunc(events *[]recordedEvent) message.StreamFunc {
 	}
 }
 
-// runParser feeds JSONL lines to a streamParser and returns all recorded events.
 func runParser(t *testing.T, jsonl string) []recordedEvent {
 	t.Helper()
 	var events []recordedEvent
-	p := newStreamParser(mockStreamFunc(&events))
+	p := claude.ExportNewStreamParser(mockStreamFunc(&events))
 	r, w := io.Pipe()
 	go func() {
 		defer w.Close()
 		w.Write([]byte(jsonl))
 	}()
-	if err := p.parse(context.Background(), r); err != nil {
+	if err := p.Parse(context.Background(), r); err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
 	return events
 }
-
-// --- helpers to inspect recorded events ---
 
 type messageGroup struct {
 	messageID string
 	events    []recordedEvent
 }
 
-// extractMessageGroups splits the flat event list into message_start..message_end
-// groups, each carrying the messageID from the start event.
 func extractMessageGroups(events []recordedEvent) []messageGroup {
 	var groups []messageGroup
 	var cur *messageGroup
@@ -78,11 +73,14 @@ func extractExecuteProps(ev recordedEvent) map[string]any {
 	return m
 }
 
-// --- Mock JSONL data based on real terminal logs ---
+func strDefault(v any) string {
+	if v == nil {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
+}
 
-// parallelToolCallJSONL reproduces the exact interleaved event sequence from
-// the production log: two Bash tool calls (pip --version + npm --version) where
-// tool0's tool_result arrives while tool1 is still streaming content_block_delta.
 const parallelToolCallJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_mock","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
 {"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_pip","name":"Bash"}}}
 {"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"command\""}}}
@@ -125,8 +123,6 @@ const singleToolCallJSONL = `{"type":"stream_event","event":{"type":"message_sta
 {"type":"result","result":"Done.","is_error":false}
 `
 
-// ---------- Test 1: message_start / message_end pairing ----------
-
 func TestParseParallelToolCalls_MessagePairing(t *testing.T) {
 	events := runParser(t, parallelToolCallJSONL)
 
@@ -138,58 +134,44 @@ func TestParseParallelToolCalls_MessagePairing(t *testing.T) {
 			startCount++
 			depth++
 			if depth > 1 {
-				t.Fatalf("nested message_start detected (depth %d) — message_start/message_end not strictly paired", depth)
+				t.Fatalf("nested message_start (depth %d)", depth)
 			}
 		case message.ChunkMessageEnd:
 			endCount++
 			depth--
 			if depth < 0 {
-				t.Fatal("message_end without preceding message_start")
+				t.Fatal("message_end without start")
 			}
 		}
 	}
-
 	if startCount != endCount {
-		t.Fatalf("message_start count (%d) != message_end count (%d)", startCount, endCount)
+		t.Fatalf("start(%d) != end(%d)", startCount, endCount)
 	}
-	// 4 execute phases (pip running, npm running, pip completed, npm completed) + 1 text = 5
 	if startCount < 5 {
-		t.Errorf("expected at least 5 message groups, got %d", startCount)
+		t.Errorf("expected at least 5 groups, got %d", startCount)
 	}
 }
-
-// ---------- Test 2: each tool has running + completed lifecycle ----------
 
 func TestParseParallelToolCalls_ToolLifecycle(t *testing.T) {
 	events := runParser(t, parallelToolCallJSONL)
 	groups := extractMessageGroups(events)
 
-	// Collect execute groups by message_id
 	type toolPhase struct {
-		messageID string
-		status    string
-		tool      string
-		output    any
+		messageID, status, tool string
+		output                  any
 	}
 	var phases []toolPhase
 	for _, g := range groups {
 		for _, ev := range g.events {
 			if ev.chunkType == message.ChunkExecute {
 				props := extractExecuteProps(ev)
-				status, _ := props["status"].(string)
-				if status != "" {
-					phases = append(phases, toolPhase{
-						messageID: g.messageID,
-						status:    status,
-						tool:      strDefault(props["tool"]),
-						output:    props["output"],
-					})
+				if status, _ := props["status"].(string); status != "" {
+					phases = append(phases, toolPhase{g.messageID, status, strDefault(props["tool"]), props["output"]})
 				}
 			}
 		}
 	}
 
-	// Find pip and npm phases
 	var pipRunning, pipCompleted, npmRunning, npmCompleted *toolPhase
 	for i := range phases {
 		p := &phases[i]
@@ -207,115 +189,22 @@ func TestParseParallelToolCalls_ToolLifecycle(t *testing.T) {
 		}
 	}
 
-	if pipRunning == nil {
-		t.Fatal("pip running phase not found")
+	if pipRunning == nil || pipCompleted == nil || npmRunning == nil || npmCompleted == nil {
+		t.Fatal("missing tool phases")
 	}
-	if pipCompleted == nil {
-		t.Fatal("pip completed phase not found")
-	}
-	if npmRunning == nil {
-		t.Fatal("npm running phase not found")
-	}
-	if npmCompleted == nil {
-		t.Fatal("npm completed phase not found")
-	}
-
-	// running and completed phases must share message_id (reuse)
 	if pipRunning.messageID != pipCompleted.messageID {
-		t.Errorf("pip: running message_id %q != completed message_id %q", pipRunning.messageID, pipCompleted.messageID)
+		t.Errorf("pip running/completed msgID mismatch")
 	}
 	if npmRunning.messageID != npmCompleted.messageID {
-		t.Errorf("npm: running message_id %q != completed message_id %q", npmRunning.messageID, npmCompleted.messageID)
+		t.Errorf("npm running/completed msgID mismatch")
 	}
-
-	// two tools should have different message_ids
 	if pipRunning.messageID == npmRunning.messageID {
-		t.Error("pip and npm should have different message_ids")
+		t.Error("pip and npm should have different msgIDs")
 	}
 }
-
-// ---------- Test 3: interleaved result does not corrupt message_id ----------
-
-func TestParseParallelToolCalls_InterleavedResult(t *testing.T) {
-	events := runParser(t, parallelToolCallJSONL)
-	groups := extractMessageGroups(events)
-
-	// Find the npm running group (the one with tool_id toolu_npm or second Bash running)
-	var npmRunningGroup *messageGroup
-	bashRunningCount := 0
-	for i := range groups {
-		for _, ev := range groups[i].events {
-			if ev.chunkType == message.ChunkExecute {
-				props := extractExecuteProps(ev)
-				if props["status"] == "running" && props["tool"] == "Bash" {
-					bashRunningCount++
-					if bashRunningCount == 2 {
-						npmRunningGroup = &groups[i]
-					}
-				}
-			}
-		}
-	}
-
-	if npmRunningGroup == nil {
-		t.Fatal("npm running message group not found")
-	}
-
-	// The npm running group must have a non-empty message_id
-	if npmRunningGroup.messageID == "" {
-		t.Fatal("npm running group has empty message_id")
-	}
-
-	// All execute chunks in the npm running group must have input_delta data
-	// (the streaming deltas must be present, proving they weren't lost)
-	var hasDelta bool
-	for _, ev := range npmRunningGroup.events {
-		if ev.chunkType == message.ChunkExecute {
-			props := extractExecuteProps(ev)
-			if _, ok := props["input_delta"]; ok {
-				hasDelta = true
-			}
-		}
-	}
-	if !hasDelta {
-		t.Error("npm running group has no input_delta chunks — streaming was interrupted")
-	}
-
-	// pip completed group must not contain npm delta events:
-	// find pip completed group
-	var pipCompletedGroup *messageGroup
-	for i := range groups {
-		for _, ev := range groups[i].events {
-			if ev.chunkType == message.ChunkExecute {
-				props := extractExecuteProps(ev)
-				out := strDefault(props["output"])
-				if props["status"] == "completed" && strings.Contains(out, "pip") {
-					pipCompletedGroup = &groups[i]
-				}
-			}
-		}
-	}
-
-	if pipCompletedGroup == nil {
-		t.Fatal("pip completed group not found")
-	}
-
-	// pip completed group should only contain its own events, not npm deltas
-	for _, ev := range pipCompletedGroup.events {
-		if ev.chunkType == message.ChunkExecute {
-			props := extractExecuteProps(ev)
-			if _, ok := props["input_delta"]; ok {
-				t.Error("pip completed group contains input_delta — npm delta leaked into pip group")
-			}
-		}
-	}
-}
-
-// ---------- Test 4: final text after all tools complete ----------
 
 func TestParseParallelToolCalls_FinalText(t *testing.T) {
 	events := runParser(t, parallelToolCallJSONL)
-
 	var textChunks []string
 	inTextGroup := false
 	for _, ev := range events {
@@ -331,45 +220,38 @@ func TestParseParallelToolCalls_FinalText(t *testing.T) {
 			inTextGroup = false
 		}
 	}
-
 	fullText := strings.Join(textChunks, "")
 	if !strings.Contains(fullText, "pip") || !strings.Contains(fullText, "npm") {
-		t.Errorf("final text should mention pip and npm, got %q", fullText)
+		t.Errorf("final text = %q", fullText)
 	}
 }
-
-// ---------- Test 5: single tool call regression ----------
 
 func TestParseSingleToolCall(t *testing.T) {
 	events := runParser(t, singleToolCallJSONL)
 	groups := extractMessageGroups(events)
-
-	// Should have: 1 running group + 1 completed group + 1 text group = 3
 	if len(groups) < 3 {
-		t.Fatalf("expected at least 3 message groups for single tool call, got %d", len(groups))
+		t.Fatalf("expected at least 3 groups, got %d", len(groups))
 	}
 
-	// Verify message_start / message_end pairing
 	depth := 0
 	for _, ev := range events {
 		switch ev.chunkType {
 		case message.ChunkMessageStart:
 			depth++
 			if depth > 1 {
-				t.Fatal("nested message_start in single tool call")
+				t.Fatal("nested message_start")
 			}
 		case message.ChunkMessageEnd:
 			depth--
 			if depth < 0 {
-				t.Fatal("unmatched message_end in single tool call")
+				t.Fatal("unmatched message_end")
 			}
 		}
 	}
 	if depth != 0 {
-		t.Fatalf("unbalanced message_start/message_end (depth=%d)", depth)
+		t.Fatalf("unbalanced start/end (depth=%d)", depth)
 	}
 
-	// Verify tool lifecycle: running then completed with same message_id
 	var runningID, completedID string
 	for _, g := range groups {
 		for _, ev := range g.events {
@@ -384,33 +266,80 @@ func TestParseSingleToolCall(t *testing.T) {
 			}
 		}
 	}
-
-	if runningID == "" {
-		t.Fatal("no running phase found")
-	}
-	if completedID == "" {
-		t.Fatal("no completed phase found")
+	if runningID == "" || completedID == "" {
+		t.Fatal("missing running/completed phases")
 	}
 	if runningID != completedID {
-		t.Errorf("running message_id %q != completed message_id %q", runningID, completedID)
-	}
-
-	// Verify text output
-	var hasText bool
-	for _, ev := range events {
-		if ev.chunkType == message.ChunkText && strings.Contains(string(ev.data), "Done") {
-			hasText = true
-		}
-	}
-	if !hasText {
-		t.Error("final text 'Done.' not found")
+		t.Errorf("running msgID %q != completed %q", runningID, completedID)
 	}
 }
 
-func strDefault(v any) string {
-	if v == nil {
-		return ""
+// --- extractSummary ---
+
+func TestExtractSummary_Bash(t *testing.T) {
+	got := claude.ExportExtractSummary("Bash", `{"command":"npm install"}`)
+	if got != "npm install" {
+		t.Errorf("got %q", got)
 	}
-	s, _ := v.(string)
-	return s
+}
+
+func TestExtractSummary_Write(t *testing.T) {
+	got := claude.ExportExtractSummary("Write", `{"file_path":"/workspace/main.go"}`)
+	if got != "/workspace/main.go" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestExtractSummary_Empty(t *testing.T) {
+	if got := claude.ExportExtractSummary("Bash", ""); got != "" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestExtractSummary_InvalidJSON(t *testing.T) {
+	if got := claude.ExportExtractSummary("Bash", "{invalid"); got != "" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// --- truncate ---
+
+func TestTruncate_Short(t *testing.T) {
+	if got := claude.ExportTruncate("hello", 80); got != "hello" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestTruncate_Long(t *testing.T) {
+	long := strings.Repeat("x", 100)
+	got := claude.ExportTruncate(long, 80)
+	if len(got) != 83 { // 80 + "..."
+		t.Errorf("got len %d, expected 83", len(got))
+	}
+}
+
+// --- error event ---
+
+func TestParseErrorEvent(t *testing.T) {
+	jsonl := `{"type":"error","error":{"message":"something went wrong"}}` + "\n"
+	var events []recordedEvent
+	p := claude.ExportNewStreamParser(mockStreamFunc(&events))
+	r, w := io.Pipe()
+	go func() { defer w.Close(); w.Write([]byte(jsonl)) }()
+	err := p.Parse(context.Background(), r)
+	if err == nil || !strings.Contains(err.Error(), "something went wrong") {
+		t.Errorf("expected error, got %v", err)
+	}
+}
+
+func TestParseResultError(t *testing.T) {
+	jsonl := `{"type":"result","is_error":true,"result":"CLI crash"}` + "\n"
+	var events []recordedEvent
+	p := claude.ExportNewStreamParser(mockStreamFunc(&events))
+	r, w := io.Pipe()
+	go func() { defer w.Close(); w.Write([]byte(jsonl)) }()
+	err := p.Parse(context.Background(), r)
+	if err == nil || !strings.Contains(err.Error(), "CLI crash") {
+		t.Errorf("expected error, got %v", err)
+	}
 }

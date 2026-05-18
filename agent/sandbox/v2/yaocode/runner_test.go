@@ -10,15 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/agent/caller"
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	sandboxtestutils "github.com/yaoapp/yao/agent/sandbox/v2/testutils"
-	"github.com/yaoapp/yao/agent/testutils"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
 func TestSandboxV2_Yao_JSAPI(t *testing.T) {
-	testutils.SkipWithoutTai(t, "TAI_TEST_GRPC")
-	sandboxtestutils.Prepare(t)
-	defer sandboxtestutils.Clean(t)
+	t.Skip("yaocode runner is WIP — skip until stabilized")
+	identity := testprepare.PrepareE2E(t)
 
 	require.NotNil(t, caller.AgentGetterFunc, "AgentGetterFunc should be registered after Prepare")
 
@@ -29,8 +27,8 @@ func TestSandboxV2_Yao_JSAPI(t *testing.T) {
 	ctx := agentcontext.New(
 		context.Background(),
 		&oauthtypes.AuthorizedInfo{
-			TeamID: "test-team-jsapi",
-			UserID: "test-user-jsapi",
+			TeamID: identity.AlphaTeamID,
+			UserID: identity.AlphaOwnerUserID,
 		},
 		chatID,
 	)

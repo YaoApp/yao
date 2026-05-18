@@ -11,42 +11,52 @@ usage() {
 Usage: bin/test-agent <command> [options]
 
 Commands:
-  start       Start all test services (mock-llm + yao-server + tai x2)
-  stop        Stop all test services
-  check       Check environment completeness
-  run         Run tests (start services first if not running)
+  start       Start mock-llm server
+  stop        Stop mock-llm server
+  run         Run tests (start mock-llm first if not running)
 
 Options for 'run':
-  --tier <name>   Test tier: unit | llm | sandbox | e2e | all (default: all)
+  --tier <name>   Test tier (default: all)
+        unit      Pure unit tests only (no Yao Runtime, no Docker, no LLM)
+        sandbox   Full Yao Runtime + Tai + Docker tests
+        e2e       E2E tests (Runtime + Tai + Mock LLM)
+        all       All tests (unit + sandbox + e2e)
   --coverage      Generate coverage report
   --verbose       Enable verbose output (go test -v)
   --pkg <path>    Specific package to test (e.g. ./agent/llm/...)
   --run <regex>   Specific test function regex
   --count <n>     go test -count (default: 1)
+  --timeout <dur> go test -timeout (default: 600s)
 
 Examples:
-  bin/test-agent start           # Start all services
-  bin/test-agent check           # Verify environment
-  bin/test-agent run             # Run all tests
-  bin/test-agent run --tier llm  # Run LLM mock tests only
+  bin/test-agent start                    # Start mock-llm
+  bin/test-agent run                      # Run all tests
+  bin/test-agent run --tier unit          # Pure unit tests (fast, no deps)
+  bin/test-agent run --tier sandbox       # Sandbox tests (needs Docker)
+  bin/test-agent run --tier e2e           # E2E tests (needs mock-llm + Docker)
   bin/test-agent run --pkg ./agent/llm/... --run TestStream
-  bin/test-agent stop            # Stop all services
+  bin/test-agent stop                     # Stop mock-llm
 EOF
 }
 
 cmd_start() {
   "$SCRIPTS_DIR/start-mock-llm.sh"
-  "$SCRIPTS_DIR/start-yao-server.sh"
-  "$SCRIPTS_DIR/start-tai.sh"
-  "$SCRIPTS_DIR/check-env.sh"
 }
 
 cmd_stop() {
-  "$SCRIPTS_DIR/stop-all.sh"
+  "$SCRIPTS_DIR/stop-mock-llm.sh"
 }
 
-cmd_check() {
-  "$SCRIPTS_DIR/check-env.sh"
+mock_llm_running() {
+  source "$SCRIPTS_DIR/_common.sh"
+  load_env
+  local pidfile="$DATA_DIR/pids/mock-llm.pid"
+  if [ -f "$pidfile" ]; then
+    local pid
+    pid=$(cat "$pidfile" 2>/dev/null) || return 1
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && return 0
+  fi
+  return 1
 }
 
 cmd_run() {
@@ -56,60 +66,59 @@ cmd_run() {
   local pkg=""
   local run_regex=""
   local count="1"
+  local timeout="600s"
 
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --tier)   tier="$2"; shift 2 ;;
+      --tier)    tier="$2"; shift 2 ;;
       --coverage) coverage="-coverprofile=coverage.out"; shift ;;
       --verbose)  verbose="-v"; shift ;;
-      --pkg)    pkg="$2"; shift 2 ;;
-      --run)    run_regex="$2"; shift 2 ;;
-      --count)  count="$2"; shift 2 ;;
+      --pkg)     pkg="$2"; shift 2 ;;
+      --run)     run_regex="$2"; shift 2 ;;
+      --count)   count="$2"; shift 2 ;;
+      --timeout) timeout="$2"; shift 2 ;;
       *) echo "Unknown option: $1"; usage; exit 1 ;;
     esac
   done
 
-  # Check if services are running
-  if ! "$SCRIPTS_DIR/check-env.sh" > /dev/null 2>&1; then
-    echo "[INFO] Services not running, starting..."
-    cmd_start
+  # Start mock-llm if not running (needed for e2e and all)
+  if [[ "$tier" == "e2e" || "$tier" == "all" ]]; then
+    if ! mock_llm_running; then
+      echo "[INFO] mock-llm not running, starting..."
+      cmd_start
+    fi
   fi
 
-  # Load environment
+  # Load environment for test variables
   source "$SCRIPTS_DIR/_common.sh"
   load_env
 
-  # Export test environment variables
+  # Export paths for Go test framework
   export YAO_AGENT_TEST_APPLICATION="$APP_DIR"
   export YAO_TEST_APPLICATION="$APP_DIR"
-  export MOCK_LLM_HOST
-  export YAO_PORT
-  export YAO_GRPC_PORT
+  export YAO_ROOT="$APP_DIR"
 
-  # Load test user IDs
-  if [ -f "$APP_DIR/db/.test-users.env" ]; then
-    set -a
-    source "$APP_DIR/db/.test-users.env"
-    set +a
-  fi
-
-  # Determine test packages and default run filter
+  # Determine test packages and run filter by tier
   if [ -n "$pkg" ]; then
     test_pkgs="$pkg"
   else
     case "$tier" in
-      unit)    test_pkgs="./agent/..." ;;
-      llm)     test_pkgs="./agent/llm/..." ;;
-      sandbox) test_pkgs="./agent/sandbox/..." ;;
-      e2e)     test_pkgs="./agent/..." ;;
-      all)     test_pkgs="./agent" ;;
-      *)       echo "Unknown tier: $tier"; exit 1 ;;
+      unit)
+        test_pkgs="./sandbox/v2/... ./agent/sandbox/v2/..."
+        ;;
+      sandbox)
+        test_pkgs="./sandbox/v2/... ./agent/sandbox/v2"
+        ;;
+      e2e)
+        test_pkgs="./agent/sandbox/v2/yaocode ./agent/sandbox/v2/opencode ./agent/sandbox/v2/claude"
+        ;;
+      all)
+        test_pkgs="./sandbox/v2/... ./agent/sandbox/v2/..."
+        ;;
+      *)
+        echo "Unknown tier: $tier"; exit 1
+        ;;
     esac
-  fi
-
-  # Default: only run smoke test (add more as tests are ported)
-  if [ -z "$run_regex" ] && [ "$tier" = "all" ]; then
-    run_regex="TestEnvironmentReady"
   fi
 
   # Build go test arguments
@@ -118,8 +127,9 @@ cmd_run() {
   [ -n "$coverage" ] && go_args+=("$coverage")
   go_args+=("-count=$count")
   [ -n "$run_regex" ] && go_args+=("-run" "$run_regex")
-  go_args+=("-timeout" "600s")
-  go_args+=("$test_pkgs")
+  go_args+=("-timeout" "$timeout")
+  # shellcheck disable=SC2206
+  go_args+=($test_pkgs)
 
   echo ""
   echo "=== Running Agent Tests ==="
@@ -145,7 +155,6 @@ shift
 case "$command" in
   start) cmd_start ;;
   stop)  cmd_stop ;;
-  check) cmd_check ;;
   run)   cmd_run "$@" ;;
   -h|--help|help) usage ;;
   *) echo "Unknown command: $command"; usage; exit 1 ;;

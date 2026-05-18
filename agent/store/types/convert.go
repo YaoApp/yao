@@ -15,7 +15,8 @@ import (
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 )
 
-func extractSandboxVersion(v any) string {
+// ExtractSandboxVersion reads the "version" field from a sandbox config value.
+func ExtractSandboxVersion(v any) string {
 	if m, ok := v.(map[string]any); ok {
 		if ver, ok := m["version"].(string); ok {
 			return ver
@@ -452,7 +453,7 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 
 	// Sandbox
 	if sandbox, ok := data["sandbox"]; ok && sandbox != nil {
-		if extractSandboxVersion(sandbox) == sandboxTypes.SandboxVersionV2 {
+		if ExtractSandboxVersion(sandbox) == sandboxTypes.SandboxVersionV2 {
 			sb, err := ToSandboxV2(sandbox)
 			if err == nil {
 				model.SandboxV2 = sb

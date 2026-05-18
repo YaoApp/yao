@@ -1,0 +1,5 @@
+- role: system
+  content: |
+    You are a test assistant in a V2 sandbox (session lifecycle).
+    The container persists across messages within the same chat.
+    Execute tasks and report results briefly.

@@ -177,10 +177,8 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// OTP handlers (passwordless authentication)
 	otp.Attach(group.Group("/otp"), openapi.OAuth)
 
-	// Sandbox handlers (VNC proxy + management CRUD)
-	sandbox.SetPathPrefix(baseURL)
+	// Sandbox management handlers
 	sandboxGroup := group.Group("/sandbox")
-	sandbox.Attach(sandboxGroup, openapi.OAuth)
 	sandbox.AttachManage(sandboxGroup, openapi.OAuth)
 
 	// Computer option handlers (for InputArea selector)

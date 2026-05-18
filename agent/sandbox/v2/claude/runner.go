@@ -30,7 +30,7 @@ type Runner struct {
 
 // New creates a new Runner.
 func New() *Runner {
-	return &Runner{mode: "cli"}
+	return &Runner{mode: "cli", logger: agentContext.NoopLogger()}
 }
 
 // Name returns the runner identifier.
@@ -38,6 +38,12 @@ func (r *Runner) Name() string { return "claude" }
 
 // Prepare executes user-defined and runner-specific prepare steps.
 func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
+	// PrepareRequest carries no Logger field; ensure r.logger is non-nil
+	// so subsequent .Warn calls don't panic when New() was bypassed.
+	if r.logger == nil {
+		r.logger = agentContext.NoopLogger()
+	}
+
 	r.mode = req.Config.Runner.Mode
 	if r.mode == "" {
 		r.mode = "cli"
