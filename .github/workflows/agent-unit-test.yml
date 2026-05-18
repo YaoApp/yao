@@ -18,11 +18,31 @@ env:
 
 jobs:
   agent-test:
+    name: ${{ matrix.db }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: yao
+          POSTGRES_PASSWORD: "123456"
+          POSTGRES_DB: agent_test
+        options: >-
+          --health-cmd="pg_isready -U yao"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     strategy:
+      fail-fast: false
       matrix:
         go: ["1.25"]
+        db: [SQLite3, Postgres14]
+
     steps:
       - name: Checkout Yao
         uses: actions/checkout@v4
@@ -56,6 +76,10 @@ jobs:
           sed -i 's|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_TEST_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
+          if [ "${{ matrix.db }}" = "Postgres14" ]; then
+            sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
+            sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
+          fi
 
       - name: Build Mock LLM
         run: |
@@ -99,7 +123,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: agent-test-logs
+          name: agent-test-logs-${{ matrix.db }}
           path: |
             ${{ github.workspace }}/.build/test/data/*.log
             ${{ github.workspace }}/unit-test/agent/app/logs/

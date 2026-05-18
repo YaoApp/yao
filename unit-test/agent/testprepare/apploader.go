@@ -113,6 +113,15 @@ func loadApp(t *testing.T) {
 	os.MkdirAll(config.Conf.DataRoot, 0755)
 	cfg := config.Conf
 
+	// Ensure SQLite parent directories exist (CI has no db/ dir — it's gitignored)
+	if cfg.DB.Driver == "sqlite3" || cfg.DB.Driver == "" {
+		for _, dsn := range cfg.DB.Primary {
+			if dir := filepath.Dir(dsn); dir != "." {
+				os.MkdirAll(dir, 0o755)
+			}
+		}
+	}
+
 	// 2. Open application from disk and parse app.yao -> share.App
 	app, err := application.OpenFromDisk(root)
 	if err != nil {

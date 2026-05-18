@@ -226,10 +226,13 @@ func loadAgentTestEnv() error {
 
 	// Isolate SQLite DB per process to avoid cross-package corruption when
 	// go test runs multiple packages in parallel (each as a separate OS process).
-	if v, ok := pairs["YAO_DB_PRIMARY"]; ok && !filepath.IsAbs(v) {
-		ext := filepath.Ext(v)
-		base := strings.TrimSuffix(v, ext)
-		pairs["YAO_DB_PRIMARY"] = fmt.Sprintf("%s-%d%s", base, os.Getpid(), ext)
+	// Only applies to sqlite3 — Postgres DSN (postgres://...) must not be modified.
+	if driver, _ := pairs["YAO_DB_DRIVER"]; driver == "sqlite3" || driver == "" {
+		if v, ok := pairs["YAO_DB_PRIMARY"]; ok && !filepath.IsAbs(v) {
+			ext := filepath.Ext(v)
+			base := strings.TrimSuffix(v, ext)
+			pairs["YAO_DB_PRIMARY"] = fmt.Sprintf("%s-%d%s", base, os.Getpid(), ext)
+		}
 	}
 
 	// Set all variables unconditionally (env file always wins)
