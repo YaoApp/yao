@@ -1,0 +1,12 @@
+{
+  "name": "Robot Inspiration Test",
+  "type": "robot-inspiration",
+  "connector": "openai.mock",
+  "description": "P0 Phase Agent test - generates inspiration report",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

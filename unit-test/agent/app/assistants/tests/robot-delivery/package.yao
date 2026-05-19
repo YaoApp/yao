@@ -1,0 +1,12 @@
+{
+  "name": "Robot Delivery Test",
+  "type": "robot-delivery",
+  "connector": "openai.mock",
+  "description": "P4 Phase Agent test - generates delivery output",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

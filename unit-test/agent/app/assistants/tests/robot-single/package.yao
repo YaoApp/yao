@@ -1,0 +1,9 @@
+{
+  "name": "Robot Single Call Test",
+  "connector": "openai.mock",
+  "description": "Test assistant for AgentCaller single invocation",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Robot Goals Test",
+  "type": "robot-goals",
+  "connector": "openai.mock",
+  "description": "P1 Phase Agent test - converts inspiration to goals",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

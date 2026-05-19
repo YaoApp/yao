@@ -17,7 +17,7 @@
 | 8    | caller                                       | ✅ 完成   |
 | 9    | assistant/mcp+loop                           | ✅ 完成   |
 | 10   | output                                       | ✅ 完成   |
-| 11   | robot                                        | ⏳ 待开始 |
+| 11   | robot                                        | ✅ 完成   |
 | 12   | search                                       | ⏳ 待开始 |
 | 清理 | 删除旧 testutils + .go.bak                   | ⏳ 待开始 |
 | 收尾 | 覆盖率收集：各 Tier coverprofile 合并 + CI 上传 | ⏳ 待开始 |

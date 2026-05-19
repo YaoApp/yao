@@ -585,7 +585,7 @@ func TestCreateHook_ConnectorOverride(t *testing.T) { ... }
 | 8 | `caller/` | caller-target, caller-orchestrator | ~37 | A2A 调用: NewHeadlessContext, ParseMessages, NewResult, Orchestrator All/Any/Race, processAgentCall 集成 | ✅ 完成 |
 | 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | ~13 | MCP 工具名 Format/Parse/RoundTrip, Tool Loop: buildMessages, messageText, isDisabled, getMaxTurns, loop 集成 | ✅ 完成 |
 | 10 | `output/` | 无 | ~44 | builtin 消息工厂(16), Accept 路由+Send/Flush(6), OpenAI adapter(12), OpenAI writer SSE(5), CUI writer(5) | ✅ 完成 |
-| 11 | `robot/` | 无 | ~40 | manager/executor/store/cache/pool/api/events | ⏳ 待开始 |
+| 11 | `robot/` | 12 (7 Phase + 3 Test + 2 Expert) | ~64 | 14 子包 72 新测试文件: types/utils/trigger/dedup/logger/plan/store/cache/pool/executor/events/manager/api/root | ✅ 完成 |
 | 12 | `search/` | 无 | ~16 | Searcher + web handler + JSAPI | ⏳ 待开始 |
 | 清理 | `agent/test/` + `agent/testutils/` | -- | ~9 | 删除跨包遗留，废弃 testutils + 删除所有 .go.bak | ⏳ 待开始 |
 
