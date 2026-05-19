@@ -12,7 +12,7 @@
 | 3    | i18n + memory                                | ✅ 完成   |
 | 4    | llm                                          | ✅ 完成   |
 | 5    | content                                      | ✅ 完成   |
-| 6    | assistant/hook                               | ⏳ 待开始 |
+| 6    | assistant/hook                               | ✅ 完成   |
 | 7    | assistant 主循环                             | ⏳ 待开始 |
 | 8    | caller                                       | ⏳ 待开始 |
 | 9    | assistant/mcp+loop                           | ⏳ 待开始 |

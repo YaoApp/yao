@@ -580,7 +580,7 @@ func TestCreateHook_ConnectorOverride(t *testing.T) { ... }
 | 3 | `i18n/` + `memory/` | i18n-multilang | ~2 | 国际化模板 + 四级内存 | ✅ 完成 |
 | 4 | `llm/` | connector-resolve | ~12 | ResolveConnector 全路径 + Capabilities | ✅ 完成 |
 | 5 | `content/` | attachment-handler | ~5 | ParseUserInput + image/pdf/docx/pptx/text | ✅ 完成 |
-| 6 | `assistant/hook/` | 8 个 hook-* | ~9 | Create/Next hook 全路径 | ⏳ 待开始 |
+| 6 | `assistant/hook/` | hook-echo, hook-next | ~27 | Create/Next hook 全路径 | ✅ 完成 |
 | 7 | `assistant/` | no-prompt, disable-global-prompts, history-basic, search-* (3) | ~22 | 主循环：load/build/search/history/permission | ⏳ 待开始 |
 | 8 | `caller/` | caller-target, caller-orchestrator | ~3 | A2A 调用 + All/Any/Race | ⏳ 待开始 |
 | 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | 0（新增） | MCP + Tool Loop | ⏳ 待开始 |
