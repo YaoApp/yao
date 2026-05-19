@@ -216,9 +216,6 @@ func TestResume(t *testing.T) {
 		assert.Equal(t, robottypes.ExecCompleted, loaded.Status)
 	})
 
-	// TODO: R6_Resume_with_skip requires mock-llm fixtures for structured phase responses
-	//       (Resume runs delivery phase after skip, which needs structured LLM output)
-
 	t.Run("R8_Resume_counter_returns_to_zero_after_completion", func(t *testing.T) {
 		identity := testprepare.PrepareSandbox(t)
 		ctx := testCtx(identity)

@@ -52,9 +52,6 @@ func TestCallHostAgent_NoHostAgent(t *testing.T) {
 	})
 }
 
-// TODO: TestCallHostAgent_ValidJSONResponse requires mock-llm fixtures for structured host agent JSON responses
-// TODO: TestCallHostAgent_PlaintextFallback requires mock-llm fixtures for structured host agent responses
-
 func TestCallHostAgent_AssistantNotFound(t *testing.T) {
 	identity := testprepare.PrepareSandbox(t)
 	e := standard.New()

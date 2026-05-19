@@ -17,10 +17,6 @@ import (
 // P1 Goals Phase Tests
 // ============================================================================
 
-// TODO: TestRunGoalsBasic requires mock-llm fixtures for structured phase responses
-// TODO: TestRunGoalsHumanTrigger requires mock-llm fixtures for structured phase responses
-// TODO: TestRunGoalsFallbackBehavior requires mock-llm fixtures for structured phase responses
-
 func TestRunGoalsPrePopulated(t *testing.T) {
 	identity := testprepare.PrepareSandbox(t)
 	ctx := testCtx(identity)

@@ -16,8 +16,6 @@ import (
 // P4 Delivery Phase Tests
 // ============================================================================
 
-// TODO: TestRunDeliveryBasic requires mock-llm fixtures for structured delivery content (summary/body JSON)
-
 func TestRunDeliveryErrorHandling(t *testing.T) {
 	identity := testprepare.PrepareSandbox(t)
 	ctx := testCtx(identity)

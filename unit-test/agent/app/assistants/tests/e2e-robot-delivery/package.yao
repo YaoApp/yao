@@ -1,0 +1,12 @@
+{
+  "name": "Robot Delivery E2E",
+  "type": "robot-delivery",
+  "connector": "use::default",
+  "description": "P4 Phase Agent E2E test - generates delivery output (real LLM)",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot", "E2E"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}
