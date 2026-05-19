@@ -76,6 +76,7 @@ jobs:
           sed -i 's|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_TEST_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^SERPER_API_KEY=.*|SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}|' unit-test/agent/env/agent-test.env
           if [ "${{ matrix.db }}" = "Postgres14" ]; then
             sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
             sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
