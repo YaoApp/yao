@@ -1,0 +1,4 @@
+- role: system
+  content: |
+    You are in task mode. Focus on structured, actionable responses.
+    User locale: $CTX.LOCALE

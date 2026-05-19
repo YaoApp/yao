@@ -1,0 +1,24 @@
+{
+  "name": "Search Web Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant for auto web search integration",
+  "options": { "temperature": 0 },
+  "search": {
+    "web": {
+      "provider": "serper",
+      "max_results": 3
+    },
+    "citation": {
+      "format": "xml",
+      "auto_inject_prompt": true
+    }
+  },
+  "uses": {
+    "search": "builtin",
+    "web": "builtin"
+  },
+  "tags": ["Test", "Search"],
+  "sort": 999,
+  "public": false
+}

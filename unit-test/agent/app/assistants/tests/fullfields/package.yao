@@ -1,0 +1,49 @@
+{
+  "name": "Full Fields Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant with all possible fields populated for full field verification",
+  "options": { "temperature": 0.7, "max_tokens": 2000, "top_p": 0.9 },
+  "tags": ["Test", "FullFields"],
+  "sort": 100,
+  "public": true,
+  "mentionable": true,
+  "automated": false,
+  "connector_options": {
+    "optional": true,
+    "connectors": ["openai", "anthropic"],
+    "filters": ["text_generation"]
+  },
+  "search": {
+    "web": {
+      "provider": "serper",
+      "max_results": 5
+    },
+    "citation": {
+      "format": "xml",
+      "auto_inject_prompt": true
+    }
+  },
+  "kb": {
+    "collections": ["test-collection"],
+    "options": { "threshold": 0.8 }
+  },
+  "mcp": {
+    "servers": [
+      { "server_id": "echo" }
+    ]
+  },
+  "uses": {
+    "search": "builtin",
+    "web": "builtin",
+    "vision": "builtin"
+  },
+  "placeholder": {
+    "title": "{{placeholder_title}}",
+    "description": "{{placeholder_description}}",
+    "prompts": ["{{prompt_1}}", "{{prompt_2}}"]
+  },
+  "modes": ["chat", "task"],
+  "default_mode": "chat"
+}

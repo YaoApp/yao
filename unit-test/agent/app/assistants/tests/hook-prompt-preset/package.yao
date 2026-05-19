@@ -1,0 +1,10 @@
+{
+  "name": "Prompt Preset Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant for prompt preset selection via hook",
+  "options": { "temperature": 0 },
+  "tags": ["Test", "Prompts"],
+  "sort": 999,
+  "public": false
+}

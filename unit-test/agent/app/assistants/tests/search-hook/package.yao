@@ -1,0 +1,20 @@
+{
+  "name": "Search Hook Control Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant where Create hook controls search behavior",
+  "options": { "temperature": 0 },
+  "search": {
+    "web": {
+      "provider": "serper",
+      "max_results": 3
+    }
+  },
+  "uses": {
+    "search": "builtin",
+    "web": "builtin"
+  },
+  "tags": ["Test", "Search", "Hook"],
+  "sort": 999,
+  "public": false
+}

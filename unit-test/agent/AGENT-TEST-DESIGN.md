@@ -581,7 +581,7 @@ func TestCreateHook_ConnectorOverride(t *testing.T) { ... }
 | 4 | `llm/` | connector-resolve | ~12 | ResolveConnector 全路径 + Capabilities | ✅ 完成 |
 | 5 | `content/` | attachment-handler | ~5 | ParseUserInput + image/pdf/docx/pptx/text | ✅ 完成 |
 | 6 | `assistant/hook/` | hook-echo, hook-next | ~27 | Create/Next hook 全路径 | ✅ 完成 |
-| 7 | `assistant/` | no-prompt, disable-global-prompts, history-basic, search-* (3) | ~22 | 主循环：load/build/search/history/permission | ⏳ 待开始 |
+| 7 | `assistant/` | fullfields, hook-prompt-preset, hook-disable-global-prompts, no-prompt, history-basic, search-web, search-disabled, search-hook | ~45 | 主循环：load/build/search/history/chat/scripts/stream/mcp/e2e | ✅ 完成 |
 | 8 | `caller/` | caller-target, caller-orchestrator | ~3 | A2A 调用 + All/Any/Race | ⏳ 待开始 |
 | 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | 0（新增） | MCP + Tool Loop | ⏳ 待开始 |
 | 10 | `output/` | 无 | ~1 | Accept 路由 + adapter + JSAPI | ⏳ 待开始 |

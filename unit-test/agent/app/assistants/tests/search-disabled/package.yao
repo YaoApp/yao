@@ -1,0 +1,19 @@
+{
+  "name": "Search Disabled Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant with search disabled via uses.search",
+  "options": { "temperature": 0 },
+  "search": {
+    "web": {
+      "provider": "serper",
+      "max_results": 3
+    }
+  },
+  "uses": {
+    "search": "disabled"
+  },
+  "tags": ["Test", "Search"],
+  "sort": 999,
+  "public": false
+}

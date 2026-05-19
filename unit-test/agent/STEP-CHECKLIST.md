@@ -13,7 +13,7 @@
 | 4    | llm                                          | ✅ 完成   |
 | 5    | content                                      | ✅ 完成   |
 | 6    | assistant/hook                               | ✅ 完成   |
-| 7    | assistant 主循环                             | ⏳ 待开始 |
+| 7    | assistant 主循环                             | ✅ 完成   |
 | 8    | caller                                       | ⏳ 待开始 |
 | 9    | assistant/mcp+loop                           | ⏳ 待开始 |
 | 10   | output                                       | ⏳ 待开始 |

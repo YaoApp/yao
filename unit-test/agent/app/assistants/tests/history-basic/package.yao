@@ -1,0 +1,11 @@
+{
+  "name": "History Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant for verifying chat history loading and merging functionality",
+  "options": { "temperature": 0 },
+  "tags": ["Test", "History"],
+  "sort": 999,
+  "public": true
+}

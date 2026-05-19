@@ -1,0 +1,4 @@
+- role: system
+  content: |
+    You are in chat mode. Focus on conversational responses.
+    User locale: $CTX.LOCALE

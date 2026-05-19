@@ -1,0 +1,6 @@
+locale: en
+messages:
+  placeholder_title: "Ask me anything"
+  placeholder_description: "I can help with various tasks"
+  prompt_1: "What can you do?"
+  prompt_2: "Help me with a task"
