@@ -200,6 +200,16 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		Table(store.getAssistantTable()).
 		Insert(data)
 	if err != nil {
+		if isUniqueViolation(err) {
+			_, updateErr := store.query.New().
+				Table(store.getAssistantTable()).
+				Where("assistant_id", assistant.ID).
+				Update(data)
+			if updateErr != nil {
+				return "", updateErr
+			}
+			return assistant.ID, nil
+		}
 		return "", err
 	}
 	return assistant.ID, nil
@@ -956,4 +966,13 @@ func (store *Xun) sandboxRawSQL() (string, string) {
 	default:
 		return "CAST(`sandbox` AS CHAR) <> 'null'", "CAST(`sandbox` AS CHAR) = 'null'"
 	}
+}
+
+// isUniqueViolation returns true if err indicates a unique constraint violation
+// across SQLite ("UNIQUE constraint"), PostgreSQL ("duplicate key"), and MySQL ("Duplicate entry").
+func isUniqueViolation(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "duplicate entry")
 }
