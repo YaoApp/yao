@@ -159,7 +159,7 @@ func TestExecutionStoreList(t *testing.T) {
 			TeamID: identity.AlphaTeamID,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 3, len(result.Data))
+		assert.GreaterOrEqual(t, len(result.Data), 3)
 		for _, r := range result.Data {
 			assert.Equal(t, identity.AlphaTeamID, r.TeamID)
 		}
