@@ -1,0 +1,10 @@
+greeting: "你好"
+farewell: "再见"
+with_var: "你好，{{name}}"
+description: "多语言测试助手"
+chat:
+  title: "新对话"
+  description: "开始新的对话"
+  prompts:
+    - "有什么可以帮您的？"
+    - "随便问我"
