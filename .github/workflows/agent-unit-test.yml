@@ -82,6 +82,11 @@ jobs:
             sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
           fi
 
+      - name: Install PDF tools (pdftoppm, mutool, imagemagick)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils mupdf-tools imagemagick
+
       - name: Build Mock LLM
         run: |
           mkdir -p ${{ github.workspace }}/.build/test
