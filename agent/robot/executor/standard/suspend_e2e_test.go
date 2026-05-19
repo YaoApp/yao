@@ -26,8 +26,8 @@ func TestResumeWithSkipE2E(t *testing.T) {
 			DisplayName:  "E2E Resume Skip Robot",
 			SystemPrompt: "You are a helpful assistant.",
 			Config: &robottypes.Config{
-				Identity:  &robottypes.Identity{Role: "Test", Duties: []string{"Execute tasks"}},
-				Quota:     &robottypes.Quota{Max: 5},
+				Identity: &robottypes.Identity{Role: "Test", Duties: []string{"Execute tasks"}},
+				Quota:    &robottypes.Quota{Max: 5},
 				Resources: &robottypes.Resources{
 					Phases: map[robottypes.Phase]string{
 						robottypes.PhaseDelivery: "tests.e2e-robot-delivery",
@@ -52,7 +52,7 @@ func TestResumeWithSkipE2E(t *testing.T) {
 					ID: "task-001", ExecutorType: robottypes.ExecutorAssistant,
 					ExecutorID: "experts.text-writer",
 					Messages:   []agentcontext.Message{{Role: agentcontext.RoleUser, Content: "Write 'hello'"}},
-					Order: 0, Status: robottypes.TaskWaitingInput,
+					Order:      0, Status: robottypes.TaskWaitingInput,
 				},
 			},
 			WaitingTaskID:   "task-001",

@@ -21,8 +21,8 @@ import (
 func newTestRobot(t *testing.T, identity *testprepare.TestIdentity) *robottypes.Robot {
 	t.Helper()
 	name := t.Name()
-	if len(name) > 40 {
-		name = name[len(name)-40:]
+	if len(name) > 30 {
+		name = name[len(name)-30:]
 	}
 	return &robottypes.Robot{
 		MemberID:       "rt-" + name,
