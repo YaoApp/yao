@@ -582,9 +582,9 @@ func TestCreateHook_ConnectorOverride(t *testing.T) { ... }
 | 5 | `content/` | attachment-handler | ~5 | ParseUserInput + image/pdf/docx/pptx/text | ✅ 完成 |
 | 6 | `assistant/hook/` | hook-echo, hook-next | ~27 | Create/Next hook 全路径 | ✅ 完成 |
 | 7 | `assistant/` | fullfields, hook-prompt-preset, hook-disable-global-prompts, no-prompt, history-basic, search-web, search-disabled, search-hook | ~45 | 主循环：load/build/search/history/chat/scripts/stream/mcp/e2e | ✅ 完成 |
-| 8 | `caller/` | caller-target, caller-orchestrator | ~3 | A2A 调用 + All/Any/Race | ⏳ 待开始 |
-| 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | 0（新增） | MCP + Tool Loop | ⏳ 待开始 |
-| 10 | `output/` | 无 | ~1 | Accept 路由 + adapter + JSAPI | ⏳ 待开始 |
+| 8 | `caller/` | caller-target, caller-orchestrator | ~37 | A2A 调用: NewHeadlessContext, ParseMessages, NewResult, Orchestrator All/Any/Race, processAgentCall 集成 | ✅ 完成 |
+| 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | ~13 | MCP 工具名 Format/Parse/RoundTrip, Tool Loop: buildMessages, messageText, isDisabled, getMaxTurns, loop 集成 | ✅ 完成 |
+| 10 | `output/` | 无 | ~44 | builtin 消息工厂(16), Accept 路由+Send/Flush(6), OpenAI adapter(12), OpenAI writer SSE(5), CUI writer(5) | ✅ 完成 |
 | 11 | `robot/` | 无 | ~40 | manager/executor/store/cache/pool/api/events | ⏳ 待开始 |
 | 12 | `search/` | 无 | ~16 | Searcher + web handler + JSAPI | ⏳ 待开始 |
 | 清理 | `agent/test/` + `agent/testutils/` | -- | ~9 | 删除跨包遗留，废弃 testutils + 删除所有 .go.bak | ⏳ 待开始 |

@@ -14,9 +14,9 @@
 | 5    | content                                      | ✅ 完成   |
 | 6    | assistant/hook                               | ✅ 完成   |
 | 7    | assistant 主循环                             | ✅ 完成   |
-| 8    | caller                                       | ⏳ 待开始 |
-| 9    | assistant/mcp+loop                           | ⏳ 待开始 |
-| 10   | output                                       | ⏳ 待开始 |
+| 8    | caller                                       | ✅ 完成   |
+| 9    | assistant/mcp+loop                           | ✅ 完成   |
+| 10   | output                                       | ✅ 完成   |
 | 11   | robot                                        | ⏳ 待开始 |
 | 12   | search                                       | ⏳ 待开始 |
 | 清理 | 删除旧 testutils + .go.bak                   | ⏳ 待开始 |

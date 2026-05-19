@@ -26,3 +26,10 @@ var ExportCheckPermissions = (*Assistant).checkPermissions
 
 // load.go
 var ExportLoadMap = loadMap
+
+// loop.go
+var ExportIsToolLoopDisabled = (*Assistant).isToolLoopDisabled
+var ExportGetMaxToolLoopTurns = (*Assistant).getMaxToolLoopTurns
+var ExportBuildToolLoopMessages = buildToolLoopMessages
+var ExportBuildLoopFallbackMarkdown = buildLoopFallbackMarkdown
+var ExportMessageText = messageText

@@ -1,0 +1,2 @@
+- role: system
+  content: You are a test assistant for tool loop testing. Use tools as needed.
