@@ -817,7 +817,13 @@ func (store *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...strin
 		})
 	}
 
-	rows, err := qb.Select("tags").GroupBy("tags").Get()
+	qb.WhereNotNull("tags")
+	if store.getDriver() == "postgres" {
+		qb.SelectRaw("tags::text as tags").GroupByRaw("tags::text")
+	} else {
+		qb.Select("tags").GroupBy("tags")
+	}
+	rows, err := qb.Get()
 	if err != nil {
 		return nil, err
 	}

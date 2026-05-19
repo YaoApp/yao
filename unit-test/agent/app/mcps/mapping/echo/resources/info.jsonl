@@ -1,0 +1,2 @@
+{"name":"server_info","description":"Get server information","uri":"echo://info","data":{"name":"Echo Test Server","version":"1.0.0","description":"Simple MCP server for testing","capabilities":["ping","status","echo"]}}
+

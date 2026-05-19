@@ -1,0 +1,3 @@
+{"name":"simple_echo","description":"Echo a simple message","input":{"message":"Hello World"},"output":{"echo":"Hello World","uppercase":false}}
+{"name":"uppercase_echo","description":"Echo message in uppercase","input":{"message":"hello","uppercase":true},"output":{"echo":"HELLO","uppercase":true}}
+

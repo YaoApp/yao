@@ -1,0 +1,30 @@
+// Echo MCP Server for Testing
+{
+  "label": "Echo Test Server",
+  "description": "Simple MCP server with ping and status tools, resources, prompts, and samples for testing",
+  "transport": "process",
+  "capabilities": {
+    "tools": { "listChanged": false },
+    "resources": { "subscribe": true, "listChanged": false }
+  },
+
+  // === Tools ===
+  "tools": {
+    "ping": "scripts.tests.mcp.Ping",
+    "status": "scripts.tests.mcp.Status",
+    "echo": "scripts.tests.mcp.Echo"
+  },
+
+  // === Resources ===
+  "resources": {
+    "info": "scripts.tests.mcp.Info",
+    "health": "scripts.tests.mcp.Health"
+  },
+
+  // === Prompts ===
+  "prompts": {
+    "test_connection": "scripts.tests.mcp.TestConnectionPrompt",
+    "test_echo": "scripts.tests.mcp.TestEchoPrompt"
+  }
+}
+

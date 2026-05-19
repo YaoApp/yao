@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "properties": {
+    "content": {
+      "type": "string",
+      "description": "Text content to extract keywords from"
+    },
+    "max_keywords": {
+      "type": "integer",
+      "description": "Maximum number of keywords to return (default: 10)"
+    },
+    "language": {
+      "type": "string",
+      "description": "Language hint: 'auto', 'en', 'zh' (default: 'auto')"
+    }
+  },
+  "required": ["content"]
+}
+

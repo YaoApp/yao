@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "description": "Generate QueryDSL with retry simulation - first call returns invalid DSL, second returns valid",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Natural language query (e.g., 'find active users', 'latest products')"
+    },
+    "models": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Target model IDs (e.g., ['user', 'product', 'order'])"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of results to return",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "allowed_fields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Allowed fields whitelist for security validation (optional)"
+    },
+    "retry": {
+      "type": "object",
+      "description": "Retry context from previous failed attempt",
+      "properties": {
+        "attempt": {
+          "type": "integer",
+          "description": "Current retry attempt number"
+        },
+        "lint_errors": {
+          "type": "string",
+          "description": "Lint errors from previous attempt"
+        },
+        "instructions": {
+          "type": "string",
+          "description": "Instructions for fixing the errors"
+        }
+      }
+    }
+  },
+  "required": ["query"],
+  "x-process-args": [":arguments"]
+}
+

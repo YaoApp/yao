@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "description": "Echo a message back",
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Message to echo back"
+    }
+  },
+  "required": ["message"],
+  "x-process-args": [":arguments"]
+}

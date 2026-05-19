@@ -1,0 +1,7 @@
+{
+  "type": "object",
+  "description": "Reset the QueryDSL retry counter for testing purposes",
+  "properties": {},
+  "x-process-args": []
+}
+

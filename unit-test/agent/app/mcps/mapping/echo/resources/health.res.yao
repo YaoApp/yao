@@ -1,0 +1,30 @@
+{
+  "uri": "echo://health?check={check}",
+  "name": "Health Check",
+  "description": "Get server health status",
+  "mimeType": "application/json",
+  
+  "x-process-args": ["$query.check"],
+  
+  "schema": {
+    "type": "object",
+    "description": "Health check data",
+    "properties": {
+      "status": {
+        "type": "string",
+        "description": "Health status",
+        "enum": ["healthy", "degraded", "unhealthy"]
+      },
+      "uptime": {
+        "type": "integer",
+        "description": "Server uptime in seconds"
+      },
+      "checks": {
+        "type": "object",
+        "description": "Detailed health checks"
+      }
+    },
+    "required": ["status", "uptime"]
+  }
+}
+

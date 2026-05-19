@@ -223,6 +223,11 @@ func loadApp(t *testing.T) {
 		t.Logf("apploader: setting.Init: %v", err)
 	}
 
+	// 21b. Configure search provider via setting (serper + SERPER_API_KEY from env)
+	if setting.Global != nil {
+		setupSearchSettings(t)
+	}
+
 	// 22. Sync agent.yml LLM defaults (depends on agent + llmprovider + setting)
 	if err := agent.SyncLLMDefaults(); err != nil {
 		t.Logf("apploader: agent.SyncLLMDefaults: %v", err)
@@ -264,6 +269,19 @@ func loadApp(t *testing.T) {
 	appStartGRPC(t)
 
 	RegisterCleanup(cleanupApp)
+}
+
+// setupSearchSettings writes search provider config into setting.Global
+// so that tools/websearch.getConfig() picks up serper (via SERPER_API_KEY env fallback).
+func setupSearchSettings(t *testing.T) {
+	t.Helper()
+	systemScope := setting.ScopeID{Scope: setting.ScopeSystem}
+
+	if _, err := setting.Global.Set(systemScope, "search.tool_assignment", map[string]interface{}{
+		"web_search": "serper",
+	}); err != nil {
+		t.Logf("apploader: setting search.tool_assignment: %v", err)
+	}
 }
 
 // runSetupTestUsers invokes the JS Process scripts.setup.SetupTestUsers.

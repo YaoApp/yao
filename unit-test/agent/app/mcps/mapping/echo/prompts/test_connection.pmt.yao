@@ -1,0 +1,21 @@
+{
+  "name": "test_connection",
+  "description": "Test MCP server connection by checking status",
+  "arguments": [
+    {
+      "name": "detailed",
+      "description": "Whether to show detailed information",
+      "required": false
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": {
+        "type": "text",
+        "text": "Please test the MCP server connection. Use the status tool with verbose={{detailed}} to check if the server is running properly."
+      }
+    }
+  ]
+}
+

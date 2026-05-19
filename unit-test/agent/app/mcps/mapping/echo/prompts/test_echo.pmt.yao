@@ -1,0 +1,26 @@
+{
+  "name": "test_echo",
+  "description": "Test echo functionality with a message",
+  "arguments": [
+    {
+      "name": "message",
+      "description": "Message to echo",
+      "required": true
+    },
+    {
+      "name": "format",
+      "description": "Format option: normal or uppercase",
+      "required": false
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": {
+        "type": "text",
+        "text": "Please echo the message '{{message}}' using the echo tool{{#if format}} in {{format}} format{{/if}}."
+      }
+    }
+  ]
+}
+

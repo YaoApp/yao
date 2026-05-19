@@ -1,0 +1,30 @@
+{
+  "type": "object",
+  "description": "Generate QueryDSL from natural language query for database search",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Natural language query (e.g., 'find active users', 'latest products')"
+    },
+    "models": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Target model IDs (e.g., ['user', 'product', 'order'])"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of results to return",
+      "default": 20,
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "allowed_fields": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Allowed fields whitelist for security validation (optional)"
+    }
+  },
+  "required": ["query"],
+  "x-process-args": [":arguments"]
+}
+

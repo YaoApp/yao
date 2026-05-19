@@ -1,0 +1,29 @@
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "The search query for relevance comparison"
+    },
+    "items": {
+      "type": "array",
+      "description": "Items to rerank",
+      "items": {
+        "type": "object",
+        "properties": {
+          "citation_id": { "type": "string" },
+          "score": { "type": "number" },
+          "weight": { "type": "number" },
+          "title": { "type": "string" },
+          "content": { "type": "string" }
+        }
+      }
+    },
+    "top_n": {
+      "type": "integer",
+      "description": "Number of top results to return",
+      "default": 10
+    }
+  },
+  "required": ["query", "items"]
+}
