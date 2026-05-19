@@ -1,0 +1,8 @@
+{
+  "name": "Hero",
+  "table": { "name": "hero" },
+  "columns": [
+    { "label": "ID", "name": "id", "type": "ID" },
+    { "label": "Name", "name": "name", "type": "string", "length": 200 }
+  ]
+}

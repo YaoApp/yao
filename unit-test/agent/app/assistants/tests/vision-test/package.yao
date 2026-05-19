@@ -1,0 +1,10 @@
+{
+  "name": "Vision Test Agent",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test agent for vision processing - used by image content unit tests",
+  "tags": ["Test", "Vision"],
+  "sort": 999,
+  "public": false
+}
