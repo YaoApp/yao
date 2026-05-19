@@ -614,7 +614,10 @@ func (m *Manager) EnsureImage(ctx context.Context, nodeID, ref string, opts Imag
 // a race where docker exec --user sandbox resolves the old UID before
 // entrypoint's usermod finishes.
 func (m *Manager) waitEntrypoint(ctx context.Context, rt tairuntime.Runtime, containerID string) error {
-	probe := []string{"sh", "-c", "[ $(id -u sandbox 2>/dev/null) = $(stat -c %u /workspace 2>/dev/null) ]"}
+	// The probe must match entrypoint.sh semantics: when /workspace owner is
+	// UID 0 (Docker Desktop VirtioFS), the entrypoint intentionally skips UID
+	// remapping, so we treat UID 0 as "ready" as well.
+	probe := []string{"sh", "-c", "WS_UID=$(stat -c %u /workspace 2>/dev/null); [ \"$WS_UID\" = \"0\" ] || [ $(id -u sandbox 2>/dev/null) = \"$WS_UID\" ]"}
 	opts := tairuntime.ExecOptions{}
 	wait := 20 * time.Millisecond
 	for i := 0; i < 9; i++ {

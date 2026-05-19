@@ -1,3 +1,5 @@
+//go:build unit
+
 package sandboxv2_test
 
 import (

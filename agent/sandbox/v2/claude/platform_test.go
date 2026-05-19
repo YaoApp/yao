@@ -1,3 +1,5 @@
+//go:build unit
+
 package claude_test
 
 import (

@@ -1,3 +1,5 @@
+//go:build sandbox
+
 package sandboxv2_test
 
 import (

@@ -111,22 +111,37 @@ jobs:
           echo "=== Environment Verification ==="
           curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" > /dev/null && echo "mock-llm: OK"
 
-      - name: "Tier 1: Pure Unit Tests"
-        run: go test -v -count=1 -timeout 120s -tags unit ./agent/
-
-      - name: "Tier 2: App Integration Tests"
-        env:
-          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
-          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
-        run: go test -v -count=1 -timeout 300s -tags integration ./agent/
-
-      - name: "Tier 3: Sandbox Tests (sandbox/v2 + agent/sandbox/v2)"
+      - name: "Tier 0: Sandbox Infra Tests (sandbox/v2)"
         env:
           YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
-        run: |
-          go test -v -count=1 -timeout 600s ./sandbox/v2/... ./agent/sandbox/v2/...
+        run: go test -v -count=1 -timeout 600s ./sandbox/v2/...
+
+      - name: "Tier 1: Pure Unit Tests"
+        run: go test -v -count=1 -timeout 120s -tags unit ./agent/...
+
+      - name: "Tier 2: App Integration Tests (mock-llm)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          MOCK_LLM_PORT: "6920"
+        run: go test -v -count=1 -timeout 300s -tags integration ./agent/...
+
+      - name: "Tier 3: Agent Sandbox Tests (mock-llm)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+          MOCK_LLM_PORT: "6920"
+        run: go test -v -count=1 -timeout 600s -tags sandbox ./agent/...
+
+      - name: "Tier 4: E2E Tests (real LLM)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+        run: go test -v -count=1 -timeout 900s -tags e2e ./agent/...
 
       - name: Upload Logs on Failure
         if: failure()

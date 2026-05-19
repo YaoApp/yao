@@ -1,6 +1,9 @@
+//go:build unit
+
 package caller_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -83,4 +86,45 @@ func TestResult_WithError(t *testing.T) {
 	assert.Equal(t, "test-agent", result.AgentID)
 	assert.Equal(t, "something went wrong", result.Error)
 	assert.Empty(t, result.Content)
+}
+
+func TestNewResult(t *testing.T) {
+	t.Run("WithError", func(t *testing.T) {
+		err := fmt.Errorf("test error")
+		result := caller.NewResult("agent-1", nil, err)
+		assert.Equal(t, "agent-1", result.AgentID)
+		assert.Equal(t, "test error", result.Error)
+		assert.Empty(t, result.Content)
+		assert.Nil(t, result.Response)
+	})
+
+	t.Run("WithNilResponse", func(t *testing.T) {
+		result := caller.NewResult("agent-2", nil, nil)
+		assert.Equal(t, "agent-2", result.AgentID)
+		assert.Empty(t, result.Content)
+		assert.Empty(t, result.Error)
+		assert.Nil(t, result.Response)
+	})
+
+	t.Run("WithCompletion", func(t *testing.T) {
+		resp := &context.Response{
+			Completion: &context.CompletionResponse{
+				Content: "hello from agent",
+			},
+		}
+		result := caller.NewResult("agent-3", resp, nil)
+		assert.Equal(t, "agent-3", result.AgentID)
+		assert.Equal(t, "hello from agent", result.Content)
+		assert.Empty(t, result.Error)
+		assert.NotNil(t, result.Response)
+	})
+
+	t.Run("WithResponseNoCompletion", func(t *testing.T) {
+		resp := &context.Response{}
+		result := caller.NewResult("agent-4", resp, nil)
+		assert.Equal(t, "agent-4", result.AgentID)
+		assert.Empty(t, result.Content)
+		assert.Empty(t, result.Error)
+		assert.NotNil(t, result.Response)
+	})
 }

@@ -1,3 +1,5 @@
+//go:build unit
+
 package opencode_test
 
 import (

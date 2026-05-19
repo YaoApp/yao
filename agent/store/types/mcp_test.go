@@ -1,21 +1,25 @@
-package types
+//go:build unit
+
+package types_test
 
 import (
 	"encoding/json"
 	"testing"
+
+	types "github.com/yaoapp/yao/agent/store/types"
 )
 
 func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    MCPServerConfig
+		want    types.MCPServerConfig
 		wantErr bool
 	}{
 		{
 			name:  "Simple string",
 			input: `"server1"`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: nil,
 				Tools:     nil,
@@ -25,7 +29,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Tools array only",
 			input: `{"server1": ["tool1", "tool2"]}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: nil,
 				Tools:     []string{"tool1", "tool2"},
@@ -35,7 +39,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Full config with resources and tools",
 			input: `{"server1": {"resources": ["res1", "res2"], "tools": ["tool1", "tool2"]}}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: []string{"res1", "res2"},
 				Tools:     []string{"tool1", "tool2"},
@@ -45,7 +49,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Only resources",
 			input: `{"server1": {"resources": ["res1"]}}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: []string{"res1"},
 				Tools:     nil,
@@ -55,7 +59,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Only tools",
 			input: `{"server1": {"tools": ["tool1"]}}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: nil,
 				Tools:     []string{"tool1"},
@@ -65,7 +69,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Standard object format",
 			input: `{"server_id": "server1", "resources": ["res1"], "tools": ["tool1"]}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: []string{"res1"},
 				Tools:     []string{"tool1"},
@@ -75,7 +79,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Standard object format - no resources/tools",
 			input: `{"server_id": "server1"}`,
-			want: MCPServerConfig{
+			want: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: nil,
 				Tools:     nil,
@@ -86,7 +90,7 @@ func TestMCPServerConfig_UnmarshalJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got MCPServerConfig
+			var got types.MCPServerConfig
 			err := json.Unmarshal([]byte(tt.input), &got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
@@ -112,13 +116,13 @@ func TestMCPServers_UnmarshalJSON(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    []MCPServerConfig
+		want    []types.MCPServerConfig
 		wantErr bool
 	}{
 		{
 			name:  "Simple string array",
 			input: `{"servers": ["server1", "server2", "server3"]}`,
-			want: []MCPServerConfig{
+			want: []types.MCPServerConfig{
 				{ServerID: "server1"},
 				{ServerID: "server2"},
 				{ServerID: "server3"},
@@ -128,7 +132,7 @@ func TestMCPServers_UnmarshalJSON(t *testing.T) {
 		{
 			name:  "Mixed formats",
 			input: `{"servers": ["server1", {"server2": ["tool1", "tool2"]}, {"server3": {"resources": ["res1"], "tools": ["tool3"]}}]}`,
-			want: []MCPServerConfig{
+			want: []types.MCPServerConfig{
 				{ServerID: "server1"},
 				{ServerID: "server2", Tools: []string{"tool1", "tool2"}},
 				{ServerID: "server3", Resources: []string{"res1"}, Tools: []string{"tool3"}},
@@ -138,14 +142,14 @@ func TestMCPServers_UnmarshalJSON(t *testing.T) {
 		{
 			name:    "Empty servers",
 			input:   `{"servers": []}`,
-			want:    []MCPServerConfig{},
+			want:    []types.MCPServerConfig{},
 			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got MCPServers
+			var got types.MCPServers
 			err := json.Unmarshal([]byte(tt.input), &got)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UnmarshalJSON() error = %v, wantErr %v", err, tt.wantErr)
@@ -177,19 +181,19 @@ func TestMCPServers_UnmarshalJSON(t *testing.T) {
 func TestMCPServerConfig_MarshalJSON(t *testing.T) {
 	tests := []struct {
 		name   string
-		config MCPServerConfig
+		config types.MCPServerConfig
 		want   string
 	}{
 		{
 			name: "Only ServerID - should be simple string",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID: "server1",
 			},
 			want: `"server1"`,
 		},
 		{
 			name: "With Tools - should be object",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID: "server1",
 				Tools:    []string{"tool1", "tool2"},
 			},
@@ -197,7 +201,7 @@ func TestMCPServerConfig_MarshalJSON(t *testing.T) {
 		},
 		{
 			name: "With Resources - should be object",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: []string{"res1"},
 			},
@@ -205,7 +209,7 @@ func TestMCPServerConfig_MarshalJSON(t *testing.T) {
 		},
 		{
 			name: "With Both - should be object",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID:  "server1",
 				Resources: []string{"res1"},
 				Tools:     []string{"tool1"},
@@ -231,24 +235,24 @@ func TestMCPServerConfig_MarshalJSON(t *testing.T) {
 func TestMCPServerConfig_RoundTrip(t *testing.T) {
 	tests := []struct {
 		name   string
-		config MCPServerConfig
+		config types.MCPServerConfig
 	}{
 		{
 			name: "Simple ServerID",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID: "server1",
 			},
 		},
 		{
 			name: "With Tools",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID: "server2",
 				Tools:    []string{"tool1", "tool2"},
 			},
 		},
 		{
 			name: "With Resources and Tools",
-			config: MCPServerConfig{
+			config: types.MCPServerConfig{
 				ServerID:  "server3",
 				Resources: []string{"res1", "res2"},
 				Tools:     []string{"tool3", "tool4"},
@@ -258,20 +262,17 @@ func TestMCPServerConfig_RoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Marshal
 			data, err := json.Marshal(tt.config)
 			if err != nil {
 				t.Fatalf("Marshal error = %v", err)
 			}
 
-			// Unmarshal
-			var got MCPServerConfig
+			var got types.MCPServerConfig
 			err = json.Unmarshal(data, &got)
 			if err != nil {
 				t.Fatalf("Unmarshal error = %v", err)
 			}
 
-			// Compare
 			if got.ServerID != tt.config.ServerID {
 				t.Errorf("ServerID = %v, want %v", got.ServerID, tt.config.ServerID)
 			}
@@ -285,7 +286,6 @@ func TestMCPServerConfig_RoundTrip(t *testing.T) {
 	}
 }
 
-// Helper function to compare string slices (nil-safe)
 func stringSlicesEqual(a, b []string) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true

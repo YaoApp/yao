@@ -1,3 +1,5 @@
+//go:build unit
+
 package shared_test
 
 import (
