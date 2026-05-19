@@ -16,9 +16,9 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent/robot/events/integrations/telegram"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
-	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/event"
 	tgapi "github.com/yaoapp/yao/integrations/telegram"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
 func TestTelegramAdapter(t *testing.T) {
@@ -93,8 +93,7 @@ func TestTelegramAdapter(t *testing.T) {
 	})
 
 	t.Run("PollAll", func(t *testing.T) {
-		testutils.PrepareAgent(t)
-		defer testutils.Clean(t)
+		testprepare.PrepareE2E(t)
 
 		pending := confirmPendingUpdates(t, token, host)
 		if len(pending) == 0 {
@@ -132,8 +131,7 @@ func TestTelegramAdapter(t *testing.T) {
 	})
 
 	t.Run("HandleMessages_Integration", func(t *testing.T) {
-		testutils.PrepareAgent(t)
-		defer testutils.Clean(t)
+		testprepare.PrepareE2E(t)
 
 		var opts []tgapi.BotOption
 		if host != "" {
