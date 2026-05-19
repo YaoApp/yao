@@ -40,11 +40,13 @@ func TestAPILifecycle(t *testing.T) {
 		}
 		err := api.StartWithConfig(config)
 		require.NoError(t, err)
-		defer api.Stop()
 
 		err = api.StartWithConfig(config)
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "already started")
+
+		err = api.Stop()
+		require.NoError(t, err)
 	})
 
 	t.Run("stop when not started is safe", func(t *testing.T) {

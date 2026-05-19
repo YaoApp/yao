@@ -254,8 +254,12 @@ func TestResume(t *testing.T) {
 
 func newResumeTestRobot(t *testing.T, identity *testprepare.TestIdentity) *robottypes.Robot {
 	t.Helper()
+	name := t.Name()
+	if len(name) > 40 {
+		name = name[len(name)-40:]
+	}
 	return &robottypes.Robot{
-		MemberID:     "test-robot-resume-" + t.Name(),
+		MemberID:     "rr-" + name,
 		TeamID:       identity.AlphaTeamID,
 		DisplayName:  "Resume Test Robot",
 		SystemPrompt: "You are a helpful assistant.",
