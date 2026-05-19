@@ -15,9 +15,9 @@ import (
 	events "github.com/yaoapp/yao/agent/robot/events"
 	"github.com/yaoapp/yao/agent/robot/events/integrations"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
-	"github.com/yaoapp/yao/agent/testutils"
 	"github.com/yaoapp/yao/event"
 	eventtypes "github.com/yaoapp/yao/event/types"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
 type mockAdapter struct {
@@ -239,8 +239,7 @@ func TestConfigDeleted_TriggersRemove(t *testing.T) {
 }
 
 func TestConfigCreated_RobotNotInCache(t *testing.T) {
-	testutils.PrepareAgent(t)
-	defer testutils.Clean(t)
+	testprepare.PrepareSandbox(t)
 
 	setupEventBus(t)
 	cache := robotcache.New()
