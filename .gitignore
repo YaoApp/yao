@@ -96,6 +96,7 @@ agent/sandbox/v2/docs/*.md
 !unit-test/agent/scripts/*.sh
 unit-test/*.md
 unit-test/*/*.md
+!unit-test/agent/TESTING.md
 unit-test/agent/env/secrets.env
 unit-test/agent/env/local.env
 unit-test/agent/env/agent-test.env
@@ -105,7 +106,5 @@ unit-test/agent/app/.env
 unit-test/agent/app/db/
 unit-test/agent/app/data/
 unit-test/agent/app/logs/
-unit-test/agent/AGENT-TEST-DESIGN.md
-unit-test/agent/STEP-CHECKLIST.md
 file::memory:
 :memory:
