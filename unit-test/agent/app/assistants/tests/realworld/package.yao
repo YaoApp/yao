@@ -1,0 +1,16 @@
+{
+  "name": "Real World Stress Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant for real-world stress tests with MCP integration, memory and goroutine leak detection",
+  "options": { "temperature": 0 },
+  "tags": ["Test", "Stress", "MCP"],
+  "sort": 999,
+  "public": false,
+  "mcp": {
+    "servers": [
+      { "server_id": "echo", "tools": ["ping", "echo", "status"] }
+    ]
+  }
+}
