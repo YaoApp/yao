@@ -213,6 +213,13 @@ ctx.Metadata ← response.Metadata (merge)
 | 国际化 | 1 | i18n-multilang |
 | **合计** | **23** | |
 
+#### 4.1.8 Stress 测试
+
+| Assistant ID | connector | 关键文件 | Hook 行为 | 测试目标 | 对应 Go 实现 |
+|-------------|-----------|---------|-----------|---------|-------------|
+| `tests.create` | `openai.mock` | `package.yao`, `src/index.ts` | Create: 按 content 路由 `return_process`/`nested_script_call`/`deep_nested_call` | Hook 性能基准、goroutine 泄漏检测、内存泄漏检测 | `hook/create.go`, `hook/stress_test.go` |
+| `tests.realworld` | `openai.mock` | `package.yao`(mcp 配 echo server), `src/index.ts` | Create: 路由 `simple`/`mcp_health`/`mcp_tools`/`full_workflow`/`trace_intensive`/`resource_heavy` | 真实场景压力：MCP 集成、trace 密集、资源密集 | `hook/stress_test.go` |
+
 ### 4.2 Tier 3 -- 已有 Sandbox V2 Assistant（需 Docker + Tai）
 
 | Assistant ID | runner | lifecycle | connector | 测试目标 | 状态 |
@@ -463,7 +470,7 @@ search 包包含 `Searcher`、`Registry`、`reference.go`、`citation.go`、`han
 | Tier 2 | mock-llm server（openai.mock）        | 内置 echo server      | mock handler  | SQLite    |
 | Tier 3 | mock-llm server（openai.mock）        | N/A                   | disabled      | SQLite    |
 | Tier 4 | 真实 API（Beta 团队）                 | 真实 MCP              | 真实 provider | SQLite/PG |
-| Tier 5 | 真实 API（Beta 团队）                 | 真实 MCP              | 真实 provider | SQLite/PG |
+| Tier 5 | mock-llm server（openai.mock）        | 内置 echo server      | mock handler  | SQLite    |
 
 ---
 
@@ -480,7 +487,7 @@ search 包包含 `Searcher`、`Registry`、`reference.go`、`citation.go`、`han
 | `//go:build integration` | Tier 2 | App + DB + Mock LLM | Hook、Caller、History、Search、Store 等 |
 | `//go:build sandbox` | Tier 3 | Docker + Tai + Mock LLM | Claude/OpenCode/Yao Runner |
 | `//go:build e2e` | Tier 4 | 真实 LLM API | 端到端验证（已有约定） |
-| `//go:build stress` | Tier 5 | 真实 LLM API | 压力测试、内存/goroutine 泄漏检测、高迭代并发 |
+| `//go:build stress` | Tier 5 | App + DB + Mock LLM | 压力测试、内存/goroutine 泄漏检测、高迭代并发 |
 
 ### 7.2 CI 运行命令
 
@@ -594,7 +601,23 @@ func TestCreateHook_ConnectorOverride(t *testing.T) { ... }
 | 9 | `assistant/mcp+loop` | mcp-tools, tool-loop | ~13 | MCP 工具名 Format/Parse/RoundTrip, Tool Loop: buildMessages, messageText, isDisabled, getMaxTurns, loop 集成 | ✅ 完成 |
 | 10 | `output/` | 无 | ~44 | builtin 消息工厂(16), Accept 路由+Send/Flush(6), OpenAI adapter(12), OpenAI writer SSE(5), CUI writer(5) | ✅ 完成 |
 | 11 | `robot/` | 12 (7 Phase + 3 Test + 2 Expert) | ~64 | 14 子包 72 新测试文件: types/utils/trigger/dedup/logger/plan/store/cache/pool/executor/events/manager/api/root | ✅ 完成 |
-| 12 | `search/` | 无 | ~16 | Searcher + web handler + JSAPI | ⏳ 待开始 |
-| 清理 | `agent/test/` + `agent/testutils/` | -- | ~9 | 删除跨包遗留，废弃 testutils + 删除所有 .go.bak | ⏳ 待开始 |
+| 12 | `search/` | search-jsapi | ~16 | Searcher + web handler + JSAPI + citation + reference | ✅ 完成 |
+| 清理 | `.go.bak` 文件 | -- | 180 | 删除所有旧测试备份文件 | ✅ 完成 |
+| 补充 | 多包覆盖率补充 | create, realworld | -- | 各包新增测试 + E2E + Stress fixture 适配 | ✅ 完成 |
 
-**约 110 个旧测试文件被新测试替代并删除。每步一个独立 PLAN。**
+### 最终统计
+
+| 指标 | 数量 |
+|------|------|
+| 测试文件总数 | 250 |
+| 带 Build Tag 的测试文件 | 178 |
+| main_test.go（共享初始化） | 41 |
+| 测试 Assistant | 35 |
+| unit 标签文件 | 74 |
+| integration 标签文件 | 86 |
+| e2e 标签文件 | 15 |
+| sandbox 标签文件 | 2 |
+| stress 标签文件 | 1 |
+| 已删除旧 .go.bak | 180 |
+
+**所有 12 步 + 清理 + 补充均已完成。CI 集成 Codecov 覆盖率上报。**

@@ -19,7 +19,8 @@
 | 10   | output                                       | ✅ 完成   |
 | 11   | robot                                        | ✅ 完成   |
 | 12   | search                                       | ✅ 完成   |
-| 清理 | 删除旧 testutils + .go.bak                   | ⏳ 待开始 |
+| 清理 | 删除 180 个 .go.bak 旧测试备份               | ✅ 完成   |
+| 补充 | 覆盖率补充 + E2E + Stress fixture 适配        | ✅ 完成   |
 | 收尾 | 覆盖率收集：各 Tier coverprofile 合并 + CI 上传 | ✅ 完成   |
 
 ## 核心约束
@@ -112,7 +113,7 @@ rg "testutils\.PrepareAgent|testutils\.Prepare|test\.Prepare" agent/<package>/ -
 | 2 | `go test -tags integration ./agent/...` | mock-llm | App 集成测试 |
 | 3 | `go test -tags sandbox ./agent/...` | mock-llm | Docker+Tai sandbox 测试 |
 | 4 | `go test -tags e2e ./agent/...` | 真实 API | 端到端测试 |
-| 5 | `go test -tags stress ./agent/...` | 真实 API | 压力测试 + 内存/goroutine 泄漏检测 |
+| 5 | `go test -tags stress ./agent/...` | mock-llm | 压力测试 + 内存/goroutine 泄漏检测 |
 
 ### CI 环境差异（Linux vs 本地 macOS）
 
@@ -122,14 +123,14 @@ rg "testutils\.PrepareAgent|testutils\.Prepare|test\.Prepare" agent/<package>/ -
 - env：CI 从 template 生成 `agent-test.env`，注入 secrets
 - DB 矩阵：SQLite3 + Postgres14
 
-## .go.bak 旧测试参考文件
+## .go.bak 旧测试参考文件（已清理）
 
 Step 1 将 `agent/` 下所有旧 `*_test.go` 文件（排除 Step 0 产出和 `agent/sandbox/`）批量改名为 `*.go.bak`，使其脱离编译但保留在 git 中作为后续重构的参考。
 
-- **数量**：约 180 个文件
-- **目的**：让 `go test ./agent/...` 安全运行，不会因旧测试依赖 `testutils` 而编译失败
-- **生命周期**：每步重构时参考对应 `.go.bak` 文件的测试场景，确保新测试覆盖 → 所有 Step 完成后在"清理"步统一删除
-- **git 策略**：提交到 git，不加 `.gitignore`
+- **数量**：180 个文件
+- **状态**：✅ 已全部删除（所有 Step 完成后统一清理）
+- **原目的**：让 `go test ./agent/...` 安全运行，不会因旧测试依赖 `testutils` 而编译失败
+- **生命周期**：每步重构时参考对应 `.go.bak` 文件的测试场景，确保新测试覆盖 → 清理步统一删除
 
 ## 覆盖率收集
 
@@ -171,7 +172,14 @@ go tool cover -func=.build/coverage/all.out | tail -1
 3. `codecov/codecov-action@v5` 上传 all.out，flag 为 `agent-{db}`
 4. 需要在 GitHub repo secrets 中配置 `CODECOV_TOKEN`
 
-**Tier 5 (stress) 说明**：压力测试 timeout 设为 1800s（30 分钟），包含高迭代循环（100~1000 次）和高并发（100 goroutines x 10 iterations）的内存/goroutine 泄漏检测。使用 `PrepareE2E` + 真实 assistant。
+**Tier 5 (stress) 说明**：压力测试 timeout 设为 1800s（30 分钟），包含高迭代循环（100~1000 次）和高并发（100 goroutines x 10 iterations）的内存/goroutine 泄漏检测。使用 `PrepareSandbox` + mock-llm，依赖 `tests.create` 和 `tests.realworld` 两个 fixture assistant。
+
+### Stress Test Fixture
+
+| Assistant ID | 用途 | 场景 |
+|-------------|------|------|
+| `tests.create` | Hook 性能基准 + 泄漏检测 | `return_process`, `nested_script_call`, `deep_nested_call` |
+| `tests.realworld` | 真实场景压力 + MCP 集成 | `simple`, `mcp_health`, `mcp_tools`, `full_workflow`, `trace_intensive`, `resource_heavy` |
 
 ## 参考文档
 
