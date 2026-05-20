@@ -177,7 +177,7 @@ jobs:
           }
 
       # ── 12. Run tests ─────────────────────────────────────────────────
-      - name: Run Sandbox Tier Tests
+      - name: "Tier 0: Sandbox Infra Tests (sandbox/v2)"
         shell: bash
         env:
           CGO_ENABLED: "1"
@@ -187,9 +187,72 @@ jobs:
           YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
         run: |
-          go test -p 1 -v -count=1 -timeout 600s ./sandbox/v2/... ./agent/sandbox/v2/...
+          mkdir -p .build/coverage
+          go test -v -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
 
-      # ── 13. Upload logs on failure ────────────────────────────────────
+      - name: "Tier 1: Pure Unit Tests"
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags unit ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 120s -tags unit -coverprofile=.build/coverage/tier1.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 2: App Integration Tests (mock-llm)"
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          MOCK_LLM_PORT: "6920"
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+          fi
+
+      # ── 13. Coverage ──────────────────────────────────────────────────
+      - name: Merge Coverage Profiles
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .build/coverage
+          FIRST=""
+          for f in .build/coverage/tier*.out; do
+            [ -f "$f" ] || continue
+            if [ -z "$FIRST" ]; then
+              head -1 "$f" > .build/coverage/all.out
+              FIRST=1
+            fi
+            tail -n +2 "$f" >> .build/coverage/all.out
+          done
+          if [ -f .build/coverage/all.out ]; then
+            echo "=== Coverage Summary ==="
+            go tool cover -func=.build/coverage/all.out | tail -1
+          else
+            echo "No coverage data collected"
+          fi
+
+      - name: Upload Coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: .build/coverage/all.out
+          flags: agent-windows-${{ matrix.db }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      # ── 14. Upload logs on failure ────────────────────────────────────
       - name: Upload Logs on Failure
         if: failure()
         uses: actions/upload-artifact@v4

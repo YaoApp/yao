@@ -316,10 +316,11 @@ func LoadPath(path string) (*Assistant, error) {
 		return nil, err
 	}
 
-	// assistant_id
-	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
+	// assistant_id — normalize to forward slashes for consistent ID derivation
+	normalized := filepath.ToSlash(path)
+	id := strings.ReplaceAll(strings.TrimPrefix(normalized, "/assistants/"), "/", ".")
 	data["assistant_id"] = id
-	data["path"] = path
+	data["path"] = normalized
 	if _, has := data["type"]; !has {
 		data["type"] = "assistant"
 	}

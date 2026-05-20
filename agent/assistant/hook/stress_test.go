@@ -6,6 +6,7 @@ import (
 	stdContext "context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/pprof"
 	"strings"
@@ -551,13 +552,14 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, agent.HookScript)
 
-	os.MkdirAll("/tmp/goroutine_profiles", 0755)
+	profileDir := filepath.Join(os.TempDir(), "goroutine_profiles")
+	os.MkdirAll(profileDir, 0755)
 
 	runtime.GC()
 	time.Sleep(200 * time.Millisecond)
 	initialGoroutines := runtime.NumGoroutine()
 
-	stressSaveGoroutineProfile("/tmp/goroutine_profiles/00_initial.txt")
+	stressSaveGoroutineProfile(filepath.Join(profileDir, "00_initial.txt"))
 	t.Logf("Initial goroutines: %d", initialGoroutines)
 
 	iterations := 10
@@ -576,7 +578,7 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 		t.Logf("After iteration %d: %d goroutines (growth: %d)", i+1, current, growth)
 
 		if (i+1)%5 == 0 {
-			stressSaveGoroutineProfile(fmt.Sprintf("/tmp/goroutine_profiles/%02d_after_iter_%d.txt", i+1, i+1))
+			stressSaveGoroutineProfile(filepath.Join(profileDir, fmt.Sprintf("%02d_after_iter_%d.txt", i+1, i+1)))
 		}
 	}
 
@@ -591,8 +593,8 @@ func TestGoroutineLeakDetailed(t *testing.T) {
 	t.Logf("Final:    %d goroutines", finalGoroutines)
 	t.Logf("Growth:   %d goroutines (%.2f per iteration)", growth, float64(growth)/float64(iterations))
 
-	stressSaveGoroutineProfile("/tmp/goroutine_profiles/99_final.txt")
-	stressAnalyzeGoroutineProfiles(t, "/tmp/goroutine_profiles")
+	stressSaveGoroutineProfile(filepath.Join(profileDir, "99_final.txt"))
+	stressAnalyzeGoroutineProfiles(t, profileDir)
 }
 
 func TestGoroutineLeakByComponent(t *testing.T) {
@@ -602,7 +604,8 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, agent.HookScript)
 
-	os.MkdirAll("/tmp/component_profiles", 0755)
+	compProfileDir := filepath.Join(os.TempDir(), "component_profiles")
+	os.MkdirAll(compProfileDir, 0755)
 
 	t.Run("ContextCreationOnly", func(t *testing.T) {
 		runtime.GC()
@@ -640,7 +643,7 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 		final := runtime.NumGoroutine()
 
 		t.Logf("Script execution: initial=%d, final=%d, growth=%d", initial, final, final-initial)
-		stressSaveGoroutineProfile("/tmp/component_profiles/script_execution.txt")
+		stressSaveGoroutineProfile(filepath.Join(compProfileDir, "script_execution.txt"))
 	})
 
 	t.Run("TraceOperations", func(t *testing.T) {
@@ -664,7 +667,7 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 		final := runtime.NumGoroutine()
 
 		t.Logf("Trace operations: initial=%d, final=%d, growth=%d", initial, final, final-initial)
-		stressSaveGoroutineProfile("/tmp/component_profiles/trace_operations.txt")
+		stressSaveGoroutineProfile(filepath.Join(compProfileDir, "trace_operations.txt"))
 	})
 }
 
@@ -1241,13 +1244,13 @@ func stressSaveGoroutineProfile(filename string) {
 }
 
 func stressAnalyzeGoroutineProfiles(t *testing.T, dir string) {
-	initialData, err := os.ReadFile(dir + "/00_initial.txt")
+	initialData, err := os.ReadFile(filepath.Join(dir, "00_initial.txt"))
 	if err != nil {
 		t.Logf("Could not read initial profile: %v", err)
 		return
 	}
 
-	finalData, err := os.ReadFile(dir + "/99_final.txt")
+	finalData, err := os.ReadFile(filepath.Join(dir, "99_final.txt"))
 	if err != nil {
 		t.Logf("Could not read final profile: %v", err)
 		return

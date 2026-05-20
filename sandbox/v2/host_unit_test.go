@@ -1,6 +1,7 @@
 package sandbox_test
 
 import (
+	"os"
 	"testing"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
@@ -66,7 +67,8 @@ func TestHostGetWorkDir_TempDir(t *testing.T) {
 func TestHostGetWorkDir_Default(t *testing.T) {
 	h := sandbox.ExportNewHostForTest("node-y", sandbox.SystemInfo{})
 	dir := h.GetWorkDir()
-	if dir != "/tmp" {
-		t.Errorf("GetWorkDir: got %q, want %q", dir, "/tmp")
+	expected := os.TempDir()
+	if dir != expected {
+		t.Errorf("GetWorkDir: got %q, want %q", dir, expected)
 	}
 }

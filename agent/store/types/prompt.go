@@ -168,7 +168,9 @@ func LoadPromptPresets(dir string, root string) (map[string][]Prompt, int64, err
 		}
 
 		// Build key: get relative path from dir, remove extension and replace "/" with "."
-		relPath := strings.TrimPrefix(file, dir+"/")
+		normalizedFile := filepath.ToSlash(file)
+		normalizedDir := filepath.ToSlash(dir)
+		relPath := strings.TrimPrefix(normalizedFile, normalizedDir+"/")
 		key := strings.TrimSuffix(relPath, filepath.Ext(relPath))
 		key = strings.ReplaceAll(key, "/", ".")
 		presets[key] = prompts

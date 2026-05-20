@@ -115,7 +115,7 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 func (s *session) teeStdout() io.ReadCloser {
 	logDir := os.Getenv("YAO_LOG_PATH")
 	if logDir == "" {
-		logDir = "/tmp"
+		logDir = os.TempDir()
 	}
 	logFile := filepath.Join(logDir, fmt.Sprintf("opencode-stream-%s-%d.jsonl", s.chatID, time.Now().Unix()))
 	f, err := os.Create(logFile)
