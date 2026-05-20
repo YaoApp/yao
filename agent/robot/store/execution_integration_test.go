@@ -4,6 +4,7 @@ package store_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -201,11 +202,16 @@ func TestExecutionStoreList(t *testing.T) {
 			Status: types.ExecCompleted,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, 2, len(result.Data))
+		assert.GreaterOrEqual(t, len(result.Data), 2)
+		ownCount := 0
 		for _, r := range result.Data {
 			assert.Equal(t, identity.AlphaTeamID, r.TeamID)
 			assert.Equal(t, types.ExecCompleted, r.Status)
+			if strings.HasPrefix(r.ExecutionID, "exec_test_list_") {
+				ownCount++
+			}
 		}
+		assert.Equal(t, 2, ownCount)
 	})
 
 	t.Run("list_with_statuses_returns_matching", func(t *testing.T) {
@@ -1097,6 +1103,7 @@ func cleanupTestExecutions(t *testing.T) {
 		return
 	}
 
+	// Clean up records created by this package
 	_, err := mod.DeleteWhere(model.QueryParam{
 		Wheres: []model.QueryWhere{
 			{Column: "execution_id", OP: "like", Value: "exec_test_%"},
@@ -1104,6 +1111,15 @@ func cleanupTestExecutions(t *testing.T) {
 	})
 	if err != nil {
 		t.Logf("Warning: failed to cleanup test executions: %v", err)
+	}
+
+	// Clean up records leaked by parallel packages (executor/standard)
+	for _, prefix := range []string{"test-exec-resume-%", "test-exec-delivery-%"} {
+		mod.DeleteWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "execution_id", OP: "like", Value: prefix},
+			},
+		})
 	}
 }
 
