@@ -1,0 +1,12 @@
+{
+  "name": "Robot Validation Test",
+  "type": "robot-validation",
+  "connector": "openai.mock",
+  "description": "P3 Phase Agent test - validates execution results",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

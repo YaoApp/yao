@@ -102,6 +102,7 @@ func RegisterLocal(opts ...Option) bool {
 		Capabilities: types.Capabilities{
 			Docker:   res.Runtime != nil,
 			HostExec: res.HostExec != nil,
+			Runners:  []string{"yaocode"},
 		},
 	})
 	reg.SetResources("local", res)

@@ -1,0 +1,3 @@
+{"name":"basic_status","description":"Check basic server status","input":{"verbose":false},"output":{"status":"online","uptime":3600}}
+{"name":"detailed_status","description":"Check detailed server status","input":{"verbose":true},"output":{"status":"online","uptime":7200,"version":"1.0.0","memory":"128MB"}}
+

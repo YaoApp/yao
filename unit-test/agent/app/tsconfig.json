@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "paths": {
+      "@yao/*": ["./.vscode/types/*"],
+      "@scripts/*": ["./scripts/*"]
+    },
+    "lib": ["es2017", "dom"]
+  }
+}

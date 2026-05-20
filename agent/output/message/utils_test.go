@@ -1,12 +1,16 @@
-package message
+//go:build unit
+
+package message_test
 
 import (
 	"sync"
 	"testing"
+
+	"github.com/yaoapp/yao/agent/output/message"
 )
 
 func TestIDGenerator(t *testing.T) {
-	gen := NewIDGenerator()
+	gen := message.NewIDGenerator()
 
 	t.Run("GenerateChunkID", func(t *testing.T) {
 		id1 := gen.GenerateChunkID()
@@ -25,7 +29,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("GenerateMessageID", func(t *testing.T) {
-		gen := NewIDGenerator()
+		gen := message.NewIDGenerator()
 		id1 := gen.GenerateMessageID()
 		id2 := gen.GenerateMessageID()
 		id3 := gen.GenerateMessageID()
@@ -42,7 +46,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("GenerateBlockID", func(t *testing.T) {
-		gen := NewIDGenerator()
+		gen := message.NewIDGenerator()
 		id1 := gen.GenerateBlockID()
 		id2 := gen.GenerateBlockID()
 		id3 := gen.GenerateBlockID()
@@ -59,7 +63,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("GenerateThreadID", func(t *testing.T) {
-		gen := NewIDGenerator()
+		gen := message.NewIDGenerator()
 		id1 := gen.GenerateThreadID()
 		id2 := gen.GenerateThreadID()
 		id3 := gen.GenerateThreadID()
@@ -76,7 +80,7 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("Reset", func(t *testing.T) {
-		gen := NewIDGenerator()
+		gen := message.NewIDGenerator()
 		gen.GenerateChunkID()
 		gen.GenerateMessageID()
 		gen.GenerateBlockID()
@@ -84,13 +88,12 @@ func TestIDGenerator(t *testing.T) {
 
 		gen.Reset()
 
-		chunk, message, block, thread := gen.GetCounters()
-		if chunk != 0 || message != 0 || block != 0 || thread != 0 {
+		chunk, msg, block, thread := gen.GetCounters()
+		if chunk != 0 || msg != 0 || block != 0 || thread != 0 {
 			t.Errorf("Expected all counters to be 0 after reset, got chunk=%d, message=%d, block=%d, thread=%d",
-				chunk, message, block, thread)
+				chunk, msg, block, thread)
 		}
 
-		// Verify IDs start from 1 again
 		if id := gen.GenerateChunkID(); id != "C1" {
 			t.Errorf("Expected C1 after reset, got %s", id)
 		}
@@ -100,11 +103,10 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("ConcurrentAccess", func(t *testing.T) {
-		gen := NewIDGenerator()
+		gen := message.NewIDGenerator()
 		var wg sync.WaitGroup
 		count := 100
 
-		// Test concurrent chunk ID generation
 		wg.Add(count)
 		for i := 0; i < count; i++ {
 			go func() {
@@ -121,28 +123,24 @@ func TestIDGenerator(t *testing.T) {
 	})
 
 	t.Run("MultipleGenerators", func(t *testing.T) {
-		gen1 := NewIDGenerator()
-		gen2 := NewIDGenerator()
+		gen1 := message.NewIDGenerator()
+		gen2 := message.NewIDGenerator()
 
 		id1 := gen1.GenerateMessageID()
 		id2 := gen2.GenerateMessageID()
 
-		// Both should start from M1
 		if id1 != "M1" || id2 != "M1" {
 			t.Errorf("Expected both generators to start from M1, got %s and %s", id1, id2)
 		}
 
-		// Advance gen1
 		gen1.GenerateMessageID()
 		gen1.GenerateMessageID()
 
-		// gen2 should still be at M1
 		id2_next := gen2.GenerateMessageID()
 		if id2_next != "M2" {
 			t.Errorf("Expected gen2 to be at M2, got %s", id2_next)
 		}
 
-		// gen1 should be at M3
 		id1_next := gen1.GenerateMessageID()
 		if id1_next != "M4" {
 			t.Errorf("Expected gen1 to be at M4, got %s", id1_next)
@@ -151,15 +149,13 @@ func TestIDGenerator(t *testing.T) {
 }
 
 func TestGenerateNanoID(t *testing.T) {
-	id1 := GenerateNanoID()
-	id2 := GenerateNanoID()
+	id1 := message.GenerateNanoID()
+	id2 := message.GenerateNanoID()
 
-	// NanoID should be 21 characters by default
 	if len(id1) != 21 {
 		t.Errorf("Expected NanoID length to be 21, got %d", len(id1))
 	}
 
-	// IDs should be unique
 	if id1 == id2 {
 		t.Error("Expected unique NanoIDs, got duplicates")
 	}
@@ -168,10 +164,9 @@ func TestGenerateNanoID(t *testing.T) {
 }
 
 func TestGenerateCustomID(t *testing.T) {
-	id1 := GenerateCustomID("msg")
-	id2 := GenerateCustomID("evt")
+	id1 := message.GenerateCustomID("msg")
+	id2 := message.GenerateCustomID("evt")
 
-	// Should have prefix
 	if len(id1) < 4 || id1[:4] != "msg_" {
 		t.Errorf("Expected ID to start with 'msg_', got %s", id1)
 	}
@@ -179,7 +174,6 @@ func TestGenerateCustomID(t *testing.T) {
 		t.Errorf("Expected ID to start with 'evt_', got %s", id2)
 	}
 
-	// IDs should be unique
 	if id1 == id2 {
 		t.Error("Expected unique custom IDs, got duplicates")
 	}

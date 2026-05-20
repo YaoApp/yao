@@ -1,0 +1,17 @@
+{
+  "name": "Agent Test Application",
+  "short": "AgentTest",
+  "description": "Test application for @yao/agent package tests",
+  "version": "1.0.0",
+  "adminRoot": "dashboard",
+
+  "setup": "scripts.setup.Init",
+
+  "menu": { "process": "scripts.menu.Get", "args": [] },
+
+  "optional": {
+    "remoteCache": false,
+    "layout": "Chat",
+    "neo": { "api": "/agent" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "version": "2.0",
+  "computer": {
+    "image": "yaoapp/tai-sandbox-opencode:latest",
+    "memory": "2GB",
+    "cpus": 2,
+    "work_dir": "/workspace"
+  },
+  "runner": {
+    "name": "opencode",
+    "mode": "cli",
+    "options": {
+      "permission_mode": "bypassPermissions"
+    }
+  },
+  "lifecycle": "oneshot"
+}

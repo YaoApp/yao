@@ -1,0 +1,33 @@
+{
+  "name": "Search JSAPI Test Assistant",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant for ctx.search.Web JSAPI methods (SerpAPI)",
+  "tags": ["Test", "Search", "JSAPI"],
+  "sort": 210,
+  "public": false,
+  "readonly": false,
+  "mentionable": true,
+  "automated": true,
+  "share": "private",
+  "uses": {
+    "web": "builtin",
+    "search": "builtin"
+  },
+  "search": {
+    "web": {
+      "provider": "serpapi",
+      "api_key_env": "$ENV.SERPAPI_API_KEY",
+      "max_results": 5
+    },
+    "citation": {
+      "format": "#ref:{id}",
+      "auto_inject_prompt": true
+    },
+    "weights": {
+      "user": 1.0,
+      "hook": 0.8,
+      "auto": 0.6
+    }
+  }
+}

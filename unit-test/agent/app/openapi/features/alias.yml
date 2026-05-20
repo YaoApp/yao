@@ -1,0 +1,38 @@
+# Feature Aliases - Groups of related features
+# Used to simplify feature assignment to roles
+
+# ============ Profile Feature Aliases ============
+
+profile:manage:
+  - profile:read
+  - profile:edit
+
+# ============ Team Feature Aliases ============
+
+team:manage:
+  - team:edit
+  - team:member:invite
+  - team:member:robot:create
+  - team:member:robot:edit
+  - team:member:remove
+
+team:member:manage:
+  - team:member:robot:create
+  - team:member:robot:edit
+
+# ============ Knowledge Base Feature Aliases ============
+
+kb:manage:
+  - collections:create
+
+# ============ Combined Feature Bundles ============
+
+# Basic user features (read and edit profile)
+user:basic:
+  - profile:manage
+
+# All user features (complete user capabilities)
+user:all:
+  - profile:manage
+  - team:manage
+  - collections:create

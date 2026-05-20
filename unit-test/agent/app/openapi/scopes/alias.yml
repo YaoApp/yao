@@ -1,0 +1,1061 @@
+# API Scope Aliases - One alias can map to multiple scopes
+# Used to simplify permission management, one alias can map to multiple specific scopes
+
+# ================================================
+# System Root Role
+# ================================================
+# Wildcard patterns must match the exact number of parts in the scope.
+# Common scope formats:
+#   - 3 parts: namespace:resource:action (e.g., kb:collections:read)
+#   - 4 parts: namespace:resource:action:level (e.g., sui:run:execute:all)
+#   - 5 parts: namespace:resource:action:level:sublevel (e.g., user:members:write:own:profile)
+
+system:root:
+  - "*:*:*"
+  - "*:*:*:*"
+  - "*:*:*:*:*"
+  - "*:*:*:*:*:*"
+
+system:admin:
+  - "*:*:*"
+  - "*:*:*:*"
+  - "*:*:*:*:*"
+  - "*:*:*:*:*:*"
+
+# ================================================
+# Roles Aliases
+# ================================================
+
+# ================================================
+# 1. Client Roles - API Client Subscription Tiers
+# ================================================
+# Enforced at: Step 1 - enforceClient
+# Purpose: Control API access for third-party clients based on subscription tier
+# Usage: client.role_id = "client:free" / "client:pro" / "client:ent"
+
+client:free:
+  - app:all
+  - user:all
+  - file:all
+  - kb:all
+  - job:all
+  - agent:all
+  - chat:all
+  - otp:all
+  - messenger:all
+  - trace:all
+  - sandbox:all
+  - computer:all
+  - workspace:all
+  - nodes:all
+  - __yao:all
+  - api:all
+  - setting:all
+
+client:pro:
+  - app:all
+  - user:all
+  - file:all
+  - kb:all
+  - job:all
+  - agent:all
+  - chat:all
+  - otp:all
+  - dsl:all
+  - llm:all
+  - mcp:all
+  - messenger:all
+  - trace:all
+  - sandbox:all
+  - computer:all
+  - workspace:all
+  - nodes:all
+  - __yao:all
+  - api:all
+  - setting:all
+
+client:ent:
+  - app:all
+  - user:all
+  - file:all
+  - kb:all
+  - job:all
+  - agent:all
+  - chat:all
+  - otp:all
+  - dsl:all
+  - llm:all
+  - mcp:all
+  - messenger:all
+  - trace:all
+  - sandbox:all
+  - computer:all
+  - workspace:all
+  - nodes:all
+  - __yao:all
+  - api:all
+  - setting:all
+
+# ================================================
+# 2. User/Team Roles - User/Team Subscription Tiers
+# ================================================
+# Enforced at:
+#   - Step 3.2: enforceUser (when user not in team context)
+#   - Step 3.1.1: enforceTeam (when user in team context)
+# Purpose: Control permissions based on subscription tier
+# Usage:
+#   - Individual user: user.role_id = "user:free" / "user:pro" / "user:ent"
+#   - Team: team.role_id = "user:free" / "user:pro" / "user:ent"
+# Note: Team is treated as a user with team-scoped data access
+
+user:free:
+  - app:all:own
+  - user:all:own
+  - file:all:own
+  - kb:all:own
+  - job:all:own
+  - agent:read:own
+  - chat:all:own
+  - otp:all:own
+  - llm:all:own
+  - mcp:all:own
+  - messenger:all:own
+  - trace:all:own
+  - sandbox:all:own
+  - computer:all:own
+  - workspace:all:own
+  - nodes:all:own
+  - __yao:all:own
+  - api:all:own
+  - setting:all:own
+
+user:pro:
+  - app:all:own
+  - user:all:own
+  - file:all:own
+  - kb:all:own
+  - job:all:own
+  - agent:all:own
+  - chat:all:own
+  - otp:all:own
+  - dsl:all:own
+  - llm:all:own
+  - mcp:all:own
+  - messenger:all:own
+  - trace:all:own
+  - sandbox:all:own
+  - computer:all:own
+  - workspace:all:own
+  - nodes:all:own
+  - __yao:all:own
+  - api:all:own
+  - setting:all:own
+
+user:ent:
+  - app:all:own
+  - user:all:own
+  - file:all:own
+  - kb:all:own
+  - job:all:own
+  - agent:all:own
+  - chat:all:own
+  - otp:all:own
+  - dsl:all:own
+  - llm:all:own
+  - mcp:all:own
+  - messenger:all:own
+  - trace:all:own
+  - sandbox:all:own
+  - computer:all:own
+  - workspace:all:own
+  - nodes:all:own
+  - __yao:all:own
+  - api:all:own
+  - setting:all:own
+
+# ================================================
+# 3. Team Member Roles
+# ================================================
+# Enforced at: Step 3.1.2 - enforceMember (when user in team context)
+# Purpose: Control member permissions based on their role within the team
+# Usage: team_member.role_id = "team:owner" / "team:admin" / "team:member"
+# Note: This is independent of team subscription tier (defined in user:* roles)
+
+team:owner:
+  - app:all:team
+  - user:all:team
+  - file:all:team
+  - kb:all:team
+  - job:all:team
+  - agent:all:team
+  - chat:all:team
+  - otp:all:team
+  - dsl:all:team
+  - llm:all:team
+  - mcp:all:team
+  - messenger:all:team
+  - trace:all:team
+  - sandbox:all:team
+  - computer:all:team
+  - workspace:all:team
+  - nodes:all:team
+  - __yao:all:team
+  - api:all:team
+  - setting:all:team
+
+team:admin:
+  - app:all:team
+  - user:manage:team
+  - file:manage:team
+  - kb:manage:team
+  - job:manage:team
+  - agent:manage:team
+  - chat:manage:team
+  - otp:manage:team
+  - dsl:manage:team
+  - llm:manage:team
+  - mcp:manage:team
+  - messenger:all:team
+  - trace:read:team
+  - sandbox:all:team
+  - computer:all:team
+  - workspace:manage:team
+  - nodes:all:team
+  - __yao:all:team
+  - api:all:team
+  - setting:all:team
+
+team:member:
+  - app:read:team
+  - user:read:team
+  - user:write:own
+  - user:members:write:own:profile
+  - file:read:team
+  - file:write:own
+  - kb:read:team
+  - kb:write:own
+  - kb:delete:own
+  - job:read:team
+  - job:write:own
+  - agent:read:team
+  - agent:write:own
+  - chat:read:team
+  - chat:write:own
+  - dsl:read:team
+  - dsl:write:own
+  - llm:read:team
+  - llm:write:own
+  - mcp:read:team
+  - mcp:write:own
+  - messenger:read:team
+  - messenger:write:own
+  - trace:read:team
+  - trace:read:own
+  - sandbox:read:own
+  - sandbox:write:own
+  - computer:read:own
+  - workspace:read:team
+  - workspace:write:own
+  - nodes:read:team
+  - __yao:all:team
+  - api:all:own
+  - setting:read:team
+
+# ================================================
+# Resources Aliases
+# ================================================
+
+# ============ User Resources Aliases ============
+
+# Full user API access - all user-related endpoints
+user:all:
+  - user:entry:read:public
+  - user:entry:write:public
+  - user:entry:write:authenticated
+  - user:entry:write:own
+  - user:profile:read:own
+  - user:profile:write:own
+  - user:teams:read:public
+  - user:teams:write:public
+  - user:teams:read:config
+  - user:teams:write:select
+  - user:teams:read:own
+  - user:teams:write:own
+  - user:teams:delete:own
+  - user:members:read:own
+  - user:members:write:own
+  - user:members:delete:own
+  - user:invitations:read:own
+  - user:invitations:write:own
+  - user:invitations:delete:own
+  - user:features:read:own
+
+# Full user API access with "own" data scope
+user:all:own:
+  - user:entry:write:authenticated
+  - user:entry:write:own
+  - user:profile:read:own
+  - user:profile:write:own
+  - user:teams:read:public
+  - user:teams:write:public
+  - user:teams:read:config
+  - user:teams:write:select
+  - user:teams:read:own
+  - user:teams:write:own
+  - user:teams:delete:own
+  - user:members:read:own
+  - user:members:write:own
+  - user:members:delete:own
+  - user:invitations:read:own
+  - user:invitations:write:own
+  - user:invitations:delete:own
+  - user:features:read:own
+
+# Full user API access with "team" data scope
+user:all:team:
+  - user:entry:write:own
+  - user:profile:read:own
+  - user:profile:write:own
+  - user:teams:read:public
+  - user:teams:write:public
+  - user:teams:read:config
+  - user:teams:write:select
+  - user:teams:read:team
+  - user:teams:write:team
+  - user:teams:delete:team
+  - user:members:read:team
+  - user:members:write:team
+  - user:members:write:own:profile
+  - user:members:delete:team
+  - user:invitations:read:team
+  - user:invitations:write:team
+  - user:invitations:delete:team
+  - user:features:read:own
+
+# User management permissions for team admins (no delete team)
+user:manage:team:
+  - user:entry:write:own
+  - user:profile:read:own
+  - user:profile:write:own
+  - user:teams:read:public
+  - user:teams:write:public
+  - user:teams:read:config
+  - user:teams:write:select
+  - user:teams:read:team
+  - user:teams:write:team
+  - user:members:read:team
+  - user:members:write:team
+  - user:members:write:own:profile
+  - user:members:delete:team
+  - user:invitations:read:team
+  - user:invitations:write:team
+  - user:invitations:delete:team
+  - user:features:read:own
+
+# User read-only access for team members
+user:read:team:
+  - user:entry:write:own
+  - user:profile:read:own
+  - user:teams:read:public
+  - user:teams:read:config
+  - user:teams:read:team
+  - user:members:read:team
+  - user:features:read:own
+
+# User write access for own data (in team context)
+user:write:own:
+  - user:profile:write:own
+
+# ============ File Resources Aliases ============
+
+file:all:
+  - file:files:read:all
+  - file:files:write:all
+  - file:files:delete:all
+
+file:all:own:
+  - file:files:read:own
+  - file:files:write:own
+  - file:files:delete:own
+
+file:all:team:
+  - file:files:read:team
+  - file:files:write:team
+  - file:files:delete:team
+
+file:manage:team:
+  - file:files:read:team
+  - file:files:write:team
+  - file:files:delete:team
+
+file:read:team:
+  - file:files:read:team
+
+file:write:own:
+  - file:files:write:own
+
+# ============ Knowledge Base Aliases ============
+
+kb:all:
+  - kb:collections:read:all
+  - kb:collections:write:all
+  - kb:collections:delete:all
+  - kb:documents:read:all
+  - kb:documents:write:all
+  - kb:documents:delete:all
+  - kb:segments:read:all
+  - kb:segments:write:all
+  - kb:segments:delete:all
+  - kb:graphs:read:all
+  - kb:graphs:write:all
+  - kb:votes:read:all
+  - kb:votes:write:all
+  - kb:votes:delete:all
+  - kb:hits:read:all
+  - kb:hits:write:all
+  - kb:hits:delete:all
+  - kb:search:execute:all
+  - kb:backups:execute:all
+  - kb:providers:read:all
+
+kb:all:own:
+  - kb:collections:read:own
+  - kb:collections:write:own
+  - kb:collections:delete:own
+  - kb:documents:read:own
+  - kb:documents:write:own
+  - kb:documents:delete:own
+  - kb:segments:read:own
+  - kb:segments:write:own
+  - kb:segments:delete:own
+  - kb:graphs:read:own
+  - kb:graphs:write:own
+  - kb:votes:read:own
+  - kb:votes:write:own
+  - kb:votes:delete:own
+  - kb:hits:read:own
+  - kb:hits:write:own
+  - kb:hits:delete:own
+  - kb:search:execute:own
+  - kb:backups:execute:own
+  - kb:providers:read:all
+
+kb:all:team:
+  - kb:collections:read:team
+  - kb:collections:write:team
+  - kb:collections:delete:team
+  - kb:documents:read:team
+  - kb:documents:write:team
+  - kb:documents:delete:team
+  - kb:segments:read:team
+  - kb:segments:write:team
+  - kb:segments:delete:team
+  - kb:graphs:read:team
+  - kb:graphs:write:team
+  - kb:votes:read:team
+  - kb:votes:write:team
+  - kb:votes:delete:team
+  - kb:hits:read:team
+  - kb:hits:write:team
+  - kb:hits:delete:team
+  - kb:search:execute:team
+  - kb:backups:execute:team
+  - kb:providers:read:all
+
+kb:manage:team:
+  - kb:collections:read:team
+  - kb:collections:write:team
+  - kb:collections:delete:team
+  - kb:documents:read:team
+  - kb:documents:write:team
+  - kb:documents:delete:team
+  - kb:segments:read:team
+  - kb:segments:write:team
+  - kb:segments:delete:team
+  - kb:graphs:read:team
+  - kb:graphs:write:team
+  - kb:votes:read:team
+  - kb:votes:write:team
+  - kb:votes:delete:team
+  - kb:hits:read:team
+  - kb:hits:write:team
+  - kb:hits:delete:team
+  - kb:search:execute:team
+  - kb:providers:read:all
+
+kb:read:team:
+  - kb:collections:read:team
+  - kb:documents:read:team
+  - kb:segments:read:team
+  - kb:graphs:read:team
+  - kb:votes:read:team
+  - kb:hits:read:team
+  - kb:search:execute:team
+  - kb:providers:read:all
+
+kb:write:own:
+  - kb:collections:write:own
+  - kb:documents:write:own
+  - kb:segments:write:own
+  - kb:graphs:write:own
+  - kb:votes:write:own
+  - kb:hits:write:own
+
+kb:delete:own:
+  - kb:collections:delete:own
+  - kb:documents:delete:own
+  - kb:segments:delete:own
+  - kb:votes:delete:own
+  - kb:hits:delete:own
+
+# ============ Job Resources Aliases ============
+
+job:all:
+  - job:jobs:read:all
+  - job:jobs:control:all
+  - job:executions:read:all
+  - job:executions:control:all
+  - job:logs:read:all
+  - job:categories:read:all
+  - job:stats:read:all
+
+job:all:own:
+  - job:jobs:read:own
+  - job:jobs:control:own
+  - job:executions:read:own
+  - job:executions:control:own
+  - job:logs:read:own
+  - job:categories:read:all
+  - job:stats:read:own
+
+job:all:team:
+  - job:jobs:read:team
+  - job:jobs:control:team
+  - job:executions:read:team
+  - job:executions:control:team
+  - job:logs:read:team
+  - job:categories:read:all
+  - job:stats:read:team
+
+job:manage:team:
+  - job:jobs:read:team
+  - job:jobs:control:team
+  - job:executions:read:team
+  - job:executions:control:team
+  - job:logs:read:team
+  - job:categories:read:all
+  - job:stats:read:team
+
+job:read:team:
+  - job:jobs:read:team
+  - job:executions:read:team
+  - job:logs:read:team
+  - job:categories:read:all
+  - job:stats:read:team
+
+job:write:own:
+  - job:jobs:control:own
+  - job:executions:control:own
+
+# ============ Agent Resources Aliases ============
+
+agent:all:
+  - agent:assistants:read:all
+  - agent:assistants:write:all
+  - agent:assistants:delete:all
+  - agent:assistants:call:all
+  - agent:tags:read:all
+  - agent:robots:read:all
+  - agent:robots:write:all
+  - agent:robots:delete:all
+  - agent:robots:execute:all
+  - agent:robots:trigger:all
+  - agent:robots:results:all
+  - agent:robots:activities:all
+
+agent:all:own:
+  - agent:assistants:read:own
+  - agent:assistants:write:own
+  - agent:assistants:delete:own
+  - agent:assistants:call:own
+  - agent:tags:read:all
+  - agent:robots:read:own
+  - agent:robots:write:own
+  - agent:robots:delete:own
+  - agent:robots:execute:own
+  - agent:robots:trigger:own
+  - agent:robots:results:own
+  - agent:robots:activities:own
+
+agent:all:team:
+  - agent:assistants:read:team
+  - agent:assistants:write:team
+  - agent:assistants:delete:team
+  - agent:assistants:call:team
+  - agent:tags:read:all
+  - agent:robots:read:team
+  - agent:robots:write:team
+  - agent:robots:delete:team
+  - agent:robots:execute:team
+  - agent:robots:trigger:team
+  - agent:robots:results:team
+  - agent:robots:activities:team
+
+agent:manage:team:
+  - agent:assistants:read:team
+  - agent:assistants:write:team
+  - agent:assistants:delete:team
+  - agent:tags:read:all
+  - agent:robots:read:team
+  - agent:robots:write:team
+  - agent:robots:delete:team
+  - agent:robots:execute:team
+  - agent:robots:trigger:team
+  - agent:robots:results:team
+  - agent:robots:activities:team
+
+agent:read:own:
+  - agent:assistants:read:own
+  - agent:tags:read:all
+  - agent:robots:read:own
+  - agent:robots:execute:own
+  - agent:robots:results:own
+  - agent:robots:activities:own
+
+agent:read:team:
+  - agent:assistants:read:team
+  - agent:tags:read:all
+  - agent:robots:read:team
+  - agent:robots:execute:team
+  - agent:robots:results:team
+  - agent:robots:activities:team
+
+agent:write:own:
+  - agent:assistants:write:own
+  - agent:robots:write:own
+  - agent:robots:trigger:own
+
+# ============ Chat Resources Aliases ============
+
+chat:all:
+  - chat:completions:read:all
+  - chat:completions:write:all
+  - chat:completions:delete:all
+  - chat:sessions:read:all
+  - chat:sessions:write:all
+  - chat:sessions:delete:all
+  - chat:models:read:all
+  - chat:references:read:all
+
+chat:all:own:
+  - chat:completions:read:own
+  - chat:completions:write:own
+  - chat:completions:delete:own
+  - chat:sessions:read:own
+  - chat:sessions:write:own
+  - chat:sessions:delete:own
+  - chat:models:read:own
+  - chat:references:read:own
+
+chat:all:team:
+  - chat:completions:read:team
+  - chat:completions:write:team
+  - chat:completions:delete:team
+  - chat:sessions:read:team
+  - chat:sessions:write:team
+  - chat:sessions:delete:team
+  - chat:models:read:team
+  - chat:references:read:team
+
+chat:manage:team:
+  - chat:completions:read:team
+  - chat:completions:write:team
+  - chat:completions:delete:team
+  - chat:sessions:read:team
+  - chat:sessions:write:team
+  - chat:sessions:delete:team
+  - chat:models:read:team
+  - chat:references:read:team
+
+chat:read:team:
+  - chat:completions:read:team
+  - chat:sessions:read:team
+  - chat:models:read:team
+  - chat:references:read:team
+
+chat:write:own:
+  - chat:completions:write:own
+  - chat:sessions:write:own
+
+# ============ DSL Resources Aliases ============
+
+dsl:all:
+  - dsl:dsls:read:all
+  - dsl:dsls:write:all
+  - dsl:dsls:delete:all
+  - dsl:dsls:control:all
+  - dsl:dsls:execute:all
+  - dsl:dsls:validate:all
+
+dsl:all:own:
+  - dsl:dsls:read:own
+  - dsl:dsls:write:own
+  - dsl:dsls:delete:own
+  - dsl:dsls:control:own
+  - dsl:dsls:execute:own
+  - dsl:dsls:validate:all
+
+dsl:all:team:
+  - dsl:dsls:read:team
+  - dsl:dsls:write:team
+  - dsl:dsls:delete:team
+  - dsl:dsls:control:team
+  - dsl:dsls:execute:team
+  - dsl:dsls:validate:all
+
+dsl:manage:team:
+  - dsl:dsls:read:team
+  - dsl:dsls:write:team
+  - dsl:dsls:delete:team
+  - dsl:dsls:control:team
+  - dsl:dsls:validate:all
+
+dsl:read:team:
+  - dsl:dsls:read:team
+  - dsl:dsls:validate:all
+
+dsl:write:own:
+  - dsl:dsls:write:own
+  - dsl:dsls:validate:all
+
+# ============ LLM Resources Aliases ============
+
+llm:all:
+  - llm:providers:read:all
+
+llm:all:own:
+  - llm:providers:read:all
+
+llm:all:team:
+  - llm:providers:read:all
+
+llm:manage:team:
+  - llm:providers:read:all
+
+llm:read:team:
+  - llm:providers:read:all
+
+llm:write:own:
+  - llm:providers:read:all
+
+# ============ MCP Resources Aliases ============
+
+mcp:all:
+  - mcp:servers:read:all
+
+mcp:all:own:
+  - mcp:servers:read:all
+
+mcp:all:team:
+  - mcp:servers:read:all
+
+mcp:manage:team:
+  - mcp:servers:read:all
+
+mcp:read:team:
+  - mcp:servers:read:all
+
+mcp:write:own:
+  - mcp:servers:read:all
+
+# ============ Messenger Resources Aliases ============
+
+messenger:all:
+  - messenger:providers:read:all
+  - messenger:channels:read:all
+
+messenger:all:own:
+  - messenger:providers:read:all
+  - messenger:channels:read:all
+
+messenger:all:team:
+  - messenger:providers:read:all
+  - messenger:channels:read:all
+
+messenger:read:team:
+  - messenger:providers:read:all
+  - messenger:channels:read:all
+
+messenger:write:own:
+  - messenger:providers:read:all
+  - messenger:channels:read:all
+
+# ============ Trace Resources Aliases ============
+
+trace:all:
+  - trace:traces:read:all
+
+trace:all:own:
+  - trace:traces:read:own
+
+trace:all:team:
+  - trace:traces:read:team
+
+trace:read:team:
+  - trace:traces:read:team
+
+trace:read:own:
+  - trace:traces:read:own
+
+# ============ OTP Resources Aliases ============
+
+otp:all:
+  - otp:codes:create:all
+
+otp:all:own:
+  - otp:codes:create:team
+
+otp:all:team:
+  - otp:codes:create:team
+
+otp:manage:team:
+  - otp:codes:create:team
+
+# ============ App Resources Aliases ============
+
+app:all:
+  - app:menu:read:all
+
+app:all:own:
+  - app:menu:read:own
+
+app:all:team:
+  - app:menu:read:team
+
+app:read:team:
+  - app:menu:read:team
+
+# ============ __yao Built-in API Aliases ============
+
+__yao:all:
+  - __yao:yao:execute:all
+
+__yao:all:own:
+  - __yao:yao:execute:own
+
+__yao:all:team:
+  - __yao:yao:execute:team
+
+# ============ api Developer API Aliases ============
+
+api:all:
+  - api:api:execute:all
+
+api:all:own:
+  - api:api:execute:own
+
+api:all:team:
+  - api:api:execute:team
+
+# ============ Sandbox Resources Aliases ============
+
+sandbox:all:
+  - sandbox:sandboxes:read:all
+  - sandbox:sandboxes:write:all
+  - sandbox:sandboxes:exec:all
+  - sandbox:sandboxes:delete:all
+  - sandbox:vnc:read:all
+
+sandbox:all:own:
+  - sandbox:sandboxes:read:own
+  - sandbox:sandboxes:write:own
+  - sandbox:sandboxes:exec:own
+  - sandbox:sandboxes:delete:own
+  - sandbox:vnc:read:own
+
+sandbox:all:team:
+  - sandbox:sandboxes:read:team
+  - sandbox:sandboxes:write:team
+  - sandbox:sandboxes:exec:team
+  - sandbox:sandboxes:delete:team
+  - sandbox:vnc:read:team
+
+sandbox:manage:team:
+  - sandbox:sandboxes:read:team
+  - sandbox:sandboxes:write:team
+  - sandbox:sandboxes:exec:team
+  - sandbox:sandboxes:delete:team
+  - sandbox:vnc:read:team
+
+sandbox:read:team:
+  - sandbox:sandboxes:read:team
+  - sandbox:vnc:read:team
+
+sandbox:read:own:
+  - sandbox:sandboxes:read:own
+  - sandbox:vnc:read:own
+
+sandbox:write:own:
+  - sandbox:sandboxes:write:own
+  - sandbox:sandboxes:exec:own
+  - sandbox:sandboxes:delete:own
+
+# ============ Computer Resources Aliases ============
+
+computer:all:
+  - computer:computers:read:all
+
+computer:all:own:
+  - computer:computers:read:own
+
+computer:all:team:
+  - computer:computers:read:team
+
+computer:read:team:
+  - computer:computers:read:team
+
+computer:read:own:
+  - computer:computers:read:own
+
+# ============ Workspace Resources Aliases ============
+
+workspace:all:
+  - workspace:workspaces:read:all
+  - workspace:workspaces:write:all
+  - workspace:workspaces:delete:all
+  - workspace:workspaces:files:all
+
+workspace:all:own:
+  - workspace:workspaces:read:own
+  - workspace:workspaces:write:own
+  - workspace:workspaces:delete:own
+  - workspace:workspaces:files:own
+
+workspace:all:team:
+  - workspace:workspaces:read:team
+  - workspace:workspaces:write:team
+  - workspace:workspaces:delete:team
+  - workspace:workspaces:files:team
+
+workspace:manage:team:
+  - workspace:workspaces:read:team
+  - workspace:workspaces:write:team
+  - workspace:workspaces:delete:team
+  - workspace:workspaces:files:team
+
+workspace:read:team:
+  - workspace:workspaces:read:team
+
+workspace:read:own:
+  - workspace:workspaces:read:own
+
+workspace:write:own:
+  - workspace:workspaces:write:own
+  - workspace:workspaces:delete:own
+  - workspace:workspaces:files:own
+
+# ============ Nodes Resources Aliases ============
+
+nodes:all:
+  - nodes:nodes:read:all
+
+nodes:all:own:
+  - nodes:nodes:read:own
+
+nodes:all:team:
+  - nodes:nodes:read:team
+
+nodes:read:team:
+  - nodes:nodes:read:team
+
+nodes:read:own:
+  - nodes:nodes:read:own
+
+# ============ Setting Resources Aliases ============
+
+setting:all:
+  - setting:cloud:read:all
+  - setting:cloud:write:all
+  - setting:llm:read:all
+  - setting:llm:write:all
+  - setting:search:read:all
+  - setting:search:write:all
+  - setting:smtp:read:all
+  - setting:smtp:write:all
+  - setting:mcp:read:all
+  - setting:mcp:write:all
+  - setting:sandbox:read:all
+  - setting:sandbox:write:all
+  - setting:setup-status:read:all
+  - setting:preference:read:all
+  - setting:preference:write:all
+
+setting:all:own:
+  - setting:cloud:read:own
+  - setting:cloud:write:own
+  - setting:llm:read:own
+  - setting:llm:write:own
+  - setting:search:read:own
+  - setting:search:write:own
+  - setting:smtp:read:own
+  - setting:smtp:write:own
+  - setting:mcp:read:own
+  - setting:mcp:write:own
+  - setting:sandbox:read:own
+  - setting:sandbox:write:own
+  - setting:setup-status:read:own
+  - setting:preference:read:own
+  - setting:preference:write:own
+
+setting:all:team:
+  - setting:cloud:read:team
+  - setting:cloud:write:team
+  - setting:llm:read:team
+  - setting:llm:write:team
+  - setting:search:read:team
+  - setting:search:write:team
+  - setting:smtp:read:team
+  - setting:smtp:write:team
+  - setting:mcp:read:team
+  - setting:mcp:write:team
+  - setting:sandbox:read:team
+  - setting:sandbox:write:team
+  - setting:setup-status:read:team
+  - setting:preference:read:team
+  - setting:preference:write:team
+
+setting:manage:team:
+  - setting:cloud:read:team
+  - setting:cloud:write:team
+  - setting:llm:read:team
+  - setting:llm:write:team
+  - setting:search:read:team
+  - setting:search:write:team
+  - setting:smtp:read:team
+  - setting:smtp:write:team
+  - setting:mcp:read:team
+  - setting:mcp:write:team
+  - setting:sandbox:read:team
+  - setting:sandbox:write:team
+  - setting:setup-status:read:team
+  - setting:preference:read:team
+  - setting:preference:write:team
+
+setting:read:team:
+  - setting:cloud:read:team
+  - setting:llm:read:team
+  - setting:search:read:team
+  - setting:smtp:read:team
+  - setting:mcp:read:team
+  - setting:sandbox:read:team
+  - setting:setup-status:read:team
+  - setting:preference:read:team
+
+setting:write:own:
+  - setting:cloud:write:own
+  - setting:llm:write:own
+  - setting:search:write:own
+  - setting:smtp:write:own
+  - setting:mcp:write:own
+  - setting:sandbox:write:own
+  - setting:preference:write:own

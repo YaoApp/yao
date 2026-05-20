@@ -1,0 +1,32 @@
+# Developer Custom APIs - Developer-defined APIs under /api/*
+# namespace: api
+# resource: api
+# actions: execute
+# levels: all, own, team
+# Covers: /api/* (developer-defined HTTP APIs from apis/*.http.yao)
+
+api:api:execute:all:
+  description: "Execute all developer-defined APIs"
+  endpoints:
+    - GET /api/*
+    - POST /api/*
+    - PUT /api/*
+    - DELETE /api/*
+
+api:api:execute:own:
+  owner: true
+  description: "Execute developer-defined APIs (own data)"
+  endpoints:
+    - GET /api/*
+    - POST /api/*
+    - PUT /api/*
+    - DELETE /api/*
+
+api:api:execute:team:
+  team: true
+  description: "Execute developer-defined APIs (team data)"
+  endpoints:
+    - GET /api/*
+    - POST /api/*
+    - PUT /api/*
+    - DELETE /api/*

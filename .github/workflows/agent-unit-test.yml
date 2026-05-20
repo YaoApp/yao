@@ -1,0 +1,228 @@
+name: Agent Unit Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "sandbox/v2/**"
+      - "unit-test/agent/**"
+      - ".github/workflows/agent-unit-test.yml"
+      - ".github/actions/setup-yao/**"
+
+env:
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+jobs:
+  agent-test:
+    name: ${{ matrix.db }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: yao
+          POSTGRES_PASSWORD: "123456"
+          POSTGRES_DB: agent_test
+        options: >-
+          --health-cmd="pg_isready -U yao"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.25"]
+        db: [SQLite3, Postgres14]
+
+    steps:
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Setup Yao Build Environment
+        uses: ./.github/actions/setup-yao
+        with:
+          repo-kun: ${{ env.REPO_KUN }}
+          repo-xun: ${{ env.REPO_XUN }}
+          repo-gou: ${{ env.REPO_GOU }}
+          go-version: ${{ matrix.go }}
+          checkout-app: "true"
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai-src
+
+      - name: Move Tai Source
+        run: mv tai-src ../tai
+
+      - name: Add host.tai.internal to hosts
+        run: echo "127.0.0.1 host.tai.internal" | sudo tee -a /etc/hosts
+
+      - name: Generate agent-test.env
+        run: |
+          cp unit-test/agent/env/agent-test.env.template unit-test/agent/env/agent-test.env
+          sed -i 's|^DEEPSEEK_V4_API_KEY=.*|DEEPSEEK_V4_API_KEY=${{ secrets.DEEPSEEK_V4_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_TEST_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^SERPER_API_KEY=.*|SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_BOT_TOKEN=.*|TELEGRAM_TEST_BOT_TOKEN=${{ secrets.TELEGRAM_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_HOST=.*|TELEGRAM_TEST_HOST=${{ secrets.TELEGRAM_TEST_HOST }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_ID=.*|FEISHU_TEST_APP_ID=${{ secrets.FEISHU_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_SECRET=.*|FEISHU_TEST_APP_SECRET=${{ secrets.FEISHU_TEST_APP_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_ID=.*|DINGTALK_TEST_CLIENT_ID=${{ secrets.DINGTALK_TEST_CLIENT_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_SECRET=.*|DINGTALK_TEST_CLIENT_SECRET=${{ secrets.DINGTALK_TEST_CLIENT_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_BOT_TOKEN=.*|DISCORD_TEST_BOT_TOKEN=${{ secrets.DISCORD_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_APP_ID=.*|DISCORD_TEST_APP_ID=${{ secrets.DISCORD_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          if [ "${{ matrix.db }}" = "Postgres14" ]; then
+            sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
+            sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
+          fi
+
+      - name: Install PDF tools (pdftoppm, mutool, imagemagick)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils mupdf-tools imagemagick
+
+      - name: Build Mock LLM
+        run: |
+          mkdir -p ${{ github.workspace }}/.build/test
+          cd unit-test/agent/mock-llm
+          go build -o ${{ github.workspace }}/.build/test/mock-llm .
+
+      - name: Start Mock LLM
+        env:
+          MOCK_LLM_PORT: "6920"
+        run: |
+          ${{ github.workspace }}/.build/test/mock-llm \
+            -port $MOCK_LLM_PORT \
+            -fixtures unit-test/agent/mock-llm/fixtures &
+          echo $! > ${{ github.workspace }}/.build/test/mock-llm.pid
+          for i in $(seq 1 15); do
+            curl -sf http://127.0.0.1:$MOCK_LLM_PORT/healthz && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:$MOCK_LLM_PORT/healthz > /dev/null 2>&1 || {
+            echo "::error::Mock LLM failed to start"
+            exit 1
+          }
+
+      - name: Verify Mock LLM
+        env:
+          MOCK_LLM_PORT: "6920"
+        run: |
+          echo "=== Environment Verification ==="
+          curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" > /dev/null && echo "mock-llm: OK"
+
+      - name: "Tier 0: Sandbox Infra Tests (sandbox/v2)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+        run: go test -v -count=1 -timeout 600s ./sandbox/v2/...
+
+      - name: "Tier 1: Pure Unit Tests"
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags unit ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 120s -tags unit -coverprofile=.build/coverage/tier1.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 2: App Integration Tests (mock-llm)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          MOCK_LLM_PORT: "6920"
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 3: Agent Sandbox Tests (mock-llm)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+          MOCK_LLM_PORT: "6920"
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags sandbox ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 600s -tags sandbox -coverprofile=.build/coverage/tier3.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 4: E2E Tests (real LLM)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags e2e ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 900s -tags e2e -coverprofile=.build/coverage/tier4.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 5: Stress Tests (real LLM)"
+        env:
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags stress ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 1800s -tags stress -coverprofile=.build/coverage/tier5.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: Merge Coverage Profiles
+        if: always()
+        run: |
+          mkdir -p .build/coverage
+          FIRST=""
+          for f in .build/coverage/tier*.out; do
+            [ -f "$f" ] || continue
+            if [ -z "$FIRST" ]; then
+              head -1 "$f" > .build/coverage/all.out
+              FIRST=1
+            fi
+            tail -n +2 "$f" >> .build/coverage/all.out
+          done
+          if [ -f .build/coverage/all.out ]; then
+            echo "=== Coverage Summary ==="
+            go tool cover -func=.build/coverage/all.out | tail -1
+          else
+            echo "No coverage data collected"
+          fi
+
+      - name: Upload Coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: .build/coverage/all.out
+          flags: agent-${{ matrix.db }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-test-logs-${{ matrix.db }}
+          path: |
+            ${{ github.workspace }}/.build/test/data/*.log
+            ${{ github.workspace }}/unit-test/agent/app/logs/

@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/cmd/mcp"
 	"github.com/yaoapp/yao/cmd/robot"
 	"github.com/yaoapp/yao/cmd/sui"
+	"github.com/yaoapp/yao/cmd/token"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/pack"
 	"github.com/yaoapp/yao/share"
@@ -168,6 +169,15 @@ var robotCmd = &cobra.Command{
 	},
 }
 
+var tokenCmd = &cobra.Command{
+	Use:   "token",
+	Short: "OAuth token management",
+	Long:  "Generate and validate OAuth tokens for agent testing and API access",
+	CompletionOptions: cobra.CompletionOptions{
+		DisableDefaultCmd: true,
+	},
+}
+
 var docCmd = &cobra.Command{
 	Use:   "doc",
 	Short: "Documentation and API reference",
@@ -210,6 +220,10 @@ func init() {
 	docCmd.AddCommand(yaodoc.ProcessCmd)
 	docCmd.AddCommand(yaodoc.RuntimeCmd)
 
+	// Token
+	tokenCmd.AddCommand(token.MakeCmd)
+	tokenCmd.AddCommand(token.ValidateCmd)
+
 	rootCmd.AddCommand(
 		versionCmd,
 		migrateCmd,
@@ -229,6 +243,7 @@ func init() {
 		mcpCmd,
 		robotCmd,
 		docCmd,
+		tokenCmd,
 		upgradeCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)

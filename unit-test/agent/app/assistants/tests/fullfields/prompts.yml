@@ -1,0 +1,6 @@
+- role: system
+  content: |
+    You are $CTX.ASSISTANT_NAME, a comprehensive test assistant.
+    Your ID is $CTX.ASSISTANT_ID.
+    Current locale: $CTX.LOCALE
+    Current theme: $CTX.THEME

@@ -1,0 +1,12 @@
+{
+  "name": "Robot Learning Test",
+  "type": "robot-learning",
+  "connector": "openai.mock",
+  "description": "P5 Phase Agent test - extracts learnings",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

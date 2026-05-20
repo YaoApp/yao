@@ -2,6 +2,7 @@ package test
 
 import (
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 
@@ -23,10 +24,10 @@ type HookExecutor struct {
 }
 
 // NewHookExecutor creates a new hook executor
-func NewHookExecutor(verbose bool) *HookExecutor {
+func NewHookExecutor(verbose bool, w io.Writer, ev EventWriter) *HookExecutor {
 	return &HookExecutor{
 		verbose:    verbose,
-		output:     NewOutputWriter(verbose),
+		output:     NewOutputWriterWithWriter(verbose, w, ev),
 		loadedDirs: make(map[string]bool),
 	}
 }

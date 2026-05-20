@@ -1,10 +1,13 @@
-package search
+//go:build unit
+
+package search_test
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/agent/search"
 	"github.com/yaoapp/yao/agent/search/types"
 )
 
@@ -117,7 +120,7 @@ func TestBuildReferences(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			refs := BuildReferences(tt.results)
+			refs := search.BuildReferences(tt.results)
 			assert.Equal(t, tt.expected, len(refs))
 		})
 	}
@@ -139,7 +142,7 @@ func TestBuildReferences_FieldMapping(t *testing.T) {
 		{Items: []*types.ResultItem{item}},
 	}
 
-	refs := BuildReferences(results)
+	refs := search.BuildReferences(results)
 	assert.Equal(t, 1, len(refs))
 
 	ref := refs[0]
@@ -270,7 +273,7 @@ func TestFormatReferencesXML(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			xml := FormatReferencesXML(tt.refs)
+			xml := search.FormatReferencesXML(tt.refs)
 
 			for _, s := range tt.contains {
 				assert.Contains(t, xml, s, "expected XML to contain: %s", s)
@@ -296,9 +299,8 @@ func TestFormatReferencesXML_Structure(t *testing.T) {
 		},
 	}
 
-	xml := FormatReferencesXML(refs)
+	xml := search.FormatReferencesXML(refs)
 
-	// Check structure
 	assert.True(t, strings.HasPrefix(xml, "<references>\n"))
 	assert.True(t, strings.HasSuffix(xml, "</references>"))
 	assert.Contains(t, xml, "</ref>\n")
@@ -313,12 +315,12 @@ func TestGetCitationPrompt(t *testing.T) {
 		{
 			name:     "nil config",
 			cfg:      nil,
-			expected: DefaultCitationPrompt,
+			expected: search.DefaultCitationPrompt,
 		},
 		{
 			name:     "empty config",
 			cfg:      &types.CitationConfig{},
-			expected: DefaultCitationPrompt,
+			expected: search.DefaultCitationPrompt,
 		},
 		{
 			name: "config with custom prompt",
@@ -332,37 +334,35 @@ func TestGetCitationPrompt(t *testing.T) {
 			cfg: &types.CitationConfig{
 				CustomPrompt: "",
 			},
-			expected: DefaultCitationPrompt,
+			expected: search.DefaultCitationPrompt,
 		},
 		{
 			name: "config with format but no custom prompt",
 			cfg: &types.CitationConfig{
 				Format: "[{id}]",
 			},
-			expected: DefaultCitationPrompt,
+			expected: search.DefaultCitationPrompt,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prompt := GetCitationPrompt(tt.cfg)
+			prompt := search.GetCitationPrompt(tt.cfg)
 			assert.Equal(t, tt.expected, prompt)
 		})
 	}
 }
 
 func TestDefaultCitationPrompt(t *testing.T) {
-	// Verify default prompt contains key instructions
-	assert.Contains(t, DefaultCitationPrompt, "<references>")
-	assert.Contains(t, DefaultCitationPrompt, "id: Citation identifier")
-	assert.Contains(t, DefaultCitationPrompt, "type: Data type")
-	assert.Contains(t, DefaultCitationPrompt, "weight: Relevance weight")
-	assert.Contains(t, DefaultCitationPrompt, "source: Origin")
-	assert.Contains(t, DefaultCitationPrompt, `<a class="ref"`)
-	assert.Contains(t, DefaultCitationPrompt, "data-ref-id")
-	assert.Contains(t, DefaultCitationPrompt, "data-ref-type")
-	// Verify example uses simple integer ID
-	assert.Contains(t, DefaultCitationPrompt, `data-ref-id="1"`)
+	assert.Contains(t, search.DefaultCitationPrompt, "<references>")
+	assert.Contains(t, search.DefaultCitationPrompt, "id: Citation identifier")
+	assert.Contains(t, search.DefaultCitationPrompt, "type: Data type")
+	assert.Contains(t, search.DefaultCitationPrompt, "weight: Relevance weight")
+	assert.Contains(t, search.DefaultCitationPrompt, "source: Origin")
+	assert.Contains(t, search.DefaultCitationPrompt, `<a class="ref"`)
+	assert.Contains(t, search.DefaultCitationPrompt, "data-ref-id")
+	assert.Contains(t, search.DefaultCitationPrompt, "data-ref-type")
+	assert.Contains(t, search.DefaultCitationPrompt, `data-ref-id="1"`)
 }
 
 func TestBuildReferenceContext(t *testing.T) {
@@ -384,37 +384,36 @@ func TestBuildReferenceContext(t *testing.T) {
 	}
 
 	t.Run("with nil config", func(t *testing.T) {
-		ctx := BuildReferenceContext(results, nil)
+		ctx := search.BuildReferenceContext(results, nil)
 
 		assert.NotNil(t, ctx)
 		assert.Equal(t, 1, len(ctx.References))
 		assert.Contains(t, ctx.XML, "<references>")
 		assert.Contains(t, ctx.XML, `id="1"`)
-		assert.Equal(t, DefaultCitationPrompt, ctx.Prompt)
+		assert.Equal(t, search.DefaultCitationPrompt, ctx.Prompt)
 	})
 
 	t.Run("with custom prompt config", func(t *testing.T) {
 		cfg := &types.CitationConfig{
 			CustomPrompt: "Custom prompt",
 		}
-		ctx := BuildReferenceContext(results, cfg)
+		ctx := search.BuildReferenceContext(results, cfg)
 
 		assert.NotNil(t, ctx)
 		assert.Equal(t, "Custom prompt", ctx.Prompt)
 	})
 
 	t.Run("with empty results", func(t *testing.T) {
-		ctx := BuildReferenceContext([]*types.Result{}, nil)
+		ctx := search.BuildReferenceContext([]*types.Result{}, nil)
 
 		assert.NotNil(t, ctx)
 		assert.Equal(t, 0, len(ctx.References))
 		assert.Equal(t, "", ctx.XML)
-		assert.Equal(t, DefaultCitationPrompt, ctx.Prompt)
+		assert.Equal(t, search.DefaultCitationPrompt, ctx.Prompt)
 	})
 }
 
 func TestBuildReferenceContext_Integration(t *testing.T) {
-	// Simulate a real-world scenario with multiple search types
 	results := []*types.Result{
 		{
 			Type:  types.SearchTypeWeb,
@@ -464,22 +463,18 @@ func TestBuildReferenceContext_Integration(t *testing.T) {
 		},
 	}
 
-	ctx := BuildReferenceContext(results, nil)
+	ctx := search.BuildReferenceContext(results, nil)
 
-	// Verify all references are included
 	assert.Equal(t, 3, len(ctx.References))
 
-	// Verify XML contains all references
 	assert.Contains(t, ctx.XML, `id="1"`)
 	assert.Contains(t, ctx.XML, `id="2"`)
 	assert.Contains(t, ctx.XML, `id="3"`)
 
-	// Verify different source types are represented
 	assert.Contains(t, ctx.XML, `source="auto"`)
 	assert.Contains(t, ctx.XML, `source="hook"`)
 	assert.Contains(t, ctx.XML, `source="user"`)
 
-	// Verify different search types are represented
 	assert.Contains(t, ctx.XML, `type="web"`)
 	assert.Contains(t, ctx.XML, `type="kb"`)
 	assert.Contains(t, ctx.XML, `type="db"`)

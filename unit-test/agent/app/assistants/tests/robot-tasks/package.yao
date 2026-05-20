@@ -1,0 +1,12 @@
+{
+  "name": "Robot Tasks Test",
+  "type": "robot-tasks",
+  "connector": "openai.mock",
+  "description": "P2 Phase Agent test - breaks goals into tasks",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Robot Host Test",
+  "type": "robot-host",
+  "connector": "openai.mock",
+  "description": "Host Agent test - human-robot interaction",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

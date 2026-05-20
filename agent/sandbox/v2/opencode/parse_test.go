@@ -1,4 +1,6 @@
-package opencode
+//go:build unit
+
+package opencode_test
 
 import (
 	"context"
@@ -9,21 +11,8 @@ import (
 	"testing"
 
 	"github.com/yaoapp/yao/agent/output/message"
+	opencode "github.com/yaoapp/yao/agent/sandbox/v2/opencode"
 )
-
-type chunkRecord struct {
-	eventType message.StreamChunkType
-	data      string
-}
-
-func collectHandler(records *[]chunkRecord, mu *sync.Mutex) message.StreamFunc {
-	return func(chunkType message.StreamChunkType, data []byte) int {
-		mu.Lock()
-		defer mu.Unlock()
-		*records = append(*records, chunkRecord{eventType: chunkType, data: string(data)})
-		return 0
-	}
-}
 
 func makeJSONL(events ...map[string]any) string {
 	var lines []string
@@ -61,13 +50,13 @@ func TestParse_StepStartEmitsMetadata(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -76,20 +65,19 @@ func TestParse_StepStartEmitsMetadata(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 
-	// step_start should only emit metadata (no execute widget for pure text).
 	hasMeta := false
 	hasRunningExec := false
 	for _, r := range records {
-		if r.eventType == message.ChunkMetadata {
+		if r.EventType == message.ChunkMetadata {
 			var meta map[string]any
-			json.Unmarshal([]byte(r.data), &meta)
+			json.Unmarshal([]byte(r.Data), &meta)
 			if _, ok := meta["opencode_session_id"]; ok {
 				hasMeta = true
 			}
 		}
-		if r.eventType == message.ChunkExecute {
+		if r.EventType == message.ChunkExecute {
 			var props map[string]any
-			json.Unmarshal([]byte(r.data), &props)
+			json.Unmarshal([]byte(r.Data), &props)
 			if props["status"] == "running" {
 				hasRunningExec = true
 			}
@@ -125,18 +113,18 @@ func TestParse_TextEvent(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	if !parser.completed {
+	if !opencode.StreamParserCompleted(parser) {
 		t.Error("parser should be completed")
 	}
 
@@ -145,10 +133,10 @@ func TestParse_TextEvent(t *testing.T) {
 
 	hasText := false
 	for _, r := range records {
-		if r.eventType == message.ChunkText {
+		if r.EventType == message.ChunkText {
 			hasText = true
-			if r.data != "Hello, world!" {
-				t.Errorf("text data = %q, want 'Hello, world!'", r.data)
+			if r.Data != "Hello, world!" {
+				t.Errorf("text data = %q, want 'Hello, world!'", r.Data)
 			}
 		}
 	}
@@ -185,13 +173,13 @@ func TestParse_ToolUseEvent(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -202,9 +190,9 @@ func TestParse_ToolUseEvent(t *testing.T) {
 
 	hasCompletedExec := false
 	for _, r := range records {
-		if r.eventType == message.ChunkExecute {
+		if r.EventType == message.ChunkExecute {
 			var props map[string]any
-			json.Unmarshal([]byte(r.data), &props)
+			json.Unmarshal([]byte(r.Data), &props)
 			if props["tool"] == "bash" && props["status"] == "completed" {
 				hasCompletedExec = true
 				if props["runner"] != "opencode-cli" {
@@ -228,13 +216,13 @@ func TestParse_ErrorEvent(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err == nil {
 		t.Fatal("expected error from parse")
@@ -248,7 +236,7 @@ func TestParse_ErrorEvent(t *testing.T) {
 
 	hasError := false
 	for _, r := range records {
-		if r.eventType == message.ChunkError {
+		if r.EventType == message.ChunkError {
 			hasError = true
 		}
 	}
@@ -273,13 +261,13 @@ func TestParse_ErrorEvent_Nested(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err == nil {
 		t.Fatal("expected error from parse")
@@ -302,18 +290,18 @@ func TestParse_StepFinishToolCalls(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	if parser.completed {
+	if opencode.StreamParserCompleted(parser) {
 		t.Error("tool-calls finish reason should NOT mark as completed")
 	}
 
@@ -322,9 +310,9 @@ func TestParse_StepFinishToolCalls(t *testing.T) {
 
 	hasTransition := false
 	for _, r := range records {
-		if r.eventType == message.ChunkMetadata {
+		if r.EventType == message.ChunkMetadata {
 			var meta map[string]any
-			json.Unmarshal([]byte(r.data), &meta)
+			json.Unmarshal([]byte(r.Data), &meta)
 			if _, ok := meta["step_transition"]; ok {
 				hasTransition = true
 			}
@@ -360,18 +348,18 @@ func TestParse_MultiStepToolThenText(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
 	}
-	if !parser.completed {
+	if !opencode.StreamParserCompleted(parser) {
 		t.Error("multi-step stream should complete on final stop")
 	}
 
@@ -383,14 +371,14 @@ func TestParse_MultiStepToolThenText(t *testing.T) {
 		hasText        bool
 	)
 	for _, r := range records {
-		if r.eventType == message.ChunkExecute {
+		if r.EventType == message.ChunkExecute {
 			var props map[string]any
-			json.Unmarshal([]byte(r.data), &props)
+			json.Unmarshal([]byte(r.Data), &props)
 			if props["status"] == "completed" {
 				completedCount++
 			}
 		}
-		if r.eventType == message.ChunkText && r.data == "The output was: hi" {
+		if r.EventType == message.ChunkText && r.Data == "The output was: hi" {
 			hasText = true
 		}
 	}
@@ -424,13 +412,13 @@ func TestParse_ReasoningEvent(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("parse error: %v", err)
@@ -441,9 +429,9 @@ func TestParse_ReasoningEvent(t *testing.T) {
 
 	hasReasoning := false
 	for _, r := range records {
-		if r.eventType == message.ChunkMetadata {
+		if r.EventType == message.ChunkMetadata {
 			var meta map[string]any
-			json.Unmarshal([]byte(r.data), &meta)
+			json.Unmarshal([]byte(r.Data), &meta)
 			if _, ok := meta["reasoning"]; ok {
 				hasReasoning = true
 			}
@@ -472,18 +460,18 @@ func TestParse_UnknownEventType(t *testing.T) {
 		},
 	)
 
-	var records []chunkRecord
+	var records []opencode.ChunkRecord
 	var mu sync.Mutex
-	handler := collectHandler(&records, &mu)
+	handler := opencode.CollectHandler(&records, &mu)
 
-	parser := newStreamParser(handler)
+	parser := opencode.NewStreamParserForTest(handler)
 	reader := io.NopCloser(strings.NewReader(input))
-	err := parser.parse(context.Background(), reader)
+	err := opencode.StreamParserParse(parser, context.Background(), reader)
 
 	if err != nil {
 		t.Fatalf("unknown event type should not cause error: %v", err)
 	}
-	if !parser.completed {
+	if !opencode.StreamParserCompleted(parser) {
 		t.Error("parser should still complete")
 	}
 }
@@ -501,27 +489,27 @@ func TestExtractSummary(t *testing.T) {
 		{"bash", "", ""},
 	}
 	for _, tc := range cases {
-		got := extractSummary(tc.tool, tc.input)
+		got := opencode.ExtractSummary(tc.tool, tc.input)
 		if got != tc.want {
-			t.Errorf("extractSummary(%q, %q) = %q, want %q", tc.tool, tc.input, got, tc.want)
+			t.Errorf("ExtractSummary(%q, %q) = %q, want %q", tc.tool, tc.input, got, tc.want)
 		}
 	}
 }
 
 func TestTruncate(t *testing.T) {
 	short := "hello"
-	if truncate(short, 80) != "hello" {
+	if opencode.Truncate(short, 80) != "hello" {
 		t.Error("short string should not be truncated")
 	}
 
 	long := strings.Repeat("a", 100)
-	result := truncate(long, 80)
+	result := opencode.Truncate(long, 80)
 	if len(result) != 83 { // 80 + "..."
 		t.Errorf("truncated len = %d, want 83", len(result))
 	}
 
 	withNewlines := "line1\nline2\nline3"
-	result = truncate(withNewlines, 80)
+	result = opencode.Truncate(withNewlines, 80)
 	if strings.Contains(result, "\n") {
 		t.Error("truncate should replace newlines with spaces")
 	}

@@ -1,0 +1,63 @@
+# Hits - Segment Hit Management
+# namespace: kb
+# resource: hits
+# actions: read, write, delete
+# levels: all, own, team
+
+kb:hits:read:all:
+  description: "Read all segment hits"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/hits
+    - GET /kb/documents/:docID/segments/:segmentID/hits/search
+    - GET /kb/documents/:docID/segments/:segmentID/hits/:hitID
+
+kb:hits:read:own:
+  owner: true
+  description: "Read own segment hits"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/hits
+    - GET /kb/documents/:docID/segments/:segmentID/hits/search
+    - GET /kb/documents/:docID/segments/:segmentID/hits/:hitID
+
+kb:hits:read:team:
+  team: true
+  description: "Read team segment hits"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/hits
+    - GET /kb/documents/:docID/segments/:segmentID/hits/search
+    - GET /kb/documents/:docID/segments/:segmentID/hits/:hitID
+
+kb:hits:write:all:
+  description: "Add hits to all segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/hits
+
+kb:hits:write:own:
+  owner: true
+  description: "Add hits to own segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/hits
+
+kb:hits:write:team:
+  team: true
+  description: "Add hits to team segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/hits
+
+kb:hits:delete:all:
+  description: "Delete all segment hits"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/hits
+
+kb:hits:delete:own:
+  owner: true
+  description: "Delete own segment hits"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/hits
+
+kb:hits:delete:team:
+  team: true
+  description: "Delete team segment hits"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/hits
+

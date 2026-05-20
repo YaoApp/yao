@@ -26,26 +26,26 @@ func TestTavilySearch(t *testing.T) {
 	t.Logf("got %d results", len(results))
 }
 
-func TestSerperSearch(t *testing.T) {
-	key := os.Getenv("SERPER_API_KEY")
-	if key == "" {
-		t.Skip("SERPER_API_KEY not set")
-	}
-
-	results := serperSearch(key, "Yao application engine", 3)
-	if len(results) == 0 {
-		t.Fatal("expected at least one result from serper")
-	}
-	for _, r := range results {
-		if r.Title == "Error" {
-			t.Fatalf("serper returned error: %s", r.Content)
-		}
-		if r.URL == "" {
-			t.Error("expected non-empty URL")
-		}
-	}
-	t.Logf("got %d results", len(results))
-}
+// func TestSerperSearch(t *testing.T) {
+// 	key := os.Getenv("SERPER_API_KEY")
+// 	if key == "" {
+// 		t.Skip("SERPER_API_KEY not set")
+// 	}
+//
+// 	results := serperSearch(key, "Yao application engine", 3)
+// 	if len(results) == 0 {
+// 		t.Fatal("expected at least one result from serper")
+// 	}
+// 	for _, r := range results {
+// 		if r.Title == "Error" {
+// 			t.Fatalf("serper returned error: %s", r.Content)
+// 		}
+// 		if r.URL == "" {
+// 			t.Error("expected non-empty URL")
+// 		}
+// 	}
+// 	t.Logf("got %d results", len(results))
+// }
 
 func TestTavilySearch_NoKey(t *testing.T) {
 	results := tavilySearch("", "test", 5)

@@ -1,0 +1,13 @@
+{
+  "label": "Anthropic Claude Haiku",
+  "type": "anthropic",
+  "options": {
+    "model": "claude-haiku-4-5-20251001",
+    "host": "https://api.anthropic.com",
+    "key": "$ENV.ANTHROPIC_API_KEY",
+    "capabilities": {
+      "tool_calls": true,
+      "streaming": true
+    }
+  }
+}

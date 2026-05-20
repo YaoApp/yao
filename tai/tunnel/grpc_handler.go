@@ -428,6 +428,7 @@ func capsFromProto(c *taipb.Capabilities) types.Capabilities {
 		K8s:      c.K8S,
 		HostExec: c.HostExec,
 		VNC:      c.Vnc,
+		Runners:  c.Runners,
 	}
 }
 

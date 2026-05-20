@@ -1,0 +1,5 @@
+{
+  "name": "Caller Target",
+  "connector": "openai.mock",
+  "description": "Simple target agent for A2A call tests"
+}

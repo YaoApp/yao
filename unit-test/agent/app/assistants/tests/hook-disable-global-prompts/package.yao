@@ -1,0 +1,11 @@
+{
+  "name": "Disable Global Prompts Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant with disable_global_prompts=true - verifies global prompts are not injected",
+  "options": { "temperature": 0 },
+  "disable_global_prompts": true,
+  "tags": ["Test", "Prompts"],
+  "sort": 999,
+  "public": false
+}

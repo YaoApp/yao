@@ -1,0 +1,20 @@
+{
+  "type": "object",
+  "description": "Ping with optional count and message",
+  "properties": {
+    "count": {
+      "type": "integer",
+      "description": "Number of pings",
+      "default": 1,
+      "minimum": 1,
+      "maximum": 10
+    },
+    "message": {
+      "type": "string",
+      "description": "Custom message to echo back",
+      "default": "ping"
+    }
+  },
+  "x-process-args": [":arguments"]
+}
+

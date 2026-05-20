@@ -1,0 +1,10 @@
+{
+  "name": "Data Analyst Expert",
+  "connector": "openai.mock",
+  "description": "Expert agent for data analysis tasks",
+  "capabilities": ["data-analysis", "statistics", "visualization"],
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Expert"],
+  "sort": 999,
+  "public": false
+}

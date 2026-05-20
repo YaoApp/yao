@@ -1,0 +1,10 @@
+{
+  "name": "Text Writer Expert",
+  "connector": "openai.mock",
+  "description": "Expert agent for text writing tasks",
+  "capabilities": ["text-generation", "content-writing", "editing"],
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Expert"],
+  "sort": 999,
+  "public": false
+}

@@ -1,4 +1,6 @@
-package types
+//go:build unit
+
+package types_test
 
 import (
 	"os"
@@ -6,25 +8,25 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	types "github.com/yaoapp/yao/agent/store/types"
 )
 
 func TestPromptParse(t *testing.T) {
 	tests := []struct {
 		name     string
-		prompt   Prompt
+		prompt   types.Prompt
 		ctx      map[string]string
-		validate func(t *testing.T, result Prompt)
+		validate func(t *testing.T, result types.Prompt)
 	}{
 		{
 			name: "ParseSysTimeVariables",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Current time: $SYS.TIME, Date: $SYS.DATE",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "system", result.Role)
-				// Check that variables are replaced (not exact match due to time)
 				assert.NotContains(t, result.Content, "$SYS.TIME")
 				assert.NotContains(t, result.Content, "$SYS.DATE")
 				assert.Contains(t, result.Content, "Current time:")
@@ -33,36 +35,36 @@ func TestPromptParse(t *testing.T) {
 		},
 		{
 			name: "ParseSysDatetimeVariable",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Now: $SYS.DATETIME, Timezone: $SYS.TIMEZONE",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.NotContains(t, result.Content, "$SYS.DATETIME")
 				assert.NotContains(t, result.Content, "$SYS.TIMEZONE")
 			},
 		},
 		{
 			name: "ParseSysWeekdayVariable",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Today is $SYS.WEEKDAY",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				weekday := time.Now().Weekday().String()
 				assert.Contains(t, result.Content, weekday)
 			},
 		},
 		{
 			name: "ParseSysYearMonthDay",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Year: $SYS.YEAR, Month: $SYS.MONTH, Day: $SYS.DAY",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				now := time.Now()
 				assert.Contains(t, result.Content, now.Format("2006"))
 				assert.Contains(t, result.Content, now.Format("01"))
@@ -71,12 +73,12 @@ func TestPromptParse(t *testing.T) {
 		},
 		{
 			name: "ParseSysHourMinuteSecond",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Hour: $SYS.HOUR, Minute: $SYS.MINUTE, Second: $SYS.SECOND",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.NotContains(t, result.Content, "$SYS.HOUR")
 				assert.NotContains(t, result.Content, "$SYS.MINUTE")
 				assert.NotContains(t, result.Content, "$SYS.SECOND")
@@ -84,30 +86,29 @@ func TestPromptParse(t *testing.T) {
 		},
 		{
 			name: "ParseEnvVariable",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "App: $ENV.TEST_APP_NAME",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Contains(t, result.Content, "App: TestApp")
 			},
 		},
 		{
 			name: "ParseEnvVariableNotFound",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Value: $ENV.NOT_EXIST_VAR_12345",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
-				// Should be replaced with empty string
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "Value: ", result.Content)
 			},
 		},
 		{
 			name: "ParseCtxVariables",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "User: $CTX.USER_ID, Locale: $CTX.LOCALE",
 			},
@@ -115,46 +116,44 @@ func TestPromptParse(t *testing.T) {
 				"USER_ID": "user-123",
 				"LOCALE":  "zh-CN",
 			},
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "User: user-123, Locale: zh-CN", result.Content)
 			},
 		},
 		{
 			name: "ParseCtxVariableNotFound",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Value: $CTX.NOT_EXIST",
 			},
 			ctx: map[string]string{
 				"OTHER": "value",
 			},
-			validate: func(t *testing.T, result Prompt) {
-				// Should be replaced with empty string
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "Value: ", result.Content)
 			},
 		},
 		{
 			name: "ParseCtxWithNilMap",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Value: $CTX.SOMETHING",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
-				// Should keep original when ctx is nil
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "Value: $CTX.SOMETHING", result.Content)
 			},
 		},
 		{
 			name: "ParseMixedVariables",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Time: $SYS.TIME, App: $ENV.TEST_APP_NAME, User: $CTX.USER_ID",
 			},
 			ctx: map[string]string{
 				"USER_ID": "user-456",
 			},
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.NotContains(t, result.Content, "$SYS.TIME")
 				assert.Contains(t, result.Content, "App: TestApp")
 				assert.Contains(t, result.Content, "User: user-456")
@@ -162,19 +161,18 @@ func TestPromptParse(t *testing.T) {
 		},
 		{
 			name: "ParseUnknownSysVariable",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Value: $SYS.UNKNOWN_VAR",
 			},
 			ctx: nil,
-			validate: func(t *testing.T, result Prompt) {
-				// Should keep original if not found
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "Value: $SYS.UNKNOWN_VAR", result.Content)
 			},
 		},
 		{
 			name: "ParsePreservesRoleAndName",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "user",
 				Content: "Hello $CTX.NAME",
 				Name:    "test_user",
@@ -182,7 +180,7 @@ func TestPromptParse(t *testing.T) {
 			ctx: map[string]string{
 				"NAME": "World",
 			},
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "user", result.Role)
 				assert.Equal(t, "Hello World", result.Content)
 				assert.Equal(t, "test_user", result.Name)
@@ -190,7 +188,7 @@ func TestPromptParse(t *testing.T) {
 		},
 		{
 			name: "ParseCustomCtxVariables",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role:    "system",
 				Content: "Custom: $CTX.MY_CUSTOM_VAR, Another: $CTX.ANOTHER_VAR",
 			},
@@ -198,13 +196,13 @@ func TestPromptParse(t *testing.T) {
 				"MY_CUSTOM_VAR": "custom-value",
 				"ANOTHER_VAR":   "another-value",
 			},
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Equal(t, "Custom: custom-value, Another: another-value", result.Content)
 			},
 		},
 		{
 			name: "ParseMultilineContent",
-			prompt: Prompt{
+			prompt: types.Prompt{
 				Role: "system",
 				Content: `# System Context
 Current Time: $SYS.TIME
@@ -214,7 +212,7 @@ App: $ENV.TEST_APP_NAME`,
 			ctx: map[string]string{
 				"USER_ID": "user-789",
 			},
-			validate: func(t *testing.T, result Prompt) {
+			validate: func(t *testing.T, result types.Prompt) {
 				assert.Contains(t, result.Content, "# System Context")
 				assert.NotContains(t, result.Content, "$SYS.TIME")
 				assert.Contains(t, result.Content, "User: user-789")
@@ -223,7 +221,6 @@ App: $ENV.TEST_APP_NAME`,
 		},
 	}
 
-	// Set test environment variable
 	os.Setenv("TEST_APP_NAME", "TestApp")
 	defer os.Unsetenv("TEST_APP_NAME")
 
@@ -239,7 +236,7 @@ func TestPromptsParse(t *testing.T) {
 	os.Setenv("TEST_APP_NAME", "TestApp")
 	defer os.Unsetenv("TEST_APP_NAME")
 
-	prompts := Prompts{
+	prompts := types.Prompts{
 		{Role: "system", Content: "Time: $SYS.TIME"},
 		{Role: "system", Content: "User: $CTX.USER_ID"},
 		{Role: "user", Content: "App: $ENV.TEST_APP_NAME"},
@@ -260,22 +257,22 @@ func TestPromptsParse(t *testing.T) {
 func TestMergePrompts(t *testing.T) {
 	tests := []struct {
 		name             string
-		globalPrompts    []Prompt
-		assistantPrompts []Prompt
+		globalPrompts    []types.Prompt
+		assistantPrompts []types.Prompt
 		expectedLen      int
-		validate         func(t *testing.T, result []Prompt)
+		validate         func(t *testing.T, result []types.Prompt)
 	}{
 		{
 			name: "MergeBothNonEmpty",
-			globalPrompts: []Prompt{
+			globalPrompts: []types.Prompt{
 				{Role: "system", Content: "Global prompt 1"},
 				{Role: "system", Content: "Global prompt 2"},
 			},
-			assistantPrompts: []Prompt{
+			assistantPrompts: []types.Prompt{
 				{Role: "system", Content: "Assistant prompt 1"},
 			},
 			expectedLen: 3,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Equal(t, "Global prompt 1", result[0].Content)
 				assert.Equal(t, "Global prompt 2", result[1].Content)
 				assert.Equal(t, "Assistant prompt 1", result[2].Content)
@@ -283,54 +280,54 @@ func TestMergePrompts(t *testing.T) {
 		},
 		{
 			name:          "MergeGlobalEmpty",
-			globalPrompts: []Prompt{},
-			assistantPrompts: []Prompt{
+			globalPrompts: []types.Prompt{},
+			assistantPrompts: []types.Prompt{
 				{Role: "system", Content: "Assistant prompt"},
 			},
 			expectedLen: 1,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Equal(t, "Assistant prompt", result[0].Content)
 			},
 		},
 		{
 			name: "MergeAssistantEmpty",
-			globalPrompts: []Prompt{
+			globalPrompts: []types.Prompt{
 				{Role: "system", Content: "Global prompt"},
 			},
-			assistantPrompts: []Prompt{},
+			assistantPrompts: []types.Prompt{},
 			expectedLen:      1,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Equal(t, "Global prompt", result[0].Content)
 			},
 		},
 		{
 			name:             "MergeBothEmpty",
-			globalPrompts:    []Prompt{},
-			assistantPrompts: []Prompt{},
+			globalPrompts:    []types.Prompt{},
+			assistantPrompts: []types.Prompt{},
 			expectedLen:      0,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Empty(t, result)
 			},
 		},
 		{
 			name:          "MergeGlobalNil",
 			globalPrompts: nil,
-			assistantPrompts: []Prompt{
+			assistantPrompts: []types.Prompt{
 				{Role: "system", Content: "Assistant prompt"},
 			},
 			expectedLen: 1,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Equal(t, "Assistant prompt", result[0].Content)
 			},
 		},
 		{
 			name: "MergeAssistantNil",
-			globalPrompts: []Prompt{
+			globalPrompts: []types.Prompt{
 				{Role: "system", Content: "Global prompt"},
 			},
 			assistantPrompts: nil,
 			expectedLen:      1,
-			validate: func(t *testing.T, result []Prompt) {
+			validate: func(t *testing.T, result []types.Prompt) {
 				assert.Equal(t, "Global prompt", result[0].Content)
 			},
 		},
@@ -338,7 +335,7 @@ func TestMergePrompts(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Merge(tt.globalPrompts, tt.assistantPrompts)
+			result := types.Merge(tt.globalPrompts, tt.assistantPrompts)
 			assert.Len(t, result, tt.expectedLen)
 			if tt.validate != nil {
 				tt.validate(t, result)
@@ -348,7 +345,6 @@ func TestMergePrompts(t *testing.T) {
 }
 
 func TestSystemVariables(t *testing.T) {
-	// Test that all system variables are defined and return non-empty values
 	expectedVars := []string{
 		"TIME", "DATE", "DATETIME", "TIMEZONE", "WEEKDAY",
 		"YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "UNIX",
@@ -356,7 +352,7 @@ func TestSystemVariables(t *testing.T) {
 
 	for _, varName := range expectedVars {
 		t.Run(varName, func(t *testing.T) {
-			fn, ok := SystemVariables[varName]
+			fn, ok := types.SystemVariables[varName]
 			assert.True(t, ok, "SystemVariables should contain %s", varName)
 			value := fn()
 			assert.NotEmpty(t, value, "SystemVariables[%s]() should return non-empty value", varName)
@@ -396,7 +392,7 @@ func TestParseVariablesEdgeCases(t *testing.T) {
 			name:     "VariableInMiddleOfWord",
 			content:  "prefix$SYS.TIMEsuffix",
 			ctx:      nil,
-			expected: "prefix$SYS.TIMEsuffix", // Should not match - variable must be followed by valid char
+			expected: "prefix$SYS.TIMEsuffix",
 		},
 		{
 			name:     "MultipleOccurrences",
@@ -420,9 +416,8 @@ func TestParseVariablesEdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := parseVariables(tt.content, tt.ctx)
+			result := types.ParseVariablesForTest(tt.content, tt.ctx)
 			if tt.name == "VariableInMiddleOfWord" {
-				// This case depends on regex behavior - just check it doesn't crash
 				assert.NotEmpty(t, result)
 			} else {
 				assert.Equal(t, tt.expected, result)

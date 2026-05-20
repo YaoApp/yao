@@ -83,6 +83,11 @@ func (ns *Namespace) Len(pattern ...string) int {
 	return ns.Store.Len(storePattern)
 }
 
+// Flush delegates to the underlying store's Flush.
+func (ns *Namespace) Flush() {
+	ns.Store.Flush()
+}
+
 // Clear deletes all keys in this namespace
 func (ns *Namespace) Clear() {
 	ns.Store.Del(ns.Prefix + "*")

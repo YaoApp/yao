@@ -1,0 +1,11 @@
+# Providers - LLM Provider Management
+# namespace: llm
+# resource: providers
+# actions: read
+# levels: all
+
+llm:providers:read:all:
+  description: "Read all LLM providers (built-in and user-defined OpenAI-compatible connectors)"
+  endpoints:
+    - GET /llm/providers
+

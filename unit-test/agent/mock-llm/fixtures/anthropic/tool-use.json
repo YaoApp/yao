@@ -1,0 +1,22 @@
+{
+  "id": "msg-fixture-anthropic-tu-001",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "toolu_fixture_001",
+      "name": "get_weather",
+      "input": {
+        "location": "San Francisco",
+        "unit": "celsius"
+      }
+    }
+  ],
+  "model": "claude-haiku-4-5-20251001",
+  "stop_reason": "tool_use",
+  "usage": {
+    "input_tokens": 50,
+    "output_tokens": 30
+  }
+}

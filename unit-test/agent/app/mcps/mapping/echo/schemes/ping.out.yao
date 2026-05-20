@@ -1,0 +1,21 @@
+{
+  "type": "object",
+  "description": "Ping response",
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Response message"
+    },
+    "count": {
+      "type": "integer",
+      "description": "Number of pings performed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Response timestamp"
+    }
+  },
+  "required": ["message", "count", "timestamp"]
+}
+

@@ -7,43 +7,27 @@ import (
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 )
 
-func TestBuildGRPCEnvLocal(t *testing.T) {
+func TestBuildGRPCEnv_Local(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
 	env := sandbox.BuildGRPCEnv("local", 19100, "sb-001")
 
-	if env["YAO_SANDBOX_ID"] != "sb-001" {
-		t.Errorf("YAO_SANDBOX_ID = %q", env["YAO_SANDBOX_ID"])
-	}
-	if _, ok := env["YAO_TOKEN"]; ok {
-		t.Error("YAO_TOKEN should not be set by BuildGRPCEnv")
-	}
 	want := "host.tai.internal:9099"
 	if env["YAO_GRPC_ADDR"] != want {
 		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
 	}
 }
 
-func TestBuildGRPCEnvDirect(t *testing.T) {
-	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 19100, "sb-002")
+func TestBuildGRPCEnv_Local_ZeroPort(t *testing.T) {
+	config.Conf.GRPC.Port = 0
+	env := sandbox.BuildGRPCEnv("local", 19100, "sb-zero")
 
-	want := "host.tai.internal:19100"
+	want := "host.tai.internal:9099"
 	if env["YAO_GRPC_ADDR"] != want {
-		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default yao port)", env["YAO_GRPC_ADDR"], want)
 	}
 }
 
-func TestBuildGRPCEnvDirectDefaultPort(t *testing.T) {
-	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 0, "sb-002")
-
-	want := "host.tai.internal:19100"
-	if env["YAO_GRPC_ADDR"] != want {
-		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default tai port)", env["YAO_GRPC_ADDR"], want)
-	}
-}
-
-func TestBuildGRPCEnvTunnel(t *testing.T) {
+func TestBuildGRPCEnv_Tunnel(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
 	env := sandbox.BuildGRPCEnv("tunnel", 19200, "sb-003")
 
@@ -53,12 +37,84 @@ func TestBuildGRPCEnvTunnel(t *testing.T) {
 	}
 }
 
-func TestBuildGRPCEnvUnknownMode(t *testing.T) {
+func TestBuildGRPCEnv_Tunnel_ZeroPort(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("tunnel", 0, "sb-tzero")
+
+	want := "host.tai.internal:19100"
+	if env["YAO_GRPC_ADDR"] != want {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default tai port)", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
+func TestBuildGRPCEnv_Direct(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("direct", 19100, "sb-002")
+
+	want := "host.tai.internal:19100"
+	if env["YAO_GRPC_ADDR"] != want {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
+func TestBuildGRPCEnv_Direct_ZeroPort(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("direct", 0, "sb-dzero")
+
+	want := "host.tai.internal:19100"
+	if env["YAO_GRPC_ADDR"] != want {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default tai port)", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
+func TestBuildGRPCEnv_DefaultMode(t *testing.T) {
 	config.Conf.GRPC.Port = 8888
 	env := sandbox.BuildGRPCEnv("unknown", 19100, "sb-004")
 
 	want := "host.tai.internal:8888"
 	if env["YAO_GRPC_ADDR"] != want {
 		t.Errorf("YAO_GRPC_ADDR = %q, want %q (fallback to yao port)", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
+func TestBuildGRPCEnv_DefaultMode_ZeroPort(t *testing.T) {
+	config.Conf.GRPC.Port = 0
+	env := sandbox.BuildGRPCEnv("", 0, "sb-allzero")
+
+	want := "host.tai.internal:9099"
+	if env["YAO_GRPC_ADDR"] != want {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default fallback)", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
+func TestBuildGRPCEnv_SandboxID(t *testing.T) {
+	cases := []struct {
+		id   string
+		want string
+	}{
+		{"sb-001", "sb-001"},
+		{"", ""},
+		{"sb-long-id-with-dashes-123", "sb-long-id-with-dashes-123"},
+	}
+	for _, tc := range cases {
+		env := sandbox.BuildGRPCEnv("local", 0, tc.id)
+		if env["YAO_SANDBOX_ID"] != tc.want {
+			t.Errorf("SandboxID(%q): got %q, want %q", tc.id, env["YAO_SANDBOX_ID"], tc.want)
+		}
+	}
+}
+
+func TestBuildGRPCEnv_NoExtraKeys(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("local", 0, "sb-check")
+
+	allowed := map[string]bool{"YAO_GRPC_ADDR": true, "YAO_SANDBOX_ID": true}
+	for k := range env {
+		if !allowed[k] {
+			t.Errorf("unexpected key %q in env", k)
+		}
+	}
+	if len(env) != 2 {
+		t.Errorf("expected 2 keys, got %d", len(env))
 	}
 }

@@ -1,0 +1,11 @@
+{
+  "name": "Create Hook Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant for verifying Create Hook functionality",
+  "options": { "temperature": 0 },
+  "tags": ["Test", "Hook"],
+  "sort": 999,
+  "public": false
+}

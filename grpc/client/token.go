@@ -92,7 +92,8 @@ func (tm *TokenManager) UnaryInterceptor() grpc.UnaryClientInterceptor {
 }
 
 // StreamInterceptor returns a gRPC stream client interceptor that attaches
-// auth metadata.
+// auth metadata. Token refresh headers are captured lazily on the first Recv
+// to avoid blocking on stream.Header() before the server sends any data.
 func (tm *TokenManager) StreamInterceptor() grpc.StreamClientInterceptor {
 	return func(ctx context.Context, desc *grpc.StreamDesc, cc *grpc.ClientConn,
 		method string, streamer grpc.Streamer, opts ...grpc.CallOption) (grpc.ClientStream, error) {
@@ -102,11 +103,27 @@ func (tm *TokenManager) StreamInterceptor() grpc.StreamClientInterceptor {
 		if err != nil {
 			return nil, err
 		}
-		if header, hErr := stream.Header(); hErr == nil {
-			tm.HandleResponseHeaders(header)
-		}
-		return stream, nil
+		return &tokenRefreshStream{ClientStream: stream, tm: tm}, nil
 	}
+}
+
+// tokenRefreshStream wraps a ClientStream to capture token refresh headers
+// from the server on the first successful Recv, without blocking upfront.
+type tokenRefreshStream struct {
+	grpc.ClientStream
+	tm      *TokenManager
+	checked bool
+}
+
+func (s *tokenRefreshStream) RecvMsg(m interface{}) error {
+	err := s.ClientStream.RecvMsg(m)
+	if !s.checked {
+		s.checked = true
+		if header, hErr := s.ClientStream.Header(); hErr == nil {
+			s.tm.HandleResponseHeaders(header)
+		}
+	}
+	return err
 }
 
 // AccessToken returns the current access token.

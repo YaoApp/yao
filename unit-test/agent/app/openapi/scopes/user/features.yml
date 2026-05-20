@@ -1,0 +1,12 @@
+# Features - User Feature Permissions
+# namespace: user
+# resource: features
+# actions: read
+# levels: own
+
+user:features:read:own:
+  owner: true
+  description: "Read own feature permissions"
+  endpoints:
+    - GET /user/features
+

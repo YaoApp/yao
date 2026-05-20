@@ -1,0 +1,11 @@
+{
+  "name": "Create Hook Stress Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant for stress tests, goroutine leak detection and memory leak detection",
+  "options": { "temperature": 0 },
+  "tags": ["Test", "Stress"],
+  "sort": 999,
+  "public": false
+}

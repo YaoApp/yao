@@ -1,0 +1,95 @@
+{
+  "baseurl": "/v1", // Base URL path for OpenAPI endpoints
+  "store": "__yao.oauth.store", // Default store for OAuth data
+  "cache": "__yao.oauth.cache", // Default cache for OAuth data
+  "providers": {
+    "user": "__yao.user", // User provider: Any Yao model with required fields (default: __yao.user)
+    "client": "__yao.oauth.client", // Client store: Any Yao Store for OAuth client KV data (default: __yao.oauth.client uses Badger)
+  },
+  "oauth": {
+    "issuer_url": "https://localhost:5099", // Required: OAuth token issuer URL for OAuth server
+    "signing": {
+      "signing_cert_path": "signing-cert.pem", // Required: Path relative to {YAO_ROOT}/openapi/certs/ directory
+      "signing_key_path": "signing-key.pem", // Required: Path relative to {YAO_ROOT}/openapi/certs/ directory
+      "signing_key_password": "", // Optional: Password for encrypted private key (default: empty)
+      "signing_algorithm": "RS256", // Optional: Token signing algorithm (default: RS256)
+      "verification_certs": [], // Optional: Additional certificates for token verification (default: empty)
+      "mtls_client_ca_cert_path": "mtls-client-ca.pem", // Optional: CA certificate path relative to {YAO_ROOT}/openapi/certs/
+      "mtls_enabled": true, // Optional: Enable mutual TLS authentication (default: false)
+      "cert_rotation_enabled": false, // Optional: Enable automatic certificate rotation (default: false)
+      "cert_rotation_interval": "24h", // Optional: Certificate rotation interval (default: 24h)
+    },
+    "token": {
+      "access_token_lifetime": "1h", // Optional: Access token validity period (default: 1h)
+      "access_token_format": "jwt", // Optional: Access token format - jwt/opaque (default: jwt)
+      "access_token_signing_alg": "RS256", // Optional: Access token signing algorithm (default: RS256)
+      "refresh_token_lifetime": "24h", // Optional: Refresh token validity period (default: 24h)
+      "refresh_token_rotation": true, // Optional: Enable refresh token rotation for OAuth 2.1 (default: false)
+      "refresh_token_format": "opaque", // Optional: Refresh token format - opaque/jwt (default: opaque)
+      "authorization_code_lifetime": "10m", // Optional: Authorization code validity period (default: 10m)
+      "authorization_code_length": 32, // Optional: Authorization code length in bytes (default: 32)
+      "device_code_lifetime": "15m", // Optional: Device code validity period (default: 15m)
+      "device_code_length": 8, // Optional: Device code length in bytes (default: 8)
+      "user_code_length": 8, // Optional: User code length for device flow (default: 8)
+      "device_code_interval": "5s", // Optional: Device code polling interval (default: 5s)
+      "token_binding_enabled": false, // Optional: Enable token binding to client certificates (default: false)
+      "supported_binding_types": ["dpop", "mtls"], // Optional: Supported token binding types (default: [dpop, mtls])
+      "default_audience": [], // Optional: Default token audience (default: empty)
+      "audience_validation_mode": "strict", // Optional: Audience validation mode - strict/relaxed (default: strict)
+    },
+    "security": {
+      "pkce_required": true, // Optional: Require PKCE for OAuth 2.1 compliance (default: true)
+      "pkce_code_challenge_method": ["S256"], // Optional: Supported PKCE code challenge methods (default: [S256])
+      "pkce_code_verifier_length": 128, // Optional: PKCE code verifier length (default: 128)
+      "state_parameter_required": false, // Optional: Require state parameter for CSRF protection (default: false)
+      "state_parameter_lifetime": "10m", // Optional: State parameter validity period (default: 10m)
+      "state_parameter_length": 32, // Optional: State parameter length in bytes (default: 32)
+      "rate_limit_enabled": false, // Optional: Enable rate limiting (default: false)
+      "rate_limit_requests": 100, // Optional: Number of requests per window (default: 100)
+      "rate_limit_window": "1m", // Optional: Rate limit time window (default: 1m)
+      "rate_limit_by_client_id": false, // Optional: Enable per-client rate limiting (default: false)
+      "brute_force_protection_enabled": false, // Optional: Enable brute force attack protection (default: false)
+      "max_failed_attempts": 5, // Optional: Maximum failed login attempts (default: 5)
+      "lockout_duration": "15m", // Optional: Account lockout duration (default: 15m)
+      "encryption_key": "", // Optional: Key for encrypting sensitive data (default: empty)
+      "encryption_algorithm": "AES-256-GCM", // Optional: Encryption algorithm for sensitive data (default: AES-256-GCM)
+      "ip_whitelist": [], // Optional: IP addresses allowed to access (default: empty)
+      "ip_blacklist": [], // Optional: IP addresses blocked from access (default: empty)
+      "require_https": true, // Optional: Require HTTPS for all endpoints (default: true)
+      "disable_unsecure_endpoints": false, // Optional: Disable non-HTTPS endpoints (default: false)
+      "secure_cookie": false, // Optional: Use __Host- prefix and Secure flag for cookies (default: true). Set to false for HTTP dev environments with non-localhost IPs like 192.168.x.x
+    },
+    "client": {
+      "default_client_type": "confidential", // Optional: Default client type - confidential/public (default: confidential)
+      "default_token_endpoint_auth_method": "client_secret_basic", // Optional: Default client authentication method (default: client_secret_basic)
+      "default_grant_types": ["authorization_code", "refresh_token"], // Optional: Default supported grant types (default: [authorization_code, refresh_token])
+      "default_response_types": ["code"], // Optional: Default supported response types (default: [code])
+      "default_scopes": ["openid", "profile", "email"], // Optional: Default OAuth scopes (default: [openid, profile, email])
+      "client_id_length": 32, // Optional: Client ID length in bytes (default: 32)
+      "client_secret_length": 64, // Optional: Client secret length in bytes (default: 64)
+      "client_secret_lifetime": "0s", // Optional: Client secret lifetime - 0 = never expires (default: 0s)
+      "dynamic_registration_enabled": true, // Optional: Enable dynamic client registration (default: true)
+      "allowed_redirect_uri_schemes": ["https", "http"], // Optional: Allowed redirect URI schemes (default: [https, http])
+      "allowed_redirect_uri_hosts": ["localhost", "127.0.0.1"], // Optional: Allowed redirect URI hosts (default: [localhost, 127.0.0.1])
+      "client_certificate_required": false, // Optional: Require client certificates (default: false)
+      "client_certificate_validation": "none", // Optional: Client certificate validation mode - none/optional/required (default: none)
+    },
+    "features": {
+      "oauth21_enabled": true, // Optional: Enable OAuth 2.1 features (default: true)
+      "pkce_enforced": true, // Optional: Enforce PKCE for all clients (default: true)
+      "refresh_token_rotation_enabled": true, // Optional: Enable refresh token rotation (default: true)
+      "device_flow_enabled": true, // Optional: Enable device authorization flow (default: true)
+      "token_exchange_enabled": true, // Optional: Enable token exchange RFC 8693 (default: false)
+      "pushed_authorization_enabled": true, // Optional: Enable pushed authorization requests RFC 9126 (default: false)
+      "dynamic_client_registration_enabled": true, // Optional: Enable dynamic client registration RFC 7591 (default: true)
+      "mcp_compliance_enabled": true, // Optional: Enable MCP (Model Context Protocol) compliance (default: false)
+      "resource_parameter_enabled": true, // Optional: Enable resource parameter support (default: false)
+      "token_binding_enabled": false, // Optional: Enable token binding to client certificates (default: false)
+      "mtls_enabled": true, // Optional: Enable mutual TLS authentication (default: false)
+      "dpop_enabled": false, // Optional: Enable DPoP (Demonstration of Proof-of-Possession) (default: false)
+      "jwt_introspection_enabled": true, // Optional: Enable JWT token introspection (default: true)
+      "token_revocation_enabled": true, // Optional: Enable token revocation RFC 7009 (default: true)
+      "userinfo_jwt_enabled": true, // Optional: Enable JWT format for UserInfo responses (default: false)
+    },
+  },
+}

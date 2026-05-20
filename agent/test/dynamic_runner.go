@@ -21,7 +21,7 @@ type DynamicRunner struct {
 func NewDynamicRunner(opts *Options) *DynamicRunner {
 	return &DynamicRunner{
 		opts:     opts,
-		output:   NewOutputWriter(opts.Verbose),
+		output:   NewOutputWriterWithWriter(opts.Verbose, opts.Writer, opts.EventWriter),
 		asserter: NewAsserter(),
 	}
 }

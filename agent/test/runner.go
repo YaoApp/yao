@@ -30,10 +30,10 @@ type Executor struct {
 func NewRunner(opts *Options) *Executor {
 	return &Executor{
 		opts:         opts,
-		output:       NewOutputWriter(opts.Verbose),
+		output:       NewOutputWriterWithWriter(opts.Verbose, opts.Writer, opts.EventWriter),
 		resolver:     NewResolver(),
 		loader:       NewLoader(),
-		hookExecutor: NewHookExecutor(opts.Verbose),
+		hookExecutor: NewHookExecutor(opts.Verbose, opts.Writer, opts.EventWriter),
 	}
 }
 
@@ -446,8 +446,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 			result.Status = StatusError
 			result.Error = fmt.Sprintf("before script failed: %s", err.Error())
 			result.DurationMs = time.Since(startTime).Milliseconds()
-			r.output.TestResult(result.Status, time.Since(startTime))
-			r.output.TestError(result.Error)
+			r.output.TestResult(tc.ID, result.Status, time.Since(startTime))
+			r.output.TestError(tc.ID, result.Error)
 			// Note: after script is NOT called when before fails
 			return result
 		}
@@ -470,8 +470,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		result.Status = StatusError
 		result.Error = fmt.Sprintf("failed to parse input: %s", err.Error())
 		result.DurationMs = time.Since(startTime).Milliseconds()
-		r.output.TestResult(result.Status, time.Since(startTime))
-		r.output.TestError(result.Error)
+		r.output.TestResult(tc.ID, result.Status, time.Since(startTime))
+		r.output.TestError(tc.ID, result.Error)
 		return result
 	}
 
@@ -499,8 +499,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	if timeoutCtx.Err() != nil {
 		result.Status = StatusTimeout
 		result.Error = fmt.Sprintf("timeout after %s", timeout)
-		r.output.TestResult(result.Status, duration)
-		r.output.TestError(result.Error)
+		r.output.TestResult(tc.ID, result.Status, duration)
+		r.output.TestError(tc.ID, result.Error)
 		return result
 	}
 
@@ -508,8 +508,8 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	if err != nil {
 		result.Status = StatusError
 		result.Error = err.Error()
-		r.output.TestResult(result.Status, duration)
-		r.output.TestError(result.Error)
+		r.output.TestResult(tc.ID, result.Status, duration)
+		r.output.TestError(tc.ID, result.Error)
 		return result
 	}
 
@@ -527,9 +527,9 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 		result.Error = errMsg
 	}
 
-	r.output.TestResult(result.Status, duration)
+	r.output.TestResult(tc.ID, result.Status, duration)
 	if result.Status == StatusFailed {
-		r.output.TestError(result.Error)
+		r.output.TestError(tc.ID, result.Error)
 	}
 	r.output.TestOutput(fmt.Sprintf("%v", result.Output))
 
@@ -555,8 +555,8 @@ func (r *Executor) runDynamicTest(ast *assistant.Assistant, tc *Case, agentID st
 				Error:      fmt.Sprintf("before script failed: %s", err.Error()),
 				DurationMs: time.Since(startTime).Milliseconds(),
 			}
-			r.output.TestResult(result.Status, time.Since(startTime))
-			r.output.TestError(result.Error)
+			r.output.TestResult(tc.ID, result.Status, time.Since(startTime))
+			r.output.TestError(tc.ID, result.Error)
 			return result
 		}
 	}
@@ -580,7 +580,7 @@ func (r *Executor) runDynamicTest(ast *assistant.Assistant, tc *Case, agentID st
 	r.output.DynamicTestResult(result.Status, dynamicResult.TotalTurns, len(tc.Checkpoints), duration)
 
 	if result.Error != "" {
-		r.output.TestError(result.Error)
+		r.output.TestError(tc.ID, result.Error)
 	}
 
 	return result
@@ -1005,7 +1005,11 @@ func (r *Executor) outputDryRun(testCases []*Case, agentInfo *AgentInfo) (*Repor
 			r.output.Warning("Failed to marshal test case %s: %s", tc.ID, err.Error())
 			continue
 		}
-		fmt.Println(string(data))
+		if r.output.events != nil {
+			r.output.emitEvent(map[string]interface{}{"type": "dry_run_case", "case": tc})
+		} else {
+			fmt.Fprintln(r.output.writer, string(data))
+		}
 	}
 
 	// Write to output file if specified

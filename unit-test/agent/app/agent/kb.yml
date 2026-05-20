@@ -1,0 +1,45 @@
+# Internal Knowledge Base
+# Configuration for dynamically creating KB collections for chat sessions
+
+# ===============================
+# Chat Session Collection Settings
+# ===============================
+chat:
+  # Default collection creation parameters
+  # These parameters will be used when creating KB collections for chat sessions
+  embedding_provider_id: "__yao.openai" # Embedding provider (must match providers in kb.yao)
+  embedding_option_id: "text-embedding-3-small" # Embedding model option
+  locale: "zh-CN" # Default locale for content processing
+
+  # Vector index configuration (optional, will use KB defaults if not set)
+  config:
+    index_type: "hnsw" # Index type: hnsw (recommended) or ivf
+    distance: "cosine" # Distance metric: cosine (recommended), l2, or dot
+
+    # HNSW index parameters (optional, will use KB defaults if not set)
+    # m: 16 # Number of bidirectional links per node (default: 16)
+    # ef_construction: 200 # Size of dynamic candidate list during construction (default: 200)
+    # ef_search: 64 # Size of dynamic candidate list for search (default: 64)
+
+  # Collection metadata defaults (optional)
+  metadata:
+    category: "chat_session" # Category identifier for chat collections
+    auto_created: true # Flag to indicate this was auto-created
+
+  # Document processing defaults (for adding chat messages to KB)
+  # These are used when adding documents/messages to the chat collection
+  document_defaults:
+    # Chunking provider configuration (text segmentation)
+    chunking:
+      provider_id: "__yao.structured" # Structured chunking (fastest, rule-based)
+      option_id: "standard" # Standard size chunks (size: 300, overlap: 50, max_depth: 3)
+
+    # Extraction provider configuration (entity/relationship extraction)
+    extraction:
+      provider_id: "__yao.openai" # Default extraction provider
+      option_id: "gpt-4o-mini" # Model used for extraction
+
+    # Converter provider configuration (for file conversion)
+    converter:
+      provider_id: "__yao.utf8" # Default text converter
+      option_id: "standard-text" # Standard UTF-8 text conversion

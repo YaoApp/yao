@@ -1,0 +1,87 @@
+# Assistants - Agent Assistant Management
+# namespace: agent
+# resource: assistants
+# actions: read, write, delete, call
+# levels: all, own, team
+
+agent:assistants:read:all:
+  description: "Read all assistants"
+  endpoints:
+    - GET /agent/assistants
+    - GET /agent/assistants/:id
+    - GET /agent/assistants/:id/info
+
+agent:assistants:read:own:
+  owner: true
+  description: "Read own assistants"
+  endpoints:
+    - GET /agent/assistants
+    - GET /agent/assistants/:id
+    - GET /agent/assistants/:id/info
+
+agent:assistants:read:team:
+  team: true
+  description: "Read team assistants"
+  endpoints:
+    - GET /agent/assistants
+    - GET /agent/assistants/:id
+    - GET /agent/assistants/:id/info
+
+agent:assistants:write:all:
+  description: "Create and update all assistants"
+  endpoints:
+    - POST /agent/assistants
+    - PUT /agent/assistants/:id
+
+agent:assistants:write:own:
+  owner: true
+  description: "Create and update own assistants"
+  endpoints:
+    - POST /agent/assistants
+    - PUT /agent/assistants/:id
+
+agent:assistants:write:team:
+  team: true
+  description: "Create and update team assistants"
+  endpoints:
+    - POST /agent/assistants
+    - PUT /agent/assistants/:id
+
+agent:assistants:delete:all:
+  description: "Delete all assistants"
+  endpoints:
+    - DELETE /agent/assistants/:id
+
+agent:assistants:delete:own:
+  owner: true
+  description: "Delete own assistants"
+  endpoints:
+    - DELETE /agent/assistants/:id
+
+agent:assistants:delete:team:
+  team: true
+  description: "Delete team assistants"
+  endpoints:
+    - DELETE /agent/assistants/:id
+
+agent:assistants:call:all:
+  description: "Call all assistants"
+  endpoints:
+    - POST /agent/assistants/:id/call
+
+agent:assistants:call:own:
+  owner: true
+  description: "Call own assistants"
+  endpoints:
+    - POST /agent/assistants/:id/call
+
+agent:assistants:call:team:
+  team: true
+  description: "Call team assistants"
+  endpoints:
+    - POST /agent/assistants/:id/call
+
+agent:tags:read:all:
+  description: "Read all assistant tags"
+  endpoints:
+    - GET /agent/assistants/tags

@@ -1,0 +1,98 @@
+#!/bin/bash
+#
+# yao-test - Run go test inside a golang container with local repos mounted.
+#
+# Volume-mounts the yao source tree and all its local replace dependencies
+# (parsed from go.mod) so that edits on the host are instantly visible.
+#
+# Usage:
+#   bin/yao-test -v -run TestPickNode ./agent/sandbox/v2/...
+#   bin/yao-test ./...
+#   bin/yao-test --shell            # interactive bash inside the container
+#   bin/yao-test --build             # go build (verify compilation)
+#
+# Environment variables:
+#   GO_IMAGE   - Docker image to use (default: golang:1.25)
+#   EXTRA_ARGS - Extra docker-run flags (e.g. "--cpus 4")
+
+set -euo pipefail
+
+# ---------------------------------------------------------------------------
+# Resolve paths
+# ---------------------------------------------------------------------------
+SCRIPT_PATH="${BASH_SOURCE[0]}"
+while [ -L "$SCRIPT_PATH" ]; do
+    SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+    SCRIPT_PATH="$(readlink "$SCRIPT_PATH")"
+    [[ "$SCRIPT_PATH" != /* ]] && SCRIPT_PATH="$SCRIPT_DIR/$SCRIPT_PATH"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+
+YAO_DIR="$(dirname "$SCRIPT_DIR")"          # …/Yao/yao
+WORKSPACE="$(dirname "$YAO_DIR")"           # …/Yao
+
+GO_IMAGE="${GO_IMAGE:-golang:1.25}"
+CONTAINER_WS="/workspace"
+
+# ---------------------------------------------------------------------------
+# Build volume mounts from go.mod replace directives
+# ---------------------------------------------------------------------------
+MOUNTS=()
+MOUNTS+=("-v" "$YAO_DIR:$CONTAINER_WS/yao")
+
+while IFS= read -r line; do
+    # Extract the local relative path: "replace … => ../foo // comment"  →  "foo"
+    rel=$(echo "$line" | sed -n 's|.*=> \.\./\([^ ]*\).*|\1|p')
+    [ -z "$rel" ] && continue
+    host_path="$WORKSPACE/$rel"
+    if [ ! -d "$host_path" ]; then
+        echo "WARN: replace dependency ../$rel not found at $host_path (skipped)"
+        continue
+    fi
+    MOUNTS+=("-v" "$host_path:$CONTAINER_WS/$rel")
+done < <(grep '^replace .* => \.\./' "$YAO_DIR/go.mod")
+
+# Optional: mount tai if present (not a replace dep but useful for dev)
+if [ -d "$WORKSPACE/tai" ]; then
+    MOUNTS+=("-v" "$WORKSPACE/tai:$CONTAINER_WS/tai")
+fi
+
+# ---------------------------------------------------------------------------
+# Go module cache — persist across runs for faster builds
+# ---------------------------------------------------------------------------
+GOMOD_CACHE="$HOME/.cache/yao-test-gomod"
+mkdir -p "$GOMOD_CACHE"
+MOUNTS+=("-v" "$GOMOD_CACHE:/go/pkg/mod")
+
+GOBUILD_CACHE="$HOME/.cache/yao-test-gobuild"
+mkdir -p "$GOBUILD_CACHE"
+MOUNTS+=("-v" "$GOBUILD_CACHE:/root/.cache/go-build")
+
+# ---------------------------------------------------------------------------
+# Dispatch
+# ---------------------------------------------------------------------------
+DOCKER_FLAGS=(
+    --rm
+    --platform linux/arm64
+    "${MOUNTS[@]}"
+    ${EXTRA_ARGS:-}
+    -w "$CONTAINER_WS/yao"
+    -e "GOFLAGS=-mod=mod"
+)
+
+case "${1:-}" in
+    --shell)
+        echo "→ Entering container shell (${GO_IMAGE})"
+        echo "  Workspace: $CONTAINER_WS/yao"
+        exec docker run -it "${DOCKER_FLAGS[@]}" "$GO_IMAGE" bash
+        ;;
+    --build)
+        shift
+        echo "→ go build in container (${GO_IMAGE})"
+        exec docker run "${DOCKER_FLAGS[@]}" "$GO_IMAGE" go build "${@:-.}"
+        ;;
+    *)
+        echo "→ go test in container (${GO_IMAGE})"
+        exec docker run "${DOCKER_FLAGS[@]}" "$GO_IMAGE" go test "$@"
+        ;;
+esac

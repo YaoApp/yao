@@ -1,3 +1,6 @@
+# Build output
+.build/
+
 # Binaries for programs and plugins
 *.exe
 *.exe~
@@ -25,6 +28,7 @@ tests/data/*
 !tests/data/assets
 debug.log
 yao-test
+!bin/yao-test
 dev.sh
 logs
 logs/application.log
@@ -87,3 +91,20 @@ openapi/setting/*.md
 agent/docs/design/*.md
 tools/README.md
 tools/TOOL-REGISTRATION.md
+docs/*.md
+agent/sandbox/v2/docs/*.md
+!unit-test/agent/scripts/*.sh
+unit-test/*.md
+unit-test/*/*.md
+!unit-test/agent/TESTING.md
+unit-test/agent/env/secrets.env
+unit-test/agent/env/local.env
+unit-test/agent/env/agent-test.env
+unit-test/agent/env/agent-test-pg.env
+unit-test/agent/env/.env.local
+unit-test/agent/app/.env
+unit-test/agent/app/db/
+unit-test/agent/app/data/
+unit-test/agent/app/logs/
+file::memory:
+:memory:

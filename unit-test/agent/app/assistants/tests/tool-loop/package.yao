@@ -1,0 +1,12 @@
+{
+  "name": "Tool Loop Test",
+  "connector": "openai.mock",
+  "description": "Test assistant for tool loop testing",
+  "mcp": {
+    "servers": [{ "server_id": "echo" }],
+    "options": {
+      "tool_loop": true,
+      "max_turn": 3
+    }
+  }
+}

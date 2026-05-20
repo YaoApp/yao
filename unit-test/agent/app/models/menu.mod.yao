@@ -1,0 +1,131 @@
+{
+  "name": "Menu",
+  "label": "Menu",
+  "description": "Menu configuration table for storing user menus",
+  "tags": ["system"],
+  "builtin": true,
+  "readonly": false,
+  "sort": 9999,
+  "table": {
+    "name": "menu",
+    "comment": "Menu configuration table"
+  },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "menu_id",
+      "type": "string",
+      "label": "Menu ID",
+      "comment": "Unique string identifier for the menu",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "parent",
+      "type": "string",
+      "label": "Parent Menu ID",
+      "comment": "Parent menu_id for nested menus, null for root items",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "json",
+      "label": "Menu Name",
+      "comment": "Display name of the menu item, supports i18n: {\"en\": \"Dashboard\", \"zh-cn\": \"数据看板\"}",
+      "nullable": false
+    },
+    {
+      "name": "description",
+      "type": "json",
+      "label": "Description",
+      "comment": "Menu item description, supports i18n: {\"en\": \"...\", \"zh-cn\": \"...\"}",
+      "nullable": true
+    },
+    {
+      "name": "icon",
+      "type": "json",
+      "label": "Icon",
+      "comment": "Menu icon configuration, can be string or object {name, size}",
+      "nullable": true
+    },
+    {
+      "name": "path",
+      "type": "string",
+      "label": "Path",
+      "comment": "Navigation path or URL",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "type",
+      "type": "enum",
+      "label": "Menu Type",
+      "comment": "Type of menu: items (main menu), setting (settings menu), quick (quick access menu)",
+      "option": ["items", "setting", "quick"],
+      "default": "items",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "sort",
+      "type": "integer",
+      "label": "Sort Order",
+      "comment": "Sort order for display",
+      "default": 0,
+      "nullable": false
+    },
+    {
+      "name": "status",
+      "type": "enum",
+      "label": "Status",
+      "comment": "Menu status",
+      "option": ["enabled", "disabled"],
+      "default": "enabled",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "public",
+      "type": "boolean",
+      "label": "Public Menu",
+      "comment": "Whether this menu is visible to all users",
+      "default": false,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "share",
+      "type": "enum",
+      "label": "Share Scope",
+      "comment": "Menu sharing scope",
+      "option": ["private", "team"],
+      "default": "private",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "extra",
+      "type": "json",
+      "label": "Extra",
+      "comment": "Additional configuration or metadata",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "comment": "Parent and sort index for ordering children",
+      "name": "parent_sort_index",
+      "columns": ["parent", "sort"],
+      "type": "index"
+    }
+  ],
+  "option": { "soft_deletes": true, "permission": true, "timestamps": true }
+}

@@ -1,0 +1,9 @@
+{
+  "label": "Mock Generator",
+  "type": "openai",
+  "options": {
+    "model": "mock-generator",
+    "host": "$ENV.MOCK_LLM_HOST",
+    "key": "mock-key-not-validated"
+  }
+}

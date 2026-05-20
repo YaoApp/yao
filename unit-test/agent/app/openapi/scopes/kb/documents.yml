@@ -1,0 +1,75 @@
+# Documents - Knowledge Base Document Management
+# namespace: kb
+# resource: documents
+# actions: read, write, delete
+# levels: all, own, team
+
+kb:documents:read:all:
+  description: "Read all documents"
+  endpoints:
+    - GET /kb/documents
+    - GET /kb/documents/:docID
+
+kb:documents:read:own:
+  owner: true
+  description: "Read own documents"
+  endpoints:
+    - GET /kb/documents
+    - GET /kb/documents/:docID
+
+kb:documents:read:team:
+  team: true
+  description: "Read team documents"
+  endpoints:
+    - GET /kb/documents
+    - GET /kb/documents/:docID
+
+kb:documents:write:all:
+  description: "Add and update all documents"
+  endpoints:
+    - POST /kb/collections/:collectionID/documents/file
+    - POST /kb/collections/:collectionID/documents/file/async
+    - POST /kb/collections/:collectionID/documents/text
+    - POST /kb/collections/:collectionID/documents/text/async
+    - POST /kb/collections/:collectionID/documents/url
+    - POST /kb/collections/:collectionID/documents/url/async
+
+kb:documents:write:own:
+  owner: true
+  description: "Add and update own documents"
+  endpoints:
+    - POST /kb/collections/:collectionID/documents/file
+    - POST /kb/collections/:collectionID/documents/file/async
+    - POST /kb/collections/:collectionID/documents/text
+    - POST /kb/collections/:collectionID/documents/text/async
+    - POST /kb/collections/:collectionID/documents/url
+    - POST /kb/collections/:collectionID/documents/url/async
+
+kb:documents:write:team:
+  team: true
+  description: "Add and update team documents"
+  endpoints:
+    - POST /kb/collections/:collectionID/documents/file
+    - POST /kb/collections/:collectionID/documents/file/async
+    - POST /kb/collections/:collectionID/documents/text
+    - POST /kb/collections/:collectionID/documents/text/async
+    - POST /kb/collections/:collectionID/documents/url
+    - POST /kb/collections/:collectionID/documents/url/async
+
+kb:documents:delete:all:
+  description: "Delete all documents"
+  endpoints:
+    - DELETE /kb/documents
+
+kb:documents:delete:own:
+  owner: true
+  description: "Delete own documents"
+  endpoints:
+    - DELETE /kb/documents
+
+kb:documents:delete:team:
+  team: true
+  description: "Delete team documents"
+  endpoints:
+    - DELETE /kb/documents
+

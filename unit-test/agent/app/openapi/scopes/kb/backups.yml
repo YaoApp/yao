@@ -1,0 +1,26 @@
+# Backups - Collection Backup and Restore
+# namespace: kb
+# resource: backups
+# actions: execute
+# levels: all, own, team
+
+kb:backups:execute:all:
+  description: "Backup and restore all collections"
+  endpoints:
+    - POST /kb/collections/:collectionID/backup
+    - POST /kb/collections/:collectionID/restore
+
+kb:backups:execute:own:
+  owner: true
+  description: "Backup and restore own collections"
+  endpoints:
+    - POST /kb/collections/:collectionID/backup
+    - POST /kb/collections/:collectionID/restore
+
+kb:backups:execute:team:
+  team: true
+  description: "Backup and restore team collections"
+  endpoints:
+    - POST /kb/collections/:collectionID/backup
+    - POST /kb/collections/:collectionID/restore
+

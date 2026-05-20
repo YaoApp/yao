@@ -1,0 +1,54 @@
+# LLM Providers - Setting Management
+# namespace: setting
+# resource: llm
+# actions: read, write
+# levels: all, own, team
+
+setting:llm:read:all:
+  description: "Read LLM provider configuration"
+  endpoints:
+    - GET /setting/llm
+
+setting:llm:read:own:
+  owner: true
+  description: "Read own LLM provider configuration"
+  endpoints:
+    - GET /setting/llm
+
+setting:llm:read:team:
+  team: true
+  description: "Read team LLM provider configuration"
+  endpoints:
+    - GET /setting/llm
+
+setting:llm:write:all:
+  description: "Manage LLM providers and roles"
+  endpoints:
+    - PUT /setting/llm/roles
+    - POST /setting/llm/test
+    - POST /setting/llm/providers
+    - PUT /setting/llm/providers/:key
+    - DELETE /setting/llm/providers/:key
+    - POST /setting/llm/providers/:key/test
+
+setting:llm:write:own:
+  owner: true
+  description: "Manage own LLM providers and roles"
+  endpoints:
+    - PUT /setting/llm/roles
+    - POST /setting/llm/test
+    - POST /setting/llm/providers
+    - PUT /setting/llm/providers/:key
+    - DELETE /setting/llm/providers/:key
+    - POST /setting/llm/providers/:key/test
+
+setting:llm:write:team:
+  team: true
+  description: "Manage team LLM providers and roles"
+  endpoints:
+    - PUT /setting/llm/roles
+    - POST /setting/llm/test
+    - POST /setting/llm/providers
+    - PUT /setting/llm/providers/:key
+    - DELETE /setting/llm/providers/:key
+    - POST /setting/llm/providers/:key/test

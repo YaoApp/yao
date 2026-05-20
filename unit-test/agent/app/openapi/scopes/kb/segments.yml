@@ -1,0 +1,84 @@
+# Segments - Knowledge Base Segment Management
+# namespace: kb
+# resource: segments
+# actions: read, write, delete
+# levels: all, own, team
+
+kb:segments:read:all:
+  description: "Read all segments"
+  endpoints:
+    - GET /kb/documents/:docID/segments
+    - GET /kb/documents/:docID/segments/search
+    - GET /kb/documents/:docID/segments/:segmentID
+    - GET /kb/documents/:docID/segments/:segmentID/parents
+
+kb:segments:read:own:
+  owner: true
+  description: "Read own segments"
+  endpoints:
+    - GET /kb/documents/:docID/segments
+    - GET /kb/documents/:docID/segments/search
+    - GET /kb/documents/:docID/segments/:segmentID
+    - GET /kb/documents/:docID/segments/:segmentID/parents
+
+kb:segments:read:team:
+  team: true
+  description: "Read team segments"
+  endpoints:
+    - GET /kb/documents/:docID/segments
+    - GET /kb/documents/:docID/segments/search
+    - GET /kb/documents/:docID/segments/:segmentID
+    - GET /kb/documents/:docID/segments/:segmentID/parents
+
+kb:segments:write:all:
+  description: "Add and update all segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments
+    - POST /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments
+    - PUT /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments/scores
+    - PUT /kb/documents/:docID/segments/weights
+
+kb:segments:write:own:
+  owner: true
+  description: "Add and update own segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments
+    - POST /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments
+    - PUT /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments/scores
+    - PUT /kb/documents/:docID/segments/weights
+
+kb:segments:write:team:
+  team: true
+  description: "Add and update team segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments
+    - POST /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments
+    - PUT /kb/documents/:docID/segments/async
+    - PUT /kb/documents/:docID/segments/scores
+    - PUT /kb/documents/:docID/segments/weights
+
+kb:segments:delete:all:
+  description: "Delete all segments"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments
+    - DELETE /kb/documents/:docID/segments/all
+
+kb:segments:delete:own:
+  owner: true
+  description: "Delete own segments"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments
+    - DELETE /kb/documents/:docID/segments/all
+
+kb:segments:delete:team:
+  team: true
+  description: "Delete team segments"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments
+    - DELETE /kb/documents/:docID/segments/all
+

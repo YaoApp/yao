@@ -1,0 +1,45 @@
+# SMTP - Setting Management
+# namespace: setting
+# resource: smtp
+# actions: read, write
+# levels: all, own, team
+
+setting:smtp:read:all:
+  description: "Read SMTP configuration"
+  endpoints:
+    - GET /setting/smtp
+
+setting:smtp:read:own:
+  owner: true
+  description: "Read own SMTP configuration"
+  endpoints:
+    - GET /setting/smtp
+
+setting:smtp:read:team:
+  team: true
+  description: "Read team SMTP configuration"
+  endpoints:
+    - GET /setting/smtp
+
+setting:smtp:write:all:
+  description: "Update SMTP configuration"
+  endpoints:
+    - PUT /setting/smtp
+    - PUT /setting/smtp/toggle
+    - POST /setting/smtp/test
+
+setting:smtp:write:own:
+  owner: true
+  description: "Update own SMTP configuration"
+  endpoints:
+    - PUT /setting/smtp
+    - PUT /setting/smtp/toggle
+    - POST /setting/smtp/test
+
+setting:smtp:write:team:
+  team: true
+  description: "Update team SMTP configuration"
+  endpoints:
+    - PUT /setting/smtp
+    - PUT /setting/smtp/toggle
+    - POST /setting/smtp/test

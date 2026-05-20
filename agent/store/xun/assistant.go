@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/agent/store/types"
 )
@@ -199,6 +200,16 @@ func (store *Xun) SaveAssistant(assistant *types.AssistantModel) (string, error)
 		Table(store.getAssistantTable()).
 		Insert(data)
 	if err != nil {
+		if isUniqueViolation(err) {
+			_, updateErr := store.query.New().
+				Table(store.getAssistantTable()).
+				Where("assistant_id", assistant.ID).
+				Update(data)
+			if updateErr != nil {
+				return "", updateErr
+			}
+			return assistant.ID, nil
+		}
 		return "", err
 	}
 	return assistant.ID, nil
@@ -638,9 +649,20 @@ func (store *Xun) GetAssistant(assistantID string, fields []string, locale ...st
 	}
 
 	if sandbox, has := data["sandbox"]; has && sandbox != nil {
-		sb, err := types.ToSandbox(sandbox)
-		if err == nil {
-			model.Sandbox = sb
+		if types.ExtractSandboxVersion(sandbox) == sandboxTypes.SandboxVersionV2 {
+			sb, err := types.ToSandboxV2(sandbox)
+			if err == nil {
+				model.SandboxV2 = sb
+				model.IsSandbox = true
+				if sb.Filter != nil {
+					model.ComputerFilter = sb.Filter
+				}
+			}
+		} else {
+			sb, err := types.ToSandbox(sandbox)
+			if err == nil {
+				model.Sandbox = sb
+			}
 		}
 	}
 
@@ -805,7 +827,13 @@ func (store *Xun) GetAssistantTags(filter types.AssistantFilter, locale ...strin
 		})
 	}
 
-	rows, err := qb.Select("tags").GroupBy("tags").Get()
+	qb.WhereNotNull("tags")
+	if store.getDriver() == "postgres" {
+		qb.SelectRaw("tags::text as tags").GroupByRaw("tags::text")
+	} else {
+		qb.Select("tags").GroupBy("tags")
+	}
+	rows, err := qb.Get()
 	if err != nil {
 		return nil, err
 	}
@@ -938,4 +966,13 @@ func (store *Xun) sandboxRawSQL() (string, string) {
 	default:
 		return "CAST(`sandbox` AS CHAR) <> 'null'", "CAST(`sandbox` AS CHAR) = 'null'"
 	}
+}
+
+// isUniqueViolation returns true if err indicates a unique constraint violation
+// across SQLite ("UNIQUE constraint"), PostgreSQL ("duplicate key"), and MySQL ("Duplicate entry").
+func isUniqueViolation(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "unique constraint") ||
+		strings.Contains(msg, "duplicate key") ||
+		strings.Contains(msg, "duplicate entry")
 }

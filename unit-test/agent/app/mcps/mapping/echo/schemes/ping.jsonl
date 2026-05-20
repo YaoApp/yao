@@ -1,0 +1,4 @@
+{"name":"single_ping","description":"Simple ping with default count","input":{"count":1},"output":{"message":"pong","count":1,"timestamp":"2024-11-27T10:30:00.000Z"}}
+{"name":"multiple_pings","description":"Ping with multiple counts","input":{"count":3},"output":{"message":"pong","count":3,"timestamp":"2024-11-27T10:30:05.123Z"}}
+{"name":"custom_message","description":"Ping with custom message","input":{"count":2,"message":"hello"},"output":{"message":"hello","count":2,"timestamp":"2024-11-27T10:30:10.456Z"}}
+

@@ -1,0 +1,31 @@
+{
+  "id": "chatcmpl-fixture-openai-tc-001",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "gpt-4o-mini",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_fixture_001",
+            "type": "function",
+            "function": {
+              "name": "get_weather",
+              "arguments": "{\"location\":\"San Francisco\",\"unit\":\"celsius\"}"
+            }
+          }
+        ]
+      },
+      "finish_reason": "tool_calls"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 50,
+    "completion_tokens": 25,
+    "total_tokens": 75
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "uri": "search://config",
+  "name": "Search Configuration",
+  "description": "Get the current search service configuration",
+  "mimeType": "application/json",
+  "x-process-args": []
+}
+

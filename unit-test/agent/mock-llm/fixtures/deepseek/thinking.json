@@ -1,0 +1,22 @@
+{
+  "id": "chatcmpl-fixture-deepseek-think-001",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "deepseek-v4-flash",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "The answer is 42.",
+        "reasoning_content": "Let me think about this step by step. The user is asking about the meaning of life, the universe, and everything. According to Douglas Adams, the answer is 42."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 20,
+    "completion_tokens": 55,
+    "total_tokens": 75
+  }
+}

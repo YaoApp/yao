@@ -1,0 +1,73 @@
+# Teams - Team Management
+# namespace: user
+# resource: teams
+# actions: read, write, delete
+# levels: public, own, team
+
+# ============ Public Access (No Authentication) ============
+
+user:teams:read:public:
+  description: "Public access to view team invitations"
+  endpoints:
+    - GET /user/teams/invitations/:invitation_id
+
+user:teams:write:public:
+  description: "Accept team invitation"
+  endpoints:
+    - POST /user/teams/invitations/:invitation_id/accept
+
+# ============ Common Access (Both User and Team Context) ============
+
+user:teams:read:config:
+  description: "Read team configuration"
+  endpoints:
+    - GET /user/teams/config
+
+user:teams:write:select:
+  description: "Select a team and switch context"
+  endpoints:
+    - POST /user/teams/select
+
+# ============ User Context - Manage Own Teams (as owner) ============
+
+user:teams:read:own:
+  owner: true
+  description: "Read own teams (where user is owner)"
+  endpoints:
+    - GET /user/teams
+    - GET /user/teams/current
+    - GET /user/teams/:id
+
+user:teams:write:own:
+  owner: true
+  description: "Create and update own teams"
+  endpoints:
+    - POST /user/teams
+    - PUT /user/teams/:id
+
+user:teams:delete:own:
+  owner: true
+  description: "Delete own teams"
+  endpoints:
+    - DELETE /user/teams/:id
+
+# ============ Team Context - Current Team Operations ============
+
+user:teams:read:team:
+  team: true
+  description: "Read team info in team context"
+  endpoints:
+    - GET /user/teams/current
+    - GET /user/teams/:id
+
+user:teams:write:team:
+  team: true
+  description: "Update current team"
+  endpoints:
+    - PUT /user/teams/:id
+
+user:teams:delete:team:
+  team: true
+  description: "Delete current team"
+  endpoints:
+    - DELETE /user/teams/:id

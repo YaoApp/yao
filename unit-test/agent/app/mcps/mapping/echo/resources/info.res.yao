@@ -1,0 +1,34 @@
+{
+  "uri": "echo://info",
+  "name": "Server Information",
+  "description": "Get echo server information",
+  "mimeType": "application/json",
+  
+  "x-process-args": [],
+  
+  "schema": {
+    "type": "object",
+    "description": "Server information data",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Server name"
+      },
+      "version": {
+        "type": "string",
+        "description": "Server version"
+      },
+      "description": {
+        "type": "string",
+        "description": "Server description"
+      },
+      "capabilities": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Server capabilities"
+      }
+    },
+    "required": ["name", "version"]
+  }
+}
+

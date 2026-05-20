@@ -1,0 +1,11 @@
+# Providers - Messenger Provider Management
+# namespace: messenger
+# resource: providers
+# actions: read
+# levels: all
+
+messenger:providers:read:all:
+  description: "Read all messenger providers and their public information"
+  endpoints:
+    - GET /messenger/providers
+    - GET /messenger/providers/:name

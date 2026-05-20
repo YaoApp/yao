@@ -1,0 +1,32 @@
+# Yao Built-in APIs - System internal APIs under /__yao/*
+# namespace: __yao
+# resource: yao
+# actions: execute
+# levels: all, own, team
+# Covers: /__yao/sui/*, /__yao/app/*, /__yao/login/*, /__yao/table/*, etc.
+
+__yao:yao:execute:all:
+  description: "Execute all Yao built-in APIs"
+  endpoints:
+    - GET /__yao/*
+    - POST /__yao/*
+    - PUT /__yao/*
+    - DELETE /__yao/*
+
+__yao:yao:execute:own:
+  owner: true
+  description: "Execute Yao built-in APIs (own data)"
+  endpoints:
+    - GET /__yao/*
+    - POST /__yao/*
+    - PUT /__yao/*
+    - DELETE /__yao/*
+
+__yao:yao:execute:team:
+  team: true
+  description: "Execute Yao built-in APIs (team data)"
+  endpoints:
+    - GET /__yao/*
+    - POST /__yao/*
+    - PUT /__yao/*
+    - DELETE /__yao/*

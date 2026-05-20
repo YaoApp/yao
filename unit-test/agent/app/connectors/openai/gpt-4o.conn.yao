@@ -1,0 +1,14 @@
+{
+  "label": "OpenAI GPT-4o",
+  "type": "openai",
+  "options": {
+    "model": "gpt-4o",
+    "host": "https://api.openai.com",
+    "key": "$ENV.OPENAI_API_KEY",
+    "capabilities": {
+      "vision": true,
+      "tool_calls": true,
+      "streaming": true
+    }
+  }
+}

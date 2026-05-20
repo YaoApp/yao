@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-fixture-deepseek-mt-001",
+  "object": "chat.completion",
+  "created": 1700000000,
+  "model": "deepseek-v4-flash",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "Based on our discussion, the Fibonacci sequence starts with 0, 1, 1, 2, 3, 5, 8, 13..."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 30,
+    "total_tokens": 130
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "type": "free", // 新团队的默认订阅类型
+  "role": "team:owner", // 团队创建者的默认成员角色（owner成员角色）
+  "roles": [
+    {
+      "role_id": "team:owner",
+      "label": "团队所有者",
+      "description": "团队所有者，拥有对团队资源和成员管理的完全访问权限",
+      "default": false,
+      "hidden": true
+    },
+    {
+      "role_id": "team:admin",
+      "label": "团队管理员",
+      "description": "团队管理员，拥有成员管理和团队配置权限",
+      "default": false,
+      "hidden": false
+    },
+    {
+      "role_id": "team:member",
+      "label": "团队成员",
+      "description": "团队成员，可协作访问团队资源",
+      "default": true,
+      "hidden": false
+    }
+  ],
+
+  // AI 成员（机器人）配置
+  "robot": {
+    "roles": ["team:member", "team:admin"], // AI 成员可用的角色
+
+    // AI 成员的邮箱域名配置
+    "email_domains": [
+      {
+        "name": "机器人邮箱", // 此配置的显示名称
+        "messenger": "primary",
+        "domain": "$ENV.ROBOT_EMAIL_DOMAIN",
+        "prefix_min_length": 6, // 邮箱前缀最小长度
+        "prefix_max_length": 20, // 邮箱前缀最大长度
+        "reserved_words": ["robot", "admin", "system", "/^robot/"], // 保留/受保护的关键词
+        "whitelist": {
+          "domains": ["$ENV.ROBOT_EMAIL_DOMAIN"],
+          "senders": ["$ENV.MAILGUN_FROM"],
+          "ips": ["0.0.0.0/0"]
+        }
+      },
+      {
+        "name": "员工邮箱", // 此配置的显示名称
+        "messenger": "primary",
+        "domain": "$ENV.STAFF_EMAIL_DOMAIN",
+        "prefix_min_length": 6,
+        "prefix_max_length": 20,
+        "reserved_words": ["admin", "staff", "support", "/^team/"],
+        "whitelist": {
+          "domains": ["$ENV.STAFF_EMAIL_DOMAIN"],
+          "senders": ["$ENV.MAILGUN_FROM"],
+          "ips": ["0.0.0.0/0"]
+        }
+      }
+    ],
+
+    // AI 成员的默认设置
+    "defaults": {
+      "llm": "$ENV.DEFAULT_CONNECTOR", // 默认 LLM 连接器（在 .env 中配置）
+      "autonomous_mode": true, // 是否默认开启自主模式
+      "cost_limit": 100 // 默认每日消费限额（美元）
+    }
+  },
+
+  "invite": {
+    "channel": "default",
+    "expiry": "1d", // 邀请链接有效期: 8h, 1d, 20m 等
+    "base_url": "$ENV.APP_BASE_URL/dashboard/team/invite", // 邀请链接的基础URL（空表示使用当前域名）
+    "templates": {
+      "mail": "zh-cn.invite_member", // 邮件模板
+      "sms": "zh-cn.invite_member" // 短信模板
+    }
+  }
+}

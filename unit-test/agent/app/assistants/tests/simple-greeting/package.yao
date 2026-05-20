@@ -1,0 +1,5 @@
+{
+  "name": "Simple Greeting",
+  "description": "Minimal test agent for environment validation",
+  "connector": "openai.mock"
+}

@@ -1,0 +1,15 @@
+{
+  "label": "Mock DeepSeek V4 Flash Thinking",
+  "type": "openai",
+  "options": {
+    "model": "mock-deepseek-v4-flash",
+    "host": "$ENV.MOCK_LLM_HOST",
+    "key": "mock-key-not-validated",
+    "thinking": { "type": "enabled" },
+    "capabilities": {
+      "tool_calls": true,
+      "reasoning": true,
+      "streaming": true
+    }
+  }
+}

@@ -1,11 +1,21 @@
-package opencode
+//go:build unit
+
+package opencode_test
 
 import (
 	"encoding/json"
+	"os"
 	"testing"
 
+	opencode "github.com/yaoapp/yao/agent/sandbox/v2/opencode"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
+
+func TestMain(m *testing.M) {
+	testprepare.MustLoadEnv()
+	os.Exit(m.Run())
+}
 
 func TestBuildOpenCodeConfig_Defaults(t *testing.T) {
 	req := &types.PrepareRequest{
@@ -13,7 +23,7 @@ func TestBuildOpenCodeConfig_Defaults(t *testing.T) {
 		Config:      &types.SandboxConfig{},
 	}
 
-	data := buildOpenCodeConfig(req, nil)
+	data := opencode.BuildOpenCodeConfig(req, nil)
 	var cfg map[string]any
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -53,7 +63,7 @@ func TestBuildOpenCodeConfig_NoAssistantID(t *testing.T) {
 		Config:      &types.SandboxConfig{},
 	}
 
-	data := buildOpenCodeConfig(req, nil)
+	data := opencode.BuildOpenCodeConfig(req, nil)
 	var cfg map[string]any
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -75,7 +85,7 @@ func TestBuildOpenCodeConfig_WithMCP(t *testing.T) {
 		{ServerID: "another-server"},
 	}
 
-	data := buildOpenCodeConfig(req, servers)
+	data := opencode.BuildOpenCodeConfig(req, servers)
 	var cfg map[string]any
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -94,7 +104,7 @@ func TestBuildOpenCodeConfig_WithMCP(t *testing.T) {
 }
 
 func TestBuildMCPConfig_Default(t *testing.T) {
-	result := buildMCPConfig(nil)
+	result := opencode.BuildMCPConfig(nil)
 	if _, ok := result["yao"]; !ok {
 		t.Error("empty server list should produce default 'yao' entry")
 	}
@@ -106,7 +116,7 @@ func TestBuildMCPConfig_WithServers(t *testing.T) {
 		{ServerID: "server-b"},
 		{ServerID: ""},
 	}
-	result := buildMCPConfig(servers)
+	result := opencode.BuildMCPConfig(servers)
 	if _, ok := result["server-a"]; !ok {
 		t.Error("should contain server-a")
 	}

@@ -1,0 +1,10 @@
+{
+  "name": "MCP Tools Test",
+  "connector": "openai.mock",
+  "description": "Test assistant for MCP tool building and execution",
+  "mcp": {
+    "servers": [
+      { "server_id": "echo", "tools": ["ping", "echo"] }
+    ]
+  }
+}

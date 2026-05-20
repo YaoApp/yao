@@ -1,0 +1,6 @@
+{
+  "type": "object",
+  "description": "Ping the registry MCP server",
+  "properties": {},
+  "x-process-args": [":arguments"]
+}

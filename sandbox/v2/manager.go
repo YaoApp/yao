@@ -182,6 +182,11 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 		return nil, fmt.Errorf("sandbox: start container: %w", err)
 	}
 
+	if err := m.waitEntrypoint(ctx, res.Runtime, containerID); err != nil {
+		res.Runtime.Remove(ctx, containerID, true)
+		return nil, fmt.Errorf("sandbox: %w", err)
+	}
+
 	policy := opts.Policy
 	if policy == "" {
 		policy = Session
@@ -279,6 +284,10 @@ func (m *Manager) StartBox(ctx context.Context, id string) error {
 
 	if err := res.Runtime.Start(ctx, b.containerID); err != nil {
 		return fmt.Errorf("sandbox: start container %s: %w", b.containerID, err)
+	}
+
+	if err := m.waitEntrypoint(ctx, res.Runtime, b.containerID); err != nil {
+		return fmt.Errorf("sandbox: %w", err)
 	}
 
 	b.status.Store("running")
@@ -598,4 +607,32 @@ func (m *Manager) EnsureImage(ctx context.Context, nodeID, ref string, opts Imag
 		}
 	}
 	return nil
+}
+
+// waitEntrypoint blocks until the container's entrypoint has completed UID
+// mapping (i.e. sandbox user UID matches /workspace owner UID). This prevents
+// a race where docker exec --user sandbox resolves the old UID before
+// entrypoint's usermod finishes.
+func (m *Manager) waitEntrypoint(ctx context.Context, rt tairuntime.Runtime, containerID string) error {
+	// The probe must match entrypoint.sh semantics: when /workspace owner is
+	// UID 0 (Docker Desktop VirtioFS), the entrypoint intentionally skips UID
+	// remapping, so we treat UID 0 as "ready" as well.
+	probe := []string{"sh", "-c", "WS_UID=$(stat -c %u /workspace 2>/dev/null); [ \"$WS_UID\" = \"0\" ] || [ $(id -u sandbox 2>/dev/null) = \"$WS_UID\" ]"}
+	opts := tairuntime.ExecOptions{}
+	wait := 20 * time.Millisecond
+	for i := 0; i < 9; i++ {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(wait):
+		}
+		result, err := rt.Exec(ctx, containerID, probe, opts)
+		if err == nil && result.ExitCode == 0 {
+			return nil
+		}
+		if wait < 2*time.Second {
+			wait *= 2
+		}
+	}
+	return fmt.Errorf("entrypoint UID mapping not ready after 9 retries")
 }

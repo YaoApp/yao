@@ -71,9 +71,9 @@ func LoadScripts(srcDir string) (*hook.Script, map[string]*Script, error) {
 			return nil
 		}
 
-		// file is the full path, root is srcDir
-		// Get relative path for determining if it's index
-		relPath := strings.TrimPrefix(file, root+"/")
+		// file is the full path (always forward-slash from Walk), root is srcDir
+		// Normalize root to forward slashes for consistent TrimPrefix
+		relPath := strings.TrimPrefix(file, filepath.ToSlash(root)+"/")
 
 		// Skip test files (*_test.ts, *_test.js)
 		if strings.HasSuffix(relPath, "_test.ts") || strings.HasSuffix(relPath, "_test.js") {
@@ -178,10 +178,10 @@ func loadScriptV8(file string) (*v8.Script, error) {
 // Converts file path to a dot-separated ID
 // Example: assistants/tests/fullfields/src/index.ts -> assistants.tests.fullfields.src.index
 func makeScriptID(file string, root string) string {
-	// Remove root prefix if provided
-	id := file
+	// Remove root prefix if provided (normalize to forward slashes first)
+	id := filepath.ToSlash(file)
 	if root != "" {
-		id = strings.TrimPrefix(file, root+"/")
+		id = strings.TrimPrefix(id, filepath.ToSlash(root)+"/")
 	}
 
 	// Remove extension

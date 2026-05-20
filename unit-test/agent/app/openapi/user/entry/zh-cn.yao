@@ -1,0 +1,79 @@
+// 统一认证入口配置（登录+注册）
+{
+  "title": "欢迎使用 Yao Agents",
+  "description": "Your AI Team.",
+  "success_url": "$ENV.AFTER_LOGIN_SUCCESS_URL", // 登录/注册成功后跳转
+  "failure_url": "$ENV.AFTER_LOGIN_FAILURE_URL", // 认证失败跳转
+
+  // 表单配置
+  "form": {
+    "username": {
+      "placeholder": "请输入邮箱",
+      "fields": ["email"],
+    },
+    "password": { "placeholder": "登录密码" },
+    "confirm_password": { "placeholder": "确认密码" },
+
+    // 验证码配置
+    "captcha": { "type": "image", "options": {} },
+    "forgot_password_link": true,
+    "remember_me": true,
+    "terms_of_service_link": "https://yaoapps.com/doc/guide/user/terms-of-service",
+    "privacy_policy_link": "https://yaoapps.com/doc/guide/user/privacy-policy",
+  },
+
+  // Token 配置（来自 signin）
+  "token": {
+    "expires_in": "24h",
+    "refresh_token_expires_in": "7d",
+    "remember_me_refresh_token_expires_in": "90d",
+  },
+
+  // Messenger 配置（用于注册邮箱/短信验证）
+  "messenger": {
+    "mail": {
+      "channel": "default",
+      "template": "zh-cn.verify_email",
+    },
+    "sms": {
+      "channel": "default",
+      "template": "zh-cn.verify_mobile",
+    },
+  },
+
+  // 注册设置
+  "invite_required": true, // 是否需要邀请才能注册
+  "auto_login": true, // 注册后是否自动登录
+  "role": "user:free", // 新用户默认角色
+  "type": "free_zh", // 新用户默认类型
+
+  // 邀请码设置
+  "invite": {
+    "title": "输入邀请码",
+    "description": "当前为公测阶段，需要官方邀请码才能使用",
+    "placeholder": "输入官方邀请码",
+    "apply_link": "https://yaoapps.com/apply-invite", // 可选：申请邀请码链接
+    "apply_prompt": "没有邀请码？", // 申请链接前的提示文案
+    "apply_text": "申请邀请码", // 申请链接文案
+  },
+
+  // 第三方登录/注册配置（来自 signin）
+  "third_party": {
+    "providers": [
+      // {
+      //   "id": "google",
+      //   "label": "谷歌",
+      //   "title": "使用谷歌账号登录",
+      //   "logo": "/assets/brands/google.svg",
+      //   "color": "#4285F4",
+      // },
+      // {
+      //   "id": "github",
+      //   "label": "Github",
+      //   "title": "使用Github账号登录",
+      //   "logo": "/assets/brands/github.svg",
+      //   "color": "#181717",
+      // },
+    ],
+  },
+}

@@ -93,6 +93,36 @@ func (c *Client) Run(ctx context.Context, process string, args []byte, timeout i
 	return resp.Data, nil
 }
 
+// Stream executes a Yao process with server-streaming output.
+// Each non-final chunk carries progress output bytes; the final chunk
+// (done=true) carries the JSON-encoded result. The callback is invoked
+// for every chunk received.
+func (c *Client) Stream(ctx context.Context, process string, args []byte, timeout int32, cb func(data []byte, done bool) error) error {
+	stream, err := c.svc.Stream(ctx, &pb.RunRequest{
+		Process: process,
+		Args:    args,
+		Timeout: timeout,
+	})
+	if err != nil {
+		return err
+	}
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := cb(chunk.Data, chunk.Done); err != nil {
+			return err
+		}
+		if chunk.Done {
+			return nil
+		}
+	}
+}
+
 // Shell executes a system command and returns stdout, stderr, exit code.
 func (c *Client) Shell(ctx context.Context, command string, args []string, env map[string]string, timeout int32) (*pb.ShellResponse, error) {
 	return c.svc.Shell(ctx, &pb.ShellRequest{

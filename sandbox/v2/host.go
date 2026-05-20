@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"os"
 
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
@@ -245,7 +246,7 @@ func (h *Host) GetWorkDir() string {
 	if h.system.TempDir != "" {
 		return h.system.TempDir
 	}
-	return "/tmp"
+	return os.TempDir()
 }
 
 // NodeID returns the node ID this Host belongs to.

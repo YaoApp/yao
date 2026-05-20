@@ -293,8 +293,9 @@ func (store *Xun) ListChats(filter types.ChatFilter) (*types.ChatList, error) {
 	}
 	offset := (filter.Page - 1) * filter.PageSize
 
-	// Get paginated results
+	// Get paginated results (chat_id as tie-breaker for deterministic ordering)
 	rows, err := qb.OrderBy(filter.OrderBy, filter.Order).
+		OrderBy("chat_id", filter.Order).
 		Offset(offset).
 		Limit(filter.PageSize).
 		Get()

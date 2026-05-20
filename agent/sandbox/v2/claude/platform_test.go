@@ -1,336 +1,425 @@
-package claude
+//go:build unit
+
+package claude_test
 
 import (
+	"os"
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
-func newTestPosixBase(os string) posixBase {
-	return posixBase{
-		os:      os,
-		workDir: "/workspace",
-		shell:   "bash",
-		tempDir: "/tmp",
+func TestMain(m *testing.M) {
+	testprepare.MustLoadEnv()
+	os.Exit(m.Run())
+}
+
+// ---------------------------------------------------------------------------
+// POSIX / Linux
+// ---------------------------------------------------------------------------
+
+func TestPosix_Accessors(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	if p.OS() != "linux" {
+		t.Errorf("OS = %q, want linux", p.OS())
+	}
+	if p.Shell() != "bash" {
+		t.Errorf("Shell = %q, want bash", p.Shell())
+	}
+	if p.RootDir() != "/" {
+		t.Errorf("RootDir = %q, want /", p.RootDir())
+	}
+	if p.ConfigDir() != ".config/claude" {
+		t.Errorf("ConfigDir = %q", p.ConfigDir())
 	}
 }
 
-func TestPosixBase_Accessors(t *testing.T) {
-	b := newTestPosixBase("linux")
-	assert.Equal(t, "linux", b.OS())
-	assert.Equal(t, "bash", b.Shell())
-	assert.Equal(t, "/", b.RootDir())
-	assert.Equal(t, ".config/claude", b.ConfigDir())
-}
-
-func TestPosixBase_PathJoin(t *testing.T) {
-	b := newTestPosixBase("linux")
-	assert.Equal(t, "/workspace/.yao/config", b.PathJoin("/workspace", ".yao", "config"))
-	assert.Equal(t, "a/b/c", b.PathJoin("a", "b", "c"))
-}
-
-func TestPosixBase_HomeEnv(t *testing.T) {
-	b := newTestPosixBase("linux")
-	env := b.HomeEnv("/workspace/data")
-	assert.Equal(t, "/workspace/data", env["HOME"])
-	assert.Len(t, env, 1)
-}
-
-func TestPosixBase_ShellCmd(t *testing.T) {
-	b := newTestPosixBase("linux")
-	cmd := b.ShellCmd("echo hello")
-	require.Len(t, cmd, 3)
-	assert.Equal(t, "bash", cmd[0])
-	assert.Equal(t, "-c", cmd[1])
-	assert.Equal(t, "echo hello", cmd[2])
-}
-
-func TestPosixBase_KillCmd(t *testing.T) {
-	b := newTestPosixBase("linux")
-	cmd := b.KillCmd("claude")
-	require.Len(t, cmd, 3)
-	assert.Equal(t, "sh", cmd[0])
-	assert.Contains(t, cmd[2], "pkill")
-	assert.Contains(t, cmd[2], "claude")
-}
-
-func TestPosixBase_ListDirCmd(t *testing.T) {
-	b := newTestPosixBase("linux")
-	cmd := b.ListDirCmd("/workspace/.claude")
-	require.Len(t, cmd, 2)
-	assert.Equal(t, "ls", cmd[0])
-	assert.Equal(t, "/workspace/.claude", cmd[1])
-}
-
-func TestPosixBase_XauthoritySetup(t *testing.T) {
-	b := newTestPosixBase("linux")
-	assert.Empty(t, b.XauthoritySetup("/workspace"))
-}
-
-func TestPosixBase_BuildBashScript_NoPrompt(t *testing.T) {
-	b := newTestPosixBase("linux")
-	in := scriptInput{
-		args:       []string{"--verbose", "--output-format", "stream-json"},
-		inputJSONL: `{"type":"user","message":{"role":"user","content":"hello"}}`,
-		workDir:    "/workspace",
-		promptFile: "/workspace/.yao/.system-prompt.txt",
+func TestPosix_PathJoin(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	got := p.PathJoin("/workspace", ".yao", "config")
+	if got != "/workspace/.yao/config" {
+		t.Errorf("PathJoin = %q, want /workspace/.yao/config", got)
 	}
-	script := b.buildBashScript(in, "")
-	assert.Contains(t, script, "cat << 'INPUTEOF' | claude -p")
-	assert.Contains(t, script, "--verbose")
-	assert.Contains(t, script, "INPUTEOF")
-	assert.NotContains(t, script, "PROMPTEOF")
-	assert.NotContains(t, script, "set -e", "set -e should not be present when no prompt is written")
 }
 
-func TestPosixBase_BuildBashScript_WithPrompt(t *testing.T) {
-	b := newTestPosixBase("linux")
-	in := scriptInput{
-		args:         []string{"--verbose"},
-		systemPrompt: "You are a helpful assistant.",
-		inputJSONL:   `{"type":"user"}`,
-		workDir:      "/workspace",
-		promptFile:   "/workspace/.yao/assistants/test-id/system-prompt.txt",
+func TestPosix_HomeEnv(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	env := p.HomeEnv("/workspace/data")
+	if env["HOME"] != "/workspace/data" {
+		t.Errorf("HOME = %q", env["HOME"])
 	}
-	script := b.buildBashScript(in, "")
-	assert.Contains(t, script, "mkdir -p")
-	assert.Contains(t, script, "PROMPTEOF")
-	assert.Contains(t, script, "You are a helpful assistant.")
-	assert.Contains(t, script, "--append-system-prompt-file")
-
-	promptIdx := strings.Index(script, "PROMPTEOF")
-	claudeIdx := strings.Index(script, "claude -p")
-	assert.True(t, strings.Contains(script, "set -e"), "script should enable set -e before prompt write")
-	assert.True(t, strings.Contains(script, "set +e"), "script should disable set -e before claude command")
-	setEIdx := strings.Index(script, "set -e")
-	setNoEIdx := strings.Index(script, "set +e")
-	assert.Less(t, setEIdx, promptIdx, "set -e should come before PROMPTEOF")
-	assert.Less(t, promptIdx, setNoEIdx, "set +e should come after PROMPTEOF")
-	assert.Less(t, setNoEIdx, claudeIdx, "set +e should come before claude -p")
-}
-
-func TestPosixBase_BuildBashScript_WithXauth(t *testing.T) {
-	b := newTestPosixBase("linux")
-	in := scriptInput{
-		args:       []string{"--verbose"},
-		inputJSONL: `{"type":"user"}`,
-		workDir:    "/workspace",
-		promptFile: "/workspace/.yao/.system-prompt.txt",
+	if len(env) != 1 {
+		t.Errorf("expected 1 key, got %d", len(env))
 	}
-	xauth := "cp /root/.Xauthority /workspace/.Xauthority\n"
-	script := b.buildBashScript(in, xauth)
-	assert.True(t, strings.HasPrefix(script, "cp /root/.Xauthority"),
-		"script should start with xauth command")
 }
 
-// --- Darwin ---
-
-func TestDarwin_EnvPromptNote(t *testing.T) {
-	p := &darwinPlatform{posixBase: newTestPosixBase("darwin")}
-	note := p.EnvPromptNote()
-	assert.Contains(t, note, "macOS desktop")
-	assert.Contains(t, note, "GUI applications")
+func TestPosix_ShellCmd(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	cmd := p.ShellCmd("echo hello")
+	if len(cmd) != 3 || cmd[0] != "bash" || cmd[1] != "-c" || cmd[2] != "echo hello" {
+		t.Errorf("ShellCmd = %v", cmd)
+	}
 }
 
-func TestDarwin_BuildScript(t *testing.T) {
-	p := &darwinPlatform{posixBase: newTestPosixBase("darwin")}
-	script, stdin := p.BuildScript(scriptInput{
-		args:       []string{"--verbose"},
-		inputJSONL: `{"type":"user"}`,
-		workDir:    "/workspace",
-		promptFile: "/workspace/.yao/.system-prompt.txt",
-	})
-	assert.Contains(t, script, "claude -p")
-	assert.Nil(t, stdin)
+func TestPosix_KillCmd(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	cmd := p.KillCmd("claude")
+	if len(cmd) != 3 || cmd[0] != "sh" {
+		t.Errorf("KillCmd = %v", cmd)
+	}
+	if !strings.Contains(cmd[2], "pkill") || !strings.Contains(cmd[2], "claude") {
+		t.Errorf("KillCmd body = %q", cmd[2])
+	}
 }
 
-// --- Linux ---
+func TestPosix_KillSessionCmd(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	cmd := p.KillSessionCmd("yao-robot_m1_e1")
+	if len(cmd) != 3 || cmd[0] != "sh" {
+		t.Errorf("KillSessionCmd = %v", cmd)
+	}
+	if !strings.Contains(cmd[2], "pkill -9 -f") || !strings.Contains(cmd[2], "yao-robot_m1_e1") {
+		t.Errorf("KillSessionCmd body = %q", cmd[2])
+	}
+}
+
+func TestPosix_ListDirCmd(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	cmd := p.ListDirCmd("/workspace/.claude")
+	if len(cmd) != 2 || cmd[0] != "ls" || cmd[1] != "/workspace/.claude" {
+		t.Errorf("ListDirCmd = %v", cmd)
+	}
+}
+
+func TestPosix_XauthoritySetup(t *testing.T) {
+	p := claude.ExportNewPosixPlatform("linux", "/workspace", "bash", "/tmp")
+	if got := p.XauthoritySetup("/workspace"); got != "" {
+		t.Errorf("XauthoritySetup should be empty for basic posix, got %q", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Linux specifics
+// ---------------------------------------------------------------------------
 
 func TestLinux_XauthoritySetup_Headless(t *testing.T) {
-	p := &linuxPlatform{
-		posixBase:  newTestPosixBase("linux"),
-		hasDisplay: false,
-		sysHome:    "/root",
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "/root")
+	if got := p.XauthoritySetup("/workspace"); got != "" {
+		t.Errorf("should be empty for headless, got %q", got)
 	}
-	assert.Empty(t, p.XauthoritySetup("/workspace"))
 }
 
 func TestLinux_XauthoritySetup_Desktop(t *testing.T) {
-	p := &linuxPlatform{
-		posixBase:  newTestPosixBase("linux"),
-		hasDisplay: true,
-		sysHome:    "/root",
-	}
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", true, "/root")
 	cmd := p.XauthoritySetup("/workspace")
-	assert.Contains(t, cmd, "/root/.Xauthority")
-	assert.Contains(t, cmd, "/workspace/.Xauthority")
-	assert.Contains(t, cmd, "cp")
+	if !strings.Contains(cmd, "/root/.Xauthority") || !strings.Contains(cmd, "cp") {
+		t.Errorf("XauthoritySetup = %q", cmd)
+	}
 }
 
 func TestLinux_XauthoritySetup_NoSysHome(t *testing.T) {
-	p := &linuxPlatform{
-		posixBase:  newTestPosixBase("linux"),
-		hasDisplay: true,
-		sysHome:    "",
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", true, "")
+	if got := p.XauthoritySetup("/workspace"); got != "" {
+		t.Errorf("should be empty without sysHome, got %q", got)
 	}
-	assert.Empty(t, p.XauthoritySetup("/workspace"))
 }
 
 func TestLinux_EnvPromptNote_Desktop(t *testing.T) {
-	p := &linuxPlatform{posixBase: newTestPosixBase("linux"), hasDisplay: true}
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", true, "/root")
 	note := p.EnvPromptNote()
-	assert.Contains(t, note, "VNC")
+	if !strings.Contains(note, "VNC") {
+		t.Errorf("EnvPromptNote = %q, expected VNC", note)
+	}
 }
 
 func TestLinux_EnvPromptNote_Headless(t *testing.T) {
-	p := &linuxPlatform{posixBase: newTestPosixBase("linux"), hasDisplay: false}
-	assert.Empty(t, p.EnvPromptNote())
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	if note := p.EnvPromptNote(); note != "" {
+		t.Errorf("EnvPromptNote should be empty for headless, got %q", note)
+	}
 }
 
 func TestLinux_BuildScript_Desktop(t *testing.T) {
-	p := &linuxPlatform{
-		posixBase:  newTestPosixBase("linux"),
-		hasDisplay: true,
-		sysHome:    "/root",
-	}
-	script, stdin := p.BuildScript(scriptInput{
-		args:       []string{"--verbose"},
-		inputJSONL: `{"type":"user"}`,
-		workDir:    "/workspace",
-		promptFile: "/workspace/.yao/.system-prompt.txt",
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", true, "/root")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose"},
+		InputJSONL: `{"type":"user"}`,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
 	})
-	assert.Contains(t, script, ".Xauthority")
-	assert.Nil(t, stdin)
+	if !strings.Contains(script, ".Xauthority") {
+		t.Errorf("script should contain Xauthority copy")
+	}
+	if stdin != nil {
+		t.Errorf("stdin should be nil for Linux")
+	}
 }
 
-// --- Windows ---
-
-func TestWindows_NewDefaults(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "", "")
-	assert.Equal(t, "pwsh", w.Shell())
-	assert.Equal(t, `C:\workspace\.tmp`, w.tempDir)
+func TestLinux_BuildScript_NoPrompt(t *testing.T) {
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	script, _ := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose", "--output-format", "stream-json"},
+		InputJSONL: `{"type":"user","message":{"role":"user","content":"hello"}}`,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
+	})
+	if !strings.Contains(script, "cat << 'INPUTEOF' | claude -p") {
+		t.Error("script should contain heredoc + claude -p")
+	}
+	if !strings.Contains(script, "--verbose") {
+		t.Error("script should contain args")
+	}
+	if strings.Contains(script, "PROMPTEOF") {
+		t.Error("script should not contain PROMPTEOF without system prompt")
+	}
 }
 
-func TestWindows_Accessors(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "pwsh", `C:\temp`)
-	assert.Equal(t, "windows", w.OS())
-	assert.Equal(t, `C:\`, w.RootDir())
-	assert.Equal(t, `.claude`, w.ConfigDir())
-	assert.Empty(t, w.XauthoritySetup(`C:\workspace`))
+func TestLinux_BuildScript_WithPrompt(t *testing.T) {
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	script, _ := p.BuildScript(claude.ExportScriptInput{
+		Args:         []string{"--verbose"},
+		SystemPrompt: "You are a helpful assistant.",
+		InputJSONL:   `{"type":"user"}`,
+		WorkDir:      "/workspace",
+		PromptFile:   "/workspace/.yao/assistants/test-id/system-prompt.txt",
+	})
+	if !strings.Contains(script, "mkdir -p") {
+		t.Error("script should create prompt dir")
+	}
+	if !strings.Contains(script, "PROMPTEOF") {
+		t.Error("script should contain PROMPTEOF")
+	}
+	if !strings.Contains(script, "You are a helpful assistant.") {
+		t.Error("script should contain system prompt")
+	}
+	if !strings.Contains(script, "--append-system-prompt-file") {
+		t.Error("script should append system prompt file arg")
+	}
+	if !strings.Contains(script, "set -e") || !strings.Contains(script, "set +e") {
+		t.Error("script should use set -e/+e around prompt write")
+	}
+	setEIdx := strings.Index(script, "set -e")
+	promptIdx := strings.Index(script, "PROMPTEOF")
+	setNoEIdx := strings.Index(script, "set +e")
+	claudeIdx := strings.Index(script, "claude -p")
+	if setEIdx >= promptIdx || promptIdx >= setNoEIdx || setNoEIdx >= claudeIdx {
+		t.Errorf("ordering: set -e(%d) < PROMPTEOF(%d) < set +e(%d) < claude -p(%d)",
+			setEIdx, promptIdx, setNoEIdx, claudeIdx)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Darwin
+// ---------------------------------------------------------------------------
+
+func TestDarwin_EnvPromptNote(t *testing.T) {
+	p := claude.ExportNewDarwinPlatform("/workspace", "bash", "/tmp")
+	note := p.EnvPromptNote()
+	if !strings.Contains(note, "macOS desktop") {
+		t.Errorf("EnvPromptNote = %q", note)
+	}
+}
+
+func TestDarwin_BuildScript(t *testing.T) {
+	p := claude.ExportNewDarwinPlatform("/workspace", "bash", "/tmp")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose"},
+		InputJSONL: `{"type":"user"}`,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
+	})
+	if !strings.Contains(script, "claude -p") {
+		t.Error("script should contain claude -p")
+	}
+	if stdin != nil {
+		t.Error("stdin should be nil for Darwin")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Windows
+// ---------------------------------------------------------------------------
+
+func TestWindows_Defaults(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\workspace`, "", "")
+	if p.Shell() != "pwsh" {
+		t.Errorf("Shell = %q, want pwsh", p.Shell())
+	}
+	if p.OS() != "windows" {
+		t.Errorf("OS = %q", p.OS())
+	}
+	if p.RootDir() != `C:\` {
+		t.Errorf("RootDir = %q", p.RootDir())
+	}
+	if p.ConfigDir() != `.claude` {
+		t.Errorf("ConfigDir = %q", p.ConfigDir())
+	}
 }
 
 func TestWindows_PathJoin(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "pwsh", "")
-	assert.Equal(t, `C:\workspace\.yao\config`, w.PathJoin(`C:\workspace`, ".yao", "config"))
+	p := claude.ExportNewWindowsPlatform(`C:\workspace`, "pwsh", "")
+	got := p.PathJoin(`C:\workspace`, ".yao", "config")
+	if got != `C:\workspace\.yao\config` {
+		t.Errorf("PathJoin = %q", got)
+	}
 }
 
 func TestWindows_HomeEnv(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "pwsh", "")
-	env := w.HomeEnv(`C:\workspace`)
-	assert.Equal(t, `C:\workspace`, env["HOME"])
-	assert.Equal(t, `C:\workspace`, env["USERPROFILE"])
-	assert.Equal(t, `C:`, env["HOMEDRIVE"])
-	assert.Equal(t, `\workspace`, env["HOMEPATH"])
+	p := claude.ExportNewWindowsPlatform(`C:\workspace`, "pwsh", "")
+	env := p.HomeEnv(`C:\workspace`)
+	if env["HOME"] != `C:\workspace` {
+		t.Errorf("HOME = %q", env["HOME"])
+	}
+	if env["USERPROFILE"] != `C:\workspace` {
+		t.Errorf("USERPROFILE = %q", env["USERPROFILE"])
+	}
+	if env["HOMEDRIVE"] != `C:` {
+		t.Errorf("HOMEDRIVE = %q", env["HOMEDRIVE"])
+	}
+	if env["HOMEPATH"] != `\workspace` {
+		t.Errorf("HOMEPATH = %q", env["HOMEPATH"])
+	}
 }
 
 func TestWindows_HomeEnv_ShortPath(t *testing.T) {
-	w := newWindowsPlatform("X", "pwsh", "")
-	env := w.HomeEnv("X")
-	assert.Equal(t, "X", env["HOME"])
-	assert.Equal(t, "X", env["USERPROFILE"])
-	_, hasDrive := env["HOMEDRIVE"]
-	assert.False(t, hasDrive, "should not set HOMEDRIVE for paths without drive letter")
+	p := claude.ExportNewWindowsPlatform("X", "pwsh", "")
+	env := p.HomeEnv("X")
+	if env["HOME"] != "X" {
+		t.Errorf("HOME = %q", env["HOME"])
+	}
+	if _, ok := env["HOMEDRIVE"]; ok {
+		t.Error("should not set HOMEDRIVE for short path")
+	}
 }
 
 func TestWindows_ShellCmd_Pwsh(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	cmd := w.ShellCmd("echo hello")
-	assert.Equal(t, []string{"pwsh", "-NoProfile", "-Command", "echo hello"}, cmd)
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	cmd := p.ShellCmd("echo hello")
+	want := []string{"pwsh", "-NoProfile", "-Command", "echo hello"}
+	if len(cmd) != 4 || cmd[0] != want[0] || cmd[1] != want[1] || cmd[2] != want[2] || cmd[3] != want[3] {
+		t.Errorf("ShellCmd = %v, want %v", cmd, want)
+	}
 }
 
 func TestWindows_ShellCmd_Powershell(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "powershell", "")
-	cmd := w.ShellCmd("echo hello")
-	assert.Equal(t, "powershell", cmd[0])
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "powershell", "")
+	cmd := p.ShellCmd("echo hello")
+	if cmd[0] != "powershell" {
+		t.Errorf("cmd[0] = %q", cmd[0])
+	}
 }
 
 func TestWindows_ShellCmd_Cmd(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "cmd.exe", "")
-	cmd := w.ShellCmd("echo hello")
-	assert.Equal(t, []string{"cmd.exe", "/C", "echo hello"}, cmd)
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "cmd.exe", "")
+	cmd := p.ShellCmd("echo hello")
+	want := []string{"cmd.exe", "/C", "echo hello"}
+	if len(cmd) != 3 || cmd[0] != want[0] || cmd[1] != want[1] || cmd[2] != want[2] {
+		t.Errorf("ShellCmd = %v, want %v", cmd, want)
+	}
 }
 
-func TestPosixBase_KillSessionCmd(t *testing.T) {
-	b := newTestPosixBase("linux")
-	cmd := b.KillSessionCmd("yao-robot_m1_e1")
-	require.Len(t, cmd, 3)
-	assert.Equal(t, "sh", cmd[0])
-	assert.Equal(t, "-c", cmd[1])
-	assert.Contains(t, cmd[2], "pkill -9 -f")
-	assert.Contains(t, cmd[2], "yao-robot_m1_e1")
-	assert.Contains(t, cmd[2], "|| true")
-}
-
-func TestWindows_KillSessionCmd(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	cmd := w.KillSessionCmd("yao-robot_m1_e1")
-	require.Len(t, cmd, 4)
-	assert.Equal(t, "pwsh", cmd[0])
-	assert.Contains(t, cmd[3], "CommandLine")
-	assert.Contains(t, cmd[3], "yao-robot_m1_e1")
-	assert.Contains(t, cmd[3], "taskkill")
+func TestWindows_ShellCmd_DefaultFallback(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "unknown-shell", "")
+	cmd := p.ShellCmd("echo hello")
+	if cmd[0] != "pwsh" {
+		t.Errorf("default should be pwsh, got %q", cmd[0])
+	}
 }
 
 func TestWindows_KillCmd(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	cmd := w.KillCmd("claude")
-	require.Len(t, cmd, 4)
-	assert.Equal(t, "pwsh", cmd[0])
-	assert.Contains(t, cmd[3], "claude")
-	assert.Contains(t, cmd[3], "taskkill")
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	cmd := p.KillCmd("claude")
+	if len(cmd) != 4 || cmd[0] != "pwsh" {
+		t.Errorf("KillCmd = %v", cmd)
+	}
+	if !strings.Contains(cmd[3], "claude") || !strings.Contains(cmd[3], "taskkill") {
+		t.Errorf("KillCmd body = %q", cmd[3])
+	}
+}
+
+func TestWindows_KillSessionCmd(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	cmd := p.KillSessionCmd("yao-robot_m1_e1")
+	if len(cmd) != 4 || cmd[0] != "pwsh" {
+		t.Errorf("KillSessionCmd = %v", cmd)
+	}
+	if !strings.Contains(cmd[3], "CommandLine") || !strings.Contains(cmd[3], "yao-robot_m1_e1") {
+		t.Errorf("KillSessionCmd body = %q", cmd[3])
+	}
 }
 
 func TestWindows_ListDirCmd(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	cmd := w.ListDirCmd(`C:\ws\.claude`)
-	require.Len(t, cmd, 4)
-	assert.Contains(t, cmd[3], "Get-ChildItem")
-}
-
-func TestWindows_BuildScript_NoPrompt(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "pwsh", `C:\temp`)
-	script, stdin := w.BuildScript(scriptInput{
-		args:       []string{"--verbose"},
-		inputJSONL: `{"type":"user"}`,
-		workDir:    `C:\workspace`,
-		promptFile: `C:\workspace\.yao\.system-prompt.txt`,
-	})
-	assert.Contains(t, script, "UTF8")
-	assert.Contains(t, script, "claude -p")
-	assert.Contains(t, script, "'--verbose'")
-	require.NotNil(t, stdin)
-	assert.Contains(t, string(stdin), `{"type":"user"}`)
-}
-
-func TestWindows_BuildScript_WithPrompt(t *testing.T) {
-	w := newWindowsPlatform(`C:\workspace`, "pwsh", `C:\temp`)
-	script, stdin := w.BuildScript(scriptInput{
-		args:         []string{"--verbose"},
-		systemPrompt: "You are helpful",
-		inputJSONL:   `{"type":"user"}`,
-		workDir:      `C:\workspace`,
-		promptFile:   `C:\workspace\.yao\assistants\test\system-prompt.txt`,
-	})
-	assert.Contains(t, script, "WriteAllText")
-	assert.Contains(t, script, "You are helpful")
-	assert.Contains(t, script, "--append-system-prompt-file")
-	require.NotNil(t, stdin)
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	cmd := p.ListDirCmd(`C:\ws\.claude`)
+	if len(cmd) != 4 {
+		t.Fatalf("ListDirCmd got %d args", len(cmd))
+	}
+	if !strings.Contains(cmd[3], "Get-ChildItem") {
+		t.Errorf("ListDirCmd body = %q", cmd[3])
+	}
 }
 
 func TestWindows_EnvPromptNote(t *testing.T) {
-	w := newWindowsPlatform(`C:\ws`, "pwsh", "")
-	note := w.EnvPromptNote()
-	assert.Contains(t, note, "Windows desktop")
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	note := p.EnvPromptNote()
+	if !strings.Contains(note, "Windows desktop") {
+		t.Errorf("EnvPromptNote = %q", note)
+	}
+}
+
+func TestWindows_BuildScript_NoPrompt(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\workspace`, "pwsh", `C:\temp`)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose"},
+		InputJSONL: `{"type":"user"}`,
+		WorkDir:    `C:\workspace`,
+		PromptFile: `C:\workspace\.yao\.system-prompt.txt`,
+	})
+	if !strings.Contains(script, "UTF8") {
+		t.Error("script should set UTF8 encoding")
+	}
+	if !strings.Contains(script, "claude -p") {
+		t.Error("script should contain claude -p")
+	}
+	if !strings.Contains(script, "'--verbose'") {
+		t.Error("script should contain args")
+	}
+	if stdin == nil {
+		t.Fatal("stdin should not be nil for Windows")
+	}
+	if !strings.Contains(string(stdin), `{"type":"user"}`) {
+		t.Errorf("stdin = %q", stdin)
+	}
+}
+
+func TestWindows_BuildScript_WithPrompt(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\workspace`, "pwsh", `C:\temp`)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:         []string{"--verbose"},
+		SystemPrompt: "You are helpful",
+		InputJSONL:   `{"type":"user"}`,
+		WorkDir:      `C:\workspace`,
+		PromptFile:   `C:\workspace\.yao\assistants\test\system-prompt.txt`,
+	})
+	if !strings.Contains(script, "WriteAllText") {
+		t.Error("script should write prompt file")
+	}
+	if !strings.Contains(script, "You are helpful") {
+		t.Error("script should contain system prompt")
+	}
+	if !strings.Contains(script, "--append-system-prompt-file") {
+		t.Error("script should append prompt file arg")
+	}
+	if stdin == nil {
+		t.Fatal("stdin should not be nil")
+	}
+}
+
+func TestWindows_XauthoritySetup(t *testing.T) {
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	if got := p.XauthoritySetup(`C:\ws`); got != "" {
+		t.Errorf("XauthoritySetup should be empty on Windows, got %q", got)
+	}
 }

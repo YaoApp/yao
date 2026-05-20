@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cast"
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
@@ -315,10 +316,11 @@ func LoadPath(path string) (*Assistant, error) {
 		return nil, err
 	}
 
-	// assistant_id
-	id := strings.ReplaceAll(strings.TrimPrefix(path, "/assistants/"), "/", ".")
+	// assistant_id — normalize to forward slashes for consistent ID derivation
+	normalized := filepath.ToSlash(path)
+	id := strings.ReplaceAll(strings.TrimPrefix(normalized, "/assistants/"), "/", ".")
 	data["assistant_id"] = id
-	data["path"] = path
+	data["path"] = normalized
 	if _, has := data["type"]; !has {
 		data["type"] = "assistant"
 	}
@@ -767,9 +769,9 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.Workflow = wf
 	}
 
-	// sandbox (for coding agents like Claude CLI, Cursor CLI)
-	// V2 sandbox via independent sandbox.yao is loaded in LoadPath (below).
-	// This block handles the package.yao embedded "sandbox" field with version dispatch.
+	// sandbox — only V2 is supported (V1 sandbox configs are ignored)
+	// V2 sandbox via independent sandbox.yao is loaded in LoadPath.
+	// This block handles the package.yao embedded "sandbox" field.
 	if assistant.SandboxV2 == nil {
 		if sandbox, has := data["sandbox"]; has {
 			version := extractSandboxVersion(sandbox)
@@ -781,12 +783,8 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 				assistant.SandboxV2 = sb
 				assistant.IsSandbox = true
 				assistant.ComputerFilter = sb.Filter
-			} else {
-				sb, err := store.ToSandbox(sandbox)
-				if err != nil {
-					return nil, err
-				}
-				assistant.Sandbox = sb
+			} else if version != "" {
+				log.Warn("Ignoring deprecated V1 sandbox config (version=%s)", version)
 			}
 		}
 	}

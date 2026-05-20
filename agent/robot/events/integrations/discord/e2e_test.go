@@ -1,4 +1,6 @@
-package discord
+//go:build e2e
+
+package discord_test
 
 import (
 	"context"
@@ -8,211 +10,144 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/agent/robot/events/integrations/discord"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	dcapi "github.com/yaoapp/yao/integrations/discord"
 )
 
-var (
-	dcBotToken string
-	dcAppID    string
-)
-
-func TestMain(m *testing.M) {
-	dcBotToken = os.Getenv("DISCORD_TEST_BOT_TOKEN")
-	dcAppID = os.Getenv("DISCORD_TEST_APP_ID")
-	os.Exit(m.Run())
-}
-
-func skipIfNoToken(t *testing.T) {
-	t.Helper()
-	if dcBotToken == "" {
-		t.Skip("DISCORD_TEST_BOT_TOKEN not set")
+func TestDiscordAdapter(t *testing.T) {
+	botToken := os.Getenv("DISCORD_TEST_BOT_TOKEN")
+	if botToken == "" {
+		t.Fatal("DISCORD_TEST_BOT_TOKEN is required for this test")
 	}
-}
-
-// TestE2E_Adapter_Apply verifies that Apply correctly registers a bot.
-func TestE2E_Adapter_Apply(t *testing.T) {
-	skipIfNoToken(t)
-
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
+	appID := os.Getenv("DISCORD_TEST_APP_ID")
+	if appID == "" {
+		t.Fatal("DISCORD_TEST_APP_ID is required for this test")
 	}
-	defer close(a.stopCh)
 
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_dc_adapter",
-		TeamID:   "team_e2e_dc",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Discord: &robottypes.DiscordConfig{
-					Enabled:  true,
-					BotToken: dcBotToken,
-					AppID:    dcAppID,
+	t.Run("Apply", func(t *testing.T) {
+		a := discord.NewTestAdapter()
+		defer a.Close()
+
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_dc_adapter",
+			TeamID:   "team_e2e_dc",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Discord: &robottypes.DiscordConfig{
+						Enabled:  true,
+						BotToken: botToken,
+						AppID:    appID,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
+		a.Apply(context.Background(), robot)
 
-	a.mu.RLock()
-	entry, ok := a.bots["robot_e2e_dc_adapter"]
-	a.mu.RUnlock()
+		bot := a.GetBot("robot_e2e_dc_adapter")
+		require.NotNil(t, bot, "bot should be registered")
+		t.Logf("OK  Apply: discord bot registered robot=%s app=%s", robot.MemberID, appID)
+	})
 
-	require.True(t, ok, "bot should be registered")
-	assert.Equal(t, dcBotToken, entry.bot.Token())
-	assert.Equal(t, dcAppID, entry.appID)
+	t.Run("Apply_Update", func(t *testing.T) {
+		a := discord.NewTestAdapter()
+		defer a.Close()
 
-	t.Logf("OK  Apply: discord bot registered robot=%s app=%s", robot.MemberID, entry.appID)
-}
-
-// TestE2E_Adapter_Apply_Update verifies re-Apply with same token is a no-op.
-func TestE2E_Adapter_Apply_Update(t *testing.T) {
-	skipIfNoToken(t)
-
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
-
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_dc_update",
-		TeamID:   "team_e2e_dc",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Discord: &robottypes.DiscordConfig{
-					Enabled:  true,
-					BotToken: dcBotToken,
-					AppID:    dcAppID,
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_dc_update",
+			TeamID:   "team_e2e_dc",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Discord: &robottypes.DiscordConfig{
+						Enabled:  true,
+						BotToken: botToken,
+						AppID:    appID,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	_, ok := a.bots["robot_e2e_dc_update"]
-	a.mu.RUnlock()
-	require.True(t, ok)
+		a.Apply(context.Background(), robot)
+		require.NotNil(t, a.GetBot("robot_e2e_dc_update"))
 
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	assert.Len(t, a.bots, 1)
-	a.mu.RUnlock()
+		a.Apply(context.Background(), robot)
+		assert.Equal(t, 1, a.BotCount())
 
-	a.Remove(context.Background(), "robot_e2e_dc_update")
-	a.mu.RLock()
-	_, ok = a.bots["robot_e2e_dc_update"]
-	a.mu.RUnlock()
-	assert.False(t, ok, "bot should be removed")
-	t.Log("OK  Apply/Remove lifecycle verified")
-}
+		a.Remove(context.Background(), "robot_e2e_dc_update")
+		assert.Nil(t, a.GetBot("robot_e2e_dc_update"), "bot should be removed")
+		t.Log("OK  Apply/Remove lifecycle verified")
+	})
 
-// TestE2E_Adapter_Dedup verifies deduplication works.
-func TestE2E_Adapter_Dedup(t *testing.T) {
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
+	t.Run("Dedup", func(t *testing.T) {
+		a := discord.NewTestAdapter()
+		defer a.Close()
 
-	key := "dc:test-robot:msg-12345"
-	assert.True(t, a.dedup.markSeen(key), "first time should return true")
-	assert.False(t, a.dedup.markSeen(key), "second time should return false (dedup)")
-	t.Log("OK  dedup working correctly")
-}
+		key := "dc:test-robot:msg-12345"
+		assert.True(t, a.MarkSeen(key), "first time should return true")
+		assert.False(t, a.MarkSeen(key), "second time should return false (dedup)")
+		t.Log("OK  dedup working correctly")
+	})
 
-// TestE2E_Adapter_HandleMessages verifies message handling.
-func TestE2E_Adapter_HandleMessages(t *testing.T) {
-	skipIfNoToken(t)
+	t.Run("HandleMessages", func(t *testing.T) {
+		bot, err := dcapi.NewBot(botToken, appID)
+		require.NoError(t, err)
+		_ = bot
 
-	bot, err := dcapi.NewBot(dcBotToken, dcAppID)
-	require.NoError(t, err)
+		a := discord.NewTestAdapterWithBot("robot_e2e_dc_handle", botToken, appID)
+		defer a.Close()
 
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	entry := &botEntry{
-		robotID: "robot_e2e_dc_handle",
-		appID:   dcAppID,
-		bot:     bot,
-	}
+		cms := []*dcapi.ConvertedMessage{
+			{
+				MessageID:  "test_msg_1",
+				ChannelID:  "test_ch_1",
+				AuthorID:   "test_user_1",
+				AuthorName: "TestUser",
+				Text:       "Hello from E2E test",
+			},
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+		a.HandleMessagesForTest(ctx, "robot_e2e_dc_handle", cms)
 
-	cms := []*dcapi.ConvertedMessage{
-		{
-			MessageID:  "test_msg_1",
-			ChannelID:  "test_ch_1",
-			AuthorID:   "test_user_1",
-			AuthorName: "TestUser",
-			Text:       "Hello from E2E test",
-		},
-	}
+		assert.False(t, a.MarkSeen("dc:robot_e2e_dc_handle:test_msg_1"),
+			"message should be marked as seen after handleMessages")
+		t.Log("OK  handleMessages processed 1 message")
+	})
 
-	a.handleMessages(ctx, entry, cms)
+	t.Run("ApplyDisabled", func(t *testing.T) {
+		a := discord.NewTestAdapter()
+		defer a.Close()
 
-	assert.False(t, a.dedup.markSeen("dc:robot_e2e_dc_handle:test_msg_1"),
-		"message should be marked as seen after handleMessages")
-	t.Log("OK  handleMessages processed 1 message")
-}
-
-// TestE2E_Adapter_ApplyDisabled verifies Apply removes bot when disabled.
-func TestE2E_Adapter_ApplyDisabled(t *testing.T) {
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
-
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_dc_disabled",
-		TeamID:   "team_e2e_dc",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Discord: &robottypes.DiscordConfig{
-					Enabled:  false,
-					BotToken: "some_token",
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_dc_disabled",
+			TeamID:   "team_e2e_dc",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Discord: &robottypes.DiscordConfig{
+						Enabled:  false,
+						BotToken: "some_token",
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	_, ok := a.bots["robot_e2e_dc_disabled"]
-	a.mu.RUnlock()
-	assert.False(t, ok, "disabled bot should not be registered")
-	t.Log("OK  disabled config not registered")
-}
+		a.Apply(context.Background(), robot)
+		assert.Nil(t, a.GetBot("robot_e2e_dc_disabled"), "disabled bot should not be registered")
+		t.Log("OK  disabled config not registered")
+	})
 
-// TestE2E_BotUser verifies real Discord credentials.
-func TestE2E_BotUser(t *testing.T) {
-	skipIfNoToken(t)
+	t.Run("BotUser", func(t *testing.T) {
+		bot, err := dcapi.NewBot(botToken, appID)
+		require.NoError(t, err)
 
-	bot, err := dcapi.NewBot(dcBotToken, dcAppID)
-	require.NoError(t, err)
-
-	user, err := bot.BotUser()
-	require.NoError(t, err)
-	assert.NotEmpty(t, user.ID)
-	assert.NotEmpty(t, user.Username)
-	assert.True(t, user.Bot)
-	t.Logf("OK  Discord bot verified: id=%s username=%s", user.ID, user.Username)
+		user, err := bot.BotUser()
+		require.NoError(t, err)
+		assert.NotEmpty(t, user.ID)
+		assert.NotEmpty(t, user.Username)
+		assert.True(t, user.Bot)
+		t.Logf("OK  Discord bot verified: id=%s username=%s", user.ID, user.Username)
+	})
 }

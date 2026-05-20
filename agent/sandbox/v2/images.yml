@@ -1,0 +1,155 @@
+# Preset Sandbox Images for Yao Agent Development
+#
+# This file is embedded into the Yao binary at compile time.
+# AI agents use this catalog to select the right sandbox image
+# when writing agent configurations (sandbox.yao).
+#
+# All images are based on Ubuntu 24.04 (amd64/arm64).
+#
+# Base layer (included in ALL images):
+#   Runtime: Node.js 22, Python 3, Git, GitHub CLI, uv (Python package manager)
+#   Dev tools: build-essential, ripgrep, fd-find, vim, jq, tree
+#   Media: ffmpeg, ImageMagick 7, MuPDF (mutool), Poppler (pdftotext/pdfimages)
+#   Network: curl, wget, openssh-client, netcat, telnet, dnsutils
+#
+# Feature suffixes (combinable):
+#   (none)        Headless — CLI only, no GUI. Smallest image.
+#   -ssh          Adds openssh-client for remote server access.
+#   -desktop      Full XFCE4 desktop + Chromium + Chinese locale + fcitx5 input. VNC accessible.
+#   -desktop-lite Fluxbox + Chromium + Chinese locale + fcitx5 input. Lighter than -desktop. VNC accessible.
+#   -yao          Adds Yao application engine binary (yao CLI). Implies -ssh.
+#   -yao-desktop  Adds Yao + full desktop. Implies -desktop-ssh.
+#   -yao-desktop-lite  Adds Yao + lite desktop. Implies -desktop-lite-ssh.
+
+# ── Claude Code variants ─────────────────────────────────────
+# Agent CLI: @anthropic-ai/claude-code (npm)
+# Runner: claude
+
+- name: claude
+  image: yaoapp/tai-sandbox-claude:latest
+  description: "Claude Code CLI — headless, no GUI. Lightest Claude image."
+  runners: [tai, claude]
+  features: [claude-code]
+
+- name: claude-ssh
+  image: yaoapp/tai-sandbox-claude-ssh:latest
+  description: "Claude Code CLI + SSH client for remote server access."
+  runners: [tai, claude]
+  features: [claude-code, ssh]
+
+- name: claude-desktop
+  image: yaoapp/tai-sandbox-claude-desktop:latest
+  description: "Claude Code + full XFCE4 desktop + Chromium + VNC. For GUI-based tasks and web testing."
+  runners: [tai, claude]
+  features: [claude-code, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5]
+
+- name: claude-desktop-ssh
+  image: yaoapp/tai-sandbox-claude-desktop-ssh:latest
+  description: "Claude Code + full desktop + SSH. For GUI tasks requiring remote access."
+  runners: [tai, claude]
+  features: [claude-code, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5, ssh]
+
+- name: claude-desktop-lite
+  image: yaoapp/tai-sandbox-claude-desktop-lite:latest
+  description: "Claude Code + lightweight Fluxbox desktop + Chromium + VNC. Smaller than claude-desktop."
+  runners: [tai, claude]
+  features: [claude-code, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5]
+
+- name: claude-desktop-lite-ssh
+  image: yaoapp/tai-sandbox-claude-desktop-lite-ssh:latest
+  description: "Claude Code + lite desktop + SSH. Lightweight GUI with remote access."
+  runners: [tai, claude]
+  features: [claude-code, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5, ssh]
+
+- name: claude-yao
+  image: yaoapp/tai-sandbox-claude-yao:latest
+  description: "Claude Code + SSH + Yao engine. For developing Yao applications with Claude."
+  runners: [tai, claude]
+  features: [claude-code, ssh, yao]
+
+- name: claude-yao-desktop
+  image: yaoapp/tai-sandbox-claude-yao-desktop:latest
+  description: "Claude Code + Yao engine + full XFCE4 desktop + Chromium + VNC. All-in-one Yao development."
+  runners: [tai, claude]
+  features: [claude-code, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5, ssh, yao]
+
+- name: claude-yao-desktop-lite
+  image: yaoapp/tai-sandbox-claude-yao-desktop-lite:latest
+  description: "Claude Code + Yao engine + lite desktop + VNC. Lighter Yao development environment."
+  runners: [tai, claude]
+  features: [claude-code, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5, ssh, yao]
+
+# ── OpenCode variants ────────────────────────────────────────
+# Agent CLI: opencode-ai (npm)
+# Runner: opencode
+
+- name: opencode
+  image: yaoapp/tai-sandbox-opencode:latest
+  description: "OpenCode CLI — headless, no GUI. Lightest OpenCode image."
+  runners: [tai, opencode]
+  features: [opencode]
+
+- name: opencode-ssh
+  image: yaoapp/tai-sandbox-opencode-ssh:latest
+  description: "OpenCode CLI + SSH client for remote server access."
+  runners: [tai, opencode]
+  features: [opencode, ssh]
+
+- name: opencode-desktop
+  image: yaoapp/tai-sandbox-opencode-desktop:latest
+  description: "OpenCode + full XFCE4 desktop + Chromium + VNC. For GUI-based tasks and web testing."
+  runners: [tai, opencode]
+  features: [opencode, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5]
+
+- name: opencode-desktop-ssh
+  image: yaoapp/tai-sandbox-opencode-desktop-ssh:latest
+  description: "OpenCode + full desktop + SSH. For GUI tasks requiring remote access."
+  runners: [tai, opencode]
+  features: [opencode, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5, ssh]
+
+- name: opencode-desktop-lite
+  image: yaoapp/tai-sandbox-opencode-desktop-lite:latest
+  description: "OpenCode + lightweight Fluxbox desktop + Chromium + VNC. Smaller than opencode-desktop."
+  runners: [tai, opencode]
+  features: [opencode, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5]
+
+- name: opencode-desktop-lite-ssh
+  image: yaoapp/tai-sandbox-opencode-desktop-lite-ssh:latest
+  description: "OpenCode + lite desktop + SSH. Lightweight GUI with remote access."
+  runners: [tai, opencode]
+  features: [opencode, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5, ssh]
+
+- name: opencode-yao
+  image: yaoapp/tai-sandbox-opencode-yao:latest
+  description: "OpenCode + SSH + Yao engine. For developing Yao applications with OpenCode."
+  runners: [tai, opencode]
+  features: [opencode, ssh, yao]
+
+- name: opencode-yao-desktop
+  image: yaoapp/tai-sandbox-opencode-yao-desktop:latest
+  description: "OpenCode + Yao engine + full XFCE4 desktop + Chromium + VNC. All-in-one Yao development."
+  runners: [tai, opencode]
+  features: [opencode, desktop-xfce4, chromium, vnc, chinese-locale, fcitx5, ssh, yao]
+
+- name: opencode-yao-desktop-lite
+  image: yaoapp/tai-sandbox-opencode-yao-desktop-lite:latest
+  description: "OpenCode + Yao engine + lite desktop + VNC. Lighter Yao development environment."
+  runners: [tai, opencode]
+  features: [opencode, desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5, ssh, yao]
+
+# ── Desktop-only (no agent CLI) ─────────────────────────────
+# These images provide only a desktop environment without any coding agent CLI.
+# Useful as base for custom agents or for manual VNC access.
+# Runner: tai only (no claude/opencode)
+
+- name: desktop
+  image: yaoapp/tai-sandbox-desktop:latest
+  description: "Full XFCE4 desktop + Chromium + VNC. No agent CLI. Use as base or for VNC-only tasks."
+  runners: [tai]
+  features: [desktop-xfce4, chromium, vnc, chinese-locale, fcitx5]
+
+- name: desktop-lite
+  image: yaoapp/tai-sandbox-desktop-lite:latest
+  description: "Lightweight Fluxbox desktop + Chromium + VNC. No agent CLI. Smallest desktop image."
+  runners: [tai]
+  features: [desktop-fluxbox, chromium, vnc, chinese-locale, fcitx5]

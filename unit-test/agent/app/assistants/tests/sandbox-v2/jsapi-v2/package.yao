@@ -1,0 +1,7 @@
+{
+  "name": "Sandbox V2 JSAPI Test",
+  "description": "V2 sandbox: runner=yao, tests ctx.computer and ctx.workspace JSAPI in Next hook.",
+  "connector": "use::default",
+  "uses": { "search": "disabled" },
+  "tags": ["Test", "SandboxV2", "JSAPI"]
+}

@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "description": "Format data as pretty-printed JSON",
+  "properties": {
+    "data": {
+      "type": "object",
+      "description": "Data to format as JSON"
+    }
+  },
+  "required": ["data"],
+  "x-process-args": [":arguments"]
+}

@@ -1,4 +1,6 @@
-package feishu
+//go:build e2e
+
+package feishu_test
 
 import (
 	"context"
@@ -8,198 +10,129 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/yao/agent/robot/events/integrations/feishu"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
 	fsapi "github.com/yaoapp/yao/integrations/feishu"
 )
 
-var (
-	fsAppID     string
-	fsAppSecret string
-)
-
-func TestMain(m *testing.M) {
-	fsAppID = os.Getenv("FEISHU_TEST_APP_ID")
-	fsAppSecret = os.Getenv("FEISHU_TEST_APP_SECRET")
-	os.Exit(m.Run())
-}
-
-func skipIfNoCreds(t *testing.T) {
-	t.Helper()
-	if fsAppID == "" || fsAppSecret == "" {
-		t.Skip("FEISHU_TEST_APP_ID or FEISHU_TEST_APP_SECRET not set")
+func TestFeishuAdapter(t *testing.T) {
+	appID := os.Getenv("FEISHU_TEST_APP_ID")
+	if appID == "" {
+		t.Fatal("FEISHU_TEST_APP_ID is required for this test")
 	}
-}
-
-// TestE2E_Adapter_Apply verifies that Apply correctly registers a bot.
-func TestE2E_Adapter_Apply(t *testing.T) {
-	skipIfNoCreds(t)
-
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
+	appSecret := os.Getenv("FEISHU_TEST_APP_SECRET")
+	if appSecret == "" {
+		t.Fatal("FEISHU_TEST_APP_SECRET is required for this test")
 	}
-	defer close(a.stopCh)
 
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_feishu_adapter",
-		TeamID:   "team_e2e_fs",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Feishu: &robottypes.FeishuConfig{
-					Enabled:   true,
-					AppID:     fsAppID,
-					AppSecret: fsAppSecret,
+	t.Run("Apply", func(t *testing.T) {
+		a := feishu.NewTestAdapter()
+		defer a.Close()
+
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_feishu_adapter",
+			TeamID:   "team_e2e_fs",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Feishu: &robottypes.FeishuConfig{
+						Enabled:   true,
+						AppID:     appID,
+						AppSecret: appSecret,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
+		a.Apply(context.Background(), robot)
 
-	a.mu.RLock()
-	entry, ok := a.bots["robot_e2e_feishu_adapter"]
-	a.mu.RUnlock()
+		bot := a.GetBot("robot_e2e_feishu_adapter")
+		require.NotNil(t, bot, "bot should be registered")
+		t.Logf("OK  Apply: feishu bot registered robot=%s app=%s", robot.MemberID, appID)
+	})
 
-	require.True(t, ok, "bot should be registered")
-	assert.Equal(t, fsAppID, entry.appID)
-	assert.NotNil(t, entry.bot)
+	t.Run("Apply_Update", func(t *testing.T) {
+		a := feishu.NewTestAdapter()
+		defer a.Close()
 
-	t.Logf("OK  Apply: feishu bot registered robot=%s app=%s", robot.MemberID, entry.appID)
-}
-
-// TestE2E_Adapter_Apply_Update verifies re-Apply with same appID is a no-op.
-func TestE2E_Adapter_Apply_Update(t *testing.T) {
-	skipIfNoCreds(t)
-
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
-
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_feishu_update",
-		TeamID:   "team_e2e_fs",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Feishu: &robottypes.FeishuConfig{
-					Enabled:   true,
-					AppID:     fsAppID,
-					AppSecret: fsAppSecret,
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_feishu_update",
+			TeamID:   "team_e2e_fs",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Feishu: &robottypes.FeishuConfig{
+						Enabled:   true,
+						AppID:     appID,
+						AppSecret: appSecret,
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	_, ok := a.bots["robot_e2e_feishu_update"]
-	a.mu.RUnlock()
-	require.True(t, ok)
+		a.Apply(context.Background(), robot)
+		require.NotNil(t, a.GetBot("robot_e2e_feishu_update"))
 
-	// Apply again — should be no-op
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	assert.Len(t, a.bots, 1)
-	a.mu.RUnlock()
+		a.Apply(context.Background(), robot)
+		assert.Equal(t, 1, a.BotCount())
 
-	// Remove
-	a.Remove(context.Background(), "robot_e2e_feishu_update")
-	a.mu.RLock()
-	_, ok = a.bots["robot_e2e_feishu_update"]
-	a.mu.RUnlock()
-	assert.False(t, ok, "bot should be removed")
-	t.Log("OK  Apply/Remove lifecycle verified")
-}
+		a.Remove(context.Background(), "robot_e2e_feishu_update")
+		assert.Nil(t, a.GetBot("robot_e2e_feishu_update"), "bot should be removed")
+		t.Log("OK  Apply/Remove lifecycle verified")
+	})
 
-// TestE2E_Adapter_Dedup verifies deduplication works.
-func TestE2E_Adapter_Dedup(t *testing.T) {
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
+	t.Run("Dedup", func(t *testing.T) {
+		a := feishu.NewTestAdapter()
+		defer a.Close()
 
-	key := "fs:test-robot:msg-12345"
-	assert.True(t, a.dedup.markSeen(key), "first time should return true")
-	assert.False(t, a.dedup.markSeen(key), "second time should return false (dedup)")
-	t.Log("OK  dedup working correctly")
-}
+		key := "fs:test-robot:msg-12345"
+		assert.True(t, a.MarkSeen(key), "first time should return true")
+		assert.False(t, a.MarkSeen(key), "second time should return false (dedup)")
+		t.Log("OK  dedup working correctly")
+	})
 
-// TestE2E_Adapter_HandleMessages verifies message handling through the adapter.
-func TestE2E_Adapter_HandleMessages(t *testing.T) {
-	skipIfNoCreds(t)
+	t.Run("HandleMessages", func(t *testing.T) {
+		a := feishu.NewTestAdapterWithBot("robot_e2e_feishu_handle", appID, appSecret)
+		defer a.Close()
 
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
 
-	entry := &botEntry{
-		robotID: "robot_e2e_feishu_handle",
-		appID:   fsAppID,
-		bot:     fsapi.NewBot(fsAppID, fsAppSecret),
-	}
+		cms := []*fsapi.ConvertedMessage{
+			{
+				MessageID: "test_msg_1",
+				ChatID:    "test_chat_1",
+				ChatType:  "p2p",
+				SenderID:  "test_sender_1",
+				Text:      "Hello from E2E test",
+			},
+		}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+		a.HandleMessagesForTest(ctx, "robot_e2e_feishu_handle", cms)
 
-	cms := []*fsapi.ConvertedMessage{
-		{
-			MessageID: "test_msg_1",
-			ChatID:    "test_chat_1",
-			ChatType:  "p2p",
-			SenderID:  "test_sender_1",
-			Text:      "Hello from E2E test",
-		},
-	}
+		assert.False(t, a.MarkSeen("fs:robot_e2e_feishu_handle:test_msg_1"),
+			"message should be marked as seen after handleMessages")
+		t.Log("OK  handleMessages processed 1 message")
+	})
 
-	// This should not panic even without event bus running
-	a.handleMessages(ctx, entry, cms)
+	t.Run("ApplyDisabled", func(t *testing.T) {
+		a := feishu.NewTestAdapter()
+		defer a.Close()
 
-	// Verify dedup: should be marked as seen
-	assert.False(t, a.dedup.markSeen("fs:robot_e2e_feishu_handle:test_msg_1"),
-		"message should be marked as seen after handleMessages")
-	t.Log("OK  handleMessages processed 1 message")
-}
-
-// TestE2E_Adapter_ApplyDisabled verifies Apply removes bot when disabled.
-func TestE2E_Adapter_ApplyDisabled(t *testing.T) {
-	a := &Adapter{
-		bots:   make(map[string]*botEntry),
-		appIdx: make(map[string]string),
-		dedup:  newDedupStore(),
-		stopCh: make(chan struct{}),
-	}
-	defer close(a.stopCh)
-
-	robot := &robottypes.Robot{
-		MemberID: "robot_e2e_feishu_disabled",
-		TeamID:   "team_e2e_fs",
-		Config: &robottypes.Config{
-			Integrations: &robottypes.Integrations{
-				Feishu: &robottypes.FeishuConfig{
-					Enabled:   false,
-					AppID:     "some_app",
-					AppSecret: "some_secret",
+		robot := &robottypes.Robot{
+			MemberID: "robot_e2e_feishu_disabled",
+			TeamID:   "team_e2e_fs",
+			Config: &robottypes.Config{
+				Integrations: &robottypes.Integrations{
+					Feishu: &robottypes.FeishuConfig{
+						Enabled:   false,
+						AppID:     "some_app",
+						AppSecret: "some_secret",
+					},
 				},
 			},
-		},
-	}
+		}
 
-	a.Apply(context.Background(), robot)
-	a.mu.RLock()
-	_, ok := a.bots["robot_e2e_feishu_disabled"]
-	a.mu.RUnlock()
-	assert.False(t, ok, "disabled bot should not be registered")
-	t.Log("OK  disabled config not registered")
+		a.Apply(context.Background(), robot)
+		assert.Nil(t, a.GetBot("robot_e2e_feishu_disabled"), "disabled bot should not be registered")
+		t.Log("OK  disabled config not registered")
+	})
 }

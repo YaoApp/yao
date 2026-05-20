@@ -1,0 +1,12 @@
+# Providers - Knowledge Base Provider Management
+# namespace: kb
+# resource: providers
+# actions: read
+# levels: all
+
+kb:providers:read:all:
+  description: "Read knowledge base providers (chunking, converter, embedding, extraction, fetcher)"
+  endpoints:
+    - GET /kb/providers/:providerType
+    - GET /kb/providers/:providerType/:providerID/schema
+

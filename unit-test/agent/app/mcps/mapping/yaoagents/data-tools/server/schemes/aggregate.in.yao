@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "description": "Aggregate data from an array of records",
+  "properties": {
+    "data": {
+      "type": "array",
+      "description": "Array of records to aggregate"
+    }
+  },
+  "required": ["data"],
+  "x-process-args": [":arguments"]
+}

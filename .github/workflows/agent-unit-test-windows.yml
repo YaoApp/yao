@@ -1,0 +1,323 @@
+name: Agent Unit Test (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "agent/**"
+      - "sandbox/v2/**"
+      - "unit-test/agent/**"
+      - ".github/workflows/agent-unit-test-windows.yml"
+      - ".github/actions/setup-yao/**"
+
+env:
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+jobs:
+  agent-test-windows:
+    name: ${{ matrix.platform }} / ${{ matrix.db }}
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-2025]
+        go: ["1.26"]
+        db: [SQLite3, Postgres17]
+
+    steps:
+      # ── 1. Checkout dependency repos ──────────────────────────────────
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      - name: Checkout Tai
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/tai
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          path: tai
+
+      # ── 2. Unzip libv8 ────────────────────────────────────────────────
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      # ── 3. Move deps to parent directory ──────────────────────────────
+      - name: Move dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+          mv tai ../
+
+      # ── 3b. Setup WSL2 + Docker Engine (Linux containers) ────────────
+      - name: Setup WSL (Ubuntu 24.04)
+        uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          additional-packages: ca-certificates curl gnupg
+
+      - name: Install Docker Engine in WSL
+        shell: wsl-bash {0}
+        run: |
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io
+
+      - name: Restart Docker daemon with TCP listener
+        shell: wsl-bash {0}
+        run: |
+          mkdir -p /etc/docker
+          cat > /etc/docker/daemon.json << 'EOF'
+          { "hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"] }
+          EOF
+          kill $(cat /var/run/docker.pid 2>/dev/null) 2>/dev/null || true
+          sleep 2
+          rm -f /var/run/docker.pid
+          dockerd --config-file /etc/docker/daemon.json > /tmp/dockerd.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 || {
+            echo "::error::Docker daemon failed to start"
+            cat /tmp/dockerd.log
+            exit 1
+          }
+          echo "Docker daemon ready"
+          docker version
+
+      - name: Setup Docker port forwarding (WSL2 NAT)
+        shell: powershell
+        run: |
+          $wslIp = (wsl hostname -I).Trim().Split(' ')[0]
+          Write-Host "WSL2 IP: $wslIp"
+          netsh interface portproxy add v4tov4 listenport=2375 listenaddress=127.0.0.1 connectport=2375 connectaddress=$wslIp
+          Start-Sleep -Seconds 2
+          $resp = Invoke-WebRequest -Uri "http://127.0.0.1:2375/version" -UseBasicParsing -TimeoutSec 10
+          Write-Host "Docker via TCP ready: $($resp.Content)"
+
+      # ── 3c. Add host.tai.internal to hosts ─────────────────────────────
+      - name: Add host.tai.internal to hosts
+        shell: powershell
+        run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1`thost.tai.internal" -Force
+
+      # ── 4. Checkout yao itself ────────────────────────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ── 5. Setup Go ──────────────────────────────────────────────────
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      # ── 6. Install LLVM (clang + lld) ────────────────────────────────
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      # ── 7. Build tools ───────────────────────────────────────────────
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      # ── 8. Setup PostgreSQL (conditional) ─────────────────────────────
+      - name: Setup PostgreSQL
+        if: matrix.db == 'Postgres17'
+        uses: ankane/setup-postgres@v1
+        with:
+          postgres-version: "17"
+          database: agent_test
+          user: yao
+
+      - name: Set PostgreSQL password
+        if: matrix.db == 'Postgres17'
+        run: psql -U postgres -c "ALTER USER yao PASSWORD '123456';"
+
+      # ── 9. Generate agent-test.env from template + secrets ─────────
+      - name: Generate agent-test.env
+        shell: bash
+        run: |
+          cp unit-test/agent/env/agent-test.env.template unit-test/agent/env/agent-test.env
+          sed -i 's|^DEEPSEEK_V4_API_KEY=.*|DEEPSEEK_V4_API_KEY=${{ secrets.DEEPSEEK_V4_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_TEST_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^SERPER_API_KEY=.*|SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_BOT_TOKEN=.*|TELEGRAM_TEST_BOT_TOKEN=${{ secrets.TELEGRAM_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_HOST=.*|TELEGRAM_TEST_HOST=${{ secrets.TELEGRAM_TEST_HOST }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_ID=.*|FEISHU_TEST_APP_ID=${{ secrets.FEISHU_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_SECRET=.*|FEISHU_TEST_APP_SECRET=${{ secrets.FEISHU_TEST_APP_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_ID=.*|DINGTALK_TEST_CLIENT_ID=${{ secrets.DINGTALK_TEST_CLIENT_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_SECRET=.*|DINGTALK_TEST_CLIENT_SECRET=${{ secrets.DINGTALK_TEST_CLIENT_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_BOT_TOKEN=.*|DISCORD_TEST_BOT_TOKEN=${{ secrets.DISCORD_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_APP_ID=.*|DISCORD_TEST_APP_ID=${{ secrets.DISCORD_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
+            sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
+            sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
+          fi
+
+      # ── 10. Build test binaries ────────────────────────────────────────
+      - name: Build Mock LLM
+        shell: bash
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.build/test"
+          cd unit-test/agent/mock-llm
+          go build -o "$GITHUB_WORKSPACE/.build/test/mock-llm.exe" .
+
+      # ── 11. Start services ──────────────────────────────────────────
+      - name: Start Mock LLM
+        shell: bash
+        env:
+          MOCK_LLM_PORT: "6920"
+        run: |
+          "$GITHUB_WORKSPACE/.build/test/mock-llm.exe" \
+            -port $MOCK_LLM_PORT \
+            -fixtures unit-test/agent/mock-llm/fixtures &
+          for i in $(seq 1 15); do
+            curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" && break
+            sleep 1
+          done
+          curl -sf "http://127.0.0.1:$MOCK_LLM_PORT/healthz" > /dev/null 2>&1 || {
+            echo "::error::Mock LLM failed to start"
+            exit 1
+          }
+
+      # ── 12. Run tests ─────────────────────────────────────────────────
+      - name: "Tier 0: Sandbox Infra Tests (sandbox/v2)"
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+          DOCKER_HOST: tcp://127.0.0.1:2375
+        run: |
+          mkdir -p .build/coverage
+          go test -v -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
+
+      - name: "Tier 1: Pure Unit Tests"
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags unit ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 120s -tags unit -coverprofile=.build/coverage/tier1.out -coverpkg=./agent/... $PKGS
+          fi
+
+      - name: "Tier 2: App Integration Tests (mock-llm)"
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+          YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
+          MOCK_LLM_PORT: "6920"
+        run: |
+          mkdir -p .build/coverage
+          PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
+          if [ -n "$PKGS" ]; then
+            go test -v -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+          fi
+
+      # ── 13. Coverage ──────────────────────────────────────────────────
+      - name: Merge Coverage Profiles
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p .build/coverage
+          FIRST=""
+          for f in .build/coverage/tier*.out; do
+            [ -f "$f" ] || continue
+            if [ -z "$FIRST" ]; then
+              head -1 "$f" > .build/coverage/all.out
+              FIRST=1
+            fi
+            tail -n +2 "$f" >> .build/coverage/all.out
+          done
+          if [ -f .build/coverage/all.out ]; then
+            echo "=== Coverage Summary ==="
+            go tool cover -func=.build/coverage/all.out | tail -1
+          else
+            echo "No coverage data collected"
+          fi
+
+      - name: Upload Coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v5
+        with:
+          files: .build/coverage/all.out
+          flags: agent-windows-${{ matrix.db }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+      # ── 14. Upload logs on failure ────────────────────────────────────
+      - name: Upload Logs on Failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-test-logs-${{ matrix.platform }}-${{ matrix.db }}
+          path: |
+            ${{ github.workspace }}/.build/test/data/*.log
+            ${{ github.workspace }}/unit-test/agent/app/logs/

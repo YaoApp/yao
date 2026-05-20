@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "description": "Transform input string",
+  "properties": {
+    "input": {
+      "type": "string",
+      "description": "String to transform"
+    }
+  },
+  "required": ["input"],
+  "x-process-args": [":arguments"]
+}

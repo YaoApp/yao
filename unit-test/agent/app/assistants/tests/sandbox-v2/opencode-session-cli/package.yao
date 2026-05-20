@@ -1,0 +1,7 @@
+{
+  "name": "Sandbox V2 OpenCode Session CLI",
+  "description": "V2 sandbox: session lifecycle + OpenCode CLI. Container reused within same chat.",
+  "connector": "use::default",
+  "uses": { "search": "disabled" },
+  "tags": ["Test", "SandboxV2", "OpenCode"]
+}

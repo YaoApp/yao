@@ -1,0 +1,81 @@
+// Unified auth entry config (login + register)
+{
+  "title": "Welcome to Yao Agents",
+  "description": "Your AI Team.",
+  "default": true,
+  "success_url": "$ENV.AFTER_LOGIN_SUCCESS_URL", // Redirect after successful login/register
+  "failure_url": "$ENV.AFTER_LOGIN_FAILURE_URL", // Redirect if auth failed
+
+  // Form config
+  "form": {
+    "username": {
+      "placeholder": "Enter your email",
+      "fields": ["email"],
+    },
+    "password": { "placeholder": "Password" },
+    "confirm_password": { "placeholder": "Confirm Password" },
+
+    // Captcha config
+    "captcha": { "type": "image", "options": {} },
+
+    "forgot_password_link": true,
+    "remember_me": true,
+    "terms_of_service_link": "https://yaoapps.com/doc/guide/user/terms-of-service",
+    "privacy_policy_link": "https://yaoapps.com/doc/guide/user/privacy-policy",
+  },
+
+  // Token config (from signin)
+  "token": {
+    "expires_in": "24h",
+    "refresh_token_expires_in": "7d",
+    "remember_me_refresh_token_expires_in": "90d",
+  },
+
+  // Messenger config (for registration email/SMS verification)
+  "messenger": {
+    "mail": {
+      "channel": "default",
+      "template": "en.verify_email",
+    },
+    "sms": {
+      "channel": "default",
+      "template": "en.verify_mobile",
+    },
+  },
+
+  // Registration settings
+  "invite_required": true, // Whether to require invite to register
+  "auto_login": true, // Whether to auto login after register
+  "role": "user:free", // Default role for new users
+  "type": "free", // Default type for new users
+
+  // Invite Code Setting
+  "invite": {
+    "title": "Enter Invitation Code",
+    "description": "We are currently in beta testing. An official invitation code is required.",
+    "placeholder": "Enter official invitation code",
+    "apply_link": "https://yaoapps.com/apply-invite", // Optional: link to apply for invitation code
+    "apply_prompt": "Don't have an invitation code?", // Prompt text before apply link
+    "apply_text": "Apply for one", // Text for apply link
+  },
+
+  // Third party login/register config (from signin)
+  "third_party": {
+    "providers": [
+      // {
+      //   "id": "google",
+      //   "label": "Google",
+      //   "title": "Continue with Google",
+      //   "logo": "/assets/brands/google.svg",
+      //   "color": "#4285F4",
+      // },
+      // {
+      //   "id": "github",
+      //   "label": "Github",
+      //   "title": "Continue with Github",
+      //   "logo": "/assets/brands/github.svg",
+      //   "color": "#181717",
+      // },
+    ],
+  },
+}

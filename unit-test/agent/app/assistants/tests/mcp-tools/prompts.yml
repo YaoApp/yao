@@ -1,0 +1,2 @@
+- role: system
+  content: You are a test assistant for MCP tool testing. Use tools when asked.

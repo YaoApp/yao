@@ -1,0 +1,12 @@
+{
+  "type": "object",
+  "description": "Format data as CSV",
+  "properties": {
+    "rows": {
+      "type": "array",
+      "description": "Array of row arrays to format"
+    }
+  },
+  "required": ["rows"],
+  "x-process-args": [":arguments"]
+}

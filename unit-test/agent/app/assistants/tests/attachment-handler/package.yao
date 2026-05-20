@@ -1,0 +1,10 @@
+{
+  "name": "Attachment Handler Test",
+  "type": "assistant",
+  "avatar": "/api/__yao/app/icons/app.png",
+  "connector": "openai.mock",
+  "description": "Test assistant for content/attachment handling tests",
+  "tags": ["Test", "Content"],
+  "sort": 999,
+  "public": false
+}

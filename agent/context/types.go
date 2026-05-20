@@ -252,7 +252,6 @@ type Context struct {
 	// Internal
 	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
-	sandboxExecutor SandboxExecutor       `json:"-"` // Sandbox executor for hooks (set by assistant when sandbox is configured)
 	computer        infraV2.Computer      `json:"-"` // V2 sandbox computer (set by assistant when V2 sandbox is configured)
 	workspace       workspace.FS          `json:"-"` // V2 workspace FS (derived from computer.Workplace())
 

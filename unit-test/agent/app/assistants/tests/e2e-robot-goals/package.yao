@@ -1,0 +1,12 @@
+{
+  "name": "Robot Goals E2E",
+  "type": "robot-goals",
+  "connector": "use::default",
+  "description": "P1 Phase Agent E2E test - converts inspiration to goals (real LLM)",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot", "E2E"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

@@ -92,13 +92,26 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 		return nil, err
 	}
 
-	result, err := res.Runtime.Exec(ctx, b.containerID, cmd, tairuntime.ExecOptions{
+	execOpts := tairuntime.ExecOptions{
 		WorkDir: cfg.WorkDir,
 		Env:     cfg.Env,
 		User:    "sandbox",
-	})
-	if err != nil {
-		return nil, err
+	}
+
+	// Docker may return 409 when a previous exec session is still draining.
+	// Retry up to 3 times since exec is idempotent.
+	var result *tairuntime.ExecResult
+	for attempt := 0; ; attempt++ {
+		var err409 error
+		result, err409 = res.Runtime.Exec(ctx, b.containerID, cmd, execOpts)
+		if err409 == nil {
+			break
+		}
+		if attempt < 2 && strings.Contains(err409.Error(), "409") {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		return nil, err409
 	}
 
 	r := &ExecResult{

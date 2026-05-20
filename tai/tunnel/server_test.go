@@ -50,16 +50,16 @@ func TestPortsFromMap_Empty(t *testing.T) {
 }
 
 func TestCapsFromMap(t *testing.T) {
-	m := map[string]bool{"docker": true, "k8s": false, "host_exec": true}
+	m := map[string]bool{"docker": true, "k8s": false, "host_exec": true, "vnc": true}
 	c := capsFromMap(m)
-	if !c.Docker || c.K8s || !c.HostExec {
+	if !c.Docker || c.K8s || !c.HostExec || !c.VNC {
 		t.Errorf("capsFromMap got %+v", c)
 	}
 }
 
 func TestCapsFromMap_Empty(t *testing.T) {
 	c := capsFromMap(nil)
-	if c.Docker || c.K8s || c.HostExec {
+	if c.Docker || c.K8s || c.HostExec || c.VNC {
 		t.Errorf("capsFromMap(nil) got %+v", c)
 	}
 }
@@ -80,16 +80,22 @@ func TestPortsFromProto_Nil(t *testing.T) {
 }
 
 func TestCapsFromProto(t *testing.T) {
-	cp := &taipb.Capabilities{Docker: true, K8S: false, HostExec: true}
+	cp := &taipb.Capabilities{
+		Docker: true, K8S: false, HostExec: true,
+		Vnc: true, Runners: []string{"tai", "claude"},
+	}
 	c := capsFromProto(cp)
-	if !c.Docker || c.K8s || !c.HostExec {
-		t.Errorf("capsFromProto got %+v", c)
+	if !c.Docker || c.K8s || !c.HostExec || !c.VNC {
+		t.Errorf("capsFromProto basic fields: %+v", c)
+	}
+	if len(c.Runners) != 2 || c.Runners[0] != "tai" || c.Runners[1] != "claude" {
+		t.Errorf("capsFromProto Runners = %v, want [tai claude]", c.Runners)
 	}
 }
 
 func TestCapsFromProto_Nil(t *testing.T) {
 	c := capsFromProto(nil)
-	if c != (types.Capabilities{}) {
+	if c.Docker || c.K8s || c.HostExec || c.VNC || len(c.Runners) != 0 {
 		t.Errorf("capsFromProto(nil) = %+v", c)
 	}
 }

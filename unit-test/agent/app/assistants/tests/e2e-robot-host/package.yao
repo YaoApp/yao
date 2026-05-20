@@ -1,0 +1,12 @@
+{
+  "name": "Robot Host E2E",
+  "type": "robot-host",
+  "connector": "use::default",
+  "description": "Host Agent E2E test - human-robot interaction (real LLM)",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot", "E2E"],
+  "sort": 999,
+  "public": false,
+  "automated": true,
+  "uses": { "search": "disabled" }
+}

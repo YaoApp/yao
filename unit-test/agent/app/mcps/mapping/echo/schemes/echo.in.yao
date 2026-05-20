@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "description": "Echo back a message",
+  "properties": {
+    "message": {
+      "type": "string",
+      "description": "Message to echo back"
+    },
+    "uppercase": {
+      "type": "boolean",
+      "description": "Convert to uppercase",
+      "default": false
+    }
+  },
+  "required": ["message"],
+  "x-process-args": [":arguments"]
+}
+

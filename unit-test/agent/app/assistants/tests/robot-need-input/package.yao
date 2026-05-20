@@ -1,0 +1,10 @@
+{
+  "name": "Robot Need Input Test",
+  "type": "assistant",
+  "connector": "openai.mock",
+  "description": "Test assistant for suspend/resume need_input flow",
+  "options": { "max_tokens": 4096 },
+  "tags": ["Test", "Robot"],
+  "sort": 999,
+  "public": false
+}

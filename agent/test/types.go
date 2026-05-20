@@ -3,6 +3,7 @@ package test
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"math"
 	"os"
 	"time"
@@ -163,6 +164,22 @@ type Options struct {
 
 	// JSONOutput outputs results in JSON format for AI/script consumption
 	JSONOutput bool `json:"json_output,omitempty"`
+
+	// Writer is a custom io.Writer for test output (used in gRPC streaming mode).
+	// When nil, os.Stdout is used. Not serialized over the wire.
+	Writer io.Writer `json:"-"`
+
+	// EventWriter sends structured JSON events during test execution.
+	// Used by gRPC JSON stream mode to emit NDJSON events instead of
+	// colored text. When non-nil, OutputWriter methods emit JSON events
+	// and skip text formatting.
+	EventWriter EventWriter `json:"-"`
+}
+
+// EventWriter sends structured JSON events during test execution.
+// Implemented by the gRPC layer to send NDJSON lines via Chunk messages.
+type EventWriter interface {
+	WriteEvent(data []byte) error
 }
 
 // ContextConfig represents custom context configuration from JSON file
@@ -880,6 +897,11 @@ type Report struct {
 
 	// Metadata contains additional report metadata
 	Metadata *ReportMetadata `json:"metadata"`
+
+	// Error is set when the test run itself failed (e.g. agent not found,
+	// connector misconfigured). This is different from individual test
+	// case failures — it means the runner could not execute at all.
+	Error string `json:"error,omitempty"`
 }
 
 // ReportMetadata contains metadata about the test report
@@ -905,12 +927,15 @@ type ReportMetadata struct {
 
 // HasFailures returns true if there are any failed, error, or timeout tests
 func (r *Report) HasFailures() bool {
+	if r == nil || r.Summary == nil {
+		return false
+	}
 	return r.Summary.Failed > 0 || r.Summary.Errors > 0 || r.Summary.Timeouts > 0
 }
 
 // PassRate returns the pass rate as a percentage (0-100)
 func (r *Report) PassRate() float64 {
-	if r.Summary.Total == 0 {
+	if r == nil || r.Summary == nil || r.Summary.Total == 0 {
 		return 0
 	}
 	return float64(r.Summary.Passed) / float64(r.Summary.Total) * 100

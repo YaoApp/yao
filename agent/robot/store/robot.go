@@ -408,6 +408,8 @@ func (s *RobotStore) recordToMap(record *RobotRecord) map[string]interface{} {
 	}
 	if record.RoleID != "" {
 		data["role_id"] = record.RoleID
+	} else {
+		data["role_id"] = "member"
 	}
 	if record.ManagerID != "" {
 		data["manager_id"] = record.ManagerID

@@ -1,0 +1,5 @@
+{
+  "name": "I18n Multilang",
+  "description": "Test agent for i18n locale loading and translation",
+  "connector": "openai.mock"
+}

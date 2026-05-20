@@ -1,0 +1,3 @@
+{"name":"basic_health","description":"Basic health check","uri":"echo://health","data":{"status":"healthy","uptime":3600}}
+{"name":"detailed_health","description":"Detailed health check","uri":"echo://health?check=all","data":{"status":"healthy","uptime":7200,"checks":{"memory":"ok","cpu":"ok","disk":"ok"}}}
+

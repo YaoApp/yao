@@ -1,0 +1,6 @@
+locale: zh-cn
+messages:
+  placeholder_title: "有什么可以帮您"
+  placeholder_description: "我可以帮助处理各种任务"
+  prompt_1: "你能做什么？"
+  prompt_2: "帮我完成一个任务"

@@ -1,0 +1,79 @@
+{
+  "type": "free", // default subscription type for new teams
+  "role": "team:owner", // default member role for team creator (owner member role)
+  "roles": [
+    {
+      "role_id": "team:owner",
+      "label": "Team Owner",
+      "description": "Team owner with full access to all team resources and member management",
+      "default": false,
+      "hidden": true
+    },
+    {
+      "role_id": "team:admin",
+      "label": "Team Admin",
+      "description": "Team administrator with member management and team configuration permissions",
+      "default": false,
+      "hidden": false
+    },
+    {
+      "role_id": "team:member",
+      "label": "Team Member",
+      "description": "Team member with collaborative access to team resources",
+      "default": true,
+      "hidden": false
+    }
+  ],
+
+  // AI Member (Robot) Configuration
+  "robot": {
+    "roles": ["team:member", "team:admin"], // Available roles for AI members
+
+    // Email domain configurations for AI members
+    "email_domains": [
+      {
+        "name": "Robot Email", // Display name for this configuration
+        "messenger": "primary",
+        "domain": "$ENV.ROBOT_EMAIL_DOMAIN",
+        "prefix_min_length": 6, // Minimum length for email prefix
+        "prefix_max_length": 20, // Maximum length for email prefix
+        "reserved_words": ["robot", "admin", "system", "/^robot/"], // Reserved/protected words
+        "whitelist": {
+          "domains": ["$ENV.ROBOT_EMAIL_DOMAIN"],
+          "senders": ["$ENV.MAILGUN_FROM"],
+          "ips": ["0.0.0.0/0"]
+        }
+      },
+      {
+        "name": "Staff Email", // Display name for this configuration
+        "messenger": "primary",
+        "domain": "$ENV.STAFF_EMAIL_DOMAIN",
+        "prefix_min_length": 6,
+        "prefix_max_length": 20,
+        "reserved_words": ["admin", "staff", "support", "/^team/"],
+        "whitelist": {
+          "domains": ["$ENV.STAFF_EMAIL_DOMAIN"],
+          "senders": ["$ENV.MAILGUN_FROM"],
+          "ips": ["0.0.0.0/0"]
+        }
+      }
+    ],
+
+    // Default settings for AI members
+    "defaults": {
+      "llm": "$ENV.DEFAULT_CONNECTOR", // Default LLM connector (configured in .env)
+      "autonomous_mode": true, // Whether autonomous mode is enabled by default
+      "cost_limit": 100 // Default daily cost limit (USD)
+    }
+  },
+
+  "invite": {
+    "channel": "default",
+    "expiry": "1d", // invitation link expiry: 8h, 1d, 20m, etc.
+    "base_url": "$ENV.APP_BASE_URL/dashboard/team/invite", // base URL for invitation links (empty means use current origin)
+    "templates": {
+      "mail": "en.invite_member", // mail template
+      "sms": "en.invite_member" // sms template
+    }
+  }
+}

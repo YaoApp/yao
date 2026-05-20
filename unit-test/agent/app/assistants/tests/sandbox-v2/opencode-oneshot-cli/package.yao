@@ -1,0 +1,7 @@
+{
+  "name": "Sandbox V2 OpenCode Oneshot CLI",
+  "description": "V2 sandbox: oneshot lifecycle + OpenCode CLI mode. New container per request.",
+  "connector": "use::default",
+  "uses": { "search": "disabled" },
+  "tags": ["Test", "SandboxV2", "OpenCode"]
+}

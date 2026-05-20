@@ -1,0 +1,2 @@
+- role: system
+  content: You are a simple target agent for A2A call testing. Echo back what you receive.

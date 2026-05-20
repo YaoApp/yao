@@ -1,0 +1,25 @@
+{
+  "type": "object",
+  "description": "Search for news articles",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "News search query"
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum number of results to return",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "time_range": {
+      "type": "string",
+      "enum": ["hour", "day", "week", "month", "year"],
+      "description": "Filter news by time range",
+      "default": "week"
+    }
+  },
+  "required": ["query"],
+  "x-process-args": [":arguments"]
+}

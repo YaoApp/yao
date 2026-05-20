@@ -1,14 +1,17 @@
-package types
+//go:build unit
+
+package types_test
 
 import (
 	"testing"
 	"time"
+
+	types "github.com/yaoapp/yao/agent/store/types"
 )
 
-// TestToDatabase tests the ToDatabase conversion function
 func TestToDatabase(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToDatabase(nil)
+		result, err := types.ToDatabase(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -18,8 +21,8 @@ func TestToDatabase(t *testing.T) {
 	})
 
 	t.Run("DatabasePointer", func(t *testing.T) {
-		db := &Database{Models: []string{"model1", "model2"}}
-		result, err := ToDatabase(db)
+		db := &types.Database{Models: []string{"model1", "model2"}}
+		result, err := types.ToDatabase(db)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -29,8 +32,8 @@ func TestToDatabase(t *testing.T) {
 	})
 
 	t.Run("DatabaseValue", func(t *testing.T) {
-		db := Database{Models: []string{"model1", "model2"}}
-		result, err := ToDatabase(db)
+		db := types.Database{Models: []string{"model1", "model2"}}
+		result, err := types.ToDatabase(db)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -41,7 +44,7 @@ func TestToDatabase(t *testing.T) {
 
 	t.Run("StringSlice", func(t *testing.T) {
 		models := []string{"model1", "model2", "model3"}
-		result, err := ToDatabase(models)
+		result, err := types.ToDatabase(models)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -55,7 +58,7 @@ func TestToDatabase(t *testing.T) {
 
 	t.Run("InterfaceSlice", func(t *testing.T) {
 		models := []interface{}{"model1", "model2", 123}
-		result, err := ToDatabase(models)
+		result, err := types.ToDatabase(models)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -71,7 +74,7 @@ func TestToDatabase(t *testing.T) {
 		data := map[string]interface{}{
 			"models": []string{"model1", "model2"},
 		}
-		result, err := ToDatabase(data)
+		result, err := types.ToDatabase(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -81,21 +84,18 @@ func TestToDatabase(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToDatabase(invalidData)
+		_, err := types.ToDatabase(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to Database
 		data := map[string]interface{}{
 			"invalid_field": "should cause unmarshal to fail gracefully",
 		}
-		result, err := ToDatabase(data)
-		// Should not error, just return empty Database
+		result, err := types.ToDatabase(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -105,10 +105,9 @@ func TestToDatabase(t *testing.T) {
 	})
 }
 
-// TestToKnowledgeBase tests the ToKnowledgeBase conversion function
 func TestToKnowledgeBase(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToKnowledgeBase(nil)
+		result, err := types.ToKnowledgeBase(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -118,8 +117,8 @@ func TestToKnowledgeBase(t *testing.T) {
 	})
 
 	t.Run("KnowledgeBasePointer", func(t *testing.T) {
-		kb := &KnowledgeBase{Collections: []string{"col1", "col2"}}
-		result, err := ToKnowledgeBase(kb)
+		kb := &types.KnowledgeBase{Collections: []string{"col1", "col2"}}
+		result, err := types.ToKnowledgeBase(kb)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -129,8 +128,8 @@ func TestToKnowledgeBase(t *testing.T) {
 	})
 
 	t.Run("KnowledgeBaseValue", func(t *testing.T) {
-		kb := KnowledgeBase{Collections: []string{"col1", "col2"}}
-		result, err := ToKnowledgeBase(kb)
+		kb := types.KnowledgeBase{Collections: []string{"col1", "col2"}}
+		result, err := types.ToKnowledgeBase(kb)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -141,7 +140,7 @@ func TestToKnowledgeBase(t *testing.T) {
 
 	t.Run("StringSlice", func(t *testing.T) {
 		collections := []string{"col1", "col2", "col3"}
-		result, err := ToKnowledgeBase(collections)
+		result, err := types.ToKnowledgeBase(collections)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -155,7 +154,7 @@ func TestToKnowledgeBase(t *testing.T) {
 
 	t.Run("InterfaceSlice", func(t *testing.T) {
 		collections := []interface{}{"col1", "col2", 123}
-		result, err := ToKnowledgeBase(collections)
+		result, err := types.ToKnowledgeBase(collections)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -171,7 +170,7 @@ func TestToKnowledgeBase(t *testing.T) {
 		data := map[string]interface{}{
 			"collections": []string{"col1", "col2"},
 		}
-		result, err := ToKnowledgeBase(data)
+		result, err := types.ToKnowledgeBase(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -181,21 +180,18 @@ func TestToKnowledgeBase(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToKnowledgeBase(invalidData)
+		_, err := types.ToKnowledgeBase(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to KnowledgeBase
 		data := map[string]interface{}{
 			"invalid_field": "should cause unmarshal to fail gracefully",
 		}
-		result, err := ToKnowledgeBase(data)
-		// Should not error, just return empty KnowledgeBase
+		result, err := types.ToKnowledgeBase(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -205,10 +201,9 @@ func TestToKnowledgeBase(t *testing.T) {
 	})
 }
 
-// TestToMCPServers tests the ToMCPServers conversion function
 func TestToMCPServers(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToMCPServers(nil)
+		result, err := types.ToMCPServers(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -218,8 +213,8 @@ func TestToMCPServers(t *testing.T) {
 	})
 
 	t.Run("MCPServersPointer", func(t *testing.T) {
-		mcp := &MCPServers{Servers: []MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
-		result, err := ToMCPServers(mcp)
+		mcp := &types.MCPServers{Servers: []types.MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
+		result, err := types.ToMCPServers(mcp)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -229,8 +224,8 @@ func TestToMCPServers(t *testing.T) {
 	})
 
 	t.Run("MCPServersValue", func(t *testing.T) {
-		mcp := MCPServers{Servers: []MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
-		result, err := ToMCPServers(mcp)
+		mcp := types.MCPServers{Servers: []types.MCPServerConfig{{ServerID: "server1"}, {ServerID: "server2"}}}
+		result, err := types.ToMCPServers(mcp)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -243,7 +238,7 @@ func TestToMCPServers(t *testing.T) {
 		data := map[string]interface{}{
 			"servers": []interface{}{"server1", "server2"},
 		}
-		result, err := ToMCPServers(data)
+		result, err := types.ToMCPServers(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -256,21 +251,18 @@ func TestToMCPServers(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToMCPServers(invalidData)
+		_, err := types.ToMCPServers(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to MCPServers
 		data := map[string]interface{}{
 			"invalid_field": "should cause unmarshal to fail gracefully",
 		}
-		result, err := ToMCPServers(data)
-		// Should not error, just return empty MCPServers
+		result, err := types.ToMCPServers(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -280,10 +272,9 @@ func TestToMCPServers(t *testing.T) {
 	})
 }
 
-// TestToWorkflow tests the ToWorkflow conversion function
 func TestToWorkflow(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToWorkflow(nil)
+		result, err := types.ToWorkflow(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -293,8 +284,8 @@ func TestToWorkflow(t *testing.T) {
 	})
 
 	t.Run("WorkflowPointer", func(t *testing.T) {
-		wf := &Workflow{Workflows: []string{"wf1", "wf2"}}
-		result, err := ToWorkflow(wf)
+		wf := &types.Workflow{Workflows: []string{"wf1", "wf2"}}
+		result, err := types.ToWorkflow(wf)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -304,8 +295,8 @@ func TestToWorkflow(t *testing.T) {
 	})
 
 	t.Run("WorkflowValue", func(t *testing.T) {
-		wf := Workflow{Workflows: []string{"wf1", "wf2"}}
-		result, err := ToWorkflow(wf)
+		wf := types.Workflow{Workflows: []string{"wf1", "wf2"}}
+		result, err := types.ToWorkflow(wf)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -316,7 +307,7 @@ func TestToWorkflow(t *testing.T) {
 
 	t.Run("StringSlice", func(t *testing.T) {
 		workflows := []string{"wf1", "wf2", "wf3"}
-		result, err := ToWorkflow(workflows)
+		result, err := types.ToWorkflow(workflows)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -330,7 +321,7 @@ func TestToWorkflow(t *testing.T) {
 
 	t.Run("InterfaceSlice", func(t *testing.T) {
 		workflows := []interface{}{"wf1", "wf2", 789}
-		result, err := ToWorkflow(workflows)
+		result, err := types.ToWorkflow(workflows)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -346,7 +337,7 @@ func TestToWorkflow(t *testing.T) {
 		data := map[string]interface{}{
 			"workflows": []string{"wf1", "wf2"},
 		}
-		result, err := ToWorkflow(data)
+		result, err := types.ToWorkflow(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -356,21 +347,18 @@ func TestToWorkflow(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToWorkflow(invalidData)
+		_, err := types.ToWorkflow(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to Workflow
 		data := map[string]interface{}{
 			"invalid_field": "should cause unmarshal to fail gracefully",
 		}
-		result, err := ToWorkflow(data)
-		// Should not error, just return empty Workflow
+		result, err := types.ToWorkflow(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -380,27 +368,24 @@ func TestToWorkflow(t *testing.T) {
 	})
 }
 
-// TestToMySQLTime tests the ToMySQLTime conversion function
 func TestToMySQLTime(t *testing.T) {
 	t.Run("Int64Zero", func(t *testing.T) {
-		result := ToMySQLTime(int64(0))
+		result := types.ToMySQLTime(int64(0))
 		if result != "0000-00-00 00:00:00" {
 			t.Errorf("Expected '0000-00-00 00:00:00', got '%s'", result)
 		}
 	})
 
 	t.Run("Int64Timestamp", func(t *testing.T) {
-		// Unix timestamp in nanoseconds: 1609459200000000000 = 2021-01-01 00:00:00 UTC
 		timestamp := int64(1609459200000000000)
-		result := ToMySQLTime(timestamp)
-		// Should be in format "2021-01-01 00:00:00" or similar depending on timezone
+		result := types.ToMySQLTime(timestamp)
 		if len(result) != 19 {
 			t.Errorf("Expected 19 character timestamp, got %d: '%s'", len(result), result)
 		}
 	})
 
 	t.Run("IntZero", func(t *testing.T) {
-		result := ToMySQLTime(int(0))
+		result := types.ToMySQLTime(int(0))
 		if result != "0000-00-00 00:00:00" {
 			t.Errorf("Expected '0000-00-00 00:00:00', got '%s'", result)
 		}
@@ -408,7 +393,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("IntTimestamp", func(t *testing.T) {
 		timestamp := int(1609459200000000000)
-		result := ToMySQLTime(timestamp)
+		result := types.ToMySQLTime(timestamp)
 		if len(result) != 19 {
 			t.Errorf("Expected 19 character timestamp, got %d: '%s'", len(result), result)
 		}
@@ -416,7 +401,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("StringMySQLFormat", func(t *testing.T) {
 		mysqlTime := "2021-01-01 12:30:45"
-		result := ToMySQLTime(mysqlTime)
+		result := types.ToMySQLTime(mysqlTime)
 		if result != mysqlTime {
 			t.Errorf("Expected '%s', got '%s'", mysqlTime, result)
 		}
@@ -424,7 +409,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("StringRFC3339", func(t *testing.T) {
 		rfc3339Time := "2021-01-01T12:30:45Z"
-		result := ToMySQLTime(rfc3339Time)
+		result := types.ToMySQLTime(rfc3339Time)
 		expected := "2021-01-01 12:30:45"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -432,8 +417,7 @@ func TestToMySQLTime(t *testing.T) {
 	})
 
 	t.Run("StringUnixTimestamp", func(t *testing.T) {
-		// Unix timestamp in seconds as string
-		result := ToMySQLTime("1609459200000000000")
+		result := types.ToMySQLTime("1609459200000000000")
 		if len(result) != 19 {
 			t.Errorf("Expected 19 character timestamp, got %d: '%s'", len(result), result)
 		}
@@ -441,8 +425,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("StringInvalidFormat", func(t *testing.T) {
 		invalidTime := "not-a-valid-time"
-		result := ToMySQLTime(invalidTime)
-		// Should return the original string when it can't be parsed
+		result := types.ToMySQLTime(invalidTime)
 		if result != invalidTime {
 			t.Errorf("Expected '%s', got '%s'", invalidTime, result)
 		}
@@ -450,7 +433,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("TimeZero", func(t *testing.T) {
 		zeroTime := time.Time{}
-		result := ToMySQLTime(zeroTime)
+		result := types.ToMySQLTime(zeroTime)
 		if result != "0000-00-00 00:00:00" {
 			t.Errorf("Expected '0000-00-00 00:00:00', got '%s'", result)
 		}
@@ -458,7 +441,7 @@ func TestToMySQLTime(t *testing.T) {
 
 	t.Run("TimeNormal", func(t *testing.T) {
 		normalTime := time.Date(2021, 1, 1, 12, 30, 45, 0, time.UTC)
-		result := ToMySQLTime(normalTime)
+		result := types.ToMySQLTime(normalTime)
 		expected := "2021-01-01 12:30:45"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -466,25 +449,23 @@ func TestToMySQLTime(t *testing.T) {
 	})
 
 	t.Run("NilInput", func(t *testing.T) {
-		result := ToMySQLTime(nil)
+		result := types.ToMySQLTime(nil)
 		if result != "0000-00-00 00:00:00" {
 			t.Errorf("Expected '0000-00-00 00:00:00', got '%s'", result)
 		}
 	})
 
 	t.Run("UnknownType", func(t *testing.T) {
-		// Test with unsupported type
-		result := ToMySQLTime(struct{}{})
+		result := types.ToMySQLTime(struct{}{})
 		if result != "0000-00-00 00:00:00" {
 			t.Errorf("Expected '0000-00-00 00:00:00', got '%s'", result)
 		}
 	})
 }
 
-// TestToAssistantModel tests the ToAssistantModel conversion function
 func TestToAssistantModel(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToAssistantModel(nil)
+		result, err := types.ToAssistantModel(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -494,11 +475,11 @@ func TestToAssistantModel(t *testing.T) {
 	})
 
 	t.Run("AssistantModelPointer", func(t *testing.T) {
-		model := &AssistantModel{
+		model := &types.AssistantModel{
 			ID:   "test-id",
 			Name: "Test Assistant",
 		}
-		result, err := ToAssistantModel(model)
+		result, err := types.ToAssistantModel(model)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -508,11 +489,11 @@ func TestToAssistantModel(t *testing.T) {
 	})
 
 	t.Run("AssistantModelValue", func(t *testing.T) {
-		model := AssistantModel{
+		model := types.AssistantModel{
 			ID:   "test-id",
 			Name: "Test Assistant",
 		}
-		result, err := ToAssistantModel(model)
+		result, err := types.ToAssistantModel(model)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -589,12 +570,11 @@ func TestToAssistantModel(t *testing.T) {
 			},
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
 
-		// Verify all fields
 		if result.ID != "test-id" {
 			t.Errorf("Expected ID 'test-id', got '%s'", result.ID)
 		}
@@ -737,7 +717,7 @@ func TestToAssistantModel(t *testing.T) {
 			"updated_at": float64(1609459300),
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -770,7 +750,7 @@ func TestToAssistantModel(t *testing.T) {
 			"dependencies": nil,
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -778,7 +758,6 @@ func TestToAssistantModel(t *testing.T) {
 		if result.ID != "test-id" {
 			t.Errorf("Expected ID 'test-id', got '%s'", result.ID)
 		}
-		// All nil fields should remain nil
 		if result.Tags != nil {
 			t.Error("Expected Tags to be nil")
 		}
@@ -809,7 +788,7 @@ func TestToAssistantModel(t *testing.T) {
 			Type:        "bot",
 		}
 
-		result, err := ToAssistantModel(input)
+		result, err := types.ToAssistantModel(input)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -826,9 +805,8 @@ func TestToAssistantModel(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToAssistantModel(invalidData)
+		_, err := types.ToAssistantModel(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
@@ -836,21 +814,19 @@ func TestToAssistantModel(t *testing.T) {
 
 	t.Run("EmptyMap", func(t *testing.T) {
 		data := map[string]interface{}{}
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
 		if result == nil {
 			t.Error("Expected non-nil result")
 		}
-		// All fields should have default values
 		if result.ID != "" {
 			t.Errorf("Expected empty ID, got '%s'", result.ID)
 		}
 	})
 }
 
-// TestToAssistantModelNewFields tests the newly added fields
 func TestToAssistantModelNewFields(t *testing.T) {
 	t.Run("ConnectorOptions", func(t *testing.T) {
 		data := map[string]interface{}{
@@ -861,7 +837,7 @@ func TestToAssistantModelNewFields(t *testing.T) {
 			},
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -899,7 +875,7 @@ func TestToAssistantModelNewFields(t *testing.T) {
 			},
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -942,7 +918,7 @@ function beforeChat(context) {
 			"source": hookScript,
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -968,7 +944,7 @@ function beforeChat(context) {
 			"source":                 "function test() {}",
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -995,7 +971,7 @@ function beforeChat(context) {
 			"source":                 nil,
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1015,11 +991,10 @@ function beforeChat(context) {
 	})
 
 	t.Run("DisableGlobalPrompts", func(t *testing.T) {
-		// Test with true
 		data := map[string]interface{}{
 			"disable_global_prompts": true,
 		}
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1027,11 +1002,10 @@ function beforeChat(context) {
 			t.Error("Expected DisableGlobalPrompts to be true")
 		}
 
-		// Test with false
 		data = map[string]interface{}{
 			"disable_global_prompts": false,
 		}
-		result, err = ToAssistantModel(data)
+		result, err = types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1039,11 +1013,10 @@ function beforeChat(context) {
 			t.Error("Expected DisableGlobalPrompts to be false")
 		}
 
-		// Test with int 1
 		data = map[string]interface{}{
 			"disable_global_prompts": 1,
 		}
-		result, err = ToAssistantModel(data)
+		result, err = types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1051,11 +1024,10 @@ function beforeChat(context) {
 			t.Error("Expected DisableGlobalPrompts to be true for int 1")
 		}
 
-		// Test with string "true"
 		data = map[string]interface{}{
 			"disable_global_prompts": "true",
 		}
-		result, err = ToAssistantModel(data)
+		result, err = types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1065,7 +1037,6 @@ function beforeChat(context) {
 	})
 }
 
-// TestToAssistantModelComplexTypes tests complex type conversions in ToAssistantModel
 func TestToAssistantModelComplexTypes(t *testing.T) {
 	t.Run("CompleteLocales", func(t *testing.T) {
 		data := map[string]interface{}{
@@ -1087,7 +1058,7 @@ func TestToAssistantModelComplexTypes(t *testing.T) {
 			},
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1115,7 +1086,7 @@ func TestToAssistantModelComplexTypes(t *testing.T) {
 			},
 		}
 
-		result, err := ToAssistantModel(data)
+		result, err := types.ToAssistantModel(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1126,11 +1097,10 @@ func TestToAssistantModelComplexTypes(t *testing.T) {
 	})
 }
 
-// TestGetBoolValue tests the getBoolValue helper function
 func TestGetBoolValue(t *testing.T) {
 	t.Run("BoolTrue", func(t *testing.T) {
 		data := map[string]interface{}{"key": true}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true")
 		}
@@ -1138,7 +1108,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("BoolFalse", func(t *testing.T) {
 		data := map[string]interface{}{"key": false}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false")
 		}
@@ -1146,7 +1116,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("IntNonZero", func(t *testing.T) {
 		data := map[string]interface{}{"key": 1}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true for non-zero int")
 		}
@@ -1154,7 +1124,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("IntZero", func(t *testing.T) {
 		data := map[string]interface{}{"key": 0}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for zero int")
 		}
@@ -1162,7 +1132,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("Int64NonZero", func(t *testing.T) {
 		data := map[string]interface{}{"key": int64(1)}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true for non-zero int64")
 		}
@@ -1170,7 +1140,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("Int64Zero", func(t *testing.T) {
 		data := map[string]interface{}{"key": int64(0)}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for zero int64")
 		}
@@ -1178,7 +1148,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("Float64NonZero", func(t *testing.T) {
 		data := map[string]interface{}{"key": float64(1.5)}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true for non-zero float64")
 		}
@@ -1186,7 +1156,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("Float64Zero", func(t *testing.T) {
 		data := map[string]interface{}{"key": float64(0)}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for zero float64")
 		}
@@ -1194,7 +1164,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("StringTrue", func(t *testing.T) {
 		data := map[string]interface{}{"key": "true"}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true for string 'true'")
 		}
@@ -1202,7 +1172,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("StringOne", func(t *testing.T) {
 		data := map[string]interface{}{"key": "1"}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if !result {
 			t.Error("Expected true for string '1'")
 		}
@@ -1210,7 +1180,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("StringFalse", func(t *testing.T) {
 		data := map[string]interface{}{"key": "false"}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for string 'false'")
 		}
@@ -1218,7 +1188,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("StringOther", func(t *testing.T) {
 		data := map[string]interface{}{"key": "other"}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for other string values")
 		}
@@ -1226,7 +1196,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("NilValue", func(t *testing.T) {
 		data := map[string]interface{}{"key": nil}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for nil value")
 		}
@@ -1234,7 +1204,7 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("MissingKey", func(t *testing.T) {
 		data := map[string]interface{}{}
-		result := getBoolValue(data, "missing")
+		result := types.GetBoolValueForTest(data, "missing")
 		if result {
 			t.Error("Expected false for missing key")
 		}
@@ -1242,17 +1212,16 @@ func TestGetBoolValue(t *testing.T) {
 
 	t.Run("UnsupportedType", func(t *testing.T) {
 		data := map[string]interface{}{"key": struct{}{}}
-		result := getBoolValue(data, "key")
+		result := types.GetBoolValueForTest(data, "key")
 		if result {
 			t.Error("Expected false for unsupported type")
 		}
 	})
 }
 
-// TestModelID tests the AssistantModel.ModelID method
 func TestModelID(t *testing.T) {
 	t.Run("WithCustomModel", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "test123",
 			Name:      "Test Assistant",
 			Connector: "openai",
@@ -1268,7 +1237,7 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithModelInOptions", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "abc456",
 			Name:      "My Bot",
 			Connector: "openai",
@@ -1284,13 +1253,12 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithoutCustomModel", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "xyz789",
 			Name:      "Default Assistant",
 			Connector: "openai",
 		}
 		result := assistant.ModelID()
-		// When connector is not loaded in test, it should return unknown
 		expected := "default-assistant-unknown-yao_xyz789"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -1298,7 +1266,7 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithoutConnector", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:   "noconn",
 			Name: "No Connector",
 		}
@@ -1310,7 +1278,7 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithSpacesInName", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "spaces",
 			Name:      "Test Bot With Spaces",
 			Connector: "anthropic",
@@ -1326,7 +1294,7 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithUpperCaseName", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "upper",
 			Name:      "UPPERCASE-NAME",
 			Connector: "openai",
@@ -1342,14 +1310,13 @@ func TestModelID(t *testing.T) {
 	})
 
 	t.Run("WithEmptyOptions", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "empty",
 			Name:      "Empty Options",
 			Connector: "openai",
 			Options:   map[string]interface{}{},
 		}
 		result := assistant.ModelID()
-		// When connector is not loaded in test, it should return unknown
 		expected := "empty-options-unknown-yao_empty"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -1357,10 +1324,9 @@ func TestModelID(t *testing.T) {
 	})
 }
 
-// TestToConnectorOptions tests the ToConnectorOptions conversion function
 func TestToConnectorOptions(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToConnectorOptions(nil)
+		result, err := types.ToConnectorOptions(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1371,12 +1337,12 @@ func TestToConnectorOptions(t *testing.T) {
 
 	t.Run("ConnectorOptionsPointer", func(t *testing.T) {
 		optionalTrue := true
-		opts := &ConnectorOptions{
+		opts := &types.ConnectorOptions{
 			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
-			Filters:    []ModelCapability{CapVision, CapToolCalls},
+			Filters:    []types.ModelCapability{types.CapVision, types.CapToolCalls},
 		}
-		result, err := ToConnectorOptions(opts)
+		result, err := types.ToConnectorOptions(opts)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1387,12 +1353,12 @@ func TestToConnectorOptions(t *testing.T) {
 
 	t.Run("ConnectorOptionsValue", func(t *testing.T) {
 		optionalTrue := true
-		opts := ConnectorOptions{
+		opts := types.ConnectorOptions{
 			Optional:   &optionalTrue,
 			Connectors: []string{"openai", "anthropic"},
-			Filters:    []ModelCapability{CapVision, CapToolCalls},
+			Filters:    []types.ModelCapability{types.CapVision, types.CapToolCalls},
 		}
-		result, err := ToConnectorOptions(opts)
+		result, err := types.ToConnectorOptions(opts)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1413,7 +1379,7 @@ func TestToConnectorOptions(t *testing.T) {
 			"connectors": []string{"openai", "anthropic", "azure"},
 			"filters":    []string{"vision", "tool_calls", "audio"},
 		}
-		result, err := ToConnectorOptions(data)
+		result, err := types.ToConnectorOptions(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1432,7 +1398,7 @@ func TestToConnectorOptions(t *testing.T) {
 		data := map[string]interface{}{
 			"optional": true,
 		}
-		result, err := ToConnectorOptions(data)
+		result, err := types.ToConnectorOptions(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1453,7 +1419,7 @@ func TestToConnectorOptions(t *testing.T) {
 			"connectors": []string{"openai"},
 			"filters":    []string{"vision"},
 		}
-		result, err := ToConnectorOptions(data)
+		result, err := types.ToConnectorOptions(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1471,7 +1437,7 @@ func TestToConnectorOptions(t *testing.T) {
 		data := map[string]interface{}{
 			"connectors": []string{"openai"},
 		}
-		result, err := ToConnectorOptions(data)
+		result, err := types.ToConnectorOptions(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1484,21 +1450,18 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToConnectorOptions(invalidData)
+		_, err := types.ToConnectorOptions(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to ConnectorOptions
 		data := map[string]interface{}{
 			"invalid_field": "should cause unmarshal to fail gracefully",
 		}
-		result, err := ToConnectorOptions(data)
-		// Should not error, just return empty ConnectorOptions
+		result, err := types.ToConnectorOptions(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1508,10 +1471,9 @@ func TestToConnectorOptions(t *testing.T) {
 	})
 }
 
-// TestToModes tests the ToModes conversion function
 func TestToModes(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToModes(nil)
+		result, err := types.ToModes(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1522,7 +1484,7 @@ func TestToModes(t *testing.T) {
 
 	t.Run("StringSlice", func(t *testing.T) {
 		modes := []string{"chat", "task", "analyze"}
-		result, err := ToModes(modes)
+		result, err := types.ToModes(modes)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1542,7 +1504,7 @@ func TestToModes(t *testing.T) {
 
 	t.Run("InterfaceSlice", func(t *testing.T) {
 		modes := []interface{}{"chat", "task", 123}
-		result, err := ToModes(modes)
+		result, err := types.ToModes(modes)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1559,7 +1521,7 @@ func TestToModes(t *testing.T) {
 
 	t.Run("SingleString", func(t *testing.T) {
 		mode := "chat"
-		result, err := ToModes(mode)
+		result, err := types.ToModes(mode)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1573,7 +1535,7 @@ func TestToModes(t *testing.T) {
 
 	t.Run("EmptySlice", func(t *testing.T) {
 		modes := []string{}
-		result, err := ToModes(modes)
+		result, err := types.ToModes(modes)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1583,20 +1545,18 @@ func TestToModes(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToModes(invalidData)
+		_, err := types.ToModes(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to []string
 		data := map[string]interface{}{
 			"invalid": "structure",
 		}
-		_, err := ToModes(data)
+		_, err := types.ToModes(data)
 		if err == nil {
 			t.Error("Expected error for invalid unmarshal")
 		}
@@ -1604,14 +1564,13 @@ func TestToModes(t *testing.T) {
 
 	t.Run("MixedTypes", func(t *testing.T) {
 		modes := []interface{}{"chat", 456, "task", true}
-		result, err := ToModes(modes)
+		result, err := types.ToModes(modes)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
 		if len(result) != 4 {
 			t.Errorf("Expected 4 modes, got %d", len(result))
 		}
-		// cast.ToString should convert all to strings
 		if result[0] != "chat" {
 			t.Errorf("Expected 'chat', got '%s'", result[0])
 		}
@@ -1627,10 +1586,9 @@ func TestToModes(t *testing.T) {
 	})
 }
 
-// TestToPromptPresets tests the ToPromptPresets conversion function
 func TestToPromptPresets(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
-		result, err := ToPromptPresets(nil)
+		result, err := types.ToPromptPresets(nil)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1640,7 +1598,7 @@ func TestToPromptPresets(t *testing.T) {
 	})
 
 	t.Run("MapStringPromptSlice", func(t *testing.T) {
-		presets := map[string][]Prompt{
+		presets := map[string][]types.Prompt{
 			"chat": {
 				{Role: "system", Content: "You are a chat assistant"},
 			},
@@ -1648,7 +1606,7 @@ func TestToPromptPresets(t *testing.T) {
 				{Role: "system", Content: "You are a task assistant"},
 			},
 		}
-		result, err := ToPromptPresets(presets)
+		result, err := types.ToPromptPresets(presets)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1676,7 +1634,7 @@ func TestToPromptPresets(t *testing.T) {
 				map[string]interface{}{"role": "system", "content": "Analyze mode system prompt"},
 			},
 		}
-		result, err := ToPromptPresets(data)
+		result, err := types.ToPromptPresets(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1696,7 +1654,7 @@ func TestToPromptPresets(t *testing.T) {
 
 	t.Run("EmptyMap", func(t *testing.T) {
 		data := map[string]interface{}{}
-		result, err := ToPromptPresets(data)
+		result, err := types.ToPromptPresets(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1714,7 +1672,7 @@ func TestToPromptPresets(t *testing.T) {
 				map[string]interface{}{"role": "system", "content": "Default prompt"},
 			},
 		}
-		result, err := ToPromptPresets(data)
+		result, err := types.ToPromptPresets(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1727,19 +1685,16 @@ func TestToPromptPresets(t *testing.T) {
 	})
 
 	t.Run("InvalidInput", func(t *testing.T) {
-		// Test with data that can't be marshaled
 		invalidData := make(chan int)
-		_, err := ToPromptPresets(invalidData)
+		_, err := types.ToPromptPresets(invalidData)
 		if err == nil {
 			t.Error("Expected error for invalid input")
 		}
 	})
 
 	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		// Test with data that marshals but can't unmarshal to map[string][]Prompt
-		// This is a string that can be marshaled but won't unmarshal to the expected type
 		data := "not a map"
-		_, err := ToPromptPresets(data)
+		_, err := types.ToPromptPresets(data)
 		if err == nil {
 			t.Error("Expected error for invalid JSON unmarshal")
 		}
@@ -1765,7 +1720,7 @@ func TestToPromptPresets(t *testing.T) {
 				},
 			},
 		}
-		result, err := ToPromptPresets(data)
+		result, err := types.ToPromptPresets(data)
 		if err != nil {
 			t.Errorf("Expected no error, got: %v", err)
 		}
@@ -1781,11 +1736,10 @@ func TestToPromptPresets(t *testing.T) {
 	})
 }
 
-// TestParseModelID tests the ParseModelID function
 func TestParseModelID(t *testing.T) {
 	t.Run("ValidModelID", func(t *testing.T) {
 		modelID := "test-assistant-gpt-4o-yao_test123"
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		expected := "test123"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -1794,7 +1748,7 @@ func TestParseModelID(t *testing.T) {
 
 	t.Run("ValidModelIDWithMultipleDashes", func(t *testing.T) {
 		modelID := "my-test-bot-gpt-3.5-turbo-yao_abc456"
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		expected := "abc456"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -1803,7 +1757,7 @@ func TestParseModelID(t *testing.T) {
 
 	t.Run("ValidModelIDWithHyphenInID", func(t *testing.T) {
 		modelID := "assistant-name-model-yao_id-with-dash"
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		expected := "id-with-dash"
 		if result != expected {
 			t.Errorf("Expected '%s', got '%s'", expected, result)
@@ -1812,7 +1766,7 @@ func TestParseModelID(t *testing.T) {
 
 	t.Run("InvalidModelIDNoYaoPrefix", func(t *testing.T) {
 		modelID := "test-assistant-gpt-4o-test123"
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		if result != "" {
 			t.Errorf("Expected empty string, got '%s'", result)
 		}
@@ -1820,7 +1774,7 @@ func TestParseModelID(t *testing.T) {
 
 	t.Run("InvalidModelIDEmpty", func(t *testing.T) {
 		modelID := ""
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		if result != "" {
 			t.Errorf("Expected empty string, got '%s'", result)
 		}
@@ -1828,14 +1782,14 @@ func TestParseModelID(t *testing.T) {
 
 	t.Run("InvalidModelIDOnlyYaoPrefix", func(t *testing.T) {
 		modelID := "yao_"
-		result := ParseModelID(modelID)
+		result := types.ParseModelID(modelID)
 		if result != "" {
 			t.Errorf("Expected empty string, got '%s'", result)
 		}
 	})
 
 	t.Run("RoundTrip", func(t *testing.T) {
-		assistant := AssistantModel{
+		assistant := types.AssistantModel{
 			ID:        "roundtrip123",
 			Name:      "Round Trip Test",
 			Connector: "openai",
@@ -1844,7 +1798,7 @@ func TestParseModelID(t *testing.T) {
 			},
 		}
 		modelID := assistant.ModelID()
-		extractedID := ParseModelID(modelID)
+		extractedID := types.ParseModelID(modelID)
 		if extractedID != assistant.ID {
 			t.Errorf("Round trip failed: expected '%s', got '%s'", assistant.ID, extractedID)
 		}

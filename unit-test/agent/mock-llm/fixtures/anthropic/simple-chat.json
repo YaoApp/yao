@@ -1,0 +1,17 @@
+{
+  "id": "msg-fixture-anthropic-001",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Hello! I'm a fixture response from Claude Haiku. How can I assist you today?"
+    }
+  ],
+  "model": "claude-haiku-4-5-20251001",
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 12,
+    "output_tokens": 18
+  }
+}

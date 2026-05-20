@@ -1,0 +1,10 @@
+greeting: "Hello"
+farewell: "Goodbye"
+with_var: "Hello, {{name}}"
+description: "A multilang test assistant"
+chat:
+  title: "New Chat"
+  description: "Start a new conversation"
+  prompts:
+    - "What can I help you with?"
+    - "Ask me anything"

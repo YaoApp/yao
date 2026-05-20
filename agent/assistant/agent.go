@@ -13,7 +13,6 @@ import (
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
-	agentsandbox "github.com/yaoapp/yao/agent/sandbox"
 	"github.com/yaoapp/yao/llmprovider"
 )
 
@@ -160,10 +159,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Initialize Sandbox (if configured)
 	// ================================================
-	// Sandbox must be created BEFORE hooks so that hooks can access ctx.sandbox
-	var sandboxExecutor agentsandbox.Executor
+	// Sandbox must be created BEFORE hooks so that hooks can access sandbox context
 	var sandboxCleanup func()
-	var sandboxLoadingMsgID string
 
 	// V2 sandbox state
 	var v2Init *sandboxV2InitResult
@@ -189,19 +186,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				ctx.Logger.Trace("Connector: %s", conn.ID())
 			}
 		}
-	} else if ast.HasSandbox() {
-		ctx.Logger.Phase("Sandbox")
-		var err error
-		sandboxExecutor, sandboxCleanup, sandboxLoadingMsgID, err = ast.initSandbox(ctx, opts)
-		if err != nil {
-			ast.traceAgentFail(agentNode, err)
-			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
-			return nil, err
-		}
-		// Set sandbox executor in context so hooks can access ctx.sandbox
-		// The executor implements both agentsandbox.Executor and context.SandboxExecutor
-		ctx.SetSandboxExecutor(sandboxExecutor)
-		ctx.Logger.PhaseComplete("Sandbox")
 	}
 	// Ensure sandbox cleanup on exit
 	defer func() {
@@ -324,8 +308,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 		// Execute the LLM streaming call
 		// Choose between sandbox execution or direct LLM execution
-		if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Computer != nil && v2Init.Runner.Name() != "yao" {
-			// V2 Sandbox execution path (non-yao runners replace LLM.Stream)
+		if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil {
+			// V2 Sandbox execution path — all runners (yaocode/tai/claude/opencode)
 			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
 				Messages:     completionMessages,
 				AgentNode:    agentNode,
@@ -337,15 +321,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				Options:      opts,
 				Roles:        v2Init.Roles,
 			})
-		} else if ast.HasSandboxV2() && v2Init != nil && v2Init.Runner != nil && v2Init.Runner.Name() == "yao" {
-			// V2 yao runner: Prepare is done, close loading, fall through to LLM
-			if v2Init.LoadingMsgID != "" {
-				closeLoadingV2(ctx, v2Init.LoadingMsgID, "")
-			}
-			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
-		} else if ast.HasSandbox() {
-			// V1 Sandbox execution path (Claude CLI, Cursor CLI, etc.)
-			completionResponse, err = ast.executeSandboxStream(ctx, completionMessages, agentNode, streamHandler, sandboxExecutor, sandboxLoadingMsgID)
 		} else {
 			// Direct LLM execution path
 			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
@@ -379,7 +354,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// ================================================
 	// Note: Skip MCP tool calls execution for sandbox mode - Claude CLI handles them internally
 	var toolCallResponses []context.ToolCallResponse = nil
-	if completionResponse != nil && completionResponse.ToolCalls != nil && !ast.HasSandbox() {
+	if completionResponse != nil && completionResponse.ToolCalls != nil && !ast.HasSandboxV2() {
 
 		maxToolRetries := 3
 		currentMessages := completionMessages
@@ -565,7 +540,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
-	} else if len(toolCallResponses) > 0 && !ast.HasSandbox() && !ast.isToolLoopDisabled() {
+	} else if len(toolCallResponses) > 0 && !ast.HasSandboxV2() && !ast.isToolLoopDisabled() {
 		// No Next hook + has tool results + not sandbox → tool loop
 		ctx.Logger.Debug("Entering tool loop for tool result processing")
 		loopResponse, loopCompletion, loopTools, err := ast.executeToolLoop(ctx, &ToolLoopParams{

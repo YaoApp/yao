@@ -1,0 +1,16 @@
+{
+  "type": "object",
+  "description": "Validate data against a schema",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "description": "Schema name to validate against"
+    },
+    "data": {
+      "type": "object",
+      "description": "Data to validate"
+    }
+  },
+  "required": ["schema", "data"],
+  "x-process-args": [":arguments"]
+}

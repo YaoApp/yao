@@ -1,0 +1,63 @@
+# Votes - Segment Vote Management
+# namespace: kb
+# resource: votes
+# actions: read, write, delete
+# levels: all, own, team
+
+kb:votes:read:all:
+  description: "Read all segment votes"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/votes
+    - GET /kb/documents/:docID/segments/:segmentID/votes/search
+    - GET /kb/documents/:docID/segments/:segmentID/votes/:voteID
+
+kb:votes:read:own:
+  owner: true
+  description: "Read own segment votes"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/votes
+    - GET /kb/documents/:docID/segments/:segmentID/votes/search
+    - GET /kb/documents/:docID/segments/:segmentID/votes/:voteID
+
+kb:votes:read:team:
+  team: true
+  description: "Read team segment votes"
+  endpoints:
+    - GET /kb/documents/:docID/segments/:segmentID/votes
+    - GET /kb/documents/:docID/segments/:segmentID/votes/search
+    - GET /kb/documents/:docID/segments/:segmentID/votes/:voteID
+
+kb:votes:write:all:
+  description: "Add votes to all segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/votes
+
+kb:votes:write:own:
+  owner: true
+  description: "Add votes to own segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/votes
+
+kb:votes:write:team:
+  team: true
+  description: "Add votes to team segments"
+  endpoints:
+    - POST /kb/documents/:docID/segments/:segmentID/votes
+
+kb:votes:delete:all:
+  description: "Delete all segment votes"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/votes
+
+kb:votes:delete:own:
+  owner: true
+  description: "Delete own segment votes"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/votes
+
+kb:votes:delete:team:
+  team: true
+  description: "Delete team segment votes"
+  endpoints:
+    - DELETE /kb/documents/:docID/segments/:segmentID/votes
+
