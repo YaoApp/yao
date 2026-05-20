@@ -116,10 +116,17 @@ jobs:
           apt-get update
           apt-get install -y docker-ce docker-ce-cli containerd.io
 
-      - name: Start Docker daemon (TCP + Unix)
+      - name: Restart Docker daemon with TCP listener
         shell: wsl-bash {0}
         run: |
-          dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+          mkdir -p /etc/docker
+          cat > /etc/docker/daemon.json << 'EOF'
+          { "hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"] }
+          EOF
+          kill $(cat /var/run/docker.pid 2>/dev/null) 2>/dev/null || true
+          sleep 2
+          rm -f /var/run/docker.pid
+          dockerd --config-file /etc/docker/daemon.json > /tmp/dockerd.log 2>&1 &
           for i in $(seq 1 60); do
             curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 && break
             sleep 1
