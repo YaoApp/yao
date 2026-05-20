@@ -139,6 +139,16 @@ jobs:
           echo "Docker daemon ready"
           docker version
 
+      - name: Setup Docker port forwarding (WSL2 NAT)
+        shell: powershell
+        run: |
+          $wslIp = (wsl hostname -I).Trim().Split(' ')[0]
+          Write-Host "WSL2 IP: $wslIp"
+          netsh interface portproxy add v4tov4 listenport=2375 listenaddress=127.0.0.1 connectport=2375 connectaddress=$wslIp
+          Start-Sleep -Seconds 2
+          $resp = Invoke-WebRequest -Uri "http://127.0.0.1:2375/version" -UseBasicParsing -TimeoutSec 10
+          Write-Host "Docker via TCP ready: $($resp.Content)"
+
       # ── 3c. Add host.tai.internal to hosts ─────────────────────────────
       - name: Add host.tai.internal to hosts
         shell: powershell
