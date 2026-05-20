@@ -1,0 +1,101 @@
+name: Debug WSL Docker
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-docker:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Setup WSL (Ubuntu 24.04)
+        uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          additional-packages: ca-certificates curl gnupg
+
+      - name: Install Docker Engine in WSL
+        shell: wsl-bash {0}
+        run: |
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io
+
+      - name: Restart Docker daemon with TCP listener
+        shell: wsl-bash {0}
+        run: |
+          mkdir -p /etc/docker
+          cat > /etc/docker/daemon.json << 'EOF'
+          { "hosts": ["tcp://0.0.0.0:2375", "unix:///var/run/docker.sock"] }
+          EOF
+          kill $(cat /var/run/docker.pid 2>/dev/null) 2>/dev/null || true
+          sleep 2
+          rm -f /var/run/docker.pid
+          dockerd --config-file /etc/docker/daemon.json > /tmp/dockerd.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 || {
+            echo "::error::Docker daemon failed to start"
+            cat /tmp/dockerd.log
+            exit 1
+          }
+          echo "=== Docker daemon ready ==="
+
+      - name: Verify Docker (from WSL)
+        shell: wsl-bash {0}
+        run: |
+          echo "=== docker version ==="
+          docker version
+          echo "=== docker info ==="
+          docker info
+          echo "=== docker ps ==="
+          docker ps
+
+      - name: Verify Docker (from Windows via TCP)
+        shell: powershell
+        env:
+          DOCKER_HOST: tcp://127.0.0.1:2375
+        run: |
+          Write-Host "=== curl version endpoint ==="
+          (Invoke-WebRequest -Uri "http://127.0.0.1:2375/version" -UseBasicParsing).Content
+          Write-Host "=== curl info endpoint ==="
+          (Invoke-WebRequest -Uri "http://127.0.0.1:2375/info" -UseBasicParsing).Content | ConvertFrom-Json | Select-Object OSType, Architecture, ServerVersion
+
+      - name: Pull test image (from WSL)
+        shell: wsl-bash {0}
+        run: |
+          echo "=== Pulling alpine:latest ==="
+          docker pull alpine:latest
+          echo "=== Pulling yaoapp/tai-sandbox-base:latest ==="
+          docker pull yaoapp/tai-sandbox-base:latest
+          echo "=== docker images ==="
+          docker images
+
+      - name: Run test container (from WSL)
+        shell: wsl-bash {0}
+        run: |
+          echo "=== Running alpine echo ==="
+          docker run --rm alpine:latest echo "Hello from Linux container on Windows!"
+          echo "=== Running sandbox base ==="
+          docker run --rm yaoapp/tai-sandbox-base:latest cat /etc/os-release
+
+      - name: Pull image via TCP (from Windows side)
+        shell: powershell
+        env:
+          DOCKER_HOST: tcp://127.0.0.1:2375
+        run: |
+          Write-Host "=== Pulling alpine via TCP from Windows ==="
+          $body = '{"fromImage":"alpine","tag":"latest"}' 
+          Invoke-WebRequest -Uri "http://127.0.0.1:2375/images/create?fromImage=alpine&tag=latest" -Method POST -UseBasicParsing
+          Write-Host "=== Listing images via TCP ==="
+          (Invoke-WebRequest -Uri "http://127.0.0.1:2375/images/json" -UseBasicParsing).Content | ConvertFrom-Json | Format-Table
+
+      - name: Dump dockerd log on failure
+        if: failure()
+        shell: wsl-bash {0}
+        run: cat /tmp/dockerd.log
