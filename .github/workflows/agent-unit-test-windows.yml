@@ -25,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-2022]
+        platform: [windows-2025]
         go: ["1.26"]
         db: [SQLite3, Postgres14]
 
@@ -99,7 +99,47 @@ jobs:
           mv extension ../
           mv tai ../
 
-      # ── 3b. Add host.tai.internal to hosts ─────────────────────────────
+      # ── 3b. Setup WSL2 + Docker Engine (Linux containers) ────────────
+      - name: Install WSL2 Ubuntu
+        shell: powershell
+        run: |
+          wsl --install Ubuntu --no-launch
+          wsl -d Ubuntu --exec echo "WSL2 Ubuntu ready"
+
+      - name: Keep WSL alive
+        shell: powershell
+        run: wsl -d Ubuntu --exec sh -c "nohup sleep infinity &"
+
+      - name: Install Docker Engine in WSL
+        shell: powershell
+        run: |
+          wsl -d Ubuntu --exec sh -c "sudo apt-get update && sudo apt-get install -y ca-certificates curl"
+          wsl -d Ubuntu --exec sh -c "sudo install -m 0755 -d /etc/apt/keyrings"
+          wsl -d Ubuntu --exec sh -c "sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && sudo chmod a+r /etc/apt/keyrings/docker.asc"
+          wsl -d Ubuntu --exec sh -c 'echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null'
+          wsl -d Ubuntu --exec sh -c "sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io"
+
+      - name: Start Docker daemon (TCP + Unix)
+        shell: powershell
+        run: |
+          wsl -d Ubuntu --exec sh -c "sudo dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &"
+          $timeout = 60
+          for ($i = 0; $i -lt $timeout; $i++) {
+            try {
+              $resp = Invoke-WebRequest -Uri "http://127.0.0.1:2375/version" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+              Write-Host "Docker daemon ready: $($resp.Content)"
+              break
+            } catch {
+              Start-Sleep -Seconds 1
+            }
+          }
+          if ($i -eq $timeout) {
+            Write-Host "::error::Docker daemon failed to start within ${timeout}s"
+            wsl -d Ubuntu --exec cat /tmp/dockerd.log
+            exit 1
+          }
+
+      # ── 3c. Add host.tai.internal to hosts ─────────────────────────────
       - name: Add host.tai.internal to hosts
         shell: powershell
         run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1`thost.tai.internal" -Force
@@ -186,6 +226,7 @@ jobs:
           YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+          DOCKER_HOST: tcp://127.0.0.1:2375
         run: |
           mkdir -p .build/coverage
           go test -v -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
