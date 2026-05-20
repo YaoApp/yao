@@ -100,41 +100,37 @@ jobs:
           mv tai ../
 
       # ── 3b. Setup WSL2 + Docker Engine (Linux containers) ────────────
-      #   Reference: https://github.com/dawidwozny/ms-hosted-windows-2025
-      - name: Install WSL2 Ubuntu
-        run: wsl --install Ubuntu
-
-      - name: Keep WSL alive
-        run: wsl -d Ubuntu --exec dbus-launch true
+      - name: Setup WSL (Ubuntu 24.04)
+        uses: Vampire/setup-wsl@v7
+        with:
+          distribution: Ubuntu-24.04
+          additional-packages: ca-certificates curl gnupg
 
       - name: Install Docker Engine in WSL
+        shell: wsl-bash {0}
         run: |
-          wsl -- sudo sh -c "apt-get update && apt-get install -y ca-certificates curl"
-          wsl -- sudo sh -c "install -m 0755 -d /etc/apt/keyrings && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc && chmod a+r /etc/apt/keyrings/docker.asc"
-          wsl -- sudo sh -c "echo \"deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \$(. /etc/os-release && echo \$VERSION_CODENAME) stable\" | tee /etc/apt/sources.list.d/docker.list > /dev/null"
-          wsl -- sudo sh -c "apt-get update && apt-get install -y docker-ce docker-ce-cli containerd.io"
+          install -m 0755 -d /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+          chmod a+r /etc/apt/keyrings/docker.asc
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+          apt-get update
+          apt-get install -y docker-ce docker-ce-cli containerd.io
 
       - name: Start Docker daemon (TCP + Unix)
-        shell: powershell
+        shell: wsl-bash {0}
         run: |
-          wsl -- sudo sh -c "dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &"
-          for ($i = 0; $i -lt 60; $i++) {
-            try {
-              Invoke-WebRequest -Uri "http://127.0.0.1:2375/version" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop | Out-Null
-              Write-Host "Docker daemon ready"
-              break
-            } catch { Start-Sleep -Seconds 1 }
-          }
-          if ($i -eq 60) {
-            Write-Host "::error::Docker daemon failed to start"
-            wsl -- cat /tmp/dockerd.log
+          dockerd -H tcp://0.0.0.0:2375 -H unix:///var/run/docker.sock > /tmp/dockerd.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:2375/version > /dev/null 2>&1 || {
+            echo "::error::Docker daemon failed to start"
+            cat /tmp/dockerd.log
             exit 1
           }
-
-      - name: Verify Docker
-        run: |
-          wsl -- sudo docker version
-          wsl -- sudo docker info
+          echo "Docker daemon ready"
+          docker version
 
       # ── 3c. Add host.tai.internal to hosts ─────────────────────────────
       - name: Add host.tai.internal to hosts
