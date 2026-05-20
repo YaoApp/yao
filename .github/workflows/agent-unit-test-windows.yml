@@ -27,7 +27,7 @@ jobs:
       matrix:
         platform: [windows-2025]
         go: ["1.26"]
-        db: [SQLite3, Postgres14]
+        db: [SQLite3, Postgres17]
 
     steps:
       # ── 1. Checkout dependency repos ──────────────────────────────────
@@ -175,15 +175,15 @@ jobs:
 
       # ── 8. Setup PostgreSQL (conditional) ─────────────────────────────
       - name: Setup PostgreSQL
-        if: matrix.db == 'Postgres14'
+        if: matrix.db == 'Postgres17'
         uses: ankane/setup-postgres@v1
         with:
-          postgres-version: "14"
+          postgres-version: "17"
           database: agent_test
           user: yao
 
       - name: Set PostgreSQL password
-        if: matrix.db == 'Postgres14'
+        if: matrix.db == 'Postgres17'
         run: psql -U postgres -c "ALTER USER yao PASSWORD '123456';"
 
       # ── 9. Generate agent-test.env from template + secrets ─────────
@@ -195,7 +195,16 @@ jobs:
           sed -i 's|^OPENAI_API_KEY=.*|OPENAI_API_KEY=${{ secrets.OPENAI_TEST_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
-          if [ "${{ matrix.db }}" = "Postgres14" ]; then
+          sed -i 's|^SERPER_API_KEY=.*|SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_BOT_TOKEN=.*|TELEGRAM_TEST_BOT_TOKEN=${{ secrets.TELEGRAM_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^TELEGRAM_TEST_HOST=.*|TELEGRAM_TEST_HOST=${{ secrets.TELEGRAM_TEST_HOST }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_ID=.*|FEISHU_TEST_APP_ID=${{ secrets.FEISHU_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^FEISHU_TEST_APP_SECRET=.*|FEISHU_TEST_APP_SECRET=${{ secrets.FEISHU_TEST_APP_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_ID=.*|DINGTALK_TEST_CLIENT_ID=${{ secrets.DINGTALK_TEST_CLIENT_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DINGTALK_TEST_CLIENT_SECRET=.*|DINGTALK_TEST_CLIENT_SECRET=${{ secrets.DINGTALK_TEST_CLIENT_SECRET }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_BOT_TOKEN=.*|DISCORD_TEST_BOT_TOKEN=${{ secrets.DISCORD_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^DISCORD_TEST_APP_ID=.*|DISCORD_TEST_APP_ID=${{ secrets.DISCORD_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
             sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
             sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env
           fi

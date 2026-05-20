@@ -3,6 +3,7 @@
 package pdf_test
 
 import (
+	"os/exec"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,16 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
+
+func requirePDFTool(t *testing.T) {
+	t.Helper()
+	for _, tool := range []string{"pdftoppm", "mutool"} {
+		if _, err := exec.LookPath(tool); err == nil {
+			return
+		}
+	}
+	t.Skip("No PDF conversion tool available (pdftoppm or mutool)")
+}
 
 func TestParseWithMissingURL(t *testing.T) {
 	testprepare.PrepareSandbox(t)
@@ -50,6 +61,7 @@ func TestParseWithEmptyURL(t *testing.T) {
 
 func TestParseWithLocalPDFAndVisionSupport(t *testing.T) {
 	testprepare.PrepareSandbox(t)
+	requirePDFTool(t)
 
 	pdfPath := getTestFilePath("test.pdf")
 	capabilities := &openai.Capabilities{Vision: "openai"}
@@ -71,6 +83,7 @@ func TestParseWithLocalPDFAndVisionSupport(t *testing.T) {
 
 func TestParseWithLocalPDFAndVisionAgent(t *testing.T) {
 	testprepare.PrepareSandbox(t)
+	requirePDFTool(t)
 
 	pdfPath := getTestFilePath("test.pdf")
 	capabilities := &openai.Capabilities{Vision: nil}
@@ -94,6 +107,7 @@ func TestParseWithLocalPDFAndVisionAgent(t *testing.T) {
 
 func TestParseMultiWithLocalPDF(t *testing.T) {
 	testprepare.PrepareSandbox(t)
+	requirePDFTool(t)
 
 	pdfPath := getTestFilePath("test.pdf")
 	capabilities := &openai.Capabilities{Vision: "openai"}
