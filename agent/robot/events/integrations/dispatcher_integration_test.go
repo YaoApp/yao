@@ -257,3 +257,42 @@ func TestConfigCreated_RobotNotInCache(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	assert.Empty(t, tgAdapter.getApplied())
 }
+
+func TestParseIntegrations(t *testing.T) {
+	tests := []struct {
+		name     string
+		intg     *robottypes.Integrations
+		expected []string
+	}{
+		{"nil integrations", nil, nil},
+		{"empty integrations", &robottypes.Integrations{}, nil},
+		{"telegram only", &robottypes.Integrations{
+			Telegram: &robottypes.TelegramConfig{Enabled: true},
+		}, []string{"telegram"}},
+		{"feishu only", &robottypes.Integrations{
+			Feishu: &robottypes.FeishuConfig{Enabled: true},
+		}, []string{"feishu"}},
+		{"dingtalk only", &robottypes.Integrations{
+			DingTalk: &robottypes.DingTalkConfig{Enabled: true},
+		}, []string{"dingtalk"}},
+		{"discord only", &robottypes.Integrations{
+			Discord: &robottypes.DiscordConfig{Enabled: true},
+		}, []string{"discord"}},
+		{"multiple", &robottypes.Integrations{
+			Telegram: &robottypes.TelegramConfig{Enabled: true},
+			Discord:  &robottypes.DiscordConfig{Enabled: true},
+		}, []string{"telegram", "discord"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.intg == nil {
+				result := integrations.ParseIntegrationsForTest(&robottypes.Integrations{})
+				assert.Empty(t, result)
+				return
+			}
+			result := integrations.ParseIntegrationsForTest(tt.intg)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

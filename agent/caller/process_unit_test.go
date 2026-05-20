@@ -238,3 +238,16 @@ func TestProcessCallRequest_DefaultTimeout(t *testing.T) {
 	assert.Equal(t, 0, req.Timeout, "Timeout zero value triggers DefaultProcessTimeout in processAgentCall")
 	assert.Equal(t, 600, caller.DefaultProcessTimeout)
 }
+
+func TestNewHeadlessContext_WithTimeout(t *testing.T) {
+	req := &caller.ProcessCallRequest{
+		AssistantID: "test.agent",
+		Messages:    []map[string]interface{}{{"role": "user", "content": "hi"}},
+		Timeout:     30,
+	}
+
+	ctx, _ := caller.NewHeadlessContext(context.Background(), nil, req)
+	defer ctx.Release()
+
+	assert.Equal(t, 30, req.Timeout)
+}

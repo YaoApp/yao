@@ -301,6 +301,94 @@ func TestValidateExecutorExists(t *testing.T) {
 }
 
 // ============================================================================
+// IsValidExecutorType Tests
+// ============================================================================
+
+func TestIsValidExecutorType(t *testing.T) {
+	_ = testprepare.PrepareSandbox(t)
+
+	t.Run("valid_types", func(t *testing.T) {
+		assert.True(t, standard.IsValidExecutorType(robottypes.ExecutorAssistant))
+		assert.True(t, standard.IsValidExecutorType(robottypes.ExecutorMCP))
+		assert.True(t, standard.IsValidExecutorType(robottypes.ExecutorProcess))
+	})
+
+	t.Run("invalid_types", func(t *testing.T) {
+		assert.False(t, standard.IsValidExecutorType("unknown"))
+		assert.False(t, standard.IsValidExecutorType(""))
+		assert.False(t, standard.IsValidExecutorType("shell"))
+	})
+}
+
+// ============================================================================
+// ValidateTasksWithResources Tests
+// ============================================================================
+
+func TestValidateTasksWithResources(t *testing.T) {
+	_ = testprepare.PrepareSandbox(t)
+
+	t.Run("valid_tasks_no_warnings", func(t *testing.T) {
+		robot := &robottypes.Robot{
+			Config: &robottypes.Config{
+				Resources: &robottypes.Resources{
+					Agents: []string{"data-analyst", "report-gen"},
+				},
+			},
+		}
+		tasks := []robottypes.Task{
+			{
+				ID: "t1", ExecutorID: "data-analyst", ExecutorType: robottypes.ExecutorAssistant,
+				Messages: []agentcontext.Message{{Role: agentcontext.RoleUser, Content: "analyze"}},
+			},
+		}
+
+		warnings, err := standard.ValidateTasksWithResources(tasks, robot)
+		assert.NoError(t, err)
+		assert.Empty(t, warnings)
+	})
+
+	t.Run("unknown_executor_produces_warning", func(t *testing.T) {
+		robot := &robottypes.Robot{
+			Config: &robottypes.Config{
+				Resources: &robottypes.Resources{
+					Agents: []string{"data-analyst"},
+				},
+			},
+		}
+		tasks := []robottypes.Task{
+			{
+				ID: "t1", ExecutorID: "non-existent", ExecutorType: robottypes.ExecutorAssistant,
+				Messages: []agentcontext.Message{{Role: agentcontext.RoleUser, Content: "do stuff"}},
+			},
+		}
+
+		warnings, err := standard.ValidateTasksWithResources(tasks, robot)
+		assert.NoError(t, err)
+		require.Len(t, warnings, 1)
+		assert.Contains(t, warnings[0], "non-existent")
+	})
+
+	t.Run("returns_error_for_empty_tasks", func(t *testing.T) {
+		_, err := standard.ValidateTasksWithResources(nil, nil)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "no tasks generated")
+	})
+
+	t.Run("nil_robot_no_warnings", func(t *testing.T) {
+		tasks := []robottypes.Task{
+			{
+				ID: "t1", ExecutorID: "any-agent", ExecutorType: robottypes.ExecutorAssistant,
+				Messages: []agentcontext.Message{{Role: agentcontext.RoleUser, Content: "task"}},
+			},
+		}
+
+		warnings, err := standard.ValidateTasksWithResources(tasks, nil)
+		assert.NoError(t, err)
+		assert.Empty(t, warnings)
+	})
+}
+
+// ============================================================================
 // Helpers
 // ============================================================================
 

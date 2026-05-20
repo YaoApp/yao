@@ -11,3 +11,8 @@ func (q *ListQuery) ApplyDefaults() {
 func PaginateRobotsForTest(robots []*types.Robot, query *ListQuery) *ListResult {
 	return paginateRobots(robots, query)
 }
+
+// ExportLegacyResume exposes legacyResume for external tests.
+func ExportLegacyResume(ctx *types.Context, req *InteractRequest) (*InteractResult, error) {
+	return legacyResume(ctx, req)
+}

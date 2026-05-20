@@ -794,3 +794,69 @@ func TestLearningEntryStructure(t *testing.T) {
 	assert.Len(t, entry.Tags, 2)
 	assert.NotNil(t, entry.Meta)
 }
+
+// ============================================================================
+// NewRobotFromMap Tests
+// ============================================================================
+
+func TestNewRobotFromMap(t *testing.T) {
+	t.Run("creates_robot_with_all_fields", func(t *testing.T) {
+		data := map[string]interface{}{
+			"member_id":   "robot-001",
+			"team_id":     "team-001",
+			"robot_email": "robot@example.com",
+		}
+
+		robot, err := types.NewRobotFromMap(data)
+		assert.NoError(t, err)
+		assert.Equal(t, "robot-001", robot.MemberID)
+		assert.Equal(t, "team-001", robot.TeamID)
+		assert.Equal(t, "robot@example.com", robot.RobotEmail)
+	})
+
+	t.Run("robot_email_can_be_empty", func(t *testing.T) {
+		data := map[string]interface{}{
+			"member_id": "robot-001",
+			"team_id":   "team-001",
+		}
+
+		robot, err := types.NewRobotFromMap(data)
+		assert.NoError(t, err)
+		assert.Empty(t, robot.RobotEmail)
+	})
+
+	t.Run("returns_error_for_missing_member_id", func(t *testing.T) {
+		data := map[string]interface{}{
+			"team_id": "team-001",
+		}
+
+		_, err := types.NewRobotFromMap(data)
+		assert.Error(t, err)
+	})
+}
+
+// ============================================================================
+// DefaultEmailChannel Tests
+// ============================================================================
+
+func TestDefaultEmailChannel(t *testing.T) {
+	t.Run("returns_default_email_channel", func(t *testing.T) {
+		assert.Equal(t, "default", types.DefaultEmailChannel())
+	})
+
+	t.Run("can_set_custom_email_channel", func(t *testing.T) {
+		original := types.DefaultEmailChannel()
+		defer types.SetDefaultEmailChannel(original)
+
+		types.SetDefaultEmailChannel("custom-email")
+		assert.Equal(t, "custom-email", types.DefaultEmailChannel())
+	})
+
+	t.Run("ignores_empty_channel", func(t *testing.T) {
+		original := types.DefaultEmailChannel()
+		defer types.SetDefaultEmailChannel(original)
+
+		types.SetDefaultEmailChannel("")
+		assert.Equal(t, original, types.DefaultEmailChannel())
+	})
+}

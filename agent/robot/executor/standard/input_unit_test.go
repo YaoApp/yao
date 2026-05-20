@@ -530,3 +530,119 @@ func TestInputFormatterBuildMessagesWithSystemUnit(t *testing.T) {
 		assert.Equal(t, "What is the weather?", msgs[1].Content)
 	})
 }
+
+// ============================================================================
+// InputFormatter — FormatAvailableResources (nil/empty branches, no sandbox)
+// ============================================================================
+
+func TestInputFormatterFormatAvailableResourcesUnit(t *testing.T) {
+	formatter := standard.NewInputFormatter()
+
+	t.Run("returns_empty_for_nil_robot", func(t *testing.T) {
+		result := formatter.FormatAvailableResources(nil)
+		assert.Empty(t, result)
+	})
+
+	t.Run("returns_empty_for_robot_without_config", func(t *testing.T) {
+		robot := &types.Robot{MemberID: "test"}
+		result := formatter.FormatAvailableResources(robot)
+		assert.Empty(t, result)
+	})
+
+	t.Run("returns_empty_for_robot_without_resources", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config:   &types.Config{},
+		}
+		result := formatter.FormatAvailableResources(robot)
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles_partial_resources_with_agents_only", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				Resources: &types.Resources{
+					Agents: []string{"single-agent"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		assert.Contains(t, result, "## Available Resources")
+		assert.Contains(t, result, "### Agents")
+		assert.Contains(t, result, "single-agent")
+	})
+
+	t.Run("handles_mcp_tools_with_and_without_tool_list", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				Resources: &types.Resources{
+					MCP: []types.MCPConfig{
+						{ID: "database", Tools: []string{"query", "insert"}},
+						{ID: "email"},
+					},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		assert.Contains(t, result, "## Available Resources")
+		assert.Contains(t, result, "### MCP Tools")
+		assert.Contains(t, result, "database")
+		assert.Contains(t, result, "query, insert")
+		assert.Contains(t, result, "email")
+		assert.Contains(t, result, "all tools available")
+	})
+
+	t.Run("handles_kb_collections", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				KB: &types.KB{
+					Collections: []string{"sales-policies", "products"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		assert.Contains(t, result, "### Knowledge Base")
+		assert.Contains(t, result, "sales-policies")
+		assert.Contains(t, result, "products")
+	})
+
+	t.Run("handles_db_models", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				DB: &types.DB{
+					Models: []string{"sales", "customers"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+
+		assert.Contains(t, result, "### Database")
+		assert.Contains(t, result, "sales")
+		assert.Contains(t, result, "customers")
+	})
+
+	t.Run("includes_important_note_when_has_content", func(t *testing.T) {
+		robot := &types.Robot{
+			MemberID: "test",
+			Config: &types.Config{
+				Resources: &types.Resources{
+					Agents: []string{"test-agent"},
+				},
+			},
+		}
+
+		result := formatter.FormatAvailableResources(robot)
+		assert.Contains(t, result, "Only plan goals and tasks that can be accomplished")
+	})
+}

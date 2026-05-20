@@ -115,3 +115,26 @@ func TestOrchestrator_Race_NoGetter(t *testing.T) {
 	require.Len(t, results, 1)
 	assert.Contains(t, results[0].Error, "agent getter not initialized")
 }
+
+func TestOrchestrator_All_NilRequest(t *testing.T) {
+	original := caller.AgentGetterFunc
+	defer func() { caller.AgentGetterFunc = original }()
+	caller.AgentGetterFunc = nil
+
+	ctx := agentContext.New(context.Background(), nil, "test-nil-request")
+	defer ctx.Release()
+
+	orch := caller.NewOrchestrator(ctx)
+
+	reqs := []*caller.Request{
+		nil,
+		{
+			AgentID:  "agent1",
+			Messages: []agentContext.Message{{Role: agentContext.RoleUser, Content: "Hello"}},
+		},
+	}
+
+	results := orch.All(reqs)
+	require.Len(t, results, 2)
+	assert.Contains(t, results[0].Error, "nil request")
+}
