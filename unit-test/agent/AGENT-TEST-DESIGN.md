@@ -28,7 +28,7 @@
 - **mock 优先**：验证逻辑（hook、解析、路由、合并）一律用 mock，只有 E2E 用真实 API
 - **assistant 即测试契约**：每个测试 assistant 定义一个明确的测试场景，而非一个万能 assistant
 - **统一加载路径**：所有测试走 `testprepare`（`unit-test/agent/app`），废弃 `testutils.PrepareAgent`
-- **分层执行**：Tier 0（sandbox 基础设施验证）-> Tier 1（纯逻辑，无外部依赖）-> Tier 2（需 App + DB + Mock LLM）-> Tier 3（需 Docker/Tai + Mock LLM）-> Tier 4（需真实 LLM API）
+- **分层执行**：Tier 0（sandbox 基础设施验证）-> Tier 1（纯逻辑，无外部依赖）-> Tier 2（需 App + DB + Mock LLM）-> Tier 3（需 Docker/Tai + Mock LLM）-> Tier 4（需真实 LLM API）-> Tier 5（压力/泄漏检测，高迭代+并发）
 
 ---
 
@@ -48,6 +48,9 @@ Tier 3: Sandbox           -- 需 Docker + Tai + Mock LLM，Claude/OpenCode/Yao R
   |
   v
 Tier 4: E2E               -- 需真实 LLM API，端到端验证
+  |
+  v
+Tier 5: Stress            -- 压力测试 + 内存/goroutine 泄漏检测，高迭代+并发
 ```
 
 ### Tier 1 -- 工具函数单元测试（无 Prepare）
@@ -460,6 +463,7 @@ search 包包含 `Searcher`、`Registry`、`reference.go`、`citation.go`、`han
 | Tier 2 | mock-llm server（openai.mock）        | 内置 echo server      | mock handler  | SQLite    |
 | Tier 3 | mock-llm server（openai.mock）        | N/A                   | disabled      | SQLite    |
 | Tier 4 | 真实 API（Beta 团队）                 | 真实 MCP              | 真实 provider | SQLite/PG |
+| Tier 5 | 真实 API（Beta 团队）                 | 真实 MCP              | 真实 provider | SQLite/PG |
 
 ---
 
@@ -476,6 +480,7 @@ search 包包含 `Searcher`、`Registry`、`reference.go`、`citation.go`、`han
 | `//go:build integration` | Tier 2 | App + DB + Mock LLM | Hook、Caller、History、Search、Store 等 |
 | `//go:build sandbox` | Tier 3 | Docker + Tai + Mock LLM | Claude/OpenCode/Yao Runner |
 | `//go:build e2e` | Tier 4 | 真实 LLM API | 端到端验证（已有约定） |
+| `//go:build stress` | Tier 5 | 真实 LLM API | 压力测试、内存/goroutine 泄漏检测、高迭代并发 |
 
 ### 7.2 CI 运行命令
 
@@ -494,6 +499,9 @@ search 包包含 `Searcher`、`Registry`、`reference.go`、`citation.go`、`han
 
 - name: "Tier 4: E2E Tests (real LLM)"
   run: go test -v -count=1 -timeout 900s -tags e2e ./agent/...
+
+- name: "Tier 5: Stress Tests (real LLM)"
+  run: go test -v -count=1 -timeout 1800s -tags stress ./agent/...
 ```
 
 ### 7.3 文件命名约定

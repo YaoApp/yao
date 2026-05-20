@@ -18,14 +18,14 @@
 | 9    | assistant/mcp+loop                           | ✅ 完成   |
 | 10   | output                                       | ✅ 完成   |
 | 11   | robot                                        | ✅ 完成   |
-| 12   | search                                       | ⏳ 待开始 |
+| 12   | search                                       | ✅ 完成   |
 | 清理 | 删除旧 testutils + .go.bak                   | ⏳ 待开始 |
-| 收尾 | 覆盖率收集：各 Tier coverprofile 合并 + CI 上传 | ⏳ 待开始 |
+| 收尾 | 覆盖率收集：各 Tier coverprofile 合并 + CI 上传 | ✅ 完成   |
 
 ## 核心约束
 
 1. **testprepare 是唯一入口** -- 所有新测试用 `testprepare.PrepareUnit/PrepareSandbox/PrepareE2E`，禁止用 `testutils.PrepareAgent` 或 `test.Prepare`
-2. **Build Tag 必须标注** -- `//go:build unit`、`//go:build integration`、`//go:build sandbox`、`//go:build e2e`
+2. **Build Tag 必须标注** -- `//go:build unit`、`//go:build integration`、`//go:build sandbox`、`//go:build e2e`、`//go:build stress`
 3. **旧测试必须删除** -- 每步做完后，该包下所有使用 `testutils.PrepareAgent` 的旧测试文件全部删除，不允许新旧共存
 4. **新测试必须完全覆盖旧测试的范围** -- 删除前逐个检查旧测试的测试场景，确保新测试已覆盖
 5. **CI 只关注 Linux** -- 现阶段只适配 `agent-unit-test.yml`，Windows 后续单独处理
@@ -112,6 +112,7 @@ rg "testutils\.PrepareAgent|testutils\.Prepare|test\.Prepare" agent/<package>/ -
 | 2 | `go test -tags integration ./agent/...` | mock-llm | App 集成测试 |
 | 3 | `go test -tags sandbox ./agent/...` | mock-llm | Docker+Tai sandbox 测试 |
 | 4 | `go test -tags e2e ./agent/...` | 真实 API | 端到端测试 |
+| 5 | `go test -tags stress ./agent/...` | 真实 API | 压力测试 + 内存/goroutine 泄漏检测 |
 
 ### CI 环境差异（Linux vs 本地 macOS）
 
@@ -130,35 +131,47 @@ Step 1 将 `agent/` 下所有旧 `*_test.go` 文件（排除 Step 0 产出和 `a
 - **生命周期**：每步重构时参考对应 `.go.bak` 文件的测试场景，确保新测试覆盖 → 所有 Step 完成后在"清理"步统一删除
 - **git 策略**：提交到 git，不加 `.gitignore`
 
-## 覆盖率收集（全部重构完成后启用）
+## 覆盖率收集
 
 ### 策略
 
-各 Tier 独立生成 `-coverprofile`，最后用 `go tool covdata merge` 合并为一份报告。
+各 Tier 独立生成 `-coverprofile`，合并后上传 Codecov。
+
+**关键**：`go test -coverprofile` 不能直接用 `./agent/...`——没有测试文件的包会导致 `exit 1`。
+必须先用 `go list` 过滤出有测试文件的包，再传给 `go test`。
 
 ### 本地命令
 
 ```bash
 mkdir -p .build/coverage
-go test -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
-go test -count=1 -timeout 120s -tags unit -coverprofile=.build/coverage/tier1.out ./agent/...
-go test -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out ./agent/...
-go test -count=1 -timeout 600s -tags sandbox -coverprofile=.build/coverage/tier3.out ./agent/...
-go test -count=1 -timeout 900s -tags e2e -coverprofile=.build/coverage/tier4.out ./agent/...
 
-# 合并（gocovmerge 或手动拼接 — 去掉重复的 mode 行）
-# head -1 .build/coverage/tier0.out > .build/coverage/all.out
-# tail -n +2 -q .build/coverage/tier*.out >> .build/coverage/all.out
-# go tool cover -func=.build/coverage/all.out
+# Tier 1: unit
+PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags unit ./agent/... | tr '\n' ' ')
+go test -count=1 -timeout 120s -tags unit -coverprofile=.build/coverage/tier1.out -coverpkg=./agent/... $PKGS
+
+# Tier 2: integration
+PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
+go test -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+
+# Tier 5: stress (optional, long-running)
+PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags stress ./agent/... | tr '\n' ' ')
+go test -count=1 -timeout 1800s -tags stress -coverprofile=.build/coverage/tier5.out -coverpkg=./agent/... $PKGS
+
+# Merge
+head -1 .build/coverage/tier1.out > .build/coverage/all.out
+tail -n +2 -q .build/coverage/tier*.out >> .build/coverage/all.out
+go tool cover -func=.build/coverage/all.out | tail -1
 ```
 
-### CI 集成
+### CI 集成（已启用）
 
-在 `agent-unit-test.yml` 中每个 Tier step 加 `-coverprofile`，最后一步合并并上传 artifact。
+在 `agent-unit-test.yml` 中：
+1. Tier 1~5 每层用 `go list` 过滤包后运行 `go test -coverprofile`
+2. "Merge Coverage Profiles" step 合并所有 tier*.out 为 all.out
+3. `codecov/codecov-action@v5` 上传 all.out，flag 为 `agent-{db}`
+4. 需要在 GitHub repo secrets 中配置 `CODECOV_TOKEN`
 
-### 前置条件
-
-所有 Step 完成、`.go.bak` 清理后再启用——当前阶段大量包没有测试文件，`-coverprofile` 会触发 `covdata` 报错。
+**Tier 5 (stress) 说明**：压力测试 timeout 设为 1800s（30 分钟），包含高迭代循环（100~1000 次）和高并发（100 goroutines x 10 iterations）的内存/goroutine 泄漏检测。使用 `PrepareE2E` + 真实 assistant。
 
 ## 参考文档
 
