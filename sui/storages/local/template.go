@@ -232,7 +232,7 @@ func (tmpl *Template) Locales() []core.SelectOption {
 
 	// Get the support locales
 	for _, dir := range dirs {
-		locale := path.Base(dir)
+		locale := filepath.Base(dir)
 		if localeMap[locale] {
 			continue
 		}
