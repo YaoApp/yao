@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	jsoniter "github.com/json-iterator/go"
@@ -159,7 +158,7 @@ func TemplateRender(process *process.Process) interface{} {
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
-	assetRoot := filepath.Join(root, "assets")
+	assetRoot := root + "/assets"
 
 	source := process.ArgsString(2)
 	page := tmpl.CreatePage(source)
