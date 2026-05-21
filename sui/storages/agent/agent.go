@@ -240,8 +240,8 @@ func (agent *Agent) scanAssistantsRecursive(dir string, prefix string, assistant
 func (agent *Agent) getAssistantPagesRoot(assistantID string) string {
 	// Convert dot notation to path: "tests.nested.demo" -> "tests/nested/demo"
 	pathParts := strings.Split(assistantID, ".")
-	assistantPath := filepath.Join(pathParts...)
-	return filepath.Join(agent.assistantsRoot, assistantPath, "pages")
+	assistantPath := strings.Join(pathParts, "/")
+	return agent.assistantsRoot + "/" + assistantPath + "/pages"
 }
 
 // Exists check if the agent storage is available

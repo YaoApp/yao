@@ -2,8 +2,7 @@ package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 
@@ -223,7 +222,7 @@ func (parser *TemplateParser) getJitComponent(sel *goquery.Selection) (*JitCompo
 		return comp, nil
 	}
 
-	file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, is+".jit")
+	file := path.Join("/", "public", parser.option.Root, is+".jit")
 	if exist, _ := application.App.Exists(file); !exist {
 		return nil, fmt.Errorf("Component %s file not found, please recompile the component", is)
 	}

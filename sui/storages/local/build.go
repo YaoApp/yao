@@ -3,6 +3,7 @@ package local
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -296,7 +297,7 @@ func (tmpl *Template) getLocaleGlobal(name string) core.Locale {
 		Keys:     map[string]string{},
 		Messages: map[string]string{},
 	}
-	file := filepath.Join(tmpl.Root, "__locales", name, "__global.yml")
+	file := path.Join(tmpl.Root, "__locales", name, "__global.yml")
 	exist, err := tmpl.local.fs.Exists(file)
 	if err != nil {
 		log.Error(`[SUI] Check the global locale file error: %s`, err.Error())
@@ -323,7 +324,7 @@ func (tmpl *Template) getLocaleGlobal(name string) core.Locale {
 }
 
 func (tmpl *Template) getLocale(name string, route string, pageOnly ...bool) core.Locale {
-	file := filepath.Join(tmpl.Root, "__locales", name, fmt.Sprintf("%s.yml", route))
+	file := path.Join(tmpl.Root, "__locales", name, fmt.Sprintf("%s.yml", route))
 	global := tmpl.getLocaleGlobal(name)
 
 	// Check the locale file
@@ -551,7 +552,7 @@ func (page *Page) publicFile(data map[string]interface{}) string {
 		log.Error("publicFile: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 		root = page.tmpl.local.DSL.Public.Root
 	}
-	return filepath.Join("/", "public", root, page.Route)
+	return path.Join("/", "public", root, page.Route)
 }
 
 func (page *Page) localeFiles(data map[string]interface{}) map[string]string {
@@ -567,7 +568,7 @@ func (page *Page) localeFiles(data map[string]interface{}) map[string]string {
 		if locale.Default {
 			continue
 		}
-		target := filepath.Join("/", "public", root, ".locales", locale.Value, fmt.Sprintf("%s.yml", page.Route))
+		target := path.Join("/", "public", root, ".locales", locale.Value, fmt.Sprintf("%s.yml", page.Route))
 		roots[locale.Value] = target
 	}
 	return roots
@@ -623,7 +624,7 @@ func (page *Page) writeLocaleSource(ctx *core.BuildContext, option *core.BuildOp
 		}
 
 		// Save to file
-		file := filepath.Join(page.tmpl.Root, "__locales", lc.Value, fmt.Sprintf("%s.yml", page.Route))
+		file := path.Join(page.tmpl.Root, "__locales", lc.Value, fmt.Sprintf("%s.yml", page.Route))
 		content, err := yaml.Marshal(map[string]interface{}{
 			"keys":     keys,
 			"messages": messages,
@@ -690,9 +691,9 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 }
 
 func (page *Page) backendScriptSource() (string, []byte, error) {
-	backendFile := filepath.Join(page.Path, fmt.Sprintf("%s.backend.ts", page.Name))
+	backendFile := path.Join(page.Path, fmt.Sprintf("%s.backend.ts", page.Name))
 	if exist, _ := page.tmpl.local.fs.Exists(backendFile); !exist {
-		backendFile = filepath.Join(page.Path, fmt.Sprintf("%s.backend.js", page.Name))
+		backendFile = path.Join(page.Path, fmt.Sprintf("%s.backend.js", page.Name))
 	}
 
 	if exist, _ := page.tmpl.local.fs.Exists(backendFile); !exist {

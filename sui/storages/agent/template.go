@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -30,7 +31,7 @@ func (tmpl *Template) Pages() ([]core.IPage, error) {
 	pages := []core.IPage{}
 
 	// 1. Get pages from /agent/pages (global agent pages like login, error, etc.)
-	agentPagesDir := filepath.Join(tmpl.agent.root, "pages")
+	agentPagesDir := path.Join(tmpl.agent.root, "pages")
 	if tmpl.agent.fs.IsDir(agentPagesDir) {
 		agentPages, err := tmpl.getPagesFromDir(agentPagesDir, "")
 		if err != nil {
@@ -65,7 +66,7 @@ func (tmpl *Template) getPagesFromDir(dir string, routePrefix string) ([]core.IP
 	pages := []core.IPage{}
 
 	tmpl.agent.fs.Walk(dir, func(root, file string, isdir bool) error {
-		name := filepath.Base(file)
+		name := path.Base(file)
 		if isdir {
 			if strings.HasPrefix(name, "__") || name == ".tmp" {
 				return filepath.SkipDir
@@ -99,11 +100,11 @@ func (tmpl *Template) getPageFrom(file, pagesRoot, assistantID string) (core.IPa
 // getPageRoute get the route for a page
 func (tmpl *Template) getPageRoute(file, pagesRoot, assistantID string) string {
 	// Get relative path from pages root
-	relPath := filepath.Dir(file[len(pagesRoot):])
+	relPath := path.Dir(file[len(pagesRoot):])
 
 	// Add assistant prefix if this is an assistant page
 	if assistantID != "" {
-		return filepath.Join("/", assistantID, relPath)
+		return path.Join("/", assistantID, relPath)
 	}
 
 	return relPath
@@ -111,18 +112,18 @@ func (tmpl *Template) getPageRoute(file, pagesRoot, assistantID string) string {
 
 // getPage create a page object
 func (tmpl *Template) getPage(route, file, pagesRoot, assistantID string) (core.IPage, error) {
-	path := filepath.Dir(file)
+	pagePath := path.Dir(file)
 	name := tmpl.getPageBase(route)
 
 	return &Page{
 		Page: &core.Page{
 			Route:      route,
-			Path:       path,
+			Path:       pagePath,
 			Name:       name,
 			TemplateID: tmpl.ID,
 			SuiID:      tmpl.agent.DSL.ID,
 			Codes: core.SourceCodes{
-				HTML: core.Source{File: fmt.Sprintf("%s%s", name, filepath.Ext(file))},
+				HTML: core.Source{File: fmt.Sprintf("%s%s", name, path.Ext(file))},
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
 				JS:   core.Source{File: fmt.Sprintf("%s.js", name)},
 				DATA: core.Source{File: fmt.Sprintf("%s.json", name)},
@@ -138,7 +139,7 @@ func (tmpl *Template) getPage(route, file, pagesRoot, assistantID string) (core.
 }
 
 func (tmpl *Template) getPageBase(route string) string {
-	return filepath.Base(route)
+	return path.Base(route)
 }
 
 // Page get a specific page by route
@@ -163,7 +164,7 @@ func (tmpl *Template) Page(route string) (core.IPage, error) {
 
 	assistantID := ""
 	pageRoute := route
-	pagesRoot := filepath.Join(tmpl.agent.root, "pages")
+	pagesRoot := path.Join(tmpl.agent.root, "pages")
 
 	// The first part of the route might be an assistant ID
 	// Assistant IDs can contain dots (e.g., "tests.nested.demo")
@@ -192,7 +193,7 @@ func (tmpl *Template) Page(route string) (core.IPage, error) {
 
 func (tmpl *Template) getPagePath(route, pagesRoot string) string {
 	name := tmpl.getPageBase(route)
-	return filepath.Join(pagesRoot, route, name)
+	return path.Join(pagesRoot, route, name)
 }
 
 // PageExist check if page exists
@@ -208,7 +209,7 @@ func (tmpl *Template) RemovePage(route string) error {
 
 // GetPageFromAsset get page from asset
 func (tmpl *Template) GetPageFromAsset(file string) (core.IPage, error) {
-	route := filepath.Dir(file)
+	route := path.Dir(file)
 	return tmpl.Page(route)
 }
 
@@ -263,7 +264,7 @@ func (tmpl *Template) GetWatchRoot() string {
 // Asset get the asset (check agent assets first, then assistant assets)
 func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error) {
 	// First check in agent assets
-	agentFile := filepath.Join(tmpl.agent.root, "__assets", file)
+	agentFile := path.Join(tmpl.agent.root, "__assets", file)
 	if tmpl.agent.fs.IsFile(agentFile) {
 		return tmpl.readAsset(agentFile, width, height)
 	}
@@ -279,7 +280,7 @@ func (tmpl *Template) Asset(file string, width, height uint) (*core.Asset, error
 		assistants, _ := tmpl.agent.getAssistants()
 		for _, ast := range assistants {
 			if ast == assistantID {
-				assistantAssetFile := filepath.Join(tmpl.agent.assistantsRoot, assistantID, "pages", "__assets", assetPath)
+				assistantAssetFile := path.Join(tmpl.agent.assistantsRoot, assistantID, "pages", "__assets", assetPath)
 				if tmpl.agent.fs.IsFile(assistantAssetFile) {
 					return tmpl.readAsset(assistantAssetFile, width, height)
 				}
@@ -316,18 +317,18 @@ func (tmpl *Template) Locales() []core.SelectOption {
 	localeMap := map[string]bool{}
 
 	// Check __locales directory
-	path := filepath.Join(tmpl.Root, "__locales")
-	if !tmpl.agent.fs.IsDir(path) {
+	localesDir := path.Join(tmpl.Root, "__locales")
+	if !tmpl.agent.fs.IsDir(localesDir) {
 		return supportLocales
 	}
 
-	dirs, err := tmpl.agent.fs.ReadDir(path, false)
+	dirs, err := tmpl.agent.fs.ReadDir(localesDir, false)
 	if err != nil {
 		return supportLocales
 	}
 
 	for _, dir := range dirs {
-		locale := filepath.Base(dir)
+		locale := path.Base(dir)
 		if localeMap[locale] {
 			continue
 		}
@@ -355,8 +356,8 @@ func (tmpl *Template) Assets() []string {
 
 // Glob the files
 func (tmpl *Template) Glob(pattern string) ([]string, error) {
-	path := filepath.Join(tmpl.Root, pattern)
-	paths, err := tmpl.agent.fs.Glob(path)
+	globPath := path.Join(tmpl.Root, pattern)
+	paths, err := tmpl.agent.fs.Glob(globPath)
 	if err != nil {
 		return nil, err
 	}
@@ -377,11 +378,11 @@ func (tmpl *Template) GlobRoutes(patterns []string, unique ...bool) ([]string, e
 			return nil, err
 		}
 
-		for _, path := range paths {
-			if !tmpl.agent.fs.IsDir(filepath.Join(tmpl.Root, path)) {
+		for _, p := range paths {
+			if !tmpl.agent.fs.IsDir(path.Join(tmpl.Root, p)) {
 				continue
 			}
-			routes = append(routes, path)
+			routes = append(routes, p)
 		}
 	}
 
@@ -707,18 +708,18 @@ func (tmpl *Template) loadBuildScript() error {
 }
 
 func (tmpl *Template) backendScriptSource(name string) (string, []byte, error) {
-	path := filepath.Join(tmpl.Root, fmt.Sprintf("%s.ts", name))
-	if !tmpl.agent.fs.IsFile(path) {
-		path = filepath.Join(tmpl.Root, fmt.Sprintf("%s.js", name))
+	scriptPath := path.Join(tmpl.Root, fmt.Sprintf("%s.ts", name))
+	if !tmpl.agent.fs.IsFile(scriptPath) {
+		scriptPath = path.Join(tmpl.Root, fmt.Sprintf("%s.js", name))
 	}
 
-	if !tmpl.agent.fs.IsFile(path) {
+	if !tmpl.agent.fs.IsFile(scriptPath) {
 		return "", nil, nil
 	}
 
-	content, err := tmpl.agent.fs.ReadFile(path)
+	content, err := tmpl.agent.fs.ReadFile(scriptPath)
 	if err != nil {
 		return "", nil, err
 	}
-	return path, content, nil
+	return scriptPath, content, nil
 }

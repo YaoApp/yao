@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -113,27 +113,27 @@ func (r *Runner) discoverPageTests() ([]*PageTestInfo, error) {
 		}
 
 		dir := pg.Path
-		testFile := filepath.Join(dir, pg.Name+".backend_test.ts")
+		testFile := path.Join(dir, pg.Name+".backend_test.ts")
 
 		exists, _ := application.App.Exists(testFile)
 		if !exists {
-			testFile = filepath.Join(dir, pg.Name+".backend_test.js")
+			testFile = path.Join(dir, pg.Name+".backend_test.js")
 			exists, _ = application.App.Exists(testFile)
 		}
 		if !exists {
 			continue
 		}
 
-		backendFile := filepath.Join(dir, pg.Name+".backend.ts")
+		backendFile := path.Join(dir, pg.Name+".backend.ts")
 		if ex, _ := application.App.Exists(backendFile); !ex {
-			backendFile = filepath.Join(dir, pg.Name+".backend.js")
+			backendFile = path.Join(dir, pg.Name+".backend.js")
 		}
 
 		prefix := "Api"
-		cfgFile := filepath.Join(dir, pg.Name+".config")
+		cfgFile := path.Join(dir, pg.Name+".config")
 		cfg, _ := LoadPageConfig(cfgFile)
 		if cfg == nil {
-			cfgFile = filepath.Join(dir, pg.Name+".cfg")
+			cfgFile = path.Join(dir, pg.Name+".cfg")
 			cfg, _ = LoadPageConfig(cfgFile)
 		}
 		if cfg != nil && cfg.API != nil && cfg.API.Prefix != "" {
