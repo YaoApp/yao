@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/yaoapp/gou/model"
+	"github.com/yaoapp/xun/capsule"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/robot/executor/standard"
 	"github.com/yaoapp/yao/agent/robot/executor/types"
@@ -153,6 +155,9 @@ func TestExecutionStatusTransitions(t *testing.T) {
 // ============================================================================
 
 func TestResume(t *testing.T) {
+	cleanupResumeTestData(t)
+	defer cleanupResumeTestData(t)
+
 	t.Run("R1_Resume_with_empty_execID_returns_error", func(t *testing.T) {
 		_ = testprepare.PrepareSandbox(t)
 		e := standard.New()
@@ -308,4 +313,23 @@ func newSuspendedResumeExecution(robot *robottypes.Robot) *robottypes.Execution 
 	exec.ResumeContext = &robottypes.ResumeContext{TaskIndex: 0, PreviousResults: []robottypes.TaskResult{}}
 	exec.Tasks[0].Status = robottypes.TaskWaitingInput
 	return exec
+}
+
+func cleanupResumeTestData(t *testing.T) {
+	t.Helper()
+
+	execMod := model.Select("__yao.agent.execution")
+	if execMod == nil {
+		return
+	}
+	execTable := execMod.MetaData.Table.Name
+	qb := capsule.Query()
+	qb.Table(execTable).Where("execution_id", "like", "test-exec-resume-%").Delete()
+
+	memberMod := model.Select("__yao.member")
+	if memberMod == nil {
+		return
+	}
+	memberTable := memberMod.MetaData.Table.Name
+	qb.Table(memberTable).Where("member_id", "like", "rr-%").Delete()
 }

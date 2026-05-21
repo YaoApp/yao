@@ -248,7 +248,7 @@ jobs:
           DOCKER_HOST: tcp://127.0.0.1:2375
         run: |
           mkdir -p .build/coverage
-          go test -v -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
+          go test -v -p 1 -count=1 -timeout 600s -coverprofile=.build/coverage/tier0.out ./sandbox/v2/...
 
       - name: "Tier 1: Pure Unit Tests"
         shell: bash
@@ -278,7 +278,7 @@ jobs:
           mkdir -p .build/coverage
           PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
           if [ -n "$PKGS" ]; then
-            go test -v -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+            go test -v -p 1 -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
           fi
 
       # ── 13. Coverage ──────────────────────────────────────────────────
