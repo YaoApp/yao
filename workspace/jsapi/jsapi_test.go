@@ -2,6 +2,7 @@ package jsapi_test
 
 import (
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -363,8 +364,10 @@ func TestWSCopyLocalToLocal(t *testing.T) {
 	dstDir := t.TempDir()
 	os.WriteFile(srcDir+"/test.txt", []byte("local-to-local"), 0o644)
 
-	srcRel := srcDir[len(os.TempDir()):]
-	dstRel := dstDir[len(os.TempDir()):]
+	srcRel, _ := filepath.Rel(os.TempDir(), srcDir)
+	srcRel = filepath.ToSlash(srcRel)
+	dstRel, _ := filepath.Rel(os.TempDir(), dstDir)
+	dstRel = filepath.ToSlash(dstRel)
 
 	runJS(t, `function TestWSCopyLocalToLocal() {
 		var ws = workspace.Create({ name: "l2l", owner: "u1", node: "local" });

@@ -39,12 +39,14 @@ func ID(root string, file string) string {
 // File ID to file
 func File(id string, ext string) string {
 	ext = strings.TrimLeft(ext, ".")
-	file := strings.ReplaceAll(id, ".", string(os.PathSeparator))
+	file := strings.ReplaceAll(id, ".", "/")
 	return fmt.Sprintf("%s.%s", file, ext)
 }
 
 // SpecName 解析名称  root: "/tests/apis"  file: "/tests/apis/foo/bar.http.json"
 func SpecName(root string, file string) string {
+	root = filepath.ToSlash(root)
+	file = filepath.ToSlash(file)
 	filename := strings.TrimPrefix(file, root+"/") // "foo/bar.http.json", "foo/bar2.0.http.json"
 	parts := strings.Split(filename, "/")          // ["foo", "bar.http.json"], ["foo", "bar2.0.http.json"]
 	basename := parts[len(parts)-1]                // "bar.http.json", "bar2.0.http.json"

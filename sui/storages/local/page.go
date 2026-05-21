@@ -66,7 +66,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 
 			// Create directory nodes in the tree structure.
 			currentDir := rootNode
-			dirs := strings.Split(relPath, string(filepath.Separator))
+			dirs := strings.Split(relPath, "/")
 
 			for _, dir := range dirs {
 				if dir == "" {
@@ -115,7 +115,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 		log.Debug("[PageTree] getPageFrom |\t pageInfo.Name: %s", pageInfo.Name)
 
 		// Attach the page to the appropriate directory node.
-		dirs := strings.Split(relPath, string(filepath.Separator))
+		dirs := strings.Split(relPath, "/")
 		currentDir := rootNode
 		log.Debug("[PageTree] currentDir | name: %s Children: %d", currentDir.Name, len(currentDir.Children))
 
@@ -394,7 +394,9 @@ func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
 }
 
 func (tmpl *Template) getPageRoute(file string) string {
-	return path.Dir(file[len(tmpl.Root):])
+	file = filepath.ToSlash(file)
+	root := filepath.ToSlash(tmpl.Root)
+	return path.Dir(file[len(root):])
 }
 
 func (tmpl *Template) getPagePath(route string) string {

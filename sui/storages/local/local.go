@@ -114,7 +114,7 @@ func (local *Local) getTemplate(id string, path string) (*Template, error) {
 
 	tmpl := Template{
 		local: local,
-		Root:  path,
+		Root:  filepath.ToSlash(path),
 		Template: &core.Template{
 			ID:          id,
 			Name:        strings.ToUpper(id),
