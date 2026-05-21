@@ -96,6 +96,15 @@ unit-test-core:
 		fi; \
 	done
 
+# Windows Core Unit Test — single go test invocation, no for/sed/grep/cat
+# Uses the same package list as unit-test-core but runs all packages in one go test call.
+# -p 1 prevents parallel package execution (avoids PG DDL races).
+.PHONY: unit-test-core-windows
+unit-test-core-windows:
+	$(GO) test -tags $(TESTTAGS) -v -p 1 -timeout 600s \
+		-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' \
+		$(TESTFOLDER_CORE)
+
 # Agent Unit Test (agent, aigc) - excludes robot packages (tested in unit-test-robot) and TestE2E*
 .PHONY: unit-test-agent
 unit-test-agent:
