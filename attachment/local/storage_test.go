@@ -213,9 +213,9 @@ func TestLocalStorage(t *testing.T) {
 		// Read file
 		reader, err := storage.Reader(context.Background(), fileID)
 		assert.NoError(t, err)
-		defer reader.Close()
 
 		data, err := io.ReadAll(reader)
+		reader.Close()
 		assert.NoError(t, err)
 		assert.Equal(t, content, data)
 

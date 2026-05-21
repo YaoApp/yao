@@ -228,7 +228,7 @@ func (storage *Storage) URL(ctx context.Context, path string) string {
 	if storage.BaseURL != "" {
 		return fmt.Sprintf("%s/%s", strings.TrimRight(storage.BaseURL, "/"), path)
 	}
-	return fmt.Sprintf("%s/%s", storage.Path, path)
+	return filepath.Join(storage.Path, path)
 }
 
 // GetContent gets file content as bytes
