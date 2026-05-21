@@ -9,6 +9,10 @@ COMMIT := $(shell git log | head -n 1 | awk '{print substr($$2, 0, 12)}')
 NOW := $(shell date +"%FT%T%z")
 OS := $(shell uname)
 
+# Windows CGO compiler settings (requires LLVM: choco install llvm -y)
+WIN_CC  = clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+WIN_CXX = clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry|agent/sandbox/v2' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
 # Sandbox setting tests (openapi/tests/setting/sandbox_test.go) require Docker + Tai — skipped in CI, run locally only
@@ -666,6 +670,55 @@ artifacts-macos: clean
 	chmod +x dist/release/yao-*-*
 	ls -l dist/release/
 	dist/release/yao-${VERSION}-darwin-amd64 version
+
+# make artifacts-windows
+.PHONY: artifacts-windows
+artifacts-windows: clean
+	mkdir -p dist/release
+
+#	Building CUI v1.0
+	export NODE_ENV=production
+	echo "BASE=__yao_admin_root" > ../cui-v1.0/packages/cui/.env
+	cd ../cui-v1.0 && pnpm install --no-frozen-lockfile && pnpm run build
+
+#	Init Application
+	cd ../yao-init && rm -rf .git
+	cd ../yao-init && rm -rf .gitignore
+	cd ../yao-init && rm -rf LICENSE
+
+#	Switch .env login URLs from dev mode (__yao_admin_root) to release mode (dashboard)
+	sed -i.bak 's|AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|# AFTER_LOGIN_SUCCESS_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|# AFTER_LOGIN_FAILURE_URL="/__yao_admin_root/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_SUCCESS_URL="/dashboard/|AFTER_LOGIN_SUCCESS_URL="/dashboard/|g' ../yao-init/.env
+	sed -i.bak 's|# AFTER_LOGIN_FAILURE_URL="/dashboard/|AFTER_LOGIN_FAILURE_URL="/dashboard/|g' ../yao-init/.env
+	rm -f ../yao-init/.env.bak
+
+#	Packing
+	mkdir -p .tmp/data/cui
+	cp -r ./ui .tmp/data/ui
+	cp -r ../cui-v1.0/packages/cui/dist .tmp/data/cui/v1.0
+	cp -r ../yao-init .tmp/data/init
+	cp -r yao .tmp/data/
+	cp -r sui/libsui .tmp/data/
+	go-bindata -fs -pkg data -o data/bindata.go -prefix ".tmp/data/" .tmp/data/...
+	rm -rf .tmp/data
+
+#	Replace PRVERSION
+	sed -ie "s/const PRVERSION = \"DEV\"/const PRVERSION = \"${COMMIT}-${NOW}\"/g" share/const.go
+	@CUI_COMMIT=$$(cd ../cui-v1.0 && git log | head -n 1 | awk '{print substr($$2, 0, 12)}') && \
+	sed -ie "s/const PRCUI = \"DEV\"/const PRCUI = \"$$CUI_COMMIT-${NOW}\"/g" share/const.go
+
+#   Making artifacts - dev build (full debug symbols)
+	mkdir -p dist
+	CGO_ENABLED=1 CC="$(WIN_CC)" CXX="$(WIN_CXX)" go build -v -o dist/yao-${VERSION}-windows-amd64.exe
+
+#   Making artifacts - prod build (stripped)
+	sed -i.tmp 's/const BUILDOPTIONS = ""/const BUILDOPTIONS = "-s -w (production, stripped)"/g' share/const.go && rm -f share/const.go.tmp
+	CGO_ENABLED=1 CC="$(WIN_CC)" CXX="$(WIN_CXX)" go build -v -ldflags="-s -w" -o dist/yao-${VERSION}-windows-amd64-prod.exe
+
+	mkdir -p dist/release
+	mv dist/yao-*-*.exe dist/release/
+	ls -l dist/release/
 
 
 .PHONY: debug

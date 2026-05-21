@@ -1,0 +1,117 @@
+name: Debug Build Windows
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CGO_ENABLED: "1"
+      CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+      CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      - name: Checkout CUI v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/cui
+          path: cui-v1.0
+
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
+      - name: Move Dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv cui-v1.0 ../
+          mv yao-init ../
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
+
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      - name: Make Artifacts Windows
+        shell: bash
+        run: make artifacts-windows
+
+      - name: List Build Output
+        shell: bash
+        run: ls -lh dist/release/
+
+      - name: Verify Binaries
+        shell: bash
+        run: |
+          echo "=== Dev binary ==="
+          file dist/release/*.exe || true
+          echo "=== File sizes ==="
+          ls -lh dist/release/*.exe
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-windows-debug
+          path: dist/release/*
