@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -107,9 +108,10 @@ func cleanTestData() error {
 	return nil
 }
 
-// getTestID 生成唯一的测试ID
+var ioTestIDCounter atomic.Int64
+
 func getTestID() string {
-	return fmt.Sprintf("test_%d", time.Now().UnixNano())
+	return fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), ioTestIDCounter.Add(1))
 }
 
 // TestCase 定义单个测试用例

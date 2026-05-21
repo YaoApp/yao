@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -58,7 +59,7 @@ func TestStartStop(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, 200, res.Status())
-	assert.Equal(t, "Hello World\n", res.Body())
+	assert.Equal(t, "Hello World\n", strings.ReplaceAll(res.Body(), "\r\n", "\n"))
 
 	// XGEN
 	req = test.NewRequest(port).Route("/admin/")

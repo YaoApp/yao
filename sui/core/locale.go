@@ -149,7 +149,7 @@ func (locale *Locale) MergeTranslations(translations []Translation, prefix ...st
 
 	var reg *regexp.Regexp = nil
 	if len(prefix) > 0 && prefix[0] != "" {
-		reg = regexp.MustCompile(fmt.Sprintf(`^%s_([0-9]+)$`, prefix[0]))
+		reg = regexp.MustCompile(fmt.Sprintf(`^%s_([0-9]+)$`, regexp.QuoteMeta(prefix[0])))
 	}
 
 	for _, t := range translations {

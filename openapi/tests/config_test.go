@@ -380,7 +380,7 @@ func convertRelativeToAbsolutePath(relativePath, rootPath string) string {
 		return relativePath
 	}
 	// Convert relative path to absolute: Root + "openapi" + "certs" + relativePath
-	return filepath.Join(rootPath, "openapi", "certs", relativePath)
+	return filepath.ToSlash(filepath.Join(rootPath, "openapi", "certs", relativePath))
 }
 
 // convertAbsoluteToRelativePath converts absolute certificate path to relative path
@@ -394,11 +394,11 @@ func convertAbsoluteToRelativePath(absolutePath, rootPath string) string {
 	}
 
 	// Remove Root + "openapi" + "certs" prefix
-	certBasePath := filepath.Join(rootPath, "openapi", "certs")
-	if strings.HasPrefix(absolutePath, certBasePath) {
-		relativePath := strings.TrimPrefix(absolutePath, certBasePath)
-		// Remove leading separator
-		relativePath = strings.TrimPrefix(relativePath, string(filepath.Separator))
+	certBasePath := filepath.ToSlash(filepath.Join(rootPath, "openapi", "certs"))
+	absSlash := filepath.ToSlash(absolutePath)
+	if strings.HasPrefix(absSlash, certBasePath) {
+		relativePath := strings.TrimPrefix(absSlash, certBasePath)
+		relativePath = strings.TrimPrefix(relativePath, "/")
 		return relativePath
 	}
 
