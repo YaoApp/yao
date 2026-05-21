@@ -315,15 +315,11 @@ func fetchLatestRelease() (*githubRelease, error) {
 func buildAssetName(version string) string {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
-
-	// normalize arch names
-	if goarch == "amd64" {
-		goarch = "amd64"
-	} else if goarch == "arm64" {
-		goarch = "arm64"
+	name := fmt.Sprintf("yao-%s-%s-%s", version, goos, goarch)
+	if goos == "windows" {
+		name += ".exe"
 	}
-
-	return fmt.Sprintf("yao-%s-%s-%s", version, goos, goarch)
+	return name
 }
 
 // findAsset finds the matching asset by name prefix

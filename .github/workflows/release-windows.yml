@@ -1,0 +1,254 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # ===================================================================
+  # Build Windows Binaries (amd64)
+  # ===================================================================
+  build:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CGO_ENABLED: "1"
+      CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+      CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+    steps:
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      - name: Checkout CUI v1.0
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/cui
+          path: cui-v1.0
+
+      - name: Checkout Yao-Init
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-init
+          path: yao-init
+
+      - name: Move Dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv cui-v1.0 ../
+          mv yao-init ../
+          rm -f ../cui-v1.0/packages/setup/vite.config.ts.*
+
+      - name: Checkout Yao
+        uses: actions/checkout@v4
+
+      - name: Set VERSION from tag
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow requires a tag (refs/tags/v*). Got: $GITHUB_REF"
+            exit 1
+          fi
+          TAG="${GITHUB_REF#refs/tags/v}"
+          echo "Setting VERSION to $TAG"
+          sed -i.bak "s/const VERSION = \".*\"/const VERSION = \"${TAG}\"/g" share/const.go
+          rm -f share/const.go.bak
+          grep 'const VERSION' share/const.go
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      - name: Make Artifacts Windows
+        shell: bash
+        run: make artifacts-windows
+
+      - name: List Build Output
+        shell: bash
+        run: ls -lh dist/release/
+
+      - name: Verify Binaries
+        shell: bash
+        run: |
+          echo "=== Dev binary ==="
+          file dist/release/*.exe || true
+          echo "=== File sizes ==="
+          ls -lh dist/release/*.exe
+
+      - name: Smoke Test - yao init
+        shell: bash
+        run: |
+          YAO_EXE=$(ls dist/release/yao-*-windows-amd64.exe | head -1)
+          echo "Testing binary: $YAO_EXE"
+          mkdir -p /tmp/yao-init-test
+          cd /tmp/yao-init-test
+          timeout 60 "$GITHUB_WORKSPACE/$YAO_EXE" init || code=$?
+          echo "Exit code: ${code:-0}"
+          ls -la /tmp/yao-init-test/
+          if [ -f /tmp/yao-init-test/app.yao ] || [ -f /tmp/yao-init-test/app.json ] || [ -f /tmp/yao-init-test/app.jsonc ]; then
+            echo "PASS: yao init created application files"
+          else
+            echo "FAIL: yao init did not create application files"
+            exit 1
+          fi
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yao-windows
+          path: dist/release/*
+
+  # ===================================================================
+  # GitHub Release + R2 Upload (Windows binaries)
+  # ===================================================================
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get Version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/v* ]]; then
+            echo "::error::This workflow requires a tag. Got: $GITHUB_REF"
+            exit 1
+          fi
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          TAG="${GITHUB_REF#refs/tags/}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yao-windows
+          path: artifacts
+
+      - name: Prepare Release Files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          mkdir -p release
+          cp "artifacts/yao-${VERSION}-windows-amd64-prod.exe" "release/yao-${VERSION}-windows-amd64.exe"
+          cp "artifacts/yao-${VERSION}-windows-amd64.exe" "release/yao-${VERSION}-windows-amd64-dev.exe"
+
+          sha256sum "release/yao-${VERSION}-windows-amd64.exe" | awk '{print $1}' > "release/yao-windows-amd64-prod.sha256"
+          sha256sum "release/yao-${VERSION}-windows-amd64-dev.exe" | awk '{print $1}' > "release/yao-windows-amd64-dev.sha256"
+          ls -lh release/
+
+      - name: Wait for Draft Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          for i in $(seq 1 30); do
+            if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" &>/dev/null; then
+              echo "Draft release found for $TAG."
+              exit 0
+            fi
+            echo "Waiting for draft release... ($i/30)"
+            sleep 10
+          done
+          echo "::error::Timed out waiting for draft release $TAG"
+          exit 1
+
+      - name: Upload Assets to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          gh release upload "$TAG" release/* --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Publish Release if Complete
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          ASSET_COUNT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
+          echo "Current assets: $ASSET_COUNT / 20"
+          if [ "$ASSET_COUNT" -ge 20 ]; then
+            echo "All assets present, publishing release..."
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          else
+            echo "Assets incomplete ($ASSET_COUNT/20), waiting for other workflow to publish."
+          fi
+
+      - name: Upload Windows binary to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ENDPOINTS: ${{ secrets.R2_ENDPOINTS }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET || 'releases' }}
+        run: |
+          aws configure set default.region us-east-1
+          aws configure set default.s3.signature_version s3v4
+
+          VERSION="${{ steps.version.outputs.version }}"
+          PREFIX="yao/${VERSION}"
+
+          FILE="release/yao-${VERSION}-windows-amd64.exe"
+          NAME="yao-${VERSION}-windows-amd64.exe"
+          sha256sum "$FILE" | awk '{print $1}' > "/tmp/${NAME}.sha256"
+
+          aws s3 cp "$FILE" "s3://${R2_BUCKET}/${PREFIX}/${NAME}" \
+            --endpoint-url "$R2_ENDPOINTS" \
+            --content-type "application/octet-stream"
+          aws s3 cp "/tmp/${NAME}.sha256" "s3://${R2_BUCKET}/${PREFIX}/${NAME}.sha256" \
+            --endpoint-url "$R2_ENDPOINTS" \
+            --content-type "text/plain"
+          echo "Uploaded: ${NAME} + ${NAME}.sha256"
