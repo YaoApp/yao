@@ -270,10 +270,27 @@ jobs:
       - name: Setup MongoDB with Auth
         shell: pwsh
         run: |
+          Set-Service -Name "MongoDB" -StartupType Manual
           Start-Service MongoDB
+
+          $retries = 0
+          while ($retries -lt 10) {
+            $result = mongosh --quiet --eval "db.runCommand({ping:1})" 2>&1
+            if ($LASTEXITCODE -eq 0) { Write-Host "MongoDB is ready"; break }
+            $retries++; Start-Sleep -Seconds 2
+            Write-Host "Waiting for MongoDB... attempt $retries"
+          }
+          if ($retries -ge 10) { Write-Host "::error::MongoDB not ready"; exit 1 }
+
           mongosh --eval "db.createUser({user:'root',pwd:'123456',roles:['root']})" admin
           Stop-Service MongoDB
-          Add-Content -Path "C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg" -Value "`nsecurity:`n  authorization: enabled"
+
+          $cfgPath = $null
+          foreach ($p in @("C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg","C:\Program Files\MongoDB\Server\8.0\bin\mongod.cfg")) {
+            if (Test-Path $p) { $cfgPath = $p; break }
+          }
+          if (-not $cfgPath) { Write-Host "::error::mongod.cfg not found"; exit 1 }
+          Add-Content -Path $cfgPath -Value "`nsecurity:`n  authorization: enabled"
           Start-Service MongoDB
 
       # ── 11. Setup Redis (Memurai) ──────────────────────────────────
