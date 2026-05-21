@@ -1,7 +1,6 @@
 package openapi_test
 
 import (
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -375,12 +374,10 @@ func convertRelativeToAbsolutePath(relativePath, rootPath string) string {
 	if relativePath == "" {
 		return ""
 	}
-	// If already absolute path, return as is
-	if filepath.IsAbs(relativePath) {
+	if strings.HasPrefix(relativePath, "/") {
 		return relativePath
 	}
-	// Convert relative path to absolute: Root + "openapi" + "certs" + relativePath
-	return filepath.ToSlash(filepath.Join(rootPath, "openapi", "certs", relativePath))
+	return rootPath + "/openapi/certs/" + relativePath
 }
 
 // convertAbsoluteToRelativePath converts absolute certificate path to relative path
@@ -388,20 +385,14 @@ func convertAbsoluteToRelativePath(absolutePath, rootPath string) string {
 	if absolutePath == "" {
 		return ""
 	}
-	// If not absolute path, return as is
-	if !filepath.IsAbs(absolutePath) {
+	if !strings.HasPrefix(absolutePath, "/") {
 		return absolutePath
 	}
 
-	// Remove Root + "openapi" + "certs" prefix
-	certBasePath := filepath.ToSlash(filepath.Join(rootPath, "openapi", "certs"))
-	absSlash := filepath.ToSlash(absolutePath)
-	if strings.HasPrefix(absSlash, certBasePath) {
-		relativePath := strings.TrimPrefix(absSlash, certBasePath)
-		relativePath = strings.TrimPrefix(relativePath, "/")
-		return relativePath
+	certBasePath := rootPath + "/openapi/certs/"
+	if strings.HasPrefix(absolutePath, certBasePath) {
+		return strings.TrimPrefix(absolutePath, certBasePath)
 	}
 
-	// If path doesn't match expected pattern, return as is
 	return absolutePath
 }

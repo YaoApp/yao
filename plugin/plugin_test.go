@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,9 @@ import (
 )
 
 func TestLoad(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Go plugin is not supported on Windows")
+	}
 	test.Prepare(t, config.Conf)
 	defer test.Clean()
 

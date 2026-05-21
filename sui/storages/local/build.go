@@ -53,7 +53,7 @@ func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 	}
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 
 	// Write the global script
@@ -391,7 +391,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 	page.Root = root
 
@@ -470,7 +470,7 @@ func (page *Page) BuildAsComponent(globalCtx *core.GlobalBuildContext, option *c
 			log.Error("SyncAssets: Get the public root error: %s. use %s", err.Error(), page.tmpl.local.DSL.Public.Root)
 			root = page.tmpl.local.DSL.Public.Root
 		}
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 
 	html, messages, err := page.Page.CompileAsComponent(ctx, option)

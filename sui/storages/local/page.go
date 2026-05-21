@@ -2,6 +2,7 @@ package local
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -343,7 +344,7 @@ func (page *Page) Remove() error {
 
 // GetPageFromAsset get the page from the asset
 func (tmpl *Template) GetPageFromAsset(file string) (core.IPage, error) {
-	route := filepath.Dir(file)
+	route := path.Dir(file)
 	name := tmpl.getPageBase(route)
 	return &Page{
 		tmpl: tmpl,
@@ -369,7 +370,7 @@ func (tmpl *Template) getPageFrom(file string) (core.IPage, error) {
 }
 
 func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
-	path := filepath.Dir(file)
+	path := path.Dir(file)
 	name := tmpl.getPageBase(route)
 	return &Page{
 		tmpl: tmpl,
@@ -393,7 +394,7 @@ func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
 }
 
 func (tmpl *Template) getPageRoute(file string) string {
-	return filepath.Dir(file[len(tmpl.Root):])
+	return path.Dir(file[len(tmpl.Root):])
 }
 
 func (tmpl *Template) getPagePath(route string) string {
