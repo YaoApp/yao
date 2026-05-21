@@ -318,7 +318,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 	page.Root = root
 

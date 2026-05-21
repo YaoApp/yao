@@ -1,7 +1,7 @@
 package local
 
 import (
-	"path/filepath"
+	"path"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
@@ -30,12 +30,12 @@ func TestTemplatePages(t *testing.T) {
 	for _, page := range pages {
 
 		page := page.(*Page)
-		name := filepath.Base(page.Path)
+		name := path.Base(page.Path)
 		dir := page.Path[len(tmpl.(*Template).Root):]
-		path := filepath.Join(tmpl.(*Template).Root, dir)
+		p := path.Join(tmpl.(*Template).Root, dir)
 
 		assert.Equal(t, dir, page.Route)
-		assert.Equal(t, path, page.Path)
+		assert.Equal(t, p, page.Path)
 		assert.Equal(t, name+".css", page.Codes.CSS.File)
 		assert.Equal(t, name+".html", page.Codes.HTML.File)
 		assert.Equal(t, name+".js", page.Codes.JS.File)

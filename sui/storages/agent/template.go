@@ -489,7 +489,7 @@ func (tmpl *Template) Build(option *core.BuildOption) ([]string, error) {
 	}
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 	option.PublicRoot = root
 
