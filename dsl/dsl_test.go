@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -121,9 +122,10 @@ func cleanTestData() error {
 	return nil
 }
 
-// getTestID generates a unique test ID
+var testIDCounter atomic.Int64
+
 func getTestID() string {
-	return fmt.Sprintf("test_%d", time.Now().UnixNano())
+	return fmt.Sprintf("test_%d_%d", time.Now().UnixNano(), testIDCounter.Add(1))
 }
 
 // TestCase defines a unified test case for all DSL types

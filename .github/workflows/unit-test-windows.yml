@@ -1,0 +1,360 @@
+name: Unit Test (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+env:
+  YAO_DEV: ${{ github.WORKSPACE }}
+  YAO_ENV: development
+  YAO_ROOT: ${{ github.WORKSPACE }}/../app
+  YAO_HOST: 0.0.0.0
+  YAO_PORT: 5099
+  YAO_SESSION: "memory"
+  YAO_LOG: "./logs/application.log"
+  YAO_LOG_MODE: "TEXT"
+  YAO_JWT_SECRET: "bLp@bi!oqo-2U+hoTRUG"
+  YAO_DB_AESKEY: "ZLX=T&f6refeCh-ro*r@"
+  OSS_TEST_ID: ${{ secrets.OSS_TEST_ID }}
+  OSS_TEST_SECRET: ${{ secrets.OSS_TEST_SECRET }}
+  ROOT_PLUGIN: ${{ github.WORKSPACE }}/../../../data/gou-unit/plugins
+  REPO_KUN: ${{ github.repository_owner }}/kun
+  REPO_XUN: ${{ github.repository_owner }}/xun
+  REPO_GOU: ${{ github.repository_owner }}/gou
+
+  MYSQL_TEST_HOST: "127.0.0.1"
+  MYSQL_TEST_PORT: "3308"
+  MYSQL_TEST_USER: test
+  MYSQL_TEST_PASS: "123456"
+
+  SQLITE_DB: "./app/db/yao.db"
+
+  REDIS_TEST_HOST: "127.0.0.1"
+  REDIS_TEST_PORT: "6379"
+  REDIS_TEST_DB: "2"
+
+  MONGO_TEST_HOST: "127.0.0.1"
+  MONGO_TEST_PORT: "27017"
+  MONGO_TEST_USER: "root"
+  MONGO_TEST_PASS: "123456"
+
+  OPENAI_TEST_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  TEST_MOAPI_SECRET: ${{ secrets.OPENAI_TEST_KEY }}
+  OPENAI_API_KEY: ${{ secrets.OPENAI_TEST_KEY }}
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  TEST_MOAPI_MIRROR: https://api.openai.com
+
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  DEEPSEEK_API_PROXY: ${{ secrets.DEEPSEEK_API_PROXY }}
+  DEEPSEEK_MODELS_R1: ${{ secrets.DEEPSEEK_MODELS_R1 }}
+  DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
+  DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
+  DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
+
+  TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+  SERPAPI_API_KEY: ${{ secrets.SERPAPI_API_KEY }}
+  SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+
+  CLAUDE_API_KEY: ${{ secrets.CLAUDE_API_KEY }}
+  CLAUDE_PROXY: ${{ secrets.CLAUDE_PROXY }}
+  CLAUDE_API_HOST: ${{ secrets.CLAUDE_API_HOST }}
+  CLAUDE_SONNET_4: ${{ secrets.CLAUDE_SONNET_4 }}
+  CLAUDE_SONNET_4_THINKING: ${{ secrets.CLAUDE_SONNET_4_THINKING }}
+
+  MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY }}
+  MOONSHOT_PROXY: "https://api.moonshot.cn"
+  KIMI_CODE_API_KEY: ${{ secrets.KIMI_CODE_API_KEY }}
+  KIMI_CODE_PROXY: "https://api.kimi.com/coding"
+
+  TAB_NAME: "::PET ADMIN"
+  PAGE_SIZE: "20"
+  PAGE_LINK: "https://yaoapps.com"
+  PAGE_ICON: "icon-trash"
+
+  DEMO_APP: ${{ github.WORKSPACE }}/../app
+
+  YAO_EXTENSION_ROOT: ${{ github.WORKSPACE }}/../extension
+  YAO_TEST_APPLICATION: ${{ github.WORKSPACE }}/../app
+  YAO_SUI_TEST_APPLICATION: ${{ github.WORKSPACE }}/../yao-startup-webapp
+
+  YAO_RUNTIME_MIN: 3
+  YAO_RUNTIME_MAX: 6
+  YAO_RUNTIME_HEAP_LIMIT: 1500000000
+  YAO_RUNTIME_HEAP_RELEASE: 10000000
+  YAO_RUNTIME_HEAP_AVAILABLE: 550000000
+  YAO_RUNTIME_PRECOMPILE: true
+
+  S3_API: ${{ secrets.S3_API }}
+  S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+  S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+  S3_BUCKET: ${{ secrets.S3_BUCKET }}
+  S3_PUBLIC_URL: ${{ secrets.S3_PUBLIC_URL }}
+
+  SIGNIN_CLIENT_ID: "kiCeR88kDwHBDuNHvN51cZgmpp3tmF6Z"
+
+  GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+  MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+  MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+
+  APPLE_SERVICE_ID: ${{ secrets.APPLE_SERVICE_ID }}
+  APPLE_PRIVATE_KEY_PATH: "apple/signin_client_secret_key.p8"
+  APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+  APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+  GITHUBUSER_CLIENT_ID: ${{ secrets.GITHUBUSER_CLIENT_ID }}
+  GITHUBUSER_CLIENT_SECRET: ${{ secrets.GITHUBUSER_CLIENT_SECRET }}
+
+  CLOUDFLARE_TURNSTILE_SITEKEY: ${{ secrets.CLOUDFLARE_TURNSTILE_SITEKEY }}
+  CLOUDFLARE_TURNSTILE_SECRET: ${{ secrets.CLOUDFLARE_TURNSTILE_SECRET }}
+
+  MAILGUN_DOMAIN: ${{ secrets.MAILGUN_DOMAIN }}
+  MAILGUN_API_KEY: ${{ secrets.MAILGUN_API_KEY }}
+  MAILGUN_FROM: "Yaobots Tests <unit-test@mailgun.yaobots.com>"
+
+  SMTP_HOST: "smtp.mailgun.org"
+  SMTP_PORT: "465"
+  SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+  SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+  SMTP_FROM: "Yaobots SMTP Tests <unit-test@mailgun.yaobots.com>"
+
+  RELIABLE_SMTP_HOST: "smtp.gmail.com"
+  RELIABLE_SMTP_PORT: "465"
+  RELIABLE_SMTP_USERNAME: ${{ secrets.RELIABLE_SMTP_USERNAME }}
+  RELIABLE_SMTP_PASSWORD: ${{ secrets.RELIABLE_SMTP_PASSWORD }}
+  RELIABLE_SMTP_FROM: "Yaobots Gmail Tests <shadow.iqka@gmail.com>"
+
+  RELIABLE_IMAP_HOST: "imap.gmail.com"
+  RELIABLE_IMAP_PORT: "993"
+  RELIABLE_IMAP_USERNAME: ${{ secrets.RELIABLE_SMTP_USERNAME }}
+  RELIABLE_IMAP_PASSWORD: ${{ secrets.RELIABLE_SMTP_PASSWORD }}
+  RELIABLE_IMAP_MAILBOX: "INBOX"
+
+  TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+  TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+  TWILIO_API_SID: ${{ secrets.TWILIO_API_SID }}
+  TWILIO_API_KEY: ${{ secrets.TWILIO_API_KEY }}
+  TWILIO_SENDGRID_API_SID: ${{ secrets.TWILIO_SENDGRID_API_SID }}
+  TWILIO_SENDGRID_API_KEY: ${{ secrets.TWILIO_SENDGRID_API_KEY }}
+  TWILIO_FROM_PHONE: "+17035701412"
+  TWILIO_FROM_EMAIL: "unit-test@sendgrid.yaobots.com"
+  TWILIO_TEST_PHONE: ${{ secrets.TWILIO_TEST_PHONE }}
+
+jobs:
+  core-test-windows:
+    name: ${{ matrix.db }}
+    runs-on: windows-2025
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26"]
+        db: [SQLite3, Postgres17]
+
+    steps:
+      # ── 1. Checkout dependency repos ─────────────────────────────────
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_KUN }}
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_XUN }}
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.REPO_GOU }}
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Yao Startup Webapp
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-startup-webapp
+          submodules: true
+          token: ${{ secrets.YAO_TEST_TOKEN }}
+          path: yao-startup-webapp
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      # ── 2. Unzip libv8 ──────────────────────────────────────────────
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      # ── 3. Move deps to parent directory ────────────────────────────
+      - name: Move dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+          mv yao-startup-webapp ../
+
+      # ── 4. Checkout yao itself ──────────────────────────────────────
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # ── 5. Setup Apple Private Key ──────────────────────────────────
+      - name: Setup Apple Private Key
+        shell: bash
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
+      # ── 6. Setup Go ────────────────────────────────────────────────
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      # ── 7. Install LLVM (clang + lld) ──────────────────────────────
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      # ── 8. Setup Go Tools ──────────────────────────────────────────
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      # ── 9. Setup MySQL ───────────────────────────────────────────────
+      - name: Install MySQL
+        run: choco install mysql -y --params "/Port:3308"
+
+      - name: Add MySQL to PATH
+        shell: bash
+        run: echo "C:/tools/mysql/current/bin" >> $GITHUB_PATH
+
+      - name: Create MySQL database and user
+        run: |
+          mysql -u root -P 3308 -e "CREATE DATABASE IF NOT EXISTS test;"
+          mysql -u root -P 3308 -e "CREATE USER 'test'@'localhost' IDENTIFIED BY '123456';"
+          mysql -u root -P 3308 -e "GRANT ALL PRIVILEGES ON test.* TO 'test'@'localhost';"
+          mysql -u root -P 3308 -e "FLUSH PRIVILEGES;"
+
+      # ── 10. Setup MongoDB with Auth ────────────────────────────────
+      - name: Setup MongoDB with Auth
+        shell: pwsh
+        run: |
+          Set-Service -Name "MongoDB" -StartupType Manual
+          Start-Service MongoDB
+
+          $retries = 0
+          while ($retries -lt 10) {
+            $result = mongosh --quiet --eval "db.runCommand({ping:1})" 2>&1
+            if ($LASTEXITCODE -eq 0) { Write-Host "MongoDB is ready"; break }
+            $retries++; Start-Sleep -Seconds 2
+            Write-Host "Waiting for MongoDB... attempt $retries"
+          }
+          if ($retries -ge 10) { Write-Host "::error::MongoDB not ready"; exit 1 }
+
+          mongosh --eval "db.createUser({user:'root',pwd:'123456',roles:['root']})" admin
+          Stop-Service MongoDB
+
+          $cfgPath = $null
+          foreach ($p in @("C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg","C:\Program Files\MongoDB\Server\8.0\bin\mongod.cfg")) {
+            if (Test-Path $p) { $cfgPath = $p; break }
+          }
+          if (-not $cfgPath) { Write-Host "::error::mongod.cfg not found"; exit 1 }
+          Add-Content -Path $cfgPath -Value "`nsecurity:`n  authorization: enabled"
+          Start-Service MongoDB
+
+      # ── 11. Setup Redis (Memurai) ──────────────────────────────────
+      - name: Install Memurai (Redis)
+        run: choco install memurai-developer -y
+
+      # ── 12. Setup PostgreSQL (conditional) ──────────────────────────
+      - name: Setup PostgreSQL
+        if: matrix.db == 'Postgres17'
+        uses: ankane/setup-postgres@v1
+        with:
+          postgres-version: "17"
+          database: xiang
+          user: xiang
+
+      - name: Set PostgreSQL password
+        if: matrix.db == 'Postgres17'
+        run: psql -U postgres -c "ALTER USER xiang PASSWORD '${{ secrets.UNIT_PASS }}';"
+
+      # ── 13. Verify Services (fail-fast) ─────────────────────────────
+      - name: Verify Services
+        shell: bash
+        run: |
+          echo "=== Verify MySQL ==="
+          mysql -u root -P 3308 -e "SELECT 1;" || { echo "::error::MySQL not reachable on port 3308"; exit 1; }
+
+          echo "=== Verify Redis (Memurai) ==="
+          powershell.exe -Command "Test-NetConnection -ComputerName 127.0.0.1 -Port 6379 -InformationLevel Quiet" || { echo "::error::Redis not reachable on port 6379"; exit 1; }
+
+          echo "=== Verify MongoDB ==="
+          mongosh --host 127.0.0.1 --port 27017 -u root -p 123456 --authenticationDatabase admin --eval "db.runCommand({ping:1})" || { echo "::error::MongoDB not reachable or auth failed"; exit 1; }
+
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
+            echo "=== Verify PostgreSQL ==="
+            psql -U postgres -c "SELECT 1;" || { echo "::error::PostgreSQL not reachable"; exit 1; }
+          fi
+
+          echo "All services verified."
+
+      # ── 14. Setup ENV & Hosts ───────────────────────────────────────
+      - name: Add local.iqka.com to hosts
+        shell: powershell
+        run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1`tlocal.iqka.com" -Force
+
+      # ── 15. Setup ENV ────────────────────────────────────────────────
+      - name: Setup ENV
+        shell: bash
+        env:
+          PASSWORD: ${{ secrets.UNIT_PASS }}
+        run: |
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
+            echo "YAO_DB_DRIVER=postgres" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=postgres://xiang:${PASSWORD}@127.0.0.1:5432/xiang?sslmode=disable" >> $GITHUB_ENV
+          else
+            mkdir -p "${{ github.WORKSPACE }}/../app/db"
+            echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+          fi
+
+      # ── 16. Run Core Tests ─────────────────────────────────────────
+      - name: Run Core Tests
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+        run: make unit-test-core-windows

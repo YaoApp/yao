@@ -1,7 +1,6 @@
 package types
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 )
@@ -16,8 +15,7 @@ func ToPath(typ Type, id string) string {
 		ext = exts[0]
 	}
 
-	// 1. Replace all . to /
-	path := strings.ReplaceAll(id, ".", string(os.PathSeparator))
+	path := strings.ReplaceAll(id, ".", "/")
 	// 2. Replace all __ to .
 	path = strings.ReplaceAll(path, "__", ".")
 	// 3. Join the root path
@@ -33,21 +31,17 @@ func ToID(path string) string {
 // WithTypeToID convert file path to id
 func WithTypeToID(typ Type, path string) string {
 
-	// Get the root path and the extensions of the type
 	root, exts := TypeRootAndExts(typ)
 
-	// 0. if the first character is /, remove it
-	if strings.HasPrefix(path, string(os.PathSeparator)) {
-		path = strings.TrimPrefix(path, string(os.PathSeparator))
-	}
+	// Normalize to forward slash (Walk callbacks always use /)
+	path = strings.ReplaceAll(path, "\\", "/")
 
-	// 1. Split the path by /
-	parts := strings.Split(path, string(os.PathSeparator))
+	path = strings.TrimPrefix(path, "/")
+
+	parts := strings.Split(path, "/")
 	if len(parts) > 0 && parts[0] == root {
-		// Skip the root path
 		parts = parts[1:]
 
-		// Remove the extension only if parts is not empty
 		if len(parts) > 0 {
 			last := parts[len(parts)-1]
 			for _, ext := range exts {
@@ -57,22 +51,19 @@ func WithTypeToID(typ Type, path string) string {
 			}
 		}
 
-		// Join the parts
-		path = strings.Join(parts, string(os.PathSeparator))
+		path = strings.Join(parts, "/")
 	}
 
-	// 2. Replace All . to __
 	path = strings.ReplaceAll(path, ".", "__")
-
-	// 3. Replace all / to .
-	path = strings.ReplaceAll(path, string(os.PathSeparator), ".")
+	path = strings.ReplaceAll(path, "/", ".")
 
 	return path
 }
 
 // DetectType detect the type by the file path
 func DetectType(path string) Type {
-	parts := strings.Split(path, string(os.PathSeparator))
+	path = strings.ReplaceAll(path, "\\", "/")
+	parts := strings.Split(path, "/")
 	if len(parts) < 2 {
 		return TypeUnknown
 	}

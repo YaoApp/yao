@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -66,7 +66,7 @@ func Run(process *process.Process) interface{} {
 	}
 
 	// Load the script
-	file := filepath.Join("/public", route)
+	file := path.Join("/public", route)
 
 	// Get the page config
 	cfg, err := getPageConfig(file, r.Request.DisableCache())
@@ -74,7 +74,7 @@ func Run(process *process.Process) interface{} {
 		// Try to resolve dynamic route via rewrite rules (e.g., /agents/yao.keeper/entry/abc123 -> /agents/yao.keeper/entry/[id])
 		if core.RouteResolver != nil {
 			if resolved, _ := core.RouteResolver(route); resolved != "" {
-				resolvedFile := filepath.Join("/public", strings.TrimSuffix(resolved, ".sui"))
+				resolvedFile := path.Join("/public", strings.TrimSuffix(resolved, ".sui"))
 				cfg, err = getPageConfig(resolvedFile, r.Request.DisableCache())
 				if err == nil {
 					file = resolvedFile

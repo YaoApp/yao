@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -29,15 +29,16 @@ func (tmpl *Template) GetRoot() string {
 
 // Glob the files
 func (tmpl *Template) Glob(pattern string) ([]string, error) {
-	path := filepath.Join(tmpl.Root, pattern)
-	paths, err := tmpl.local.fs.Glob(path)
+	p := filepath.Join(tmpl.Root, pattern)
+	paths, err := tmpl.local.fs.Glob(p)
 	if err != nil {
 		return nil, err
 	}
 
+	root := filepath.ToSlash(tmpl.Root)
 	routes := []string{}
-	for _, p := range paths {
-		routes = append(routes, strings.TrimPrefix(p, tmpl.Root))
+	for _, match := range paths {
+		routes = append(routes, strings.TrimPrefix(filepath.ToSlash(match), root))
 	}
 	return routes, nil
 }
@@ -51,11 +52,11 @@ func (tmpl *Template) GlobRoutes(patterns []string, unique ...bool) ([]string, e
 			return nil, err
 		}
 
-		for _, path := range paths {
-			if !tmpl.local.fs.IsDir(filepath.Join(tmpl.Root, path)) {
+		for _, p := range paths {
+			if !tmpl.local.fs.IsDir(filepath.Join(tmpl.Root, p)) {
 				continue
 			}
-			routes = append(routes, path)
+			routes = append(routes, p)
 		}
 	}
 
@@ -108,20 +109,20 @@ func (tmpl *Template) loadBuildScript() error {
 }
 
 func (tmpl *Template) backendScriptSource(name string) (string, []byte, error) {
-	path := filepath.Join(tmpl.Root, fmt.Sprintf("%s.ts", name))
-	if !tmpl.local.fs.IsFile(path) {
-		path = filepath.Join(tmpl.Root, fmt.Sprintf("%s.js", name))
+	scriptPath := filepath.Join(tmpl.Root, fmt.Sprintf("%s.ts", name))
+	if !tmpl.local.fs.IsFile(scriptPath) {
+		scriptPath = filepath.Join(tmpl.Root, fmt.Sprintf("%s.js", name))
 	}
 
-	if !tmpl.local.fs.IsFile(path) {
+	if !tmpl.local.fs.IsFile(scriptPath) {
 		return "", nil, nil
 	}
 
-	content, err := tmpl.local.fs.ReadFile(path)
+	content, err := tmpl.local.fs.ReadFile(scriptPath)
 	if err != nil {
 		return "", nil, err
 	}
-	return path, content, nil
+	return scriptPath, content, nil
 }
 
 // ExecBuildCompleteScripts execute the build complete scripts
@@ -219,12 +220,12 @@ func (tmpl *Template) Locales() []core.SelectOption {
 		supportLocales = append(supportLocales, locale)
 	}
 
-	path := filepath.Join(tmpl.Root, "__locales")
-	if !tmpl.local.fs.IsDir(path) {
+	localesDir := filepath.Join(tmpl.Root, "__locales")
+	if !tmpl.local.fs.IsDir(localesDir) {
 		return supportLocales
 	}
 
-	dirs, err := tmpl.local.fs.ReadDir(path, false)
+	dirs, err := tmpl.local.fs.ReadDir(localesDir, false)
 	if err != nil {
 		return supportLocales
 	}
@@ -261,8 +262,8 @@ func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (cor
 		types = []string{"image", "video", "audio"}
 	}
 	exts := tmpl.mediaExts(types)
-	path := filepath.Join(tmpl.Root, "__assets", "upload")
-	files, total, pagecnt, err := tmpl.local.fs.List(path, exts, page, pageSize, func(s string) bool {
+	uploadDir := filepath.Join(tmpl.Root, "__assets", "upload")
+	files, total, pagecnt, err := tmpl.local.fs.List(uploadDir, exts, page, pageSize, func(s string) bool {
 		if keyword == "" {
 			return true
 		}
@@ -275,11 +276,11 @@ func (tmpl *Template) MediaSearch(query url.Values, page int, pageSize int) (cor
 
 	for _, file := range files {
 
-		file = strings.TrimPrefix(file, filepath.Join(tmpl.Root, "__assets", "upload"))
+		file = filepath.ToSlash(strings.TrimPrefix(file, filepath.Join(tmpl.Root, "__assets", "upload")))
 		res.Data = append(res.Data, core.Media{
 			ID:     file,
-			URL:    filepath.Join("@assets", "upload", file),
-			Thumb:  filepath.Join("@assets", "upload", file),
+			URL:    path.Join("@assets", "upload", file),
+			Thumb:  path.Join("@assets", "upload", file),
 			Type:   tmpl.mediaType(file),
 			Width:  100,
 			Height: 100,
@@ -325,7 +326,7 @@ func (tmpl *Template) mediaExts(types []string) []string {
 }
 
 func (tmpl *Template) mediaType(file string) string {
-	ext := strings.ToLower(filepath.Ext(file))
+	ext := strings.ToLower(path.Ext(file))
 	switch ext {
 
 	case ".jpg":
@@ -357,14 +358,14 @@ func (tmpl *Template) mediaType(file string) string {
 func (tmpl *Template) AssetUpload(reader io.Reader, name string) (string, error) {
 
 	fingerprint := strings.ToUpper(uuid.NewString())
-	dir := strings.Join([]string{string(os.PathSeparator), time.Now().Format("20060102")}, "")
-	ext := filepath.Ext(name)
+	dir := "/" + time.Now().Format("20060102")
+	ext := path.Ext(name)
 	file := filepath.Join(tmpl.Root, "__assets", "upload", dir, fmt.Sprintf("%s%s", fingerprint, ext))
 	_, err := tmpl.local.fs.Write(file, reader, 0644)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join("upload", dir, fmt.Sprintf("%s%s", fingerprint, ext)), nil
+	return path.Join("upload", dir, fmt.Sprintf("%s%s", fingerprint, ext)), nil
 }
 
 // Asset get the asset

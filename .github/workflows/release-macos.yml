@@ -107,7 +107,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.25"
+          go-version: "1.26"
 
       - name: Setup Go Tools
         run: make tools
@@ -308,12 +308,12 @@ jobs:
         run: |
           TAG="${{ steps.version.outputs.tag }}"
           ASSET_COUNT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets | length')
-          echo "Current assets: $ASSET_COUNT / 16"
-          if [ "$ASSET_COUNT" -ge 16 ]; then
+          echo "Current assets: $ASSET_COUNT / 20"
+          if [ "$ASSET_COUNT" -ge 20 ]; then
             echo "All assets present, publishing release..."
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
           else
-            echo "Assets incomplete ($ASSET_COUNT/16), waiting for other workflow to publish."
+            echo "Assets incomplete ($ASSET_COUNT/20), waiting for other workflow to publish."
           fi
 
       - name: Upload macOS binaries to R2

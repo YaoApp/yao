@@ -3,8 +3,7 @@ package api
 import (
 	"fmt"
 	"net/url"
-	"os"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -486,9 +485,9 @@ func parserPath(c *gin.Context) (string, map[string]string, error) {
 		return "", nil, fmt.Errorf("path parts error: %s", strings.Join(parts, "/"))
 	}
 
-	fileParts := []string{string(os.PathSeparator), "public"}
+	fileParts := []string{"/", "public"}
 	fileParts = append(fileParts, parts...)
-	filename := filepath.Join(fileParts...) + ".sui"
+	filename := path.Join(fileParts...) + ".sui"
 
 	v, _ := c.Get("rewrite")
 	if v != true {

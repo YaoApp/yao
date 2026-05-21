@@ -169,17 +169,21 @@ jobs:
           VERSION="${{ needs.resolve.outputs.version }}"
           PREFIX="yao/${VERSION}"
 
+          # Format: "os-arch:ext" (ext is empty for non-Windows platforms)
           PLATFORMS=(
-            "darwin-arm64"
-            "darwin-amd64"
-            "linux-amd64"
-            "linux-arm64"
+            "darwin-arm64:"
+            "darwin-amd64:"
+            "linux-amd64:"
+            "linux-arm64:"
+            "windows-amd64:.exe"
           )
 
           for ATTEMPT in $(seq 1 30); do
             MISSING=0
-            for P in "${PLATFORMS[@]}"; do
-              KEY="${PREFIX}/yao-${VERSION}-${P}"
+            for ENTRY in "${PLATFORMS[@]}"; do
+              P="${ENTRY%%:*}"
+              EXT="${ENTRY#*:}"
+              KEY="${PREFIX}/yao-${VERSION}-${P}${EXT}"
               if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
                 MISSING=$((MISSING+1))
               fi
@@ -189,7 +193,7 @@ jobs:
             done
 
             if [ "$MISSING" -eq 0 ]; then
-              echo "All 4 platform assets verified on R2."
+              echo "All ${#PLATFORMS[@]} platform assets verified on R2."
               exit 0
             fi
 

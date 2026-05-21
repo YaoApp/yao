@@ -184,7 +184,7 @@ func loadAssistantModels() (map[string]*model.Model, []error) {
 		}
 
 		// Extract assistant ID from path
-		assistantID := strings.TrimPrefix(file, "/")
+		assistantID := strings.TrimPrefix(filepath.ToSlash(file), "/")
 		assistantID = strings.ReplaceAll(assistantID, "/", ".")
 
 		// Skip if already processed
@@ -196,7 +196,7 @@ func loadAssistantModels() (map[string]*model.Model, []error) {
 		log.Trace("Found assistant: %s", assistantID)
 
 		// Check if the assistant has a models directory
-		modelsDir := filepath.Join(root, file, "models")
+		modelsDir := filepath.ToSlash(filepath.Join(root, file, "models"))
 		modelsDirExists, _ := application.App.Exists(modelsDir)
 		if !modelsDirExists {
 			log.Trace("Assistant %s has no models directory", assistantID)
@@ -214,7 +214,7 @@ func loadAssistantModels() (map[string]*model.Model, []error) {
 
 			// Generate model ID with agents.<assistantID>./ prefix
 			// Support nested paths: "models/foo/bar.mod.yao" -> "foo.bar"
-			relPath := strings.TrimPrefix(modelFile, modelsDir+"/")
+			relPath := strings.TrimPrefix(filepath.ToSlash(modelFile), modelsDir+"/")
 			relPath = strings.TrimPrefix(relPath, "/")
 			relPath = strings.TrimSuffix(relPath, ".mod.yao")
 			relPath = strings.TrimSuffix(relPath, ".mod.json")

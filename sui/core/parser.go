@@ -2,8 +2,7 @@ package core
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -330,7 +329,7 @@ func (parser *TemplateParser) parseElementComponent(sel *goquery.Selection) {
 	var err error
 	if parser.option.Imports != nil {
 		if route, has := parser.option.Imports[com]; has {
-			file := filepath.Join(string(os.PathSeparator), "public", parser.option.Root, route)
+			file := path.Join("/", "public", parser.option.Root, route)
 			script, err = LoadScript(file, parser.disableCache())
 			if err != nil {
 				parser.errors = append(parser.errors, err)

@@ -2,6 +2,7 @@ package local
 
 import (
 	"fmt"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -65,7 +66,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 
 			// Create directory nodes in the tree structure.
 			currentDir := rootNode
-			dirs := strings.Split(relPath, string(filepath.Separator))
+			dirs := strings.Split(relPath, "/")
 
 			for _, dir := range dirs {
 				if dir == "" {
@@ -114,7 +115,7 @@ func (tmpl *Template) PageTree(route string) ([]*core.PageTreeNode, error) {
 		log.Debug("[PageTree] getPageFrom |\t pageInfo.Name: %s", pageInfo.Name)
 
 		// Attach the page to the appropriate directory node.
-		dirs := strings.Split(relPath, string(filepath.Separator))
+		dirs := strings.Split(relPath, "/")
 		currentDir := rootNode
 		log.Debug("[PageTree] currentDir | name: %s Children: %d", currentDir.Name, len(currentDir.Children))
 
@@ -185,11 +186,11 @@ func (tmpl *Template) RemovePage(route string) error {
 		return nil
 	}
 
-	path := filepath.Join(tmpl.Root, route)
-	name := filepath.Base(path) + ".*"
+	p := path.Join(tmpl.Root, route)
+	name := path.Base(p) + ".*"
 	name = strings.ReplaceAll(name, "[", "\\[")
 	name = strings.ReplaceAll(name, "]", "\\]")
-	err := tmpl.local.fs.Walk(path, func(root, file string, isdir bool) error {
+	err := tmpl.local.fs.Walk(p, func(root, file string, isdir bool) error {
 		if isdir {
 			return nil
 		}
@@ -209,7 +210,7 @@ func (tmpl *Template) RemovePage(route string) error {
 		}
 	}
 
-	return tmpl.removeEmptyPath(path)
+	return tmpl.removeEmptyPath(p)
 }
 
 func (tmpl *Template) removeEmptyPath(path string) error {
@@ -240,9 +241,9 @@ func (page *Page) SaveAs(route string, setting *core.PageSetting) (core.IPage, e
 	}
 
 	root := page.tmpl.Root
-	target := filepath.Join(root, route)
-	targetBaseName := filepath.Base(target)
-	baseName := filepath.Base(page.Path)
+	target := path.Join(root, route)
+	targetBaseName := path.Base(target)
+	baseName := path.Base(page.Path)
 	patterns := []string{"*.js", "*.ts", "*.html", "*.css", "*.config", "*.json"}
 	err := page.tmpl.local.fs.Walk(page.Path, func(root, file string, isdir bool) error {
 		if isdir {
@@ -279,7 +280,7 @@ func (tmpl *Template) CreatePage(source string) core.IPage {
 			Route:      route,
 			TemplateID: tmpl.ID,
 			SuiID:      tmpl.local.ID,
-			Path:       filepath.Join(tmpl.Root, route),
+			Path:       path.Join(tmpl.Root, route),
 			Name:       name,
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: fmt.Sprintf("%s.html", name), Code: source},
@@ -307,7 +308,7 @@ func (tmpl *Template) CreateEmptyPage(route string, setting *core.PageSetting) (
 			Route:      route,
 			TemplateID: tmpl.ID,
 			SuiID:      tmpl.local.ID,
-			Path:       filepath.Join(tmpl.Root, route),
+			Path:       path.Join(tmpl.Root, route),
 			Name:       name,
 			Codes: core.SourceCodes{
 				HTML: core.Source{File: fmt.Sprintf("%s.html", name)},
@@ -343,7 +344,7 @@ func (page *Page) Remove() error {
 
 // GetPageFromAsset get the page from the asset
 func (tmpl *Template) GetPageFromAsset(file string) (core.IPage, error) {
-	route := filepath.Dir(file)
+	route := path.Dir(file)
 	name := tmpl.getPageBase(route)
 	return &Page{
 		tmpl: tmpl,
@@ -351,7 +352,7 @@ func (tmpl *Template) GetPageFromAsset(file string) (core.IPage, error) {
 			Route:      route,
 			TemplateID: tmpl.ID,
 			SuiID:      tmpl.local.ID,
-			Path:       filepath.Join(tmpl.Root, route),
+			Path:       path.Join(tmpl.Root, route),
 			Name:       name,
 			Codes: core.SourceCodes{
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
@@ -369,18 +370,19 @@ func (tmpl *Template) getPageFrom(file string) (core.IPage, error) {
 }
 
 func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
-	path := filepath.Dir(file)
+	pagePath := path.Dir(file)
+	ext := path.Ext(file)
 	name := tmpl.getPageBase(route)
 	return &Page{
 		tmpl: tmpl,
 		Page: &core.Page{
 			Route:      route,
-			Path:       path,
+			Path:       pagePath,
 			Name:       name,
 			TemplateID: tmpl.ID,
 			SuiID:      tmpl.local.ID,
 			Codes: core.SourceCodes{
-				HTML: core.Source{File: fmt.Sprintf("%s%s", name, filepath.Ext(file))},
+				HTML: core.Source{File: fmt.Sprintf("%s%s", name, ext)},
 				CSS:  core.Source{File: fmt.Sprintf("%s.css", name)},
 				JS:   core.Source{File: fmt.Sprintf("%s.js", name)},
 				DATA: core.Source{File: fmt.Sprintf("%s.json", name)},
@@ -393,16 +395,18 @@ func (tmpl *Template) getPage(route, file string) (core.IPage, error) {
 }
 
 func (tmpl *Template) getPageRoute(file string) string {
-	return filepath.Dir(file[len(tmpl.Root):])
+	file = filepath.ToSlash(file)
+	root := filepath.ToSlash(tmpl.Root)
+	return path.Dir(file[len(root):])
 }
 
 func (tmpl *Template) getPagePath(route string) string {
 	name := tmpl.getPageBase(route)
-	return filepath.Join(tmpl.Root, route, name)
+	return path.Join(tmpl.Root, route, name)
 }
 
 func (tmpl *Template) getPageBase(route string) string {
-	return filepath.Base(route)
+	return path.Base(route)
 }
 
 // Load get the page from the storage

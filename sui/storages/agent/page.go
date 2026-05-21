@@ -3,6 +3,7 @@ package agent
 import (
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -32,7 +33,7 @@ func (page *Page) Load() error {
 	p.Document = page.tmpl.Document
 
 	// Read HTML
-	htmlFile := filepath.Join(p.Path, p.Codes.HTML.File)
+	htmlFile := path.Join(p.Path, p.Codes.HTML.File)
 	if fs.IsFile(htmlFile) {
 		content, err := fs.ReadFile(htmlFile)
 		if err != nil {
@@ -42,7 +43,7 @@ func (page *Page) Load() error {
 	}
 
 	// Read CSS
-	cssFile := filepath.Join(p.Path, p.Codes.CSS.File)
+	cssFile := path.Join(p.Path, p.Codes.CSS.File)
 	if fs.IsFile(cssFile) {
 		content, err := fs.ReadFile(cssFile)
 		if err != nil {
@@ -52,7 +53,7 @@ func (page *Page) Load() error {
 	}
 
 	// Read JS
-	jsFile := filepath.Join(p.Path, p.Codes.JS.File)
+	jsFile := path.Join(p.Path, p.Codes.JS.File)
 	if fs.IsFile(jsFile) {
 		content, err := fs.ReadFile(jsFile)
 		if err != nil {
@@ -62,7 +63,7 @@ func (page *Page) Load() error {
 	}
 
 	// Read TS
-	tsFile := filepath.Join(p.Path, p.Codes.TS.File)
+	tsFile := path.Join(p.Path, p.Codes.TS.File)
 	if fs.IsFile(tsFile) {
 		content, err := fs.ReadFile(tsFile)
 		if err != nil {
@@ -72,7 +73,7 @@ func (page *Page) Load() error {
 	}
 
 	// Read DATA (JSON)
-	dataFile := filepath.Join(p.Path, p.Codes.DATA.File)
+	dataFile := path.Join(p.Path, p.Codes.DATA.File)
 	if fs.IsFile(dataFile) {
 		content, err := fs.ReadFile(dataFile)
 		if err != nil {
@@ -82,7 +83,7 @@ func (page *Page) Load() error {
 	}
 
 	// Read Config
-	confFile := filepath.Join(p.Path, p.Codes.CONF.File)
+	confFile := path.Join(p.Path, p.Codes.CONF.File)
 	if fs.IsFile(confFile) {
 		content, err := fs.ReadFile(confFile)
 		if err != nil {
@@ -112,8 +113,8 @@ func (page *Page) loadScript() error {
 	fs := page.tmpl.agent.fs
 
 	// Try .backend.ts first, then .backend.js
-	tsFile := filepath.Join(p.Path, fmt.Sprintf("%s.backend.ts", p.Name))
-	jsFile := filepath.Join(p.Path, fmt.Sprintf("%s.backend.js", p.Name))
+	tsFile := path.Join(p.Path, fmt.Sprintf("%s.backend.ts", p.Name))
+	jsFile := path.Join(p.Path, fmt.Sprintf("%s.backend.js", p.Name))
 
 	var scriptFile string
 	if fs.IsFile(tsFile) {
@@ -154,7 +155,7 @@ func (page *Page) GetConfig() *core.PageConfig {
 
 	// Try to load config if not loaded
 	fs := page.tmpl.agent.fs
-	confFile := filepath.Join(p.Path, p.Codes.CONF.File)
+	confFile := path.Join(p.Path, p.Codes.CONF.File)
 	if fs.IsFile(confFile) {
 		content, err := fs.ReadFile(confFile)
 		if err != nil {
@@ -246,7 +247,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 	fs := page.tmpl.agent.fs
 
 	// Try .ts first, then .js
-	tsFile := filepath.Join(page.Path, page.Codes.TS.File)
+	tsFile := path.Join(page.Path, page.Codes.TS.File)
 	if fs.IsFile(tsFile) {
 		tsCode, err := fs.ReadFile(tsFile)
 		if err != nil {
@@ -264,7 +265,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 		}, nil
 	}
 
-	jsFile := filepath.Join(page.Path, page.Codes.JS.File)
+	jsFile := path.Join(page.Path, page.Codes.JS.File)
 	if fs.IsFile(jsFile) {
 		jsCode, err := fs.ReadFile(jsFile)
 		if err != nil {
@@ -289,7 +290,7 @@ func (page *Page) AssetScript() (*core.Asset, error) {
 func (page *Page) AssetStyle() (*core.Asset, error) {
 	fs := page.tmpl.agent.fs
 
-	cssFile := filepath.Join(page.Path, page.Codes.CSS.File)
+	cssFile := path.Join(page.Path, page.Codes.CSS.File)
 	if fs.IsFile(cssFile) {
 		cssCode, err := fs.ReadFile(cssFile)
 		if err != nil {
@@ -318,7 +319,7 @@ func (page *Page) Build(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 	}
 
 	if option.AssetRoot == "" {
-		option.AssetRoot = filepath.Join(root, "assets")
+		option.AssetRoot = root + "/assets"
 	}
 	page.Root = root
 
@@ -372,7 +373,7 @@ func (page *Page) publicFile(data map[string]interface{}) string {
 		log.Error("publicFile: Get the public root error: %s. use %s", err.Error(), page.tmpl.agent.DSL.Public.Root)
 		root = page.tmpl.agent.DSL.Public.Root
 	}
-	return filepath.Join("/", "public", root, page.Route)
+	return path.Join("/", "public", root, page.Route)
 }
 
 // writeHTML write the html to file
@@ -410,9 +411,9 @@ func (page *Page) writeConfig(config []byte, data map[string]interface{}) error 
 // backendScriptSource get the backend script source
 func (page *Page) backendScriptSource() (string, []byte, error) {
 	fs := page.tmpl.agent.fs
-	backendFile := filepath.Join(page.Path, fmt.Sprintf("%s.backend.ts", page.Name))
+	backendFile := path.Join(page.Path, fmt.Sprintf("%s.backend.ts", page.Name))
 	if !fs.IsFile(backendFile) {
-		backendFile = filepath.Join(page.Path, fmt.Sprintf("%s.backend.js", page.Name))
+		backendFile = path.Join(page.Path, fmt.Sprintf("%s.backend.js", page.Name))
 	}
 
 	if !fs.IsFile(backendFile) {
@@ -439,7 +440,7 @@ func (page *Page) writeBackendScript(data map[string]interface{}) error {
 		return nil
 	}
 
-	ext := filepath.Ext(file)
+	ext := path.Ext(file)
 	scriptFile := fmt.Sprintf("%s.backend%s", page.publicFile(data), ext)
 	scriptFileAbs := filepath.Join(application.App.Root(), scriptFile)
 	dir := filepath.Dir(scriptFileAbs)
@@ -501,7 +502,7 @@ func (page *Page) Trans(globalCtx *core.GlobalBuildContext, option *core.BuildOp
 func (page *Page) AssetRoot() string {
 	// If this is an assistant page, check for assistant-specific assets
 	if page.assistantID != "" {
-		assistantAssetsDir := filepath.Join(page.pagesRoot, "__assets")
+		assistantAssetsDir := path.Join(page.pagesRoot, "__assets")
 		if page.tmpl.agent.fs.IsDir(assistantAssetsDir) {
 			return fmt.Sprintf("/%s/assets", page.assistantID)
 		}
@@ -522,7 +523,7 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 	fs := page.tmpl.agent.fs
 
 	// Check if page has __locales directory
-	localesDir := filepath.Join(page.Path, "__locales")
+	localesDir := path.Join(page.Path, "__locales")
 	if !fs.IsDir(localesDir) {
 		return nil
 	}
@@ -554,12 +555,12 @@ func (page *Page) writeLocaleFiles(ctx *core.BuildContext, data map[string]inter
 		}
 
 		// Only process .yml files
-		if filepath.Ext(file) != ".yml" {
+		if path.Ext(file) != ".yml" {
 			continue
 		}
 
 		// Get locale name (e.g., "zh-cn" from "zh-cn.yml")
-		localeName := filepath.Base(file)
+		localeName := path.Base(file)
 		localeName = localeName[:len(localeName)-4] // Remove .yml extension
 
 		// Read the locale file

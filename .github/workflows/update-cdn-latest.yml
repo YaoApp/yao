@@ -42,16 +42,20 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           PREFIX="yao/${VERSION}"
 
+          # Format: "os-arch:ext" (ext is empty for non-Windows platforms)
           PLATFORMS=(
-            "darwin-arm64"
-            "darwin-amd64"
-            "linux-amd64"
-            "linux-arm64"
+            "darwin-arm64:"
+            "darwin-amd64:"
+            "linux-amd64:"
+            "linux-arm64:"
+            "windows-amd64:.exe"
           )
 
           MISSING=0
-          for P in "${PLATFORMS[@]}"; do
-            KEY="${PREFIX}/yao-${VERSION}-${P}"
+          for ENTRY in "${PLATFORMS[@]}"; do
+            P="${ENTRY%%:*}"
+            EXT="${ENTRY#*:}"
+            KEY="${PREFIX}/yao-${VERSION}-${P}${EXT}"
             echo "Checking s3://${R2_BUCKET}/${KEY}"
             if ! aws s3 ls "s3://${R2_BUCKET}/${KEY}" --endpoint-url "$R2_ENDPOINTS" >/dev/null 2>&1; then
               echo "::warning::Missing asset: ${KEY}"
@@ -78,18 +82,15 @@ jobs:
           import json
           version = "${VERSION}"
           base = "${CDN_BASE}/yao/${VERSION}"
-          assets = {
-              "darwin-arm64": f"{base}/yao-{version}-darwin-arm64",
-              "darwin-amd64": f"{base}/yao-{version}-darwin-amd64",
-              "linux-amd64":  f"{base}/yao-{version}-linux-amd64",
-              "linux-arm64":  f"{base}/yao-{version}-linux-arm64",
-          }
-          sha256 = {
-              "darwin-arm64": f"{base}/yao-{version}-darwin-arm64.sha256",
-              "darwin-amd64": f"{base}/yao-{version}-darwin-amd64.sha256",
-              "linux-amd64":  f"{base}/yao-{version}-linux-amd64.sha256",
-              "linux-arm64":  f"{base}/yao-{version}-linux-arm64.sha256",
-          }
+          platforms = [
+              ("darwin-arm64", ""),
+              ("darwin-amd64", ""),
+              ("linux-amd64",  ""),
+              ("linux-arm64",  ""),
+              ("windows-amd64", ".exe"),
+          ]
+          assets = {p: f"{base}/yao-{version}-{p}{ext}" for p, ext in platforms}
+          sha256 = {p: f"{base}/yao-{version}-{p}{ext}.sha256" for p, ext in platforms}
           data = {
               "version": version,
               "released_at": "${RELEASED_AT}",

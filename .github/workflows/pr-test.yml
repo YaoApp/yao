@@ -50,6 +50,7 @@ env:
   DEEPSEEK_MODELS_R1: ${{ secrets.DEEPSEEK_MODELS_R1 }}
   DEEPSEEK_MODELS_V3: ${{ secrets.DEEPSEEK_MODELS_V3 }}
   DEEPSEEK_MODELS_V3_1: ${{ secrets.DEEPSEEK_MODELS_V3_1 }}
+  DEEPSEEK_V4_API_KEY: ${{ secrets.DEEPSEEK_V4_API_KEY }}
 
   # Search API Configuration
   TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
@@ -171,1038 +172,6 @@ env:
   TWILIO_TEST_PHONE: ${{ secrets.TWILIO_TEST_PHONE }}
 
 jobs:
-  # =============================================================================
-  # KB Tests (kb) - Run once with SQLite (requires Qdrant, Neo4j, FastEmbed)
-  # =============================================================================
-  KBTest:
-    runs-on: ubuntu-latest
-    services:
-      qdrant:
-        image: qdrant/qdrant:latest
-        ports:
-          - 6333:6333
-          - 6334:6334
-
-      fastembed:
-        image: yaoapp/fastembed:latest-amd64
-        env:
-          FASTEMBED_PASSWORD: Yao@2026
-        ports:
-          - 6001:8000
-
-      neo4j:
-        image: neo4j:latest
-        ports:
-          - "7687:7687"
-        env:
-          NEO4J_AUTH: neo4j/Yao2026Neo4j
-
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
-    strategy:
-      matrix:
-        go: ["1.25"]
-    if: >
-      ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' }}
-    steps:
-      - name: "Download artifact"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Read NR & SHA"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
-
-      - name: "Comment on PR"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '🤖 KB Tests (kb) running with SQLite...'
-            });
-
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
-      - name: Checkout Demo App
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-dev-app
-          path: app
-
-      - name: Checkout Extension
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-extensions-dev
-          path: extension
-
-      - name: Move Dependencies
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv app ../
-          mv extension ../
-
-      - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD }}
-
-      - name: Setup Apple Private Key
-        run: |
-          mkdir -p ../app/openapi/certs/apple
-          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Start Redis
-        run: docker run --name redis --publish 6379:6379 --detach redis:6
-
-      - name: Setup Go Tools
-        run: make tools
-
-      - name: Setup ENV (SQLite)
-        run: |
-          mkdir -p ${{ github.WORKSPACE }}/../app/db
-          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
-
-      - name: Run KB Tests (kb)
-        run: make unit-test-kb
-
-      - name: Codecov Report
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: "Comment on PR - KB Tests Done"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '✅ KB Tests (kb) passed!'
-            });
-
-  # =============================================================================
-  # Agent Tests (agent, aigc) - Run once with SQLite
-  # =============================================================================
-  AgentTest:
-    runs-on: ubuntu-latest
-    services:
-      qdrant:
-        image: qdrant/qdrant:latest
-        ports:
-          - 6333:6333
-          - 6334:6334
-
-      fastembed:
-        image: yaoapp/fastembed:latest-amd64
-        env:
-          FASTEMBED_PASSWORD: Yao@2026
-        ports:
-          - 6001:8000
-
-      neo4j:
-        image: neo4j:latest
-        ports:
-          - "7687:7687"
-        env:
-          NEO4J_AUTH: neo4j/Yao2026Neo4j
-
-      mcp-everything:
-        image: yaoapp/mcp-everything:latest
-        ports:
-          - "3021:3021"
-          - "3022:3022"
-
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
-    strategy:
-      matrix:
-        go: ["1.25"]
-    if: >
-      ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' }}
-    steps:
-      - name: "Download artifact"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Read NR & SHA"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
-
-      - name: "Comment on PR"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '🤖 Agent Tests (agent, aigc) running with SQLite...'
-            });
-
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
-      - name: Checkout Demo App
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-dev-app
-          path: app
-
-      - name: Checkout Extension
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-extensions-dev
-          path: extension
-
-      - name: Move Dependencies
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv app ../
-          mv extension ../
-
-      - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD }}
-
-      - name: Setup Apple Private Key
-        run: |
-          mkdir -p ../app/openapi/certs/apple
-          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Start Redis
-        run: docker run --name redis --publish 6379:6379 --detach redis:6
-
-      - name: Setup Go Tools
-        run: make tools
-
-      - name: Install pdftoppm, mutool, imagemagick
-        run: |
-          sudo apt update
-          sudo apt install -y poppler-utils mupdf-tools imagemagick
-
-      - name: Test pdftoppm, mutool, imagemagick
-        run: |
-          pdftoppm -v
-          mutool -v
-          convert -version
-
-      - name: Setup ENV (SQLite)
-        run: |
-          mkdir -p ${{ github.WORKSPACE }}/../app/db
-          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
-
-      - name: Pull Sandbox Test Images
-        run: |
-          docker pull alpine:latest
-          docker pull yaoapp/sandbox-base:latest || true
-          docker pull yaoapp/sandbox-claude:latest || true
-
-      - name: Run Agent Tests (agent, aigc)
-        env:
-          YAO_SANDBOX_WORKSPACE: ${{ runner.temp }}/sandbox/workspace
-          YAO_SANDBOX_IPC: ${{ runner.temp }}/sandbox/ipc
-        run: |
-          export YAO_SANDBOX_CONTAINER_USER="$(id -u):$(id -g)"
-          make unit-test-agent
-
-      - name: Codecov Report
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: "Comment on PR - Agent Tests Done"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '✅ Agent Tests (agent, aigc) passed!'
-            });
-
-  # =============================================================================
-  # Robot Tests (all agent/robot/... packages) - Unit + E2E with real LLM calls
-  # =============================================================================
-  RobotTest:
-    runs-on: ubuntu-latest
-    services:
-      mcp-everything:
-        image: yaoapp/mcp-everything:latest
-        ports:
-          - "3021:3021"
-          - "3022:3022"
-
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
-    strategy:
-      matrix:
-        go: ["1.25"]
-    if: >
-      ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' }}
-    steps:
-      - name: "Download artifact"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Read NR & SHA"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
-
-      - name: "Comment on PR"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '🤖 Robot Tests (Unit + E2E) running with SQLite...'
-            });
-
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
-      - name: Checkout Demo App
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-dev-app
-          path: app
-
-      - name: Checkout Extension
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-extensions-dev
-          path: extension
-
-      - name: Move Dependencies
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv app ../
-          mv extension ../
-
-      - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD }}
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Start Redis
-        run: docker run --name redis --publish 6379:6379 --detach redis:6
-
-      - name: Setup Go Tools
-        run: make tools
-
-      - name: Setup ENV (SQLite)
-        run: |
-          mkdir -p ${{ github.WORKSPACE }}/../app/db
-          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
-
-      - name: Run Robot Tests (Unit + E2E)
-        run: make unit-test-robot
-
-      - name: Codecov Report
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: "Comment on PR - Robot Tests Done"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '✅ Robot Tests (Unit + E2E) passed!'
-            });
-
-  # =============================================================================
-  # Sandbox Tests (requires Docker) - Run with Docker-in-Docker
-  # =============================================================================
-  SandboxTest:
-    runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
-    strategy:
-      matrix:
-        go: ["1.25"]
-    if: >
-      ${{ github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.conclusion == 'success' }}
-    steps:
-      - name: "Download artifact"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Read NR & SHA"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
-
-      - name: "Comment on PR"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '🤖 Sandbox Tests running with Docker...'
-            });
-
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
-      - name: Checkout Demo App
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-dev-app
-          path: app
-
-      - name: Checkout Extension
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-extensions-dev
-          path: extension
-
-      - name: Move Dependencies
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv app ../
-          mv extension ../
-
-      - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD }}
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Start Redis
-        run: docker run --name redis --publish 6379:6379 --detach redis:6
-
-      - name: Setup Go Tools
-        run: make tools
-
-      - name: Setup ENV (SQLite)
-        run: |
-          mkdir -p ${{ github.WORKSPACE }}/../app/db
-          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
-
-      - name: Pull Sandbox Test Images
-        run: |
-          docker pull alpine:latest
-          docker pull yaoapp/sandbox-base:latest || true
-          docker pull yaoapp/sandbox-claude:latest || true
-
-      - name: Run Sandbox Tests
-        env:
-          YAO_SANDBOX_WORKSPACE: ${{ runner.temp }}/sandbox/workspace
-          YAO_SANDBOX_IPC: ${{ runner.temp }}/sandbox/ipc
-        run: |
-          # Use runner's UID:GID to avoid permission issues
-          export YAO_SANDBOX_CONTAINER_USER="$(id -u):$(id -g)"
-          make unit-test-sandbox
-
-      - name: Codecov Report
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-
-      - name: "Comment on PR - Sandbox Tests Done"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '✅ Sandbox Tests passed!'
-            });
-
-  # =============================================================================
-  # Sandbox V2 Tests (tai SDK + workspace, Docker + K8s via k3d)
-  # Full sandbox/v2 integration tests are run locally.
-  # =============================================================================
-  SandboxV2Test:
-    runs-on: ubuntu-latest
-    services:
-      mongodb:
-        image: mongo:6.0
-        ports:
-          - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: 123456
-          MONGO_INITDB_DATABASE: test
-
-    strategy:
-      matrix:
-        go: ["1.25"]
-    steps:
-      - name: "Download artifact"
-        uses: actions/github-script@v7
-        with:
-          script: |
-            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: ${{github.event.workflow_run.id }},
-            });
-            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "pr"
-            })[0];
-            var download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            var fs = require('fs');
-            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
-
-      - name: "Read NR & SHA"
-        run: |
-          unzip pr.zip
-          cat NR
-          cat SHA
-          echo HEAD=$(cat SHA) >> $GITHUB_ENV
-          echo NR=$(cat NR) >> $GITHUB_ENV
-
-      - name: "Comment on PR"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '🤖 Sandbox V2 CI Tests running (tai + workspace)...'
-            });
-
-      - name: Checkout Kun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/kun
-          path: kun
-
-      - name: Checkout Xun
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/xun
-          path: xun
-
-      - name: Checkout Gou
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/gou
-          path: gou
-
-      - name: Checkout V8Go
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/v8go
-          path: v8go
-
-      - name: Unzip libv8
-        run: |
-          files=$(find ./v8go -name "libv8*.zip")
-          for file in $files; do
-            dir=$(dirname "$file")
-            echo "Extracting $file to directory $dir"
-            unzip -o -d $dir $file
-            rm -rf $dir/__MACOSX
-          done
-
-      - name: Checkout Demo App
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-dev-app
-          path: app
-
-      - name: Checkout Extension
-        uses: actions/checkout@v4
-        with:
-          repository: yaoapp/yao-extensions-dev
-          path: extension
-
-      - name: Move Dependencies
-        run: |
-          mv kun ../
-          mv xun ../
-          mv gou ../
-          mv v8go ../
-          mv app ../
-          mv extension ../
-
-      - name: Checkout pull request HEAD commit
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.HEAD }}
-
-      - name: Setup Apple Private Key
-        run: |
-          mkdir -p ../app/openapi/certs/apple
-          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
-
-      - name: Setup Go ${{ matrix.go }}
-        uses: actions/setup-go@v5
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Start Redis
-        run: docker run --name redis --publish 6379:6379 --detach redis:6
-
-      - name: Setup Go Tools
-        run: make tools
-
-      - name: Setup ENV (SQLite)
-        run: |
-          mkdir -p ${{ github.WORKSPACE }}/../app/db
-          echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
-          echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
-
-      - name: Pull Test Images
-        run: |
-          docker pull yaoapp/tai-sandbox-test:latest || true
-          docker pull yaoapp/tai:latest
-          docker pull alpine:latest
-
-      - name: Install k3d
-        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
-
-      - name: Create k3d cluster
-        run: |
-          k3d cluster create tai-test --no-lb --wait --api-port 16443
-          kubectl wait --for=condition=Ready node --all --timeout=60s
-          k3d image import alpine:latest -c tai-test
-
-      - name: Start Tai Docker instance
-        run: |
-          docker run -d --name tai-docker \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -p 19100:19100 -p 8099:8099 -p 12375:12375 -p 16080:16080 \
-            yaoapp/tai:latest server -direct \
-            -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -docker 0.0.0.0:12375
-
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8099/healthz > /dev/null 2>&1; then
-              echo "Tai Docker HTTP ready"; break
-            fi
-            echo "Waiting for Tai Docker HTTP... ($i)"; sleep 1
-          done
-          curl -sf http://127.0.0.1:8099/healthz > /dev/null 2>&1 || {
-            echo "::error::Tai Docker HTTP failed"; docker logs tai-docker 2>&1; exit 1
-          }
-
-          for i in $(seq 1 15); do
-            if nc -z 127.0.0.1 19100 2>/dev/null; then
-              echo "Tai Docker gRPC ready"; break
-            fi
-            echo "Waiting for Tai Docker gRPC... ($i)"; sleep 1
-          done
-          nc -z 127.0.0.1 19100 2>/dev/null || {
-            echo "::error::Tai Docker gRPC failed"; docker logs tai-docker 2>&1; exit 1
-          }
-
-      - name: Generate kubeconfig for Tai K8s
-        run: |
-          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
-          echo "k3d server IP: ${K3D_IP}"
-
-          k3d kubeconfig get tai-test > /tmp/kubeconfig-k3d.yml
-
-          # Kubeconfig for tai-k8s container (uses k3d-internal IP)
-          sed "s|server: .*|server: https://${K3D_IP}:6443|" /tmp/kubeconfig-k3d.yml \
-            > /tmp/kubeconfig-tai-k8s.yml
-          echo "Container kubeconfig server:"
-          grep server: /tmp/kubeconfig-tai-k8s.yml
-
-          # Kubeconfig for test runner (uses localhost via port-mapped 6443)
-          sed 's|server: .*|server: https://127.0.0.1:6443|' /tmp/kubeconfig-k3d.yml \
-            > ${{ runner.temp }}/kubeconfig-tai.yml
-          echo "Test runner kubeconfig server:"
-          grep server: ${{ runner.temp }}/kubeconfig-tai.yml
-
-      - name: Start Tai K8s instance
-        run: |
-          K3D_IP=$(docker inspect k3d-tai-test-server-0 | jq -r '.[0].NetworkSettings.Networks["k3d-tai-test"].IPAddress')
-          echo "k3d server IP: ${K3D_IP}"
-
-          docker run -d --name tai-k8s \
-            --network k3d-tai-test \
-            -p 19101:19100 -p 8100:8099 -p 6443:16443 -p 16081:16080 \
-            -v /var/run/docker.sock:/var/run/docker.sock:ro \
-            -v /tmp/kubeconfig-tai-k8s.yml:/etc/tai/kubeconfig.yml:ro \
-            -e TAI_K8S_UPSTREAM="tcp://${K3D_IP}:6443" \
-            -e TAI_KUBECONFIG=/etc/tai/kubeconfig.yml \
-            yaoapp/tai:latest server -direct \
-            -grpc 0.0.0.0:19100 -http 0.0.0.0:8099 -vnc 0.0.0.0:16080 -k8s 0.0.0.0:16443
-
-          for i in $(seq 1 30); do
-            if curl -sf http://127.0.0.1:8100/healthz > /dev/null 2>&1; then
-              echo "Tai K8s HTTP ready"; break
-            fi
-            echo "Waiting for Tai K8s HTTP... ($i)"; sleep 1
-          done
-          curl -sf http://127.0.0.1:8100/healthz > /dev/null 2>&1 || {
-            echo "::error::Tai K8s HTTP failed"; docker logs tai-k8s 2>&1; exit 1
-          }
-
-          for i in $(seq 1 15); do
-            if nc -z 127.0.0.1 19101 2>/dev/null; then
-              echo "Tai K8s gRPC ready"; break
-            fi
-            echo "Waiting for Tai K8s gRPC... ($i)"; sleep 1
-          done
-          nc -z 127.0.0.1 19101 2>/dev/null || {
-            echo "::error::Tai K8s gRPC failed"; docker logs tai-k8s 2>&1; exit 1
-          }
-
-      - name: Run Sandbox V2 CI Tests (tai + workspace)
-        env:
-          TAI_TEST_HOST: "127.0.0.1"
-          TAI_TEST_DOCKER: "tcp://127.0.0.1:12375"
-          TAI_TEST_GRPC_PORT: "19100"
-          TAI_TEST_HTTP_PORT: "8099"
-          TAI_TEST_VNC_PORT: "16080"
-          TAI_TEST_DOCKER_PORT: "12375"
-          TAI_TEST_K8S_HOST: "127.0.0.1"
-          TAI_TEST_K8S_PORT: "6443"
-          TAI_TEST_K8S_GRPC_PORT: "19101"
-          TAI_TEST_KUBECONFIG: "${{ runner.temp }}/kubeconfig-tai.yml"
-          TAI_TEST_HOST_IP: "172.17.0.1"
-          SANDBOX_TEST_REMOTE_ADDR: "tai://127.0.0.1:19100"
-          SANDBOX_TEST_IMAGE: "yaoapp/tai-sandbox-test:latest"
-        run: make unit-test-sandbox-v2
-
-      - name: Codecov Report
-        if: always()
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false
-
-      - name: "Comment on PR - Sandbox V2 Tests Done"
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { NR } = process.env
-            var issue_number = NR;
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue_number,
-              body: '✅ Sandbox V2 CI Tests passed (tai + workspace)!'
-            });
-
   # =============================================================================
   # Benchmark & Memory Leak Tests - Run with MySQL8.0 and SQLite3
   # =============================================================================
@@ -1981,4 +950,284 @@ jobs:
               repo: context.repo.repo,
               issue_number: issue_number,
               body: '✅ gRPC Tests passed!'
+            });
+
+  # =============================================================================
+  # Windows Core Tests (SQLite3 + Postgres17) — mirrors unit-test-windows.yml
+  # =============================================================================
+  WindowsCoreTest:
+    runs-on: windows-2025
+    timeout-minutes: 120
+
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.26"]
+        db: [SQLite3, Postgres17]
+    if: >
+      ${{ github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: "Download artifact"
+        uses: actions/github-script@v7
+        with:
+          script: |
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: ${{github.event.workflow_run.id }},
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "pr"
+            })[0];
+            var download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{github.workspace}}/pr.zip', Buffer.from(download.data));
+
+      - name: "Read NR & SHA"
+        shell: bash
+        run: |
+          unzip pr.zip
+          cat NR
+          cat SHA
+          echo HEAD=$(cat SHA) >> $GITHUB_ENV
+          echo NR=$(cat NR) >> $GITHUB_ENV
+
+      - name: "Comment on PR"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { NR } = process.env
+            var issue_number = NR;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: '🤖 Windows Core Tests running with ${{ matrix.db }}...'
+            });
+
+      # ── 1. Checkout dependency repos ─────────────────────────────────
+      - name: Checkout Kun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/kun
+          path: kun
+
+      - name: Checkout Xun
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/xun
+          path: xun
+
+      - name: Checkout Gou
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/gou
+          path: gou
+
+      - name: Checkout V8Go
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/v8go
+          lfs: true
+          path: v8go
+
+      - name: Checkout Demo App
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-dev-app
+          path: app
+
+      - name: Checkout Yao Startup Webapp
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-startup-webapp
+          submodules: true
+          token: ${{ secrets.YAO_TEST_TOKEN }}
+          path: yao-startup-webapp
+
+      - name: Checkout Extension
+        uses: actions/checkout@v4
+        with:
+          repository: yaoapp/yao-extensions-dev
+          path: extension
+
+      # ── 2. Unzip libv8 ──────────────────────────────────────────────
+      - name: Unzip libv8
+        shell: bash
+        run: |
+          files=$(find ./v8go -name "libv8*.zip")
+          for file in $files; do
+            dir=$(dirname "$file")
+            echo "Extracting $file to directory $dir"
+            unzip -o -d "$dir" "$file"
+            rm -rf "$dir/__MACOSX"
+          done
+
+      # ── 3. Move deps to parent directory ────────────────────────────
+      - name: Move dependencies
+        shell: bash
+        run: |
+          mv kun ../
+          mv xun ../
+          mv gou ../
+          mv v8go ../
+          mv app ../
+          mv extension ../
+          mv yao-startup-webapp ../
+
+      # ── 4. Checkout PR HEAD ─────────────────────────────────────────
+      - name: Checkout pull request HEAD commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD }}
+
+      # ── 5. Setup Apple Private Key ──────────────────────────────────
+      - name: Setup Apple Private Key
+        shell: bash
+        run: |
+          mkdir -p ../app/openapi/certs/apple
+          echo "${{ secrets.APPLE_PRIVATE_KEY_USER }}" > ../app/openapi/certs/apple/signin_client_secret_key.p8
+
+      # ── 6. Setup Go ────────────────────────────────────────────────
+      - name: Setup Go ${{ matrix.go }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+
+      # ── 7. Install LLVM (clang + lld) ──────────────────────────────
+      - name: Install LLVM
+        run: choco install llvm -y
+
+      # ── 8. Setup Go Tools ──────────────────────────────────────────
+      - name: Setup Go Tools
+        shell: bash
+        run: make tools
+
+      # ── 9. Setup MySQL ───────────────────────────────────────────────
+      - name: Install MySQL
+        run: choco install mysql -y --params "/Port:3308"
+
+      - name: Add MySQL to PATH
+        shell: bash
+        run: echo "C:/tools/mysql/current/bin" >> $GITHUB_PATH
+
+      - name: Create MySQL database and user
+        run: |
+          mysql -u root -P 3308 -e "CREATE DATABASE IF NOT EXISTS test;"
+          mysql -u root -P 3308 -e "CREATE USER 'test'@'localhost' IDENTIFIED BY '123456';"
+          mysql -u root -P 3308 -e "GRANT ALL PRIVILEGES ON test.* TO 'test'@'localhost';"
+          mysql -u root -P 3308 -e "FLUSH PRIVILEGES;"
+
+      # ── 10. Setup MongoDB with Auth ────────────────────────────────
+      - name: Setup MongoDB with Auth
+        shell: pwsh
+        run: |
+          Set-Service -Name "MongoDB" -StartupType Manual
+          Start-Service MongoDB
+
+          $retries = 0
+          while ($retries -lt 10) {
+            $result = mongosh --quiet --eval "db.runCommand({ping:1})" 2>&1
+            if ($LASTEXITCODE -eq 0) { Write-Host "MongoDB is ready"; break }
+            $retries++; Start-Sleep -Seconds 2
+            Write-Host "Waiting for MongoDB... attempt $retries"
+          }
+          if ($retries -ge 10) { Write-Host "::error::MongoDB not ready"; exit 1 }
+
+          mongosh --eval "db.createUser({user:'root',pwd:'123456',roles:['root']})" admin
+          Stop-Service MongoDB
+
+          $cfgPath = $null
+          foreach ($p in @("C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg","C:\Program Files\MongoDB\Server\8.0\bin\mongod.cfg")) {
+            if (Test-Path $p) { $cfgPath = $p; break }
+          }
+          if (-not $cfgPath) { Write-Host "::error::mongod.cfg not found"; exit 1 }
+          Add-Content -Path $cfgPath -Value "`nsecurity:`n  authorization: enabled"
+          Start-Service MongoDB
+
+      # ── 11. Setup Redis (Memurai) ──────────────────────────────────
+      - name: Install Memurai (Redis)
+        run: choco install memurai-developer -y
+
+      # ── 12. Setup PostgreSQL (conditional) ──────────────────────────
+      - name: Setup PostgreSQL
+        if: matrix.db == 'Postgres17'
+        uses: ankane/setup-postgres@v1
+        with:
+          postgres-version: "17"
+          database: xiang
+          user: xiang
+
+      - name: Set PostgreSQL password
+        if: matrix.db == 'Postgres17'
+        run: psql -U postgres -c "ALTER USER xiang PASSWORD '${{ secrets.UNIT_PASS }}';"
+
+      # ── 13. Verify Services (fail-fast) ─────────────────────────────
+      - name: Verify Services
+        shell: bash
+        run: |
+          echo "=== Verify MySQL ==="
+          mysql -u root -P 3308 -e "SELECT 1;" || { echo "::error::MySQL not reachable on port 3308"; exit 1; }
+
+          echo "=== Verify Redis (Memurai) ==="
+          powershell.exe -Command "Test-NetConnection -ComputerName 127.0.0.1 -Port 6379 -InformationLevel Quiet" || { echo "::error::Redis not reachable on port 6379"; exit 1; }
+
+          echo "=== Verify MongoDB ==="
+          mongosh --host 127.0.0.1 --port 27017 -u root -p 123456 --authenticationDatabase admin --eval "db.runCommand({ping:1})" || { echo "::error::MongoDB not reachable or auth failed"; exit 1; }
+
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
+            echo "=== Verify PostgreSQL ==="
+            psql -U postgres -c "SELECT 1;" || { echo "::error::PostgreSQL not reachable"; exit 1; }
+          fi
+
+          echo "All services verified."
+
+      # ── 14. Setup ENV & Hosts ───────────────────────────────────────
+      - name: Add local.iqka.com to hosts
+        shell: powershell
+        run: Add-Content -Path "$env:SystemRoot\System32\drivers\etc\hosts" -Value "`n127.0.0.1`tlocal.iqka.com" -Force
+
+      # ── 15. Setup ENV ────────────────────────────────────────────────
+      - name: Setup ENV
+        shell: bash
+        env:
+          PASSWORD: ${{ secrets.UNIT_PASS }}
+        run: |
+          if [ "${{ matrix.db }}" = "Postgres17" ]; then
+            echo "YAO_DB_DRIVER=postgres" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=postgres://xiang:${PASSWORD}@127.0.0.1:5432/xiang?sslmode=disable" >> $GITHUB_ENV
+          else
+            mkdir -p "${{ github.WORKSPACE }}/../app/db"
+            echo "YAO_DB_DRIVER=sqlite3" >> $GITHUB_ENV
+            echo "YAO_DB_PRIMARY=${{ github.WORKSPACE }}/../app/db/yao.db" >> $GITHUB_ENV
+          fi
+
+      # ── 16. Run Core Tests ─────────────────────────────────────────
+      - name: Run Core Tests
+        shell: bash
+        env:
+          CGO_ENABLED: "1"
+          CC: clang --target=x86_64-pc-windows-msvc -fuse-ld=lld
+          CXX: clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
+        run: make unit-test-core-windows
+
+      - name: "Comment on PR - Windows Core Tests Done"
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { NR } = process.env
+            var issue_number = NR;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: '✅ Windows Core Tests (${{ matrix.db }}) passed!'
             });

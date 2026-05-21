@@ -2,7 +2,7 @@ package core
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 	"regexp"
 	"strings"
 	"time"
@@ -85,11 +85,11 @@ func (parser *TemplateParser) Locale() *Locale {
 		candidates = append(candidates, "en-us")
 	}
 
-	var path string
+	var localePath string
 	found := false
 	for _, candidate := range candidates {
-		path = filepath.Join("public", parser.option.Root, ".locales", candidate, routeSuffix)
-		if exists, err := application.App.Exists(path); exists {
+		localePath = path.Join("public", parser.option.Root, ".locales", candidate, routeSuffix)
+		if exists, err := application.App.Exists(localePath); exists {
 			found = true
 			name = candidate
 			break
@@ -104,7 +104,7 @@ func (parser *TemplateParser) Locale() *Locale {
 	// Load the locale
 	locale = &Locale{Name: name}
 
-	raw, err := application.App.Read(path)
+	raw, err := application.App.Read(localePath)
 	if err != nil {
 		log.Error("[parser] %s Locale %s", route, err.Error())
 		return nil
@@ -149,7 +149,7 @@ func (locale *Locale) MergeTranslations(translations []Translation, prefix ...st
 
 	var reg *regexp.Regexp = nil
 	if len(prefix) > 0 && prefix[0] != "" {
-		reg = regexp.MustCompile(fmt.Sprintf(`^%s_([0-9]+)$`, prefix[0]))
+		reg = regexp.MustCompile(fmt.Sprintf(`^%s_([0-9]+)$`, regexp.QuoteMeta(prefix[0])))
 	}
 
 	for _, t := range translations {
