@@ -10,12 +10,15 @@ import (
 
 // InYaoApp Check if the current directory is a yao app
 func InYaoApp(root string) bool {
-	// Check current directory and parent directories
-	for root != "/" {
+	for {
 		if IsYaoApp(root) {
 			return true
 		}
-		root = filepath.Dir(root)
+		parent := filepath.Dir(root)
+		if parent == root {
+			break
+		}
+		root = parent
 	}
 	return false
 }

@@ -110,6 +110,23 @@ jobs:
           echo "=== File sizes ==="
           ls -lh dist/release/*.exe
 
+      - name: Smoke Test - yao init
+        shell: bash
+        run: |
+          YAO_EXE=$(ls dist/release/yao-*-windows-amd64.exe | head -1)
+          echo "Testing binary: $YAO_EXE"
+          mkdir -p /tmp/yao-init-test
+          cd /tmp/yao-init-test
+          timeout 60 "$GITHUB_WORKSPACE/$YAO_EXE" init || code=$?
+          echo "Exit code: ${code:-0}"
+          ls -la /tmp/yao-init-test/
+          if [ -f /tmp/yao-init-test/app.yao ] || [ -f /tmp/yao-init-test/app.json ] || [ -f /tmp/yao-init-test/app.jsonc ]; then
+            echo "PASS: yao init created application files"
+          else
+            echo "FAIL: yao init did not create application files"
+            exit 1
+          fi
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
