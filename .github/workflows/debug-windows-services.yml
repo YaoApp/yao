@@ -1,0 +1,167 @@
+name: Debug Windows Services
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-services:
+    runs-on: windows-2025
+    timeout-minutes: 30
+
+    steps:
+      # ── 1. Discover pre-installed services ──────────────────────────
+      - name: List MongoDB service status
+        shell: pwsh
+        run: |
+          Write-Host "=== MongoDB Service ==="
+          Get-Service -Name "MongoDB" -ErrorAction SilentlyContinue | Format-List *
+          Write-Host ""
+          Write-Host "=== MongoDB binary ==="
+          Get-Command mongod -ErrorAction SilentlyContinue | Format-List Source
+          Get-Command mongosh -ErrorAction SilentlyContinue | Format-List Source
+          Write-Host ""
+          Write-Host "=== mongod.cfg contents ==="
+          $cfgPaths = @(
+            "C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg",
+            "C:\Program Files\MongoDB\Server\8.0\bin\mongod.cfg"
+          )
+          foreach ($p in $cfgPaths) {
+            if (Test-Path $p) {
+              Write-Host "--- $p ---"
+              Get-Content $p
+            }
+          }
+
+      - name: List all MongoDB-related paths
+        shell: pwsh
+        run: |
+          Write-Host "=== MongoDB installation directories ==="
+          Get-ChildItem "C:\Program Files\MongoDB" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object FullName
+          Write-Host ""
+          Write-Host "=== MongoDB data directory ==="
+          if (Test-Path "C:\data\db") { Get-ChildItem "C:\data\db" }
+          if (Test-Path "C:\ProgramData\MongoDB") { Get-ChildItem "C:\ProgramData\MongoDB" -Recurse -Depth 1 }
+
+      # ── 2. Setup MongoDB with Auth ──────────────────────────────────
+      - name: Setup MongoDB with Auth
+        shell: pwsh
+        run: |
+          Write-Host "=== Enable MongoDB service ==="
+          Set-Service -Name "MongoDB" -StartupType Manual
+          Start-Service MongoDB
+          Get-Service MongoDB
+
+          Write-Host "=== Wait for MongoDB to be ready ==="
+          $retries = 0
+          while ($retries -lt 10) {
+            try {
+              $result = mongosh --quiet --eval "db.runCommand({ping:1})" 2>&1
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "MongoDB is ready"
+                break
+              }
+            } catch {}
+            $retries++
+            Start-Sleep -Seconds 2
+            Write-Host "Waiting for MongoDB... attempt $retries"
+          }
+          if ($retries -ge 10) {
+            Write-Host "::error::MongoDB did not become ready in time"
+            exit 1
+          }
+
+          Write-Host "=== Create root user ==="
+          mongosh --eval "db.createUser({user:'root',pwd:'123456',roles:['root']})" admin
+
+          Write-Host "=== Stop MongoDB ==="
+          Stop-Service MongoDB
+
+          Write-Host "=== Find and update mongod.cfg ==="
+          $cfgPaths = @(
+            "C:\Program Files\MongoDB\Server\7.0\bin\mongod.cfg",
+            "C:\Program Files\MongoDB\Server\8.0\bin\mongod.cfg"
+          )
+          $cfgPath = $null
+          foreach ($p in $cfgPaths) {
+            if (Test-Path $p) { $cfgPath = $p; break }
+          }
+          if (-not $cfgPath) {
+            Write-Host "::error::mongod.cfg not found"
+            exit 1
+          }
+          Write-Host "Using config: $cfgPath"
+          Add-Content -Path $cfgPath -Value "`nsecurity:`n  authorization: enabled"
+          Write-Host "=== Updated config ==="
+          Get-Content $cfgPath
+
+          Write-Host "=== Restart MongoDB with auth ==="
+          Start-Service MongoDB
+          Get-Service MongoDB
+
+          Write-Host "=== Verify auth connection ==="
+          mongosh --host 127.0.0.1 --port 27017 -u root -p 123456 --authenticationDatabase admin --eval "db.runCommand({ping:1})"
+
+      # ── 3. Install MySQL ────────────────────────────────────────────
+      - name: Install MySQL
+        run: choco install mysql -y --params "/Port:3308"
+
+      - name: Add MySQL to PATH
+        shell: bash
+        run: echo "C:/tools/mysql/current/bin" >> $GITHUB_PATH
+
+      - name: Setup MySQL database and user
+        shell: pwsh
+        run: |
+          Write-Host "=== Wait for MySQL ==="
+          Start-Sleep -Seconds 5
+
+          Write-Host "=== Check MySQL service ==="
+          Get-Service -Name "MySQL" -ErrorAction SilentlyContinue | Format-List *
+
+          Write-Host "=== MySQL version ==="
+          & "C:\tools\mysql\current\bin\mysql.exe" -u root -P 3308 -e "SELECT VERSION();"
+
+          Write-Host "=== Create database and user ==="
+          & "C:\tools\mysql\current\bin\mysql.exe" -u root -P 3308 -e "CREATE DATABASE IF NOT EXISTS test;"
+          & "C:\tools\mysql\current\bin\mysql.exe" -u root -P 3308 -e "CREATE USER 'test'@'localhost' IDENTIFIED BY '123456';"
+          & "C:\tools\mysql\current\bin\mysql.exe" -u root -P 3308 -e "GRANT ALL PRIVILEGES ON test.* TO 'test'@'localhost';"
+          & "C:\tools\mysql\current\bin\mysql.exe" -u root -P 3308 -e "FLUSH PRIVILEGES;"
+
+      # ── 4. Install Redis (Memurai) ──────────────────────────────────
+      - name: Install Memurai (Redis)
+        run: choco install memurai-developer -y
+
+      - name: Verify Memurai service
+        shell: pwsh
+        run: |
+          Write-Host "=== Memurai service status ==="
+          Get-Service -Name "Memurai" -ErrorAction SilentlyContinue | Format-List *
+
+          Write-Host "=== Check Memurai PATH ==="
+          Get-Command redis-cli -ErrorAction SilentlyContinue | Format-List Source
+
+          Write-Host "=== Try redis-cli ping ==="
+          $redisCli = Get-Command redis-cli -ErrorAction SilentlyContinue
+          if ($redisCli) {
+            & $redisCli.Source -h 127.0.0.1 -p 6379 ping
+          } else {
+            Write-Host "redis-cli not found in PATH, trying port check"
+            Test-NetConnection -ComputerName 127.0.0.1 -Port 6379
+          }
+
+      # ── 5. Final verification ───────────────────────────────────────
+      - name: Verify All Services
+        shell: bash
+        run: |
+          echo "=== Verify MySQL ==="
+          mysql -u root -P 3308 -e "SELECT 1;" || { echo "::error::MySQL not reachable on port 3308"; exit 1; }
+
+          echo "=== Verify Redis ==="
+          redis-cli -h 127.0.0.1 -p 6379 ping 2>/dev/null || \
+            powershell.exe -Command "Test-NetConnection -ComputerName 127.0.0.1 -Port 6379 -InformationLevel Quiet" || \
+            { echo "::error::Redis not reachable on port 6379"; exit 1; }
+
+          echo "=== Verify MongoDB ==="
+          mongosh --host 127.0.0.1 --port 27017 -u root -p 123456 --authenticationDatabase admin --eval "db.runCommand({ping:1})" || { echo "::error::MongoDB not reachable or auth failed"; exit 1; }
+
+          echo "All services verified successfully!"
