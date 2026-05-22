@@ -36,8 +36,10 @@ func parseHostURI(raw string) hostURI {
 func resolveAbsHostPath(u hostURI) (string, error) {
 	switch u.Scheme {
 	case "local":
-		abs := filepath.Clean("/" + u.Path)
-		return abs, nil
+		if len(u.Path) >= 2 && u.Path[1] == ':' {
+			return filepath.Clean(u.Path), nil
+		}
+		return filepath.Clean("/" + u.Path), nil
 	case "tmp":
 		if strings.Contains(u.Path, "..") {
 			return "", fmt.Errorf("path traversal not allowed in tmp:// URI")
