@@ -95,6 +95,11 @@ func RegisterLocal(opts ...Option) bool {
 		return false
 	}
 
+	runners := []string{"yaocode"}
+	if res.Runtime != nil || res.HostExec != nil {
+		runners = append(runners, "claude", "opencode", "tai")
+	}
+
 	reg.Register(&registry.TaiNode{
 		TaiID:  "local",
 		Mode:   "local",
@@ -102,7 +107,7 @@ func RegisterLocal(opts ...Option) bool {
 		Capabilities: types.Capabilities{
 			Docker:   res.Runtime != nil,
 			HostExec: res.HostExec != nil,
-			Runners:  []string{"yaocode"},
+			Runners:  runners,
 		},
 	})
 	reg.SetResources("local", res)
