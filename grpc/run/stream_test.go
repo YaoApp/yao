@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	agenttest "github.com/yaoapp/yao/agent/test"
+	agenttest "github.com/yaoapp/yao/agent/eval"
 	"github.com/yaoapp/yao/grpc/pb"
 	"github.com/yaoapp/yao/grpc/tests/testutils"
 )
@@ -66,7 +66,7 @@ func TestStream_NoToken(t *testing.T) {
 	client := testutils.NewClient(conn)
 
 	stream, err := client.Stream(context.Background(), &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 	})
 	if err != nil {
 		st, _ := status.FromError(err)
@@ -88,7 +88,7 @@ func TestStream_WrongScope(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 	})
 	if err != nil {
 		st, _ := status.FromError(err)
@@ -110,7 +110,7 @@ func TestStream_InvalidArgsJSON(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    []byte("{bad-json"),
 	})
 	if err != nil {
@@ -140,7 +140,7 @@ func TestStream_RunnerError(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	assert.NoError(t, err)
@@ -187,7 +187,7 @@ func TestStream_DryRun_TextMode(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {
@@ -249,7 +249,7 @@ func TestStream_DryRun_JSONMode(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {
@@ -316,7 +316,7 @@ func TestStream_DryRun_A2A_TextMode(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {
@@ -372,7 +372,7 @@ func TestStream_DryRun_A2A_JSONMode(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {
@@ -441,7 +441,7 @@ func TestStream_RealAgent(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {
@@ -488,7 +488,7 @@ func TestStream_RealAgent_A2A(t *testing.T) {
 	ctx := testutils.WithToken(context.Background(), token)
 
 	stream, err := client.Stream(ctx, &pb.RunRequest{
-		Process: "agent.test.Run",
+		Process: "agent.eval.Run",
 		Args:    optsJSON,
 	})
 	if !assert.NoError(t, err) {

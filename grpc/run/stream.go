@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/yaoapp/yao/agent/test"
+	"github.com/yaoapp/yao/agent/eval"
 	"github.com/yaoapp/yao/grpc/pb"
 )
 
@@ -22,7 +22,7 @@ func (h *Handler) Stream(req *pb.RunRequest, stream grpc.ServerStreamingServer[p
 	}
 
 	switch req.Process {
-	case "agent.test.Run":
+	case "agent.eval.Run":
 		return h.streamAgentTest(req, stream)
 	default:
 		return status.Errorf(codes.Unimplemented, "stream not supported for: %s", req.Process)
@@ -31,9 +31,9 @@ func (h *Handler) Stream(req *pb.RunRequest, stream grpc.ServerStreamingServer[p
 
 // streamAgentTest runs the full test suite on the server side and streams
 // progress output back to the caller. The final chunk (Done=true) carries
-// the JSON-encoded *test.Report.
+// the JSON-encoded *eval.Report.
 func (h *Handler) streamAgentTest(req *pb.RunRequest, stream grpc.ServerStreamingServer[pb.Chunk]) error {
-	var opts test.Options
+	var opts eval.Options
 	if len(req.Args) > 0 {
 		if err := json.Unmarshal(req.Args, &opts); err != nil {
 			return status.Errorf(codes.InvalidArgument, "invalid options JSON: %v", err)
@@ -47,12 +47,12 @@ func (h *Handler) streamAgentTest(req *pb.RunRequest, stream grpc.ServerStreamin
 		opts.Writer = &grpcChunkWriter{stream: stream}
 	}
 
-	runner := test.NewRunner(&opts)
+	runner := eval.NewRunner(&opts)
 	report, err := runner.Run()
 
 	if err != nil {
-		errReport := &test.Report{
-			Summary: &test.Summary{Total: 1, Errors: 1, AgentID: opts.AgentID},
+		errReport := &eval.Report{
+			Summary: &eval.Summary{Total: 1, Errors: 1, AgentID: opts.AgentID},
 			Error:   err.Error(),
 		}
 		data, _ := json.Marshal(errReport)
@@ -80,7 +80,7 @@ func (w *grpcChunkWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// grpcEventWriter implements test.EventWriter by sending NDJSON lines
+// grpcEventWriter implements eval.EventWriter by sending NDJSON lines
 // via gRPC Chunk messages. Used in JSON mode (--json).
 type grpcEventWriter struct {
 	stream grpc.ServerStreamingServer[pb.Chunk]

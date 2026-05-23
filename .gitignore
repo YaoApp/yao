@@ -56,8 +56,8 @@ coverage.html
 agent/assistant/hook/*.test.md
 agent/search/TODO.md
 agent/search/job-logs.txt
-agent/test/MULTI_TURN_DESIGN.md
-agent/test/UPGRADE_PLAN.md
+agent/eval/MULTI_TURN_DESIGN.md
+agent/eval/UPGRADE_PLAN.md
 introduction/*
 !sandbox/docker/build.sh
 !sandbox/docker/vnc/*.sh
@@ -108,3 +108,4 @@ unit-test/agent/app/data/
 unit-test/agent/app/logs/
 file::memory:
 :memory:
+agent/eval/*.md

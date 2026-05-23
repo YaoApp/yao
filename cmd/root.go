@@ -200,7 +200,7 @@ func init() {
 	suiCmd.AddCommand(sui.TestCmd)
 
 	// Agent
-	agentCmd.AddCommand(agent.TestCmd)
+	agentCmd.AddCommand(agent.EvalCmd)
 	agentCmd.AddCommand(agent.ExtractCmd)
 	agentCmd.AddCommand(agent.AddCmd)
 	agentCmd.AddCommand(agent.UpdateCmd)

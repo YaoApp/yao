@@ -1,4 +1,4 @@
-package test
+package eval
 
 import (
 	"fmt"
@@ -79,17 +79,6 @@ func (w *OutputWriter) Info(format string, args ...interface{}) {
 	fmt.Fprintln(w.writer, msg)
 }
 
-// Success prints a success message
-func (w *OutputWriter) Success(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if w.events != nil {
-		w.emitEvent(map[string]interface{}{"type": "log", "level": "success", "message": msg})
-		return
-	}
-	color.New(color.FgGreen).Fprint(w.writer, "✓ ")
-	fmt.Fprintln(w.writer, msg)
-}
-
 // Error prints an error message
 func (w *OutputWriter) Error(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
@@ -109,17 +98,6 @@ func (w *OutputWriter) Warning(format string, args ...interface{}) {
 		return
 	}
 	color.New(color.FgYellow).Fprint(w.writer, "⚠ ")
-	fmt.Fprintln(w.writer, msg)
-}
-
-// Skip prints a skip message
-func (w *OutputWriter) Skip(format string, args ...interface{}) {
-	msg := fmt.Sprintf(format, args...)
-	if w.events != nil {
-		w.emitEvent(map[string]interface{}{"type": "log", "level": "skip", "message": msg})
-		return
-	}
-	color.New(color.FgYellow).Fprint(w.writer, "○ ")
 	fmt.Fprintln(w.writer, msg)
 }
 
@@ -205,16 +183,6 @@ func (w *OutputWriter) TestOutput(output string) {
 		outputPreview := truncateString(output, 100)
 		color.New(color.FgHiBlack).Fprintf(w.writer, "  └─ Output: %s\n", outputPreview)
 	}
-}
-
-// Progress prints progress information
-func (w *OutputWriter) Progress(current, total int) {
-	if w.events != nil {
-		w.emitEvent(map[string]interface{}{"type": "progress", "current": current, "total": total})
-		return
-	}
-	percentage := float64(current) / float64(total) * 100
-	color.New(color.FgHiBlack).Fprintf(w.writer, "\r  Progress: %d/%d (%.0f%%)", current, total, percentage)
 }
 
 // Summary prints the test summary
@@ -519,34 +487,6 @@ func (w *OutputWriter) DynamicTestStart(id string, checkpointCount int) {
 	color.New(color.FgCyan).Fprintf(w.writer, "(dynamic, %d checkpoints)\n", checkpointCount)
 }
 
-// DynamicTurn outputs a single turn in dynamic testing
-func (w *OutputWriter) DynamicTurn(turn int, inputSummary string, checkpointsReached, total int) {
-	if !w.verbose {
-		return
-	}
-	if w.events != nil {
-		w.emitEvent(map[string]interface{}{
-			"type": "dynamic_turn", "turn": turn, "input": inputSummary,
-			"checkpoints_reached": checkpointsReached, "checkpoints_total": total,
-		})
-		return
-	}
-	color.New(color.FgHiBlack).Fprintf(w.writer, "│  ├─ Turn %d: %s ", turn, inputSummary)
-	color.New(color.FgCyan).Fprintf(w.writer, "[%d/%d checkpoints]\n", checkpointsReached, total)
-}
-
-// DynamicCheckpoint outputs a checkpoint being reached
-func (w *OutputWriter) DynamicCheckpoint(checkpointID string) {
-	if !w.verbose {
-		return
-	}
-	if w.events != nil {
-		w.emitEvent(map[string]interface{}{"type": "dynamic_checkpoint", "checkpoint": checkpointID})
-		return
-	}
-	color.New(color.FgGreen).Fprintf(w.writer, "│  │  └─ ✓ checkpoint: %s\n", checkpointID)
-}
-
 // DynamicTestResult outputs the result of a dynamic test
 func (w *OutputWriter) DynamicTestResult(status Status, turns int, checkpoints int, duration time.Duration) {
 	if w.events != nil {
@@ -634,4 +574,29 @@ func formatDuration(d time.Duration) string {
 		return fmt.Sprintf("%.1fs", d.Seconds())
 	}
 	return fmt.Sprintf("%.1fm", d.Minutes())
+}
+
+// EmitTypedEvent serializes a strong-typed event struct (StartEvent, ResultEvent,
+// SummaryEvent) and sends it via the EventWriter. For use by cmd/agent layer.
+func (w *OutputWriter) EmitTypedEvent(event interface{}) bool {
+	if w.events == nil {
+		return false
+	}
+	data, err := jsoniter.Marshal(event)
+	if err != nil {
+		return false
+	}
+	return w.events.WriteEvent(data) == nil
+}
+
+// DryRunCase prints a single test case in dry-run mode (list without executing).
+func (w *OutputWriter) DryRunCase(id string, input string) {
+	if w.events != nil {
+		w.emitEvent(map[string]interface{}{
+			"type": "dry_run_case", "id": id, "input": truncateString(input, 200),
+		})
+		return
+	}
+	color.New(color.FgWhite).Fprintf(w.writer, "  ○ [%s] ", id)
+	color.New(color.FgHiBlack).Fprintf(w.writer, "%s\n", truncateString(input, 80))
 }

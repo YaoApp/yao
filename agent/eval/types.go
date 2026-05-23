@@ -1,4 +1,4 @@
-package test
+package eval
 
 import (
 	"encoding/json"
@@ -158,10 +158,6 @@ type Options struct {
 	// Useful for previewing agent-generated test cases
 	DryRun bool `json:"dry_run,omitempty"`
 
-	// Simulator is the default simulator agent ID for dynamic mode
-	// Can be overridden per test case in JSONL
-	Simulator string `json:"simulator,omitempty"`
-
 	// JSONOutput outputs results in JSON format for AI/script consumption
 	JSONOutput bool `json:"json_output,omitempty"`
 
@@ -174,6 +170,18 @@ type Options struct {
 	// colored text. When non-nil, OutputWriter methods emit JSON events
 	// and skip text formatting.
 	EventWriter EventWriter `json:"-"`
+
+	// Scripts is the script module name (--scripts flag, enables script test mode)
+	Scripts string `json:"scripts,omitempty"`
+
+	// Remote enables remote gRPC execution mode (--remote flag)
+	Remote bool `json:"remote,omitempty"`
+
+	// TaiBin is the path to the Tai binary (--tai flag, default: $PATH lookup)
+	TaiBin string `json:"tai_bin,omitempty"`
+
+	// AuthFile is the path to credentials file (--auth flag)
+	AuthFile string `json:"auth_file,omitempty"`
 }
 
 // EventWriter sends structured JSON events during test execution.

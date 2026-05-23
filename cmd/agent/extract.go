@@ -7,7 +7,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
-	"github.com/yaoapp/yao/agent/test"
+	"github.com/yaoapp/yao/agent/eval"
 )
 
 // Extract command flags
@@ -39,14 +39,14 @@ var ExtractCmd = &cobra.Command{
 		}
 
 		// Build extract options
-		opts := &test.ExtractOptions{
+		opts := &eval.ExtractOptions{
 			InputFile: absPath,
 			OutputDir: extractOutput,
 			Format:    extractFormat,
 		}
 
 		// Create extractor and run
-		extractor := test.NewExtractor(opts)
+		extractor := eval.NewExtractor(opts)
 		files, err := extractor.Extract()
 		if err != nil {
 			color.Red("Error: %s\n", err.Error())

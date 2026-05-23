@@ -1,60 +1,60 @@
-# Agent Test Framework
+# Agent Eval Framework
 
-A comprehensive testing framework for Yao AI agents with support for standard testing, dynamic (simulator-driven) testing, agent-driven assertions, and CI integration.
+A comprehensive evaluation framework for Yao AI agents with support for E2E testing, dynamic (simulator-driven) testing, agent-driven assertions, script unit tests, and CI integration.
 
 ## Quick Start
 
-### Standard Tests
-
 ```bash
-# Test with direct message (auto-detect agent from current directory)
-cd assistants/keyword
-yao agent test -i "Extract keywords from: AI and machine learning"
+# Send a single message
+yao agent eval myagent "what is the weather"
 
-# Test with direct message (specify agent explicitly)
-yao agent test -i "Hello world" -n workers.system.keyword
+# Run JSONL test cases (@ = read from file, like curl)
+yao agent eval myagent @tests/inputs.jsonl
 
-# Test with JSONL file (auto-detect agent from path)
-yao agent test -i assistants/keyword/tests/inputs.jsonl
+# JSON output for AI consumption
+yao agent eval myagent "submit $500 expense" --json
 
-# Generate HTML report
-yao agent test -i tests/inputs.jsonl -o report.html
+# Run TypeScript unit tests
+yao agent eval myagent --scripts tools
 
-# Stability analysis (run each test 5 times)
-yao agent test -i tests/inputs.jsonl --runs 5
+# Override connector and user identity
+yao agent eval myagent "hello" -c deepseek.v3 -u user-001 -t team-alpha
+
+# Stability test: 5 rounds
+yao agent eval myagent @tests/inputs.jsonl --runs 5 --json
 ```
 
 ### Agent-Driven Input
 
 ```bash
 # Generate test cases using an agent
-yao agent test -i "agents:tests.generator-agent?count=10" -n assistants.expense
+yao agent eval -i "agents:tests.generator-agent?count=10" -n assistants.expense
 
 # Preview generated tests without running (dry-run)
-yao agent test -i "agents:tests.generator-agent?count=5" -n assistants.expense --dry-run
+yao agent eval -i "agents:tests.generator-agent?count=5" -n assistants.expense --dry-run
 ```
 
 ### Dynamic Mode (Simulator)
 
 ```bash
 # Run dynamic tests with simulator
-yao agent test -i tests/dynamic.jsonl --simulator tests.simulator-agent
+yao agent eval -i tests/dynamic.jsonl --simulator tests.simulator-agent
 
 # See detailed turn-by-turn output
-yao agent test -i tests/dynamic.jsonl -v
+yao agent eval -i tests/dynamic.jsonl -v
 ```
 
 ### Script Tests
 
 ```bash
 # Test agent handler scripts (hooks, tools, setup functions)
-yao agent test -i scripts.expense.setup -v
+yao agent eval -i scripts.expense.setup -v
 
 # Run specific tests with regex filter
-yao agent test -i scripts.expense.setup --run "TestSystemReady" -v
+yao agent eval -i scripts.expense.setup --run "TestSystemReady" -v
 
 # Run with custom context (authorization, metadata)
-yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+yao agent eval -i scripts.expense.setup --ctx tests/context.json -v
 ```
 
 ## Input Modes
@@ -66,7 +66,7 @@ The `-i` flag supports multiple input modes:
 Load test cases from a file:
 
 ```bash
-yao agent test -i tests/inputs.jsonl
+yao agent eval -i tests/inputs.jsonl
 ```
 
 Agent is auto-detected by traversing up from the input file to find `package.yao`.
@@ -78,10 +78,10 @@ Test with a single message:
 ```bash
 # Auto-detect agent from current working directory
 cd assistants/keyword
-yao agent test -i "Extract keywords from this text"
+yao agent eval -i "Extract keywords from this text"
 
 # Or specify agent explicitly
-yao agent test -i "Hello" -n workers.system.keyword
+yao agent eval -i "Hello" -n workers.system.keyword
 ```
 
 ### 3. Agent-Driven Input Mode
@@ -90,13 +90,13 @@ Generate test cases using a generator agent:
 
 ```bash
 # Basic usage (-n specifies the target agent to test)
-yao agent test -i "agents:tests.generator-agent" -n assistants.expense
+yao agent eval -i "agents:tests.generator-agent" -n assistants.expense
 
 # With parameters
-yao agent test -i "agents:tests.generator-agent?count=10&focus=edge-cases" -n assistants.expense
+yao agent eval -i "agents:tests.generator-agent?count=10&focus=edge-cases" -n assistants.expense
 
 # Dry-run to preview generated tests
-yao agent test -i "agents:tests.generator-agent?count=5" -n assistants.expense --dry-run
+yao agent eval -i "agents:tests.generator-agent?count=5" -n assistants.expense --dry-run
 ```
 
 **Note**: The `-n` flag is **required** for agent-driven input mode to specify which agent to test. The generator agent creates test cases for the target agent.
@@ -106,7 +106,7 @@ yao agent test -i "agents:tests.generator-agent?count=5" -n assistants.expense -
 Test agent handler scripts:
 
 ```bash
-yao agent test -i scripts.expense.setup -v
+yao agent eval -i scripts.expense.setup -v
 ```
 
 Script test input format: `scripts.<assistant>.<module>` (e.g., `scripts.expense.setup` → `assistants/expense/src/setup_test.ts`).
@@ -116,7 +116,7 @@ Script test input format: `scripts.<assistant>.<module>` (e.g., `scripts.expense
 Generate test cases using a script:
 
 ```bash
-yao agent test -i "scripts:tests.gen.Generate" -n assistants.expense
+yao agent eval -i "scripts:tests.gen.Generate" -n assistants.expense
 ```
 
 **Note**: `scripts.xxx` (with dot) runs script tests, while `scripts:xxx` (with colon) generates test cases from a script.
@@ -227,7 +227,7 @@ Create a JSON file for custom authorization:
 Use with `--ctx`:
 
 ```bash
-yao agent test -i scripts.expense.setup --ctx tests/context.json -v
+yao agent eval -i scripts.expense.setup --ctx tests/context.json -v
 ```
 
 ## Input Format (JSONL)
@@ -817,7 +817,7 @@ Defined in JSONL, scripts located in agent's `src/` directory:
 Via CLI flags:
 
 ```bash
-yao agent test -i tests/inputs.jsonl --before env_test.BeforeAll --after env_test.AfterAll
+yao agent eval -i tests/inputs.jsonl --before env_test.BeforeAll --after env_test.AfterAll
 ```
 
 ### Hook Function Signatures
@@ -1181,7 +1181,7 @@ Determined by `-o` file extension:
 Run each test multiple times to measure consistency:
 
 ```bash
-yao agent test -i tests/inputs.jsonl --runs 5 -o stability.json
+yao agent eval -i tests/inputs.jsonl --runs 5 -o stability.json
 ```
 
 | Pass Rate | Classification  |
@@ -1195,10 +1195,10 @@ yao agent test -i tests/inputs.jsonl --runs 5 -o stability.json
 
 ```bash
 # Exit code: 0 = all passed, 1 = failures
-yao agent test -i tests/inputs.jsonl --fail-fast
+yao agent eval -i tests/inputs.jsonl --fail-fast
 
 # Run with parallel execution
-yao agent test -i tests/inputs.jsonl --parallel 4
+yao agent eval -i tests/inputs.jsonl --parallel 4
 ```
 
 ### GitHub Actions Example
@@ -1206,20 +1206,20 @@ yao agent test -i tests/inputs.jsonl --parallel 4
 ```yaml
 - name: Run Agent Tests
   run: |
-    yao agent test -i assistants/expense/tests/inputs.jsonl \
+    yao agent eval -i assistants/expense/tests/inputs.jsonl \
       -u ci-user -t ci-team \
       --runs 3 \
       -o report.json
 
 - name: Run Dynamic Tests
   run: |
-    yao agent test -i assistants/expense/tests/dynamic.jsonl \
+    yao agent eval -i assistants/expense/tests/dynamic.jsonl \
       --simulator tests.simulator-agent \
       -v
 
 - name: Run Script Tests
   run: |
-    yao agent test -i scripts.expense.setup -v
+    yao agent eval -i scripts.expense.setup -v
 ```
 
 ## Format Rules Reference
@@ -1287,7 +1287,7 @@ Generates test cases based on target agent description.
 **Usage**:
 
 ```bash
-yao agent test -i "agents:tests.generator-agent?count=10" -n assistants.expense
+yao agent eval -i "agents:tests.generator-agent?count=10" -n assistants.expense
 ```
 
 ### Validator Agent (`tests.validator-agent`)
@@ -1425,7 +1425,7 @@ Simulates user behavior for dynamic mode testing.
 **Usage via CLI**:
 
 ```bash
-yao agent test -i tests/dynamic.jsonl --simulator tests.simulator-agent
+yao agent eval -i tests/dynamic.jsonl --simulator tests.simulator-agent
 ```
 
 ## Extract Command
