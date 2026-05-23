@@ -87,9 +87,11 @@ func TestCreateTestCaseFromMessage(t *testing.T) {
 }
 
 func TestResolvePathWithYaoRoot_Absolute(t *testing.T) {
-	got := eval.ResolvePathWithYaoRoot("/absolute/path/file.jsonl")
-	if got != "/absolute/path/file.jsonl" {
-		t.Errorf("absolute path changed: %s", got)
+	absPath := filepath.Join(t.TempDir(), "file.jsonl")
+	os.WriteFile(absPath, []byte("{}"), 0o644)
+	got := eval.ResolvePathWithYaoRoot(absPath)
+	if got != absPath {
+		t.Errorf("absolute path changed: got %s, want %s", got, absPath)
 	}
 }
 
