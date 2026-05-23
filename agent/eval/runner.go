@@ -1,4 +1,4 @@
-package test
+package eval
 
 import (
 	stdContext "context"
@@ -91,6 +91,14 @@ func (r *Executor) RunDirect() (*Report, error) {
 	agentInfo, err := r.resolver.Resolve(r.opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve agent: %w", err)
+	}
+
+	if r.opts.DryRun {
+		tc := CreateTestCaseFromMessage(r.opts.Input)
+		r.output.DryRunCase(tc.ID, r.opts.Input)
+		return &Report{
+			Summary: &Summary{Total: 1, AgentID: agentInfo.ID},
+		}, nil
 	}
 
 	// Get assistant

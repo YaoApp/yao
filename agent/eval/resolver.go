@@ -1,4 +1,4 @@
-package test
+package eval
 
 import (
 	"fmt"
@@ -235,17 +235,6 @@ func ValidateOptions(opts *Options) error {
 	return nil
 }
 
-// DefaultOptions returns options with default values
-func DefaultOptions() *Options {
-	return &Options{
-		Timeout:  120 * time.Second, // 2 minutes default timeout
-		Parallel: 1,
-		Runs:     1,
-		Verbose:  false,
-		FailFast: false,
-	}
-}
-
 // DetectInputMode detects the input mode from the input string
 // Returns:
 //   - InputModeScript: if input starts with "scripts."
@@ -271,75 +260,6 @@ func DetectInputMode(input string) InputMode {
 
 	// Otherwise treat as direct message
 	return InputModeMessage
-}
-
-// MergeOptions merges user options with defaults
-func MergeOptions(opts *Options, defaults *Options) *Options {
-	result := *defaults
-
-	if opts.Input != "" {
-		result.Input = opts.Input
-		result.InputMode = DetectInputMode(opts.Input)
-	}
-	if opts.OutputFile != "" {
-		result.OutputFile = opts.OutputFile
-	}
-	if opts.AgentID != "" {
-		result.AgentID = opts.AgentID
-	}
-	if opts.Connector != "" {
-		result.Connector = opts.Connector
-	}
-	if opts.UserID != "" {
-		result.UserID = opts.UserID
-	}
-	if opts.TeamID != "" {
-		result.TeamID = opts.TeamID
-	}
-	if opts.Locale != "" {
-		result.Locale = opts.Locale
-	}
-	if opts.Timeout > 0 {
-		result.Timeout = opts.Timeout
-	}
-	if opts.Parallel > 0 {
-		result.Parallel = opts.Parallel
-	}
-	if opts.Runs > 0 {
-		result.Runs = opts.Runs
-	}
-	if opts.ReporterID != "" {
-		result.ReporterID = opts.ReporterID
-	}
-	if opts.ContextFile != "" {
-		result.ContextFile = opts.ContextFile
-	}
-	if opts.Run != "" {
-		result.Run = opts.Run
-	}
-	if opts.Verbose {
-		result.Verbose = opts.Verbose
-	}
-	if opts.FailFast {
-		result.FailFast = opts.FailFast
-	}
-	if opts.BeforeAll != "" {
-		result.BeforeAll = opts.BeforeAll
-	}
-	if opts.AfterAll != "" {
-		result.AfterAll = opts.AfterAll
-	}
-	if opts.DryRun {
-		result.DryRun = opts.DryRun
-	}
-	if opts.Simulator != "" {
-		result.Simulator = opts.Simulator
-	}
-	if opts.JSONOutput {
-		result.JSONOutput = opts.JSONOutput
-	}
-
-	return &result
 }
 
 // GenerateDefaultOutputPath generates the default output path based on input file

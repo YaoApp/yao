@@ -14,7 +14,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	v8 "github.com/yaoapp/gou/runtime/v8"
 	"github.com/yaoapp/gou/runtime/v8/bridge"
-	agenttest "github.com/yaoapp/yao/agent/test"
+	agenttest "github.com/yaoapp/yao/agent/eval"
 	"github.com/yaoapp/yao/sui/core"
 )
 
