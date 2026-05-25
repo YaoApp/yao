@@ -157,6 +157,12 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "DB", Error: err})
 	}
 
+	// Detect CLI runners (claude, opencode, tai) before registering the local
+	// node so that localRunners() can use the results for accurate capability
+	// declaration. This is fast (exec.LookPath only) and must run before
+	// tai.InitLocal().
+	inspectRunners()
+
 	// Initialize the Tai registry, register local host node, then start the
 	// Sandbox manager (container recovery + cleanup loop).
 	err = loadStep("Registry", func() error {
@@ -946,6 +952,47 @@ func InspectExtTools() {
 	tools.Docker = inspectDocker()
 
 	share.Tools = tools
+}
+
+// inspectRunners detects CLI runner binaries (claude, opencode, tai) and
+// stores the results in share.Tools.Runners. Called early in Load() before
+// tai.InitLocal() so that localRunners() can consult the results.
+func inspectRunners() {
+	type spec struct {
+		name        string
+		versionArgs []string
+	}
+	specs := []spec{
+		{"claude", []string{"--version"}},
+		{"opencode", []string{"version"}},
+		{"tai", []string{"version"}},
+	}
+
+	if share.Tools == nil {
+		share.Tools = &share.ExtTools{}
+	}
+
+	result := make(map[string]*share.ExtToolInfo, len(specs))
+	for _, s := range specs {
+		info := &share.ExtToolInfo{Name: s.name}
+		p, err := exec.LookPath(s.name)
+		if err != nil {
+			info.Available = false
+			info.Error = s.name + " not found in PATH"
+		} else {
+			info.Available = true
+			info.Path = p
+
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			out, err := exec.CommandContext(ctx, p, s.versionArgs...).Output()
+			cancel()
+			if err == nil {
+				info.Version = strings.TrimSpace(string(out))
+			}
+		}
+		result[s.name] = info
+	}
+	share.Tools.Runners = result
 }
 
 // inspectDocker silently detects Docker availability, version, and host configuration.

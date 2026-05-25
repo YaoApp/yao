@@ -4,6 +4,7 @@ package sandboxv2_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
@@ -81,4 +82,62 @@ func TestLifecycleAction_NilSafe(t *testing.T) {
 	cfg := &types.SandboxConfig{Lifecycle: "oneshot"}
 	sandboxv2.LifecycleAction(context.Background(), cfg, nil, nil)
 	sandboxv2.LifecycleAction(context.Background(), nil, nil, nil)
+}
+
+func TestEnsureHostWorkspace_AutoGeneratesID(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.SandboxConfig{
+		Lifecycle: "longrunning",
+		NodeID:    "local",
+	}
+	identifier := "owner1-ast1."
+
+	wsID, newIdent := sandboxv2.ExportEnsureHostWorkspace(cfg, "owner1", "", identifier)
+
+	if wsID == "" {
+		t.Fatal("expected auto-generated workspace ID, got empty")
+	}
+	if cfg.WorkspaceID != wsID {
+		t.Errorf("cfg.WorkspaceID=%q, want %q", cfg.WorkspaceID, wsID)
+	}
+	wantSuffix := "." + wsID
+	if !strings.HasSuffix(newIdent, wantSuffix) {
+		t.Errorf("identifier=%q should end with %q", newIdent, wantSuffix)
+	}
+	if cfg.ID != newIdent {
+		t.Errorf("cfg.ID=%q, want %q", cfg.ID, newIdent)
+	}
+}
+
+func TestEnsureHostWorkspace_PreservesExplicitID(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.SandboxConfig{
+		Lifecycle: "longrunning",
+		NodeID:    "local",
+	}
+	identifier := "owner1-ast1.my-ws"
+
+	wsID, newIdent := sandboxv2.ExportEnsureHostWorkspace(cfg, "owner1", "my-ws", identifier)
+
+	if wsID != "my-ws" {
+		t.Errorf("expected preserved workspace ID %q, got %q", "my-ws", wsID)
+	}
+	if newIdent != identifier {
+		t.Errorf("identifier should be unchanged: got %q, want %q", newIdent, identifier)
+	}
+}
+
+func TestEnsureHostWorkspace_EmptyNodeSkips(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.SandboxConfig{
+		Lifecycle: "longrunning",
+		NodeID:    "",
+	}
+	identifier := ""
+
+	wsID, _ := sandboxv2.ExportEnsureHostWorkspace(cfg, "owner1", "", identifier)
+
+	if wsID != "" {
+		t.Errorf("expected empty workspace ID when NodeID is empty, got %q", wsID)
+	}
 }

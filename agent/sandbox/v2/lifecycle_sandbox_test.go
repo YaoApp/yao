@@ -68,7 +68,8 @@ func TestGetComputer_BoxCreate(t *testing.T) {
 	meta := map[string]any{"workspace_id": wsID}
 	ctx := makeAgentCtx("team-t1", "", "chat-1", "ast-1", meta)
 
-	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: nodeID, Runner: "claude", Mode: "box", IsLocal: false}
+	computer, identifier, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer: %v", err)
 	}
@@ -110,7 +111,8 @@ func TestGetComputer_BoxReuse(t *testing.T) {
 	meta := map[string]any{"workspace_id": wsID}
 	ctx := makeAgentCtx("team-reuse", "", "chat-reuse", "ast-1", meta)
 
-	computer1, id1, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: nodeID, Runner: "claude", Mode: "box", IsLocal: false}
+	computer1, id1, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("first GetComputer: %v", err)
 	}
@@ -122,7 +124,7 @@ func TestGetComputer_BoxReuse(t *testing.T) {
 		Computer:  types.ComputerConfig{Image: sandboxtest.TestImage()},
 		NodeID:    nodeID,
 	}
-	computer2, id2, err := sandboxv2.GetComputer(ctx, cfg2, m, "claude", "box")
+	computer2, id2, err := sandboxv2.GetComputer(ctx, cfg2, m, sel)
 	if err != nil {
 		t.Fatalf("second GetComputer: %v", err)
 	}
@@ -153,7 +155,8 @@ func TestGetComputer_HostMode(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-host", "", "chat-host", "ast-host", nil)
 
-	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: hostTaiID, Runner: "claude", Mode: "host", IsLocal: false}
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer host: %v", err)
 	}
@@ -186,17 +189,31 @@ func TestGetComputer_AutoPickNode(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-auto", "", "c", "a", nil)
 
-	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	nodes := sandboxv2.BuildNodeSnapshot()
+	if len(nodes) == 0 {
+		t.Fatal("no nodes in snapshot")
+	}
+
+	sel, err := sandboxv2.SelectNode(nodes, &sandboxv2.SelectionCriteria{
+		Preferred: "claude",
+		Allowed:   []string{"claude"},
+		Image:     sandboxtest.TestImage(),
+	})
+	if err != nil {
+		t.Fatalf("SelectNode: %v", err)
+	}
+
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer auto-pick: %v", err)
 	}
 	defer cleanupComputer(t, m, cfg)
 
 	if cfg.NodeID == "" {
-		t.Fatal("expected cfg.NodeID to be populated by auto-pick")
+		t.Fatal("expected cfg.NodeID to be populated")
 	}
 	if computer == nil {
-		t.Fatal("expected non-nil computer from auto-pick")
+		t.Fatal("expected non-nil computer")
 	}
 }
 
@@ -219,7 +236,8 @@ func TestLifecycleAction_Oneshot(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-oneshot", "", "c", "a", map[string]any{"workspace_id": wsID})
 
-	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: nodeID, Runner: "claude", Mode: "box", IsLocal: false}
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer: %v", err)
 	}
@@ -252,7 +270,8 @@ func TestLifecycleAction_Session(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-sess", "", "chat-sess", "ast-sess", map[string]any{"workspace_id": wsID})
 
-	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: nodeID, Runner: "claude", Mode: "box", IsLocal: false}
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer: %v", err)
 	}
@@ -288,7 +307,8 @@ func TestLifecycleAction_StopAndResume(t *testing.T) {
 	}
 	ctx := makeAgentCtx("team-resume", "", "chat-resume", "ast-resume", map[string]any{"workspace_id": wsID})
 
-	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, "claude", "box")
+	sel := &sandboxv2.SelectionResult{NodeID: nodeID, Runner: "claude", Mode: "box", IsLocal: false}
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
 	if err != nil {
 		t.Fatalf("GetComputer: %v", err)
 	}

@@ -109,3 +109,4 @@ unit-test/agent/app/logs/
 file::memory:
 :memory:
 agent/eval/*.md
+workspace/INVESTIGATION-metadata-missing.md

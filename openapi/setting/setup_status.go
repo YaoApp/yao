@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
+	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -256,7 +257,7 @@ func checkSandboxNode(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 		if snap.Mode != "local" && !sandboxNodeOwnedBy(&snap, info) {
 			continue
 		}
-		if snap.Status == "online" && snap.Capabilities.Docker {
+		if snap.Status == "online" && (snap.Capabilities.Docker || snap.Capabilities.HostExec) {
 			cp.Status = "pass"
 			return cp
 		}
@@ -492,6 +493,21 @@ func checkAssistantSandbox(ast *assistant.Assistant, info *oauthTypes.Authorized
 		cp.Label = "沙箱就绪"
 	}
 
+	// Use the unified availability check: if the agent can be selected to a
+	// node (host-mode or box-mode), the sandbox is considered ready.
+	if ast.SandboxV2 != nil {
+		globalRunner := ""
+		if sandboxv2.GlobalRunnerFunc != nil {
+			globalRunner = sandboxv2.GlobalRunnerFunc()
+		}
+		preferred, allowed := sandboxv2.ResolveRunnerSet(nil, &ast.SandboxV2.Runner, globalRunner)
+		avail := sandboxv2.CheckAvailability(nil, allowed, preferred, ast.SandboxV2.Computer.Image, ast.SandboxV2.Filter)
+		if avail.Runnable {
+			cp.Status = "pass"
+			return cp
+		}
+	}
+
 	imageRef := ""
 	if ast.SandboxV2 != nil && ast.SandboxV2.Computer.Image != "" {
 		imageRef = ast.SandboxV2.Computer.Image
@@ -501,6 +517,7 @@ func checkAssistantSandbox(ast *assistant.Assistant, info *oauthTypes.Authorized
 		return cp
 	}
 
+	// Fallback: detailed Docker image check for better error messages.
 	reg := registry.Global()
 	if reg == nil {
 		if isCN {

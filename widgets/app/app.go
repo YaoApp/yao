@@ -608,6 +608,21 @@ func processXgen(process *process.Process) interface{} {
 			}
 			toolsConfig["docker"] = docker
 		}
+
+		if share.Tools.Runners != nil {
+			runnersConfig := map[string]interface{}{}
+			for name, info := range share.Tools.Runners {
+				if info == nil {
+					continue
+				}
+				runnersConfig[name] = map[string]interface{}{
+					"available": info.Available,
+					"name":      info.Name,
+					"version":   info.Version,
+				}
+			}
+			toolsConfig["runners"] = runnersConfig
+		}
 	}
 
 	// OpenAPI Settings

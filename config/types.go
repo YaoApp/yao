@@ -91,7 +91,7 @@ type Runtime struct {
 
 // HostExecConfig controls local host execution capability.
 type HostExecConfig struct {
-	Enabled         bool     `json:"enabled,omitempty" env:"YAO_HOST_EXEC" envDefault:"false"`                         // Enable host execution on local node
+	Enabled         bool     `json:"enabled,omitempty" env:"YAO_HOST_EXEC" envDefault:"true"`                          // Enable host execution on local node
 	FullAccess      bool     `json:"full_access,omitempty" env:"YAO_HOST_EXEC_FULL_ACCESS" envDefault:"false"`         // Bypass command/dir checks
 	AllowedCommands []string `json:"allowed_commands,omitempty" env:"YAO_HOST_EXEC_ALLOWED_COMMANDS" envSeparator:","` // Allowed commands (comma-separated)
 	AllowedDirs     []string `json:"allowed_dirs,omitempty" env:"YAO_HOST_EXEC_ALLOWED_DIRS" envSeparator:","`         // Allowed working directories

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	yaoconfig "github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/tai/hostexec"
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/proxy"
@@ -92,6 +93,21 @@ func DialTunnel(taiID string, reg *registry.Registry, opts ...DialOption) (*Conn
 
 // DialLocal establishes connections to the local host as a Tai node.
 // Docker is probed but not required — when unavailable the node still
+// defaultHostExecCommands returns the runner CLIs that were detected at
+// startup. Called when YAO_HOST_EXEC=true but AllowedCommands is not
+// explicitly configured, so that detected runners can actually execute.
+func defaultHostExecCommands() []string {
+	cmds := []string{"bash", "sh"}
+	for _, name := range []string{"claude", "opencode", "tai"} {
+		if share.Tools != nil && share.Tools.Runners != nil {
+			if info := share.Tools.Runners[name]; info != nil && info.Available {
+				cmds = append(cmds, name)
+			}
+		}
+	}
+	return cmds
+}
+
 // provides Volume (and optionally HostExec) capabilities.
 // Does NOT interact with the registry. Caller must call ConnResources.Close().
 func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, error) {
@@ -110,9 +126,13 @@ func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, 
 	}
 
 	if yaoconfig.Conf.HostExec.Enabled {
+		allowed := yaoconfig.Conf.HostExec.AllowedCommands
+		if len(allowed) == 0 && !yaoconfig.Conf.HostExec.FullAccess {
+			allowed = defaultHostExecCommands()
+		}
 		res.HostExec = hostexec.NewLocalClient(dataDir, hostexec.Policy{
 			FullAccess:      yaoconfig.Conf.HostExec.FullAccess,
-			AllowedCommands: yaoconfig.Conf.HostExec.AllowedCommands,
+			AllowedCommands: allowed,
 			AllowedDirs:     yaoconfig.Conf.HostExec.AllowedDirs,
 			DeniedDirs:      yaoconfig.Conf.HostExec.DeniedDirs,
 		})

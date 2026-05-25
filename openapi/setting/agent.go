@@ -18,7 +18,27 @@ import (
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/setting"
+	"github.com/yaoapp/yao/tools/secret"
 )
+
+func init() {
+	secret.LoadPredefinedFn = func(assistantID string) map[string]secret.PredefinedMeta {
+		ast, err := loadAssistant(assistantID)
+		if err != nil || ast == nil || ast.SandboxV2 == nil || ast.SandboxV2.Secrets == nil {
+			return nil
+		}
+		result := make(map[string]secret.PredefinedMeta, len(ast.SandboxV2.Secrets))
+		for k, entry := range ast.SandboxV2.Secrets {
+			if entry != nil {
+				result[k] = secret.PredefinedMeta{
+					Label:       entry.Label,
+					Description: entry.Description,
+				}
+			}
+		}
+		return result
+	}
+}
 
 var validSecretKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 

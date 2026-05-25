@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	"github.com/yaoapp/yao/tools/proc"
+	"github.com/yaoapp/yao/tools/secret"
 	"github.com/yaoapp/yao/tools/webfetch"
 	"github.com/yaoapp/yao/tools/websearch"
 )
@@ -31,6 +32,9 @@ var mcpImageDSL []byte
 //go:embed mcps/agent.json
 var mcpAgentDSL []byte
 
+//go:embed mcps/secret.json
+var mcpSecretDSL []byte
+
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
 		"web_search":       websearch.Handler,
@@ -48,6 +52,8 @@ func init() {
 		"agent_reference":  agent.ReferenceHandler,
 		"agent_deploy":     agent.DeployHandler,
 		"agent_connectors": agent.ConnectorsHandler,
+		"secret_read":      secret.ReadHandler,
+		"secret_list":      secret.ListHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -61,6 +67,8 @@ func init() {
 	registerMCPServer(mcpAgentDSL, "yao-agent",
 		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.ReferenceSchemaJSON,
 		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON)
+	registerMCPServer(mcpSecretDSL, "yao-secret",
+		secret.ReadSchemaJSON, secret.ListSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

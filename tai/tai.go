@@ -3,6 +3,7 @@ package tai
 import (
 	"io"
 
+	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/tai/volume"
@@ -95,10 +96,7 @@ func RegisterLocal(opts ...Option) bool {
 		return false
 	}
 
-	runners := []string{"yaocode"}
-	if res.Runtime != nil || res.HostExec != nil {
-		runners = append(runners, "claude", "opencode", "tai")
-	}
+	runners := localRunners(res.Runtime != nil, res.HostExec != nil, detectedRunners())
 
 	reg.Register(&registry.TaiNode{
 		TaiID:  "local",
@@ -152,4 +150,36 @@ func GetNodeMeta(taiID string) (*types.NodeMeta, bool) {
 		return nil, false
 	}
 	return reg.Get(taiID)
+}
+
+// localRunners determines the runner list for the local node based on
+// available capabilities. Docker implies all runners (pre-installed in
+// images). HostExec-only declares only runners whose CLI is actually
+// installed (from the detected map). yaocode is always included when any
+// capability exists (built-in fallback).
+func localRunners(hasDocker, hasHostExec bool, detected map[string]bool) []string {
+	if !hasDocker && !hasHostExec {
+		return nil
+	}
+	runners := []string{"yaocode"}
+	for _, name := range []string{"claude", "opencode", "tai"} {
+		if hasDocker || detected[name] {
+			runners = append(runners, name)
+		}
+	}
+	return runners
+}
+
+// detectedRunners builds a quick lookup from share.Tools.Runners.
+func detectedRunners() map[string]bool {
+	m := make(map[string]bool)
+	if share.Tools == nil || share.Tools.Runners == nil {
+		return m
+	}
+	for name, info := range share.Tools.Runners {
+		if info != nil && info.Available {
+			m[name] = true
+		}
+	}
+	return m
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/config"
 )
 
 var (
@@ -94,6 +95,10 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	}
 	env["WORKDIR"] = workDir
 
+	if req.Locale != "" {
+		env["CTX_LOCALE"] = req.Locale
+	}
+
 	assistantID := req.AssistantID
 	prefix := p.PathJoin(workDir, ".yao", "assistants", assistantID, "opencode")
 	if assistantID == "" {
@@ -155,6 +160,14 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		if req.Token.RefreshToken != "" {
 			env["YAO_REFRESH_TOKEN"] = req.Token.RefreshToken
 		}
+	}
+
+	if req.Computer != nil && req.Computer.ComputerInfo().Kind == "host" {
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
+		}
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%d", port)
 	}
 
 	return env

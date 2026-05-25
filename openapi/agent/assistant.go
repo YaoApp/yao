@@ -283,6 +283,14 @@ func GetAssistant(c *gin.Context) {
 	FilterBuiltInAssistant(assistant)
 	resp := AssistantToResponse(assistant, hasSandbox, authInfo)
 
+	if hasSandbox {
+		avail := computeAvailability(assistantID, nil)
+		resp["runnable"] = avail.Runnable
+		resp["run_hint"] = avail.Reason
+	} else {
+		resp["runnable"] = true
+	}
+
 	// Return the result with standard response format
 	response.RespondWithSuccess(c, response.StatusOK, resp)
 }

@@ -155,17 +155,22 @@ var ExportSupportsProtocol = supportsProtocol
 
 type FakeComputer struct {
 	WorkDirVal string
+	Kind       string
 }
 
 func NewFakeComputer(workDir string) *FakeComputer {
 	return &FakeComputer{WorkDirVal: workDir}
 }
 
+func NewFakeHostComputer(workDir string) *FakeComputer {
+	return &FakeComputer{WorkDirVal: workDir, Kind: "host"}
+}
+
 func (f *FakeComputer) GetWorkDir() string      { return f.WorkDirVal }
 func (f *FakeComputer) BindWorkplace(string)    {}
 func (f *FakeComputer) Workplace() workspace.FS { return nil }
 func (f *FakeComputer) ComputerInfo() infra.ComputerInfo {
-	return infra.ComputerInfo{System: infra.SystemInfo{OS: "linux", Shell: "bash"}}
+	return infra.ComputerInfo{Kind: f.Kind, System: infra.SystemInfo{OS: "linux", Shell: "bash"}}
 }
 func (f *FakeComputer) Exec(_ context.Context, _ []string, _ ...infra.ExecOption) (*infra.ExecResult, error) {
 	return &infra.ExecResult{}, nil

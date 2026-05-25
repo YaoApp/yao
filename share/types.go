@@ -176,12 +176,13 @@ type DockerInfo struct {
 // ExtTools holds the detection results for all external tools.
 // Populated during engine.Load() and exposed via utils.app.Inspect.
 type ExtTools struct {
-	FFmpeg      *ExtToolInfo `json:"ffmpeg"`
-	FFprobe     *ExtToolInfo `json:"ffprobe"`
-	Pdftoppm    *ExtToolInfo `json:"pdftoppm"`
-	Mutool      *ExtToolInfo `json:"mutool"`
-	ImageMagick *ExtToolInfo `json:"imagemagick"`
-	Docker      *DockerInfo  `json:"docker"`
+	FFmpeg      *ExtToolInfo            `json:"ffmpeg"`
+	FFprobe     *ExtToolInfo            `json:"ffprobe"`
+	Pdftoppm    *ExtToolInfo            `json:"pdftoppm"`
+	Mutool      *ExtToolInfo            `json:"mutool"`
+	ImageMagick *ExtToolInfo            `json:"imagemagick"`
+	Docker      *DockerInfo             `json:"docker"`
+	Runners     map[string]*ExtToolInfo `json:"runners,omitempty"`
 }
 
 // Tools holds the global external tool detection results.
