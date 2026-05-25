@@ -274,6 +274,8 @@ jobs:
           YAO_AGENT_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           YAO_TEST_APPLICATION: ${{ github.workspace }}/unit-test/agent/app
           MOCK_LLM_PORT: "6920"
+          SANDBOX_TEST_IMAGE: yaoapp/tai-sandbox-base:latest
+          DOCKER_HOST: tcp://127.0.0.1:2375
         run: |
           mkdir -p .build/coverage
           PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
