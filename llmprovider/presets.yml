@@ -489,52 +489,6 @@
       capabilities: [image_generation]
       enabled: false
 
-# ─── DeepSeek (OpenAI) ──────────────────────────────────
-- key: deepseek
-  name: DeepSeek
-  type: openai
-  api_url: https://api.deepseek.com
-  require_key: true
-  default_models:
-    - id: deepseek-v4-pro
-      name: DeepSeek V4 Pro
-      max_input_tokens: 1048576
-      max_output_tokens: 384000
-      capabilities: [tool_calls, streaming, json]
-      options:
-        thinking:
-          type: disabled
-      enabled: false
-    - id: deepseek-v4-pro-thinking
-      model: deepseek-v4-pro
-      name: DeepSeek V4 Pro Thinking
-      max_input_tokens: 1048576
-      max_output_tokens: 384000
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        thinking:
-          type: enabled
-      enabled: true
-    - id: deepseek-v4-flash
-      name: DeepSeek V4 Flash
-      max_input_tokens: 1048576
-      max_output_tokens: 384000
-      capabilities: [tool_calls, streaming, json]
-      options:
-        thinking:
-          type: disabled
-      enabled: true
-    - id: deepseek-v4-flash-thinking
-      model: deepseek-v4-flash
-      name: DeepSeek V4 Flash Thinking
-      max_input_tokens: 1048576
-      max_output_tokens: 384000
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        thinking:
-          type: enabled
-      enabled: false
-
 # ─── DeepSeek (Anthropic) ───────────────────────────────
 - key: deepseek_anthropic
   name: DeepSeek (Anthropic)
@@ -581,6 +535,52 @@
         thinking:
           type: enabled
           budget_tokens: 32000
+      enabled: false
+
+# ─── DeepSeek (OpenAI) ──────────────────────────────────
+- key: deepseek
+  name: DeepSeek (OpenAI)
+  type: openai
+  api_url: https://api.deepseek.com
+  require_key: true
+  default_models:
+    - id: deepseek-v4-pro
+      name: DeepSeek V4 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: deepseek-v4-pro-thinking
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+      enabled: true
+    - id: deepseek-v4-flash
+      name: DeepSeek V4 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: deepseek-v4-flash-thinking
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
       enabled: false
 
 # ─── Kimi / Moonshot (International) ────────────────────
