@@ -232,6 +232,9 @@ func waitForTunnelNodes(t *testing.T, reg *registry.Registry, timeout time.Durat
 			if n.Status != "online" {
 				continue
 			}
+			if n.Mode == "local" {
+				continue
+			}
 			raw, ok := reg.GetResources(n.TaiID)
 			if !ok || raw == nil {
 				continue
