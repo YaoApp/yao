@@ -339,3 +339,43 @@ func TestLifecycleAction_StopAndResume(t *testing.T) {
 		t.Fatalf("exit code %d after resume", res.ExitCode)
 	}
 }
+
+func TestSandbox_E2E_SelectAndGetComputer(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+	sandboxtest.RequireDocker(t)
+
+	m := sandbox.M()
+	nodeID := sandboxtest.TaiIDFromAddr(sandboxtest.TestLocalAddr())
+	sandboxtest.EnsureImage(t, m, nodeID)
+
+	nodes := sandboxv2.BuildNodeSnapshot()
+	sel, err := sandboxv2.SelectNode(nodes, &sandboxv2.SelectionCriteria{
+		Preferred: "claude",
+		Allowed:   []string{"claude", "opencode"},
+		Image:     sandboxtest.TestImage(),
+	})
+	if err != nil {
+		t.Fatalf("SelectNode: %v", err)
+	}
+
+	cfg := &types.SandboxConfig{
+		Version:   "2.0",
+		Lifecycle: "oneshot",
+		Computer:  types.ComputerConfig{Image: sandboxtest.TestImage()},
+	}
+	ctx := makeAgentCtx("team-int", "", "c-int", "a-int", nil)
+
+	computer, _, err := sandboxv2.GetComputer(ctx, cfg, m, sel)
+	if err != nil {
+		t.Fatalf("GetComputer: %v", err)
+	}
+	defer cleanupComputer(t, m, cfg)
+
+	if computer == nil {
+		t.Fatal("computer should not be nil")
+	}
+	info := computer.ComputerInfo()
+	if info.Kind == "" {
+		t.Error("ComputerInfo.Kind should not be empty")
+	}
+}
