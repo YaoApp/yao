@@ -422,13 +422,23 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	// Start Robot Agent System (async, non-blocking)
 	// This starts the robot scheduler for autonomous mode robots
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("[Robot Agent] Warning: recovered panic in robot agent system: %v", r)
+			}
+		}()
 		if err := robotapi.Start(); err != nil {
-			// Log warning but don't block application startup
-			// The robot system can operate without the manager running
-			// (API calls will fall back to direct database queries)
 			log.Printf("[Robot Agent] Warning: failed to start robot agent system: %v", err)
 		}
 	}()
+
+	// Register cleanup hook so test.Clean() can stop background goroutines
+	// before closing the database, preventing "sql: database is closed" panics.
+	share.OnCleanup = func() {
+		if robotapi.IsRunning() {
+			robotapi.Stop()
+		}
+	}
 
 	// Initialize LLM Provider Registry
 	err = loadStep("LLM Provider", func() error {

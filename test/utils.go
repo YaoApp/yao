@@ -503,6 +503,9 @@ func Prepare(t *testing.T, cfg config.Config, opts ...interface{}) {
 // Clean the test environment
 func Clean() {
 	event.Stop(context.Background())
+	if share.OnCleanup != nil {
+		share.OnCleanup()
+	}
 	dbclose()
 	runtime.Stop()
 
@@ -538,6 +541,9 @@ func Stop() {
 		<-testServer.Event()
 	}
 
+	if share.OnCleanup != nil {
+		share.OnCleanup()
+	}
 	dbclose()
 	runtime.Stop()
 }

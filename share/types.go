@@ -187,3 +187,8 @@ type ExtTools struct {
 
 // Tools holds the global external tool detection results.
 var Tools *ExtTools
+
+// OnCleanup is called by test.Clean() before closing the database.
+// engine.Load() sets this to stop background goroutines (e.g. robotapi)
+// that would panic if the DB is closed while they are still running.
+var OnCleanup func()
