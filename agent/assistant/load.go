@@ -221,9 +221,10 @@ func LoadStore(id string) (*Assistant, error) {
 		return nil, fmt.Errorf("assistant_id is required")
 	}
 
-	assistant, exists := loaded.Get(id)
-	if exists {
-		return assistant, nil
+	if loaded != nil {
+		if a, exists := loaded.Get(id); exists {
+			return a, nil
+		}
 	}
 
 	if storage == nil {
@@ -238,34 +239,38 @@ func LoadStore(id string) (*Assistant, error) {
 
 	// Load from path
 	if storeModel.Path != "" {
-		assistant, err = LoadPath(storeModel.Path)
+		ast, err := LoadPath(storeModel.Path)
 		if err != nil {
 			return nil, err
 		}
-		loaded.Put(assistant)
-		return assistant, nil
+		if loaded != nil {
+			loaded.Put(ast)
+		}
+		return ast, nil
 	}
 
 	// Create assistant from store model
-	assistant = &Assistant{AssistantModel: *storeModel}
+	ast := &Assistant{AssistantModel: *storeModel}
 
 	// Load script from source field if present
-	if assistant.Source != "" {
-		script, err := loadSource(assistant.Source, assistant.ID)
+	if ast.Source != "" {
+		script, err := loadSource(ast.Source, ast.ID)
 		if err != nil {
 			return nil, err
 		}
-		assistant.HookScript = script
+		ast.HookScript = script
 	}
 
 	// Initialize the assistant
-	err = assistant.initialize()
+	err = ast.initialize()
 	if err != nil {
 		return nil, err
 	}
 
-	loaded.Put(assistant)
-	return assistant, nil
+	if loaded != nil {
+		loaded.Put(ast)
+	}
+	return ast, nil
 }
 
 // loadPackage loads and parses the package.yao file

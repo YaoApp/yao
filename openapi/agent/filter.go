@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/dbal/query"
+	assistantPkg "github.com/yaoapp/yao/agent/assistant"
 	agenttypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
@@ -237,7 +238,12 @@ func AssistantsToResponse(assistants []*agenttypes.AssistantModel, identity llmp
 
 	result := make([]map[string]interface{}, 0, len(assistants))
 	for _, a := range assistants {
-		hasSandbox := a.Sandbox != nil || a.IsSandbox
+		hasSandbox := a.Sandbox != nil
+		if !hasSandbox {
+			if ast, err := assistantPkg.Get(a.ID); err == nil && ast != nil && ast.IsSandbox {
+				hasSandbox = true
+			}
+		}
 		FilterBuiltInAssistant(a)
 		result = append(result, AssistantToResponse(a, hasSandbox, identity))
 	}

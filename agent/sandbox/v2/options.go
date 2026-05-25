@@ -114,8 +114,10 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		for k, v := range cfg.Environment {
 			opts.Env[k] = str.EnvVar(v)
 		}
-		for k, v := range cfg.Secrets {
-			opts.Env[k] = str.EnvVar(v)
+		for k, entry := range cfg.Secrets {
+			if entry != nil && entry.Value != "" {
+				opts.Env[k] = str.EnvVar(entry.Value)
+			}
 		}
 	}
 

@@ -208,7 +208,7 @@ func TestSandboxConfig_FullParse(t *testing.T) {
 	if len(cfg.Computer.Ports) != 1 {
 		t.Errorf("Ports: got %d", len(cfg.Computer.Ports))
 	}
-	if cfg.Secrets["API_KEY"] != "secret123" {
+	if cfg.Secrets["API_KEY"] == nil || cfg.Secrets["API_KEY"].Value != "secret123" {
 		t.Errorf("Secrets: got %v", cfg.Secrets)
 	}
 }

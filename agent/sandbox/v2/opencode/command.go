@@ -141,8 +141,10 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	injectRoleEnvVars(env, req)
 
 	if req.Config != nil && len(req.Config.Secrets) > 0 {
-		for k, v := range req.Config.Secrets {
-			env[k] = str.EnvVar(v)
+		for k, entry := range req.Config.Secrets {
+			if entry != nil && entry.Value != "" {
+				env[k] = str.EnvVar(entry.Value)
+			}
 		}
 	}
 
