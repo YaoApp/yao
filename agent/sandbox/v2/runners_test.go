@@ -7,6 +7,7 @@ import (
 
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/share"
 	taitypes "github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
@@ -132,6 +133,16 @@ func TestInferRunners_K8s(t *testing.T) {
 }
 
 func TestInferRunners_HostExec(t *testing.T) {
+	prev := share.Tools
+	share.Tools = &share.ExtTools{
+		Runners: map[string]*share.ExtToolInfo{
+			"tai":      {Name: "tai", Available: true},
+			"claude":   {Name: "claude", Available: true},
+			"opencode": {Name: "opencode", Available: true},
+		},
+	}
+	defer func() { share.Tools = prev }()
+
 	node := taitypes.NodeMeta{
 		Mode:         "tunnel",
 		Capabilities: taitypes.Capabilities{HostExec: true},
