@@ -327,7 +327,7 @@ func TestBuildEnv_Token(t *testing.T) {
 
 func TestBuildEnv_Secrets(t *testing.T) {
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{Secrets: map[string]string{"MY_SECRET": "secret_val"}},
+		Config: &types.SandboxConfig{Secrets: map[string]*types.SecretEntry{"MY_SECRET": {Value: "secret_val"}}},
 	}
 	req.Computer = claude.NewFakeComputer("/workspace")
 	env := claude.ExportBuildEnv(req, testPlatform())

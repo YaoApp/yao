@@ -156,7 +156,7 @@ func TestBuildCreateOptions_Ports(t *testing.T) {
 func TestBuildCreateOptions_EnvMerge(t *testing.T) {
 	cfg := &types.SandboxConfig{
 		Environment: map[string]string{"A": "1", "B": "2"},
-		Secrets:     map[string]string{"B": "secret", "C": "3"},
+		Secrets:     map[string]*types.SecretEntry{"B": {Value: "secret"}, "C": {Value: "3"}},
 	}
 	opts, err := sandboxv2.BuildCreateOptions(cfg, "id", "owner", "")
 	if err != nil {
