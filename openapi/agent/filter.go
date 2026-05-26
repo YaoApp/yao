@@ -7,6 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/xun/dbal/query"
+	assistantPkg "github.com/yaoapp/yao/agent/assistant"
+	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	agenttypes "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
@@ -230,16 +232,53 @@ func AssistantToResponse(assistant *agenttypes.AssistantModel, hasSandbox bool, 
 // AssistantsToResponse converts a slice of AssistantModel to response maps,
 // replacing sandbox with a boolean for each assistant.
 // Captures sandbox state before filtering, then applies FilterBuiltInAssistant.
+// For sandbox agents it also attaches the computed "runnable" / "run_hint" fields.
 func AssistantsToResponse(assistants []*agenttypes.AssistantModel, identity llmprovider.Identity) []map[string]interface{} {
 	if assistants == nil {
 		return nil
 	}
 
+	nodes := sandboxv2.BuildNodeSnapshot()
+
 	result := make([]map[string]interface{}, 0, len(assistants))
 	for _, a := range assistants {
-		hasSandbox := a.Sandbox != nil || a.IsSandbox
+		hasSandbox := a.Sandbox != nil
+		if !hasSandbox {
+			if ast, err := assistantPkg.Get(a.ID); err == nil && ast != nil && ast.IsSandbox {
+				hasSandbox = true
+			}
+		}
 		FilterBuiltInAssistant(a)
-		result = append(result, AssistantToResponse(a, hasSandbox, identity))
+		resp := AssistantToResponse(a, hasSandbox, identity)
+		if resp == nil {
+			continue
+		}
+		if hasSandbox {
+			avail := computeAvailability(a.ID, nodes)
+			resp["runnable"] = avail.Runnable
+			resp["run_hint"] = avail.Reason
+		} else {
+			resp["runnable"] = true
+		}
+		result = append(result, resp)
 	}
 	return result
+}
+
+// computeAvailability loads the runtime assistant instance and runs
+// CheckAvailability against the pre-built node snapshot.
+func computeAvailability(id string, nodes []sandboxv2.NodeCandidate) *sandboxv2.AvailabilityResult {
+	ast, err := assistantPkg.Get(id)
+	if err != nil || ast == nil || ast.SandboxV2 == nil {
+		return &sandboxv2.AvailabilityResult{Runnable: true}
+	}
+
+	cfg := ast.SandboxV2
+	globalRunner := ""
+	if sandboxv2.GlobalRunnerFunc != nil {
+		globalRunner = sandboxv2.GlobalRunnerFunc()
+	}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, &cfg.Runner, globalRunner)
+
+	return sandboxv2.CheckAvailability(nodes, allowed, preferred, cfg.Computer.Image, cfg.Filter)
 }

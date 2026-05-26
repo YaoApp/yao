@@ -3,7 +3,10 @@ package sandboxv2
 import (
 	"strings"
 
+	"github.com/yaoapp/yao/share"
 	taitypes "github.com/yaoapp/yao/tai/types"
+
+	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 )
 
 // SupportedRunners lists all product-level runner names.
@@ -47,6 +50,58 @@ func containsRunner(list []string, name string) bool {
 	return false
 }
 
+// ResolveRunnerSet returns the preferred runner and the full set of allowed
+// runners for a sandbox session. It replaces ResolveRunner in initSandboxV2
+// to support multi-runner node selection with fallback.
+//
+// Priority for preferred: runnerCfg.Name > globalRunner > allowed[0].
+// "use::default" at any level is treated as unset.
+func ResolveRunnerSet(userRunners []string, runnerCfg *types.RunnerConfig, globalRunner string) (preferred string, allowed []string) {
+	// 1. Determine the supports range from the DSL
+	var supports []string
+	if runnerCfg != nil && len(runnerCfg.Supports) > 0 {
+		supports = runnerCfg.Supports
+	} else {
+		supports = SupportedRunners
+	}
+
+	// 2. Compute allowed = intersection(supports, userRunners)
+	if len(userRunners) == 0 {
+		allowed = make([]string, len(supports))
+		copy(allowed, supports)
+	} else {
+		for _, u := range userRunners {
+			cu := canonicalRunner(u)
+			if containsRunner(supports, cu) {
+				allowed = append(allowed, cu)
+			}
+		}
+		if len(allowed) == 0 {
+			allowed = make([]string, len(supports))
+			copy(allowed, supports)
+		}
+	}
+
+	// 3. Determine preferred
+	if runnerCfg != nil && runnerCfg.Name != "" && runnerCfg.Name != "use::default" {
+		c := canonicalRunner(runnerCfg.Name)
+		if containsRunner(allowed, c) {
+			preferred = c
+		}
+	}
+	if preferred == "" && globalRunner != "" && globalRunner != "use::default" {
+		c := canonicalRunner(globalRunner)
+		if containsRunner(allowed, c) {
+			preferred = c
+		}
+	}
+	if preferred == "" && len(allowed) > 0 {
+		preferred = allowed[0]
+	}
+
+	return preferred, allowed
+}
+
 // InferRunners guesses the supported runners for a legacy node that has no
 // Runners field (pre-upgrade Tai nodes). The heuristic:
 //   - local node → ["yaocode"]
@@ -76,8 +131,21 @@ func InferRunners(node taitypes.NodeMeta, image string) []string {
 			runners = append(runners, "claude", "opencode")
 		}
 	} else if node.Capabilities.HostExec {
-		runners = append(runners, "tai", "claude", "opencode")
+		for _, name := range []string{"tai", "claude", "opencode"} {
+			if runnerDetected(name) {
+				runners = append(runners, name)
+			}
+		}
 	}
 
 	return runners
+}
+
+// runnerDetected checks share.Tools.Runners for actual CLI installation.
+func runnerDetected(name string) bool {
+	if share.Tools == nil || share.Tools.Runners == nil {
+		return false
+	}
+	info := share.Tools.Runners[name]
+	return info != nil && info.Available
 }

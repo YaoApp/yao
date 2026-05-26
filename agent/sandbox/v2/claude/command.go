@@ -18,6 +18,7 @@ import (
 	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/config"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
@@ -212,8 +213,10 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	}
 
 	if req.Config != nil && len(req.Config.Secrets) > 0 {
-		for k, v := range req.Config.Secrets {
-			env[k] = str.EnvVar(v)
+		for k, entry := range req.Config.Secrets {
+			if entry != nil && entry.Value != "" {
+				env[k] = str.EnvVar(entry.Value)
+			}
 		}
 	}
 
@@ -224,6 +227,14 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		if req.Token.RefreshToken != "" {
 			env["YAO_REFRESH_TOKEN"] = req.Token.RefreshToken
 		}
+	}
+
+	if req.Computer != nil && req.Computer.ComputerInfo().Kind == "host" {
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
+		}
+		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%d", port)
 	}
 
 	logger := req.Logger

@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -167,7 +168,8 @@ func (r *Registry) Get(taiID string) (*types.NodeMeta, bool) {
 	return &m, true
 }
 
-// List returns metadata of all registered Tai nodes.
+// List returns metadata of all registered Tai nodes, sorted by TaiID
+// for deterministic iteration order (Go maps are unordered).
 func (r *Registry) List() []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -175,6 +177,9 @@ func (r *Registry) List() []types.NodeMeta {
 	for _, n := range r.nodes {
 		result = append(result, n.meta())
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].TaiID < result[j].TaiID
+	})
 	return result
 }
 
@@ -269,7 +274,8 @@ func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
 	return ""
 }
 
-// ListByTeam returns metadata of all nodes belonging to the given team.
+// ListByTeam returns metadata of all nodes belonging to the given team,
+// sorted by TaiID for deterministic order.
 func (r *Registry) ListByTeam(teamID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -279,11 +285,14 @@ func (r *Registry) ListByTeam(teamID string) []types.NodeMeta {
 			result = append(result, n.meta())
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].TaiID < result[j].TaiID
+	})
 	return result
 }
 
 // ListByUser returns metadata of all nodes registered by the given user
-// that are NOT associated with any team.
+// that are NOT associated with any team. Sorted by TaiID for deterministic order.
 func (r *Registry) ListByUser(userID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -293,6 +302,9 @@ func (r *Registry) ListByUser(userID string) []types.NodeMeta {
 			result = append(result, n.meta())
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].TaiID < result[j].TaiID
+	})
 	return result
 }
 

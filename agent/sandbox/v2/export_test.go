@@ -40,3 +40,12 @@ func ExportGetToken(teamID, userID string) *types.SandboxToken {
 
 // ExportParseMemory exposes parseMemory for testing.
 var ExportParseMemory = parseMemory
+
+// ExportPickRunnerOnNode exposes pickRunnerOnNode for testing.
+var ExportPickRunnerOnNode = pickRunnerOnNode
+
+// ExportResolveMode exposes resolveMode for testing.
+var ExportResolveMode = resolveMode
+
+// ExportEnsureHostWorkspace exposes ensureHostWorkspace for testing.
+var ExportEnsureHostWorkspace = ensureHostWorkspace

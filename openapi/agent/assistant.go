@@ -272,9 +272,24 @@ func GetAssistant(c *gin.Context) {
 	}
 
 	// Convert sandbox to boolean and filter built-in sensitive fields
+	// DB model only has V1 Sandbox; V2 sandbox (sandbox.yao) is runtime-only.
+	// Supplement with runtime state from the assistant cache.
 	hasSandbox := assistant.Sandbox != nil
+	if !hasSandbox {
+		if ast, err := assistantPkg.Get(assistantID); err == nil && ast != nil && ast.IsSandbox {
+			hasSandbox = true
+		}
+	}
 	FilterBuiltInAssistant(assistant)
 	resp := AssistantToResponse(assistant, hasSandbox, authInfo)
+
+	if hasSandbox {
+		avail := computeAvailability(assistantID, nil)
+		resp["runnable"] = avail.Runnable
+		resp["run_hint"] = avail.Reason
+	} else {
+		resp["runnable"] = true
+	}
 
 	// Return the result with standard response format
 	response.RespondWithSuccess(c, response.StatusOK, resp)

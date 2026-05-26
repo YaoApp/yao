@@ -325,9 +325,35 @@ func TestBuildEnv_Token(t *testing.T) {
 	}
 }
 
+func TestBuildEnv_GRPCAddr_HostMode(t *testing.T) {
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{},
+		Token:  &types.SandboxToken{Token: "tok123", RefreshToken: "ref456"},
+	}
+	req.Computer = claude.NewFakeHostComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["YAO_GRPC_ADDR"] == "" {
+		t.Fatal("expected YAO_GRPC_ADDR to be set for host mode")
+	}
+	if !strings.HasPrefix(env["YAO_GRPC_ADDR"], "127.0.0.1:") {
+		t.Errorf("YAO_GRPC_ADDR = %q, want 127.0.0.1:<port>", env["YAO_GRPC_ADDR"])
+	}
+}
+
+func TestBuildEnv_GRPCAddr_BoxMode(t *testing.T) {
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{},
+	}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["YAO_GRPC_ADDR"] != "" {
+		t.Errorf("expected YAO_GRPC_ADDR to be empty for non-host mode, got %q", env["YAO_GRPC_ADDR"])
+	}
+}
+
 func TestBuildEnv_Secrets(t *testing.T) {
 	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{Secrets: map[string]string{"MY_SECRET": "secret_val"}},
+		Config: &types.SandboxConfig{Secrets: map[string]*types.SecretEntry{"MY_SECRET": {Value: "secret_val"}}},
 	}
 	req.Computer = claude.NewFakeComputer("/workspace")
 	env := claude.ExportBuildEnv(req, testPlatform())

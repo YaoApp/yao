@@ -91,41 +91,32 @@ func RequireHostExec(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // DockerNodeID returns the TaiID of the first Docker-capable node.
+// Prefers tunnel/direct nodes over local (delegates to FindNodeWithCaps).
 func DockerNodeID(t *testing.T) string {
 	t.Helper()
-	reg := registry.Global()
-	if reg == nil {
-		t.Fatal("sandboxtest.DockerNodeID: registry not initialized")
+	id, ok := FindNodeWithCaps(true, false)
+	if !ok {
+		t.Fatal("sandboxtest.DockerNodeID: no Docker-capable node")
 	}
-	for _, n := range reg.List() {
-		if n.Capabilities.Docker {
-			return n.TaiID
-		}
-	}
-	t.Fatal("sandboxtest.DockerNodeID: no Docker-capable node")
-	return ""
+	return id
 }
 
 // HostExecNodeID returns the TaiID of the first HostExec-capable node.
+// Prefers tunnel/direct nodes over local (delegates to FindNodeWithCaps).
 func HostExecNodeID(t *testing.T) string {
 	t.Helper()
-	reg := registry.Global()
-	if reg == nil {
-		t.Fatal("sandboxtest.HostExecNodeID: registry not initialized")
+	id, ok := FindNodeWithCaps(false, true)
+	if !ok {
+		t.Fatal("sandboxtest.HostExecNodeID: no HostExec-capable node")
 	}
-	for _, n := range reg.List() {
-		if n.Capabilities.HostExec {
-			return n.TaiID
-		}
-	}
-	t.Fatal("sandboxtest.HostExecNodeID: no HostExec-capable node")
-	return ""
+	return id
 }
 
 // ---------------------------------------------------------------------------
 // Sandbox stack initialization (called by testprepare.PrepareSandbox)
 //
 // InitStack manages the full Tai lifecycle within the test process:
+//  0. Register local host node (mirrors tai.InitLocal in engine.Load)
 //  1. Build tai binary from source (cached)
 //  2. Generate credentials with proper JWT (via oauth.OAuth.MakeAccessToken)
 //  3. Start two tai sub-processes via os/exec (Docker + HostExec)
@@ -144,6 +135,21 @@ func InitStack(t *testing.T, yaoSrcRoot string, grpcPort int) {
 	if grpcPort == 0 {
 		t.Fatal("sandboxtest.InitStack: gRPC port is 0 (server not started?)")
 	}
+
+	// Step 0: register the local host node — mirrors tai.InitLocal() in
+	// engine.Load(). Production Yao always has a "local" node (itself); the
+	// test process must do the same so that BuildNodeSnapshot includes it.
+	localDataDir, err := os.MkdirTemp("", "sandboxtest-local-*")
+	if err != nil {
+		t.Fatalf("sandboxtest.InitStack: create local data dir: %v", err)
+	}
+	registerGlobalCleanup(func() {
+		if r := registry.Global(); r != nil {
+			r.Unregister("local")
+		}
+		os.RemoveAll(localDataDir)
+	})
+	tai.RegisterLocal(tai.WithDataDir(localDataDir))
 
 	grpcAddr := fmt.Sprintf("127.0.0.1:%d", grpcPort)
 
@@ -224,6 +230,9 @@ func waitForTunnelNodes(t *testing.T, reg *registry.Registry, timeout time.Durat
 		var readyCount int
 		for _, n := range reg.List() {
 			if n.Status != "online" {
+				continue
+			}
+			if n.Mode == "local" {
 				continue
 			}
 			raw, ok := reg.GetResources(n.TaiID)
@@ -404,22 +413,38 @@ func TranslateCmd(isWinNative bool, cmd string, args ...string) (string, []strin
 // ---------------------------------------------------------------------------
 
 // FindNodeWithCaps finds the first node matching the given capabilities.
+// It prefers tunnel/direct nodes over the local node so that sandbox tests
+// exercise the tunnel code path when both are available.
 func FindNodeWithCaps(docker, hostExec bool) (string, bool) {
 	reg := registry.Global()
 	if reg == nil {
 		return "", false
 	}
-	for _, n := range reg.List() {
+	nodes := reg.List()
+	match := func(n *types.NodeMeta) bool {
 		if docker && !n.Capabilities.Docker {
-			continue
+			return false
 		}
 		if hostExec && !n.Capabilities.HostExec {
-			continue
+			return false
 		}
 		if _, ok := reg.GetResources(n.TaiID); !ok {
+			return false
+		}
+		return true
+	}
+	for i := range nodes {
+		if nodes[i].Mode == "local" {
 			continue
 		}
-		return n.TaiID, true
+		if match(&nodes[i]) {
+			return nodes[i].TaiID, true
+		}
+	}
+	for i := range nodes {
+		if match(&nodes[i]) {
+			return nodes[i].TaiID, true
+		}
 	}
 	return "", false
 }

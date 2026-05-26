@@ -6,7 +6,10 @@ import (
 	"testing"
 
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
+	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/share"
 	taitypes "github.com/yaoapp/yao/tai/types"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
 func TestCanonicalRunner(t *testing.T) {
@@ -112,12 +115,34 @@ func TestInferRunners_K8s(t *testing.T) {
 		Capabilities: taitypes.Capabilities{K8s: true},
 	}
 	runners := sandboxv2.InferRunners(node, "")
-	if len(runners) < 2 {
-		t.Errorf("k8s: got %v", runners)
+	if len(runners) != 3 {
+		t.Errorf("k8s: expected 3 runners, got %v", runners)
+	}
+	for _, expected := range []string{"tai", "claude", "opencode"} {
+		found := false
+		for _, r := range runners {
+			if r == expected {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("k8s: missing %q in %v", expected, runners)
+		}
 	}
 }
 
 func TestInferRunners_HostExec(t *testing.T) {
+	prev := share.Tools
+	share.Tools = &share.ExtTools{
+		Runners: map[string]*share.ExtToolInfo{
+			"tai":      {Name: "tai", Available: true},
+			"claude":   {Name: "claude", Available: true},
+			"opencode": {Name: "opencode", Available: true},
+		},
+	}
+	defer func() { share.Tools = prev }()
+
 	node := taitypes.NodeMeta{
 		Mode:         "tunnel",
 		Capabilities: taitypes.Capabilities{HostExec: true},
@@ -139,5 +164,115 @@ func TestInferRunners_NoCapabilities(t *testing.T) {
 	runners := sandboxv2.InferRunners(node, "")
 	if len(runners) != 0 {
 		t.Errorf("no capabilities: got %v, want empty", runners)
+	}
+}
+
+// --- ResolveRunnerSet tests ---
+
+func TestResolveRunnerSet_R1_AllAuto(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, cfg, "")
+	if preferred != "claude" {
+		t.Errorf("preferred = %q, want claude", preferred)
+	}
+	if len(allowed) != 2 || allowed[0] != "claude" || allowed[1] != "opencode" {
+		t.Errorf("allowed = %v, want [claude opencode]", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R2_UserPick(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet([]string{"opencode"}, cfg, "")
+	if preferred != "opencode" {
+		t.Errorf("preferred = %q, want opencode", preferred)
+	}
+	if len(allowed) != 1 || allowed[0] != "opencode" {
+		t.Errorf("allowed = %v, want [opencode]", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R3_DSLOverride(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Name: "claude", Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, cfg, "")
+	if preferred != "claude" {
+		t.Errorf("preferred = %q, want claude", preferred)
+	}
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want 2 items", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R4_GlobalFallback(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, cfg, "opencode")
+	if preferred != "opencode" {
+		t.Errorf("preferred = %q, want opencode", preferred)
+	}
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want 2 items", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R5_DSL_in_Allowed(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Name: "claude", Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet([]string{"claude", "opencode"}, cfg, "opencode")
+	if preferred != "claude" {
+		t.Errorf("preferred = %q, want claude (DSL > global when both in allowed)", preferred)
+	}
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want 2 items", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R5b_DSL_not_in_Allowed(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Name: "claude", Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet([]string{"opencode"}, cfg, "opencode")
+	if preferred != "opencode" {
+		t.Errorf("preferred = %q, want opencode (DSL claude not in user-allowed set)", preferred)
+	}
+	if len(allowed) != 1 || allowed[0] != "opencode" {
+		t.Errorf("allowed = %v, want [opencode]", allowed)
+	}
+}
+
+func TestResolveRunnerSet_R6_EmptyIntersection(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet([]string{"tai"}, cfg, "")
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want fallback to supports [claude opencode]", allowed)
+	}
+	if preferred != "claude" {
+		t.Errorf("preferred = %q, want claude (first of supports)", preferred)
+	}
+}
+
+func TestResolveRunnerSet_UseDefault_Ignored(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{Name: "use::default", Supports: []string{"claude", "opencode"}}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, cfg, "use::default")
+	if preferred != "claude" {
+		t.Errorf("preferred = %q, want claude (use::default ignored)", preferred)
+	}
+	if len(allowed) != 2 {
+		t.Errorf("allowed = %v, want [claude opencode]", allowed)
+	}
+}
+
+func TestResolveRunnerSet_EmptySupports(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	cfg := &types.RunnerConfig{}
+	preferred, allowed := sandboxv2.ResolveRunnerSet(nil, cfg, "")
+	if len(allowed) != len(sandboxv2.SupportedRunners) {
+		t.Errorf("allowed = %v, want all SupportedRunners", allowed)
+	}
+	if preferred != sandboxv2.SupportedRunners[0] {
+		t.Errorf("preferred = %q, want %q", preferred, sandboxv2.SupportedRunners[0])
 	}
 }

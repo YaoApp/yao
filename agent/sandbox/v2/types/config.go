@@ -13,17 +13,17 @@ const (
 // SandboxConfig is the V2 sandbox configuration loaded from sandbox.yao or
 // the package.yao "sandbox" block when version == "2.0".
 type SandboxConfig struct {
-	Version     string            `json:"version" yaml:"version"`
-	Computer    ComputerConfig    `json:"computer" yaml:"computer"`
-	Runner      RunnerConfig      `json:"runner" yaml:"runner"`
-	Lifecycle   string            `json:"lifecycle,omitempty" yaml:"lifecycle,omitempty"`
-	IdleTimeout string            `json:"idle_timeout,omitempty" yaml:"idle_timeout,omitempty"`
-	MaxLifetime string            `json:"max_lifetime,omitempty" yaml:"max_lifetime,omitempty"`
-	StopTimeout string            `json:"stop_timeout,omitempty" yaml:"stop_timeout,omitempty"`
-	Prepare     []PrepareStep     `json:"prepare,omitempty" yaml:"prepare,omitempty"`
-	Environment map[string]string `json:"environment,omitempty" yaml:"environment,omitempty"`
-	Secrets     map[string]string `json:"secrets,omitempty" yaml:"secrets,omitempty"`
-	Filter      *ComputerFilter   `json:"filter,omitempty" yaml:"filter,omitempty"`
+	Version     string                  `json:"version" yaml:"version"`
+	Computer    ComputerConfig          `json:"computer" yaml:"computer"`
+	Runner      RunnerConfig            `json:"runner" yaml:"runner"`
+	Lifecycle   string                  `json:"lifecycle,omitempty" yaml:"lifecycle,omitempty"`
+	IdleTimeout string                  `json:"idle_timeout,omitempty" yaml:"idle_timeout,omitempty"`
+	MaxLifetime string                  `json:"max_lifetime,omitempty" yaml:"max_lifetime,omitempty"`
+	StopTimeout string                  `json:"stop_timeout,omitempty" yaml:"stop_timeout,omitempty"`
+	Prepare     []PrepareStep           `json:"prepare,omitempty" yaml:"prepare,omitempty"`
+	Environment map[string]string       `json:"environment,omitempty" yaml:"environment,omitempty"`
+	Secrets     map[string]*SecretEntry `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+	Filter      *ComputerFilter         `json:"filter,omitempty" yaml:"filter,omitempty"`
 
 	// Populated by the framework at runtime (never serialized).
 	Owner       string            `json:"-" yaml:"-"`
@@ -199,5 +199,50 @@ func (p *PortList) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("ports: expected int array or object array: %w", err)
 	}
 	*p = objs
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// SecretEntry — supports both a plain string and a structured object:
+//
+//	"API_KEY": "sk-xxx"                         → SecretEntry{Value: "sk-xxx"}
+//	"API_KEY": {"value": "sk-xxx", "label": "…"} → full struct
+// ---------------------------------------------------------------------------
+
+type SecretEntry struct {
+	Value       string `json:"value,omitempty" yaml:"value,omitempty"`
+	Label       string `json:"label,omitempty" yaml:"label,omitempty"`
+	Description string `json:"description,omitempty" yaml:"description,omitempty"`
+	Required    bool   `json:"required,omitempty" yaml:"required,omitempty"`
+	Multiline   bool   `json:"multiline,omitempty" yaml:"multiline,omitempty"`
+}
+
+func (e *SecretEntry) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err == nil {
+		e.Value = s
+		return nil
+	}
+	type alias SecretEntry
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	*e = SecretEntry(a)
+	return nil
+}
+
+func (e *SecretEntry) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	if err := unmarshal(&s); err == nil {
+		e.Value = s
+		return nil
+	}
+	type alias SecretEntry
+	var a alias
+	if err := unmarshal(&a); err != nil {
+		return err
+	}
+	*e = SecretEntry(a)
 	return nil
 }

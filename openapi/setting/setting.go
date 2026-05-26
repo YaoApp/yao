@@ -81,6 +81,15 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	pref := group.Group("/preference")
 	pref.GET("", handlePreferenceGet)
 	pref.PUT("", handlePreferenceUpdate)
+
+	ag := group.Group("/agent")
+	ag.GET("/:id", handleAgentSettingGet)
+	ag.PUT("/:id", handleAgentSettingUpdate)
+	ag.GET("/:id/secrets", handleAgentSecretsGet)
+	ag.PUT("/:id/secrets", handleAgentSecretsUpdate)
+	ag.DELETE("/:id/secrets/:key", handleAgentSecretDelete)
+	ag.GET("/:id/skills", handleAgentSkillsList)
+	ag.GET("/:id/skills/:name", handleAgentSkillDetail)
 }
 
 // requireOwner checks that the current user is the team owner.
