@@ -2,6 +2,10 @@ package eval
 
 import (
 	stdContext "context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
+	"time"
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -108,10 +112,24 @@ func NewTestContextFromOptions(chatID, assistantID string, opts *Options, tc *Ca
 	return NewTestContext(chatID, assistantID, env)
 }
 
-// GenerateChatID generates a unique chat ID for testing
-func GenerateChatID(testID string, runNumber int) string {
-	if runNumber > 1 {
-		return "test-" + testID + "-run" + string(rune('0'+runNumber))
+// GenerateChatID generates a unique chat ID for testing.
+// Priority: ctx-specified ChatID > auto-generated unique ID.
+func GenerateChatID(testID string, runNumber int, opts *Options) string {
+	if opts != nil && opts.ContextData != nil && opts.ContextData.ChatID != "" {
+		if runNumber > 1 {
+			return fmt.Sprintf("%s-run%d", opts.ContextData.ChatID, runNumber)
+		}
+		return opts.ContextData.ChatID
 	}
-	return "test-" + testID
+	suffix := fmt.Sprintf("%d-%s", time.Now().UnixNano(), randomHex(4))
+	if runNumber > 1 {
+		return fmt.Sprintf("test-%s-run%d-%s", testID, runNumber, suffix)
+	}
+	return fmt.Sprintf("test-%s-%s", testID, suffix)
+}
+
+func randomHex(n int) string {
+	b := make([]byte, n)
+	rand.Read(b)
+	return hex.EncodeToString(b)
 }
