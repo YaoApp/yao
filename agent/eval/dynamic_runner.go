@@ -81,8 +81,8 @@ func (r *DynamicRunner) RunDynamic(ast *assistant.Assistant, tc *Case, agentID s
 	}
 
 	// Use consistent chatID across all turns to preserve session state (ctx.memory.chat)
-	// Priority: context config > generated ID
-	chatID := fmt.Sprintf("dynamic-%s", tc.ID)
+	// Priority: context config > auto-generated unique ID
+	chatID := fmt.Sprintf("dynamic-%s-%d", tc.ID, time.Now().UnixNano())
 	if r.opts.ContextData != nil && r.opts.ContextData.ChatID != "" {
 		chatID = r.opts.ContextData.ChatID
 	}

@@ -87,6 +87,15 @@ func (r *Executor) RunScriptTests() (*Report, error) {
 // RunDirect executes a single direct message and outputs the result directly
 // This is optimized for development/debugging scenarios
 func (r *Executor) RunDirect() (*Report, error) {
+	// Load context config if specified (same as RunTests)
+	if r.opts.ContextFile != "" && r.opts.ContextData == nil {
+		ctxConfig, err := LoadContextConfig(r.opts.ContextFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load context file: %w", err)
+		}
+		r.opts.ContextData = ctxConfig
+	}
+
 	// Resolve agent
 	agentInfo, err := r.resolver.Resolve(r.opts)
 	if err != nil {
@@ -111,7 +120,7 @@ func (r *Executor) RunDirect() (*Report, error) {
 	tc := CreateTestCaseFromMessage(r.opts.Input)
 
 	// Create context
-	chatID := GenerateChatID(tc.ID, 1)
+	chatID := GenerateChatID(tc.ID, 1, r.opts)
 	ctx := NewTestContextFromOptions(chatID, agentInfo.ID, r.opts, tc)
 	defer ctx.Release()
 
@@ -484,7 +493,7 @@ func (r *Executor) runSingleTest(ast *assistant.Assistant, tc *Case, agentID str
 	}
 
 	// Create context
-	chatID := GenerateChatID(tc.ID, runNum)
+	chatID := GenerateChatID(tc.ID, runNum, r.opts)
 	ctx := NewTestContextFromOptions(chatID, agentID, r.opts, tc)
 	defer ctx.Release()
 
