@@ -149,7 +149,7 @@ jobs:
           mkdir -p .build/coverage
           PKGS=$(go list -f '{{if or .TestGoFiles .XTestGoFiles}}{{.ImportPath}}{{end}}' -tags integration ./agent/... | tr '\n' ' ')
           if [ -n "$PKGS" ]; then
-            go test -v -count=1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
+            go test -v -count=1 -p 1 -timeout 300s -tags integration -coverprofile=.build/coverage/tier2.out -coverpkg=./agent/... $PKGS
           fi
 
       - name: "Tier 3: Agent Sandbox Tests (mock-llm)"
