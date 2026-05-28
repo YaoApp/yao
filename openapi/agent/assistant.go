@@ -2,10 +2,12 @@ package agent
 
 import (
 	"fmt"
+	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/fs"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent"
 	assistantPkg "github.com/yaoapp/yao/agent/assistant"
@@ -14,6 +16,11 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 )
+
+var deleteAssistantFields = []string{
+	"assistant_id", "path", "built_in", "readonly",
+	"__yao_created_by", "__yao_team_id",
+}
 
 // ListAssistants lists assistants with pagination and filtering
 func ListAssistants(c *gin.Context) {
@@ -650,6 +657,13 @@ func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistantID string
 		return false, fmt.Errorf("assistant not found: %s", assistantID)
 	}
 
+	// Backward-compatible: agents loaded from disk before ownership fix
+	// have no creator/team metadata. Grant access based on endpoint-level
+	// scope checks only (built_in/readonly guards handle immutable agents).
+	if assistant.YaoCreatedBy == "" && assistant.YaoTeamID == "" {
+		return true, nil
+	}
+
 	// If readable mode, check if the assistant is accessible for reading
 	if len(readable) > 0 && readable[0] {
 		// If assistant is public, allow read access
@@ -687,4 +701,136 @@ func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistantID string
 	}
 
 	return false, fmt.Errorf("no permission to access assistant: %s", assistantID)
+}
+
+// DeleteAssistant deletes an assistant by ID with permission verification
+func DeleteAssistant(c *gin.Context) {
+	authInfo := authorized.GetInfo(c)
+
+	agentInstance := agent.GetAgent()
+	if agentInstance == nil || agentInstance.Store == nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: "Agent store not initialized",
+		}
+		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		return
+	}
+
+	assistantID := c.Param("id")
+	if assistantID == "" {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "assistant_id is required",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
+	assistant, err := agentInstance.Store.GetAssistant(assistantID, deleteAssistantFields)
+	if err != nil {
+		log.Error("Failed to get assistant %s: %v", assistantID, err)
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Assistant not found: " + assistantID,
+		}
+		response.RespondWithError(c, response.StatusNotFound, errorResp)
+		return
+	}
+
+	if assistant.BuiltIn {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Cannot delete built-in assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if assistant.Readonly {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Cannot delete readonly assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	hasPermission, err := checkAssistantPermission(authInfo, assistantID, false)
+	if err != nil {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrServerError.Code,
+			ErrorDescription: err.Error(),
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	if !hasPermission {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrAccessDenied.Code,
+			ErrorDescription: "Forbidden: No permission to delete this assistant",
+		}
+		response.RespondWithError(c, response.StatusForbidden, errorResp)
+		return
+	}
+
+	err = agentInstance.Store.DeleteAssistant(assistantID)
+	if err != nil {
+		log.Error("Failed to delete assistant %s: %v", assistantID, err)
+		if strings.Contains(err.Error(), "not found") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrInvalidRequest.Code,
+				ErrorDescription: "Assistant not found: " + assistantID,
+			}
+			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrServerError.Code,
+				ErrorDescription: "Failed to delete assistant: " + err.Error(),
+			}
+			response.RespondWithError(c, response.StatusInternalServerError, errorResp)
+		}
+		return
+	}
+
+	if assistant.Path != "" {
+		if isSafeAssistantPath(assistant.Path) {
+			appFS, err := fs.Get("app")
+			if err == nil {
+				if err := appFS.RemoveAll(assistant.Path); err != nil {
+					log.Error("Failed to remove assistant files at %s: %v", assistant.Path, err)
+				}
+			} else {
+				log.Error("Failed to get app filesystem: %v", err)
+			}
+		} else {
+			log.Warn("Skipping file removal for assistant %s: unsafe path %q", assistantID, assistant.Path)
+		}
+	}
+
+	cache := assistantPkg.GetCache()
+	if cache != nil {
+		cache.Remove(assistantID)
+	}
+
+	response.RespondWithSuccess(c, response.StatusOK, map[string]interface{}{
+		"assistant_id": assistantID,
+	})
+}
+
+// isSafeAssistantPath validates that a path is safe for RemoveAll
+func isSafeAssistantPath(p string) bool {
+	cleaned := filepath.ToSlash(filepath.Clean(p))
+	if cleaned == "" || cleaned == "/" || cleaned == "." || cleaned == ".." {
+		return false
+	}
+	if !strings.HasPrefix(cleaned, "/assistants/") {
+		return false
+	}
+	if strings.Contains(cleaned, "..") {
+		return false
+	}
+	parts := strings.Split(strings.Trim(cleaned, "/"), "/")
+	return len(parts) >= 3
 }
