@@ -1,0 +1,29 @@
+{
+  "name": "workspace_file_write",
+  "description": "Write content to a file in workspace.",
+  "process": "tools.workspace_file_write",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Workspace ID"
+      },
+      "path": {
+        "type": "string",
+        "description": "File path within the workspace"
+      },
+      "content": {
+        "type": "string",
+        "description": "File content (text or base64-encoded)"
+      },
+      "encoding": {
+        "type": "string",
+        "enum": ["text", "base64"],
+        "description": "Content encoding (default: text)"
+      }
+    },
+    "required": ["id", "path", "content"]
+  },
+  "x-process-args": ["$args.id", "$args.path", "$args.content", "$args.encoding"]
+}

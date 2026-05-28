@@ -1,0 +1,17 @@
+{
+  "name": "yao-robot",
+  "transport": "process",
+  "description": "Robot management and execution tools",
+  "tools": {
+    "robot_list": "tools.robot_list",
+    "robot_get": "tools.robot_get",
+    "robot_create": "tools.robot_create",
+    "robot_update": "tools.robot_update",
+    "robot_status": "tools.robot_status",
+    "robot_execution_list": "tools.robot_execution_list",
+    "robot_execution_get": "tools.robot_execution_get",
+    "robot_execution_create": "tools.robot_execution_create",
+    "robot_execution_cancel": "tools.robot_execution_cancel",
+    "robot_result_list": "tools.robot_result_list"
+  }
+}

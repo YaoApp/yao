@@ -1,0 +1,24 @@
+{
+  "name": "robot_result_list",
+  "description": "List completed execution results for a robot including delivery summaries and attachment info. Returns paginated results sorted by most recent.",
+  "process": "tools.robot_result_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "page": {
+        "type": "integer",
+        "description": "Page number (default 1)"
+      },
+      "pagesize": {
+        "type": "integer",
+        "description": "Items per page (default 20, max 100)"
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": ["$args.member_id", "$args.page", "$args.pagesize"]
+}

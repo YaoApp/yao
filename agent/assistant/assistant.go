@@ -35,8 +35,12 @@ func init() {
 		if err != nil {
 			return err
 		}
-		ast.BuiltIn = true
-		ast.Readonly = true
+		if isSystemNamespace(id) {
+			ast.BuiltIn = true
+			ast.Readonly = true
+		} else {
+			ast.BuiltIn = false
+		}
 		if ast.Tags == nil {
 			ast.Tags = []string{}
 		}

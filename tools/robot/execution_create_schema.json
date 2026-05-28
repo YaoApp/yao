@@ -1,0 +1,44 @@
+{
+  "name": "robot_execution_create",
+  "description": "Trigger a new robot execution with a human message or event. Returns the execution ID and acceptance status for tracking.",
+  "process": "tools.robot_execution_create",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "trigger_type": {
+        "type": "string",
+        "enum": ["human", "event"],
+        "description": "Trigger type: 'human' for user messages, 'event' for system events (default: human)"
+      },
+      "messages": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "role": { "type": "string" },
+            "content": { "type": "string" }
+          }
+        },
+        "description": "Messages to send (for human trigger type)"
+      },
+      "source": {
+        "type": "string",
+        "description": "Event source identifier (for event trigger type)"
+      },
+      "event_type": {
+        "type": "string",
+        "description": "Event type name (for event trigger type)"
+      },
+      "data": {
+        "type": "object",
+        "description": "Event payload data (for event trigger type)"
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": [":arguments"]
+}

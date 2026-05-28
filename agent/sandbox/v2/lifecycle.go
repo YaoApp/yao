@@ -96,6 +96,19 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	cfg.WorkspaceID = workspaceID
 	cfg.NodeID = sel.NodeID
 
+	// Inject user identity into sandbox environment for ownership tracking
+	if ctx.Authorized != nil {
+		if cfg.Environment == nil {
+			cfg.Environment = make(map[string]string)
+		}
+		if ctx.Authorized.UserID != "" {
+			cfg.Environment["YAO_USER_ID"] = ctx.Authorized.UserID
+		}
+		if ctx.Authorized.TeamID != "" {
+			cfg.Environment["YAO_TEAM_ID"] = ctx.Authorized.TeamID
+		}
+	}
+
 	log.Trace("[sandbox/v2] GetComputer: nodeID=%q runner=%q mode=%q workspaceID=%q ownerID=%q image=%q",
 		sel.NodeID, sel.Runner, sel.Mode, workspaceID, ownerID, cfg.Computer.Image)
 

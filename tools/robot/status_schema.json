@@ -1,0 +1,16 @@
+{
+  "name": "robot_status",
+  "description": "Check if a robot is currently busy and how many executions are running. Returns runtime state including running count and running execution IDs.",
+  "process": "tools.robot_status",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": ["$args.member_id"]
+}

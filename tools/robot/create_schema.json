@@ -1,0 +1,95 @@
+{
+  "name": "robot_create",
+  "description": "Create a new robot in the user's team. Returns the created robot's full details including generated member_id.",
+  "process": "tools.robot_create",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "display_name": {
+        "type": "string",
+        "description": "Display name for the robot"
+      },
+      "bio": {
+        "type": "string",
+        "description": "Short description of what the robot does"
+      },
+      "system_prompt": {
+        "type": "string",
+        "description": "System prompt defining the robot's behavior"
+      },
+      "agents": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "List of agent IDs the robot can use"
+      },
+      "workspace": {
+        "type": "string",
+        "description": "Workspace ID to bind the robot to"
+      },
+      "autonomous_mode": {
+        "type": "boolean",
+        "description": "Whether the robot runs autonomously (default false)"
+      },
+      "robot_config": {
+        "type": "object",
+        "description": "Robot configuration. Only the fields listed below are accepted; any other fields are ignored.",
+        "properties": {
+          "identity": {
+            "type": "object",
+            "description": "Role definition for the robot",
+            "properties": {
+              "role": { "type": "string", "description": "Primary role, e.g. 'data-analyst', 'sales-assistant'" },
+              "duties": { "type": "array", "items": { "type": "string" }, "description": "List of duties" },
+              "rules": { "type": "array", "items": { "type": "string" }, "description": "List of rules or constraints" }
+            },
+            "required": ["role"]
+          },
+          "quota": {
+            "type": "object",
+            "description": "Concurrency limits",
+            "properties": {
+              "max": { "type": "integer", "description": "Max concurrent executions (default 2)" },
+              "queue": { "type": "integer", "description": "Max queue size (default 10)" },
+              "priority": { "type": "integer", "description": "Priority 1-10 (default 5)" }
+            }
+          },
+          "clock": {
+            "type": "object",
+            "description": "Scheduling configuration",
+            "properties": {
+              "mode": { "type": "string", "enum": ["times", "interval", "daemon"], "description": "Clock mode" },
+              "times": { "type": "array", "items": { "type": "string" }, "description": "Run at specific times, e.g. ['09:00','14:00']" },
+              "days": { "type": "array", "items": { "type": "string" }, "description": "Days to run, e.g. ['Mon','Tue'] or ['*']" },
+              "every": { "type": "string", "description": "Interval duration, e.g. '30m', '1h'" },
+              "tz": { "type": "string", "description": "Timezone, e.g. 'Asia/Shanghai'" },
+              "timeout": { "type": "string", "description": "Max execution time per run, e.g. '30m'" }
+            }
+          },
+          "triggers": {
+            "type": "object",
+            "description": "Enable/disable trigger types",
+            "properties": {
+              "clock": { "type": "object", "properties": { "enabled": { "type": "boolean" } } },
+              "intervene": { "type": "object", "properties": { "enabled": { "type": "boolean" } } },
+              "event": { "type": "object", "properties": { "enabled": { "type": "boolean" } } }
+            }
+          },
+          "executor": {
+            "type": "object",
+            "description": "Execution mode settings",
+            "properties": {
+              "mode": { "type": "string", "enum": ["standard", "dryrun", "sandbox"], "description": "Executor mode" },
+              "max_duration": { "type": "string", "description": "Max execution duration, e.g. '30m'" }
+            }
+          },
+          "default_locale": {
+            "type": "string",
+            "description": "Default language for triggers, e.g. 'en', 'zh'"
+          }
+        }
+      }
+    },
+    "required": ["display_name"]
+  },
+  "x-process-args": [":arguments"]
+}

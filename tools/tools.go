@@ -12,9 +12,11 @@ import (
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	"github.com/yaoapp/yao/tools/proc"
+	"github.com/yaoapp/yao/tools/robot"
 	"github.com/yaoapp/yao/tools/secret"
 	"github.com/yaoapp/yao/tools/webfetch"
 	"github.com/yaoapp/yao/tools/websearch"
+	"github.com/yaoapp/yao/tools/workspace"
 )
 
 //go:embed mcps/web.json
@@ -35,6 +37,12 @@ var mcpAgentDSL []byte
 //go:embed mcps/secret.json
 var mcpSecretDSL []byte
 
+//go:embed mcps/robot.json
+var mcpRobotDSL []byte
+
+//go:embed mcps/workspace.json
+var mcpWorkspaceDSL []byte
+
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
 		"web_search":       websearch.Handler,
@@ -54,6 +62,23 @@ func init() {
 		"agent_connectors": agent.ConnectorsHandler,
 		"secret_read":      secret.ReadHandler,
 		"secret_list":      secret.ListHandler,
+
+		"robot_list":             robot.ListHandler,
+		"robot_get":              robot.GetHandler,
+		"robot_create":           robot.CreateHandler,
+		"robot_update":           robot.UpdateHandler,
+		"robot_status":           robot.StatusHandler,
+		"robot_execution_list":   robot.ExecutionListHandler,
+		"robot_execution_get":    robot.ExecutionGetHandler,
+		"robot_execution_create": robot.ExecutionCreateHandler,
+		"robot_execution_cancel": robot.ExecutionCancelHandler,
+		"robot_result_list":      robot.ResultListHandler,
+
+		"workspace_list":       workspace.ListHandler,
+		"workspace_get":        workspace.GetHandler,
+		"workspace_file_list":  workspace.FileListHandler,
+		"workspace_file_read":  workspace.FileReadHandler,
+		"workspace_file_write": workspace.FileWriteHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -69,6 +94,15 @@ func init() {
 		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON)
 	registerMCPServer(mcpSecretDSL, "yao-secret",
 		secret.ReadSchemaJSON, secret.ListSchemaJSON)
+	registerMCPServer(mcpRobotDSL, "yao-robot",
+		robot.ListSchemaJSON, robot.GetSchemaJSON, robot.CreateSchemaJSON,
+		robot.UpdateSchemaJSON, robot.StatusSchemaJSON,
+		robot.ExecutionListSchemaJSON, robot.ExecutionGetSchemaJSON,
+		robot.ExecutionCreateSchemaJSON, robot.ExecutionCancelSchemaJSON,
+		robot.ResultListSchemaJSON)
+	registerMCPServer(mcpWorkspaceDSL, "yao-workspace",
+		workspace.ListSchemaJSON, workspace.GetSchemaJSON,
+		workspace.FileListSchemaJSON, workspace.FileReadSchemaJSON, workspace.FileWriteSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

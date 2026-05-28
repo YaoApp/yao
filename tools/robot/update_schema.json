@@ -1,0 +1,98 @@
+{
+  "name": "robot_update",
+  "description": "Update an existing robot's configuration. Only provided fields are updated; omitted fields remain unchanged.",
+  "process": "tools.robot_update",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "display_name": {
+        "type": "string",
+        "description": "New display name"
+      },
+      "bio": {
+        "type": "string",
+        "description": "New description"
+      },
+      "system_prompt": {
+        "type": "string",
+        "description": "New system prompt"
+      },
+      "agents": {
+        "type": "array",
+        "items": { "type": "string" },
+        "description": "Updated list of agent IDs"
+      },
+      "workspace": {
+        "type": "string",
+        "description": "New workspace ID (empty string to unbind)"
+      },
+      "autonomous_mode": {
+        "type": "boolean",
+        "description": "Enable or disable autonomous mode"
+      },
+      "robot_config": {
+        "type": "object",
+        "description": "Updated robot configuration (REPLACES entire robot_config — pass ALL sub-fields you want to keep, not just the ones you are changing). Only the fields listed below are accepted; any other fields are ignored.",
+        "properties": {
+          "identity": {
+            "type": "object",
+            "description": "Role definition for the robot",
+            "properties": {
+              "role": { "type": "string", "description": "Primary role, e.g. 'data-analyst'" },
+              "duties": { "type": "array", "items": { "type": "string" }, "description": "List of duties" },
+              "rules": { "type": "array", "items": { "type": "string" }, "description": "List of rules" }
+            }
+          },
+          "quota": {
+            "type": "object",
+            "description": "Concurrency limits",
+            "properties": {
+              "max": { "type": "integer", "description": "Max concurrent executions (default 2)" },
+              "queue": { "type": "integer", "description": "Max queue size (default 10)" },
+              "priority": { "type": "integer", "description": "Priority 1-10 (default 5)" }
+            }
+          },
+          "clock": {
+            "type": "object",
+            "description": "Scheduling configuration",
+            "properties": {
+              "mode": { "type": "string", "enum": ["times", "interval", "daemon"], "description": "Clock mode" },
+              "times": { "type": "array", "items": { "type": "string" }, "description": "Run at specific times" },
+              "days": { "type": "array", "items": { "type": "string" }, "description": "Days to run" },
+              "every": { "type": "string", "description": "Interval duration" },
+              "tz": { "type": "string", "description": "Timezone" },
+              "timeout": { "type": "string", "description": "Max execution time per run" }
+            }
+          },
+          "triggers": {
+            "type": "object",
+            "description": "Enable/disable trigger types",
+            "properties": {
+              "clock": { "type": "object", "properties": { "enabled": { "type": "boolean" } } },
+              "intervene": { "type": "object", "properties": { "enabled": { "type": "boolean" } } },
+              "event": { "type": "object", "properties": { "enabled": { "type": "boolean" } } }
+            }
+          },
+          "executor": {
+            "type": "object",
+            "description": "Execution mode settings",
+            "properties": {
+              "mode": { "type": "string", "enum": ["standard", "dryrun", "sandbox"], "description": "Executor mode" },
+              "max_duration": { "type": "string", "description": "Max execution duration" }
+            }
+          },
+          "default_locale": {
+            "type": "string",
+            "description": "Default language for triggers"
+          }
+        }
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": [":arguments"]
+}

@@ -88,8 +88,12 @@ func LoadBuiltIn() error {
 			return err
 		}
 
-		assistant.Readonly = true
-		assistant.BuiltIn = true
+		if isSystemNamespace(assistant.ID) {
+			assistant.Readonly = true
+			assistant.BuiltIn = true
+		} else {
+			assistant.BuiltIn = false
+		}
 		if assistant.Sort == 0 {
 			assistant.Sort = sort
 		}
@@ -872,6 +876,20 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 		assistant.UpdatedAt = ts
 	}
 
+	// Permission / ownership fields (populated when package.yao includes them)
+	if v, ok := data["__yao_created_by"].(string); ok {
+		assistant.YaoCreatedBy = v
+	}
+	if v, ok := data["__yao_updated_by"].(string); ok {
+		assistant.YaoUpdatedBy = v
+	}
+	if v, ok := data["__yao_team_id"].(string); ok {
+		assistant.YaoTeamID = v
+	}
+	if v, ok := data["__yao_tenant_id"].(string); ok {
+		assistant.YaoTenantID = v
+	}
+
 	// Initialize the assistant
 	err := assistant.initialize()
 	if err != nil {
@@ -1108,4 +1126,11 @@ func extractSandboxVersion(v any) string {
 		}
 	}
 	return ""
+}
+
+// isSystemNamespace returns true if the assistant ID belongs to the "yao" namespace,
+// which indicates a system-provided agent that should be forced readonly + built_in.
+func isSystemNamespace(assistantID string) bool {
+	parts := strings.SplitN(assistantID, ".", 2)
+	return len(parts) > 0 && parts[0] == "yao"
 }

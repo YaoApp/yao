@@ -1,0 +1,29 @@
+{
+  "name": "robot_execution_list",
+  "description": "List execution history for a robot with optional status filter. Returns paginated executions sorted by most recent first.",
+  "process": "tools.robot_execution_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["pending", "running", "paused", "completed", "failed", "cancelled", "confirming", "waiting"],
+        "description": "Filter by execution status"
+      },
+      "page": {
+        "type": "integer",
+        "description": "Page number (default 1)"
+      },
+      "pagesize": {
+        "type": "integer",
+        "description": "Items per page (default 20, max 100)"
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": ["$args.member_id", "$args.status", "$args.page", "$args.pagesize"]
+}

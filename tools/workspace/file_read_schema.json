@@ -1,0 +1,25 @@
+{
+  "name": "workspace_file_read",
+  "description": "Read file content from workspace (text or base64).",
+  "process": "tools.workspace_file_read",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Workspace ID"
+      },
+      "path": {
+        "type": "string",
+        "description": "File path within the workspace"
+      },
+      "encoding": {
+        "type": "string",
+        "enum": ["text", "base64"],
+        "description": "Response encoding (default: text)"
+      }
+    },
+    "required": ["id", "path"]
+  },
+  "x-process-args": ["$args.id", "$args.path", "$args.encoding"]
+}
