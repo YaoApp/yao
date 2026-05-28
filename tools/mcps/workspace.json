@@ -1,0 +1,12 @@
+{
+  "name": "yao-workspace",
+  "transport": "process",
+  "description": "Workspace management and file I/O tools",
+  "tools": {
+    "workspace_list": "tools.workspace_list",
+    "workspace_get": "tools.workspace_get",
+    "workspace_file_list": "tools.workspace_file_list",
+    "workspace_file_read": "tools.workspace_file_read",
+    "workspace_file_write": "tools.workspace_file_write"
+  }
+}

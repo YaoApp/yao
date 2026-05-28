@@ -1,0 +1,20 @@
+{
+  "name": "robot_execution_get",
+  "description": "Get detailed information about a specific execution including its current phase, status, and timing.",
+  "process": "tools.robot_execution_get",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "execution_id": {
+        "type": "string",
+        "description": "The execution's unique identifier"
+      }
+    },
+    "required": ["member_id", "execution_id"]
+  },
+  "x-process-args": ["$args.member_id", "$args.execution_id"]
+}

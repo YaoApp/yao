@@ -1,0 +1,20 @@
+{
+  "name": "workspace_file_list",
+  "description": "List files and directories in a workspace path.",
+  "process": "tools.workspace_file_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Workspace ID"
+      },
+      "path": {
+        "type": "string",
+        "description": "Directory path (default: root)"
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id", "$args.path"]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "workspace_list",
+  "description": "List workspaces (summary: id, name, node). Use workspace_get for details.",
+  "process": "tools.workspace_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "node": {
+        "type": "string",
+        "description": "Filter by Tai node name"
+      }
+    }
+  },
+  "x-process-args": ["$args.node"]
+}

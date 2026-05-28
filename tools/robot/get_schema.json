@@ -1,0 +1,16 @@
+{
+  "name": "robot_get",
+  "description": "Get full details of a specific robot by member ID. Returns profile, configuration, capabilities, and ownership info.",
+  "process": "tools.robot_get",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      }
+    },
+    "required": ["member_id"]
+  },
+  "x-process-args": ["$args.member_id"]
+}

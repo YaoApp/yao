@@ -1,0 +1,16 @@
+{
+  "name": "workspace_get",
+  "description": "Get workspace details: name, owner, node, labels, timestamps.",
+  "process": "tools.workspace_get",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Workspace ID"
+      }
+    },
+    "required": ["id"]
+  },
+  "x-process-args": ["$args.id"]
+}

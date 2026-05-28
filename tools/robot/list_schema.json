@@ -1,0 +1,32 @@
+{
+  "name": "robot_list",
+  "description": "List robots accessible to the current user with optional filters. Returns summary info including member_id, display_name, bio, status, autonomous_mode, and running count.",
+  "process": "tools.robot_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "team_id": {
+        "type": "string",
+        "description": "Filter by team ID (defaults to user's team)"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["idle", "working", "paused", "error", "maintenance"],
+        "description": "Filter by robot status"
+      },
+      "keywords": {
+        "type": "string",
+        "description": "Search by display name, bio, or member ID"
+      },
+      "page": {
+        "type": "integer",
+        "description": "Page number (default 1)"
+      },
+      "pagesize": {
+        "type": "integer",
+        "description": "Items per page (default 20, max 100)"
+      }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

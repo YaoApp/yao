@@ -1,0 +1,20 @@
+{
+  "name": "robot_execution_cancel",
+  "description": "Cancel a running execution and stop the robot's current task. Returns the cancelled execution ID and updated status.",
+  "process": "tools.robot_execution_cancel",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "The robot's unique member identifier"
+      },
+      "execution_id": {
+        "type": "string",
+        "description": "The execution's unique identifier to cancel"
+      }
+    },
+    "required": ["member_id", "execution_id"]
+  },
+  "x-process-args": ["$args.member_id", "$args.execution_id"]
+}
