@@ -84,8 +84,9 @@ You have access to Yao system tools via the `tai` command in bash.
 | `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |
 | `agent_deploy`     | yao-agent           | Deploy agent code to host (smith namespace only)    |
 | `agent_connectors` | yao-agent           | Get LLM connector matrix (no keys)                 |
-| `secret_list`      | yao-secret          | List available secrets (names only, no values)      |
-| `secret_read`      | yao-secret          | Read a secret value by name                         |
+| `secret_list`       | yao-secret          | List available secrets (names only, no values)      |
+| `secret_read`       | yao-secret          | Read a secret value by name                         |
+| `secret_connectors` | yao-secret          | Returns LLM connector settings **with credentials** — redirect output to file or variable, never let it appear in conversation |
 | `robot_list`             | yao-robot    | List robots (summary: id, name, bio)                |
 | `robot_get`              | yao-robot    | Get robot profile and config                        |
 | `robot_create`           | yao-robot    | Create a new robot with profile and config          |

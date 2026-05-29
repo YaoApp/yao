@@ -21,8 +21,8 @@ func ConnectorsHandler(proc *process.Process) interface{} {
 	var roles map[string]llmprovider.RoleTarget
 	var err error
 
-	if authInfo != nil && authInfo.UserID != "" {
-		roles, err = llmprovider.Global.ListRolesByUser(authInfo.UserID)
+	if authInfo != nil {
+		roles, err = llmprovider.Global.ListRolesBy(authInfo)
 	} else {
 		roles, err = llmprovider.Global.ListRoles()
 	}
