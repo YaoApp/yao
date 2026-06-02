@@ -7,6 +7,7 @@
     "agent_download": "tools.agent_download",
     "agent_reference": "tools.agent_reference",
     "agent_deploy": "tools.agent_deploy",
-    "agent_connectors": "tools.agent_connectors"
+    "agent_connectors": "tools.agent_connectors",
+    "agent_call": "tools.agent_call"
   }
 }

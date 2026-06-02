@@ -144,6 +144,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// Chat handlers
 	chat.Attach(group.Group("/chat"), openapi.OAuth)
 
+	// Experts chat completions (path-based assistant routing)
+	group.POST("/experts/:assistant_id/chat/completions", openapi.OAuth.Guard, chat.GinCreateCompletions)
+
 	// Captcha handlers
 	captcha.Attach(group.Group("/captcha"), openapi.OAuth)
 

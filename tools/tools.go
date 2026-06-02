@@ -60,6 +60,7 @@ func init() {
 		"agent_reference":   agent.ReferenceHandler,
 		"agent_deploy":      agent.DeployHandler,
 		"agent_connectors":  agent.ConnectorsHandler,
+		"agent_call":        agent.CallHandler,
 		"secret_read":       secret.ReadHandler,
 		"secret_list":       secret.ListHandler,
 		"secret_connectors": secret.ConnectorsHandler,
@@ -92,7 +93,7 @@ func init() {
 		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.ProvidersSchemaJSON)
 	registerMCPServer(mcpAgentDSL, "yao-agent",
 		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.ReferenceSchemaJSON,
-		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON)
+		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON, agent.CallSchemaJSON)
 	registerMCPServer(mcpSecretDSL, "yao-secret",
 		secret.ReadSchemaJSON, secret.ListSchemaJSON, secret.ConnectorsSchemaJSON)
 	registerMCPServer(mcpRobotDSL, "yao-robot",

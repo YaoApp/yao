@@ -1,0 +1,23 @@
+{
+  "name": "agent_call",
+  "description": "Call another AI expert agent with a message and get the response. Use when the user @mentions an expert or when you need specialized help from another agent.",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "assistant_id": {
+        "type": "string",
+        "description": "The assistant ID to call (e.g. 'yao.slides')"
+      },
+      "message": {
+        "type": "string",
+        "description": "The message/query to send to the expert"
+      },
+      "workspace_id": {
+        "type": "string",
+        "description": "Workspace ID for context (so the expert can access workspace files). If omitted, inherited from the current session."
+      }
+    },
+    "required": ["assistant_id", "message"]
+  },
+  "x-process-args": ["$args.assistant_id", "$args.message", "$args.workspace_id"]
+}

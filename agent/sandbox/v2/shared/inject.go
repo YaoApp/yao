@@ -48,6 +48,36 @@ func InjectSystemSkills(ws writerFS, skills fs.FS, targetDir string) error {
 	})
 }
 
+// InjectAgentDefinitions copies agent definition files from an embed.FS into the
+// workspace. The agents parameter should be an embed.FS produced by
+// `//go:embed agents`, where each file has a path like "agents/a2a.md". This
+// function strips the "agents/" prefix and writes files into targetDir
+// (e.g. ".claude/agents").
+func InjectAgentDefinitions(ws writerFS, agents fs.FS, targetDir string) error {
+	return fs.WalkDir(agents, "agents", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		rel := strings.TrimPrefix(p, "agents/")
+		dst := path.Join(targetDir, rel)
+
+		data, err := fs.ReadFile(agents, p)
+		if err != nil {
+			return err
+		}
+
+		dir := path.Dir(dst)
+		if err := ws.MkdirAll(dir, 0755); err != nil {
+			return err
+		}
+		return ws.WriteFile(dst, data, 0644)
+	})
+}
+
 // AppendSystemPrompt injects content into a file in the workspace using an
 // idempotent marker. If the marker already exists, the injected section is
 // replaced with the new content (so updates propagate to existing sandboxes).
