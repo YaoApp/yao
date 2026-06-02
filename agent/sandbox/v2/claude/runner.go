@@ -61,6 +61,9 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 		if err := shared.InjectSystemSkills(ws, tools.SkillsFS, ".claude/skills"); err != nil {
 			r.logger.Warn("inject system skills: %v", err)
 		}
+		if err := shared.InjectAgentDefinitions(ws, tools.AgentsFS, ".claude/agents"); err != nil {
+			r.logger.Warn("inject agent definitions: %v", err)
+		}
 		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", tools.SystemPrompt); err != nil {
 			r.logger.Warn("append CLAUDE.md: %v", err)
 		}

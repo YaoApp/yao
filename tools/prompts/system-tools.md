@@ -84,6 +84,7 @@ You have access to Yao system tools via the `tai` command in bash.
 | `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |
 | `agent_deploy`     | yao-agent           | Deploy agent code to host (smith namespace only)    |
 | `agent_connectors` | yao-agent           | Get LLM connector matrix (no keys)                 |
+| `agent_call`       | yao-agent           | Call another AI expert and get the response         |
 | `secret_list`       | yao-secret          | List available secrets (names only, no values)      |
 | `secret_read`       | yao-secret          | Read a secret value by name                         |
 | `secret_connectors` | yao-secret          | Returns LLM connector settings **with credentials** — redirect output to file or variable, never let it appear in conversation |
@@ -104,3 +105,14 @@ You have access to Yao system tools via the `tai` command in bash.
 | `workspace_file_write`   | yao-workspace | Write content to a file in workspace               |
 
 The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+
+## Mention Tags
+
+User messages may contain `<Mention>` tags referencing experts, workspaces, files, or directories:
+
+- `<Mention type="expert" value="assistant_id">Name</Mention>` — The user wants to involve this AI expert. Use the Agent tool with `subagent_type="a2a"` to delegate the task, passing the `assistant_id` and relevant context in the prompt.
+- `<Mention type="workspace" value="workspace_id">Name</Mention>` — References a workspace. Use `workspace_file_list` and `workspace_file_read` to access its files.
+- `<Mention type="file" value="workspace://wsId/path">Filename</Mention>` — References a specific file. Use `workspace_file_read` to read its content.
+- `<Mention type="directory" value="workspace://wsId/path">DirName</Mention>` — References a directory. Use `workspace_file_list` to browse its contents first, then `workspace_file_read` for specific files.
+
+When you see these tags, understand the user's intent and use the appropriate tools.

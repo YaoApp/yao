@@ -16,3 +16,10 @@ var SkillsFS embed.FS
 //
 //go:embed prompts/system-tools.md
 var SystemPrompt []byte
+
+// AgentsFS contains the agent definition files (e.g. a2a.md) for injection
+// into sandbox workspaces at .claude/agents/. These define sub-agent behaviors
+// that Claude Code can spawn via its native Agent tool.
+//
+//go:embed agents
+var AgentsFS embed.FS
