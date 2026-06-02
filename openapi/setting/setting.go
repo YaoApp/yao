@@ -75,6 +75,12 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	sb.DELETE("/nodes/:nodeId/images/:imageId", handleSandboxImageDelete)
 	sb.POST("/nodes/:nodeId/check-docker", handleSandboxCheckDocker)
 
+	ak := group.Group("/api-keys")
+	ak.GET("", handleAPIKeyList)
+	ak.POST("", handleAPIKeyCreate)
+	ak.DELETE("/:key_id", handleAPIKeyDelete)
+	ak.POST("/:key_id/regenerate", handleAPIKeyRegenerate)
+
 	group.GET("/setup-status", handleSetupStatus)
 	group.GET("/setup-status/assistant/:id", handleAssistantSetupStatus)
 

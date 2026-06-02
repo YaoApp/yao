@@ -113,13 +113,13 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	attachMFA(group, oauth)          // MFA settings
 	attachCredits(group, oauth)      // User credits management
 	attachSubscription(group, oauth) // User subscription management
-	attachAPIKeys(group, oauth)      // User API keys management
-	attachUsage(group, oauth)        // User usage management
-	attachBilling(group, oauth)      // User billing management
-	attachReferral(group, oauth)     // User referral management
-	attachTeam(group, oauth)         // User team management
-	attachInvitations(group, oauth)  // Invitation response management
-	attachPrivacy(group, oauth)      // User privacy management
+	// API keys management moved to /setting/api-keys
+	attachUsage(group, oauth)       // User usage management
+	attachBilling(group, oauth)     // User billing management
+	attachReferral(group, oauth)    // User referral management
+	attachTeam(group, oauth)        // User team management
+	attachInvitations(group, oauth) // Invitation response management
+	attachPrivacy(group, oauth)     // User privacy management
 
 	// User Management
 	attachUsers(group, oauth)
@@ -231,16 +231,6 @@ func attachUsage(group *gin.RouterGroup, oauth types.OAuth) {
 	usage.Use(oauth.Guard)
 	usage.GET("/statistics", placeholder) // Get user usage statistics
 	usage.GET("/history", placeholder)    // Get user usage history
-}
-
-// User API Keys Management
-func attachAPIKeys(group *gin.RouterGroup, oauth types.OAuth) {
-	group.GET("/api-keys", oauth.Guard, placeholder)                     // Get all user API keys
-	group.POST("/api-keys", oauth.Guard, placeholder)                    // Create new API key
-	group.GET("/api-keys/:key_id", oauth.Guard, placeholder)             // Get specific API key details
-	group.PUT("/api-keys/:key_id", oauth.Guard, placeholder)             // Update API key (name, permissions)
-	group.DELETE("/api-keys/:key_id", oauth.Guard, placeholder)          // Delete API key
-	group.POST("/api-keys/:key_id/regenerate", oauth.Guard, placeholder) // Regenerate API key
 }
 
 // User Subscription Management

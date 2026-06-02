@@ -255,3 +255,55 @@ type PreferenceData struct {
 	BannerDismissed     *bool `json:"banner_dismissed,omitempty"`
 	OnboardingCompleted *bool `json:"onboarding_completed,omitempty"`
 }
+
+// ---------------------------------------------------------------------------
+// API Keys
+// ---------------------------------------------------------------------------
+
+// APIKeyEntry represents a single API key record stored in the CRUD layer.
+type APIKeyEntry struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	KeyPrefix string `json:"key_prefix"`
+	KeyHash   string `json:"key_hash"`
+	UserID    string `json:"user_id"`
+	Status    string `json:"status"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+	CreatedAt string `json:"created_at"`
+	LastUsed  string `json:"last_used,omitempty"`
+}
+
+// APIKeyIndexEntry represents a record in the system-level lookup index.
+type APIKeyIndexEntry struct {
+	UserID string `json:"user_id"`
+	TeamID string `json:"team_id,omitempty"`
+	KeyID  string `json:"key_id"`
+}
+
+// APIKeyCreateRequest is the request body for creating a new API key.
+type APIKeyCreateRequest struct {
+	Name      string `json:"name"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+}
+
+// APIKeyResponse is the response for a single API key (list/get).
+type APIKeyResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	KeyPrefix string `json:"key_prefix"`
+	Status    string `json:"status"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+	CreatedAt string `json:"created_at"`
+	LastUsed  string `json:"last_used,omitempty"`
+}
+
+// APIKeyCreateResponse is the response after creating a key (includes plaintext key).
+type APIKeyCreateResponse struct {
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Key       string `json:"key"`
+	KeyPrefix string `json:"key_prefix"`
+	Status    string `json:"status"`
+	ExpiresAt string `json:"expires_at,omitempty"`
+	CreatedAt string `json:"created_at"`
+}

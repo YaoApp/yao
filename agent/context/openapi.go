@@ -120,10 +120,16 @@ func getClientType(userAgent string) string {
 }
 
 // GetAssistantID extracts assistant ID from request with priority:
+// 0. Path parameter "assistant_id" (from /experts/:assistant_id/...)
 // 1. Query parameter "assistant_id"
 // 2. Header "X-Yao-Assistant"
 // 3. Extract from model field (from CompletionRequest or Query) - splits by "-" takes last field, extracts ID from "yao_xxx" prefix
 func GetAssistantID(c *gin.Context, req *CompletionRequest) (string, error) {
+	// Priority 0: Path parameter assistant_id (from /experts/:assistant_id/chat/completions)
+	if assistantID := c.Param("assistant_id"); assistantID != "" {
+		return assistantID, nil
+	}
+
 	// Priority 1: Query parameter assistant_id
 	if assistantID := c.Query("assistant_id"); assistantID != "" {
 		return assistantID, nil
