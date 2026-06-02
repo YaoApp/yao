@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/setting"
@@ -18,6 +19,53 @@ func TestMain(m *testing.M) {
 	test.Prepare(nil, config.Conf)
 	defer test.Clean()
 	os.Exit(m.Run())
+}
+
+func setupTestRoles(t *testing.T) {
+	t.Helper()
+
+	if err := setting.Init(); err != nil {
+		t.Fatalf("setting.Init failed: %v", err)
+	}
+	if err := llmprovider.Init(); err != nil {
+		t.Fatalf("llmprovider.Init failed: %v", err)
+	}
+	if llmprovider.Global == nil {
+		t.Fatal("llmprovider.Global is nil after Init")
+	}
+
+	p := &llmprovider.Provider{
+		Key:     "test-secret-connector",
+		Name:    "Test Secret Connector",
+		Type:    "openai",
+		APIURL:  "https://api.openai.com",
+		APIKey:  "sk-test-secret-key",
+		Enabled: true,
+		Models: []llmprovider.ModelInfo{
+			{ID: "gpt-4o", Name: "GPT-4o", Capabilities: []string{"vision", "tool_calls", "streaming"}, Enabled: true},
+		},
+		Owner: llmprovider.ProviderOwner{Type: "system"},
+	}
+	if _, err := llmprovider.Global.Create(p); err != nil {
+		t.Fatalf("failed to create test provider: %v", err)
+	}
+
+	if err := llmprovider.Global.SetDefaults(map[string]string{"default": p.Key}); err != nil {
+		t.Fatalf("failed to set default roles: %v", err)
+	}
+
+	t.Cleanup(func() {
+		s, _ := store.Get("__yao.store")
+		if s != nil {
+			s.Del("setting:*")
+			s.Del("llmprovider:*")
+		}
+		c, _ := store.Get("__yao.cache")
+		if c != nil {
+			c.Del("setting:*")
+			c.Del("llmprovider:*")
+		}
+	})
 }
 
 func TestConnectorsHandler_Unauthorized(t *testing.T) {
@@ -72,15 +120,7 @@ func TestConnectorsHandler_NoProvider(t *testing.T) {
 }
 
 func TestConnectorsHandler_WithProvider(t *testing.T) {
-	if err := setting.Init(); err != nil {
-		t.Skipf("setting.Init failed: %v", err)
-	}
-	if err := llmprovider.Init(); err != nil {
-		t.Skipf("llmprovider.Init failed (may need full env): %v", err)
-	}
-	if llmprovider.Global == nil {
-		t.Skip("llmprovider.Global is nil after Init")
-	}
+	setupTestRoles(t)
 
 	md := metadata.Pairs("x-assistant-id", "yao.agent-smith")
 	ctx := metadata.NewIncomingContext(context.Background(), md)
@@ -110,36 +150,31 @@ func TestConnectorsHandler_WithProvider(t *testing.T) {
 	if !ok {
 		t.Fatalf("roles is %T, expected map[string]any", roles)
 	}
-	t.Logf("ConnectorsHandler returned %d roles", len(rolesMap))
+	if len(rolesMap) == 0 {
+		t.Fatal("expected at least 1 role, got 0")
+	}
 
-	for name, v := range rolesMap {
-		entry, ok := v.(map[string]any)
-		if !ok {
-			t.Errorf("role %q value is %T, expected map", name, v)
-			continue
-		}
-		if _, has := entry["model"]; !has {
-			t.Errorf("role %q missing 'model' field", name)
-		}
-		if _, has := entry["type"]; !has {
-			t.Errorf("role %q missing 'type' field", name)
-		}
-		if _, has := entry["key"]; !has {
-			t.Errorf("role %q missing 'key' field", name)
-		}
+	defaultRole, has := rolesMap["default"]
+	if !has {
+		t.Fatal("expected 'default' role in roles map")
+	}
+	entry, ok := defaultRole.(map[string]any)
+	if !ok {
+		t.Fatalf("default role is %T, expected map[string]any", defaultRole)
+	}
+	if _, has := entry["model"]; !has {
+		t.Error("role 'default' missing 'model' field")
+	}
+	if _, has := entry["type"]; !has {
+		t.Error("role 'default' missing 'type' field")
+	}
+	if _, has := entry["key"]; !has {
+		t.Error("role 'default' missing 'key' field")
 	}
 }
 
 func TestConnectorsHandler_ReturnFormat(t *testing.T) {
-	if err := setting.Init(); err != nil {
-		t.Skipf("setting.Init failed: %v", err)
-	}
-	if err := llmprovider.Init(); err != nil {
-		t.Skipf("llmprovider.Init failed: %v", err)
-	}
-	if llmprovider.Global == nil {
-		t.Skip("llmprovider.Global is nil after Init")
-	}
+	setupTestRoles(t)
 
 	md := metadata.Pairs("x-assistant-id", "yao.agent-smith")
 	ctx := metadata.NewIncomingContext(context.Background(), md)
@@ -165,8 +200,8 @@ func TestConnectorsHandler_ReturnFormat(t *testing.T) {
 
 	rolesRaw, has := parsed["roles"]
 	if !has {
-		if _, hasErr := parsed["error"]; hasErr {
-			t.Skipf("ConnectorsHandler returned error (no roles configured): %s", parsed["error"])
+		if errRaw, hasErr := parsed["error"]; hasErr {
+			t.Fatalf("ConnectorsHandler returned error: %s", errRaw)
 		}
 		t.Fatal("top-level key 'roles' missing from return format")
 	}
@@ -176,11 +211,15 @@ func TestConnectorsHandler_ReturnFormat(t *testing.T) {
 		t.Fatalf("'roles' is not map[string]object: %v", err)
 	}
 
+	if len(roles) == 0 {
+		t.Fatal("expected at least 1 role in JSON output")
+	}
+
 	requiredFields := []string{"model", "type", "key"}
 	for name, entry := range roles {
 		for _, f := range requiredFields {
 			if _, ok := entry[f]; !ok {
-				t.Errorf("role %q missing required field %q (jq compat)", name, f)
+				t.Errorf("role %q missing required field %q", name, f)
 			}
 		}
 	}

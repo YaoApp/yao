@@ -2,6 +2,7 @@ package llmprovider
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/yaoapp/yao/setting"
 )
@@ -120,6 +121,9 @@ func (r *Registry) listRoles(userID, teamID string) (map[string]RoleTarget, erro
 
 	merged, err := setting.Global.GetMerged(userID, teamID, RolesNamespace)
 	if err != nil {
+		if strings.Contains(err.Error(), "no data found") {
+			return make(map[string]RoleTarget), nil
+		}
 		return nil, fmt.Errorf("failed to load roles: %w", err)
 	}
 
