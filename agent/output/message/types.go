@@ -78,6 +78,12 @@ const (
 	// Agent execution observation types
 	TypeExecute = "execute" // Agent tool execution observation (sandbox CLI agent actions, not LLM tool_call requests)
 
+	// Semantic execute sub-types (runner-annotated, rendered by dedicated frontend components)
+	TypeAgent = "agent" // Sub-agent dispatch (Claude Agent tool, A2A calls)
+	TypeTodo  = "todo"  // Structured task checklist (Claude TodoWrite tool)
+	TypePlan  = "plan"  // Plan mode transitions (Claude EnterPlanMode/ExitPlanMode)
+	TypeJob   = "job"   // Async background jobs (Claude TaskCreate/TaskGet/... — Unix job semantics)
+
 	// System types (not visible in standard chat clients)
 	TypeAction = "action" // System action (open panel, navigate, etc.) - silent in OpenAI clients
 	TypeEvent  = "event"  // Lifecycle event (stream_start, stream_end, etc.) - CUI only, silent in OpenAI clients

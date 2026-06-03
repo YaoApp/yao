@@ -376,12 +376,14 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 		return false
 	}
 
-	return p.emitExecute(map[string]any{
+	execProps := map[string]any{
 		"tool":    toolName,
 		"tool_id": toolID,
 		"status":  "running",
 		"runner":  "claude-cli",
-	})
+	}
+	injectSemanticType(execProps, toolName)
+	return p.emitExecute(execProps)
 }
 
 func (p *streamParser) onContentBlockStop() (stopped bool) {
@@ -489,14 +491,16 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			summary := extractSummary(toolName, inputStr)
 			p.toolSummaries[toolID] = summary
 
-			if p.emitExecute(map[string]any{
+			execProps := map[string]any{
 				"tool":    toolName,
 				"tool_id": toolID,
 				"input":   json.RawMessage(inputRaw),
 				"summary": summary,
 				"status":  "running",
 				"runner":  "claude-cli",
-			}) {
+			}
+			injectSemanticType(execProps, toolName)
+			if p.emitExecute(execProps) {
 				p.endMessage()
 				return true
 			}
@@ -572,8 +576,10 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 			"status":   status,
 			"is_error": isError,
 		}
+		toolName := ""
 		if name, ok := p.toolNames[toolUseID]; ok {
 			execProps["tool"] = name
+			toolName = name
 		}
 		if input, ok := p.toolInputs[toolUseID]; ok {
 			execProps["input"] = json.RawMessage(input)
@@ -581,6 +587,7 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		if summary, ok := p.toolSummaries[toolUseID]; ok {
 			execProps["summary"] = summary
 		}
+		injectSemanticType(execProps, toolName)
 
 		if reuseMsgID, ok := p.toolMsgIDs[toolUseID]; ok {
 			if p.beginMessageWithID(reuseMsgID, "execute") {
@@ -652,4 +659,43 @@ func (p *streamParser) handleError(msg map[string]any) error {
 		return fmt.Errorf("Claude CLI error: %s", errMsg)
 	}
 	return nil
+}
+
+// resolveSemanticType maps Claude Code CLI tool names to semantic types.
+// Returns ("", nil) for tools that should remain as "execute".
+func resolveSemanticType(tool string) (string, map[string]any) {
+	switch tool {
+	case "Agent":
+		return message.TypeAgent, nil
+	case "TodoWrite":
+		return message.TypeTodo, map[string]any{"action": "write"}
+	case "EnterPlanMode":
+		return message.TypePlan, map[string]any{"action": "enter"}
+	case "ExitPlanMode":
+		return message.TypePlan, map[string]any{"action": "exit"}
+	case "TaskCreate":
+		return message.TypeJob, map[string]any{"action": "create"}
+	case "TaskGet":
+		return message.TypeJob, map[string]any{"action": "get"}
+	case "TaskList":
+		return message.TypeJob, map[string]any{"action": "list"}
+	case "TaskOutput":
+		return message.TypeJob, map[string]any{"action": "output"}
+	case "TaskStop":
+		return message.TypeJob, map[string]any{"action": "stop"}
+	case "TaskUpdate":
+		return message.TypeJob, map[string]any{"action": "update"}
+	}
+	return "", nil
+}
+
+// injectSemanticType annotates execute props with semantic_type and extra metadata.
+func injectSemanticType(props map[string]any, toolName string) {
+	semanticType, extraProps := resolveSemanticType(toolName)
+	if semanticType != "" {
+		props["semantic_type"] = semanticType
+		for k, v := range extraProps {
+			props[k] = v
+		}
+	}
 }
