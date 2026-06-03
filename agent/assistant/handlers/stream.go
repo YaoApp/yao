@@ -294,6 +294,17 @@ func (s *streamState) handleToolCall(data []byte) int {
 	return 0 // Continue
 }
 
+// isExecuteFamily checks if a message type belongs to the execute family
+// (execute itself or any semantic sub-type: agent, todo, plan, job).
+// These all share the same two-phase lifecycle (running → completed/error).
+func isExecuteFamily(t string) bool {
+	switch t {
+	case message.TypeExecute, message.TypeAgent, message.TypeTodo, message.TypePlan, message.TypeJob, message.TypeQuestion:
+		return true
+	}
+	return false
+}
+
 // handleExecute handles execute observation chunks from sandbox CLI agents.
 // These represent tool actions observed inside the agent runtime (e.g., Bash, Read, Write).
 func (s *streamState) handleExecute(data []byte) int {
@@ -301,7 +312,6 @@ func (s *streamState) handleExecute(data []byte) int {
 		return 0
 	}
 
-	s.currentType = message.TypeExecute
 	s.buffer = append(s.buffer, data...)
 	s.chunkCount++
 	s.messageSeq++
@@ -322,14 +332,18 @@ func (s *streamState) handleExecute(data []byte) int {
 		s.lastExecProps[k] = v
 	}
 
-	deltaAction := "merge"
+	msgType := message.TypeExecute
+	if st, ok := props["semantic_type"].(string); ok && st != "" {
+		msgType = st
+	}
+	s.currentType = msgType
 
 	msg := &message.Message{
 		ChunkID:     s.ctx.IDGenerator.GenerateChunkID(),
 		MessageID:   s.currentGroupID,
-		Type:        message.TypeExecute,
+		Type:        msgType,
 		Delta:       true,
-		DeltaAction: deltaAction,
+		DeltaAction: "merge",
 		Props:       props,
 	}
 
@@ -408,13 +422,14 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 	shouldSkipHistory := s.ctx.Stack != nil && s.ctx.Stack.Options != nil &&
 		s.ctx.Stack.Options.Skip != nil && s.ctx.Stack.Options.Skip.History
 
-	// Execute messages have two (or more) phases sharing the same message_id:
+	// Execute-family messages (execute, agent, todo, plan, job) have two-phase lifecycles:
 	//   1. running / suspended / resumed — streamed for UI display only, NOT persisted
 	//   2. completed / error — the final state, persisted to the buffer
 	// Only persist when we have an explicit terminal status.
-	isExecuteFinal := msgType == message.TypeExecute &&
+	isExecFamily := isExecuteFamily(msgType)
+	isExecuteFinal := isExecFamily &&
 		(s.lastExecStatus == "completed" || s.lastExecStatus == "error")
-	skipExecute := msgType == message.TypeExecute && !isExecuteFinal
+	skipExecute := isExecFamily && !isExecuteFinal
 
 	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory && !skipExecute {
 		assistantID := ""
@@ -423,8 +438,8 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		}
 
 		var props map[string]interface{}
-		switch msgType {
-		case message.TypeToolCall:
+		switch {
+		case msgType == message.TypeToolCall:
 			var toolCallData interface{}
 			if err := jsoniter.Unmarshal(s.buffer, &toolCallData); err == nil {
 				props = map[string]interface{}{
@@ -435,16 +450,10 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 					"content": string(s.buffer),
 				}
 			}
-		case message.TypeExecute:
-			if s.lastExecProps != nil {
-				props = make(map[string]interface{}, len(s.lastExecProps))
-				for k, v := range s.lastExecProps {
-					props[k] = v
-				}
-			} else {
-				props = map[string]interface{}{
-					"content": string(s.buffer),
-				}
+		case s.lastExecProps != nil:
+			props = make(map[string]interface{}, len(s.lastExecProps))
+			for k, v := range s.lastExecProps {
+				props[k] = v
 			}
 		default:
 			props = map[string]interface{}{

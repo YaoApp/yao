@@ -110,7 +110,7 @@ The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`
 
 User messages may contain `<Mention>` tags referencing experts, workspaces, files, or directories:
 
-- `<Mention type="expert" value="assistant_id">Name</Mention>` — The user wants to involve this AI expert. Use the Agent tool with `subagent_type="a2a"` to delegate the task, passing the `assistant_id` and relevant context in the prompt.
+- `<Mention type="expert" value="assistant_id">Name</Mention>` — The user wants to involve this AI expert. Use `tai tool agent_call '{"assistant_id":"<the value>","message":"<relevant query>"}'` to call the expert and get their response.
 - `<Mention type="workspace" value="workspace_id">Name</Mention>` — References a workspace. Use `workspace_file_list` and `workspace_file_read` to access its files.
 - `<Mention type="file" value="workspace://wsId/path">Filename</Mention>` — References a specific file. Use `workspace_file_read` to read its content.
 - `<Mention type="directory" value="workspace://wsId/path">DirName</Mention>` — References a directory. Use `workspace_file_list` to browse its contents first, then `workspace_file_read` for specific files.

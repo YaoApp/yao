@@ -1,6 +1,7 @@
 {
   "name": "agent_call",
   "description": "Call another AI expert agent with a message and get the response. Use when the user @mentions an expert or when you need specialized help from another agent.",
+  "process": "tools.agent_call",
   "inputSchema": {
     "type": "object",
     "properties": {

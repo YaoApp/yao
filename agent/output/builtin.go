@@ -156,7 +156,7 @@ func NewVideoMessage(url string) *message.Message {
 // IsBuiltinType checks if a message type is a built-in type
 func IsBuiltinType(msgType string) bool {
 	switch msgType {
-	case message.TypeUserInput, message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeExecute, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
+	case message.TypeUserInput, message.TypeText, message.TypeThinking, message.TypeLoading, message.TypeToolCall, message.TypeExecute, message.TypeAgent, message.TypeTodo, message.TypePlan, message.TypeJob, message.TypeQuestion, message.TypeError, message.TypeImage, message.TypeAudio, message.TypeVideo, message.TypeAction, message.TypeEvent:
 		return true
 	default:
 		return false
