@@ -685,6 +685,8 @@ func resolveSemanticType(tool string) (string, map[string]any) {
 		return message.TypeJob, map[string]any{"action": "stop"}
 	case "TaskUpdate":
 		return message.TypeJob, map[string]any{"action": "update"}
+	case "AskUserQuestion":
+		return message.TypeQuestion, nil
 	}
 	return "", nil
 }

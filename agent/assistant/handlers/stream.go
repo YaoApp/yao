@@ -299,7 +299,7 @@ func (s *streamState) handleToolCall(data []byte) int {
 // These all share the same two-phase lifecycle (running → completed/error).
 func isExecuteFamily(t string) bool {
 	switch t {
-	case message.TypeExecute, message.TypeAgent, message.TypeTodo, message.TypePlan, message.TypeJob:
+	case message.TypeExecute, message.TypeAgent, message.TypeTodo, message.TypePlan, message.TypeJob, message.TypeQuestion:
 		return true
 	}
 	return false
