@@ -164,6 +164,22 @@ func TestPortList_ObjectArray(t *testing.T) {
 	}
 }
 
+func TestPortList_ObjectArrayWithLabel(t *testing.T) {
+	var pl types.PortList
+	if err := json.Unmarshal([]byte(`[{"label":"Web App","port":3000},{"port":8080}]`), &pl); err != nil {
+		t.Fatal(err)
+	}
+	if len(pl) != 2 {
+		t.Fatalf("got %d ports", len(pl))
+	}
+	if pl[0].Label != "Web App" || pl[0].Port != 3000 {
+		t.Errorf("port 0: %+v", pl[0])
+	}
+	if pl[1].Label != "" || pl[1].Port != 8080 {
+		t.Errorf("port 1: %+v", pl[1])
+	}
+}
+
 func TestPortList_MixedArray_Error(t *testing.T) {
 	var pl types.PortList
 	err := json.Unmarshal([]byte(`[3000, {"port":8080,"host_port":18080}]`), &pl)

@@ -47,6 +47,14 @@ func (b *Box) Owner() string       { return b.owner }
 func (b *Box) ContainerID() string { return b.containerID }
 func (b *Box) NodeID() string      { return b.nodeID }
 
+// Label returns the value of a container label by key, or "" if not found.
+func (b *Box) Label(key string) string {
+	if b.labels == nil {
+		return ""
+	}
+	return b.labels[key]
+}
+
 // ComputerInfo returns identity and registry information for this Box.
 func (b *Box) ComputerInfo() ComputerInfo {
 	return ComputerInfo{
