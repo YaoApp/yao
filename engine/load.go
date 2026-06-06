@@ -53,6 +53,7 @@ import (
 	"github.com/yaoapp/yao/store"
 	sui "github.com/yaoapp/yao/sui/api"
 	"github.com/yaoapp/yao/tai"
+	"github.com/yaoapp/yao/tai/webproxy"
 	"github.com/yaoapp/yao/task"
 	"github.com/yaoapp/yao/widget"
 	"github.com/yaoapp/yao/widgets"
@@ -179,6 +180,24 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "Registry", Error: err})
+	}
+
+	// Initialize the WebProxy service for container port forwarding.
+	if cfg.WebProxy.Enabled != "false" && cfg.WebProxy.Enabled != "off" {
+		loadStep("WebProxy", func() error {
+			webproxy.Init(webproxy.Config{
+				PortRangeStart: cfg.WebProxy.PortRangeStart,
+				PortRangeEnd:   cfg.WebProxy.PortRangeEnd,
+				MaxPerTarget:   cfg.WebProxy.MaxPerTarget,
+				IdleTimeout:    webproxy.ParseIdleTimeout(cfg.WebProxy.IdleTimeout),
+				Domain:         cfg.WebProxy.Domain,
+				Prefix:         cfg.WebProxy.Prefix,
+			})
+			sandbox.M().OnRemove(func(sandboxID string) {
+				webproxy.WP().UnbindAll(sandboxID)
+			})
+			return nil
+		}, callback)
 	}
 
 	// Load Commercial License

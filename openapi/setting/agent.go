@@ -95,9 +95,14 @@ func handleAgentSettingGet(c *gin.Context) {
 	if runners == nil {
 		runners = []string{}
 	}
+
+	// Merge services: sandbox.yao defaults + user overrides
+	services := assistant.ResolveServices(id, userSetting.Services)
+
 	settingMap := map[string]interface{}{
-		"runners": runners,
-		"image":   userSetting.Image,
+		"runners":  runners,
+		"image":    userSetting.Image,
+		"services": services,
 	}
 
 	result := map[string]interface{}{
@@ -107,11 +112,19 @@ func handleAgentSettingGet(c *gin.Context) {
 	}
 
 	if ast, err := loadAssistant(id); err == nil && ast != nil && ast.SandboxV2 != nil {
+		ports := make([]map[string]interface{}, 0, len(ast.SandboxV2.Computer.Ports))
+		for _, p := range ast.SandboxV2.Computer.Ports {
+			ports = append(ports, map[string]interface{}{
+				"label": p.Label,
+				"port":  p.Port,
+			})
+		}
 		result["sandbox_config"] = map[string]interface{}{
 			"runner": map[string]interface{}{
 				"supports": ast.SandboxV2.Runner.Supports,
 				"name":     ast.SandboxV2.Runner.Name,
 			},
+			"ports": ports,
 		}
 	}
 
@@ -130,8 +143,9 @@ func handleAgentSettingUpdate(c *gin.Context) {
 	ns := agentSettingNS(id)
 
 	var body struct {
-		Runners []string `json:"runners"`
-		Image   string   `json:"image"`
+		Runners  []string              `json:"runners"`
+		Image    string                `json:"image"`
+		Services []types.ServiceConfig `json:"services,omitempty"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		respondError(c, http.StatusBadRequest, "invalid request body")
@@ -158,6 +172,7 @@ func handleAgentSettingUpdate(c *gin.Context) {
 
 	existing["runners"] = body.Runners
 	existing["image"] = body.Image
+	existing["services"] = body.Services
 
 	if _, err := setting.Global.Set(scope, ns, existing); err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
@@ -165,8 +180,9 @@ func handleAgentSettingUpdate(c *gin.Context) {
 	}
 
 	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{
-		"runners": body.Runners,
-		"image":   body.Image,
+		"runners":  body.Runners,
+		"image":    body.Image,
+		"services": body.Services,
 	})
 }
 

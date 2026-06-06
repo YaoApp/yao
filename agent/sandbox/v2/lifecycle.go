@@ -96,6 +96,14 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	cfg.WorkspaceID = workspaceID
 	cfg.NodeID = sel.NodeID
 
+	// Store assistant ID as a label for reliable lookup by webproxy/settings
+	if cfg.Labels == nil {
+		cfg.Labels = make(map[string]string)
+	}
+	if ctx.AssistantID != "" {
+		cfg.Labels["sandbox-assistant"] = ctx.AssistantID
+	}
+
 	// Inject user identity into sandbox environment for ownership tracking
 	if ctx.Authorized != nil {
 		if cfg.Environment == nil {

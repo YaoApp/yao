@@ -194,7 +194,7 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	nodes.Attach(group.Group("/nodes"), openapi.OAuth)
 
 	// Tai forward handlers (proxy + VNC, dispatches tunnel vs local)
-	openapiTai.Attach(group)
+	openapiTai.Attach(group, openapi.OAuth)
 
 	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
 	group.POST("/tai-nodes/register", taiapi.HandleRegister)

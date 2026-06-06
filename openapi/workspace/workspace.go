@@ -19,6 +19,8 @@ import (
 	ws "github.com/yaoapp/yao/workspace"
 )
 
+const maxFileSize = 50 << 20 // 50MB
+
 // Attach registers workspace management routes on the given group.
 //   - GET    /               — list workspaces (filtered by owner from token)
 //   - POST   /               — create workspace (owner from token)
@@ -49,6 +51,7 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.DELETE("/:id/files/*path", handleDeleteFile)
 	group.POST("/:id/mkdir", handleMkdir)
 	group.POST("/:id/rename", handleRename)
+	group.GET("/:id/preview/*path", handlePreview)
 }
 
 // resolveOwner returns TeamID if present, otherwise UserID.
@@ -456,8 +459,13 @@ func handleWriteFile(c *gin.Context) {
 		path = path[1:]
 	}
 
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxFileSize)
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
+		if err.Error() == "http: request body too large" {
+			c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large, max 50MB"})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to read body"})
 		return
 	}
@@ -527,4 +535,40 @@ func handleRename(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// handlePreview serves workspace files with correct MIME types for browser rendering.
+// Relative paths in HTML/CSS/JS resolve naturally since the URL structure preserves
+// the file hierarchy: GET /:id/preview/app/index.html referencing ./style.css
+// becomes GET /:id/preview/app/style.css.
+func handlePreview(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+
+	path := c.Param("path")
+	if len(path) > 0 && path[0] == '/' {
+		path = path[1:]
+	}
+
+	data, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "file not found: " + path})
+		return
+	}
+
+	if int64(len(data)) > maxFileSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "file too large for preview, max 50MB"})
+		return
+	}
+
+	ext := filepath.Ext(path)
+	mimeType := mime.TypeByExtension(ext)
+	if mimeType == "" {
+		mimeType = http.DetectContentType(data)
+	}
+
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Data(http.StatusOK, mimeType, data)
 }

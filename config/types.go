@@ -40,6 +40,18 @@ type Config struct {
 	Registry      string         `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
 	GRPC          GRPCConfig     `json:"grpc,omitempty"`
 	HostExec      HostExecConfig `json:"host_exec,omitempty"`
+	WebProxy      WebProxyConfig `json:"webproxy,omitempty"`
+}
+
+// WebProxyConfig controls the dynamic HTTP proxy for container web services.
+type WebProxyConfig struct {
+	Enabled        string `json:"enabled,omitempty" env:"YAO_WEBPROXY" envDefault:"true"`
+	PortRangeStart int    `json:"port_range_start,omitempty" env:"YAO_WEBPROXY_PORT_START" envDefault:"15000"`
+	PortRangeEnd   int    `json:"port_range_end,omitempty" env:"YAO_WEBPROXY_PORT_END" envDefault:"15999"`
+	MaxPerTarget   int    `json:"max_per_target,omitempty" env:"YAO_WEBPROXY_MAX_PER_TARGET" envDefault:"20"`
+	IdleTimeout    string `json:"idle_timeout,omitempty" env:"YAO_WEBPROXY_IDLE_TIMEOUT" envDefault:"30m"`
+	Domain         string `json:"domain,omitempty" env:"YAO_WEBPROXY_DOMAIN"`
+	Prefix         string `json:"prefix,omitempty" env:"YAO_WEBPROXY_PREFIX" envDefault:"p"`
 }
 
 // GRPCConfig gRPC server configuration

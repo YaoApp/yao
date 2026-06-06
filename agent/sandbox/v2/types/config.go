@@ -179,6 +179,7 @@ func (v *VNCConfig) UnmarshalJSON(data []byte) error {
 type PortList []PortMapping
 
 type PortMapping struct {
+	Label    string `json:"label,omitempty" yaml:"label,omitempty"`
 	Port     int    `json:"port" yaml:"port"`
 	HostPort int    `json:"host_port,omitempty" yaml:"host_port,omitempty"`
 	Protocol string `json:"protocol,omitempty" yaml:"protocol,omitempty"`
@@ -200,6 +201,12 @@ func (p *PortList) UnmarshalJSON(data []byte) error {
 	}
 	*p = objs
 	return nil
+}
+
+// ServiceConfig defines a web service exposed from the sandbox for preview.
+type ServiceConfig struct {
+	Label string `json:"label" yaml:"label"`
+	Port  int    `json:"port" yaml:"port"`
 }
 
 // ---------------------------------------------------------------------------

@@ -20,11 +20,18 @@ import (
 // Manager manages sandbox lifecycle. Node connections are delegated to tai/registry.
 // Idle-timeout and lifecycle enforcement is handled by the sandbox watcher (watcher.go).
 type Manager struct {
-	boxes sync.Map
+	boxes    sync.Map
+	onRemove func(sandboxID string) // hook called before sandbox removal
 }
 
 func newManager() *Manager {
 	return &Manager{}
+}
+
+// OnRemove registers a callback invoked before a sandbox is removed.
+// Used by webproxy to release bindings.
+func (m *Manager) OnRemove(fn func(sandboxID string)) {
+	m.onRemove = fn
 }
 
 // Start discovers existing containers from all registered nodes and rebuilds
@@ -302,6 +309,11 @@ func (m *Manager) Remove(ctx context.Context, id string) error {
 		return ErrNotFound
 	}
 	b := v.(*Box)
+
+	// Release any webproxy bindings for this sandbox before removal.
+	if m.onRemove != nil {
+		m.onRemove(id)
+	}
 
 	res, err := m.getNode(b.nodeID)
 	if err == nil && res.Runtime != nil {

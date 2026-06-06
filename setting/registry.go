@@ -89,6 +89,36 @@ func (r *Registry) GetMerged(userID, teamID, ns string, dest ...interface{}) (ma
 	return merged, nil
 }
 
+// GetMergedBatch reads multiple namespaces across all three scopes in one pass,
+// returning a map of namespace → shallow-merged data. Namespaces with no data
+// at any scope are omitted from the result.
+func (r *Registry) GetMergedBatch(userID, teamID string, namespaces []string) map[string]map[string]interface{} {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string]map[string]interface{}, len(namespaces))
+	for _, ns := range namespaces {
+		merged := make(map[string]interface{})
+		if sys, err := storeGet(r.store, r.cache, ScopeID{Scope: ScopeSystem}, ns); err == nil {
+			shallowMerge(merged, sys)
+		}
+		if teamID != "" {
+			if team, err := storeGet(r.store, r.cache, ScopeID{Scope: ScopeTeam, TeamID: teamID}, ns); err == nil {
+				shallowMerge(merged, team)
+			}
+		}
+		if userID != "" {
+			if user, err := storeGet(r.store, r.cache, ScopeID{Scope: ScopeUser, UserID: userID}, ns); err == nil {
+				shallowMerge(merged, user)
+			}
+		}
+		if len(merged) > 0 {
+			result[ns] = merged
+		}
+	}
+	return result
+}
+
 // Set writes (or overwrites) a namespace entry for the given scope.
 func (r *Registry) Set(scope ScopeID, ns string, data map[string]interface{}) (*Entry, error) {
 	r.mu.Lock()
