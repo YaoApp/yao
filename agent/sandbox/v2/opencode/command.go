@@ -109,6 +109,15 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		env["CTX_SKILLS_DIR"] = p.PathJoin(workDir, ".yao", "assistants", assistantID, "skills")
 	}
 
+	if req.Config != nil && req.Config.NodeID != "" {
+		env["CTX_NODE_ID"] = req.Config.NodeID
+		if req.Config.ID != "" {
+			env["CTX_TARGET_ID"] = req.Config.ID
+		} else {
+			env["CTX_TARGET_ID"] = "__host__"
+		}
+	}
+
 	env["OPENCODE_DATA_DIR"] = p.PathJoin(prefix, "data")
 	env["OPENCODE_CACHE_DIR"] = p.PathJoin(prefix, "cache")
 	env["OPENCODE_STATE_DIR"] = p.PathJoin(prefix, "state")
@@ -280,6 +289,35 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 - **Working Directory**: %[1]s
 - **File Access**: You have full read/write access to %[1]s
 `, workDir, osName, shell)
+}
+
+func buildServicePrompt(cfg *types.SandboxConfig) string {
+	if cfg == nil || len(cfg.Computer.Ports) == 0 || cfg.NodeID == "" {
+		return ""
+	}
+	targetID := cfg.ID
+	if targetID == "" {
+		targetID = "__host__"
+	}
+	var sb strings.Builder
+	sb.WriteString("## Web Services\n\n")
+	sb.WriteString("When you start a web server or the user asks to access a service, ")
+	sb.WriteString("ALWAYS provide a clickable service link using markdown format with a descriptive title:\n\n")
+	sb.WriteString(fmt.Sprintf("  [Title](service://%s/%s/{port}[/path][?title=URL+Encoded+Title])\n\n", cfg.NodeID, targetID))
+	sb.WriteString("Examples:\n")
+	sb.WriteString(fmt.Sprintf("- [My App](service://%s/%s/3000)\n", cfg.NodeID, targetID))
+	sb.WriteString(fmt.Sprintf("- [API Docs](service://%s/%s/8080/docs?title=API+Documentation)\n\n", cfg.NodeID, targetID))
+	sb.WriteString("The title in markdown link text takes priority for display. ")
+	sb.WriteString("The ?title= query parameter is a fallback for bare URLs.\n\n")
+	sb.WriteString("Configured ports:\n")
+	for _, p := range cfg.Computer.Ports {
+		if p.Label != "" {
+			sb.WriteString(fmt.Sprintf("- %d (%s)\n", p.Port, p.Label))
+		} else {
+			sb.WriteString(fmt.Sprintf("- %d\n", p.Port))
+		}
+	}
+	return sb.String()
 }
 
 func getProviderPrefix(conn connector.Connector) string {
