@@ -1,0 +1,15 @@
+{
+  "name": "clip_write",
+  "description": "Store a content clip (screenshot, DOM, location, or any structured data). Returns the clip ID for later retrieval via clip_read.",
+  "process": "tools.clip_write",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "label": { "type": "string", "description": "Short display name for the clip" },
+      "description": { "type": "string", "description": "Semantic description of what this clip contains" },
+      "data": { "type": "object", "description": "Arbitrary key-value data to store", "additionalProperties": { "type": "string" } }
+    },
+    "required": ["label", "description", "data"]
+  },
+  "x-process-args": ["$args.label", "$args.description", "$args.data"]
+}

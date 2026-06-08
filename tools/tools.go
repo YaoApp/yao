@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/tools/agent"
+	"github.com/yaoapp/yao/tools/clip"
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	"github.com/yaoapp/yao/tools/proc"
@@ -42,6 +43,9 @@ var mcpRobotDSL []byte
 
 //go:embed mcps/workspace.json
 var mcpWorkspaceDSL []byte
+
+//go:embed mcps/clip.json
+var mcpClipDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -81,6 +85,10 @@ func init() {
 		"workspace_file_list":  workspace.FileListHandler,
 		"workspace_file_read":  workspace.FileReadHandler,
 		"workspace_file_write": workspace.FileWriteHandler,
+
+		"clip_write": clip.WriteHandler,
+		"clip_read":  clip.ReadHandler,
+		"clip_list":  clip.ListHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -105,6 +113,8 @@ func init() {
 	registerMCPServer(mcpWorkspaceDSL, "yao-workspace",
 		workspace.ListSchemaJSON, workspace.GetSchemaJSON,
 		workspace.FileListSchemaJSON, workspace.FileReadSchemaJSON, workspace.FileWriteSchemaJSON)
+	registerMCPServer(mcpClipDSL, "yao-clip",
+		clip.WriteSchemaJSON, clip.ReadSchemaJSON, clip.ListSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

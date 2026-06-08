@@ -1,0 +1,10 @@
+{
+  "name": "yao-clip",
+  "transport": "process",
+  "description": "Clip storage — write, read, and list user-shared content clips (screenshots, DOM, etc.)",
+  "tools": {
+    "clip_write": "tools.clip_write",
+    "clip_read": "tools.clip_read",
+    "clip_list": "tools.clip_list"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "clip_list",
+  "description": "List all available clips in the current session. Returns clip metadata (id, label, description) without the full data.",
+  "process": "tools.clip_list",
+  "inputSchema": { "type": "object", "properties": {} },
+  "x-process-args": []
+}
