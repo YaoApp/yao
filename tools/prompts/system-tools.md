@@ -103,8 +103,11 @@ You have access to Yao system tools via the `tai` command in bash.
 | `workspace_file_list`    | yao-workspace | List files and directories in a workspace          |
 | `workspace_file_read`    | yao-workspace | Read file content from workspace                   |
 | `workspace_file_write`   | yao-workspace | Write content to a file in workspace               |
+| `clip_write`             | yao-clip      | Store a content clip (screenshot, DOM, structured data). Returns clip ID |
+| `clip_read`              | yao-clip      | Read a stored clip by ID. Use when you see `<Mention type="clip">` tags |
+| `clip_list`              | yao-clip      | List all available clips in the current session     |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ## Mention Tags
 
@@ -114,5 +117,6 @@ User messages may contain `<Mention>` tags referencing experts, workspaces, file
 - `<Mention type="workspace" value="workspace_id">Name</Mention>` — References a workspace. Use `workspace_file_list` and `workspace_file_read` to access its files.
 - `<Mention type="file" value="workspace://wsId/path">Filename</Mention>` — References a specific file. Use `workspace_file_read` to read its content.
 - `<Mention type="directory" value="workspace://wsId/path">DirName</Mention>` — References a directory. Use `workspace_file_list` to browse its contents first, then `workspace_file_read` for specific files.
+- `<Mention type="clip" value="clip://uuid" description="...">Label</Mention>` — References a stored content clip. The `description` attribute tells you what the clip contains. Use `tai tool clip_read '{"id":"<the value>"}'` to retrieve the full data when needed.
 
 When you see these tags, understand the user's intent and use the appropriate tools.
