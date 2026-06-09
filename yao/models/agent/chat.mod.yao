@@ -58,6 +58,15 @@
       "nullable": true
     },
     {
+      "name": "last_workspace",
+      "type": "string",
+      "label": "Last Workspace",
+      "comment": "Last used workspace ID (updated on each message)",
+      "length": 200,
+      "nullable": true,
+      "index": true
+    },
+    {
       "name": "status",
       "type": "enum",
       "label": "Status",

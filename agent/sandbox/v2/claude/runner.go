@@ -162,7 +162,7 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	// Claude CLI creates session files on disk at startup, so subsequent
 	// requests must use --resume (not --session-id) even if this stream fails.
 	if chatID != "" {
-		storeKey := "claude-session:" + assistantID + ":" + chatID
+		storeKey := "claude-session:" + assistantID + ":" + chatID + ":" + req.Config.WorkspaceID
 		sessionUUID := chatIDToSessionUUID(assistantID, chatID)
 		markChatSession(storeKey, sessionUUID, 90*24*time.Hour)
 	}

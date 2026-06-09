@@ -238,6 +238,12 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 		if mode := ctx.Buffer.Mode(); mode != "" {
 			updates["last_mode"] = mode
 		}
+		// Also update last_workspace if available in metadata
+		if ctx.Metadata != nil {
+			if ws, ok := ctx.Metadata["workspace_id"].(string); ok && ws != "" {
+				updates["last_workspace"] = ws
+			}
+		}
 		if updateErr := chatStore.UpdateChat(ctx.ChatID, updates); updateErr != nil {
 			ctx.Logger.Debug("Failed to update chat: %v", updateErr)
 		}
@@ -357,6 +363,13 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 	// Set last_connector from options (user selected connector)
 	if ctx.Stack != nil && ctx.Stack.Options != nil && ctx.Stack.Options.Connector != "" {
 		chat.LastConnector = ctx.Stack.Options.Connector
+	}
+
+	// Set last_workspace from metadata
+	if ctx.Metadata != nil {
+		if ws, ok := ctx.Metadata["workspace_id"].(string); ok && ws != "" {
+			chat.LastWorkspace = ws
+		}
 	}
 
 	// Set permission fields from authorized info
