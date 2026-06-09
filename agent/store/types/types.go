@@ -33,6 +33,7 @@ type Chat struct {
 	AssistantID   string                 `json:"assistant_id"`
 	LastConnector string                 `json:"last_connector,omitempty"` // Last used connector ID (updated on each message)
 	LastMode      string                 `json:"last_mode,omitempty"`      // Last used chat mode (updated on each message)
+	LastWorkspace string                 `json:"last_workspace,omitempty"` // Last used workspace ID (updated on each message)
 	Status        string                 `json:"status"`                   // "active" or "archived"
 	Public        bool                   `json:"public"`                   // Whether shared across all teams
 	Share         string                 `json:"share"`                    // "private" or "team"

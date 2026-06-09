@@ -76,6 +76,9 @@ func (store *Xun) CreateChat(chat *types.Chat) error {
 	if chat.LastMode != "" {
 		data["last_mode"] = chat.LastMode
 	}
+	if chat.LastWorkspace != "" {
+		data["last_workspace"] = chat.LastWorkspace
+	}
 	if chat.LastMessageAt != nil {
 		data["last_message_at"] = *chat.LastMessageAt
 	}
@@ -346,6 +349,7 @@ func (store *Xun) rowToChat(data map[string]interface{}) (*types.Chat, error) {
 		AssistantID:   getString(data, "assistant_id"),
 		LastConnector: getString(data, "last_connector"),
 		LastMode:      getString(data, "last_mode"),
+		LastWorkspace: getString(data, "last_workspace"),
 		Status:        getString(data, "status"),
 		Public:        getBool(data, "public"),
 		Share:         getString(data, "share"),

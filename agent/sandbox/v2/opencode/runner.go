@@ -153,7 +153,7 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	// Write system prompt if this is the first turn.
 	assistantID := req.AssistantID
 	chatID := req.ChatID
-	storeKey := "opencode-session:" + assistantID + ":" + chatID
+	storeKey := "opencode-session:" + assistantID + ":" + chatID + ":" + req.Config.WorkspaceID
 	isContinuation := chatID != "" && chatSessionExists(storeKey)
 
 	if !isContinuation && req.SystemPrompt != "" {

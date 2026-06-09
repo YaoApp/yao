@@ -59,7 +59,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, attachmentPa
 
 	var isContinuation bool
 	if chatID != "" {
-		storeKey := "opencode-session:" + assistantID + ":" + chatID
+		storeKey := "opencode-session:" + assistantID + ":" + chatID + ":" + req.Config.WorkspaceID
 		isContinuation = chatSessionExists(storeKey)
 	}
 

@@ -73,7 +73,7 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 
 	var isContinuation bool
 	if chatID != "" {
-		storeKey := "claude-session:" + assistantID + ":" + chatID
+		storeKey := "claude-session:" + assistantID + ":" + chatID + ":" + req.Config.WorkspaceID
 		isContinuation = chatSessionExists(storeKey)
 	} else {
 		isContinuation = hasExistingSession(ctx, computer, p, assistantID)
