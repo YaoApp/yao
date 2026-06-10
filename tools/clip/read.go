@@ -14,7 +14,7 @@ var ReadSchemaJSON []byte
 // ReadHandler is the tools.clip_read process handler.
 // Reads a stored clip by ID and returns the full content.
 //
-// Args[0]: id (string) — the clip ID (e.g. clip://uuid)
+// Args[0]: id (string) — the clip ID (UUID string)
 func ReadHandler(proc *process.Process) interface{} {
 	id := proc.ArgsString(0)
 	if id == "" {

@@ -49,7 +49,7 @@ func cleanupLoop() {
 }
 
 func newClipID() string {
-	return "clip://" + uuid.New().String()
+	return uuid.New().String()
 }
 
 func writeClip(userID, teamID, label, description string, data map[string]string) *Clip {

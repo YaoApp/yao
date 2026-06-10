@@ -117,6 +117,6 @@ User messages may contain `<Mention>` tags referencing experts, workspaces, file
 - `<Mention type="workspace" value="workspace_id">Name</Mention>` — References a workspace. Use `workspace_file_list` and `workspace_file_read` to access its files.
 - `<Mention type="file" value="workspace://wsId/path">Filename</Mention>` — References a specific file. Use `workspace_file_read` to read its content.
 - `<Mention type="directory" value="workspace://wsId/path">DirName</Mention>` — References a directory. Use `workspace_file_list` to browse its contents first, then `workspace_file_read` for specific files.
-- `<Mention type="clip" value="clip://uuid" description="...">Label</Mention>` — References a stored content clip. The `description` attribute tells you what the clip contains. Use `tai tool clip_read '{"id":"<the value>"}'` to retrieve the full data when needed.
+- `<Mention type="clip" value="<uuid>" description="...">Label</Mention>` — References a stored content clip. The `description` attribute tells you what the clip contains. Use `tai tool clip_read '{"id":"<the value>"}'` to retrieve the full data when needed.
 
 When you see these tags, understand the user's intent and use the appropriate tools.
