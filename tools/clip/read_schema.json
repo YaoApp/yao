@@ -1,11 +1,11 @@
 {
   "name": "clip_read",
-  "description": "Read a stored clip by ID. Use when you see <Mention type=\"clip\" value=\"clip://...\"> in user messages and need the full content.",
+  "description": "Read a stored clip by ID. Use when you see <Mention type=\"clip\"> in user messages and need the full content.",
   "process": "tools.clip_read",
   "inputSchema": {
     "type": "object",
     "properties": {
-      "id": { "type": "string", "description": "The clip ID (e.g. clip://uuid)" }
+      "id": { "type": "string", "description": "The clip ID (UUID string from Mention value)" }
     },
     "required": ["id"]
   },
