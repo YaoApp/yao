@@ -1,0 +1,18 @@
+{
+  "name": "task_stop",
+  "description": "Stop a running task. Use force=true to immediately cancel.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "chat_id": {
+        "type": "string",
+        "description": "The task chat ID to stop"
+      },
+      "force": {
+        "type": "boolean",
+        "description": "If true, force cancel immediately. Default false (graceful stop)."
+      }
+    },
+    "required": ["chat_id"]
+  }
+}

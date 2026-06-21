@@ -117,7 +117,7 @@ func FromTemplate(ctx context.Context, auth *process.AuthorizedInfo, req *FromTe
 	// The default column was already created by Create, remove it if template has columns
 	if len(tmpl.Columns) > 0 && len(board.Columns) > 0 {
 		for _, col := range board.Columns {
-			capsule.Global.Query().Table("agent_board_column").
+			capsule.Global.Query().Table(tableBoardColumn()).
 				Where("column_id", "=", col.ColumnID).
 				MustDelete()
 		}

@@ -11,10 +11,10 @@ import (
 )
 
 // OnStatusChange generates inbox messages when task status changes.
-// Called by the execution engine in Plan 3; implemented now but not invoked in Plan 1.
-func OnStatusChange(ctx context.Context, task *AgentTask, newStatus string) error {
+// Returns the created mail_id (empty if no mail created) for downstream enrichment.
+func OnStatusChange(ctx context.Context, task *AgentTask, newStatus string) (string, error) {
 	if task.DeletedAt != nil {
-		return nil
+		return "", nil
 	}
 
 	var mailType, priority string
@@ -26,13 +26,13 @@ func OnStatusChange(ctx context.Context, task *AgentTask, newStatus string) erro
 	case "failed":
 		mailType, priority = "failed", "medium"
 	default:
-		return nil
+		return "", nil
 	}
 
 	return createMail(ctx, task, mailType, priority)
 }
 
-func createMail(ctx context.Context, task *AgentTask, mailType, priority string) error {
+func createMail(ctx context.Context, task *AgentTask, mailType, priority string) (string, error) {
 	boardID := getBoardIDFromColumn(ctx, task.ColumnID)
 	boardName := getBoardName(ctx, boardID)
 
@@ -40,7 +40,7 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 	mailID := uuid.New().String()
 	now := time.Now()
 
-	err := capsule.Global.Query().Table("agent_mail").Insert(map[string]interface{}{
+	err := capsule.Global.Query().Table(tableMail()).Insert(map[string]interface{}{
 		"mail_id":          mailID,
 		"type":             mailType,
 		"priority":         priority,
@@ -61,7 +61,7 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 		"updated_at":       now,
 	})
 	if err != nil {
-		return fmt.Errorf("inbox.createMail: %w", err)
+		return "", fmt.Errorf("inbox.createMail: %w", err)
 	}
 
 	event.Push(ctx, "mail.new", map[string]any{
@@ -72,13 +72,13 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 		"__yao_created_by": task.CreatedBy,
 	})
 
-	return nil
+	return mailID, nil
 }
 
 func generateTitle(chatID, mailType string) string {
 	// Get chat title
 	title := chatID
-	row, err := capsule.Global.Query().Table("agent_chat").
+	row, err := capsule.Global.Query().Table(tableChat()).
 		Select("title").
 		Where("chat_id", "=", chatID).
 		First()
@@ -104,7 +104,7 @@ func getBoardIDFromColumn(ctx context.Context, columnID string) string {
 	if columnID == "" {
 		return ""
 	}
-	row, err := capsule.Global.Query().Table("agent_board_column").
+	row, err := capsule.Global.Query().Table(tableBoardColumn()).
 		Select("board_id").
 		Where("column_id", "=", columnID).
 		First()
@@ -118,7 +118,7 @@ func getBoardName(ctx context.Context, boardID string) string {
 	if boardID == "" {
 		return ""
 	}
-	row, err := capsule.Global.Query().Table("agent_board").
+	row, err := capsule.Global.Query().Table(tableBoard()).
 		Select("name").
 		Where("board_id", "=", boardID).
 		First()

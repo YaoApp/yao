@@ -18,7 +18,7 @@ func Move(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req 
 	}
 
 	// Verify target column exists
-	colRow, err := capsule.Global.Query().Table("agent_board_column").
+	colRow, err := capsule.Global.Query().Table(tableBoardColumn()).
 		Where("column_id", "=", req.ColumnID).
 		WhereNull("deleted_at").
 		First()
@@ -40,7 +40,7 @@ func Move(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req 
 	// Cross-column move
 	// Step 1: Decrement positions in old column for items after the moved task
 	if oldColumnID != "" {
-		_, err = capsule.Global.Query().Table("agent_task").
+		_, err = capsule.Global.Query().Table(tableTask()).
 			Where("column_id", "=", oldColumnID).
 			Where("position", ">", oldPosition).
 			WhereNull("deleted_at").
@@ -51,7 +51,7 @@ func Move(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req 
 	}
 
 	// Step 2: Increment positions in new column for items at or after target position
-	_, err = capsule.Global.Query().Table("agent_task").
+	_, err = capsule.Global.Query().Table(tableTask()).
 		Where("column_id", "=", req.ColumnID).
 		Where("position", ">=", req.Position).
 		WhereNull("deleted_at").
@@ -61,7 +61,7 @@ func Move(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req 
 	}
 
 	// Step 3: Update target task
-	_, err = capsule.Global.Query().Table("agent_task").
+	_, err = capsule.Global.Query().Table(tableTask()).
 		Where("chat_id", "=", chatID).
 		Update(map[string]interface{}{
 			"column_id": req.ColumnID,
@@ -90,7 +90,7 @@ func reposition(chatID, columnID string, oldPos, newPos int, teamID string, ctx 
 
 	if oldPos < newPos {
 		// Moving down: decrement items between old+1 and new
-		_, err := capsule.Global.Query().Table("agent_task").
+		_, err := capsule.Global.Query().Table(tableTask()).
 			Where("column_id", "=", columnID).
 			Where("position", ">", oldPos).
 			Where("position", "<=", newPos).
@@ -101,7 +101,7 @@ func reposition(chatID, columnID string, oldPos, newPos int, teamID string, ctx 
 		}
 	} else {
 		// Moving up: increment items between new and old-1
-		_, err := capsule.Global.Query().Table("agent_task").
+		_, err := capsule.Global.Query().Table(tableTask()).
 			Where("column_id", "=", columnID).
 			Where("position", ">=", newPos).
 			Where("position", "<", oldPos).
@@ -113,7 +113,7 @@ func reposition(chatID, columnID string, oldPos, newPos int, teamID string, ctx 
 	}
 
 	// Update target
-	_, err := capsule.Global.Query().Table("agent_task").
+	_, err := capsule.Global.Query().Table(tableTask()).
 		Where("chat_id", "=", chatID).
 		Update(map[string]interface{}{
 			"position": newPos,

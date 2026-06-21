@@ -11,14 +11,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/yaoapp/yao/event"
 	eventtypes "github.com/yaoapp/yao/event/types"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 
-	_ "github.com/yaoapp/yao/agent/task" // ensure init() registers handlers
+	_ "github.com/yaoapp/yao/agent/task"
 )
 
 func TestEventPush_TaskPrefix_NoErrNoHandler(t *testing.T) {
-	event.Reset()
-	require.NoError(t, event.Start())
-	defer event.Stop(context.Background())
+	testprepare.PrepareSandbox(t)
 
 	ch := make(chan *eventtypes.Event, 10)
 	subID := event.Subscribe("task.*", ch)
@@ -40,9 +39,7 @@ func TestEventPush_TaskPrefix_NoErrNoHandler(t *testing.T) {
 }
 
 func TestEventPush_BoardPrefix_NoErrNoHandler(t *testing.T) {
-	event.Reset()
-	require.NoError(t, event.Start())
-	defer event.Stop(context.Background())
+	testprepare.PrepareSandbox(t)
 
 	ch := make(chan *eventtypes.Event, 10)
 	subID := event.Subscribe("board.*", ch)
@@ -61,9 +58,7 @@ func TestEventPush_BoardPrefix_NoErrNoHandler(t *testing.T) {
 }
 
 func TestEventPush_MailPrefix_NoErrNoHandler(t *testing.T) {
-	event.Reset()
-	require.NoError(t, event.Start())
-	defer event.Stop(context.Background())
+	testprepare.PrepareSandbox(t)
 
 	ch := make(chan *eventtypes.Event, 10)
 	subID := event.Subscribe("mail.*", ch)
@@ -82,9 +77,7 @@ func TestEventPush_MailPrefix_NoErrNoHandler(t *testing.T) {
 }
 
 func TestEventPush_PayloadContainsTeamID(t *testing.T) {
-	event.Reset()
-	require.NoError(t, event.Start())
-	defer event.Stop(context.Background())
+	testprepare.PrepareSandbox(t)
 
 	ch := make(chan *eventtypes.Event, 10)
 	subID := event.Subscribe("task.*", ch)

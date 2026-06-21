@@ -1,6 +1,10 @@
 package task
 
-import "time"
+import (
+	"time"
+
+	"github.com/yaoapp/yao/agent/output/message"
+)
 
 // ListQuery parameters for listing tasks
 type ListQuery struct {
@@ -150,4 +154,65 @@ type ScheduleConfig struct {
 	Timezone      string   `json:"timezone,omitempty"`
 	StartDate     string   `json:"start_date,omitempty"`
 	EndDate       string   `json:"end_date,omitempty"`
+}
+
+// --- Execution types (Plan 3) ---
+
+// RunReq parameters for running a task
+type RunReq struct {
+	Messages    []InputMessage `json:"messages"`
+	AssistantID string         `json:"assistant_id,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	Priority    int            `json:"priority,omitempty"`
+}
+
+// RunResult is the response from Run()
+type RunResult struct {
+	ChatID    string `json:"chat_id"`
+	Status    string `json:"status"`
+	RequestID string `json:"request_id,omitempty"`
+	Position  int    `json:"position,omitempty"`
+}
+
+// InputReq parameters for providing user input to a waiting task
+type InputReq struct {
+	Messages []InputMessage `json:"messages"`
+}
+
+// SubscribeOpts configures how a subscription replays history
+type SubscribeOpts struct {
+	Replay    ReplayMode `json:"replay"`
+	AfterSeq  int64      `json:"after_seq,omitempty"`
+	RequestID string     `json:"request_id,omitempty"`
+}
+
+// ReplayMode defines message replay behavior
+type ReplayMode int
+
+const (
+	ReplayAll   ReplayMode = iota // Replay all buffered messages then live
+	ReplayNone                    // No replay, live only
+	ReplayAfter                   // Replay from AfterSeq+1 then live
+)
+
+// Subscription represents an active message subscription
+type Subscription struct {
+	Ch     <-chan *message.Message
+	Cancel func()
+}
+
+// WSCommand represents a client-to-server WebSocket command
+type WSCommand struct {
+	Type        string         `json:"type"`
+	Messages    []InputMessage `json:"messages,omitempty"`
+	AssistantID string         `json:"assistant_id,omitempty"`
+	Metadata    map[string]any `json:"metadata,omitempty"`
+	Priority    int            `json:"priority,omitempty"`
+	Force       bool           `json:"force,omitempty"`
+}
+
+// InputMessage is the message type for task execution input
+type InputMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
 }

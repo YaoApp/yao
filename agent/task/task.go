@@ -23,9 +23,9 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 	// Build count query (separate builder to avoid state pollution)
 	countQB := capsule.Global.Query()
-	countQB.Table("agent_task as t").
-		LeftJoin("agent_chat as c", "t.chat_id", "=", "c.chat_id").
-		LeftJoin("agent_board_column as col", "t.column_id", "=", "col.column_id").
+	countQB.Table(tableTask()+" as t").
+		LeftJoin(tableChat()+" as c", "t.chat_id", "=", "c.chat_id").
+		LeftJoin(tableBoardColumn()+" as col", "t.column_id", "=", "col.column_id").
 		WhereNull("t.deleted_at")
 
 	if auth.Constraints.TeamOnly {
@@ -51,16 +51,16 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 	// Build data query (fresh builder)
 	qb := capsule.Global.Query()
-	qb.Table("agent_task as t").
+	qb.Table(tableTask()+" as t").
 		Select(
 			"t.*",
 			"c.title", "c.assistant_id", "c.last_workspace", "c.last_connector",
 			"col.board_id",
 			"a.name as assistant_name",
 		).
-		LeftJoin("agent_chat as c", "t.chat_id", "=", "c.chat_id").
-		LeftJoin("agent_board_column as col", "t.column_id", "=", "col.column_id").
-		LeftJoin("agent_assistant as a", "c.assistant_id", "=", "a.assistant_id").
+		LeftJoin(tableChat()+" as c", "t.chat_id", "=", "c.chat_id").
+		LeftJoin(tableBoardColumn()+" as col", "t.column_id", "=", "col.column_id").
+		LeftJoin(tableAssistant()+" as a", "c.assistant_id", "=", "a.assistant_id").
 		WhereNull("t.deleted_at")
 
 	if auth.Constraints.TeamOnly {
@@ -106,16 +106,16 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 func Get(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (*Task, error) {
 	qb := capsule.Global.Query()
 
-	row, err := qb.Table("agent_task as t").
+	row, err := qb.Table(tableTask()+" as t").
 		Select(
 			"t.*",
 			"c.title", "c.assistant_id", "c.last_workspace", "c.last_connector",
 			"col.board_id",
 			"a.name as assistant_name",
 		).
-		LeftJoin("agent_chat as c", "t.chat_id", "=", "c.chat_id").
-		LeftJoin("agent_board_column as col", "t.column_id", "=", "col.column_id").
-		LeftJoin("agent_assistant as a", "c.assistant_id", "=", "a.assistant_id").
+		LeftJoin(tableChat()+" as c", "t.chat_id", "=", "c.chat_id").
+		LeftJoin(tableBoardColumn()+" as col", "t.column_id", "=", "col.column_id").
+		LeftJoin(tableAssistant()+" as a", "c.assistant_id", "=", "a.assistant_id").
 		WhereNull("t.deleted_at").
 		Where("t.chat_id", "=", chatID).
 		First()
@@ -149,7 +149,7 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 	}
 
 	// Validate column_id exists
-	colRow, err := capsule.Global.Query().Table("agent_board_column").
+	colRow, err := capsule.Global.Query().Table(tableBoardColumn()).
 		Where("column_id", "=", req.ColumnID).
 		WhereNull("deleted_at").
 		First()
@@ -161,10 +161,10 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 
 	// Get max position in target column
 	maxPos := 0
-	posResult := capsule.Global.Query().Table("agent_task").
+	posResult, _ := capsule.Global.Query().Table(tableTask()).
 		Where("column_id", "=", req.ColumnID).
 		WhereNull("deleted_at").
-		MustMax("position")
+		Max("position")
 	if posResult.Number != nil {
 		if v, ok := posResult.Number.(float64); ok {
 			maxPos = int(v)
@@ -172,7 +172,7 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 	}
 
 	// INSERT agent_chat
-	err = capsule.Global.Query().Table("agent_chat").Insert(map[string]interface{}{
+	err = capsule.Global.Query().Table(tableChat()).Insert(map[string]interface{}{
 		"chat_id":          chatID,
 		"title":            req.Title,
 		"assistant_id":     req.AssistantID,
@@ -187,7 +187,7 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 	}
 
 	// INSERT agent_task
-	err = capsule.Global.Query().Table("agent_task").Insert(map[string]interface{}{
+	err = capsule.Global.Query().Table(tableTask()).Insert(map[string]interface{}{
 		"chat_id":          chatID,
 		"column_id":        req.ColumnID,
 		"position":         maxPos + 1,
@@ -271,7 +271,7 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 
 	// Update agent_task
 	if len(taskUpdates) > 1 {
-		_, err = capsule.Global.Query().Table("agent_task").
+		_, err = capsule.Global.Query().Table(tableTask()).
 			Where("chat_id", "=", chatID).
 			Update(taskUpdates)
 		if err != nil {
@@ -281,7 +281,7 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 
 	// Update agent_chat
 	if len(chatUpdates) > 1 {
-		_, err = capsule.Global.Query().Table("agent_chat").
+		_, err = capsule.Global.Query().Table(tableChat()).
 			Where("chat_id", "=", chatID).
 			Update(chatUpdates)
 		if err != nil {
@@ -303,7 +303,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, chatID string) er
 	now := time.Now()
 
 	// Soft delete agent_task
-	_, err = capsule.Global.Query().Table("agent_task").
+	_, err = capsule.Global.Query().Table(tableTask()).
 		Where("chat_id", "=", chatID).
 		Update(map[string]interface{}{
 			"deleted_at": now,
@@ -314,7 +314,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, chatID string) er
 	}
 
 	// Archive agent_chat
-	_, err = capsule.Global.Query().Table("agent_chat").
+	_, err = capsule.Global.Query().Table(tableChat()).
 		Where("chat_id", "=", chatID).
 		Update(map[string]interface{}{
 			"status":     "archived",
@@ -350,7 +350,7 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 
 	// Validate column_id if provided
 	if columnID != "" {
-		colRow, err := capsule.Global.Query().Table("agent_board_column").
+		colRow, err := capsule.Global.Query().Table(tableBoardColumn()).
 			Where("column_id", "=", columnID).
 			WhereNull("deleted_at").
 			First()
@@ -364,10 +364,10 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	// Get max position in target column (0 if no column)
 	maxPos := 0
 	if columnID != "" {
-		posResult := capsule.Global.Query().Table("agent_task").
+		posResult, _ := capsule.Global.Query().Table(tableTask()).
 			Where("column_id", "=", columnID).
 			WhereNull("deleted_at").
-			MustMax("position")
+			Max("position")
 		if posResult.Number != nil {
 			if v, ok := posResult.Number.(float64); ok {
 				maxPos = int(v)
@@ -388,7 +388,7 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	if assistantID != "" {
 		chatData["assistant_id"] = assistantID
 	}
-	err := capsule.Global.Query().Table("agent_chat").Insert(chatData)
+	err := capsule.Global.Query().Table(tableChat()).Insert(chatData)
 	if err != nil {
 		return nil, fmt.Errorf("task.CreateFromWS insert chat: %w", err)
 	}
@@ -418,7 +418,7 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	if computerMode != "" {
 		taskData["computer_mode"] = computerMode
 	}
-	err = capsule.Global.Query().Table("agent_task").Insert(taskData)
+	err = capsule.Global.Query().Table(tableTask()).Insert(taskData)
 	if err != nil {
 		return nil, fmt.Errorf("task.CreateFromWS insert task: %w", err)
 	}

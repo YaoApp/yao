@@ -24,7 +24,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 	// Count query (separate builder to avoid state pollution)
 	countQB := capsule.Global.Query()
-	countQB.Table("agent_mail").
+	countQB.Table(tableMail()).
 		Where("__yao_created_by", "=", auth.UserID).
 		WhereNull("deleted_at")
 	applyInboxFilters(countQB, q)
@@ -36,7 +36,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 	// Data query (fresh builder)
 	qb := capsule.Global.Query()
-	qb.Table("agent_mail").
+	qb.Table(tableMail()).
 		Where("__yao_created_by", "=", auth.UserID).
 		WhereNull("deleted_at")
 	applyInboxFilters(qb, q)
@@ -68,7 +68,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 // UnreadCount returns unread counts grouped by type
 func UnreadCount(ctx context.Context, auth *process.AuthorizedInfo) (*Counts, error) {
-	rows, err := capsule.Global.Query().Table("agent_mail").
+	rows, err := capsule.Global.Query().Table(tableMail()).
 		Select("type").
 		SelectRaw("COUNT(*) as cnt").
 		Where("__yao_created_by", "=", auth.UserID).
@@ -102,7 +102,7 @@ func UnreadCount(ctx context.Context, auth *process.AuthorizedInfo) (*Counts, er
 // Read marks a single mail as read
 func Read(ctx context.Context, auth *process.AuthorizedInfo, mailID string) error {
 	now := time.Now()
-	affected, err := capsule.Global.Query().Table("agent_mail").
+	affected, err := capsule.Global.Query().Table(tableMail()).
 		Where("mail_id", "=", mailID).
 		Where("__yao_created_by", "=", auth.UserID).
 		Update(map[string]interface{}{
@@ -122,7 +122,7 @@ func Read(ctx context.Context, auth *process.AuthorizedInfo, mailID string) erro
 // ReadAll marks all unread mails as read, optionally filtered by type
 func ReadAll(ctx context.Context, auth *process.AuthorizedInfo, mailType string) (int64, error) {
 	now := time.Now()
-	qb := capsule.Global.Query().Table("agent_mail").
+	qb := capsule.Global.Query().Table(tableMail()).
 		Where("__yao_created_by", "=", auth.UserID).
 		Where("read", "=", false).
 		Where("archived", "=", false).
@@ -169,7 +169,7 @@ func Unpin(ctx context.Context, auth *process.AuthorizedInfo, mailID string) err
 }
 
 func updateMailField(auth *process.AuthorizedInfo, mailID, field string, value interface{}) error {
-	affected, err := capsule.Global.Query().Table("agent_mail").
+	affected, err := capsule.Global.Query().Table(tableMail()).
 		Where("mail_id", "=", mailID).
 		Where("__yao_created_by", "=", auth.UserID).
 		WhereNull("deleted_at").

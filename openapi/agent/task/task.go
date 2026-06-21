@@ -12,7 +12,7 @@ import (
 	"github.com/yaoapp/yao/openapi/response"
 )
 
-// Attach registers task CRUD routes on the given group (scoped to /agent/tasks)
+// Attach registers task CRUD and execution routes on the given group (scoped to /agent/tasks)
 func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.Use(oauth.Guard)
 	group.GET("", handleList)
@@ -23,6 +23,14 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.PUT("/:chat_id/move", handleMove)
 	group.GET("/:chat_id/config", handleGetConfig)
 	group.PUT("/:chat_id/config", handleSetConfig)
+
+	// Execution routes (Plan 3)
+	group.GET("/:chat_id/ws", handleWS)
+	group.GET("/:chat_id/stream", handleSSE)
+	group.POST("/:chat_id/run", handleRun)
+	group.POST("/:chat_id/stop", handleStop)
+	group.POST("/:chat_id/input", handleInput)
+	group.PUT("/:chat_id/priority", handleSetPriority)
 }
 
 func handleList(c *gin.Context) {
@@ -171,6 +179,73 @@ func toProcessAuth(info *oauthtypes.AuthorizedInfo) *process.AuthorizedInfo {
 			TeamOnly:    info.Constraints.TeamOnly,
 		},
 	}
+}
+
+func handleRun(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	var req tasksvc.RunReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	task, _ := tasksvc.Get(c.Request.Context(), auth, chatID)
+	result, err := tasksvc.Run(c.Request.Context(), auth, chatID, &req)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	if task != nil && task.RunCount == 0 {
+		if firstMsg := tasksvc.ExtractFirstUserMessage(req.Messages); firstMsg != "" {
+			tasksvc.ExtractTaskMetadata(chatID, firstMsg, auth)
+		}
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleStop(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	force := c.Query("force") == "true"
+	if err := tasksvc.Stop(c.Request.Context(), auth, chatID, force); err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"ok": true})
+}
+
+func handleInput(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	var req tasksvc.InputReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := tasksvc.Input(c.Request.Context(), auth, chatID, &req); err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"ok": true})
+}
+
+func handleSetPriority(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	var req struct {
+		Priority int `json:"priority"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+	if err := tasksvc.SetPriority(c.Request.Context(), auth, chatID, req.Priority); err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"ok": true})
 }
 
 func respondError(c *gin.Context, status int, err error) {

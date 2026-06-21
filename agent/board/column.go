@@ -23,10 +23,10 @@ func CreateColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID str
 
 	// Get max position in board
 	maxPos := 0
-	posResult := capsule.Global.Query().Table("agent_board_column").
+	posResult, _ := capsule.Global.Query().Table(tableBoardColumn()).
 		Where("board_id", "=", boardID).
 		WhereNull("deleted_at").
-		MustMax("position")
+		Max("position")
 	if posResult.Number != nil {
 		if v, ok := posResult.Number.(float64); ok {
 			maxPos = int(v)
@@ -50,7 +50,7 @@ func CreateColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID str
 		data["collapsed"] = *req.Collapsed
 	}
 
-	err = capsule.Global.Query().Table("agent_board_column").Insert(data)
+	err = capsule.Global.Query().Table(tableBoardColumn()).Insert(data)
 	if err != nil {
 		return nil, fmt.Errorf("board.CreateColumn: %w", err)
 	}
@@ -75,7 +75,7 @@ func ReorderColumns(ctx context.Context, auth *process.AuthorizedInfo, boardID s
 	}
 
 	for i, colID := range ids {
-		_, err := capsule.Global.Query().Table("agent_board_column").
+		_, err := capsule.Global.Query().Table(tableBoardColumn()).
 			Where("column_id", "=", colID).
 			Where("board_id", "=", boardID).
 			Update(map[string]interface{}{
@@ -111,7 +111,7 @@ func UpdateColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 		updates["collapsed"] = *req.Collapsed
 	}
 
-	_, err = capsule.Global.Query().Table("agent_board_column").
+	_, err = capsule.Global.Query().Table(tableBoardColumn()).
 		Where("column_id", "=", colID).
 		Where("board_id", "=", boardID).
 		WhereNull("deleted_at").
@@ -121,7 +121,7 @@ func UpdateColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 	}
 
 	// Return updated column
-	row, err := capsule.Global.Query().Table("agent_board_column").
+	row, err := capsule.Global.Query().Table(tableBoardColumn()).
 		Where("column_id", "=", colID).
 		First()
 	if err != nil || row == nil {
@@ -163,10 +163,10 @@ func DeleteColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 
 	// Move tasks to adjacent column (append at end)
 	maxPos := 0
-	posResult := capsule.Global.Query().Table("agent_task").
+	posResult, _ := capsule.Global.Query().Table(tableTask()).
 		Where("column_id", "=", targetColID).
 		WhereNull("deleted_at").
-		MustMax("position")
+		Max("position")
 	if posResult.Number != nil {
 		if v, ok := posResult.Number.(float64); ok {
 			maxPos = int(v)
@@ -174,7 +174,7 @@ func DeleteColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 	}
 
 	// Get tasks in the column to be deleted
-	tasks, err := capsule.Global.Query().Table("agent_task").
+	tasks, err := capsule.Global.Query().Table(tableTask()).
 		Where("column_id", "=", colID).
 		WhereNull("deleted_at").
 		OrderBy("position", "asc").
@@ -189,7 +189,7 @@ func DeleteColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 			chatID = v
 		}
 		if chatID != "" {
-			_, err = capsule.Global.Query().Table("agent_task").
+			_, err = capsule.Global.Query().Table(tableTask()).
 				Where("chat_id", "=", chatID).
 				Update(map[string]interface{}{
 					"column_id":  targetColID,
@@ -203,7 +203,7 @@ func DeleteColumn(ctx context.Context, auth *process.AuthorizedInfo, boardID, co
 	}
 
 	// Soft delete column
-	_, err = capsule.Global.Query().Table("agent_board_column").
+	_, err = capsule.Global.Query().Table(tableBoardColumn()).
 		Where("column_id", "=", colID).
 		Update(map[string]interface{}{
 			"deleted_at": now,

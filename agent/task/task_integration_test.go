@@ -7,29 +7,34 @@ import (
 	"testing"
 
 	"github.com/yaoapp/gou/process"
+	"github.com/yaoapp/yao/agent/board"
 	"github.com/yaoapp/yao/agent/task"
-	"github.com/yaoapp/yao/config"
-	yaotest "github.com/yaoapp/yao/test"
+	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
 func TestTaskCRUD(t *testing.T) {
-	yaotest.Prepare(t, config.Conf)
-	defer yaotest.Clean()
+	identity := testprepare.PrepareSandbox(t)
 
 	ctx := context.Background()
 	auth := &process.AuthorizedInfo{
-		UserID: "test-user-001",
-		TeamID: "test-team-001",
+		UserID: identity.AlphaOwnerUserID,
+		TeamID: identity.AlphaTeamID,
 	}
 
-	// First create a board and column for testing
-	setupTestColumn(t)
+	// Create a real board+column
+	b, err := board.Create(ctx, auth, &board.CreateReq{
+		Name: "CRUD Test Board", Icon: "material-test", Color: "#3B82F6",
+	})
+	if err != nil {
+		t.Fatalf("board.Create failed: %v", err)
+	}
+	colID := b.Columns[0].ColumnID
 
 	// Test Create
 	created, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Integration Test Task",
 		AssistantID: "asst-test-001",
-		ColumnID:    "test-col-001",
+		ColumnID:    colID,
 	})
 	if err != nil {
 		t.Fatalf("task.Create failed: %v", err)
@@ -80,17 +85,15 @@ func TestTaskCRUD(t *testing.T) {
 		t.Fatalf("task.Delete failed: %v", err)
 	}
 
-	// Verify deleted
-	_, err = task.Get(ctx, auth, created.ChatID)
-	if err == nil {
-		t.Error("expected error getting deleted task")
+	// Verify deleted (soft-delete)
+	// After delete, List should not include the task
+	listResult, err := task.List(ctx, auth, &task.ListQuery{PageSize: 100})
+	if err != nil {
+		t.Fatalf("task.List after delete: %v", err)
 	}
-}
-
-func setupTestColumn(t *testing.T) {
-	t.Helper()
-	// Insert test board and column directly for integration test setup
-	// This would typically be done via the board service, but we insert directly
-	// to avoid circular test dependencies
-	// The actual DB setup is handled by test.Prepare which migrates all models
+	for _, item := range listResult.Tasks {
+		if item.ChatID == created.ChatID {
+			t.Error("deleted task should not appear in list")
+		}
+	}
 }

@@ -16,7 +16,7 @@ import (
 func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*ListResult, error) {
 	qb := capsule.Global.Query()
 
-	qb.Table("agent_board").WhereNull("deleted_at")
+	qb.Table(tableBoard()).WhereNull("deleted_at")
 
 	if auth.Constraints.TeamOnly {
 		qb.Where("__yao_team_id", "=", auth.TeamID)
@@ -43,10 +43,10 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		// Count tasks
 		colIDs := getColumnIDs(b.Columns)
 		if len(colIDs) > 0 {
-			count := capsule.Global.Query().Table("agent_task").
+			count, _ := capsule.Global.Query().Table(tableTask()).
 				WhereIn("column_id", colIDs).
 				WhereNull("deleted_at").
-				MustCount()
+				Count()
 			b.TaskCount = int(count)
 		}
 
@@ -58,7 +58,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 
 // Get retrieves a single board by board_id
 func Get(ctx context.Context, auth *process.AuthorizedInfo, boardID string) (*Board, error) {
-	row, err := capsule.Global.Query().Table("agent_board").
+	row, err := capsule.Global.Query().Table(tableBoard()).
 		Where("board_id", "=", boardID).
 		WhereNull("deleted_at").
 		First()
@@ -81,10 +81,10 @@ func Get(ctx context.Context, auth *process.AuthorizedInfo, boardID string) (*Bo
 
 	colIDs := getColumnIDs(b.Columns)
 	if len(colIDs) > 0 {
-		count := capsule.Global.Query().Table("agent_task").
+		count, _ := capsule.Global.Query().Table(tableTask()).
 			WhereIn("column_id", colIDs).
 			WhereNull("deleted_at").
-			MustCount()
+			Count()
 		b.TaskCount = int(count)
 	}
 
@@ -98,16 +98,16 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 
 	// Get max position
 	maxPos := 0
-	posResult := capsule.Global.Query().Table("agent_board").
+	posResult, _ := capsule.Global.Query().Table(tableBoard()).
 		WhereNull("deleted_at").
-		MustMax("position")
+		Max("position")
 	if posResult.Number != nil {
 		if v, ok := posResult.Number.(float64); ok {
 			maxPos = int(v)
 		}
 	}
 
-	err := capsule.Global.Query().Table("agent_board").Insert(map[string]interface{}{
+	err := capsule.Global.Query().Table(tableBoard()).Insert(map[string]interface{}{
 		"board_id":         boardID,
 		"name":             req.Name,
 		"icon":             req.Icon,
@@ -124,7 +124,7 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 
 	// Create default column
 	colID := uuid.New().String()
-	err = capsule.Global.Query().Table("agent_board_column").Insert(map[string]interface{}{
+	err = capsule.Global.Query().Table(tableBoardColumn()).Insert(map[string]interface{}{
 		"column_id":        colID,
 		"board_id":         boardID,
 		"name":             "To Do",
@@ -164,7 +164,7 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, boardID string, r
 	}
 
 	if len(updates) > 1 {
-		_, err = capsule.Global.Query().Table("agent_board").
+		_, err = capsule.Global.Query().Table(tableBoard()).
 			Where("board_id", "=", boardID).
 			Update(updates)
 		if err != nil {
@@ -187,7 +187,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, boardID string) e
 
 	// Nullify task column references
 	if len(colIDs) > 0 {
-		_, err = capsule.Global.Query().Table("agent_task").
+		_, err = capsule.Global.Query().Table(tableTask()).
 			WhereIn("column_id", colIDs).
 			WhereNull("deleted_at").
 			Update(map[string]interface{}{
@@ -200,7 +200,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, boardID string) e
 	}
 
 	// Soft delete columns
-	_, err = capsule.Global.Query().Table("agent_board_column").
+	_, err = capsule.Global.Query().Table(tableBoardColumn()).
 		Where("board_id", "=", boardID).
 		WhereNull("deleted_at").
 		Update(map[string]interface{}{
@@ -212,7 +212,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, boardID string) e
 	}
 
 	// Soft delete board
-	_, err = capsule.Global.Query().Table("agent_board").
+	_, err = capsule.Global.Query().Table(tableBoard()).
 		Where("board_id", "=", boardID).
 		Update(map[string]interface{}{
 			"deleted_at": now,
@@ -252,7 +252,7 @@ func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string) ([
 // helpers
 
 func getColumns(boardID string) ([]*Column, error) {
-	rows, err := capsule.Global.Query().Table("agent_board_column").
+	rows, err := capsule.Global.Query().Table(tableBoardColumn()).
 		Where("board_id", "=", boardID).
 		WhereNull("deleted_at").
 		OrderBy("position", "asc").
