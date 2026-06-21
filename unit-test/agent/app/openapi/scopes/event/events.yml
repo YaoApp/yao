@@ -1,0 +1,26 @@
+# Events - System Event WebSocket Channel
+# namespace: event
+# resource: events
+# actions: read (subscribe)
+# levels: all, own, team
+#
+# Note: /v1/events is a top-level endpoint (not under /agent prefix)
+
+# ============ Read (Subscribe) Permissions ============
+
+event:events:read:all:
+  description: "Subscribe to all system events"
+  endpoints:
+    - GET /v1/events
+
+event:events:read:own:
+  owner: true
+  description: "Subscribe to own system events"
+  endpoints:
+    - GET /v1/events
+
+event:events:read:team:
+  team: true
+  description: "Subscribe to team system events"
+  endpoints:
+    - GET /v1/events

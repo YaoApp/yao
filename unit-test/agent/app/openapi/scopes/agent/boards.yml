@@ -1,0 +1,83 @@
+# Boards - Agent Board/Column Management (Kanban)
+# namespace: agent
+# resource: boards
+# actions: read, write, delete
+# levels: all, own, team
+
+# ============ Read Permissions ============
+
+agent:boards:read:all:
+  description: "Read all boards and columns"
+  endpoints:
+    - GET /agent/boards
+    - GET /agent/boards/:id
+    - GET /agent/boards/:id/columns
+
+agent:boards:read:own:
+  owner: true
+  description: "Read own boards and columns"
+  endpoints:
+    - GET /agent/boards
+    - GET /agent/boards/:id
+    - GET /agent/boards/:id/columns
+
+agent:boards:read:team:
+  team: true
+  description: "Read team boards and columns"
+  endpoints:
+    - GET /agent/boards
+    - GET /agent/boards/:id
+    - GET /agent/boards/:id/columns
+
+# ============ Write Permissions ============
+
+agent:boards:write:all:
+  description: "Create and update all boards and columns"
+  endpoints:
+    - POST /agent/boards
+    - PUT /agent/boards/:id
+    - POST /agent/boards/:id/columns
+    - PUT /agent/boards/:id/columns/:col_id
+    - PUT /agent/boards/:id/columns/:col_id/move
+
+agent:boards:write:own:
+  owner: true
+  description: "Create and update own boards and columns"
+  endpoints:
+    - POST /agent/boards
+    - PUT /agent/boards/:id
+    - POST /agent/boards/:id/columns
+    - PUT /agent/boards/:id/columns/:col_id
+    - PUT /agent/boards/:id/columns/:col_id/move
+
+agent:boards:write:team:
+  team: true
+  description: "Create and update team boards and columns"
+  endpoints:
+    - POST /agent/boards
+    - PUT /agent/boards/:id
+    - POST /agent/boards/:id/columns
+    - PUT /agent/boards/:id/columns/:col_id
+    - PUT /agent/boards/:id/columns/:col_id/move
+
+# ============ Delete Permissions ============
+
+agent:boards:delete:all:
+  description: "Delete all boards and columns"
+  endpoints:
+    - DELETE /agent/boards/:id
+    - DELETE /agent/boards/:id/columns/:col_id
+
+agent:boards:delete:own:
+  owner: true
+  description: "Delete own boards and columns"
+  endpoints:
+    - DELETE /agent/boards/:id
+    - DELETE /agent/boards/:id/columns/:col_id
+
+agent:boards:delete:team:
+  team: true
+  description: "Delete team boards and columns"
+  endpoints:
+    - DELETE /agent/boards/:id
+    - DELETE /agent/boards/:id/columns/:col_id

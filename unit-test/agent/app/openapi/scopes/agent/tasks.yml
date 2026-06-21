@@ -1,0 +1,121 @@
+# Tasks - Agent Task Management (Kanban)
+# namespace: agent
+# resource: tasks
+# actions: read, write, delete, execute
+# levels: all, own, team
+
+# ============ Read Permissions ============
+
+agent:tasks:read:all:
+  description: "Read all tasks"
+  endpoints:
+    - GET /agent/tasks
+    - GET /agent/tasks/:chat_id
+    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/files
+    - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/processes
+
+agent:tasks:read:own:
+  owner: true
+  description: "Read own tasks"
+  endpoints:
+    - GET /agent/tasks
+    - GET /agent/tasks/:chat_id
+    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/files
+    - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/processes
+
+agent:tasks:read:team:
+  team: true
+  description: "Read team tasks"
+  endpoints:
+    - GET /agent/tasks
+    - GET /agent/tasks/:chat_id
+    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/files
+    - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/processes
+
+# ============ Write Permissions ============
+
+agent:tasks:write:all:
+  description: "Create and update all tasks"
+  endpoints:
+    - POST /agent/tasks
+    - PUT /agent/tasks/:chat_id
+    - PUT /agent/tasks/:chat_id/move
+    - PUT /agent/tasks/:chat_id/config
+
+agent:tasks:write:own:
+  owner: true
+  description: "Create and update own tasks"
+  endpoints:
+    - POST /agent/tasks
+    - PUT /agent/tasks/:chat_id
+    - PUT /agent/tasks/:chat_id/move
+    - PUT /agent/tasks/:chat_id/config
+
+agent:tasks:write:team:
+  team: true
+  description: "Create and update team tasks"
+  endpoints:
+    - POST /agent/tasks
+    - PUT /agent/tasks/:chat_id
+    - PUT /agent/tasks/:chat_id/move
+    - PUT /agent/tasks/:chat_id/config
+
+# ============ Delete Permissions ============
+
+agent:tasks:delete:all:
+  description: "Delete all tasks"
+  endpoints:
+    - DELETE /agent/tasks/:chat_id
+
+agent:tasks:delete:own:
+  owner: true
+  description: "Delete own tasks"
+  endpoints:
+    - DELETE /agent/tasks/:chat_id
+
+agent:tasks:delete:team:
+  team: true
+  description: "Delete team tasks"
+  endpoints:
+    - DELETE /agent/tasks/:chat_id
+
+# ============ Execute Permissions ============
+# Run, stop, input, subscribe (WS/SSE) for task execution
+
+agent:tasks:execute:all:
+  description: "Execute and control all tasks"
+  endpoints:
+    - POST /agent/tasks/:chat_id/run
+    - POST /agent/tasks/:chat_id/stop
+    - POST /agent/tasks/:chat_id/input
+    - POST /agent/tasks/:chat_id/processes/:pid/kill
+    - GET /agent/tasks/:chat_id/ws
+    - GET /agent/tasks/:chat_id/stream
+
+agent:tasks:execute:own:
+  owner: true
+  description: "Execute and control own tasks"
+  endpoints:
+    - POST /agent/tasks/:chat_id/run
+    - POST /agent/tasks/:chat_id/stop
+    - POST /agent/tasks/:chat_id/input
+    - POST /agent/tasks/:chat_id/processes/:pid/kill
+    - GET /agent/tasks/:chat_id/ws
+    - GET /agent/tasks/:chat_id/stream
+
+agent:tasks:execute:team:
+  team: true
+  description: "Execute and control team tasks"
+  endpoints:
+    - POST /agent/tasks/:chat_id/run
+    - POST /agent/tasks/:chat_id/stop
+    - POST /agent/tasks/:chat_id/input
+    - POST /agent/tasks/:chat_id/processes/:pid/kill
+    - GET /agent/tasks/:chat_id/ws
+    - GET /agent/tasks/:chat_id/stream

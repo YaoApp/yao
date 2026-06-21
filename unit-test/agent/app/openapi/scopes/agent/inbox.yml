@@ -1,0 +1,71 @@
+# Inbox - Agent Inbox/Mail Management
+# namespace: agent
+# resource: inbox
+# actions: read, write, delete
+# levels: all, own, team
+
+# ============ Read Permissions ============
+
+agent:inbox:read:all:
+  description: "Read all inbox messages"
+  endpoints:
+    - GET /agent/inbox
+    - GET /agent/inbox/:id
+    - GET /agent/inbox/unread-count
+
+agent:inbox:read:own:
+  owner: true
+  description: "Read own inbox messages"
+  endpoints:
+    - GET /agent/inbox
+    - GET /agent/inbox/:id
+    - GET /agent/inbox/unread-count
+
+agent:inbox:read:team:
+  team: true
+  description: "Read team inbox messages"
+  endpoints:
+    - GET /agent/inbox
+    - GET /agent/inbox/:id
+    - GET /agent/inbox/unread-count
+
+# ============ Write Permissions ============
+
+agent:inbox:write:all:
+  description: "Update all inbox messages (mark read, archive)"
+  endpoints:
+    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/read-all
+
+agent:inbox:write:own:
+  owner: true
+  description: "Update own inbox messages (mark read, archive)"
+  endpoints:
+    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/read-all
+
+agent:inbox:write:team:
+  team: true
+  description: "Update team inbox messages (mark read, archive)"
+  endpoints:
+    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/read-all
+
+# ============ Delete Permissions ============
+
+agent:inbox:delete:all:
+  description: "Delete all inbox messages"
+  endpoints:
+    - DELETE /agent/inbox/:id
+
+agent:inbox:delete:own:
+  owner: true
+  description: "Delete own inbox messages"
+  endpoints:
+    - DELETE /agent/inbox/:id
+
+agent:inbox:delete:team:
+  team: true
+  description: "Delete team inbox messages"
+  endpoints:
+    - DELETE /agent/inbox/:id
