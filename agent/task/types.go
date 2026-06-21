@@ -110,6 +110,8 @@ type ConfigReq struct {
 	Runner   *string            `json:"runner,omitempty"`
 	Model    *string            `json:"model,omitempty"`
 	Image    *string            `json:"image,omitempty"`
+	Timeout  *string            `json:"timeout,omitempty"`
+	MaxTurns *int               `json:"max_turns,omitempty"`
 	Secrets  map[string]*string `json:"secrets,omitempty"`
 	Services []ServiceDecl      `json:"services,omitempty"`
 	Skills   []string           `json:"skills,omitempty"`
@@ -121,6 +123,8 @@ type TaskSetting struct {
 	Runner   string            `json:"runner,omitempty"`
 	Model    string            `json:"model,omitempty"`
 	Image    string            `json:"image,omitempty"`
+	Timeout  string            `json:"timeout,omitempty"`
+	MaxTurns int               `json:"max_turns,omitempty"`
 	Secrets  map[string]string `json:"secrets,omitempty"`
 	Services []ServiceDecl     `json:"services,omitempty"`
 	Skills   []string          `json:"skills,omitempty"`

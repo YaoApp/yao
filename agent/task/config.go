@@ -86,6 +86,29 @@ func mergeLayer(dst *TaskSetting, src map[string]interface{}, layer string, reso
 		dst.Image = v
 		resolved["image"] = layer
 	}
+	if v, ok := src["timeout"].(string); ok && v != "" {
+		dst.Timeout = v
+		resolved["timeout"] = layer
+	}
+	if v, ok := src["max_turns"]; ok && v != nil {
+		switch n := v.(type) {
+		case float64:
+			if int(n) > 0 {
+				dst.MaxTurns = int(n)
+				resolved["max_turns"] = layer
+			}
+		case int:
+			if n > 0 {
+				dst.MaxTurns = n
+				resolved["max_turns"] = layer
+			}
+		case json.Number:
+			if i, err := n.Int64(); err == nil && i > 0 {
+				dst.MaxTurns = int(i)
+				resolved["max_turns"] = layer
+			}
+		}
+	}
 	if v, ok := src["secrets"]; ok && v != nil {
 		if sm, ok2 := toStringMap(v); ok2 {
 			if dst.Secrets == nil {
@@ -137,6 +160,12 @@ func configReqToMap(req *ConfigReq) map[string]interface{} {
 	}
 	if req.Image != nil {
 		data["image"] = *req.Image
+	}
+	if req.Timeout != nil {
+		data["timeout"] = *req.Timeout
+	}
+	if req.MaxTurns != nil {
+		data["max_turns"] = *req.MaxTurns
 	}
 	if req.Secrets != nil {
 		secrets := map[string]interface{}{}

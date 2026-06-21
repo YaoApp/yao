@@ -67,10 +67,41 @@
       "type": "enum",
       "label": "Run Status",
       "comment": "Task execution status",
-      "option": ["pending", "running", "waiting", "completed", "failed"],
+      "option": ["pending", "queued", "running", "waiting", "completed", "failed", "cancelled"],
       "default": "pending",
       "nullable": false,
       "index": true
+    },
+    {
+      "name": "queue_priority",
+      "type": "integer",
+      "label": "Queue Priority",
+      "comment": "Queue priority (higher = sooner). Default 500.",
+      "default": 500,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "queued_at",
+      "type": "datetime",
+      "label": "Queued At",
+      "comment": "Time when task entered the queue",
+      "nullable": true
+    },
+    {
+      "name": "cancelled_at",
+      "type": "datetime",
+      "label": "Cancelled At",
+      "comment": "Time when task was cancelled",
+      "nullable": true
+    },
+    {
+      "name": "cancel_reason",
+      "type": "string",
+      "label": "Cancel Reason",
+      "comment": "Reason for cancellation: user or timeout",
+      "length": 50,
+      "nullable": true
     },
     {
       "name": "progress",

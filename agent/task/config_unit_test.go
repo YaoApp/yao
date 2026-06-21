@@ -3,6 +3,7 @@
 package task_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -337,4 +338,121 @@ func TestMergePriority_TaskOverridesAgentOverridesBase(t *testing.T) {
 	assert.Equal(t, "system/team/user", resolved["services"])
 	assert.Equal(t, "task", resolved["skills"])
 	assert.Equal(t, "task", resolved["schedule"])
+}
+
+// --- timeout + max_turns tests ---
+
+func TestMergeLayer_TimeoutOverride(t *testing.T) {
+	dst := &task.TaskSetting{}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"timeout": "60m",
+	}, "system/team/user", resolved)
+
+	assert.Equal(t, "60m", dst.Timeout)
+	assert.Equal(t, "system/team/user", resolved["timeout"])
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"timeout": "120m",
+	}, "task", resolved)
+
+	assert.Equal(t, "120m", dst.Timeout)
+	assert.Equal(t, "task", resolved["timeout"])
+}
+
+func TestMergeLayer_MaxTurnsFloat64(t *testing.T) {
+	dst := &task.TaskSetting{}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": float64(100),
+	}, "system/team/user", resolved)
+
+	assert.Equal(t, 100, dst.MaxTurns)
+	assert.Equal(t, "system/team/user", resolved["max_turns"])
+}
+
+func TestMergeLayer_MaxTurnsInt(t *testing.T) {
+	dst := &task.TaskSetting{}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": 50,
+	}, "task", resolved)
+
+	assert.Equal(t, 50, dst.MaxTurns)
+	assert.Equal(t, "task", resolved["max_turns"])
+}
+
+func TestMergeLayer_MaxTurnsZeroIgnored(t *testing.T) {
+	dst := &task.TaskSetting{MaxTurns: 100}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": float64(0),
+	}, "task", resolved)
+
+	assert.Equal(t, 100, dst.MaxTurns)
+	assert.Empty(t, resolved["max_turns"])
+}
+
+func TestMergeLayer_EmptyTimeoutDoesNotOverride(t *testing.T) {
+	dst := &task.TaskSetting{Timeout: "30m"}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"timeout": "",
+	}, "task", resolved)
+
+	assert.Equal(t, "30m", dst.Timeout)
+	assert.Empty(t, resolved["timeout"])
+}
+
+func TestMergeLayer_MaxTurnsJsonNumber(t *testing.T) {
+	dst := &task.TaskSetting{}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": json.Number("75"),
+	}, "agent", resolved)
+
+	assert.Equal(t, 75, dst.MaxTurns)
+	assert.Equal(t, "agent", resolved["max_turns"])
+}
+
+func TestMergeLayer_MaxTurnsNegativeIgnored(t *testing.T) {
+	dst := &task.TaskSetting{MaxTurns: 100}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": float64(-5),
+	}, "task", resolved)
+
+	assert.Equal(t, 100, dst.MaxTurns)
+	assert.Empty(t, resolved["max_turns"])
+}
+
+func TestMergeLayer_MaxTurnsJsonNumberZeroIgnored(t *testing.T) {
+	dst := &task.TaskSetting{MaxTurns: 50}
+	resolved := map[string]string{}
+
+	task.ExportMergeLayer(dst, map[string]interface{}{
+		"max_turns": json.Number("0"),
+	}, "task", resolved)
+
+	assert.Equal(t, 50, dst.MaxTurns)
+	assert.Empty(t, resolved["max_turns"])
+}
+
+func TestConfigReqToMap_TimeoutAndMaxTurns(t *testing.T) {
+	timeout := "45m"
+	maxTurns := 200
+	req := &task.ConfigReq{
+		Timeout:  &timeout,
+		MaxTurns: &maxTurns,
+	}
+	m := task.ExportConfigReqToMap(req)
+	assert.Equal(t, "45m", m["timeout"])
+	assert.Equal(t, 200, m["max_turns"])
 }
