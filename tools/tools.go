@@ -9,12 +9,15 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/tools/agent"
+	toolboard "github.com/yaoapp/yao/tools/board"
 	"github.com/yaoapp/yao/tools/clip"
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
+	toolinbox "github.com/yaoapp/yao/tools/inbox"
 	"github.com/yaoapp/yao/tools/proc"
 	"github.com/yaoapp/yao/tools/robot"
 	"github.com/yaoapp/yao/tools/secret"
+	tooltask "github.com/yaoapp/yao/tools/task"
 	"github.com/yaoapp/yao/tools/webfetch"
 	"github.com/yaoapp/yao/tools/websearch"
 	"github.com/yaoapp/yao/tools/workspace"
@@ -46,6 +49,9 @@ var mcpWorkspaceDSL []byte
 
 //go:embed mcps/clip.json
 var mcpClipDSL []byte
+
+//go:embed mcps/kanban.json
+var mcpKanbanDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -89,6 +95,16 @@ func init() {
 		"clip_write": clip.WriteHandler,
 		"clip_read":  clip.ReadHandler,
 		"clip_list":  clip.ListHandler,
+
+		"task_list":   tooltask.ListHandler,
+		"task_create": tooltask.CreateHandler,
+		"task_move":   tooltask.MoveHandler,
+
+		"board_list":   toolboard.ListHandler,
+		"board_create": toolboard.CreateHandler,
+
+		"inbox_list": toolinbox.ListHandler,
+		"inbox_read": toolinbox.ReadHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -115,6 +131,10 @@ func init() {
 		workspace.FileListSchemaJSON, workspace.FileReadSchemaJSON, workspace.FileWriteSchemaJSON)
 	registerMCPServer(mcpClipDSL, "yao-clip",
 		clip.WriteSchemaJSON, clip.ReadSchemaJSON, clip.ListSchemaJSON)
+	registerMCPServer(mcpKanbanDSL, "yao-kanban",
+		tooltask.ListSchemaJSON, tooltask.CreateSchemaJSON, tooltask.MoveSchemaJSON,
+		toolboard.ListSchemaJSON, toolboard.CreateSchemaJSON,
+		toolinbox.ListSchemaJSON, toolinbox.ReadSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

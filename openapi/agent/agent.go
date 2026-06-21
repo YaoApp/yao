@@ -2,7 +2,10 @@ package agent
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/openapi/agent/board"
+	"github.com/yaoapp/yao/openapi/agent/inbox"
 	"github.com/yaoapp/yao/openapi/agent/robot"
+	"github.com/yaoapp/yao/openapi/agent/task"
 	"github.com/yaoapp/yao/openapi/oauth/types"
 )
 
@@ -35,4 +38,13 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	// Robot routes - Attach as sub-router
 	// Routes: GET/POST /robots, GET/PUT/DELETE /robots/:id, GET /robots/:id/status
 	robot.Attach(group.Group("/robots"), oauth)
+
+	// Task routes - Kanban task CRUD + Move
+	task.Attach(group.Group("/tasks"), oauth)
+
+	// Board routes - Kanban board/column CRUD + templates
+	board.Attach(group.Group("/boards"), oauth)
+
+	// Inbox routes - Mail notifications CRUD
+	inbox.Attach(group.Group("/inbox"), oauth)
 }

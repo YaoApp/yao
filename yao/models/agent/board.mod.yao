@@ -1,0 +1,74 @@
+{
+  "name": "Board",
+  "label": "Board",
+  "description": "Kanban board for organizing tasks into columns",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_board", "comment": "Agent board table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "board_id",
+      "type": "string",
+      "label": "Board ID",
+      "comment": "Unique board identifier",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Board name",
+      "length": 200,
+      "nullable": false
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "label": "Icon",
+      "comment": "Board icon",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "color",
+      "type": "string",
+      "label": "Color",
+      "comment": "Board color",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "position",
+      "type": "integer",
+      "label": "Position",
+      "comment": "Sort order",
+      "default": 0
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "nullable": true
+    }
+  ],
+  "relations": {
+    "columns": {
+      "type": "hasMany",
+      "model": "__yao.agent.board.column",
+      "key": "board_id",
+      "foreign": "board_id"
+    }
+  },
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

@@ -1,0 +1,21 @@
+id: dev-workflow
+name: Dev Workflow
+icon: material-developer_board
+color: "#10B981"
+columns:
+  - name: To Do
+    icon: material-schedule
+    color: "#F59E0B"
+  - name: In Progress
+    icon: material-play_circle
+    color: "#3B82F6"
+  - name: Done
+    icon: material-check_circle
+    color: "#10B981"
+locales:
+  zh-CN:
+    name: 开发工作流
+    columns:
+      - name: 待处理
+      - name: 进行中
+      - name: 已完成

@@ -21,11 +21,15 @@ import (
 // SystemModels system models
 var systemModels = map[string]string{
 	"__yao.agent.assistant":    "yao/models/agent/assistant.mod.yao",
+	"__yao.agent.board":        "yao/models/agent/board.mod.yao",
+	"__yao.agent.board.column": "yao/models/agent/board_column.mod.yao",
 	"__yao.agent.chat":         "yao/models/agent/chat.mod.yao",
 	"__yao.agent.execution":    "yao/models/agent/execution.mod.yao",
+	"__yao.agent.mail":         "yao/models/agent/mail.mod.yao",
 	"__yao.agent.message":      "yao/models/agent/message.mod.yao",
 	"__yao.agent.resume":       "yao/models/agent/resume.mod.yao",
 	"__yao.agent.search":       "yao/models/agent/search.mod.yao",
+	"__yao.agent.task":         "yao/models/agent/task.mod.yao",
 	"__yao.attachment":         "yao/models/attachment.mod.yao",
 	"__yao.audit":              "yao/models/audit.mod.yao",
 	"__yao.config":             "yao/models/config.mod.yao",

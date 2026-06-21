@@ -1,0 +1,90 @@
+package task
+
+import "time"
+
+// ListQuery parameters for listing tasks
+type ListQuery struct {
+	RunStatus   string `json:"run_status,omitempty"`
+	AssistantID string `json:"assistant_id,omitempty"`
+	BoardID     string `json:"board_id,omitempty"`
+	Page        int    `json:"page,omitempty"`
+	PageSize    int    `json:"page_size,omitempty"`
+}
+
+// ListResult paginated task list response
+type ListResult struct {
+	Tasks    []*Task `json:"tasks"`
+	Total    int64   `json:"total"`
+	Page     int     `json:"page"`
+	PageSize int     `json:"page_size"`
+}
+
+// Task represents a full task with derived fields from JOINs
+type Task struct {
+	ID           int64      `json:"id,omitempty"`
+	ChatID       string     `json:"chat_id"`
+	ColumnID     *string    `json:"column_id"`
+	Position     int        `json:"position"`
+	Pinned       bool       `json:"pinned"`
+	Priority     string     `json:"priority"`
+	Tags         []string   `json:"tags,omitempty"`
+	RunStatus    string     `json:"run_status"`
+	Progress     int        `json:"progress"`
+	CurrentStep  *string    `json:"current_step,omitempty"`
+	ErrorMessage *string    `json:"error_message,omitempty"`
+	StartedAt    *time.Time `json:"started_at,omitempty"`
+	CompletedAt  *time.Time `json:"completed_at,omitempty"`
+	Duration     int        `json:"duration"`
+	RunCount     int        `json:"run_count"`
+	ComputerID   *string    `json:"computer_id,omitempty"`
+	ComputerMode *string    `json:"computer_mode,omitempty"`
+	SandboxType  *string    `json:"sandbox_type,omitempty"`
+	Metadata     any        `json:"metadata,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+
+	// Derived from JOINs
+	Title         string  `json:"title,omitempty"`
+	AssistantID   string  `json:"assistant_id,omitempty"`
+	AssistantName string  `json:"assistant_name,omitempty"`
+	LastWorkspace *string `json:"last_workspace,omitempty"`
+	LastConnector *string `json:"last_connector,omitempty"`
+	BoardID       *string `json:"board_id,omitempty"`
+}
+
+// CreateReq parameters for creating a task
+type CreateReq struct {
+	ChatID      string `json:"chat_id,omitempty"`
+	Title       string `json:"title"`
+	AssistantID string `json:"assistant_id"`
+	ColumnID    string `json:"column_id"`
+}
+
+// UpdateReq parameters for partially updating a task
+type UpdateReq struct {
+	Title         *string  `json:"title,omitempty"`
+	AssistantID   *string  `json:"assistant_id,omitempty"`
+	ColumnID      *string  `json:"column_id,omitempty"`
+	Pinned        *bool    `json:"pinned,omitempty"`
+	Priority      *string  `json:"priority,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	LastWorkspace *string  `json:"last_workspace,omitempty"`
+	ComputerID    *string  `json:"computer_id,omitempty"`
+	ComputerMode  *string  `json:"computer_mode,omitempty"`
+	SandboxType   *string  `json:"sandbox_type,omitempty"`
+	Metadata      any      `json:"metadata,omitempty"`
+}
+
+// MoveReq parameters for moving a task between columns
+type MoveReq struct {
+	ColumnID string `json:"column_id"`
+	Position int    `json:"position"`
+}
+
+// CreateFromWSReq for creating task from WS first message.
+// Task parameters are passed via Metadata (consistent with Stream/Interact interface).
+type CreateFromWSReq struct {
+	ChatID   string         `json:"chat_id"`
+	Title    string         `json:"title"`
+	Metadata map[string]any `json:"metadata,omitempty"`
+}

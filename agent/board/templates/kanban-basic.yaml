@@ -1,0 +1,25 @@
+id: kanban-basic
+name: Basic Kanban
+icon: material-view_kanban
+color: "#6366F1"
+columns:
+  - name: To Do
+    icon: material-inbox
+    color: "#F59E0B"
+  - name: In Progress
+    icon: material-sync
+    color: "#3B82F6"
+  - name: In Review
+    icon: material-visibility
+    color: "#8B5CF6"
+  - name: Done
+    icon: material-done_all
+    color: "#10B981"
+locales:
+  zh-CN:
+    name: 基础看板
+    columns:
+      - name: 待办
+      - name: 进行中
+      - name: 审核中
+      - name: 完成
