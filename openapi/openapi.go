@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/openapi/chat"
 	openapiComputer "github.com/yaoapp/yao/openapi/computer"
 	"github.com/yaoapp/yao/openapi/dsl"
+	openapiEvent "github.com/yaoapp/yao/openapi/event"
 	"github.com/yaoapp/yao/openapi/file"
 	"github.com/yaoapp/yao/openapi/hello"
 	openintegrations "github.com/yaoapp/yao/openapi/integrations"
@@ -161,6 +162,9 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Integrations webhook handlers (public, no OAuth - external platforms push here)
 	openintegrations.Attach(group.Group("/integrations"))
+
+	// System event WebSocket (top-level, not under /agent)
+	openapiEvent.Attach(group.Group("/events"), openapi.OAuth)
 
 	// Agent handlers
 	agent.Attach(group.Group("/agent"), openapi.OAuth)

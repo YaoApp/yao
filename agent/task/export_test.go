@@ -1,6 +1,7 @@
 package task
 
 var (
+	// Plan 1 exports
 	ExportRowToTask        = rowToTask
 	ExportMetaString       = metaString
 	ExportGetString        = getString
@@ -9,4 +10,9 @@ var (
 	ExportGetInt           = getInt
 	ExportGetBool          = getBool
 	ExportGetTime          = getTime
+
+	// Plan 2 exports
+	ExportMergeLayer     = mergeLayer
+	ExportConfigReqToMap = configReqToMap
+	ExportToStringMap    = toStringMap
 )

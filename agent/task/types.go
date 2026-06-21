@@ -88,3 +88,62 @@ type CreateFromWSReq struct {
 	Title    string         `json:"title"`
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
+
+// --- Config types (Plan 2) ---
+
+// Config is the response from GetConfig, containing merged settings and metadata
+type Config struct {
+	Setting        *TaskSetting      `json:"setting"`
+	ResolvedFrom   map[string]string `json:"_resolved_from,omitempty"`
+	ScheduleStatus *ScheduleStatus   `json:"_schedule_status,omitempty"`
+}
+
+// ScheduleStatus provides runtime schedule info (populated by ScheduleEngine in Plan 3)
+type ScheduleStatus struct {
+	LastRun   *time.Time `json:"last_run,omitempty"`
+	NextRun   *time.Time `json:"next_run,omitempty"`
+	TotalRuns int        `json:"total_runs"`
+}
+
+// ConfigReq is the request body for SetConfig (partial update)
+type ConfigReq struct {
+	Runner   *string            `json:"runner,omitempty"`
+	Model    *string            `json:"model,omitempty"`
+	Image    *string            `json:"image,omitempty"`
+	Secrets  map[string]*string `json:"secrets,omitempty"`
+	Services []ServiceDecl      `json:"services,omitempty"`
+	Skills   []string           `json:"skills,omitempty"`
+	Schedule *ScheduleConfig    `json:"schedule,omitempty"`
+}
+
+// TaskSetting represents the merged task configuration across all layers
+type TaskSetting struct {
+	Runner   string            `json:"runner,omitempty"`
+	Model    string            `json:"model,omitempty"`
+	Image    string            `json:"image,omitempty"`
+	Secrets  map[string]string `json:"secrets,omitempty"`
+	Services []ServiceDecl     `json:"services,omitempty"`
+	Skills   []string          `json:"skills,omitempty"`
+	Schedule *ScheduleConfig   `json:"schedule,omitempty"`
+}
+
+// ServiceDecl declares a service exposed by the task container
+type ServiceDecl struct {
+	Name     string `json:"name"`
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	Public   bool   `json:"public"`
+}
+
+// ScheduleConfig defines task scheduling parameters
+type ScheduleConfig struct {
+	Enabled       bool     `json:"enabled"`
+	Mode          string   `json:"mode"`
+	Times         []string `json:"times,omitempty"`
+	Days          []string `json:"days,omitempty"`
+	IntervalValue int      `json:"interval_value,omitempty"`
+	IntervalUnit  string   `json:"interval_unit,omitempty"`
+	Timezone      string   `json:"timezone,omitempty"`
+	StartDate     string   `json:"start_date,omitempty"`
+	EndDate       string   `json:"end_date,omitempty"`
+}
