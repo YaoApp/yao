@@ -212,7 +212,7 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 				{
 					Role: "user",
 					Content: []interface{}{
-						map[string]interface{}{"type": "text", "text": "Read the attached image file using the Read tool and describe its visual content (text, colors, logos). Then read and summarize the attached code file. Reply in English."},
+						map[string]interface{}{"type": "text", "text": "View the attached image and describe what text and graphics it contains. Then summarize the attached code file's main classes. Reply in English."},
 						map[string]interface{}{
 							"type":      "image_url",
 							"image_url": map[string]interface{}{"url": imgWrapper, "detail": "auto"},

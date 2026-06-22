@@ -10,7 +10,7 @@
     "name": "claude",
     "mode": "cli",
     "options": {
-      "max_turns": 5,
+      "max_turns": 20,
       "permission_mode": "bypassPermissions"
     }
   },
