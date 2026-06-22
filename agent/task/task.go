@@ -166,8 +166,13 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 		WhereNull("deleted_at").
 		Max("position")
 	if posResult.Number != nil {
-		if v, ok := posResult.Number.(float64); ok {
+		switch v := posResult.Number.(type) {
+		case float64:
 			maxPos = int(v)
+		case int64:
+			maxPos = int(v)
+		case int:
+			maxPos = v
 		}
 	}
 
@@ -369,8 +374,13 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 			WhereNull("deleted_at").
 			Max("position")
 		if posResult.Number != nil {
-			if v, ok := posResult.Number.(float64); ok {
+			switch v := posResult.Number.(type) {
+			case float64:
 				maxPos = int(v)
+			case int64:
+				maxPos = int(v)
+			case int:
+				maxPos = v
 			}
 		}
 	}
