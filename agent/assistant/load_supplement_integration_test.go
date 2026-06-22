@@ -427,7 +427,7 @@ func TestLoadPathSandboxV2(t *testing.T) {
 		assert.Equal(t, "oneshot", ast.SandboxV2.Lifecycle)
 
 		assert.NotNil(t, ast.SandboxV2.Runner.Options)
-		assert.Equal(t, float64(5), ast.SandboxV2.Runner.Options["max_turns"])
+		assert.Equal(t, float64(20), ast.SandboxV2.Runner.Options["max_turns"])
 
 		assert.Nil(t, ast.Sandbox, "V1 Sandbox should be nil when V2 is present")
 		assert.NotEmpty(t, ast.ConfigHash, "ConfigHash should be computed for V2 sandbox")
