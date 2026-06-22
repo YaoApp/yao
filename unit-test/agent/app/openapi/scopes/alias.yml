@@ -42,6 +42,7 @@ client:free:
   - agent:all
   - chat:all
   - otp:all
+  - event:all
   - messenger:all
   - trace:all
   - sandbox:all
@@ -61,6 +62,7 @@ client:pro:
   - agent:all
   - chat:all
   - otp:all
+  - event:all
   - dsl:all
   - llm:all
   - mcp:all
@@ -83,6 +85,7 @@ client:ent:
   - agent:all
   - chat:all
   - otp:all
+  - event:all
   - dsl:all
   - llm:all
   - mcp:all
@@ -117,6 +120,7 @@ user:free:
   - agent:read:own
   - chat:all:own
   - otp:all:own
+  - event:all:own
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
@@ -138,6 +142,7 @@ user:pro:
   - agent:all:own
   - chat:all:own
   - otp:all:own
+  - event:all:own
   - dsl:all:own
   - llm:all:own
   - mcp:all:own
@@ -160,6 +165,7 @@ user:ent:
   - agent:all:own
   - chat:all:own
   - otp:all:own
+  - event:all:own
   - dsl:all:own
   - llm:all:own
   - mcp:all:own
@@ -190,6 +196,7 @@ team:owner:
   - agent:all:team
   - chat:all:team
   - otp:all:team
+  - event:all:team
   - dsl:all:team
   - llm:all:team
   - mcp:all:team
@@ -212,6 +219,7 @@ team:admin:
   - agent:manage:team
   - chat:manage:team
   - otp:manage:team
+  - event:all:team
   - dsl:manage:team
   - llm:manage:team
   - mcp:manage:team
@@ -241,6 +249,7 @@ team:member:
   - agent:write:own
   - chat:read:team
   - chat:write:own
+  - event:all:team
   - dsl:read:team
   - dsl:write:own
   - llm:read:team
@@ -572,6 +581,16 @@ agent:all:
   - agent:robots:trigger:all
   - agent:robots:results:all
   - agent:robots:activities:all
+  - agent:tasks:read:all
+  - agent:tasks:write:all
+  - agent:tasks:delete:all
+  - agent:tasks:execute:all
+  - agent:boards:read:all
+  - agent:boards:write:all
+  - agent:boards:delete:all
+  - agent:inbox:read:all
+  - agent:inbox:write:all
+  - agent:inbox:delete:all
 
 agent:all:own:
   - agent:assistants:read:own
@@ -586,6 +605,16 @@ agent:all:own:
   - agent:robots:trigger:own
   - agent:robots:results:own
   - agent:robots:activities:own
+  - agent:tasks:read:own
+  - agent:tasks:write:own
+  - agent:tasks:delete:own
+  - agent:tasks:execute:own
+  - agent:boards:read:own
+  - agent:boards:write:own
+  - agent:boards:delete:own
+  - agent:inbox:read:own
+  - agent:inbox:write:own
+  - agent:inbox:delete:own
 
 agent:all:team:
   - agent:assistants:read:team
@@ -600,6 +629,16 @@ agent:all:team:
   - agent:robots:trigger:team
   - agent:robots:results:team
   - agent:robots:activities:team
+  - agent:tasks:read:team
+  - agent:tasks:write:team
+  - agent:tasks:delete:team
+  - agent:tasks:execute:team
+  - agent:boards:read:team
+  - agent:boards:write:team
+  - agent:boards:delete:team
+  - agent:inbox:read:team
+  - agent:inbox:write:team
+  - agent:inbox:delete:team
 
 agent:manage:team:
   - agent:assistants:read:team
@@ -613,6 +652,16 @@ agent:manage:team:
   - agent:robots:trigger:team
   - agent:robots:results:team
   - agent:robots:activities:team
+  - agent:tasks:read:team
+  - agent:tasks:write:team
+  - agent:tasks:delete:team
+  - agent:tasks:execute:team
+  - agent:boards:read:team
+  - agent:boards:write:team
+  - agent:boards:delete:team
+  - agent:inbox:read:team
+  - agent:inbox:write:team
+  - agent:inbox:delete:team
 
 agent:read:own:
   - agent:assistants:read:own
@@ -621,6 +670,9 @@ agent:read:own:
   - agent:robots:execute:own
   - agent:robots:results:own
   - agent:robots:activities:own
+  - agent:tasks:read:own
+  - agent:boards:read:own
+  - agent:inbox:read:own
 
 agent:read:team:
   - agent:assistants:read:team
@@ -629,11 +681,18 @@ agent:read:team:
   - agent:robots:execute:team
   - agent:robots:results:team
   - agent:robots:activities:team
+  - agent:tasks:read:team
+  - agent:boards:read:team
+  - agent:inbox:read:team
 
 agent:write:own:
   - agent:assistants:write:own
   - agent:robots:write:own
   - agent:robots:trigger:own
+  - agent:tasks:write:own
+  - agent:tasks:execute:own
+  - agent:boards:write:own
+  - agent:inbox:write:own
 
 # ============ Chat Resources Aliases ============
 
@@ -1059,3 +1118,14 @@ setting:write:own:
   - setting:mcp:write:own
   - setting:sandbox:write:own
   - setting:preference:write:own
+
+# ============ Event Resources Aliases ============
+
+event:all:
+  - event:events:read:all
+
+event:all:own:
+  - event:events:read:own
+
+event:all:team:
+  - event:events:read:team

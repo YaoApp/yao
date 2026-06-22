@@ -1,0 +1,1 @@
+{"name":"inbox_read","description":"Mark an inbox message as read","inputSchema":{"type":"object","properties":{"mail_id":{"type":"string","description":"Mail ID to mark as read"}},"required":["mail_id"]}}

@@ -110,6 +110,13 @@
       "index": true
     },
     {
+      "name": "files",
+      "type": "json",
+      "label": "Files",
+      "comment": "File cache extracted from messages (user uploads + agent generated)",
+      "nullable": true
+    },
+    {
       "name": "metadata",
       "type": "json",
       "label": "Metadata",

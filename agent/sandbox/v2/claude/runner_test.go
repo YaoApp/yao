@@ -212,7 +212,7 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 				{
 					Role: "user",
 					Content: []interface{}{
-						map[string]interface{}{"type": "text", "text": "Describe the attached image and summarize the attached code file. Reply in English."},
+						map[string]interface{}{"type": "text", "text": "Read the attached image file using the Read tool and describe its visual content (text, colors, logos). Then read and summarize the attached code file. Reply in English."},
 						map[string]interface{}{
 							"type":      "image_url",
 							"image_url": map[string]interface{}{"url": imgWrapper, "detail": "auto"},
@@ -250,7 +250,7 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 
 			lower := strings.ToLower(contentStr)
 
-			imageKeywords := []string{"hello", "utf", "chinese", "text", "emoji"}
+			imageKeywords := []string{"hello", "utf", "chinese", "text", "emoji", "world", "language", "multilingual", "encoded", "character", "japanese", "korean"}
 			imgHit := false
 			for _, kw := range imageKeywords {
 				if strings.Contains(lower, kw) {

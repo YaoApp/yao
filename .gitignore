@@ -110,3 +110,4 @@ file::memory:
 :memory:
 agent/eval/*.md
 workspace/INVESTIGATION-metadata-missing.md
+docs/kanban-inbox/*

@@ -1,0 +1,215 @@
+{
+  "name": "Task",
+  "label": "Task",
+  "description": "Task entity bound 1:1 with agent_chat for kanban board management",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_task", "comment": "Agent task table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Unique chat identifier (= task ID), 1:1 binding with agent_chat",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "column_id",
+      "type": "string",
+      "label": "Column ID",
+      "comment": "Board column this task belongs to",
+      "length": 64,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "position",
+      "type": "integer",
+      "label": "Position",
+      "comment": "Sort order within column",
+      "default": 0
+    },
+    {
+      "name": "pinned",
+      "type": "boolean",
+      "label": "Pinned",
+      "comment": "Whether task is pinned to top",
+      "default": false
+    },
+    {
+      "name": "priority",
+      "type": "enum",
+      "label": "Priority",
+      "comment": "Task priority level",
+      "option": ["high", "medium", "low", "none"],
+      "default": "none",
+      "nullable": false
+    },
+    {
+      "name": "tags",
+      "type": "json",
+      "label": "Tags",
+      "comment": "Tag array",
+      "nullable": true
+    },
+    {
+      "name": "run_status",
+      "type": "enum",
+      "label": "Run Status",
+      "comment": "Task execution status",
+      "option": ["pending", "queued", "running", "waiting", "completed", "failed", "cancelled"],
+      "default": "pending",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "queue_priority",
+      "type": "integer",
+      "label": "Queue Priority",
+      "comment": "Queue priority (higher = sooner). Default 500.",
+      "default": 500,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "queued_at",
+      "type": "datetime",
+      "label": "Queued At",
+      "comment": "Time when task entered the queue",
+      "nullable": true
+    },
+    {
+      "name": "cancelled_at",
+      "type": "datetime",
+      "label": "Cancelled At",
+      "comment": "Time when task was cancelled",
+      "nullable": true
+    },
+    {
+      "name": "cancel_reason",
+      "type": "string",
+      "label": "Cancel Reason",
+      "comment": "Reason for cancellation: user or timeout",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "progress",
+      "type": "integer",
+      "label": "Progress",
+      "comment": "Execution progress 0-100",
+      "default": 0
+    },
+    {
+      "name": "current_step",
+      "type": "string",
+      "label": "Current Step",
+      "comment": "Current execution step description",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "error_message",
+      "type": "text",
+      "label": "Error Message",
+      "comment": "Error message when failed",
+      "nullable": true
+    },
+    {
+      "name": "started_at",
+      "type": "datetime",
+      "label": "Started At",
+      "comment": "Execution start time",
+      "nullable": true
+    },
+    {
+      "name": "completed_at",
+      "type": "datetime",
+      "label": "Completed At",
+      "comment": "Execution completion time",
+      "nullable": true
+    },
+    {
+      "name": "duration",
+      "type": "integer",
+      "label": "Duration",
+      "comment": "Cumulative execution duration in seconds",
+      "default": 0
+    },
+    {
+      "name": "run_count",
+      "type": "integer",
+      "label": "Run Count",
+      "comment": "Number of times executed",
+      "default": 0
+    },
+    {
+      "name": "computer_id",
+      "type": "string",
+      "label": "Computer ID",
+      "comment": "Bound sandbox machine ID",
+      "length": 200,
+      "nullable": true
+    },
+    {
+      "name": "computer_mode",
+      "type": "string",
+      "label": "Computer Mode",
+      "comment": "Sandbox mode (sandbox/host)",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "sandbox_type",
+      "type": "string",
+      "label": "Sandbox Type",
+      "comment": "Sandbox type (docker/vm/none)",
+      "length": 50,
+      "nullable": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_column_position",
+      "columns": ["column_id", "position"]
+    }
+  ],
+  "relations": {
+    "chat": {
+      "type": "hasOne",
+      "model": "__yao.agent.chat",
+      "key": "chat_id",
+      "foreign": "chat_id"
+    },
+    "column": {
+      "type": "hasOne",
+      "model": "__yao.agent.board.column",
+      "key": "column_id",
+      "foreign": "column_id"
+    },
+    "mails": {
+      "type": "hasMany",
+      "model": "__yao.agent.mail",
+      "key": "chat_id",
+      "foreign": "chat_id"
+    }
+  },
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

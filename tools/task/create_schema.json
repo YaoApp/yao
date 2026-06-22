@@ -1,0 +1,1 @@
+{"name":"task_create","description":"Create a new task on the kanban board","inputSchema":{"type":"object","properties":{"title":{"type":"string","description":"Task title"},"assistant_id":{"type":"string","description":"AI assistant to use"},"column_id":{"type":"string","description":"Target column ID"}},"required":["title","assistant_id","column_id"]}}

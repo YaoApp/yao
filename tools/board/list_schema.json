@@ -1,0 +1,1 @@
+{"name":"board_list","description":"List all kanban boards with columns and task counts","inputSchema":{"type":"object","properties":{}}}

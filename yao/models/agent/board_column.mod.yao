@@ -1,0 +1,102 @@
+{
+  "name": "BoardColumn",
+  "label": "Board Column",
+  "description": "Kanban board column for grouping tasks",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_board_column", "comment": "Agent board column table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "column_id",
+      "type": "string",
+      "label": "Column ID",
+      "comment": "Unique column identifier",
+      "length": 64,
+      "nullable": false,
+      "unique": true
+    },
+    {
+      "name": "board_id",
+      "type": "string",
+      "label": "Board ID",
+      "comment": "Parent board identifier",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Column name",
+      "length": 200,
+      "nullable": false
+    },
+    {
+      "name": "icon",
+      "type": "string",
+      "label": "Icon",
+      "comment": "Column icon",
+      "length": 100,
+      "nullable": true
+    },
+    {
+      "name": "color",
+      "type": "string",
+      "label": "Color",
+      "comment": "Column color",
+      "length": 20,
+      "nullable": true
+    },
+    {
+      "name": "position",
+      "type": "integer",
+      "label": "Position",
+      "comment": "Sort order within board",
+      "default": 0
+    },
+    {
+      "name": "collapsed",
+      "type": "boolean",
+      "label": "Collapsed",
+      "comment": "Whether column is collapsed",
+      "default": false
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Additional metadata",
+      "nullable": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "idx_board_position",
+      "columns": ["board_id", "position"]
+    }
+  ],
+  "relations": {
+    "board": {
+      "type": "hasOne",
+      "model": "__yao.agent.board",
+      "key": "board_id",
+      "foreign": "board_id"
+    },
+    "tasks": {
+      "type": "hasMany",
+      "model": "__yao.agent.task",
+      "key": "column_id",
+      "foreign": "column_id"
+    }
+  },
+  "option": { "timestamps": true, "soft_deletes": true, "permission": true }
+}

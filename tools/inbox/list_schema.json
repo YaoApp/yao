@@ -1,0 +1,1 @@
+{"name":"inbox_list","description":"List inbox messages with optional filtering","inputSchema":{"type":"object","properties":{"filter":{"type":"string","description":"Filter: all/unread/starred/input/completed/failed/archived"},"keyword":{"type":"string","description":"Search keyword"}}}}
