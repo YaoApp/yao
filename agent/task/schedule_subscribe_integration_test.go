@@ -5,6 +5,7 @@ package task_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"testing"
 	"time"
 
@@ -142,7 +143,9 @@ func TestSubscribe_DBPath_WithMessages(t *testing.T) {
 	propsJSON, _ := json.Marshal(props)
 
 	err = capsule.Global.Query().Table("yao_agent_message").Insert(map[string]interface{}{
+		"message_id": fmt.Sprintf("msg-%s-1", created.ChatID),
 		"chat_id":    created.ChatID,
+		"role":       "assistant",
 		"type":       "text",
 		"props":      string(propsJSON),
 		"sequence":   1,
@@ -189,7 +192,9 @@ func TestSubscribe_AfterSeq_Filters(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		props, _ := json.Marshal(map[string]interface{}{"content": "msg", "seq": i})
 		err = capsule.Global.Query().Table("yao_agent_message").Insert(map[string]interface{}{
+			"message_id": fmt.Sprintf("msg-%s-%d", created.ChatID, i),
 			"chat_id":    created.ChatID,
+			"role":       "assistant",
 			"type":       "text",
 			"props":      string(props),
 			"sequence":   i,

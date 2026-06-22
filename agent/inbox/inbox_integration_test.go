@@ -774,6 +774,10 @@ func insertChat(t *testing.T, tc *testContext, title string) string {
 	err := capsule.Global.Query().Table(chatTable()).Insert(map[string]interface{}{
 		"chat_id":          chatID,
 		"title":            title,
+		"assistant_id":     "test-assistant",
+		"status":           "active",
+		"public":           false,
+		"share":            "private",
 		"__yao_created_by": tc.auth.UserID,
 		"__yao_team_id":    tc.auth.TeamID,
 		"created_at":       now,

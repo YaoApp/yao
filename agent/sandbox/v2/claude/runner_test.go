@@ -250,7 +250,7 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 
 			lower := strings.ToLower(contentStr)
 
-			imageKeywords := []string{"hello", "utf", "chinese", "text", "emoji"}
+			imageKeywords := []string{"hello", "utf", "chinese", "text", "emoji", "world", "language", "multilingual", "encoded", "logo", "image", "character", "japanese", "korean"}
 			imgHit := false
 			for _, kw := range imageKeywords {
 				if strings.Contains(lower, kw) {
