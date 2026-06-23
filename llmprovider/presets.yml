@@ -1,3 +1,104 @@
+# ─── Astraflow by UCloud (Global) ──────────────────────
+- key: astraflow
+  name: Astraflow (UCloud)
+  type: openai
+  api_url: https://api-us-ca.umodelverse.ai/v1
+  require_key: true
+  default_models:
+    - id: astraflow-deepseek-v3
+      model: deepseek-v3
+      name: DeepSeek V3
+      max_input_tokens: 65536
+      max_output_tokens: 8192
+      capabilities: [tool_calls, streaming, json]
+      enabled: true
+    - id: astraflow-deepseek-r1
+      model: deepseek-r1
+      name: DeepSeek R1
+      max_input_tokens: 65536
+      max_output_tokens: 8192
+      capabilities: [tool_calls, streaming, json, reasoning]
+      enabled: true
+    - id: astraflow-gpt-4o
+      model: gpt-4o
+      name: GPT-4o
+      max_input_tokens: 128000
+      max_output_tokens: 16384
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-gpt-4o-mini
+      model: gpt-4o-mini
+      name: GPT-4o Mini
+      max_input_tokens: 128000
+      max_output_tokens: 16384
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-claude-sonnet-4-6
+      model: claude-sonnet-4-6
+      name: Claude Sonnet 4.6
+      max_input_tokens: 200000
+      max_output_tokens: 8192
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-gemini-2.0-flash
+      model: gemini-2.0-flash
+      name: Gemini 2.0 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 8192
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+
+# ─── Astraflow by UCloud (CN) ───────────────────────────
+- key: astraflow_cn
+  name: Astraflow 优刻得
+  locale: zh-cn
+  type: openai
+  api_url: https://api.modelverse.cn/v1
+  require_key: true
+  default_models:
+    - id: astraflow-cn-deepseek-v3
+      model: deepseek-v3
+      name: DeepSeek V3
+      max_input_tokens: 65536
+      max_output_tokens: 8192
+      capabilities: [tool_calls, streaming, json]
+      enabled: true
+    - id: astraflow-cn-deepseek-r1
+      model: deepseek-r1
+      name: DeepSeek R1
+      max_input_tokens: 65536
+      max_output_tokens: 8192
+      capabilities: [tool_calls, streaming, json, reasoning]
+      enabled: true
+    - id: astraflow-cn-gpt-4o
+      model: gpt-4o
+      name: GPT-4o
+      max_input_tokens: 128000
+      max_output_tokens: 16384
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-cn-gpt-4o-mini
+      model: gpt-4o-mini
+      name: GPT-4o Mini
+      max_input_tokens: 128000
+      max_output_tokens: 16384
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-cn-claude-sonnet-4-6
+      model: claude-sonnet-4-6
+      name: Claude Sonnet 4.6
+      max_input_tokens: 200000
+      max_output_tokens: 8192
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: astraflow-cn-gemini-2.0-flash
+      model: gemini-2.0-flash
+      name: Gemini 2.0 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 8192
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+
 # ─── OpenRouter ─────────────────────────────────────────
 - key: openrouter
   name: OpenRouter
