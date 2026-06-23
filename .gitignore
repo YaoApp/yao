@@ -111,3 +111,4 @@ file::memory:
 agent/eval/*.md
 workspace/INVESTIGATION-metadata-missing.md
 docs/kanban-inbox/*
+unit-test/agent/mock-llm/mock-llm

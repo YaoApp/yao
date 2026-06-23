@@ -4,6 +4,7 @@ package board_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -141,7 +142,7 @@ func TestBoardTasks(t *testing.T) {
 	colID := b.Columns[0].ColumnID
 
 	// Board should have no tasks initially
-	tasks, err := board.Tasks(ctx, auth, b.BoardID)
+	tasks, err := board.Tasks(ctx, auth, b.BoardID, "")
 	require.NoError(t, err)
 	assert.Empty(t, tasks)
 
@@ -163,7 +164,7 @@ func TestBoardTasks(t *testing.T) {
 	assert.Equal(t, "Second Task", t2.Title)
 
 	// Verify Tasks() returns the created tasks
-	tasks, err = board.Tasks(ctx, auth, b.BoardID)
+	tasks, err = board.Tasks(ctx, auth, b.BoardID, "")
 	require.NoError(t, err)
 	assert.Len(t, tasks, 2)
 
@@ -336,7 +337,7 @@ func TestBoardDeleteColumn(t *testing.T) {
 	assert.Equal(t, 2, got.Columns[1].Position)
 
 	// Verify task migrated (should be in firstColID now)
-	tasks, err := board.Tasks(ctx, auth, b.BoardID)
+	tasks, err := board.Tasks(ctx, auth, b.BoardID, "")
 	require.NoError(t, err)
 	assert.Len(t, tasks, 1, "migrated task should still exist")
 
@@ -572,7 +573,7 @@ func TestBoardTasksMigrationOnColumnDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	// All 4 tasks should still exist in the board
-	tasks, err := board.Tasks(ctx, auth, b.BoardID)
+	tasks, err := board.Tasks(ctx, auth, b.BoardID, "")
 	require.NoError(t, err)
 	assert.Len(t, tasks, 4, "all tasks should survive column deletion")
 
@@ -585,7 +586,7 @@ func TestBoardTasksMigrationOnColumnDelete(t *testing.T) {
 	require.NoError(t, err)
 
 	// All 4 tasks should still exist
-	tasks, err = board.Tasks(ctx, auth, b.BoardID)
+	tasks, err = board.Tasks(ctx, auth, b.BoardID, "")
 	require.NoError(t, err)
 	assert.Len(t, tasks, 4)
 
@@ -594,4 +595,47 @@ func TestBoardTasksMigrationOnColumnDelete(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, got.Columns, 1)
 	assert.Equal(t, col3.ColumnID, got.Columns[0].ColumnID)
+}
+
+func TestBoardTasks_ResponseFormat(t *testing.T) {
+	ctx, auth := setupTest(t)
+
+	b, err := board.Create(ctx, auth, &board.CreateReq{Name: "Format Test Board"})
+	require.NoError(t, err)
+	colID := b.Columns[0].ColumnID
+
+	_, err = task.Create(ctx, auth, &task.CreateReq{
+		Title:       "Format Task",
+		AssistantID: "asst-test",
+		ColumnID:    colID,
+	})
+	require.NoError(t, err)
+
+	tasks, err := board.Tasks(ctx, auth, b.BoardID, "")
+	require.NoError(t, err)
+	require.Len(t, tasks, 1)
+
+	// Simulate handler response wrapping (must match frontend expectation)
+	wrapped := map[string]interface{}{
+		"tasks": tasks,
+		"total": len(tasks),
+	}
+
+	raw, err := json.Marshal(wrapped)
+	require.NoError(t, err)
+
+	var parsed map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &parsed))
+
+	// Frontend expects res.data.tasks to be an array
+	assert.Contains(t, parsed, "tasks", "response must have 'tasks' field")
+	assert.Contains(t, parsed, "total", "response must have 'total' field")
+
+	var taskList []json.RawMessage
+	require.NoError(t, json.Unmarshal(parsed["tasks"], &taskList))
+	assert.Len(t, taskList, 1)
+
+	var total int
+	require.NoError(t, json.Unmarshal(parsed["total"], &total))
+	assert.Equal(t, 1, total)
 }

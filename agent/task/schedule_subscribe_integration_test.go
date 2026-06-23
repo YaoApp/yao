@@ -217,9 +217,12 @@ func TestSubscribe_AfterSeq_Filters(t *testing.T) {
 loop:
 	for {
 		select {
-		case _, ok := <-sub.Ch:
+		case msg, ok := <-sub.Ch:
 			if !ok {
 				break loop
+			}
+			if msg.Type == "event" {
+				continue
 			}
 			received++
 		case <-timeout:
@@ -241,7 +244,7 @@ func TestInput_NotRunning(t *testing.T) {
 		Messages: []task.InputMessage{{Role: "user", Content: "hello"}},
 	})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not running")
+	assert.Contains(t, err.Error(), "deprecated")
 }
 
 func TestLoadMessagesFromDB_Empty(t *testing.T) {

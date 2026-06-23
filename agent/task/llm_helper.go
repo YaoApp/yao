@@ -29,11 +29,36 @@ func toOAuthInfo(auth *process.AuthorizedInfo) *oauthTypes.AuthorizedInfo {
 // Exported for cross-package access from API layer.
 func ExtractFirstUserMessage(msgs []InputMessage) string {
 	for _, m := range msgs {
-		if m.Role == "user" && m.Content != "" {
-			return m.Content
+		if m.Role == "user" {
+			if s := contentText(m.Content); s != "" {
+				return s
+			}
 		}
 	}
 	return ""
+}
+
+// contentText extracts plain text from Content which may be a string or
+// multipart []ContentPart (decoded as []interface{} from JSON).
+func contentText(content interface{}) string {
+	switch v := content.(type) {
+	case string:
+		return v
+	case []interface{}:
+		var parts []string
+		for _, part := range v {
+			if m, ok := part.(map[string]interface{}); ok {
+				if t, _ := m["type"].(string); t == "text" {
+					if text, ok := m["text"].(string); ok && text != "" {
+						parts = append(parts, text)
+					}
+				}
+			}
+		}
+		return strings.Join(parts, "\n")
+	default:
+		return ""
+	}
 }
 
 // cleanMarkdownFences removes markdown code block wrappers from LLM output

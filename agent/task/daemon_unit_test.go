@@ -22,14 +22,26 @@ func TestDaemonContext_Broadcast(t *testing.T) {
 
 	dc.Broadcast(&message.Message{Type: "text", Props: map[string]interface{}{"content": "hello"}})
 
-	select {
-	case received := <-sub.Ch:
-		assert.Equal(t, "text", received.Type)
-		assert.NotNil(t, received.Metadata)
-		assert.Equal(t, 1, received.Metadata.Sequence)
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for broadcast")
+	// Watch now sends read_complete before live messages
+	var received *message.Message
+	timeout := time.After(time.Second)
+	for {
+		select {
+		case msg := <-sub.Ch:
+			if msg.Type == "event" && msg.Props["event"] == "read_complete" {
+				continue // skip read_complete marker
+			}
+			received = msg
+			goto check
+		case <-timeout:
+			t.Fatal("timeout waiting for broadcast")
+			return
+		}
 	}
+check:
+	assert.Equal(t, "text", received.Type)
+	assert.NotNil(t, received.Metadata)
+	assert.Equal(t, 1, received.Metadata.Sequence)
 }
 
 func TestDaemonContext_CloseSubscribers(t *testing.T) {
@@ -43,10 +55,21 @@ func TestDaemonContext_CloseSubscribers(t *testing.T) {
 
 	dc.CloseSubscribers()
 
-	_, ok1 := <-sub1.Ch
-	_, ok2 := <-sub2.Ch
-	assert.False(t, ok1, "sub1.Ch should be closed")
-	assert.False(t, ok2, "sub2.Ch should be closed")
+	// Drain until channels close (may receive read_complete before closure)
+	drainUntilClosed := func(ch <-chan *message.Message) bool {
+		for {
+			select {
+			case _, ok := <-ch:
+				if !ok {
+					return true
+				}
+			case <-time.After(2 * time.Second):
+				return false
+			}
+		}
+	}
+	assert.True(t, drainUntilClosed(sub1.Ch), "sub1.Ch should eventually close")
+	assert.True(t, drainUntilClosed(sub2.Ch), "sub2.Ch should eventually close")
 }
 
 func TestDaemonContext_Subscribe_ReplayAll(t *testing.T) {
@@ -61,6 +84,7 @@ func TestDaemonContext_Subscribe_ReplayAll(t *testing.T) {
 	require.NoError(t, err)
 	defer sub.Cancel()
 
+	// Receive 3 replayed text messages
 	for i := 0; i < 3; i++ {
 		select {
 		case msg := <-sub.Ch:
@@ -70,6 +94,16 @@ func TestDaemonContext_Subscribe_ReplayAll(t *testing.T) {
 		}
 	}
 
+	// Receive read_complete marker
+	select {
+	case msg := <-sub.Ch:
+		assert.Equal(t, "event", msg.Type)
+		assert.Equal(t, "read_complete", msg.Props["event"])
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for read_complete")
+	}
+
+	// Receive live message
 	dc.Broadcast(&message.Message{Type: "text", Props: map[string]interface{}{"live": true}})
 	select {
 	case msg := <-sub.Ch:
@@ -100,11 +134,13 @@ func TestDaemonContext_ConcurrentBroadcast(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		count := 0
-		for range sub.Ch {
-			count++
-			if count >= 10 {
-				return
+		textCount := 0
+		for msg := range sub.Ch {
+			if msg.Type == "text" {
+				textCount++
+				if textCount >= 10 {
+					return
+				}
 			}
 		}
 	}()
@@ -135,12 +171,20 @@ func TestDaemonResponseWriter(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, len(data), n)
 
-	select {
-	case msg := <-sub.Ch:
-		assert.Equal(t, "text", msg.Type)
-		assert.Equal(t, "hello", msg.Props["content"])
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for message from writer")
+	// Skip read_complete, then get text message
+	for {
+		select {
+		case msg := <-sub.Ch:
+			if msg.Type == "event" {
+				continue
+			}
+			assert.Equal(t, "text", msg.Type)
+			assert.Equal(t, "hello", msg.Props["content"])
+			return
+		case <-time.After(time.Second):
+			t.Fatal("timeout waiting for message from writer")
+			return
+		}
 	}
 }
 
@@ -158,13 +202,20 @@ func TestDaemonContext_Broadcast_WithExistingMetadata(t *testing.T) {
 		Metadata: &message.Metadata{TraceID: "trace-123"},
 	})
 
-	select {
-	case msg := <-sub.Ch:
-		assert.Equal(t, "text", msg.Type)
-		assert.Equal(t, "trace-123", msg.Metadata.TraceID)
-		assert.Equal(t, 1, msg.Metadata.Sequence)
-	case <-time.After(time.Second):
-		t.Fatal("timeout")
+	for {
+		select {
+		case msg := <-sub.Ch:
+			if msg.Type == "event" {
+				continue
+			}
+			assert.Equal(t, "text", msg.Type)
+			assert.Equal(t, "trace-123", msg.Metadata.TraceID)
+			assert.Equal(t, 1, msg.Metadata.Sequence)
+			return
+		case <-time.After(time.Second):
+			t.Fatal("timeout")
+			return
+		}
 	}
 }
 
@@ -206,15 +257,17 @@ func TestDaemonContext_Broadcast_ChannelFull(t *testing.T) {
 	require.NoError(t, err)
 	defer subAll.Cancel()
 
-	count := 0
+	textCount := 0
 	for {
 		select {
-		case <-subAll.Ch:
-			count++
+		case msg := <-subAll.Ch:
+			if msg.Type == "text" {
+				textCount++
+			}
 		case <-time.After(100 * time.Millisecond):
 			goto done
 		}
 	}
 done:
-	assert.Equal(t, 70, count, "ringBuffer should contain all 70 messages")
+	assert.Equal(t, 70, textCount, "ringBuffer should contain all 70 text messages")
 }

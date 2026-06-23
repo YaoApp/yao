@@ -236,7 +236,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, boardID string) e
 }
 
 // Tasks returns all tasks in a board ordered by column position then task position
-func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string) ([]*task.Task, error) {
+func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string, locale string) ([]*task.Task, error) {
 	_, err := Get(ctx, auth, boardID)
 	if err != nil {
 		return nil, err
@@ -246,6 +246,7 @@ func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string) ([
 		BoardID:  boardID,
 		PageSize: 1000,
 		Page:     1,
+		Locale:   locale,
 	}
 	result, err := task.List(ctx, auth, q)
 	if err != nil {

@@ -13,6 +13,7 @@ type ListQuery struct {
 	BoardID     string `json:"board_id,omitempty"`
 	Page        int    `json:"page,omitempty"`
 	PageSize    int    `json:"page_size,omitempty"`
+	Locale      string `json:"locale,omitempty"`
 }
 
 // ListResult paginated task list response
@@ -43,6 +44,9 @@ type Task struct {
 	ComputerID   *string    `json:"computer_id,omitempty"`
 	ComputerMode *string    `json:"computer_mode,omitempty"`
 	SandboxType  *string    `json:"sandbox_type,omitempty"`
+	Instruction  string     `json:"instruction,omitempty"`
+	Summary      string     `json:"summary,omitempty"`
+	Outputs      any        `json:"outputs,omitempty"`
 	Metadata     any        `json:"metadata,omitempty"`
 	CreatedAt    *time.Time `json:"created_at,omitempty"`
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
@@ -54,6 +58,9 @@ type Task struct {
 	LastWorkspace *string `json:"last_workspace,omitempty"`
 	LastConnector *string `json:"last_connector,omitempty"`
 	BoardID       *string `json:"board_id,omitempty"`
+
+	// Resolved at query time
+	WorkspaceName string `json:"workspace_name,omitempty"`
 }
 
 // CreateReq parameters for creating a task
@@ -76,6 +83,9 @@ type UpdateReq struct {
 	ComputerID    *string  `json:"computer_id,omitempty"`
 	ComputerMode  *string  `json:"computer_mode,omitempty"`
 	SandboxType   *string  `json:"sandbox_type,omitempty"`
+	Instruction   *string  `json:"instruction,omitempty"`
+	Summary       *string  `json:"summary,omitempty"`
+	Outputs       any      `json:"outputs,omitempty"`
 	Metadata      any      `json:"metadata,omitempty"`
 }
 
@@ -164,6 +174,8 @@ type RunReq struct {
 	AssistantID string         `json:"assistant_id,omitempty"`
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	Priority    int            `json:"priority,omitempty"`
+	Source      string         `json:"source,omitempty"` // "run", "retry", "repeat"
+	Fresh       bool           `json:"fresh,omitempty"`  // true = skip chat history loading (retry from scratch)
 }
 
 // RunResult is the response from Run()
@@ -178,6 +190,21 @@ type RunResult struct {
 type InputReq struct {
 	Messages []InputMessage `json:"messages"`
 }
+
+// WatchOpts configures the Watch stream (historical + live messages)
+type WatchOpts struct {
+	AfterSeq int64 `json:"after_seq,omitempty"` // Retrieve messages after this sequence number (0 = from start)
+	Limit    int   `json:"limit,omitempty"`     // Max number of historical messages to return (0 = all)
+}
+
+// WatchStream represents an active Watch stream
+type WatchStream struct {
+	Ch       <-chan *message.Message
+	Cancel   func()
+	LiveMode bool // true = subscribed to live daemon; false = DB-only replay
+}
+
+// --- Legacy SubscribeOpts kept for backward compatibility during transition ---
 
 // SubscribeOpts configures how a subscription replays history
 type SubscribeOpts struct {
@@ -203,16 +230,20 @@ type Subscription struct {
 
 // WSCommand represents a client-to-server WebSocket command
 type WSCommand struct {
-	Type        string         `json:"type"`
-	Messages    []InputMessage `json:"messages,omitempty"`
-	AssistantID string         `json:"assistant_id,omitempty"`
-	Metadata    map[string]any `json:"metadata,omitempty"`
-	Priority    int            `json:"priority,omitempty"`
-	Force       bool           `json:"force,omitempty"`
+	Type        string         `json:"type"`                   // "read", "run", "retry", "repeat", "stop", "cancel"
+	Messages    []InputMessage `json:"messages,omitempty"`     // For run/retry: user messages
+	AssistantID string         `json:"assistant_id,omitempty"` // For run: assistant to use
+	Metadata    map[string]any `json:"metadata,omitempty"`     // For run: task metadata
+	Priority    int            `json:"priority,omitempty"`     // For run: priority
+	Force       bool           `json:"force,omitempty"`        // Reserved
+	Since       int64          `json:"since,omitempty"`        // For read: after_seq pagination cursor
+	Limit       int            `json:"limit,omitempty"`        // For read: max messages to return
 }
 
-// InputMessage is the message type for task execution input
+// InputMessage is the message type for task execution input.
+// Content is interface{} to support both plain text (string) and multipart
+// content ([]ContentPart) consistent with agentcontext.Message.
 type InputMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string      `json:"role"`
+	Content interface{} `json:"content"`
 }

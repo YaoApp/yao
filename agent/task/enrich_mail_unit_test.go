@@ -39,29 +39,3 @@ func TestExtractRecentText_LimitN(t *testing.T) {
 	texts := task.ExportExtractRecentText(dc, 5)
 	assert.Len(t, texts, 5)
 }
-
-func TestBuildEnrichPrompt_Input(t *testing.T) {
-	msgs := []string{"[assistant] Please provide the file path"}
-	prompt := task.ExportBuildEnrichPrompt("input", msgs)
-	assert.Contains(t, prompt, "等待用户输入")
-	assert.Contains(t, prompt, "[assistant] Please provide the file path")
-	assert.Contains(t, prompt, "JSON")
-}
-
-func TestBuildEnrichPrompt_Completed(t *testing.T) {
-	msgs := []string{"[assistant] Task completed successfully"}
-	prompt := task.ExportBuildEnrichPrompt("completed", msgs)
-	assert.Contains(t, prompt, "任务已完成")
-}
-
-func TestBuildEnrichPrompt_Failed(t *testing.T) {
-	msgs := []string{"[assistant] Error: connection refused"}
-	prompt := task.ExportBuildEnrichPrompt("failed", msgs)
-	assert.Contains(t, prompt, "任务执行失败")
-	assert.Contains(t, prompt, "error_type")
-}
-
-func TestBuildEnrichPrompt_Unknown(t *testing.T) {
-	prompt := task.ExportBuildEnrichPrompt("unknown", []string{"msg"})
-	assert.Equal(t, "", prompt)
-}

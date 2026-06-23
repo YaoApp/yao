@@ -32,17 +32,24 @@ var (
 	ExportIsValidPriority     = isValidPriority
 	ExportIsValidMailPriority = isValidMailPriority
 	ExportExtractRecentText   = extractRecentText
-	ExportBuildEnrichPrompt   = buildEnrichPrompt
 
 	// Plan 3 exports - run core logic
 	ExportInputToAgentMessages = inputToAgentMessages
-	ExportMailTypeFromStatus   = mailTypeFromStatus
 	ExportGetStringVal         = getStringVal
 	ExportToOAuthInfo          = toOAuthInfo
+	ExportContentText          = contentText
+
+	// Watch/WatchStream exports
+	ExportGetOriginalPrompt       = GetOriginalPrompt
+	ExportExtractContentFromProps = extractContentFromProps
+	ExportLoadMessagesFromDBPaged = loadMessagesFromDBPaginated
 
 	// Plan 3 exports - daemon registry
 	ExportGetDaemon        = GetDaemon
 	ExportUnregisterDaemon = UnregisterDaemon
+
+	// enrichTaskResult exports
+	ExportBuildEnrichResultPrompt = buildEnrichResultPrompt
 )
 
 // ExportRegisterDaemon stores a DaemonContext in the global registry for testing

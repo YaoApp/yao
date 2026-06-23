@@ -9,6 +9,45 @@ import (
 )
 
 var negativePatterns = regexp.MustCompile(`(?i)(don'?t know|i cannot|no idea|not sure|unable to|i can'?t)`)
+var enrichmentPattern = regexp.MustCompile(`任务元数据提取器`)
+
+// buildEnrichmentResponse returns a valid enrichment JSON when the system prompt
+// matches the task enrichment pattern.
+func buildEnrichmentResponse() string {
+	b, _ := json.Marshal(map[string]interface{}{
+		"title":       "Test Task Title",
+		"run_status":  "completed",
+		"summary":     "Task completed successfully",
+		"instruction": "Execute the test task",
+		"outputs":     []interface{}{},
+		"mail":        map[string]interface{}{"title": "Task Done", "body": "Your task completed.", "priority": "low"},
+		"tags":        []string{"test"},
+		"priority":    "none",
+	})
+	return string(b)
+}
+
+// isEnrichmentRequest checks if the messages contain an enrichment system prompt.
+func isEnrichmentRequest(messages json.RawMessage) bool {
+	var msgs []struct {
+		Role    string          `json:"role"`
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(messages, &msgs); err != nil {
+		return false
+	}
+	for _, m := range msgs {
+		if m.Role == "system" {
+			var text string
+			if err := json.Unmarshal(m.Content, &text); err == nil {
+				if enrichmentPattern.MatchString(text) {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
 
 // buildValidatorResponse analyses the last user message and returns a JSON
 // object with {"passed": bool, "reason": string}.  The heuristic is

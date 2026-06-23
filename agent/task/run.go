@@ -11,8 +11,6 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/inbox"
-	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/event"
 )
 
@@ -36,6 +34,7 @@ func Run(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *
 	if _, loaded := daemonRegistry.LoadOrStore(chatID, dc); loaded {
 		return nil, fmt.Errorf("task %s is already running or queued", chatID)
 	}
+	fmt.Printf("  • [task.run] daemon REGISTERED chatID=%s\n", chatID)
 
 	now := time.Now()
 	requestID := uuid.New().String()
@@ -95,33 +94,10 @@ func Stop(ctx context.Context, auth *process.AuthorizedInfo, chatID string, forc
 	return nil
 }
 
-// Input provides user input to a waiting task
+// Input is deprecated. With single-round daemon, user input is provided via
+// a new "run" command on the WS channel (which starts a fresh daemon).
 func Input(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *InputReq) error {
-	dc, exists := GetDaemon(chatID)
-	if !exists {
-		return fmt.Errorf("task %s is not running", chatID)
-	}
-	if dc.Status() != DaemonWaiting {
-		return fmt.Errorf("task %s is not waiting for input", chatID)
-	}
-
-	// Broadcast user input to subscribers for display
-	for _, m := range req.Messages {
-		dc.Broadcast(&message.Message{
-			Type: "text",
-			Props: map[string]interface{}{
-				"role":    m.Role,
-				"content": m.Content,
-			},
-		})
-	}
-
-	select {
-	case dc.inputCh <- req.Messages:
-		return nil
-	default:
-		return fmt.Errorf("task %s input channel full", chatID)
-	}
+	return fmt.Errorf("task %s: Input() is deprecated, use run command instead", chatID)
 }
 
 // SetPriority updates queue priority for a queued task
@@ -136,11 +112,16 @@ func SetPriority(ctx context.Context, auth *process.AuthorizedInfo, chatID strin
 	return err
 }
 
-// runDaemon is the core execution loop: delegates to assistant.Stream()
+// runDaemon is the single-round execution: delegates to assistant.Stream(), then triggers enrichTaskResult.
 func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req *RunReq, task *Task) {
 	defer UnregisterDaemon(dc.ChatID)
-	defer dc.CloseSubscribers()
-	defer func() { updateFinalStatus(dc, auth) }()
+	defer dc.StopIdleTimer()
+
+	daemonStart := time.Now()
+	columnID := ""
+	if task.ColumnID != nil {
+		columnID = *task.ColumnID
+	}
 
 	if AssistantStreamFn == nil {
 		markFailed(dc, auth, fmt.Errorf("AssistantStreamFn not initialized"))
@@ -152,9 +133,13 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 		dur = 60 * time.Minute
 	}
 	stdCtx, cancel := context.WithTimeout(dc.Context, dur)
-	defer cancel()
 
 	agentCtx := agentcontext.New(stdCtx, toOAuthInfo(auth), dc.ChatID)
+	// Correct cleanup order: Release (flush SafeWriter) → CloseSubscribers → cancel context
+	defer func() {
+		dc.CloseSubscribers()
+		cancel()
+	}()
 	defer agentCtx.Release()
 	agentCtx.AssistantID = task.AssistantID
 	agentCtx.Writer = NewDaemonResponseWriter(dc)
@@ -165,48 +150,55 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 		Connector: cfg.Setting.Model,
 		Metadata:  map[string]any{"max_turns": cfg.Setting.MaxTurns},
 	}
-
-	maxTurns := cfg.Setting.MaxTurns
-	if maxTurns <= 0 {
-		maxTurns = 1
+	// Only propagate workspace_id for sandbox binding — do NOT merge all WS
+	// metadata keys (column_id, assistant_id, etc.) into opts.Metadata as they
+	// pollute ctx.Metadata and can change sandbox identifier / behavior.
+	if ws := metaString(req.Metadata, "workspace_id"); ws != "" {
+		opts.Metadata["workspace_id"] = ws
+	} else if task.LastWorkspace != nil && *task.LastWorkspace != "" {
+		opts.Metadata["workspace_id"] = *task.LastWorkspace
 	}
 
-	messages := inputToAgentMessages(req.Messages)
-	var lastErr error
-
-	for turn := 0; turn < maxTurns; turn++ {
-		dc.resetIdleTimer()
-
-		_, lastErr = AssistantStreamFn(task.AssistantID, agentCtx, messages, opts)
-		if lastErr != nil {
-			break
-		}
-		if stdCtx.Err() != nil {
-			break
-		}
-
-		if dc.Status() == DaemonWaiting {
-			setStatus(dc.ChatID, "waiting", auth, nil)
-			select {
-			case inputMsgs := <-dc.inputCh:
-				messages = inputToAgentMessages(inputMsgs)
-				dc.SetStatus(DaemonRunning)
-				setStatus(dc.ChatID, "running", auth, nil)
-			case <-stdCtx.Done():
-				break
-			}
-		} else {
-			break
-		}
+	// Fresh=true (retry): skip history loading so agent starts clean with only req.Messages
+	if req.Fresh {
+		opts.Skip = &agentcontext.Skip{History: true}
 	}
 
+	_, err := AssistantStreamFn(task.AssistantID, agentCtx, inputToAgentMessages(req.Messages), opts)
+
+	var finalErr error
 	if stdCtx.Err() == context.DeadlineExceeded {
-		markFailed(dc, auth, fmt.Errorf("timeout after %s", cfg.Setting.Timeout))
-	} else if lastErr != nil {
-		markFailed(dc, auth, lastErr)
-	} else {
-		markCompleted(dc, auth)
+		finalErr = fmt.Errorf("timeout after %s", cfg.Setting.Timeout)
+		markFailed(dc, auth, finalErr)
+	} else if err != nil {
+		finalErr = err
+		markFailed(dc, auth, finalErr)
 	}
+
+	dc.SetStatus(DaemonStopped)
+
+	status := "completed"
+	if finalErr != nil {
+		status = "failed"
+	}
+	logTaskCompleted(dc.ChatID, columnID, task.AssistantID, status, time.Since(daemonStart), finalErr)
+
+	isFirstRun := (task.RunCount <= 1)
+	recentTexts := collectConversationText(req.Messages, dc)
+	go enrichTaskResult(dc.ChatID, auth, isFirstRun, finalErr, recentTexts)
+}
+
+func collectConversationText(msgs []InputMessage, dc *DaemonContext) []string {
+	var texts []string
+	for _, m := range msgs {
+		if m.Role == "user" {
+			if s := contentText(m.Content); s != "" {
+				texts = append(texts, fmt.Sprintf("[user] %s", s))
+			}
+		}
+	}
+	texts = append(texts, extractRecentText(dc, 20)...)
+	return texts
 }
 
 func inputToAgentMessages(msgs []InputMessage) []agentcontext.Message {
@@ -220,6 +212,8 @@ func inputToAgentMessages(msgs []InputMessage) []agentcontext.Message {
 	return out
 }
 
+// setStatus updates the task run_status in DB and pushes a minimal event.
+// Mail creation is now handled by enrichTaskResult after daemon exit.
 func setStatus(chatID, status string, auth *process.AuthorizedInfo, extra map[string]any) {
 	updates := map[string]interface{}{
 		"run_status": status,
@@ -240,55 +234,14 @@ func setStatus(chatID, status string, auth *process.AuthorizedInfo, extra map[st
 		eventData["__yao_team_id"] = auth.TeamID
 	}
 	event.Push(context.Background(), "task.updated", eventData)
-
-	if status == "waiting" || status == "completed" || status == "failed" {
-		inboxTask := &inbox.AgentTask{
-			ChatID:    chatID,
-			CreatedBy: auth.UserID,
-			TeamID:    auth.TeamID,
-		}
-		if task, _ := getTaskBasicInfo(chatID); task != nil {
-			inboxTask.AssistantID = task.AssistantID
-			inboxTask.ColumnID = getStringVal(task.ColumnID)
-		}
-		mailID, _ := inbox.OnStatusChange(context.Background(), inboxTask, status)
-		if mailID != "" {
-			mailType := mailTypeFromStatus(status)
-			enrichMailContent(mailID, chatID, mailType, auth)
-		}
-	}
-}
-
-func mailTypeFromStatus(status string) string {
-	switch status {
-	case "waiting":
-		return "input"
-	case "completed":
-		return "completed"
-	case "failed":
-		return "failed"
-	}
-	return ""
-}
-
-func markCompleted(dc *DaemonContext, auth *process.AuthorizedInfo) {
-	dc.SetStatus(DaemonStopped)
-	setStatus(dc.ChatID, "completed", auth, map[string]any{"completed_at": time.Now()})
 }
 
 func markFailed(dc *DaemonContext, auth *process.AuthorizedInfo, err error) {
-	dc.SetStatus(DaemonStopped)
 	errMsg := err.Error()
 	setStatus(dc.ChatID, "failed", auth, map[string]any{
 		"error_message": errMsg,
 		"completed_at":  time.Now(),
 	})
-}
-
-func updateFinalStatus(dc *DaemonContext, auth *process.AuthorizedInfo) {
-	if dc.Status() == DaemonRunning || dc.Status() == DaemonWaiting {
-		markCompleted(dc, auth)
-	}
 }
 
 func recoverDaemonPanic(dc *DaemonContext) {

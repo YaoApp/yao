@@ -186,6 +186,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				ctx.Logger.Trace("Connector: %s", conn.ID())
 			}
 		}
+		if v2Init.Config.WorkspaceID != "" {
+			if ctx.Metadata == nil {
+				ctx.Metadata = make(map[string]interface{})
+			}
+			ctx.Metadata["workspace_id"] = v2Init.Config.WorkspaceID
+		}
 	}
 	// Ensure sandbox cleanup on exit
 	defer func() {

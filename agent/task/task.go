@@ -9,7 +9,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/event"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // List returns a paginated list of tasks with derived fields from JOINs
@@ -94,6 +96,20 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		tasks = append(tasks, t)
 	}
 
+	resolveWorkspaceNames(ctx, tasks)
+
+	if q.Locale != "" {
+		for _, t := range tasks {
+			if t.AssistantName != "" && t.AssistantID != "" {
+				if translated := i18n.Translate(t.AssistantID, q.Locale, t.AssistantName); translated != nil {
+					if s, ok := translated.(string); ok {
+						t.AssistantName = s
+					}
+				}
+			}
+		}
+	}
+
 	return &ListResult{
 		Tasks:    tasks,
 		Total:    int64(total),
@@ -138,7 +154,9 @@ func Get(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (*Tas
 		}
 	}
 
-	return rowToTask(row), nil
+	t := rowToTask(row)
+	resolveWorkspaceNames(ctx, []*Task{t})
+	return t, nil
 }
 
 // Create creates a new task with its associated chat
@@ -258,6 +276,16 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 	if req.SandboxType != nil {
 		taskUpdates["sandbox_type"] = *req.SandboxType
 	}
+	if req.Instruction != nil {
+		taskUpdates["instruction"] = *req.Instruction
+	}
+	if req.Summary != nil {
+		taskUpdates["summary"] = *req.Summary
+	}
+	if req.Outputs != nil {
+		outputsJSON, _ := jsoniter.MarshalToString(req.Outputs)
+		taskUpdates["outputs"] = outputsJSON
+	}
 	if req.Metadata != nil {
 		metaJSON, _ := jsoniter.MarshalToString(req.Metadata)
 		taskUpdates["metadata"] = metaJSON
@@ -352,6 +380,7 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	assistantID := metaString(req.Metadata, "assistant_id")
 	computerID := metaString(req.Metadata, "computer_id")
 	computerMode := metaString(req.Metadata, "computer_mode")
+	workspaceID := metaString(req.Metadata, "workspace_id")
 
 	// Validate column_id if provided
 	if columnID != "" {
@@ -398,6 +427,9 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	if assistantID != "" {
 		chatData["assistant_id"] = assistantID
 	}
+	if workspaceID != "" {
+		chatData["last_workspace"] = workspaceID
+	}
 	err := capsule.Global.Query().Table(tableChat()).Insert(chatData)
 	if err != nil {
 		return nil, fmt.Errorf("task.CreateFromWS insert chat: %w", err)
@@ -432,6 +464,8 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	if err != nil {
 		return nil, fmt.Errorf("task.CreateFromWS insert task: %w", err)
 	}
+
+	logTaskCreated(chatID, columnID, assistantID)
 
 	// Push event
 	event.Push(ctx, "task.created", map[string]any{
@@ -491,6 +525,18 @@ func rowToTask(row map[string]interface{}) *Task {
 	}
 	if v := getStringPtr(row, "sandbox_type"); v != nil {
 		t.SandboxType = v
+	}
+	t.Instruction = getString(row, "instruction")
+	t.Summary = getString(row, "summary")
+	if outputsRaw, ok := row["outputs"]; ok && outputsRaw != nil {
+		switch v := outputsRaw.(type) {
+		case string:
+			var outputs any
+			jsoniter.UnmarshalFromString(v, &outputs)
+			t.Outputs = outputs
+		default:
+			t.Outputs = v
+		}
 	}
 	if v := getStringPtr(row, "last_workspace"); v != nil {
 		t.LastWorkspace = v
@@ -604,4 +650,27 @@ func getTime(row map[string]interface{}, key string) *time.Time {
 		}
 	}
 	return nil
+}
+
+// resolveWorkspaceNames batch-resolves workspace names for tasks that have a
+// LastWorkspace value. Errors are silently ignored (name stays empty).
+func resolveWorkspaceNames(ctx context.Context, tasks []*Task) {
+	seen := make(map[string]string)
+	for _, t := range tasks {
+		if t.LastWorkspace == nil || *t.LastWorkspace == "" {
+			continue
+		}
+		wsID := *t.LastWorkspace
+		if name, ok := seen[wsID]; ok {
+			t.WorkspaceName = name
+			continue
+		}
+		ws, err := workspace.M().Get(ctx, wsID)
+		if err == nil && ws != nil {
+			seen[wsID] = ws.Name
+			t.WorkspaceName = ws.Name
+		} else {
+			seen[wsID] = ""
+		}
+	}
 }

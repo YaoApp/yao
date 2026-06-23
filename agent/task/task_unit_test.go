@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/yaoapp/yao/agent/task"
 )
 
@@ -355,4 +356,16 @@ func TestCreateFromWSReqNilMetadata(t *testing.T) {
 	if task.ExportMetaString(req.Metadata, "column_id") != "" {
 		t.Error("nil metadata should always return empty")
 	}
+}
+
+func TestCreateFromWSReqMetadata_WorkspaceID(t *testing.T) {
+	req := &task.CreateFromWSReq{
+		ChatID: "chat-ws",
+		Metadata: map[string]any{
+			"workspace_id": "ws-abc",
+			"column_id":    "col-1",
+		},
+	}
+	assert.Equal(t, "ws-abc", task.ExportMetaString(req.Metadata, "workspace_id"))
+	assert.Equal(t, "col-1", task.ExportMetaString(req.Metadata, "column_id"))
 }

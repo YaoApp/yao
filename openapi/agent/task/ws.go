@@ -2,8 +2,11 @@ package task
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,10 +23,27 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
+// wsSession manages per-WS-connection state
+type wsSession struct {
+	mu          sync.Mutex
+	activeWatch *tasksvc.WatchStream
+	streamDone  chan struct{}
+	liveMode    bool // true = current watch is subscribed to a live daemon
+}
+
+func (s *wsSession) cancelWatch() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activeWatch != nil {
+		fmt.Printf("  • [task.ws.cancelWatch] cancelling active watch\n")
+		s.activeWatch.Cancel()
+		s.activeWatch = nil
+	}
+}
+
 func handleWS(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
 	chatID := c.Param("chat_id")
-	afterSeq := parseInt64(c.Query("since"), 0)
 
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -31,84 +51,272 @@ func handleWS(c *gin.Context) {
 	}
 	defer conn.Close()
 
-	replayMode := tasksvc.ReplayAll
-	if afterSeq > 0 {
-		replayMode = tasksvc.ReplayAfter
-	}
-	sub, err := tasksvc.Subscribe(c.Request.Context(), auth, chatID, &tasksvc.SubscribeOpts{
-		Replay:   replayMode,
-		AfterSeq: afterSeq,
-	})
-	if err != nil {
-		conn.WriteJSON(map[string]any{"error": err.Error()})
-		return
-	}
-	defer sub.Cancel()
+	outCh := make(chan *message.Message, 128)
+	stopCh := make(chan struct{})
+	session := &wsSession{}
 
-	done := make(chan struct{})
+	writerDone := make(chan struct{})
 	go func() {
-		defer close(done)
-		wsWriter(conn, sub.Ch)
+		defer close(writerDone)
+		for {
+			select {
+			case msg, ok := <-outCh:
+				if !ok {
+					conn.WriteMessage(websocket.CloseMessage,
+						websocket.FormatCloseMessage(websocket.CloseNormalClosure, "stream ended"))
+					return
+				}
+				if msg.Type == "event" {
+					seq := 0
+					if msg.Metadata != nil {
+						seq = msg.Metadata.Sequence
+					}
+					fmt.Printf("  • [task.ws.write] chatID=%s seq=%d type=%s\n", chatID, seq, msg.Type)
+				}
+				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+				if conn.WriteJSON(msg) != nil {
+					return
+				}
+			case <-stopCh:
+				return
+			}
+		}
 	}()
 
-	wsReader(conn, auth, chatID)
-	sub.Cancel()
-	<-done
+	normalClose := wsCommandLoop(conn, auth, chatID, session, outCh, stopCh)
+	session.cancelWatch()
+
+	if normalClose {
+		close(outCh)
+	} else {
+		close(stopCh)
+	}
+	<-writerDone
 }
 
-func wsReader(conn *websocket.Conn, auth *process.AuthorizedInfo, chatID string) {
+// wsCommandLoop returns true = stream ended normally (graceful close); false = abnormal exit
+func wsCommandLoop(conn *websocket.Conn, auth *process.AuthorizedInfo, chatID string, session *wsSession, outCh chan<- *message.Message, stopCh <-chan struct{}) bool {
 	for {
+		session.mu.Lock()
+		sd := session.streamDone
+		live := session.liveMode
+		session.mu.Unlock()
+
+		if sd != nil {
+			select {
+			case <-sd:
+				if live {
+					// Live stream ended (daemon completed) → 3s grace then close
+					conn.SetReadDeadline(time.Now().Add(3 * time.Second))
+				} else {
+					// Non-live pipe ended (empty read / DB history) → keep alive
+					conn.SetReadDeadline(time.Time{})
+				}
+			default:
+				conn.SetReadDeadline(time.Time{})
+			}
+		} else {
+			conn.SetReadDeadline(time.Time{})
+		}
+
 		var cmd tasksvc.WSCommand
 		if err := conn.ReadJSON(&cmd); err != nil {
-			return
+			if isTimeout(err) {
+				fmt.Printf("  • [task.ws.loop] read timeout (normal close) chatID=%s\n", chatID)
+				return true
+			}
+			fmt.Printf("  • [task.ws.loop] read ERROR chatID=%s err=%v\n", chatID, err)
+			return false
 		}
 
 		switch cmd.Type {
+		case "read":
+			handleReadCmd(session, auth, chatID, cmd, outCh, stopCh)
 		case "run":
-			isFirstRun := false
-			task, _ := tasksvc.Get(context.Background(), auth, chatID)
-			if task == nil {
-				tasksvc.CreateFromWS(context.Background(), auth, &tasksvc.CreateFromWSReq{
-					ChatID:   chatID,
-					Metadata: cmd.Metadata,
-				})
-				isFirstRun = true
-			} else {
-				isFirstRun = (task.RunCount == 0)
-			}
-
-			_, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
-				Messages:    cmd.Messages,
-				AssistantID: cmd.AssistantID,
-				Metadata:    cmd.Metadata,
-				Priority:    cmd.Priority,
-			})
-
-			if err == nil && isFirstRun {
-				if firstMsg := tasksvc.ExtractFirstUserMessage(cmd.Messages); firstMsg != "" {
-					tasksvc.ExtractTaskMetadata(chatID, firstMsg, auth)
-				}
-			}
-
-		case "input":
-			tasksvc.Input(context.Background(), auth, chatID, &tasksvc.InputReq{Messages: cmd.Messages})
-
+			handleRunCmd(session, auth, chatID, cmd, outCh, stopCh)
+		case "retry":
+			handleRetryCmd(session, auth, chatID, cmd, outCh, stopCh)
+		case "repeat":
+			handleRepeatCmd(session, auth, chatID, cmd, outCh, stopCh)
 		case "stop":
 			tasksvc.Stop(context.Background(), auth, chatID, false)
-
 		case "cancel":
 			tasksvc.Stop(context.Background(), auth, chatID, true)
 		}
 	}
 }
 
-func wsWriter(conn *websocket.Conn, ch <-chan *message.Message) {
-	for msg := range ch {
-		conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-		if err := conn.WriteJSON(msg); err != nil {
+func handleReadCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	session.cancelWatch()
+
+	stream, err := tasksvc.Watch(context.Background(), auth, chatID, &tasksvc.WatchOpts{
+		AfterSeq: cmd.Since,
+		Limit:    cmd.Limit,
+	})
+	if err != nil {
+		fmt.Printf("  • [task.ws.read] Watch FAILED chatID=%s err=%s\n", chatID, err.Error())
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
+		return
+	}
+	fmt.Printf("  • [task.ws.read] Watch OK chatID=%s since=%d limit=%d\n", chatID, cmd.Since, cmd.Limit)
+
+	session.mu.Lock()
+	session.activeWatch = stream
+	session.liveMode = stream.LiveMode
+	session.mu.Unlock()
+
+	pipeDone := make(chan struct{})
+	session.mu.Lock()
+	session.streamDone = pipeDone
+	session.mu.Unlock()
+
+	go func() {
+		defer func() {
+			fmt.Printf("  • [task.ws.pipe] exiting, calling stream.Cancel() chatID=%s\n", chatID)
+			stream.Cancel()
+		}()
+		defer close(pipeDone)
+		for {
+			select {
+			case msg, ok := <-stream.Ch:
+				if !ok {
+					return
+				}
+				select {
+				case outCh <- msg:
+				case <-stopCh:
+					return
+				}
+			case <-stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func handleRunCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	task, _ := tasksvc.Get(context.Background(), auth, chatID)
+	fmt.Printf("  • [task.ws] run chatID=%s isNew=%v\n", chatID, task == nil)
+	if task == nil {
+		_, err := tasksvc.CreateFromWS(context.Background(), auth, &tasksvc.CreateFromWSReq{
+			ChatID:   chatID,
+			Metadata: cmd.Metadata,
+		})
+		if err != nil {
+			sendEvent(outCh, stopCh, "error", map[string]any{"message": "failed to create task: " + err.Error()})
 			return
 		}
+	} else if task.RunStatus == "running" || task.RunStatus == "queued" {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "task already running"})
+		return
 	}
+
+	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
+		Messages:    cmd.Messages,
+		AssistantID: cmd.AssistantID,
+		Metadata:    cmd.Metadata,
+		Priority:    cmd.Priority,
+		Source:      "run",
+	})
+	if err != nil {
+		fmt.Printf("  • [task.ws] run ERROR chatID=%s err=%s\n", chatID, err.Error())
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
+		return
+	}
+	fmt.Printf("  • [task.ws] run OK chatID=%s status=%s → subscribing Watch\n", chatID, result.Status)
+	if result.Status == "queued" {
+		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
+	}
+	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
+	fmt.Printf("  • [task.ws] Watch done chatID=%s\n", chatID)
+}
+
+func handleRetryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	task, _ := tasksvc.Get(context.Background(), auth, chatID)
+	if task == nil {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "task not found"})
+		return
+	}
+	if task.RunStatus != "failed" && task.RunStatus != "cancelled" {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "retry only for failed/cancelled tasks"})
+		return
+	}
+
+	originalPrompt := tasksvc.GetOriginalPrompt(context.Background(), chatID)
+	messages := []tasksvc.InputMessage{{Role: "user", Content: originalPrompt}}
+	messages = append(messages, cmd.Messages...)
+
+	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
+		Messages: messages,
+		Priority: cmd.Priority,
+		Source:   "retry",
+		Fresh:    true,
+	})
+	if err != nil {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
+		return
+	}
+	if result.Status == "queued" {
+		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
+	}
+	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
+}
+
+func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	task, _ := tasksvc.Get(context.Background(), auth, chatID)
+	if task == nil {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "task not found"})
+		return
+	}
+	if task.RunStatus == "running" || task.RunStatus == "queued" {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "task already running"})
+		return
+	}
+
+	var promptContent interface{}
+	if task.Instruction != "" {
+		promptContent = task.Instruction
+	} else {
+		promptContent = tasksvc.GetOriginalPrompt(context.Background(), chatID)
+	}
+	if promptContent == nil || promptContent == "" {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "no instruction available"})
+		return
+	}
+
+	messages := []tasksvc.InputMessage{{Role: "user", Content: promptContent}}
+	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
+		Messages: messages,
+		Priority: cmd.Priority,
+		Source:   "repeat",
+	})
+	if err != nil {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
+		return
+	}
+	if result.Status == "queued" {
+		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
+	}
+	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
+}
+
+func sendEvent(outCh chan<- *message.Message, stopCh <-chan struct{}, event string, props map[string]any) {
+	if props == nil {
+		props = map[string]any{}
+	}
+	props["event"] = event
+	msg := &message.Message{Type: "event", Props: props}
+	select {
+	case outCh <- msg:
+	case <-stopCh:
+	}
+}
+
+func isTimeout(err error) bool {
+	if ne, ok := err.(net.Error); ok && ne.Timeout() {
+		return true
+	}
+	return false
 }
 
 func parseInt64(s string, def int64) int64 {

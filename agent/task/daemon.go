@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -19,7 +20,6 @@ type DaemonStatus string
 
 const (
 	DaemonRunning  DaemonStatus = "running"
-	DaemonWaiting  DaemonStatus = "waiting"
 	DaemonStopping DaemonStatus = "stopping"
 	DaemonStopped  DaemonStatus = "stopped"
 )
@@ -37,7 +37,6 @@ type DaemonContext struct {
 	sequence    int64
 	status      DaemonStatus
 	idleTimer   *time.Timer
-	inputCh     chan []InputMessage
 	ringBuffer  []*message.Message
 }
 
@@ -71,7 +70,6 @@ func newDaemonContext(chatID string) *DaemonContext {
 		Cancel:      gracefulCancel,
 		ForceCancel: forceCancel,
 		subscribers: make(map[string]chan<- *message.Message),
-		inputCh:     make(chan []InputMessage, 1),
 		status:      DaemonRunning,
 	}
 	dc.idleTimer = time.AfterFunc(30*time.Minute, func() {
@@ -115,6 +113,10 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 	}
 	dc.mu.Unlock()
 
+	if len(subs) > 0 || msg.Type == "event" {
+		fmt.Printf("  • [task.broadcast] chatID=%s seq=%d type=%s subs=%d\n", dc.ChatID, seq, msg.Type, len(subs))
+	}
+
 	for id, ch := range subs {
 		select {
 		case ch <- msg:
@@ -128,6 +130,7 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 
 // CloseSubscribers closes all subscriber channels (call after final Broadcast)
 func (dc *DaemonContext) CloseSubscribers() {
+	fmt.Printf("  • [task.closeSubscribers] chatID=%s\n", dc.ChatID)
 	dc.mu.Lock()
 	subs := dc.subscribers
 	dc.subscribers = nil
@@ -141,6 +144,13 @@ func (dc *DaemonContext) CloseSubscribers() {
 func (dc *DaemonContext) resetIdleTimer() {
 	if dc.idleTimer != nil {
 		dc.idleTimer.Reset(30 * time.Minute)
+	}
+}
+
+// StopIdleTimer stops the idle timer (call on daemon exit to prevent orphan timer fire)
+func (dc *DaemonContext) StopIdleTimer() {
+	if dc.idleTimer != nil {
+		dc.idleTimer.Stop()
 	}
 }
 
