@@ -17,6 +17,7 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.Use(oauth.Guard)
 	group.GET("", handleList)
 	group.POST("", handleCreate)
+	group.GET("/quota", handleGetQuota)
 	group.GET("/:chat_id", handleGet)
 	group.PUT("/:chat_id", handleUpdate)
 	group.DELETE("/:chat_id", handleDelete)
@@ -246,6 +247,12 @@ func handleSetPriority(c *gin.Context) {
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"ok": true})
+}
+
+func handleGetQuota(c *gin.Context) {
+	info := authorized.GetInfo(c)
+	status := tasksvc.GlobalQuota.GetStatus(info.TeamID)
+	response.RespondWithSuccess(c, http.StatusOK, status)
 }
 
 func respondError(c *gin.Context, status int, err error) {
