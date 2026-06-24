@@ -222,6 +222,7 @@ type AssistantInfo struct {
 	DefaultMode      string                       `json:"default_mode,omitempty"`
 	Sandbox          bool                         `json:"sandbox,omitempty"`
 	ComputerFilter   *sandboxTypes.ComputerFilter `json:"computer_filter,omitempty"`
+	Placeholder      *Placeholder                 `json:"placeholder,omitempty"`
 }
 
 // Tag represents a tag
