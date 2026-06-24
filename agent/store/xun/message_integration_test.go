@@ -631,4 +631,57 @@ func TestConcurrentMessages(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, 3, len(b1Messages))
 	})
+
+	t.Run("MessageHasID", func(t *testing.T) {
+		chat := &types.Chat{AssistantID: "test_assistant"}
+		err := store.CreateChat(chat)
+		require.NoError(t, err)
+		t.Cleanup(func() { store.DeleteChat(chat.ChatID) })
+
+		messages := []*types.Message{
+			{Role: "user", Type: "text", Props: map[string]interface{}{"content": "Hi"}, Sequence: 1},
+			{Role: "assistant", Type: "text", Props: map[string]interface{}{"content": "Hello"}, Sequence: 2},
+		}
+		err = store.SaveMessages(chat.ChatID, messages)
+		require.NoError(t, err)
+
+		retrieved, err := store.GetMessages(chat.ChatID, types.MessageFilter{})
+		require.NoError(t, err)
+		require.Equal(t, 2, len(retrieved))
+		for _, msg := range retrieved {
+			assert.Greater(t, msg.ID, int64(0), "Message ID should be populated")
+		}
+	})
+
+	t.Run("FilterWithBeforeID", func(t *testing.T) {
+		chat := &types.Chat{AssistantID: "test_assistant"}
+		err := store.CreateChat(chat)
+		require.NoError(t, err)
+		t.Cleanup(func() { store.DeleteChat(chat.ChatID) })
+
+		for i := 1; i <= 5; i++ {
+			err := store.SaveMessages(chat.ChatID, []*types.Message{
+				{Role: "user", Type: "text", Props: map[string]interface{}{"i": i}, Sequence: i},
+			})
+			require.NoError(t, err)
+		}
+
+		all, err := store.GetMessages(chat.ChatID, types.MessageFilter{})
+		require.NoError(t, err)
+		require.Equal(t, 5, len(all))
+
+		midID := all[2].ID
+		require.Greater(t, midID, int64(0))
+
+		retrieved, err := store.GetMessages(chat.ChatID, types.MessageFilter{BeforeID: midID, Limit: 10})
+		require.NoError(t, err)
+		assert.Equal(t, 2, len(retrieved))
+
+		for i := 1; i < len(retrieved); i++ {
+			assert.Less(t, retrieved[i-1].ID, retrieved[i].ID)
+		}
+		for _, msg := range retrieved {
+			assert.Less(t, msg.ID, midID)
+		}
+	})
 }

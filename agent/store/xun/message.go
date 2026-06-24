@@ -140,13 +140,27 @@ func (store *Xun) GetMessages(chatID string, filter types.MessageFilter) ([]*typ
 		qb.Where("type", filter.Type)
 	}
 
-	// When Limit is specified WITHOUT Offset, we want the N most-recent
-	// messages.  Strategy: query DESC to get the latest rows, then reverse
-	// the slice so the caller receives them in chronological (ASC) order.
-	// When Offset is also present, the caller is doing forward pagination,
-	// so we keep ASC order and apply Limit+Offset normally.
 	needReverse := false
-	if filter.Limit > 0 && filter.Offset <= 0 {
+	if filter.BeforeID > 0 {
+		qb.Where("id", "<", filter.BeforeID)
+		limit := filter.Limit
+		if limit <= 0 {
+			limit = 50
+		}
+		qb.Limit(limit)
+		qb.OrderBy("id", "desc")
+		needReverse = true
+	} else if filter.BeforeSequence > 0 {
+		qb.Where("sequence", "<", filter.BeforeSequence)
+		limit := filter.Limit
+		if limit <= 0 {
+			limit = 50
+		}
+		qb.Limit(limit)
+		qb.OrderBy("id", "desc")
+		needReverse = true
+	} else if filter.Limit > 0 && filter.Offset <= 0 {
+		// N most-recent messages (initial load): DESC + reverse
 		qb.Limit(filter.Limit)
 		qb.OrderBy("id", "desc")
 		needReverse = true
@@ -339,6 +353,7 @@ func (store *Xun) GetLastSequence(chatID string) (int, error) {
 // rowToMessage converts a database row to a Message struct
 func (store *Xun) rowToMessage(data map[string]interface{}) (*types.Message, error) {
 	msg := &types.Message{
+		ID:          getInt64(data, "id"),
 		MessageID:   getString(data, "message_id"),
 		ChatID:      getString(data, "chat_id"),
 		RequestID:   getString(data, "request_id"),

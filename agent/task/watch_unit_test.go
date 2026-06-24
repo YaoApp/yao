@@ -214,6 +214,17 @@ func TestWSCommand_Parse(t *testing.T) {
 	}
 }
 
+func TestWSCommand_Parse_NewFields(t *testing.T) {
+	raw := `{"type":"read","before":12345,"limit":50,"locale":"zh-cn"}`
+	var cmd task.WSCommand
+	err := json.Unmarshal([]byte(raw), &cmd)
+	require.NoError(t, err)
+	assert.Equal(t, "read", cmd.Type)
+	assert.Equal(t, int64(12345), cmd.Before)
+	assert.Equal(t, 50, cmd.Limit)
+	assert.Equal(t, "zh-cn", cmd.Locale)
+}
+
 func TestRunDaemon_SingleRound_Exit(t *testing.T) {
 	dc := task.ExportNewDaemonContext("test-single-round")
 	defer dc.Cancel()

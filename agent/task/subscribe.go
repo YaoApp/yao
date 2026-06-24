@@ -48,5 +48,6 @@ func (dc *DaemonContext) Subscribe(opts *SubscribeOpts) (*Subscription, error) {
 
 // loadMessagesFromDB is kept for backward compatibility (used by enrich_mail.go etc.)
 func loadMessagesFromDB(chatID string, afterSeq int64) []*message.Message {
-	return loadMessagesFromDBPaginated(chatID, afterSeq, 0)
+	msgs, _ := LoadHistoryMessages(chatID, 0, 1000)
+	return msgs
 }

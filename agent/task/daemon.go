@@ -11,6 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -104,6 +105,9 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 		msg.Metadata = &message.Metadata{}
 	}
 	msg.Metadata.Sequence = int(seq)
+	if msg.Metadata.Timestamp == 0 {
+		msg.Metadata.Timestamp = time.Now().UnixMilli()
+	}
 
 	dc.mu.Lock()
 	dc.ringBuffer = append(dc.ringBuffer, msg)
@@ -138,6 +142,71 @@ func (dc *DaemonContext) CloseSubscribers() {
 	for _, ch := range subs {
 		close(ch)
 	}
+}
+
+// SubscribeLive subscribes to the daemon's live stream.
+// It replays the entire ringBuffer first, then pipes live messages.
+// The caller should use message_id deduplication for messages that overlap with DB history.
+func (dc *DaemonContext) SubscribeLive() (*WatchStream, error) {
+	liveCh := make(chan *message.Message, 64)
+	outputCh := make(chan *message.Message, 64)
+	subID := uuid.New().String()
+
+	dc.mu.Lock()
+	if dc.subscribers == nil {
+		dc.mu.Unlock()
+		return nil, ErrDaemonStopping
+	}
+
+	replay := make([]*message.Message, len(dc.ringBuffer))
+	copy(replay, dc.ringBuffer)
+	dc.subscribers[subID] = liveCh
+	fmt.Printf("  • [task.subscribeLive] chatID=%s subID=%s totalSubs=%d replay=%d\n", dc.ChatID, subID, len(dc.subscribers), len(replay))
+	dc.mu.Unlock()
+
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(outputCh)
+		// Phase 1: replay ringBuffer
+		for _, m := range replay {
+			select {
+			case outputCh <- m:
+			case <-doneCh:
+				return
+			}
+		}
+		// Phase 2: live pipe
+		for {
+			select {
+			case m, ok := <-liveCh:
+				if !ok {
+					return
+				}
+				select {
+				case outputCh <- m:
+				case <-doneCh:
+					return
+				}
+			case <-doneCh:
+				return
+			}
+		}
+	}()
+
+	var cancelOnce sync.Once
+	return &WatchStream{
+		Ch: outputCh,
+		Cancel: func() {
+			cancelOnce.Do(func() {
+				fmt.Printf("  • [task.subscribeLive.cancel] chatID=%s subID=%s\n", dc.ChatID, subID)
+				dc.mu.Lock()
+				delete(dc.subscribers, subID)
+				dc.mu.Unlock()
+				close(doneCh)
+			})
+		},
+		LiveMode: true,
+	}, nil
 }
 
 // resetIdleTimer resets the 30-minute idle timer

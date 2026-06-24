@@ -103,6 +103,7 @@ type ChatGroup struct {
 
 // Message represents a chat message
 type Message struct {
+	ID          int64                  `json:"id"`
 	MessageID   string                 `json:"message_id"`
 	ChatID      string                 `json:"chat_id"`
 	RequestID   string                 `json:"request_id,omitempty"`
@@ -122,13 +123,15 @@ type Message struct {
 
 // MessageFilter for listing messages
 type MessageFilter struct {
-	RequestID string `json:"request_id,omitempty"`
-	Role      string `json:"role,omitempty"`
-	BlockID   string `json:"block_id,omitempty"`
-	ThreadID  string `json:"thread_id,omitempty"`
-	Type      string `json:"type,omitempty"`
-	Limit     int    `json:"limit,omitempty"`
-	Offset    int    `json:"offset,omitempty"`
+	RequestID      string `json:"request_id,omitempty"`
+	Role           string `json:"role,omitempty"`
+	BlockID        string `json:"block_id,omitempty"`
+	ThreadID       string `json:"thread_id,omitempty"`
+	Type           string `json:"type,omitempty"`
+	Limit          int    `json:"limit,omitempty"`
+	Offset         int    `json:"offset,omitempty"`
+	BeforeID       int64  `json:"before_id,omitempty"`       // Cursor pagination: load messages with id < this value
+	BeforeSequence int64  `json:"before_sequence,omitempty"` // Deprecated: use BeforeID instead
 }
 
 // =============================================================================

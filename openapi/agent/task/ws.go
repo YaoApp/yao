@@ -132,6 +132,8 @@ func wsCommandLoop(conn *websocket.Conn, auth *process.AuthorizedInfo, chatID st
 		switch cmd.Type {
 		case "read":
 			handleReadCmd(session, auth, chatID, cmd, outCh, stopCh)
+		case "history":
+			handleHistoryCmd(session, auth, chatID, cmd, outCh, stopCh)
 		case "run":
 			handleRunCmd(session, auth, chatID, cmd, outCh, stopCh)
 		case "retry":
@@ -151,14 +153,14 @@ func handleReadCmd(session *wsSession, auth *process.AuthorizedInfo, chatID stri
 
 	stream, err := tasksvc.Watch(context.Background(), auth, chatID, &tasksvc.WatchOpts{
 		AfterSeq: cmd.Since,
+		BeforeID: cmd.Before,
 		Limit:    cmd.Limit,
+		Locale:   cmd.Locale,
 	})
 	if err != nil {
-		fmt.Printf("  • [task.ws.read] Watch FAILED chatID=%s err=%s\n", chatID, err.Error())
-		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "watch failed: " + err.Error()})
 		return
 	}
-	fmt.Printf("  • [task.ws.read] Watch OK chatID=%s since=%d limit=%d\n", chatID, cmd.Since, cmd.Limit)
 
 	session.mu.Lock()
 	session.activeWatch = stream
@@ -171,10 +173,80 @@ func handleReadCmd(session *wsSession, auth *process.AuthorizedInfo, chatID stri
 	session.mu.Unlock()
 
 	go func() {
-		defer func() {
-			fmt.Printf("  • [task.ws.pipe] exiting, calling stream.Cancel() chatID=%s\n", chatID)
-			stream.Cancel()
-		}()
+		defer stream.Cancel()
+		defer close(pipeDone)
+		for {
+			select {
+			case msg, ok := <-stream.Ch:
+				if !ok {
+					return
+				}
+				select {
+				case outCh <- msg:
+				case <-stopCh:
+					return
+				}
+			case <-stopCh:
+				return
+			}
+		}
+	}()
+}
+
+func handleHistoryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	limit := cmd.Limit
+	if limit <= 0 {
+		limit = 50
+	}
+
+	stream, err := tasksvc.Watch(context.Background(), auth, chatID, &tasksvc.WatchOpts{
+		BeforeID: cmd.Before,
+		Limit:    limit,
+		Locale:   cmd.Locale,
+	})
+	if err != nil {
+		sendEvent(outCh, stopCh, "error", map[string]any{"message": "history load failed: " + err.Error()})
+		return
+	}
+	defer stream.Cancel()
+
+	for msg := range stream.Ch {
+		select {
+		case outCh <- msg:
+		case <-stopCh:
+			return
+		}
+	}
+}
+
+func subscribeLiveOnly(session *wsSession, chatID string, outCh chan<- *message.Message, stopCh <-chan struct{}) {
+	session.cancelWatch()
+
+	dc, exists := tasksvc.GetDaemon(chatID)
+	if !exists {
+		sendEvent(outCh, stopCh, "live_status", map[string]any{"status": "idle"})
+		return
+	}
+	stream, err := dc.SubscribeLive()
+	if err != nil {
+		sendEvent(outCh, stopCh, "live_status", map[string]any{"status": "idle"})
+		return
+	}
+	sendEvent(outCh, stopCh, "live_status", map[string]any{"status": "running"})
+	fmt.Printf("  • [task.ws.subscribeLive] chatID=%s\n", chatID)
+
+	session.mu.Lock()
+	session.activeWatch = stream
+	session.liveMode = stream.LiveMode
+	session.mu.Unlock()
+
+	pipeDone := make(chan struct{})
+	session.mu.Lock()
+	session.streamDone = pipeDone
+	session.mu.Unlock()
+
+	go func() {
+		defer stream.Cancel()
 		defer close(pipeDone)
 		for {
 			select {
@@ -217,18 +289,18 @@ func handleRunCmd(session *wsSession, auth *process.AuthorizedInfo, chatID strin
 		Metadata:    cmd.Metadata,
 		Priority:    cmd.Priority,
 		Source:      "run",
+		Locale:      cmd.Locale,
 	})
 	if err != nil {
 		fmt.Printf("  • [task.ws] run ERROR chatID=%s err=%s\n", chatID, err.Error())
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
 		return
 	}
-	fmt.Printf("  • [task.ws] run OK chatID=%s status=%s → subscribing Watch\n", chatID, result.Status)
+	fmt.Printf("  • [task.ws] run OK chatID=%s status=%s → subscribing live\n", chatID, result.Status)
 	if result.Status == "queued" {
 		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
 	}
-	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
-	fmt.Printf("  • [task.ws] Watch done chatID=%s\n", chatID)
+	subscribeLiveOnly(session, chatID, outCh, stopCh)
 }
 
 func handleRetryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
@@ -251,6 +323,7 @@ func handleRetryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID str
 		Priority: cmd.Priority,
 		Source:   "retry",
 		Fresh:    true,
+		Locale:   cmd.Locale,
 	})
 	if err != nil {
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
@@ -259,7 +332,7 @@ func handleRetryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID str
 	if result.Status == "queued" {
 		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
 	}
-	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
+	subscribeLiveOnly(session, chatID, outCh, stopCh)
 }
 
 func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
@@ -289,6 +362,7 @@ func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID st
 		Messages: messages,
 		Priority: cmd.Priority,
 		Source:   "repeat",
+		Locale:   cmd.Locale,
 	})
 	if err != nil {
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
@@ -297,7 +371,7 @@ func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID st
 	if result.Status == "queued" {
 		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
 	}
-	handleReadCmd(session, auth, chatID, tasksvc.WSCommand{Since: 0, Limit: 0}, outCh, stopCh)
+	subscribeLiveOnly(session, chatID, outCh, stopCh)
 }
 
 func sendEvent(outCh chan<- *message.Message, stopCh <-chan struct{}, event string, props map[string]any) {

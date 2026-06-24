@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
 	agentcontext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/event"
 )
 
@@ -145,6 +146,7 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 	agentCtx.Writer = NewDaemonResponseWriter(dc)
 	agentCtx.Accept = agentcontext.AcceptWebCUI
 	agentCtx.Referer = "task"
+	agentCtx.Locale = req.Locale
 
 	opts := &agentcontext.Options{
 		Connector: cfg.Setting.Model,
@@ -162,6 +164,30 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 	// Fresh=true (retry): skip history loading so agent starts clean with only req.Messages
 	if req.Fresh {
 		opts.Skip = &agentcontext.Skip{History: true}
+	}
+
+	// Broadcast user messages to live subscribers (preserves multipart content)
+	userMsgID := metaString(req.Metadata, "user_msg_id")
+	for i, m := range req.Messages {
+		if m.Role != "user" {
+			continue
+		}
+		msgID := userMsgID
+		if msgID == "" {
+			msgID = fmt.Sprintf("user-%d", time.Now().UnixMilli())
+		}
+		if i > 0 {
+			msgID = fmt.Sprintf("%s-%d", msgID, i)
+		}
+		userMsg := &message.Message{
+			Type:      "user_input",
+			MessageID: msgID,
+			Props: map[string]interface{}{
+				"content": m.Content,
+				"role":    "user",
+			},
+		}
+		dc.Broadcast(userMsg)
 	}
 
 	_, err := AssistantStreamFn(task.AssistantID, agentCtx, inputToAgentMessages(req.Messages), opts)

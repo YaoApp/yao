@@ -42,7 +42,6 @@ var (
 	// Watch/WatchStream exports
 	ExportGetOriginalPrompt       = GetOriginalPrompt
 	ExportExtractContentFromProps = extractContentFromProps
-	ExportLoadMessagesFromDBPaged = loadMessagesFromDBPaginated
 
 	// Plan 3 exports - daemon registry
 	ExportGetDaemon        = GetDaemon

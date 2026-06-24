@@ -176,6 +176,7 @@ type RunReq struct {
 	Priority    int            `json:"priority,omitempty"`
 	Source      string         `json:"source,omitempty"` // "run", "retry", "repeat"
 	Fresh       bool           `json:"fresh,omitempty"`  // true = skip chat history loading (retry from scratch)
+	Locale      string         `json:"locale,omitempty"` // e.g. "zh-cn" for i18n
 }
 
 // RunResult is the response from Run()
@@ -193,8 +194,10 @@ type InputReq struct {
 
 // WatchOpts configures the Watch stream (historical + live messages)
 type WatchOpts struct {
-	AfterSeq int64 `json:"after_seq,omitempty"` // Retrieve messages after this sequence number (0 = from start)
-	Limit    int   `json:"limit,omitempty"`     // Max number of historical messages to return (0 = all)
+	AfterSeq int64  `json:"after_seq,omitempty"` // Retrieve messages after this sequence number (0 = from start)
+	BeforeID int64  `json:"before_id,omitempty"` // Load messages with id < BeforeID (for load-more)
+	Limit    int    `json:"limit,omitempty"`     // Max number of historical messages to return (0 = all)
+	Locale   string `json:"locale,omitempty"`    // Locale for assistant info (e.g. "zh-cn")
 }
 
 // WatchStream represents an active Watch stream
@@ -230,14 +233,16 @@ type Subscription struct {
 
 // WSCommand represents a client-to-server WebSocket command
 type WSCommand struct {
-	Type        string         `json:"type"`                   // "read", "run", "retry", "repeat", "stop", "cancel"
+	Type        string         `json:"type"`                   // "read", "history", "run", "retry", "repeat", "stop", "cancel"
 	Messages    []InputMessage `json:"messages,omitempty"`     // For run/retry: user messages
 	AssistantID string         `json:"assistant_id,omitempty"` // For run: assistant to use
 	Metadata    map[string]any `json:"metadata,omitempty"`     // For run: task metadata
 	Priority    int            `json:"priority,omitempty"`     // For run: priority
 	Force       bool           `json:"force,omitempty"`        // Reserved
-	Since       int64          `json:"since,omitempty"`        // For read: after_seq pagination cursor
-	Limit       int            `json:"limit,omitempty"`        // For read: max messages to return
+	Since       int64          `json:"since,omitempty"`        // For read: after_seq pagination cursor (legacy, kept for compat)
+	Before      int64          `json:"before,omitempty"`       // For read: load messages with id < before (load-more cursor)
+	Limit       int            `json:"limit,omitempty"`        // For read/history: max messages to return
+	Locale      string         `json:"locale,omitempty"`       // For read: locale for assistant info
 }
 
 // InputMessage is the message type for task execution input.
