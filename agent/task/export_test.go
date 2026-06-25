@@ -3,6 +3,10 @@ package task
 import "time"
 
 var (
+	// Table name exports for integration tests
+	ExportTableTask = tableTask
+	ExportTableChat = tableChat
+
 	// Plan 1 exports
 	ExportRowToTask        = rowToTask
 	ExportMetaString       = metaString

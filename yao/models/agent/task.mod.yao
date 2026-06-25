@@ -205,6 +205,15 @@
       "label": "Metadata",
       "comment": "Additional metadata",
       "nullable": true
+    },
+    {
+      "name": "archive_status",
+      "type": "enum",
+      "label": "Archive Status",
+      "comment": "Archive status: NULL=active, archived=recoverable, permanent=irrecoverable",
+      "option": ["archived", "permanent"],
+      "nullable": true,
+      "index": true
     }
   ],
   "indexes": [

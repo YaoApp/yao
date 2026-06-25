@@ -22,6 +22,8 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.PUT("/:chat_id", handleUpdate)
 	group.DELETE("/:chat_id", handleDelete)
 	group.PUT("/:chat_id/move", handleMove)
+	group.PUT("/:chat_id/archive", handleArchive)
+	group.PUT("/:chat_id/unarchive", handleUnarchive)
 	group.GET("/:chat_id/config", handleGetConfig)
 	group.PUT("/:chat_id/config", handleSetConfig)
 
@@ -114,6 +116,38 @@ func handleDelete(c *gin.Context) {
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusNoContent, nil)
+}
+
+func handleArchive(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+
+	err := tasksvc.Archive(c.Request.Context(), auth, chatID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
+}
+
+func handleUnarchive(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+
+	var req struct {
+		ColumnID string `json:"column_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	err := tasksvc.Unarchive(c.Request.Context(), auth, chatID, req.ColumnID)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func handleMove(c *gin.Context) {

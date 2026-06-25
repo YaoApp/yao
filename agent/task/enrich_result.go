@@ -246,7 +246,7 @@ func createMailFromEnrich(chatID string, auth *process.AuthorizedInfo, result *e
 		mailEventData["body"] = result.Mail.Body
 		mailEventData["priority"] = result.Mail.Priority
 	}
-	event.Push(context.Background(), "mail.new", mailEventData)
+	event.Push(context.Background(), "mail.updated", mailEventData)
 }
 
 // markTaskFailed marks a task as failed with a reason and pushes a task.updated event.

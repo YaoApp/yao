@@ -19,14 +19,16 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		q.Page = 1
 	}
 	if q.Filter == "" {
-		q.Filter = "all"
+		q.Filter = "none"
 	}
 
-	// Count query (separate builder to avoid state pollution)
+	// Count query (JOIN task for archive_status filtering)
 	countQB := capsule.Global.Query()
-	countQB.Table(tableMail()).
-		Where("__yao_created_by", "=", auth.UserID).
-		WhereNull("deleted_at")
+	countQB.Table(tableMail()+" as m").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		WhereNull("m.deleted_at")
 	applyInboxFilters(countQB, q)
 
 	total, err := countQB.Count()
@@ -34,18 +36,21 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		return nil, fmt.Errorf("inbox.List count: %w", err)
 	}
 
-	// Data query (fresh builder)
+	// Data query (fresh builder with JOIN)
 	qb := capsule.Global.Query()
-	qb.Table(tableMail()).
-		Where("__yao_created_by", "=", auth.UserID).
-		WhereNull("deleted_at")
+	qb.Table(tableMail()+" as m").
+		Select("m.*").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		WhereNull("m.deleted_at")
 	applyInboxFilters(qb, q)
 
 	offset := (q.Page - 1) * q.Size
 	rows, err := qb.
-		OrderBy("pinned", "desc").
-		OrderBy("read", "asc").
-		OrderBy("created_at", "desc").
+		OrderBy("m.pinned", "desc").
+		OrderBy("m.read", "asc").
+		OrderBy("m.created_at", "desc").
 		Offset(offset).
 		Limit(q.Size).
 		Get()
@@ -58,6 +63,8 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		mails = append(mails, rowToMail(row))
 	}
 
+	enrichChatTitles(mails)
+
 	return &ListResult{
 		Mails: mails,
 		Total: int64(total),
@@ -66,16 +73,88 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	}, nil
 }
 
-// UnreadCount returns unread counts grouped by type
+// Stats returns unread chat-group counts per category for sidebar display
+func Stats(ctx context.Context, auth *process.AuthorizedInfo) (*InboxStats, error) {
+	// Count chat groups that have at least one unread mail, grouped by type (non-archived)
+	rows, err := capsule.Global.Query().Table(tableMail()+" as m").
+		Select("m.type").
+		SelectRaw("COUNT(DISTINCT m.chat_id) as cnt").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		Where("m.read", "=", false).
+		WhereNull("t.archive_status").
+		WhereNull("m.deleted_at").
+		GroupBy("m.type").
+		Get()
+	if err != nil {
+		return nil, fmt.Errorf("inbox.Stats: %w", err)
+	}
+
+	stats := &InboxStats{}
+	for _, row := range rows {
+		cnt := getInt(row, "cnt")
+		stats.All += cnt
+		switch getString(row, "type") {
+		case "input":
+			stats.Input = cnt
+		case "completed":
+			stats.Completed = cnt
+		case "failed":
+			stats.Failed = cnt
+		}
+	}
+
+	// Starred: chat groups with at least one unread+starred mail (non-archived)
+	starredRow, err := capsule.Global.Query().Table(tableMail()+" as m").
+		SelectRaw("COUNT(DISTINCT m.chat_id) as cnt").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		Where("m.read", "=", false).
+		Where("m.starred", "=", true).
+		WhereNull("t.archive_status").
+		WhereNull("m.deleted_at").
+		First()
+	if err != nil {
+		return nil, fmt.Errorf("inbox.Stats starred count: %w", err)
+	}
+	if starredRow != nil {
+		stats.Starred = getInt(starredRow, "cnt")
+	}
+
+	// Archived: chat groups with at least one unread mail belonging to archived tasks
+	archivedRow, err := capsule.Global.Query().Table(tableMail()+" as m").
+		SelectRaw("COUNT(DISTINCT m.chat_id) as cnt").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		Where("m.read", "=", false).
+		WhereNotNull("t.archive_status").
+		WhereNull("m.deleted_at").
+		First()
+	if err != nil {
+		return nil, fmt.Errorf("inbox.Stats archived count: %w", err)
+	}
+	if archivedRow != nil {
+		stats.Archived = getInt(archivedRow, "cnt")
+	}
+
+	return stats, nil
+}
+
+// UnreadCount returns unread counts grouped by type (excludes mails from archived tasks)
 func UnreadCount(ctx context.Context, auth *process.AuthorizedInfo) (*Counts, error) {
-	rows, err := capsule.Global.Query().Table(tableMail()).
-		Select("type").
+	rows, err := capsule.Global.Query().Table(tableMail()+" as m").
+		Select("m.type").
 		SelectRaw("COUNT(*) as cnt").
-		Where("__yao_created_by", "=", auth.UserID).
-		Where("read", "=", false).
-		Where("archived", "=", false).
-		WhereNull("deleted_at").
-		GroupBy("type").
+		LeftJoin(tableTask()+" as t", "m.chat_id", "=", "t.chat_id").
+		Where("m.__yao_created_by", "=", auth.UserID).
+		Where("m.__yao_team_id", "=", auth.TeamID).
+		Where("m.read", "=", false).
+		WhereNull("t.archive_status").
+		WhereNull("m.deleted_at").
+		GroupBy("m.type").
 		Get()
 	if err != nil {
 		return nil, fmt.Errorf("inbox.UnreadCount: %w", err)
@@ -105,6 +184,8 @@ func Read(ctx context.Context, auth *process.AuthorizedInfo, mailID string) erro
 	affected, err := capsule.Global.Query().Table(tableMail()).
 		Where("mail_id", "=", mailID).
 		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
+		WhereNull("deleted_at").
 		Update(map[string]interface{}{
 			"read":       true,
 			"read_at":    now,
@@ -124,8 +205,8 @@ func ReadAll(ctx context.Context, auth *process.AuthorizedInfo, mailType string)
 	now := time.Now()
 	qb := capsule.Global.Query().Table(tableMail()).
 		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
 		Where("read", "=", false).
-		Where("archived", "=", false).
 		WhereNull("deleted_at")
 
 	if mailType != "" {
@@ -141,11 +222,6 @@ func ReadAll(ctx context.Context, auth *process.AuthorizedInfo, mailType string)
 		return 0, fmt.Errorf("inbox.ReadAll: %w", err)
 	}
 	return int64(affected), nil
-}
-
-// Archive marks a mail as archived
-func Archive(ctx context.Context, auth *process.AuthorizedInfo, mailID string) error {
-	return updateMailField(auth, mailID, "archived", true)
 }
 
 // Star marks a mail as starred
@@ -172,6 +248,7 @@ func updateMailField(auth *process.AuthorizedInfo, mailID, field string, value i
 	affected, err := capsule.Global.Query().Table(tableMail()).
 		Where("mail_id", "=", mailID).
 		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
 		WhereNull("deleted_at").
 		Update(map[string]interface{}{
 			field:        value,
@@ -186,29 +263,73 @@ func updateMailField(auth *process.AuthorizedInfo, mailID, field string, value i
 	return nil
 }
 
+func enrichChatTitles(mails []*AgentMail) {
+	if len(mails) == 0 {
+		return
+	}
+
+	chatIDs := make([]interface{}, 0)
+	seen := make(map[string]bool)
+	for _, m := range mails {
+		if m.ChatID != "" && !seen[m.ChatID] {
+			seen[m.ChatID] = true
+			chatIDs = append(chatIDs, m.ChatID)
+		}
+	}
+	if len(chatIDs) == 0 {
+		return
+	}
+
+	rows, err := capsule.Global.Query().Table(tableChat()).
+		Select("chat_id", "title").
+		WhereIn("chat_id", chatIDs).
+		Get()
+	if err != nil || len(rows) == 0 {
+		return
+	}
+
+	titleMap := make(map[string]string, len(rows))
+	for _, row := range rows {
+		cid := getString(row, "chat_id")
+		title := getString(row, "title")
+		if cid != "" && title != "" {
+			titleMap[cid] = title
+		}
+	}
+
+	for _, m := range mails {
+		if t, ok := titleMap[m.ChatID]; ok {
+			m.ChatTitle = t
+		}
+	}
+}
+
 func applyInboxFilters(qb query.Query, q *ListQuery) {
 	switch q.Filter {
 	case "all":
-		qb.Where("archived", "=", false)
+		qb.WhereNull("t.archive_status")
 	case "unread":
-		qb.Where("read", "=", false).Where("archived", "=", false)
+		qb.Where("m.read", "=", false).WhereNull("t.archive_status")
 	case "starred":
-		qb.Where("starred", "=", true).Where("archived", "=", false)
+		qb.Where("m.starred", "=", true).WhereNull("t.archive_status")
 	case "input":
-		qb.Where("type", "=", "input").Where("archived", "=", false)
+		qb.Where("m.type", "=", "input").WhereNull("t.archive_status")
 	case "completed":
-		qb.Where("type", "=", "completed").Where("archived", "=", false)
+		qb.Where("m.type", "=", "completed").WhereNull("t.archive_status")
 	case "failed":
-		qb.Where("type", "=", "failed").Where("archived", "=", false)
+		qb.Where("m.type", "=", "failed").WhereNull("t.archive_status")
 	case "archived":
-		qb.Where("archived", "=", true)
+		qb.WhereNotNull("t.archive_status")
 	}
 	if q.Keyword != "" {
 		like := "%" + q.Keyword + "%"
 		qb.Where(func(sub query.Query) {
-			sub.Where("title", "like", like).
-				OrWhere("body", "like", like)
+			sub.Where("m.title", "like", like).
+				OrWhere("m.body", "like", like)
 		})
+	}
+	if q.ChatID != "" {
+		qb.Where("m.chat_id", "=", q.ChatID)
 	}
 }
 
@@ -225,7 +346,6 @@ func rowToMail(row map[string]interface{}) *AgentMail {
 		SourceID:    getString(row, "source_id"),
 		SourceName:  getString(row, "source_name"),
 		Read:        getBool(row, "read"),
-		Archived:    getBool(row, "archived"),
 		Starred:     getBool(row, "starred"),
 		Pinned:      getBool(row, "pinned"),
 	}

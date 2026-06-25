@@ -8,12 +8,13 @@ import (
 
 // ListQuery parameters for listing tasks
 type ListQuery struct {
-	RunStatus   string `json:"run_status,omitempty"`
-	AssistantID string `json:"assistant_id,omitempty"`
-	BoardID     string `json:"board_id,omitempty"`
-	Page        int    `json:"page,omitempty"`
-	PageSize    int    `json:"page_size,omitempty"`
-	Locale      string `json:"locale,omitempty"`
+	RunStatus     string `json:"run_status,omitempty"`
+	ArchiveStatus string `json:"archive_status,omitempty"`
+	AssistantID   string `json:"assistant_id,omitempty"`
+	BoardID       string `json:"board_id,omitempty"`
+	Page          int    `json:"page,omitempty"`
+	PageSize      int    `json:"page_size,omitempty"`
+	Locale        string `json:"locale,omitempty"`
 }
 
 // ListResult paginated task list response
@@ -26,30 +27,31 @@ type ListResult struct {
 
 // Task represents a full task with derived fields from JOINs
 type Task struct {
-	ID           int64      `json:"id,omitempty"`
-	ChatID       string     `json:"chat_id"`
-	ColumnID     *string    `json:"column_id"`
-	Position     int        `json:"position"`
-	Pinned       bool       `json:"pinned"`
-	Priority     string     `json:"priority"`
-	Tags         []string   `json:"tags,omitempty"`
-	RunStatus    string     `json:"run_status"`
-	Progress     int        `json:"progress"`
-	CurrentStep  *string    `json:"current_step,omitempty"`
-	ErrorMessage *string    `json:"error_message,omitempty"`
-	StartedAt    *time.Time `json:"started_at,omitempty"`
-	CompletedAt  *time.Time `json:"completed_at,omitempty"`
-	Duration     int        `json:"duration"`
-	RunCount     int        `json:"run_count"`
-	ComputerID   *string    `json:"computer_id,omitempty"`
-	ComputerMode *string    `json:"computer_mode,omitempty"`
-	SandboxType  *string    `json:"sandbox_type,omitempty"`
-	Instruction  string     `json:"instruction,omitempty"`
-	Summary      string     `json:"summary,omitempty"`
-	Outputs      any        `json:"outputs,omitempty"`
-	Metadata     any        `json:"metadata,omitempty"`
-	CreatedAt    *time.Time `json:"created_at,omitempty"`
-	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+	ID            int64      `json:"id,omitempty"`
+	ChatID        string     `json:"chat_id"`
+	ColumnID      *string    `json:"column_id"`
+	Position      int        `json:"position"`
+	Pinned        bool       `json:"pinned"`
+	Priority      string     `json:"priority"`
+	Tags          []string   `json:"tags,omitempty"`
+	RunStatus     string     `json:"run_status"`
+	ArchiveStatus string     `json:"archive_status,omitempty"`
+	Progress      int        `json:"progress"`
+	CurrentStep   *string    `json:"current_step,omitempty"`
+	ErrorMessage  *string    `json:"error_message,omitempty"`
+	StartedAt     *time.Time `json:"started_at,omitempty"`
+	CompletedAt   *time.Time `json:"completed_at,omitempty"`
+	Duration      int        `json:"duration"`
+	RunCount      int        `json:"run_count"`
+	ComputerID    *string    `json:"computer_id,omitempty"`
+	ComputerMode  *string    `json:"computer_mode,omitempty"`
+	SandboxType   *string    `json:"sandbox_type,omitempty"`
+	Instruction   string     `json:"instruction,omitempty"`
+	Summary       string     `json:"summary,omitempty"`
+	Outputs       any        `json:"outputs,omitempty"`
+	Metadata      any        `json:"metadata,omitempty"`
+	CreatedAt     *time.Time `json:"created_at,omitempty"`
+	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
 
 	// Derived from JOINs
 	Title         string  `json:"title,omitempty"`

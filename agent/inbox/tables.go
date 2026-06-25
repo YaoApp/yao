@@ -32,3 +32,10 @@ func tableBoard() string {
 	}
 	return share.App.Prefix + "agent_board"
 }
+
+func tableTask() string {
+	if m, err := model.Get("__yao.agent.task"); err == nil && m.MetaData.Table.Name != "" {
+		return m.MetaData.Table.Name
+	}
+	return share.App.Prefix + "agent_task"
+}

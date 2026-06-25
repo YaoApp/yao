@@ -36,6 +36,11 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	if auth.Constraints.CreatorOnly {
 		countQB.Where("t.__yao_created_by", "=", auth.UserID)
 	}
+	if q.ArchiveStatus != "" {
+		countQB.Where("t.archive_status", "=", q.ArchiveStatus)
+	} else {
+		countQB.WhereNull("t.archive_status")
+	}
 	if q.RunStatus != "" {
 		countQB.Where("t.run_status", "=", q.RunStatus)
 	}
@@ -70,6 +75,11 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	}
 	if auth.Constraints.CreatorOnly {
 		qb.Where("t.__yao_created_by", "=", auth.UserID)
+	}
+	if q.ArchiveStatus != "" {
+		qb.Where("t.archive_status", "=", q.ArchiveStatus)
+	} else {
+		qb.WhereNull("t.archive_status")
 	}
 	if q.RunStatus != "" {
 		qb.Where("t.run_status", "=", q.RunStatus)
@@ -366,6 +376,89 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, chatID string) er
 	return nil
 }
 
+// Archive sets archive_status to 'archived'. Does not modify run_status, column_id, or chat status.
+func Archive(ctx context.Context, auth *process.AuthorizedInfo, chatID string) error {
+	task, err := Get(ctx, auth, chatID)
+	if err != nil {
+		return err
+	}
+
+	if task.ArchiveStatus == "archived" || task.ArchiveStatus == "permanent" {
+		return nil
+	}
+
+	now := time.Now()
+
+	_, err = capsule.Global.Query().Table(tableTask()).
+		Where("chat_id", "=", chatID).
+		Update(map[string]interface{}{
+			"archive_status": "archived",
+			"updated_at":     now,
+		})
+	if err != nil {
+		return fmt.Errorf("task.Archive agent_task: %w", err)
+	}
+
+	event.Push(ctx, "task.archived", map[string]any{
+		"chat_id":       chatID,
+		"__yao_team_id": auth.TeamID,
+	})
+
+	return nil
+}
+
+// Unarchive clears archive_status and places the task into the specified column.
+// Does not modify run_status or chat status.
+func Unarchive(ctx context.Context, auth *process.AuthorizedInfo, chatID string, columnID string) error {
+	task, err := Get(ctx, auth, chatID)
+	if err != nil {
+		return err
+	}
+
+	if task.ArchiveStatus == "" {
+		return fmt.Errorf("task.Unarchive: task is not archived")
+	}
+	if task.ArchiveStatus == "permanent" {
+		return fmt.Errorf("task.Unarchive: permanently archived task cannot be unarchived")
+	}
+
+	colRow, err := capsule.Global.Query().Table(tableBoardColumn()).
+		Select("board_id").
+		Where("column_id", "=", columnID).
+		WhereNull("deleted_at").
+		First()
+	if err != nil || colRow == nil {
+		return fmt.Errorf("task.Unarchive: column %s not found", columnID)
+	}
+
+	boardID := ""
+	if v, ok := colRow["board_id"].(string); ok {
+		boardID = v
+	}
+
+	now := time.Now()
+
+	_, err = capsule.Global.Query().Table(tableTask()).
+		Where("chat_id", "=", chatID).
+		Update(map[string]interface{}{
+			"archive_status": nil,
+			"column_id":      columnID,
+			"updated_at":     now,
+		})
+	if err != nil {
+		return fmt.Errorf("task.Unarchive agent_task: %w", err)
+	}
+
+	event.Push(ctx, "task.unarchived", map[string]any{
+		"chat_id":       chatID,
+		"board_id":      boardID,
+		"column_id":     columnID,
+		"__yao_team_id": auth.TeamID,
+	})
+
+	return nil
+}
+
 // CreateFromWS creates a task from WebSocket first message (atomic: chat + task with running status).
 // Task parameters (column_id, assistant_id, etc.) are extracted from req.Metadata,
 // consistent with Stream/Interact interface design.
@@ -493,14 +586,15 @@ func metaString(m map[string]any, key string) string {
 // rowToTask converts a database row map to a Task struct
 func rowToTask(row map[string]interface{}) *Task {
 	t := &Task{
-		ChatID:    getString(row, "chat_id"),
-		Position:  getInt(row, "position"),
-		Pinned:    getBool(row, "pinned"),
-		Priority:  getStringDefault(row, "priority", "none"),
-		RunStatus: getStringDefault(row, "run_status", "pending"),
-		Progress:  getInt(row, "progress"),
-		Duration:  getInt(row, "duration"),
-		RunCount:  getInt(row, "run_count"),
+		ChatID:        getString(row, "chat_id"),
+		Position:      getInt(row, "position"),
+		Pinned:        getBool(row, "pinned"),
+		Priority:      getStringDefault(row, "priority", "none"),
+		RunStatus:     getStringDefault(row, "run_status", "pending"),
+		ArchiveStatus: getString(row, "archive_status"),
+		Progress:      getInt(row, "progress"),
+		Duration:      getInt(row, "duration"),
+		RunCount:      getInt(row, "run_count"),
 
 		// Derived
 		Title:         getString(row, "title"),

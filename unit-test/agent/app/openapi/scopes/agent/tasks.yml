@@ -51,6 +51,8 @@ agent:tasks:write:all:
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
     - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 agent:tasks:write:own:
   owner: true
@@ -61,6 +63,8 @@ agent:tasks:write:own:
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
     - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 agent:tasks:write:team:
   team: true
@@ -71,6 +75,8 @@ agent:tasks:write:team:
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
     - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 # ============ Delete Permissions ============
 

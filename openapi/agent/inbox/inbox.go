@@ -17,11 +17,11 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.Use(oauth.Guard)
 
 	group.GET("", handleList)
+	group.GET("/stats", handleStats)
 	group.GET("/unread-count", handleUnreadCount)
 	group.PUT("/read-all", handleReadAll)
 
 	group.PUT("/:mail_id/read", handleRead)
-	group.PUT("/:mail_id/archive", handleArchive)
 	group.PUT("/:mail_id/star", handleStar)
 	group.PUT("/:mail_id/unstar", handleUnstar)
 	group.PUT("/:mail_id/pin", handlePin)
@@ -33,6 +33,7 @@ func handleList(c *gin.Context) {
 	q := &inboxsvc.ListQuery{
 		Filter:  c.Query("filter"),
 		Keyword: c.Query("keyword"),
+		ChatID:  c.Query("chat_id"),
 	}
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		q.Page = p
@@ -41,6 +42,16 @@ func handleList(c *gin.Context) {
 		q.Size = s
 	}
 	result, err := inboxsvc.List(c.Request.Context(), auth, q)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleStats(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	result, err := inboxsvc.Stats(c.Request.Context(), auth)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -76,17 +87,6 @@ func handleRead(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
 	mailID := c.Param("mail_id")
 	err := inboxsvc.Read(c.Request.Context(), auth, mailID)
-	if err != nil {
-		respondError(c, http.StatusNotFound, err)
-		return
-	}
-	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
-}
-
-func handleArchive(c *gin.Context) {
-	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Archive(c.Request.Context(), auth, mailID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
