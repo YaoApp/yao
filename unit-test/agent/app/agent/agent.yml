@@ -3,6 +3,7 @@ uses:
 
 system:
   default: "openai.mock"
+  light: "openai.mock"
 
 store:
   max_size: 20

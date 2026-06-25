@@ -256,3 +256,64 @@ func TestSetStatus_InboxTrigger(t *testing.T) {
 	require.NoError(t, err)
 	assert.GreaterOrEqual(t, len(rows), 1, "expected at least 1 completed mail for task")
 }
+
+func TestEnrichTaskResult_Integration(t *testing.T) {
+	identity := testprepare.PrepareE2E(t)
+
+	ctx := context.Background()
+	auth := &process.AuthorizedInfo{
+		UserID: identity.AlphaOwnerUserID,
+		TeamID: identity.AlphaTeamID,
+	}
+
+	colID := createTestBoard(t, ctx, auth)
+
+	// Inject mock AssistantStreamFn that writes content to the ring buffer
+	origFn := task.AssistantStreamFn
+	task.AssistantStreamFn = func(assistantID string, agCtx *agentcontext.Context, msgs []agentcontext.Message, opts ...*agentcontext.Options) (*agentcontext.Response, error) {
+		if agCtx.Writer != nil {
+			data := []byte(`data: {"type":"text","props":{"content":"I have completed the analysis and generated the report."}}` + "\n\n")
+			agCtx.Writer.Write(data)
+		}
+		return &agentcontext.Response{}, nil
+	}
+	defer func() { task.AssistantStreamFn = origFn }()
+
+	created, err := task.Create(ctx, auth, &task.CreateReq{
+		Title:       "Enrich Test",
+		AssistantID: "asst-test-001",
+		ColumnID:    colID,
+	})
+	require.NoError(t, err)
+	require.NotEmpty(t, created.ChatID)
+
+	_, err = task.Run(ctx, auth, created.ChatID, &task.RunReq{
+		Messages: []task.InputMessage{{Role: "user", Content: "Please analyze this data and generate a report."}},
+		Priority: 500,
+	})
+	require.NoError(t, err)
+
+	// Wait for daemon completion + async enrichment (mock LLM + DB write)
+	time.Sleep(3 * time.Second)
+
+	got, err := task.Get(ctx, auth, created.ChatID)
+	require.NoError(t, err)
+
+	// Enrichment must NOT fail (the old code would hit "capabilities are required")
+	assert.NotEqual(t, "failed", got.RunStatus,
+		"enrichment should not fail — got error_message: %s", got.ErrorMessage)
+	assert.Equal(t, "completed", got.RunStatus)
+
+	// Title should be populated by LLM enrichment (mock returns "Test Task Title")
+	chatTbl := share.App.Prefix + "agent_chat"
+	if m, err := model.Get("__yao.agent.chat"); err == nil && m.MetaData.Table.Name != "" {
+		chatTbl = m.MetaData.Table.Name
+	}
+	chatRow, err := capsule.Global.Query().Table(chatTbl).
+		Where("chat_id", "=", created.ChatID).
+		First()
+	require.NoError(t, err)
+	require.NotNil(t, chatRow)
+	title, _ := chatRow["title"].(string)
+	assert.NotEmpty(t, title, "enrichment should have set a title on the chat")
+}

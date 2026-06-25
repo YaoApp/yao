@@ -231,6 +231,9 @@ func openAIStreamResponse(w http.ResponseWriter, r *http.Request, mode MockMode,
 func buildOpenAIContent(mode MockMode, req *openAIRequest) string {
 	switch mode {
 	case ModeEcho:
+		if isEnrichmentRequest(req.Messages) {
+			return buildEnrichmentResponse()
+		}
 		return extractLastUserMessage(req.Messages)
 	case ModeMultiTurn:
 		return fmt.Sprintf("Turn response for model %s. I received your message.", req.Model)

@@ -102,8 +102,13 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 		WhereNull("deleted_at").
 		Max("position")
 	if posResult.Number != nil {
-		if v, ok := posResult.Number.(float64); ok {
+		switch v := posResult.Number.(type) {
+		case float64:
 			maxPos = int(v)
+		case int64:
+			maxPos = int(v)
+		case int:
+			maxPos = v
 		}
 	}
 
@@ -231,7 +236,7 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, boardID string) e
 }
 
 // Tasks returns all tasks in a board ordered by column position then task position
-func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string) ([]*task.Task, error) {
+func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string, locale string) ([]*task.Task, error) {
 	_, err := Get(ctx, auth, boardID)
 	if err != nil {
 		return nil, err
@@ -241,6 +246,7 @@ func Tasks(ctx context.Context, auth *process.AuthorizedInfo, boardID string) ([
 		BoardID:  boardID,
 		PageSize: 1000,
 		Page:     1,
+		Locale:   locale,
 	}
 	result, err := task.List(ctx, auth, q)
 	if err != nil {

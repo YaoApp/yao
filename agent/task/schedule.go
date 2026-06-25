@@ -125,7 +125,25 @@ func (se *scheduleEngineImpl) shouldTrigger(entry *ScheduleEntry, now time.Time)
 
 func (se *scheduleEngineImpl) onTrigger(entry *ScheduleEntry) {
 	auth := loadTaskAuth(entry.ChatID)
-	_, err := Run(se.ctx, auth, entry.ChatID, &RunReq{})
+
+	var promptContent interface{}
+	if instr := getInstruction(entry.ChatID); instr != "" {
+		promptContent = instr
+	} else {
+		promptContent = GetOriginalPrompt(se.ctx, entry.ChatID)
+	}
+	if promptContent == nil || promptContent == "" {
+		log.Warn("schedule trigger skipped for %s: no instruction or original prompt", entry.ChatID)
+		se.mu.Lock()
+		entry.Running = false
+		se.mu.Unlock()
+		return
+	}
+
+	_, err := Run(se.ctx, auth, entry.ChatID, &RunReq{
+		Messages: []InputMessage{{Role: "user", Content: promptContent}},
+		Source:   "repeat",
+	})
 
 	se.mu.Lock()
 	entry.Running = false
@@ -140,6 +158,18 @@ func (se *scheduleEngineImpl) onTrigger(entry *ScheduleEntry) {
 	if err != nil {
 		log.Warn("schedule trigger failed for %s: %v", entry.ChatID, err)
 	}
+}
+
+// getInstruction reads the instruction column from agent_task table
+func getInstruction(chatID string) string {
+	row, err := capsule.Global.Query().Table(tableTask()).
+		Select("instruction").
+		Where("chat_id", "=", chatID).
+		First()
+	if err != nil || row == nil {
+		return ""
+	}
+	return getString(row, "instruction")
 }
 
 func loadScheduledTasks() []*ScheduleEntry {

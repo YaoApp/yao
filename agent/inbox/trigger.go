@@ -52,7 +52,6 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 		"source_id":        boardID,
 		"source_name":      boardName,
 		"read":             false,
-		"archived":         false,
 		"starred":          false,
 		"pinned":           false,
 		"__yao_created_by": task.CreatedBy,

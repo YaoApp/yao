@@ -570,6 +570,18 @@ func buildMessageFilter(c *gin.Context) storetypes.MessageFilter {
 		}
 	}
 
+	if bsStr := c.Query("before_sequence"); bsStr != "" {
+		if bs, err := strconv.ParseInt(bsStr, 10, 64); err == nil && bs > 0 {
+			filter.BeforeSequence = bs
+		}
+	}
+
+	if idStr := c.Query("before_id"); idStr != "" {
+		if id, err := strconv.ParseInt(idStr, 10, 64); err == nil && id > 0 {
+			filter.BeforeID = id
+		}
+	}
+
 	return filter
 }
 

@@ -9,7 +9,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/xun/capsule"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/event"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // List returns a paginated list of tasks with derived fields from JOINs
@@ -33,6 +35,11 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	}
 	if auth.Constraints.CreatorOnly {
 		countQB.Where("t.__yao_created_by", "=", auth.UserID)
+	}
+	if q.ArchiveStatus != "" {
+		countQB.Where("t.archive_status", "=", q.ArchiveStatus)
+	} else {
+		countQB.WhereNull("t.archive_status")
 	}
 	if q.RunStatus != "" {
 		countQB.Where("t.run_status", "=", q.RunStatus)
@@ -69,6 +76,11 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	if auth.Constraints.CreatorOnly {
 		qb.Where("t.__yao_created_by", "=", auth.UserID)
 	}
+	if q.ArchiveStatus != "" {
+		qb.Where("t.archive_status", "=", q.ArchiveStatus)
+	} else {
+		qb.WhereNull("t.archive_status")
+	}
 	if q.RunStatus != "" {
 		qb.Where("t.run_status", "=", q.RunStatus)
 	}
@@ -92,6 +104,20 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	for _, row := range rows {
 		t := rowToTask(row)
 		tasks = append(tasks, t)
+	}
+
+	resolveWorkspaceNames(ctx, tasks)
+
+	if q.Locale != "" {
+		for _, t := range tasks {
+			if t.AssistantName != "" && t.AssistantID != "" {
+				if translated := i18n.Translate(t.AssistantID, q.Locale, t.AssistantName); translated != nil {
+					if s, ok := translated.(string); ok {
+						t.AssistantName = s
+					}
+				}
+			}
+		}
 	}
 
 	return &ListResult{
@@ -138,7 +164,9 @@ func Get(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (*Tas
 		}
 	}
 
-	return rowToTask(row), nil
+	t := rowToTask(row)
+	resolveWorkspaceNames(ctx, []*Task{t})
+	return t, nil
 }
 
 // Create creates a new task with its associated chat
@@ -166,8 +194,13 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 		WhereNull("deleted_at").
 		Max("position")
 	if posResult.Number != nil {
-		if v, ok := posResult.Number.(float64); ok {
+		switch v := posResult.Number.(type) {
+		case float64:
 			maxPos = int(v)
+		case int64:
+			maxPos = int(v)
+		case int:
+			maxPos = v
 		}
 	}
 
@@ -253,6 +286,16 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 	if req.SandboxType != nil {
 		taskUpdates["sandbox_type"] = *req.SandboxType
 	}
+	if req.Instruction != nil {
+		taskUpdates["instruction"] = *req.Instruction
+	}
+	if req.Summary != nil {
+		taskUpdates["summary"] = *req.Summary
+	}
+	if req.Outputs != nil {
+		outputsJSON, _ := jsoniter.MarshalToString(req.Outputs)
+		taskUpdates["outputs"] = outputsJSON
+	}
 	if req.Metadata != nil {
 		metaJSON, _ := jsoniter.MarshalToString(req.Metadata)
 		taskUpdates["metadata"] = metaJSON
@@ -333,6 +376,89 @@ func Delete(ctx context.Context, auth *process.AuthorizedInfo, chatID string) er
 	return nil
 }
 
+// Archive sets archive_status to 'archived'. Does not modify run_status, column_id, or chat status.
+func Archive(ctx context.Context, auth *process.AuthorizedInfo, chatID string) error {
+	task, err := Get(ctx, auth, chatID)
+	if err != nil {
+		return err
+	}
+
+	if task.ArchiveStatus == "archived" || task.ArchiveStatus == "permanent" {
+		return nil
+	}
+
+	now := time.Now()
+
+	_, err = capsule.Global.Query().Table(tableTask()).
+		Where("chat_id", "=", chatID).
+		Update(map[string]interface{}{
+			"archive_status": "archived",
+			"updated_at":     now,
+		})
+	if err != nil {
+		return fmt.Errorf("task.Archive agent_task: %w", err)
+	}
+
+	event.Push(ctx, "task.archived", map[string]any{
+		"chat_id":       chatID,
+		"__yao_team_id": auth.TeamID,
+	})
+
+	return nil
+}
+
+// Unarchive clears archive_status and places the task into the specified column.
+// Does not modify run_status or chat status.
+func Unarchive(ctx context.Context, auth *process.AuthorizedInfo, chatID string, columnID string) error {
+	task, err := Get(ctx, auth, chatID)
+	if err != nil {
+		return err
+	}
+
+	if task.ArchiveStatus == "" {
+		return fmt.Errorf("task.Unarchive: task is not archived")
+	}
+	if task.ArchiveStatus == "permanent" {
+		return fmt.Errorf("task.Unarchive: permanently archived task cannot be unarchived")
+	}
+
+	colRow, err := capsule.Global.Query().Table(tableBoardColumn()).
+		Select("board_id").
+		Where("column_id", "=", columnID).
+		WhereNull("deleted_at").
+		First()
+	if err != nil || colRow == nil {
+		return fmt.Errorf("task.Unarchive: column %s not found", columnID)
+	}
+
+	boardID := ""
+	if v, ok := colRow["board_id"].(string); ok {
+		boardID = v
+	}
+
+	now := time.Now()
+
+	_, err = capsule.Global.Query().Table(tableTask()).
+		Where("chat_id", "=", chatID).
+		Update(map[string]interface{}{
+			"archive_status": nil,
+			"column_id":      columnID,
+			"updated_at":     now,
+		})
+	if err != nil {
+		return fmt.Errorf("task.Unarchive agent_task: %w", err)
+	}
+
+	event.Push(ctx, "task.unarchived", map[string]any{
+		"chat_id":       chatID,
+		"board_id":      boardID,
+		"column_id":     columnID,
+		"__yao_team_id": auth.TeamID,
+	})
+
+	return nil
+}
+
 // CreateFromWS creates a task from WebSocket first message (atomic: chat + task with running status).
 // Task parameters (column_id, assistant_id, etc.) are extracted from req.Metadata,
 // consistent with Stream/Interact interface design.
@@ -347,6 +473,7 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	assistantID := metaString(req.Metadata, "assistant_id")
 	computerID := metaString(req.Metadata, "computer_id")
 	computerMode := metaString(req.Metadata, "computer_mode")
+	workspaceID := metaString(req.Metadata, "workspace_id")
 
 	// Validate column_id if provided
 	if columnID != "" {
@@ -369,8 +496,13 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 			WhereNull("deleted_at").
 			Max("position")
 		if posResult.Number != nil {
-			if v, ok := posResult.Number.(float64); ok {
+			switch v := posResult.Number.(type) {
+			case float64:
 				maxPos = int(v)
+			case int64:
+				maxPos = int(v)
+			case int:
+				maxPos = v
 			}
 		}
 	}
@@ -387,6 +519,9 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 	}
 	if assistantID != "" {
 		chatData["assistant_id"] = assistantID
+	}
+	if workspaceID != "" {
+		chatData["last_workspace"] = workspaceID
 	}
 	err := capsule.Global.Query().Table(tableChat()).Insert(chatData)
 	if err != nil {
@@ -423,6 +558,8 @@ func CreateFromWS(ctx context.Context, auth *process.AuthorizedInfo, req *Create
 		return nil, fmt.Errorf("task.CreateFromWS insert task: %w", err)
 	}
 
+	logTaskCreated(chatID, columnID, assistantID)
+
 	// Push event
 	event.Push(ctx, "task.created", map[string]any{
 		"chat_id":       chatID,
@@ -449,14 +586,15 @@ func metaString(m map[string]any, key string) string {
 // rowToTask converts a database row map to a Task struct
 func rowToTask(row map[string]interface{}) *Task {
 	t := &Task{
-		ChatID:    getString(row, "chat_id"),
-		Position:  getInt(row, "position"),
-		Pinned:    getBool(row, "pinned"),
-		Priority:  getStringDefault(row, "priority", "none"),
-		RunStatus: getStringDefault(row, "run_status", "pending"),
-		Progress:  getInt(row, "progress"),
-		Duration:  getInt(row, "duration"),
-		RunCount:  getInt(row, "run_count"),
+		ChatID:        getString(row, "chat_id"),
+		Position:      getInt(row, "position"),
+		Pinned:        getBool(row, "pinned"),
+		Priority:      getStringDefault(row, "priority", "none"),
+		RunStatus:     getStringDefault(row, "run_status", "pending"),
+		ArchiveStatus: getString(row, "archive_status"),
+		Progress:      getInt(row, "progress"),
+		Duration:      getInt(row, "duration"),
+		RunCount:      getInt(row, "run_count"),
 
 		// Derived
 		Title:         getString(row, "title"),
@@ -481,6 +619,18 @@ func rowToTask(row map[string]interface{}) *Task {
 	}
 	if v := getStringPtr(row, "sandbox_type"); v != nil {
 		t.SandboxType = v
+	}
+	t.Instruction = getString(row, "instruction")
+	t.Summary = getString(row, "summary")
+	if outputsRaw, ok := row["outputs"]; ok && outputsRaw != nil {
+		switch v := outputsRaw.(type) {
+		case string:
+			var outputs any
+			jsoniter.UnmarshalFromString(v, &outputs)
+			t.Outputs = outputs
+		default:
+			t.Outputs = v
+		}
 	}
 	if v := getStringPtr(row, "last_workspace"); v != nil {
 		t.LastWorkspace = v
@@ -594,4 +744,27 @@ func getTime(row map[string]interface{}, key string) *time.Time {
 		}
 	}
 	return nil
+}
+
+// resolveWorkspaceNames batch-resolves workspace names for tasks that have a
+// LastWorkspace value. Errors are silently ignored (name stays empty).
+func resolveWorkspaceNames(ctx context.Context, tasks []*Task) {
+	seen := make(map[string]string)
+	for _, t := range tasks {
+		if t.LastWorkspace == nil || *t.LastWorkspace == "" {
+			continue
+		}
+		wsID := *t.LastWorkspace
+		if name, ok := seen[wsID]; ok {
+			t.WorkspaceName = name
+			continue
+		}
+		ws, err := workspace.M().Get(ctx, wsID)
+		if err == nil && ws != nil {
+			seen[wsID] = ws.Name
+			t.WorkspaceName = ws.Name
+		} else {
+			seen[wsID] = ""
+		}
+	}
 }

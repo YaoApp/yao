@@ -3,6 +3,10 @@ package task
 import "time"
 
 var (
+	// Table name exports for integration tests
+	ExportTableTask = tableTask
+	ExportTableChat = tableChat
+
 	// Plan 1 exports
 	ExportRowToTask        = rowToTask
 	ExportMetaString       = metaString
@@ -32,17 +36,23 @@ var (
 	ExportIsValidPriority     = isValidPriority
 	ExportIsValidMailPriority = isValidMailPriority
 	ExportExtractRecentText   = extractRecentText
-	ExportBuildEnrichPrompt   = buildEnrichPrompt
 
 	// Plan 3 exports - run core logic
 	ExportInputToAgentMessages = inputToAgentMessages
-	ExportMailTypeFromStatus   = mailTypeFromStatus
 	ExportGetStringVal         = getStringVal
 	ExportToOAuthInfo          = toOAuthInfo
+	ExportContentText          = contentText
+
+	// Watch/WatchStream exports
+	ExportGetOriginalPrompt       = GetOriginalPrompt
+	ExportExtractContentFromProps = extractContentFromProps
 
 	// Plan 3 exports - daemon registry
 	ExportGetDaemon        = GetDaemon
 	ExportUnregisterDaemon = UnregisterDaemon
+
+	// enrichTaskResult exports
+	ExportBuildEnrichResultPrompt = buildEnrichResultPrompt
 )
 
 // ExportRegisterDaemon stores a DaemonContext in the global registry for testing

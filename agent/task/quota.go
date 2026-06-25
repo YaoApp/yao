@@ -149,3 +149,23 @@ func (pq *priorityQueue) Pop() interface{} {
 	*pq = old[:n-1]
 	return entry
 }
+
+// QuotaStatus represents the current quota usage for a team
+type QuotaStatus struct {
+	Limit   int `json:"limit"`
+	Running int `json:"running"`
+	Queued  int `json:"queued"`
+}
+
+// GetStatus returns the current quota status for a team
+func (qm *QuotaManager) GetStatus(teamID string) QuotaStatus {
+	qm.mu.Lock()
+	defer qm.mu.Unlock()
+	limit := qm.resolveLimit(teamID, "")
+	running := qm.running[teamID]
+	queued := 0
+	if pq := qm.queue[teamID]; pq != nil {
+		queued = pq.Len()
+	}
+	return QuotaStatus{Limit: limit, Running: running, Queued: queued}
+}

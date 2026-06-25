@@ -33,7 +33,8 @@ func ExtractTaskMetadata(chatID string, userMessage string, auth *process.Author
 		ctx := agentcontext.New(context.Background(), toOAuthInfo(auth), extractChatID)
 		defer ctx.Release()
 
-		llmInstance, err := llm.New(lightConn, &agentcontext.CompletionOptions{})
+		opts := llm.BuildCompletionOptions(lightConn, nil)
+		llmInstance, err := llm.New(lightConn, opts)
 		if err != nil {
 			return
 		}
@@ -41,7 +42,7 @@ func ExtractTaskMetadata(chatID string, userMessage string, auth *process.Author
 		resp, err := llmInstance.Post(ctx, []agentcontext.Message{
 			{Role: "system", Content: extractPrompt},
 			{Role: "user", Content: userMessage},
-		}, &agentcontext.CompletionOptions{})
+		}, opts)
 		if err != nil || resp == nil {
 			return
 		}

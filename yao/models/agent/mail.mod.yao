@@ -105,13 +105,6 @@
       "index": true
     },
     {
-      "name": "archived",
-      "type": "boolean",
-      "label": "Archived",
-      "comment": "Whether mail is archived",
-      "default": false
-    },
-    {
       "name": "starred",
       "type": "boolean",
       "label": "Starred",

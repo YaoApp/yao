@@ -122,12 +122,16 @@ func handleDelete(c *gin.Context) {
 func handleBoardTasks(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
 	boardID := c.Param("board_id")
-	result, err := boardsvc.Tasks(c.Request.Context(), auth, boardID)
+	locale := c.Query("locale")
+	result, err := boardsvc.Tasks(c.Request.Context(), auth, boardID, locale)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.RespondWithSuccess(c, http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{
+		"tasks": result,
+		"total": len(result),
+	})
 }
 
 func handleColumnCreate(c *gin.Context) {

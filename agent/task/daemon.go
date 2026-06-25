@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -19,7 +21,6 @@ type DaemonStatus string
 
 const (
 	DaemonRunning  DaemonStatus = "running"
-	DaemonWaiting  DaemonStatus = "waiting"
 	DaemonStopping DaemonStatus = "stopping"
 	DaemonStopped  DaemonStatus = "stopped"
 )
@@ -37,7 +38,6 @@ type DaemonContext struct {
 	sequence    int64
 	status      DaemonStatus
 	idleTimer   *time.Timer
-	inputCh     chan []InputMessage
 	ringBuffer  []*message.Message
 }
 
@@ -71,7 +71,6 @@ func newDaemonContext(chatID string) *DaemonContext {
 		Cancel:      gracefulCancel,
 		ForceCancel: forceCancel,
 		subscribers: make(map[string]chan<- *message.Message),
-		inputCh:     make(chan []InputMessage, 1),
 		status:      DaemonRunning,
 	}
 	dc.idleTimer = time.AfterFunc(30*time.Minute, func() {
@@ -106,6 +105,9 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 		msg.Metadata = &message.Metadata{}
 	}
 	msg.Metadata.Sequence = int(seq)
+	if msg.Metadata.Timestamp == 0 {
+		msg.Metadata.Timestamp = time.Now().UnixMilli()
+	}
 
 	dc.mu.Lock()
 	dc.ringBuffer = append(dc.ringBuffer, msg)
@@ -114,6 +116,10 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 		subs[k] = v
 	}
 	dc.mu.Unlock()
+
+	if len(subs) > 0 || msg.Type == "event" {
+		fmt.Printf("  • [task.broadcast] chatID=%s seq=%d type=%s subs=%d\n", dc.ChatID, seq, msg.Type, len(subs))
+	}
 
 	for id, ch := range subs {
 		select {
@@ -128,6 +134,7 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 
 // CloseSubscribers closes all subscriber channels (call after final Broadcast)
 func (dc *DaemonContext) CloseSubscribers() {
+	fmt.Printf("  • [task.closeSubscribers] chatID=%s\n", dc.ChatID)
 	dc.mu.Lock()
 	subs := dc.subscribers
 	dc.subscribers = nil
@@ -137,10 +144,82 @@ func (dc *DaemonContext) CloseSubscribers() {
 	}
 }
 
+// SubscribeLive subscribes to the daemon's live stream.
+// It replays the entire ringBuffer first, then pipes live messages.
+// The caller should use message_id deduplication for messages that overlap with DB history.
+func (dc *DaemonContext) SubscribeLive() (*WatchStream, error) {
+	liveCh := make(chan *message.Message, 64)
+	outputCh := make(chan *message.Message, 64)
+	subID := uuid.New().String()
+
+	dc.mu.Lock()
+	if dc.subscribers == nil {
+		dc.mu.Unlock()
+		return nil, ErrDaemonStopping
+	}
+
+	replay := make([]*message.Message, len(dc.ringBuffer))
+	copy(replay, dc.ringBuffer)
+	dc.subscribers[subID] = liveCh
+	fmt.Printf("  • [task.subscribeLive] chatID=%s subID=%s totalSubs=%d replay=%d\n", dc.ChatID, subID, len(dc.subscribers), len(replay))
+	dc.mu.Unlock()
+
+	doneCh := make(chan struct{})
+	go func() {
+		defer close(outputCh)
+		// Phase 1: replay ringBuffer
+		for _, m := range replay {
+			select {
+			case outputCh <- m:
+			case <-doneCh:
+				return
+			}
+		}
+		// Phase 2: live pipe
+		for {
+			select {
+			case m, ok := <-liveCh:
+				if !ok {
+					return
+				}
+				select {
+				case outputCh <- m:
+				case <-doneCh:
+					return
+				}
+			case <-doneCh:
+				return
+			}
+		}
+	}()
+
+	var cancelOnce sync.Once
+	return &WatchStream{
+		Ch: outputCh,
+		Cancel: func() {
+			cancelOnce.Do(func() {
+				fmt.Printf("  • [task.subscribeLive.cancel] chatID=%s subID=%s\n", dc.ChatID, subID)
+				dc.mu.Lock()
+				delete(dc.subscribers, subID)
+				dc.mu.Unlock()
+				close(doneCh)
+			})
+		},
+		LiveMode: true,
+	}, nil
+}
+
 // resetIdleTimer resets the 30-minute idle timer
 func (dc *DaemonContext) resetIdleTimer() {
 	if dc.idleTimer != nil {
 		dc.idleTimer.Reset(30 * time.Minute)
+	}
+}
+
+// StopIdleTimer stops the idle timer (call on daemon exit to prevent orphan timer fire)
+func (dc *DaemonContext) StopIdleTimer() {
+	if dc.idleTimer != nil {
+		dc.idleTimer.Stop()
 	}
 }
 

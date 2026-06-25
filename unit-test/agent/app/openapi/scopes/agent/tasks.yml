@@ -10,6 +10,7 @@ agent:tasks:read:all:
   description: "Read all tasks"
   endpoints:
     - GET /agent/tasks
+    - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/config
     - GET /agent/tasks/:chat_id/files
@@ -21,6 +22,7 @@ agent:tasks:read:own:
   description: "Read own tasks"
   endpoints:
     - GET /agent/tasks
+    - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/config
     - GET /agent/tasks/:chat_id/files
@@ -32,6 +34,7 @@ agent:tasks:read:team:
   description: "Read team tasks"
   endpoints:
     - GET /agent/tasks
+    - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/config
     - GET /agent/tasks/:chat_id/files
@@ -47,6 +50,9 @@ agent:tasks:write:all:
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 agent:tasks:write:own:
   owner: true
@@ -56,6 +62,9 @@ agent:tasks:write:own:
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 agent:tasks:write:team:
   team: true
@@ -65,6 +74,9 @@ agent:tasks:write:team:
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
     - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/priority
+    - PUT /agent/tasks/:chat_id/archive
+    - PUT /agent/tasks/:chat_id/unarchive
 
 # ============ Delete Permissions ============
 

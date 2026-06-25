@@ -178,11 +178,42 @@
       "nullable": true
     },
     {
+      "name": "instruction",
+      "type": "text",
+      "label": "Instruction",
+      "comment": "Repeatable task instruction extracted by enrichTaskResult, used by repeat command and schedule engine",
+      "nullable": true
+    },
+    {
+      "name": "summary",
+      "type": "string",
+      "label": "Summary",
+      "comment": "Card summary for kanban display (waiting: what is needed; completed: what was done)",
+      "length": 500,
+      "nullable": true
+    },
+    {
+      "name": "outputs",
+      "type": "json",
+      "label": "Outputs",
+      "comment": "Task outputs: workspace files, attachments, services, URLs, etc.",
+      "nullable": true
+    },
+    {
       "name": "metadata",
       "type": "json",
       "label": "Metadata",
       "comment": "Additional metadata",
       "nullable": true
+    },
+    {
+      "name": "archive_status",
+      "type": "enum",
+      "label": "Archive Status",
+      "comment": "Archive status: NULL=active, archived=recoverable, permanent=irrecoverable",
+      "option": ["archived", "permanent"],
+      "nullable": true,
+      "index": true
     }
   ],
   "indexes": [

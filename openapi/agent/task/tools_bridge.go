@@ -21,4 +21,7 @@ func init() {
 		}
 		return ast.Stream(ctx, msgs, opts...)
 	}
+
+	tasksvc.ChatStoreFn = assistant.GetChatStore
+	tasksvc.InfoByIDsFn = assistant.GetInfoByIDs
 }

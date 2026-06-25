@@ -522,6 +522,10 @@ func (ast *Assistant) GetInfo(locale ...string) *store.AssistantInfo {
 		info.Description = ast.Description
 	}
 
+	if ast.Placeholder != nil {
+		info.Placeholder = ast.GetPlaceholder(loc)
+	}
+
 	return info
 }
 

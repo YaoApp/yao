@@ -6,6 +6,7 @@ import "time"
 type ListQuery struct {
 	Filter  string `json:"filter,omitempty"`  // all | unread | starred | input | completed | failed | archived
 	Keyword string `json:"keyword,omitempty"` // search title/body
+	ChatID  string `json:"chat_id,omitempty"` // filter by task chat_id
 	Page    int    `json:"page,omitempty"`
 	Size    int    `json:"size,omitempty"` // default 20
 }
@@ -26,6 +27,16 @@ type Counts struct {
 	Failed    int `json:"failed"`
 }
 
+// InboxStats represents category counts for sidebar display
+type InboxStats struct {
+	All       int `json:"all"`
+	Starred   int `json:"starred"`
+	Input     int `json:"input"`
+	Completed int `json:"completed"`
+	Failed    int `json:"failed"`
+	Archived  int `json:"archived"`
+}
+
 // AgentMail represents an inbox message
 type AgentMail struct {
 	ID          int64      `json:"id,omitempty"`
@@ -35,12 +46,12 @@ type AgentMail struct {
 	Title       string     `json:"title"`
 	Body        string     `json:"body,omitempty"`
 	ChatID      string     `json:"chat_id"`
+	ChatTitle   string     `json:"chat_title,omitempty"`
 	AssistantID string     `json:"assistant_id,omitempty"`
 	SourceType  string     `json:"source_type,omitempty"`
 	SourceID    string     `json:"source_id,omitempty"`
 	SourceName  string     `json:"source_name,omitempty"`
 	Read        bool       `json:"read"`
-	Archived    bool       `json:"archived"`
 	Starred     bool       `json:"starred"`
 	Pinned      bool       `json:"pinned"`
 	ReadAt      *time.Time `json:"read_at,omitempty"`

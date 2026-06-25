@@ -22,6 +22,27 @@ func TestListQueryDefaults(t *testing.T) {
 	if q.Page != 0 {
 		t.Errorf("Page = %d, want 0", q.Page)
 	}
+	if q.ChatID != "" {
+		t.Errorf("ChatID = %q, want empty", q.ChatID)
+	}
+}
+
+func TestListQueryChatIDField(t *testing.T) {
+	q := &inbox.ListQuery{
+		Filter: "all",
+		ChatID: "chat-abc-123",
+		Page:   1,
+		Size:   50,
+	}
+	if q.ChatID != "chat-abc-123" {
+		t.Errorf("ChatID = %q, want %q", q.ChatID, "chat-abc-123")
+	}
+	if q.Filter != "all" {
+		t.Errorf("Filter = %q, want %q", q.Filter, "all")
+	}
+	if q.Size != 50 {
+		t.Errorf("Size = %d, want 50", q.Size)
+	}
 }
 
 // --- Counts ---
@@ -40,7 +61,7 @@ func TestAgentMailFieldBinding(t *testing.T) {
 	m := &inbox.AgentMail{
 		MailID: "mail-001", Type: "input", Priority: "high",
 		Title: "Needs input", ChatID: "chat-x",
-		Read: false, Archived: false, Starred: true, Pinned: true,
+		Read: false, Starred: true, Pinned: true,
 	}
 	if m.Type != "input" {
 		t.Error("Type")
@@ -90,7 +111,6 @@ func TestRowToMailFull(t *testing.T) {
 		"source_id":    "board-001",
 		"source_name":  "Dev Board",
 		"read":         true,
-		"archived":     false,
 		"starred":      true,
 		"pinned":       false,
 		"read_at":      now,
@@ -130,9 +150,6 @@ func TestRowToMailFull(t *testing.T) {
 	if !m.Read {
 		t.Error("Read should be true")
 	}
-	if m.Archived {
-		t.Error("Archived should be false")
-	}
 	if !m.Starred {
 		t.Error("Starred should be true")
 	}
@@ -154,7 +171,7 @@ func TestRowToMailMinimal(t *testing.T) {
 	row := map[string]interface{}{
 		"mail_id": "m1", "type": "input", "priority": "high",
 		"title": "Need input", "chat_id": "c1",
-		"read": false, "archived": false, "starred": false, "pinned": false,
+		"read": false, "starred": false, "pinned": false,
 	}
 	m := inbox.ExportRowToMail(row)
 	if m.MailID != "m1" {
