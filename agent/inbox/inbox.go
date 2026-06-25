@@ -244,6 +244,22 @@ func Unpin(ctx context.Context, auth *process.AuthorizedInfo, mailID string) err
 	return updateMailField(auth, mailID, "pinned", false)
 }
 
+// DeleteByChatID soft-deletes all inbox mails belonging to the given chat_id
+func DeleteByChatID(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (int64, error) {
+	affected, err := capsule.Global.Query().Table(tableMail()).
+		Where("chat_id", "=", chatID).
+		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
+		WhereNull("deleted_at").
+		Update(map[string]interface{}{
+			"deleted_at": time.Now(),
+		})
+	if err != nil {
+		return 0, fmt.Errorf("inbox.DeleteByChatID: %w", err)
+	}
+	return int64(affected), nil
+}
+
 func updateMailField(auth *process.AuthorizedInfo, mailID, field string, value interface{}) error {
 	affected, err := capsule.Global.Query().Table(tableMail()).
 		Where("mail_id", "=", mailID).
