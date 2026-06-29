@@ -17,9 +17,6 @@ var (
 	ExportGetBool          = getBool
 	ExportGetTime          = getTime
 
-	// Plan 2 exports
-	ExportConfigReqToMap = configReqToMap
-
 	// Plan 3 exports - daemon
 	ExportNewDaemonContext        = newDaemonContext
 	ExportNewDaemonResponseWriter = NewDaemonResponseWriter

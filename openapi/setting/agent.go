@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -40,8 +39,6 @@ func init() {
 		return result
 	}
 }
-
-var validSecretKey = regexp.MustCompile(`^[A-Z][A-Z0-9_]*$`)
 
 func agentSettingScope(info *oauthTypes.AuthorizedInfo) setting.ScopeID {
 	if info.TeamID != "" {
@@ -190,86 +187,27 @@ func handleAgentSettingUpdate(c *gin.Context) {
 	})
 }
 
-// handleAgentSecretsGet returns secrets merged from sandbox.yao defaults and user settings.
-// Core data (user secrets) is read directly from setting.Registry.
-// Predefined metadata from sandbox.yao is an optional enhancement via loadAssistant.
+// handleAgentSecretsGet returns secrets merged via config.Resolve (L1+L2).
 // GET /setting/agent/:id/secrets
 func handleAgentSecretsGet(c *gin.Context) {
 	id := c.Param("id")
 	info := authorized.GetInfo(c)
 
-	// Optional: load predefined secrets metadata from sandbox.yao
-	predefined := make(map[string]*types.SecretEntry)
-	if ast, err := loadAssistant(id); err == nil && ast != nil &&
-		ast.SandboxV2 != nil && ast.SandboxV2.Secrets != nil {
-		for k, entry := range ast.SandboxV2.Secrets {
-			if entry != nil {
-				clone := *entry
-				clone.Value = ""
-				predefined[k] = &clone
-			}
-		}
+	resolved, err := agentconfig.Resolve(agentconfig.ResolveOptions{
+		AssistantID: id,
+		UserID:      info.UserID,
+		TeamID:      info.TeamID,
+	})
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err.Error())
+		return
 	}
 
-	// Core: read user secrets from setting.Registry (raw map)
-	var userSecrets map[string]map[string]interface{}
-	if setting.Global != nil {
-		if raw, err := setting.Global.GetMerged(info.UserID, info.TeamID, agentSettingNS(id)); err == nil && raw != nil {
-			if secretsRaw, ok := raw["secrets"].(map[string]interface{}); ok {
-				userSecrets = make(map[string]map[string]interface{}, len(secretsRaw))
-				for k, v := range secretsRaw {
-					if entry, ok := v.(map[string]interface{}); ok {
-						userSecrets[k] = entry
-					}
-				}
-			}
-		}
+	secrets := resolved.Secrets
+	if secrets == nil {
+		secrets = make(map[string]agentconfig.SecretInfo)
 	}
-
-	type secretResponse struct {
-		Label       string `json:"label,omitempty"`
-		Description string `json:"description,omitempty"`
-		Required    bool   `json:"required,omitempty"`
-		Multiline   bool   `json:"multiline,omitempty"`
-		HasValue    bool   `json:"has_value"`
-		Predefined  bool   `json:"predefined"`
-	}
-	result := make(map[string]*secretResponse)
-
-	for k, meta := range predefined {
-		sr := &secretResponse{
-			Label:       meta.Label,
-			Description: meta.Description,
-			Required:    meta.Required,
-			Multiline:   meta.Multiline,
-			Predefined:  true,
-		}
-		if entry, ok := userSecrets[k]; ok {
-			if val, _ := entry["value"].(string); val != "" {
-				decrypted := setting.Decrypt(val)
-				sr.HasValue = decrypted != ""
-			}
-		}
-		result[k] = sr
-	}
-
-	for k, entry := range userSecrets {
-		if _, isPredefined := predefined[k]; isPredefined {
-			continue
-		}
-		val, _ := entry["value"].(string)
-		decrypted := setting.Decrypt(val)
-		result[k] = &secretResponse{
-			Label:       stringFromMap(entry, "label"),
-			Description: stringFromMap(entry, "description"),
-			Required:    boolFromMap(entry, "required"),
-			Multiline:   boolFromMap(entry, "multiline"),
-			HasValue:    decrypted != "",
-			Predefined:  false,
-		}
-	}
-
-	response.RespondWithSuccess(c, http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, secrets)
 }
 
 // handleAgentSecretsUpdate creates or updates secret values.
@@ -280,69 +218,21 @@ func handleAgentSecretsUpdate(c *gin.Context) {
 	}
 	id := c.Param("id")
 	info := authorized.GetInfo(c)
-	scope := agentSettingScope(info)
-	ns := agentSettingNS(id)
 
-	var body map[string]struct {
-		Value       string `json:"value"`
-		Label       string `json:"label,omitempty"`
-		Description string `json:"description,omitempty"`
-		Required    bool   `json:"required,omitempty"`
-		Multiline   bool   `json:"multiline,omitempty"`
-	}
+	var body map[string]SecretUpdateEntry
 	if err := c.ShouldBindJSON(&body); err != nil {
 		respondError(c, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	for key := range body {
-		if !validSecretKey.MatchString(key) {
-			respondError(c, http.StatusBadRequest,
-				fmt.Sprintf("invalid key %q: must match ^[A-Z][A-Z0-9_]*$", key))
-			return
-		}
+	ctx := SecretsWriteContext{
+		Scope:     agentSettingScope(info),
+		Namespace: agentSettingNS(id),
 	}
-
-	if setting.Global == nil {
-		respondError(c, http.StatusInternalServerError, "setting registry not initialized")
-		return
-	}
-
-	// Read-modify-write (shallow merge limitation)
-	existing, _ := setting.Global.Get(scope, ns)
-	if existing == nil {
-		existing = make(map[string]interface{})
-	}
-
-	// Rebuild secrets map
-	secretsRaw, _ := existing["secrets"]
-	var secrets map[string]interface{}
-	if m, ok := secretsRaw.(map[string]interface{}); ok {
-		secrets = m
-	} else {
-		secrets = make(map[string]interface{})
-	}
-
-	for key, entry := range body {
-		secrets[key] = map[string]interface{}{
-			"value":       setting.Encrypt(entry.Value),
-			"label":       entry.Label,
-			"description": entry.Description,
-			"required":    entry.Required,
-			"multiline":   entry.Multiline,
-		}
-	}
-
-	existing["secrets"] = secrets
-	if _, err := setting.Global.Set(scope, ns, existing); err != nil {
+	keys, err := SecretsUpdate(ctx, body)
+	if err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-
-	// Return keys that were updated (no values)
-	keys := make([]string, 0, len(body))
-	for k := range body {
-		keys = append(keys, k)
 	}
 	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{
 		"updated": keys,
@@ -358,35 +248,15 @@ func handleAgentSecretDelete(c *gin.Context) {
 	id := c.Param("id")
 	key := c.Param("key")
 	info := authorized.GetInfo(c)
-	scope := agentSettingScope(info)
-	ns := agentSettingNS(id)
 
-	if setting.Global == nil {
-		respondError(c, http.StatusInternalServerError, "setting registry not initialized")
-		return
+	ctx := SecretsWriteContext{
+		Scope:     agentSettingScope(info),
+		Namespace: agentSettingNS(id),
 	}
-
-	existing, _ := setting.Global.Get(scope, ns)
-	if existing == nil {
-		response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{"success": true})
-		return
-	}
-
-	secretsRaw, _ := existing["secrets"]
-	secrets, ok := secretsRaw.(map[string]interface{})
-	if !ok || secrets == nil {
-		response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{"success": true})
-		return
-	}
-
-	delete(secrets, key)
-	existing["secrets"] = secrets
-
-	if _, err := setting.Global.Set(scope, ns, existing); err != nil {
+	if err := SecretDelete(ctx, key); err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
 	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{"success": true})
 }
 
@@ -529,20 +399,6 @@ func containsRunner(runners []string, target string) bool {
 		if r == target {
 			return true
 		}
-	}
-	return false
-}
-
-func stringFromMap(m map[string]interface{}, key string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return ""
-}
-
-func boolFromMap(m map[string]interface{}, key string) bool {
-	if v, ok := m[key].(bool); ok {
-		return v
 	}
 	return false
 }

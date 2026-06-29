@@ -3,7 +3,6 @@ package task
 import (
 	"time"
 
-	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -106,47 +105,7 @@ type CreateFromWSReq struct {
 	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
-// --- Config types (Plan 2) ---
-
-// Config is the response from GetConfig, containing merged settings and metadata
-type Config struct {
-	Setting        *TaskSetting      `json:"setting"`
-	ResolvedFrom   map[string]string `json:"_resolved_from,omitempty"`
-	ScheduleStatus *ScheduleStatus   `json:"_schedule_status,omitempty"`
-}
-
-// ScheduleStatus provides runtime schedule info (populated by ScheduleEngine in Plan 3)
-type ScheduleStatus struct {
-	LastRun   *time.Time `json:"last_run,omitempty"`
-	NextRun   *time.Time `json:"next_run,omitempty"`
-	TotalRuns int        `json:"total_runs"`
-}
-
-// ConfigReq is the request body for SetConfig (partial update)
-type ConfigReq struct {
-	Runner   *string            `json:"runner,omitempty"`
-	Model    *string            `json:"model,omitempty"`
-	Image    *string            `json:"image,omitempty"`
-	Timeout  *string            `json:"timeout,omitempty"`
-	MaxTurns *int               `json:"max_turns,omitempty"`
-	Secrets  map[string]*string `json:"secrets,omitempty"`
-	Services []ServiceDecl      `json:"services,omitempty"`
-	Skills   []string           `json:"skills,omitempty"`
-	Schedule *ScheduleConfig    `json:"schedule,omitempty"`
-}
-
-// TaskSetting represents the merged task configuration across all layers
-type TaskSetting struct {
-	Runner   string                            `json:"runner,omitempty"`
-	Model    string                            `json:"model,omitempty"`
-	Image    string                            `json:"image,omitempty"`
-	Timeout  string                            `json:"timeout,omitempty"`
-	MaxTurns int                               `json:"max_turns,omitempty"`
-	Secrets  map[string]agentconfig.SecretInfo `json:"secrets,omitempty"`
-	Services []ServiceDecl                     `json:"services,omitempty"`
-	Skills   []string                          `json:"skills,omitempty"`
-	Schedule *ScheduleConfig                   `json:"schedule,omitempty"`
-}
+// --- Config types (kept for schedule system) ---
 
 // ServiceDecl declares a service exposed by the task container
 type ServiceDecl struct {
