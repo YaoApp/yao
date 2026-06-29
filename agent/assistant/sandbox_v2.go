@@ -71,18 +71,6 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 	if resolved.Image != "" {
 		cfg.Computer.Image = resolved.Image
 	}
-	if resolved.Secrets != nil {
-		if cfg.Secrets == nil {
-			cfg.Secrets = make(map[string]*sandboxTypes.SecretEntry)
-		}
-		for k, v := range resolved.Secrets {
-			if existing, ok := cfg.Secrets[k]; ok && existing != nil {
-				existing.Value = v
-			} else {
-				cfg.Secrets[k] = &sandboxTypes.SecretEntry{Value: v}
-			}
-		}
-	}
 
 	// 1. Runner set resolution (use resolved.Runner as user preference).
 	globalRunner := ""

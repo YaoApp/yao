@@ -105,19 +105,12 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		opts.NodeID = cfg.NodeID
 	}
 
-	// Merge environment + secrets into CreateOptions.Env.
-	// Secrets override environment for same-name keys.
+	// Merge environment into CreateOptions.Env.
 	// $ENV.XXX references are resolved at runtime.
-	envSize := len(cfg.Environment) + len(cfg.Secrets)
-	if envSize > 0 {
-		opts.Env = make(map[string]string, envSize)
+	if len(cfg.Environment) > 0 {
+		opts.Env = make(map[string]string, len(cfg.Environment))
 		for k, v := range cfg.Environment {
 			opts.Env[k] = str.EnvVar(v)
-		}
-		for k, entry := range cfg.Secrets {
-			if entry != nil && entry.Value != "" {
-				opts.Env[k] = str.EnvVar(entry.Value)
-			}
 		}
 	}
 

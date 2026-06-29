@@ -27,7 +27,7 @@ func GetConfig(ctx context.Context, auth *process.AuthorizedInfo, chatID string)
 		return nil, fmt.Errorf("task.GetConfig: %w", err)
 	}
 
-	setting := &TaskSetting{
+	ts := &TaskSetting{
 		Runner:   resolved.Runner,
 		Model:    resolved.Model,
 		Image:    resolved.Image,
@@ -39,7 +39,7 @@ func GetConfig(ctx context.Context, auth *process.AuthorizedInfo, chatID string)
 
 	// Convert services
 	for _, svc := range resolved.Services {
-		setting.Services = append(setting.Services, ServiceDecl{
+		ts.Services = append(ts.Services, ServiceDecl{
 			Name:     svc.Name,
 			Port:     svc.Port,
 			Protocol: svc.Protocol,
@@ -49,7 +49,7 @@ func GetConfig(ctx context.Context, auth *process.AuthorizedInfo, chatID string)
 
 	// Convert schedule
 	if resolved.Schedule != nil {
-		setting.Schedule = &ScheduleConfig{
+		ts.Schedule = &ScheduleConfig{
 			Enabled:       resolved.Schedule.Enabled,
 			Mode:          resolved.Schedule.Mode,
 			Times:         resolved.Schedule.Times,
@@ -63,7 +63,7 @@ func GetConfig(ctx context.Context, auth *process.AuthorizedInfo, chatID string)
 	}
 
 	return &Config{
-		Setting:      setting,
+		Setting:      ts,
 		ResolvedFrom: resolved.ResolvedFrom,
 	}, nil
 }
@@ -111,7 +111,7 @@ func configReqToMap(req *ConfigReq) map[string]interface{} {
 			if v == nil {
 				secrets[k] = nil
 			} else {
-				secrets[k] = map[string]interface{}{"value": *v}
+				secrets[k] = map[string]interface{}{"value": setting.Encrypt(*v)}
 			}
 		}
 		data["secrets"] = secrets

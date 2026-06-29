@@ -73,9 +73,17 @@ func applyDefaults(dst *Resolved, src *AssistantDefaults) {
 		dst.ResolvedFrom["max_turns"] = "dsl"
 	}
 	if len(src.Secrets) > 0 {
-		dst.Secrets = make(map[string]string, len(src.Secrets))
-		for k, v := range src.Secrets {
-			dst.Secrets[k] = v
+		dst.Secrets = make(map[string]SecretInfo, len(src.Secrets))
+		for k, meta := range src.Secrets {
+			dst.Secrets[k] = SecretInfo{
+				HasValue:    false,
+				Predefined:  true,
+				Label:       meta.Label,
+				Description: meta.Description,
+				Required:    meta.Required,
+				Multiline:   meta.Multiline,
+				Source:      "dsl",
+			}
 		}
 		dst.ResolvedFrom["secrets"] = "dsl"
 	}
@@ -90,8 +98,6 @@ func applyDefaults(dst *Resolved, src *AssistantDefaults) {
 }
 
 // mergeLayer applies a settings map onto Resolved, tracking the source layer.
-// Handles both task-config format (runner, secrets as strings) and
-// agent.{id} format (runners as array, secrets as nested objects).
 func mergeLayer(dst *Resolved, src map[string]interface{}, layer string) {
 	if v, ok := src["runner"].(string); ok && v != "" {
 		dst.Runner = v
@@ -136,15 +142,7 @@ func mergeLayer(dst *Resolved, src map[string]interface{}, layer string) {
 		}
 	}
 	if v, ok := src["secrets"]; ok && v != nil {
-		if sm := toSecretsMap(v); len(sm) > 0 {
-			if dst.Secrets == nil {
-				dst.Secrets = make(map[string]string)
-			}
-			for k, val := range sm {
-				dst.Secrets[k] = val
-			}
-			dst.ResolvedFrom["secrets"] = layer
-		}
+		mergeSecrets(dst, v, layer)
 	}
 	if v, ok := src["services"]; ok && v != nil {
 		if svcs := toServiceDecls(v); len(svcs) > 0 {
@@ -172,6 +170,52 @@ func mergeLayer(dst *Resolved, src map[string]interface{}, layer string) {
 	}
 }
 
+// mergeSecrets merges per-key secret info from a registry layer.
+// Preserves DSL metadata for predefined keys, adds new keys as non-predefined.
+func mergeSecrets(dst *Resolved, raw interface{}, layer string) {
+	m, ok := raw.(map[string]interface{})
+	if !ok {
+		return
+	}
+	if dst.Secrets == nil {
+		dst.Secrets = make(map[string]SecretInfo)
+	}
+	for k, val := range m {
+		if val == nil {
+			if existing, ok := dst.Secrets[k]; ok {
+				existing.HasValue = false
+				existing.Source = layer
+				dst.Secrets[k] = existing
+			}
+			continue
+		}
+		entry, isMap := val.(map[string]interface{})
+		if !isMap {
+			continue
+		}
+
+		value, _ := entry["value"].(string)
+		hasValue := value != ""
+
+		if existing, ok := dst.Secrets[k]; ok {
+			existing.HasValue = hasValue
+			existing.Source = layer
+			dst.Secrets[k] = existing
+		} else {
+			dst.Secrets[k] = SecretInfo{
+				HasValue:    hasValue,
+				Predefined:  false,
+				Label:       stringFromMap(entry, "label"),
+				Description: stringFromMap(entry, "description"),
+				Required:    boolFromMap(entry, "required"),
+				Multiline:   boolFromMap(entry, "multiline"),
+				Source:      layer,
+			}
+		}
+	}
+	dst.ResolvedFrom["secrets"] = layer
+}
+
 // toStringSlice converts an array-like value to []string.
 func toStringSlice(v interface{}) []string {
 	switch arr := v.(type) {
@@ -187,36 +231,6 @@ func toStringSlice(v interface{}) []string {
 		return result
 	}
 	return nil
-}
-
-// toSecretsMap converts secrets from either flat strings or nested SecretEntry objects.
-// Handles: {"KEY": "value"} and {"KEY": {"value": "v", "label": "..."}}
-// Values are decrypted via setting.Decrypt (no-op for non-encrypted strings).
-func toSecretsMap(v interface{}) map[string]string {
-	m, ok := v.(map[string]interface{})
-	if !ok {
-		if sm, ok := v.(map[string]string); ok {
-			for k, val := range sm {
-				sm[k] = setting.Decrypt(val)
-			}
-			return sm
-		}
-		return nil
-	}
-	result := make(map[string]string, len(m))
-	for k, val := range m {
-		switch entry := val.(type) {
-		case string:
-			if entry != "" {
-				result[k] = setting.Decrypt(entry)
-			}
-		case map[string]interface{}:
-			if s, ok := entry["value"].(string); ok && s != "" {
-				result[k] = setting.Decrypt(s)
-			}
-		}
-	}
-	return result
 }
 
 // toServiceDecls converts services from either ServiceDecl format ({name,port,...})
@@ -261,4 +275,18 @@ func toServiceDecls(v interface{}) []ServiceDecl {
 		}
 	}
 	return result
+}
+
+func stringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func boolFromMap(m map[string]interface{}, key string) bool {
+	if v, ok := m[key].(bool); ok {
+		return v
+	}
+	return false
 }

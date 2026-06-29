@@ -15,7 +15,6 @@ import (
 	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/kun/str"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	"github.com/yaoapp/yao/config"
@@ -220,14 +219,6 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 				if budget, ok := thinking["budget_tokens"].(float64); ok && budget > 0 {
 					env["MAX_THINKING_TOKENS"] = fmt.Sprintf("%d", int(budget))
 				}
-			}
-		}
-	}
-
-	if req.Config != nil && len(req.Config.Secrets) > 0 {
-		for k, entry := range req.Config.Secrets {
-			if entry != nil && entry.Value != "" {
-				env[k] = str.EnvVar(entry.Value)
 			}
 		}
 	}

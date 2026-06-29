@@ -3,6 +3,7 @@ package task
 import (
 	"time"
 
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/agent/output/message"
 )
 
@@ -136,15 +137,15 @@ type ConfigReq struct {
 
 // TaskSetting represents the merged task configuration across all layers
 type TaskSetting struct {
-	Runner   string            `json:"runner,omitempty"`
-	Model    string            `json:"model,omitempty"`
-	Image    string            `json:"image,omitempty"`
-	Timeout  string            `json:"timeout,omitempty"`
-	MaxTurns int               `json:"max_turns,omitempty"`
-	Secrets  map[string]string `json:"secrets,omitempty"`
-	Services []ServiceDecl     `json:"services,omitempty"`
-	Skills   []string          `json:"skills,omitempty"`
-	Schedule *ScheduleConfig   `json:"schedule,omitempty"`
+	Runner   string                          `json:"runner,omitempty"`
+	Model    string                          `json:"model,omitempty"`
+	Image    string                          `json:"image,omitempty"`
+	Timeout  string                          `json:"timeout,omitempty"`
+	MaxTurns int                             `json:"max_turns,omitempty"`
+	Secrets  map[string]agentconfig.SecretInfo `json:"secrets,omitempty"`
+	Services []ServiceDecl                   `json:"services,omitempty"`
+	Skills   []string                        `json:"skills,omitempty"`
+	Schedule *ScheduleConfig                 `json:"schedule,omitempty"`
 }
 
 // ServiceDecl declares a service exposed by the task container

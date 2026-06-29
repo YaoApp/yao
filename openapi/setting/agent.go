@@ -93,12 +93,6 @@ func handleAgentSettingGet(c *gin.Context) {
 		runners = []string{}
 	}
 
-	// Mask secrets (show keys but hide values)
-	maskedSecrets := map[string]interface{}{}
-	for k := range resolved.Secrets {
-		maskedSecrets[k] = "***"
-	}
-
 	// Convert services to API format
 	services := make([]map[string]interface{}, 0, len(resolved.Services))
 	for _, svc := range resolved.Services {
@@ -112,7 +106,7 @@ func handleAgentSettingGet(c *gin.Context) {
 		"runners":  runners,
 		"image":    resolved.Image,
 		"services": services,
-		"secrets":  maskedSecrets,
+		"secrets":  resolved.Secrets,
 	}
 
 	result := map[string]interface{}{

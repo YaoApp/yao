@@ -8,6 +8,15 @@ type ResolveOptions struct {
 	TeamID      string // optional: empty skips team scope merge
 }
 
+// SecretMeta holds DSL-declared secret metadata (from sandbox.yao).
+// Only carries display info — never holds the actual secret value.
+type SecretMeta struct {
+	Label       string
+	Description string
+	Required    bool
+	Multiline   bool
+}
+
 // AssistantDefaults represents Layer 0 values extracted from the assistant DSL
 // (package.yao / sandbox.yao).
 type AssistantDefaults struct {
@@ -15,7 +24,7 @@ type AssistantDefaults struct {
 	Runner    string
 	Image     string
 	MaxTurns  int
-	Secrets   map[string]string
+	Secrets   map[string]SecretMeta
 	Services  []ServiceDecl
 	Skills    []string
 }

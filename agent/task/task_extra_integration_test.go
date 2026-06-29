@@ -101,8 +101,12 @@ func TestConfig_SetAndGet(t *testing.T) {
 
 		cfg, err := task.GetConfig(ctx, auth, chatID)
 		require.NoError(t, err)
-		assert.Equal(t, "sk-test-123", cfg.Setting.Secrets["API_KEY"])
-		assert.Equal(t, "postgres://localhost/test", cfg.Setting.Secrets["DB_URL"])
+		require.Contains(t, cfg.Setting.Secrets, "API_KEY")
+		assert.Equal(t, true, cfg.Setting.Secrets["API_KEY"].HasValue)
+		assert.Equal(t, "task", cfg.Setting.Secrets["API_KEY"].Source)
+		require.Contains(t, cfg.Setting.Secrets, "DB_URL")
+		assert.Equal(t, true, cfg.Setting.Secrets["DB_URL"].HasValue)
+		assert.Equal(t, "task", cfg.Setting.Secrets["DB_URL"].Source)
 	})
 
 	t.Run("SetConfig_with_services", func(t *testing.T) {

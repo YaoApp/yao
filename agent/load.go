@@ -590,12 +590,17 @@ func loadAssistantDefaults(assistantID string) (*agentconfig.AssistantDefaults, 
 			}
 		}
 
-		// Secrets
+		// Secrets metadata (only labels/description — never the $ENV value)
 		if ast.SandboxV2.Secrets != nil {
-			defaults.Secrets = make(map[string]string, len(ast.SandboxV2.Secrets))
+			defaults.Secrets = make(map[string]agentconfig.SecretMeta, len(ast.SandboxV2.Secrets))
 			for k, entry := range ast.SandboxV2.Secrets {
 				if entry != nil {
-					defaults.Secrets[k] = entry.Value
+					defaults.Secrets[k] = agentconfig.SecretMeta{
+						Label:       entry.Label,
+						Description: entry.Description,
+						Required:    entry.Required,
+						Multiline:   entry.Multiline,
+					}
 				}
 			}
 		}

@@ -24,7 +24,7 @@ func TestResolve_DSLOnly(t *testing.T) {
 			Runner:    "claude-code",
 			Image:     "yao/sandbox:latest",
 			MaxTurns:  50,
-			Secrets:   map[string]string{"API_KEY": ""},
+			Secrets:   map[string]config.SecretMeta{"API_KEY": {Label: "API Key", Required: true}},
 			Skills:    []string{"web-search"},
 		}, nil
 	}
@@ -42,7 +42,12 @@ func TestResolve_DSLOnly(t *testing.T) {
 	assert.Equal(t, "openai.mock", resolved.Model)
 	assert.Equal(t, "yao/sandbox:latest", resolved.Image)
 	assert.Equal(t, 50, resolved.MaxTurns)
-	assert.Equal(t, map[string]string{"API_KEY": ""}, resolved.Secrets)
+	require.Contains(t, resolved.Secrets, "API_KEY")
+	assert.Equal(t, true, resolved.Secrets["API_KEY"].Predefined)
+	assert.Equal(t, false, resolved.Secrets["API_KEY"].HasValue)
+	assert.Equal(t, "API Key", resolved.Secrets["API_KEY"].Label)
+	assert.Equal(t, true, resolved.Secrets["API_KEY"].Required)
+	assert.Equal(t, "dsl", resolved.Secrets["API_KEY"].Source)
 	assert.Equal(t, []string{"web-search"}, resolved.Skills)
 	assert.Equal(t, "dsl", resolved.ResolvedFrom["runner"])
 }
@@ -136,7 +141,10 @@ func TestResolve_UserAndTaskLayers(t *testing.T) {
 	assert.Equal(t, "task-runner", resolved.Runner, "task layer wins")
 	assert.Equal(t, "30m", resolved.Timeout, "timeout from user layer")
 	assert.Equal(t, 200, resolved.MaxTurns, "max_turns from task layer")
-	assert.Equal(t, "deploy-val", resolved.Secrets["DEPLOY_KEY"], "secrets from user layer")
+	require.Contains(t, resolved.Secrets, "DEPLOY_KEY")
+	assert.Equal(t, true, resolved.Secrets["DEPLOY_KEY"].HasValue, "secret has value from user layer")
+	assert.Equal(t, false, resolved.Secrets["DEPLOY_KEY"].Predefined, "user-added secret is not predefined")
+	assert.Equal(t, "user", resolved.Secrets["DEPLOY_KEY"].Source, "secret source is user")
 	assert.Equal(t, "task", resolved.ResolvedFrom["runner"])
 	assert.Equal(t, "user", resolved.ResolvedFrom["timeout"])
 	assert.Equal(t, "task", resolved.ResolvedFrom["max_turns"])
