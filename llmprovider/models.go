@@ -209,12 +209,32 @@ func (r *Registry) ListModelsByTeam(teamID string) []connector.Option {
 	return r.listModels(&ProviderOwner{Type: "team", TeamID: teamID})
 }
 
-// ListModelsBy returns models scoped to the caller's identity (team > user).
+// ListModelsBy returns models scoped to the caller's identity.
+// When both TeamID and UserID are present, returns team + user models (deduplicated).
 func (r *Registry) ListModelsBy(id Identity) []connector.Option {
+	if id.GetTeamID() != "" && id.GetUserID() != "" {
+		teamOpts := r.ListModelsByTeam(id.GetTeamID())
+		userOpts := r.ListModelsByUser(id.GetUserID())
+		return mergeModelOptions(teamOpts, userOpts)
+	}
 	if id.GetTeamID() != "" {
 		return r.ListModelsByTeam(id.GetTeamID())
 	}
 	return r.ListModelsByUser(id.GetUserID())
+}
+
+func mergeModelOptions(primary, secondary []connector.Option) []connector.Option {
+	seen := make(map[string]bool, len(primary))
+	for _, o := range primary {
+		seen[o.Value] = true
+	}
+	result := append([]connector.Option{}, primary...)
+	for _, o := range secondary {
+		if !seen[o.Value] {
+			result = append(result, o)
+		}
+	}
+	return result
 }
 
 // ---------------------------------------------------------------------------

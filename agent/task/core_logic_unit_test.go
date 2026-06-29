@@ -5,7 +5,6 @@ package task_test
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -78,7 +77,7 @@ func TestDaemonContext_StopIdleTimer_PreventsFire(t *testing.T) {
 
 func TestBuildEnrichResultPrompt_FirstRun(t *testing.T) {
 	msgs := []string{"user: hello", "assistant: hi there"}
-	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, true, nil)
+	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, true, nil, "zh-CN")
 	prompt := systemPrompt + "\n" + userContent
 
 	assert.Contains(t, prompt, "title")
@@ -87,33 +86,28 @@ func TestBuildEnrichResultPrompt_FirstRun(t *testing.T) {
 	assert.Contains(t, prompt, "instruction")
 	assert.Contains(t, prompt, "summary")
 	assert.Contains(t, prompt, "outputs")
-	assert.Contains(t, prompt, "正常结束")
+	assert.Contains(t, prompt, "completed normally")
 	assert.Contains(t, prompt, "hello")
 }
 
 func TestBuildEnrichResultPrompt_NotFirstRun(t *testing.T) {
 	msgs := []string{"user: continue", "assistant: done"}
-	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, false, nil)
+	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, false, nil, "en")
 	prompt := systemPrompt + "\n" + userContent
 
 	// Should NOT contain title/tags/priority fields for non-first run
-	lines := strings.Split(prompt, "\n")
-	titleFieldFound := false
-	for _, line := range lines {
-		if strings.Contains(line, `"title"`) && strings.Contains(line, "20字内") {
-			titleFieldFound = true
-		}
-	}
-	assert.False(t, titleFieldFound)
+	assert.NotContains(t, prompt, `"title": "concise task title`)
+	assert.NotContains(t, prompt, `"tags"`)
+	assert.NotContains(t, prompt, `"priority": "none|low|medium|high"`)
 	assert.Contains(t, prompt, "instruction")
 }
 
 func TestBuildEnrichResultPrompt_WithError(t *testing.T) {
 	msgs := []string{"user: do something", "assistant: trying..."}
-	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, true, fmt.Errorf("timeout after 60m"))
+	systemPrompt, userContent := task.ExportBuildEnrichResultPrompt(msgs, true, fmt.Errorf("timeout after 60m"), "zh-CN")
 	prompt := systemPrompt + "\n" + userContent
 
-	assert.Contains(t, prompt, "执行出错")
+	assert.Contains(t, prompt, "execution error")
 	assert.Contains(t, prompt, "timeout after 60m")
 }
 

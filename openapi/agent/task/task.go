@@ -88,6 +88,7 @@ func handleCreate(c *gin.Context) {
 
 func handleGet(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
+	info := authorized.GetInfo(c)
 	chatID := c.Param("chat_id")
 
 	result, err := tasksvc.Get(c.Request.Context(), auth, chatID)
@@ -98,6 +99,7 @@ func handleGet(c *gin.Context) {
 	if locale := c.Query("locale"); locale != "" {
 		tasksvc.TranslateAssistantName(result, locale)
 	}
+	tasksvc.ResolveConnectorLabel(result, info)
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 

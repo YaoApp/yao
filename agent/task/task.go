@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/event"
+	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -179,6 +180,26 @@ func TranslateAssistantName(t *Task, locale string) {
 			t.AssistantName = s
 		}
 	}
+}
+
+// ResolveConnectorLabel resolves LastConnector ID to a user-friendly label
+// by looking it up in the model list scoped to the caller's identity.
+func ResolveConnectorLabel(t *Task, id llmprovider.Identity) {
+	if t == nil || t.LastConnector == nil || *t.LastConnector == "" {
+		return
+	}
+	if llmprovider.Global == nil {
+		return
+	}
+	connectorID := *t.LastConnector
+	opts := llmprovider.Global.ListModelsBy(id)
+	for _, o := range opts {
+		if o.Value == connectorID {
+			t.ConnectorLabel = o.Label
+			return
+		}
+	}
+	t.ConnectorLabel = connectorID
 }
 
 // Create creates a new task with its associated chat

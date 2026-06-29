@@ -62,7 +62,8 @@ type Task struct {
 	BoardID       *string `json:"board_id,omitempty"`
 
 	// Resolved at query time
-	WorkspaceName string `json:"workspace_name,omitempty"`
+	WorkspaceName  string `json:"workspace_name,omitempty"`
+	ConnectorLabel string `json:"connector_label,omitempty"`
 }
 
 // CreateReq parameters for creating a task
