@@ -18,9 +18,7 @@ var (
 	ExportGetTime          = getTime
 
 	// Plan 2 exports
-	ExportMergeLayer     = mergeLayer
 	ExportConfigReqToMap = configReqToMap
-	ExportToStringMap    = toStringMap
 
 	// Plan 3 exports - daemon
 	ExportNewDaemonContext        = newDaemonContext

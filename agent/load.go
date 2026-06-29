@@ -2,12 +2,14 @@ package agent
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/helper"
 	"github.com/yaoapp/yao/agent/assistant"
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	robottypes "github.com/yaoapp/yao/agent/robot/types"
@@ -132,6 +134,9 @@ func Load(cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+
+	// Inject config loader (breaks circular dep: agent/config -> agent/assistant)
+	agentconfig.LoadAssistantFunc = loadAssistantDefaults
 
 	return nil
 }
@@ -556,4 +561,70 @@ func resolveEnvStrings(setting *types.DSL) {
 
 	setting.Cache = helper.EnvString(setting.Cache)
 	setting.Runner = helper.EnvString(setting.Runner)
+}
+
+// loadAssistantDefaults extracts Layer 0 configuration from an assistant's DSL.
+func loadAssistantDefaults(assistantID string) (*agentconfig.AssistantDefaults, error) {
+	ast, err := assistant.Get(assistantID)
+	if err != nil {
+		return nil, err
+	}
+
+	defaults := &agentconfig.AssistantDefaults{
+		Connector: ast.Connector,
+	}
+
+	if ast.SandboxV2 != nil {
+		defaults.Runner = ast.SandboxV2.Runner.Name
+		defaults.Image = ast.SandboxV2.Computer.Image
+
+		// MaxTurns from runner options
+		if opts := ast.SandboxV2.Runner.Options; opts != nil {
+			if mt, ok := opts["max_turns"]; ok {
+				switch v := mt.(type) {
+				case float64:
+					defaults.MaxTurns = int(v)
+				case int:
+					defaults.MaxTurns = v
+				}
+			}
+		}
+
+		// Secrets
+		if ast.SandboxV2.Secrets != nil {
+			defaults.Secrets = make(map[string]string, len(ast.SandboxV2.Secrets))
+			for k, entry := range ast.SandboxV2.Secrets {
+				if entry != nil {
+					defaults.Secrets[k] = entry.Value
+				}
+			}
+		}
+
+		// Services from Computer.Ports
+		if len(ast.SandboxV2.Computer.Ports) > 0 {
+			defaults.Services = make([]agentconfig.ServiceDecl, 0, len(ast.SandboxV2.Computer.Ports))
+			for _, p := range ast.SandboxV2.Computer.Ports {
+				if p.Port > 0 {
+					defaults.Services = append(defaults.Services, agentconfig.ServiceDecl{
+						Name: p.Label,
+						Port: p.Port,
+					})
+				}
+			}
+		}
+	}
+
+	// Skills from assistants/{id}/skills/ directory
+	if ast.Path != "" {
+		skillsDir := filepath.Join(config.Conf.AppSource, ast.Path, "skills")
+		if entries, err := os.ReadDir(skillsDir); err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() {
+					defaults.Skills = append(defaults.Skills, entry.Name())
+				}
+			}
+		}
+	}
+
+	return defaults, nil
 }

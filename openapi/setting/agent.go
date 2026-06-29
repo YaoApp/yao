@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/assistant"
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	"github.com/yaoapp/yao/config"
@@ -78,31 +79,40 @@ func handleAgentSettingGet(c *gin.Context) {
 	id := c.Param("id")
 	info := authorized.GetInfo(c)
 
-	var userSetting assistant.UserAgentSetting
-	if setting.Global != nil {
-		setting.Global.GetMerged(info.UserID, info.TeamID, agentSettingNS(id), &userSetting)
+	resolved, _ := agentconfig.Resolve(agentconfig.ResolveOptions{
+		AssistantID: id,
+		UserID:      info.UserID,
+		TeamID:      info.TeamID,
+	})
+	if resolved == nil {
+		resolved = &agentconfig.Resolved{}
 	}
 
-	if userSetting.Secrets != nil {
-		for _, entry := range userSetting.Secrets {
-			if entry != nil && entry.Value != "" {
-				entry.Value = "***"
-			}
-		}
-	}
-
-	runners := userSetting.Runners
+	runners := resolved.Runners
 	if runners == nil {
 		runners = []string{}
 	}
 
-	// Merge services: sandbox.yao defaults + user overrides
-	services := assistant.ResolveServices(id, userSetting.Services)
+	// Mask secrets (show keys but hide values)
+	maskedSecrets := map[string]interface{}{}
+	for k := range resolved.Secrets {
+		maskedSecrets[k] = "***"
+	}
+
+	// Convert services to API format
+	services := make([]map[string]interface{}, 0, len(resolved.Services))
+	for _, svc := range resolved.Services {
+		services = append(services, map[string]interface{}{
+			"label": svc.Name,
+			"port":  svc.Port,
+		})
+	}
 
 	settingMap := map[string]interface{}{
 		"runners":  runners,
-		"image":    userSetting.Image,
+		"image":    resolved.Image,
 		"services": services,
+		"secrets":  maskedSecrets,
 	}
 
 	result := map[string]interface{}{
@@ -207,10 +217,19 @@ func handleAgentSecretsGet(c *gin.Context) {
 		}
 	}
 
-	// Core: read user secrets from setting.Registry
-	var userSetting assistant.UserAgentSetting
+	// Core: read user secrets from setting.Registry (raw map)
+	var userSecrets map[string]map[string]interface{}
 	if setting.Global != nil {
-		setting.Global.GetMerged(info.UserID, info.TeamID, agentSettingNS(id), &userSetting)
+		if raw, err := setting.Global.GetMerged(info.UserID, info.TeamID, agentSettingNS(id)); err == nil && raw != nil {
+			if secretsRaw, ok := raw["secrets"].(map[string]interface{}); ok {
+				userSecrets = make(map[string]map[string]interface{}, len(secretsRaw))
+				for k, v := range secretsRaw {
+					if entry, ok := v.(map[string]interface{}); ok {
+						userSecrets[k] = entry
+					}
+				}
+			}
+		}
 	}
 
 	type secretResponse struct {
@@ -231,32 +250,28 @@ func handleAgentSecretsGet(c *gin.Context) {
 			Multiline:   meta.Multiline,
 			Predefined:  true,
 		}
-		if userSetting.Secrets != nil {
-			if userEntry, ok := userSetting.Secrets[k]; ok && userEntry != nil {
-				decrypted := setting.Decrypt(userEntry.Value)
+		if entry, ok := userSecrets[k]; ok {
+			if val, _ := entry["value"].(string); val != "" {
+				decrypted := setting.Decrypt(val)
 				sr.HasValue = decrypted != ""
 			}
 		}
 		result[k] = sr
 	}
 
-	if userSetting.Secrets != nil {
-		for k, entry := range userSetting.Secrets {
-			if _, isPredefined := predefined[k]; isPredefined {
-				continue
-			}
-			if entry == nil {
-				continue
-			}
-			decrypted := setting.Decrypt(entry.Value)
-			result[k] = &secretResponse{
-				Label:       entry.Label,
-				Description: entry.Description,
-				Required:    entry.Required,
-				Multiline:   entry.Multiline,
-				HasValue:    decrypted != "",
-				Predefined:  false,
-			}
+	for k, entry := range userSecrets {
+		if _, isPredefined := predefined[k]; isPredefined {
+			continue
+		}
+		val, _ := entry["value"].(string)
+		decrypted := setting.Decrypt(val)
+		result[k] = &secretResponse{
+			Label:       stringFromMap(entry, "label"),
+			Description: stringFromMap(entry, "description"),
+			Required:    boolFromMap(entry, "required"),
+			Multiline:   boolFromMap(entry, "multiline"),
+			HasValue:    decrypted != "",
+			Predefined:  false,
 		}
 	}
 
@@ -520,6 +535,20 @@ func containsRunner(runners []string, target string) bool {
 		if r == target {
 			return true
 		}
+	}
+	return false
+}
+
+func stringFromMap(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func boolFromMap(m map[string]interface{}, key string) bool {
+	if v, ok := m[key].(bool); ok {
+		return v
 	}
 	return false
 }

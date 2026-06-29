@@ -46,7 +46,7 @@ func TestRun_BasicExecution(t *testing.T) {
 
 	created, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Execution Test",
-		AssistantID: "asst-test-001",
+		AssistantID: "tests.simple-greeting",
 		ColumnID:    colID,
 	})
 	require.NoError(t, err)
@@ -110,7 +110,7 @@ func TestRun_QuotaQueued(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		created, err := task.Create(ctx, auth, &task.CreateReq{
 			Title:       fmt.Sprintf("Quota Test %d", i),
-			AssistantID: "asst-test-001",
+			AssistantID: "tests.simple-greeting",
 			ColumnID:    colID,
 		})
 		require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestStop_GracefulAndForce(t *testing.T) {
 	// Test graceful stop
 	created, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Stop Graceful Test",
-		AssistantID: "asst-test-001",
+		AssistantID: "tests.simple-greeting",
 		ColumnID:    colID,
 	})
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestStop_GracefulAndForce(t *testing.T) {
 	// Test force stop
 	created2, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Stop Force Test",
-		AssistantID: "asst-test-001",
+		AssistantID: "tests.simple-greeting",
 		ColumnID:    colID,
 	})
 	require.NoError(t, err)
@@ -231,7 +231,7 @@ func TestSetStatus_InboxTrigger(t *testing.T) {
 
 	created, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Inbox Trigger Test",
-		AssistantID: "asst-test-001",
+		AssistantID: "tests.simple-greeting",
 		ColumnID:    colID,
 	})
 	require.NoError(t, err)
@@ -281,7 +281,7 @@ func TestEnrichTaskResult_Integration(t *testing.T) {
 
 	created, err := task.Create(ctx, auth, &task.CreateReq{
 		Title:       "Enrich Test",
-		AssistantID: "asst-test-001",
+		AssistantID: "tests.simple-greeting",
 		ColumnID:    colID,
 	})
 	require.NoError(t, err)

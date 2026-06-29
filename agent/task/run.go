@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/xun/capsule"
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/event"
@@ -24,11 +25,6 @@ func Run(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *
 	task, err := Get(ctx, auth, chatID)
 	if err != nil {
 		return nil, err
-	}
-
-	cfg, err := GetConfig(ctx, auth, chatID)
-	if err != nil {
-		return nil, fmt.Errorf("task.Run: get config: %w", err)
 	}
 
 	dc := newDaemonContext(chatID)
@@ -54,7 +50,7 @@ func Run(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *
 				defer GlobalQuota.Release(auth.TeamID)
 				defer recoverDaemonPanic(dc)
 				setStatus(chatID, "running", auth, nil)
-				runDaemon(dc, auth, cfg, req, task)
+				runDaemon(dc, auth, req, task)
 			case <-dc.Context.Done():
 				GlobalQuota.Dequeue(auth.TeamID, chatID)
 				setStatus(chatID, "cancelled", auth, map[string]any{
@@ -76,7 +72,7 @@ func Run(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *
 		defer daemonWg.Done()
 		defer GlobalQuota.Release(auth.TeamID)
 		defer recoverDaemonPanic(dc)
-		runDaemon(dc, auth, cfg, req, task)
+		runDaemon(dc, auth, req, task)
 	}()
 	return &RunResult{ChatID: chatID, Status: "running", RequestID: requestID}, nil
 }
@@ -114,7 +110,7 @@ func SetPriority(ctx context.Context, auth *process.AuthorizedInfo, chatID strin
 }
 
 // runDaemon is the single-round execution: delegates to assistant.Stream(), then triggers enrichTaskResult.
-func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req *RunReq, task *Task) {
+func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, req *RunReq, task *Task) {
 	defer UnregisterDaemon(dc.ChatID)
 	defer dc.StopIdleTimer()
 
@@ -129,18 +125,8 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 		return
 	}
 
-	dur, _ := time.ParseDuration(cfg.Setting.Timeout)
-	if dur == 0 {
-		dur = 60 * time.Minute
-	}
-	stdCtx, cancel := context.WithTimeout(dc.Context, dur)
-
-	agentCtx := agentcontext.New(stdCtx, toOAuthInfo(auth), dc.ChatID)
-	// Correct cleanup order: Release (flush SafeWriter) → CloseSubscribers → cancel context
-	defer func() {
-		dc.CloseSubscribers()
-		cancel()
-	}()
+	// Build agent context first so config.Get can read AssistantID/ChatID/Authorized.
+	agentCtx := agentcontext.New(dc.Context, toOAuthInfo(auth), dc.ChatID)
 	defer agentCtx.Release()
 	agentCtx.AssistantID = task.AssistantID
 	agentCtx.Writer = NewDaemonResponseWriter(dc)
@@ -148,9 +134,27 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 	agentCtx.Referer = "task"
 	agentCtx.Locale = req.Locale
 
+	// Load unified config via agent/config.
+	resolved, cfgErr := agentconfig.Get(agentCtx)
+	if cfgErr != nil {
+		markFailed(dc, auth, fmt.Errorf("config.Get: %w", cfgErr))
+		return
+	}
+
+	dur, _ := time.ParseDuration(resolved.Timeout)
+	if dur == 0 {
+		dur = 60 * time.Minute
+	}
+	stdCtx, cancel := context.WithTimeout(dc.Context, dur)
+	agentCtx.Context = stdCtx
+	defer func() {
+		dc.CloseSubscribers()
+		cancel()
+	}()
+
 	opts := &agentcontext.Options{
-		Connector: cfg.Setting.Model,
-		Metadata:  map[string]any{"max_turns": cfg.Setting.MaxTurns},
+		Connector: resolved.Model,
+		Metadata:  map[string]any{"max_turns": resolved.MaxTurns},
 	}
 	// Only propagate workspace_id for sandbox binding — do NOT merge all WS
 	// metadata keys (column_id, assistant_id, etc.) into opts.Metadata as they
@@ -194,7 +198,7 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, cfg *Config, req
 
 	var finalErr error
 	if stdCtx.Err() == context.DeadlineExceeded {
-		finalErr = fmt.Errorf("timeout after %s", cfg.Setting.Timeout)
+		finalErr = fmt.Errorf("timeout after %s", resolved.Timeout)
 		markFailed(dc, auth, finalErr)
 	} else if err != nil {
 		finalErr = err

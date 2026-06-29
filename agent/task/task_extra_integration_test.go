@@ -29,7 +29,7 @@ func TestConfig_SetAndGet(t *testing.T) {
 	colID := b.Columns[0].ColumnID
 
 	created, err := task.Create(ctx, auth, &task.CreateReq{
-		Title: "Config Task", AssistantID: "asst-config-001", ColumnID: colID,
+		Title: "Config Task", AssistantID: "tests.simple-greeting", ColumnID: colID,
 	})
 	require.NoError(t, err)
 	chatID := created.ChatID
