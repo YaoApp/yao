@@ -52,6 +52,7 @@ func handleList(c *gin.Context) {
 		RunStatus:   c.Query("run_status"),
 		AssistantID: c.Query("assistant_id"),
 		BoardID:     c.Query("board_id"),
+		Locale:      c.Query("locale"),
 	}
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		q.Page = p
@@ -93,6 +94,9 @@ func handleGet(c *gin.Context) {
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
+	}
+	if locale := c.Query("locale"); locale != "" {
+		tasksvc.TranslateAssistantName(result, locale)
 	}
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }

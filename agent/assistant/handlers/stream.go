@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"strings"
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
@@ -21,6 +22,11 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 		inGroup:        false,
 		currentGroupID: "",
 		messageSeq:     0,
+	}
+
+	// Register onFlush callback so FlushBuffer can persist partial content on cancel
+	if ctx.Buffer != nil {
+		ctx.Buffer.SetOnFlush(state.flushPartial)
 	}
 
 	return func(chunkType message.StreamChunkType, data []byte) int {
@@ -80,6 +86,37 @@ type streamState struct {
 	groupStartTime time.Time              // Track when group started
 	lastExecStatus string                 // Last observed execute status in current group ("running", "completed", "error")
 	lastExecProps  map[string]interface{} // Accumulated execute props for the current group (merged across chunks)
+}
+
+// flushPartial flushes any partial buffer content to ctx.Buffer.
+// Called by ChatBuffer.GetMessages() via onFlush when stream is interrupted (e.g. context cancel).
+func (s *streamState) flushPartial() {
+	if !s.inGroup || len(s.buffer) == 0 || s.ctx.Buffer == nil {
+		return
+	}
+	msgType := s.currentType
+	if msgType == "" {
+		msgType = message.TypeText
+	}
+	var threadID, assistantID string
+	if s.ctx.Stack != nil {
+		if !s.ctx.Stack.IsRoot() {
+			threadID = s.ctx.Stack.ID
+		}
+		assistantID = s.ctx.Stack.AssistantID
+	}
+	props := map[string]interface{}{
+		"content": string(s.buffer),
+	}
+	s.ctx.Buffer.AddAssistantMessage(
+		s.currentGroupID,
+		msgType,
+		props,
+		"",
+		threadID,
+		assistantID,
+		nil,
+	)
 }
 
 // handleStreamStart handles stream start event
@@ -381,8 +418,14 @@ func (s *streamState) handleMetadata(data []byte) int {
 
 // handleError handles error chunks
 func (s *streamState) handleError(data []byte) int {
-	// Send error message
-	msg := output.NewErrorMessage(string(data), "stream_error")
+	errText := string(data)
+
+	// Suppress "context canceled" errors — these are expected when user stops a task
+	if strings.Contains(errText, "context canceled") || strings.Contains(errText, "context deadline exceeded") {
+		return 1
+	}
+
+	msg := output.NewErrorMessage(errText, "stream_error")
 	s.ctx.Send(msg)
 
 	return 1 // Stop streaming on error

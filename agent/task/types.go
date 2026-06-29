@@ -134,6 +134,7 @@ type ScheduleConfig struct {
 type RunReq struct {
 	Messages    []InputMessage `json:"messages"`
 	AssistantID string         `json:"assistant_id,omitempty"`
+	Model       string         `json:"model,omitempty"` // connector ID from user selection (overrides config)
 	Metadata    map[string]any `json:"metadata,omitempty"`
 	Priority    int            `json:"priority,omitempty"`
 	Source      string         `json:"source,omitempty"` // "run", "retry", "repeat"
@@ -198,6 +199,7 @@ type WSCommand struct {
 	Type        string         `json:"type"`                   // "read", "history", "run", "retry", "repeat", "stop", "cancel"
 	Messages    []InputMessage `json:"messages,omitempty"`     // For run/retry: user messages
 	AssistantID string         `json:"assistant_id,omitempty"` // For run: assistant to use
+	Model       string         `json:"model,omitempty"`        // For run: connector ID from user selection
 	Metadata    map[string]any `json:"metadata,omitempty"`     // For run: task metadata
 	Priority    int            `json:"priority,omitempty"`     // For run: priority
 	Force       bool           `json:"force,omitempty"`        // Reserved

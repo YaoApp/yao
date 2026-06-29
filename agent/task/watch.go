@@ -32,12 +32,8 @@ func Watch(ctx context.Context, auth *process.AuthorizedInfo, chatID string, opt
 	if exists {
 		stream, err := dc.Watch(opts)
 		if err == nil {
-			fmt.Printf("  • [task.watch] LIVE chatID=%s\n", chatID)
 			return stream, nil
 		}
-		fmt.Printf("  • [task.watch] daemon found but Watch FAILED chatID=%s err=%v\n", chatID, err)
-	} else {
-		fmt.Printf("  • [task.watch] NO DAEMON chatID=%s → fallback to DB\n", chatID)
 	}
 
 	return watchFromDB(chatID, opts)

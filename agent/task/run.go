@@ -2,8 +2,10 @@ package task
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"runtime/debug"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -19,6 +21,8 @@ import (
 // AssistantStreamFn is the function pointer for assistant.Stream() to avoid circular imports.
 // Injected via tools_bridge or init. Signature mirrors assistant.Assistant.Stream().
 var AssistantStreamFn func(assistantID string, ctx *agentcontext.Context, msgs []agentcontext.Message, opts ...*agentcontext.Options) (*agentcontext.Response, error)
+
+var errUserCancelled = fmt.Errorf("user_cancelled")
 
 // Run starts or queues a task execution. Atomic operation (no LLM enrichment).
 func Run(ctx context.Context, auth *process.AuthorizedInfo, chatID string, req *RunReq) (*RunResult, error) {
@@ -156,6 +160,9 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, req *RunReq, tas
 		Connector: resolved.Model,
 		Metadata:  map[string]any{"max_turns": resolved.MaxTurns},
 	}
+	if req.Model != "" {
+		opts.Connector = req.Model
+	}
 	// Only propagate workspace_id for sandbox binding — do NOT merge all WS
 	// metadata keys (column_id, assistant_id, etc.) into opts.Metadata as they
 	// pollute ctx.Metadata and can change sandbox identifier / behavior.
@@ -197,25 +204,35 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, req *RunReq, tas
 	_, err := AssistantStreamFn(task.AssistantID, agentCtx, inputToAgentMessages(req.Messages), opts)
 
 	var finalErr error
+	status := "completed"
+
 	if stdCtx.Err() == context.DeadlineExceeded {
 		finalErr = fmt.Errorf("timeout after %s", resolved.Timeout)
+		status = "failed"
 		markFailed(dc, auth, finalErr)
+	} else if dc.Context.Err() != nil && isContextCanceled(err) {
+		status = "cancelled"
+		finalErr = errUserCancelled
+		dc.Broadcast(&message.Message{
+			Type:  "text",
+			Props: map[string]interface{}{"content": "\n\n---\n*[任务已被用户取消]*"},
+		})
+		setStatus(dc.ChatID, "cancelled", auth, map[string]any{
+			"cancelled_at":  time.Now(),
+			"cancel_reason": "user_stopped",
+		})
 	} else if err != nil {
 		finalErr = err
+		status = "failed"
 		markFailed(dc, auth, finalErr)
 	}
 
 	dc.SetStatus(DaemonStopped)
-
-	status := "completed"
-	if finalErr != nil {
-		status = "failed"
-	}
 	logTaskCompleted(dc.ChatID, columnID, task.AssistantID, status, time.Since(daemonStart), finalErr)
 
 	isFirstRun := (task.RunCount <= 1)
 	recentTexts := collectConversationText(req.Messages, dc)
-	go enrichTaskResult(dc.ChatID, auth, isFirstRun, finalErr, recentTexts)
+	go enrichTaskResult(dc.ChatID, auth, isFirstRun, finalErr, recentTexts, req.Locale)
 }
 
 func collectConversationText(msgs []InputMessage, dc *DaemonContext) []string {
@@ -272,6 +289,18 @@ func markFailed(dc *DaemonContext, auth *process.AuthorizedInfo, err error) {
 		"error_message": errMsg,
 		"completed_at":  time.Now(),
 	})
+}
+
+// isContextCanceled checks if an error is caused by context cancellation
+func isContextCanceled(err error) bool {
+	if err == nil {
+		return true // no error but context was canceled — still a cancel
+	}
+	if errors.Is(err, context.Canceled) {
+		return true
+	}
+	errMsg := err.Error()
+	return strings.Contains(errMsg, "context canceled") || strings.Contains(errMsg, "context deadline exceeded")
 }
 
 func recoverDaemonPanic(dc *DaemonContext) {

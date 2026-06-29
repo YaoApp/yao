@@ -169,6 +169,18 @@ func Get(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (*Tas
 	return t, nil
 }
 
+// TranslateAssistantName applies i18n translation to a task's AssistantName.
+func TranslateAssistantName(t *Task, locale string) {
+	if t == nil || locale == "" || t.AssistantName == "" || t.AssistantID == "" {
+		return
+	}
+	if translated := i18n.Translate(t.AssistantID, locale, t.AssistantName); translated != nil {
+		if s, ok := translated.(string); ok {
+			t.AssistantName = s
+		}
+	}
+}
+
 // Create creates a new task with its associated chat
 func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (*Task, error) {
 	chatID := req.ChatID

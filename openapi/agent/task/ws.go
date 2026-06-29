@@ -2,7 +2,6 @@ package task
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
 	"strconv"
@@ -35,7 +34,6 @@ func (s *wsSession) cancelWatch() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.activeWatch != nil {
-		fmt.Printf("  • [task.ws.cancelWatch] cancelling active watch\n")
 		s.activeWatch.Cancel()
 		s.activeWatch = nil
 	}
@@ -65,13 +63,6 @@ func handleWS(c *gin.Context) {
 					conn.WriteMessage(websocket.CloseMessage,
 						websocket.FormatCloseMessage(websocket.CloseNormalClosure, "stream ended"))
 					return
-				}
-				if msg.Type == "event" {
-					seq := 0
-					if msg.Metadata != nil {
-						seq = msg.Metadata.Sequence
-					}
-					fmt.Printf("  • [task.ws.write] chatID=%s seq=%d type=%s\n", chatID, seq, msg.Type)
 				}
 				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 				if conn.WriteJSON(msg) != nil {
@@ -122,10 +113,8 @@ func wsCommandLoop(conn *websocket.Conn, auth *process.AuthorizedInfo, chatID st
 		var cmd tasksvc.WSCommand
 		if err := conn.ReadJSON(&cmd); err != nil {
 			if isTimeout(err) {
-				fmt.Printf("  • [task.ws.loop] read timeout (normal close) chatID=%s\n", chatID)
 				return true
 			}
-			fmt.Printf("  • [task.ws.loop] read ERROR chatID=%s err=%v\n", chatID, err)
 			return false
 		}
 
@@ -142,8 +131,14 @@ func wsCommandLoop(conn *websocket.Conn, auth *process.AuthorizedInfo, chatID st
 			handleRepeatCmd(session, auth, chatID, cmd, outCh, stopCh)
 		case "stop":
 			tasksvc.Stop(context.Background(), auth, chatID, false)
+			session.cancelWatch()
+			sendEvent(outCh, stopCh, "stream_end", nil)
+			return true
 		case "cancel":
 			tasksvc.Stop(context.Background(), auth, chatID, true)
+			session.cancelWatch()
+			sendEvent(outCh, stopCh, "stream_end", nil)
+			return true
 		}
 	}
 }
@@ -233,7 +228,6 @@ func subscribeLiveOnly(session *wsSession, chatID string, outCh chan<- *message.
 		return
 	}
 	sendEvent(outCh, stopCh, "live_status", map[string]any{"status": "running"})
-	fmt.Printf("  • [task.ws.subscribeLive] chatID=%s\n", chatID)
 
 	session.mu.Lock()
 	session.activeWatch = stream
@@ -268,7 +262,6 @@ func subscribeLiveOnly(session *wsSession, chatID string, outCh chan<- *message.
 
 func handleRunCmd(session *wsSession, auth *process.AuthorizedInfo, chatID string, cmd tasksvc.WSCommand, outCh chan<- *message.Message, stopCh <-chan struct{}) {
 	task, _ := tasksvc.Get(context.Background(), auth, chatID)
-	fmt.Printf("  • [task.ws] run chatID=%s isNew=%v\n", chatID, task == nil)
 	if task == nil {
 		_, err := tasksvc.CreateFromWS(context.Background(), auth, &tasksvc.CreateFromWSReq{
 			ChatID:   chatID,
@@ -286,17 +279,16 @@ func handleRunCmd(session *wsSession, auth *process.AuthorizedInfo, chatID strin
 	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
 		Messages:    cmd.Messages,
 		AssistantID: cmd.AssistantID,
+		Model:       cmd.Model,
 		Metadata:    cmd.Metadata,
 		Priority:    cmd.Priority,
 		Source:      "run",
 		Locale:      cmd.Locale,
 	})
 	if err != nil {
-		fmt.Printf("  • [task.ws] run ERROR chatID=%s err=%s\n", chatID, err.Error())
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})
 		return
 	}
-	fmt.Printf("  • [task.ws] run OK chatID=%s status=%s → subscribing live\n", chatID, result.Status)
 	if result.Status == "queued" {
 		sendEvent(outCh, stopCh, "queued", map[string]any{"position": result.Position})
 	}
@@ -320,6 +312,7 @@ func handleRetryCmd(session *wsSession, auth *process.AuthorizedInfo, chatID str
 
 	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
 		Messages: messages,
+		Model:    cmd.Model,
 		Priority: cmd.Priority,
 		Source:   "retry",
 		Fresh:    true,
@@ -360,6 +353,7 @@ func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID st
 	messages := []tasksvc.InputMessage{{Role: "user", Content: promptContent}}
 	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
 		Messages: messages,
+		Model:    cmd.Model,
 		Priority: cmd.Priority,
 		Source:   "repeat",
 		Locale:   cmd.Locale,
