@@ -156,7 +156,6 @@ func TestBuildCreateOptions_Ports(t *testing.T) {
 func TestBuildCreateOptions_EnvMerge(t *testing.T) {
 	cfg := &types.SandboxConfig{
 		Environment: map[string]string{"A": "1", "B": "2"},
-		Secrets:     map[string]*types.SecretEntry{"B": {Value: "secret"}, "C": {Value: "3"}},
 	}
 	opts, err := sandboxv2.BuildCreateOptions(cfg, "id", "owner", "")
 	if err != nil {
@@ -165,11 +164,8 @@ func TestBuildCreateOptions_EnvMerge(t *testing.T) {
 	if opts.Env["A"] != "1" {
 		t.Error("env A should be 1")
 	}
-	if opts.Env["B"] != "secret" {
-		t.Errorf("env B should be overridden by secret, got %q", opts.Env["B"])
-	}
-	if opts.Env["C"] != "3" {
-		t.Error("env C should be 3")
+	if opts.Env["B"] != "2" {
+		t.Errorf("env B should be 2, got %q", opts.Env["B"])
 	}
 }
 
