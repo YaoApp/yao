@@ -75,20 +75,20 @@ func TestSandboxV2_Claude_E2E(t *testing.T) {
 						timeout = 3 * time.Minute
 					}
 
-				chatID := fmt.Sprintf("e2e-%s-%s-%d", proto.Name, tc.ID, time.Now().UnixMilli())
-				ctx := agentcontext.New(
-					context.Background(),
-					&oauthtypes.AuthorizedInfo{
-						TeamID: proto.TeamID,
-						UserID: proto.UserID,
-					},
-					chatID,
-				)
-				ctx.AssistantID = tc.ID
+					chatID := fmt.Sprintf("e2e-%s-%s-%d", proto.Name, tc.ID, time.Now().UnixMilli())
+					ctx := agentcontext.New(
+						context.Background(),
+						&oauthtypes.AuthorizedInfo{
+							TeamID: proto.TeamID,
+							UserID: proto.UserID,
+						},
+						chatID,
+					)
+					ctx.AssistantID = tc.ID
 
-				messages := []agentcontext.Message{
-					{Role: "user", Content: tc.Prompt},
-				}
+					messages := []agentcontext.Message{
+						{Role: "user", Content: tc.Prompt},
+					}
 
 					done := make(chan struct{})
 					var resp *agentcontext.Response
@@ -202,19 +202,19 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 			agent, err := caller.AgentGetterFunc("tests.sandbox-v2.oneshot-cli")
 			require.NoError(t, err)
 
-		chatID := fmt.Sprintf("e2e-attach-%s-%d", proto.Name, time.Now().UnixMilli())
-		ctx := agentcontext.New(
-			context.Background(),
-			&oauthtypes.AuthorizedInfo{TeamID: proto.TeamID, UserID: proto.UserID},
-			chatID,
-		)
-		ctx.AssistantID = "tests.sandbox-v2.oneshot-cli"
+			chatID := fmt.Sprintf("e2e-attach-%s-%d", proto.Name, time.Now().UnixMilli())
+			ctx := agentcontext.New(
+				context.Background(),
+				&oauthtypes.AuthorizedInfo{TeamID: proto.TeamID, UserID: proto.UserID},
+				chatID,
+			)
+			ctx.AssistantID = "tests.sandbox-v2.oneshot-cli"
 
-		messages := []agentcontext.Message{
-			{
-				Role: "user",
-				Content: []interface{}{
-					map[string]interface{}{"type": "text", "text": "View the attached image and describe what text and graphics it contains. Then summarize the attached code file's main classes. Reply in English."},
+			messages := []agentcontext.Message{
+				{
+					Role: "user",
+					Content: []interface{}{
+						map[string]interface{}{"type": "text", "text": "View the attached image and describe what text and graphics it contains. Then summarize the attached code file's main classes. Reply in English."},
 						map[string]interface{}{
 							"type":      "image_url",
 							"image_url": map[string]interface{}{"url": imgWrapper, "detail": "auto"},
@@ -340,20 +340,20 @@ func TestSandboxV2_Claude_ToolCallE2E(t *testing.T) {
 						timeout = 3 * time.Minute
 					}
 
-				chatID := fmt.Sprintf("e2e-tool-%s-%s-%d", proto.Name, tc.ID, time.Now().UnixMilli())
-				ctx := agentcontext.New(
-					context.Background(),
-					&oauthtypes.AuthorizedInfo{
-						TeamID: proto.TeamID,
-						UserID: proto.UserID,
-					},
-					chatID,
-				)
-				ctx.AssistantID = tc.ID
+					chatID := fmt.Sprintf("e2e-tool-%s-%s-%d", proto.Name, tc.ID, time.Now().UnixMilli())
+					ctx := agentcontext.New(
+						context.Background(),
+						&oauthtypes.AuthorizedInfo{
+							TeamID: proto.TeamID,
+							UserID: proto.UserID,
+						},
+						chatID,
+					)
+					ctx.AssistantID = tc.ID
 
-				messages := []agentcontext.Message{
-					{Role: "user", Content: tc.Prompt},
-				}
+					messages := []agentcontext.Message{
+						{Role: "user", Content: tc.Prompt},
+					}
 
 					done := make(chan struct{})
 					var resp *agentcontext.Response
