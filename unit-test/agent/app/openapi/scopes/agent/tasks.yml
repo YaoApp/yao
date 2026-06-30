@@ -14,6 +14,7 @@ agent:tasks:read:all:
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/secrets
     - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
     - GET /agent/tasks/:chat_id/skills
     - GET /agent/tasks/:chat_id/computers
     - GET /agent/tasks/:chat_id/sandbox
@@ -30,6 +31,7 @@ agent:tasks:read:own:
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/secrets
     - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
     - GET /agent/tasks/:chat_id/skills
     - GET /agent/tasks/:chat_id/computers
     - GET /agent/tasks/:chat_id/sandbox
@@ -46,6 +48,7 @@ agent:tasks:read:team:
     - GET /agent/tasks/:chat_id
     - GET /agent/tasks/:chat_id/secrets
     - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
     - GET /agent/tasks/:chat_id/skills
     - GET /agent/tasks/:chat_id/computers
     - GET /agent/tasks/:chat_id/sandbox

@@ -358,10 +358,16 @@ func TestWSCommand_UnknownType(t *testing.T) {
 
 func TestTask_NewFields_Serialization(t *testing.T) {
 	tk := task.Task{
-		ChatID:      "chat-001",
-		Instruction: "Build and deploy the frontend",
-		Summary:     "Deployed frontend to staging",
-		Outputs:     []any{map[string]any{"type": "url", "name": "staging", "path": "https://staging.example.com"}},
+		ChatID: "chat-001",
+		Instruction: &task.ScheduledInstruction{
+			Prompt:        "Build and deploy the frontend",
+			Locale:        "en",
+			FirstQuestion: "Deploy to staging",
+			FirstAnswer:   "Done",
+			UpdatedAt:     "2025-01-01T00:00:00Z",
+		},
+		Summary: "Deployed frontend to staging",
+		Outputs: []any{map[string]any{"type": "url", "name": "staging", "path": "https://staging.example.com"}},
 	}
 	data, err := json.Marshal(tk)
 	require.NoError(t, err)
@@ -369,7 +375,10 @@ func TestTask_NewFields_Serialization(t *testing.T) {
 	var decoded task.Task
 	err = json.Unmarshal(data, &decoded)
 	require.NoError(t, err)
-	assert.Equal(t, "Build and deploy the frontend", decoded.Instruction)
+	require.NotNil(t, decoded.Instruction)
+	assert.Equal(t, "Build and deploy the frontend", decoded.Instruction.Prompt)
+	assert.Equal(t, "en", decoded.Instruction.Locale)
+	assert.Equal(t, "Deploy to staging", decoded.Instruction.FirstQuestion)
 	assert.Equal(t, "Deployed frontend to staging", decoded.Summary)
 	assert.NotNil(t, decoded.Outputs)
 }

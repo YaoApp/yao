@@ -27,31 +27,35 @@ type ListResult struct {
 
 // Task represents a full task with derived fields from JOINs
 type Task struct {
-	ID            int64      `json:"id,omitempty"`
-	ChatID        string     `json:"chat_id"`
-	ColumnID      *string    `json:"column_id"`
-	Position      int        `json:"position"`
-	Pinned        bool       `json:"pinned"`
-	Priority      string     `json:"priority"`
-	Tags          []string   `json:"tags,omitempty"`
-	RunStatus     string     `json:"run_status"`
-	ArchiveStatus string     `json:"archive_status,omitempty"`
-	Progress      int        `json:"progress"`
-	CurrentStep   *string    `json:"current_step,omitempty"`
-	ErrorMessage  *string    `json:"error_message,omitempty"`
-	StartedAt     *time.Time `json:"started_at,omitempty"`
-	CompletedAt   *time.Time `json:"completed_at,omitempty"`
-	Duration      int        `json:"duration"`
-	RunCount      int        `json:"run_count"`
-	ComputerID    *string    `json:"computer_id,omitempty"`
-	ComputerMode  *string    `json:"computer_mode,omitempty"`
-	SandboxType   *string    `json:"sandbox_type,omitempty"`
-	Instruction   string     `json:"instruction,omitempty"`
-	Summary       string     `json:"summary,omitempty"`
-	Outputs       any        `json:"outputs,omitempty"`
-	Metadata      any        `json:"metadata,omitempty"`
-	CreatedAt     *time.Time `json:"created_at,omitempty"`
-	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+	ID            int64                 `json:"id,omitempty"`
+	ChatID        string                `json:"chat_id"`
+	ColumnID      *string               `json:"column_id"`
+	Position      int                   `json:"position"`
+	Pinned        bool                  `json:"pinned"`
+	Priority      string                `json:"priority"`
+	Tags          []string              `json:"tags,omitempty"`
+	RunStatus     string                `json:"run_status"`
+	ArchiveStatus string                `json:"archive_status,omitempty"`
+	Progress      int                   `json:"progress"`
+	CurrentStep   *string               `json:"current_step,omitempty"`
+	ErrorMessage  *string               `json:"error_message,omitempty"`
+	StartedAt     *time.Time            `json:"started_at,omitempty"`
+	CompletedAt   *time.Time            `json:"completed_at,omitempty"`
+	Duration      int                   `json:"duration"`
+	RunCount      int                   `json:"run_count"`
+	ComputerID    *string               `json:"computer_id,omitempty"`
+	ComputerMode  *string               `json:"computer_mode,omitempty"`
+	SandboxType   *string               `json:"sandbox_type,omitempty"`
+	Schedule      *ScheduleConfig       `json:"schedule,omitempty"`
+	Instruction   *ScheduledInstruction `json:"instruction,omitempty"`
+	Summary       string                `json:"summary,omitempty"`
+	Outputs       any                   `json:"outputs,omitempty"`
+	Metadata      any                   `json:"metadata,omitempty"`
+	CreatedAt     *time.Time            `json:"created_at,omitempty"`
+	UpdatedAt     *time.Time            `json:"updated_at,omitempty"`
+
+	// Computed at query time
+	NextRun *time.Time `json:"next_run,omitempty"`
 
 	// Derived from JOINs
 	Title         string  `json:"title,omitempty"`
@@ -76,20 +80,21 @@ type CreateReq struct {
 
 // UpdateReq parameters for partially updating a task
 type UpdateReq struct {
-	Title         *string  `json:"title,omitempty"`
-	AssistantID   *string  `json:"assistant_id,omitempty"`
-	ColumnID      *string  `json:"column_id,omitempty"`
-	Pinned        *bool    `json:"pinned,omitempty"`
-	Priority      *string  `json:"priority,omitempty"`
-	Tags          []string `json:"tags,omitempty"`
-	LastWorkspace *string  `json:"last_workspace,omitempty"`
-	ComputerID    *string  `json:"computer_id,omitempty"`
-	ComputerMode  *string  `json:"computer_mode,omitempty"`
-	SandboxType   *string  `json:"sandbox_type,omitempty"`
-	Instruction   *string  `json:"instruction,omitempty"`
-	Summary       *string  `json:"summary,omitempty"`
-	Outputs       any      `json:"outputs,omitempty"`
-	Metadata      any      `json:"metadata,omitempty"`
+	Title         *string               `json:"title,omitempty"`
+	AssistantID   *string               `json:"assistant_id,omitempty"`
+	ColumnID      *string               `json:"column_id,omitempty"`
+	Pinned        *bool                 `json:"pinned,omitempty"`
+	Priority      *string               `json:"priority,omitempty"`
+	Tags          []string              `json:"tags,omitempty"`
+	LastWorkspace *string               `json:"last_workspace,omitempty"`
+	ComputerID    *string               `json:"computer_id,omitempty"`
+	ComputerMode  *string               `json:"computer_mode,omitempty"`
+	SandboxType   *string               `json:"sandbox_type,omitempty"`
+	Schedule      *ScheduleConfig       `json:"schedule,omitempty"`
+	Instruction   *ScheduledInstruction `json:"instruction,omitempty"`
+	Summary       *string               `json:"summary,omitempty"`
+	Outputs       any                   `json:"outputs,omitempty"`
+	Metadata      any                   `json:"metadata,omitempty"`
 }
 
 // MoveReq parameters for moving a task between columns
@@ -104,6 +109,15 @@ type CreateFromWSReq struct {
 	ChatID   string         `json:"chat_id"`
 	Title    string         `json:"title"`
 	Metadata map[string]any `json:"metadata,omitempty"`
+}
+
+// ScheduledInstruction stores the structured instruction data for scheduled/repeat runs.
+type ScheduledInstruction struct {
+	Prompt        string `json:"prompt"`
+	Locale        string `json:"locale,omitempty"`
+	FirstQuestion string `json:"first_question,omitempty"`
+	FirstAnswer   string `json:"first_answer,omitempty"`
+	UpdatedAt     string `json:"updated_at,omitempty"`
 }
 
 // --- Config types (kept for schedule system) ---

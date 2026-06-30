@@ -28,6 +28,7 @@ var systemModels = map[string]string{
 	"__yao.agent.mail":         "yao/models/agent/mail.mod.yao",
 	"__yao.agent.message":      "yao/models/agent/message.mod.yao",
 	"__yao.agent.resume":       "yao/models/agent/resume.mod.yao",
+	"__yao.agent.schedule_log": "yao/models/agent/schedule_log.mod.yao",
 	"__yao.agent.search":       "yao/models/agent/search.mod.yao",
 	"__yao.agent.task":         "yao/models/agent/task.mod.yao",
 	"__yao.attachment":         "yao/models/attachment.mod.yao",

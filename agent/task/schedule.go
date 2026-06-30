@@ -2,6 +2,7 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"time"
 
@@ -18,6 +19,7 @@ type scheduleEngineImpl struct {
 	tickerDone chan struct{}
 	ctx        context.Context
 	cancel     context.CancelFunc
+	stopOnce   sync.Once
 }
 
 // ScheduleEntry represents a scheduled task entry
@@ -39,6 +41,9 @@ func NewScheduleEngine() *scheduleEngineImpl {
 
 func (se *scheduleEngineImpl) Start() error {
 	se.ctx, se.cancel = context.WithCancel(globalShutdown)
+
+	resetOrphanedScheduledTasks()
+
 	entries := loadScheduledTasks()
 	se.mu.Lock()
 	for _, e := range entries {
@@ -52,13 +57,37 @@ func (se *scheduleEngineImpl) Start() error {
 	return nil
 }
 
+// resetOrphanedScheduledTasks resets scheduled tasks that are stuck in "running"/"queued"
+// due to a server crash or restart. Only affects tasks that have a schedule configured.
+func resetOrphanedScheduledTasks() {
+	if capsule.Global == nil {
+		return
+	}
+	now := time.Now()
+	_, err := capsule.Global.Query().Table(tableTask()).
+		WhereIn("run_status", []interface{}{"running", "queued"}).
+		WhereNotNull("schedule").
+		WhereNull("deleted_at").
+		Update(map[string]interface{}{
+			"run_status":    "failed",
+			"error_message": "server restarted while task was running",
+			"completed_at":  now,
+			"updated_at":    now,
+		})
+	if err != nil {
+		log.Warn("resetOrphanedScheduledTasks: %v", err)
+	}
+}
+
 func (se *scheduleEngineImpl) Stop() {
-	if se.tickerDone != nil {
-		close(se.tickerDone)
-	}
-	if se.cancel != nil {
-		se.cancel()
-	}
+	se.stopOnce.Do(func() {
+		if se.tickerDone != nil {
+			close(se.tickerDone)
+		}
+		if se.cancel != nil {
+			se.cancel()
+		}
+	})
 }
 
 func (se *scheduleEngineImpl) Update(chatID string, cfg ScheduleConfig) {
@@ -124,11 +153,21 @@ func (se *scheduleEngineImpl) shouldTrigger(entry *ScheduleEntry, now time.Time)
 }
 
 func (se *scheduleEngineImpl) onTrigger(entry *ScheduleEntry) {
+	if isTaskRunning(entry.ChatID) {
+		se.mu.Lock()
+		entry.Running = false
+		se.mu.Unlock()
+		return
+	}
+
+	writeScheduleLog(entry.ChatID)
 	auth := loadTaskAuth(entry.ChatID)
 
 	var promptContent interface{}
-	if instr := getInstruction(entry.ChatID); instr != "" {
-		promptContent = instr
+	var locale string
+	if si := getScheduledInstruction(entry.ChatID); si != nil && si.Prompt != "" {
+		promptContent = si.Prompt
+		locale = si.Locale
 	} else {
 		promptContent = GetOriginalPrompt(se.ctx, entry.ChatID)
 	}
@@ -143,6 +182,7 @@ func (se *scheduleEngineImpl) onTrigger(entry *ScheduleEntry) {
 	_, err := Run(se.ctx, auth, entry.ChatID, &RunReq{
 		Messages: []InputMessage{{Role: "user", Content: promptContent}},
 		Source:   "repeat",
+		Locale:   locale,
 	})
 
 	se.mu.Lock()
@@ -160,39 +200,122 @@ func (se *scheduleEngineImpl) onTrigger(entry *ScheduleEntry) {
 	}
 }
 
-// getInstruction reads the instruction column from agent_task table
-func getInstruction(chatID string) string {
+// getScheduledInstruction reads and parses the instruction JSON from agent_task table.
+func getScheduledInstruction(chatID string) *ScheduledInstruction {
 	row, err := capsule.Global.Query().Table(tableTask()).
 		Select("instruction").
 		Where("chat_id", "=", chatID).
 		First()
 	if err != nil || row == nil {
-		return ""
+		return nil
 	}
-	return getString(row, "instruction")
+	return parseInstructionJSON(row["instruction"])
+}
+
+// parseInstructionJSON deserializes the instruction column value into ScheduledInstruction.
+func parseInstructionJSON(raw interface{}) *ScheduledInstruction {
+	if raw == nil {
+		return nil
+	}
+	var data []byte
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return nil
+		}
+		data = []byte(v)
+	case []byte:
+		data = v
+	default:
+		d, err := json.Marshal(v)
+		if err != nil {
+			return nil
+		}
+		data = d
+	}
+	var si ScheduledInstruction
+	if err := json.Unmarshal(data, &si); err != nil {
+		return nil
+	}
+	return &si
 }
 
 func loadScheduledTasks() []*ScheduleEntry {
-	rows, err := capsule.Global.Query().Table(tableTaskConfig()).
-		Select("chat_id", "schedule").
-		WhereNotNull("schedule").
-		Get()
-	if err != nil {
+	if capsule.Global == nil {
 		return nil
 	}
-
+	rows, err := capsule.Global.Query().Table(tableTask()).
+		Select("chat_id", "schedule").
+		WhereNotNull("schedule").
+		WhereNull("deleted_at").
+		Get()
+	if err != nil {
+		log.Warn("loadScheduledTasks query error: %v", err)
+		return nil
+	}
 	var entries []*ScheduleEntry
 	for _, row := range rows {
 		chatID := getString(row, "chat_id")
 		if chatID == "" {
 			continue
 		}
+
+		cfg := parseScheduleConfig(row["schedule"])
+		if !cfg.Enabled {
+			continue
+		}
+
+		lastRun := getLastTriggeredAt(chatID)
 		entries = append(entries, &ScheduleEntry{
-			ChatID: chatID,
-			Config: ScheduleConfig{Enabled: true, Mode: "interval"},
+			ChatID:  chatID,
+			Config:  cfg,
+			LastRun: lastRun,
 		})
 	}
 	return entries
+}
+
+func parseScheduleConfig(raw interface{}) ScheduleConfig {
+	var cfg ScheduleConfig
+	if raw == nil {
+		return cfg
+	}
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return cfg
+		}
+		json.Unmarshal([]byte(v), &cfg)
+	case []byte:
+		json.Unmarshal(v, &cfg)
+	default:
+		b, _ := json.Marshal(raw)
+		json.Unmarshal(b, &cfg)
+	}
+	return cfg
+}
+
+func getLastTriggeredAt(chatID string) time.Time {
+	row, err := capsule.Global.Query().Table(tableScheduleLog()).
+		Select("triggered_at").
+		Where("chat_id", "=", chatID).
+		OrderByDesc("triggered_at").
+		First()
+	if err != nil || row == nil {
+		return time.Time{}
+	}
+	if t, ok := row["triggered_at"].(time.Time); ok {
+		return t
+	}
+	if s, ok := row["triggered_at"].(string); ok {
+		if t, err := time.Parse(time.RFC3339, s); err == nil {
+			return t
+		}
+		if t, err := time.Parse("2006-01-02 15:04:05", s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
 }
 
 func loadTaskAuth(chatID string) *process.AuthorizedInfo {
@@ -225,11 +348,11 @@ func triggeredThisMinute(entry *ScheduleEntry, now time.Time) bool {
 
 func intervalDuration(value int, unit string) time.Duration {
 	switch unit {
-	case "minutes":
+	case "m", "minutes":
 		return time.Duration(value) * time.Minute
-	case "hours":
+	case "h", "hours":
 		return time.Duration(value) * time.Hour
-	case "days":
+	case "d", "days":
 		return time.Duration(value) * 24 * time.Hour
 	}
 	return 0
@@ -244,4 +367,19 @@ func calcBackoff(failCount int) time.Duration {
 		d = 5 * time.Minute
 	}
 	return d
+}
+
+func isTaskRunning(chatID string) bool {
+	_, exists := daemonRegistry.Load(chatID)
+	return exists
+}
+
+func writeScheduleLog(chatID string) {
+	err := capsule.Global.Query().Table(tableScheduleLog()).Insert(map[string]interface{}{
+		"chat_id":      chatID,
+		"triggered_at": time.Now(),
+	})
+	if err != nil {
+		log.Warn("schedule log write failed for %s: %v", chatID, err)
+	}
 }

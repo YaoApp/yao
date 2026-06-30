@@ -31,6 +31,7 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.DELETE("/:chat_id/secrets/:key", handleTaskSecretDelete)
 	group.GET("/:chat_id/schedule", handleTaskScheduleGet)
 	group.PUT("/:chat_id/schedule", handleTaskScheduleUpdate)
+	group.GET("/:chat_id/schedule/logs", handleTaskScheduleLogsGet)
 	group.GET("/:chat_id/skills", handleTaskSkillsGet)
 	group.GET("/:chat_id/computers", handleTaskComputersGet)
 	group.GET("/:chat_id/sandbox", handleTaskSandboxGet)

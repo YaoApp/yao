@@ -340,8 +340,10 @@ func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID st
 	}
 
 	var promptContent interface{}
-	if task.Instruction != "" {
-		promptContent = task.Instruction
+	var instrLocale string
+	if task.Instruction != nil && task.Instruction.Prompt != "" {
+		promptContent = task.Instruction.Prompt
+		instrLocale = task.Instruction.Locale
 	} else {
 		promptContent = tasksvc.GetOriginalPrompt(context.Background(), chatID)
 	}
@@ -350,13 +352,17 @@ func handleRepeatCmd(session *wsSession, auth *process.AuthorizedInfo, chatID st
 		return
 	}
 
+	locale := cmd.Locale
+	if locale == "" {
+		locale = instrLocale
+	}
 	messages := []tasksvc.InputMessage{{Role: "user", Content: promptContent}}
 	result, err := tasksvc.Run(context.Background(), auth, chatID, &tasksvc.RunReq{
 		Messages: messages,
 		Model:    cmd.Model,
 		Priority: cmd.Priority,
 		Source:   "repeat",
-		Locale:   cmd.Locale,
+		Locale:   locale,
 	})
 	if err != nil {
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": err.Error()})

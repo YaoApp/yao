@@ -178,10 +178,17 @@
       "nullable": true
     },
     {
+      "name": "schedule",
+      "type": "json",
+      "label": "Schedule",
+      "comment": "Schedule config JSON: {enabled, mode, times, days, interval_value, interval_unit, timezone, start_date, end_date}",
+      "nullable": true
+    },
+    {
       "name": "instruction",
-      "type": "text",
+      "type": "json",
       "label": "Instruction",
-      "comment": "Repeatable task instruction extracted by enrichTaskResult, used by repeat command and schedule engine",
+      "comment": "Scheduled instruction JSON: {prompt, locale, first_question, first_answer, updated_at}",
       "nullable": true
     },
     {

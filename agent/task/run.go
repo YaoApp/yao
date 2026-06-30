@@ -232,7 +232,11 @@ func runDaemon(dc *DaemonContext, auth *process.AuthorizedInfo, req *RunReq, tas
 
 	isFirstRun := (task.RunCount <= 1)
 	recentTexts := collectConversationText(req.Messages, dc)
-	go enrichTaskResult(dc.ChatID, auth, isFirstRun, finalErr, recentTexts, req.Locale)
+	daemonWg.Add(1)
+	go func() {
+		defer daemonWg.Done()
+		enrichTaskResult(dc.ChatID, auth, isFirstRun, finalErr, recentTexts, req.Locale)
+	}()
 }
 
 func collectConversationText(msgs []InputMessage, dc *DaemonContext) []string {

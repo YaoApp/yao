@@ -123,7 +123,7 @@ func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bo
 		return
 	}
 
-	applyEnrichResult(chatID, auth, &result, isFirstRun, execErr)
+	applyEnrichResult(chatID, auth, &result, isFirstRun, execErr, locale)
 	ctx.Logger.PhaseComplete("Parse & Apply")
 	ctx.Logger.End(true, nil)
 }
@@ -143,7 +143,7 @@ type enrichResult struct {
 	Priority string   `json:"priority,omitempty"`
 }
 
-func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enrichResult, isFirstRun bool, execErr error) {
+func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enrichResult, isFirstRun bool, execErr error, locale string) {
 	taskUpdates := map[string]interface{}{"updated_at": time.Now()}
 	chatUpdates := map[string]interface{}{"updated_at": time.Now()}
 	eventData := map[string]any{"chat_id": chatID, "__yao_team_id": auth.TeamID}
@@ -180,10 +180,18 @@ func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enri
 		eventData["summary"] = result.Summary
 	}
 
-	// Instruction
+	// Instruction — build ScheduledInstruction JSON
 	if result.Instruction != "" {
-		taskUpdates["instruction"] = result.Instruction
-		eventData["instruction"] = result.Instruction
+		si := ScheduledInstruction{
+			Prompt:        result.Instruction,
+			Locale:        strings.ToLower(locale),
+			FirstQuestion: GetOriginalPromptAsString(chatID),
+			FirstAnswer:   GetFirstAssistantMessage(chatID),
+			UpdatedAt:     time.Now().Format(time.RFC3339),
+		}
+		siJSON, _ := json.Marshal(si)
+		taskUpdates["instruction"] = string(siJSON)
+		eventData["instruction"] = si
 	}
 
 	// Outputs

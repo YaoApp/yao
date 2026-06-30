@@ -22,9 +22,14 @@ var (
 	ExportNewDaemonResponseWriter = NewDaemonResponseWriter
 
 	// Plan 3 exports - schedule
-	ExportCalcBackoff      = calcBackoff
-	ExportIntervalDuration = intervalDuration
-	ExportMatchesTime      = matchesTime
+	ExportCalcBackoff         = calcBackoff
+	ExportIntervalDuration    = intervalDuration
+	ExportMatchesTime         = matchesTime
+	ExportParseScheduleConfig = parseScheduleConfig
+	ExportParseScheduleJSON   = parseScheduleJSON
+	ExportComputeNextRun      = computeNextRun
+	ExportIsTaskRunning       = isTaskRunning
+	ExportTableScheduleLog    = tableScheduleLog
 
 	// Plan 3 exports - extract/enrich
 	ExportCleanMarkdownFences = cleanMarkdownFences

@@ -3,6 +3,7 @@
 package task_test
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -83,4 +84,89 @@ func TestShouldTrigger_IntervalZeroDuration(t *testing.T) {
 		LastRun: time.Now().Add(-10 * time.Hour),
 	}
 	assert.False(t, task.ExportShouldTrigger(entry, time.Now()))
+}
+
+func TestParseScheduleConfig_StringInput(t *testing.T) {
+	input := `{"enabled":true,"mode":"interval","interval_value":30,"interval_unit":"minutes"}`
+	cfg := task.ExportParseScheduleConfig(input)
+	assert.True(t, cfg.Enabled)
+	assert.Equal(t, "interval", cfg.Mode)
+	assert.Equal(t, 30, cfg.IntervalValue)
+	assert.Equal(t, "minutes", cfg.IntervalUnit)
+}
+
+func TestParseScheduleConfig_MapInput(t *testing.T) {
+	input := map[string]interface{}{
+		"enabled":        true,
+		"mode":           "times",
+		"times":          []interface{}{"09:00", "18:00"},
+		"interval_value": float64(0),
+	}
+	cfg := task.ExportParseScheduleConfig(input)
+	assert.True(t, cfg.Enabled)
+	assert.Equal(t, "times", cfg.Mode)
+	assert.Equal(t, []string{"09:00", "18:00"}, cfg.Times)
+}
+
+func TestParseScheduleConfig_NilInput(t *testing.T) {
+	cfg := task.ExportParseScheduleConfig(nil)
+	assert.False(t, cfg.Enabled)
+	assert.Empty(t, cfg.Mode)
+}
+
+func TestParseScheduleJSON_StringInput(t *testing.T) {
+	input := `{"enabled":true,"mode":"times","times":["08:00"],"timezone":"Asia/Shanghai"}`
+	cfg := task.ExportParseScheduleJSON(input)
+	assert.NotNil(t, cfg)
+	assert.True(t, cfg.Enabled)
+	assert.Equal(t, "times", cfg.Mode)
+	assert.Equal(t, []string{"08:00"}, cfg.Times)
+	assert.Equal(t, "Asia/Shanghai", cfg.Timezone)
+}
+
+func TestParseScheduleJSON_NilInput(t *testing.T) {
+	cfg := task.ExportParseScheduleJSON(nil)
+	assert.Nil(t, cfg)
+}
+
+func TestParseScheduleJSON_EmptyString(t *testing.T) {
+	cfg := task.ExportParseScheduleJSON("")
+	assert.Nil(t, cfg)
+}
+
+func TestTask_Schedule_Serialization(t *testing.T) {
+	tk := task.Task{
+		ChatID: "chat-sched-001",
+		Schedule: &task.ScheduleConfig{
+			Enabled:       true,
+			Mode:          "interval",
+			IntervalValue: 30,
+			IntervalUnit:  "minutes",
+			Timezone:      "Asia/Shanghai",
+		},
+		Instruction: &task.ScheduledInstruction{
+			Prompt: "Run daily report",
+			Locale: "zh-cn",
+		},
+	}
+
+	data, err := json.Marshal(tk)
+	assert.NoError(t, err)
+
+	var decoded task.Task
+	err = json.Unmarshal(data, &decoded)
+	assert.NoError(t, err)
+	assert.NotNil(t, decoded.Schedule)
+	assert.True(t, decoded.Schedule.Enabled)
+	assert.Equal(t, "interval", decoded.Schedule.Mode)
+	assert.Equal(t, 30, decoded.Schedule.IntervalValue)
+	assert.Equal(t, "minutes", decoded.Schedule.IntervalUnit)
+}
+
+func TestTask_NoSchedule_OmitEmpty(t *testing.T) {
+	tk := task.Task{ChatID: "chat-no-sched"}
+	data, err := json.Marshal(tk)
+	assert.NoError(t, err)
+	assert.NotContains(t, string(data), "schedule")
+	assert.NotContains(t, string(data), "next_run")
 }

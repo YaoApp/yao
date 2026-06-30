@@ -47,11 +47,11 @@ func tableMessage() string {
 	return share.App.Prefix + "agent_message"
 }
 
-func tableTaskConfig() string {
-	if m, err := model.Get("__yao.agent.task_config"); err == nil && m.MetaData.Table.Name != "" {
+func tableScheduleLog() string {
+	if m, err := model.Get("__yao.agent.schedule_log"); err == nil && m.MetaData.Table.Name != "" {
 		return m.MetaData.Table.Name
 	}
-	return share.App.Prefix + "agent_task_config"
+	return share.App.Prefix + "agent_schedule_log"
 }
 
 func tableAssistant() string {
