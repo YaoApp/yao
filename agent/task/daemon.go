@@ -117,10 +117,6 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 	}
 	dc.mu.Unlock()
 
-	if len(subs) > 0 || msg.Type == "event" {
-		fmt.Printf("  • [task.broadcast] chatID=%s seq=%d type=%s subs=%d\n", dc.ChatID, seq, msg.Type, len(subs))
-	}
-
 	for id, ch := range subs {
 		select {
 		case ch <- msg:
@@ -134,7 +130,6 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 
 // CloseSubscribers closes all subscriber channels (call after final Broadcast)
 func (dc *DaemonContext) CloseSubscribers() {
-	fmt.Printf("  • [task.closeSubscribers] chatID=%s\n", dc.ChatID)
 	dc.mu.Lock()
 	subs := dc.subscribers
 	dc.subscribers = nil

@@ -1,10 +1,13 @@
 package task
 
 import (
+	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/yaoapp/gou/process"
@@ -14,12 +17,33 @@ import (
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/event"
 	"github.com/yaoapp/yao/llmprovider"
+	"gopkg.in/yaml.v3"
 )
+
+//go:embed enrich_result_prompt.yml
+var enrichPromptYAML []byte
+
+var (
+	enrichSystemTpl *template.Template
+	enrichUserTpl   *template.Template
+)
+
+func init() {
+	var raw struct {
+		System string `yaml:"system"`
+		User   string `yaml:"user"`
+	}
+	if err := yaml.Unmarshal(enrichPromptYAML, &raw); err != nil {
+		panic("enrich_result_prompt.yml parse error: " + err.Error())
+	}
+	enrichSystemTpl = template.Must(template.New("enrich_system").Parse(raw.System))
+	enrichUserTpl = template.Must(template.New("enrich_user").Parse(raw.User))
+}
 
 // enrichTaskResult performs a single LLM call after daemon exits to extract all task metadata:
 // title, run_status, summary, instruction, outputs, mail content, tags, priority.
 // recentMessages is passed directly from the execution context (req.Messages + dc.ringBuffer).
-func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bool, execErr error, recentMessages []string) {
+func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bool, execErr error, recentMessages []string, locale string) {
 	enrichChatID := agentcontext.GenChatID()
 	ctx := agentcontext.New(context.Background(), toOAuthInfo(auth), enrichChatID)
 	defer ctx.Release()
@@ -67,7 +91,7 @@ func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bo
 	ctx.Logger.PhaseComplete("Get LLM Provider")
 
 	ctx.Logger.Phase("LLM Call")
-	systemPrompt, userContent := buildEnrichResultPrompt(recentMessages, isFirstRun, execErr)
+	systemPrompt, userContent := buildEnrichResultPrompt(recentMessages, isFirstRun, execErr, locale)
 	resp, err := llmInstance.Post(ctx, []agentcontext.Message{
 		{Role: "system", Content: systemPrompt},
 		{Role: "user", Content: userContent},
@@ -99,7 +123,7 @@ func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bo
 		return
 	}
 
-	applyEnrichResult(chatID, auth, &result, isFirstRun, execErr)
+	applyEnrichResult(chatID, auth, &result, isFirstRun, execErr, locale)
 	ctx.Logger.PhaseComplete("Parse & Apply")
 	ctx.Logger.End(true, nil)
 }
@@ -119,20 +143,23 @@ type enrichResult struct {
 	Priority string   `json:"priority,omitempty"`
 }
 
-func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enrichResult, isFirstRun bool, execErr error) {
+func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enrichResult, isFirstRun bool, execErr error, locale string) {
 	taskUpdates := map[string]interface{}{"updated_at": time.Now()}
 	chatUpdates := map[string]interface{}{"updated_at": time.Now()}
 	eventData := map[string]any{"chat_id": chatID, "__yao_team_id": auth.TeamID}
 
 	// Determine final run_status
 	finalStatus := result.RunStatus
-	if execErr != nil {
+	if execErr != nil && execErr != errUserCancelled {
 		finalStatus = "failed"
+	}
+	if execErr == errUserCancelled && finalStatus != "cancelled" {
+		finalStatus = "cancelled"
 	}
 	if finalStatus == "" {
 		finalStatus = "completed"
 	}
-	if finalStatus != "completed" && finalStatus != "waiting" && finalStatus != "failed" {
+	if finalStatus != "completed" && finalStatus != "waiting" && finalStatus != "failed" && finalStatus != "cancelled" {
 		finalStatus = "completed"
 	}
 	taskUpdates["run_status"] = finalStatus
@@ -153,10 +180,18 @@ func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enri
 		eventData["summary"] = result.Summary
 	}
 
-	// Instruction
+	// Instruction — build ScheduledInstruction JSON
 	if result.Instruction != "" {
-		taskUpdates["instruction"] = result.Instruction
-		eventData["instruction"] = result.Instruction
+		si := ScheduledInstruction{
+			Prompt:        result.Instruction,
+			Locale:        strings.ToLower(locale),
+			FirstQuestion: GetOriginalPromptAsString(chatID),
+			FirstAnswer:   GetFirstAssistantMessage(chatID),
+			UpdatedAt:     time.Now().Format(time.RFC3339),
+		}
+		siJSON, _ := json.Marshal(si)
+		taskUpdates["instruction"] = string(siJSON)
+		eventData["instruction"] = si
 	}
 
 	// Outputs
@@ -268,42 +303,45 @@ func markTaskFailed(chatID string, auth *process.AuthorizedInfo, reason string) 
 	})
 }
 
-func buildEnrichResultPrompt(recentMessages []string, isFirstRun bool, execErr error) (systemPrompt, userContent string) {
-	firstRunFields := ""
-	firstRunRules := ""
-	if isFirstRun {
-		firstRunFields = `  "title": "20字内任务标题",
-  "tags": ["标签1","标签2"],
-  "priority": "none|low|medium|high",`
-		firstRunRules = "- title: 概括用户意图,简洁有力\n- tags: 最多3个分类标签\n- priority: 任务紧急程度\n"
+func buildEnrichResultPrompt(recentMessages []string, isFirstRun bool, execErr error, locale string) (systemPrompt, userContent string) {
+	lang := localeToLanguage(locale)
+
+	var sysBuf bytes.Buffer
+	enrichSystemTpl.Execute(&sysBuf, map[string]any{
+		"IsFirstRun": isFirstRun,
+		"Language":   lang,
+	})
+	systemPrompt = sysBuf.String()
+
+	execStatus := "completed normally"
+	if execErr != nil {
+		if execErr.Error() == "user_cancelled" {
+			execStatus = "user cancelled (task was stopped mid-execution by user)"
+		} else {
+			execStatus = fmt.Sprintf("execution error: %s", execErr.Error())
+		}
 	}
 
-	systemPrompt = fmt.Sprintf(`你是任务元数据提取器。根据用户提供的 AI 助手执行对话和执行状态,提取所有元数据。
-
-返回严格 JSON (不要 markdown 代码块):
-{
-%s
-  "run_status": "completed|waiting|failed",
-  "summary": "50字内卡片摘要 (waiting时:需要什么; completed时:做了什么; failed时:失败原因)",
-  "instruction": "适合重复执行的完整指令摘要 (供自动化/定时执行使用,100字内)",
-  "outputs": [{"type":"file|attachment|service|url","name":"名称","path":"路径或url"}],
-  "mail": {"title":"30字内通知标题","body":"100字内通知正文","priority":"low|medium|high"}
+	var userBuf bytes.Buffer
+	enrichUserTpl.Execute(&userBuf, map[string]any{
+		"ExecStatus": execStatus,
+		"Messages":   strings.Join(recentMessages, "\n---\n"),
+	})
+	userContent = userBuf.String()
+	return
 }
 
-规则:
-- run_status: 如果助手明确要求用户回复/确认/提供信息 → "waiting"; 如果执行出错 → "failed"; 否则 → "completed"
-- summary: 简洁有力,适合看板卡片展示
-- instruction: 抽象出可重复执行的指令 (去掉临时性/一次性内容)
-- outputs: 如果对话中提到生成了文件/服务/链接,提取出来;如果没有则返回空数组
-- mail: 生成收件箱通知 (waiting 时 priority 高, completed 时 priority 低)
-%s仅返回 JSON,不要其他内容。`, firstRunFields, firstRunRules)
-
-	execStatus := "正常结束"
-	if execErr != nil {
-		execStatus = fmt.Sprintf("执行出错: %s", execErr.Error())
+func localeToLanguage(locale string) string {
+	switch strings.ToLower(locale) {
+	case "zh-cn", "zh-hans":
+		return "Chinese (Simplified)"
+	case "zh-tw", "zh-hant":
+		return "Chinese (Traditional)"
+	case "ja", "ja-jp":
+		return "Japanese"
+	case "ko", "ko-kr":
+		return "Korean"
+	default:
+		return "English"
 	}
-	msgContext := strings.Join(recentMessages, "\n---\n")
-
-	userContent = fmt.Sprintf("执行状态: %s\n\n对话上下文:\n%s", execStatus, msgContext)
-	return
 }

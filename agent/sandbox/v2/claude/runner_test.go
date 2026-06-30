@@ -84,6 +84,7 @@ func TestSandboxV2_Claude_E2E(t *testing.T) {
 						},
 						chatID,
 					)
+					ctx.AssistantID = tc.ID
 
 					messages := []agentcontext.Message{
 						{Role: "user", Content: tc.Prompt},
@@ -207,6 +208,7 @@ func TestSandboxV2_Claude_Attachments(t *testing.T) {
 				&oauthtypes.AuthorizedInfo{TeamID: proto.TeamID, UserID: proto.UserID},
 				chatID,
 			)
+			ctx.AssistantID = "tests.sandbox-v2.oneshot-cli"
 
 			messages := []agentcontext.Message{
 				{
@@ -347,6 +349,7 @@ func TestSandboxV2_Claude_ToolCallE2E(t *testing.T) {
 						},
 						chatID,
 					)
+					ctx.AssistantID = tc.ID
 
 					messages := []agentcontext.Message{
 						{Role: "user", Content: tc.Prompt},

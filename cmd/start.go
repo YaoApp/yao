@@ -35,6 +35,8 @@ import (
 	"github.com/yaoapp/yao/share"
 
 	itask "github.com/yaoapp/yao/task"
+
+	tasksvc "github.com/yaoapp/yao/agent/task"
 )
 
 var startDebug = false
@@ -177,6 +179,13 @@ var startCmd = &cobra.Command{
 		// Start Schedules
 		ischedule.Start()
 		defer ischedule.Stop()
+
+		// Start Agent Task Schedule Engine
+		tasksvc.GlobalScheduleEngine = tasksvc.NewScheduleEngine()
+		if err := tasksvc.GlobalScheduleEngine.Start(); err != nil {
+			log.Error("[Schedule Engine] start failed: %s", err.Error())
+		}
+		defer tasksvc.GlobalScheduleEngine.Stop()
 
 		// Pre-flight: detect port conflicts before attempting to start servers.
 		if occupied, proc := portOccupied(config.Conf.Host, config.Conf.Port); occupied {

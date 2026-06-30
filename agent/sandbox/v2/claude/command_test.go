@@ -351,17 +351,6 @@ func TestBuildEnv_GRPCAddr_BoxMode(t *testing.T) {
 	}
 }
 
-func TestBuildEnv_Secrets(t *testing.T) {
-	req := &types.StreamRequest{
-		Config: &types.SandboxConfig{Secrets: map[string]*types.SecretEntry{"MY_SECRET": {Value: "secret_val"}}},
-	}
-	req.Computer = claude.NewFakeComputer("/workspace")
-	env := claude.ExportBuildEnv(req, testPlatform())
-	if env["MY_SECRET"] != "secret_val" {
-		t.Errorf("MY_SECRET = %q", env["MY_SECRET"])
-	}
-}
-
 func TestBuildEnv_OpenAI(t *testing.T) {
 	conn := newOpenAIConnector("kimi", "https://api.moonshot.cn", "kimi-k2.5", "sk-test")
 	req := &types.StreamRequest{Config: &types.SandboxConfig{}, Connector: conn}

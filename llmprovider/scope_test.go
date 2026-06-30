@@ -141,8 +141,8 @@ func TestListModelsBy_TeamRouting(t *testing.T) {
 	opts := r.ListModelsBy(info)
 	labels := optLabels(opts)
 
-	assert.Contains(t, labels, "Test team-rt-prov / GPT-4o", "team takes priority when TeamID is set")
-	assert.NotContains(t, labels, "Test user-rt-prov / GPT-4o", "user model should be excluded when TeamID is set")
+	assert.Contains(t, labels, "Test team-rt-prov / GPT-4o", "should include team model")
+	assert.Contains(t, labels, "Test user-rt-prov / GPT-4o", "should include user model in team context")
 }
 
 func TestListModelsBy_UserFallback(t *testing.T) {

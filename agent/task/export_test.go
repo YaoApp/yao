@@ -17,19 +17,19 @@ var (
 	ExportGetBool          = getBool
 	ExportGetTime          = getTime
 
-	// Plan 2 exports
-	ExportMergeLayer     = mergeLayer
-	ExportConfigReqToMap = configReqToMap
-	ExportToStringMap    = toStringMap
-
 	// Plan 3 exports - daemon
 	ExportNewDaemonContext        = newDaemonContext
 	ExportNewDaemonResponseWriter = NewDaemonResponseWriter
 
 	// Plan 3 exports - schedule
-	ExportCalcBackoff      = calcBackoff
-	ExportIntervalDuration = intervalDuration
-	ExportMatchesTime      = matchesTime
+	ExportCalcBackoff         = calcBackoff
+	ExportIntervalDuration    = intervalDuration
+	ExportMatchesTime         = matchesTime
+	ExportParseScheduleConfig = parseScheduleConfig
+	ExportParseScheduleJSON   = parseScheduleJSON
+	ExportComputeNextRun      = computeNextRun
+	ExportIsTaskRunning       = isTaskRunning
+	ExportTableScheduleLog    = tableScheduleLog
 
 	// Plan 3 exports - extract/enrich
 	ExportCleanMarkdownFences = cleanMarkdownFences

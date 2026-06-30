@@ -1,0 +1,33 @@
+{
+  "name": "ScheduleLog",
+  "label": "Schedule Log",
+  "description": "Records each time the schedule engine triggers a task",
+  "tags": ["agent", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "agent_schedule_log" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "chat_id",
+      "type": "string",
+      "label": "Chat ID",
+      "comment": "Associated task chat_id",
+      "length": 64,
+      "index": true
+    },
+    {
+      "name": "triggered_at",
+      "type": "datetime",
+      "label": "Triggered At",
+      "comment": "When the schedule engine triggered this task"
+    }
+  ],
+  "option": { "timestamps": false, "soft_deletes": false }
+}

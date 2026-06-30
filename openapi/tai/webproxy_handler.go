@@ -9,7 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
-	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai/webproxy"
@@ -277,19 +277,19 @@ func resolveHostAssistants(c *gin.Context, bindingByPort map[int]*webproxy.Bindi
 	if info != nil {
 		userID, teamID = info.UserID, info.TeamID
 	}
-	allServices := assistant.ResolveServicesBatch(ids, userID, teamID)
+	allResolved := agentconfig.ResolveBatch(ids, userID, teamID)
 
 	locale := getLocale(c)
 	var groups []assistantGroup
 	for _, ast := range sandboxAgents {
-		svcs := allServices[ast.ID]
-		if len(svcs) == 0 {
+		resolved := allResolved[ast.ID]
+		if resolved == nil || len(resolved.Services) == 0 {
 			continue
 		}
 		groups = append(groups, assistantGroup{
 			AssistantID: ast.ID,
 			Name:        ast.GetName(locale),
-			Services:    matchBindings(svcs, bindingByPort),
+			Services:    matchBindings(resolved.Services, bindingByPort),
 		})
 	}
 	sort.Slice(groups, func(i, j int) bool {
@@ -315,9 +315,9 @@ func resolveBoxAssistants(c *gin.Context, targetID string, bindingByPort map[int
 	if info != nil {
 		userID, teamID = info.UserID, info.TeamID
 	}
-	allServices := assistant.ResolveServicesBatch([]string{assistantID}, userID, teamID)
-	svcs := allServices[assistantID]
-	if len(svcs) == 0 {
+	allResolved := agentconfig.ResolveBatch([]string{assistantID}, userID, teamID)
+	resolved := allResolved[assistantID]
+	if resolved == nil || len(resolved.Services) == 0 {
 		return nil
 	}
 
@@ -332,7 +332,7 @@ func resolveBoxAssistants(c *gin.Context, targetID string, bindingByPort map[int
 	return []assistantGroup{{
 		AssistantID: assistantID,
 		Name:        name,
-		Services:    matchBindings(svcs, bindingByPort),
+		Services:    matchBindings(resolved.Services, bindingByPort),
 	}}
 }
 
@@ -353,13 +353,16 @@ func resolveBoxServices(c *gin.Context, targetID string) []serviceEntry {
 	if info != nil {
 		userID, teamID = info.UserID, info.TeamID
 	}
-	allServices := assistant.ResolveServicesBatch([]string{assistantID}, userID, teamID)
-	svcs := allServices[assistantID]
+	allResolved := agentconfig.ResolveBatch([]string{assistantID}, userID, teamID)
+	resolved := allResolved[assistantID]
+	if resolved == nil {
+		return nil
+	}
 
-	entries := make([]serviceEntry, 0, len(svcs))
-	for _, svc := range svcs {
+	entries := make([]serviceEntry, 0, len(resolved.Services))
+	for _, svc := range resolved.Services {
 		if svc.Port > 0 {
-			entries = append(entries, serviceEntry{Label: svc.Label, Port: svc.Port})
+			entries = append(entries, serviceEntry{Label: svc.Name, Port: svc.Port})
 		}
 	}
 	return entries
@@ -379,10 +382,10 @@ func resolveContainerID(ctx context.Context, targetID string) (string, error) {
 
 // --- helpers ---
 
-func matchBindings(svcs []sandboxTypes.ServiceConfig, bindingByPort map[int]*webproxy.BindingInfo) []serviceStatus {
+func matchBindings(svcs []agentconfig.ServiceDecl, bindingByPort map[int]*webproxy.BindingInfo) []serviceStatus {
 	result := make([]serviceStatus, 0, len(svcs))
 	for _, svc := range svcs {
-		ss := serviceStatus{Label: svc.Label, Port: svc.Port}
+		ss := serviceStatus{Label: svc.Name, Port: svc.Port}
 		if b, ok := bindingByPort[svc.Port]; ok {
 			ss.Bound = true
 			ss.HostPort = b.HostPort

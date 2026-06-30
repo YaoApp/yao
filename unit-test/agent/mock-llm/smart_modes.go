@@ -9,7 +9,7 @@ import (
 )
 
 var negativePatterns = regexp.MustCompile(`(?i)(don'?t know|i cannot|no idea|not sure|unable to|i can'?t)`)
-var enrichmentPattern = regexp.MustCompile(`任务元数据提取器`)
+var enrichmentPattern = regexp.MustCompile(`(?i)(任务元数据提取器|task metadata extractor)`)
 
 // buildEnrichmentResponse returns a valid enrichment JSON when the system prompt
 // matches the task enrichment pattern.

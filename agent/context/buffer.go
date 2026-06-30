@@ -33,6 +33,10 @@ type ChatBuffer struct {
 	// Space snapshot (captured when step starts, for recovery)
 	spaceSnapshot map[string]interface{}
 
+	// OnFlush is called before GetMessages() during FlushBuffer to allow
+	// stream handlers to flush partial content (e.g. when interrupted by cancel).
+	onFlush func()
+
 	mu sync.Mutex
 }
 
@@ -275,11 +279,28 @@ func (b *ChatBuffer) GetStreamingMessage(messageID string) *BufferedMessage {
 	return nil
 }
 
-// GetMessages returns all buffered messages
-func (b *ChatBuffer) GetMessages() []*BufferedMessage {
+// SetOnFlush registers a callback that fires before GetMessages during FlushBuffer.
+// Used by stream handlers to flush partial content on interruption.
+func (b *ChatBuffer) SetOnFlush(fn func()) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.onFlush = fn
+}
 
+// GetMessages returns all buffered messages.
+// Calls onFlush first to allow stream handlers to flush partial content.
+func (b *ChatBuffer) GetMessages() []*BufferedMessage {
+	b.mu.Lock()
+	fn := b.onFlush
+	b.onFlush = nil // one-shot
+	b.mu.Unlock()
+
+	if fn != nil {
+		fn()
+	}
+
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	result := make([]*BufferedMessage, len(b.messages))
 	copy(result, b.messages)
 	return result

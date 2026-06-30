@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/connector"
+	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -38,56 +39,6 @@ type sandboxV2InitResult struct {
 	Roles        map[string]connector.Connector
 }
 
-// loadUserAgentSetting loads and decrypts the per-user agent setting from
-// setting.Registry. Returns nil when no setting exists or the context has no
-// authorization.
-func loadUserAgentSetting(ctx *context.Context, assistantID string) *UserAgentSetting {
-	if setting.Global == nil || ctx.Authorized == nil {
-		return nil
-	}
-	ns := "agent." + assistantID
-	var s UserAgentSetting
-	_, err := setting.Global.GetMerged(ctx.Authorized.UserID, ctx.Authorized.TeamID, ns, &s)
-	if err != nil {
-		return nil
-	}
-	for _, entry := range s.Secrets {
-		if entry != nil && entry.Value != "" {
-			entry.Value = setting.Decrypt(entry.Value)
-		}
-	}
-	return &s
-}
-
-// applyUserSetting merges the user setting into the sandbox config.
-// Secrets: user value overrides DSL default; custom keys are added wholesale.
-// Image: user value overrides DSL default if non-empty.
-func applyUserSetting(cfg *sandboxTypes.SandboxConfig, us *UserAgentSetting) {
-	if us == nil {
-		return
-	}
-
-	if len(us.Secrets) > 0 {
-		if cfg.Secrets == nil {
-			cfg.Secrets = make(map[string]*sandboxTypes.SecretEntry)
-		}
-		for k, userEntry := range us.Secrets {
-			if userEntry == nil || userEntry.Value == "" {
-				continue
-			}
-			if existing, ok := cfg.Secrets[k]; ok && existing != nil {
-				existing.Value = userEntry.Value
-			} else {
-				cfg.Secrets[k] = userEntry
-			}
-		}
-	}
-
-	if us.Image != "" {
-		cfg.Computer.Image = us.Image
-	}
-}
-
 // initSandboxV2 initializes the V2 sandbox: loads user settings, selects a
 // node, obtains a Computer, gets a Runner, resolves the role matrix, runs
 // Prepare, and returns the result.
@@ -109,18 +60,26 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 
 	stdCtx := ctx.Context
 
-	// 0. Load and apply user-level agent setting.
-	userSetting := loadUserAgentSetting(ctx, ast.ID)
-	applyUserSetting(cfg, userSetting)
+	// 0. Load unified config (DSL + task-config layers merged).
+	resolved, cfgErr := agentconfig.Get(ctx)
+	if cfgErr != nil {
+		closeLoadingV2(ctx, loadingMsgID, "sandbox.failed")
+		return nil, fmt.Errorf("config.Get: %w", cfgErr)
+	}
 
-	// 1. Runner set resolution.
+	// Apply resolved config to sandbox config copy.
+	if resolved.Image != "" {
+		cfg.Computer.Image = resolved.Image
+	}
+
+	// 1. Runner set resolution (use resolved.Runner as user preference).
 	globalRunner := ""
 	if sandboxv2.GlobalRunnerFunc != nil {
 		globalRunner = sandboxv2.GlobalRunnerFunc()
 	}
-	var userRunners []string
-	if userSetting != nil {
-		userRunners = userSetting.Runners
+	userRunners := resolved.Runners
+	if len(userRunners) == 0 && resolved.Runner != "" {
+		userRunners = []string{resolved.Runner}
 	}
 	preferred, allowed := sandboxv2.ResolveRunnerSet(userRunners, &cfg.Runner, globalRunner)
 

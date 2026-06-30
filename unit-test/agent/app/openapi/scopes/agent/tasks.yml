@@ -12,7 +12,12 @@ agent:tasks:read:all:
     - GET /agent/tasks
     - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
-    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/secrets
+    - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
+    - GET /agent/tasks/:chat_id/skills
+    - GET /agent/tasks/:chat_id/computers
+    - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
     - GET /agent/tasks/:chat_id/processes
@@ -24,7 +29,12 @@ agent:tasks:read:own:
     - GET /agent/tasks
     - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
-    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/secrets
+    - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
+    - GET /agent/tasks/:chat_id/skills
+    - GET /agent/tasks/:chat_id/computers
+    - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
     - GET /agent/tasks/:chat_id/processes
@@ -36,7 +46,12 @@ agent:tasks:read:team:
     - GET /agent/tasks
     - GET /agent/tasks/quota
     - GET /agent/tasks/:chat_id
-    - GET /agent/tasks/:chat_id/config
+    - GET /agent/tasks/:chat_id/secrets
+    - GET /agent/tasks/:chat_id/schedule
+    - GET /agent/tasks/:chat_id/schedule/logs
+    - GET /agent/tasks/:chat_id/skills
+    - GET /agent/tasks/:chat_id/computers
+    - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
     - GET /agent/tasks/:chat_id/processes
@@ -49,7 +64,9 @@ agent:tasks:write:all:
     - POST /agent/tasks
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
-    - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/secrets
+    - DELETE /agent/tasks/:chat_id/secrets/:key
+    - PUT /agent/tasks/:chat_id/schedule
     - PUT /agent/tasks/:chat_id/priority
     - PUT /agent/tasks/:chat_id/archive
     - PUT /agent/tasks/:chat_id/unarchive
@@ -61,7 +78,9 @@ agent:tasks:write:own:
     - POST /agent/tasks
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
-    - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/secrets
+    - DELETE /agent/tasks/:chat_id/secrets/:key
+    - PUT /agent/tasks/:chat_id/schedule
     - PUT /agent/tasks/:chat_id/priority
     - PUT /agent/tasks/:chat_id/archive
     - PUT /agent/tasks/:chat_id/unarchive
@@ -73,7 +92,9 @@ agent:tasks:write:team:
     - POST /agent/tasks
     - PUT /agent/tasks/:chat_id
     - PUT /agent/tasks/:chat_id/move
-    - PUT /agent/tasks/:chat_id/config
+    - PUT /agent/tasks/:chat_id/secrets
+    - DELETE /agent/tasks/:chat_id/secrets/:key
+    - PUT /agent/tasks/:chat_id/schedule
     - PUT /agent/tasks/:chat_id/priority
     - PUT /agent/tasks/:chat_id/archive
     - PUT /agent/tasks/:chat_id/unarchive

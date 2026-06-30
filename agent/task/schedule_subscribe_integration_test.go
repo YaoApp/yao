@@ -251,3 +251,56 @@ func TestLoadMessagesFromDB_Empty(t *testing.T) {
 	msgs := task.ExportLoadMessagesFromDB("nonexistent-chat-id", 0)
 	assert.Empty(t, msgs)
 }
+
+func TestScheduleLog_WriteAndQuery(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	tbl := task.ExportTableScheduleLog()
+	require.NotEmpty(t, tbl, "schedule_log table name should not be empty")
+	t.Logf("schedule_log table: %s", tbl)
+
+	chatID := "test-sched-log-" + time.Now().Format("150405")
+
+	// 1. Insert (same pattern as writeScheduleLog)
+	err := capsule.Global.Query().Table(tbl).Insert(map[string]interface{}{
+		"chat_id":      chatID,
+		"triggered_at": time.Now().Add(-5 * time.Minute),
+	})
+	require.NoError(t, err, "insert schedule log should succeed")
+
+	err = capsule.Global.Query().Table(tbl).Insert(map[string]interface{}{
+		"chat_id":      chatID,
+		"triggered_at": time.Now(),
+	})
+	require.NoError(t, err, "second insert should succeed")
+
+	// 2. Count (same pattern as handleTaskScheduleLogsGet)
+	total, countErr := capsule.Global.Query().Table(tbl).
+		Where("chat_id", "=", chatID).
+		Count()
+	require.NoError(t, countErr, "count should succeed")
+	assert.Equal(t, int64(2), total)
+
+	// 3. Get with pagination (same pattern as handleTaskScheduleLogsGet)
+	rows, getErr := capsule.Global.Query().Table(tbl).
+		Select("triggered_at").
+		Where("chat_id", "=", chatID).
+		OrderByDesc("triggered_at").
+		Offset(0).
+		Limit(10).
+		Get()
+	require.NoError(t, getErr, "get should succeed")
+	assert.Len(t, rows, 2)
+	assert.NotNil(t, rows[0]["triggered_at"])
+	t.Logf("row[0] triggered_at type=%T value=%v", rows[0]["triggered_at"], rows[0]["triggered_at"])
+
+	// 4. Verify ordering (most recent first)
+	if len(rows) == 2 {
+		t1 := rows[0]["triggered_at"]
+		t2 := rows[1]["triggered_at"]
+		t.Logf("row[0]=%v row[1]=%v", t1, t2)
+	}
+
+	// Cleanup
+	capsule.Global.Query().Table(tbl).Where("chat_id", "=", chatID).Delete()
+}

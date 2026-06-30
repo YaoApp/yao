@@ -24,8 +24,18 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.PUT("/:chat_id/move", handleMove)
 	group.PUT("/:chat_id/archive", handleArchive)
 	group.PUT("/:chat_id/unarchive", handleUnarchive)
-	group.GET("/:chat_id/config", handleGetConfig)
-	group.PUT("/:chat_id/config", handleSetConfig)
+
+	// Sub-resource endpoints
+	group.GET("/:chat_id/secrets", handleTaskSecretsGet)
+	group.PUT("/:chat_id/secrets", handleTaskSecretsUpdate)
+	group.DELETE("/:chat_id/secrets/:key", handleTaskSecretDelete)
+	group.GET("/:chat_id/schedule", handleTaskScheduleGet)
+	group.PUT("/:chat_id/schedule", handleTaskScheduleUpdate)
+	group.GET("/:chat_id/schedule/logs", handleTaskScheduleLogsGet)
+	group.GET("/:chat_id/skills", handleTaskSkillsGet)
+	group.GET("/:chat_id/computers", handleTaskComputersGet)
+	group.GET("/:chat_id/sandbox", handleTaskSandboxGet)
+	group.PUT("/:chat_id/sandbox", handleTaskSandboxPut)
 
 	// Execution routes (Plan 3)
 	group.GET("/:chat_id/ws", handleWS)
@@ -43,6 +53,7 @@ func handleList(c *gin.Context) {
 		RunStatus:   c.Query("run_status"),
 		AssistantID: c.Query("assistant_id"),
 		BoardID:     c.Query("board_id"),
+		Locale:      c.Query("locale"),
 	}
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		q.Page = p
@@ -78,6 +89,7 @@ func handleCreate(c *gin.Context) {
 
 func handleGet(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
+	info := authorized.GetInfo(c)
 	chatID := c.Param("chat_id")
 
 	result, err := tasksvc.Get(c.Request.Context(), auth, chatID)
@@ -85,6 +97,10 @@ func handleGet(c *gin.Context) {
 		respondError(c, http.StatusNotFound, err)
 		return
 	}
+	if locale := c.Query("locale"); locale != "" {
+		tasksvc.TranslateAssistantName(result, locale)
+	}
+	tasksvc.ResolveConnectorLabel(result, info)
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
@@ -166,34 +182,6 @@ func handleMove(c *gin.Context) {
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
-}
-
-func handleGetConfig(c *gin.Context) {
-	auth := toProcessAuth(authorized.GetInfo(c))
-	chatID := c.Param("chat_id")
-
-	config, err := tasksvc.GetConfig(c.Request.Context(), auth, chatID)
-	if err != nil {
-		respondError(c, http.StatusInternalServerError, err)
-		return
-	}
-	response.RespondWithSuccess(c, http.StatusOK, config)
-}
-
-func handleSetConfig(c *gin.Context) {
-	auth := toProcessAuth(authorized.GetInfo(c))
-	chatID := c.Param("chat_id")
-
-	var req tasksvc.ConfigReq
-	if err := c.ShouldBindJSON(&req); err != nil {
-		respondError(c, http.StatusBadRequest, err)
-		return
-	}
-	if err := tasksvc.SetConfig(c.Request.Context(), auth, chatID, &req); err != nil {
-		respondError(c, http.StatusInternalServerError, err)
-		return
-	}
-	response.RespondWithSuccess(c, http.StatusOK, gin.H{"ok": true})
 }
 
 func toProcessAuth(info *oauthtypes.AuthorizedInfo) *process.AuthorizedInfo {

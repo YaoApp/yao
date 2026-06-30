@@ -11,6 +11,7 @@ import (
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/event"
+	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -107,6 +108,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	}
 
 	resolveWorkspaceNames(ctx, tasks)
+	resolveNextRun(tasks)
 
 	if q.Locale != "" {
 		for _, t := range tasks {
@@ -166,7 +168,40 @@ func Get(ctx context.Context, auth *process.AuthorizedInfo, chatID string) (*Tas
 
 	t := rowToTask(row)
 	resolveWorkspaceNames(ctx, []*Task{t})
+	resolveNextRun([]*Task{t})
 	return t, nil
+}
+
+// TranslateAssistantName applies i18n translation to a task's AssistantName.
+func TranslateAssistantName(t *Task, locale string) {
+	if t == nil || locale == "" || t.AssistantName == "" || t.AssistantID == "" {
+		return
+	}
+	if translated := i18n.Translate(t.AssistantID, locale, t.AssistantName); translated != nil {
+		if s, ok := translated.(string); ok {
+			t.AssistantName = s
+		}
+	}
+}
+
+// ResolveConnectorLabel resolves LastConnector ID to a user-friendly label
+// by looking it up in the model list scoped to the caller's identity.
+func ResolveConnectorLabel(t *Task, id llmprovider.Identity) {
+	if t == nil || t.LastConnector == nil || *t.LastConnector == "" {
+		return
+	}
+	if llmprovider.Global == nil {
+		return
+	}
+	connectorID := *t.LastConnector
+	opts := llmprovider.Global.ListModelsBy(id)
+	for _, o := range opts {
+		if o.Value == connectorID {
+			t.ConnectorLabel = o.Label
+			return
+		}
+	}
+	t.ConnectorLabel = connectorID
 }
 
 // Create creates a new task with its associated chat
@@ -286,8 +321,27 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 	if req.SandboxType != nil {
 		taskUpdates["sandbox_type"] = *req.SandboxType
 	}
+	if req.Schedule != nil {
+		schedJSON, _ := jsoniter.MarshalToString(req.Schedule)
+		taskUpdates["schedule"] = schedJSON
+		GlobalScheduleEngine.Update(chatID, *req.Schedule)
+	}
 	if req.Instruction != nil {
-		taskUpdates["instruction"] = *req.Instruction
+		existing := getScheduledInstruction(chatID)
+		merged := *req.Instruction
+		if existing != nil {
+			if merged.FirstQuestion == "" {
+				merged.FirstQuestion = existing.FirstQuestion
+			}
+			if merged.FirstAnswer == "" {
+				merged.FirstAnswer = existing.FirstAnswer
+			}
+		}
+		if merged.UpdatedAt == "" {
+			merged.UpdatedAt = time.Now().Format(time.RFC3339)
+		}
+		siJSON, _ := jsoniter.MarshalToString(merged)
+		taskUpdates["instruction"] = siJSON
 	}
 	if req.Summary != nil {
 		taskUpdates["summary"] = *req.Summary
@@ -331,6 +385,11 @@ func Update(ctx context.Context, auth *process.AuthorizedInfo, chatID string, re
 			return nil, fmt.Errorf("task.Update agent_chat: %w", err)
 		}
 	}
+
+	event.Push(ctx, "task.updated", map[string]any{
+		"chat_id":       chatID,
+		"__yao_team_id": auth.TeamID,
+	})
 
 	return Get(ctx, auth, chatID)
 }
@@ -620,7 +679,8 @@ func rowToTask(row map[string]interface{}) *Task {
 	if v := getStringPtr(row, "sandbox_type"); v != nil {
 		t.SandboxType = v
 	}
-	t.Instruction = getString(row, "instruction")
+	t.Schedule = parseScheduleJSON(row["schedule"])
+	t.Instruction = parseInstructionJSON(row["instruction"])
 	t.Summary = getString(row, "summary")
 	if outputsRaw, ok := row["outputs"]; ok && outputsRaw != nil {
 		switch v := outputsRaw.(type) {
@@ -744,6 +804,122 @@ func getTime(row map[string]interface{}, key string) *time.Time {
 		}
 	}
 	return nil
+}
+
+// parseScheduleJSON deserializes the schedule column value into ScheduleConfig.
+func parseScheduleJSON(raw interface{}) *ScheduleConfig {
+	if raw == nil {
+		return nil
+	}
+	var data []byte
+	switch v := raw.(type) {
+	case string:
+		if v == "" {
+			return nil
+		}
+		data = []byte(v)
+	case []byte:
+		data = v
+	default:
+		d, err := jsoniter.Marshal(v)
+		if err != nil {
+			return nil
+		}
+		data = d
+	}
+	var cfg ScheduleConfig
+	if err := jsoniter.Unmarshal(data, &cfg); err != nil {
+		return nil
+	}
+	if cfg.Mode == "" && !cfg.Enabled {
+		return nil
+	}
+	return &cfg
+}
+
+// computeNextRun calculates the next trigger time for a scheduled task.
+func computeNextRun(cfg *ScheduleConfig, chatID string) *time.Time {
+	if cfg == nil || !cfg.Enabled {
+		return nil
+	}
+
+	lastRun := getLastTriggeredAt(chatID)
+	now := time.Now()
+
+	var next time.Time
+	switch cfg.Mode {
+	case "interval":
+		dur := intervalDuration(cfg.IntervalValue, cfg.IntervalUnit)
+		if dur <= 0 {
+			return nil
+		}
+		if lastRun.IsZero() {
+			next = now
+		} else {
+			next = lastRun.Add(dur)
+		}
+
+	case "times":
+		if len(cfg.Times) == 0 {
+			return nil
+		}
+		today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+		for _, tStr := range cfg.Times {
+			parsed, err := time.Parse("15:04", tStr)
+			if err != nil {
+				continue
+			}
+			candidate := today.Add(time.Duration(parsed.Hour())*time.Hour + time.Duration(parsed.Minute())*time.Minute)
+			if candidate.After(now) && (next.IsZero() || candidate.Before(next)) {
+				next = candidate
+			}
+		}
+		if next.IsZero() {
+			// All times today have passed; next is the earliest time tomorrow
+			tomorrow := today.Add(24 * time.Hour)
+			for _, tStr := range cfg.Times {
+				parsed, err := time.Parse("15:04", tStr)
+				if err != nil {
+					continue
+				}
+				candidate := tomorrow.Add(time.Duration(parsed.Hour())*time.Hour + time.Duration(parsed.Minute())*time.Minute)
+				if next.IsZero() || candidate.Before(next) {
+					next = candidate
+				}
+			}
+		}
+
+	case "daemon":
+		backoff := calcBackoff(0)
+		if lastRun.IsZero() {
+			next = now
+		} else {
+			next = lastRun.Add(backoff)
+		}
+
+	case "once":
+		if lastRun.IsZero() {
+			next = now
+		} else {
+			return nil
+		}
+	default:
+		return nil
+	}
+
+	if next.IsZero() {
+		return nil
+	}
+	return &next
+}
+
+// resolveNextRun computes NextRun for tasks that have a schedule configured.
+func resolveNextRun(tasks []*Task) {
+	for _, t := range tasks {
+		if t.Schedule != nil && t.Schedule.Enabled {
+			t.NextRun = computeNextRun(t.Schedule, t.ChatID)
+		}
+	}
 }
 
 // resolveWorkspaceNames batch-resolves workspace names for tasks that have a
