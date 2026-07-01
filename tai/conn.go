@@ -7,6 +7,7 @@ import (
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	"github.com/yaoapp/yao/tai/proxy"
 	"github.com/yaoapp/yao/tai/runtime"
+	sqpb "github.com/yaoapp/yao/tai/systemquery/pb"
 	"github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/tai/vnc"
 	"github.com/yaoapp/yao/tai/volume"
@@ -17,18 +18,19 @@ import (
 // Returned by Dial* functions. Caller (usually registry) is responsible
 // for calling Close() when the node disconnects or resources are replaced.
 type ConnResources struct {
-	GRPCConn *grpc.ClientConn
-	Runtime  runtime.Runtime
-	Image    runtime.Image
-	HostExec hepb.HostExecClient
-	Volume   volume.Volume
-	Proxy    proxy.Proxy
-	VNC      vnc.VNC
-	Caps     types.Capabilities
-	System   types.SystemInfo
-	Ports    types.Ports
-	Version  string
-	DataDir  string // host-side data dir (local mode only)
+	GRPCConn    *grpc.ClientConn
+	Runtime     runtime.Runtime
+	Image       runtime.Image
+	HostExec    hepb.HostExecClient
+	SystemQuery sqpb.SystemQueryClient
+	Volume      volume.Volume
+	Proxy       proxy.Proxy
+	VNC         vnc.VNC
+	Caps        types.Capabilities
+	System      types.SystemInfo
+	Ports       types.Ports
+	Version     string
+	DataDir     string // host-side data dir (local mode only)
 
 	// Tunnel mode: local listeners that bridge to Tai via WS.
 	Listeners []net.Listener

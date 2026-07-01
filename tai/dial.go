@@ -15,6 +15,8 @@ import (
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/runtime"
 	sipb "github.com/yaoapp/yao/tai/serverinfo/pb"
+	"github.com/yaoapp/yao/tai/systemquery"
+	sqpb "github.com/yaoapp/yao/tai/systemquery/pb"
 	"github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/tai/vnc"
 	"github.com/yaoapp/yao/tai/volume"
@@ -114,8 +116,9 @@ func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, 
 	sb, _ := runtime.NewLocal(addr) // Docker failure is non-fatal
 
 	res := &ConnResources{
-		DataDir: dataDir,
-		System:  CollectSystemInfo(),
+		DataDir:     dataDir,
+		System:      CollectSystemInfo(),
+		SystemQuery: systemquery.NewLocalClient(),
 	}
 
 	if sb != nil {
@@ -178,13 +181,14 @@ func buildResources(conn *grpc.ClientConn, cfg *dialConfig, env dialEnv) (*ConnR
 	caps := env.mergeCaps(info.Capabilities)
 
 	res := &ConnResources{
-		GRPCConn: conn,
-		HostExec: hepb.NewHostExecClient(conn),
-		Volume:   volume.NewRemote(conn),
-		Caps:     caps,
-		System:   info.System,
-		Ports:    cfg.ports,
-		Version:  info.Version,
+		GRPCConn:    conn,
+		HostExec:    hepb.NewHostExecClient(conn),
+		SystemQuery: sqpb.NewSystemQueryClient(conn),
+		Volume:      volume.NewRemote(conn),
+		Caps:        caps,
+		System:      info.System,
+		Ports:       cfg.ports,
+		Version:     info.Version,
 	}
 
 	if cfg.runtime == types.K8s || (!caps.Docker && caps.K8s) {
@@ -348,6 +352,8 @@ type dialConfig struct {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const maxGRPCMsgSize = 500 * 1024 * 1024 // 500 MB
+
 func dialGRPC(target string) (*grpc.ClientConn, error) {
 	return grpc.NewClient(target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -356,6 +362,10 @@ func dialGRPC(target string) (*grpc.ClientConn, error) {
 			Timeout:             5 * time.Second,
 			PermitWithoutStream: true,
 		}),
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(maxGRPCMsgSize),
+			grpc.MaxCallSendMsgSize(maxGRPCMsgSize),
+		),
 	)
 }
 

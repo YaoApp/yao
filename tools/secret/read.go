@@ -58,12 +58,9 @@ func ReadHandler(proc *process.Process) interface{} {
 		return map[string]any{"error": err.Error()}
 	}
 
-	if setting.Global == nil {
-		return map[string]any{"error": "setting registry not initialized"}
-	}
+	chatID := extractChatID(proc)
 
-	ns := resolveNamespace(assistantID)
-	merged, err := setting.Global.GetMerged(userID, teamID, ns)
+	secretsMap, err := getMergedSecrets(userID, teamID, assistantID, chatID)
 	if err != nil {
 		audit.Record(audit.Entry{
 			Operation:      "secret_read",
@@ -81,8 +78,7 @@ func ReadHandler(proc *process.Process) interface{} {
 		return map[string]any{"error": fmt.Sprintf("setting read failed: %v", err)}
 	}
 
-	secretsRaw, ok := merged["secrets"]
-	if !ok {
+	if secretsMap == nil {
 		audit.Record(audit.Entry{
 			Operation:      "secret_read",
 			Category:       "data",
@@ -97,24 +93,6 @@ func ReadHandler(proc *process.Process) interface{} {
 			ErrorMessage:   fmt.Sprintf("secret %q not found", name),
 		})
 		return map[string]any{"error": fmt.Sprintf("secret %q not found", name)}
-	}
-
-	secretsMap, ok := secretsRaw.(map[string]interface{})
-	if !ok {
-		audit.Record(audit.Entry{
-			Operation:      "secret_read",
-			Category:       "data",
-			Severity:       "medium",
-			UserID:         userID,
-			TeamID:         teamID,
-			Application:    assistantID,
-			TargetResource: name,
-			ResourceType:   "secret",
-			Source:         "mcp",
-			Success:        false,
-			ErrorMessage:   "invalid secrets format",
-		})
-		return map[string]any{"error": "invalid secrets format"}
 	}
 
 	entryRaw, ok := secretsMap[name]

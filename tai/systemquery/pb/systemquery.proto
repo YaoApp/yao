@@ -1,0 +1,63 @@
+syntax = "proto3";
+package systemquery;
+option go_package = "github.com/yaoapp/yao/tai/systemquery/pb";
+
+service SystemQuery {
+  rpc ListPorts(ListPortsRequest) returns (ListPortsResponse);
+  rpc ListProcesses(ListProcessesRequest) returns (ListProcessesResponse);
+}
+
+message ListPortsRequest {}
+
+message ListPortsResponse {
+  repeated PortInfo ports = 1;
+}
+
+message ListProcessesRequest {
+  bool skip_cpu_sample = 1;
+}
+
+message ListProcessesResponse {
+  repeated ProcessInfo processes = 1;
+  SystemLoad load = 2;
+}
+
+message PortInfo {
+  int32  port     = 1;
+  string protocol = 2;
+  string process  = 3;
+  int32  pid      = 4;
+  string state    = 5;
+  string address  = 6;
+  string command  = 7;
+}
+
+message ProcessInfo {
+  int32  pid         = 1;
+  int32  ppid        = 2;
+  string user        = 3;
+  string command     = 4;
+  string state       = 5;
+  float  cpu_percent = 6;
+  float  mem_percent = 7;
+  int64  rss_bytes   = 8;
+  int64  vsz_bytes   = 9;
+  int64  start_time  = 10;
+  int64  cpu_time_ms = 11;
+  int32  threads     = 12;
+  int32  open_files  = 13;
+}
+
+message SystemLoad {
+  float load1         = 1;
+  float load5         = 2;
+  float load15        = 3;
+  int64 mem_total     = 4;
+  int64 mem_used      = 5;
+  int64 mem_available = 6;
+  int64 swap_total    = 7;
+  int64 swap_used     = 8;
+  int32 cpu_count     = 9;
+  float cpu_usage     = 10;
+  int64 uptime_sec    = 11;
+}
