@@ -94,6 +94,7 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	cfg.Owner = ownerID
 	cfg.ID = identifier
 	cfg.WorkspaceID = workspaceID
+	cfg.ChatID = ctx.ChatID
 	cfg.NodeID = sel.NodeID
 
 	// Store assistant ID as a label for reliable lookup by webproxy/settings

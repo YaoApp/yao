@@ -17,9 +17,15 @@ const taiHost = "host.tai.internal"
 //   - tunnel/direct:  Tai gRPC port (Tai Gateway forwards to Yao)
 //
 // taiGRPCPort is the Tai node's gRPC port from registration (Ports.GRPC).
-func BuildGRPCEnv(mode string, taiGRPCPort int, sandboxID string) map[string]string {
+func BuildGRPCEnv(mode string, taiGRPCPort int, sandboxID, chatID, workspaceID string) map[string]string {
 	env := map[string]string{
 		"YAO_SANDBOX_ID": sandboxID,
+	}
+	if chatID != "" {
+		env["CTX_CHAT_ID"] = chatID
+	}
+	if workspaceID != "" {
+		env["CTX_WORKSPACE_ID"] = workspaceID
 	}
 
 	switch mode {

@@ -6,7 +6,6 @@ import (
 
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/openapi/audit"
-	"github.com/yaoapp/yao/setting"
 )
 
 //go:embed list_schema.json
@@ -50,12 +49,9 @@ func ListHandler(proc *process.Process) interface{} {
 		return map[string]any{"error": err.Error()}
 	}
 
-	if setting.Global == nil {
-		return map[string]any{"error": "setting registry not initialized"}
-	}
+	chatID := extractChatID(proc)
 
-	ns := resolveNamespace(assistantID)
-	merged, err := setting.Global.GetMerged(userID, teamID, ns)
+	secretsMap, err := getMergedSecrets(userID, teamID, assistantID, chatID)
 	if err != nil {
 		audit.Record(audit.Entry{
 			Operation:    "secret_list",
@@ -91,34 +87,30 @@ func ListHandler(proc *process.Process) interface{} {
 		})
 	}
 
-	// 2) Merge user-configured secrets from setting.Registry
-	if secretsRaw, ok := merged["secrets"]; ok {
-		if secretsMap, ok := secretsRaw.(map[string]interface{}); ok {
-			for name, entryRaw := range secretsMap {
-				entryMap, ok := entryRaw.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				label, _ := entryMap["label"].(string)
-				desc, _ := entryMap["description"].(string)
+	// 2) Merge user-configured secrets from L2+L3 merged map
+	for name, entryRaw := range secretsMap {
+		entryMap, ok := entryRaw.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		label, _ := entryMap["label"].(string)
+		desc, _ := entryMap["description"].(string)
 
-				if seen[name] {
-					// Update predefined entry with user-provided label/desc if non-empty
-					for i := range items {
-						if items[i].Name == name {
-							if label != "" {
-								items[i].Label = label
-							}
-							if desc != "" {
-								items[i].Description = desc
-							}
-							break
-						}
+		if seen[name] {
+			for i := range items {
+				if items[i].Name == name {
+					if label != "" {
+						items[i].Label = label
 					}
-				} else {
-					items = append(items, secretMeta{Name: name, Label: label, Description: desc})
+					if desc != "" {
+						items[i].Description = desc
+					}
+					break
 				}
 			}
+		} else {
+			seen[name] = true
+			items = append(items, secretMeta{Name: name, Label: label, Description: desc})
 		}
 	}
 

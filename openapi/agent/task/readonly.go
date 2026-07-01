@@ -14,6 +14,8 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
+	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai"
 	ws "github.com/yaoapp/yao/workspace"
 )
 
@@ -46,9 +48,45 @@ func handleTaskSkillsGet(c *gin.Context) {
 	})
 }
 
-// handleTaskComputersGet returns available compute nodes.
+// handleTaskComputersGet resolves the computer for this task and returns its info.
 func handleTaskComputersGet(c *gin.Context) {
-	response.RespondWithSuccess(c, http.StatusOK, []interface{}{})
+	computer, err := resolveComputer(c)
+	if err != nil {
+		return
+	}
+	if computer == nil {
+		response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{
+			"status":  "not_running",
+			"message": "sandbox is not running",
+		})
+		return
+	}
+
+	info := computer.ComputerInfo()
+
+	vnc := false
+	if box, ok := computer.(*sandbox.Box); ok {
+		vnc = box.Snapshot().VNC
+	} else if res, ok := tai.GetResources(info.NodeID); ok && res != nil {
+		vnc = res.VNC != nil
+	}
+
+	result := map[string]interface{}{
+		"kind":    info.Kind,
+		"node_id": info.NodeID,
+		"box_id":  info.BoxID,
+		"status":  info.Status,
+		"vnc":     vnc,
+		"system": map[string]interface{}{
+			"os":        info.System.OS,
+			"arch":      info.System.Arch,
+			"hostname":  info.System.Hostname,
+			"num_cpu":   info.System.NumCPU,
+			"total_mem": info.System.TotalMem,
+			"shell":     info.System.Shell,
+		},
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 // handleTaskSandboxGet returns sandbox config from config.Resolve.

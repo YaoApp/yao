@@ -8,6 +8,7 @@ import (
 	"os"
 
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
+	sqpb "github.com/yaoapp/yao/tai/systemquery/pb"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
@@ -256,3 +257,41 @@ func (h *Host) NodeID() string { return h.nodeID }
 type nopWriteCloser struct{ io.Writer }
 
 func (nopWriteCloser) Close() error { return nil }
+
+// ListPorts returns listening ports on the host via the SystemQuery client.
+func (h *Host) ListPorts(ctx context.Context) ([]*PortInfo, error) {
+	res, err := h.manager.getNode(h.nodeID)
+	if err != nil {
+		return nil, err
+	}
+	if res.SystemQuery == nil {
+		return nil, fmt.Errorf("system query client not available for node %s", h.nodeID)
+	}
+
+	resp, err := res.SystemQuery.ListPorts(ctx, &sqpb.ListPortsRequest{})
+	if err != nil {
+		return nil, fmt.Errorf("list ports: %w", err)
+	}
+	return convertPorts(resp.Ports), nil
+}
+
+// ListProcesses returns running processes on the host via the SystemQuery client.
+func (h *Host) ListProcesses(ctx context.Context, opts ...ListProcessesOption) ([]*ProcessInfo, *SystemLoad, error) {
+	cfg := applyListProcessesOpts(opts)
+
+	res, err := h.manager.getNode(h.nodeID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if res.SystemQuery == nil {
+		return nil, nil, fmt.Errorf("system query client not available for node %s", h.nodeID)
+	}
+
+	resp, err := res.SystemQuery.ListProcesses(ctx, &sqpb.ListProcessesRequest{
+		SkipCpuSample: cfg.SkipCPU,
+	})
+	if err != nil {
+		return nil, nil, fmt.Errorf("list processes: %w", err)
+	}
+	return convertProcesses(resp.Processes), convertLoad(resp.Load), nil
+}

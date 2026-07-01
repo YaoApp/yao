@@ -180,6 +180,12 @@ func (f *FakeComputer) Stream(_ context.Context, _ []string, _ ...infra.ExecOpti
 }
 func (f *FakeComputer) VNC(_ context.Context) (string, error)                    { return "", nil }
 func (f *FakeComputer) Proxy(_ context.Context, _ int, _ string) (string, error) { return "", nil }
+func (f *FakeComputer) ListPorts(_ context.Context) ([]*infra.PortInfo, error) {
+	return nil, nil
+}
+func (f *FakeComputer) ListProcesses(_ context.Context, _ ...infra.ListProcessesOption) ([]*infra.ProcessInfo, *infra.SystemLoad, error) {
+	return nil, nil, nil
+}
 
 // --- Export default constants ---
 

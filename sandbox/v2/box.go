@@ -8,8 +8,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+
 	"github.com/yaoapp/yao/tai/proxy"
 	tairuntime "github.com/yaoapp/yao/tai/runtime"
+	sqpb "github.com/yaoapp/yao/tai/systemquery/pb"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
 )
 
@@ -390,6 +393,82 @@ func (b *Box) stopTimeout() time.Duration {
 func (b *Box) IsStopped() bool {
 	s, _ := b.status.Load().(string)
 	return s == "exited" || s == "stopped"
+}
+
+// RootExec runs a command in the container as root. Used internally for
+// system-level queries (not exposed to users).
+func (b *Box) RootExec(ctx context.Context, cmd []string) (*ExecResult, error) {
+	b.touch()
+
+	res, err := b.manager.getNode(b.nodeID)
+	if err != nil {
+		return nil, err
+	}
+
+	execOpts := tairuntime.ExecOptions{
+		User: "", // empty = root
+	}
+
+	var result *tairuntime.ExecResult
+	for attempt := 0; ; attempt++ {
+		var err409 error
+		result, err409 = res.Runtime.Exec(ctx, b.containerID, cmd, execOpts)
+		if err409 == nil {
+			break
+		}
+		if attempt < 2 && strings.Contains(err409.Error(), "409") {
+			time.Sleep(500 * time.Millisecond)
+			continue
+		}
+		return nil, err409
+	}
+
+	return &ExecResult{
+		ExitCode: result.ExitCode,
+		Stdout:   result.Stdout,
+		Stderr:   result.Stderr,
+	}, nil
+}
+
+// ListPorts returns listening ports inside the container by executing "tai system ports --json".
+func (b *Box) ListPorts(ctx context.Context) ([]*PortInfo, error) {
+	result, err := b.RootExec(ctx, []string{"tai", "system", "ports", "--json"})
+	if err != nil {
+		return nil, fmt.Errorf("exec tai system ports: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return nil, fmt.Errorf("tai system ports exit %d: %s", result.ExitCode, result.Stderr)
+	}
+
+	var resp sqpb.ListPortsResponse
+	if err := protojson.Unmarshal([]byte(result.Stdout), &resp); err != nil {
+		return nil, fmt.Errorf("parse ports json: %w", err)
+	}
+	return convertPorts(resp.Ports), nil
+}
+
+// ListProcesses returns running processes inside the container by executing "tai system processes --json".
+func (b *Box) ListProcesses(ctx context.Context, opts ...ListProcessesOption) ([]*ProcessInfo, *SystemLoad, error) {
+	cfg := applyListProcessesOpts(opts)
+
+	cmd := []string{"tai", "system", "processes", "--json"}
+	if cfg.SkipCPU {
+		cmd = append(cmd, "--fast")
+	}
+
+	result, err := b.RootExec(ctx, cmd)
+	if err != nil {
+		return nil, nil, fmt.Errorf("exec tai system processes: %w", err)
+	}
+	if result.ExitCode != 0 {
+		return nil, nil, fmt.Errorf("tai system processes exit %d: %s", result.ExitCode, result.Stderr)
+	}
+
+	var resp sqpb.ListProcessesResponse
+	if err := protojson.Unmarshal([]byte(result.Stdout), &resp); err != nil {
+		return nil, nil, fmt.Errorf("parse processes json: %w", err)
+	}
+	return convertProcesses(resp.Processes), convertLoad(resp.Load), nil
 }
 
 // inspectStatus queries the container runtime for the real container state.

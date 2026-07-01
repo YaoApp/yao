@@ -6,6 +6,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
@@ -194,11 +195,12 @@ func applyEnrichResult(chatID string, auth *process.AuthorizedInfo, result *enri
 		eventData["instruction"] = si
 	}
 
-	// Outputs
+	// Outputs (accumulate across runs — merge with existing)
 	if len(result.Outputs) > 0 {
-		outputsJSON, _ := json.Marshal(result.Outputs)
+		merged := mergeOutputs(chatID, result.Outputs)
+		outputsJSON, _ := json.Marshal(merged)
 		taskUpdates["outputs"] = string(outputsJSON)
-		eventData["outputs"] = result.Outputs
+		eventData["outputs"] = merged
 	}
 
 	// Tags (first run only)
@@ -344,4 +346,82 @@ func localeToLanguage(locale string) string {
 	default:
 		return "English"
 	}
+}
+
+// isValidOutput checks whether an extracted output entry has a plausible file path.
+func isValidOutput(m map[string]any) bool {
+	path, _ := m["path"].(string)
+	name, _ := m["name"].(string)
+	typ, _ := m["type"].(string)
+
+	if path == "" {
+		return false
+	}
+	if !strings.Contains(filepath.Base(path), ".") {
+		return false
+	}
+	if typ != "" && typ != "file" && typ != "attachment" {
+		return false
+	}
+	if name == "" {
+		return false
+	}
+	return true
+}
+
+// mergeOutputs accumulates outputs across multiple runs.
+// New outputs with the same "name" overwrite older entries (latest version wins).
+// Invalid entries are filtered out; created_at is set for new items and preserved for existing ones.
+func mergeOutputs(chatID string, newOutputs []any) []any {
+	row, err := capsule.Global.Query().Table(tableTask()).
+		Select("outputs").Where("chat_id", "=", chatID).First()
+
+	merged := make(map[string]map[string]any)
+
+	if err == nil && row != nil {
+		var existing []map[string]any
+		switch raw := row["outputs"].(type) {
+		case string:
+			if raw != "" {
+				json.Unmarshal([]byte(raw), &existing)
+			}
+		case []byte:
+			if len(raw) > 0 {
+				json.Unmarshal(raw, &existing)
+			}
+		}
+		for _, item := range existing {
+			if name, _ := item["name"].(string); name != "" {
+				merged[name] = item
+			}
+		}
+	}
+
+	now := time.Now().Format(time.RFC3339)
+	for _, item := range newOutputs {
+		m, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		if !isValidOutput(m) {
+			continue
+		}
+		name, _ := m["name"].(string)
+		if prev, exists := merged[name]; exists {
+			if prevTime, _ := prev["created_at"].(string); prevTime != "" {
+				m["created_at"] = prevTime
+			} else {
+				m["created_at"] = now
+			}
+		} else {
+			m["created_at"] = now
+		}
+		merged[name] = m
+	}
+
+	result := make([]any, 0, len(merged))
+	for _, v := range merged {
+		result = append(result, v)
+	}
+	return result
 }

@@ -23,6 +23,8 @@ type Computer interface {
 	BindWorkplace(workspaceID string)
 	Workplace() workspace.FS
 	GetWorkDir() string
+	ListPorts(ctx context.Context) ([]*PortInfo, error)
+	ListProcesses(ctx context.Context, opts ...ListProcessesOption) ([]*ProcessInfo, *SystemLoad, error)
 }
 
 // ComputerInfo holds identity and registry information for a Computer.
@@ -108,6 +110,7 @@ type CreateOptions struct {
 	StopTimeout time.Duration
 
 	WorkspaceID string
+	ChatID      string
 	MountMode   string
 	MountPath   string
 	DisplayName string
@@ -232,4 +235,71 @@ type BoxInfo struct {
 	LastActive   time.Time
 	ProcessCount int
 	VNC          bool
+}
+
+// ---------------------------------------------------------------------------
+// SystemQuery types
+// ---------------------------------------------------------------------------
+
+// PortInfo represents a listening network port.
+type PortInfo struct {
+	Port     int    `json:"port"`
+	Protocol string `json:"protocol"`
+	Process  string `json:"process"`
+	PID      int    `json:"pid"`
+	State    string `json:"state"`
+	Address  string `json:"address"`
+	Command  string `json:"command"`
+}
+
+// ProcessInfo represents a running process.
+type ProcessInfo struct {
+	PID        int     `json:"pid"`
+	PPID       int     `json:"ppid"`
+	User       string  `json:"user"`
+	Command    string  `json:"command"`
+	State      string  `json:"state"`
+	CPUPercent float32 `json:"cpuPercent"`
+	MemPercent float32 `json:"memPercent"`
+	RSSBytes   int64   `json:"rssBytes"`
+	VSZBytes   int64   `json:"vszBytes"`
+	StartTime  int64   `json:"startTime"`
+	CPUTimeMs  int64   `json:"cpuTimeMs"`
+	Threads    int     `json:"threads"`
+	OpenFiles  int     `json:"openFiles"`
+}
+
+// SystemLoad represents overall system resource usage.
+type SystemLoad struct {
+	Load1        float32 `json:"load1"`
+	Load5        float32 `json:"load5"`
+	Load15       float32 `json:"load15"`
+	MemTotal     int64   `json:"memTotal"`
+	MemUsed      int64   `json:"memUsed"`
+	MemAvailable int64   `json:"memAvailable"`
+	SwapTotal    int64   `json:"swapTotal"`
+	SwapUsed     int64   `json:"swapUsed"`
+	CPUCount     int     `json:"cpuCount"`
+	CPUUsage     float32 `json:"cpuUsage"`
+	UptimeSec    int64   `json:"uptimeSec"`
+}
+
+// ListProcessesOption configures a ListProcesses call.
+type ListProcessesOption func(*listProcessesConfig)
+
+type listProcessesConfig struct {
+	SkipCPU bool
+}
+
+// WithSkipCPU skips CPU sampling for faster process listing.
+func WithSkipCPU() ListProcessesOption {
+	return func(c *listProcessesConfig) { c.SkipCPU = true }
+}
+
+func applyListProcessesOpts(opts []ListProcessesOption) listProcessesConfig {
+	var cfg listProcessesConfig
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return cfg
 }

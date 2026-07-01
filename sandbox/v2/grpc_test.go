@@ -9,7 +9,7 @@ import (
 
 func TestBuildGRPCEnv_Local(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("local", 19100, "sb-001")
+	env := sandbox.BuildGRPCEnv("local", 19100, "sb-001", "", "")
 
 	want := "host.tai.internal:9099"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -19,7 +19,7 @@ func TestBuildGRPCEnv_Local(t *testing.T) {
 
 func TestBuildGRPCEnv_Local_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 0
-	env := sandbox.BuildGRPCEnv("local", 19100, "sb-zero")
+	env := sandbox.BuildGRPCEnv("local", 19100, "sb-zero", "", "")
 
 	want := "host.tai.internal:9099"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -29,7 +29,7 @@ func TestBuildGRPCEnv_Local_ZeroPort(t *testing.T) {
 
 func TestBuildGRPCEnv_Tunnel(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("tunnel", 19200, "sb-003")
+	env := sandbox.BuildGRPCEnv("tunnel", 19200, "sb-003", "", "")
 
 	want := "host.tai.internal:19200"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -39,7 +39,7 @@ func TestBuildGRPCEnv_Tunnel(t *testing.T) {
 
 func TestBuildGRPCEnv_Tunnel_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("tunnel", 0, "sb-tzero")
+	env := sandbox.BuildGRPCEnv("tunnel", 0, "sb-tzero", "", "")
 
 	want := "host.tai.internal:19100"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -49,7 +49,7 @@ func TestBuildGRPCEnv_Tunnel_ZeroPort(t *testing.T) {
 
 func TestBuildGRPCEnv_Direct(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 19100, "sb-002")
+	env := sandbox.BuildGRPCEnv("direct", 19100, "sb-002", "", "")
 
 	want := "host.tai.internal:19100"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -59,7 +59,7 @@ func TestBuildGRPCEnv_Direct(t *testing.T) {
 
 func TestBuildGRPCEnv_Direct_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 0, "sb-dzero")
+	env := sandbox.BuildGRPCEnv("direct", 0, "sb-dzero", "", "")
 
 	want := "host.tai.internal:19100"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -69,7 +69,7 @@ func TestBuildGRPCEnv_Direct_ZeroPort(t *testing.T) {
 
 func TestBuildGRPCEnv_DefaultMode(t *testing.T) {
 	config.Conf.GRPC.Port = 8888
-	env := sandbox.BuildGRPCEnv("unknown", 19100, "sb-004")
+	env := sandbox.BuildGRPCEnv("unknown", 19100, "sb-004", "", "")
 
 	want := "host.tai.internal:8888"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -79,7 +79,7 @@ func TestBuildGRPCEnv_DefaultMode(t *testing.T) {
 
 func TestBuildGRPCEnv_DefaultMode_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 0
-	env := sandbox.BuildGRPCEnv("", 0, "sb-allzero")
+	env := sandbox.BuildGRPCEnv("", 0, "sb-allzero", "", "")
 
 	want := "host.tai.internal:9099"
 	if env["YAO_GRPC_ADDR"] != want {
@@ -97,7 +97,7 @@ func TestBuildGRPCEnv_SandboxID(t *testing.T) {
 		{"sb-long-id-with-dashes-123", "sb-long-id-with-dashes-123"},
 	}
 	for _, tc := range cases {
-		env := sandbox.BuildGRPCEnv("local", 0, tc.id)
+		env := sandbox.BuildGRPCEnv("local", 0, tc.id, "", "")
 		if env["YAO_SANDBOX_ID"] != tc.want {
 			t.Errorf("SandboxID(%q): got %q, want %q", tc.id, env["YAO_SANDBOX_ID"], tc.want)
 		}
@@ -106,7 +106,7 @@ func TestBuildGRPCEnv_SandboxID(t *testing.T) {
 
 func TestBuildGRPCEnv_NoExtraKeys(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("local", 0, "sb-check")
+	env := sandbox.BuildGRPCEnv("local", 0, "sb-check", "", "")
 
 	allowed := map[string]bool{"YAO_GRPC_ADDR": true, "YAO_SANDBOX_ID": true}
 	for k := range env {
@@ -116,5 +116,32 @@ func TestBuildGRPCEnv_NoExtraKeys(t *testing.T) {
 	}
 	if len(env) != 2 {
 		t.Errorf("expected 2 keys, got %d", len(env))
+	}
+}
+
+func TestBuildGRPCEnv_ChatID_WorkspaceID(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("local", 0, "sb-ctx", "chat-abc", "ws-xyz")
+
+	if env["CTX_CHAT_ID"] != "chat-abc" {
+		t.Errorf("CTX_CHAT_ID = %q, want %q", env["CTX_CHAT_ID"], "chat-abc")
+	}
+	if env["CTX_WORKSPACE_ID"] != "ws-xyz" {
+		t.Errorf("CTX_WORKSPACE_ID = %q, want %q", env["CTX_WORKSPACE_ID"], "ws-xyz")
+	}
+	if env["YAO_SANDBOX_ID"] != "sb-ctx" {
+		t.Errorf("YAO_SANDBOX_ID = %q, want %q", env["YAO_SANDBOX_ID"], "sb-ctx")
+	}
+}
+
+func TestBuildGRPCEnv_EmptyChatID_NoKey(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("local", 0, "sb-empty", "", "ws-only")
+
+	if _, ok := env["CTX_CHAT_ID"]; ok {
+		t.Error("CTX_CHAT_ID should not be present when chatID is empty")
+	}
+	if env["CTX_WORKSPACE_ID"] != "ws-only" {
+		t.Errorf("CTX_WORKSPACE_ID = %q, want %q", env["CTX_WORKSPACE_ID"], "ws-only")
 	}
 }

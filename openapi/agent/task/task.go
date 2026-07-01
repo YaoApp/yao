@@ -37,6 +37,11 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.GET("/:chat_id/sandbox", handleTaskSandboxGet)
 	group.PUT("/:chat_id/sandbox", handleTaskSandboxPut)
 
+	// System query routes
+	group.GET("/:chat_id/ports", handleTaskPortsGet)
+	group.GET("/:chat_id/processes", handleTaskProcessesGet)
+	group.POST("/:chat_id/exec", handleTaskExecPost)
+
 	// Execution routes (Plan 3)
 	group.GET("/:chat_id/ws", handleWS)
 	group.GET("/:chat_id/stream", handleSSE)

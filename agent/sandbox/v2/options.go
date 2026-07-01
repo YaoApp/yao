@@ -24,6 +24,7 @@ func BuildCreateOptions(cfg *types.SandboxConfig, identifier, ownerID, workspace
 		MountPath:   cfg.Computer.MountPath,
 		MountMode:   cfg.Computer.MountMode,
 		WorkspaceID: workspaceID,
+		ChatID:      cfg.ChatID,
 		Labels:      cfg.Labels,
 		DisplayName: cfg.DisplayName,
 	}

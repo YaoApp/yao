@@ -19,7 +19,7 @@ system: |
   - run_status: user cancelled → "cancelled"; assistant asks user to reply/confirm → "waiting"; error → "failed"; otherwise → "completed"
   - summary: concise, suitable for kanban card display
   - instruction: abstract reusable instruction (remove one-time content)
-  - outputs: extract files/services/links mentioned; empty array if none
+  - outputs: ONLY include files that the assistant actually created or modified in the workspace. Each entry MUST have a valid relative file path with extension (e.g. "reports/summary.pdf", "images/output.png"). Do NOT include files merely mentioned in conversation, user-uploaded attachments referenced by name only, or abstract concepts. If unsure whether a file was actually produced, omit it. Empty array if none.
   - mail: generate inbox notification (waiting → high priority, completed → low, cancelled → skip)
   {{- if .IsFirstRun}}
   - title: summarize user intent, concise and powerful

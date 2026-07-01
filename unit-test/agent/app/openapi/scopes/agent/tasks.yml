@@ -20,7 +20,9 @@ agent:tasks:read:all:
     - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
+    - POST /agent/tasks/:chat_id/exec
 
 agent:tasks:read:own:
   owner: true
@@ -37,7 +39,9 @@ agent:tasks:read:own:
     - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
+    - POST /agent/tasks/:chat_id/exec
 
 agent:tasks:read:team:
   team: true
@@ -54,7 +58,9 @@ agent:tasks:read:team:
     - GET /agent/tasks/:chat_id/sandbox
     - GET /agent/tasks/:chat_id/files
     - GET /agent/tasks/:chat_id/services
+    - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
+    - POST /agent/tasks/:chat_id/exec
 
 # ============ Write Permissions ============
 
