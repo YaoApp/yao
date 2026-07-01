@@ -34,6 +34,7 @@ func (d *dockerCore) create(ctx context.Context, opts CreateOptions, addVNCPorts
 	hostCfg := &container.HostConfig{
 		Binds:      opts.Binds,
 		ExtraHosts: []string{"host.tai.internal:host-gateway"},
+		CapAdd:     []string{"SYS_PTRACE"},
 	}
 
 	if opts.Memory > 0 {

@@ -71,6 +71,48 @@ func handleTaskProcessesGet(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
+// handleTaskExecPost executes a command in the sandbox associated with this task.
+func handleTaskExecPost(c *gin.Context) {
+	computer, err := resolveComputer(c)
+	if err != nil {
+		return
+	}
+	if computer == nil {
+		respondError(c, http.StatusServiceUnavailable, fmt.Errorf("sandbox is not running"))
+		return
+	}
+
+	var req struct {
+		Cmd  []string `json:"cmd" binding:"required"`
+		Root bool     `json:"root"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		respondError(c, http.StatusBadRequest, err)
+		return
+	}
+
+	var result *sandbox.ExecResult
+	if req.Root {
+		if box, ok := computer.(*sandbox.Box); ok {
+			result, err = box.RootExec(c.Request.Context(), req.Cmd)
+		} else {
+			result, err = computer.Exec(c.Request.Context(), req.Cmd)
+		}
+	} else {
+		result, err = computer.Exec(c.Request.Context(), req.Cmd)
+	}
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, map[string]interface{}{
+		"exit_code": result.ExitCode,
+		"stdout":    result.Stdout,
+		"stderr":    result.Stderr,
+	})
+}
+
 // resolveComputer finds the Computer (Box or Host) for the current task.
 // Returns nil Computer + nil error when sandbox is not running (Box mode only).
 // Host mode always returns a valid Computer (no "not running" state).
@@ -98,12 +140,8 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 		cfg = &lifecycletypes.SandboxConfig{}
 	}
 
-	// Determine if this is Host mode (no container image) or Box mode.
 	isHostMode := !ast.HasSandboxV2() || cfg.Computer.Image == ""
-
 	if isHostMode {
-		// Host mode: always available, no "not running" state.
-		// Use the local node (Host mode only needs HostExec + SystemQuery).
 		host, err := mgr.Host(c.Request.Context(), "local")
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, fmt.Errorf("host mode unavailable: %w", err))
@@ -113,8 +151,15 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 	}
 
 	// Box mode: look up existing container by identifier.
-	ownerID := auth.UserID
-	identifier := lifecycle.BuildIdentifier(cfg, ownerID, chatID, task.AssistantID, "", nil)
+	ownerID := auth.TeamID
+	if ownerID == "" {
+		ownerID = auth.UserID
+	}
+	workspaceID := ""
+	if task.LastWorkspace != nil && *task.LastWorkspace != "" {
+		workspaceID = *task.LastWorkspace
+	}
+	identifier := lifecycle.BuildIdentifier(cfg, ownerID, chatID, task.AssistantID, workspaceID, nil)
 	if identifier == "" {
 		return nil, nil
 	}
