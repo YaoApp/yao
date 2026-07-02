@@ -30,6 +30,8 @@ import (
 	"github.com/yaoapp/yao/tai/tunnel/taipb"
 )
 
+const maxGRPCMsgSize = 500 * 1024 * 1024 // 500 MB
+
 var (
 	mu        sync.Mutex
 	server    *grpc.Server
@@ -152,6 +154,8 @@ func StartServer(cfg config.Config) error {
 	defer mu.Unlock()
 
 	server = grpc.NewServer(
+		grpc.MaxRecvMsgSize(maxGRPCMsgSize),
+		grpc.MaxSendMsgSize(maxGRPCMsgSize),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
 			Time:    30 * time.Second,
 			Timeout: 10 * time.Second,

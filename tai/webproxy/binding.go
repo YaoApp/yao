@@ -70,7 +70,14 @@ func (b *Binding) touch() {
 // Passing the listener directly eliminates the TOCTOU race between
 // port-availability check and actual listen.
 func (b *Binding) Start(ctx context.Context, ln net.Listener) error {
-	handler := authMiddleware(b.buildHandler())
+	inner := b.buildHandler()
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/.auth" {
+			b.handleAuth(w, r)
+			return
+		}
+		authMiddleware(inner).ServeHTTP(w, r)
+	})
 	b.Server = &http.Server{Handler: handler}
 
 	go func() {
@@ -92,6 +99,28 @@ func (b *Binding) Start(ctx context.Context, ln net.Listener) error {
 // Stop gracefully shuts down the binding.
 func (b *Binding) Stop() {
 	b.Cancel()
+}
+
+// handleAuth sets an access_token cookie and redirects to the target service.
+func (b *Binding) handleAuth(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		http.Error(w, "missing token", http.StatusBadRequest)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     "access_token",
+		Value:    url.QueryEscape("Bearer " + token),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400,
+	})
+	redirect := r.URL.Query().Get("redirect")
+	if redirect == "" {
+		redirect = "/"
+	}
+	http.Redirect(w, r, redirect, http.StatusFound)
 }
 
 func (b *Binding) buildHandler() http.Handler {

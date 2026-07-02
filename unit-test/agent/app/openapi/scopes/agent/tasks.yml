@@ -23,6 +23,7 @@ agent:tasks:read:all:
     - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
     - POST /agent/tasks/:chat_id/exec
+    - GET /agent/tasks/:chat_id/proxy
 
 agent:tasks:read:own:
   owner: true
@@ -42,6 +43,7 @@ agent:tasks:read:own:
     - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
     - POST /agent/tasks/:chat_id/exec
+    - GET /agent/tasks/:chat_id/proxy
 
 agent:tasks:read:team:
   team: true
@@ -61,6 +63,7 @@ agent:tasks:read:team:
     - GET /agent/tasks/:chat_id/ports
     - GET /agent/tasks/:chat_id/processes
     - POST /agent/tasks/:chat_id/exec
+    - GET /agent/tasks/:chat_id/proxy
 
 # ============ Write Permissions ============
 
@@ -136,6 +139,8 @@ agent:tasks:execute:all:
     - POST /agent/tasks/:chat_id/processes/:pid/kill
     - GET /agent/tasks/:chat_id/ws
     - GET /agent/tasks/:chat_id/stream
+    - POST /agent/tasks/:chat_id/proxy
+    - DELETE /agent/tasks/:chat_id/proxy/:hostPort
 
 agent:tasks:execute:own:
   owner: true
@@ -147,6 +152,8 @@ agent:tasks:execute:own:
     - POST /agent/tasks/:chat_id/processes/:pid/kill
     - GET /agent/tasks/:chat_id/ws
     - GET /agent/tasks/:chat_id/stream
+    - POST /agent/tasks/:chat_id/proxy
+    - DELETE /agent/tasks/:chat_id/proxy/:hostPort
 
 agent:tasks:execute:team:
   team: true
@@ -158,3 +165,5 @@ agent:tasks:execute:team:
     - POST /agent/tasks/:chat_id/processes/:pid/kill
     - GET /agent/tasks/:chat_id/ws
     - GET /agent/tasks/:chat_id/stream
+    - POST /agent/tasks/:chat_id/proxy
+    - DELETE /agent/tasks/:chat_id/proxy/:hostPort
