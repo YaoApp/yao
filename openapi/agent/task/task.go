@@ -42,6 +42,11 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.GET("/:chat_id/processes", handleTaskProcessesGet)
 	group.POST("/:chat_id/exec", handleTaskExecPost)
 
+	// Port proxy routes
+	group.GET("/:chat_id/proxy", handleTaskProxyList)
+	group.POST("/:chat_id/proxy", handleTaskProxyBind)
+	group.DELETE("/:chat_id/proxy/:hostPort", handleTaskProxyUnbind)
+
 	// Execution routes (Plan 3)
 	group.GET("/:chat_id/ws", handleWS)
 	group.GET("/:chat_id/stream", handleSSE)

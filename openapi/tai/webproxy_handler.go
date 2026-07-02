@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentconfig "github.com/yaoapp/yao/agent/config"
+	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai/webproxy"
@@ -80,7 +81,9 @@ func handleListBindings(c *gin.Context) {
 	}
 }
 
-// handleCreateBindings creates one or more bindings, returns full updated state.
+// handleCreateBindings creates one or more bindings.
+// Single port mode returns flat response with token (same as task proxy).
+// Batch/auto mode returns grouped response with token.
 func handleCreateBindings(c *gin.Context) {
 	if webproxy.WP() == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "webproxy service not enabled"})
@@ -100,19 +103,20 @@ func handleCreateBindings(c *gin.Context) {
 		return
 	}
 
-	if req.Port > 0 {
-		_, err := webproxy.WP().Bind(webproxy.BindOptions{
+	// Single port mode: delegate to shared BindAndRespond (returns flat + token)
+	if req.Port > 0 && len(req.Services) == 0 {
+		BindAndRespond(c, webproxy.BindOptions{
 			TaiID:       taiID,
 			TargetID:    req.TargetID,
 			ContainerID: containerID,
 			TargetPort:  req.Port,
 			Label:       req.Label,
 		})
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	} else if len(req.Services) > 0 {
+		return
+	}
+
+	// Batch mode
+	if len(req.Services) > 0 {
 		for _, svc := range req.Services {
 			webproxy.WP().Bind(webproxy.BindOptions{
 				TaiID:       taiID,
@@ -137,7 +141,17 @@ func handleCreateBindings(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, buildGroupedResponse(c, req.TargetID))
+	resp := buildGroupedResponse(c, req.TargetID)
+	token := ""
+	if oauth.OAuth != nil {
+		token = oauth.OAuth.GetAccessToken(c)
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"domain":  resp.Domain,
+		"prefix":  resp.Prefix,
+		"targets": resp.Targets,
+		"token":   token,
+	})
 }
 
 // handleDeleteBinding removes a binding and returns full updated state.
