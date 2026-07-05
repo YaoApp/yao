@@ -1,0 +1,24 @@
+{
+  "name": "mobile_pull",
+  "description": "Pull a file from a connected Android device. If local_path is provided, saves to the Yao server; otherwise returns the file content as base64.",
+  "process": "tools.mobile_pull",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string",
+        "description": "The Tai ID of the target Android device (from mobile_list)"
+      },
+      "remote_path": {
+        "type": "string",
+        "description": "Source file path on the Android device"
+      },
+      "local_path": {
+        "type": "string",
+        "description": "Destination path on the Yao server (optional; if omitted, content is returned as base64)"
+      }
+    },
+    "required": ["device_id", "remote_path"]
+  },
+  "x-process-args": ["$args.device_id", "$args.remote_path", "$args.local_path"]
+}

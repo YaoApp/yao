@@ -1,0 +1,10 @@
+{
+  "name": "mobile_list",
+  "description": "List all online Android mobile devices connected via Tai Link.",
+  "process": "tools.mobile_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "x-process-args": []
+}

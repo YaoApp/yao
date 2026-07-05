@@ -1,0 +1,28 @@
+{
+  "name": "mobile_push",
+  "description": "Push a file to a connected Android device. Provide either a local_path (file on the Yao server) or content_base64 (base64-encoded data).",
+  "process": "tools.mobile_push",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string",
+        "description": "The Tai ID of the target Android device (from mobile_list)"
+      },
+      "local_path": {
+        "type": "string",
+        "description": "Path to a file on the Yao server to push (mutually exclusive with content_base64)"
+      },
+      "remote_path": {
+        "type": "string",
+        "description": "Destination file path on the Android device"
+      },
+      "content_base64": {
+        "type": "string",
+        "description": "Base64-encoded file content to push directly (mutually exclusive with local_path)"
+      }
+    },
+    "required": ["device_id", "remote_path"]
+  },
+  "x-process-args": ["$args.device_id", "$args.local_path", "$args.remote_path", "$args.content_base64"]
+}

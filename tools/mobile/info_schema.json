@@ -1,0 +1,16 @@
+{
+  "name": "mobile_info",
+  "description": "Get detailed information about a connected Android device, including OS, architecture, hostname, capabilities, and status.",
+  "process": "tools.mobile_info",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string",
+        "description": "The Tai ID of the target Android device (from mobile_list)"
+      }
+    },
+    "required": ["device_id"]
+  },
+  "x-process-args": ["$args.device_id"]
+}
