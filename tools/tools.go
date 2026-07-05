@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	toolinbox "github.com/yaoapp/yao/tools/inbox"
+	"github.com/yaoapp/yao/tools/mobile"
 	"github.com/yaoapp/yao/tools/proc"
 	"github.com/yaoapp/yao/tools/robot"
 	"github.com/yaoapp/yao/tools/secret"
@@ -52,6 +53,9 @@ var mcpClipDSL []byte
 
 //go:embed mcps/kanban.json
 var mcpKanbanDSL []byte
+
+//go:embed mcps/mobile.json
+var mcpMobileDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -105,6 +109,13 @@ func init() {
 
 		"inbox_list": toolinbox.ListHandler,
 		"inbox_read": toolinbox.ReadHandler,
+
+		"mobile_list":       mobile.ListHandler,
+		"mobile_exec":       mobile.ExecHandler,
+		"mobile_screenshot": mobile.ScreenshotHandler,
+		"mobile_info":       mobile.InfoHandler,
+		"mobile_push":       mobile.PushHandler,
+		"mobile_pull":       mobile.PullHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -135,6 +146,9 @@ func init() {
 		tooltask.ListSchemaJSON, tooltask.CreateSchemaJSON, tooltask.MoveSchemaJSON,
 		toolboard.ListSchemaJSON, toolboard.CreateSchemaJSON,
 		toolinbox.ListSchemaJSON, toolinbox.ReadSchemaJSON)
+	registerMCPServer(mcpMobileDSL, "yao-mobile",
+		mobile.ListSchemaJSON, mobile.ExecSchemaJSON, mobile.ScreenshotSchemaJSON,
+		mobile.InfoSchemaJSON, mobile.PushSchemaJSON, mobile.PullSchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

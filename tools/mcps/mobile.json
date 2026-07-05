@@ -1,0 +1,13 @@
+{
+  "name": "yao-mobile",
+  "transport": "process",
+  "description": "Mobile device management tools for controlling Android devices connected via Tai Link",
+  "tools": {
+    "mobile_list": "tools.mobile_list",
+    "mobile_exec": "tools.mobile_exec",
+    "mobile_screenshot": "tools.mobile_screenshot",
+    "mobile_info": "tools.mobile_info",
+    "mobile_push": "tools.mobile_push",
+    "mobile_pull": "tools.mobile_pull"
+  }
+}

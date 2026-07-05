@@ -106,8 +106,14 @@ You have access to Yao system tools via the `tai` command in bash.
 | `clip_write`             | yao-clip      | Store a content clip (screenshot, DOM, structured data). Returns clip ID |
 | `clip_read`              | yao-clip      | Read a stored clip by ID. Use when you see `<Mention type="clip">` tags |
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
+| `mobile_list`            | yao-mobile    | List all online Android devices connected via Tai Link |
+| `mobile_exec`            | yao-mobile    | Execute a shell command on an Android device        |
+| `mobile_screenshot`      | yao-mobile    | Capture a screenshot and return base64 PNG          |
+| `mobile_info`            | yao-mobile    | Get detailed device info (OS, arch, capabilities)   |
+| `mobile_push`            | yao-mobile    | Push a file to an Android device                    |
+| `mobile_pull`            | yao-mobile    | Pull a file from an Android device                  |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`, `yao-clip`, `yao-mobile`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ## Mention Tags
 

@@ -1,0 +1,20 @@
+{
+  "name": "mobile_exec",
+  "description": "Execute a shell command on a connected Android device via Tai Link. Returns stdout, stderr, and exit code.",
+  "process": "tools.mobile_exec",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string",
+        "description": "The Tai ID of the target Android device (from mobile_list)"
+      },
+      "command": {
+        "type": "string",
+        "description": "Shell command to execute on the device"
+      }
+    },
+    "required": ["device_id", "command"]
+  },
+  "x-process-args": ["$args.device_id", "$args.command"]
+}

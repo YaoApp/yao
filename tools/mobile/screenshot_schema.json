@@ -1,0 +1,16 @@
+{
+  "name": "mobile_screenshot",
+  "description": "Capture a screenshot on the Android device and return it as a base64-encoded PNG image.",
+  "process": "tools.mobile_screenshot",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "device_id": {
+        "type": "string",
+        "description": "The Tai ID of the target Android device (from mobile_list)"
+      }
+    },
+    "required": ["device_id"]
+  },
+  "x-process-args": ["$args.device_id"]
+}
