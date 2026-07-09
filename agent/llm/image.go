@@ -1,10 +1,12 @@
 package llm
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"time"
@@ -85,6 +87,156 @@ func setImageAuthHeaders(req *gouhttp.Request, authMode goullm.AuthMode, key str
 		req.SetHeader("x-api-key", key)
 	default:
 		req.SetHeader("Authorization", fmt.Sprintf("Bearer %s", key))
+	}
+}
+
+// EditImage calls the image editing endpoint through the connector.
+// editFormat determines the API protocol: "multipart" for form-data POST /images/edits (OpenAI),
+// "json" for JSON POST /images/generations with image field (Seedream), empty defaults to "json".
+func EditImage(conn connector.Connector, imageInput string, prompt string, options map[string]interface{}, editFormat string) (*ImageGenResponse, error) {
+	host, key, authMode := resolveConnSettings(conn)
+	if host == "" {
+		return nil, fmt.Errorf("no host found in connector settings")
+	}
+	if key == "" {
+		return nil, fmt.Errorf("API key is not set")
+	}
+
+	model := ""
+	if lc, ok := conn.(goullm.LLMConnector); ok {
+		model = lc.GetModel()
+	}
+	if m, ok := options["model"].(string); ok && m != "" {
+		model = m
+	}
+	size, _ := options["size"].(string)
+	if size == "" {
+		size = "1024x1024"
+	}
+
+	if editFormat == "multipart" {
+		return editImageMultipart(host, key, authMode, imageInput, prompt, model, size)
+	}
+	return editImageJSON(host, key, authMode, imageInput, prompt, model, size)
+}
+
+// editImageMultipart sends multipart/form-data POST to /images/edits (OpenAI style).
+func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, prompt, model, size string) (*ImageGenResponse, error) {
+	imageBytes, err := resolveImageBytes(imageInput)
+	if err != nil {
+		return nil, fmt.Errorf("resolve image: %w", err)
+	}
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+
+	part, err := writer.CreateFormFile("image", "image.png")
+	if err != nil {
+		return nil, fmt.Errorf("create form file: %w", err)
+	}
+	if _, err := part.Write(imageBytes); err != nil {
+		return nil, fmt.Errorf("write image data: %w", err)
+	}
+
+	writer.WriteField("prompt", prompt)
+	if model != "" {
+		writer.WriteField("model", model)
+	}
+	if size != "" {
+		writer.WriteField("size", size)
+	}
+	writer.Close()
+
+	url := connector.BuildAPIURL(host, "/images/edits")
+	req, err := http.NewRequest("POST", url, &body)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	setHTTPAuthHeader(req, authMode, key)
+
+	client := &http.Client{Timeout: 120 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("http request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read response: %w", err)
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("image edit failed (status %d, url %s): %s", resp.StatusCode, url, string(respBody))
+	}
+
+	var data interface{}
+	if err := json.Unmarshal(respBody, &data); err != nil {
+		return nil, fmt.Errorf("unmarshal response: %w", err)
+	}
+	return extractImageFromResponse(data)
+}
+
+// editImageJSON sends JSON POST to /images/generations with image field (Seedream style).
+func editImageJSON(host, key string, authMode goullm.AuthMode, imageInput, prompt, model, size string) (*ImageGenResponse, error) {
+	payload := map[string]interface{}{
+		"prompt": prompt,
+		"image":  imageInput,
+		"size":   size,
+	}
+	if model != "" {
+		payload["model"] = model
+	}
+
+	url := connector.BuildAPIURL(host, "/images/generations")
+	req := gouhttp.New(url)
+	req.SetHeader("Content-Type", "application/json")
+	setImageAuthHeaders(req, authMode, key)
+
+	resp := req.Post(payload)
+	if resp.Status != 200 {
+		errMsg := extractAPIError(resp.Data)
+		return nil, fmt.Errorf("image edit failed (status %d, url %s): %s", resp.Status, url, errMsg)
+	}
+	return extractImageFromResponse(resp.Data)
+}
+
+// resolveImageBytes converts an image input (data URI, URL, or raw base64) into raw bytes.
+func resolveImageBytes(input string) ([]byte, error) {
+	if strings.HasPrefix(input, "data:") {
+		idx := strings.Index(input, ",")
+		if idx < 0 {
+			return nil, fmt.Errorf("invalid data URI: no comma separator")
+		}
+		return base64.StdEncoding.DecodeString(input[idx+1:])
+	}
+
+	if strings.HasPrefix(input, "http://") || strings.HasPrefix(input, "https://") {
+		client := &http.Client{Timeout: 30 * time.Second}
+		resp, err := client.Get(input)
+		if err != nil {
+			return nil, fmt.Errorf("download image: %w", err)
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			return nil, fmt.Errorf("download returned status %d", resp.StatusCode)
+		}
+		return io.ReadAll(resp.Body)
+	}
+
+	return base64.StdEncoding.DecodeString(input)
+}
+
+// setHTTPAuthHeader sets auth headers on a stdlib http.Request (for multipart path).
+func setHTTPAuthHeader(req *http.Request, authMode goullm.AuthMode, key string) {
+	switch authMode {
+	case goullm.AuthAPIKey:
+		req.Header.Set("api-key", key)
+	case goullm.AuthXAPIKey:
+		req.Header.Set("x-api-key", key)
+	default:
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", key))
 	}
 }
 

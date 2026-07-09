@@ -1,0 +1,33 @@
+{
+  "name": "image_edit",
+  "description": "Edit or transform an existing image based on a text prompt. Use for image-to-image generation, style transfer, background replacement, or any modification that requires a reference image.",
+  "process": "tools.image_edit",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "image": {
+        "type": "string",
+        "description": "Reference image to edit. Accepts: URL (http/https), workspace:// URI, or attach:// URI."
+      },
+      "prompt": {
+        "type": "string",
+        "description": "Text description of the desired edit or transformation to apply to the reference image."
+      },
+      "provider": {
+        "type": "string",
+        "description": "Provider connector ID (use image_providers with capability='image_editing' to list). If omitted, the first available image editing provider is used."
+      },
+      "size": {
+        "type": "string",
+        "description": "Output image dimensions (default: 1024x1024). Common values: 1024x1024, 1024x1792, 1792x1024.",
+        "default": "1024x1024"
+      },
+      "model": {
+        "type": "string",
+        "description": "Model name to use. Overrides the provider's default model. If omitted, the provider's default model is used."
+      }
+    },
+    "required": ["image", "prompt"]
+  },
+  "x-process-args": ["$args.image", "$args.prompt", "$args.provider", "$args.size", "$args.model"]
+}

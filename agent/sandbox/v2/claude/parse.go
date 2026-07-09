@@ -423,10 +423,6 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 			return false
 		}
 		t.inputJSON.WriteString(partial)
-		builderLen := t.inputJSON.Len()
-		if builderLen > 0 && builderLen%100000 < len(partial) {
-			log.Trace("[claude-parse] WARN: tool %s inputJSON growing: %d bytes", t.name, builderLen)
-		}
 		if p.handler != nil {
 			return p.emitExecute(map[string]any{
 				"input_delta": t.inputJSON.String(),

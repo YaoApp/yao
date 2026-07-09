@@ -164,7 +164,11 @@ func ensureModelConnector(p *Provider, m *ModelInfo) error {
 func marshalModelDSL(p *Provider, m *ModelInfo) ([]byte, error) {
 	caps := make(map[string]interface{})
 	for _, c := range m.Capabilities {
-		caps[c] = true
+		if optVal, ok := m.Options[c]; ok {
+			caps[c] = optVal
+		} else {
+			caps[c] = true
+		}
 	}
 	if len(caps) == 0 {
 		switch p.Type {
@@ -197,9 +201,10 @@ func marshalModelDSL(p *Provider, m *ModelInfo) ([]byte, error) {
 	reserved := map[string]bool{"host": true, "key": true, "model": true, "capabilities": true, "_connector_type": true}
 	extraBody := map[string]interface{}{}
 	for k, v := range m.Options {
-		if !reserved[k] {
-			extraBody[k] = v
+		if reserved[k] || caps[k] != nil {
+			continue
 		}
+		extraBody[k] = v
 	}
 	if len(extraBody) > 0 {
 		opts["extra_body"] = extraBody
@@ -381,6 +386,9 @@ func capabilitiesFromCapabilities(c *goullm.Capabilities) []string {
 	}
 	if c.ImageGeneration {
 		out = append(out, "image_generation")
+	}
+	if c.HasImageEditing() {
+		out = append(out, "image_editing")
 	}
 	return out
 }

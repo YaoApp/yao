@@ -28,7 +28,7 @@ var GlobalQuota = &QuotaManager{
 	limits:  make(map[string]int),
 }
 
-const defaultQuotaLimit = 3
+const defaultQuotaLimit = 9
 
 // TryAcquire atomically checks and increments running count.
 // Returns true if slot acquired, false if at limit.

@@ -111,11 +111,11 @@ func TestQuotaManager_QueuePosition_NotFound(t *testing.T) {
 }
 
 func TestQuotaManager_FallbackLimit(t *testing.T) {
-	// Create QM without team1/new-team limit — uses defaultQuotaLimit (3)
+	// Create QM without team1/new-team limit — uses defaultQuotaLimit (9)
 	qm := task.NewTestQuotaManagerNoLimits()
 
-	assert.True(t, qm.TryAcquire("unknown-team", ""))
-	assert.True(t, qm.TryAcquire("unknown-team", ""))
-	assert.True(t, qm.TryAcquire("unknown-team", ""))
-	assert.False(t, qm.TryAcquire("unknown-team", ""))
+	for i := 0; i < 9; i++ {
+		assert.True(t, qm.TryAcquire("unknown-team", ""), "acquire %d should succeed", i+1)
+	}
+	assert.False(t, qm.TryAcquire("unknown-team", ""), "acquire 10 should fail at limit")
 }

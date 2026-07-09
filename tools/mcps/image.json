@@ -5,6 +5,7 @@
   "tools": {
     "image_read": "tools.image_read",
     "image_generate": "tools.image_generate",
+    "image_edit": "tools.image_edit",
     "image_providers": "tools.image_providers"
   }
 }

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 	"time"
@@ -422,6 +423,14 @@ func mergeOutputs(chatID string, newOutputs []any) []any {
 	result := make([]any, 0, len(merged))
 	for _, v := range merged {
 		result = append(result, v)
+	}
+	sort.Slice(result, func(i, j int) bool {
+		ti, _ := result[i].(map[string]any)["created_at"].(string)
+		tj, _ := result[j].(map[string]any)["created_at"].(string)
+		return ti > tj
+	})
+	if len(result) > 99 {
+		result = result[:99]
 	}
 	return result
 }

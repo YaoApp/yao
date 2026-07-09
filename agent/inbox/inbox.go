@@ -420,11 +420,17 @@ func getTime(row map[string]interface{}, key string) *time.Time {
 		case time.Time:
 			return &t
 		case string:
-			if parsed, err := time.Parse(time.RFC3339, t); err == nil {
-				return &parsed
-			}
-			if parsed, err := time.Parse("2006-01-02 15:04:05", t); err == nil {
-				return &parsed
+			for _, layout := range []string{
+				time.RFC3339,
+				time.RFC3339Nano,
+				"2006-01-02 15:04:05.999999999-07:00",
+				"2006-01-02 15:04:05-07:00",
+				"2006-01-02 15:04:05.999999999",
+				"2006-01-02 15:04:05",
+			} {
+				if parsed, err := time.Parse(layout, t); err == nil {
+					return &parsed
+				}
 			}
 		}
 	}
