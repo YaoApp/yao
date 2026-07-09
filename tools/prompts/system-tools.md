@@ -78,7 +78,8 @@ You have access to Yao system tools via the `tai` command in bash.
 | `doc_validate`    | yao-doc             | Validate a process name and get suggestions         |
 | `image_read`       | yao-image           | Read and analyze images using a vision model        |
 | `image_generate`   | yao-image           | Generate images from text prompts                   |
-| `image_providers`  | yao-image           | List available image generation or vision providers |
+| `image_edit`       | yao-image           | Edit or transform an existing image with a text prompt |
+| `image_providers`  | yao-image           | List available image generation, editing, or vision providers |
 | `agent_list`       | yao-agent           | List available agents on the host                   |
 | `agent_download`   | yao-agent           | Download smith agent for editing (smith only)       |
 | `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |

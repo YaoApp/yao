@@ -1,6 +1,6 @@
 {
   "name": "image_generate",
-  "description": "Generate an image from a text prompt using an image generation model (e.g. DALL-E, Seedream).",
+  "description": "Generate a new image from a text prompt (text-to-image only; for editing an existing image, use image_edit instead).",
   "process": "tools.image_generate",
   "inputSchema": {
     "type": "object",
@@ -11,7 +11,7 @@
       },
       "provider": {
         "type": "string",
-        "description": "Provider connector ID (e.g. 'llm.my-openai:dall-e-3'). Use image_providers to list available options. If omitted, the first available image generation provider is used."
+        "description": "Provider connector ID (use image_providers to list available options). If omitted, the first available image generation provider is used."
       },
       "size": {
         "type": "string",
@@ -20,7 +20,7 @@
       },
       "model": {
         "type": "string",
-        "description": "Model name to use (e.g. 'doubao-seedream-4-5-251128', 'dall-e-3'). Overrides the provider's default model. If omitted, the provider's default model is used."
+        "description": "Model name to use. Overrides the provider's default model. If omitted, the provider's default model is used."
       }
     },
     "required": ["prompt"]

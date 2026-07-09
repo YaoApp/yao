@@ -68,6 +68,7 @@ func init() {
 		"doc_validate":      docs.ValidateHandler,
 		"image_read":        image.ReadHandler,
 		"image_generate":    image.GenerateHandler,
+		"image_edit":        image.EditHandler,
 		"image_providers":   image.ProvidersHandler,
 		"agent_list":        agent.ListHandler,
 		"agent_download":    agent.DownloadHandler,
@@ -125,7 +126,7 @@ func init() {
 	registerMCPServer(mcpDocDSL, "yao-doc",
 		docs.ListSchemaJSON, docs.InspectSchemaJSON, docs.ValidateSchemaJSON)
 	registerMCPServer(mcpImageDSL, "yao-image",
-		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.ProvidersSchemaJSON)
+		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.EditSchemaJSON, image.ProvidersSchemaJSON)
 	registerMCPServer(mcpAgentDSL, "yao-agent",
 		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.ReferenceSchemaJSON,
 		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON, agent.CallSchemaJSON)
