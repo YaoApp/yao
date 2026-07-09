@@ -42,7 +42,7 @@ func NewScheduleEngine() *scheduleEngineImpl {
 func (se *scheduleEngineImpl) Start() error {
 	se.ctx, se.cancel = context.WithCancel(globalShutdown)
 
-	resetOrphanedScheduledTasks()
+	go resetOrphanedTasks()
 
 	entries := loadScheduledTasks()
 	se.mu.Lock()
@@ -54,19 +54,19 @@ func (se *scheduleEngineImpl) Start() error {
 	se.ticker = time.NewTicker(time.Minute)
 	se.tickerDone = make(chan struct{})
 	go se.tickerLoop()
+	go healthCheckLoop(se.ctx)
 	return nil
 }
 
-// resetOrphanedScheduledTasks resets scheduled tasks that are stuck in "running"/"queued"
-// due to a server crash or restart. Only affects tasks that have a schedule configured.
-func resetOrphanedScheduledTasks() {
+// resetOrphanedTasks resets all tasks stuck in "running"/"queued" due to a server crash or restart.
+// At startup daemonRegistry is empty, so any such DB state is orphaned.
+func resetOrphanedTasks() {
 	if capsule.Global == nil {
 		return
 	}
 	now := time.Now()
 	_, err := capsule.Global.Query().Table(tableTask()).
 		WhereIn("run_status", []interface{}{"running", "queued"}).
-		WhereNotNull("schedule").
 		WhereNull("deleted_at").
 		Update(map[string]interface{}{
 			"run_status":    "failed",
@@ -75,7 +75,7 @@ func resetOrphanedScheduledTasks() {
 			"updated_at":    now,
 		})
 	if err != nil {
-		log.Warn("resetOrphanedScheduledTasks: %v", err)
+		log.Warn("[HealthCheck] resetOrphanedTasks: %v", err)
 	}
 }
 
