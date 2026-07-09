@@ -110,7 +110,9 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 	}
 
 	dc.mu.Lock()
-	dc.ringBuffer = append(dc.ringBuffer, msg)
+	if estimateMessageSize(msg) <= 1*1024*1024 {
+		dc.ringBuffer = append(dc.ringBuffer, msg)
+	}
 	subs := make(map[string]chan<- *message.Message, len(dc.subscribers))
 	for k, v := range dc.subscribers {
 		subs[k] = v
@@ -126,6 +128,14 @@ func (dc *DaemonContext) Broadcast(msg *message.Message) {
 	}
 
 	dc.resetIdleTimer()
+}
+
+func estimateMessageSize(msg *message.Message) int {
+	raw, err := json.Marshal(msg)
+	if err != nil {
+		return 0
+	}
+	return len(raw)
 }
 
 // CloseSubscribers closes all subscriber channels (call after final Broadcast)

@@ -349,7 +349,6 @@ func (s *streamState) handleExecute(data []byte) int {
 		return 0
 	}
 
-	s.buffer = append(s.buffer, data...)
 	s.chunkCount++
 	s.messageSeq++
 
@@ -474,7 +473,7 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		(s.lastExecStatus == "completed" || s.lastExecStatus == "error")
 	skipExecute := isExecFamily && !isExecuteFinal
 
-	if s.ctx.Buffer != nil && len(s.buffer) > 0 && !shouldSkipHistory && !skipExecute {
+	if s.ctx.Buffer != nil && (len(s.buffer) > 0 || s.lastExecProps != nil) && !shouldSkipHistory && !skipExecute {
 		assistantID := ""
 		if s.ctx.Stack != nil {
 			assistantID = s.ctx.Stack.AssistantID
@@ -516,16 +515,24 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 	}
 
 	// Build EventMessageEndData with complete content
+	var extraContent interface{}
+	if isExecFamily && s.lastExecProps != nil {
+		serialized, _ := jsoniter.Marshal(s.lastExecProps)
+		extraContent = string(serialized)
+	} else {
+		extraContent = string(s.buffer)
+	}
+
 	endData := message.EventMessageEndData{
-		MessageID:  s.currentGroupID, // Use the message ID
+		MessageID:  s.currentGroupID,
 		Type:       msgType,
 		Timestamp:  time.Now().UnixMilli(),
-		ThreadID:   threadID, // Include ThreadID for concurrent stream identification
+		ThreadID:   threadID,
 		DurationMs: durationMs,
 		ChunkCount: s.chunkCount,
 		Status:     "completed",
 		Extra: map[string]interface{}{
-			"content": string(s.buffer), // Include complete content in the event
+			"content": extraContent,
 		},
 	}
 

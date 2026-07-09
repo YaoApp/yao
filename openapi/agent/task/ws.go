@@ -65,7 +65,7 @@ func handleWS(c *gin.Context) {
 					return
 				}
 				conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-				if conn.WriteJSON(msg) != nil {
+				if err := conn.WriteJSON(msg); err != nil {
 					return
 				}
 			case <-stopCh:
@@ -77,11 +77,11 @@ func handleWS(c *gin.Context) {
 	normalClose := wsCommandLoop(conn, auth, chatID, session, outCh, stopCh)
 	session.cancelWatch()
 
-	if normalClose {
-		close(outCh)
-	} else {
-		close(stopCh)
-	}
+	// Always close stopCh to signal ALL goroutines (pipe + writer) to exit.
+	// Never close outCh — prevents "send on closed channel" panic from pipe goroutines.
+	// The writer exits via <-stopCh; conn.Close() (deferred) handles the WS teardown.
+	close(stopCh)
+	_ = normalClose
 	<-writerDone
 }
 
@@ -156,7 +156,6 @@ func handleReadCmd(session *wsSession, auth *process.AuthorizedInfo, chatID stri
 		sendEvent(outCh, stopCh, "error", map[string]any{"message": "watch failed: " + err.Error()})
 		return
 	}
-
 	session.mu.Lock()
 	session.activeWatch = stream
 	session.liveMode = stream.LiveMode

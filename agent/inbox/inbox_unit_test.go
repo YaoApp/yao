@@ -241,14 +241,33 @@ func TestHelperGetBool(t *testing.T) {
 func TestHelperGetTime(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
 	row := map[string]interface{}{
-		"t": now, "rfc": now.Format(time.RFC3339),
-		"dt": now.Format("2006-01-02 15:04:05"), "bad": "x", "nil": nil,
+		"t":          now,
+		"rfc":        now.Format(time.RFC3339),
+		"rfc_nano":   now.Format(time.RFC3339Nano),
+		"sqlite_tz":  now.Format("2006-01-02 15:04:05.999999999-07:00"),
+		"sqlite_tz2": now.Format("2006-01-02 15:04:05-07:00"),
+		"sqlite_ns":  now.Format("2006-01-02 15:04:05.999999999"),
+		"dt":         now.Format("2006-01-02 15:04:05"),
+		"bad":        "x",
+		"nil":        nil,
 	}
 	if inbox.ExportGetTime(row, "t") == nil {
 		t.Error("time.Time")
 	}
 	if inbox.ExportGetTime(row, "rfc") == nil {
 		t.Error("RFC3339")
+	}
+	if inbox.ExportGetTime(row, "rfc_nano") == nil {
+		t.Error("RFC3339Nano")
+	}
+	if inbox.ExportGetTime(row, "sqlite_tz") == nil {
+		t.Error("sqlite with fractional seconds and timezone")
+	}
+	if inbox.ExportGetTime(row, "sqlite_tz2") == nil {
+		t.Error("sqlite with timezone no fractional")
+	}
+	if inbox.ExportGetTime(row, "sqlite_ns") == nil {
+		t.Error("sqlite with fractional seconds no timezone")
 	}
 	if inbox.ExportGetTime(row, "dt") == nil {
 		t.Error("datetime")
