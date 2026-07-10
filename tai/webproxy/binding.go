@@ -101,7 +101,7 @@ func (b *Binding) Stop() {
 	b.Cancel()
 }
 
-// handleAuth sets an access_token cookie and redirects to the target service.
+// handleAuth sets the proxy auth cookie and redirects to the target service.
 func (b *Binding) handleAuth(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")
 	if token == "" {
@@ -109,7 +109,7 @@ func (b *Binding) handleAuth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.SetCookie(w, &http.Cookie{
-		Name:     "access_token",
+		Name:     proxyAuthCookie,
 		Value:    url.QueryEscape("Bearer " + token),
 		Path:     "/",
 		HttpOnly: true,
@@ -138,6 +138,7 @@ func (b *Binding) buildHandler() http.Handler {
 				req.URL.Scheme = target.Scheme
 				req.URL.Host = target.Host
 				req.Host = r.Host
+				stripProxyCookie(req)
 			},
 			FlushInterval: -1,
 		}
@@ -182,6 +183,7 @@ func (b *Binding) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer clientConn.Close()
 
+	stripProxyCookie(r)
 	if err := r.Write(targetConn); err != nil {
 		return
 	}
