@@ -6,15 +6,16 @@ import (
 	"strings"
 
 	"github.com/yaoapp/yao/openapi/oauth"
-	"github.com/yaoapp/yao/openapi/response"
 )
 
-// authMiddleware wraps an http.Handler with JWT cookie/bearer token authentication.
+const proxyAuthCookie = "_yao_proxy"
+
+// authMiddleware wraps an http.Handler with JWT cookie authentication.
+// Uses a dedicated cookie (_yao_proxy) to avoid conflicts with target app auth.
 func authMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		svc := oauth.OAuth
 		if svc == nil {
-			// OAuth not initialized — allow through (dev/testing mode)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -36,29 +37,25 @@ func authMiddleware(next http.Handler) http.Handler {
 }
 
 func extractToken(r *http.Request) string {
-	// Try Authorization header first
-	if auth := r.Header.Get("Authorization"); auth != "" {
-		return strings.TrimPrefix(auth, "Bearer ")
-	}
-
-	// Try access_token cookie (both with and without __Host- prefix)
-	// Note: net/http does NOT URL-decode cookie values (unlike Gin's c.Cookie()),
-	// so we must manually decode to handle "Bearer+" → "Bearer ".
-	cookieName := response.GetCookieName("access_token")
-	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
+	if c, err := r.Cookie(proxyAuthCookie); err == nil && c.Value != "" {
 		return decodeBearerCookie(c.Value)
 	}
-
-	// Fallback: plain cookie name without prefix
-	if c, err := r.Cookie("access_token"); err == nil && c.Value != "" {
-		return decodeBearerCookie(c.Value)
-	}
-
 	return ""
 }
 
+// stripProxyCookie removes the proxy's own auth cookie from the request
+// before forwarding to the target application.
+func stripProxyCookie(r *http.Request) {
+	cookies := r.Cookies()
+	r.Header.Del("Cookie")
+	for _, c := range cookies {
+		if c.Name != proxyAuthCookie {
+			r.AddCookie(c)
+		}
+	}
+}
+
 func decodeBearerCookie(raw string) string {
-	// URL-decode first (handles "Bearer+" → "Bearer ")
 	decoded, err := url.QueryUnescape(raw)
 	if err != nil {
 		decoded = raw
