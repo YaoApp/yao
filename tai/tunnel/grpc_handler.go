@@ -73,6 +73,11 @@ func (h *TunnelHandler) Register(stream taipb.TaiTunnel_RegisterServer) error {
 		}
 	}
 
+	mode := "tunnel"
+	if authInfo.Platform {
+		mode = "cloud"
+	}
+
 	node := &registry.TaiNode{
 		TaiID:        resolvedTaiID,
 		MachineID:    msg.MachineId,
@@ -80,7 +85,7 @@ func (h *TunnelHandler) Register(stream taipb.TaiTunnel_RegisterServer) error {
 		DisplayName:  msg.DisplayName,
 		Auth:         authInfo,
 		System:       systemFromProto(msg.System),
-		Mode:         "tunnel",
+		Mode:         mode,
 		Addr:         "tunnel://" + remoteIP,
 		Ports:        portsFromProto(msg.Ports),
 		Capabilities: capsFromProto(msg.Caps),
@@ -403,6 +408,7 @@ func authInfoFromStream(stream taipb.TaiTunnel_RegisterServer) types.AuthInfo {
 		Scope:    info.Scope,
 		TeamID:   info.TeamID,
 		TenantID: info.TenantID,
+		Platform: info.Platform,
 	}
 }
 

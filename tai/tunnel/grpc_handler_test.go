@@ -648,7 +648,7 @@ func TestForwardConn_Read_Error(t *testing.T) {
 
 // ── authInfoFromStream with auth context ────────────────────────────────
 
-func startTestServerWithAuth(t *testing.T) (taipb.TaiTunnelClient, *TunnelHandler, func()) {
+func startTestServerWithAuth(t *testing.T, platform bool) (taipb.TaiTunnelClient, *TunnelHandler, func()) {
 	t.Helper()
 	reg := registry.NewForTest()
 	h := NewTunnelHandler(reg)
@@ -665,6 +665,7 @@ func startTestServerWithAuth(t *testing.T) (taipb.TaiTunnelClient, *TunnelHandle
 				Scope:    "workspace:read",
 				TeamID:   "team-1",
 				TenantID: "tenant-1",
+				Platform: platform,
 			})
 			return handler(srvObj, &wrappedStreamCtx{ServerStream: ss, ctx: ctx})
 		}),
@@ -1325,7 +1326,7 @@ vncDrained:
 }
 
 func TestRegister_WithAuthInfo(t *testing.T) {
-	client, h, cleanup := startTestServerWithAuth(t)
+	client, h, cleanup := startTestServerWithAuth(t, false)
 	defer cleanup()
 
 	stream, err := client.Register(context.Background())
@@ -1362,6 +1363,84 @@ func TestRegister_WithAuthInfo(t *testing.T) {
 	}
 	if node.Auth.Scope != "workspace:read" {
 		t.Errorf("expected scope=workspace:read, got %q", node.Auth.Scope)
+	}
+
+	stream.CloseSend()
+}
+
+func TestRegister_CloudMode(t *testing.T) {
+	client, h, cleanup := startTestServerWithAuth(t, true)
+	defer cleanup()
+
+	stream, err := client.Register(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = stream.Send(&taipb.TunnelControl{
+		Type:      "register",
+		NodeId:    "cloud-node",
+		MachineId: "cloud-machine",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Type != "registered" {
+		t.Fatalf("expected type=registered, got %q", resp.Type)
+	}
+
+	node, ok := h.reg.Get(resp.TaiId)
+	if !ok {
+		t.Fatal("node not found in registry")
+	}
+	if node.Mode != "cloud" {
+		t.Errorf("expected mode=cloud, got %q", node.Mode)
+	}
+	if !node.Auth.Platform {
+		t.Error("expected auth.platform=true for server key auth")
+	}
+
+	stream.CloseSend()
+}
+
+func TestRegister_TunnelMode(t *testing.T) {
+	client, h, cleanup := startTestServerWithAuth(t, false)
+	defer cleanup()
+
+	stream, err := client.Register(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = stream.Send(&taipb.TunnelControl{
+		Type:      "register",
+		NodeId:    "tunnel-mode-node",
+		MachineId: "tunnel-mode-machine",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := stream.Recv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Type != "registered" {
+		t.Fatalf("expected type=registered, got %q", resp.Type)
+	}
+
+	node, ok := h.reg.Get(resp.TaiId)
+	if !ok {
+		t.Fatal("node not found in registry")
+	}
+	if node.Mode != "tunnel" {
+		t.Errorf("expected mode=tunnel, got %q", node.Mode)
+	}
+	if node.Auth.Platform {
+		t.Error("expected auth.platform=false for OAuth auth")
 	}
 
 	stream.CloseSend()

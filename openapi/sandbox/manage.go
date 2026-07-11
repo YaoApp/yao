@@ -256,7 +256,7 @@ func handleList(c *gin.Context) {
 		snaps := reg.List()
 		for i := range snaps {
 			s := &snaps[i]
-			if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
+			if !taitypes.IsPublicNode(s.Mode) && !nodeOwnedBy(s, authInfo) {
 				continue
 			}
 			if !s.Capabilities.HostExec && !s.Capabilities.Docker {

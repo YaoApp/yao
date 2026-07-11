@@ -12,6 +12,8 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 // handleTaskPortsGet returns listening ports for the sandbox associated with this task.
@@ -142,7 +144,8 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 
 	isHostMode := !ast.HasSandboxV2() || cfg.Computer.Image == ""
 	if isHostMode {
-		host, err := mgr.Host(c.Request.Context(), "local")
+		nodeID := resolveHostNode()
+		host, err := mgr.Host(c.Request.Context(), nodeID)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, fmt.Errorf("host mode unavailable: %w", err))
 			return nil, err
@@ -173,4 +176,19 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 	}
 
 	return box, nil
+}
+
+// resolveHostNode selects the first public node that supports HostExec and is online.
+// Falls back to "local" if no suitable node is found.
+func resolveHostNode() string {
+	reg := registry.Global()
+	if reg == nil {
+		return "local"
+	}
+	for _, n := range reg.List() {
+		if taitypes.IsPublicNode(n.Mode) && n.Capabilities.HostExec && n.Status == "online" {
+			return n.TaiID
+		}
+	}
+	return "local"
 }

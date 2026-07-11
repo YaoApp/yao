@@ -5,7 +5,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
+	"github.com/yaoapp/yao/openapi/oauth/authorized"
+	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 var runnerDescriptions = map[string]string{
@@ -26,7 +29,8 @@ type RunnerInfo struct {
 // ListRunners returns the list of supported runners and their availability.
 // GET /api/v1/agent/runners
 func ListRunners(c *gin.Context) {
-	nodesByRunner := runnerNodes()
+	authInfo := authorized.GetInfo(c)
+	nodesByRunner := runnerNodes(authInfo)
 
 	var runners []RunnerInfo
 	for _, name := range sandboxv2.SupportedRunners {
@@ -45,7 +49,7 @@ func ListRunners(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"runners": runners})
 }
 
-func runnerNodes() map[string][]string {
+func runnerNodes(authInfo *oauthTypes.AuthorizedInfo) map[string][]string {
 	result := map[string][]string{}
 	reg := registry.Global()
 	if reg == nil {
@@ -54,6 +58,9 @@ func runnerNodes() map[string][]string {
 
 	for _, node := range reg.List() {
 		if node.Status != "online" && node.Status != "" {
+			continue
+		}
+		if !taitypes.IsPublicNode(node.Mode) && !runnerNodeOwnedBy(&node, authInfo) {
 			continue
 		}
 		runners := node.Capabilities.Runners
@@ -65,4 +72,17 @@ func runnerNodes() map[string][]string {
 		}
 	}
 	return result
+}
+
+func runnerNodeOwnedBy(snap *taitypes.NodeMeta, authInfo *oauthTypes.AuthorizedInfo) bool {
+	if authInfo == nil {
+		return true
+	}
+	if authInfo.TeamID != "" {
+		return snap.Auth.TeamID == authInfo.TeamID
+	}
+	if authInfo.UserID != "" {
+		return snap.Auth.TeamID == "" && snap.Auth.UserID == authInfo.UserID
+	}
+	return true
 }

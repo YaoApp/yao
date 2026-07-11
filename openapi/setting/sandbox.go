@@ -225,7 +225,7 @@ func handleSandboxGet(c *gin.Context) {
 	var filtered []taitypes.NodeMeta
 	for i := range snaps {
 		s := &snaps[i]
-		if s.Mode != "local" && !sandboxNodeOwnedBy(s, info) {
+		if !taitypes.IsPublicNode(s.Mode) && !sandboxNodeOwnedBy(s, info) {
 			continue
 		}
 		if !s.Capabilities.Docker {
@@ -244,8 +244,11 @@ func handleSandboxGet(c *gin.Context) {
 		go func(idx int, s taitypes.NodeMeta) {
 			defer wg.Done()
 			kind := "tai-link"
-			if s.Mode == "local" {
+			switch s.Mode {
+			case "local":
 				kind = "local"
+			case "cloud":
+				kind = "cloud"
 			}
 			node := ComputerNode{
 				NodeID:      s.TaiID,

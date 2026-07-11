@@ -103,7 +103,7 @@ func handleList(c *gin.Context) {
 	result := make([]nodeResponse, 0, len(snaps))
 	for i := range snaps {
 		s := &snaps[i]
-		if s.Mode != "local" && !nodeOwnedBy(s, authInfo) {
+		if !taitypes.IsPublicNode(s.Mode) && !nodeOwnedBy(s, authInfo) {
 			continue
 		}
 		result = append(result, snapToResponse(*s))
@@ -126,7 +126,7 @@ func handleGet(c *gin.Context) {
 	}
 
 	authInfo := authorized.GetInfo(c)
-	if snap.Mode != "local" && !nodeOwnedBy(snap, authInfo) {
+	if !taitypes.IsPublicNode(snap.Mode) && !nodeOwnedBy(snap, authInfo) {
 		c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this node"})
 		return
 	}

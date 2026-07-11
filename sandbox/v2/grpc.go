@@ -13,8 +13,8 @@ const taiHost = "host.tai.internal"
 // All containers reach the host via "host.tai.internal" (injected by Tai at
 // container creation). The port depends on the mode:
 //
-//   - local:          Yao gRPC port (Tai and Yao on the same machine)
-//   - tunnel/direct:  Tai gRPC port (Tai Gateway forwards to Yao)
+//   - local:                   Yao gRPC port (Tai and Yao on the same machine)
+//   - tunnel/direct/cloud:     Tai gRPC port (Tai Gateway forwards to Yao)
 //
 // taiGRPCPort is the Tai node's gRPC port from registration (Ports.GRPC).
 func BuildGRPCEnv(mode string, taiGRPCPort int, sandboxID, chatID, workspaceID string) map[string]string {
@@ -36,7 +36,7 @@ func BuildGRPCEnv(mode string, taiGRPCPort int, sandboxID, chatID, workspaceID s
 		}
 		env["YAO_GRPC_ADDR"] = fmt.Sprintf("%s:%d", taiHost, port)
 
-	case "tunnel", "direct":
+	case "tunnel", "direct", "cloud":
 		port := taiGRPCPort
 		if port == 0 {
 			port = 19100

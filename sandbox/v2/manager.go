@@ -148,7 +148,7 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Box, error) 
 				nodeID = targetNode
 			} else {
 				nodeID = node
-				if nodeID == "local" {
+				if snap, ok := registry.Global().Get(nodeID); ok && taitypes.IsPublicNode(snap.Mode) {
 					if ws, e := wsm.Get(ctx, opts.WorkspaceID); e == nil && ws.Owner != "" && ws.Owner != opts.Owner {
 						return nil, fmt.Errorf("sandbox: no permission to mount workspace %q", opts.WorkspaceID)
 					}

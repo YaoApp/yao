@@ -57,6 +57,16 @@ func TestBuildGRPCEnv_Direct(t *testing.T) {
 	}
 }
 
+func TestBuildGRPCEnv_Cloud(t *testing.T) {
+	config.Conf.GRPC.Port = 9099
+	env := sandbox.BuildGRPCEnv("cloud", 19100, "sb-1", "chat-1", "ws-1")
+
+	want := "host.tai.internal:19100"
+	if env["YAO_GRPC_ADDR"] != want {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
+	}
+}
+
 func TestBuildGRPCEnv_Direct_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
 	env := sandbox.BuildGRPCEnv("direct", 0, "sb-dzero", "", "")

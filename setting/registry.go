@@ -196,6 +196,12 @@ func (r *Registry) Reload() error {
 	return nil
 }
 
+// Flush forces immediate persistence of all pending writes in the backing store.
+// Must be called before process exit in CLI commands that write data.
+func (r *Registry) Flush() {
+	r.store.Flush()
+}
+
 // shallowMerge copies all keys from src into dst (overwrites existing keys).
 func shallowMerge(dst, src map[string]interface{}) {
 	for k, v := range src {
