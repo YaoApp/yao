@@ -245,6 +245,7 @@ func init() {
 		docCmd,
 		tokenCmd,
 		upgradeCmd,
+		serverKeyCmd,
 	)
 	// rootCmd.SetHelpCommand(helpCmd)
 	rootCmd.PersistentFlags().StringVarP(&appPath, "app", "a", "", L("Application directory"))

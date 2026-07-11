@@ -3,12 +3,15 @@ package sandbox_test
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare/sandboxtest"
+	"github.com/yaoapp/yao/workspace"
 )
 
 func TestManager_Create(t *testing.T) {
@@ -260,5 +263,122 @@ func TestManager_Nodes(t *testing.T) {
 	nodes := m.Nodes()
 	if len(nodes) == 0 {
 		t.Fatal("expected at least one registered node")
+	}
+}
+
+func createACLTestWorkspace(t *testing.T, nodeID, wsID, owner string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_, err := workspace.M().Create(ctx, workspace.CreateOptions{
+		ID:    wsID,
+		Owner: owner,
+		Node:  nodeID,
+	})
+	if err != nil && !strings.Contains(err.Error(), "exists") {
+		t.Fatalf("create workspace %q: %v", wsID, err)
+	}
+	t.Cleanup(func() {
+		cCtx, cCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cCancel()
+		workspace.M().Delete(cCtx, wsID, true)
+	})
+}
+
+func TestWorkspaceACL_CloudNode(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+	sandboxtest.RequireDocker(t)
+
+	m := sandbox.M()
+	nodeID := sandboxtest.TaiIDFromAddr(sandboxtest.TestLocalAddr())
+	meta, ok := registry.Global().Get(nodeID)
+	if !ok {
+		t.Fatalf("node %q not found in registry", nodeID)
+	}
+	origMode := meta.Mode
+	if !registry.SetNodeModeForTest(nodeID, "cloud") {
+		t.Fatalf("failed to set node %q mode to cloud", nodeID)
+	}
+	t.Cleanup(func() { registry.SetNodeModeForTest(nodeID, origMode) })
+
+	wsID := fmt.Sprintf("ws-acl-cloud-%d", time.Now().UnixNano())
+	createACLTestWorkspace(t, nodeID, wsID, "user-a")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	_, err := m.Create(ctx, sandbox.CreateOptions{
+		ID:          fmt.Sprintf("sb-acl-cloud-%d", time.Now().UnixNano()),
+		Image:       sandboxtest.TestImage(),
+		Owner:       "user-b",
+		NodeID:      nodeID,
+		WorkspaceID: wsID,
+	})
+	if err == nil {
+		t.Fatal("expected error when mounting another user's workspace on cloud node")
+	}
+	if !strings.Contains(err.Error(), "no permission to mount workspace") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestWorkspaceACL_PublicNodes(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+	sandboxtest.RequireDocker(t)
+
+	m := sandbox.M()
+	dockerNode := sandboxtest.TaiIDFromAddr(sandboxtest.TestLocalAddr())
+	dockerMeta, ok := registry.Global().Get(dockerNode)
+	if !ok {
+		t.Fatalf("node %q not found in registry", dockerNode)
+	}
+
+	cases := []struct {
+		name   string
+		nodeID string
+		setup  func(t *testing.T) func()
+	}{
+		{
+			name:   "local",
+			nodeID: "local",
+			setup: func(t *testing.T) func() {
+				return func() {}
+			},
+		},
+		{
+			name:   "cloud",
+			nodeID: dockerNode,
+			setup: func(t *testing.T) func() {
+				if !registry.SetNodeModeForTest(dockerNode, "cloud") {
+					t.Fatalf("failed to set node %q mode to cloud", dockerNode)
+				}
+				return func() { registry.SetNodeModeForTest(dockerNode, dockerMeta.Mode) }
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			restore := tc.setup(t)
+			defer restore()
+
+			wsID := fmt.Sprintf("ws-acl-pub-%s-%d", tc.name, time.Now().UnixNano())
+			createACLTestWorkspace(t, tc.nodeID, wsID, "user-a")
+
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			_, err := m.Create(ctx, sandbox.CreateOptions{
+				ID:          fmt.Sprintf("sb-acl-pub-%s-%d", tc.name, time.Now().UnixNano()),
+				Image:       sandboxtest.TestImage(),
+				Owner:       "user-b",
+				NodeID:      tc.nodeID,
+				WorkspaceID: wsID,
+			})
+			if err == nil {
+				t.Fatalf("expected ACL error on %s public node", tc.name)
+			}
+			if !strings.Contains(err.Error(), "no permission to mount workspace") {
+				t.Fatalf("unexpected error on %s: %v", tc.name, err)
+			}
+		})
 	}
 }

@@ -265,8 +265,11 @@ func buildNodeMap() map[string]nodeInfo {
 	m := make(map[string]nodeInfo, len(nodes))
 	for _, n := range nodes {
 		kind := "node"
-		if n.Mode == "local" {
+		switch n.Mode {
+		case "local":
 			kind = "host"
+		case "cloud":
+			kind = "cloud"
 		}
 		name := n.DisplayName
 		if name == "" {

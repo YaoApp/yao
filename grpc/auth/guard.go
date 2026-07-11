@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/acl"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/setting"
 )
 
 const (
@@ -84,6 +85,17 @@ func authenticate(ctx context.Context, fullMethod string, req interface{}) (cont
 	bearer := extractBearer(md)
 	if bearer == "" {
 		return ctx, status.Error(codes.Unauthenticated, "missing authorization token")
+	}
+
+	// Server Key authentication — yao-sk: prefixed tokens bypass OAuth.
+	if setting.IsServerKeyFormat(bearer) {
+		keyID, err := setting.ValidateServerKey(bearer)
+		if err != nil {
+			return ctx, status.Error(codes.Unauthenticated, err.Error())
+		}
+		setting.UpdateServerKeyLastUsed(keyID)
+		info := &types.AuthorizedInfo{Platform: true, ClientID: keyID}
+		return WithAuthorizedInfo(ctx, info), nil
 	}
 
 	result, err := svc.AuthenticateToken(oauth.AuthInput{

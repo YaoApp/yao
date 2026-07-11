@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 func TestPortInfoJSONFormat(t *testing.T) {
@@ -216,4 +218,67 @@ func TestSandboxNotRunningResponse(t *testing.T) {
 	if parsed["status"] != "sandbox_not_running" {
 		t.Errorf("status: got %v", parsed["status"])
 	}
+}
+
+func setupMockRegistry(t *testing.T) func() {
+	t.Helper()
+	reg := registry.NewForTest()
+	registry.SetGlobalForTest(reg)
+	return func() {
+		registry.SetGlobalForTest(nil)
+	}
+}
+
+func TestResolveHostNode(t *testing.T) {
+	t.Run("selects online public node with HostExec", func(t *testing.T) {
+		teardown := setupMockRegistry(t)
+		defer teardown()
+
+		reg := registry.Global()
+		reg.Register(&registry.TaiNode{
+			TaiID:        "tai-tunnel",
+			Mode:         "tunnel",
+			Capabilities: taitypes.Capabilities{HostExec: true},
+		})
+		reg.Register(&registry.TaiNode{
+			TaiID:        "tai-cloud",
+			Mode:         "cloud",
+			Capabilities: taitypes.Capabilities{HostExec: true},
+		})
+
+		got := resolveHostNode()
+		if got != "tai-cloud" {
+			t.Errorf("resolveHostNode() = %q, want tai-cloud", got)
+		}
+	})
+
+	t.Run("falls back to local when no suitable public node", func(t *testing.T) {
+		teardown := setupMockRegistry(t)
+		defer teardown()
+
+		reg := registry.Global()
+		reg.Register(&registry.TaiNode{
+			TaiID:        "tai-tunnel",
+			Mode:         "tunnel",
+			Capabilities: taitypes.Capabilities{HostExec: true},
+		})
+		reg.Register(&registry.TaiNode{
+			TaiID:        "tai-cloud",
+			Mode:         "cloud",
+			Capabilities: taitypes.Capabilities{HostExec: false},
+		})
+
+		got := resolveHostNode()
+		if got != "local" {
+			t.Errorf("resolveHostNode() = %q, want local", got)
+		}
+	})
+
+	t.Run("falls back to local when registry is nil", func(t *testing.T) {
+		registry.SetGlobalForTest(nil)
+		got := resolveHostNode()
+		if got != "local" {
+			t.Errorf("resolveHostNode() = %q, want local", got)
+		}
+	})
 }

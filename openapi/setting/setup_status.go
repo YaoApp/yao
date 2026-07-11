@@ -17,6 +17,7 @@ import (
 	"github.com/yaoapp/yao/setting"
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
+	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 // handleSetupStatus aggregates all system-level configuration checkpoints.
@@ -254,7 +255,7 @@ func checkSandboxNode(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	}
 
 	for _, snap := range reg.List() {
-		if snap.Mode != "local" && !sandboxNodeOwnedBy(&snap, info) {
+		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
 			continue
 		}
 		if snap.Status == "online" && (snap.Capabilities.Docker || snap.Capabilities.HostExec) {
@@ -296,7 +297,7 @@ func checkSandboxImage(info *oauthTypes.AuthorizedInfo, locale string, isCN bool
 
 	downloaded := 0
 	for _, snap := range reg.List() {
-		if snap.Mode != "local" && !sandboxNodeOwnedBy(&snap, info) {
+		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
 			continue
 		}
 		if snap.Status != "online" || !snap.Capabilities.Docker {
@@ -530,7 +531,7 @@ func checkAssistantSandbox(ast *assistant.Assistant, info *oauthTypes.Authorized
 
 	dockerNodeFound := false
 	for _, snap := range reg.List() {
-		if snap.Mode != "local" && !sandboxNodeOwnedBy(&snap, info) {
+		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
 			continue
 		}
 		if snap.Status != "online" || !snap.Capabilities.Docker {

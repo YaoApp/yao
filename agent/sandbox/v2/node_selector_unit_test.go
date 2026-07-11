@@ -314,6 +314,32 @@ func TestSelectNode_S13_GroupPriority(t *testing.T) {
 	}
 }
 
+func cloudNode(id string, runners []string, canBox, canHost bool) sandboxv2.NodeCandidate {
+	return sandboxv2.NodeCandidate{
+		ID: id, IsLocal: false, Runners: runners,
+		CanBox: canBox, CanHost: canHost, OS: "linux", Arch: "amd64",
+	}
+}
+
+func TestSelectNode_CloudInGroupBox(t *testing.T) {
+	testprepare.PrepareUnit(t)
+	nodes := []sandboxv2.NodeCandidate{
+		localNode([]string{"claude"}, false, true),
+		cloudNode("tai-cloud", []string{"claude"}, true, false),
+	}
+	sel, err := sandboxv2.SelectNode(nodes, &sandboxv2.SelectionCriteria{
+		Preferred: "claude",
+		Allowed:   []string{"claude"},
+		Image:     "ubuntu",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sel.NodeID != "tai-cloud" || sel.Mode != "box" || sel.Runner != "claude" {
+		t.Errorf("got node=%q runner=%q mode=%q, want tai-cloud/claude/box (cloud Docker node in groupBox)", sel.NodeID, sel.Runner, sel.Mode)
+	}
+}
+
 func TestSelectNode_Filter_Arch(t *testing.T) {
 	testprepare.PrepareUnit(t)
 	nodes := []sandboxv2.NodeCandidate{

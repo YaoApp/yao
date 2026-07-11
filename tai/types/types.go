@@ -47,6 +47,7 @@ type AuthInfo struct {
 	Scope    string
 	TeamID   string
 	TenantID string
+	Platform bool // true for server-to-server auth (cloud nodes via Server Key)
 }
 
 // NodeMeta is the read-only metadata snapshot of a registered Tai node.
@@ -57,7 +58,7 @@ type NodeMeta struct {
 	Version      string
 	Auth         AuthInfo
 	System       SystemInfo
-	Mode         string // "direct" | "tunnel" | "local"
+	Mode         string // "local" | "cloud" | "tunnel"
 	Addr         string
 	YaoBase      string
 	Ports        Ports
@@ -66,4 +67,9 @@ type NodeMeta struct {
 	ConnectedAt  time.Time
 	LastPing     time.Time
 	DisplayName  string
+}
+
+// IsPublicNode returns true for node modes visible to all users (local and cloud).
+func IsPublicNode(mode string) bool {
+	return mode == "local" || mode == "cloud"
 }

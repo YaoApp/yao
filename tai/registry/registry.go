@@ -24,7 +24,7 @@ type TaiNode struct {
 	Version      string
 	Auth         types.AuthInfo
 	System       types.SystemInfo
-	Mode         string // "direct" | "tunnel"
+	Mode         string // "local" | "cloud" | "tunnel"
 	Addr         string // direct mode: "tai-host"; tunnel mode: empty
 	YaoBase      string // Yao server base URL reported by Tai (tunnel mode)
 	Ports        types.Ports
@@ -274,14 +274,14 @@ func (r *Registry) FindTaiIDByAuthClient(clientID string) string {
 	return ""
 }
 
-// ListByTeam returns metadata of all nodes belonging to the given team,
-// sorted by TaiID for deterministic order.
+// ListByTeam returns metadata of all nodes belonging to the given team
+// plus public nodes (local, cloud). Sorted by TaiID for deterministic order.
 func (r *Registry) ListByTeam(teamID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var result []types.NodeMeta
 	for _, n := range r.nodes {
-		if n.Auth.TeamID == teamID {
+		if n.Auth.TeamID == teamID || types.IsPublicNode(n.Mode) {
 			result = append(result, n.meta())
 		}
 	}
@@ -292,13 +292,14 @@ func (r *Registry) ListByTeam(teamID string) []types.NodeMeta {
 }
 
 // ListByUser returns metadata of all nodes registered by the given user
-// that are NOT associated with any team. Sorted by TaiID for deterministic order.
+// (not associated with any team) plus public nodes (local, cloud).
+// Sorted by TaiID for deterministic order.
 func (r *Registry) ListByUser(userID string) []types.NodeMeta {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	var result []types.NodeMeta
 	for _, n := range r.nodes {
-		if n.Auth.TeamID == "" && n.Auth.UserID == userID {
+		if (n.Auth.TeamID == "" && n.Auth.UserID == userID) || types.IsPublicNode(n.Mode) {
 			result = append(result, n.meta())
 		}
 	}

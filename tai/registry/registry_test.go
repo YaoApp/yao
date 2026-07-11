@@ -340,3 +340,61 @@ func TestNodeMeta_AuthInfo(t *testing.T) {
 		t.Errorf("Auth.Scope = %q, want tai:tunnel", snap.Auth.Scope)
 	}
 }
+
+func TestListByTeam_IncludesPublic(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-cloud", Mode: "cloud"})
+	r.Register(&TaiNode{TaiID: "tai-tunnel", Mode: "tunnel", Auth: types.AuthInfo{TeamID: "team-a"}})
+
+	teamA := r.ListByTeam("team-a")
+	if len(teamA) != 2 {
+		t.Errorf("ListByTeam(team-a) = %d nodes, want 2", len(teamA))
+	}
+
+	ids := map[string]bool{}
+	for _, snap := range teamA {
+		ids[snap.TaiID] = true
+	}
+	for _, id := range []string{"tai-cloud", "tai-tunnel"} {
+		if !ids[id] {
+			t.Errorf("missing node %q in ListByTeam(team-a)", id)
+		}
+	}
+
+	teamB := r.ListByTeam("team-b")
+	if len(teamB) != 1 {
+		t.Errorf("ListByTeam(team-b) = %d nodes, want 1", len(teamB))
+	}
+	if teamB[0].TaiID != "tai-cloud" {
+		t.Errorf("ListByTeam(team-b) node = %q, want tai-cloud", teamB[0].TaiID)
+	}
+}
+
+func TestListByUser_IncludesPublic(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-cloud", Mode: "cloud"})
+	r.Register(&TaiNode{TaiID: "tai-tunnel", Mode: "tunnel", Auth: types.AuthInfo{UserID: "user-1"}})
+
+	user1 := r.ListByUser("user-1")
+	if len(user1) != 2 {
+		t.Errorf("ListByUser(user-1) = %d nodes, want 2", len(user1))
+	}
+
+	ids := map[string]bool{}
+	for _, snap := range user1 {
+		ids[snap.TaiID] = true
+	}
+	for _, id := range []string{"tai-cloud", "tai-tunnel"} {
+		if !ids[id] {
+			t.Errorf("missing node %q in ListByUser(user-1)", id)
+		}
+	}
+
+	user2 := r.ListByUser("user-2")
+	if len(user2) != 1 {
+		t.Errorf("ListByUser(user-2) = %d nodes, want 1", len(user2))
+	}
+	if user2[0].TaiID != "tai-cloud" {
+		t.Errorf("ListByUser(user-2) node = %q, want tai-cloud", user2[0].TaiID)
+	}
+}

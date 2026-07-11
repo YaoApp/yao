@@ -35,7 +35,7 @@ type ComputerInfo struct {
 	MachineID    string
 	Version      string
 	System       SystemInfo
-	Mode         string // "direct" | "tunnel"
+	Mode         string // "local" | "cloud" | "tunnel"
 	Capabilities map[string]bool
 	Status       string
 

@@ -93,7 +93,7 @@ func bundle(c *gin.Context) {
 
 func resolveFile(c *gin.Context, authInfo *types.AuthorizedInfo, fileURI string) (io.Reader, error) {
 	if strings.HasPrefix(fileURI, "workspace://") {
-		return resolveWorkspaceFile(c, fileURI)
+		return resolveWorkspaceFile(c, authInfo, fileURI)
 	}
 	if strings.HasPrefix(fileURI, "http://") || strings.HasPrefix(fileURI, "https://") {
 		return resolveHTTPFile(fileURI)
@@ -135,7 +135,7 @@ func resolveWrapperFile(c *gin.Context, authInfo *types.AuthorizedInfo, fileURI 
 	return bytes.NewReader(data), nil
 }
 
-func resolveWorkspaceFile(c *gin.Context, fileURI string) (io.Reader, error) {
+func resolveWorkspaceFile(c *gin.Context, authInfo *types.AuthorizedInfo, fileURI string) (io.Reader, error) {
 	rest := strings.TrimPrefix(fileURI, "workspace://")
 	idx := strings.Index(rest, "/")
 	if idx < 0 {
@@ -149,12 +149,32 @@ func resolveWorkspaceFile(c *gin.Context, fileURI string) (io.Reader, error) {
 		return nil, fmt.Errorf("workspace service not available")
 	}
 
+	wsInfo, err := m.Get(context.Background(), wsID)
+	if err != nil {
+		return nil, fmt.Errorf("workspace not found: %w", err)
+	}
+
+	owner := resolveOwner(authInfo)
+	if wsInfo.Owner != "" && wsInfo.Owner != owner {
+		return nil, fmt.Errorf("no permission to access workspace %q", wsID)
+	}
+
 	data, err := m.ReadFile(context.Background(), wsID, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("workspace file read failed: %w", err)
 	}
 
 	return bytes.NewReader(data), nil
+}
+
+func resolveOwner(authInfo *types.AuthorizedInfo) string {
+	if authInfo != nil && authInfo.TeamID != "" {
+		return authInfo.TeamID
+	}
+	if authInfo != nil {
+		return authInfo.UserID
+	}
+	return ""
 }
 
 func resolveHTTPFile(fileURL string) (io.Reader, error) {

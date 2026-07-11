@@ -631,6 +631,9 @@ type AuthorizedInfo struct {
 	AuthSource string `json:"auth_source,omitempty"` // Authentication source preserved from login
 	OAuthEmail string `json:"oauth_email,omitempty"` // OAuth account email preserved from login
 
+	// Server-to-server authentication (cloud Tai nodes via Server Key)
+	Platform bool `json:"platform,omitempty"`
+
 	// Data access constraints (set by ACL enforcement)
 	Constraints DataConstraints `json:"constraints,omitempty"`
 }
