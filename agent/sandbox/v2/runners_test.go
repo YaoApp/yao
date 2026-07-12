@@ -69,7 +69,7 @@ func TestInferRunners_Local(t *testing.T) {
 
 func TestInferRunners_Docker_NoImage(t *testing.T) {
 	node := taitypes.NodeMeta{
-		Mode:         "direct",
+		Mode:         "tunnel",
 		Capabilities: taitypes.Capabilities{Docker: true},
 	}
 	runners := sandboxv2.InferRunners(node, "")
@@ -86,7 +86,7 @@ func TestInferRunners_Docker_NoImage(t *testing.T) {
 
 func TestInferRunners_Docker_ClaudeImage(t *testing.T) {
 	node := taitypes.NodeMeta{
-		Mode:         "direct",
+		Mode:         "tunnel",
 		Capabilities: taitypes.Capabilities{Docker: true},
 	}
 	runners := sandboxv2.InferRunners(node, "my-registry/claude-sandbox:latest")
@@ -160,7 +160,7 @@ func TestInferRunners_HostExec(t *testing.T) {
 }
 
 func TestInferRunners_NoCapabilities(t *testing.T) {
-	node := taitypes.NodeMeta{Mode: "direct"}
+	node := taitypes.NodeMeta{Mode: "tunnel"}
 	runners := sandboxv2.InferRunners(node, "")
 	if len(runners) != 0 {
 		t.Errorf("no capabilities: got %v, want empty", runners)

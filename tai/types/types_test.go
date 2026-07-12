@@ -14,7 +14,6 @@ func TestIsPublicNode(t *testing.T) {
 		{"local", true},
 		{"cloud", true},
 		{"tunnel", false},
-		{"direct", false},
 		{"", false},
 		{"unknown", false},
 	}

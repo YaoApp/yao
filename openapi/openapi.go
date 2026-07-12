@@ -34,7 +34,6 @@ import (
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
-	taiapi "github.com/yaoapp/yao/tai/api"
 )
 
 // Server is the OpenAPI server
@@ -199,11 +198,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Tai forward handlers (proxy + VNC, dispatches tunnel vs local)
 	openapiTai.Attach(group, openapi.OAuth)
-
-	// Tai direct registration API (uses /tai-nodes/ prefix to avoid routing conflict with /tai/:taiID/)
-	group.POST("/tai-nodes/register", taiapi.HandleRegister)
-	group.POST("/tai-nodes/heartbeat", taiapi.HandleHeartbeat)
-	group.DELETE("/tai-nodes/register/:tai_id", taiapi.HandleUnregister)
 
 	// Setting handlers (unified /setting/* endpoints)
 	openAPISetting.Attach(group.Group("/setting"), openapi.OAuth)

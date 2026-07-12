@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -71,17 +70,7 @@ func registerForTest(tb testing.TB, pc poolConfig) {
 		registerLocalForTest(tb, tb.TempDir())
 		return
 	}
-	host, grpcPort := parseHostPort(pc.Addr)
-	ports := tai.Ports{GRPC: grpcPort}
-	res, err := tai.DialRemote(host, ports)
-	if err != nil {
-		tb.Fatalf("DialRemote(%s): %v", pc.Addr, err)
-	}
-	taiID := taiIDFromAddr(pc.Addr)
-	reg := registry.Global()
-	reg.Register(&registry.TaiNode{TaiID: taiID, Mode: "direct"})
-	reg.SetResources(taiID, res)
-	tb.Cleanup(func() { res.Close() })
+	tb.Fatalf("remote Tai connection via direct mode has been removed; use tunnel mode via testprepare.PrepareSandbox instead (addr=%s)", pc.Addr)
 }
 
 func registerLocalForTest(tb testing.TB, dataDir string) {
@@ -95,18 +84,6 @@ func registerLocalForTest(tb testing.TB, dataDir string) {
 	reg.Register(&registry.TaiNode{TaiID: "local", Mode: "local"})
 	reg.SetResources("local", res)
 	tb.Cleanup(func() { res.Close() })
-}
-
-func parseHostPort(addr string) (string, int) {
-	addr = strings.TrimPrefix(addr, "tai://")
-	parts := strings.SplitN(addr, ":", 2)
-	h := parts[0]
-	if len(parts) == 2 {
-		if p, err := strconv.Atoi(parts[1]); err == nil {
-			return h, p
-		}
-	}
-	return h, 19100
 }
 
 func setupManagerMultiNode(t *testing.T) (*workspace.Manager, string, string) {

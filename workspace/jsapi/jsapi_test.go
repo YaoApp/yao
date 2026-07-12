@@ -3,7 +3,6 @@ package jsapi_test
 import (
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -48,36 +47,8 @@ func setupForMode(t *testing.T, m testMode) {
 		reg.SetResources("local", res)
 		t.Cleanup(func() { res.Close() })
 	} else {
-		host, grpcPort := parseHostPort(m.Addr)
-		ports := tai.Ports{GRPC: grpcPort}
-		res, err := tai.DialRemote(host, ports)
-		if err != nil {
-			t.Fatalf("DialRemote(%s): %v", m.Addr, err)
-		}
-		taiID := taiIDFromAddr(m.Addr)
-		reg := registry.Global()
-		reg.Register(&registry.TaiNode{TaiID: taiID, Mode: "direct"})
-		reg.SetResources(taiID, res)
-		t.Cleanup(func() { res.Close() })
+		t.Fatalf("remote Tai connection via direct mode has been removed; use tunnel mode via testprepare.PrepareSandbox instead (addr=%s)", m.Addr)
 	}
-}
-
-func taiIDFromAddr(addr string) string {
-	addr = strings.TrimPrefix(addr, "tai://")
-	parts := strings.SplitN(addr, ":", 2)
-	return parts[0]
-}
-
-func parseHostPort(addr string) (string, int) {
-	addr = strings.TrimPrefix(addr, "tai://")
-	parts := strings.SplitN(addr, ":", 2)
-	h := parts[0]
-	if len(parts) == 2 {
-		if p, err := strconv.Atoi(parts[1]); err == nil {
-			return h, p
-		}
-	}
-	return h, 19100
 }
 
 func setupGlobal(t *testing.T) {

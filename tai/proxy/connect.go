@@ -11,16 +11,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// --- Remote Connect ---
-
-func (r *remoteProxy) Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error) {
-	baseURL, err := r.URL(ctx, containerID, opts.Port, opts.Path)
-	if err != nil {
-		return nil, err
-	}
-	return connect(ctx, baseURL, opts.Protocol, r.client)
-}
-
 // --- Tunnel Connect ---
 
 func (t *tunnelProxy) Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error) {

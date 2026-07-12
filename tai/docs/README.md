@@ -1,6 +1,6 @@
 # Tai SDK
 
-Go client library for the [Tai](https://github.com/YaoApp/tai) runtime bridge. Provides unified access to container sandboxes, volume IO, HTTP proxy, and VNC routing — transparently working in **Local** (direct Docker), **Remote** (via Tai server), and **Tunnel** (via Yao WebSocket tunnel) modes.
+Go client library for the [Tai](https://github.com/YaoApp/tai) runtime bridge. Provides unified access to container sandboxes, volume IO, HTTP proxy, and VNC routing — transparently working in **Local** (direct Docker) and **Tunnel** (via Yao WebSocket tunnel) modes.
 
 ## Package Layout
 
@@ -12,8 +12,7 @@ Go client library for the [Tai](https://github.com/YaoApp/tai) runtime bridge. P
 | `workspace` | `github.com/yaoapp/yao/tai/workspace` | `fs.FS`-compatible filesystem over Volume |
 | `proxy` | `github.com/yaoapp/yao/tai/proxy` | HTTP reverse proxy URL resolution |
 | `vnc` | `github.com/yaoapp/yao/tai/vnc` | VNC WebSocket URL resolution |
-| `registry` | `github.com/yaoapp/yao/tai/registry` | In-memory Tai node registry (direct + tunnel) |
-| `api` | `github.com/yaoapp/yao/tai/api` | HTTP handlers for node registration/heartbeat |
+| `registry` | `github.com/yaoapp/yao/tai/registry` | In-memory Tai node registry (tunnel + local) |
 | `tunnel` | `github.com/yaoapp/yao/tai/tunnel` | WebSocket tunnel server (control + data + proxy) |
 | `hostexec/pb` | `github.com/yaoapp/yao/tai/hostexec/pb` | HostExec gRPC client (host command execution) |
 | `serverinfo/pb` | `github.com/yaoapp/yao/tai/serverinfo/pb` | ServerInfo gRPC client (port/capability discovery) |
@@ -36,27 +35,6 @@ id, _ := c.Sandbox().Create(ctx, sandbox.CreateOptions{
 c.Sandbox().Start(ctx, id)
 ```
 
-### Remote Mode (via Tai server, Docker runtime)
-
-```go
-c, err := tai.New("tai://192.168.1.100")
-defer c.Close()
-
-result, _ := c.Sandbox().Exec(ctx, id, []string{"echo", "hello"}, sandbox.ExecOptions{})
-fmt.Println(result.Stdout) // "hello\n"
-```
-
-### Remote Mode (via Tai server, K8s runtime)
-
-```go
-c, err := tai.New("tai://192.168.1.100", tai.K8s,
-    tai.WithKubeConfig("/path/to/kubeconfig.yml"),
-    tai.WithNamespace("default"),
-    tai.WithPorts(tai.Ports{K8s: 16443}),
-)
-defer c.Close()
-```
-
 ### Tunnel Mode (via Yao WebSocket tunnel)
 
 ```go
@@ -76,10 +54,7 @@ defer c.Close()
 | `tcp://host:port` | Local | Explicit TCP Docker daemon |
 | `npipe:////./pipe/docker_engine` | Local | Windows named pipe |
 | `docker://host:port` | Local | Docker scheme |
-| `tai://host` | Remote | Connect via Tai server (gRPC default 19100) |
-| `tai://host:port` | Remote | Connect via Tai server on custom gRPC port |
 | `tunnel://tai-id` | Tunnel | Connect via Yao WebSocket tunnel |
-| `192.168.x.x` (non-local IP) | Remote | Auto-prepends `tai://` |
 
 ## Options
 
@@ -157,6 +132,5 @@ If no usable capabilities are found, `New()` returns an error. Remote mode check
 - [workspace.md](workspace.md) — fs.FS-compatible filesystem
 - [proxy.md](proxy.md) — HTTP reverse proxy
 - [vnc.md](vnc.md) — VNC WebSocket routing
-- [registry.md](registry.md) — Tai node registry (direct + tunnel)
-- [api.md](api.md) — HTTP registration API
+- [registry.md](registry.md) — Tai node registry (tunnel + local)
 - [tunnel.md](tunnel.md) — WebSocket tunnel handlers

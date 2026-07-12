@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/yaoapp/yao/tai/registry"
-	"github.com/yaoapp/yao/tai/types"
 	"github.com/yaoapp/yao/tai/volume"
 )
 
@@ -101,68 +100,6 @@ func TestDialLocalExplicitSocket(t *testing.T) {
 
 	if res.Runtime == nil {
 		t.Error("Runtime should not be nil for explicit unix socket")
-	}
-}
-
-func TestDialRemoteDocker(t *testing.T) {
-	host := taiTestHost()
-	grpcPort := envPort("TAI_TEST_GRPC_PORT", 19100)
-	ports := taiTestPorts()
-	ports.GRPC = grpcPort
-
-	res, err := DialRemote(host, ports)
-	if err != nil {
-		t.Skipf("Tai not available at %s:%d: %v", host, grpcPort, err)
-	}
-	defer res.Close()
-
-	t.Logf("remote docker: host=%s ports=%+v", host, res.Ports)
-
-	if res.Volume == nil {
-		t.Error("Volume should not be nil")
-	}
-	if res.Runtime == nil {
-		t.Error("Runtime should not be nil")
-	}
-}
-
-func TestDialRemoteK8s(t *testing.T) {
-	host := os.Getenv("TAI_TEST_K8S_HOST")
-	kubeconfig := os.Getenv("TAI_TEST_KUBECONFIG")
-	if host == "" || kubeconfig == "" {
-		t.Skip("TAI_TEST_K8S_HOST or TAI_TEST_KUBECONFIG not set")
-	}
-
-	grpcPort := envPort("TAI_TEST_K8S_GRPC_PORT", envPort("TAI_TEST_GRPC_PORT", 19100))
-	ports := Ports{
-		K8s:  envPort("TAI_TEST_K8S_PORT", 16443),
-		GRPC: grpcPort,
-		HTTP: envPort("TAI_TEST_K8S_HTTP_PORT", 8099),
-		VNC:  envPort("TAI_TEST_K8S_VNC_PORT", 16080),
-	}
-
-	res, err := DialRemote(host, ports,
-		WithDialRuntime(types.K8s),
-		WithDialKubeConfig(kubeconfig),
-		WithDialNamespace("default"),
-	)
-	if err != nil {
-		t.Skipf("Tai K8s not available: %v", err)
-	}
-	defer res.Close()
-
-	if res.Runtime == nil {
-		t.Error("Runtime should not be nil")
-	}
-}
-
-func TestDialRemoteK8sMissingKubeConfig(t *testing.T) {
-	host := taiTestHost()
-	grpcPort := envPort("TAI_TEST_GRPC_PORT", 19100)
-
-	_, err := DialRemote(host, Ports{GRPC: grpcPort}, WithDialRuntime(types.K8s))
-	if err == nil {
-		t.Skip("Tai happened to be reachable; test only valid when gRPC is up")
 	}
 }
 

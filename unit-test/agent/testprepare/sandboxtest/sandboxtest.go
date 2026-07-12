@@ -91,7 +91,7 @@ func RequireHostExec(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 // DockerNodeID returns the TaiID of the first Docker-capable node.
-// Prefers tunnel/direct nodes over local (delegates to FindNodeWithCaps).
+// Prefers tunnel nodes over local (delegates to FindNodeWithCaps).
 func DockerNodeID(t *testing.T) string {
 	t.Helper()
 	id, ok := FindNodeWithCaps(true, false)
@@ -102,7 +102,7 @@ func DockerNodeID(t *testing.T) string {
 }
 
 // HostExecNodeID returns the TaiID of the first HostExec-capable node.
-// Prefers tunnel/direct nodes over local (delegates to FindNodeWithCaps).
+// Prefers tunnel nodes over local (delegates to FindNodeWithCaps).
 func HostExecNodeID(t *testing.T) string {
 	t.Helper()
 	id, ok := FindNodeWithCaps(false, true)
@@ -413,7 +413,7 @@ func TranslateCmd(isWinNative bool, cmd string, args ...string) (string, []strin
 // ---------------------------------------------------------------------------
 
 // FindNodeWithCaps finds the first node matching the given capabilities.
-// It prefers tunnel/direct nodes over the local node so that sandbox tests
+// It prefers tunnel nodes over the local node so that sandbox tests
 // exercise the tunnel code path when both are available.
 func FindNodeWithCaps(docker, hostExec bool) (string, bool) {
 	reg := registry.Global()

@@ -16,7 +16,7 @@ import (
 	"github.com/yaoapp/yao/tai/types"
 )
 
-// TaiNode represents a registered Tai instance (direct or tunnel).
+// TaiNode represents a registered Tai instance.
 // Internal use only; external callers receive types.NodeMeta via Get()/List().
 type TaiNode struct {
 	TaiID        string
@@ -25,7 +25,7 @@ type TaiNode struct {
 	Auth         types.AuthInfo
 	System       types.SystemInfo
 	Mode         string // "local" | "cloud" | "tunnel"
-	Addr         string // direct mode: "tai-host"; tunnel mode: empty
+	Addr         string // tunnel mode: "tunnel://ip"; local mode: empty
 	YaoBase      string // Yao server base URL reported by Tai (tunnel mode)
 	Ports        types.Ports
 	Capabilities types.Capabilities
@@ -76,7 +76,7 @@ type BridgeFunc func(taiID string, targetPort int, localConn net.Conn)
 // nodes that reconnect after startup.
 type OnResourcesReadyFunc func(taiID string, resources any)
 
-// Registry manages all Tai nodes (direct and tunnel).
+// Registry manages all Tai nodes.
 type Registry struct {
 	mu               sync.RWMutex
 	nodes            map[string]*TaiNode
@@ -329,53 +329,6 @@ func (r *Registry) ListByUser(userID string) []types.NodeMeta {
 		return result[i].TaiID < result[j].TaiID
 	})
 	return result
-}
-
-// StartHealthCheck runs a background goroutine that periodically checks
-// direct-mode nodes for heartbeat timeout. Nodes whose LastPing exceeds
-// timeout are marked offline. Nodes that remain offline longer than
-// cleanupAfter are automatically unregistered.
-// The goroutine stops when ctx.Done() is closed.
-func (r *Registry) StartHealthCheck(done <-chan struct{}, interval, timeout, cleanupAfter time.Duration) {
-	go func() {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				r.checkHealth(timeout, cleanupAfter)
-			}
-		}
-	}()
-}
-
-func (r *Registry) checkHealth(timeout, cleanupAfter time.Duration) {
-	now := time.Now()
-	var toRemove []string
-
-	r.mu.Lock()
-	for id, n := range r.nodes {
-		if n.Mode != "direct" {
-			continue
-		}
-		elapsed := now.Sub(n.LastPing)
-		if n.Status == "online" && elapsed > timeout {
-			n.Status = "offline"
-			r.logger.Warn("tai node offline (heartbeat timeout)",
-				"tai_id", id, "last_ping", n.LastPing)
-		}
-		if n.Status == "offline" && elapsed > timeout+cleanupAfter {
-			toRemove = append(toRemove, id)
-		}
-	}
-	r.mu.Unlock()
-
-	for _, id := range toRemove {
-		r.logger.Info("tai node auto-unregistered (offline too long)", "tai_id", id)
-		r.Unregister(id)
-	}
 }
 
 // OpenLocalListener creates a localhost TCP listener that tunnels every

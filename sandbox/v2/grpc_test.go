@@ -41,19 +41,8 @@ func TestBuildGRPCEnv_Tunnel_ZeroPort(t *testing.T) {
 	config.Conf.GRPC.Port = 9099
 	env := sandbox.BuildGRPCEnv("tunnel", 0, "sb-tzero", "", "")
 
-	want := "host.tai.internal:19100"
-	if env["YAO_GRPC_ADDR"] != want {
-		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default tai port)", env["YAO_GRPC_ADDR"], want)
-	}
-}
-
-func TestBuildGRPCEnv_Direct(t *testing.T) {
-	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 19100, "sb-002", "", "")
-
-	want := "host.tai.internal:19100"
-	if env["YAO_GRPC_ADDR"] != want {
-		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
+	if _, ok := env["YAO_GRPC_ADDR"]; ok {
+		t.Errorf("YAO_GRPC_ADDR should not be set when taiGRPCPort=0, got %q", env["YAO_GRPC_ADDR"])
 	}
 }
 
@@ -64,16 +53,6 @@ func TestBuildGRPCEnv_Cloud(t *testing.T) {
 	want := "host.tai.internal:19100"
 	if env["YAO_GRPC_ADDR"] != want {
 		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], want)
-	}
-}
-
-func TestBuildGRPCEnv_Direct_ZeroPort(t *testing.T) {
-	config.Conf.GRPC.Port = 9099
-	env := sandbox.BuildGRPCEnv("direct", 0, "sb-dzero", "", "")
-
-	want := "host.tai.internal:19100"
-	if env["YAO_GRPC_ADDR"] != want {
-		t.Errorf("YAO_GRPC_ADDR = %q, want %q (default tai port)", env["YAO_GRPC_ADDR"], want)
 	}
 }
 

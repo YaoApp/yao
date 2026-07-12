@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"net/http"
 	"time"
 
 	yaoconfig "github.com/yaoapp/yao/config"
@@ -24,23 +23,6 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/keepalive"
 )
-
-// DialRemote establishes connections to a remote Tai node via gRPC (direct mode).
-// Does NOT interact with the registry. Caller must call ConnResources.Close().
-func DialRemote(host string, ports types.Ports, opts ...DialOption) (*ConnResources, error) {
-	cfg := &dialConfig{ports: mergedPorts(ports)}
-	for _, o := range opts {
-		o.applyDial(cfg)
-	}
-
-	grpcAddr := fmt.Sprintf("%s:%d", host, cfg.ports.GRPC)
-	conn, err := dialGRPC(grpcAddr)
-	if err != nil {
-		return nil, fmt.Errorf("grpc dial %s: %w", grpcAddr, err)
-	}
-
-	return buildResources(conn, cfg, &remoteEnv{host: host, httpClient: cfg.httpClient})
-}
 
 // DialTunnel establishes connections to a Tai node through the WebSocket tunnel.
 // Requires the node to already be registered in the registry (online).
@@ -158,20 +140,17 @@ func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, 
 // Shared build logic
 // ---------------------------------------------------------------------------
 
-// dialEnv abstracts the mode-specific differences (remote vs tunnel) that
-// buildResources needs.
+// dialEnv abstracts the mode-specific differences that buildResources needs.
 type dialEnv interface {
 	fallbackCaps() map[string]bool
 	mergeCaps(discovered map[string]bool) types.Capabilities
-	// listenAddr opens or formats a host:port address for the given port.
-	// Tunnel mode opens a local listener; remote mode formats host:port.
+	// listenAddr opens a local listener for the given port via the tunnel.
 	listenAddr(port int) (string, error)
 	newProxy(ports types.Ports) proxy.Proxy
 	newVNC(ports types.Ports) vnc.VNC
 }
 
-// buildResources constructs a ConnResources from an established gRPC
-// connection. Shared by DialRemote and DialTunnel.
+// buildResources constructs a ConnResources from an established gRPC connection.
 func buildResources(conn *grpc.ClientConn, cfg *dialConfig, env dialEnv) (*ConnResources, error) {
 	info, err := discoverInfo(conn, cfg)
 	if err != nil {
@@ -230,39 +209,6 @@ func buildResources(conn *grpc.ClientConn, cfg *dialConfig, env dialEnv) (*ConnR
 	res.VNC = env.newVNC(cfg.ports)
 
 	return res, nil
-}
-
-// ---------------------------------------------------------------------------
-// remoteEnv — direct TCP connections
-// ---------------------------------------------------------------------------
-
-type remoteEnv struct {
-	host       string
-	httpClient *http.Client
-}
-
-func (e *remoteEnv) fallbackCaps() map[string]bool {
-	return map[string]bool{"docker": true}
-}
-
-func (e *remoteEnv) mergeCaps(discovered map[string]bool) types.Capabilities {
-	return types.Capabilities{
-		Docker:   discovered["docker"],
-		K8s:      discovered["k8s"],
-		HostExec: discovered["host_exec"],
-	}
-}
-
-func (e *remoteEnv) listenAddr(port int) (string, error) {
-	return fmt.Sprintf("%s:%d", e.host, port), nil
-}
-
-func (e *remoteEnv) newProxy(ports types.Ports) proxy.Proxy {
-	return proxy.NewRemote(e.host, ports.HTTP, e.httpClient)
-}
-
-func (e *remoteEnv) newVNC(ports types.Ports) vnc.VNC {
-	return vnc.NewRemote(e.host, ports.VNC, e.httpClient)
 }
 
 // ---------------------------------------------------------------------------
@@ -334,17 +280,11 @@ func WithDialNamespace(ns string) DialOption {
 	return dialOptionFunc(func(c *dialConfig) { c.namespace = ns })
 }
 
-// WithDialHTTPClient sets a custom HTTP client for proxy/VNC.
-func WithDialHTTPClient(hc *http.Client) DialOption {
-	return dialOptionFunc(func(c *dialConfig) { c.httpClient = hc })
-}
-
 type dialConfig struct {
 	runtime    types.Runtime
 	ports      types.Ports
 	kubeConfig string
 	namespace  string
-	httpClient *http.Client
 	userPorts  types.Ports
 }
 
@@ -370,7 +310,7 @@ func dialGRPC(target string) (*grpc.ClientConn, error) {
 }
 
 // ---------------------------------------------------------------------------
-// ServerInfo discovery (shared by DialRemote / DialTunnel)
+// ServerInfo discovery (used by DialTunnel)
 // ---------------------------------------------------------------------------
 
 type discoveredInfo struct {

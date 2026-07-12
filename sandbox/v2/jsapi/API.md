@@ -1,5 +1,7 @@
 # Sandbox JavaScript API
 
+> **注意：** Direct（直连）模式已移除，Tai 仅支持 tunnel 模式连接 Yao。本文档中关于 direct 模式的描述仅作历史参考。
+
 All methods are available on the global `sandbox` object. No constructor needed.
 
 ## Quick Start
@@ -368,7 +370,7 @@ Returned by `sandbox.GetNode()`, `sandbox.Nodes()`, `sandbox.NodesByTeam()`. Rea
   tai_id:       "tai-abc123",
   machine_id:   "m-xyz",
   version:      "1.2.3",
-  mode:         "direct",          // "direct" | "tunnel"
+  mode:         "tunnel",          // "tunnel" | "cloud" | "local"
   addr:         "tai://192.168.1.100:19100",
   status:       "online",          // "online" | "offline" | "connecting"
   display_name: "GPU Node",        // optional human-readable name for UI
