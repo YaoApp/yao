@@ -3,14 +3,13 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/yaoapp/yao/tai/runtime"
 )
 
 // Proxy resolves HTTP service URLs for containers.
-// Remote routes through Tai HTTP proxy; Local resolves host ports directly.
+// Tunnel routes through Yao's reverse proxy; Local resolves host ports directly.
 type Proxy interface {
 	URL(ctx context.Context, containerID string, port int, path string) (string, error)
 	Connect(ctx context.Context, containerID string, opts ConnectOptions) (*Connection, error)
@@ -32,45 +31,6 @@ type Connection struct {
 	Send func(data []byte) error
 	// Close terminates the connection.
 	Close func() error
-}
-
-// --- Remote implementation ---
-
-type remoteProxy struct {
-	base   string // "http://host:port"
-	client *http.Client
-}
-
-// NewRemote creates a Proxy that routes through Tai's HTTP proxy.
-func NewRemote(host string, port int, hc *http.Client) Proxy {
-	if hc == nil {
-		hc = http.DefaultClient
-	}
-	return &remoteProxy{
-		base:   fmt.Sprintf("http://%s:%d", host, port),
-		client: hc,
-	}
-}
-
-func (r *remoteProxy) URL(_ context.Context, containerID string, port int, path string) (string, error) {
-	path = strings.TrimPrefix(path, "/")
-	return fmt.Sprintf("%s/%s:%d/%s", r.base, containerID, port, path), nil
-}
-
-func (r *remoteProxy) Healthz(ctx context.Context) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.base+"/healthz", nil)
-	if err != nil {
-		return err
-	}
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("healthz: status %d", resp.StatusCode)
-	}
-	return nil
 }
 
 // --- Tunnel implementation ---

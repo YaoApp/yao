@@ -78,22 +78,22 @@ Edit or transform an existing image based on a text prompt (image-to-image). Use
 
 ### Basic usage:
 ```bash
-tai tool image_edit '{"image": "/path/to/photo.png", "prompt": "Change the background to a beach scene", "output": "edited.png"}'
+tai tool image_edit '{"image_path": "/path/to/photo.png", "prompt": "Change the background to a beach scene", "output": "edited.png"}'
 ```
 
 ### With URL image:
 ```bash
-tai tool image_edit '{"image": "https://example.com/photo.jpg", "prompt": "Make it look like a watercolor painting", "output": "watercolor.png"}'
+tai tool image_edit '{"image_path": "https://example.com/photo.jpg", "prompt": "Make it look like a watercolor painting", "output": "watercolor.png"}'
 ```
 
 ### With specific provider and model:
 ```bash
-tai tool image_edit '{"image": "workspace://ws-id/uploads/original.png", "prompt": "Remove the person in the foreground", "provider": "llm.my-openai", "model": "gpt-image-1", "size": "1024x1024", "output": "result.png"}'
+tai tool image_edit '{"image_path": "workspace://ws-id/uploads/original.png", "prompt": "Remove the person in the foreground", "provider": "llm.my-openai", "model": "gpt-image-1", "size": "1024x1024", "output": "result.png"}'
 ```
 
-| Parameter | Type   | Required | Description                                                       |
-| --------- | ------ | -------- | ----------------------------------------------------------------- |
-| image     | string | yes      | Reference image: file path, URL, workspace://, or attach:// URI   |
+| Parameter  | Type   | Required | Description                                                       |
+| ---------- | ------ | -------- | ----------------------------------------------------------------- |
+| image_path | string | yes      | Reference image: file path, URL, workspace://, or attach:// URI   |
 | prompt    | string | yes      | Text description of the desired edit or transformation            |
 | output    | string | yes      | File path to save the edited image (parent dirs created automatically) |
 | provider  | string | no       | Provider connector ID (use `image_providers` with `capability=image_editing`). Auto-selects if omitted |

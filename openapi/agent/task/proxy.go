@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	taiapi "github.com/yaoapp/yao/openapi/tai"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/webproxy"
 )
 
@@ -49,12 +50,22 @@ func handleTaskProxyBind(c *gin.Context) {
 		targetID = webproxy.HostID
 	}
 
+	useTunnel := false
+	if taiID != "" {
+		if reg := registry.Global(); reg != nil {
+			if node, ok := reg.Get(taiID); ok && node.Mode != "local" {
+				useTunnel = true
+			}
+		}
+	}
+
 	taiapi.BindAndRespond(c, webproxy.BindOptions{
 		TaiID:       taiID,
 		TargetID:    targetID,
 		ContainerID: containerID,
 		TargetPort:  req.Port,
 		Label:       req.Label,
+		UseTunnel:   useTunnel,
 	})
 }
 

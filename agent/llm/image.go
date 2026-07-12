@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"strings"
 	"time"
 
@@ -92,7 +93,8 @@ func setImageAuthHeaders(req *gouhttp.Request, authMode goullm.AuthMode, key str
 
 // EditImage calls the image editing endpoint through the connector.
 // editFormat determines the API protocol: "multipart" for form-data POST /images/edits (OpenAI),
-// "json" for JSON POST /images/generations with image field (Seedream), empty defaults to "json".
+// "json" for JSON POST /images/generations with image field (Seedream).
+// Empty editFormat defaults to "multipart" (the standard OpenAI protocol).
 func EditImage(conn connector.Connector, imageInput string, prompt string, options map[string]interface{}, editFormat string) (*ImageGenResponse, error) {
 	host, key, authMode := resolveConnSettings(conn)
 	if host == "" {
@@ -114,10 +116,10 @@ func EditImage(conn connector.Connector, imageInput string, prompt string, optio
 		size = "1024x1024"
 	}
 
-	if editFormat == "multipart" {
-		return editImageMultipart(host, key, authMode, imageInput, prompt, model, size)
+	if editFormat == "json" {
+		return editImageJSON(host, key, authMode, imageInput, prompt, model, size)
 	}
-	return editImageJSON(host, key, authMode, imageInput, prompt, model, size)
+	return editImageMultipart(host, key, authMode, imageInput, prompt, model, size)
 }
 
 // editImageMultipart sends multipart/form-data POST to /images/edits (OpenAI style).
@@ -130,7 +132,14 @@ func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
-	part, err := writer.CreateFormFile("image", "image.png")
+	mimeType := http.DetectContentType(imageBytes)
+	if !strings.HasPrefix(mimeType, "image/") {
+		mimeType = "image/png"
+	}
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", `form-data; name="image"; filename="image"`)
+	h.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(h)
 	if err != nil {
 		return nil, fmt.Errorf("create form file: %w", err)
 	}

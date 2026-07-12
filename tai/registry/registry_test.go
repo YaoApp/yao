@@ -241,83 +241,6 @@ func TestListByTeam(t *testing.T) {
 	}
 }
 
-func TestStartHealthCheck_MarkOffline(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-direct", Mode: "direct"})
-	r.Register(&TaiNode{TaiID: "tai-tunnel", Mode: "tunnel"})
-
-	// Manually set LastPing to the past for the direct node.
-	r.mu.Lock()
-	r.nodes["tai-direct"].LastPing = time.Now().Add(-5 * time.Second)
-	r.mu.Unlock()
-
-	done := make(chan struct{})
-	r.StartHealthCheck(done, 50*time.Millisecond, 2*time.Second, 10*time.Minute)
-	defer close(done)
-
-	time.Sleep(200 * time.Millisecond)
-
-	snap, ok := r.Get("tai-direct")
-	if !ok {
-		t.Fatal("direct node should still exist")
-	}
-	if snap.Status != "offline" {
-		t.Errorf("direct node Status = %q, want offline", snap.Status)
-	}
-
-	// Tunnel nodes should not be affected.
-	snap2, ok := r.Get("tai-tunnel")
-	if !ok {
-		t.Fatal("tunnel node should still exist")
-	}
-	if snap2.Status != "online" {
-		t.Errorf("tunnel node Status = %q, want online", snap2.Status)
-	}
-}
-
-func TestStartHealthCheck_AutoCleanup(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-stale", Mode: "direct"})
-
-	// Set LastPing far in the past so it exceeds both timeout and cleanupAfter.
-	r.mu.Lock()
-	r.nodes["tai-stale"].LastPing = time.Now().Add(-1 * time.Hour)
-	r.mu.Unlock()
-
-	done := make(chan struct{})
-	r.StartHealthCheck(done, 50*time.Millisecond, 1*time.Second, 1*time.Second)
-	defer close(done)
-
-	time.Sleep(200 * time.Millisecond)
-
-	if _, ok := r.Get("tai-stale"); ok {
-		t.Error("stale node should have been auto-unregistered")
-	}
-}
-
-func TestStartHealthCheck_PingKeepsAlive(t *testing.T) {
-	r := newTestRegistry()
-	r.Register(&TaiNode{TaiID: "tai-alive", Mode: "direct"})
-
-	done := make(chan struct{})
-	r.StartHealthCheck(done, 50*time.Millisecond, 2*time.Second, 10*time.Minute)
-	defer close(done)
-
-	// Continuously ping to keep the node alive.
-	for i := 0; i < 4; i++ {
-		time.Sleep(30 * time.Millisecond)
-		r.UpdatePing("tai-alive")
-	}
-
-	snap, ok := r.Get("tai-alive")
-	if !ok {
-		t.Fatal("node should still exist")
-	}
-	if snap.Status != "online" {
-		t.Errorf("Status = %q, want online", snap.Status)
-	}
-}
-
 func TestNodeMeta_AuthInfo(t *testing.T) {
 	r := newTestRegistry()
 	r.Register(&TaiNode{
@@ -396,5 +319,57 @@ func TestListByUser_IncludesPublic(t *testing.T) {
 	}
 	if user2[0].TaiID != "tai-cloud" {
 		t.Errorf("ListByUser(user-2) node = %q, want tai-cloud", user2[0].TaiID)
+	}
+}
+
+func TestSetResources_FiresOnResourcesReady(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
+
+	called := make(chan string, 1)
+	r.SetOnResourcesReady(func(taiID string, resources any) {
+		called <- taiID
+	})
+
+	r.SetResources("tai-001", "fake-resources")
+
+	select {
+	case id := <-called:
+		if id != "tai-001" {
+			t.Errorf("callback taiID = %q, want tai-001", id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnResourcesReady callback was not called within 1s")
+	}
+}
+
+func TestSetResources_NoCallbackForMissingNode(t *testing.T) {
+	r := newTestRegistry()
+
+	called := make(chan string, 1)
+	r.SetOnResourcesReady(func(taiID string, resources any) {
+		called <- taiID
+	})
+
+	r.SetResources("ghost", "fake-resources")
+
+	select {
+	case id := <-called:
+		t.Fatalf("callback should not fire for missing node, got taiID=%q", id)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestSetResources_NoCallbackWhenNotSet(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
+	r.SetResources("tai-001", "fake-resources")
+
+	res, ok := r.GetResources("tai-001")
+	if !ok {
+		t.Fatal("expected resources to be stored")
+	}
+	if res != "fake-resources" {
+		t.Errorf("resources = %v, want fake-resources", res)
 	}
 }

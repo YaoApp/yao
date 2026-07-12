@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/http"
+	"net/http/httputil"
 	"sync"
 	"time"
 )
@@ -33,6 +35,7 @@ type BindOptions struct {
 	ContainerID string // Docker container ID (empty for __host__)
 	TargetPort  int
 	Label       string
+	UseTunnel   bool // true = non-local node, use tunnel forward
 }
 
 // BindingInfo is the JSON-serializable representation of a binding.
@@ -115,6 +118,34 @@ func (wp *WebProxy) Bind(opts BindOptions) (*BindingInfo, error) {
 		Cancel:      cancel,
 		CreatedAt:   time.Now(),
 		idleTimeout: wp.config.IdleTimeout,
+	}
+
+	// For tunnel mode, initialize the connection-pooling reverse proxy
+	if mode == ModeTaiProxy {
+		dialer := newTunnelDialer(opts.TaiID, opts.ContainerID, opts.TargetPort)
+		transport := &http.Transport{
+			DialContext:           dialer.DialContext,
+			MaxIdleConns:          6,
+			MaxIdleConnsPerHost:   6,
+			IdleConnTimeout:       90 * time.Second,
+			ResponseHeaderTimeout: 30 * time.Second,
+		}
+		rp := &httputil.ReverseProxy{
+			Director: func(req *http.Request) {
+				req.URL.Scheme = "http"
+				req.URL.Host = "tunnel"
+				stripProxyCookie(req)
+			},
+			Transport:     transport,
+			FlushInterval: -1,
+			ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+				http.Error(w, "Bad Gateway", http.StatusBadGateway)
+			},
+		}
+		binding.transport = transport
+		binding.reverseProxy = rp
+		binding.dialer = dialer
+		go dialer.Warmup()
 	}
 
 	// Start the HTTP listener with the already-open listener

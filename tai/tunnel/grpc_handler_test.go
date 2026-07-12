@@ -251,7 +251,7 @@ func TestRequestForward_NoRegisterStream(t *testing.T) {
 
 	reg.Register(&registry.TaiNode{TaiID: "no-stream", Mode: "tunnel"})
 
-	_, err := h.requestForwardRaw("no-stream", 8099)
+	_, _, err := h.requestForwardRaw("no-stream", 8099)
 	if err == nil {
 		t.Fatal("expected error when no register stream")
 	}
@@ -264,7 +264,7 @@ func TestRequestForward_TypeMismatch(t *testing.T) {
 	reg.Register(&registry.TaiNode{TaiID: "bad-type", Mode: "tunnel"})
 	reg.SetRegisterStream("bad-type", "not-a-stream")
 
-	_, err := h.requestForwardRaw("bad-type", 8099)
+	_, _, err := h.requestForwardRaw("bad-type", 8099)
 	if err == nil {
 		t.Fatal("expected error for type mismatch")
 	}
@@ -350,11 +350,12 @@ drainLoop:
 	// Now call RequestForward ourselves — this sends a new "open" on the register stream.
 	var requestErr error
 	var requestResult taipb.TaiTunnel_ForwardServer
+	var requestCancel context.CancelFunc
 	var requestDone sync.WaitGroup
 	requestDone.Add(1)
 	go func() {
 		defer requestDone.Done()
-		requestResult, requestErr = h.requestForwardRaw(taiID, 8099)
+		requestResult, requestCancel, requestErr = h.requestForwardRaw(taiID, 8099)
 	}()
 
 	// Receive the "open" command
@@ -391,6 +392,9 @@ drainLoop:
 	}
 	if requestResult == nil {
 		t.Fatal("expected non-nil forward stream from RequestForward")
+	}
+	if requestCancel != nil {
+		requestCancel()
 	}
 
 	regStream.CloseSend()
@@ -494,7 +498,7 @@ func (m *mockForwardStream) Send(msg *taipb.ForwardData) error {
 
 func TestForwardConn_Write(t *testing.T) {
 	mock := &mockForwardStream{}
-	fc := newForwardConn(mock)
+	fc := newForwardConn(mock, nil)
 
 	n, err := fc.Write([]byte("hello"))
 	if err != nil {
@@ -512,7 +516,7 @@ func TestForwardConn_Read(t *testing.T) {
 	mock := &mockForwardStream{
 		recvData: [][]byte{[]byte("world")},
 	}
-	fc := newForwardConn(mock)
+	fc := newForwardConn(mock, nil)
 
 	buf := make([]byte, 10)
 	n, err := fc.Read(buf)
@@ -528,7 +532,7 @@ func TestForwardConn_Read_Buffered(t *testing.T) {
 	mock := &mockForwardStream{
 		recvData: [][]byte{[]byte("abcdefghij")},
 	}
-	fc := newForwardConn(mock)
+	fc := newForwardConn(mock, nil)
 
 	buf := make([]byte, 4)
 	n, err := fc.Read(buf)
@@ -558,7 +562,7 @@ func TestForwardConn_Read_Buffered(t *testing.T) {
 
 func TestForwardConn_Read_EOF(t *testing.T) {
 	mock := &mockForwardStream{recvData: nil}
-	fc := newForwardConn(mock)
+	fc := newForwardConn(mock, nil)
 
 	buf := make([]byte, 10)
 	_, err := fc.Read(buf)
@@ -568,7 +572,7 @@ func TestForwardConn_Read_EOF(t *testing.T) {
 }
 
 func TestForwardConn_Close(t *testing.T) {
-	fc := newForwardConn(&mockForwardStream{})
+	fc := newForwardConn(&mockForwardStream{}, nil)
 	if err := fc.Close(); err != nil {
 		t.Errorf("expected nil error, got %v", err)
 	}
@@ -630,7 +634,7 @@ func (e *errorForwardStream) Recv() (*taipb.ForwardData, error) {
 }
 
 func TestForwardConn_Write_Error(t *testing.T) {
-	fc := newForwardConn(&errorForwardStream{})
+	fc := newForwardConn(&errorForwardStream{}, nil)
 	_, err := fc.Write([]byte("data"))
 	if err == nil {
 		t.Fatal("expected error from Write")
@@ -638,7 +642,7 @@ func TestForwardConn_Write_Error(t *testing.T) {
 }
 
 func TestForwardConn_Read_Error(t *testing.T) {
-	fc := newForwardConn(&errorForwardStream{})
+	fc := newForwardConn(&errorForwardStream{}, nil)
 	buf := make([]byte, 10)
 	_, err := fc.Read(buf)
 	if err == nil {
@@ -755,7 +759,7 @@ func TestRequestForward_Timeout(t *testing.T) {
 	// by never sending Forward). We'll use a short context cancel to avoid waiting.
 	done := make(chan error, 1)
 	go func() {
-		_, err := h.requestForwardRaw(taiID, 8099)
+		_, _, err := h.requestForwardRaw(taiID, 8099)
 		done <- err
 	}()
 
@@ -835,7 +839,7 @@ drained:
 	for i := 0; i < N; i++ {
 		port := 8099 + i
 		go func(port int) {
-			_, err := h.requestForwardRaw(taiID, port)
+			_, _, err := h.requestForwardRaw(taiID, port)
 			results <- err
 		}(port)
 	}
@@ -933,7 +937,7 @@ drained2:
 	// Start RequestForward
 	fwdResult := make(chan error, 1)
 	go func() {
-		_, err := h.requestForwardRaw(taiID, 8099)
+		_, _, err := h.requestForwardRaw(taiID, 8099)
 		fwdResult <- err
 	}()
 
@@ -1108,10 +1112,11 @@ proxyDrained:
 	}()
 
 	// Now do an actual RequestForward + simulate browser side
-	fwd, err := h.requestForwardRaw(taiID, 8099)
+	fwd, cancel, err := h.requestForwardRaw(taiID, 8099)
 	if err != nil {
 		t.Fatal("RequestForward:", err)
 	}
+	defer cancel()
 
 	// Send HTTP request through the tunnel
 	httpReq := "GET /api/test HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n"
@@ -1274,10 +1279,11 @@ vncDrained:
 	}()
 
 	// Send WS upgrade request through tunnel
-	fwd, err := h.requestForwardRaw(taiID, 16080)
+	fwd, cancel, err := h.requestForwardRaw(taiID, 16080)
 	if err != nil {
 		t.Fatal("RequestForward:", err)
 	}
+	defer cancel()
 
 	wsUpgrade := "GET /vnc/__host__/ws HTTP/1.1\r\nHost: localhost\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n"
 	if err := fwd.Send(&taipb.ForwardData{Data: []byte(wsUpgrade)}); err != nil {

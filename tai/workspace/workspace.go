@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/yaoapp/yao/tai/volume"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // FS extends Go's fs.FS with write operations.
@@ -56,14 +58,14 @@ func (w *workspaceFS) Open(name string) (fs.File, error) {
 	ctx := context.Background()
 	info, err := w.vol.Stat(ctx, w.session, name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: err}
+		return nil, &fs.PathError{Op: "open", Path: name, Err: grpcToFSError(err)}
 	}
 	if info.IsDir {
 		return &dirFile{w: w, name: name, info: info}, nil
 	}
 	data, _, err := w.vol.ReadFile(ctx, w.session, name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "open", Path: name, Err: err}
+		return nil, &fs.PathError{Op: "open", Path: name, Err: grpcToFSError(err)}
 	}
 	return &memFile{name: name, info: info, data: data}, nil
 }
@@ -74,7 +76,7 @@ func (w *workspaceFS) Stat(name string) (fs.FileInfo, error) {
 	}
 	info, err := w.vol.Stat(context.Background(), w.session, name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "stat", Path: name, Err: err}
+		return nil, &fs.PathError{Op: "stat", Path: name, Err: grpcToFSError(err)}
 	}
 	return toFSInfo(name, info), nil
 }
@@ -85,7 +87,7 @@ func (w *workspaceFS) ReadFile(name string) ([]byte, error) {
 	}
 	data, _, err := w.vol.ReadFile(context.Background(), w.session, name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "read", Path: name, Err: err}
+		return nil, &fs.PathError{Op: "read", Path: name, Err: grpcToFSError(err)}
 	}
 	return data, nil
 }
@@ -96,7 +98,7 @@ func (w *workspaceFS) ReadDir(name string) ([]fs.DirEntry, error) {
 	}
 	entries, err := w.vol.ListDir(context.Background(), w.session, name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "readdir", Path: name, Err: err}
+		return nil, &fs.PathError{Op: "readdir", Path: name, Err: grpcToFSError(err)}
 	}
 	result := make([]fs.DirEntry, 0, len(entries))
 	for i := range entries {
@@ -134,6 +136,26 @@ func (w *workspaceFS) GetID() (string, error) {
 }
 
 func (w *workspaceFS) Close() error { return nil }
+
+// grpcToFSError maps gRPC status codes to standard fs errors so that callers
+// using errors.Is(err, fs.ErrNotExist) etc. work transparently for both local
+// and remote volumes.
+func grpcToFSError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if s, ok := status.FromError(err); ok {
+		switch s.Code() {
+		case codes.NotFound:
+			return fs.ErrNotExist
+		case codes.AlreadyExists:
+			return fs.ErrExist
+		case codes.PermissionDenied:
+			return fs.ErrPermission
+		}
+	}
+	return err
+}
 
 // --- fs.FileInfo adapter ---
 

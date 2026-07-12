@@ -1,11 +1,14 @@
 package workspace
 
 import (
+	"errors"
 	"io"
 	"io/fs"
 	"testing"
 
 	"github.com/yaoapp/yao/tai/volume"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func TestWorkspaceFS(t *testing.T) {
@@ -186,12 +189,28 @@ func TestWorkspaceFS(t *testing.T) {
 		if err == nil {
 			t.Error("expected error for nonexistent file")
 		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("Open nonexistent: errors.Is(err, fs.ErrNotExist) = false, err = %v", err)
+		}
 	})
 
 	t.Run("ReadFile nonexistent", func(t *testing.T) {
 		_, err := wfs.ReadFile("nonexistent.txt")
 		if err == nil {
 			t.Error("expected error for nonexistent file")
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("ReadFile nonexistent: errors.Is(err, fs.ErrNotExist) = false, err = %v", err)
+		}
+	})
+
+	t.Run("Stat nonexistent", func(t *testing.T) {
+		_, err := wfs.Stat("nonexistent.txt")
+		if err == nil {
+			t.Error("expected error for nonexistent file")
+		}
+		if !errors.Is(err, fs.ErrNotExist) {
+			t.Errorf("Stat nonexistent: errors.Is(err, fs.ErrNotExist) = false, err = %v", err)
 		}
 	})
 
@@ -226,6 +245,39 @@ func TestGetRoot(t *testing.T) {
 	want := dir + "/" + sid
 	if root != want {
 		t.Errorf("GetRoot() = %q, want %q", root, want)
+	}
+}
+
+func TestGRPCToFSError(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  error
+		target error
+		match  bool
+	}{
+		{"nil", nil, nil, true},
+		{"NotFound", status.Error(codes.NotFound, "not found"), fs.ErrNotExist, true},
+		{"AlreadyExists", status.Error(codes.AlreadyExists, "exists"), fs.ErrExist, true},
+		{"PermissionDenied", status.Error(codes.PermissionDenied, "denied"), fs.ErrPermission, true},
+		{"Internal passthrough", status.Error(codes.Internal, "boom"), fs.ErrNotExist, false},
+		{"plain error passthrough", errors.New("plain"), fs.ErrNotExist, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := grpcToFSError(tt.input)
+			if tt.input == nil {
+				if got != nil {
+					t.Fatalf("expected nil, got %v", got)
+				}
+				return
+			}
+			if tt.match && !errors.Is(got, tt.target) {
+				t.Errorf("errors.Is(got, target) = false; got=%v target=%v", got, tt.target)
+			}
+			if !tt.match && errors.Is(got, tt.target) {
+				t.Errorf("errors.Is(got, target) should be false; got=%v target=%v", got, tt.target)
+			}
+		})
 	}
 }
 

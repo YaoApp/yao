@@ -65,6 +65,8 @@ type GRPCConfig struct {
 	Enabled string `json:"enabled,omitempty" env:"YAO_GRPC"`                          // Set "off" to disable gRPC server
 	Host    string `json:"host,omitempty" env:"YAO_GRPC_HOST" envDefault:"127.0.0.1"` // Comma-separated bind addresses
 	Port    int    `json:"port,omitempty" env:"YAO_GRPC_PORT" envDefault:"9099"`      // Listen port shared by all addresses
+	Cert    string `json:"cert,omitempty" env:"YAO_GRPC_CERT"`                        // TLS certificate path (relative to openapi/certs/ or absolute)
+	Key     string `json:"key,omitempty" env:"YAO_GRPC_KEY"`                          // TLS private key path (relative to openapi/certs/ or absolute)
 }
 
 // Database 数据库配置

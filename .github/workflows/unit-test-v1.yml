@@ -257,7 +257,7 @@ jobs:
           echo "YAO_CI_TAI_KUBECONFIG=$RUNNER_TEMP/kubeconfig-tai.yml" >> $GITHUB_ENV
 
       # ==== Phase 6: Start Tai instances (host processes) ====
-      - name: Start tai-local (DIRECT mode, auto-detect Docker)
+      - name: Start tai-local (TUNNEL mode, auto-detect Docker)
         run: |
           mkdir -p $RUNNER_TEMP/tai-local-data
 
@@ -269,7 +269,6 @@ jobs:
             --http 127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT} \
             --vnc  127.0.0.1:${YAO_CI_TAI_LOCAL_VNC_PORT} \
             --docker 127.0.0.1:${YAO_CI_TAI_LOCAL_DOCKER_PORT} \
-            --direct \
             --host-exec --host-exec-full-access \
             --log-level debug &
 
@@ -396,10 +395,10 @@ jobs:
           check "Yao HTTP (/.well-known/yao)" curl -sf http://127.0.0.1:5099/.well-known/yao
           check "Yao gRPC port" nc -z 127.0.0.1 9099
 
-          echo "[tai-local (DIRECT)]"
+          echo "[tai-local (TUNNEL)]"
           check "tai-local process alive" kill -0 $(cat $RUNNER_TEMP/tai-local.pid 2>/dev/null || echo 0)
           check "tai-local HTTP (/healthz)" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
-          check "tai-local gRPC reachable (direct)" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+          check "tai-local gRPC reachable" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
 
           echo "[tai-docker (TUNNEL)]"
           check "tai-docker process alive" kill -0 $(cat $RUNNER_TEMP/tai-docker.pid 2>/dev/null || echo 0)
@@ -449,9 +448,9 @@ jobs:
           check "Yao HTTP :${YAO_CI_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_HTTP_PORT}/.well-known/yao
           check "Yao gRPC :${YAO_CI_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_GRPC_PORT}
 
-          echo "[DIRECT path: Yao → tai-local]"
-          check "Yao→tai-local gRPC :${YAO_CI_TAI_LOCAL_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
-          check "Yao→tai-local HTTP :${YAO_CI_TAI_LOCAL_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
+          echo "[TUNNEL path: tai-local → Yao gRPC (reverse tunnel)]"
+          check "tai-local gRPC :${YAO_CI_TAI_LOCAL_GRPC_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+          check "tai-local HTTP :${YAO_CI_TAI_LOCAL_HTTP_PORT}" curl -sf http://127.0.0.1:${YAO_CI_TAI_LOCAL_HTTP_PORT}/healthz
           check "tai-local Docker API proxy :${YAO_CI_TAI_LOCAL_DOCKER_PORT}" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_DOCKER_PORT}
 
           echo "[TUNNEL path: tai-docker → Yao gRPC (reverse tunnel)]"
@@ -486,9 +485,8 @@ jobs:
           check "tai-k8s credentials exist" test -f $RUNNER_TEMP/tai-k8s-credentials
           check "tai-hostexec credentials exist" test -f $RUNNER_TEMP/tai-hostexec-credentials
 
-          echo "[DIRECT: tai-local → Yao HTTP register → Yao dials tai-local gRPC]"
-          echo "  tai-local registers via POST /tai-nodes/register"
-          echo "  Yao dials back tai-local gRPC at 127.0.0.1:${YAO_CI_TAI_LOCAL_GRPC_PORT}"
+          echo "[TUNNEL: tai-local → Yao gRPC :${YAO_CI_GRPC_PORT} (Register + Forward)]"
+          echo "  tai-local registers via tunnel to Yao gRPC at 127.0.0.1:${YAO_CI_GRPC_PORT}"
 
           echo "[TUNNEL: tai-docker → Yao gRPC :${YAO_CI_GRPC_PORT} (Register + Forward)]"
           echo "  Sandbox connects Yao gRPC → Forward stream → tai-docker :${YAO_CI_TAI_DOCKER_GRPC_PORT}"
@@ -509,7 +507,7 @@ jobs:
           echo "--- 4. HostExec ---"
 
           echo "[HostExec gRPC ports (all 4 instances)]"
-          check "HostExec tai-local (direct, auto-Docker)" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
+          check "HostExec tai-local (tunnel, auto-Docker)" nc -z 127.0.0.1 ${YAO_CI_TAI_LOCAL_GRPC_PORT}
           check "HostExec tai-docker (tunnel, Docker proxy)" nc -z 127.0.0.1 ${YAO_CI_TAI_DOCKER_GRPC_PORT}
           check "HostExec tai-k8s (tunnel, K8s proxy)" nc -z 127.0.0.1 ${YAO_CI_TAI_K8S_GRPC_PORT}
           check "HostExec tai-hostexec (tunnel, no runtime)" nc -z 127.0.0.1 ${YAO_CI_TAI_HOSTEXEC_GRPC_PORT}

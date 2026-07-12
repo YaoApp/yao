@@ -1,5 +1,7 @@
 # Sandbox V2 — Go API Reference
 
+> **注意：** Direct（直连）模式已移除，Tai 仅支持 tunnel 模式连接 Yao。本文档中关于 direct 模式的描述仅作历史参考。
+
 Package: `github.com/yaoapp/yao/sandbox/v2`
 
 Sandbox V2 manages sandboxes through a set of Tai nodes. Two primary abstractions:
@@ -44,7 +46,7 @@ mgr := sandbox.M()
 
 Sandbox V2 no longer uses static node configuration. Nodes are discovered dynamically
 through `tai/registry`. Each Tai node registers itself with a unique **TaiID** (e.g.
-`"192.168.1.10-19100"` for direct mode, `"local"` for Docker). The TaiID is used as the
+`"tai-abc123"` for tunnel mode, `"local"` for Docker). The TaiID is used as the
 `NodeID` identifier in `CreateOptions`, `ListOptions`, `Host()`, `ImageExists()`, etc.
 
 ---
@@ -696,8 +698,8 @@ func BuildGRPCEnv(mode, addr, sandboxID string) map[string]string
 Builds environment variables injected into sandbox containers. The gRPC port is read from
 `config.Conf.GRPC.Port` (defaults to `9099`).
 
-- `mode` — the `TaiNode.Mode` (`"local"`, `"direct"`, `"tunnel"`)
-- `addr` — the `TaiNode.Addr` (e.g. `"tai://192.168.1.10:19100"` for direct mode)
+- `mode` — the `TaiNode.Mode` (`"local"`, `"tunnel"`, `"cloud"`)
+- `addr` — the `TaiNode.Addr` (e.g. `"tai://192.168.1.10:19200"` for tunnel mode)
 - `sandboxID` — the container's sandbox identifier
 
 | Variable         | Description                        |

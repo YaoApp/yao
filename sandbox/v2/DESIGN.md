@@ -1,5 +1,7 @@
 # Sandbox V2 Design
 
+> **注意：** Direct（直连）模式已移除，Tai 仅支持 tunnel 模式连接 Yao。本文档中关于 direct 模式的描述仅作历史参考。
+
 ## Positioning
 
 Sandbox is a **standalone infrastructure module** in Yao, on the same level as `process`, `store`, and `fs`. It provides isolated execution environments with standard file I/O. Any module can use it — Agent, JSAPI scripts, Process handlers, API endpoints.

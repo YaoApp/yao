@@ -13,63 +13,6 @@ import (
 	"github.com/yaoapp/yao/tai/runtime"
 )
 
-func TestRemoteURL(t *testing.T) {
-	p := NewRemote("10.0.0.1", 8080, nil)
-	ctx := context.Background()
-
-	url, err := p.URL(ctx, "abc123", 3000, "/api/health")
-	if err != nil {
-		t.Fatalf("URL: %v", err)
-	}
-	want := "http://10.0.0.1:8080/abc123:3000/api/health"
-	if url != want {
-		t.Errorf("got %q, want %q", url, want)
-	}
-}
-
-func TestRemoteURLNoLeadingSlash(t *testing.T) {
-	p := NewRemote("host", 8080, nil)
-	ctx := context.Background()
-
-	url, _ := p.URL(ctx, "id", 80, "path")
-	want := "http://host:8080/id:80/path"
-	if url != want {
-		t.Errorf("got %q, want %q", url, want)
-	}
-}
-
-func TestRemoteHealthz(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/healthz" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	// parse host and port from srv.URL
-	p := &remoteProxy{base: srv.URL, client: srv.Client()}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-	if err := p.Healthz(ctx); err != nil {
-		t.Fatalf("Healthz: %v", err)
-	}
-}
-
-func TestRemoteHealthzFail(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusServiceUnavailable)
-	}))
-	defer srv.Close()
-
-	p := &remoteProxy{base: srv.URL, client: srv.Client()}
-	if err := p.Healthz(context.Background()); err == nil {
-		t.Error("expected error for 503")
-	}
-}
-
 func TestLocalURL(t *testing.T) {
 	mock := &mockSandbox{
 		inspectFn: func(ctx context.Context, id string) (*runtime.ContainerInfo, error) {

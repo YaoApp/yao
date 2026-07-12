@@ -1,13 +1,13 @@
 # Package `registry`
 
-In-memory registry for Tai nodes. Manages both **direct** (network-reachable) and **tunnel** (WebSocket-bridged) connections. Used server-side by Yao to track all connected Tai instances.
+In-memory registry for Tai nodes. Manages **tunnel** (WebSocket-bridged) and **local** connections. Used server-side by Yao to track all connected Tai instances.
 
 ## Architecture
 
 ```
-Direct Mode:     Yao  ── TCP ──>  Tai (gRPC/HTTP/Docker/VNC)
 Tunnel Mode:     Yao  <── WS ──  Tai (control channel)
                  Yao  <── WS ──  Tai (data channels, on-demand)
+Local Mode:      Yao  ── direct ──>  Docker (same host)
 ```
 
 ## Types
@@ -21,8 +21,8 @@ type TaiNode struct {
     Version      string
     Auth         AuthInfo
     System       SystemInfo
-    Mode         string            // "direct" | "tunnel"
-    Addr         string            // direct: "tai-host"; tunnel: empty
+    Mode         string            // "tunnel" | "local" | "cloud"
+    Addr         string            // tunnel: "tunnel://ip"; local: empty
     YaoBase      string            // tunnel: Yao server base URL
     Ports        map[string]int    // {"grpc":19100, "http":8099, ...}
     Capabilities map[string]bool   // {"docker":true, "host_exec":true}
@@ -110,16 +110,6 @@ func (r *Registry) ListByTeam(teamID string) []NodeSnapshot
 ```go
 func (r *Registry) UpdatePing(taiID string)
 ```
-
-### Health Check
-
-```go
-func (r *Registry) StartHealthCheck(done <-chan struct{}, interval, timeout, cleanupAfter time.Duration)
-```
-
-Runs a background goroutine that:
-1. Marks direct-mode nodes as `"offline"` if `LastPing` exceeds `timeout`
-2. Auto-unregisters nodes that stay offline longer than `timeout + cleanupAfter`
 
 ## Tunnel API
 
