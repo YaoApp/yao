@@ -23,6 +23,11 @@ func probe(opts BindOptions) (ConnMode, string) {
 		return ModeDirect, fmt.Sprintf("127.0.0.1:%d", opts.TargetPort)
 	}
 
+	// Non-local node: use tunnel forward (skip Docker inspect entirely)
+	if opts.UseTunnel {
+		return ModeTaiProxy, ""
+	}
+
 	// Single Docker inspect for all probes
 	info, err := inspectContainer(opts.ContainerID)
 	if err != nil {

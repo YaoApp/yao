@@ -71,7 +71,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 	}
 	defer browserConn.Close()
 
-	fwd, err := h.RequestForward(taiID, route)
+	fwd, cancel, err := h.RequestForward(taiID, route)
 	if err != nil {
 		logger.Error("[forward] stream failed",
 			"tai_id", taiID, "type", route.channelType, "err", err)
@@ -90,7 +90,7 @@ func (h *TunnelHandler) HandleForward(c *gin.Context) {
 		return
 	}
 
-	streamConn := newForwardConn(fwd)
+	streamConn := newForwardConn(fwd, cancel)
 	bridgeTCP(
 		&netConnAdapter{ReadWriteCloser: browserConn},
 		streamConn,

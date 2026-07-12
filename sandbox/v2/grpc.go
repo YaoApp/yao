@@ -4,9 +4,40 @@ import (
 	"fmt"
 
 	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/tai/registry"
 )
 
 const taiHost = "host.tai.internal"
+
+// resolveGRPCAddr returns the current YAO_GRPC_ADDR for a node by looking up
+// its live Ports.GRPC from the registry. This ensures exec-time env always
+// reflects the latest Tai gRPC port, even after Tai restarts with a new port.
+func (m *Manager) resolveGRPCAddr(nodeID string) string {
+	reg := registry.Global()
+	if reg == nil {
+		return ""
+	}
+	snap, ok := reg.Get(nodeID)
+	if !ok {
+		return ""
+	}
+	switch snap.Mode {
+	case "local":
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
+		}
+		return fmt.Sprintf("%s:%d", taiHost, port)
+	case "tunnel", "direct", "cloud":
+		port := snap.Ports.GRPC
+		if port == 0 {
+			port = 19100
+		}
+		return fmt.Sprintf("%s:%d", taiHost, port)
+	default:
+		return ""
+	}
+}
 
 // BuildGRPCEnv builds the gRPC environment variables for a sandbox container.
 //

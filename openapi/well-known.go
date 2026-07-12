@@ -49,9 +49,11 @@ type YaoMetadata struct {
 	ServerURL string `json:"server_url,omitempty"`
 
 	// Dashboard configuration
-	Dashboard string                 `json:"dashboard,omitempty"` // Admin dashboard root path
-	GRPC      string                 `json:"grpc,omitempty"`      // gRPC server address (e.g., "127.0.0.1:9099")
-	Optional  map[string]interface{} `json:"optional,omitempty"`  // Optional settings
+	Dashboard string                 `json:"dashboard,omitempty"`   // Admin dashboard root path
+	GRPC      string                 `json:"grpc,omitempty"`        // gRPC server address (e.g., "127.0.0.1:9099")
+	GRPCTLS   bool                   `json:"grpc_tls,omitempty"`    // Whether gRPC server has TLS enabled
+	GRPCTLSCA string                 `json:"grpc_tls_ca,omitempty"` // gRPC TLS CA certificate PEM (for self-signed auto-distribution)
+	Optional  map[string]interface{} `json:"optional,omitempty"`    // Optional settings
 
 	// Commercial license
 	License *commercial.PublicInfo `json:"license,omitempty"`
@@ -78,6 +80,15 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 		Dashboard:   "/" + dashboard,
 		GRPC:        resolveGRPCAddr(c),
 		Optional:    share.App.Optional,
+	}
+
+	// Include gRPC TLS info
+	if config.Conf.GRPC.Cert != "" {
+		metadata.GRPCTLS = true
+		certPath := convertRelativeToAbsolutePath(config.Conf.GRPC.Cert, config.Conf.Root)
+		if pemData, err := os.ReadFile(certPath); err == nil {
+			metadata.GRPCTLSCA = string(pemData)
+		}
 	}
 
 	// Include license info

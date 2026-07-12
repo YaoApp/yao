@@ -398,3 +398,55 @@ func TestListByUser_IncludesPublic(t *testing.T) {
 		t.Errorf("ListByUser(user-2) node = %q, want tai-cloud", user2[0].TaiID)
 	}
 }
+
+func TestSetResources_FiresOnResourcesReady(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
+
+	called := make(chan string, 1)
+	r.SetOnResourcesReady(func(taiID string, resources any) {
+		called <- taiID
+	})
+
+	r.SetResources("tai-001", "fake-resources")
+
+	select {
+	case id := <-called:
+		if id != "tai-001" {
+			t.Errorf("callback taiID = %q, want tai-001", id)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("OnResourcesReady callback was not called within 1s")
+	}
+}
+
+func TestSetResources_NoCallbackForMissingNode(t *testing.T) {
+	r := newTestRegistry()
+
+	called := make(chan string, 1)
+	r.SetOnResourcesReady(func(taiID string, resources any) {
+		called <- taiID
+	})
+
+	r.SetResources("ghost", "fake-resources")
+
+	select {
+	case id := <-called:
+		t.Fatalf("callback should not fire for missing node, got taiID=%q", id)
+	case <-time.After(100 * time.Millisecond):
+	}
+}
+
+func TestSetResources_NoCallbackWhenNotSet(t *testing.T) {
+	r := newTestRegistry()
+	r.Register(&TaiNode{TaiID: "tai-001", Mode: "tunnel"})
+	r.SetResources("tai-001", "fake-resources")
+
+	res, ok := r.GetResources("tai-001")
+	if !ok {
+		t.Fatal("expected resources to be stored")
+	}
+	if res != "fake-resources" {
+		t.Errorf("resources = %v, want fake-resources", res)
+	}
+}

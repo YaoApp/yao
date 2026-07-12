@@ -2,7 +2,10 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
+	"fmt"
 	"net"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -10,6 +13,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 
@@ -153,7 +157,7 @@ func StartServer(cfg config.Config) error {
 	mu.Lock()
 	defer mu.Unlock()
 
-	server = grpc.NewServer(
+	opts := []grpc.ServerOption{
 		grpc.MaxRecvMsgSize(maxGRPCMsgSize),
 		grpc.MaxSendMsgSize(maxGRPCMsgSize),
 		grpc.KeepaliveParams(keepalive.ServerParameters{
@@ -166,7 +170,22 @@ func StartServer(cfg config.Config) error {
 		}),
 		grpc.ChainUnaryInterceptor(auth.UnaryInterceptor),
 		grpc.ChainStreamInterceptor(auth.StreamInterceptor),
-	)
+	}
+
+	if cfg.GRPC.Cert != "" && cfg.GRPC.Key != "" {
+		certPath := resolveGRPCCertPath(cfg.GRPC.Cert, cfg.Root)
+		keyPath := resolveGRPCCertPath(cfg.GRPC.Key, cfg.Root)
+		cert, err := tls.LoadX509KeyPair(certPath, keyPath)
+		if err != nil {
+			return fmt.Errorf("load gRPC TLS cert: %w", err)
+		}
+		opts = append(opts, grpc.Creds(credentials.NewTLS(&tls.Config{
+			Certificates: []tls.Certificate{cert},
+		})))
+		log.Info("gRPC TLS enabled (cert=%s key=%s)", certPath, keyPath)
+	}
+
+	server = grpc.NewServer(opts...)
 	if sandboxH == nil {
 		sandboxH = sandboxhandler.NewHandler(nil)
 	}
@@ -340,4 +359,11 @@ func isPrivateIP(ip net.IP) bool {
 	return ip[0] == 10 ||
 		(ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) ||
 		(ip[0] == 192 && ip[1] == 168)
+}
+
+func resolveGRPCCertPath(path, root string) string {
+	if path == "" || filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(root, "openapi", "certs", path)
 }

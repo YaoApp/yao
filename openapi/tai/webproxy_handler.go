@@ -13,6 +13,7 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
+	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/webproxy"
 )
 
@@ -103,6 +104,8 @@ func handleCreateBindings(c *gin.Context) {
 		return
 	}
 
+	useTunnel := isNonLocalNode(taiID)
+
 	// Single port mode: delegate to shared BindAndRespond (returns flat + token)
 	if req.Port > 0 && len(req.Services) == 0 {
 		BindAndRespond(c, webproxy.BindOptions{
@@ -111,6 +114,7 @@ func handleCreateBindings(c *gin.Context) {
 			ContainerID: containerID,
 			TargetPort:  req.Port,
 			Label:       req.Label,
+			UseTunnel:   useTunnel,
 		})
 		return
 	}
@@ -124,6 +128,7 @@ func handleCreateBindings(c *gin.Context) {
 				ContainerID: containerID,
 				TargetPort:  svc.Port,
 				Label:       svc.Label,
+				UseTunnel:   useTunnel,
 			})
 		}
 	} else if req.TargetID != webproxy.HostID {
@@ -137,6 +142,7 @@ func handleCreateBindings(c *gin.Context) {
 				ContainerID: containerID,
 				TargetPort:  svc.Port,
 				Label:       svc.Label,
+				UseTunnel:   useTunnel,
 			})
 		}
 	}
@@ -452,4 +458,20 @@ func getLocale(c *gin.Context) string {
 		}
 	}
 	return "en-us"
+}
+
+// isNonLocalNode returns true if the Tai node is reachable only via tunnel (not local).
+func isNonLocalNode(taiID string) bool {
+	if taiID == "" {
+		return false
+	}
+	reg := registry.Global()
+	if reg == nil {
+		return false
+	}
+	node, ok := reg.Get(taiID)
+	if !ok {
+		return false
+	}
+	return node.Mode != "local"
 }

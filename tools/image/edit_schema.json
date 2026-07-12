@@ -5,7 +5,7 @@
   "inputSchema": {
     "type": "object",
     "properties": {
-      "image": {
+      "image_path": {
         "type": "string",
         "description": "Reference image to edit. Accepts: URL (http/https), workspace:// URI, or attach:// URI."
       },
@@ -27,7 +27,7 @@
         "description": "Model name to use. Overrides the provider's default model. If omitted, the provider's default model is used."
       }
     },
-    "required": ["image", "prompt"]
+    "required": ["image_path", "prompt"]
   },
-  "x-process-args": ["$args.image", "$args.prompt", "$args.provider", "$args.size", "$args.model"]
+  "x-process-args": ["$args.image_path", "$args.prompt", "$args.provider", "$args.size", "$args.model"]
 }

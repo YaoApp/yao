@@ -37,11 +37,22 @@ func (m *Manager) OnRemove(fn func(sandboxID string)) {
 // Start discovers existing containers from all registered nodes and rebuilds
 // the boxes map. The local node must already be registered by tai.InitLocal()
 // before Start is called.
+//
+// It also registers a callback so that when remote nodes (re-)connect later
+// (e.g. after Yao restart), their boxes are automatically recovered.
 func (m *Manager) Start(ctx context.Context) error {
 	reg := registry.Global()
 	if reg == nil {
 		return nil
 	}
+
+	reg.SetOnResourcesReady(func(taiID string, resources any) {
+		res, ok := resources.(*tai.ConnResources)
+		if !ok || res == nil {
+			return
+		}
+		m.recoverBoxes(context.Background(), taiID, res)
+	})
 
 	for _, snap := range reg.List() {
 		res, err := m.getNode(snap.TaiID)

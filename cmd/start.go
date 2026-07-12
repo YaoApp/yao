@@ -225,7 +225,11 @@ var startCmd = &cobra.Command{
 		fmt.Println(color.WhiteString("---------------------------------"))
 
 		if grpcAddrs := svc.HookAddrs(); len(grpcAddrs) > 0 {
-			fmt.Println(color.CyanString("\ngRPC"))
+			tlsLabel := ""
+			if config.Conf.GRPC.Cert != "" && config.Conf.GRPC.Key != "" {
+				tlsLabel = color.GreenString(" (TLS)")
+			}
+			fmt.Println(color.CyanString("\ngRPC") + tlsLabel)
 			fmt.Println(color.WhiteString("--------------------------"))
 			for _, addr := range grpcAddrs {
 				fmt.Println(color.WhiteString(L("Server")), color.GreenString(" %s", addr))

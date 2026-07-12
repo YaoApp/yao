@@ -90,6 +90,21 @@ func (b *Box) Workplace() taiworkspace.FS {
 	return b.Workspace()
 }
 
+// injectGRPCAddr ensures cfg.Env contains YAO_GRPC_ADDR with the current
+// Tai gRPC port. Skips injection if the caller explicitly set the key.
+func (b *Box) injectGRPCAddr(cfg *execConfig) {
+	addr := b.manager.resolveGRPCAddr(b.nodeID)
+	if addr == "" {
+		return
+	}
+	if cfg.Env == nil {
+		cfg.Env = make(map[string]string)
+	}
+	if _, explicit := cfg.Env["YAO_GRPC_ADDR"]; !explicit {
+		cfg.Env["YAO_GRPC_ADDR"] = addr
+	}
+}
+
 // Exec runs a command and waits for it to finish.
 func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*ExecResult, error) {
 	b.touch()
@@ -97,6 +112,7 @@ func (b *Box) Exec(ctx context.Context, cmd []string, opts ...ExecOption) (*Exec
 	for _, o := range opts {
 		o(cfg)
 	}
+	b.injectGRPCAddr(cfg)
 
 	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {
@@ -141,6 +157,7 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 	for _, o := range opts {
 		o(cfg)
 	}
+	b.injectGRPCAddr(cfg)
 
 	res, err := b.manager.getNode(b.nodeID)
 	if err != nil {

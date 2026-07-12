@@ -71,13 +71,19 @@ var (
 // Set via SetBridgeFunc once the gRPC tunnel handler is ready.
 type BridgeFunc func(taiID string, targetPort int, localConn net.Conn)
 
+// OnResourcesReadyFunc is called when a node's ConnResources become available
+// (after SetResources). Used by the sandbox manager to recover boxes from
+// nodes that reconnect after startup.
+type OnResourcesReadyFunc func(taiID string, resources any)
+
 // Registry manages all Tai nodes (direct and tunnel).
 type Registry struct {
-	mu       sync.RWMutex
-	nodes    map[string]*TaiNode
-	logger   *slog.Logger
-	bridgeFn BridgeFunc
-	bridgeMu sync.RWMutex
+	mu               sync.RWMutex
+	nodes            map[string]*TaiNode
+	logger           *slog.Logger
+	bridgeFn         BridgeFunc
+	bridgeMu         sync.RWMutex
+	onResourcesReady OnResourcesReadyFunc
 }
 
 // Init initializes the global registry singleton.
@@ -201,11 +207,13 @@ type ResourceCloser interface {
 // SetResources binds connection resources to a registered node.
 // If the node already has resources, the old ones are closed asynchronously.
 // The node status is set to "online".
+// After storing, fires the OnResourcesReady callback (if set) so that
+// subsystems like the sandbox manager can recover state for the node.
 func (r *Registry) SetResources(taiID string, res any) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	n, ok := r.nodes[taiID]
 	if !ok {
+		r.mu.Unlock()
 		return
 	}
 	if n.resources != nil {
@@ -215,6 +223,12 @@ func (r *Registry) SetResources(taiID string, res any) {
 	}
 	n.resources = res
 	n.Status = "online"
+	fn := r.onResourcesReady
+	r.mu.Unlock()
+
+	if fn != nil {
+		go fn(taiID, res)
+	}
 }
 
 // GetResources returns the *tai.ConnResources for a node (as any).
@@ -235,6 +249,14 @@ func (r *Registry) SetBridgeFunc(fn BridgeFunc) {
 	r.bridgeMu.Lock()
 	defer r.bridgeMu.Unlock()
 	r.bridgeFn = fn
+}
+
+// SetOnResourcesReady registers a callback that fires whenever
+// SetResources completes for a node. The callback runs in a new goroutine.
+func (r *Registry) SetOnResourcesReady(fn OnResourcesReadyFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.onResourcesReady = fn
 }
 
 // SetRegisterStream stores the gRPC Register stream for a tunnel node.

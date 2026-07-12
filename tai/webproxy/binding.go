@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/yaoapp/yao/tai/tunnel"
 )
 
 // Binding represents a single active port proxy binding.
@@ -28,6 +30,11 @@ type Binding struct {
 
 	activeAt    atomic.Int64
 	idleTimeout time.Duration
+
+	// Tunnel proxy fields (populated when Mode == ModeTaiProxy)
+	transport    *http.Transport
+	reverseProxy *httputil.ReverseProxy
+	dialer       *tunnelDialer
 }
 
 // ConnMode represents the connection strategy.
@@ -36,6 +43,7 @@ type ConnMode int
 const (
 	ModeDirect ConnMode = iota
 	ModeRelay
+	ModeTaiProxy // bridge via tunnel Forward stream to remote container
 )
 
 // HostID is the special target_id for host mode.
@@ -96,8 +104,15 @@ func (b *Binding) Start(ctx context.Context, ln net.Listener) error {
 	return nil
 }
 
-// Stop gracefully shuts down the binding.
+// Stop gracefully shuts down the binding, cleaning up transport pool and
+// any pre-warmed tunnel connections.
 func (b *Binding) Stop() {
+	if b.transport != nil {
+		b.transport.CloseIdleConnections()
+	}
+	if b.dialer != nil {
+		b.dialer.Close()
+	}
 	b.Cancel()
 }
 
@@ -126,6 +141,15 @@ func (b *Binding) handleAuth(w http.ResponseWriter, r *http.Request) {
 func (b *Binding) buildHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		b.touch()
+
+		if b.Mode == ModeTaiProxy {
+			if isWebSocket(r) {
+				b.handleTunnelWebSocket(w, r)
+				return
+			}
+			b.reverseProxy.ServeHTTP(w, r)
+			return
+		}
 
 		if isWebSocket(r) {
 			b.handleWebSocket(w, r)
@@ -204,6 +228,41 @@ func (b *Binding) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		done <- struct{}{}
 	}()
 	<-done
+}
+
+// handleTunnelWebSocket bridges a WebSocket connection to a remote container
+// via a gRPC Forward stream. Used for non-local (tunnel/cloud) nodes.
+// Regular HTTP requests are handled by the ReverseProxy with connection pooling.
+func (b *Binding) handleTunnelWebSocket(w http.ResponseWriter, r *http.Request) {
+	hj, ok := w.(http.Hijacker)
+	if !ok {
+		http.Error(w, "hijack not supported", http.StatusInternalServerError)
+		return
+	}
+	clientConn, bufrw, err := hj.Hijack()
+	if err != nil {
+		return
+	}
+	defer clientConn.Close()
+
+	fwdConn, err := tunnel.ForwardProxy(b.TaiID, b.ContainerID, b.TargetPort)
+	if err != nil {
+		clientConn.Write([]byte("HTTP/1.1 502 Bad Gateway\r\n\r\n"))
+		return
+	}
+	defer fwdConn.Close()
+
+	stripProxyCookie(r)
+	if err := r.Write(fwdConn); err != nil {
+		return
+	}
+	if bufrw.Reader.Buffered() > 0 {
+		buffered := make([]byte, bufrw.Reader.Buffered())
+		bufrw.Read(buffered)
+		fwdConn.Write(buffered)
+	}
+
+	tunnel.BridgeTCP(clientConn, fwdConn)
 }
 
 // isWebSocket checks both Upgrade and Connection headers per RFC 6455.
