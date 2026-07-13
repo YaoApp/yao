@@ -54,6 +54,7 @@ type WebProxyConfig struct {
 	IdleTimeout    string `json:"idle_timeout,omitempty" env:"YAO_WEBPROXY_IDLE_TIMEOUT" envDefault:"30m"`
 	Domain         string `json:"domain,omitempty" env:"YAO_WEBPROXY_DOMAIN"`
 	Prefix         string `json:"prefix,omitempty" env:"YAO_WEBPROXY_PREFIX" envDefault:"p"`
+	Protocol       string `json:"protocol,omitempty" env:"YAO_WEBPROXY_PROTOCOL" envDefault:"http"`
 }
 
 // GRPCConfig gRPC server configuration

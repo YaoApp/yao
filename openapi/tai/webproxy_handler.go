@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
 	agentconfig "github.com/yaoapp/yao/agent/config"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
@@ -33,9 +34,10 @@ type serviceEntry struct {
 // --- New grouped response types ---
 
 type bindingsGroupedResponse struct {
-	Domain  string        `json:"domain"`
-	Prefix  string        `json:"prefix"`
-	Targets []targetGroup `json:"targets"`
+	Domain   string        `json:"domain"`
+	Prefix   string        `json:"prefix"`
+	Protocol string        `json:"protocol"`
+	Targets  []targetGroup `json:"targets"`
 }
 
 type targetGroup struct {
@@ -153,10 +155,11 @@ func handleCreateBindings(c *gin.Context) {
 		token = oauth.OAuth.GetAccessToken(c)
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"domain":  resp.Domain,
-		"prefix":  resp.Prefix,
-		"targets": resp.Targets,
-		"token":   token,
+		"domain":   resp.Domain,
+		"prefix":   resp.Prefix,
+		"protocol": resp.Protocol,
+		"targets":  resp.Targets,
+		"token":    token,
 	})
 }
 
@@ -191,9 +194,10 @@ func buildGroupedResponse(c *gin.Context, targetID string) *bindingsGroupedRespo
 	domain, prefix := webproxy.WP().GetConfig()
 	tg := buildTargetGroup(c, targetID)
 	return &bindingsGroupedResponse{
-		Domain:  domain,
-		Prefix:  prefix,
-		Targets: []targetGroup{tg},
+		Domain:   domain,
+		Prefix:   prefix,
+		Protocol: config.Conf.WebProxy.Protocol,
+		Targets:  []targetGroup{tg},
 	}
 }
 
@@ -227,9 +231,10 @@ func buildAllResponse(c *gin.Context) *bindingsGroupedResponse {
 	}
 
 	return &bindingsGroupedResponse{
-		Domain:  domain,
-		Prefix:  prefix,
-		Targets: targets,
+		Domain:   domain,
+		Prefix:   prefix,
+		Protocol: config.Conf.WebProxy.Protocol,
+		Targets:  targets,
 	}
 }
 

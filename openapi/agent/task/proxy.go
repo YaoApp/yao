@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/config"
 	taiapi "github.com/yaoapp/yao/openapi/tai"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai/registry"
@@ -102,7 +103,7 @@ func handleTaskProxyList(c *gin.Context) {
 			"target_port": b.TargetPort,
 			"label":       b.Label,
 			"status":      b.Status,
-			"url":         taiapi.BuildProxyURL(b.HostPort, domain, prefix),
+			"url":         taiapi.BuildProxyURL(b.HostPort, domain, prefix, config.Conf.WebProxy.Protocol),
 		})
 	}
 	c.JSON(http.StatusOK, result)
