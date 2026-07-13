@@ -65,6 +65,7 @@ func searchPasswordFields(preset *SearchProviderPreset) map[string]bool {
 
 func handleSearchGet(c *gin.Context) {
 	info := authorized.GetInfo(c)
+	scope := searchScope(info)
 
 	providers := make([]SearchProviderConfig, 0, len(searchPresets))
 	for _, preset := range searchPresets {
@@ -87,7 +88,7 @@ func handleSearchGet(c *gin.Context) {
 				}
 			}
 		} else if setting.Global != nil {
-			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, searchProviderNS(preset.Key))
+			saved, _ := setting.Global.Get(scope, searchProviderNS(preset.Key))
 			if saved != nil {
 				if v, ok := saved["enabled"].(bool); ok {
 					cfg.Enabled = v
@@ -113,7 +114,7 @@ func handleSearchGet(c *gin.Context) {
 
 	var assignment SearchToolAssignment
 	if setting.Global != nil {
-		saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, searchAssignmentNS)
+		saved, _ := setting.Global.Get(scope, searchAssignmentNS)
 		if saved != nil {
 			if v, ok := saved["web_search"].(string); ok && v != "" {
 				assignment.WebSearch = &v
@@ -571,8 +572,8 @@ func handleSearchToolAssignment(c *gin.Context) {
 			return fmt.Errorf("provider %s does not support %s", *providerKey, toolType)
 		}
 
-		if preset.IsCloud {
-			return nil // cloud provider enablement is implicit
+		if preset.IsCloud || len(preset.Fields) == 0 {
+			return nil
 		}
 
 		saved, _ := setting.Global.Get(scope, searchProviderNS(*providerKey))

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/tai/webproxy"
 )
@@ -32,15 +33,16 @@ func BindAndRespond(c *gin.Context, opts webproxy.BindOptions) {
 		"target_port": info.TargetPort,
 		"label":       info.Label,
 		"status":      info.Status,
-		"url":         BuildProxyURL(info.HostPort, domain, prefix),
+		"url":         BuildProxyURL(info.HostPort, domain, prefix, config.Conf.WebProxy.Protocol),
+		"domain":      domain,
 		"token":       token,
 	})
 }
 
 // BuildProxyURL constructs the proxy URL from host port and config.
-func BuildProxyURL(hostPort int, domain, prefix string) string {
+func BuildProxyURL(hostPort int, domain, prefix, protocol string) string {
 	if domain != "" {
-		return fmt.Sprintf("http://%s%d.%s", prefix, hostPort, domain)
+		return fmt.Sprintf("%s://%s%d.%s", protocol, prefix, hostPort, domain)
 	}
 	return fmt.Sprintf("http://127.0.0.1:%d", hostPort)
 }

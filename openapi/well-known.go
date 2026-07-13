@@ -55,6 +55,9 @@ type YaoMetadata struct {
 	GRPCTLSCA string                 `json:"grpc_tls_ca,omitempty"` // gRPC TLS CA certificate PEM (for self-signed auto-distribution)
 	Optional  map[string]interface{} `json:"optional,omitempty"`    // Optional settings
 
+	// Deployment flags
+	DisableSystemSetting bool `json:"disable_system_setting,omitempty"` // System setting UI disabled for managed deployments
+
 	// Commercial license
 	License *commercial.PublicInfo `json:"license,omitempty"`
 
@@ -71,15 +74,16 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 	}
 
 	metadata := YaoMetadata{
-		Name:        share.App.Name,
-		Version:     share.App.Version,
-		Description: share.App.Description,
-		OpenAPI:     openapi.Config.BaseURL,
-		IssuerURL:   openapi.Config.OAuth.IssuerURL,
-		ServerURL:   resolveServerURL(openapi.Config.OAuth.IssuerURL),
-		Dashboard:   "/" + dashboard,
-		GRPC:        resolveGRPCAddr(c),
-		Optional:    share.App.Optional,
+		Name:                 share.App.Name,
+		Version:              share.App.Version,
+		Description:          share.App.Description,
+		OpenAPI:              openapi.Config.BaseURL,
+		IssuerURL:            openapi.Config.OAuth.IssuerURL,
+		ServerURL:            resolveServerURL(openapi.Config.OAuth.IssuerURL),
+		Dashboard:            "/" + dashboard,
+		GRPC:                 resolveGRPCAddr(c),
+		Optional:             share.App.Optional,
+		DisableSystemSetting: config.Conf.DisableSystemSetting,
 	}
 
 	// Include gRPC TLS info

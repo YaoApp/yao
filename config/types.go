@@ -14,33 +14,35 @@ func HostHasInternal(host string) bool {
 
 // Config 象传应用引擎配置
 type Config struct {
-	Mode          string         `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
-	AppSource     string         `json:"app,omitempty"  env:"YAO_APP_SOURCE"`                             // The Application Source Root Path default same as Root
-	Root          string         `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // The Application Root Path
-	Lang          string         `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`                // Default language setting
-	TimeZone      string         `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                           // Default TimeZone
-	DataRoot      string         `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // The data root path
-	ExtensionRoot string         `json:"extension_root,omitempty" env:"YAO_EXTENSION_ROOT" envDefault:""` // Plugin, Wasm root PATH, Default is <YAO_ROOT> (<YAO_ROOT>/plugins <YAO_ROOT>/wasms)
-	Host          string         `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // The server host
-	Port          int            `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // The server port
-	Cert          string         `json:"cert,omitempty" env:"YAO_CERT"`                                   // The HTTPS certificate path
-	Key           string         `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
-	Log           string         `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
-	LogMode       string         `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
-	LogMaxSize    int            `json:"log_max_size,omitempty" env:"YAO_LOG_MAX_SIZE" envDefault:"100"`  // The max log size in MB, the default is 100
-	LogMaxAage    int            `json:"log_max_age,omitempty" env:"YAO_LOG_MAX_AGE" envDefault:"7"`      // The max log age in day, the default is 7
-	LogMaxBackups int            `json:"log_max_backups" env:"YAO_LOG_MAX_BACKUPS" envDefault:"3"`        // The max log backups, the default is 3
-	LogLocalTime  bool           `json:"log_local_time" env:"YAO_LOG_LOCAL_TIME" envDefault:"true"`
-	JWTSecret     string         `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                                         // The JWT Secret
-	DB            Database       `json:"db,omitempty"`                                                                      // The database config
-	AllowFrom     []string       `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`                         // Domain list the separator is |
-	Session       Session        `json:"session,omitempty"`                                                                 // Session Config
-	Runtime       Runtime        `json:"runtime,omitempty"`                                                                 // Runtime config
-	Trace         Trace          `json:"trace,omitempty"`                                                                   // Trace config
-	Registry      string         `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
-	GRPC          GRPCConfig     `json:"grpc,omitempty"`
-	HostExec      HostExecConfig `json:"host_exec,omitempty"`
-	WebProxy      WebProxyConfig `json:"webproxy,omitempty"`
+	Mode                 string         `json:"mode,omitempty" env:"YAO_ENV" envDefault:"production"`            // The start mode production/development
+	AppSource            string         `json:"app,omitempty"  env:"YAO_APP_SOURCE"`                             // The Application Source Root Path default same as Root
+	Root                 string         `json:"root,omitempty" env:"YAO_ROOT" envDefault:"."`                    // The Application Root Path
+	Lang                 string         `json:"lang,omitempty" env:"YAO_LANG" envDefault:"en-us"`                // Default language setting
+	TimeZone             string         `json:"timezone,omitempty" env:"YAO_TIMEZONE"`                           // Default TimeZone
+	DataRoot             string         `json:"data_root,omitempty" env:"YAO_DATA_ROOT" envDefault:""`           // The data root path
+	ExtensionRoot        string         `json:"extension_root,omitempty" env:"YAO_EXTENSION_ROOT" envDefault:""` // Plugin, Wasm root PATH, Default is <YAO_ROOT> (<YAO_ROOT>/plugins <YAO_ROOT>/wasms)
+	Host                 string         `json:"host,omitempty" env:"YAO_HOST" envDefault:"0.0.0.0"`              // The server host
+	Port                 int            `json:"port,omitempty" env:"YAO_PORT" envDefault:"5099"`                 // The server port
+	Cert                 string         `json:"cert,omitempty" env:"YAO_CERT"`                                   // The HTTPS certificate path
+	Key                  string         `json:"key,omitempty" env:"YAO_KEY"`                                     // The HTTPS certificate key path
+	Log                  string         `json:"log,omitempty" env:"YAO_LOG"`                                     // The log file path
+	LogMode              string         `json:"log_mode,omitempty" env:"YAO_LOG_MODE" envDefault:"TEXT"`         // The log mode TEXT|JSON
+	LogMaxSize           int            `json:"log_max_size,omitempty" env:"YAO_LOG_MAX_SIZE" envDefault:"100"`  // The max log size in MB, the default is 100
+	LogMaxAage           int            `json:"log_max_age,omitempty" env:"YAO_LOG_MAX_AGE" envDefault:"7"`      // The max log age in day, the default is 7
+	LogMaxBackups        int            `json:"log_max_backups" env:"YAO_LOG_MAX_BACKUPS" envDefault:"3"`        // The max log backups, the default is 3
+	LogLocalTime         bool           `json:"log_local_time" env:"YAO_LOG_LOCAL_TIME" envDefault:"true"`
+	JWTSecret            string         `json:"jwt_secret,omitempty" env:"YAO_JWT_SECRET"`                                         // The JWT Secret
+	DB                   Database       `json:"db,omitempty"`                                                                      // The database config
+	AllowFrom            []string       `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`                         // Domain list the separator is |
+	Session              Session        `json:"session,omitempty"`                                                                 // Session Config
+	Runtime              Runtime        `json:"runtime,omitempty"`                                                                 // Runtime config
+	Trace                Trace          `json:"trace,omitempty"`                                                                   // Trace config
+	Registry             string         `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
+	GRPC                 GRPCConfig     `json:"grpc,omitempty"`
+	HostExec             HostExecConfig `json:"host_exec,omitempty"`
+	WebProxy             WebProxyConfig `json:"webproxy,omitempty"`
+	DisableSystemSetting bool           `json:"disable_system_setting,omitempty" env:"YAO_DISABLE_SYSTEM_SETTING" envDefault:"false"` // Disable system setting UI for managed deployments
+	DisableLocalNode     bool           `json:"disable_local_node,omitempty" env:"YAO_DISABLE_LOCAL_NODE" envDefault:"false"`         // Disable local Tai node registration
 }
 
 // WebProxyConfig controls the dynamic HTTP proxy for container web services.
@@ -52,6 +54,7 @@ type WebProxyConfig struct {
 	IdleTimeout    string `json:"idle_timeout,omitempty" env:"YAO_WEBPROXY_IDLE_TIMEOUT" envDefault:"30m"`
 	Domain         string `json:"domain,omitempty" env:"YAO_WEBPROXY_DOMAIN"`
 	Prefix         string `json:"prefix,omitempty" env:"YAO_WEBPROXY_PREFIX" envDefault:"p"`
+	Protocol       string `json:"protocol,omitempty" env:"YAO_WEBPROXY_PROTOCOL" envDefault:"http"`
 }
 
 // GRPCConfig gRPC server configuration

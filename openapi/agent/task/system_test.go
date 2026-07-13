@@ -252,7 +252,7 @@ func TestResolveHostNode(t *testing.T) {
 		}
 	})
 
-	t.Run("falls back to local when no suitable public node", func(t *testing.T) {
+	t.Run("returns empty when no suitable public node", func(t *testing.T) {
 		teardown := setupMockRegistry(t)
 		defer teardown()
 
@@ -269,16 +269,16 @@ func TestResolveHostNode(t *testing.T) {
 		})
 
 		got := resolveHostNode()
-		if got != "local" {
-			t.Errorf("resolveHostNode() = %q, want local", got)
+		if got != "" {
+			t.Errorf("resolveHostNode() = %q, want empty", got)
 		}
 	})
 
-	t.Run("falls back to local when registry is nil", func(t *testing.T) {
+	t.Run("returns empty when registry is nil", func(t *testing.T) {
 		registry.SetGlobalForTest(nil)
 		got := resolveHostNode()
-		if got != "local" {
-			t.Errorf("resolveHostNode() = %q, want local", got)
+		if got != "" {
+			t.Errorf("resolveHostNode() = %q, want empty", got)
 		}
 	})
 }

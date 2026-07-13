@@ -59,3 +59,13 @@
       label: { zh-CN: "Zone", en-US: "Zone" }
       type: text
       hint: { zh-CN: "Web Unlocker API 的 Zone 名称", en-US: "Zone name of your Web Unlocker API" }
+
+- key: direct
+  name: Direct
+  description:
+    zh-CN: "直接抓取，不使用代理"
+    en-US: "Direct fetch without proxy"
+  tools: [web_scrape]
+  tool_labels:
+    - { zh-CN: "网页抓取", en-US: "Web Scrape" }
+  fields: []
