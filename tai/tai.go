@@ -2,6 +2,8 @@ package tai
 
 import (
 	"io"
+	"os"
+	"strings"
 
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/tai/registry"
@@ -122,6 +124,9 @@ func RegisterLocal(opts ...Option) bool {
 //   - Volume is always available
 func InitLocal(w io.Writer, logMode string, dataDir string) types.Capabilities {
 	registry.InitWithWriter(w, logMode)
+	if strings.ToLower(os.Getenv("YAO_TAI_LOCAL")) == "off" {
+		return types.Capabilities{}
+	}
 	RegisterLocal(WithDataDir(dataDir))
 	if meta, ok := registry.Global().Get("local"); ok {
 		return meta.Capabilities
