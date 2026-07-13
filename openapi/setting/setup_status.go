@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -23,6 +24,15 @@ import (
 // handleSetupStatus aggregates all system-level configuration checkpoints.
 // GET /setting/setup-status
 func handleSetupStatus(c *gin.Context) {
+	if config.Conf.DisableSystemSetting {
+		response.RespondWithSuccess(c, http.StatusOK, SetupStatus{
+			Completed:           true,
+			OnboardingCompleted: true,
+			BannerDismissed:     true,
+		})
+		return
+	}
+
 	info := authorized.GetInfo(c)
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))
 	isCN := strings.HasPrefix(locale, "zh")
@@ -71,6 +81,14 @@ func handleSetupStatus(c *gin.Context) {
 // handleAssistantSetupStatus checks configuration readiness for a specific assistant.
 // GET /setting/setup-status/assistant/:id
 func handleAssistantSetupStatus(c *gin.Context) {
+	if config.Conf.DisableSystemSetting {
+		response.RespondWithSuccess(c, http.StatusOK, AssistantSetupStatus{
+			AssistantID: c.Param("id"),
+			Ready:       true,
+		})
+		return
+	}
+
 	id := c.Param("id")
 	info := authorized.GetInfo(c)
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))

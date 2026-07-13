@@ -2,9 +2,8 @@ package tai
 
 import (
 	"io"
-	"os"
-	"strings"
 
+	yaoconfig "github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/types"
@@ -124,7 +123,7 @@ func RegisterLocal(opts ...Option) bool {
 //   - Volume is always available
 func InitLocal(w io.Writer, logMode string, dataDir string) types.Capabilities {
 	registry.InitWithWriter(w, logMode)
-	if strings.ToLower(os.Getenv("YAO_TAI_LOCAL")) == "off" {
+	if yaoconfig.Conf.DisableLocalNode {
 		return types.Capabilities{}
 	}
 	RegisterLocal(WithDataDir(dataDir))

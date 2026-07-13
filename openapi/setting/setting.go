@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	gouStore "github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/config"
 	oauth "github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -22,23 +23,41 @@ func getCache() gouStore.Store {
 	return c
 }
 
+// guardSystemSetting returns middleware that blocks requests when
+// YAO_DISABLE_SYSTEM_SETTING is true. Used on infrastructure setting
+// routes that should not be accessible in managed deployments.
+func guardSystemSetting() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if config.Conf.DisableSystemSetting {
+			respondError(c, http.StatusForbidden, "system setting is disabled")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
 // Attach registers all /setting/* routes under the given group.
 // Currently only System Info routes are wired; other groups will be
 // added incrementally.
 func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	group.Use(oauth.Guard)
 
+	restricted := guardSystemSetting()
+
 	sys := group.Group("/system")
 	sys.GET("", handleSystemInfo)
 	sys.POST("/check-update", handleSystemCheckUpdate)
 
 	cloud := group.Group("/cloud")
+	cloud.Use(restricted)
 	cloud.GET("", handleCloudGet)
 	cloud.PUT("", handleCloudUpdate)
 	cloud.POST("/test", handleCloudTest)
 	cloud.POST("/refresh", handleCloudRefresh)
 
 	llm := group.Group("/llm")
+	llm.Use(restricted)
 	llm.GET("", handleLLMGet)
 	llm.PUT("/roles", handleLLMRoles)
 	llm.POST("/test", handleLLMTest)
@@ -48,6 +67,7 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	llm.POST("/providers/:key/test", handleLLMProviderTest)
 
 	search := group.Group("/search")
+	search.Use(restricted)
 	search.GET("", handleSearchGet)
 	search.PUT("/providers/:key", handleSearchProviderUpdate)
 	search.PUT("/providers/:key/toggle", handleSearchProviderToggle)
@@ -55,12 +75,14 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	search.PUT("/tool-assignment", handleSearchToolAssignment)
 
 	smtpG := group.Group("/smtp")
+	smtpG.Use(restricted)
 	smtpG.GET("", handleSmtpGet)
 	smtpG.PUT("", handleSmtpUpdate)
 	smtpG.PUT("/toggle", handleSmtpToggle)
 	smtpG.POST("/test", handleSmtpTest)
 
 	mcpG := group.Group("/mcp")
+	mcpG.Use(restricted)
 	mcpG.GET("/servers", handleMCPList)
 	mcpG.POST("/servers", handleMCPCreate)
 	mcpG.PUT("/servers/:id", handleMCPUpdate)
@@ -68,6 +90,7 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	mcpG.POST("/test", handleMCPTest)
 
 	sb := group.Group("/sandbox")
+	sb.Use(restricted)
 	sb.GET("", handleSandboxGet)
 	sb.PUT("/registry", handleSandboxRegistry)
 	sb.POST("/nodes/:nodeId/images/:imageId/pull", handleSandboxPull)

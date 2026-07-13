@@ -145,6 +145,10 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 	isHostMode := !ast.HasSandboxV2() || cfg.Computer.Image == ""
 	if isHostMode {
 		nodeID := resolveHostNode()
+		if nodeID == "" {
+			respondError(c, http.StatusServiceUnavailable, fmt.Errorf("no node with host execution capability is available"))
+			return nil, fmt.Errorf("no host node")
+		}
 		host, err := mgr.Host(c.Request.Context(), nodeID)
 		if err != nil {
 			respondError(c, http.StatusInternalServerError, fmt.Errorf("host mode unavailable: %w", err))
@@ -179,16 +183,16 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 }
 
 // resolveHostNode selects the first public node that supports HostExec and is online.
-// Falls back to "local" if no suitable node is found.
+// Returns empty string if no suitable node is found.
 func resolveHostNode() string {
 	reg := registry.Global()
 	if reg == nil {
-		return "local"
+		return ""
 	}
 	for _, n := range reg.List() {
 		if taitypes.IsPublicNode(n.Mode) && n.Capabilities.HostExec && n.Status == "online" {
 			return n.TaiID
 		}
 	}
-	return "local"
+	return ""
 }
