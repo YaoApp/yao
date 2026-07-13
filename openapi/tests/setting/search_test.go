@@ -43,11 +43,11 @@ func TestSearchGet(t *testing.T) {
 
 	presets, ok := body["presets"].([]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, 4, len(presets), "should have 4 presets: cloud, tavily, serper, brightdata")
+	assert.Equal(t, 5, len(presets), "should have 5 presets: cloud, tavily, serper, brightdata, direct")
 
 	providers, ok := body["providers"].([]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, 4, len(providers), "should have 4 provider configs")
+	assert.Equal(t, 5, len(providers), "should have 5 provider configs")
 
 	// Cloud provider should be first
 	first, _ := providers[0].(map[string]interface{})
