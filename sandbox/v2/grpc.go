@@ -57,6 +57,38 @@ func (m *Manager) resolveGRPCAddr(nodeID string) string {
 	}
 }
 
+// ResolveHostGRPCAddr returns YAO_GRPC_ADDR for a host-exec child process.
+// Unlike resolveGRPCAddr (which uses host.tai.internal for containers),
+// host-exec processes run directly on the Tai machine and use 127.0.0.1.
+//
+//   - local:          127.0.0.1:<YaoPort>   (Yao on same machine)
+//   - tunnel/cloud:   127.0.0.1:<TaiPort>   (Tai Gateway forwards to Yao)
+func ResolveHostGRPCAddr(nodeID string) string {
+	reg := registry.Global()
+	if reg == nil {
+		return ""
+	}
+	snap, ok := reg.Get(nodeID)
+	if !ok {
+		return ""
+	}
+	switch snap.Mode {
+	case "local", "":
+		port := config.Conf.GRPC.Port
+		if port == 0 {
+			port = 9099
+		}
+		return fmt.Sprintf("127.0.0.1:%d", port)
+	case "tunnel", "cloud":
+		if snap.Ports.GRPC == 0 {
+			return ""
+		}
+		return fmt.Sprintf("127.0.0.1:%d", snap.Ports.GRPC)
+	default:
+		return ""
+	}
+}
+
 // BuildGRPCEnv builds the gRPC environment variables for a sandbox container.
 //
 // All containers reach the host via "host.tai.internal" (injected by Tai at

@@ -156,6 +156,7 @@ var ExportSupportsProtocol = supportsProtocol
 type FakeComputer struct {
 	WorkDirVal string
 	Kind       string
+	NodeID     string
 }
 
 func NewFakeComputer(workDir string) *FakeComputer {
@@ -163,14 +164,18 @@ func NewFakeComputer(workDir string) *FakeComputer {
 }
 
 func NewFakeHostComputer(workDir string) *FakeComputer {
-	return &FakeComputer{WorkDirVal: workDir, Kind: "host"}
+	return &FakeComputer{WorkDirVal: workDir, Kind: "host", NodeID: "local"}
+}
+
+func NewFakeHostComputerWithNode(workDir, nodeID string) *FakeComputer {
+	return &FakeComputer{WorkDirVal: workDir, Kind: "host", NodeID: nodeID}
 }
 
 func (f *FakeComputer) GetWorkDir() string      { return f.WorkDirVal }
 func (f *FakeComputer) BindWorkplace(string)    {}
 func (f *FakeComputer) Workplace() workspace.FS { return nil }
 func (f *FakeComputer) ComputerInfo() infra.ComputerInfo {
-	return infra.ComputerInfo{Kind: f.Kind, System: infra.SystemInfo{OS: "linux", Shell: "bash"}}
+	return infra.ComputerInfo{Kind: f.Kind, NodeID: f.NodeID, System: infra.SystemInfo{OS: "linux", Shell: "bash"}}
 }
 func (f *FakeComputer) Exec(_ context.Context, _ []string, _ ...infra.ExecOption) (*infra.ExecResult, error) {
 	return &infra.ExecResult{}, nil

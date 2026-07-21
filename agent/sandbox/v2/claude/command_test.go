@@ -15,6 +15,9 @@ import (
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/config"
+	"github.com/yaoapp/yao/tai/registry"
+	taiTypes "github.com/yaoapp/yao/tai/types"
 )
 
 // --- fake connector types ---
@@ -326,17 +329,63 @@ func TestBuildEnv_Token(t *testing.T) {
 }
 
 func TestBuildEnv_GRPCAddr_HostMode(t *testing.T) {
+	reg := registry.NewForTest()
+	reg.Register(&registry.TaiNode{TaiID: "local", Mode: "local"})
+	registry.SetGlobalForTest(reg)
+	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+
+	config.Conf.GRPC.Port = 9099
+
 	req := &types.StreamRequest{
 		Config: &types.SandboxConfig{},
 		Token:  &types.SandboxToken{Token: "tok123", RefreshToken: "ref456"},
 	}
 	req.Computer = claude.NewFakeHostComputer("/workspace")
 	env := claude.ExportBuildEnv(req, testPlatform())
-	if env["YAO_GRPC_ADDR"] == "" {
-		t.Fatal("expected YAO_GRPC_ADDR to be set for host mode")
+	if env["YAO_GRPC_ADDR"] != "127.0.0.1:9099" {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q", env["YAO_GRPC_ADDR"], "127.0.0.1:9099")
 	}
-	if !strings.HasPrefix(env["YAO_GRPC_ADDR"], "127.0.0.1:") {
-		t.Errorf("YAO_GRPC_ADDR = %q, want 127.0.0.1:<port>", env["YAO_GRPC_ADDR"])
+}
+
+func TestBuildEnv_GRPCAddr_HostMode_Cloud(t *testing.T) {
+	reg := registry.NewForTest()
+	reg.Register(&registry.TaiNode{
+		TaiID: "cloud-node",
+		Mode:  "cloud",
+		Ports: taiTypes.Ports{GRPC: 54321},
+	})
+	registry.SetGlobalForTest(reg)
+	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{},
+		Token:  &types.SandboxToken{Token: "tok", RefreshToken: "ref"},
+	}
+	req.Computer = claude.NewFakeHostComputerWithNode("/workspace", "cloud-node")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["YAO_GRPC_ADDR"] != "127.0.0.1:54321" {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (dynamic Tai port)", env["YAO_GRPC_ADDR"], "127.0.0.1:54321")
+	}
+}
+
+func TestBuildEnv_GRPCAddr_HostMode_Tunnel(t *testing.T) {
+	reg := registry.NewForTest()
+	reg.Register(&registry.TaiNode{
+		TaiID: "tunnel-node",
+		Mode:  "tunnel",
+		Ports: taiTypes.Ports{GRPC: 19200},
+	})
+	registry.SetGlobalForTest(reg)
+	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+
+	req := &types.StreamRequest{
+		Config: &types.SandboxConfig{},
+		Token:  &types.SandboxToken{Token: "tok", RefreshToken: "ref"},
+	}
+	req.Computer = claude.NewFakeHostComputerWithNode("/workspace", "tunnel-node")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["YAO_GRPC_ADDR"] != "127.0.0.1:19200" {
+		t.Errorf("YAO_GRPC_ADDR = %q, want %q (dynamic Tai port)", env["YAO_GRPC_ADDR"], "127.0.0.1:19200")
 	}
 }
 
