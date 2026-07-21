@@ -8,27 +8,19 @@ import (
 	"strings"
 
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/computer"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/sandbox/v2/resolve"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/workspace"
 )
 
-// BuildIdentifier determines the Computer identifier based on lifecycle policy
-// and optional metadata override. Returns "" for oneshot (always new).
+// BuildIdentifier determines the Computer identifier based on lifecycle policy.
+// Returns "" for oneshot (always new). This is a backward-compatible wrapper
+// around resolve.BuildIdentifier, keeping the old signature for existing callers.
 func BuildIdentifier(cfg *types.SandboxConfig, ownerID, chatID, assistantID, workspaceID string, metadata map[string]any) string {
-	if cfg.Lifecycle == "oneshot" {
-		return ""
-	}
-
-	switch cfg.Lifecycle {
-	case "session":
-		return fmt.Sprintf("%s-%s-%s", ownerID, assistantID, chatID)
-	case "longrunning", "persistent":
-		return fmt.Sprintf("%s-%s.%s", ownerID, assistantID, workspaceID)
-	default:
-		return ""
-	}
+	return resolve.BuildIdentifier(cfg.Lifecycle, ownerID, chatID, assistantID, workspaceID)
 }
 
 // ResolveRunner determines which runner to use.
@@ -76,8 +68,9 @@ func ResolveRunner(userPref string, runnerCfg *types.RunnerConfig, globalRunner 
 }
 
 // GetComputer obtains or creates a Computer for the current request using the
-// pre-computed SelectionResult from SelectNode. It trusts sel.Mode to dispatch
-// directly, avoiding re-derivation from node capabilities.
+// pre-computed SelectionResult from SelectNode. Resource preparation (workspace,
+// box creation) is pipeline-specific; the actual Computer reference is obtained
+// via the unified computer.Lookup path.
 // Returns the Computer, the resolved identifier, and any error.
 func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *infra.Manager, sel *SelectionResult) (infra.Computer, string, error) {
 	ownerID := resolveOwnerID(ctx)
@@ -121,25 +114,36 @@ func GetComputer(ctx *agentContext.Context, cfg *types.SandboxConfig, manager *i
 	log.Trace("[sandbox/v2] GetComputer: nodeID=%q runner=%q mode=%q workspaceID=%q ownerID=%q image=%q",
 		sel.NodeID, sel.Runner, sel.Mode, workspaceID, ownerID, cfg.Computer.Image)
 
+	// --- Pipeline-specific: resource preparation ---
 	switch sel.Mode {
 	case "host":
 		cfg.Kind = "host"
 		workspaceID, identifier = ensureHostWorkspace(cfg, ownerID, workspaceID, identifier)
 
-		host, err := manager.Host(context.Background(), sel.NodeID)
-		if err != nil {
-			return nil, identifier, fmt.Errorf("get host computer on node %q: %w", sel.NodeID, err)
-		}
-		host.BindWorkplace(workspaceID)
-		return host, identifier, nil
-
 	case "box":
 		cfg.Kind = "box"
-		return resolveBox(cfg, manager, ownerID, identifier, workspaceID)
+		if _, newIdent, err := resolveBox(cfg, manager, ownerID, identifier, workspaceID); err != nil {
+			return nil, identifier, err
+		} else {
+			identifier = newIdent
+		}
 
 	default:
 		return nil, identifier, fmt.Errorf("unsupported mode %q for node %q", sel.Mode, sel.NodeID)
 	}
+
+	// --- Unified path: obtain Computer via computer.Lookup ---
+	comp, err := computer.Lookup(ctx, &computer.LookupOpts{
+		Auth:          ctx.Authorized,
+		AssistantID:   ctx.AssistantID,
+		WorkspaceID:   cfg.WorkspaceID,
+		ChatID:        ctx.ChatID,
+		Image:         cfg.Computer.Image,
+		Lifecycle:     cfg.Lifecycle,
+		NodeID:        sel.NodeID,
+		BoxIdentifier: cfg.ID,
+	})
+	return comp, identifier, err
 }
 
 // ensureHostWorkspace generates a default workspace ID when none is provided

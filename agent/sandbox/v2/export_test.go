@@ -3,6 +3,7 @@ package sandboxv2
 import (
 	"time"
 
+	"github.com/yaoapp/yao/agent/sandbox/v2/resolve"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 )
 
@@ -44,8 +45,8 @@ var ExportParseMemory = parseMemory
 // ExportPickRunnerOnNode exposes pickRunnerOnNode for testing.
 var ExportPickRunnerOnNode = pickRunnerOnNode
 
-// ExportResolveMode exposes resolveMode for testing.
-var ExportResolveMode = resolveMode
+// ExportResolveMode exposes resolve.ResolveMode for testing.
+var ExportResolveMode = resolve.ResolveMode
 
 // ExportEnsureHostWorkspace exposes ensureHostWorkspace for testing.
 var ExportEnsureHostWorkspace = ensureHostWorkspace

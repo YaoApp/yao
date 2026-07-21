@@ -191,6 +191,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				ctx.Metadata = make(map[string]interface{})
 			}
 			ctx.Metadata["workspace_id"] = v2Init.Config.WorkspaceID
+			ast.updateChatWorkspace(ctx.ChatID, v2Init.Config.WorkspaceID)
 		}
 	}
 	// Ensure sandbox cleanup on exit
