@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+// NormalizeEmail returns a trimmed, lowercased email for case-insensitive matching.
+func NormalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
 // Type Conversion Utilities
 // These functions provide safe type conversion from interface{} to common types
 
