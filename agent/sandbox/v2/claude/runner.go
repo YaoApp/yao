@@ -212,6 +212,8 @@ type a2oConnectorConfig struct {
 	Model           string                         `json:"model"`
 	APIKey          string                         `json:"api_key"`
 	AuthMode        string                         `json:"auth_mode,omitempty"`
+	Protocol        string                         `json:"protocol,omitempty"`
+	ConnectorID     string                         `json:"connector_id,omitempty"`
 	MaxOutputTokens int                            `json:"max_output_tokens,omitempty"`
 	Options         map[string]interface{}         `json:"options,omitempty"`
 	Routes          map[string]*a2oConnectorConfig `json:"routes,omitempty"`
@@ -224,12 +226,11 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 	}
 
 	cfg := &a2oConnectorConfig{}
+	cfg.ConnectorID = conn.ID()
 
-	// Extract standard fields via LLMConnector methods when available
+	var url string
 	if lc, ok := conn.(goullm.LLMConnector); ok {
-		if url := lc.GetURL(); url != "" {
-			cfg.Backend = connector.BuildAPIURL(url, "/chat/completions")
-		}
+		url = lc.GetURL()
 		cfg.Model = lc.GetModel()
 		cfg.APIKey = lc.GetKey()
 		cfg.AuthMode = string(lc.GetAuthMode())
@@ -237,20 +238,23 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 			cfg.MaxOutputTokens = caps.MaxOutputTokens
 		}
 	} else {
-		if host, ok := settings["host"].(string); ok && host != "" {
-			cfg.Backend = connector.BuildAPIURL(host, "/chat/completions")
-		} else if proxy, ok := settings["proxy"].(string); ok && proxy != "" {
-			cfg.Backend = connector.BuildAPIURL(proxy, "/chat/completions")
+		url, _ = settings["host"].(string)
+		if url == "" {
+			url, _ = settings["proxy"].(string)
 		}
-		if model, ok := settings["model"].(string); ok && model != "" {
-			cfg.Model = model
-		}
-		if key, ok := settings["key"].(string); ok && key != "" {
-			cfg.APIKey = key
-		}
+		cfg.Model, _ = settings["model"].(string)
+		cfg.APIKey, _ = settings["key"].(string)
 	}
 
-	// Whitelist-filter remaining settings for the options field
+	suffix := "/chat/completions"
+	if supportsProtocol(conn, "anthropic") && !supportsProtocol(conn, "openai") {
+		cfg.Protocol = "anthropic"
+		suffix = "/v1/messages"
+	}
+	if url != "" {
+		cfg.Backend = connector.BuildAPIURL(url, suffix)
+	}
+
 	extra := connector.FilterRequestBodyParams(settings, conn)
 	if len(extra) > 0 {
 		cfg.Options = extra
@@ -268,30 +272,30 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 
 // resolveAllRoleConnectors maps pre-resolved role connectors from req.Roles
 // to actual model names used as A2O proxy route keys.
+//
+// Two categories are excluded:
+//   - "default" — the primary connector is already the base a2o config; including
+//     it as a route causes key collisions when another role shares the same model name.
+//   - Non-OpenAI connectors — a2o translates Anthropic→OpenAI, so every backend
+//     must accept OpenAI-format requests. Anthropic-protocol backends would 404.
 func resolveAllRoleConnectors(req *types.StreamRequest) map[string]connector.Connector {
 	if len(req.Roles) == 0 {
 		return nil
 	}
 
 	result := make(map[string]connector.Connector)
-	for _, rc := range req.Roles {
-		var model string
-		if lc, ok := rc.(goullm.LLMConnector); ok {
-			model = lc.GetModel()
+	for role, rc := range req.Roles {
+		if role == "default" {
+			continue
 		}
-		if model == "" {
-			model, _ = rc.Setting()["model"].(string)
-		}
-		if model != "" {
-			result[model] = rc
-		}
+		result[role] = rc
 	}
 	return result
 }
 
 // injectA2OConfigWithRoutes pushes the primary connector config along with
-// role-based routes to the a2o proxy. Each route maps a virtual model name
-// to a different backend connector.
+// role-based routes to the a2o proxy. Each route maps a role key (default,
+// heavy, light) to a different backend connector.
 func injectA2OConfigWithRoutes(ctx context.Context, computer infra.Computer, primaryConn connector.Connector, roleConnectors map[string]connector.Connector) {
 	primaryCfg := buildSingleA2OConfig(primaryConn)
 	if primaryCfg == nil {
@@ -299,11 +303,16 @@ func injectA2OConfigWithRoutes(ctx context.Context, computer infra.Computer, pri
 		return
 	}
 
-	routes := make(map[string]*a2oConnectorConfig, len(roleConnectors))
-	for modelName, rc := range roleConnectors {
+	routes := make(map[string]*a2oConnectorConfig, len(roleConnectors)+1)
+
+	defaultRoute := *primaryCfg
+	defaultRoute.Routes = nil
+	routes["default"] = &defaultRoute
+
+	for roleKey, rc := range roleConnectors {
 		routeCfg := buildSingleA2OConfig(rc)
 		if routeCfg != nil {
-			routes[modelName] = routeCfg
+			routes[roleKey] = routeCfg
 		}
 	}
 	primaryCfg.Routes = routes

@@ -113,7 +113,16 @@ func (m *Manager) Host(_ context.Context, nodeID string) (*Host, error) {
 		TempDir:  res.System.TempDir,
 	}
 
-	return &Host{nodeID: nodeID, system: sys, manager: m}, nil
+	var ports map[string]int
+	if reg := registry.Global(); reg != nil {
+		if snap, ok := reg.Get(nodeID); ok {
+			ports = map[string]int{
+				"a2o": snap.Ports.A2O,
+			}
+		}
+	}
+
+	return &Host{nodeID: nodeID, system: sys, ports: ports, manager: m}, nil
 }
 
 // Create creates and starts a new sandbox.

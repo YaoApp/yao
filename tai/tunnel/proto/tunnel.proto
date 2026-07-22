@@ -43,6 +43,7 @@ message Ports {
     int32 vnc    = 3;
     int32 docker = 4;
     int32 k8s    = 5;
+    int32 a2o    = 6;
 }
 
 message Capabilities {
@@ -51,6 +52,7 @@ message Capabilities {
     bool host_exec = 3;
     bool vnc       = 4;
     repeated string runners = 5;
+    bool a2o       = 6;
 }
 
 message SystemInfo {

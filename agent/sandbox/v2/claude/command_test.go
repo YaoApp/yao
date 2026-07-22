@@ -408,8 +408,11 @@ func TestBuildEnv_OpenAI(t *testing.T) {
 	if !strings.Contains(env["ANTHROPIC_BASE_URL"], "127.0.0.1") {
 		t.Errorf("ANTHROPIC_BASE_URL = %q", env["ANTHROPIC_BASE_URL"])
 	}
-	if env["ANTHROPIC_MODEL"] != "kimi-k2.5" {
-		t.Errorf("ANTHROPIC_MODEL = %q", env["ANTHROPIC_MODEL"])
+	if env["ANTHROPIC_MODEL"] != "default" {
+		t.Errorf("ANTHROPIC_MODEL = %q, want %q", env["ANTHROPIC_MODEL"], "default")
+	}
+	if env["ANTHROPIC_CUSTOM_MODEL_OPTION_NAME"] != "kimi-k2.5" {
+		t.Errorf("ANTHROPIC_CUSTOM_MODEL_OPTION_NAME = %q, want %q", env["ANTHROPIC_CUSTOM_MODEL_OPTION_NAME"], "kimi-k2.5")
 	}
 }
 
@@ -640,5 +643,89 @@ func TestBuildClaudeCodeCapabilities_NoThinking(t *testing.T) {
 	}
 	if got := claude.ExportBuildClaudeCodeCapabilities(conn); got != "" {
 		t.Errorf("got %q", got)
+	}
+}
+
+// --- resolveAllRoleConnectors ---
+
+func TestResolveAllRoleConnectors_SkipsDefault(t *testing.T) {
+	primary := newOpenAIConnector("ds", "https://api.deepseek.com/v1", "deepseek-v4-flash", "sk-1")
+	light := newOpenAIConnector("gpt", "https://api.openai.com/v1", "gpt-4o-mini", "sk-2")
+	req := &types.StreamRequest{
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"light":   light,
+		},
+	}
+	result := claude.ExportResolveAllRoleConnectors(req)
+	if _, ok := result["default"]; ok {
+		t.Error("default role should be excluded from routes")
+	}
+	if _, ok := result["light"]; !ok {
+		t.Error("light role should be included")
+	}
+}
+
+func TestResolveAllRoleConnectors_KeepsAnthropicProtocol(t *testing.T) {
+	primary := newOpenAIConnector("ds", "https://api.deepseek.com/v1", "deepseek-v4-flash", "sk-1")
+	anthLight := newAnthropicConnector("ds-ant", "https://api.deepseek.com/anthropic/v1", "deepseek-v4-flash", "sk-2")
+	oaiHeavy := newOpenAIConnector("gpt", "https://api.openai.com/v1", "gpt-4o", "sk-3")
+	req := &types.StreamRequest{
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"light":   anthLight,
+			"heavy":   oaiHeavy,
+		},
+	}
+	result := claude.ExportResolveAllRoleConnectors(req)
+	if _, ok := result["light"]; !ok {
+		t.Error("anthropic-protocol connector should be kept (no protocol filtering)")
+	}
+	if _, ok := result["heavy"]; !ok {
+		t.Error("openai-protocol heavy connector should be included")
+	}
+	if len(result) != 2 {
+		t.Errorf("expected 2 role connectors, got %d", len(result))
+	}
+}
+
+func TestResolveAllRoleConnectors_SameModelDifferentRoles(t *testing.T) {
+	primary := newOpenAIConnector("ds-oai", "https://api.deepseek.com/v1", "deepseek-v4-flash", "sk-1")
+	anthLight := newAnthropicConnector("ds-ant", "https://api.deepseek.com/anthropic/v1", "deepseek-v4-flash", "sk-2")
+	req := &types.StreamRequest{
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"light":   anthLight,
+		},
+	}
+	result := claude.ExportResolveAllRoleConnectors(req)
+	if len(result) != 1 {
+		t.Errorf("expected 1 role connector (light), got %d", len(result))
+	}
+	if _, ok := result["light"]; !ok {
+		t.Error("light role should be present even with same model name as primary")
+	}
+}
+
+func TestResolveAllRoleConnectors_EmptyRoles(t *testing.T) {
+	req := &types.StreamRequest{}
+	result := claude.ExportResolveAllRoleConnectors(req)
+	if result != nil {
+		t.Errorf("expected nil for empty roles, got %v", result)
+	}
+}
+
+func TestResolveAllRoleConnectors_DualProtoKept(t *testing.T) {
+	primary := newOpenAIConnector("ds", "https://api.deepseek.com/v1", "deepseek-v4-flash", "sk-1")
+	dual := newDualProtoConnector("dual", "https://api.example.com/v1", "dual-model", "sk-2")
+	req := &types.StreamRequest{
+		Roles: map[string]connector.Connector{
+			"default": primary,
+			"heavy":   dual,
+		},
+	}
+	result := claude.ExportResolveAllRoleConnectors(req)
+	if _, ok := result["heavy"]; !ok {
+		t.Error("dual-protocol connector (openai+anthropic) should be kept with role key")
 	}
 }

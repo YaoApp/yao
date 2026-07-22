@@ -141,12 +141,13 @@ func TestBuildGRPCEnv_EmptyChatID_NoKey(t *testing.T) {
 
 func setupHostTestRegistry(t *testing.T, nodes ...*registry.TaiNode) {
 	t.Helper()
+	prev := registry.Global()
 	reg := registry.NewForTest()
 	for _, n := range nodes {
 		reg.Register(n)
 	}
 	registry.SetGlobalForTest(reg)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 }
 
 func TestResolveHostGRPCAddr_LocalMode(t *testing.T) {
@@ -235,8 +236,9 @@ func TestResolveHostGRPCAddr_NodeNotFound(t *testing.T) {
 }
 
 func TestResolveHostGRPCAddr_NilRegistry(t *testing.T) {
+	prev := registry.Global()
 	registry.SetGlobalForTest(nil)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 
 	got := sandbox.ResolveHostGRPCAddr("any")
 	if got != "" {

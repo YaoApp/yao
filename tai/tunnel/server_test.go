@@ -65,9 +65,9 @@ func TestCapsFromMap_Empty(t *testing.T) {
 }
 
 func TestPortsFromProto(t *testing.T) {
-	pp := &taipb.Ports{Grpc: 19100, Http: 8099, Vnc: 16080, Docker: 12375, K8S: 16443}
+	pp := &taipb.Ports{Grpc: 19100, Http: 8099, Vnc: 16080, Docker: 12375, K8S: 16443, A2O: 45678}
 	p := portsFromProto(pp)
-	if p.GRPC != 19100 || p.HTTP != 8099 || p.VNC != 16080 || p.Docker != 12375 || p.K8s != 16443 {
+	if p.GRPC != 19100 || p.HTTP != 8099 || p.VNC != 16080 || p.Docker != 12375 || p.K8s != 16443 || p.A2O != 45678 {
 		t.Errorf("portsFromProto got %+v", p)
 	}
 }
@@ -82,10 +82,10 @@ func TestPortsFromProto_Nil(t *testing.T) {
 func TestCapsFromProto(t *testing.T) {
 	cp := &taipb.Capabilities{
 		Docker: true, K8S: false, HostExec: true,
-		Vnc: true, Runners: []string{"tai", "claude"},
+		Vnc: true, A2O: true, Runners: []string{"tai", "claude"},
 	}
 	c := capsFromProto(cp)
-	if !c.Docker || c.K8s || !c.HostExec || !c.VNC {
+	if !c.Docker || c.K8s || !c.HostExec || !c.VNC || !c.A2O {
 		t.Errorf("capsFromProto basic fields: %+v", c)
 	}
 	if len(c.Runners) != 2 || c.Runners[0] != "tai" || c.Runners[1] != "claude" {

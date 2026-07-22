@@ -63,6 +63,9 @@ func mergedPorts(p Ports) Ports {
 	if p.K8s != 0 {
 		d.K8s = p.K8s
 	}
+	if p.A2O != 0 {
+		d.A2O = p.A2O
+	}
 	return d
 }
 

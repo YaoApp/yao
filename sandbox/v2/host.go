@@ -21,6 +21,7 @@ type Host struct {
 	nodeID      string
 	workplaceID string
 	system      SystemInfo
+	ports       map[string]int // service ports from node registration
 	manager     *Manager
 }
 
@@ -35,6 +36,7 @@ func (h *Host) ComputerInfo() ComputerInfo {
 		Kind:   "host",
 		NodeID: h.nodeID,
 		System: h.system,
+		Ports:  h.ports,
 		Status: "online",
 	}
 }
