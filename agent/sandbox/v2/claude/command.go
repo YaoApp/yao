@@ -17,7 +17,6 @@ import (
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
-	"github.com/yaoapp/yao/config"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
@@ -192,7 +191,11 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 			setAnthropicModelEnv(env, host, key, model, req.Connector)
 			applyAnthropicRoleOverrides(env, host, req.Roles)
 		} else {
-			setA2OModelEnv(env, req.Connector.ID(), model, req.Connector)
+			var a2oPort int
+			if req.Computer != nil {
+				a2oPort = req.Computer.ComputerInfo().Ports["a2o"]
+			}
+			setA2OModelEnv(env, req.Connector.ID(), model, req.Connector, a2oPort)
 			applyA2ORoleOverrides(env, req.Roles)
 		}
 
@@ -233,11 +236,9 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	}
 
 	if req.Computer != nil && req.Computer.ComputerInfo().Kind == "host" {
-		port := config.Conf.GRPC.Port
-		if port == 0 {
-			port = 9099
+		if addr := infra.ResolveHostGRPCAddr(req.Computer.ComputerInfo().NodeID); addr != "" {
+			env["YAO_GRPC_ADDR"] = addr
 		}
-		env["YAO_GRPC_ADDR"] = fmt.Sprintf("127.0.0.1:%d", port)
 	}
 
 	logger := req.Logger
@@ -728,26 +729,32 @@ func applyAnthropicRoleOverrides(
 	}
 }
 
-func setA2OModelEnv(env map[string]string, connectorID, model string, conn connector.Connector) {
-	env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/c/%s", defaultA2OPort, connectorID)
+func setA2OModelEnv(env map[string]string, connectorID, model string, conn connector.Connector, a2oPort int) {
+	port := a2oPort
+	if port <= 0 {
+		port = defaultA2OPort
+	}
+	env["ANTHROPIC_BASE_URL"] = fmt.Sprintf("http://127.0.0.1:%d/c/%s", port, connectorID)
 	env["ANTHROPIC_API_KEY"] = "dummy"
-	env["ANTHROPIC_MODEL"] = model
-	env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = model
-	env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = model
-	env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = model
 
-	if !isStandardAnthropicModel(model) {
-		env["ANTHROPIC_CUSTOM_MODEL_OPTION"] = model
-		env["ANTHROPIC_CUSTOM_MODEL_OPTION_NAME"] = model
-		env["ANTHROPIC_DEFAULT_OPUS_MODEL_NAME"] = model
-		env["ANTHROPIC_DEFAULT_SONNET_MODEL_NAME"] = model
-		env["ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME"] = model
-		if caps := buildClaudeCodeCapabilities(conn); caps != "" {
-			env["ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES"] = caps
-			env["ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES"] = caps
-			env["ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES"] = caps
-			env["ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES"] = caps
-		}
+	// Baseline: all tiers point to the "default" a2o route.
+	// applyA2ORoleOverrides will override heavy/light if configured.
+	env["ANTHROPIC_MODEL"] = "default"
+	env["ANTHROPIC_DEFAULT_SONNET_MODEL"] = "default"
+	env["ANTHROPIC_DEFAULT_OPUS_MODEL"] = "default"
+	env["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = "default"
+
+	env["ANTHROPIC_CUSTOM_MODEL_OPTION"] = "default"
+	env["ANTHROPIC_CUSTOM_MODEL_OPTION_NAME"] = model
+	env["ANTHROPIC_DEFAULT_OPUS_MODEL_NAME"] = model
+	env["ANTHROPIC_DEFAULT_SONNET_MODEL_NAME"] = model
+	env["ANTHROPIC_DEFAULT_HAIKU_MODEL_NAME"] = model
+
+	if caps := buildClaudeCodeCapabilities(conn); caps != "" {
+		env["ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES"] = caps
+		env["ANTHROPIC_DEFAULT_OPUS_MODEL_SUPPORTED_CAPABILITIES"] = caps
+		env["ANTHROPIC_DEFAULT_SONNET_MODEL_SUPPORTED_CAPABILITIES"] = caps
+		env["ANTHROPIC_DEFAULT_HAIKU_MODEL_SUPPORTED_CAPABILITIES"] = caps
 	}
 }
 
@@ -763,22 +770,20 @@ func applyA2ORoleOverrides(
 		if !ok || rc == nil {
 			continue
 		}
-		var rcModel string
-		if lc, ok := rc.(goullm.LLMConnector); ok {
-			rcModel = lc.GetModel()
-		}
-		if rcModel == "" {
-			rcModel, _ = rc.Setting()["model"].(string)
-		}
+
+		rcModel := connectorModel(rc)
 		if rcModel == "" {
 			continue
 		}
-		env[rm.EnvVar] = rcModel
-		if !isStandardAnthropicModel(rcModel) {
-			env[rm.EnvVar+"_NAME"] = rcModel
-			if caps := buildClaudeCodeCapabilities(rc); caps != "" {
-				env[rm.EnvVar+"_SUPPORTED_CAPABILITIES"] = caps
-			}
+		if connectorHost(rc) == "" {
+			continue
+		}
+
+		// Set model name to role key — a2o routes by this key
+		env[rm.EnvVar] = role
+		env[rm.EnvVar+"_NAME"] = rcModel
+		if caps := buildClaudeCodeCapabilities(rc); caps != "" {
+			env[rm.EnvVar+"_SUPPORTED_CAPABILITIES"] = caps
 		}
 	}
 }

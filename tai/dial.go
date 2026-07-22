@@ -40,6 +40,7 @@ func DialTunnel(taiID string, reg *registry.Registry, opts ...DialOption) (*Conn
 			VNC:    intOr(node.Ports.VNC, 16080),
 			Docker: intOr(node.Ports.Docker, 12375),
 			K8s:    intOr(node.Ports.K8s, 16443),
+			A2O:    node.Ports.A2O,
 		},
 	}
 	for _, o := range opts {

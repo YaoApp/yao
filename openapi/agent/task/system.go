@@ -6,14 +6,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent/assistant"
-	lifecycle "github.com/yaoapp/yao/agent/sandbox/v2"
+	"github.com/yaoapp/yao/agent/computer"
 	lifecycletypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	tasksvc "github.com/yaoapp/yao/agent/task"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	"github.com/yaoapp/yao/openapi/response"
 	sandbox "github.com/yaoapp/yao/sandbox/v2"
-	"github.com/yaoapp/yao/tai/registry"
-	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
 // handleTaskPortsGet returns listening ports for the sandbox associated with this task.
@@ -115,21 +113,21 @@ func handleTaskExecPost(c *gin.Context) {
 	})
 }
 
-// resolveComputer finds the Computer (Box or Host) for the current task.
+// resolveComputer finds the Computer (Box or Host) for the current task via
+// the unified computer.Lookup path.
 // Returns nil Computer + nil error when sandbox is not running (Box mode only).
 // Host mode always returns a valid Computer (no "not running" state).
 // On auth/lookup errors it writes the error response and returns non-nil error.
 func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
-	auth := toProcessAuth(authorized.GetInfo(c))
+	auth := authorized.GetInfo(c)
 	chatID := c.Param("chat_id")
 
-	task, err := tasksvc.Get(c.Request.Context(), auth, chatID)
+	pauth := toProcessAuth(auth)
+	task, err := tasksvc.Get(c.Request.Context(), pauth, chatID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return nil, err
 	}
-
-	mgr := sandbox.M()
 
 	ast, astErr := assistant.Get(task.AssistantID)
 	if astErr != nil || ast == nil {
@@ -142,57 +140,22 @@ func resolveComputer(c *gin.Context) (sandbox.Computer, error) {
 		cfg = &lifecycletypes.SandboxConfig{}
 	}
 
-	isHostMode := !ast.HasSandboxV2() || cfg.Computer.Image == ""
-	if isHostMode {
-		nodeID := resolveHostNode()
-		if nodeID == "" {
-			respondError(c, http.StatusServiceUnavailable, fmt.Errorf("no node with host execution capability is available"))
-			return nil, fmt.Errorf("no host node")
-		}
-		host, err := mgr.Host(c.Request.Context(), nodeID)
-		if err != nil {
-			respondError(c, http.StatusInternalServerError, fmt.Errorf("host mode unavailable: %w", err))
-			return nil, err
-		}
-		return host, nil
+	wsID := ""
+	if task.LastWorkspace != nil {
+		wsID = *task.LastWorkspace
 	}
 
-	// Box mode: look up existing container by identifier.
-	ownerID := auth.TeamID
-	if ownerID == "" {
-		ownerID = auth.UserID
+	comp, err := computer.Lookup(c.Request.Context(), &computer.LookupOpts{
+		Auth:        auth,
+		AssistantID: task.AssistantID,
+		WorkspaceID: wsID,
+		ChatID:      chatID,
+		Image:       cfg.Computer.Image,
+		Lifecycle:   cfg.Lifecycle,
+	})
+	if err != nil {
+		respondError(c, http.StatusServiceUnavailable, err)
+		return nil, err
 	}
-	workspaceID := ""
-	if task.LastWorkspace != nil && *task.LastWorkspace != "" {
-		workspaceID = *task.LastWorkspace
-	}
-	identifier := lifecycle.BuildIdentifier(cfg, ownerID, chatID, task.AssistantID, workspaceID, nil)
-	if identifier == "" {
-		return nil, nil
-	}
-
-	box, err := mgr.Get(c.Request.Context(), identifier)
-	if err != nil || box == nil {
-		return nil, nil
-	}
-	if box.IsStopped() {
-		return nil, nil
-	}
-
-	return box, nil
-}
-
-// resolveHostNode selects the first public node that supports HostExec and is online.
-// Returns empty string if no suitable node is found.
-func resolveHostNode() string {
-	reg := registry.Global()
-	if reg == nil {
-		return ""
-	}
-	for _, n := range reg.List() {
-		if taitypes.IsPublicNode(n.Mode) && n.Capabilities.HostExec && n.Status == "online" {
-			return n.TaiID
-		}
-	}
-	return ""
+	return comp, nil
 }

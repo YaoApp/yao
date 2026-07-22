@@ -236,7 +236,7 @@ func (s *Service) stateParameterKey(clientID string, state string) string {
 
 // pushedAuthRequestKey generates a key for pushed authorization request storage
 func (s *Service) pushedAuthRequestKey(requestURI string) string {
-	return fmt.Sprintf("%soauth:par:%s", s.prefix, requestURI)
+	return fmt.Sprintf("%soauth:par:%s", s.prefix, s.hashKey(requestURI))
 }
 
 // generateRequestURI generates a request URI for pushed authorization requests

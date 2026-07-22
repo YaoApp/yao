@@ -10,12 +10,13 @@ import (
 
 func setupTestRegistry(t *testing.T, nodes ...*registry.TaiNode) {
 	t.Helper()
+	prev := registry.Global()
 	reg := registry.NewForTest()
 	for _, n := range nodes {
 		reg.Register(n)
 	}
 	registry.SetGlobalForTest(reg)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 }
 
 func TestResolveGRPCAddr_LocalMode(t *testing.T) {
@@ -119,8 +120,9 @@ func TestResolveGRPCAddr_NodeNotFound(t *testing.T) {
 }
 
 func TestResolveGRPCAddr_NilRegistry(t *testing.T) {
+	prev := registry.Global()
 	registry.SetGlobalForTest(nil)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 
 	m := newManager()
 	got := m.resolveGRPCAddr("any")
@@ -172,8 +174,9 @@ func TestInjectGRPCAddr_DoesNotOverrideExplicit(t *testing.T) {
 }
 
 func TestInjectGRPCAddr_NoopWhenUnresolvable(t *testing.T) {
+	prev := registry.Global()
 	registry.SetGlobalForTest(nil)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 
 	m := newManager()
 	b := &Box{nodeID: "missing", manager: m}
@@ -254,8 +257,9 @@ func TestResolveGRPCTLS_UnknownModeWithTLS(t *testing.T) {
 }
 
 func TestResolveGRPCTLS_NilRegistry(t *testing.T) {
+	prev := registry.Global()
 	registry.SetGlobalForTest(nil)
-	t.Cleanup(func() { registry.SetGlobalForTest(nil) })
+	t.Cleanup(func() { registry.SetGlobalForTest(prev) })
 
 	m := newManager()
 	if m.resolveGRPCTLS("any") {

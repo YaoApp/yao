@@ -6,20 +6,14 @@ import (
 	"strings"
 
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/sandbox/v2/resolve"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	"github.com/yaoapp/yao/tai/registry"
 )
 
-// NodeCandidate describes a single node's capabilities for selection.
-type NodeCandidate struct {
-	ID      string
-	IsLocal bool
-	Runners []string
-	CanBox  bool
-	CanHost bool
-	OS      string
-	Arch    string
-}
+// NodeCandidate is an alias for resolve.NodeCandidate, kept here for backward
+// compatibility with 30+ test references and callers.
+type NodeCandidate = resolve.NodeCandidate
 
 // WorkspaceResolver looks up which node owns a given workspace.
 type WorkspaceResolver interface {
@@ -36,13 +30,9 @@ type SelectionCriteria struct {
 	WSManager   WorkspaceResolver
 }
 
-// SelectionResult carries the final node selection decision.
-type SelectionResult struct {
-	NodeID  string
-	Runner  string
-	Mode    string // "box" | "host" | "local"
-	IsLocal bool
-}
+// SelectionResult is an alias for resolve.SelectionResult, kept here for
+// backward compatibility with callers and tests.
+type SelectionResult = resolve.SelectionResult
 
 // BuildNodeSnapshot reads all online nodes from the Tai registry and returns
 // them as a flat slice of NodeCandidate. The local node is already included
@@ -101,7 +91,7 @@ func SelectNode(nodes []NodeCandidate, criteria *SelectionCriteria) (*SelectionR
 					if runner == "" {
 						return nil, fmt.Errorf("workspace-bound node %q does not support any of the allowed runners %v", nodeID, criteria.Allowed)
 					}
-					mode := resolveMode(&nodes[i], runner, criteria.Image)
+					mode := resolve.ResolveMode(&nodes[i], runner, criteria.Image)
 					if mode == "" {
 						return nil, fmt.Errorf("workspace-bound node %q has no feasible execution mode for runner %q (CanBox=%v CanHost=%v image=%q)", nodeID, runner, nodes[i].CanBox, nodes[i].CanHost, criteria.Image)
 					}
@@ -161,7 +151,7 @@ func SelectNode(nodes []NodeCandidate, criteria *SelectionCriteria) (*SelectionR
 		if criteria.Preferred != "" {
 			for i := range group {
 				if nodeHasRunner(&group[i], criteria.Preferred) && containsRunner(criteria.Allowed, criteria.Preferred) {
-					mode := resolveMode(&group[i], criteria.Preferred, criteria.Image)
+					mode := resolve.ResolveMode(&group[i], criteria.Preferred, criteria.Image)
 					if mode == "" {
 						continue
 					}
@@ -178,7 +168,7 @@ func SelectNode(nodes []NodeCandidate, criteria *SelectionCriteria) (*SelectionR
 		for i := range group {
 			runner := pickRunnerOnNode(&group[i], criteria)
 			if runner != "" {
-				mode := resolveMode(&group[i], runner, criteria.Image)
+				mode := resolve.ResolveMode(&group[i], runner, criteria.Image)
 				if mode == "" {
 					continue
 				}
@@ -203,24 +193,6 @@ func pickRunnerOnNode(node *NodeCandidate, criteria *SelectionCriteria) string {
 		if nodeHasRunner(node, r) {
 			return r
 		}
-	}
-	return ""
-}
-
-// resolveMode determines the execution mode from node capabilities, runner,
-// and image. It returns an empty string when no feasible mode exists.
-func resolveMode(node *NodeCandidate, runner, image string) string {
-	if node.IsLocal && runner == "yaocode" {
-		return "local"
-	}
-	if node.CanBox && image != "" {
-		return "box"
-	}
-	if node.CanHost {
-		return "host"
-	}
-	if node.CanBox {
-		return "box"
 	}
 	return ""
 }

@@ -3,6 +3,7 @@ package oauth
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
 	"strings"
@@ -557,12 +558,12 @@ func (s *Service) consumeAuthorizationCode(code string) error {
 
 // deviceCodeKey generates a key for device code storage
 func (s *Service) deviceCodeKey(code string) string {
-	return fmt.Sprintf("%soauth:device_code:%s", s.prefix, code)
+	return fmt.Sprintf("%soauth:device_code:%s", s.prefix, s.hashKey(code))
 }
 
 // userCodeKey generates a key for user code storage (reverse mapping)
 func (s *Service) userCodeKey(code string) string {
-	return fmt.Sprintf("%soauth:user_code:%s", s.prefix, code)
+	return fmt.Sprintf("%soauth:user_code:%s", s.prefix, s.hashKey(code))
 }
 
 // storeDeviceCode stores device code data and user_code -> device_code reverse mapping
@@ -747,19 +748,26 @@ func (s *Service) revokeRefreshToken(refreshToken string) error {
 	return nil
 }
 
+// hashKey returns the hex-encoded SHA-256 digest of raw, keeping store keys
+// within the varchar(255) limit regardless of token length.
+func (s *Service) hashKey(raw string) string {
+	h := sha256.Sum256([]byte(raw))
+	return fmt.Sprintf("%x", h)
+}
+
 // authorizationCodeKey generates a key for authorization code storage
 func (s *Service) authorizationCodeKey(code string) string {
-	return fmt.Sprintf("%soauth:auth_code:%s", s.prefix, code)
+	return fmt.Sprintf("%soauth:auth_code:%s", s.prefix, s.hashKey(code))
 }
 
 // refreshTokenKey generates a key for refresh token storage
 func (s *Service) refreshTokenKey(refreshToken string) string {
-	return fmt.Sprintf("%soauth:refresh_token:%s", s.prefix, refreshToken)
+	return fmt.Sprintf("%soauth:refresh_token:%s", s.prefix, s.hashKey(refreshToken))
 }
 
 // accessTokenKey generates a key for access token storage
 func (s *Service) accessTokenKey(accessToken string) string {
-	return fmt.Sprintf("%soauth:access_token:%s", s.prefix, accessToken)
+	return fmt.Sprintf("%soauth:access_token:%s", s.prefix, s.hashKey(accessToken))
 }
 
 // userFingerprintKey generates a key for user fingerprint storage

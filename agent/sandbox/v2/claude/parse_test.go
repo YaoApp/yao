@@ -345,3 +345,449 @@ func TestParseResultError(t *testing.T) {
 		t.Errorf("expected error, got %v", err)
 	}
 }
+
+// --- Agent adoption + sub-agent tool registration ---
+
+// agentWithSubToolJSONL simulates:
+// 1. Agent tool streamed via content_block_start (id=stream_agent)
+// 2. Agent tool finalised in assistant message (id=final_agent, different ID — a2o re-keying)
+// 3. Sub-agent Bash tool via assistant message (parent_tool_use_id=final_agent, stop_reason=null)
+// 4. Sub-agent Bash tool_result via user message
+// 5. Agent tool_result via user message
+const agentWithSubToolJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_a1","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"stream_agent","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":":\"do something\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"assistant","message":{"id":"msg_a1","type":"message","role":"assistant","content":[{"type":"tool_use","id":"final_agent","name":"Agent","input":{"prompt":"do something"}}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":30}}}
+{"type":"assistant","parent_tool_use_id":"final_agent","message":{"id":"msg_sub1","type":"message","role":"assistant","content":[{"type":"tool_use","id":"sub_bash","name":"Bash","input":{"command":"echo hello"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":50,"output_tokens":10}}}
+{"type":"user","parent_tool_use_id":"final_agent","message":{"id":"msg_sub1_r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"sub_bash","content":"hello"}]}}
+{"type":"user","message":{"id":"msg_a1_r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"final_agent","content":"Agent completed"}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestAdoption_NoPhantomMessages(t *testing.T) {
+	events := runParser(t, agentWithSubToolJSONL)
+	groups := extractMessageGroups(events)
+
+	var agentGroups []messageGroup
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					agentGroups = append(agentGroups, g)
+					break
+				}
+			}
+		}
+	}
+
+	// Streaming phase creates one group (running), tool_result reuses the
+	// same msgID (completed). Adoption ensures no phantom from final_agent.
+	if len(agentGroups) != 2 {
+		t.Fatalf("expected 2 Agent message groups (running + completed), got %d", len(agentGroups))
+	}
+	if agentGroups[0].messageID != agentGroups[1].messageID {
+		t.Errorf("Agent running/completed msgID mismatch: %q vs %q",
+			agentGroups[0].messageID, agentGroups[1].messageID)
+	}
+
+	// The streaming-phase group should use stream_agent as tool_id (it IS
+	// emitted now — this is the real-time feedback). The adoption remaps
+	// final_agent → same msgID, so no phantom group is created for final_agent.
+	distinctMsgIDs := map[string]bool{}
+	for _, g := range agentGroups {
+		distinctMsgIDs[g.messageID] = true
+	}
+	if len(distinctMsgIDs) != 1 {
+		t.Errorf("expected 1 distinct Agent msgID, got %d", len(distinctMsgIDs))
+	}
+}
+
+func TestAdoption_StreamingEmitsInput(t *testing.T) {
+	events := runParser(t, agentWithSubToolJSONL)
+
+	// Under adoption, input_delta IS emitted during the streaming phase
+	// (unlike the old deferred strategy that suppressed it).
+	var hasInputDelta bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkExecute {
+			props := extractExecuteProps(ev)
+			if _, ok := props["input_delta"]; ok {
+				hasInputDelta = true
+				break
+			}
+		}
+	}
+	if !hasInputDelta {
+		t.Error("adoption strategy should emit input_delta during streaming phase")
+	}
+}
+
+func TestSubAgentTool_HasToolName(t *testing.T) {
+	events := runParser(t, agentWithSubToolJSONL)
+	groups := extractMessageGroups(events)
+
+	// Find the sub-agent Bash tool_result (completed phase).
+	var bashCompletedProps map[string]any
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["status"]) == "completed" && strDefault(props["tool"]) == "Bash" {
+					bashCompletedProps = props
+				}
+			}
+		}
+	}
+	if bashCompletedProps == nil {
+		t.Fatal("missing completed Bash sub-tool event")
+	}
+	if strDefault(bashCompletedProps["tool"]) != "Bash" {
+		t.Errorf("sub-tool name = %q, want Bash", strDefault(bashCompletedProps["tool"]))
+	}
+	if strDefault(bashCompletedProps["summary"]) != "echo hello" {
+		t.Errorf("sub-tool summary = %q, want 'echo hello'", strDefault(bashCompletedProps["summary"]))
+	}
+}
+
+func TestSubAgentTool_HasParentIDs(t *testing.T) {
+	events := runParser(t, agentWithSubToolJSONL)
+
+	// Collect all execute chunks with parent info.
+	var subToolChunks []map[string]any
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkExecute {
+			props := extractExecuteProps(ev)
+			if _, has := props["parent_tool_use_id"]; has {
+				subToolChunks = append(subToolChunks, props)
+			}
+		}
+	}
+
+	if len(subToolChunks) == 0 {
+		t.Fatal("no sub-tool chunks with parent_tool_use_id found")
+	}
+
+	for _, props := range subToolChunks {
+		ptid := strDefault(props["parent_tool_use_id"])
+		pmid := strDefault(props["parent_message_id"])
+		if ptid != "final_agent" {
+			t.Errorf("parent_tool_use_id = %q, want final_agent", ptid)
+		}
+		if pmid == "" {
+			t.Error("parent_message_id should be set for sub-agent tools")
+		}
+	}
+}
+
+func TestMainThreadTool_NoParentID(t *testing.T) {
+	events := runParser(t, agentWithSubToolJSONL)
+	groups := extractMessageGroups(events)
+
+	// Find the Agent tool's own execute events — they should NOT carry parent IDs.
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					if _, has := props["parent_tool_use_id"]; has {
+						t.Error("main-thread Agent tool should not have parent_tool_use_id")
+					}
+				}
+			}
+		}
+	}
+}
+
+// agentSameIDJSONL tests the case where streaming and final Agent IDs are
+// identical (direct Anthropic connection, no a2o re-keying).
+const agentSameIDJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_x","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"agent_same","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"test\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"assistant","message":{"id":"msg_x","type":"message","role":"assistant","content":[{"type":"tool_use","id":"agent_same","name":"Agent","input":{"prompt":"test"}}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":20}}}
+{"type":"user","message":{"id":"msg_x_r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"agent_same","content":"done"}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestAdoption_SameID_Passthrough(t *testing.T) {
+	events := runParser(t, agentSameIDJSONL)
+	groups := extractMessageGroups(events)
+
+	var agentGroups []messageGroup
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					agentGroups = append(agentGroups, g)
+					break
+				}
+			}
+		}
+	}
+
+	// Same ID: alreadyStreamed triggers, no adoption needed. Still 2 groups
+	// (streaming running + tool_result completed), sharing the same msgID.
+	if len(agentGroups) != 2 {
+		t.Fatalf("expected 2 Agent groups (running + completed), got %d", len(agentGroups))
+	}
+	if agentGroups[0].messageID != agentGroups[1].messageID {
+		t.Errorf("Agent msgID mismatch when IDs are the same: %q vs %q",
+			agentGroups[0].messageID, agentGroups[1].messageID)
+	}
+}
+
+// agentMultiJSONL tests two consecutive Agent calls with different streaming/final IDs.
+// FIFO adoption: final_1 adopts stream_1, final_2 adopts stream_2.
+const agentMultiJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_m","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"stream_1","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"task1\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"stream_2","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"task2\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"assistant","message":{"id":"msg_m","type":"message","role":"assistant","content":[{"type":"tool_use","id":"final_1","name":"Agent","input":{"prompt":"task1"}},{"type":"tool_use","id":"final_2","name":"Agent","input":{"prompt":"task2"}}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":40}}}
+{"type":"user","message":{"id":"msg_m_r1","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"final_1","content":"done1"}]}}
+{"type":"user","message":{"id":"msg_m_r2","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"final_2","content":"done2"}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestAdoption_MultiAgent_FIFOOrder(t *testing.T) {
+	events := runParser(t, agentMultiJSONL)
+	groups := extractMessageGroups(events)
+
+	var agentGroups []messageGroup
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					agentGroups = append(agentGroups, g)
+					break
+				}
+			}
+		}
+	}
+
+	// 2 streaming Agents + 2 completed Agents = 4 groups, but only 2 distinct msgIDs.
+	if len(agentGroups) != 4 {
+		t.Fatalf("expected 4 Agent groups (2 running + 2 completed), got %d", len(agentGroups))
+	}
+
+	distinctMsgIDs := map[string]bool{}
+	for _, g := range agentGroups {
+		distinctMsgIDs[g.messageID] = true
+	}
+	if len(distinctMsgIDs) != 2 {
+		t.Errorf("expected 2 distinct Agent msgIDs, got %d", len(distinctMsgIDs))
+	}
+
+	// Running and completed phases for each Agent should share the same msgID.
+	if agentGroups[0].messageID != agentGroups[2].messageID {
+		t.Errorf("Agent 1 running/completed msgID mismatch: %q vs %q",
+			agentGroups[0].messageID, agentGroups[2].messageID)
+	}
+	if agentGroups[1].messageID != agentGroups[3].messageID {
+		t.Errorf("Agent 2 running/completed msgID mismatch: %q vs %q",
+			agentGroups[1].messageID, agentGroups[3].messageID)
+	}
+}
+
+// agentMixedIDJSONL tests Scenario D: one Agent's streaming ID matches its
+// final ID (direct Anthropic), while another's differs (a2o re-keying).
+// Validates BUG 1 fix: alreadyStreamed must clean pendingAgents to prevent
+// the next Agent from incorrectly adopting it.
+const agentMixedIDJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_d","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"A","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"taskA\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"B","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"taskB\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"assistant","message":{"id":"msg_d","type":"message","role":"assistant","content":[{"type":"tool_use","id":"A","name":"Agent","input":{"prompt":"taskA"}},{"type":"tool_use","id":"C","name":"Agent","input":{"prompt":"taskB"}}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":40}}}
+{"type":"user","message":{"id":"msg_d_r1","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"A","content":"doneA"}]}}
+{"type":"user","message":{"id":"msg_d_r2","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"C","content":"doneB"}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestAdoption_MixedID_NoLeak(t *testing.T) {
+	events := runParser(t, agentMixedIDJSONL)
+	groups := extractMessageGroups(events)
+
+	var agentGroups []messageGroup
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					agentGroups = append(agentGroups, g)
+					break
+				}
+			}
+		}
+	}
+
+	// Stream A + Stream B = 2 running groups.
+	// A matches (alreadyStreamed, cleans pendingAgents).
+	// C adopts B (pop from pendingAgents).
+	// tool_result A + tool_result C = 2 completed groups.
+	// Total: 4 Agent groups, 2 distinct msgIDs.
+	if len(agentGroups) != 4 {
+		t.Fatalf("expected 4 Agent groups, got %d", len(agentGroups))
+	}
+
+	distinctMsgIDs := map[string]bool{}
+	for _, g := range agentGroups {
+		distinctMsgIDs[g.messageID] = true
+	}
+	if len(distinctMsgIDs) != 2 {
+		t.Errorf("expected 2 distinct Agent msgIDs, got %d", len(distinctMsgIDs))
+	}
+
+	// Agent A: streaming (group 0) and completed (group 2) share the same msgID.
+	if agentGroups[0].messageID != agentGroups[2].messageID {
+		t.Errorf("Agent A running/completed msgID mismatch: %q vs %q",
+			agentGroups[0].messageID, agentGroups[2].messageID)
+	}
+	// Agent C adopted B: streaming B (group 1) and completed C (group 3) share the same msgID.
+	if agentGroups[1].messageID != agentGroups[3].messageID {
+		t.Errorf("Agent B→C running/completed msgID mismatch: %q vs %q",
+			agentGroups[1].messageID, agentGroups[3].messageID)
+	}
+}
+
+// agentMultiWithSubToolsJSONL simulates two concurrent Agents, each with a
+// sub-tool call. Streaming IDs differ from final IDs (a2o re-keying).
+// Validates: adoption FIFO order, parent_message_id propagation per Agent,
+// summary/input population on both Agent completions, and main-thread
+// tool_results having no parent_message_id.
+const agentMultiWithSubToolsJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_mt","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":100,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"stream_1","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"research AI\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"stream_2","name":"Agent"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"prompt\":\"write report\"}"}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"assistant","message":{"id":"msg_mt","type":"message","role":"assistant","content":[{"type":"tool_use","id":"final_1","name":"Agent","input":{"prompt":"research AI"}},{"type":"tool_use","id":"final_2","name":"Agent","input":{"prompt":"write report"}}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":100,"output_tokens":40}}}
+{"type":"assistant","parent_tool_use_id":"final_1","message":{"id":"msg_s1a","type":"message","role":"assistant","content":[{"type":"tool_use","id":"sub_bash_1","name":"Bash","input":{"command":"curl https://ai.news"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":50,"output_tokens":10}}}
+{"type":"user","parent_tool_use_id":"final_1","message":{"id":"msg_s1r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"sub_bash_1","content":"AI news content"}]}}
+{"type":"assistant","parent_tool_use_id":"final_2","message":{"id":"msg_s2a","type":"message","role":"assistant","content":[{"type":"tool_use","id":"sub_write_1","name":"Write","input":{"file_path":"/tmp/report.md","content":"# Report"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":50,"output_tokens":15}}}
+{"type":"user","parent_tool_use_id":"final_2","message":{"id":"msg_s2r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"sub_write_1","content":"File written"}]}}
+{"type":"user","message":{"id":"msg_mt_r","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"final_1","content":"Agent 1 done"},{"type":"tool_result","tool_use_id":"final_2","content":"Agent 2 done"}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestAdoption_MultiAgent_WithSubTools(t *testing.T) {
+	events := runParser(t, agentMultiWithSubToolsJSONL)
+	groups := extractMessageGroups(events)
+
+	// --- Verify Agent groups ---
+	var agentGroups []messageGroup
+	for _, g := range groups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					agentGroups = append(agentGroups, g)
+					break
+				}
+			}
+		}
+	}
+
+	// 2 streaming (running) + 2 completed = 4 Agent groups, 2 distinct msgIDs.
+	if len(agentGroups) != 4 {
+		t.Fatalf("expected 4 Agent groups (2 running + 2 completed), got %d", len(agentGroups))
+	}
+
+	distinctMsgIDs := map[string]bool{}
+	for _, g := range agentGroups {
+		distinctMsgIDs[g.messageID] = true
+	}
+	if len(distinctMsgIDs) != 2 {
+		t.Errorf("expected 2 distinct Agent msgIDs, got %d", len(distinctMsgIDs))
+	}
+
+	// Running and completed phases share the same msgID per Agent.
+	if agentGroups[0].messageID != agentGroups[2].messageID {
+		t.Errorf("Agent 1 running/completed msgID mismatch: %q vs %q",
+			agentGroups[0].messageID, agentGroups[2].messageID)
+	}
+	if agentGroups[1].messageID != agentGroups[3].messageID {
+		t.Errorf("Agent 2 running/completed msgID mismatch: %q vs %q",
+			agentGroups[1].messageID, agentGroups[3].messageID)
+	}
+	agent1MsgID := agentGroups[0].messageID
+	agent2MsgID := agentGroups[1].messageID
+
+	// --- Verify Agent completions have input and summary ---
+	for _, idx := range []int{2, 3} {
+		g := agentGroups[idx]
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["status"]) == "completed" {
+					if props["input"] == nil {
+						t.Errorf("Agent group %d completion missing input", idx)
+					}
+					if strDefault(props["summary"]) == "" {
+						t.Errorf("Agent group %d completion missing summary", idx)
+					}
+				}
+			}
+		}
+	}
+
+	// --- Verify sub-tool parent_message_id ---
+	var subToolChunks []map[string]any
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkExecute {
+			props := extractExecuteProps(ev)
+			if _, has := props["parent_message_id"]; has {
+				subToolChunks = append(subToolChunks, props)
+			}
+		}
+	}
+
+	// Sub-tools from both Agents should have parent_message_id.
+	parentMsgIDs := map[string]bool{}
+	for _, props := range subToolChunks {
+		pmid := strDefault(props["parent_message_id"])
+		parentMsgIDs[pmid] = true
+	}
+	if !parentMsgIDs[agent1MsgID] {
+		t.Errorf("no sub-tool found with parent_message_id=%q (Agent 1)", agent1MsgID)
+	}
+	if !parentMsgIDs[agent2MsgID] {
+		t.Errorf("no sub-tool found with parent_message_id=%q (Agent 2)", agent2MsgID)
+	}
+
+	// Verify parent_tool_use_id correctness for each sub-tool.
+	for _, props := range subToolChunks {
+		ptid := strDefault(props["parent_tool_use_id"])
+		pmid := strDefault(props["parent_message_id"])
+		if ptid == "final_1" && pmid != agent1MsgID {
+			t.Errorf("sub-tool with parent_tool_use_id=final_1: parent_message_id=%q, want %q", pmid, agent1MsgID)
+		}
+		if ptid == "final_2" && pmid != agent2MsgID {
+			t.Errorf("sub-tool with parent_tool_use_id=final_2: parent_message_id=%q, want %q", pmid, agent2MsgID)
+		}
+	}
+
+	// --- Verify main-thread tool_results have NO parent_message_id ---
+	for _, g := range agentGroups {
+		for _, ev := range g.events {
+			if ev.chunkType == message.ChunkExecute {
+				props := extractExecuteProps(ev)
+				if strDefault(props["tool"]) == "Agent" {
+					if _, has := props["parent_message_id"]; has {
+						t.Error("main-thread Agent tool_result should not have parent_message_id")
+					}
+				}
+			}
+		}
+	}
+}

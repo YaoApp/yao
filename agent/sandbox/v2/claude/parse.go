@@ -39,6 +39,10 @@ type streamParser struct {
 	toolMsgIDs    map[string]string // tool_id -> message_id (for result reuse)
 	toolInputs    map[string]string // tool_id -> full input JSON (for result replay)
 	toolSummaries map[string]string // tool_id -> summary (for result replay)
+
+	parentToolID  string            // current JSONL line's parent_tool_use_id (empty = main thread)
+	agentMsgIDs   map[string]string // Agent tool_use_id -> agent message_id (for child grouping)
+	pendingAgents []string          // FIFO queue of streaming-phase Agent tool_use_ids awaiting adoption by handleAssistant
 }
 
 type toolState struct {
@@ -57,6 +61,7 @@ func newStreamParser(handler message.StreamFunc) *streamParser {
 		toolMsgIDs:    make(map[string]string),
 		toolInputs:    make(map[string]string),
 		toolSummaries: make(map[string]string),
+		agentMsgIDs:   make(map[string]string),
 	}
 }
 
@@ -129,6 +134,11 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 
 		msgType, _ := msg["type"].(string)
 		lastEventType = msgType
+
+		// Extract parent_tool_use_id from every JSONL line.
+		// null/absent = main thread; non-empty = sub-agent tool under that Agent call.
+		p.parentToolID, _ = msg["parent_tool_use_id"].(string)
+
 		var stopped bool
 
 		switch msgType {
@@ -198,6 +208,7 @@ func (p *streamParser) closeStreamingTool() {
 	if t == nil {
 		return
 	}
+
 	inputStr := t.inputJSON.String()
 	if inputStr != "" {
 		p.toolInputs[t.id] = inputStr
@@ -256,7 +267,11 @@ func (p *streamParser) emitText(text string) (stopped bool) {
 }
 
 func (p *streamParser) emitExecute(props map[string]any) (stopped bool) {
-	data, _ := json.Marshal(props)
+	data, err := json.Marshal(props)
+	if err != nil {
+		log.Error("[claude-parse] emitExecute marshal error: %v", err)
+		return false
+	}
 	return p.handler != nil && p.handler(message.ChunkExecute, data) != 0
 }
 
@@ -297,7 +312,7 @@ func extractSummary(toolName string, inputJSON string) string {
 		}
 	}
 
-	for _, key := range []string{"path", "file_path", "command", "url", "query"} {
+	for _, key := range []string{"path", "file_path", "command", "url", "query", "description", "prompt", "task", "instructions", "message"} {
 		if v, ok := obj[key].(string); ok {
 			return truncate(v, 80)
 		}
@@ -372,6 +387,11 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 	p.toolNames[toolID] = toolName
 	p.toolMsgIDs[toolID] = msgID
 
+	if toolName == "Agent" {
+		p.agentMsgIDs[toolID] = msgID
+		p.pendingAgents = append(p.pendingAgents, toolID)
+	}
+
 	if p.handler == nil {
 		return false
 	}
@@ -382,6 +402,7 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 		"status":  "running",
 		"runner":  "claude-cli",
 	}
+	p.injectParentToolID(execProps)
 	injectSemanticType(execProps, toolName)
 	return p.emitExecute(execProps)
 }
@@ -445,11 +466,24 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 	}
 
 	stopReason, _ := msgData["stop_reason"].(string)
-	if stopReason == "" {
-		return false
-	}
-
 	contentArr, _ := msgData["content"].([]any)
+
+	toolUseCount := 0
+	for _, item := range contentArr {
+		if ci, ok := item.(map[string]any); ok {
+			if t, _ := ci["type"].(string); t == "tool_use" {
+				toolUseCount++
+			}
+		}
+	}
+	msgID, _ := msgData["id"].(string)
+	log.Trace("[claude-parse] handleAssistant msgID=%s stop_reason=%q parentToolID=%s tool_use_count=%d",
+		msgID, stopReason, p.parentToolID, toolUseCount)
+
+	// Process tool_use BEFORE the stop_reason guard. Sub-agent tool calls
+	// arrive in assistant messages with stop_reason=null; deferring them
+	// until stop_reason is set would prevent toolNames registration,
+	// leaving sub-tool results without titles.
 	for _, item := range contentArr {
 		ci, ok := item.(map[string]any)
 		if !ok {
@@ -461,6 +495,25 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			toolID, _ := ci["id"].(string)
 
 			if _, alreadyStreamed := p.toolNames[toolID]; alreadyStreamed && toolID != "" {
+				log.Trace("[claude-parse] alreadyStreamed toolID=%s pendingAgents=%d", toolID, len(p.pendingAgents))
+				for i, pid := range p.pendingAgents {
+					if pid == toolID {
+						p.pendingAgents = append(p.pendingAgents[:i], p.pendingAgents[i+1:]...)
+						break
+					}
+				}
+				toolName := p.toolNames[toolID]
+				if ciInput := ci["input"]; ciInput != nil {
+					inputRaw, _ := json.Marshal(ciInput)
+					if len(inputRaw) > 0 {
+						p.toolInputs[toolID] = string(inputRaw)
+					}
+					if p.toolSummaries[toolID] == "" {
+						if summary := extractSummary(toolName, string(inputRaw)); summary != "" {
+							p.toolSummaries[toolID] = summary
+						}
+					}
+				}
 				continue
 			}
 
@@ -468,6 +521,28 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			p.closeStreamingTool()
 
 			toolName, _ := ci["name"].(string)
+
+			// Adoption: reuse the streaming-phase Agent message instead of
+			// creating a duplicate. The streaming ID may differ from the
+			// final assistant ID (a2o re-keying), so we remap all state.
+			if toolName == "Agent" && len(p.pendingAgents) > 0 {
+				streamID := p.pendingAgents[0]
+				p.pendingAgents = p.pendingAgents[1:]
+
+				if existingMsgID, ok := p.toolMsgIDs[streamID]; ok {
+					log.Trace("[claude-parse] adoption streamID=%s -> toolID=%s existingMsgID=%s", streamID, toolID, existingMsgID)
+					p.toolNames[toolID] = "Agent"
+					p.toolMsgIDs[toolID] = existingMsgID
+					p.agentMsgIDs[toolID] = existingMsgID
+				}
+
+				inputRaw, _ := json.Marshal(ci["input"])
+				p.toolInputs[toolID] = string(inputRaw)
+				p.toolSummaries[toolID] = extractSummary(toolName, string(inputRaw))
+				p.toolIndex++
+				continue
+			}
+
 			if toolID == "" {
 				toolID = fmt.Sprintf("tool_%d_%d", p.toolIndex, time.Now().UnixNano())
 			}
@@ -480,6 +555,10 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			p.toolIndex++
 			p.toolNames[toolID] = toolName
 			p.toolMsgIDs[toolID] = msgID
+
+			if toolName == "Agent" {
+				p.agentMsgIDs[toolID] = msgID
+			}
 
 			inputRaw, _ := json.Marshal(ci["input"])
 			inputStr := string(inputRaw)
@@ -495,6 +574,7 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 				"status":  "running",
 				"runner":  "claude-cli",
 			}
+			p.injectParentToolID(execProps)
 			injectSemanticType(execProps, toolName)
 			if p.emitExecute(execProps) {
 				p.endMessage()
@@ -502,6 +582,19 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			}
 			p.endMessage()
 		}
+	}
+
+	// Text is only processed once the message is complete.
+	if stopReason == "" {
+		return false
+	}
+
+	for _, item := range contentArr {
+		ci, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		itemType, _ := ci["type"].(string)
 
 		if itemType == "text" {
 			text, _ := ci["text"].(string)
@@ -540,7 +633,9 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		}
 
 		toolUseID, _ := ci["tool_use_id"].(string)
-
+		_, hasReuseMsgID := p.toolMsgIDs[toolUseID]
+		log.Trace("[claude-parse] handleUser tool_result toolUseID=%s tool=%s reuseMsgID=%v parentToolID=%s",
+			toolUseID, p.toolNames[toolUseID], hasReuseMsgID, p.parentToolID)
 		// If the result belongs to the actively streaming tool, close its
 		// streaming phase (emits message_end for the running group).
 		if p.activeToolID == toolUseID {
@@ -583,6 +678,7 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		if summary, ok := p.toolSummaries[toolUseID]; ok {
 			execProps["summary"] = summary
 		}
+		p.injectParentToolID(execProps)
 		injectSemanticType(execProps, toolName)
 
 		if reuseMsgID, ok := p.toolMsgIDs[toolUseID]; ok {
@@ -695,5 +791,17 @@ func injectSemanticType(props map[string]any, toolName string) {
 		for k, v := range extraProps {
 			props[k] = v
 		}
+	}
+}
+
+// injectParentToolID annotates execute props with the parent Agent's tool_use_id
+// and message_id when the current JSONL line belongs to a sub-agent.
+func (p *streamParser) injectParentToolID(props map[string]any) {
+	if p.parentToolID == "" {
+		return
+	}
+	props["parent_tool_use_id"] = p.parentToolID
+	if agentMsgID, ok := p.agentMsgIDs[p.parentToolID]; ok {
+		props["parent_message_id"] = agentMsgID
 	}
 }

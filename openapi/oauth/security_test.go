@@ -463,8 +463,9 @@ func TestSecurityHelperMethods(t *testing.T) {
 		key := service.pushedAuthRequestKey(requestURI)
 
 		assert.NotEmpty(t, key)
-		assert.Contains(t, key, "oauth:par")
-		assert.Contains(t, key, requestURI)
+		assert.Contains(t, key, "oauth:par:")
+		// After SHA-256 hashing the key contains a 64-char hex digest, not the raw URI
+		assert.Len(t, key, len(service.prefix)+len("oauth:par:")+64)
 	})
 
 	t.Run("request URI generation", func(t *testing.T) {
@@ -620,5 +621,76 @@ func TestSecurityEdgeCases(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, response)
 		assert.NotEmpty(t, response.RequestURI)
+	})
+}
+
+// =============================================================================
+// Token Key Hashing Tests
+// =============================================================================
+
+func TestTokenKeyHashing(t *testing.T) {
+	service, _, _, cleanup := setupOAuthTestEnvironment(t)
+	defer cleanup()
+
+	t.Run("hashKey deterministic", func(t *testing.T) {
+		input := "some-token-value"
+		h1 := service.hashKey(input)
+		h2 := service.hashKey(input)
+		assert.Equal(t, h1, h2)
+		assert.Len(t, h1, 64) // SHA-256 hex = 64 chars
+	})
+
+	t.Run("hashKey different inputs yield different hashes", func(t *testing.T) {
+		h1 := service.hashKey("token-a")
+		h2 := service.hashKey("token-b")
+		assert.NotEqual(t, h1, h2)
+	})
+
+	t.Run("all key functions produce keys within 255 chars", func(t *testing.T) {
+		longJWT := strings.Repeat("x", 1000)
+
+		keys := []string{
+			service.accessTokenKey(longJWT),
+			service.refreshTokenKey(longJWT),
+			service.authorizationCodeKey(longJWT),
+			service.pushedAuthRequestKey(longJWT),
+			service.deviceCodeKey(longJWT),
+			service.userCodeKey(longJWT),
+		}
+
+		for _, key := range keys {
+			assert.LessOrEqual(t, len(key), 255, "key exceeds 255 chars: %s", key)
+		}
+	})
+
+	t.Run("key functions contain correct type prefix", func(t *testing.T) {
+		token := "test-token"
+
+		assert.Contains(t, service.accessTokenKey(token), "oauth:access_token:")
+		assert.Contains(t, service.refreshTokenKey(token), "oauth:refresh_token:")
+		assert.Contains(t, service.authorizationCodeKey(token), "oauth:auth_code:")
+		assert.Contains(t, service.pushedAuthRequestKey(token), "oauth:par:")
+		assert.Contains(t, service.deviceCodeKey(token), "oauth:device_code:")
+		assert.Contains(t, service.userCodeKey(token), "oauth:user_code:")
+	})
+
+	t.Run("same token produces same key", func(t *testing.T) {
+		token := "test-token-for-consistency"
+		k1 := service.accessTokenKey(token)
+		k2 := service.accessTokenKey(token)
+		assert.Equal(t, k1, k2)
+	})
+
+	t.Run("store round-trip with hashed keys", func(t *testing.T) {
+		token := "round-trip-test-token"
+		key := service.accessTokenKey(token)
+		expected := map[string]interface{}{"client_id": "test-client"}
+
+		err := service.store.Set(key, expected, 60*time.Second)
+		assert.NoError(t, err)
+
+		got, ok := service.store.Get(key)
+		assert.True(t, ok)
+		assert.NotNil(t, got)
 	})
 }

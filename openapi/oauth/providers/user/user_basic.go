@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/openapi/utils"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -145,6 +146,7 @@ func (u *DefaultUser) UserExists(ctx context.Context, userID string) (bool, erro
 
 // UserExistsByEmail checks if a user exists by email (lightweight query)
 func (u *DefaultUser) UserExistsByEmail(ctx context.Context, email string) (bool, error) {
+	email = utils.NormalizeEmail(email)
 	m := model.Select(u.model)
 	users, err := m.Get(model.QueryParam{
 		Select: []interface{}{"id"}, // Only select ID for existence check
@@ -203,6 +205,7 @@ func (u *DefaultUser) GetUserByPreferredUsername(ctx context.Context, preferredU
 
 // GetUserByEmail retrieves user by email address
 func (u *DefaultUser) GetUserByEmail(ctx context.Context, email string) (maps.MapStrAny, error) {
+	email = utils.NormalizeEmail(email)
 	m := model.Select(u.model)
 	users, err := m.Get(model.QueryParam{
 		Select: u.publicUserFields,
@@ -235,6 +238,7 @@ func (u *DefaultUser) GetUserForAuth(ctx context.Context, identifier string, ide
 		column = "preferred_username"
 	case "email":
 		column = "email"
+		identifier = utils.NormalizeEmail(identifier)
 	case "phone_number":
 		column = "phone_number"
 	default:

@@ -383,6 +383,21 @@ func (ast *Assistant) EnsureChat(ctx *agentcontext.Context) error {
 	return chatStore.CreateChat(chat)
 }
 
+// updateChatWorkspace persists last_workspace early so API handlers can
+// resolve the host node during the first stream (before FlushBuffer runs).
+func (ast *Assistant) updateChatWorkspace(chatID, workspaceID string) {
+	if chatID == "" || workspaceID == "" {
+		return
+	}
+	chatStore := GetChatStore()
+	if chatStore == nil {
+		return
+	}
+	_ = chatStore.UpdateChat(chatID, map[string]interface{}{
+		"last_workspace": workspaceID,
+	})
+}
+
 // GetChatStore returns the chat store instance
 // Returns nil if storage is not configured
 func GetChatStore() storetypes.ChatStore {

@@ -66,6 +66,11 @@ func GinEntryVerify(c *gin.Context) {
 		return
 	}
 
+	log.Debug("[entry.verify] raw username=%q ip=%s", req.Username, c.ClientIP())
+
+	// Normalize input: trim whitespace for all types, lowercase for email
+	req.Username = strings.TrimSpace(req.Username)
+
 	// Get locale from request or query parameter
 	locale := req.Locale
 	if locale == "" {
@@ -74,6 +79,9 @@ func GinEntryVerify(c *gin.Context) {
 
 	// Determine username type (email or mobile) - check this first before expensive operations
 	usernameType := determineUsernameType(req.Username)
+	if usernameType == "email" {
+		req.Username = utils.NormalizeEmail(req.Username)
+	}
 	if usernameType == "" {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrInvalidRequest.Code,

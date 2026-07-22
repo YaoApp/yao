@@ -223,6 +223,7 @@ type Ports struct {
 	Vnc           int32                  `protobuf:"varint,3,opt,name=vnc,proto3" json:"vnc,omitempty"`
 	Docker        int32                  `protobuf:"varint,4,opt,name=docker,proto3" json:"docker,omitempty"`
 	K8S           int32                  `protobuf:"varint,5,opt,name=k8s,proto3" json:"k8s,omitempty"`
+	A2O           int32                  `protobuf:"varint,6,opt,name=a2o,proto3" json:"a2o,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -292,6 +293,13 @@ func (x *Ports) GetK8S() int32 {
 	return 0
 }
 
+func (x *Ports) GetA2O() int32 {
+	if x != nil {
+		return x.A2O
+	}
+	return 0
+}
+
 type Capabilities struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Docker        bool                   `protobuf:"varint,1,opt,name=docker,proto3" json:"docker,omitempty"`
@@ -299,6 +307,7 @@ type Capabilities struct {
 	HostExec      bool                   `protobuf:"varint,3,opt,name=host_exec,json=hostExec,proto3" json:"host_exec,omitempty"`
 	Vnc           bool                   `protobuf:"varint,4,opt,name=vnc,proto3" json:"vnc,omitempty"`
 	Runners       []string               `protobuf:"bytes,5,rep,name=runners,proto3" json:"runners,omitempty"`
+	A2O           bool                   `protobuf:"varint,6,opt,name=a2o,proto3" json:"a2o,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -366,6 +375,13 @@ func (x *Capabilities) GetRunners() []string {
 		return x.Runners
 	}
 	return nil
+}
+
+func (x *Capabilities) GetA2O() bool {
+	if x != nil {
+		return x.A2O
+	}
+	return false
 }
 
 type SystemInfo struct {
@@ -462,19 +478,21 @@ const file_tai_tunnel_proto_tunnel_proto_rawDesc = "" +
 	"\x0econtainer_port\x18\x0e \x01(\x05R\rcontainerPort\x12\x15\n" +
 	"\x06tai_id\x18\x14 \x01(\tR\x05taiId\"!\n" +
 	"\vForwardData\x12\x12\n" +
-	"\x04data\x18\x01 \x01(\fR\x04data\"k\n" +
+	"\x04data\x18\x01 \x01(\fR\x04data\"}\n" +
 	"\x05Ports\x12\x12\n" +
 	"\x04grpc\x18\x01 \x01(\x05R\x04grpc\x12\x12\n" +
 	"\x04http\x18\x02 \x01(\x05R\x04http\x12\x10\n" +
 	"\x03vnc\x18\x03 \x01(\x05R\x03vnc\x12\x16\n" +
 	"\x06docker\x18\x04 \x01(\x05R\x06docker\x12\x10\n" +
-	"\x03k8s\x18\x05 \x01(\x05R\x03k8s\"\x81\x01\n" +
+	"\x03k8s\x18\x05 \x01(\x05R\x03k8s\x12\x10\n" +
+	"\x03a2o\x18\x06 \x01(\x05R\x03a2o\"\x93\x01\n" +
 	"\fCapabilities\x12\x16\n" +
 	"\x06docker\x18\x01 \x01(\bR\x06docker\x12\x10\n" +
 	"\x03k8s\x18\x02 \x01(\bR\x03k8s\x12\x1b\n" +
 	"\thost_exec\x18\x03 \x01(\bR\bhostExec\x12\x10\n" +
 	"\x03vnc\x18\x04 \x01(\bR\x03vnc\x12\x18\n" +
-	"\arunners\x18\x05 \x03(\tR\arunners\"b\n" +
+	"\arunners\x18\x05 \x03(\tR\arunners\x12\x10\n" +
+	"\x03a2o\x18\x06 \x01(\bR\x03a2o\"b\n" +
 	"\n" +
 	"SystemInfo\x12\x0e\n" +
 	"\x02os\x18\x01 \x01(\tR\x02os\x12\x12\n" +

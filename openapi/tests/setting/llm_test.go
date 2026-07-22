@@ -259,9 +259,9 @@ func TestLLMProviderUpdate(t *testing.T) {
 }
 
 func TestLLMProviderDelete(t *testing.T) {
-	anthropicKey := os.Getenv("ANTHROPIC_API_KEY")
-	if anthropicKey == "" {
-		t.Skip("ANTHROPIC_API_KEY not set")
+	openrouterKey := os.Getenv("OPENROUTER_KEY")
+	if openrouterKey == "" {
+		t.Skip("OPENROUTER_KEY not set")
 	}
 
 	serverURL := testutils.Prepare(t)
@@ -272,7 +272,8 @@ func TestLLMProviderDelete(t *testing.T) {
 
 	createPayload := map[string]interface{}{
 		"preset_key": "anthropic",
-		"api_key":    anthropicKey,
+		"api_key":    openrouterKey,
+		"api_url":    "https://openrouter.ai/api",
 	}
 	createResp := llmPost(t, llmURL(serverURL, "/providers"), token, createPayload)
 	createBody := llmBody(t, createResp)

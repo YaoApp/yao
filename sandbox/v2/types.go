@@ -37,6 +37,7 @@ type ComputerInfo struct {
 	System       SystemInfo
 	Mode         string // "local" | "cloud" | "tunnel"
 	Capabilities map[string]bool
+	Ports        map[string]int // service ports from node registration (a2o, etc.)
 	Status       string
 
 	// Box-specific fields (zero values for Host)

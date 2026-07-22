@@ -83,6 +83,7 @@ func portsFromMap(m map[string]int) types.Ports {
 		VNC:    m["vnc"],
 		Docker: m["docker"],
 		K8s:    m["k8s"],
+		A2O:    m["a2o"],
 	}
 }
 
@@ -92,5 +93,6 @@ func capsFromMap(m map[string]bool) types.Capabilities {
 		K8s:      m["k8s"],
 		HostExec: m["host_exec"],
 		VNC:      m["vnc"],
+		A2O:      m["a2o"],
 	}
 }

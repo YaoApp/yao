@@ -17,6 +17,7 @@ type Ports struct {
 	VNC    int `json:"vnc"`
 	Docker int `json:"docker"`
 	K8s    int `json:"k8s"`
+	A2O    int `json:"a2o"`
 }
 
 // Capabilities describes what features a Tai node supports.
@@ -25,6 +26,7 @@ type Capabilities struct {
 	K8s      bool     `json:"k8s"`
 	HostExec bool     `json:"host_exec"`
 	VNC      bool     `json:"vnc"`
+	A2O      bool     `json:"a2o"`
 	Runners  []string `json:"runners,omitempty"`
 }
 

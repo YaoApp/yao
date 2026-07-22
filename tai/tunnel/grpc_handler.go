@@ -494,6 +494,7 @@ func portsFromProto(p *taipb.Ports) types.Ports {
 		VNC:    int(p.Vnc),
 		Docker: int(p.Docker),
 		K8s:    int(p.K8S),
+		A2O:    int(p.A2O),
 	}
 }
 
@@ -506,6 +507,7 @@ func capsFromProto(c *taipb.Capabilities) types.Capabilities {
 		K8s:      c.K8S,
 		HostExec: c.HostExec,
 		VNC:      c.Vnc,
+		A2O:      c.A2O,
 		Runners:  c.Runners,
 	}
 }
