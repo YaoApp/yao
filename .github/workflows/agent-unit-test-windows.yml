@@ -204,6 +204,7 @@ jobs:
           sed -i 's|^DINGTALK_TEST_CLIENT_SECRET=.*|DINGTALK_TEST_CLIENT_SECRET=${{ secrets.DINGTALK_TEST_CLIENT_SECRET }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^DISCORD_TEST_BOT_TOKEN=.*|DISCORD_TEST_BOT_TOKEN=${{ secrets.DISCORD_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^DISCORD_TEST_APP_ID=.*|DISCORD_TEST_APP_ID=${{ secrets.DISCORD_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^OPENROUTER_KEY=.*|OPENROUTER_KEY=${{ secrets.OPENROUTER_KEY }}|' unit-test/agent/env/agent-test.env
           if [ "${{ matrix.db }}" = "Postgres17" ]; then
             sed -i 's|^YAO_DB_DRIVER=.*|YAO_DB_DRIVER=postgres|' unit-test/agent/env/agent-test.env
             sed -i 's|^YAO_DB_PRIMARY=.*|YAO_DB_PRIMARY=postgres://yao:123456@127.0.0.1:5432/agent_test?sslmode=disable|' unit-test/agent/env/agent-test.env

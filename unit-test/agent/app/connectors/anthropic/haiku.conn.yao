@@ -3,8 +3,8 @@
   "type": "anthropic",
   "options": {
     "model": "claude-haiku-4-5-20251001",
-    "host": "https://api.anthropic.com",
-    "key": "$ENV.ANTHROPIC_API_KEY",
+    "host": "https://openrouter.ai/api",
+    "key": "$ENV.OPENROUTER_KEY",
     "capabilities": {
       "tool_calls": true,
       "streaming": true

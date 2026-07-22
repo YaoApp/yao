@@ -158,7 +158,8 @@ func (s *streamState) handleMessageStart(data []byte) int {
 	s.currentGroupID = messageID
 	s.buffer = []byte{}
 	s.chunkCount = 0
-	s.messageSeq = 0 // Reset message sequence for each message
+	s.messageSeq = 0
+	s.lastExecProps = nil
 	s.groupStartTime = time.Now()
 
 	// Send message_start event
@@ -354,6 +355,7 @@ func (s *streamState) handleExecute(data []byte) int {
 
 	var props map[string]interface{}
 	if err := jsoniter.Unmarshal(data, &props); err != nil {
+		log.Error("[stream] handleExecute unmarshal error: %v (data len=%d)", err, len(data))
 		return 0
 	}
 
@@ -369,7 +371,7 @@ func (s *streamState) handleExecute(data []byte) int {
 	}
 
 	msgType := message.TypeExecute
-	if st, ok := props["semantic_type"].(string); ok && st != "" {
+	if st, ok := s.lastExecProps["semantic_type"].(string); ok && st != "" {
 		msgType = st
 	}
 	s.currentType = msgType
@@ -473,7 +475,9 @@ func (s *streamState) handleMessageEnd(data []byte) int {
 		(s.lastExecStatus == "completed" || s.lastExecStatus == "error")
 	skipExecute := isExecFamily && !isExecuteFinal
 
-	if s.ctx.Buffer != nil && (len(s.buffer) > 0 || s.lastExecProps != nil) && !shouldSkipHistory && !skipExecute {
+	willPersist := s.ctx.Buffer != nil && (len(s.buffer) > 0 || s.lastExecProps != nil) && !shouldSkipHistory && !skipExecute
+
+	if willPersist {
 		assistantID := ""
 		if s.ctx.Stack != nil {
 			assistantID = s.ctx.Stack.AssistantID
