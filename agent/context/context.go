@@ -268,6 +268,9 @@ func (ctx *Context) Trace() (traceTypes.Manager, error) {
 	var driverType string
 
 	switch cfg.Trace.Driver {
+	case "none":
+		return nil, nil
+
 	case "store":
 		driverType = trace.Store
 		if cfg.Trace.Store == "" {

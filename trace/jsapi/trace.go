@@ -97,6 +97,9 @@ func TraceNew(v8ctx *v8go.Context, options map[string]interface{}) (*v8go.Value,
 	}
 
 	switch driver {
+	case "none":
+		return NewNoOpTraceObject(v8ctx)
+
 	case "store":
 		driverType = trace.Store
 		storeID := cfg.Trace.Store

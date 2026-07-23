@@ -306,6 +306,7 @@ func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 }
 
 func TestJsValueTrace(t *testing.T) {
+	t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
 	testprepare.PrepareSandbox(t)
 
 	cxt := agentctx.New(stdContext.Background(), nil, "test-chat-id")

@@ -262,6 +262,7 @@ func TestGetSample(t *testing.T) {
 }
 
 func TestMCPWithTrace(t *testing.T) {
+	t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
 	testprepare.PrepareSandbox(t)
 
 	ctx := newTestMCPContext()

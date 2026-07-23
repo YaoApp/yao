@@ -55,6 +55,9 @@ type YaoMetadata struct {
 	GRPCTLSCA string                 `json:"grpc_tls_ca,omitempty"` // gRPC TLS CA certificate PEM (for self-signed auto-distribution)
 	Optional  map[string]interface{} `json:"optional,omitempty"`    // Optional settings
 
+	// WebProxy configuration for desktop client tunnel detection
+	WebProxy *WebProxyMeta `json:"webproxy,omitempty"`
+
 	// Deployment flags
 	DisableSystemSetting bool `json:"disable_system_setting,omitempty"` // System setting UI disabled for managed deployments
 
@@ -63,6 +66,13 @@ type YaoMetadata struct {
 
 	// Developer information
 	Developer *share.Developer `json:"developer,omitempty"`
+}
+
+// WebProxyMeta exposes WebProxy configuration for client discovery.
+type WebProxyMeta struct {
+	Domain   string `json:"domain"`
+	Prefix   string `json:"prefix"`
+	Protocol string `json:"protocol"`
 }
 
 // yaoMetadata returns Yao server configuration metadata
@@ -84,6 +94,22 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 		GRPC:                 resolveGRPCAddr(c),
 		Optional:             share.App.Optional,
 		DisableSystemSetting: config.Conf.DisableSystemSetting,
+	}
+
+	if config.Conf.WebProxy.Domain != "" {
+		prefix := config.Conf.WebProxy.Prefix
+		if prefix == "" {
+			prefix = "p"
+		}
+		protocol := config.Conf.WebProxy.Protocol
+		if protocol == "" {
+			protocol = "http"
+		}
+		metadata.WebProxy = &WebProxyMeta{
+			Domain:   config.Conf.WebProxy.Domain,
+			Prefix:   prefix,
+			Protocol: protocol,
+		}
 	}
 
 	// Include gRPC TLS info

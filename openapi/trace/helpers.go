@@ -121,6 +121,9 @@ func getTraceDriver() (driverType string, driverOptions []any, err error) {
 	cfg := config.Conf
 
 	switch cfg.Trace.Driver {
+	case "none":
+		return "", nil, fmt.Errorf("trace is disabled (driver=none)")
+
 	case "store":
 		if cfg.Trace.Store == "" {
 			return "", nil, fmt.Errorf("trace store ID not configured")
