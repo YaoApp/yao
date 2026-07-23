@@ -15,6 +15,7 @@ import (
 )
 
 func TestContextTrace_SavesAuthorizedInfo(t *testing.T) {
+	t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
 	testprepare.PrepareSandbox(t)
 
 	authInfo := &types.AuthorizedInfo{

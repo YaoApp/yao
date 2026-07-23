@@ -155,13 +155,10 @@ func LoadWithRoot(root string) Config {
 		}
 	}
 
-	// Trace Driver - default based on mode
+	// Trace Driver - default to "none" (disabled)
+	// Use YAO_TRACE_DRIVER=local or YAO_TRACE_DRIVER=store to enable
 	if cfg.Trace.Driver == "" {
-		if cfg.Mode == "development" {
-			cfg.Trace.Driver = "local"
-		} else {
-			cfg.Trace.Driver = "store"
-		}
+		cfg.Trace.Driver = "none"
 	}
 
 	// Trace Path - default to same directory as log file when using local driver
