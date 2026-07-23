@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/tests/testutils"
@@ -31,6 +32,9 @@ type testTraceData struct {
 // This provides consistent test data for all trace API tests
 func prepareTestTrace(t *testing.T) *testTraceData {
 	serverURL := testutils.Prepare(t)
+	if config.Conf.Trace.Driver == "none" {
+		t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
+	}
 
 	// Get base URL from server config
 	baseURL := ""
