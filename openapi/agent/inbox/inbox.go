@@ -19,13 +19,14 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.GET("", handleList)
 	group.GET("/stats", handleStats)
 	group.GET("/unread-count", handleUnreadCount)
-	group.PUT("/read-all", handleReadAll)
 
-	group.PUT("/:mail_id/read", handleRead)
-	group.PUT("/:mail_id/star", handleStar)
-	group.PUT("/:mail_id/unstar", handleUnstar)
-	group.PUT("/:mail_id/pin", handlePin)
-	group.PUT("/:mail_id/unpin", handleUnpin)
+	group.PUT("/view/:chat_id", handleView)
+	group.PUT("/read-all", handleReadAll)
+	group.PUT("/bookmark/:chat_id", handleBookmark)
+	group.PUT("/unbookmark/:chat_id", handleUnbookmark)
+	group.PUT("/pin/:chat_id", handlePin)
+	group.PUT("/unpin/:chat_id", handleUnpin)
+
 	group.DELETE("/chat/:chat_id", handleDeleteByChat)
 }
 
@@ -62,21 +63,28 @@ func handleStats(c *gin.Context) {
 
 func handleUnreadCount(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	result, err := inboxsvc.UnreadCount(c.Request.Context(), auth)
+	count, err := inboxsvc.UnreadCount(c.Request.Context(), auth)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
 	}
-	response.RespondWithSuccess(c, http.StatusOK, result)
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"total": count})
+}
+
+func handleView(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	err := inboxsvc.View(c.Request.Context(), auth, chatID)
+	if err != nil {
+		respondError(c, http.StatusNotFound, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
 func handleReadAll(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	var req struct {
-		Type string `json:"type"`
-	}
-	c.ShouldBindJSON(&req)
-	count, err := inboxsvc.ReadAll(c.Request.Context(), auth, req.Type)
+	count, err := inboxsvc.ReadAll(c.Request.Context(), auth)
 	if err != nil {
 		respondError(c, http.StatusInternalServerError, err)
 		return
@@ -84,10 +92,10 @@ func handleReadAll(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"count": count})
 }
 
-func handleRead(c *gin.Context) {
+func handleBookmark(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Read(c.Request.Context(), auth, mailID)
+	chatID := c.Param("chat_id")
+	err := inboxsvc.Bookmark(c.Request.Context(), auth, chatID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -95,21 +103,10 @@ func handleRead(c *gin.Context) {
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
 }
 
-func handleStar(c *gin.Context) {
+func handleUnbookmark(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Star(c.Request.Context(), auth, mailID)
-	if err != nil {
-		respondError(c, http.StatusNotFound, err)
-		return
-	}
-	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
-}
-
-func handleUnstar(c *gin.Context) {
-	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Unstar(c.Request.Context(), auth, mailID)
+	chatID := c.Param("chat_id")
+	err := inboxsvc.Unbookmark(c.Request.Context(), auth, chatID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -119,8 +116,8 @@ func handleUnstar(c *gin.Context) {
 
 func handlePin(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Pin(c.Request.Context(), auth, mailID)
+	chatID := c.Param("chat_id")
+	err := inboxsvc.Pin(c.Request.Context(), auth, chatID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return
@@ -130,8 +127,8 @@ func handlePin(c *gin.Context) {
 
 func handleUnpin(c *gin.Context) {
 	auth := toProcessAuth(authorized.GetInfo(c))
-	mailID := c.Param("mail_id")
-	err := inboxsvc.Unpin(c.Request.Context(), auth, mailID)
+	chatID := c.Param("chat_id")
+	err := inboxsvc.Unpin(c.Request.Context(), auth, chatID)
 	if err != nil {
 		respondError(c, http.StatusNotFound, err)
 		return

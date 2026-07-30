@@ -1,0 +1,1 @@
+{"name":"inbox_view","description":"Mark a task as viewed in inbox (clears unread)","inputSchema":{"type":"object","properties":{"chat_id":{"type":"string","description":"Chat ID of the task to mark as viewed"}},"required":["chat_id"]}}

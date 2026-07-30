@@ -10,5 +10,5 @@ import (
 // Fn pointers injected by openapi/agent/inbox/tools_bridge.go init()
 var (
 	FnList func(ctx context.Context, auth *process.AuthorizedInfo, q *inboxsvc.ListQuery) (*inboxsvc.ListResult, error)
-	FnRead func(ctx context.Context, auth *process.AuthorizedInfo, mailID string) error
+	FnView func(ctx context.Context, auth *process.AuthorizedInfo, chatID string) error
 )

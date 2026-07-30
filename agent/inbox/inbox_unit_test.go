@@ -45,13 +45,15 @@ func TestListQueryChatIDField(t *testing.T) {
 	}
 }
 
-// --- Counts ---
+// --- InboxStats ---
 
-func TestCountsAggregation(t *testing.T) {
-	c := &inbox.Counts{Input: 3, Completed: 5, Failed: 2, Total: 10}
-	sum := c.Input + c.Completed + c.Failed
-	if c.Total != sum {
-		t.Errorf("Total=%d != Input+Completed+Failed=%d", c.Total, sum)
+func TestInboxStatsFields(t *testing.T) {
+	s := &inbox.InboxStats{All: 10, Bookmarked: 3, Input: 4, Completed: 2, Failed: 1, Archived: 2}
+	if s.All != 10 {
+		t.Errorf("All = %d, want 10", s.All)
+	}
+	if s.Bookmarked != 3 {
+		t.Errorf("Bookmarked = %d, want 3", s.Bookmarked)
 	}
 }
 
@@ -61,7 +63,7 @@ func TestAgentMailFieldBinding(t *testing.T) {
 	m := &inbox.AgentMail{
 		MailID: "mail-001", Type: "input", Priority: "high",
 		Title: "Needs input", ChatID: "chat-x",
-		Read: false, Starred: true, Pinned: true,
+		Bookmarked: true, InboxPinned: true, HasUnread: true,
 	}
 	if m.Type != "input" {
 		t.Error("Type")
@@ -69,14 +71,14 @@ func TestAgentMailFieldBinding(t *testing.T) {
 	if m.Priority != "high" {
 		t.Error("Priority")
 	}
-	if m.Read {
-		t.Error("Read should be false")
+	if !m.Bookmarked {
+		t.Error("Bookmarked should be true")
 	}
-	if !m.Starred {
-		t.Error("Starred should be true")
+	if !m.InboxPinned {
+		t.Error("InboxPinned should be true")
 	}
-	if !m.Pinned {
-		t.Error("Pinned should be true")
+	if !m.HasUnread {
+		t.Error("HasUnread should be true")
 	}
 }
 
@@ -99,7 +101,7 @@ func TestAgentTaskActiveVsDeleted(t *testing.T) {
 
 func TestRowToMailFull(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
-	row := map[string]interface{}{
+	row := inbox.XunR{
 		"mail_id":      "mail-abc",
 		"type":         "completed",
 		"priority":     "low",
@@ -110,10 +112,6 @@ func TestRowToMailFull(t *testing.T) {
 		"source_type":  "kanban",
 		"source_id":    "board-001",
 		"source_name":  "Dev Board",
-		"read":         true,
-		"starred":      true,
-		"pinned":       false,
-		"read_at":      now,
 		"created_at":   now.Format(time.RFC3339),
 		"updated_at":   now.Format("2006-01-02 15:04:05"),
 	}
@@ -147,18 +145,6 @@ func TestRowToMailFull(t *testing.T) {
 	if m.SourceName != "Dev Board" {
 		t.Errorf("SourceName = %q", m.SourceName)
 	}
-	if !m.Read {
-		t.Error("Read should be true")
-	}
-	if !m.Starred {
-		t.Error("Starred should be true")
-	}
-	if m.Pinned {
-		t.Error("Pinned should be false")
-	}
-	if m.ReadAt == nil {
-		t.Error("ReadAt should not be nil")
-	}
 	if m.CreatedAt == nil {
 		t.Error("CreatedAt should not be nil")
 	}
@@ -168,17 +154,16 @@ func TestRowToMailFull(t *testing.T) {
 }
 
 func TestRowToMailMinimal(t *testing.T) {
-	row := map[string]interface{}{
-		"mail_id": "m1", "type": "input", "priority": "high",
-		"title": "Need input", "chat_id": "c1",
-		"read": false, "starred": false, "pinned": false,
+	row := inbox.XunR{
+		"mail_id":  "m1",
+		"type":     "input",
+		"priority": "high",
+		"title":    "Need input",
+		"chat_id":  "c1",
 	}
 	m := inbox.ExportRowToMail(row)
 	if m.MailID != "m1" {
 		t.Error("MailID")
-	}
-	if m.ReadAt != nil {
-		t.Error("ReadAt should be nil")
 	}
 	if m.Body != "" {
 		t.Errorf("Body should be empty, got %q", m.Body)
@@ -191,7 +176,7 @@ func TestRowToMailMinimal(t *testing.T) {
 // --- helper functions ---
 
 func TestHelperGetString(t *testing.T) {
-	row := map[string]interface{}{"k": "v", "nil": nil, "num": 42}
+	row := inbox.XunR{"k": "v", "nil": nil, "num": 42}
 	if inbox.ExportGetString(row, "k") != "v" {
 		t.Error("valid string")
 	}
@@ -207,7 +192,7 @@ func TestHelperGetString(t *testing.T) {
 }
 
 func TestHelperGetInt(t *testing.T) {
-	row := map[string]interface{}{"f": float64(10), "i64": int64(20), "i": 30}
+	row := inbox.XunR{"f": float64(10), "i64": int64(20), "i": 30}
 	if inbox.ExportGetInt(row, "f") != 10 {
 		t.Error("float64")
 	}
@@ -223,7 +208,7 @@ func TestHelperGetInt(t *testing.T) {
 }
 
 func TestHelperGetBool(t *testing.T) {
-	row := map[string]interface{}{"t": true, "f": false, "f1": float64(1), "i0": int64(0)}
+	row := inbox.XunR{"t": true, "f": false, "f1": float64(1), "i0": int64(0)}
 	if !inbox.ExportGetBool(row, "t") {
 		t.Error("true")
 	}
@@ -240,7 +225,7 @@ func TestHelperGetBool(t *testing.T) {
 
 func TestHelperGetTime(t *testing.T) {
 	now := time.Now().Truncate(time.Second)
-	row := map[string]interface{}{
+	row := inbox.XunR{
 		"t":          now,
 		"rfc":        now.Format(time.RFC3339),
 		"rfc_nano":   now.Format(time.RFC3339Nano),

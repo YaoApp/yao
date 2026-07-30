@@ -221,6 +221,43 @@
       "option": ["archived", "permanent"],
       "nullable": true,
       "index": true
+    },
+    {
+      "name": "bookmarked",
+      "type": "boolean",
+      "label": "Bookmarked",
+      "comment": "Whether task is bookmarked in inbox",
+      "default": false
+    },
+    {
+      "name": "inbox_pinned",
+      "type": "boolean",
+      "label": "Inbox Pinned",
+      "comment": "Whether task is pinned to top in inbox (separate from kanban pinned)",
+      "default": false
+    },
+    {
+      "name": "has_unread",
+      "type": "boolean",
+      "label": "Has Unread",
+      "comment": "Whether this task has unread inbox notifications",
+      "default": false
+    },
+    {
+      "name": "inbox_read_at",
+      "type": "datetime",
+      "label": "Inbox Read At",
+      "comment": "When the user last viewed this task in inbox",
+      "nullable": true
+    },
+    {
+      "name": "last_mail_type",
+      "type": "enum",
+      "label": "Last Mail Type",
+      "comment": "Type of the latest inbox notification for this task",
+      "option": ["input", "completed", "failed", "update"],
+      "nullable": true,
+      "index": true
     }
   ],
   "indexes": [

@@ -97,35 +97,6 @@
       "nullable": true
     },
     {
-      "name": "read",
-      "type": "boolean",
-      "label": "Read",
-      "comment": "Whether mail has been read",
-      "default": false,
-      "index": true
-    },
-    {
-      "name": "starred",
-      "type": "boolean",
-      "label": "Starred",
-      "comment": "Whether mail is starred",
-      "default": false
-    },
-    {
-      "name": "pinned",
-      "type": "boolean",
-      "label": "Pinned",
-      "comment": "Whether mail is pinned",
-      "default": false
-    },
-    {
-      "name": "read_at",
-      "type": "datetime",
-      "label": "Read At",
-      "comment": "Time when mail was read",
-      "nullable": true
-    },
-    {
       "name": "metadata",
       "type": "json",
       "label": "Metadata",
@@ -134,10 +105,6 @@
     }
   ],
   "indexes": [
-    {
-      "name": "idx_read_type",
-      "columns": ["read", "type"]
-    },
     {
       "name": "idx_source",
       "columns": ["source_type", "source_id"]
