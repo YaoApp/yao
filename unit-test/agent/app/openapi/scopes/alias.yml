@@ -41,6 +41,7 @@ client:free:
   - job:all
   - agent:all
   - chat:all
+  - tasks:all
   - otp:all
   - event:all
   - messenger:all
@@ -61,6 +62,7 @@ client:pro:
   - job:all
   - agent:all
   - chat:all
+  - tasks:all
   - otp:all
   - event:all
   - dsl:all
@@ -84,6 +86,7 @@ client:ent:
   - job:all
   - agent:all
   - chat:all
+  - tasks:all
   - otp:all
   - event:all
   - dsl:all
@@ -119,6 +122,7 @@ user:free:
   - job:all:own
   - agent:read:own
   - chat:all:own
+  - tasks:all:own
   - otp:all:own
   - event:all:own
   - llm:all:own
@@ -141,6 +145,7 @@ user:pro:
   - job:all:own
   - agent:all:own
   - chat:all:own
+  - tasks:all:own
   - otp:all:own
   - event:all:own
   - dsl:all:own
@@ -164,6 +169,7 @@ user:ent:
   - job:all:own
   - agent:all:own
   - chat:all:own
+  - tasks:all:own
   - otp:all:own
   - event:all:own
   - dsl:all:own
@@ -195,6 +201,7 @@ team:owner:
   - job:all:team
   - agent:all:team
   - chat:all:team
+  - tasks:all:team
   - otp:all:team
   - event:all:team
   - dsl:all:team
@@ -218,6 +225,7 @@ team:admin:
   - job:manage:team
   - agent:manage:team
   - chat:manage:team
+  - tasks:all:team
   - otp:manage:team
   - event:all:team
   - dsl:manage:team
@@ -249,6 +257,7 @@ team:member:
   - agent:write:own
   - chat:read:team
   - chat:write:own
+  - tasks:all:own
   - event:all:team
   - dsl:read:team
   - dsl:write:own
@@ -693,6 +702,26 @@ agent:write:own:
   - agent:tasks:execute:own
   - agent:boards:write:own
   - agent:inbox:write:own
+
+# ============ Tasks Resources Aliases ============
+
+tasks:all:
+  - agent:tasks:read:all
+  - agent:tasks:write:all
+  - agent:tasks:delete:all
+  - agent:tasks:execute:all
+
+tasks:all:own:
+  - agent:tasks:read:own
+  - agent:tasks:write:own
+  - agent:tasks:delete:own
+  - agent:tasks:execute:own
+
+tasks:all:team:
+  - agent:tasks:read:team
+  - agent:tasks:write:team
+  - agent:tasks:delete:team
+  - agent:tasks:execute:team
 
 # ============ Chat Resources Aliases ============
 
