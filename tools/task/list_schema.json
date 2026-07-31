@@ -1,1 +1,16 @@
-{"name":"task_list","description":"List tasks with optional filtering by status, assistant, or board","inputSchema":{"type":"object","properties":{"run_status":{"type":"string","description":"Filter by run status (pending/running/waiting/completed/failed)"},"assistant_id":{"type":"string","description":"Filter by assistant ID"},"board_id":{"type":"string","description":"Filter by board ID"},"page":{"type":"number","description":"Page number (default 1)"},"page_size":{"type":"number","description":"Items per page (default 50)"}}}}
+{
+  "name": "task_list",
+  "description": "List tasks with optional filtering by status, assistant, or board",
+  "process": "tools.task_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "run_status": { "type": "string", "description": "Filter by run status (pending/running/waiting/completed/failed)" },
+      "assistant_id": { "type": "string", "description": "Filter by assistant ID" },
+      "board_id": { "type": "string", "description": "Filter by board ID" },
+      "page": { "type": "number", "description": "Page number (default 1)" },
+      "page_size": { "type": "number", "description": "Items per page (default 50)" }
+    }
+  },
+  "x-process-args": ["$args.run_status", "$args.assistant_id", "$args.board_id", "$args.page", "$args.page_size"]
+}

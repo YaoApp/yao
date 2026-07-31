@@ -279,15 +279,18 @@ func TestBuildLastUserMessageJSONL_Empty(t *testing.T) {
 
 func TestBuildSandboxEnvPrompt_Darwin(t *testing.T) {
 	p := testPlatform()
-	prompt := claude.ExportBuildSandboxEnvPrompt(p, "/workspace")
+	prompt := claude.ExportBuildSandboxEnvPrompt(p, "/workspace", "ws-test-123")
 	if !strings.Contains(prompt, "/workspace") || !strings.Contains(prompt, "Sandbox Environment") {
 		t.Errorf("prompt = %q", prompt)
+	}
+	if !strings.Contains(prompt, "ws-test-123") {
+		t.Errorf("prompt missing workspace ID, got %q", prompt)
 	}
 }
 
 func TestBuildSandboxEnvPrompt_Windows(t *testing.T) {
 	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
-	prompt := claude.ExportBuildSandboxEnvPrompt(p, `C:\ws`)
+	prompt := claude.ExportBuildSandboxEnvPrompt(p, `C:\ws`, "")
 	if !strings.Contains(prompt, "windows") || !strings.Contains(prompt, "Windows desktop") {
 		t.Errorf("prompt = %q", prompt)
 	}
@@ -313,6 +316,9 @@ func TestBuildEnv_ConfigDirIsolation(t *testing.T) {
 	env := claude.ExportBuildEnv(req, testPlatform())
 	if env["CLAUDE_CONFIG_DIR"] != "/workspace/.yao/assistants/my-assistant" {
 		t.Errorf("CLAUDE_CONFIG_DIR = %q", env["CLAUDE_CONFIG_DIR"])
+	}
+	if env["CLAUDE_COWORK_MEMORY_PATH_OVERRIDE"] != "/workspace/.yao/assistants/my-assistant/memory" {
+		t.Errorf("CLAUDE_COWORK_MEMORY_PATH_OVERRIDE = %q", env["CLAUDE_COWORK_MEMORY_PATH_OVERRIDE"])
 	}
 }
 

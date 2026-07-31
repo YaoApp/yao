@@ -81,13 +81,21 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 	args := buildArgs(req, r, p, isContinuation, assistantID, chatID)
 	inputJSONL := buildLastUserMessageJSONL(req.Messages)
 
+	var workspaceID string
+	if ws := req.Computer.Workplace(); ws != nil {
+		workspaceID, _ = ws.GetID()
+	}
+
 	var systemPrompt string
-	envPrompt := buildSandboxEnvPrompt(p, workDir)
+	envPrompt := buildSandboxEnvPrompt(p, workDir, workspaceID)
 	if svcPrompt := buildServicePrompt(req.Config); svcPrompt != "" {
 		envPrompt += "\n\n" + svcPrompt
 	}
 	if capPrompt := buildModelCapabilityPrompt(req); capPrompt != "" {
 		envPrompt += "\n\n" + capPrompt
+	}
+	if localePrompt := buildLocalePrompt(req.Locale); localePrompt != "" {
+		envPrompt += "\n\n" + localePrompt
 	}
 	if !isContinuation && req.SystemPrompt != "" {
 		systemPrompt = req.SystemPrompt + "\n\n" + envPrompt
@@ -146,6 +154,8 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		env["CTX_LOCALE"] = req.Locale
 	}
 
+	env["CTX_EXT_SKILLS_DIR"] = p.PathJoin(workDir, ".yao", "skills")
+
 	assistantID := req.AssistantID
 	if assistantID != "" {
 		configDir := p.PathJoin(workDir, ".yao", "assistants", assistantID)
@@ -155,6 +165,7 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		// Use this in skill scripts instead of constructing the path manually,
 		// so it works correctly on all platforms (Linux, macOS, Windows).
 		env["CTX_SKILLS_DIR"] = p.PathJoin(workDir, ".yao", "assistants", assistantID, "skills")
+		env["CLAUDE_COWORK_MEMORY_PATH_OVERRIDE"] = p.PathJoin(workDir, ".yao", "assistants", assistantID, "memory")
 	}
 
 	if req.Config != nil && req.Config.NodeID != "" {
@@ -333,7 +344,7 @@ func buildArgs(req *types.StreamRequest, r *Runner, p platform, isContinuation b
 	return args
 }
 
-func buildSandboxEnvPrompt(p platform, workDir string) string {
+func buildSandboxEnvPrompt(p platform, workDir string, workspaceID string) string {
 	osName := p.OS()
 	if osName == "" {
 		osName = "linux"
@@ -345,13 +356,18 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 
 	shellNote := p.EnvPromptNote()
 
+	wsNote := ""
+	if workspaceID != "" {
+		wsNote = fmt.Sprintf("\n- **Current Workspace ID**: %s (use this in workspace:// links for files in THIS sandbox)\n- To access OTHER workspaces, use workspace_list / workspace_file_read tools", workspaceID)
+	}
+
 	return fmt.Sprintf(`## Sandbox Environment
 
 - **Operating System**: %[2]s
 - **Shell**: %[3]s
 - **Working Directory**: %[1]s
 - **File Access**: You have full read/write access to %[1]s
-%[4]s`, workDir, osName, shell, shellNote)
+%[4]s%[5]s`, workDir, osName, shell, shellNote, wsNote)
 }
 
 func buildServicePrompt(cfg *types.SandboxConfig) string {
@@ -372,6 +388,11 @@ func buildServicePrompt(cfg *types.SandboxConfig) string {
 	sb.WriteString(fmt.Sprintf("- [API Docs](service://%s/%s/8080/docs?title=API+Documentation)\n\n", cfg.NodeID, targetID))
 	sb.WriteString("The title in markdown link text takes priority for display. ")
 	sb.WriteString("The ?title= query parameter is a fallback for bare URLs.\n\n")
+	sb.WriteString("The user's client renders service:// links as clickable elements.\n")
+	sb.WriteString("Clicking opens the service in a built-in preview panel (iframe-based proxy).\n")
+	sb.WriteString("The {port} is the actual port your server listens on inside this sandbox.\n")
+	sb.WriteString("The optional /path is appended as-is to the proxied URL.\n")
+	sb.WriteString("Do NOT use localhost or 127.0.0.1 URLs in replies — they are not accessible from the user's browser.\n\n")
 	sb.WriteString("Configured ports:\n")
 	for _, p := range cfg.Computer.Ports {
 		if p.Label != "" {
@@ -381,6 +402,32 @@ func buildServicePrompt(cfg *types.SandboxConfig) string {
 		}
 	}
 	return sb.String()
+}
+
+var localeNames = map[string]string{
+	"zh-CN": "Chinese (Simplified)",
+	"zh-TW": "Chinese (Traditional)",
+	"en-US": "English",
+	"en-GB": "English",
+	"ja-JP": "Japanese",
+	"ko-KR": "Korean",
+	"fr-FR": "French",
+	"de-DE": "German",
+	"es-ES": "Spanish",
+	"pt-BR": "Portuguese (Brazil)",
+	"ru-RU": "Russian",
+	"ar-SA": "Arabic",
+}
+
+func buildLocalePrompt(locale string) string {
+	if locale == "" {
+		return ""
+	}
+	name := localeNames[locale]
+	if name == "" {
+		name = locale
+	}
+	return fmt.Sprintf("IMPORTANT: Always respond in %s.", name)
 }
 
 func buildModelCapabilityPrompt(req *types.StreamRequest) string {

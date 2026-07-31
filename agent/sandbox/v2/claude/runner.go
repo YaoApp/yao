@@ -122,6 +122,11 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		}
 	}
 
+	// Inject auto-memory context files (best-effort, errors ignored).
+	if ws := computer.Workplace(); ws != nil && req.AssistantID != "" {
+		injectAutoMemory(ws, req.AssistantID, computer.GetWorkDir())
+	}
+
 	if req.ChatID != "" {
 		if ws := computer.Workplace(); ws != nil {
 			processed, err := prepareAttachments(ctx, req.Messages, req.ChatID, ws)

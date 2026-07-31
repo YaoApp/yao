@@ -121,9 +121,12 @@ func TestBuildStdinMessage(t *testing.T) {
 
 func TestBuildSandboxEnvPrompt(t *testing.T) {
 	p := opencode.NewPosixBase("linux", "", "bash")
-	prompt := opencode.BuildSandboxEnvPrompt(p, "/workspace")
+	prompt := opencode.BuildSandboxEnvPrompt(p, "/workspace", "ws-test-456")
 	if prompt == "" {
 		t.Error("prompt should not be empty")
+	}
+	if !strings.Contains(prompt, "ws-test-456") {
+		t.Error("prompt should contain workspace ID")
 	}
 	if !strings.Contains(prompt, "/workspace") {
 		t.Error("prompt should mention workspace path")

@@ -309,7 +309,7 @@ func TestShellQuoteForPlatform_Windows(t *testing.T) {
 
 func TestBuildSandboxEnvPrompt_Linux(t *testing.T) {
 	p := opencode.NewPosixBase("linux", "", "bash")
-	prompt := opencode.BuildSandboxEnvPrompt(p, "/workspace")
+	prompt := opencode.BuildSandboxEnvPrompt(p, "/workspace", "ws-linux-test")
 	if !strings.Contains(prompt, "linux") {
 		t.Error("should contain linux")
 	}
@@ -319,11 +319,14 @@ func TestBuildSandboxEnvPrompt_Linux(t *testing.T) {
 	if !strings.Contains(prompt, "/workspace") {
 		t.Error("should contain /workspace")
 	}
+	if !strings.Contains(prompt, "ws-linux-test") {
+		t.Error("should contain workspace ID")
+	}
 }
 
 func TestBuildSandboxEnvPrompt_Windows(t *testing.T) {
 	p := opencode.NewWindowsPlatformForTest(`C:\workspace`, "pwsh")
-	prompt := opencode.BuildSandboxEnvPrompt(p, `C:\workspace`)
+	prompt := opencode.BuildSandboxEnvPrompt(p, `C:\workspace`, "")
 	if !strings.Contains(prompt, "windows") {
 		t.Error("should contain windows")
 	}

@@ -98,6 +98,8 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		env["CTX_LOCALE"] = req.Locale
 	}
 
+	env["CTX_EXT_SKILLS_DIR"] = p.PathJoin(workDir, ".yao", "skills")
+
 	assistantID := req.AssistantID
 	prefix := p.PathJoin(workDir, ".yao", "assistants", assistantID, "opencode")
 	if assistantID == "" {
@@ -261,7 +263,7 @@ func lastUserText(messages []agentContext.Message) string {
 	return ""
 }
 
-func buildSandboxEnvPrompt(p platform, workDir string) string {
+func buildSandboxEnvPrompt(p platform, workDir string, workspaceID string) string {
 	osName := p.OS()
 	if osName == "" {
 		osName = "linux"
@@ -271,13 +273,44 @@ func buildSandboxEnvPrompt(p platform, workDir string) string {
 		shell = "bash"
 	}
 
+	wsNote := ""
+	if workspaceID != "" {
+		wsNote = fmt.Sprintf("- **Current Workspace ID**: %s (use this in workspace:// links for files in THIS sandbox)\n- To access OTHER workspaces, use workspace_list / workspace_file_read tools\n", workspaceID)
+	}
+
 	return fmt.Sprintf(`## Sandbox Environment
 
 - **Operating System**: %[2]s
 - **Shell**: %[3]s
 - **Working Directory**: %[1]s
 - **File Access**: You have full read/write access to %[1]s
-`, workDir, osName, shell)
+%[4]s`, workDir, osName, shell, wsNote)
+}
+
+var localeNames = map[string]string{
+	"zh-CN": "Chinese (Simplified)",
+	"zh-TW": "Chinese (Traditional)",
+	"en-US": "English",
+	"en-GB": "English",
+	"ja-JP": "Japanese",
+	"ko-KR": "Korean",
+	"fr-FR": "French",
+	"de-DE": "German",
+	"es-ES": "Spanish",
+	"pt-BR": "Portuguese (Brazil)",
+	"ru-RU": "Russian",
+	"ar-SA": "Arabic",
+}
+
+func buildLocalePrompt(locale string) string {
+	if locale == "" {
+		return ""
+	}
+	name := localeNames[locale]
+	if name == "" {
+		name = locale
+	}
+	return fmt.Sprintf("IMPORTANT: Always respond in %s.", name)
 }
 
 func buildServicePrompt(cfg *types.SandboxConfig) string {
@@ -298,6 +331,11 @@ func buildServicePrompt(cfg *types.SandboxConfig) string {
 	sb.WriteString(fmt.Sprintf("- [API Docs](service://%s/%s/8080/docs?title=API+Documentation)\n\n", cfg.NodeID, targetID))
 	sb.WriteString("The title in markdown link text takes priority for display. ")
 	sb.WriteString("The ?title= query parameter is a fallback for bare URLs.\n\n")
+	sb.WriteString("The user's client renders service:// links as clickable elements.\n")
+	sb.WriteString("Clicking opens the service in a built-in preview panel (iframe-based proxy).\n")
+	sb.WriteString("The {port} is the actual port your server listens on inside this sandbox.\n")
+	sb.WriteString("The optional /path is appended as-is to the proxied URL.\n")
+	sb.WriteString("Do NOT use localhost or 127.0.0.1 URLs in replies — they are not accessible from the user's browser.\n\n")
 	sb.WriteString("Configured ports:\n")
 	for _, p := range cfg.Computer.Ports {
 		if p.Label != "" {
