@@ -51,9 +51,6 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 		"source_type":      "kanban",
 		"source_id":        boardID,
 		"source_name":      boardName,
-		"read":             false,
-		"starred":          false,
-		"pinned":           false,
 		"__yao_created_by": task.CreatedBy,
 		"__yao_team_id":    task.TeamID,
 		"created_at":       now,
@@ -61,6 +58,20 @@ func createMail(ctx context.Context, task *AgentTask, mailType, priority string)
 	})
 	if err != nil {
 		return "", fmt.Errorf("inbox.createMail: %w", err)
+	}
+
+	// Update task: mark as having unread notification and set last_mail_type
+	if _, err := capsule.Global.Query().Table(tableTask()).
+		Where("chat_id", "=", task.ChatID).
+		Where("__yao_created_by", "=", task.CreatedBy).
+		Where("__yao_team_id", "=", task.TeamID).
+		WhereNull("deleted_at").
+		Update(map[string]interface{}{
+			"has_unread":     true,
+			"last_mail_type": mailType,
+			"updated_at":     now,
+		}); err != nil {
+		fmt.Printf("[inbox] WARNING: failed to update task has_unread for chat_id=%s: %v\n", task.ChatID, err)
 	}
 
 	event.Push(ctx, "mail.new", map[string]any{

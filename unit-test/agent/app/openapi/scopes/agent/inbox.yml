@@ -1,4 +1,4 @@
-# Inbox - Agent Inbox/Mail Management
+# Inbox - Agent Inbox/Mail Management (Task-based)
 # namespace: agent
 # resource: inbox
 # actions: read, write, delete
@@ -10,7 +10,7 @@ agent:inbox:read:all:
   description: "Read all inbox messages"
   endpoints:
     - GET /agent/inbox
-    - GET /agent/inbox/:id
+    - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
 
 agent:inbox:read:own:
@@ -18,7 +18,7 @@ agent:inbox:read:own:
   description: "Read own inbox messages"
   endpoints:
     - GET /agent/inbox
-    - GET /agent/inbox/:id
+    - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
 
 agent:inbox:read:team:
@@ -26,46 +26,58 @@ agent:inbox:read:team:
   description: "Read team inbox messages"
   endpoints:
     - GET /agent/inbox
-    - GET /agent/inbox/:id
+    - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
 
 # ============ Write Permissions ============
 
 agent:inbox:write:all:
-  description: "Update all inbox messages (mark read, archive)"
+  description: "Update all inbox tasks (view, bookmark, pin, read-all)"
   endpoints:
-    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/view/:chat_id
     - PUT /agent/inbox/read-all
+    - PUT /agent/inbox/bookmark/:chat_id
+    - PUT /agent/inbox/unbookmark/:chat_id
+    - PUT /agent/inbox/pin/:chat_id
+    - PUT /agent/inbox/unpin/:chat_id
 
 agent:inbox:write:own:
   owner: true
-  description: "Update own inbox messages (mark read, archive)"
+  description: "Update own inbox tasks (view, bookmark, pin, read-all)"
   endpoints:
-    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/view/:chat_id
     - PUT /agent/inbox/read-all
+    - PUT /agent/inbox/bookmark/:chat_id
+    - PUT /agent/inbox/unbookmark/:chat_id
+    - PUT /agent/inbox/pin/:chat_id
+    - PUT /agent/inbox/unpin/:chat_id
 
 agent:inbox:write:team:
   team: true
-  description: "Update team inbox messages (mark read, archive)"
+  description: "Update team inbox tasks (view, bookmark, pin, read-all)"
   endpoints:
-    - PUT /agent/inbox/:id/read
+    - PUT /agent/inbox/view/:chat_id
     - PUT /agent/inbox/read-all
+    - PUT /agent/inbox/bookmark/:chat_id
+    - PUT /agent/inbox/unbookmark/:chat_id
+    - PUT /agent/inbox/pin/:chat_id
+    - PUT /agent/inbox/unpin/:chat_id
 
 # ============ Delete Permissions ============
 
 agent:inbox:delete:all:
-  description: "Delete all inbox messages"
+  description: "Delete inbox messages by chat"
   endpoints:
-    - DELETE /agent/inbox/:id
+    - DELETE /agent/inbox/chat/:chat_id
 
 agent:inbox:delete:own:
   owner: true
-  description: "Delete own inbox messages"
+  description: "Delete own inbox messages by chat"
   endpoints:
-    - DELETE /agent/inbox/:id
+    - DELETE /agent/inbox/chat/:chat_id
 
 agent:inbox:delete:team:
   team: true
-  description: "Delete team inbox messages"
+  description: "Delete team inbox messages by chat"
   endpoints:
-    - DELETE /agent/inbox/:id
+    - DELETE /agent/inbox/chat/:chat_id

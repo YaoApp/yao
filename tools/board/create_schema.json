@@ -1,1 +1,15 @@
-{"name":"board_create","description":"Create a new kanban board","inputSchema":{"type":"object","properties":{"name":{"type":"string","description":"Board name"},"icon":{"type":"string","description":"Board icon"},"color":{"type":"string","description":"Board color"}},"required":["name"]}}
+{
+  "name": "board_create",
+  "description": "Create a new kanban board",
+  "process": "tools.board_create",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "name": { "type": "string", "description": "Board name" },
+      "icon": { "type": "string", "description": "Board icon" },
+      "color": { "type": "string", "description": "Board color" }
+    },
+    "required": ["name"]
+  },
+  "x-process-args": ["$args.name", "$args.icon", "$args.color"]
+}

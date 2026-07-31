@@ -109,7 +109,7 @@ func init() {
 		"board_create": toolboard.CreateHandler,
 
 		"inbox_list": toolinbox.ListHandler,
-		"inbox_read": toolinbox.ReadHandler,
+		"inbox_view": toolinbox.ViewHandler,
 
 		"mobile_list":       mobile.ListHandler,
 		"mobile_exec":       mobile.ExecHandler,
@@ -146,7 +146,7 @@ func init() {
 	registerMCPServer(mcpKanbanDSL, "yao-kanban",
 		tooltask.ListSchemaJSON, tooltask.CreateSchemaJSON, tooltask.MoveSchemaJSON,
 		toolboard.ListSchemaJSON, toolboard.CreateSchemaJSON,
-		toolinbox.ListSchemaJSON, toolinbox.ReadSchemaJSON)
+		toolinbox.ListSchemaJSON, toolinbox.ViewSchemaJSON)
 	registerMCPServer(mcpMobileDSL, "yao-mobile",
 		mobile.ListSchemaJSON, mobile.ExecSchemaJSON, mobile.ScreenshotSchemaJSON,
 		mobile.InfoSchemaJSON, mobile.PushSchemaJSON, mobile.PullSchemaJSON)

@@ -29,7 +29,8 @@ func (p *linuxPlatform) EnvPromptNote() string {
 	if p.hasDisplay {
 		return `
 - **Desktop Environment**: You have access to a Linux desktop via VNC (GUI applications, browsers, etc.)
-- **Important**: When you launch GUI applications, do NOT close them unless explicitly asked`
+- **Important**: When you launch GUI applications, do NOT close them unless explicitly asked
+- **Web Services**: When you need to show a web service to the user, prefer outputting a service:// link (see Web Services section) rather than opening a browser in VNC`
 	}
 	return ""
 }

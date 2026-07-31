@@ -7,5 +7,5 @@ import (
 
 func init() {
 	inboxtools.FnList = inboxsvc.List
-	inboxtools.FnRead = inboxsvc.Read
+	inboxtools.FnView = inboxsvc.View
 }

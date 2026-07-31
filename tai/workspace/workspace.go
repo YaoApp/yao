@@ -34,6 +34,10 @@ type FS interface {
 	// Returns non-nil *SyncResult for host↔workspace and ws↔ws transfers; nil for host↔host.
 	Copy(src, dst string, opts ...volume.SyncOption) (*volume.SyncResult, error)
 
+	// ListSkills scans the given directory for subdirectories containing SKILL.md,
+	// parses their YAML frontmatter, and returns skill metadata.
+	ListSkills(dir string) ([]volume.SkillInfo, error)
+
 	// GetRoot returns the absolute path of this workspace's root directory on the host filesystem.
 	GetRoot() (string, error)
 
@@ -125,6 +129,10 @@ func (w *workspaceFS) Rename(oldname, newname string) error {
 
 func (w *workspaceFS) MkdirAll(name string, _ os.FileMode) error {
 	return w.vol.MkdirAll(context.Background(), w.session, name)
+}
+
+func (w *workspaceFS) ListSkills(dir string) ([]volume.SkillInfo, error) {
+	return w.vol.ListSkills(context.Background(), w.session, dir)
 }
 
 func (w *workspaceFS) GetRoot() (string, error) {

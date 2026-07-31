@@ -1,1 +1,14 @@
-{"name":"yao-kanban","version":"1.0.0","description":"Kanban board, task management, and inbox tools","protocolVersion":"2024-11-05"}
+{
+  "name": "yao-kanban",
+  "transport": "process",
+  "description": "Kanban board, task management, and inbox tools",
+  "tools": {
+    "task_list": "tools.task_list",
+    "task_create": "tools.task_create",
+    "task_move": "tools.task_move",
+    "board_list": "tools.board_list",
+    "board_create": "tools.board_create",
+    "inbox_list": "tools.inbox_list",
+    "inbox_view": "tools.inbox_view"
+  }
+}

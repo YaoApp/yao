@@ -178,6 +178,25 @@ func (r *remoteStorage) Abs(ctx context.Context, sessionID, path string) (string
 	return resp.Path, nil
 }
 
+func (r *remoteStorage) ListSkills(ctx context.Context, sessionID, dir string) ([]SkillInfo, error) {
+	resp, err := r.client.ListSkills(ctx, &pb.FSRequest{
+		SessionId: sessionID,
+		Path:      dir,
+	})
+	if err != nil {
+		return nil, err
+	}
+	skills := make([]SkillInfo, 0, len(resp.Skills))
+	for _, s := range resp.Skills {
+		skills = append(skills, SkillInfo{
+			Name:        s.Name,
+			Description: s.Description,
+			Path:        s.Path,
+		})
+	}
+	return skills, nil
+}
+
 // SyncPush sends local files to Tai using the manifest-first bidi streaming protocol.
 func (r *remoteStorage) SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error) {
 	start := time.Now()

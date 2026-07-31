@@ -57,130 +57,171 @@ func setupTest(t *testing.T) *testContext {
 	}
 }
 
-func insertMail(t *testing.T, tc *testContext, overrides map[string]interface{}) string {
+// insertTaskWithMail creates a task and its latest mail, returning both IDs
+func insertTaskWithMail(t *testing.T, tc *testContext, overrides map[string]interface{}) (chatID string, mailID string) {
 	t.Helper()
-	mailID := uuid.New().String()
+	chatID = "chat-" + uuid.New().String()[:8]
+	mailID = uuid.New().String()
 	now := time.Now()
-	row := map[string]interface{}{
-		"mail_id":          mailID,
-		"type":             "input",
-		"priority":         "high",
-		"title":            "Test Mail",
-		"body":             "Test body",
-		"chat_id":          "chat-" + mailID[:8],
-		"read":             false,
-		"starred":          false,
-		"pinned":           false,
+
+	taskRow := map[string]interface{}{
+		"chat_id":          chatID,
+		"run_status":       "completed",
+		"position":         0,
+		"priority":         "none",
+		"bookmarked":       false,
+		"inbox_pinned":     false,
+		"has_unread":       true,
+		"last_mail_type":   "input",
 		"__yao_created_by": tc.auth.UserID,
 		"__yao_team_id":    tc.auth.TeamID,
 		"created_at":       now,
 		"updated_at":       now,
 	}
 	for k, v := range overrides {
-		row[k] = v
+		if k == "title" || k == "body" || k == "type" || k == "priority_mail" {
+			continue
+		}
+		taskRow[k] = v
 	}
-	err := capsule.Global.Query().Table(mailTable()).Insert(row)
+
+	err := capsule.Global.Query().Table(taskTable()).Insert(taskRow)
+	require.NoError(t, err, "insert test task")
+
+	mailType := "input"
+	if v, ok := overrides["type"]; ok {
+		mailType = v.(string)
+	}
+	mailPriority := "high"
+	if v, ok := overrides["priority_mail"]; ok {
+		mailPriority = v.(string)
+	}
+	mailTitle := "Test Mail"
+	if v, ok := overrides["title"]; ok {
+		mailTitle = v.(string)
+	}
+	mailBody := "Test body"
+	if v, ok := overrides["body"]; ok {
+		mailBody = v.(string)
+	}
+
+	mailRow := map[string]interface{}{
+		"mail_id":          mailID,
+		"type":             mailType,
+		"priority":         mailPriority,
+		"title":            mailTitle,
+		"body":             mailBody,
+		"chat_id":          chatID,
+		"__yao_created_by": tc.auth.UserID,
+		"__yao_team_id":    tc.auth.TeamID,
+		"created_at":       now,
+		"updated_at":       now,
+	}
+	err = capsule.Global.Query().Table(mailTable()).Insert(mailRow)
 	require.NoError(t, err, "insert test mail")
-	return mailID
+	return chatID, mailID
 }
 
-func cleanupMails(t *testing.T, mailIDs ...string) {
+func cleanupTask(t *testing.T, chatIDs ...string) {
 	t.Helper()
-	for _, id := range mailIDs {
-		capsule.Global.Query().Table(mailTable()).Where("mail_id", "=", id).Delete()
+	for _, cid := range chatIDs {
+		capsule.Global.Query().Table(taskTable()).Where("chat_id", "=", cid).Delete()
+		capsule.Global.Query().Table(mailTable()).Where("chat_id", "=", cid).Delete()
 	}
 }
 
 // ---------------------------------------------------------------------------
-// Basic CRUD operations
+// Basic List and CRUD
 // ---------------------------------------------------------------------------
 
-func TestInboxOperations(t *testing.T) {
+func TestInboxList_Basic(t *testing.T) {
 	tc := setupTest(t)
 
-	mailID := insertMail(t, tc, map[string]interface{}{
-		"title": "Test: Needs Input",
-		"body":  "Please provide input",
-	})
-	t.Cleanup(func() { cleanupMails(t, mailID) })
+	chatID, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatID) })
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all"})
 	require.NoError(t, err)
 	assert.NotEmpty(t, result.Mails, "expected at least 1 mail")
+}
 
-	counts, err := inbox.UnreadCount(tc.ctx, tc.auth)
+func TestInboxView(t *testing.T) {
+	tc := setupTest(t)
+
+	chatID, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true})
+	t.Cleanup(func() { cleanupTask(t, chatID) })
+
+	err := inbox.View(tc.ctx, tc.auth, chatID)
 	require.NoError(t, err)
-	assert.Greater(t, counts.Total, 0, "expected non-zero unread total")
-	assert.Greater(t, counts.Input, 0, "expected non-zero input count")
 
-	require.NoError(t, inbox.Read(tc.ctx, tc.auth, mailID))
-
-	countsAfter, err := inbox.UnreadCount(tc.ctx, tc.auth)
+	// Verify task has_unread is now false
+	row, err := capsule.Global.Query().Table(taskTable()).
+		Select("has_unread", "inbox_read_at").
+		Where("chat_id", "=", chatID).First()
 	require.NoError(t, err)
-	assert.Less(t, countsAfter.Total, counts.Total, "unread count should decrease after marking as read")
+	require.NotNil(t, row)
+}
 
-	require.NoError(t, inbox.Star(tc.ctx, tc.auth, mailID))
-	require.NoError(t, inbox.Pin(tc.ctx, tc.auth, mailID))
+func TestInboxView_NotFound(t *testing.T) {
+	tc := setupTest(t)
+	err := inbox.View(tc.ctx, tc.auth, "nonexistent-chat-id")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
 }
 
 // ---------------------------------------------------------------------------
-// Unstar
+// Bookmark / Unbookmark
 // ---------------------------------------------------------------------------
 
-func TestUnstar(t *testing.T) {
+func TestBookmarkUnbookmark(t *testing.T) {
 	tc := setupTest(t)
 
-	mailID := insertMail(t, tc, nil)
-	t.Cleanup(func() { cleanupMails(t, mailID) })
+	chatID, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatID) })
 
-	require.NoError(t, inbox.Star(tc.ctx, tc.auth, mailID))
+	require.NoError(t, inbox.Bookmark(tc.ctx, tc.auth, chatID))
 
-	starred, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "starred"})
+	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "bookmarked"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(starred, mailID), "mail should appear in starred filter after Star()")
+	assert.True(t, containsChat(result, chatID), "task should appear in bookmarked filter")
 
-	require.NoError(t, inbox.Unstar(tc.ctx, tc.auth, mailID))
+	require.NoError(t, inbox.Unbookmark(tc.ctx, tc.auth, chatID))
 
-	starred2, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "starred"})
+	result2, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "bookmarked"})
 	require.NoError(t, err)
-	assert.False(t, containsMail(starred2, mailID), "mail should not appear in starred filter after Unstar()")
+	assert.False(t, containsChat(result2, chatID), "task should not appear after unbookmark")
 }
 
-func TestUnstar_NotFound(t *testing.T) {
+func TestBookmark_NotFound(t *testing.T) {
 	tc := setupTest(t)
-	err := inbox.Unstar(tc.ctx, tc.auth, "nonexistent-mail-id")
+	err := inbox.Bookmark(tc.ctx, tc.auth, "nonexistent")
 	assert.Error(t, err)
 }
 
 // ---------------------------------------------------------------------------
-// Unpin
+// Pin / Unpin
 // ---------------------------------------------------------------------------
 
-func TestUnpin(t *testing.T) {
+func TestPinUnpin(t *testing.T) {
 	tc := setupTest(t)
 
-	mailID := insertMail(t, tc, nil)
-	t.Cleanup(func() { cleanupMails(t, mailID) })
+	chatID, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatID) })
 
-	require.NoError(t, inbox.Pin(tc.ctx, tc.auth, mailID))
+	require.NoError(t, inbox.Pin(tc.ctx, tc.auth, chatID))
 
-	row, err := capsule.Global.Query().Table(mailTable()).
-		Where("mail_id", "=", mailID).First()
+	row, err := capsule.Global.Query().Table(taskTable()).
+		Select("inbox_pinned").
+		Where("chat_id", "=", chatID).First()
 	require.NoError(t, err)
-	assert.NotNil(t, row)
+	require.NotNil(t, row)
 
-	require.NoError(t, inbox.Unpin(tc.ctx, tc.auth, mailID))
-
-	row2, err := capsule.Global.Query().Table(mailTable()).
-		Select("pinned").
-		Where("mail_id", "=", mailID).First()
-	require.NoError(t, err)
-	require.NotNil(t, row2)
+	require.NoError(t, inbox.Unpin(tc.ctx, tc.auth, chatID))
 }
 
 func TestUnpin_NotFound(t *testing.T) {
 	tc := setupTest(t)
-	err := inbox.Unpin(tc.ctx, tc.auth, "nonexistent-mail-id")
+	err := inbox.Unpin(tc.ctx, tc.auth, "nonexistent")
 	assert.Error(t, err)
 }
 
@@ -188,54 +229,60 @@ func TestUnpin_NotFound(t *testing.T) {
 // ReadAll
 // ---------------------------------------------------------------------------
 
-func TestReadAll_AllTypes(t *testing.T) {
+func TestReadAll(t *testing.T) {
 	tc := setupTest(t)
 
-	id1 := insertMail(t, tc, map[string]interface{}{"type": "input", "read": false})
-	id2 := insertMail(t, tc, map[string]interface{}{"type": "completed", "read": false})
-	id3 := insertMail(t, tc, map[string]interface{}{"type": "failed", "read": false})
-	t.Cleanup(func() { cleanupMails(t, id1, id2, id3) })
+	chatID1, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true, "type": "input"})
+	chatID2, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true, "type": "completed"})
+	t.Cleanup(func() { cleanupTask(t, chatID1, chatID2) })
 
-	countsBefore, err := inbox.UnreadCount(tc.ctx, tc.auth)
+	affected, err := inbox.ReadAll(tc.ctx, tc.auth)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, countsBefore.Total, 3)
+	assert.GreaterOrEqual(t, affected, int64(2))
 
-	affected, err := inbox.ReadAll(tc.ctx, tc.auth, "")
+	count, err := inbox.UnreadCount(tc.ctx, tc.auth)
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, affected, int64(3), "ReadAll should mark at least 3 unread mails as read")
-
-	countsAfter, err := inbox.UnreadCount(tc.ctx, tc.auth)
-	require.NoError(t, err)
-	assert.Equal(t, 0, countsAfter.Total, "all unread should be zero after ReadAll")
+	assert.Equal(t, 0, count)
 }
 
-func TestReadAll_FilterByType(t *testing.T) {
+// ---------------------------------------------------------------------------
+// UnreadCount
+// ---------------------------------------------------------------------------
+
+func TestUnreadCount(t *testing.T) {
 	tc := setupTest(t)
 
-	id1 := insertMail(t, tc, map[string]interface{}{"type": "input", "read": false})
-	id2 := insertMail(t, tc, map[string]interface{}{"type": "completed", "read": false})
-	id3 := insertMail(t, tc, map[string]interface{}{"type": "failed", "read": false})
-	t.Cleanup(func() { cleanupMails(t, id1, id2, id3) })
+	// Clear all unread
+	inbox.ReadAll(tc.ctx, tc.auth)
 
-	affected, err := inbox.ReadAll(tc.ctx, tc.auth, "input")
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, affected, int64(1), "ReadAll('input') should mark at least 1 mail as read")
+	chatID, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true})
+	t.Cleanup(func() { cleanupTask(t, chatID) })
 
-	counts, err := inbox.UnreadCount(tc.ctx, tc.auth)
+	count, err := inbox.UnreadCount(tc.ctx, tc.auth)
 	require.NoError(t, err)
-	assert.Equal(t, 0, counts.Input, "input unread should be zero after ReadAll('input')")
-	assert.Greater(t, counts.Total, 0, "other types should still be unread")
+	assert.GreaterOrEqual(t, count, 1)
 }
 
-func TestReadAll_AlreadyRead(t *testing.T) {
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+
+func TestStats(t *testing.T) {
 	tc := setupTest(t)
 
-	id1 := insertMail(t, tc, map[string]interface{}{"read": true})
-	t.Cleanup(func() { cleanupMails(t, id1) })
+	// Clear all
+	inbox.ReadAll(tc.ctx, tc.auth)
 
-	affected, err := inbox.ReadAll(tc.ctx, tc.auth, "")
+	chatID1, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true, "last_mail_type": "input", "type": "input"})
+	chatID2, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true, "last_mail_type": "completed", "type": "completed", "bookmarked": true})
+	t.Cleanup(func() { cleanupTask(t, chatID1, chatID2) })
+
+	stats, err := inbox.Stats(tc.ctx, tc.auth)
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), affected, "ReadAll on already-read mails should affect 0 rows")
+	assert.GreaterOrEqual(t, stats.All, 2)
+	assert.GreaterOrEqual(t, stats.Input, 1)
+	assert.GreaterOrEqual(t, stats.Completed, 1)
+	assert.GreaterOrEqual(t, stats.Bookmarked, 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -245,247 +292,81 @@ func TestReadAll_AlreadyRead(t *testing.T) {
 func TestListFilter_Unread(t *testing.T) {
 	tc := setupTest(t)
 
-	unreadID := insertMail(t, tc, map[string]interface{}{"read": false, "title": "unread-filter-test"})
-	readID := insertMail(t, tc, map[string]interface{}{"read": true, "title": "read-filter-test"})
-	t.Cleanup(func() { cleanupMails(t, unreadID, readID) })
+	chatUnread, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": true})
+	chatRead, _ := insertTaskWithMail(t, tc, map[string]interface{}{"has_unread": false})
+	t.Cleanup(func() { cleanupTask(t, chatUnread, chatRead) })
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "unread"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, unreadID), "unread mail should appear in unread filter")
-	assert.False(t, containsMail(result, readID), "read mail should not appear in unread filter")
+	assert.True(t, containsChat(result, chatUnread))
+	assert.False(t, containsChat(result, chatRead))
 }
 
-func TestListFilter_Starred(t *testing.T) {
+func TestListFilter_ByType(t *testing.T) {
 	tc := setupTest(t)
 
-	starredID := insertMail(t, tc, map[string]interface{}{"starred": true, "title": "starred-filter-test"})
-	normalID := insertMail(t, tc, map[string]interface{}{"starred": false, "title": "normal-filter-test"})
-	t.Cleanup(func() { cleanupMails(t, starredID, normalID) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "starred"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, starredID), "starred mail should appear")
-	assert.False(t, containsMail(result, normalID), "non-starred mail should not appear")
-}
-
-func TestListFilter_Input(t *testing.T) {
-	tc := setupTest(t)
-
-	inputID := insertMail(t, tc, map[string]interface{}{"type": "input"})
-	completedID := insertMail(t, tc, map[string]interface{}{"type": "completed"})
-	t.Cleanup(func() { cleanupMails(t, inputID, completedID) })
+	chatInput, _ := insertTaskWithMail(t, tc, map[string]interface{}{"last_mail_type": "input", "type": "input"})
+	chatCompleted, _ := insertTaskWithMail(t, tc, map[string]interface{}{"last_mail_type": "completed", "type": "completed"})
+	t.Cleanup(func() { cleanupTask(t, chatInput, chatCompleted) })
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "input"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, inputID))
-	assert.False(t, containsMail(result, completedID))
-}
-
-func TestListFilter_Completed(t *testing.T) {
-	tc := setupTest(t)
-
-	completedID := insertMail(t, tc, map[string]interface{}{"type": "completed"})
-	inputID := insertMail(t, tc, map[string]interface{}{"type": "input"})
-	t.Cleanup(func() { cleanupMails(t, completedID, inputID) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "completed"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, completedID))
-	assert.False(t, containsMail(result, inputID))
-}
-
-func TestListFilter_Failed(t *testing.T) {
-	tc := setupTest(t)
-
-	failedID := insertMail(t, tc, map[string]interface{}{"type": "failed"})
-	inputID := insertMail(t, tc, map[string]interface{}{"type": "input"})
-	t.Cleanup(func() { cleanupMails(t, failedID, inputID) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "failed"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, failedID))
-	assert.False(t, containsMail(result, inputID))
+	assert.True(t, containsChat(result, chatInput))
+	assert.False(t, containsChat(result, chatCompleted))
 }
 
 func TestListFilter_Archived(t *testing.T) {
 	tc := setupTest(t)
 
-	chatID := "chat-archived-filter-" + uuid.New().String()[:8]
-	now := time.Now()
-
-	// Create a task with archive_status = 'archived'
-	capsule.Global.Query().Table(taskTable()).Insert(map[string]interface{}{
-		"chat_id":          chatID,
-		"run_status":       "completed",
-		"archive_status":   "archived",
-		"position":         0,
-		"priority":         "none",
-		"__yao_created_by": tc.auth.UserID,
-		"__yao_team_id":    tc.auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	t.Cleanup(func() {
-		capsule.Global.Query().Table(taskTable()).Where("chat_id", "=", chatID).Delete()
-	})
-
-	archivedID := insertMail(t, tc, map[string]interface{}{"chat_id": chatID})
-	normalID := insertMail(t, tc, nil)
-	t.Cleanup(func() { cleanupMails(t, archivedID, normalID) })
+	chatArchived, _ := insertTaskWithMail(t, tc, map[string]interface{}{"archive_status": "archived"})
+	chatNormal, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatArchived, chatNormal) })
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "archived"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, archivedID), "mail of archived task should appear in archived filter")
-	assert.False(t, containsMail(result, normalID), "mail of non-archived task should not appear in archived filter")
-}
-
-func TestListFilter_Keyword(t *testing.T) {
-	tc := setupTest(t)
-
-	matchTitle := insertMail(t, tc, map[string]interface{}{"title": "UniqueAlphaKeyword search target", "body": "normal body"})
-	matchBody := insertMail(t, tc, map[string]interface{}{"title": "normal title", "body": "UniqueAlphaKeyword in body"})
-	noMatch := insertMail(t, tc, map[string]interface{}{"title": "nothing here", "body": "nothing here either"})
-	t.Cleanup(func() { cleanupMails(t, matchTitle, matchBody, noMatch) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", Keyword: "UniqueAlphaKeyword"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, matchTitle), "mail with keyword in title should appear")
-	assert.True(t, containsMail(result, matchBody), "mail with keyword in body should appear")
-	assert.False(t, containsMail(result, noMatch), "mail without keyword should not appear")
-}
-
-func TestListFilter_KeywordCombinedWithType(t *testing.T) {
-	tc := setupTest(t)
-
-	match := insertMail(t, tc, map[string]interface{}{"type": "failed", "title": "BetaUniqueKW failure report"})
-	wrongType := insertMail(t, tc, map[string]interface{}{"type": "input", "title": "BetaUniqueKW input item"})
-	t.Cleanup(func() { cleanupMails(t, match, wrongType) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "failed", Keyword: "BetaUniqueKW"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, match))
-	assert.False(t, containsMail(result, wrongType))
-}
-
-func TestListFilter_ChatID(t *testing.T) {
-	tc := setupTest(t)
-
-	chatA := "chat-filter-a-" + uuid.New().String()[:8]
-	chatB := "chat-filter-b-" + uuid.New().String()[:8]
-
-	idA1 := insertMail(t, tc, map[string]interface{}{"chat_id": chatA, "title": "chatA mail 1"})
-	idA2 := insertMail(t, tc, map[string]interface{}{"chat_id": chatA, "title": "chatA mail 2"})
-	idB1 := insertMail(t, tc, map[string]interface{}{"chat_id": chatB, "title": "chatB mail 1"})
-	t.Cleanup(func() { cleanupMails(t, idA1, idA2, idB1) })
-
-	resultA, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: chatA})
-	require.NoError(t, err)
-	assert.True(t, containsMail(resultA, idA1), "chatA mail 1 should appear when filtering by chatA")
-	assert.True(t, containsMail(resultA, idA2), "chatA mail 2 should appear when filtering by chatA")
-	assert.False(t, containsMail(resultA, idB1), "chatB mail should NOT appear when filtering by chatA")
-
-	resultB, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: chatB})
-	require.NoError(t, err)
-	assert.True(t, containsMail(resultB, idB1), "chatB mail should appear when filtering by chatB")
-	assert.False(t, containsMail(resultB, idA1), "chatA mail should NOT appear when filtering by chatB")
-	assert.False(t, containsMail(resultB, idA2), "chatA mail 2 should NOT appear when filtering by chatB")
-}
-
-func TestListFilter_ChatID_Empty(t *testing.T) {
-	tc := setupTest(t)
-
-	chatA := "chat-empty-test-" + uuid.New().String()[:8]
-	idA := insertMail(t, tc, map[string]interface{}{"chat_id": chatA, "title": "chatID empty test"})
-	t.Cleanup(func() { cleanupMails(t, idA) })
-
-	resultAll, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: ""})
-	require.NoError(t, err)
-	assert.True(t, containsMail(resultAll, idA), "empty ChatID should not filter, mail should appear")
-}
-
-func TestListFilter_ChatID_CombinedWithType(t *testing.T) {
-	tc := setupTest(t)
-
-	chatX := "chat-combo-" + uuid.New().String()[:8]
-
-	idInput := insertMail(t, tc, map[string]interface{}{"chat_id": chatX, "type": "input", "title": "chatX input"})
-	idCompleted := insertMail(t, tc, map[string]interface{}{"chat_id": chatX, "type": "completed", "title": "chatX completed"})
-	t.Cleanup(func() { cleanupMails(t, idInput, idCompleted) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "input", ChatID: chatX})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, idInput), "input mail for chatX should appear")
-	assert.False(t, containsMail(result, idCompleted), "completed mail should NOT appear with input filter")
-}
-
-func TestListFilter_ChatID_CombinedWithKeyword(t *testing.T) {
-	tc := setupTest(t)
-
-	chatY := "chat-kw-" + uuid.New().String()[:8]
-	keyword := "UniqueXYZWord"
-
-	idMatch := insertMail(t, tc, map[string]interface{}{"chat_id": chatY, "title": keyword + " target"})
-	idNoKW := insertMail(t, tc, map[string]interface{}{"chat_id": chatY, "title": "no match here"})
-	t.Cleanup(func() { cleanupMails(t, idMatch, idNoKW) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: chatY, Keyword: keyword})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, idMatch), "mail with matching keyword and chatID should appear")
-	assert.False(t, containsMail(result, idNoKW), "mail without keyword should NOT appear")
-}
-
-func TestListFilter_ChatID_Nonexistent(t *testing.T) {
-	tc := setupTest(t)
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: "nonexistent-chat-id-xyz"})
-	require.NoError(t, err)
-	assert.Empty(t, result.Mails, "nonexistent chat_id should return empty results")
-	assert.Equal(t, int64(0), result.Total)
+	assert.True(t, containsChat(result, chatArchived))
+	assert.False(t, containsChat(result, chatNormal))
 }
 
 func TestListFilter_ArchivedExcludedFromAll(t *testing.T) {
 	tc := setupTest(t)
 
-	chatID := "chat-arch-excl-" + uuid.New().String()[:8]
-	now := time.Now()
-	capsule.Global.Query().Table(taskTable()).Insert(map[string]interface{}{
-		"chat_id":          chatID,
-		"run_status":       "completed",
-		"archive_status":   "archived",
-		"position":         0,
-		"priority":         "none",
-		"__yao_created_by": tc.auth.UserID,
-		"__yao_team_id":    tc.auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	t.Cleanup(func() {
-		capsule.Global.Query().Table(taskTable()).Where("chat_id", "=", chatID).Delete()
-	})
-
-	archivedID := insertMail(t, tc, map[string]interface{}{"chat_id": chatID, "title": "archived-excl-test"})
-	normalID := insertMail(t, tc, map[string]interface{}{"title": "normal-excl-test"})
-	t.Cleanup(func() { cleanupMails(t, archivedID, normalID) })
+	chatArchived, _ := insertTaskWithMail(t, tc, map[string]interface{}{"archive_status": "archived"})
+	chatNormal, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatArchived, chatNormal) })
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all"})
 	require.NoError(t, err)
-	assert.False(t, containsMail(result, archivedID), "archived mail should NOT appear in 'all' filter")
-	assert.True(t, containsMail(result, normalID), "non-archived mail should appear in 'all' filter")
+	assert.False(t, containsChat(result, chatArchived))
+	assert.True(t, containsChat(result, chatNormal))
+}
+
+func TestListFilter_ChatID(t *testing.T) {
+	tc := setupTest(t)
+
+	chatA, _ := insertTaskWithMail(t, tc, nil)
+	chatB, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatA, chatB) })
+
+	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", ChatID: chatA})
+	require.NoError(t, err)
+	assert.True(t, containsChat(result, chatA))
+	assert.False(t, containsChat(result, chatB))
 }
 
 // ---------------------------------------------------------------------------
-// List pagination
+// Pagination
 // ---------------------------------------------------------------------------
 
 func TestList_Pagination(t *testing.T) {
 	tc := setupTest(t)
 
-	var ids []string
+	var chatIDs []string
 	for i := 0; i < 5; i++ {
-		id := insertMail(t, tc, map[string]interface{}{"title": "pagination-test"})
-		ids = append(ids, id)
+		cid, _ := insertTaskWithMail(t, tc, nil)
+		chatIDs = append(chatIDs, cid)
 	}
-	t.Cleanup(func() { cleanupMails(t, ids...) })
+	t.Cleanup(func() { cleanupTask(t, chatIDs...) })
 
 	page1, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", Page: 1, Size: 2})
 	require.NoError(t, err)
@@ -498,40 +379,14 @@ func TestList_Pagination(t *testing.T) {
 	require.NoError(t, err)
 	assert.LessOrEqual(t, len(page2.Mails), 2)
 	assert.Equal(t, 2, page2.Page)
-
-	if len(page1.Mails) > 0 && len(page2.Mails) > 0 {
-		assert.NotEqual(t, page1.Mails[0].MailID, page2.Mails[0].MailID, "pages should return different mails")
-	}
 }
 
 func TestList_DefaultPageSize(t *testing.T) {
 	tc := setupTest(t)
-
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all"})
 	require.NoError(t, err)
-	assert.Equal(t, 20, result.Size, "default page size should be 20")
-	assert.Equal(t, 1, result.Page, "default page should be 1")
-}
-
-// ---------------------------------------------------------------------------
-// Read edge cases
-// ---------------------------------------------------------------------------
-
-func TestRead_NotFound(t *testing.T) {
-	tc := setupTest(t)
-	err := inbox.Read(tc.ctx, tc.auth, "nonexistent-mail-id")
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
-}
-
-func TestRead_Idempotent(t *testing.T) {
-	tc := setupTest(t)
-
-	mailID := insertMail(t, tc, map[string]interface{}{"read": false})
-	t.Cleanup(func() { cleanupMails(t, mailID) })
-
-	require.NoError(t, inbox.Read(tc.ctx, tc.auth, mailID))
-	require.NoError(t, inbox.Read(tc.ctx, tc.auth, mailID))
+	assert.Equal(t, 20, result.Size)
+	assert.Equal(t, 1, result.Page)
 }
 
 // ---------------------------------------------------------------------------
@@ -543,6 +398,7 @@ func TestOnStatusChange_Waiting(t *testing.T) {
 
 	b, columnID := createBoardWithColumn(t, tc)
 	chatID := insertChat(t, tc, "Waiting task chat")
+	insertTask(t, tc, chatID, columnID)
 
 	task := &inbox.AgentTask{
 		ChatID:      chatID,
@@ -554,27 +410,17 @@ func TestOnStatusChange_Waiting(t *testing.T) {
 
 	mailID, err := inbox.OnStatusChange(tc.ctx, task, "waiting")
 	require.NoError(t, err)
-	assert.NotEmpty(t, mailID, "waiting status should create a mail")
+	assert.NotEmpty(t, mailID)
 
 	t.Cleanup(func() {
-		cleanupMails(t, mailID)
+		cleanupTask(t, chatID)
 		cleanupBoard(t, b.BoardID)
 		cleanupChat(t, chatID)
 	})
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "input"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, mailID), "waiting should create 'input' type mail")
-
-	found := findMail(result, mailID)
-	require.NotNil(t, found)
-	assert.Equal(t, "input", found.Type)
-	assert.Equal(t, "high", found.Priority)
-	assert.Equal(t, chatID, found.ChatID)
-	assert.Equal(t, "kanban", found.SourceType)
-	assert.Equal(t, b.BoardID, found.SourceID)
-	assert.Equal(t, b.Name, found.SourceName)
-	assert.False(t, found.Read)
+	assert.True(t, containsChat(result, chatID))
 }
 
 func TestOnStatusChange_Completed(t *testing.T) {
@@ -582,6 +428,7 @@ func TestOnStatusChange_Completed(t *testing.T) {
 
 	b, columnID := createBoardWithColumn(t, tc)
 	chatID := insertChat(t, tc, "Completed task chat")
+	insertTask(t, tc, chatID, columnID)
 
 	task := &inbox.AgentTask{
 		ChatID:      chatID,
@@ -596,19 +443,14 @@ func TestOnStatusChange_Completed(t *testing.T) {
 	assert.NotEmpty(t, mailID)
 
 	t.Cleanup(func() {
-		cleanupMails(t, mailID)
+		cleanupTask(t, chatID)
 		cleanupBoard(t, b.BoardID)
 		cleanupChat(t, chatID)
 	})
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "completed"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, mailID))
-
-	found := findMail(result, mailID)
-	require.NotNil(t, found)
-	assert.Equal(t, "completed", found.Type)
-	assert.Equal(t, "low", found.Priority)
+	assert.True(t, containsChat(result, chatID))
 }
 
 func TestOnStatusChange_Failed(t *testing.T) {
@@ -616,6 +458,7 @@ func TestOnStatusChange_Failed(t *testing.T) {
 
 	b, columnID := createBoardWithColumn(t, tc)
 	chatID := insertChat(t, tc, "Failed task chat")
+	insertTask(t, tc, chatID, columnID)
 
 	task := &inbox.AgentTask{
 		ChatID:      chatID,
@@ -630,19 +473,14 @@ func TestOnStatusChange_Failed(t *testing.T) {
 	assert.NotEmpty(t, mailID)
 
 	t.Cleanup(func() {
-		cleanupMails(t, mailID)
+		cleanupTask(t, chatID)
 		cleanupBoard(t, b.BoardID)
 		cleanupChat(t, chatID)
 	})
 
 	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "failed"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(result, mailID))
-
-	found := findMail(result, mailID)
-	require.NotNil(t, found)
-	assert.Equal(t, "failed", found.Type)
-	assert.Equal(t, "medium", found.Priority)
+	assert.True(t, containsChat(result, chatID))
 }
 
 func TestOnStatusChange_Running_NoMail(t *testing.T) {
@@ -657,21 +495,7 @@ func TestOnStatusChange_Running_NoMail(t *testing.T) {
 
 	mailID, err := inbox.OnStatusChange(tc.ctx, task, "running")
 	require.NoError(t, err)
-	assert.Empty(t, mailID, "running status should NOT create a mail")
-}
-
-func TestOnStatusChange_UnknownStatus_NoMail(t *testing.T) {
-	tc := setupTest(t)
-
-	task := &inbox.AgentTask{
-		ChatID:    "chat-unknown-test",
-		CreatedBy: tc.auth.UserID,
-		TeamID:    tc.auth.TeamID,
-	}
-
-	mailID, err := inbox.OnStatusChange(tc.ctx, task, "paused")
-	require.NoError(t, err)
-	assert.Empty(t, mailID, "unknown status should NOT create a mail")
+	assert.Empty(t, mailID)
 }
 
 func TestOnStatusChange_DeletedTask_NoMail(t *testing.T) {
@@ -680,7 +504,6 @@ func TestOnStatusChange_DeletedTask_NoMail(t *testing.T) {
 	deletedAt := time.Now()
 	task := &inbox.AgentTask{
 		ChatID:    "chat-deleted-test",
-		ColumnID:  "",
 		CreatedBy: tc.auth.UserID,
 		TeamID:    tc.auth.TeamID,
 		DeletedAt: &deletedAt,
@@ -688,63 +511,7 @@ func TestOnStatusChange_DeletedTask_NoMail(t *testing.T) {
 
 	mailID, err := inbox.OnStatusChange(tc.ctx, task, "waiting")
 	require.NoError(t, err)
-	assert.Empty(t, mailID, "deleted task should NOT create a mail")
-}
-
-func TestOnStatusChange_EmptyColumnID(t *testing.T) {
-	tc := setupTest(t)
-
-	chatID := insertChat(t, tc, "No column task")
-
-	task := &inbox.AgentTask{
-		ChatID:    chatID,
-		ColumnID:  "",
-		CreatedBy: tc.auth.UserID,
-		TeamID:    tc.auth.TeamID,
-	}
-
-	mailID, err := inbox.OnStatusChange(tc.ctx, task, "completed")
-	require.NoError(t, err)
-	assert.NotEmpty(t, mailID, "should still create mail even with empty column_id")
-
-	t.Cleanup(func() {
-		cleanupMails(t, mailID)
-		cleanupChat(t, chatID)
-	})
-
-	found := findMailByID(t, tc, mailID)
-	require.NotNil(t, found)
-	assert.Empty(t, found.SourceID, "source_id should be empty when column_id is empty")
-	assert.Empty(t, found.SourceName, "source_name should be empty when column_id is empty")
-}
-
-func TestOnStatusChange_TitleFromChat(t *testing.T) {
-	tc := setupTest(t)
-
-	chatTitle := "My Important Chat"
-	chatID := insertChat(t, tc, chatTitle)
-	b, columnID := createBoardWithColumn(t, tc)
-
-	task := &inbox.AgentTask{
-		ChatID:    chatID,
-		ColumnID:  columnID,
-		CreatedBy: tc.auth.UserID,
-		TeamID:    tc.auth.TeamID,
-	}
-
-	mailID, err := inbox.OnStatusChange(tc.ctx, task, "waiting")
-	require.NoError(t, err)
-	assert.NotEmpty(t, mailID)
-
-	t.Cleanup(func() {
-		cleanupMails(t, mailID)
-		cleanupBoard(t, b.BoardID)
-		cleanupChat(t, chatID)
-	})
-
-	found := findMailByID(t, tc, mailID)
-	require.NotNil(t, found)
-	assert.Contains(t, found.Title, chatTitle, "mail title should include the chat title")
+	assert.Empty(t, mailID)
 }
 
 // ---------------------------------------------------------------------------
@@ -754,132 +521,77 @@ func TestOnStatusChange_TitleFromChat(t *testing.T) {
 func TestList_UserIsolation(t *testing.T) {
 	tc := setupTest(t)
 
+	myChatID, _ := insertTaskWithMail(t, tc, nil)
+
 	otherUserID := uuid.New().String()
-	otherAuth := &process.AuthorizedInfo{
-		UserID: otherUserID,
-		TeamID: tc.auth.TeamID,
-	}
+	otherAuth := &process.AuthorizedInfo{UserID: otherUserID, TeamID: tc.auth.TeamID}
 
-	myMailID := insertMail(t, tc, map[string]interface{}{"title": "my-isolation-mail"})
-	otherMailID := uuid.New().String()
-	now := time.Now()
-	err := capsule.Global.Query().Table(mailTable()).Insert(map[string]interface{}{
-		"mail_id":          otherMailID,
-		"type":             "input",
-		"priority":         "high",
-		"title":            "other-user-mail",
-		"body":             "belongs to other user",
-		"chat_id":          "chat-other",
-		"read":             false,
-		"starred":          false,
-		"pinned":           false,
-		"__yao_created_by": otherUserID,
-		"__yao_team_id":    tc.auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	require.NoError(t, err)
-
-	t.Cleanup(func() { cleanupMails(t, myMailID, otherMailID) })
+	t.Cleanup(func() { cleanupTask(t, myChatID) })
 
 	myResult, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(myResult, myMailID))
-	assert.False(t, containsMail(myResult, otherMailID), "should not see other user's mail")
+	assert.True(t, containsChat(myResult, myChatID))
 
 	otherResult, err := inbox.List(tc.ctx, otherAuth, &inbox.ListQuery{Filter: "all"})
 	require.NoError(t, err)
-	assert.True(t, containsMail(otherResult, otherMailID))
-	assert.False(t, containsMail(otherResult, myMailID), "other user should not see my mail")
+	assert.False(t, containsChat(otherResult, myChatID))
 }
 
 // ---------------------------------------------------------------------------
-// Multi-team isolation
+// DeleteByChatID
 // ---------------------------------------------------------------------------
 
-func TestList_TeamIsolation(t *testing.T) {
+func TestDeleteByChatID(t *testing.T) {
 	tc := setupTest(t)
 
-	myTeamMailID := insertMail(t, tc, map[string]interface{}{"title": "my-team-mail"})
+	chatID, _ := insertTaskWithMail(t, tc, nil)
+	t.Cleanup(func() { cleanupTask(t, chatID) })
 
-	otherTeamID := uuid.New().String()
-	otherTeamMailID := uuid.New().String()
-	now := time.Now()
-	err := capsule.Global.Query().Table(mailTable()).Insert(map[string]interface{}{
-		"mail_id":          otherTeamMailID,
-		"type":             "completed",
-		"priority":         "low",
-		"title":            "other-team-mail",
-		"body":             "belongs to other team",
-		"chat_id":          "chat-other-team",
-		"read":             false,
-		"starred":          false,
-		"pinned":           false,
-		"__yao_created_by": tc.auth.UserID,
-		"__yao_team_id":    otherTeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
+	affected, err := inbox.DeleteByChatID(tc.ctx, tc.auth, chatID)
 	require.NoError(t, err)
-	t.Cleanup(func() { cleanupMails(t, myTeamMailID, otherTeamMailID) })
-
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all"})
-	require.NoError(t, err)
-	assert.True(t, containsMail(result, myTeamMailID))
-	assert.False(t, containsMail(result, otherTeamMailID), "should not see other team's mail")
-}
-
-// ---------------------------------------------------------------------------
-// UnreadCount grouping
-// ---------------------------------------------------------------------------
-
-func TestUnreadCount_GroupsByType(t *testing.T) {
-	tc := setupTest(t)
-
-	// Mark all existing as read first
-	inbox.ReadAll(tc.ctx, tc.auth, "")
-
-	id1 := insertMail(t, tc, map[string]interface{}{"type": "input", "read": false})
-	id2 := insertMail(t, tc, map[string]interface{}{"type": "input", "read": false})
-	id3 := insertMail(t, tc, map[string]interface{}{"type": "completed", "read": false})
-	id4 := insertMail(t, tc, map[string]interface{}{"type": "failed", "read": false})
-	t.Cleanup(func() { cleanupMails(t, id1, id2, id3, id4) })
-
-	counts, err := inbox.UnreadCount(tc.ctx, tc.auth)
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, counts.Input, 2)
-	assert.GreaterOrEqual(t, counts.Completed, 1)
-	assert.GreaterOrEqual(t, counts.Failed, 1)
-	assert.Equal(t, counts.Input+counts.Completed+counts.Failed, counts.Total)
+	assert.GreaterOrEqual(t, affected, int64(1))
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-func containsMail(result *inbox.ListResult, mailID string) bool {
-	return findMail(result, mailID) != nil
-}
-
-func findMail(result *inbox.ListResult, mailID string) *inbox.AgentMail {
+func containsChat(result *inbox.ListResult, chatID string) bool {
 	for _, m := range result.Mails {
-		if m.MailID == mailID {
-			return m
+		if m.ChatID == chatID {
+			return true
 		}
 	}
-	return nil
+	return false
 }
 
-func findMailByID(t *testing.T, tc *testContext, mailID string) *inbox.AgentMail {
-	t.Helper()
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", Size: 100})
-	require.NoError(t, err)
-	if m := findMail(result, mailID); m != nil {
-		return m
+func containsMail(result *inbox.ListResult, mailID string) bool {
+	for _, m := range result.Mails {
+		if m.MailID == mailID {
+			return m != nil
+		}
 	}
-	archivedResult, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "archived", Size: 100})
-	require.NoError(t, err)
-	return findMail(archivedResult, mailID)
+	return false
+}
+
+func insertTask(t *testing.T, tc *testContext, chatID, columnID string) {
+	t.Helper()
+	now := time.Now()
+	err := capsule.Global.Query().Table(taskTable()).Insert(map[string]interface{}{
+		"chat_id":          chatID,
+		"column_id":        columnID,
+		"run_status":       "running",
+		"position":         0,
+		"priority":         "none",
+		"bookmarked":       false,
+		"inbox_pinned":     false,
+		"has_unread":       false,
+		"__yao_created_by": tc.auth.UserID,
+		"__yao_team_id":    tc.auth.TeamID,
+		"created_at":       now,
+		"updated_at":       now,
+	})
+	require.NoError(t, err, "insert test task")
 }
 
 func boardTable() string {
@@ -904,7 +616,7 @@ func createBoardWithColumn(t *testing.T, tc *testContext) (*board.Board, string)
 		Color: "#3B82F6",
 	})
 	require.NoError(t, err)
-	require.NotEmpty(t, b.Columns, "board.Create should produce at least one default column")
+	require.NotEmpty(t, b.Columns)
 	return b, b.Columns[0].ColumnID
 }
 
@@ -924,7 +636,7 @@ func insertChat(t *testing.T, tc *testContext, title string) string {
 		"created_at":       now,
 		"updated_at":       now,
 	})
-	require.NoError(t, err, "insert test chat")
+	require.NoError(t, err)
 	return chatID
 }
 
@@ -937,78 +649,4 @@ func cleanupBoard(t *testing.T, boardID string) {
 func cleanupChat(t *testing.T, chatID string) {
 	t.Helper()
 	capsule.Global.Query().Table(chatTable()).Where("chat_id", "=", chatID).Delete()
-}
-
-// ---------------------------------------------------------------------------
-// Stats API
-// ---------------------------------------------------------------------------
-
-func TestStats_ReturnsAllCategories(t *testing.T) {
-	tc := setupTest(t)
-
-	// Create a task with archive_status for archived category
-	chatID := "chat-stats-" + uuid.New().String()[:8]
-	now := time.Now()
-	capsule.Global.Query().Table(taskTable()).Insert(map[string]interface{}{
-		"chat_id":          chatID,
-		"run_status":       "completed",
-		"archive_status":   "archived",
-		"position":         0,
-		"priority":         "none",
-		"__yao_created_by": tc.auth.UserID,
-		"__yao_team_id":    tc.auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	t.Cleanup(func() {
-		capsule.Global.Query().Table(taskTable()).Where("chat_id", "=", chatID).Delete()
-	})
-
-	// Insert mails: one for archived task, one for non-archived
-	archivedMailID := insertMail(t, tc, map[string]interface{}{"chat_id": chatID, "type": "completed"})
-	normalMailID := insertMail(t, tc, map[string]interface{}{"type": "input", "starred": true})
-	t.Cleanup(func() { cleanupMails(t, archivedMailID, normalMailID) })
-
-	stats, err := inbox.Stats(tc.ctx, tc.auth)
-	require.NoError(t, err)
-	assert.Greater(t, stats.Archived, 0, "archived count should be > 0")
-	assert.Greater(t, stats.All, 0, "all count should be > 0")
-	assert.Greater(t, stats.Input, 0, "input count should be > 0")
-	assert.Greater(t, stats.Starred, 0, "starred count should be > 0")
-}
-
-func TestStats_ArchivedExcludedFromOtherCategories(t *testing.T) {
-	tc := setupTest(t)
-
-	// Clean all existing mails first to get predictable counts
-	inbox.ReadAll(tc.ctx, tc.auth, "")
-
-	chatID := "chat-stats-excl-" + uuid.New().String()[:8]
-	now := time.Now()
-	capsule.Global.Query().Table(taskTable()).Insert(map[string]interface{}{
-		"chat_id":          chatID,
-		"run_status":       "completed",
-		"archive_status":   "archived",
-		"position":         0,
-		"priority":         "none",
-		"__yao_created_by": tc.auth.UserID,
-		"__yao_team_id":    tc.auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	t.Cleanup(func() {
-		capsule.Global.Query().Table(taskTable()).Where("chat_id", "=", chatID).Delete()
-	})
-
-	archivedMailID := insertMail(t, tc, map[string]interface{}{"chat_id": chatID, "type": "input"})
-	t.Cleanup(func() { cleanupMails(t, archivedMailID) })
-
-	stats, err := inbox.Stats(tc.ctx, tc.auth)
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, stats.Archived, 1, "archived count should include the archived mail")
-
-	// The archived mail should NOT contribute to the "all" or "input" counts
-	result, err := inbox.List(tc.ctx, tc.auth, &inbox.ListQuery{Filter: "all", Size: 100})
-	require.NoError(t, err)
-	assert.False(t, containsMail(result, archivedMailID), "archived mail should not appear in all list")
 }

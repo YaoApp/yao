@@ -1275,6 +1275,110 @@ func (x *ArchiveResponse) GetFilesCount() int32 {
 	return 0
 }
 
+type SkillEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Path          string                 `protobuf:"bytes,3,opt,name=path,proto3" json:"path,omitempty"` // relative to session root
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkillEntry) Reset() {
+	*x = SkillEntry{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkillEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkillEntry) ProtoMessage() {}
+
+func (x *SkillEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkillEntry.ProtoReflect.Descriptor instead.
+func (*SkillEntry) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *SkillEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SkillEntry) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SkillEntry) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+type ListSkillsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Skills        []*SkillEntry          `protobuf:"bytes,1,rep,name=skills,proto3" json:"skills,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListSkillsResponse) Reset() {
+	*x = ListSkillsResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListSkillsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListSkillsResponse) ProtoMessage() {}
+
+func (x *ListSkillsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListSkillsResponse.ProtoReflect.Descriptor instead.
+func (*ListSkillsResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *ListSkillsResponse) GetSkills() []*SkillEntry {
+	if x != nil {
+		return x.Skills
+	}
+	return nil
+}
+
 var File_tai_volume_pb_volume_proto protoreflect.FileDescriptor
 
 const file_tai_volume_pb_volume_proto_rawDesc = "" +
@@ -1380,7 +1484,14 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x01 \x01(\x03R\tsizeBytes\x12\x1f\n" +
 	"\vfiles_count\x18\x02 \x01(\x05R\n" +
-	"filesCount2\xab\b\n" +
+	"filesCount\"V\n" +
+	"\n" +
+	"SkillEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04path\x18\x03 \x01(\tR\x04path\"@\n" +
+	"\x12ListSkillsResponse\x12*\n" +
+	"\x06skills\x18\x01 \x03(\v2\x12.volume.SkillEntryR\x06skills2\xe8\b\n" +
 	"\x06Volume\x128\n" +
 	"\bSyncPush\x12\x13.volume.SyncMessage\x1a\x13.volume.SyncMessage(\x010\x01\x127\n" +
 	"\bSyncPull\x12\x14.volume.SyncManifest\x1a\x13.volume.SyncMessage0\x01\x128\n" +
@@ -1392,7 +1503,9 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\x06Rename\x12\x17.volume.FSRenameRequest\x1a\x14.volume.FSOpResponse\x123\n" +
 	"\bMkdirAll\x12\x11.volume.FSRequest\x1a\x14.volume.FSOpResponse\x12/\n" +
 	"\x03Abs\x12\x11.volume.FSRequest\x1a\x15.volume.FSAbsResponse\x121\n" +
-	"\x04Copy\x12\x15.volume.FSCopyRequest\x1a\x12.volume.SyncResult\x126\n" +
+	"\x04Copy\x12\x15.volume.FSCopyRequest\x1a\x12.volume.SyncResult\x12;\n" +
+	"\n" +
+	"ListSkills\x12\x11.volume.FSRequest\x1a\x1a.volume.ListSkillsResponse\x126\n" +
 	"\x03Zip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x128\n" +
 	"\x05Unzip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x127\n" +
 	"\x04Gzip\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x129\n" +
@@ -1415,28 +1528,30 @@ func file_tai_volume_pb_volume_proto_rawDescGZIP() []byte {
 }
 
 var file_tai_volume_pb_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_tai_volume_pb_volume_proto_goTypes = []any{
-	(FileChunk_ChunkType)(0), // 0: volume.FileChunk.ChunkType
-	(*FileInfo)(nil),         // 1: volume.FileInfo
-	(*SyncManifest)(nil),     // 2: volume.SyncManifest
-	(*SyncMessage)(nil),      // 3: volume.SyncMessage
-	(*SyncDiff)(nil),         // 4: volume.SyncDiff
-	(*FileChunk)(nil),        // 5: volume.FileChunk
-	(*SyncResult)(nil),       // 6: volume.SyncResult
-	(*FSRequest)(nil),        // 7: volume.FSRequest
-	(*FSOpResponse)(nil),     // 8: volume.FSOpResponse
-	(*FSAbsResponse)(nil),    // 9: volume.FSAbsResponse
-	(*FSReadRequest)(nil),    // 10: volume.FSReadRequest
-	(*FSDataChunk)(nil),      // 11: volume.FSDataChunk
-	(*FSWriteChunk)(nil),     // 12: volume.FSWriteChunk
-	(*FSWriteResponse)(nil),  // 13: volume.FSWriteResponse
-	(*FSListResponse)(nil),   // 14: volume.FSListResponse
-	(*FSRemoveRequest)(nil),  // 15: volume.FSRemoveRequest
-	(*FSRenameRequest)(nil),  // 16: volume.FSRenameRequest
-	(*FSCopyRequest)(nil),    // 17: volume.FSCopyRequest
-	(*ArchiveRequest)(nil),   // 18: volume.ArchiveRequest
-	(*ArchiveResponse)(nil),  // 19: volume.ArchiveResponse
+	(FileChunk_ChunkType)(0),   // 0: volume.FileChunk.ChunkType
+	(*FileInfo)(nil),           // 1: volume.FileInfo
+	(*SyncManifest)(nil),       // 2: volume.SyncManifest
+	(*SyncMessage)(nil),        // 3: volume.SyncMessage
+	(*SyncDiff)(nil),           // 4: volume.SyncDiff
+	(*FileChunk)(nil),          // 5: volume.FileChunk
+	(*SyncResult)(nil),         // 6: volume.SyncResult
+	(*FSRequest)(nil),          // 7: volume.FSRequest
+	(*FSOpResponse)(nil),       // 8: volume.FSOpResponse
+	(*FSAbsResponse)(nil),      // 9: volume.FSAbsResponse
+	(*FSReadRequest)(nil),      // 10: volume.FSReadRequest
+	(*FSDataChunk)(nil),        // 11: volume.FSDataChunk
+	(*FSWriteChunk)(nil),       // 12: volume.FSWriteChunk
+	(*FSWriteResponse)(nil),    // 13: volume.FSWriteResponse
+	(*FSListResponse)(nil),     // 14: volume.FSListResponse
+	(*FSRemoveRequest)(nil),    // 15: volume.FSRemoveRequest
+	(*FSRenameRequest)(nil),    // 16: volume.FSRenameRequest
+	(*FSCopyRequest)(nil),      // 17: volume.FSCopyRequest
+	(*ArchiveRequest)(nil),     // 18: volume.ArchiveRequest
+	(*ArchiveResponse)(nil),    // 19: volume.ArchiveResponse
+	(*SkillEntry)(nil),         // 20: volume.SkillEntry
+	(*ListSkillsResponse)(nil), // 21: volume.ListSkillsResponse
 }
 var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	1,  // 0: volume.SyncManifest.files:type_name -> volume.FileInfo
@@ -1446,49 +1561,52 @@ var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	6,  // 4: volume.SyncMessage.result:type_name -> volume.SyncResult
 	0,  // 5: volume.FileChunk.type:type_name -> volume.FileChunk.ChunkType
 	1,  // 6: volume.FSListResponse.entries:type_name -> volume.FileInfo
-	3,  // 7: volume.Volume.SyncPush:input_type -> volume.SyncMessage
-	2,  // 8: volume.Volume.SyncPull:input_type -> volume.SyncManifest
-	10, // 9: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
-	12, // 10: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
-	7,  // 11: volume.Volume.Stat:input_type -> volume.FSRequest
-	7,  // 12: volume.Volume.ListDir:input_type -> volume.FSRequest
-	15, // 13: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
-	16, // 14: volume.Volume.Rename:input_type -> volume.FSRenameRequest
-	7,  // 15: volume.Volume.MkdirAll:input_type -> volume.FSRequest
-	7,  // 16: volume.Volume.Abs:input_type -> volume.FSRequest
-	17, // 17: volume.Volume.Copy:input_type -> volume.FSCopyRequest
-	18, // 18: volume.Volume.Zip:input_type -> volume.ArchiveRequest
-	18, // 19: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
-	18, // 20: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
-	18, // 21: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
-	18, // 22: volume.Volume.Tar:input_type -> volume.ArchiveRequest
-	18, // 23: volume.Volume.Untar:input_type -> volume.ArchiveRequest
-	18, // 24: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
-	18, // 25: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
-	3,  // 26: volume.Volume.SyncPush:output_type -> volume.SyncMessage
-	3,  // 27: volume.Volume.SyncPull:output_type -> volume.SyncMessage
-	11, // 28: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
-	13, // 29: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
-	1,  // 30: volume.Volume.Stat:output_type -> volume.FileInfo
-	14, // 31: volume.Volume.ListDir:output_type -> volume.FSListResponse
-	8,  // 32: volume.Volume.Remove:output_type -> volume.FSOpResponse
-	8,  // 33: volume.Volume.Rename:output_type -> volume.FSOpResponse
-	8,  // 34: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
-	9,  // 35: volume.Volume.Abs:output_type -> volume.FSAbsResponse
-	6,  // 36: volume.Volume.Copy:output_type -> volume.SyncResult
-	19, // 37: volume.Volume.Zip:output_type -> volume.ArchiveResponse
-	19, // 38: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
-	19, // 39: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
-	19, // 40: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
-	19, // 41: volume.Volume.Tar:output_type -> volume.ArchiveResponse
-	19, // 42: volume.Volume.Untar:output_type -> volume.ArchiveResponse
-	19, // 43: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
-	19, // 44: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
-	26, // [26:45] is the sub-list for method output_type
-	7,  // [7:26] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	20, // 7: volume.ListSkillsResponse.skills:type_name -> volume.SkillEntry
+	3,  // 8: volume.Volume.SyncPush:input_type -> volume.SyncMessage
+	2,  // 9: volume.Volume.SyncPull:input_type -> volume.SyncManifest
+	10, // 10: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
+	12, // 11: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
+	7,  // 12: volume.Volume.Stat:input_type -> volume.FSRequest
+	7,  // 13: volume.Volume.ListDir:input_type -> volume.FSRequest
+	15, // 14: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
+	16, // 15: volume.Volume.Rename:input_type -> volume.FSRenameRequest
+	7,  // 16: volume.Volume.MkdirAll:input_type -> volume.FSRequest
+	7,  // 17: volume.Volume.Abs:input_type -> volume.FSRequest
+	17, // 18: volume.Volume.Copy:input_type -> volume.FSCopyRequest
+	7,  // 19: volume.Volume.ListSkills:input_type -> volume.FSRequest
+	18, // 20: volume.Volume.Zip:input_type -> volume.ArchiveRequest
+	18, // 21: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
+	18, // 22: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
+	18, // 23: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
+	18, // 24: volume.Volume.Tar:input_type -> volume.ArchiveRequest
+	18, // 25: volume.Volume.Untar:input_type -> volume.ArchiveRequest
+	18, // 26: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
+	18, // 27: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
+	3,  // 28: volume.Volume.SyncPush:output_type -> volume.SyncMessage
+	3,  // 29: volume.Volume.SyncPull:output_type -> volume.SyncMessage
+	11, // 30: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
+	13, // 31: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
+	1,  // 32: volume.Volume.Stat:output_type -> volume.FileInfo
+	14, // 33: volume.Volume.ListDir:output_type -> volume.FSListResponse
+	8,  // 34: volume.Volume.Remove:output_type -> volume.FSOpResponse
+	8,  // 35: volume.Volume.Rename:output_type -> volume.FSOpResponse
+	8,  // 36: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
+	9,  // 37: volume.Volume.Abs:output_type -> volume.FSAbsResponse
+	6,  // 38: volume.Volume.Copy:output_type -> volume.SyncResult
+	21, // 39: volume.Volume.ListSkills:output_type -> volume.ListSkillsResponse
+	19, // 40: volume.Volume.Zip:output_type -> volume.ArchiveResponse
+	19, // 41: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
+	19, // 42: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
+	19, // 43: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
+	19, // 44: volume.Volume.Tar:output_type -> volume.ArchiveResponse
+	19, // 45: volume.Volume.Untar:output_type -> volume.ArchiveResponse
+	19, // 46: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
+	19, // 47: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
+	28, // [28:48] is the sub-list for method output_type
+	8,  // [8:28] is the sub-list for method input_type
+	8,  // [8:8] is the sub-list for extension type_name
+	8,  // [8:8] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_tai_volume_pb_volume_proto_init() }
@@ -1508,7 +1626,7 @@ func file_tai_volume_pb_volume_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_volume_pb_volume_proto_rawDesc), len(file_tai_volume_pb_volume_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   19,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

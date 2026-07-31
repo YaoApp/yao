@@ -19,25 +19,26 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Volume_SyncPush_FullMethodName  = "/volume.Volume/SyncPush"
-	Volume_SyncPull_FullMethodName  = "/volume.Volume/SyncPull"
-	Volume_ReadFile_FullMethodName  = "/volume.Volume/ReadFile"
-	Volume_WriteFile_FullMethodName = "/volume.Volume/WriteFile"
-	Volume_Stat_FullMethodName      = "/volume.Volume/Stat"
-	Volume_ListDir_FullMethodName   = "/volume.Volume/ListDir"
-	Volume_Remove_FullMethodName    = "/volume.Volume/Remove"
-	Volume_Rename_FullMethodName    = "/volume.Volume/Rename"
-	Volume_MkdirAll_FullMethodName  = "/volume.Volume/MkdirAll"
-	Volume_Abs_FullMethodName       = "/volume.Volume/Abs"
-	Volume_Copy_FullMethodName      = "/volume.Volume/Copy"
-	Volume_Zip_FullMethodName       = "/volume.Volume/Zip"
-	Volume_Unzip_FullMethodName     = "/volume.Volume/Unzip"
-	Volume_Gzip_FullMethodName      = "/volume.Volume/Gzip"
-	Volume_Gunzip_FullMethodName    = "/volume.Volume/Gunzip"
-	Volume_Tar_FullMethodName       = "/volume.Volume/Tar"
-	Volume_Untar_FullMethodName     = "/volume.Volume/Untar"
-	Volume_Tgz_FullMethodName       = "/volume.Volume/Tgz"
-	Volume_Untgz_FullMethodName     = "/volume.Volume/Untgz"
+	Volume_SyncPush_FullMethodName   = "/volume.Volume/SyncPush"
+	Volume_SyncPull_FullMethodName   = "/volume.Volume/SyncPull"
+	Volume_ReadFile_FullMethodName   = "/volume.Volume/ReadFile"
+	Volume_WriteFile_FullMethodName  = "/volume.Volume/WriteFile"
+	Volume_Stat_FullMethodName       = "/volume.Volume/Stat"
+	Volume_ListDir_FullMethodName    = "/volume.Volume/ListDir"
+	Volume_Remove_FullMethodName     = "/volume.Volume/Remove"
+	Volume_Rename_FullMethodName     = "/volume.Volume/Rename"
+	Volume_MkdirAll_FullMethodName   = "/volume.Volume/MkdirAll"
+	Volume_Abs_FullMethodName        = "/volume.Volume/Abs"
+	Volume_Copy_FullMethodName       = "/volume.Volume/Copy"
+	Volume_ListSkills_FullMethodName = "/volume.Volume/ListSkills"
+	Volume_Zip_FullMethodName        = "/volume.Volume/Zip"
+	Volume_Unzip_FullMethodName      = "/volume.Volume/Unzip"
+	Volume_Gzip_FullMethodName       = "/volume.Volume/Gzip"
+	Volume_Gunzip_FullMethodName     = "/volume.Volume/Gunzip"
+	Volume_Tar_FullMethodName        = "/volume.Volume/Tar"
+	Volume_Untar_FullMethodName      = "/volume.Volume/Untar"
+	Volume_Tgz_FullMethodName        = "/volume.Volume/Tgz"
+	Volume_Untgz_FullMethodName      = "/volume.Volume/Untgz"
 )
 
 // VolumeClient is the client API for Volume service.
@@ -69,6 +70,7 @@ type VolumeClient interface {
 	Abs(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*FSAbsResponse, error)
 	// Copy: copy src to dst within the same workspace (server-side when remote).
 	Copy(ctx context.Context, in *FSCopyRequest, opts ...grpc.CallOption) (*SyncResult, error)
+	ListSkills(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*ListSkillsResponse, error)
 	Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Unzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Gzip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
@@ -221,6 +223,16 @@ func (c *volumeClient) Copy(ctx context.Context, in *FSCopyRequest, opts ...grpc
 	return out, nil
 }
 
+func (c *volumeClient) ListSkills(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*ListSkillsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListSkillsResponse)
+	err := c.cc.Invoke(ctx, Volume_ListSkills_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *volumeClient) Zip(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ArchiveResponse)
@@ -330,6 +342,7 @@ type VolumeServer interface {
 	Abs(context.Context, *FSRequest) (*FSAbsResponse, error)
 	// Copy: copy src to dst within the same workspace (server-side when remote).
 	Copy(context.Context, *FSCopyRequest) (*SyncResult, error)
+	ListSkills(context.Context, *FSRequest) (*ListSkillsResponse, error)
 	Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Unzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Gzip(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
@@ -380,6 +393,9 @@ func (UnimplementedVolumeServer) Abs(context.Context, *FSRequest) (*FSAbsRespons
 }
 func (UnimplementedVolumeServer) Copy(context.Context, *FSCopyRequest) (*SyncResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method Copy not implemented")
+}
+func (UnimplementedVolumeServer) ListSkills(context.Context, *FSRequest) (*ListSkillsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListSkills not implemented")
 }
 func (UnimplementedVolumeServer) Zip(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Zip not implemented")
@@ -588,6 +604,24 @@ func _Volume_Copy_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Volume_ListSkills_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FSRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).ListSkills(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_ListSkills_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).ListSkills(ctx, req.(*FSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Volume_Zip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ArchiveRequest)
 	if err := dec(in); err != nil {
@@ -766,6 +800,10 @@ var Volume_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Copy",
 			Handler:    _Volume_Copy_Handler,
+		},
+		{
+			MethodName: "ListSkills",
+			Handler:    _Volume_ListSkills_Handler,
 		},
 		{
 			MethodName: "Zip",

@@ -4,19 +4,18 @@
 
 These environment variables are set by the Yao sandbox. **Always use these variables — never hardcode paths.**
 
-| Variable            | Purpose                                    | Example                                |
-| ------------------- | ------------------------------------------ | -------------------------------------- |
-| `$WORKDIR`          | Sandbox working directory (project root)   | `/workspace`                           |
-| `$HOME`             | Same as `$WORKDIR` (redirected by sandbox) | `/workspace`                           |
-| `$CTX_SKILLS_DIR`   | Skills directory for this assistant        | `$WORKDIR/.yao/assistants/<id>/skills` |
-| `$CTX_ASSISTANT_ID` | Current assistant ID                       | `yao.agent-smith`                      |
-| `$CTX_WORKSPACE_ID` | Current workspace ID                       | `ws-abc123`                            |
+| Variable              | Purpose                                    | Example                                |
+| --------------------- | ------------------------------------------ | -------------------------------------- |
+| `$WORKDIR`            | Sandbox working directory (project root)   | `/workspace`                           |
+| `$HOME`               | Same as `$WORKDIR` (redirected by sandbox) | `/workspace`                           |
+| `$CTX_SKILLS_DIR`     | Skills directory for this assistant        | `$WORKDIR/.yao/assistants/<id>/skills` |
+| `$CTX_EXT_SKILLS_DIR` | Extended skills (task extensions)           | `$WORKDIR/.yao/skills`                 |
+| `$CTX_ASSISTANT_ID`   | Current assistant ID                       | `yao.agent-smith`                      |
+| `$CTX_WORKSPACE_ID`   | Current workspace ID                       | `ws-abc123`                            |
 
 ### Path Rules
 
 - **Use `$WORKDIR`** for all file paths — never hardcode `/workspace`
-- **Use `$CTX_SKILLS_DIR`** for assistant-specific skills (custom skills provided by the assistant)
-- System tool skills are in `$HOME/.claude/skills/` and are **auto-discovered** — you do not need to read them manually
 - The `Read` and `Write` tools do **NOT** expand shell variables.
   Resolve first: `echo "$WORKDIR"`, then use the printed value.
 - On Windows, use `$env:WORKDIR` / `$env:CTX_SKILLS_DIR` syntax instead.
@@ -27,26 +26,17 @@ When replying to users, **never expose raw `/workspace/...` paths**. Rewrite the
 
 **Format**: `workspace://<workspace-id>/relative/path`
 
-**Step 1 — resolve the real workspace ID** (do this once per session):
+The current workspace ID is provided in the **Sandbox Environment** prompt above (see "Current Workspace ID"). Use that value directly in workspace:// links. If it was not provided (rare), fall back to:
 
 ```bash
 echo "$CTX_WORKSPACE_ID"
 ```
 
-Use the **actual printed value** (e.g. `ws-bfc4c2de-b53...`) in all subsequent replies.
-
-**Step 2 — rewrite paths in replies**:
-
-- `/workspace/output/result.png` → `workspace://<real-id>/output/result.png`
-
 **Common mistakes** (all wrong):
 
 - `workspace://$CTX_WORKSPACE_ID/...` ← shell variable literally in reply
-- `workspace://ws-bfc4c2de-b53/...` ← example/placeholder ID instead of the real one
 - `workspace://<workspace-id>/...` ← template placeholder instead of the real one
 - `/workspace/output/...` ← raw path without `workspace://` scheme
-
-You **must** run `echo "$CTX_WORKSPACE_ID"` and use the exact output.
 
 ### Attachments
 
@@ -60,6 +50,37 @@ When you need to read, analyze, or describe an image (screenshot, photo, chart, 
 ```bash
 tai tool image_read '{"image_path": "<file_path_or_url>", "prompt": "describe this image"}'
 ```
+
+## Skills Directories
+
+Skills are SKILL.md files with instructions and scripts that extend your capabilities.
+
+| Directory | Source | Discovery |
+| --------- | ------ | --------- |
+| `$HOME/.claude/skills/` | System tools (yao-web, yao-process, etc.) | **Auto-discovered** — loaded automatically when relevant, no manual action needed |
+| `$CTX_SKILLS_DIR` | Assistant-specific skills (bundled by the assistant author) | **On-demand** — read when you need custom procedures for this assistant's domain |
+| `$CTX_EXT_SKILLS_DIR` | Task extension skills (installed at runtime by user or extensions) | **On-demand** — list with `ls "$CTX_EXT_SKILLS_DIR"`, then read the relevant SKILL.md |
+
+### How to use on-demand skills
+
+1. List available skills: `ls "$CTX_SKILLS_DIR"` or `ls "$CTX_EXT_SKILLS_DIR"`
+2. Read a skill: `cat "$CTX_EXT_SKILLS_DIR/<skill-name>/SKILL.md"`
+3. Follow the instructions in the SKILL.md file
+
+Do NOT read on-demand skills unless the user's request matches the skill's domain.
+
+### Creating or installing new skills
+
+When the user asks to create, install, or add a new skill, place it under `$CTX_EXT_SKILLS_DIR`.
+
+**Structure**: `$CTX_EXT_SKILLS_DIR/<feature-name>/SKILL.md` (+ optional helper scripts in same directory)
+
+Rules:
+- Frontmatter `name` must match the directory name
+- Frontmatter `description` must include a trigger directive (e.g. "ALWAYS invoke this skill when …")
+- Helper scripts use relative paths in SKILL.md
+- Do NOT write to `$HOME/.claude/skills/` (system-only) or `$CTX_SKILLS_DIR` (assistant-bundled, read-only)
+- After creating or removing a skill, update your `extension-skills.md` memory and `MEMORY.md` index to reflect the change
 
 ## Yao System Tools
 
@@ -89,16 +110,8 @@ You have access to Yao system tools via the `tai` command in bash.
 | `secret_list`       | yao-secret          | List available secrets (names only, no values)      |
 | `secret_read`       | yao-secret          | Read a secret value by name                         |
 | `secret_connectors` | yao-secret          | Returns LLM connector settings **with credentials** — redirect output to file or variable, never let it appear in conversation |
-| `robot_list`             | yao-robot    | List robots (summary: id, name, bio)                |
-| `robot_get`              | yao-robot    | Get robot profile and config                        |
-| `robot_create`           | yao-robot    | Create a new robot with profile and config          |
-| `robot_update`           | yao-robot    | Update robot profile or config fields               |
-| `robot_status`           | yao-robot    | Check if robot is busy: running count, slots        |
-| `robot_execution_list`   | yao-robot    | List executions (in progress or recent)             |
-| `robot_execution_get`    | yao-robot    | Get execution details: progress, errors             |
-| `robot_execution_create` | yao-robot    | Trigger a new execution                             |
-| `robot_execution_cancel` | yao-robot    | Cancel a running execution                          |
-| `robot_result_list`      | yao-robot    | List completed executions with outputs              |
+| `board_list`             | yao-board    | List all kanban boards with columns and task counts  |
+| `task_list`              | yao-board    | List tasks (filter by status, assistant, board)      |
 | `workspace_list`         | yao-workspace | List workspaces (summary: id, name, node)          |
 | `workspace_get`          | yao-workspace | Get workspace details                              |
 | `workspace_file_list`    | yao-workspace | List files and directories in a workspace          |
@@ -107,14 +120,9 @@ You have access to Yao system tools via the `tai` command in bash.
 | `clip_write`             | yao-clip      | Store a content clip (screenshot, DOM, structured data). Returns clip ID |
 | `clip_read`              | yao-clip      | Read a stored clip by ID. Use when you see `<Mention type="clip">` tags |
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
-| `mobile_list`            | yao-mobile    | List all online Android devices connected via Tai Link |
-| `mobile_exec`            | yao-mobile    | Execute a shell command on an Android device        |
-| `mobile_screenshot`      | yao-mobile    | Capture a screenshot and return base64 PNG          |
-| `mobile_info`            | yao-mobile    | Get detailed device info (OS, arch, capabilities)   |
-| `mobile_push`            | yao-mobile    | Push a file to an Android device                    |
-| `mobile_pull`            | yao-mobile    | Pull a file from an Android device                  |
+| `skill_list`             | —             | List installed skills (filter by type: system/assistant/extension) |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-robot`, `yao-workspace`, `yao-clip`, `yao-mobile`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ## Mention Tags
 

@@ -4,7 +4,7 @@ import "time"
 
 // ListQuery parameters for listing inbox messages
 type ListQuery struct {
-	Filter  string `json:"filter,omitempty"`  // all | unread | starred | input | completed | failed | archived
+	Filter  string `json:"filter,omitempty"`  // all | unread | bookmarked | input | completed | failed | archived
 	Keyword string `json:"keyword,omitempty"` // search title/body
 	ChatID  string `json:"chat_id,omitempty"` // filter by task chat_id
 	Page    int    `json:"page,omitempty"`
@@ -19,25 +19,17 @@ type ListResult struct {
 	Size  int          `json:"size"`
 }
 
-// Counts unread counts grouped by type
-type Counts struct {
-	Total     int `json:"total"`
-	Input     int `json:"input"`
-	Completed int `json:"completed"`
-	Failed    int `json:"failed"`
-}
-
-// InboxStats represents category counts for sidebar display
+// InboxStats represents category counts for sidebar display (task-based)
 type InboxStats struct {
-	All       int `json:"all"`
-	Starred   int `json:"starred"`
-	Input     int `json:"input"`
-	Completed int `json:"completed"`
-	Failed    int `json:"failed"`
-	Archived  int `json:"archived"`
+	All        int `json:"all"`
+	Bookmarked int `json:"bookmarked"`
+	Input      int `json:"input"`
+	Completed  int `json:"completed"`
+	Failed     int `json:"failed"`
+	Archived   int `json:"archived"`
 }
 
-// AgentMail represents an inbox message
+// AgentMail represents an inbox item (latest mail merged with task-level fields)
 type AgentMail struct {
 	ID          int64      `json:"id,omitempty"`
 	MailID      string     `json:"mail_id"`
@@ -51,13 +43,14 @@ type AgentMail struct {
 	SourceType  string     `json:"source_type,omitempty"`
 	SourceID    string     `json:"source_id,omitempty"`
 	SourceName  string     `json:"source_name,omitempty"`
-	Read        bool       `json:"read"`
-	Starred     bool       `json:"starred"`
-	Pinned      bool       `json:"pinned"`
-	ReadAt      *time.Time `json:"read_at,omitempty"`
 	Metadata    any        `json:"metadata,omitempty"`
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
+	// Task-level fields (merged from task table)
+	Bookmarked  bool       `json:"bookmarked"`
+	InboxPinned bool       `json:"inbox_pinned"`
+	HasUnread   bool       `json:"has_unread"`
+	InboxReadAt *time.Time `json:"inbox_read_at,omitempty"`
 }
 
 // AgentTask minimal task info needed by trigger

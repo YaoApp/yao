@@ -1,1 +1,15 @@
-{"name":"task_move","description":"Move a task to a different column or position","inputSchema":{"type":"object","properties":{"chat_id":{"type":"string","description":"Task chat ID"},"column_id":{"type":"string","description":"Target column ID"},"position":{"type":"number","description":"Target position in column"}},"required":["chat_id","column_id","position"]}}
+{
+  "name": "task_move",
+  "description": "Move a task to a different column or position",
+  "process": "tools.task_move",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "chat_id": { "type": "string", "description": "Task chat ID" },
+      "column_id": { "type": "string", "description": "Target column ID" },
+      "position": { "type": "number", "description": "Target position in column" }
+    },
+    "required": ["chat_id", "column_id", "position"]
+  },
+  "x-process-args": ["$args.chat_id", "$args.column_id", "$args.position"]
+}

@@ -1,1 +1,7 @@
-{"name":"board_list","description":"List all kanban boards with columns and task counts","inputSchema":{"type":"object","properties":{}}}
+{
+  "name": "board_list",
+  "description": "List all kanban boards with columns and task counts",
+  "process": "tools.board_list",
+  "inputSchema": { "type": "object", "properties": {} },
+  "x-process-args": []
+}

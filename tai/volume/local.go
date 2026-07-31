@@ -142,6 +142,37 @@ func (l *localStorage) Abs(_ context.Context, sessionID, path string) (string, e
 	return l.abs(sessionID, path)
 }
 
+func (l *localStorage) ListSkills(_ context.Context, sessionID, dir string) ([]SkillInfo, error) {
+	abs, err := l.abs(sessionID, dir)
+	if err != nil {
+		return nil, err
+	}
+	entries, err := os.ReadDir(abs)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var skills []SkillInfo
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		skillFile := filepath.Join(abs, e.Name(), "SKILL.md")
+		name, desc := parseSkillFrontmatter(skillFile)
+		if name == "" {
+			name = e.Name()
+		}
+		skills = append(skills, SkillInfo{
+			Name:        name,
+			Description: desc,
+			Path:        filepath.Join(dir, e.Name(), "SKILL.md"),
+		})
+	}
+	return skills, nil
+}
+
 // Copy duplicates src to dst within the same workspace session.
 // Supports single files and directories (recursive). Uses excludes from SyncOption
 // and forceFull to overwrite even when mtime+size match.

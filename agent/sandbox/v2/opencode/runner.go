@@ -163,9 +163,18 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 				prefix = ".opencode"
 			}
 			promptPath := prefix + "/system-prompt.md"
-			envPrompt := buildSandboxEnvPrompt(p, computer.GetWorkDir())
+
+			var workspaceID string
+			if wsID, err := ws.GetID(); err == nil {
+				workspaceID = wsID
+			}
+
+			envPrompt := buildSandboxEnvPrompt(p, computer.GetWorkDir(), workspaceID)
 			if svcPrompt := buildServicePrompt(req.Config); svcPrompt != "" {
 				envPrompt += "\n\n" + svcPrompt
+			}
+			if localePrompt := buildLocalePrompt(req.Locale); localePrompt != "" {
+				envPrompt += "\n\n" + localePrompt
 			}
 			fullPrompt := req.SystemPrompt + "\n\n" + envPrompt
 			ws.MkdirAll(prefix, 0755)

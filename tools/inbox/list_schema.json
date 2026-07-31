@@ -1,1 +1,13 @@
-{"name":"inbox_list","description":"List inbox messages with optional filtering","inputSchema":{"type":"object","properties":{"filter":{"type":"string","description":"Filter: all/unread/starred/input/completed/failed/archived"},"keyword":{"type":"string","description":"Search keyword"}}}}
+{
+  "name": "inbox_list",
+  "description": "List inbox task notifications with optional filtering",
+  "process": "tools.inbox_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "filter": { "type": "string", "description": "Filter: all/unread/bookmarked/input/completed/failed/archived" },
+      "keyword": { "type": "string", "description": "Search keyword" }
+    }
+  },
+  "x-process-args": ["$args.filter", "$args.keyword"]
+}

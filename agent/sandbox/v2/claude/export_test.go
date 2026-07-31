@@ -118,8 +118,8 @@ var ExportIsStandardAnthropicModel = isStandardAnthropicModel
 var ExportBuildClaudeCodeCapabilities = buildClaudeCodeCapabilities
 
 // ExportBuildSandboxEnvPrompt wraps buildSandboxEnvPrompt for black-box testing.
-func ExportBuildSandboxEnvPrompt(p ExportPlatform, workDir string) string {
-	return buildSandboxEnvPrompt(p.(*exportWrapper).p, workDir)
+func ExportBuildSandboxEnvPrompt(p ExportPlatform, workDir string, workspaceID string) string {
+	return buildSandboxEnvPrompt(p.(*exportWrapper).p, workDir, workspaceID)
 }
 
 // ExportBuildEnv wraps buildEnv for black-box testing.
@@ -203,6 +203,18 @@ func ExportBuildLastUserJSONL(msgs []agentContext.Message) string {
 
 // ExportExtractSummary exposes extractSummary for testing.
 var ExportExtractSummary = extractSummary
+
+// ExportBuildEnvironmentContextMD exposes buildEnvironmentContextMD.
+var ExportBuildEnvironmentContextMD = buildEnvironmentContextMD
+
+// ExportBuildExtensionSkillsMD exposes buildExtensionSkillsMD.
+var ExportBuildExtensionSkillsMD = buildExtensionSkillsMD
+
+// ExportBuildMemoryIndexMD exposes buildMemoryIndexMD.
+var ExportBuildMemoryIndexMD = buildMemoryIndexMD
+
+// ExportInjectAutoMemory exposes injectAutoMemory.
+var ExportInjectAutoMemory = injectAutoMemory
 
 // ExportTruncate exposes truncate for testing.
 var ExportTruncate = truncate

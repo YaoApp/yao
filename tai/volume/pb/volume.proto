@@ -35,6 +35,10 @@ service Volume {
   // Copy: copy src to dst within the same workspace (server-side when remote).
   rpc Copy(FSCopyRequest) returns (SyncResult);
 
+  // --- Skills Discovery ---
+
+  rpc ListSkills(FSRequest) returns (ListSkillsResponse);
+
   // --- Archive / Compression ---
 
   rpc Zip(ArchiveRequest) returns (ArchiveResponse);
@@ -178,4 +182,16 @@ message ArchiveRequest {
 message ArchiveResponse {
   int64 size_bytes  = 1;  // output file size (pack) or total extracted size (unpack)
   int32 files_count = 2;  // number of files processed
+}
+
+// --- Skills Discovery Messages ---
+
+message SkillEntry {
+  string name        = 1;
+  string description = 2;
+  string path        = 3;  // relative to session root
+}
+
+message ListSkillsResponse {
+  repeated SkillEntry skills = 1;
 }

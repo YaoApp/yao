@@ -18,6 +18,7 @@ type Volume interface {
 	Rename(ctx context.Context, sessionID, oldPath, newPath string) error
 	MkdirAll(ctx context.Context, sessionID, path string) error
 	Abs(ctx context.Context, sessionID, path string) (string, error)
+	ListSkills(ctx context.Context, sessionID, dir string) ([]SkillInfo, error)
 
 	SyncPush(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
 	SyncPull(ctx context.Context, sessionID, localDir string, opts ...SyncOption) (*SyncResult, error)
@@ -55,6 +56,13 @@ type SyncResult struct {
 type ArchiveResult struct {
 	SizeBytes  int64
 	FilesCount int
+}
+
+// SkillInfo describes a discovered skill from a SKILL.md file.
+type SkillInfo struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Path        string `json:"path"`
 }
 
 // SyncOption configures sync behavior.
