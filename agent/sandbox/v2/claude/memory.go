@@ -48,7 +48,7 @@ type: project
 	fmt.Fprintf(&b, "- **Workspace ID**: %s\n", workspaceID)
 	fmt.Fprintf(&b, "- **Working Directory**: %s\n", workDir)
 	b.WriteString(`
-When referencing files for the user, use ` + "`workspace://" + workspaceID + "/path/to/file`" + `.
+When referencing files for the user, use Markdown links: ` + "`[path/to/file](workspace://" + workspaceID + "/path/to/file)`" + `.
 The client renders these as clickable links opening the file in the editor.
 
 ## Accessing Other Workspaces

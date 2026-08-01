@@ -22,11 +22,15 @@ These environment variables are set by the Yao sandbox. **Always use these varia
 
 ### Workspace Path in Replies
 
-When replying to users, **never expose raw `/workspace/...` paths**. Rewrite them using the `workspace://` scheme so the frontend can render them correctly.
+When replying to users, **never expose raw `/workspace/...` paths**. Use Markdown links with the `workspace://` scheme so the frontend can render clickable file references.
 
-**Format**: `workspace://<workspace-id>/relative/path`
+**Format**: `[relative/path](workspace://<workspace-id>/relative/path)`
 
-The current workspace ID is provided in the **Sandbox Environment** prompt above (see "Current Workspace ID"). Use that value directly in workspace:// links. If it was not provided (rare), fall back to:
+Example (assuming workspace ID is `ws-abc123`):
+- Correct: `[output/report.csv](workspace://ws-abc123/output/report.csv)`
+- Correct: `[src/main.py](workspace://ws-abc123/src/main.py)`
+
+The current workspace ID is provided in the **Sandbox Environment** prompt above (see "Current Workspace ID"). Use that value directly in workspace:// Markdown links. If it was not provided (rare), fall back to:
 
 ```bash
 echo "$CTX_WORKSPACE_ID"
@@ -34,8 +38,9 @@ echo "$CTX_WORKSPACE_ID"
 
 **Common mistakes** (all wrong):
 
+- `workspace://ws-abc123/output/file.txt` ← bare URL without Markdown link syntax
 - `workspace://$CTX_WORKSPACE_ID/...` ← shell variable literally in reply
-- `workspace://<workspace-id>/...` ← template placeholder instead of the real one
+- `[file](workspace://<workspace-id>/...)` ← template placeholder instead of real ID
 - `/workspace/output/...` ← raw path without `workspace://` scheme
 
 ### Attachments
