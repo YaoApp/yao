@@ -87,7 +87,7 @@ func (api *JSAPI) StreamWithHandler(connectorID string, messages []interface{}, 
 	}
 
 	// Parse messages to context.Message format
-	ctxMessages, err := parseMessages(messages)
+	ctxMessages, err := ParseMessages(messages)
 	if err != nil {
 		result.Error = fmt.Sprintf("failed to parse messages: %v", err)
 		return result
@@ -150,8 +150,8 @@ func createStreamHandlerWithCallback(ctx *agentContext.Context, handler agentCon
 	}
 }
 
-// parseMessages converts JS message array to context.Message slice
-func parseMessages(messages []interface{}) ([]agentContext.Message, error) {
+// ParseMessages converts a message array (from JS/JSON) to context.Message slice.
+func ParseMessages(messages []interface{}) ([]agentContext.Message, error) {
 	result := make([]agentContext.Message, 0, len(messages))
 
 	for i, msg := range messages {

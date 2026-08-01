@@ -29,6 +29,10 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 
 	// LLM Providers endpoints
 	group.GET("/providers", listProviders) // GET /providers - List all LLM providers
+
+	// OpenAI-compatible endpoints
+	group.POST("/chat/completions", handleChatCompletions) // POST /chat/completions - LLM proxy
+	group.GET("/models", handleListModels)                 // GET /models - List available models
 }
 
 // listProviders lists all available LLM providers (built-in + user-defined)

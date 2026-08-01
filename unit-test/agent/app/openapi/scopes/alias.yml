@@ -44,6 +44,7 @@ client:free:
   - tasks:all
   - otp:all
   - event:all
+  - llm:all
   - messenger:all
   - trace:all
   - sandbox:all
@@ -820,21 +821,26 @@ dsl:write:own:
 
 llm:all:
   - llm:providers:read:all
+  - llm:completions:write:all
 
 llm:all:own:
   - llm:providers:read:all
+  - llm:completions:write:own
 
 llm:all:team:
   - llm:providers:read:all
+  - llm:completions:write:team
 
 llm:manage:team:
   - llm:providers:read:all
+  - llm:completions:write:team
 
 llm:read:team:
   - llm:providers:read:all
 
 llm:write:own:
   - llm:providers:read:all
+  - llm:completions:write:own
 
 # ============ MCP Resources Aliases ============
 
