@@ -52,6 +52,15 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/:id/mkdir", handleMkdir)
 	group.POST("/:id/rename", handleRename)
 	group.GET("/:id/preview/*path", handlePreview)
+
+	// Git operations
+	group.GET("/:id/git/repos", handleGitListRepos)
+	group.GET("/:id/git/status", handleGitStatus)
+	group.GET("/:id/git/diff", handleGitFileDiff)
+	group.POST("/:id/git/add", handleGitAdd)
+	group.POST("/:id/git/reset", handleGitReset)
+	group.POST("/:id/git/commit", handleGitCommit)
+	group.POST("/:id/git/discard", handleGitDiscardChanges)
 }
 
 // resolveOwner returns TeamID if present, otherwise UserID.
@@ -538,6 +547,153 @@ func handleRename(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// --- Git request types ---
+
+type gitAddRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+type gitResetRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+type gitCommitRequest struct {
+	RepoPath    string `json:"repo_path" binding:"required"`
+	Message     string `json:"message" binding:"required"`
+	AuthorName  string `json:"author_name,omitempty"`
+	AuthorEmail string `json:"author_email,omitempty"`
+	AllowEmpty  bool   `json:"allow_empty,omitempty"`
+}
+
+type gitDiscardRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+// --- Git handlers ---
+
+func handleGitListRepos(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repos, err := mgr().GitListRepos(context.Background(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, repos)
+}
+
+func handleGitStatus(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repoPath := c.Query("repo_path")
+	if repoPath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo_path required"})
+		return
+	}
+	result, err := mgr().GitStatus(context.Background(), c.Param("id"), repoPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitFileDiff(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repoPath := c.Query("repo_path")
+	filePath := c.Query("file_path")
+	if repoPath == "" || filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo_path and file_path required"})
+		return
+	}
+	staged := c.Query("staged") == "true"
+	result, err := mgr().GitFileDiff(context.Background(), c.Param("id"), repoPath, filePath, staged)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitAdd(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitAddRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitAdd(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitReset(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitReset(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitCommit(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitCommitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := mgr().GitCommit(context.Background(), c.Param("id"), req.RepoPath, req.Message, req.AuthorName, req.AuthorEmail, req.AllowEmpty)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitDiscardChanges(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitDiscardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitDiscardChanges(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
 }
 
 // handlePreview serves workspace files with correct MIME types for browser rendering.

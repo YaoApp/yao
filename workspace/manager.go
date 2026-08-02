@@ -279,6 +279,71 @@ func (m *Manager) MountPath(ctx context.Context, id string) (string, error) {
 	return vol.Abs(ctx, id, ".")
 }
 
+// --- Git ---
+
+// GitListRepos lists Git repositories in a workspace.
+func (m *Manager) GitListRepos(ctx context.Context, id string) ([]volume.GitRepo, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitListRepos(ctx, id, ".")
+}
+
+// GitStatus returns the status of a Git repository.
+func (m *Manager) GitStatus(ctx context.Context, id, repoPath string) (*volume.GitStatusResult, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitStatus(ctx, id, repoPath)
+}
+
+// GitFileDiff returns the diff for a single file.
+func (m *Manager) GitFileDiff(ctx context.Context, id, repoPath, filePath string, staged bool) (*volume.GitFileDiffResult, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitFileDiff(ctx, id, repoPath, filePath, staged)
+}
+
+// GitAdd stages files in a Git repository.
+func (m *Manager) GitAdd(ctx context.Context, id, repoPath string, files []string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitAdd(ctx, id, repoPath, files)
+}
+
+// GitReset unstages files in a Git repository.
+func (m *Manager) GitReset(ctx context.Context, id, repoPath string, files []string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitReset(ctx, id, repoPath, files)
+}
+
+// GitCommit creates a commit in a Git repository.
+func (m *Manager) GitCommit(ctx context.Context, id, repoPath, message, authorName, authorEmail string, allowEmpty bool) (*volume.GitCommitResult, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitCommit(ctx, id, repoPath, message, authorName, authorEmail, allowEmpty)
+}
+
+// GitDiscardChanges discards uncommitted changes in a Git repository.
+func (m *Manager) GitDiscardChanges(ctx context.Context, id, repoPath string, files []string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitDiscardChanges(ctx, id, repoPath, files)
+}
+
 // --- internal ---
 
 // resolve finds the workspace and its Volume by scanning all registered nodes.

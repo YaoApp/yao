@@ -33,6 +33,15 @@ type Volume interface {
 	Tgz(ctx context.Context, sessionID, src, dst string, excludes []string) (*ArchiveResult, error)
 	Untgz(ctx context.Context, sessionID, src, dst string) (*ArchiveResult, error)
 
+	// --- Git ---
+	GitListRepos(ctx context.Context, sessionID, basePath string) ([]GitRepo, error)
+	GitStatus(ctx context.Context, sessionID, repoPath string) (*GitStatusResult, error)
+	GitFileDiff(ctx context.Context, sessionID, repoPath, filePath string, staged bool) (*GitFileDiffResult, error)
+	GitAdd(ctx context.Context, sessionID, repoPath string, files []string) error
+	GitReset(ctx context.Context, sessionID, repoPath string, files []string) error
+	GitCommit(ctx context.Context, sessionID, repoPath, message, authorName, authorEmail string, allowEmpty bool) (*GitCommitResult, error)
+	GitDiscardChanges(ctx context.Context, sessionID, repoPath string, files []string) error
+
 	Close() error
 }
 
@@ -97,4 +106,49 @@ func ApplySyncOpts(opts []SyncOption) SyncConfig {
 		o(&cfg)
 	}
 	return cfg
+}
+
+// GitRepo describes a Git repository found within a workspace.
+type GitRepo struct {
+	Path       string `json:"path"`
+	Branch     string `json:"branch"`
+	RemoteURL  string `json:"remote_url"`
+	HasChanges bool   `json:"has_changes"`
+}
+
+// GitChangedFile represents a file with uncommitted changes.
+type GitChangedFile struct {
+	Path           string `json:"path"`
+	IndexStatus    string `json:"index_status"`
+	WorktreeStatus string `json:"worktree_status"`
+	OldPath        string `json:"old_path,omitempty"`
+}
+
+// GitStatusResult aggregates the status of a Git repository.
+type GitStatusResult struct {
+	Branch          string           `json:"branch"`
+	Files           []GitChangedFile `json:"files"`
+	Ahead           int              `json:"ahead"`
+	Behind          int              `json:"behind"`
+	TotalInsertions int              `json:"total_insertions"`
+	TotalDeletions  int              `json:"total_deletions"`
+	IsDetached      bool             `json:"is_detached"`
+	IsEmpty         bool             `json:"is_empty"`
+}
+
+// GitFileDiffResult contains diff content for a single file.
+type GitFileDiffResult struct {
+	Original   string `json:"original"`
+	Modified   string `json:"modified"`
+	Language   string `json:"language"`
+	IsBinary   bool   `json:"is_binary"`
+	IsNew      bool   `json:"is_new"`
+	IsDeleted  bool   `json:"is_deleted"`
+	IsTooLarge bool   `json:"is_too_large"`
+}
+
+// GitCommitResult contains the result of a commit operation.
+type GitCommitResult struct {
+	CommitHash string `json:"commit_hash"`
+	Message    string `json:"message"`
 }

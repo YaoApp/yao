@@ -565,6 +565,146 @@ func (r *remoteStorage) Copy(ctx context.Context, sessionID, src, dst string, op
 	}, nil
 }
 
+// ---------------------------------------------------------------------------
+// Git gRPC wrappers
+// ---------------------------------------------------------------------------
+
+func (r *remoteStorage) GitListRepos(ctx context.Context, sessionID, basePath string) ([]GitRepo, error) {
+	resp, err := r.client.GitListRepos(ctx, &pb.FSRequest{
+		SessionId: sessionID,
+		Path:      basePath,
+	})
+	if err != nil {
+		return nil, err
+	}
+	repos := make([]GitRepo, 0, len(resp.Repos))
+	for _, rr := range resp.Repos {
+		repos = append(repos, GitRepo{
+			Path:       rr.Path,
+			Branch:     rr.Branch,
+			RemoteURL:  rr.RemoteUrl,
+			HasChanges: rr.HasChanges,
+		})
+	}
+	return repos, nil
+}
+
+func (r *remoteStorage) GitStatus(ctx context.Context, sessionID, repoPath string) (*GitStatusResult, error) {
+	resp, err := r.client.GitStatus(ctx, &pb.GitStatusRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+	})
+	if err != nil {
+		return nil, err
+	}
+	files := make([]GitChangedFile, 0, len(resp.Files))
+	for _, f := range resp.Files {
+		files = append(files, GitChangedFile{
+			Path:           f.Path,
+			IndexStatus:    f.IndexStatus,
+			WorktreeStatus: f.WorktreeStatus,
+			OldPath:        f.OldPath,
+		})
+	}
+	return &GitStatusResult{
+		Branch:          resp.Branch,
+		Files:           files,
+		Ahead:           int(resp.Ahead),
+		Behind:          int(resp.Behind),
+		TotalInsertions: int(resp.TotalInsertions),
+		TotalDeletions:  int(resp.TotalDeletions),
+		IsDetached:      resp.IsDetached,
+		IsEmpty:         resp.IsEmpty,
+	}, nil
+}
+
+func (r *remoteStorage) GitFileDiff(ctx context.Context, sessionID, repoPath, filePath string, staged bool) (*GitFileDiffResult, error) {
+	resp, err := r.client.GitFileDiff(ctx, &pb.GitFileDiffRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		FilePath:  filePath,
+		Staged:    staged,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &GitFileDiffResult{
+		Original:   resp.Original,
+		Modified:   resp.Modified,
+		Language:   resp.Language,
+		IsBinary:   resp.IsBinary,
+		IsNew:      resp.IsNew,
+		IsDeleted:  resp.IsDeleted,
+		IsTooLarge: resp.IsTooLarge,
+	}, nil
+}
+
+func (r *remoteStorage) GitAdd(ctx context.Context, sessionID, repoPath string, files []string) error {
+	resp, err := r.client.GitAdd(ctx, &pb.GitAddRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		Files:     files,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git add: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitReset(ctx context.Context, sessionID, repoPath string, files []string) error {
+	resp, err := r.client.GitReset(ctx, &pb.GitResetRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		Files:     files,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git reset: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitCommit(ctx context.Context, sessionID, repoPath, message, authorName, authorEmail string, allowEmpty bool) (*GitCommitResult, error) {
+	resp, err := r.client.GitCommit(ctx, &pb.GitCommitRequest{
+		SessionId:   sessionID,
+		RepoPath:    repoPath,
+		Message:     message,
+		AuthorName:  authorName,
+		AuthorEmail: authorEmail,
+		AllowEmpty:  allowEmpty,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return nil, fmt.Errorf("git commit: %s", resp.Message)
+	}
+	return &GitCommitResult{
+		CommitHash: resp.CommitHash,
+		Message:    resp.Message,
+	}, nil
+}
+
+func (r *remoteStorage) GitDiscardChanges(ctx context.Context, sessionID, repoPath string, files []string) error {
+	resp, err := r.client.GitDiscardChanges(ctx, &pb.GitDiscardRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		Files:     files,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git discard: %s", resp.Message)
+	}
+	return nil
+}
+
 func (r *remoteStorage) Close() error {
 	return nil
 }

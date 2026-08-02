@@ -1379,6 +1379,877 @@ func (x *ListSkillsResponse) GetSkills() []*SkillEntry {
 	return nil
 }
 
+type GitRepo struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Path          string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                // relative to workspace root, e.g. "app/backend"
+	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`                            // current branch name
+	RemoteUrl     string                 `protobuf:"bytes,3,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"`     // origin remote URL
+	HasChanges    bool                   `protobuf:"varint,4,opt,name=has_changes,json=hasChanges,proto3" json:"has_changes,omitempty"` // has uncommitted changes
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitRepo) Reset() {
+	*x = GitRepo{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitRepo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitRepo) ProtoMessage() {}
+
+func (x *GitRepo) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitRepo.ProtoReflect.Descriptor instead.
+func (*GitRepo) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *GitRepo) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GitRepo) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GitRepo) GetRemoteUrl() string {
+	if x != nil {
+		return x.RemoteUrl
+	}
+	return ""
+}
+
+func (x *GitRepo) GetHasChanges() bool {
+	if x != nil {
+		return x.HasChanges
+	}
+	return false
+}
+
+type GitReposResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Repos         []*GitRepo             `protobuf:"bytes,1,rep,name=repos,proto3" json:"repos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitReposResponse) Reset() {
+	*x = GitReposResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitReposResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitReposResponse) ProtoMessage() {}
+
+func (x *GitReposResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitReposResponse.ProtoReflect.Descriptor instead.
+func (*GitReposResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GitReposResponse) GetRepos() []*GitRepo {
+	if x != nil {
+		return x.Repos
+	}
+	return nil
+}
+
+type GitStatusRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"` // repo path relative to workspace root
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitStatusRequest) Reset() {
+	*x = GitStatusRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitStatusRequest) ProtoMessage() {}
+
+func (x *GitStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitStatusRequest.ProtoReflect.Descriptor instead.
+func (*GitStatusRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GitStatusRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitStatusRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+// git status --porcelain format: XY path
+// X = index (staged) status, Y = worktree (unstaged) status
+// A single file can have both staged and unstaged changes (partial staging)
+type GitChangedFile struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Path           string                 `protobuf:"bytes,1,opt,name=path,proto3" json:"path,omitempty"`                                           // file path relative to repo root
+	IndexStatus    string                 `protobuf:"bytes,2,opt,name=index_status,json=indexStatus,proto3" json:"index_status,omitempty"`          // staged status: " "/M/A/D/R/C/U
+	WorktreeStatus string                 `protobuf:"bytes,3,opt,name=worktree_status,json=worktreeStatus,proto3" json:"worktree_status,omitempty"` // unstaged status: " "/M/D/?/U
+	OldPath        string                 `protobuf:"bytes,4,opt,name=old_path,json=oldPath,proto3" json:"old_path,omitempty"`                      // only set for Renamed (original path)
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *GitChangedFile) Reset() {
+	*x = GitChangedFile{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitChangedFile) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitChangedFile) ProtoMessage() {}
+
+func (x *GitChangedFile) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitChangedFile.ProtoReflect.Descriptor instead.
+func (*GitChangedFile) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *GitChangedFile) GetPath() string {
+	if x != nil {
+		return x.Path
+	}
+	return ""
+}
+
+func (x *GitChangedFile) GetIndexStatus() string {
+	if x != nil {
+		return x.IndexStatus
+	}
+	return ""
+}
+
+func (x *GitChangedFile) GetWorktreeStatus() string {
+	if x != nil {
+		return x.WorktreeStatus
+	}
+	return ""
+}
+
+func (x *GitChangedFile) GetOldPath() string {
+	if x != nil {
+		return x.OldPath
+	}
+	return ""
+}
+
+type GitStatusResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Branch          string                 `protobuf:"bytes,1,opt,name=branch,proto3" json:"branch,omitempty"`
+	Files           []*GitChangedFile      `protobuf:"bytes,2,rep,name=files,proto3" json:"files,omitempty"`
+	Ahead           int32                  `protobuf:"varint,3,opt,name=ahead,proto3" json:"ahead,omitempty"`
+	Behind          int32                  `protobuf:"varint,4,opt,name=behind,proto3" json:"behind,omitempty"`
+	TotalInsertions int32                  `protobuf:"varint,5,opt,name=total_insertions,json=totalInsertions,proto3" json:"total_insertions,omitempty"` // staged + unstaged combined
+	TotalDeletions  int32                  `protobuf:"varint,6,opt,name=total_deletions,json=totalDeletions,proto3" json:"total_deletions,omitempty"`
+	IsDetached      bool                   `protobuf:"varint,7,opt,name=is_detached,json=isDetached,proto3" json:"is_detached,omitempty"` // HEAD detached (checked out to commit), branch = commit hash prefix
+	IsEmpty         bool                   `protobuf:"varint,8,opt,name=is_empty,json=isEmpty,proto3" json:"is_empty,omitempty"`          // empty repo (no commits)
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GitStatusResponse) Reset() {
+	*x = GitStatusResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitStatusResponse) ProtoMessage() {}
+
+func (x *GitStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitStatusResponse.ProtoReflect.Descriptor instead.
+func (*GitStatusResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *GitStatusResponse) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+func (x *GitStatusResponse) GetFiles() []*GitChangedFile {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+func (x *GitStatusResponse) GetAhead() int32 {
+	if x != nil {
+		return x.Ahead
+	}
+	return 0
+}
+
+func (x *GitStatusResponse) GetBehind() int32 {
+	if x != nil {
+		return x.Behind
+	}
+	return 0
+}
+
+func (x *GitStatusResponse) GetTotalInsertions() int32 {
+	if x != nil {
+		return x.TotalInsertions
+	}
+	return 0
+}
+
+func (x *GitStatusResponse) GetTotalDeletions() int32 {
+	if x != nil {
+		return x.TotalDeletions
+	}
+	return 0
+}
+
+func (x *GitStatusResponse) GetIsDetached() bool {
+	if x != nil {
+		return x.IsDetached
+	}
+	return false
+}
+
+func (x *GitStatusResponse) GetIsEmpty() bool {
+	if x != nil {
+		return x.IsEmpty
+	}
+	return false
+}
+
+type GitFileDiffRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	FilePath      string                 `protobuf:"bytes,3,opt,name=file_path,json=filePath,proto3" json:"file_path,omitempty"`
+	Staged        bool                   `protobuf:"varint,4,opt,name=staged,proto3" json:"staged,omitempty"` // true=staged diff, false=unstaged diff
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitFileDiffRequest) Reset() {
+	*x = GitFileDiffRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitFileDiffRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitFileDiffRequest) ProtoMessage() {}
+
+func (x *GitFileDiffRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitFileDiffRequest.ProtoReflect.Descriptor instead.
+func (*GitFileDiffRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *GitFileDiffRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitFileDiffRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitFileDiffRequest) GetFilePath() string {
+	if x != nil {
+		return x.FilePath
+	}
+	return ""
+}
+
+func (x *GitFileDiffRequest) GetStaged() bool {
+	if x != nil {
+		return x.Staged
+	}
+	return false
+}
+
+type GitFileDiffResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Original      string                 `protobuf:"bytes,1,opt,name=original,proto3" json:"original,omitempty"` // HEAD content (staged) or index content (unstaged)
+	Modified      string                 `protobuf:"bytes,2,opt,name=modified,proto3" json:"modified,omitempty"` // index content (staged) or worktree content (unstaged)
+	Language      string                 `protobuf:"bytes,3,opt,name=language,proto3" json:"language,omitempty"` // file language inferred from extension
+	IsBinary      bool                   `protobuf:"varint,4,opt,name=is_binary,json=isBinary,proto3" json:"is_binary,omitempty"`
+	IsNew         bool                   `protobuf:"varint,5,opt,name=is_new,json=isNew,proto3" json:"is_new,omitempty"`                  // new file (no original)
+	IsDeleted     bool                   `protobuf:"varint,6,opt,name=is_deleted,json=isDeleted,proto3" json:"is_deleted,omitempty"`      // deleted file (no modified)
+	IsTooLarge    bool                   `protobuf:"varint,7,opt,name=is_too_large,json=isTooLarge,proto3" json:"is_too_large,omitempty"` // file too large (>5MB), content not returned
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitFileDiffResponse) Reset() {
+	*x = GitFileDiffResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitFileDiffResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitFileDiffResponse) ProtoMessage() {}
+
+func (x *GitFileDiffResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitFileDiffResponse.ProtoReflect.Descriptor instead.
+func (*GitFileDiffResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GitFileDiffResponse) GetOriginal() string {
+	if x != nil {
+		return x.Original
+	}
+	return ""
+}
+
+func (x *GitFileDiffResponse) GetModified() string {
+	if x != nil {
+		return x.Modified
+	}
+	return ""
+}
+
+func (x *GitFileDiffResponse) GetLanguage() string {
+	if x != nil {
+		return x.Language
+	}
+	return ""
+}
+
+func (x *GitFileDiffResponse) GetIsBinary() bool {
+	if x != nil {
+		return x.IsBinary
+	}
+	return false
+}
+
+func (x *GitFileDiffResponse) GetIsNew() bool {
+	if x != nil {
+		return x.IsNew
+	}
+	return false
+}
+
+func (x *GitFileDiffResponse) GetIsDeleted() bool {
+	if x != nil {
+		return x.IsDeleted
+	}
+	return false
+}
+
+func (x *GitFileDiffResponse) GetIsTooLarge() bool {
+	if x != nil {
+		return x.IsTooLarge
+	}
+	return false
+}
+
+type GitAddRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Files         []string               `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty"` // file paths relative to repo root; empty = add all
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitAddRequest) Reset() {
+	*x = GitAddRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitAddRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitAddRequest) ProtoMessage() {}
+
+func (x *GitAddRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitAddRequest.ProtoReflect.Descriptor instead.
+func (*GitAddRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GitAddRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitAddRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitAddRequest) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type GitResetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Files         []string               `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty"` // file paths relative to repo root; empty = unstage all
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitResetRequest) Reset() {
+	*x = GitResetRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitResetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitResetRequest) ProtoMessage() {}
+
+func (x *GitResetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitResetRequest.ProtoReflect.Descriptor instead.
+func (*GitResetRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *GitResetRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitResetRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitResetRequest) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type GitCommitRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`                            // required, must not be empty
+	AllowEmpty    bool                   `protobuf:"varint,4,opt,name=allow_empty,json=allowEmpty,proto3" json:"allow_empty,omitempty"`   // allow empty commit (no staged changes)
+	AuthorName    string                 `protobuf:"bytes,5,opt,name=author_name,json=authorName,proto3" json:"author_name,omitempty"`    // optional; empty = read from git config, fallback "Yao Workspace"
+	AuthorEmail   string                 `protobuf:"bytes,6,opt,name=author_email,json=authorEmail,proto3" json:"author_email,omitempty"` // optional; empty = read from git config, fallback "workspace@yao.run"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCommitRequest) Reset() {
+	*x = GitCommitRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCommitRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCommitRequest) ProtoMessage() {}
+
+func (x *GitCommitRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCommitRequest.ProtoReflect.Descriptor instead.
+func (*GitCommitRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *GitCommitRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitCommitRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitCommitRequest) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GitCommitRequest) GetAllowEmpty() bool {
+	if x != nil {
+		return x.AllowEmpty
+	}
+	return false
+}
+
+func (x *GitCommitRequest) GetAuthorName() string {
+	if x != nil {
+		return x.AuthorName
+	}
+	return ""
+}
+
+func (x *GitCommitRequest) GetAuthorEmail() string {
+	if x != nil {
+		return x.AuthorEmail
+	}
+	return ""
+}
+
+type GitDiscardRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Files         []string               `protobuf:"bytes,3,rep,name=files,proto3" json:"files,omitempty"` // file paths relative to repo root; empty = discard all
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitDiscardRequest) Reset() {
+	*x = GitDiscardRequest{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitDiscardRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitDiscardRequest) ProtoMessage() {}
+
+func (x *GitDiscardRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitDiscardRequest.ProtoReflect.Descriptor instead.
+func (*GitDiscardRequest) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *GitDiscardRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitDiscardRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitDiscardRequest) GetFiles() []string {
+	if x != nil {
+		return x.Files
+	}
+	return nil
+}
+
+type GitOpResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"` // error message or operation summary
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitOpResponse) Reset() {
+	*x = GitOpResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitOpResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitOpResponse) ProtoMessage() {}
+
+func (x *GitOpResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitOpResponse.ProtoReflect.Descriptor instead.
+func (*GitOpResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GitOpResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GitOpResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+type GitCommitResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	CommitHash    string                 `protobuf:"bytes,2,opt,name=commit_hash,json=commitHash,proto3" json:"commit_hash,omitempty"` // new commit SHA
+	Message       string                 `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCommitResponse) Reset() {
+	*x = GitCommitResponse{}
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCommitResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCommitResponse) ProtoMessage() {}
+
+func (x *GitCommitResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_volume_pb_volume_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCommitResponse.ProtoReflect.Descriptor instead.
+func (*GitCommitResponse) Descriptor() ([]byte, []int) {
+	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GitCommitResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GitCommitResponse) GetCommitHash() string {
+	if x != nil {
+		return x.CommitHash
+	}
+	return ""
+}
+
+func (x *GitCommitResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
 var File_tai_volume_pb_volume_proto protoreflect.FileDescriptor
 
 const file_tai_volume_pb_volume_proto_rawDesc = "" +
@@ -1491,7 +2362,84 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"@\n" +
 	"\x12ListSkillsResponse\x12*\n" +
-	"\x06skills\x18\x01 \x03(\v2\x12.volume.SkillEntryR\x06skills2\xe8\b\n" +
+	"\x06skills\x18\x01 \x03(\v2\x12.volume.SkillEntryR\x06skills\"u\n" +
+	"\aGitRepo\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
+	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1d\n" +
+	"\n" +
+	"remote_url\x18\x03 \x01(\tR\tremoteUrl\x12\x1f\n" +
+	"\vhas_changes\x18\x04 \x01(\bR\n" +
+	"hasChanges\"9\n" +
+	"\x10GitReposResponse\x12%\n" +
+	"\x05repos\x18\x01 \x03(\v2\x0f.volume.GitRepoR\x05repos\"N\n" +
+	"\x10GitStatusRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\"\x8b\x01\n" +
+	"\x0eGitChangedFile\x12\x12\n" +
+	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
+	"\findex_status\x18\x02 \x01(\tR\vindexStatus\x12'\n" +
+	"\x0fworktree_status\x18\x03 \x01(\tR\x0eworktreeStatus\x12\x19\n" +
+	"\bold_path\x18\x04 \x01(\tR\aoldPath\"\x97\x02\n" +
+	"\x11GitStatusResponse\x12\x16\n" +
+	"\x06branch\x18\x01 \x01(\tR\x06branch\x12,\n" +
+	"\x05files\x18\x02 \x03(\v2\x16.volume.GitChangedFileR\x05files\x12\x14\n" +
+	"\x05ahead\x18\x03 \x01(\x05R\x05ahead\x12\x16\n" +
+	"\x06behind\x18\x04 \x01(\x05R\x06behind\x12)\n" +
+	"\x10total_insertions\x18\x05 \x01(\x05R\x0ftotalInsertions\x12'\n" +
+	"\x0ftotal_deletions\x18\x06 \x01(\x05R\x0etotalDeletions\x12\x1f\n" +
+	"\vis_detached\x18\a \x01(\bR\n" +
+	"isDetached\x12\x19\n" +
+	"\bis_empty\x18\b \x01(\bR\aisEmpty\"\x85\x01\n" +
+	"\x12GitFileDiffRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x1b\n" +
+	"\tfile_path\x18\x03 \x01(\tR\bfilePath\x12\x16\n" +
+	"\x06staged\x18\x04 \x01(\bR\x06staged\"\xde\x01\n" +
+	"\x13GitFileDiffResponse\x12\x1a\n" +
+	"\boriginal\x18\x01 \x01(\tR\boriginal\x12\x1a\n" +
+	"\bmodified\x18\x02 \x01(\tR\bmodified\x12\x1a\n" +
+	"\blanguage\x18\x03 \x01(\tR\blanguage\x12\x1b\n" +
+	"\tis_binary\x18\x04 \x01(\bR\bisBinary\x12\x15\n" +
+	"\x06is_new\x18\x05 \x01(\bR\x05isNew\x12\x1d\n" +
+	"\n" +
+	"is_deleted\x18\x06 \x01(\bR\tisDeleted\x12 \n" +
+	"\fis_too_large\x18\a \x01(\bR\n" +
+	"isTooLarge\"a\n" +
+	"\rGitAddRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x14\n" +
+	"\x05files\x18\x03 \x03(\tR\x05files\"c\n" +
+	"\x0fGitResetRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x14\n" +
+	"\x05files\x18\x03 \x03(\tR\x05files\"\xcd\x01\n" +
+	"\x10GitCommitRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\x12\x1f\n" +
+	"\vallow_empty\x18\x04 \x01(\bR\n" +
+	"allowEmpty\x12\x1f\n" +
+	"\vauthor_name\x18\x05 \x01(\tR\n" +
+	"authorName\x12!\n" +
+	"\fauthor_email\x18\x06 \x01(\tR\vauthorEmail\"e\n" +
+	"\x11GitDiscardRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x14\n" +
+	"\x05files\x18\x03 \x03(\tR\x05files\"C\n" +
+	"\rGitOpResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\"h\n" +
+	"\x11GitCommitResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1f\n" +
+	"\vcommit_hash\x18\x02 \x01(\tR\n" +
+	"commitHash\x12\x18\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage2\xac\f\n" +
 	"\x06Volume\x128\n" +
 	"\bSyncPush\x12\x13.volume.SyncMessage\x1a\x13.volume.SyncMessage(\x010\x01\x127\n" +
 	"\bSyncPull\x12\x14.volume.SyncManifest\x1a\x13.volume.SyncMessage0\x01\x128\n" +
@@ -1513,7 +2461,14 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\x03Tar\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x128\n" +
 	"\x05Untar\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x126\n" +
 	"\x03Tgz\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x128\n" +
-	"\x05Untgz\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponseB%Z#github.com/yaoapp/yao/tai/volume/pbb\x06proto3"
+	"\x05Untgz\x12\x16.volume.ArchiveRequest\x1a\x17.volume.ArchiveResponse\x12;\n" +
+	"\fGitListRepos\x12\x11.volume.FSRequest\x1a\x18.volume.GitReposResponse\x12@\n" +
+	"\tGitStatus\x12\x18.volume.GitStatusRequest\x1a\x19.volume.GitStatusResponse\x12F\n" +
+	"\vGitFileDiff\x12\x1a.volume.GitFileDiffRequest\x1a\x1b.volume.GitFileDiffResponse\x126\n" +
+	"\x06GitAdd\x12\x15.volume.GitAddRequest\x1a\x15.volume.GitOpResponse\x12:\n" +
+	"\bGitReset\x12\x17.volume.GitResetRequest\x1a\x15.volume.GitOpResponse\x12@\n" +
+	"\tGitCommit\x12\x18.volume.GitCommitRequest\x1a\x19.volume.GitCommitResponse\x12E\n" +
+	"\x11GitDiscardChanges\x12\x19.volume.GitDiscardRequest\x1a\x15.volume.GitOpResponseB%Z#github.com/yaoapp/yao/tai/volume/pbb\x06proto3"
 
 var (
 	file_tai_volume_pb_volume_proto_rawDescOnce sync.Once
@@ -1528,30 +2483,43 @@ func file_tai_volume_pb_volume_proto_rawDescGZIP() []byte {
 }
 
 var file_tai_volume_pb_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_tai_volume_pb_volume_proto_goTypes = []any{
-	(FileChunk_ChunkType)(0),   // 0: volume.FileChunk.ChunkType
-	(*FileInfo)(nil),           // 1: volume.FileInfo
-	(*SyncManifest)(nil),       // 2: volume.SyncManifest
-	(*SyncMessage)(nil),        // 3: volume.SyncMessage
-	(*SyncDiff)(nil),           // 4: volume.SyncDiff
-	(*FileChunk)(nil),          // 5: volume.FileChunk
-	(*SyncResult)(nil),         // 6: volume.SyncResult
-	(*FSRequest)(nil),          // 7: volume.FSRequest
-	(*FSOpResponse)(nil),       // 8: volume.FSOpResponse
-	(*FSAbsResponse)(nil),      // 9: volume.FSAbsResponse
-	(*FSReadRequest)(nil),      // 10: volume.FSReadRequest
-	(*FSDataChunk)(nil),        // 11: volume.FSDataChunk
-	(*FSWriteChunk)(nil),       // 12: volume.FSWriteChunk
-	(*FSWriteResponse)(nil),    // 13: volume.FSWriteResponse
-	(*FSListResponse)(nil),     // 14: volume.FSListResponse
-	(*FSRemoveRequest)(nil),    // 15: volume.FSRemoveRequest
-	(*FSRenameRequest)(nil),    // 16: volume.FSRenameRequest
-	(*FSCopyRequest)(nil),      // 17: volume.FSCopyRequest
-	(*ArchiveRequest)(nil),     // 18: volume.ArchiveRequest
-	(*ArchiveResponse)(nil),    // 19: volume.ArchiveResponse
-	(*SkillEntry)(nil),         // 20: volume.SkillEntry
-	(*ListSkillsResponse)(nil), // 21: volume.ListSkillsResponse
+	(FileChunk_ChunkType)(0),    // 0: volume.FileChunk.ChunkType
+	(*FileInfo)(nil),            // 1: volume.FileInfo
+	(*SyncManifest)(nil),        // 2: volume.SyncManifest
+	(*SyncMessage)(nil),         // 3: volume.SyncMessage
+	(*SyncDiff)(nil),            // 4: volume.SyncDiff
+	(*FileChunk)(nil),           // 5: volume.FileChunk
+	(*SyncResult)(nil),          // 6: volume.SyncResult
+	(*FSRequest)(nil),           // 7: volume.FSRequest
+	(*FSOpResponse)(nil),        // 8: volume.FSOpResponse
+	(*FSAbsResponse)(nil),       // 9: volume.FSAbsResponse
+	(*FSReadRequest)(nil),       // 10: volume.FSReadRequest
+	(*FSDataChunk)(nil),         // 11: volume.FSDataChunk
+	(*FSWriteChunk)(nil),        // 12: volume.FSWriteChunk
+	(*FSWriteResponse)(nil),     // 13: volume.FSWriteResponse
+	(*FSListResponse)(nil),      // 14: volume.FSListResponse
+	(*FSRemoveRequest)(nil),     // 15: volume.FSRemoveRequest
+	(*FSRenameRequest)(nil),     // 16: volume.FSRenameRequest
+	(*FSCopyRequest)(nil),       // 17: volume.FSCopyRequest
+	(*ArchiveRequest)(nil),      // 18: volume.ArchiveRequest
+	(*ArchiveResponse)(nil),     // 19: volume.ArchiveResponse
+	(*SkillEntry)(nil),          // 20: volume.SkillEntry
+	(*ListSkillsResponse)(nil),  // 21: volume.ListSkillsResponse
+	(*GitRepo)(nil),             // 22: volume.GitRepo
+	(*GitReposResponse)(nil),    // 23: volume.GitReposResponse
+	(*GitStatusRequest)(nil),    // 24: volume.GitStatusRequest
+	(*GitChangedFile)(nil),      // 25: volume.GitChangedFile
+	(*GitStatusResponse)(nil),   // 26: volume.GitStatusResponse
+	(*GitFileDiffRequest)(nil),  // 27: volume.GitFileDiffRequest
+	(*GitFileDiffResponse)(nil), // 28: volume.GitFileDiffResponse
+	(*GitAddRequest)(nil),       // 29: volume.GitAddRequest
+	(*GitResetRequest)(nil),     // 30: volume.GitResetRequest
+	(*GitCommitRequest)(nil),    // 31: volume.GitCommitRequest
+	(*GitDiscardRequest)(nil),   // 32: volume.GitDiscardRequest
+	(*GitOpResponse)(nil),       // 33: volume.GitOpResponse
+	(*GitCommitResponse)(nil),   // 34: volume.GitCommitResponse
 }
 var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	1,  // 0: volume.SyncManifest.files:type_name -> volume.FileInfo
@@ -1562,51 +2530,67 @@ var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	0,  // 5: volume.FileChunk.type:type_name -> volume.FileChunk.ChunkType
 	1,  // 6: volume.FSListResponse.entries:type_name -> volume.FileInfo
 	20, // 7: volume.ListSkillsResponse.skills:type_name -> volume.SkillEntry
-	3,  // 8: volume.Volume.SyncPush:input_type -> volume.SyncMessage
-	2,  // 9: volume.Volume.SyncPull:input_type -> volume.SyncManifest
-	10, // 10: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
-	12, // 11: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
-	7,  // 12: volume.Volume.Stat:input_type -> volume.FSRequest
-	7,  // 13: volume.Volume.ListDir:input_type -> volume.FSRequest
-	15, // 14: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
-	16, // 15: volume.Volume.Rename:input_type -> volume.FSRenameRequest
-	7,  // 16: volume.Volume.MkdirAll:input_type -> volume.FSRequest
-	7,  // 17: volume.Volume.Abs:input_type -> volume.FSRequest
-	17, // 18: volume.Volume.Copy:input_type -> volume.FSCopyRequest
-	7,  // 19: volume.Volume.ListSkills:input_type -> volume.FSRequest
-	18, // 20: volume.Volume.Zip:input_type -> volume.ArchiveRequest
-	18, // 21: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
-	18, // 22: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
-	18, // 23: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
-	18, // 24: volume.Volume.Tar:input_type -> volume.ArchiveRequest
-	18, // 25: volume.Volume.Untar:input_type -> volume.ArchiveRequest
-	18, // 26: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
-	18, // 27: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
-	3,  // 28: volume.Volume.SyncPush:output_type -> volume.SyncMessage
-	3,  // 29: volume.Volume.SyncPull:output_type -> volume.SyncMessage
-	11, // 30: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
-	13, // 31: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
-	1,  // 32: volume.Volume.Stat:output_type -> volume.FileInfo
-	14, // 33: volume.Volume.ListDir:output_type -> volume.FSListResponse
-	8,  // 34: volume.Volume.Remove:output_type -> volume.FSOpResponse
-	8,  // 35: volume.Volume.Rename:output_type -> volume.FSOpResponse
-	8,  // 36: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
-	9,  // 37: volume.Volume.Abs:output_type -> volume.FSAbsResponse
-	6,  // 38: volume.Volume.Copy:output_type -> volume.SyncResult
-	21, // 39: volume.Volume.ListSkills:output_type -> volume.ListSkillsResponse
-	19, // 40: volume.Volume.Zip:output_type -> volume.ArchiveResponse
-	19, // 41: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
-	19, // 42: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
-	19, // 43: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
-	19, // 44: volume.Volume.Tar:output_type -> volume.ArchiveResponse
-	19, // 45: volume.Volume.Untar:output_type -> volume.ArchiveResponse
-	19, // 46: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
-	19, // 47: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
-	28, // [28:48] is the sub-list for method output_type
-	8,  // [8:28] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	22, // 8: volume.GitReposResponse.repos:type_name -> volume.GitRepo
+	25, // 9: volume.GitStatusResponse.files:type_name -> volume.GitChangedFile
+	3,  // 10: volume.Volume.SyncPush:input_type -> volume.SyncMessage
+	2,  // 11: volume.Volume.SyncPull:input_type -> volume.SyncManifest
+	10, // 12: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
+	12, // 13: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
+	7,  // 14: volume.Volume.Stat:input_type -> volume.FSRequest
+	7,  // 15: volume.Volume.ListDir:input_type -> volume.FSRequest
+	15, // 16: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
+	16, // 17: volume.Volume.Rename:input_type -> volume.FSRenameRequest
+	7,  // 18: volume.Volume.MkdirAll:input_type -> volume.FSRequest
+	7,  // 19: volume.Volume.Abs:input_type -> volume.FSRequest
+	17, // 20: volume.Volume.Copy:input_type -> volume.FSCopyRequest
+	7,  // 21: volume.Volume.ListSkills:input_type -> volume.FSRequest
+	18, // 22: volume.Volume.Zip:input_type -> volume.ArchiveRequest
+	18, // 23: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
+	18, // 24: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
+	18, // 25: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
+	18, // 26: volume.Volume.Tar:input_type -> volume.ArchiveRequest
+	18, // 27: volume.Volume.Untar:input_type -> volume.ArchiveRequest
+	18, // 28: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
+	18, // 29: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
+	7,  // 30: volume.Volume.GitListRepos:input_type -> volume.FSRequest
+	24, // 31: volume.Volume.GitStatus:input_type -> volume.GitStatusRequest
+	27, // 32: volume.Volume.GitFileDiff:input_type -> volume.GitFileDiffRequest
+	29, // 33: volume.Volume.GitAdd:input_type -> volume.GitAddRequest
+	30, // 34: volume.Volume.GitReset:input_type -> volume.GitResetRequest
+	31, // 35: volume.Volume.GitCommit:input_type -> volume.GitCommitRequest
+	32, // 36: volume.Volume.GitDiscardChanges:input_type -> volume.GitDiscardRequest
+	3,  // 37: volume.Volume.SyncPush:output_type -> volume.SyncMessage
+	3,  // 38: volume.Volume.SyncPull:output_type -> volume.SyncMessage
+	11, // 39: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
+	13, // 40: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
+	1,  // 41: volume.Volume.Stat:output_type -> volume.FileInfo
+	14, // 42: volume.Volume.ListDir:output_type -> volume.FSListResponse
+	8,  // 43: volume.Volume.Remove:output_type -> volume.FSOpResponse
+	8,  // 44: volume.Volume.Rename:output_type -> volume.FSOpResponse
+	8,  // 45: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
+	9,  // 46: volume.Volume.Abs:output_type -> volume.FSAbsResponse
+	6,  // 47: volume.Volume.Copy:output_type -> volume.SyncResult
+	21, // 48: volume.Volume.ListSkills:output_type -> volume.ListSkillsResponse
+	19, // 49: volume.Volume.Zip:output_type -> volume.ArchiveResponse
+	19, // 50: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
+	19, // 51: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
+	19, // 52: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
+	19, // 53: volume.Volume.Tar:output_type -> volume.ArchiveResponse
+	19, // 54: volume.Volume.Untar:output_type -> volume.ArchiveResponse
+	19, // 55: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
+	19, // 56: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
+	23, // 57: volume.Volume.GitListRepos:output_type -> volume.GitReposResponse
+	26, // 58: volume.Volume.GitStatus:output_type -> volume.GitStatusResponse
+	28, // 59: volume.Volume.GitFileDiff:output_type -> volume.GitFileDiffResponse
+	33, // 60: volume.Volume.GitAdd:output_type -> volume.GitOpResponse
+	33, // 61: volume.Volume.GitReset:output_type -> volume.GitOpResponse
+	34, // 62: volume.Volume.GitCommit:output_type -> volume.GitCommitResponse
+	33, // 63: volume.Volume.GitDiscardChanges:output_type -> volume.GitOpResponse
+	37, // [37:64] is the sub-list for method output_type
+	10, // [10:37] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_tai_volume_pb_volume_proto_init() }
@@ -1626,7 +2610,7 @@ func file_tai_volume_pb_volume_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_volume_pb_volume_proto_rawDesc), len(file_tai_volume_pb_volume_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   21,
+			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

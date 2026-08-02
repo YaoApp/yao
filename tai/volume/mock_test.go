@@ -15,13 +15,17 @@ import (
 
 type mockVolumeServer struct {
 	pb.UnimplementedVolumeServer
-	statErr     error
-	removeOK    bool
-	removeError string
-	renameOK    bool
-	renameError string
-	mkdirOK     bool
-	mkdirError  string
+	statErr          error
+	removeOK         bool
+	removeError      string
+	renameOK         bool
+	renameError      string
+	mkdirOK          bool
+	mkdirError       string
+	gitOpSuccess     bool
+	gitOpMessage     string
+	gitCommitSuccess bool
+	gitCommitMessage string
 }
 
 func (m *mockVolumeServer) Stat(_ context.Context, req *pb.FSRequest) (*pb.FileInfo, error) {
@@ -192,6 +196,65 @@ func (m *mockVolumeServer) SyncPull(req *pb.SyncManifest, stream grpc.ServerStre
 
 func (m *mockVolumeServer) Abs(_ context.Context, req *pb.FSRequest) (*pb.FSAbsResponse, error) {
 	return &pb.FSAbsResponse{Path: "/data/" + req.SessionId + "/" + req.Path}, nil
+}
+
+func (m *mockVolumeServer) GitListRepos(_ context.Context, _ *pb.FSRequest) (*pb.GitReposResponse, error) {
+	return &pb.GitReposResponse{Repos: []*pb.GitRepo{
+		{Path: ".", Branch: "main", HasChanges: true},
+	}}, nil
+}
+
+func (m *mockVolumeServer) GitStatus(_ context.Context, _ *pb.GitStatusRequest) (*pb.GitStatusResponse, error) {
+	return &pb.GitStatusResponse{
+		Branch: "main",
+		Files: []*pb.GitChangedFile{
+			{Path: "file.txt", IndexStatus: " ", WorktreeStatus: "M"},
+		},
+	}, nil
+}
+
+func (m *mockVolumeServer) GitFileDiff(_ context.Context, _ *pb.GitFileDiffRequest) (*pb.GitFileDiffResponse, error) {
+	return &pb.GitFileDiffResponse{
+		Original: "old",
+		Modified: "new",
+		Language: "go",
+	}, nil
+}
+
+func (m *mockVolumeServer) GitAdd(_ context.Context, _ *pb.GitAddRequest) (*pb.GitOpResponse, error) {
+	if !m.gitOpSuccess {
+		if m.gitOpMessage != "" {
+			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
+		}
+	}
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitReset(_ context.Context, _ *pb.GitResetRequest) (*pb.GitOpResponse, error) {
+	if !m.gitOpSuccess {
+		if m.gitOpMessage != "" {
+			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
+		}
+	}
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitCommit(_ context.Context, _ *pb.GitCommitRequest) (*pb.GitCommitResponse, error) {
+	if !m.gitCommitSuccess {
+		if m.gitCommitMessage != "" {
+			return &pb.GitCommitResponse{Success: false, Message: m.gitCommitMessage}, nil
+		}
+	}
+	return &pb.GitCommitResponse{Success: true, CommitHash: "abc123", Message: "committed"}, nil
+}
+
+func (m *mockVolumeServer) GitDiscardChanges(_ context.Context, _ *pb.GitDiscardRequest) (*pb.GitOpResponse, error) {
+	if !m.gitOpSuccess {
+		if m.gitOpMessage != "" {
+			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
+		}
+	}
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
 }
 
 func (m *mockVolumeServer) ListDir(_ context.Context, req *pb.FSRequest) (*pb.FSListResponse, error) {
@@ -566,6 +629,34 @@ func (m *errMockVolumeServer) Copy(_ context.Context, _ *pb.FSCopyRequest) (*pb.
 
 func (m *errMockVolumeServer) Abs(_ context.Context, _ *pb.FSRequest) (*pb.FSAbsResponse, error) {
 	return nil, fmt.Errorf("injected abs error")
+}
+
+func (m *errMockVolumeServer) GitListRepos(_ context.Context, _ *pb.FSRequest) (*pb.GitReposResponse, error) {
+	return nil, fmt.Errorf("injected git list error")
+}
+
+func (m *errMockVolumeServer) GitStatus(_ context.Context, _ *pb.GitStatusRequest) (*pb.GitStatusResponse, error) {
+	return nil, fmt.Errorf("injected git status error")
+}
+
+func (m *errMockVolumeServer) GitFileDiff(_ context.Context, _ *pb.GitFileDiffRequest) (*pb.GitFileDiffResponse, error) {
+	return nil, fmt.Errorf("injected git diff error")
+}
+
+func (m *errMockVolumeServer) GitAdd(_ context.Context, _ *pb.GitAddRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git add error")
+}
+
+func (m *errMockVolumeServer) GitReset(_ context.Context, _ *pb.GitResetRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git reset error")
+}
+
+func (m *errMockVolumeServer) GitCommit(_ context.Context, _ *pb.GitCommitRequest) (*pb.GitCommitResponse, error) {
+	return nil, fmt.Errorf("injected git commit error")
+}
+
+func (m *errMockVolumeServer) GitDiscardChanges(_ context.Context, _ *pb.GitDiscardRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git discard error")
 }
 
 func startErrMockServer(t *testing.T) (*grpc.ClientConn, func()) {

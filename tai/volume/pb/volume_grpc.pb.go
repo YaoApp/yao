@@ -19,26 +19,33 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	Volume_SyncPush_FullMethodName   = "/volume.Volume/SyncPush"
-	Volume_SyncPull_FullMethodName   = "/volume.Volume/SyncPull"
-	Volume_ReadFile_FullMethodName   = "/volume.Volume/ReadFile"
-	Volume_WriteFile_FullMethodName  = "/volume.Volume/WriteFile"
-	Volume_Stat_FullMethodName       = "/volume.Volume/Stat"
-	Volume_ListDir_FullMethodName    = "/volume.Volume/ListDir"
-	Volume_Remove_FullMethodName     = "/volume.Volume/Remove"
-	Volume_Rename_FullMethodName     = "/volume.Volume/Rename"
-	Volume_MkdirAll_FullMethodName   = "/volume.Volume/MkdirAll"
-	Volume_Abs_FullMethodName        = "/volume.Volume/Abs"
-	Volume_Copy_FullMethodName       = "/volume.Volume/Copy"
-	Volume_ListSkills_FullMethodName = "/volume.Volume/ListSkills"
-	Volume_Zip_FullMethodName        = "/volume.Volume/Zip"
-	Volume_Unzip_FullMethodName      = "/volume.Volume/Unzip"
-	Volume_Gzip_FullMethodName       = "/volume.Volume/Gzip"
-	Volume_Gunzip_FullMethodName     = "/volume.Volume/Gunzip"
-	Volume_Tar_FullMethodName        = "/volume.Volume/Tar"
-	Volume_Untar_FullMethodName      = "/volume.Volume/Untar"
-	Volume_Tgz_FullMethodName        = "/volume.Volume/Tgz"
-	Volume_Untgz_FullMethodName      = "/volume.Volume/Untgz"
+	Volume_SyncPush_FullMethodName          = "/volume.Volume/SyncPush"
+	Volume_SyncPull_FullMethodName          = "/volume.Volume/SyncPull"
+	Volume_ReadFile_FullMethodName          = "/volume.Volume/ReadFile"
+	Volume_WriteFile_FullMethodName         = "/volume.Volume/WriteFile"
+	Volume_Stat_FullMethodName              = "/volume.Volume/Stat"
+	Volume_ListDir_FullMethodName           = "/volume.Volume/ListDir"
+	Volume_Remove_FullMethodName            = "/volume.Volume/Remove"
+	Volume_Rename_FullMethodName            = "/volume.Volume/Rename"
+	Volume_MkdirAll_FullMethodName          = "/volume.Volume/MkdirAll"
+	Volume_Abs_FullMethodName               = "/volume.Volume/Abs"
+	Volume_Copy_FullMethodName              = "/volume.Volume/Copy"
+	Volume_ListSkills_FullMethodName        = "/volume.Volume/ListSkills"
+	Volume_Zip_FullMethodName               = "/volume.Volume/Zip"
+	Volume_Unzip_FullMethodName             = "/volume.Volume/Unzip"
+	Volume_Gzip_FullMethodName              = "/volume.Volume/Gzip"
+	Volume_Gunzip_FullMethodName            = "/volume.Volume/Gunzip"
+	Volume_Tar_FullMethodName               = "/volume.Volume/Tar"
+	Volume_Untar_FullMethodName             = "/volume.Volume/Untar"
+	Volume_Tgz_FullMethodName               = "/volume.Volume/Tgz"
+	Volume_Untgz_FullMethodName             = "/volume.Volume/Untgz"
+	Volume_GitListRepos_FullMethodName      = "/volume.Volume/GitListRepos"
+	Volume_GitStatus_FullMethodName         = "/volume.Volume/GitStatus"
+	Volume_GitFileDiff_FullMethodName       = "/volume.Volume/GitFileDiff"
+	Volume_GitAdd_FullMethodName            = "/volume.Volume/GitAdd"
+	Volume_GitReset_FullMethodName          = "/volume.Volume/GitReset"
+	Volume_GitCommit_FullMethodName         = "/volume.Volume/GitCommit"
+	Volume_GitDiscardChanges_FullMethodName = "/volume.Volume/GitDiscardChanges"
 )
 
 // VolumeClient is the client API for Volume service.
@@ -79,6 +86,15 @@ type VolumeClient interface {
 	Untar(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Tgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
 	Untgz(ctx context.Context, in *ArchiveRequest, opts ...grpc.CallOption) (*ArchiveResponse, error)
+	// Read-only
+	GitListRepos(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*GitReposResponse, error)
+	GitStatus(ctx context.Context, in *GitStatusRequest, opts ...grpc.CallOption) (*GitStatusResponse, error)
+	GitFileDiff(ctx context.Context, in *GitFileDiffRequest, opts ...grpc.CallOption) (*GitFileDiffResponse, error)
+	// Write operations
+	GitAdd(ctx context.Context, in *GitAddRequest, opts ...grpc.CallOption) (*GitOpResponse, error)
+	GitReset(ctx context.Context, in *GitResetRequest, opts ...grpc.CallOption) (*GitOpResponse, error)
+	GitCommit(ctx context.Context, in *GitCommitRequest, opts ...grpc.CallOption) (*GitCommitResponse, error)
+	GitDiscardChanges(ctx context.Context, in *GitDiscardRequest, opts ...grpc.CallOption) (*GitOpResponse, error)
 }
 
 type volumeClient struct {
@@ -313,6 +329,76 @@ func (c *volumeClient) Untgz(ctx context.Context, in *ArchiveRequest, opts ...gr
 	return out, nil
 }
 
+func (c *volumeClient) GitListRepos(ctx context.Context, in *FSRequest, opts ...grpc.CallOption) (*GitReposResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitReposResponse)
+	err := c.cc.Invoke(ctx, Volume_GitListRepos_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitStatus(ctx context.Context, in *GitStatusRequest, opts ...grpc.CallOption) (*GitStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitStatusResponse)
+	err := c.cc.Invoke(ctx, Volume_GitStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitFileDiff(ctx context.Context, in *GitFileDiffRequest, opts ...grpc.CallOption) (*GitFileDiffResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitFileDiffResponse)
+	err := c.cc.Invoke(ctx, Volume_GitFileDiff_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitAdd(ctx context.Context, in *GitAddRequest, opts ...grpc.CallOption) (*GitOpResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitOpResponse)
+	err := c.cc.Invoke(ctx, Volume_GitAdd_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitReset(ctx context.Context, in *GitResetRequest, opts ...grpc.CallOption) (*GitOpResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitOpResponse)
+	err := c.cc.Invoke(ctx, Volume_GitReset_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitCommit(ctx context.Context, in *GitCommitRequest, opts ...grpc.CallOption) (*GitCommitResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitCommitResponse)
+	err := c.cc.Invoke(ctx, Volume_GitCommit_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *volumeClient) GitDiscardChanges(ctx context.Context, in *GitDiscardRequest, opts ...grpc.CallOption) (*GitOpResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GitOpResponse)
+	err := c.cc.Invoke(ctx, Volume_GitDiscardChanges_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // VolumeServer is the server API for Volume service.
 // All implementations must embed UnimplementedVolumeServer
 // for forward compatibility.
@@ -351,6 +437,15 @@ type VolumeServer interface {
 	Untar(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Tgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
 	Untgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error)
+	// Read-only
+	GitListRepos(context.Context, *FSRequest) (*GitReposResponse, error)
+	GitStatus(context.Context, *GitStatusRequest) (*GitStatusResponse, error)
+	GitFileDiff(context.Context, *GitFileDiffRequest) (*GitFileDiffResponse, error)
+	// Write operations
+	GitAdd(context.Context, *GitAddRequest) (*GitOpResponse, error)
+	GitReset(context.Context, *GitResetRequest) (*GitOpResponse, error)
+	GitCommit(context.Context, *GitCommitRequest) (*GitCommitResponse, error)
+	GitDiscardChanges(context.Context, *GitDiscardRequest) (*GitOpResponse, error)
 	mustEmbedUnimplementedVolumeServer()
 }
 
@@ -420,6 +515,27 @@ func (UnimplementedVolumeServer) Tgz(context.Context, *ArchiveRequest) (*Archive
 }
 func (UnimplementedVolumeServer) Untgz(context.Context, *ArchiveRequest) (*ArchiveResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Untgz not implemented")
+}
+func (UnimplementedVolumeServer) GitListRepos(context.Context, *FSRequest) (*GitReposResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitListRepos not implemented")
+}
+func (UnimplementedVolumeServer) GitStatus(context.Context, *GitStatusRequest) (*GitStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitStatus not implemented")
+}
+func (UnimplementedVolumeServer) GitFileDiff(context.Context, *GitFileDiffRequest) (*GitFileDiffResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitFileDiff not implemented")
+}
+func (UnimplementedVolumeServer) GitAdd(context.Context, *GitAddRequest) (*GitOpResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitAdd not implemented")
+}
+func (UnimplementedVolumeServer) GitReset(context.Context, *GitResetRequest) (*GitOpResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitReset not implemented")
+}
+func (UnimplementedVolumeServer) GitCommit(context.Context, *GitCommitRequest) (*GitCommitResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitCommit not implemented")
+}
+func (UnimplementedVolumeServer) GitDiscardChanges(context.Context, *GitDiscardRequest) (*GitOpResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GitDiscardChanges not implemented")
 }
 func (UnimplementedVolumeServer) mustEmbedUnimplementedVolumeServer() {}
 func (UnimplementedVolumeServer) testEmbeddedByValue()                {}
@@ -766,6 +882,132 @@ func _Volume_Untgz_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Volume_GitListRepos_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FSRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitListRepos(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitListRepos_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitListRepos(ctx, req.(*FSRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitStatus(ctx, req.(*GitStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitFileDiff_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitFileDiffRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitFileDiff(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitFileDiff_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitFileDiff(ctx, req.(*GitFileDiffRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitAdd_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitAddRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitAdd(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitAdd_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitAdd(ctx, req.(*GitAddRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitReset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitResetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitReset(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitReset_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitReset(ctx, req.(*GitResetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitCommit_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitCommitRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitCommit(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitCommit_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitCommit(ctx, req.(*GitCommitRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Volume_GitDiscardChanges_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GitDiscardRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(VolumeServer).GitDiscardChanges(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Volume_GitDiscardChanges_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(VolumeServer).GitDiscardChanges(ctx, req.(*GitDiscardRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Volume_ServiceDesc is the grpc.ServiceDesc for Volume service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -836,6 +1078,34 @@ var Volume_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Untgz",
 			Handler:    _Volume_Untgz_Handler,
+		},
+		{
+			MethodName: "GitListRepos",
+			Handler:    _Volume_GitListRepos_Handler,
+		},
+		{
+			MethodName: "GitStatus",
+			Handler:    _Volume_GitStatus_Handler,
+		},
+		{
+			MethodName: "GitFileDiff",
+			Handler:    _Volume_GitFileDiff_Handler,
+		},
+		{
+			MethodName: "GitAdd",
+			Handler:    _Volume_GitAdd_Handler,
+		},
+		{
+			MethodName: "GitReset",
+			Handler:    _Volume_GitReset_Handler,
+		},
+		{
+			MethodName: "GitCommit",
+			Handler:    _Volume_GitCommit_Handler,
+		},
+		{
+			MethodName: "GitDiscardChanges",
+			Handler:    _Volume_GitDiscardChanges_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
