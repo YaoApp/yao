@@ -1,0 +1,10 @@
+{
+  "name": "yao-workspace-config",
+  "transport": "process",
+  "description": "Workspace Git identity and credential management tools",
+  "tools": {
+    "workspace_git_config": "tools.workspace_git_config",
+    "workspace_git_credential": "tools.workspace_git_credential",
+    "workspace_ssh_key": "tools.workspace_ssh_key"
+  }
+}

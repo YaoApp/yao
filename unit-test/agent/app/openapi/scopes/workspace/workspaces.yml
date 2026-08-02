@@ -116,6 +116,18 @@ workspace:workspaces:git:all:
     - POST /workspace/:id/git/reset
     - POST /workspace/:id/git/commit
     - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync
 
 workspace:workspaces:git:own:
   owner: true
@@ -128,6 +140,18 @@ workspace:workspaces:git:own:
     - POST /workspace/:id/git/reset
     - POST /workspace/:id/git/commit
     - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync
 
 workspace:workspaces:git:team:
   team: true
@@ -140,3 +164,15 @@ workspace:workspaces:git:team:
     - POST /workspace/:id/git/reset
     - POST /workspace/:id/git/commit
     - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync

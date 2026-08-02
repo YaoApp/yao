@@ -83,6 +83,9 @@ Calling convention: ` + "`tai tool <name> '<json_args>'`" + `
 | workspace_file_list | List files in a workspace |
 | workspace_file_read | Read file from workspace |
 | workspace_file_write | Write file to workspace |
+| workspace_git_config | Get or set workspace Git configuration |
+| workspace_git_credential | Manage workspace HTTPS Git credentials |
+| workspace_ssh_key | Manage workspace SSH keys |
 | clip_write | Store a content clip |
 | clip_read | Read a clip by ID |
 | skill_list | List installed skills (filter by type: system/assistant/extension) |

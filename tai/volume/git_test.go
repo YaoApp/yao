@@ -1443,3 +1443,574 @@ func TestErrRemoteGitDiscard(t *testing.T) {
 		t.Error("expected error")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// localStorage Git — GitFetch / GitPull / GitPush (local-only scenarios)
+// ---------------------------------------------------------------------------
+
+func TestLocalGitFetch_NoRemote(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "git-fetch-noremote"
+
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "f.txt", "x")
+
+	err := vol.GitFetch(ctx, sid, ".", "")
+	if err == nil {
+		t.Error("expected error when no remote configured")
+	}
+}
+
+func TestLocalGitPull_Rebase(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "git-pull-rebase"
+
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "f.txt", "x")
+
+	_, err := vol.GitPull(ctx, sid, ".", "", true)
+	if err == nil {
+		t.Error("expected error for rebase=true")
+	}
+	if !strings.Contains(err.Error(), "rebase not supported") {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestLocalGitPull_NoRemote(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "git-pull-noremote"
+
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "f.txt", "x")
+
+	_, err := vol.GitPull(ctx, sid, ".", "", false)
+	if err == nil {
+		t.Error("expected error when no remote configured")
+	}
+}
+
+func TestLocalGitPush_NoRemote(t *testing.T) {
+	dir := t.TempDir()
+	vol := NewLocal(dir)
+	ctx := context.Background()
+	sid := "git-push-noremote"
+
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "f.txt", "x")
+
+	err := vol.GitPush(ctx, sid, ".", "", false, false)
+	if err == nil {
+		t.Error("expected error when no remote configured")
+	}
+}
+
+func TestLocalGitFetch_WithClone(t *testing.T) {
+	originDir := t.TempDir()
+	originRepo := initTestRepo(t, originDir)
+	commitFile(t, originRepo, originDir, "init.txt", "init")
+
+	dir := t.TempDir()
+	sid := "git-fetch-clone"
+	cloneDir := filepath.Join(dir, sid)
+
+	_, err := git.PlainClone(cloneDir, false, &git.CloneOptions{URL: originDir})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	vol := NewLocal(dir)
+	err = vol.GitFetch(context.Background(), sid, ".", "")
+	if err != nil {
+		t.Fatalf("GitFetch: %v", err)
+	}
+}
+
+func TestLocalGitPull_UpToDate(t *testing.T) {
+	originDir := t.TempDir()
+	originRepo := initTestRepo(t, originDir)
+	commitFile(t, originRepo, originDir, "init.txt", "init")
+
+	dir := t.TempDir()
+	sid := "git-pull-uptodate"
+	cloneDir := filepath.Join(dir, sid)
+
+	_, err := git.PlainClone(cloneDir, false, &git.CloneOptions{URL: originDir})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	vol := NewLocal(dir)
+	result, err := vol.GitPull(context.Background(), sid, ".", "", false)
+	if err != nil {
+		t.Fatalf("GitPull: %v", err)
+	}
+	if result.HasConflicts {
+		t.Error("should not have conflicts when up to date")
+	}
+}
+
+func TestLocalGitPush_SetUpstream(t *testing.T) {
+	originDir := t.TempDir()
+	originRepo, _ := git.PlainInit(originDir, true)
+	_ = originRepo
+
+	dir := t.TempDir()
+	sid := "git-push-upstream"
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "f.txt", "x")
+
+	_, err := repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{originDir},
+	})
+	if err != nil {
+		t.Fatalf("CreateRemote: %v", err)
+	}
+
+	vol := NewLocal(dir)
+	err = vol.GitPush(context.Background(), sid, ".", "", false, true)
+	if err != nil {
+		t.Fatalf("GitPush: %v", err)
+	}
+
+	cfg, _ := repo.Config()
+	ref, _ := repo.Head()
+	branchName := ref.Name().Short()
+	bc, ok := cfg.Branches[branchName]
+	if !ok {
+		t.Fatal("branch config not set after push --set-upstream")
+	}
+	if bc.Remote != "origin" {
+		t.Errorf("remote = %q, want 'origin'", bc.Remote)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// localStorage Git — GitStatus / GitListRepos with remote fields
+// ---------------------------------------------------------------------------
+
+func TestLocalGitStatus_WithRemoteFields(t *testing.T) {
+	originDir := t.TempDir()
+	originRepo := initTestRepo(t, originDir)
+	commitFile(t, originRepo, originDir, "init.txt", "init")
+
+	dir := t.TempDir()
+	sid := "git-status-remote-fields"
+	cloneDir := filepath.Join(dir, sid)
+
+	clonedRepo, err := git.PlainClone(cloneDir, false, &git.CloneOptions{URL: originDir})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	_ = os.WriteFile(filepath.Join(cloneDir, "local.txt"), []byte("local"), 0o644)
+	wt, _ := clonedRepo.Worktree()
+	wt.Add("local.txt")
+	wt.Commit("local commit", &git.CommitOptions{
+		Author: &object.Signature{Name: "T", Email: "t@t.com", When: time.Now()},
+	})
+
+	vol := NewLocal(dir)
+	result, err := vol.GitStatus(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("GitStatus: %v", err)
+	}
+
+	if !result.HasUpstream {
+		t.Error("expected has_upstream = true")
+	}
+	if result.RemoteName != "origin" {
+		t.Errorf("remote_name = %q", result.RemoteName)
+	}
+	if result.Ahead != 1 {
+		t.Errorf("ahead = %d, want 1", result.Ahead)
+	}
+}
+
+func TestLocalGitStatus_RemoteWithoutUpstream(t *testing.T) {
+	dir := t.TempDir()
+	sid := "git-status-remote-noup"
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "init.txt", "init")
+
+	repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"https://github.com/example/repo.git"},
+	})
+
+	vol := NewLocal(dir)
+	result, err := vol.GitStatus(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("GitStatus: %v", err)
+	}
+	if result.HasUpstream {
+		t.Error("expected has_upstream = false")
+	}
+	if result.RemoteName != "origin" {
+		t.Errorf("remote_name = %q, want 'origin'", result.RemoteName)
+	}
+	if result.RemoteURL == "" {
+		t.Error("expected non-empty remote_url for repo with origin but no upstream")
+	}
+	if result.UpstreamBranch != "" {
+		t.Errorf("expected empty upstream_branch, got %q", result.UpstreamBranch)
+	}
+}
+
+func TestLocalGitStatus_NoRemoteNoUpstream(t *testing.T) {
+	dir := t.TempDir()
+	sid := "git-status-no-remote"
+	repoDir := filepath.Join(dir, sid)
+	repo := initTestRepo(t, repoDir)
+	commitFile(t, repo, repoDir, "init.txt", "init")
+
+	vol := NewLocal(dir)
+	result, err := vol.GitStatus(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("GitStatus: %v", err)
+	}
+	if result.HasUpstream {
+		t.Error("expected has_upstream = false")
+	}
+	if result.RemoteName != "" {
+		t.Errorf("expected empty remote_name, got %q", result.RemoteName)
+	}
+	if result.RemoteURL != "" {
+		t.Errorf("expected empty remote_url, got %q", result.RemoteURL)
+	}
+}
+
+func TestLocalGitListRepos_WithUpstream(t *testing.T) {
+	originDir := t.TempDir()
+	originRepo := initTestRepo(t, originDir)
+	commitFile(t, originRepo, originDir, "init.txt", "init")
+
+	dir := t.TempDir()
+	sid := "git-listrepos-upstream"
+	cloneDir := filepath.Join(dir, sid)
+
+	_, err := git.PlainClone(cloneDir, false, &git.CloneOptions{URL: originDir})
+	if err != nil {
+		t.Fatalf("clone: %v", err)
+	}
+
+	vol := NewLocal(dir)
+	repos, err := vol.GitListRepos(context.Background(), sid, ".")
+	if err != nil {
+		t.Fatalf("GitListRepos: %v", err)
+	}
+	if len(repos) != 1 {
+		t.Fatalf("expected 1 repo, got %d", len(repos))
+	}
+	if !repos[0].HasUpstream {
+		t.Error("expected has_upstream = true for cloned repo")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Mock remote Git — new RPCs
+// ---------------------------------------------------------------------------
+
+func TestMockRemoteGitConfigGet(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	values, err := vol.GitConfigGet(context.Background(), "s1", "user.name")
+	if err != nil {
+		t.Fatalf("GitConfigGet: %v", err)
+	}
+	if values["user.name"] != "MockUser" {
+		t.Errorf("user.name = %q", values["user.name"])
+	}
+}
+
+func TestMockRemoteGitConfigSet(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitConfigSet(context.Background(), "s1", "user.name", "NewUser")
+	if err != nil {
+		t.Fatalf("GitConfigSet: %v", err)
+	}
+}
+
+func TestMockRemoteGitCredentialSet(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitCredentialSet(context.Background(), "s1", "github.com", "user", "token")
+	if err != nil {
+		t.Fatalf("GitCredentialSet: %v", err)
+	}
+}
+
+func TestMockRemoteGitCredentialList(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	entries, err := vol.GitCredentialList(context.Background(), "s1")
+	if err != nil {
+		t.Fatalf("GitCredentialList: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("expected 1 entry, got %d", len(entries))
+	}
+}
+
+func TestMockRemoteGitCredentialDelete(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitCredentialDelete(context.Background(), "s1", "github.com")
+	if err != nil {
+		t.Fatalf("GitCredentialDelete: %v", err)
+	}
+}
+
+func TestMockRemoteGitSSHKeyImport(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitSSHKeyImport(context.Background(), "s1", "mykey", "privdata", "", "github.com")
+	if err != nil {
+		t.Fatalf("GitSSHKeyImport: %v", err)
+	}
+}
+
+func TestMockRemoteGitSSHKeyList(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	keys, err := vol.GitSSHKeyList(context.Background(), "s1")
+	if err != nil {
+		t.Fatalf("GitSSHKeyList: %v", err)
+	}
+	if len(keys) != 1 {
+		t.Errorf("expected 1 key, got %d", len(keys))
+	}
+}
+
+func TestMockRemoteGitSSHKeyDelete(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitSSHKeyDelete(context.Background(), "s1", "mykey")
+	if err != nil {
+		t.Fatalf("GitSSHKeyDelete: %v", err)
+	}
+}
+
+func TestMockRemoteGitFetch(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitFetch(context.Background(), "s1", ".", "origin")
+	if err != nil {
+		t.Fatalf("GitFetch: %v", err)
+	}
+}
+
+func TestMockRemoteGitPull(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	result, err := vol.GitPull(context.Background(), "s1", ".", "origin", false)
+	if err != nil {
+		t.Fatalf("GitPull: %v", err)
+	}
+	if result.HasConflicts {
+		t.Error("expected no conflicts from mock")
+	}
+}
+
+func TestMockRemoteGitPush(t *testing.T) {
+	mock := &mockVolumeServer{}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitPush(context.Background(), "s1", ".", "origin", false, false)
+	if err != nil {
+		t.Fatalf("GitPush: %v", err)
+	}
+}
+
+func TestMockRemoteGitFetchFail(t *testing.T) {
+	mock := &mockVolumeServer{gitOpSuccess: false, gitOpMessage: "fetch failed"}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitFetch(context.Background(), "s1", ".", "")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestMockRemoteGitPullFail(t *testing.T) {
+	mock := &mockVolumeServer{gitPullSuccess: false, gitPullMessage: "pull failed"}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	_, err := vol.GitPull(context.Background(), "s1", ".", "", false)
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestMockRemoteGitPushFail(t *testing.T) {
+	mock := &mockVolumeServer{gitOpSuccess: false, gitOpMessage: "push failed"}
+	conn, cleanup := startMockServer(t, mock)
+	defer cleanup()
+
+	vol := NewRemote(conn)
+	err := vol.GitPush(context.Background(), "s1", ".", "", false, false)
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+// error-path remote tests for new RPCs
+func TestErrRemoteGitConfigGet(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	_, err := vol.GitConfigGet(context.Background(), "s1", "")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitConfigSet(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitConfigSet(context.Background(), "s1", "k", "v")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitCredentialSet(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitCredentialSet(context.Background(), "s1", "h", "u", "t")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitCredentialList(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	_, err := vol.GitCredentialList(context.Background(), "s1")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitCredentialDelete(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitCredentialDelete(context.Background(), "s1", "h")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitSSHKeyImport(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitSSHKeyImport(context.Background(), "s1", "n", "k", "", "")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitSSHKeyList(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	_, err := vol.GitSSHKeyList(context.Background(), "s1")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitSSHKeyDelete(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitSSHKeyDelete(context.Background(), "s1", "n")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitFetch(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitFetch(context.Background(), "s1", ".", "")
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitPull(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	_, err := vol.GitPull(context.Background(), "s1", ".", "", false)
+	if err == nil {
+		t.Error("expected error")
+	}
+}
+
+func TestErrRemoteGitPush(t *testing.T) {
+	conn, cleanup := startErrMockServer(t)
+	defer cleanup()
+	vol := NewRemote(conn)
+	err := vol.GitPush(context.Background(), "s1", ".", "", false, false)
+	if err == nil {
+		t.Error("expected error")
+	}
+}

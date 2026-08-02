@@ -26,6 +26,8 @@ type mockVolumeServer struct {
 	gitOpMessage     string
 	gitCommitSuccess bool
 	gitCommitMessage string
+	gitPullSuccess   bool
+	gitPullMessage   string
 }
 
 func (m *mockVolumeServer) Stat(_ context.Context, req *pb.FSRequest) (*pb.FileInfo, error) {
@@ -249,6 +251,69 @@ func (m *mockVolumeServer) GitCommit(_ context.Context, _ *pb.GitCommitRequest) 
 }
 
 func (m *mockVolumeServer) GitDiscardChanges(_ context.Context, _ *pb.GitDiscardRequest) (*pb.GitOpResponse, error) {
+	if !m.gitOpSuccess {
+		if m.gitOpMessage != "" {
+			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
+		}
+	}
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitConfigGet(_ context.Context, req *pb.GitConfigGetRequest) (*pb.GitConfigGetResponse, error) {
+	return &pb.GitConfigGetResponse{Values: map[string]string{"user.name": "MockUser", "user.email": "mock@test.com"}}, nil
+}
+
+func (m *mockVolumeServer) GitConfigSet(_ context.Context, _ *pb.GitConfigSetRequest) (*pb.GitOpResponse, error) {
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitCredentialSet(_ context.Context, _ *pb.GitCredentialSetRequest) (*pb.GitOpResponse, error) {
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitCredentialList(_ context.Context, _ *pb.GitCredentialListRequest) (*pb.GitCredentialListResponse, error) {
+	return &pb.GitCredentialListResponse{Entries: []*pb.GitCredentialEntry{
+		{Host: "github.com", Username: "user"},
+	}}, nil
+}
+
+func (m *mockVolumeServer) GitCredentialDelete(_ context.Context, _ *pb.GitCredentialDeleteRequest) (*pb.GitOpResponse, error) {
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitSSHKeyImport(_ context.Context, _ *pb.GitSSHKeyImportRequest) (*pb.GitOpResponse, error) {
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitSSHKeyList(_ context.Context, _ *pb.GitSSHKeyListRequest) (*pb.GitSSHKeyListResponse, error) {
+	return &pb.GitSSHKeyListResponse{Keys: []*pb.GitSSHKeyEntry{
+		{Name: "mykey", PublicKey: "ssh-ed25519 AAAA...", Fingerprint: "SHA256:xxx"},
+	}}, nil
+}
+
+func (m *mockVolumeServer) GitSSHKeyDelete(_ context.Context, _ *pb.GitSSHKeyDeleteRequest) (*pb.GitOpResponse, error) {
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitFetch(_ context.Context, _ *pb.GitFetchRequest) (*pb.GitOpResponse, error) {
+	if !m.gitOpSuccess {
+		if m.gitOpMessage != "" {
+			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
+		}
+	}
+	return &pb.GitOpResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitPull(_ context.Context, _ *pb.GitPullRequest) (*pb.GitPullResponse, error) {
+	if !m.gitPullSuccess {
+		if m.gitPullMessage != "" {
+			return &pb.GitPullResponse{Success: false, Message: m.gitPullMessage}, nil
+		}
+	}
+	return &pb.GitPullResponse{Success: true, Message: "ok"}, nil
+}
+
+func (m *mockVolumeServer) GitPush(_ context.Context, _ *pb.GitPushRequest) (*pb.GitOpResponse, error) {
 	if !m.gitOpSuccess {
 		if m.gitOpMessage != "" {
 			return &pb.GitOpResponse{Success: false, Message: m.gitOpMessage}, nil
@@ -657,6 +722,50 @@ func (m *errMockVolumeServer) GitCommit(_ context.Context, _ *pb.GitCommitReques
 
 func (m *errMockVolumeServer) GitDiscardChanges(_ context.Context, _ *pb.GitDiscardRequest) (*pb.GitOpResponse, error) {
 	return nil, fmt.Errorf("injected git discard error")
+}
+
+func (m *errMockVolumeServer) GitConfigGet(_ context.Context, _ *pb.GitConfigGetRequest) (*pb.GitConfigGetResponse, error) {
+	return nil, fmt.Errorf("injected git config get error")
+}
+
+func (m *errMockVolumeServer) GitConfigSet(_ context.Context, _ *pb.GitConfigSetRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git config set error")
+}
+
+func (m *errMockVolumeServer) GitCredentialSet(_ context.Context, _ *pb.GitCredentialSetRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git cred set error")
+}
+
+func (m *errMockVolumeServer) GitCredentialList(_ context.Context, _ *pb.GitCredentialListRequest) (*pb.GitCredentialListResponse, error) {
+	return nil, fmt.Errorf("injected git cred list error")
+}
+
+func (m *errMockVolumeServer) GitCredentialDelete(_ context.Context, _ *pb.GitCredentialDeleteRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git cred delete error")
+}
+
+func (m *errMockVolumeServer) GitSSHKeyImport(_ context.Context, _ *pb.GitSSHKeyImportRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git ssh import error")
+}
+
+func (m *errMockVolumeServer) GitSSHKeyList(_ context.Context, _ *pb.GitSSHKeyListRequest) (*pb.GitSSHKeyListResponse, error) {
+	return nil, fmt.Errorf("injected git ssh list error")
+}
+
+func (m *errMockVolumeServer) GitSSHKeyDelete(_ context.Context, _ *pb.GitSSHKeyDeleteRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git ssh delete error")
+}
+
+func (m *errMockVolumeServer) GitFetch(_ context.Context, _ *pb.GitFetchRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git fetch error")
+}
+
+func (m *errMockVolumeServer) GitPull(_ context.Context, _ *pb.GitPullRequest) (*pb.GitPullResponse, error) {
+	return nil, fmt.Errorf("injected git pull error")
+}
+
+func (m *errMockVolumeServer) GitPush(_ context.Context, _ *pb.GitPushRequest) (*pb.GitOpResponse, error) {
+	return nil, fmt.Errorf("injected git push error")
 }
 
 func startErrMockServer(t *testing.T) (*grpc.ClientConn, func()) {

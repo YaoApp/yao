@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v4.25.0
-// source: tai/volume/pb/volume.proto
+// source: volume/pb/volume.proto
 
 package pb
 
@@ -57,11 +57,11 @@ func (x FileChunk_ChunkType) String() string {
 }
 
 func (FileChunk_ChunkType) Descriptor() protoreflect.EnumDescriptor {
-	return file_tai_volume_pb_volume_proto_enumTypes[0].Descriptor()
+	return file_volume_pb_volume_proto_enumTypes[0].Descriptor()
 }
 
 func (FileChunk_ChunkType) Type() protoreflect.EnumType {
-	return &file_tai_volume_pb_volume_proto_enumTypes[0]
+	return &file_volume_pb_volume_proto_enumTypes[0]
 }
 
 func (x FileChunk_ChunkType) Number() protoreflect.EnumNumber {
@@ -70,7 +70,7 @@ func (x FileChunk_ChunkType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FileChunk_ChunkType.Descriptor instead.
 func (FileChunk_ChunkType) EnumDescriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{4, 0}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{4, 0}
 }
 
 type FileInfo struct {
@@ -86,7 +86,7 @@ type FileInfo struct {
 
 func (x *FileInfo) Reset() {
 	*x = FileInfo{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[0]
+	mi := &file_volume_pb_volume_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -98,7 +98,7 @@ func (x *FileInfo) String() string {
 func (*FileInfo) ProtoMessage() {}
 
 func (x *FileInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[0]
+	mi := &file_volume_pb_volume_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -111,7 +111,7 @@ func (x *FileInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileInfo.ProtoReflect.Descriptor instead.
 func (*FileInfo) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{0}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *FileInfo) GetPath() string {
@@ -161,7 +161,7 @@ type SyncManifest struct {
 
 func (x *SyncManifest) Reset() {
 	*x = SyncManifest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[1]
+	mi := &file_volume_pb_volume_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -173,7 +173,7 @@ func (x *SyncManifest) String() string {
 func (*SyncManifest) ProtoMessage() {}
 
 func (x *SyncManifest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[1]
+	mi := &file_volume_pb_volume_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -186,7 +186,7 @@ func (x *SyncManifest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncManifest.ProtoReflect.Descriptor instead.
 func (*SyncManifest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{1}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *SyncManifest) GetSessionId() string {
@@ -232,7 +232,7 @@ type SyncMessage struct {
 
 func (x *SyncMessage) Reset() {
 	*x = SyncMessage{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[2]
+	mi := &file_volume_pb_volume_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -244,7 +244,7 @@ func (x *SyncMessage) String() string {
 func (*SyncMessage) ProtoMessage() {}
 
 func (x *SyncMessage) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[2]
+	mi := &file_volume_pb_volume_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -257,7 +257,7 @@ func (x *SyncMessage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncMessage.ProtoReflect.Descriptor instead.
 func (*SyncMessage) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{2}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *SyncMessage) GetPayload() isSyncMessage_Payload {
@@ -341,7 +341,7 @@ type SyncDiff struct {
 
 func (x *SyncDiff) Reset() {
 	*x = SyncDiff{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[3]
+	mi := &file_volume_pb_volume_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -353,7 +353,7 @@ func (x *SyncDiff) String() string {
 func (*SyncDiff) ProtoMessage() {}
 
 func (x *SyncDiff) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[3]
+	mi := &file_volume_pb_volume_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -366,7 +366,7 @@ func (x *SyncDiff) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncDiff.ProtoReflect.Descriptor instead.
 func (*SyncDiff) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{3}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SyncDiff) GetNeedFiles() []string {
@@ -397,7 +397,7 @@ type FileChunk struct {
 
 func (x *FileChunk) Reset() {
 	*x = FileChunk{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[4]
+	mi := &file_volume_pb_volume_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -409,7 +409,7 @@ func (x *FileChunk) String() string {
 func (*FileChunk) ProtoMessage() {}
 
 func (x *FileChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[4]
+	mi := &file_volume_pb_volume_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -422,7 +422,7 @@ func (x *FileChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FileChunk.ProtoReflect.Descriptor instead.
 func (*FileChunk) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{4}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *FileChunk) GetPath() string {
@@ -478,7 +478,7 @@ type SyncResult struct {
 
 func (x *SyncResult) Reset() {
 	*x = SyncResult{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[5]
+	mi := &file_volume_pb_volume_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +490,7 @@ func (x *SyncResult) String() string {
 func (*SyncResult) ProtoMessage() {}
 
 func (x *SyncResult) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[5]
+	mi := &file_volume_pb_volume_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +503,7 @@ func (x *SyncResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncResult.ProtoReflect.Descriptor instead.
 func (*SyncResult) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{5}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SyncResult) GetFilesSynced() int32 {
@@ -537,7 +537,7 @@ type FSRequest struct {
 
 func (x *FSRequest) Reset() {
 	*x = FSRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[6]
+	mi := &file_volume_pb_volume_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -549,7 +549,7 @@ func (x *FSRequest) String() string {
 func (*FSRequest) ProtoMessage() {}
 
 func (x *FSRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[6]
+	mi := &file_volume_pb_volume_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -562,7 +562,7 @@ func (x *FSRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSRequest.ProtoReflect.Descriptor instead.
 func (*FSRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{6}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *FSRequest) GetSessionId() string {
@@ -589,7 +589,7 @@ type FSOpResponse struct {
 
 func (x *FSOpResponse) Reset() {
 	*x = FSOpResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[7]
+	mi := &file_volume_pb_volume_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -601,7 +601,7 @@ func (x *FSOpResponse) String() string {
 func (*FSOpResponse) ProtoMessage() {}
 
 func (x *FSOpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[7]
+	mi := &file_volume_pb_volume_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -614,7 +614,7 @@ func (x *FSOpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSOpResponse.ProtoReflect.Descriptor instead.
 func (*FSOpResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{7}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *FSOpResponse) GetOk() bool {
@@ -640,7 +640,7 @@ type FSAbsResponse struct {
 
 func (x *FSAbsResponse) Reset() {
 	*x = FSAbsResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[8]
+	mi := &file_volume_pb_volume_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -652,7 +652,7 @@ func (x *FSAbsResponse) String() string {
 func (*FSAbsResponse) ProtoMessage() {}
 
 func (x *FSAbsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[8]
+	mi := &file_volume_pb_volume_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -665,7 +665,7 @@ func (x *FSAbsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSAbsResponse.ProtoReflect.Descriptor instead.
 func (*FSAbsResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{8}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *FSAbsResponse) GetPath() string {
@@ -685,7 +685,7 @@ type FSReadRequest struct {
 
 func (x *FSReadRequest) Reset() {
 	*x = FSReadRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[9]
+	mi := &file_volume_pb_volume_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -697,7 +697,7 @@ func (x *FSReadRequest) String() string {
 func (*FSReadRequest) ProtoMessage() {}
 
 func (x *FSReadRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[9]
+	mi := &file_volume_pb_volume_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -710,7 +710,7 @@ func (x *FSReadRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSReadRequest.ProtoReflect.Descriptor instead.
 func (*FSReadRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{9}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *FSReadRequest) GetSessionId() string {
@@ -739,7 +739,7 @@ type FSDataChunk struct {
 
 func (x *FSDataChunk) Reset() {
 	*x = FSDataChunk{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[10]
+	mi := &file_volume_pb_volume_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -751,7 +751,7 @@ func (x *FSDataChunk) String() string {
 func (*FSDataChunk) ProtoMessage() {}
 
 func (x *FSDataChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[10]
+	mi := &file_volume_pb_volume_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -764,7 +764,7 @@ func (x *FSDataChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSDataChunk.ProtoReflect.Descriptor instead.
 func (*FSDataChunk) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{10}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *FSDataChunk) GetData() []byte {
@@ -808,7 +808,7 @@ type FSWriteChunk struct {
 
 func (x *FSWriteChunk) Reset() {
 	*x = FSWriteChunk{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[11]
+	mi := &file_volume_pb_volume_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -820,7 +820,7 @@ func (x *FSWriteChunk) String() string {
 func (*FSWriteChunk) ProtoMessage() {}
 
 func (x *FSWriteChunk) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[11]
+	mi := &file_volume_pb_volume_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -833,7 +833,7 @@ func (x *FSWriteChunk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSWriteChunk.ProtoReflect.Descriptor instead.
 func (*FSWriteChunk) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{11}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *FSWriteChunk) GetSessionId() string {
@@ -880,7 +880,7 @@ type FSWriteResponse struct {
 
 func (x *FSWriteResponse) Reset() {
 	*x = FSWriteResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[12]
+	mi := &file_volume_pb_volume_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +892,7 @@ func (x *FSWriteResponse) String() string {
 func (*FSWriteResponse) ProtoMessage() {}
 
 func (x *FSWriteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[12]
+	mi := &file_volume_pb_volume_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +905,7 @@ func (x *FSWriteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSWriteResponse.ProtoReflect.Descriptor instead.
 func (*FSWriteResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{12}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *FSWriteResponse) GetSize() int64 {
@@ -924,7 +924,7 @@ type FSListResponse struct {
 
 func (x *FSListResponse) Reset() {
 	*x = FSListResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[13]
+	mi := &file_volume_pb_volume_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -936,7 +936,7 @@ func (x *FSListResponse) String() string {
 func (*FSListResponse) ProtoMessage() {}
 
 func (x *FSListResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[13]
+	mi := &file_volume_pb_volume_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -949,7 +949,7 @@ func (x *FSListResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSListResponse.ProtoReflect.Descriptor instead.
 func (*FSListResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{13}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *FSListResponse) GetEntries() []*FileInfo {
@@ -970,7 +970,7 @@ type FSRemoveRequest struct {
 
 func (x *FSRemoveRequest) Reset() {
 	*x = FSRemoveRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[14]
+	mi := &file_volume_pb_volume_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -982,7 +982,7 @@ func (x *FSRemoveRequest) String() string {
 func (*FSRemoveRequest) ProtoMessage() {}
 
 func (x *FSRemoveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[14]
+	mi := &file_volume_pb_volume_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -995,7 +995,7 @@ func (x *FSRemoveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSRemoveRequest.ProtoReflect.Descriptor instead.
 func (*FSRemoveRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{14}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *FSRemoveRequest) GetSessionId() string {
@@ -1030,7 +1030,7 @@ type FSRenameRequest struct {
 
 func (x *FSRenameRequest) Reset() {
 	*x = FSRenameRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	mi := &file_volume_pb_volume_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1042,7 +1042,7 @@ func (x *FSRenameRequest) String() string {
 func (*FSRenameRequest) ProtoMessage() {}
 
 func (x *FSRenameRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[15]
+	mi := &file_volume_pb_volume_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1055,7 +1055,7 @@ func (x *FSRenameRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSRenameRequest.ProtoReflect.Descriptor instead.
 func (*FSRenameRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{15}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *FSRenameRequest) GetSessionId() string {
@@ -1092,7 +1092,7 @@ type FSCopyRequest struct {
 
 func (x *FSCopyRequest) Reset() {
 	*x = FSCopyRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
+	mi := &file_volume_pb_volume_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1104,7 @@ func (x *FSCopyRequest) String() string {
 func (*FSCopyRequest) ProtoMessage() {}
 
 func (x *FSCopyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[16]
+	mi := &file_volume_pb_volume_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1117,7 +1117,7 @@ func (x *FSCopyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FSCopyRequest.ProtoReflect.Descriptor instead.
 func (*FSCopyRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{16}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FSCopyRequest) GetSessionId() string {
@@ -1167,7 +1167,7 @@ type ArchiveRequest struct {
 
 func (x *ArchiveRequest) Reset() {
 	*x = ArchiveRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[17]
+	mi := &file_volume_pb_volume_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1179,7 +1179,7 @@ func (x *ArchiveRequest) String() string {
 func (*ArchiveRequest) ProtoMessage() {}
 
 func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[17]
+	mi := &file_volume_pb_volume_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1192,7 +1192,7 @@ func (x *ArchiveRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{17}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ArchiveRequest) GetSessionId() string {
@@ -1233,7 +1233,7 @@ type ArchiveResponse struct {
 
 func (x *ArchiveResponse) Reset() {
 	*x = ArchiveResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[18]
+	mi := &file_volume_pb_volume_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1245,7 @@ func (x *ArchiveResponse) String() string {
 func (*ArchiveResponse) ProtoMessage() {}
 
 func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[18]
+	mi := &file_volume_pb_volume_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1258,7 @@ func (x *ArchiveResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{18}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ArchiveResponse) GetSizeBytes() int64 {
@@ -1286,7 +1286,7 @@ type SkillEntry struct {
 
 func (x *SkillEntry) Reset() {
 	*x = SkillEntry{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[19]
+	mi := &file_volume_pb_volume_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1298,7 +1298,7 @@ func (x *SkillEntry) String() string {
 func (*SkillEntry) ProtoMessage() {}
 
 func (x *SkillEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[19]
+	mi := &file_volume_pb_volume_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1311,7 +1311,7 @@ func (x *SkillEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkillEntry.ProtoReflect.Descriptor instead.
 func (*SkillEntry) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{19}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SkillEntry) GetName() string {
@@ -1344,7 +1344,7 @@ type ListSkillsResponse struct {
 
 func (x *ListSkillsResponse) Reset() {
 	*x = ListSkillsResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[20]
+	mi := &file_volume_pb_volume_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1356,7 +1356,7 @@ func (x *ListSkillsResponse) String() string {
 func (*ListSkillsResponse) ProtoMessage() {}
 
 func (x *ListSkillsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[20]
+	mi := &file_volume_pb_volume_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1369,7 +1369,7 @@ func (x *ListSkillsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSkillsResponse.ProtoReflect.Descriptor instead.
 func (*ListSkillsResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{20}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListSkillsResponse) GetSkills() []*SkillEntry {
@@ -1385,13 +1385,16 @@ type GitRepo struct {
 	Branch        string                 `protobuf:"bytes,2,opt,name=branch,proto3" json:"branch,omitempty"`                            // current branch name
 	RemoteUrl     string                 `protobuf:"bytes,3,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"`     // origin remote URL
 	HasChanges    bool                   `protobuf:"varint,4,opt,name=has_changes,json=hasChanges,proto3" json:"has_changes,omitempty"` // has uncommitted changes
+	Ahead         int32                  `protobuf:"varint,5,opt,name=ahead,proto3" json:"ahead,omitempty"`
+	Behind        int32                  `protobuf:"varint,6,opt,name=behind,proto3" json:"behind,omitempty"`
+	HasUpstream   bool                   `protobuf:"varint,7,opt,name=has_upstream,json=hasUpstream,proto3" json:"has_upstream,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GitRepo) Reset() {
 	*x = GitRepo{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[21]
+	mi := &file_volume_pb_volume_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1403,7 +1406,7 @@ func (x *GitRepo) String() string {
 func (*GitRepo) ProtoMessage() {}
 
 func (x *GitRepo) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[21]
+	mi := &file_volume_pb_volume_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1416,7 +1419,7 @@ func (x *GitRepo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitRepo.ProtoReflect.Descriptor instead.
 func (*GitRepo) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{21}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GitRepo) GetPath() string {
@@ -1447,6 +1450,27 @@ func (x *GitRepo) GetHasChanges() bool {
 	return false
 }
 
+func (x *GitRepo) GetAhead() int32 {
+	if x != nil {
+		return x.Ahead
+	}
+	return 0
+}
+
+func (x *GitRepo) GetBehind() int32 {
+	if x != nil {
+		return x.Behind
+	}
+	return 0
+}
+
+func (x *GitRepo) GetHasUpstream() bool {
+	if x != nil {
+		return x.HasUpstream
+	}
+	return false
+}
+
 type GitReposResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Repos         []*GitRepo             `protobuf:"bytes,1,rep,name=repos,proto3" json:"repos,omitempty"`
@@ -1456,7 +1480,7 @@ type GitReposResponse struct {
 
 func (x *GitReposResponse) Reset() {
 	*x = GitReposResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[22]
+	mi := &file_volume_pb_volume_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1468,7 +1492,7 @@ func (x *GitReposResponse) String() string {
 func (*GitReposResponse) ProtoMessage() {}
 
 func (x *GitReposResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[22]
+	mi := &file_volume_pb_volume_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1481,7 +1505,7 @@ func (x *GitReposResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitReposResponse.ProtoReflect.Descriptor instead.
 func (*GitReposResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{22}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GitReposResponse) GetRepos() []*GitRepo {
@@ -1501,7 +1525,7 @@ type GitStatusRequest struct {
 
 func (x *GitStatusRequest) Reset() {
 	*x = GitStatusRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[23]
+	mi := &file_volume_pb_volume_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1513,7 +1537,7 @@ func (x *GitStatusRequest) String() string {
 func (*GitStatusRequest) ProtoMessage() {}
 
 func (x *GitStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[23]
+	mi := &file_volume_pb_volume_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1526,7 +1550,7 @@ func (x *GitStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitStatusRequest.ProtoReflect.Descriptor instead.
 func (*GitStatusRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{23}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GitStatusRequest) GetSessionId() string {
@@ -1558,7 +1582,7 @@ type GitChangedFile struct {
 
 func (x *GitChangedFile) Reset() {
 	*x = GitChangedFile{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[24]
+	mi := &file_volume_pb_volume_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1570,7 +1594,7 @@ func (x *GitChangedFile) String() string {
 func (*GitChangedFile) ProtoMessage() {}
 
 func (x *GitChangedFile) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[24]
+	mi := &file_volume_pb_volume_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1583,7 +1607,7 @@ func (x *GitChangedFile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitChangedFile.ProtoReflect.Descriptor instead.
 func (*GitChangedFile) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{24}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *GitChangedFile) GetPath() string {
@@ -1624,13 +1648,17 @@ type GitStatusResponse struct {
 	TotalDeletions  int32                  `protobuf:"varint,6,opt,name=total_deletions,json=totalDeletions,proto3" json:"total_deletions,omitempty"`
 	IsDetached      bool                   `protobuf:"varint,7,opt,name=is_detached,json=isDetached,proto3" json:"is_detached,omitempty"` // HEAD detached (checked out to commit), branch = commit hash prefix
 	IsEmpty         bool                   `protobuf:"varint,8,opt,name=is_empty,json=isEmpty,proto3" json:"is_empty,omitempty"`          // empty repo (no commits)
+	RemoteName      string                 `protobuf:"bytes,9,opt,name=remote_name,json=remoteName,proto3" json:"remote_name,omitempty"`
+	RemoteUrl       string                 `protobuf:"bytes,10,opt,name=remote_url,json=remoteUrl,proto3" json:"remote_url,omitempty"` // sanitized (no credentials)
+	UpstreamBranch  string                 `protobuf:"bytes,11,opt,name=upstream_branch,json=upstreamBranch,proto3" json:"upstream_branch,omitempty"`
+	HasUpstream     bool                   `protobuf:"varint,12,opt,name=has_upstream,json=hasUpstream,proto3" json:"has_upstream,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
 
 func (x *GitStatusResponse) Reset() {
 	*x = GitStatusResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[25]
+	mi := &file_volume_pb_volume_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1642,7 +1670,7 @@ func (x *GitStatusResponse) String() string {
 func (*GitStatusResponse) ProtoMessage() {}
 
 func (x *GitStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[25]
+	mi := &file_volume_pb_volume_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1655,7 +1683,7 @@ func (x *GitStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitStatusResponse.ProtoReflect.Descriptor instead.
 func (*GitStatusResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{25}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *GitStatusResponse) GetBranch() string {
@@ -1714,6 +1742,34 @@ func (x *GitStatusResponse) GetIsEmpty() bool {
 	return false
 }
 
+func (x *GitStatusResponse) GetRemoteName() string {
+	if x != nil {
+		return x.RemoteName
+	}
+	return ""
+}
+
+func (x *GitStatusResponse) GetRemoteUrl() string {
+	if x != nil {
+		return x.RemoteUrl
+	}
+	return ""
+}
+
+func (x *GitStatusResponse) GetUpstreamBranch() string {
+	if x != nil {
+		return x.UpstreamBranch
+	}
+	return ""
+}
+
+func (x *GitStatusResponse) GetHasUpstream() bool {
+	if x != nil {
+		return x.HasUpstream
+	}
+	return false
+}
+
 type GitFileDiffRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
@@ -1726,7 +1782,7 @@ type GitFileDiffRequest struct {
 
 func (x *GitFileDiffRequest) Reset() {
 	*x = GitFileDiffRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[26]
+	mi := &file_volume_pb_volume_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1738,7 +1794,7 @@ func (x *GitFileDiffRequest) String() string {
 func (*GitFileDiffRequest) ProtoMessage() {}
 
 func (x *GitFileDiffRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[26]
+	mi := &file_volume_pb_volume_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1751,7 +1807,7 @@ func (x *GitFileDiffRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitFileDiffRequest.ProtoReflect.Descriptor instead.
 func (*GitFileDiffRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{26}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *GitFileDiffRequest) GetSessionId() string {
@@ -1797,7 +1853,7 @@ type GitFileDiffResponse struct {
 
 func (x *GitFileDiffResponse) Reset() {
 	*x = GitFileDiffResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[27]
+	mi := &file_volume_pb_volume_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1809,7 +1865,7 @@ func (x *GitFileDiffResponse) String() string {
 func (*GitFileDiffResponse) ProtoMessage() {}
 
 func (x *GitFileDiffResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[27]
+	mi := &file_volume_pb_volume_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1822,7 +1878,7 @@ func (x *GitFileDiffResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitFileDiffResponse.ProtoReflect.Descriptor instead.
 func (*GitFileDiffResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{27}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *GitFileDiffResponse) GetOriginal() string {
@@ -1885,7 +1941,7 @@ type GitAddRequest struct {
 
 func (x *GitAddRequest) Reset() {
 	*x = GitAddRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[28]
+	mi := &file_volume_pb_volume_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1897,7 +1953,7 @@ func (x *GitAddRequest) String() string {
 func (*GitAddRequest) ProtoMessage() {}
 
 func (x *GitAddRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[28]
+	mi := &file_volume_pb_volume_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1910,7 +1966,7 @@ func (x *GitAddRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitAddRequest.ProtoReflect.Descriptor instead.
 func (*GitAddRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{28}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *GitAddRequest) GetSessionId() string {
@@ -1945,7 +2001,7 @@ type GitResetRequest struct {
 
 func (x *GitResetRequest) Reset() {
 	*x = GitResetRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[29]
+	mi := &file_volume_pb_volume_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1957,7 +2013,7 @@ func (x *GitResetRequest) String() string {
 func (*GitResetRequest) ProtoMessage() {}
 
 func (x *GitResetRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[29]
+	mi := &file_volume_pb_volume_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1970,7 +2026,7 @@ func (x *GitResetRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitResetRequest.ProtoReflect.Descriptor instead.
 func (*GitResetRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{29}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GitResetRequest) GetSessionId() string {
@@ -2008,7 +2064,7 @@ type GitCommitRequest struct {
 
 func (x *GitCommitRequest) Reset() {
 	*x = GitCommitRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[30]
+	mi := &file_volume_pb_volume_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2020,7 +2076,7 @@ func (x *GitCommitRequest) String() string {
 func (*GitCommitRequest) ProtoMessage() {}
 
 func (x *GitCommitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[30]
+	mi := &file_volume_pb_volume_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2033,7 +2089,7 @@ func (x *GitCommitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitCommitRequest.ProtoReflect.Descriptor instead.
 func (*GitCommitRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{30}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GitCommitRequest) GetSessionId() string {
@@ -2089,7 +2145,7 @@ type GitDiscardRequest struct {
 
 func (x *GitDiscardRequest) Reset() {
 	*x = GitDiscardRequest{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[31]
+	mi := &file_volume_pb_volume_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2101,7 +2157,7 @@ func (x *GitDiscardRequest) String() string {
 func (*GitDiscardRequest) ProtoMessage() {}
 
 func (x *GitDiscardRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[31]
+	mi := &file_volume_pb_volume_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2114,7 +2170,7 @@ func (x *GitDiscardRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitDiscardRequest.ProtoReflect.Descriptor instead.
 func (*GitDiscardRequest) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{31}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GitDiscardRequest) GetSessionId() string {
@@ -2148,7 +2204,7 @@ type GitOpResponse struct {
 
 func (x *GitOpResponse) Reset() {
 	*x = GitOpResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[32]
+	mi := &file_volume_pb_volume_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2160,7 +2216,7 @@ func (x *GitOpResponse) String() string {
 func (*GitOpResponse) ProtoMessage() {}
 
 func (x *GitOpResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[32]
+	mi := &file_volume_pb_volume_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2173,7 +2229,7 @@ func (x *GitOpResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitOpResponse.ProtoReflect.Descriptor instead.
 func (*GitOpResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{32}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GitOpResponse) GetSuccess() bool {
@@ -2201,7 +2257,7 @@ type GitCommitResponse struct {
 
 func (x *GitCommitResponse) Reset() {
 	*x = GitCommitResponse{}
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[33]
+	mi := &file_volume_pb_volume_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2213,7 +2269,7 @@ func (x *GitCommitResponse) String() string {
 func (*GitCommitResponse) ProtoMessage() {}
 
 func (x *GitCommitResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_tai_volume_pb_volume_proto_msgTypes[33]
+	mi := &file_volume_pb_volume_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2226,7 +2282,7 @@ func (x *GitCommitResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GitCommitResponse.ProtoReflect.Descriptor instead.
 func (*GitCommitResponse) Descriptor() ([]byte, []int) {
-	return file_tai_volume_pb_volume_proto_rawDescGZIP(), []int{33}
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *GitCommitResponse) GetSuccess() bool {
@@ -2250,11 +2306,967 @@ func (x *GitCommitResponse) GetMessage() string {
 	return ""
 }
 
-var File_tai_volume_pb_volume_proto protoreflect.FileDescriptor
+type GitConfigGetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"` // e.g. "user.name", empty = return all
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_tai_volume_pb_volume_proto_rawDesc = "" +
+func (x *GitConfigGetRequest) Reset() {
+	*x = GitConfigGetRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitConfigGetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitConfigGetRequest) ProtoMessage() {}
+
+func (x *GitConfigGetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitConfigGetRequest.ProtoReflect.Descriptor instead.
+func (*GitConfigGetRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *GitConfigGetRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitConfigGetRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+type GitConfigGetResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Values        map[string]string      `protobuf:"bytes,1,rep,name=values,proto3" json:"values,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitConfigGetResponse) Reset() {
+	*x = GitConfigGetResponse{}
+	mi := &file_volume_pb_volume_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitConfigGetResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitConfigGetResponse) ProtoMessage() {}
+
+func (x *GitConfigGetResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitConfigGetResponse.ProtoReflect.Descriptor instead.
+func (*GitConfigGetResponse) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GitConfigGetResponse) GetValues() map[string]string {
+	if x != nil {
+		return x.Values
+	}
+	return nil
+}
+
+type GitConfigSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	Value         string                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitConfigSetRequest) Reset() {
+	*x = GitConfigSetRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitConfigSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitConfigSetRequest) ProtoMessage() {}
+
+func (x *GitConfigSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitConfigSetRequest.ProtoReflect.Descriptor instead.
+func (*GitConfigSetRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *GitConfigSetRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitConfigSetRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *GitConfigSetRequest) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+type GitCredentialSetRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Host          string                 `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`         // e.g. "github.com"
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"` // e.g. "x-access-token"
+	Token         string                 `protobuf:"bytes,4,opt,name=token,proto3" json:"token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCredentialSetRequest) Reset() {
+	*x = GitCredentialSetRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCredentialSetRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCredentialSetRequest) ProtoMessage() {}
+
+func (x *GitCredentialSetRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCredentialSetRequest.ProtoReflect.Descriptor instead.
+func (*GitCredentialSetRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *GitCredentialSetRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitCredentialSetRequest) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *GitCredentialSetRequest) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *GitCredentialSetRequest) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+type GitCredentialListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCredentialListRequest) Reset() {
+	*x = GitCredentialListRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCredentialListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCredentialListRequest) ProtoMessage() {}
+
+func (x *GitCredentialListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCredentialListRequest.ProtoReflect.Descriptor instead.
+func (*GitCredentialListRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *GitCredentialListRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type GitCredentialListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entries       []*GitCredentialEntry  `protobuf:"bytes,1,rep,name=entries,proto3" json:"entries,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCredentialListResponse) Reset() {
+	*x = GitCredentialListResponse{}
+	mi := &file_volume_pb_volume_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCredentialListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCredentialListResponse) ProtoMessage() {}
+
+func (x *GitCredentialListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCredentialListResponse.ProtoReflect.Descriptor instead.
+func (*GitCredentialListResponse) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *GitCredentialListResponse) GetEntries() []*GitCredentialEntry {
+	if x != nil {
+		return x.Entries
+	}
+	return nil
+}
+
+type GitCredentialEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Host          string                 `protobuf:"bytes,1,opt,name=host,proto3" json:"host,omitempty"`
+	Username      string                 `protobuf:"bytes,2,opt,name=username,proto3" json:"username,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCredentialEntry) Reset() {
+	*x = GitCredentialEntry{}
+	mi := &file_volume_pb_volume_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCredentialEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCredentialEntry) ProtoMessage() {}
+
+func (x *GitCredentialEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCredentialEntry.ProtoReflect.Descriptor instead.
+func (*GitCredentialEntry) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *GitCredentialEntry) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+func (x *GitCredentialEntry) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+type GitCredentialDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Host          string                 `protobuf:"bytes,2,opt,name=host,proto3" json:"host,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitCredentialDeleteRequest) Reset() {
+	*x = GitCredentialDeleteRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitCredentialDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitCredentialDeleteRequest) ProtoMessage() {}
+
+func (x *GitCredentialDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitCredentialDeleteRequest.ProtoReflect.Descriptor instead.
+func (*GitCredentialDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GitCredentialDeleteRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitCredentialDeleteRequest) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+type GitSSHKeyImportRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`                               // key name, e.g. "github", "gitlab"
+	PrivateKey    string                 `protobuf:"bytes,3,opt,name=private_key,json=privateKey,proto3" json:"private_key,omitempty"` // PEM-encoded private key content
+	PublicKey     string                 `protobuf:"bytes,4,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`    // optional; derived from private_key if empty
+	Host          string                 `protobuf:"bytes,5,opt,name=host,proto3" json:"host,omitempty"`                               // optional; auto-updates ssh/config Host block when provided
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitSSHKeyImportRequest) Reset() {
+	*x = GitSSHKeyImportRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitSSHKeyImportRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitSSHKeyImportRequest) ProtoMessage() {}
+
+func (x *GitSSHKeyImportRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitSSHKeyImportRequest.ProtoReflect.Descriptor instead.
+func (*GitSSHKeyImportRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *GitSSHKeyImportRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitSSHKeyImportRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GitSSHKeyImportRequest) GetPrivateKey() string {
+	if x != nil {
+		return x.PrivateKey
+	}
+	return ""
+}
+
+func (x *GitSSHKeyImportRequest) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+func (x *GitSSHKeyImportRequest) GetHost() string {
+	if x != nil {
+		return x.Host
+	}
+	return ""
+}
+
+type GitSSHKeyListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitSSHKeyListRequest) Reset() {
+	*x = GitSSHKeyListRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitSSHKeyListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitSSHKeyListRequest) ProtoMessage() {}
+
+func (x *GitSSHKeyListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitSSHKeyListRequest.ProtoReflect.Descriptor instead.
+func (*GitSSHKeyListRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *GitSSHKeyListRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+type GitSSHKeyListResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Keys          []*GitSSHKeyEntry      `protobuf:"bytes,1,rep,name=keys,proto3" json:"keys,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitSSHKeyListResponse) Reset() {
+	*x = GitSSHKeyListResponse{}
+	mi := &file_volume_pb_volume_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitSSHKeyListResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitSSHKeyListResponse) ProtoMessage() {}
+
+func (x *GitSSHKeyListResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitSSHKeyListResponse.ProtoReflect.Descriptor instead.
+func (*GitSSHKeyListResponse) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GitSSHKeyListResponse) GetKeys() []*GitSSHKeyEntry {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
+type GitSSHKeyEntry struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	PublicKey     string                 `protobuf:"bytes,2,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"` // public key content (safe to display)
+	Fingerprint   string                 `protobuf:"bytes,3,opt,name=fingerprint,proto3" json:"fingerprint,omitempty"`              // SHA256 fingerprint
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitSSHKeyEntry) Reset() {
+	*x = GitSSHKeyEntry{}
+	mi := &file_volume_pb_volume_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitSSHKeyEntry) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitSSHKeyEntry) ProtoMessage() {}
+
+func (x *GitSSHKeyEntry) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitSSHKeyEntry.ProtoReflect.Descriptor instead.
+func (*GitSSHKeyEntry) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GitSSHKeyEntry) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GitSSHKeyEntry) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+func (x *GitSSHKeyEntry) GetFingerprint() string {
+	if x != nil {
+		return x.Fingerprint
+	}
+	return ""
+}
+
+type GitSSHKeyDeleteRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitSSHKeyDeleteRequest) Reset() {
+	*x = GitSSHKeyDeleteRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitSSHKeyDeleteRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitSSHKeyDeleteRequest) ProtoMessage() {}
+
+func (x *GitSSHKeyDeleteRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitSSHKeyDeleteRequest.ProtoReflect.Descriptor instead.
+func (*GitSSHKeyDeleteRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GitSSHKeyDeleteRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitSSHKeyDeleteRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type GitFetchRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"` // defaults to "origin"
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitFetchRequest) Reset() {
+	*x = GitFetchRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitFetchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitFetchRequest) ProtoMessage() {}
+
+func (x *GitFetchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitFetchRequest.ProtoReflect.Descriptor instead.
+func (*GitFetchRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *GitFetchRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitFetchRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitFetchRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+type GitPullRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Rebase        bool                   `protobuf:"varint,4,opt,name=rebase,proto3" json:"rebase,omitempty"` // true = pull --rebase (currently unsupported, returns error)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitPullRequest) Reset() {
+	*x = GitPullRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitPullRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitPullRequest) ProtoMessage() {}
+
+func (x *GitPullRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitPullRequest.ProtoReflect.Descriptor instead.
+func (*GitPullRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *GitPullRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitPullRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitPullRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *GitPullRequest) GetRebase() bool {
+	if x != nil {
+		return x.Rebase
+	}
+	return false
+}
+
+type GitPullResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	Message       string                 `protobuf:"bytes,2,opt,name=message,proto3" json:"message,omitempty"`
+	HasConflicts  bool                   `protobuf:"varint,3,opt,name=has_conflicts,json=hasConflicts,proto3" json:"has_conflicts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitPullResponse) Reset() {
+	*x = GitPullResponse{}
+	mi := &file_volume_pb_volume_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitPullResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitPullResponse) ProtoMessage() {}
+
+func (x *GitPullResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitPullResponse.ProtoReflect.Descriptor instead.
+func (*GitPullResponse) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *GitPullResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
+func (x *GitPullResponse) GetMessage() string {
+	if x != nil {
+		return x.Message
+	}
+	return ""
+}
+
+func (x *GitPullResponse) GetHasConflicts() bool {
+	if x != nil {
+		return x.HasConflicts
+	}
+	return false
+}
+
+type GitPushRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SessionId     string                 `protobuf:"bytes,1,opt,name=session_id,json=sessionId,proto3" json:"session_id,omitempty"`
+	RepoPath      string                 `protobuf:"bytes,2,opt,name=repo_path,json=repoPath,proto3" json:"repo_path,omitempty"`
+	Remote        string                 `protobuf:"bytes,3,opt,name=remote,proto3" json:"remote,omitempty"`
+	Force         bool                   `protobuf:"varint,4,opt,name=force,proto3" json:"force,omitempty"`
+	SetUpstream   bool                   `protobuf:"varint,5,opt,name=set_upstream,json=setUpstream,proto3" json:"set_upstream,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GitPushRequest) Reset() {
+	*x = GitPushRequest{}
+	mi := &file_volume_pb_volume_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GitPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GitPushRequest) ProtoMessage() {}
+
+func (x *GitPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_volume_pb_volume_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GitPushRequest.ProtoReflect.Descriptor instead.
+func (*GitPushRequest) Descriptor() ([]byte, []int) {
+	return file_volume_pb_volume_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *GitPushRequest) GetSessionId() string {
+	if x != nil {
+		return x.SessionId
+	}
+	return ""
+}
+
+func (x *GitPushRequest) GetRepoPath() string {
+	if x != nil {
+		return x.RepoPath
+	}
+	return ""
+}
+
+func (x *GitPushRequest) GetRemote() string {
+	if x != nil {
+		return x.Remote
+	}
+	return ""
+}
+
+func (x *GitPushRequest) GetForce() bool {
+	if x != nil {
+		return x.Force
+	}
+	return false
+}
+
+func (x *GitPushRequest) GetSetUpstream() bool {
+	if x != nil {
+		return x.SetUpstream
+	}
+	return false
+}
+
+var File_volume_pb_volume_proto protoreflect.FileDescriptor
+
+const file_volume_pb_volume_proto_rawDesc = "" +
 	"\n" +
-	"\x1atai/volume/pb/volume.proto\x12\x06volume\"s\n" +
+	"\x16volume/pb/volume.proto\x12\x06volume\"s\n" +
 	"\bFileInfo\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\x03R\x04size\x12\x14\n" +
@@ -2362,14 +3374,17 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x12\n" +
 	"\x04path\x18\x03 \x01(\tR\x04path\"@\n" +
 	"\x12ListSkillsResponse\x12*\n" +
-	"\x06skills\x18\x01 \x03(\v2\x12.volume.SkillEntryR\x06skills\"u\n" +
+	"\x06skills\x18\x01 \x03(\v2\x12.volume.SkillEntryR\x06skills\"\xc6\x01\n" +
 	"\aGitRepo\x12\x12\n" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12\x16\n" +
 	"\x06branch\x18\x02 \x01(\tR\x06branch\x12\x1d\n" +
 	"\n" +
 	"remote_url\x18\x03 \x01(\tR\tremoteUrl\x12\x1f\n" +
 	"\vhas_changes\x18\x04 \x01(\bR\n" +
-	"hasChanges\"9\n" +
+	"hasChanges\x12\x14\n" +
+	"\x05ahead\x18\x05 \x01(\x05R\x05ahead\x12\x16\n" +
+	"\x06behind\x18\x06 \x01(\x05R\x06behind\x12!\n" +
+	"\fhas_upstream\x18\a \x01(\bR\vhasUpstream\"9\n" +
 	"\x10GitReposResponse\x12%\n" +
 	"\x05repos\x18\x01 \x03(\v2\x0f.volume.GitRepoR\x05repos\"N\n" +
 	"\x10GitStatusRequest\x12\x1d\n" +
@@ -2380,7 +3395,7 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\x04path\x18\x01 \x01(\tR\x04path\x12!\n" +
 	"\findex_status\x18\x02 \x01(\tR\vindexStatus\x12'\n" +
 	"\x0fworktree_status\x18\x03 \x01(\tR\x0eworktreeStatus\x12\x19\n" +
-	"\bold_path\x18\x04 \x01(\tR\aoldPath\"\x97\x02\n" +
+	"\bold_path\x18\x04 \x01(\tR\aoldPath\"\xa3\x03\n" +
 	"\x11GitStatusResponse\x12\x16\n" +
 	"\x06branch\x18\x01 \x01(\tR\x06branch\x12,\n" +
 	"\x05files\x18\x02 \x03(\v2\x16.volume.GitChangedFileR\x05files\x12\x14\n" +
@@ -2390,7 +3405,14 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\x0ftotal_deletions\x18\x06 \x01(\x05R\x0etotalDeletions\x12\x1f\n" +
 	"\vis_detached\x18\a \x01(\bR\n" +
 	"isDetached\x12\x19\n" +
-	"\bis_empty\x18\b \x01(\bR\aisEmpty\"\x85\x01\n" +
+	"\bis_empty\x18\b \x01(\bR\aisEmpty\x12\x1f\n" +
+	"\vremote_name\x18\t \x01(\tR\n" +
+	"remoteName\x12\x1d\n" +
+	"\n" +
+	"remote_url\x18\n" +
+	" \x01(\tR\tremoteUrl\x12'\n" +
+	"\x0fupstream_branch\x18\v \x01(\tR\x0eupstreamBranch\x12!\n" +
+	"\fhas_upstream\x18\f \x01(\bR\vhasUpstream\"\x85\x01\n" +
 	"\x12GitFileDiffRequest\x12\x1d\n" +
 	"\n" +
 	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
@@ -2439,7 +3461,84 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x1f\n" +
 	"\vcommit_hash\x18\x02 \x01(\tR\n" +
 	"commitHash\x12\x18\n" +
-	"\amessage\x18\x03 \x01(\tR\amessage2\xac\f\n" +
+	"\amessage\x18\x03 \x01(\tR\amessage\"F\n" +
+	"\x13GitConfigGetRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\"\x93\x01\n" +
+	"\x14GitConfigGetResponse\x12@\n" +
+	"\x06values\x18\x01 \x03(\v2(.volume.GitConfigGetResponse.ValuesEntryR\x06values\x1a9\n" +
+	"\vValuesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\\\n" +
+	"\x13GitConfigSetRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\"~\n" +
+	"\x17GitCredentialSetRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\tR\x04host\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x14\n" +
+	"\x05token\x18\x04 \x01(\tR\x05token\"9\n" +
+	"\x18GitCredentialListRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"Q\n" +
+	"\x19GitCredentialListResponse\x124\n" +
+	"\aentries\x18\x01 \x03(\v2\x1a.volume.GitCredentialEntryR\aentries\"D\n" +
+	"\x12GitCredentialEntry\x12\x12\n" +
+	"\x04host\x18\x01 \x01(\tR\x04host\x12\x1a\n" +
+	"\busername\x18\x02 \x01(\tR\busername\"O\n" +
+	"\x1aGitCredentialDeleteRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04host\x18\x02 \x01(\tR\x04host\"\x9f\x01\n" +
+	"\x16GitSSHKeyImportRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1f\n" +
+	"\vprivate_key\x18\x03 \x01(\tR\n" +
+	"privateKey\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x04 \x01(\tR\tpublicKey\x12\x12\n" +
+	"\x04host\x18\x05 \x01(\tR\x04host\"5\n" +
+	"\x14GitSSHKeyListRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\"C\n" +
+	"\x15GitSSHKeyListResponse\x12*\n" +
+	"\x04keys\x18\x01 \x03(\v2\x16.volume.GitSSHKeyEntryR\x04keys\"e\n" +
+	"\x0eGitSSHKeyEntry\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x02 \x01(\tR\tpublicKey\x12 \n" +
+	"\vfingerprint\x18\x03 \x01(\tR\vfingerprint\"K\n" +
+	"\x16GitSSHKeyDeleteRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"e\n" +
+	"\x0fGitFetchRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\"|\n" +
+	"\x0eGitPullRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x16\n" +
+	"\x06rebase\x18\x04 \x01(\bR\x06rebase\"j\n" +
+	"\x0fGitPullResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\x12\x18\n" +
+	"\amessage\x18\x02 \x01(\tR\amessage\x12#\n" +
+	"\rhas_conflicts\x18\x03 \x01(\bR\fhasConflicts\"\x9d\x01\n" +
+	"\x0eGitPushRequest\x12\x1d\n" +
+	"\n" +
+	"session_id\x18\x01 \x01(\tR\tsessionId\x12\x1b\n" +
+	"\trepo_path\x18\x02 \x01(\tR\brepoPath\x12\x16\n" +
+	"\x06remote\x18\x03 \x01(\tR\x06remote\x12\x14\n" +
+	"\x05force\x18\x04 \x01(\bR\x05force\x12!\n" +
+	"\fset_upstream\x18\x05 \x01(\bR\vsetUpstream2\xc7\x12\n" +
 	"\x06Volume\x128\n" +
 	"\bSyncPush\x12\x13.volume.SyncMessage\x1a\x13.volume.SyncMessage(\x010\x01\x127\n" +
 	"\bSyncPull\x12\x14.volume.SyncManifest\x1a\x13.volume.SyncMessage0\x01\x128\n" +
@@ -2468,60 +3567,89 @@ const file_tai_volume_pb_volume_proto_rawDesc = "" +
 	"\x06GitAdd\x12\x15.volume.GitAddRequest\x1a\x15.volume.GitOpResponse\x12:\n" +
 	"\bGitReset\x12\x17.volume.GitResetRequest\x1a\x15.volume.GitOpResponse\x12@\n" +
 	"\tGitCommit\x12\x18.volume.GitCommitRequest\x1a\x19.volume.GitCommitResponse\x12E\n" +
-	"\x11GitDiscardChanges\x12\x19.volume.GitDiscardRequest\x1a\x15.volume.GitOpResponseB%Z#github.com/yaoapp/yao/tai/volume/pbb\x06proto3"
+	"\x11GitDiscardChanges\x12\x19.volume.GitDiscardRequest\x1a\x15.volume.GitOpResponse\x12I\n" +
+	"\fGitConfigGet\x12\x1b.volume.GitConfigGetRequest\x1a\x1c.volume.GitConfigGetResponse\x12B\n" +
+	"\fGitConfigSet\x12\x1b.volume.GitConfigSetRequest\x1a\x15.volume.GitOpResponse\x12J\n" +
+	"\x10GitCredentialSet\x12\x1f.volume.GitCredentialSetRequest\x1a\x15.volume.GitOpResponse\x12X\n" +
+	"\x11GitCredentialList\x12 .volume.GitCredentialListRequest\x1a!.volume.GitCredentialListResponse\x12P\n" +
+	"\x13GitCredentialDelete\x12\".volume.GitCredentialDeleteRequest\x1a\x15.volume.GitOpResponse\x12H\n" +
+	"\x0fGitSSHKeyImport\x12\x1e.volume.GitSSHKeyImportRequest\x1a\x15.volume.GitOpResponse\x12L\n" +
+	"\rGitSSHKeyList\x12\x1c.volume.GitSSHKeyListRequest\x1a\x1d.volume.GitSSHKeyListResponse\x12H\n" +
+	"\x0fGitSSHKeyDelete\x12\x1e.volume.GitSSHKeyDeleteRequest\x1a\x15.volume.GitOpResponse\x12:\n" +
+	"\bGitFetch\x12\x17.volume.GitFetchRequest\x1a\x15.volume.GitOpResponse\x12:\n" +
+	"\aGitPull\x12\x16.volume.GitPullRequest\x1a\x17.volume.GitPullResponse\x128\n" +
+	"\aGitPush\x12\x16.volume.GitPushRequest\x1a\x15.volume.GitOpResponseB!Z\x1fgithub.com/yaoapp/tai/volume/pbb\x06proto3"
 
 var (
-	file_tai_volume_pb_volume_proto_rawDescOnce sync.Once
-	file_tai_volume_pb_volume_proto_rawDescData []byte
+	file_volume_pb_volume_proto_rawDescOnce sync.Once
+	file_volume_pb_volume_proto_rawDescData []byte
 )
 
-func file_tai_volume_pb_volume_proto_rawDescGZIP() []byte {
-	file_tai_volume_pb_volume_proto_rawDescOnce.Do(func() {
-		file_tai_volume_pb_volume_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tai_volume_pb_volume_proto_rawDesc), len(file_tai_volume_pb_volume_proto_rawDesc)))
+func file_volume_pb_volume_proto_rawDescGZIP() []byte {
+	file_volume_pb_volume_proto_rawDescOnce.Do(func() {
+		file_volume_pb_volume_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_volume_pb_volume_proto_rawDesc), len(file_volume_pb_volume_proto_rawDesc)))
 	})
-	return file_tai_volume_pb_volume_proto_rawDescData
+	return file_volume_pb_volume_proto_rawDescData
 }
 
-var file_tai_volume_pb_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_tai_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
-var file_tai_volume_pb_volume_proto_goTypes = []any{
-	(FileChunk_ChunkType)(0),    // 0: volume.FileChunk.ChunkType
-	(*FileInfo)(nil),            // 1: volume.FileInfo
-	(*SyncManifest)(nil),        // 2: volume.SyncManifest
-	(*SyncMessage)(nil),         // 3: volume.SyncMessage
-	(*SyncDiff)(nil),            // 4: volume.SyncDiff
-	(*FileChunk)(nil),           // 5: volume.FileChunk
-	(*SyncResult)(nil),          // 6: volume.SyncResult
-	(*FSRequest)(nil),           // 7: volume.FSRequest
-	(*FSOpResponse)(nil),        // 8: volume.FSOpResponse
-	(*FSAbsResponse)(nil),       // 9: volume.FSAbsResponse
-	(*FSReadRequest)(nil),       // 10: volume.FSReadRequest
-	(*FSDataChunk)(nil),         // 11: volume.FSDataChunk
-	(*FSWriteChunk)(nil),        // 12: volume.FSWriteChunk
-	(*FSWriteResponse)(nil),     // 13: volume.FSWriteResponse
-	(*FSListResponse)(nil),      // 14: volume.FSListResponse
-	(*FSRemoveRequest)(nil),     // 15: volume.FSRemoveRequest
-	(*FSRenameRequest)(nil),     // 16: volume.FSRenameRequest
-	(*FSCopyRequest)(nil),       // 17: volume.FSCopyRequest
-	(*ArchiveRequest)(nil),      // 18: volume.ArchiveRequest
-	(*ArchiveResponse)(nil),     // 19: volume.ArchiveResponse
-	(*SkillEntry)(nil),          // 20: volume.SkillEntry
-	(*ListSkillsResponse)(nil),  // 21: volume.ListSkillsResponse
-	(*GitRepo)(nil),             // 22: volume.GitRepo
-	(*GitReposResponse)(nil),    // 23: volume.GitReposResponse
-	(*GitStatusRequest)(nil),    // 24: volume.GitStatusRequest
-	(*GitChangedFile)(nil),      // 25: volume.GitChangedFile
-	(*GitStatusResponse)(nil),   // 26: volume.GitStatusResponse
-	(*GitFileDiffRequest)(nil),  // 27: volume.GitFileDiffRequest
-	(*GitFileDiffResponse)(nil), // 28: volume.GitFileDiffResponse
-	(*GitAddRequest)(nil),       // 29: volume.GitAddRequest
-	(*GitResetRequest)(nil),     // 30: volume.GitResetRequest
-	(*GitCommitRequest)(nil),    // 31: volume.GitCommitRequest
-	(*GitDiscardRequest)(nil),   // 32: volume.GitDiscardRequest
-	(*GitOpResponse)(nil),       // 33: volume.GitOpResponse
-	(*GitCommitResponse)(nil),   // 34: volume.GitCommitResponse
+var file_volume_pb_volume_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_volume_pb_volume_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
+var file_volume_pb_volume_proto_goTypes = []any{
+	(FileChunk_ChunkType)(0),           // 0: volume.FileChunk.ChunkType
+	(*FileInfo)(nil),                   // 1: volume.FileInfo
+	(*SyncManifest)(nil),               // 2: volume.SyncManifest
+	(*SyncMessage)(nil),                // 3: volume.SyncMessage
+	(*SyncDiff)(nil),                   // 4: volume.SyncDiff
+	(*FileChunk)(nil),                  // 5: volume.FileChunk
+	(*SyncResult)(nil),                 // 6: volume.SyncResult
+	(*FSRequest)(nil),                  // 7: volume.FSRequest
+	(*FSOpResponse)(nil),               // 8: volume.FSOpResponse
+	(*FSAbsResponse)(nil),              // 9: volume.FSAbsResponse
+	(*FSReadRequest)(nil),              // 10: volume.FSReadRequest
+	(*FSDataChunk)(nil),                // 11: volume.FSDataChunk
+	(*FSWriteChunk)(nil),               // 12: volume.FSWriteChunk
+	(*FSWriteResponse)(nil),            // 13: volume.FSWriteResponse
+	(*FSListResponse)(nil),             // 14: volume.FSListResponse
+	(*FSRemoveRequest)(nil),            // 15: volume.FSRemoveRequest
+	(*FSRenameRequest)(nil),            // 16: volume.FSRenameRequest
+	(*FSCopyRequest)(nil),              // 17: volume.FSCopyRequest
+	(*ArchiveRequest)(nil),             // 18: volume.ArchiveRequest
+	(*ArchiveResponse)(nil),            // 19: volume.ArchiveResponse
+	(*SkillEntry)(nil),                 // 20: volume.SkillEntry
+	(*ListSkillsResponse)(nil),         // 21: volume.ListSkillsResponse
+	(*GitRepo)(nil),                    // 22: volume.GitRepo
+	(*GitReposResponse)(nil),           // 23: volume.GitReposResponse
+	(*GitStatusRequest)(nil),           // 24: volume.GitStatusRequest
+	(*GitChangedFile)(nil),             // 25: volume.GitChangedFile
+	(*GitStatusResponse)(nil),          // 26: volume.GitStatusResponse
+	(*GitFileDiffRequest)(nil),         // 27: volume.GitFileDiffRequest
+	(*GitFileDiffResponse)(nil),        // 28: volume.GitFileDiffResponse
+	(*GitAddRequest)(nil),              // 29: volume.GitAddRequest
+	(*GitResetRequest)(nil),            // 30: volume.GitResetRequest
+	(*GitCommitRequest)(nil),           // 31: volume.GitCommitRequest
+	(*GitDiscardRequest)(nil),          // 32: volume.GitDiscardRequest
+	(*GitOpResponse)(nil),              // 33: volume.GitOpResponse
+	(*GitCommitResponse)(nil),          // 34: volume.GitCommitResponse
+	(*GitConfigGetRequest)(nil),        // 35: volume.GitConfigGetRequest
+	(*GitConfigGetResponse)(nil),       // 36: volume.GitConfigGetResponse
+	(*GitConfigSetRequest)(nil),        // 37: volume.GitConfigSetRequest
+	(*GitCredentialSetRequest)(nil),    // 38: volume.GitCredentialSetRequest
+	(*GitCredentialListRequest)(nil),   // 39: volume.GitCredentialListRequest
+	(*GitCredentialListResponse)(nil),  // 40: volume.GitCredentialListResponse
+	(*GitCredentialEntry)(nil),         // 41: volume.GitCredentialEntry
+	(*GitCredentialDeleteRequest)(nil), // 42: volume.GitCredentialDeleteRequest
+	(*GitSSHKeyImportRequest)(nil),     // 43: volume.GitSSHKeyImportRequest
+	(*GitSSHKeyListRequest)(nil),       // 44: volume.GitSSHKeyListRequest
+	(*GitSSHKeyListResponse)(nil),      // 45: volume.GitSSHKeyListResponse
+	(*GitSSHKeyEntry)(nil),             // 46: volume.GitSSHKeyEntry
+	(*GitSSHKeyDeleteRequest)(nil),     // 47: volume.GitSSHKeyDeleteRequest
+	(*GitFetchRequest)(nil),            // 48: volume.GitFetchRequest
+	(*GitPullRequest)(nil),             // 49: volume.GitPullRequest
+	(*GitPullResponse)(nil),            // 50: volume.GitPullResponse
+	(*GitPushRequest)(nil),             // 51: volume.GitPushRequest
+	nil,                                // 52: volume.GitConfigGetResponse.ValuesEntry
 }
-var file_tai_volume_pb_volume_proto_depIdxs = []int32{
+var file_volume_pb_volume_proto_depIdxs = []int32{
 	1,  // 0: volume.SyncManifest.files:type_name -> volume.FileInfo
 	2,  // 1: volume.SyncMessage.manifest:type_name -> volume.SyncManifest
 	4,  // 2: volume.SyncMessage.diff:type_name -> volume.SyncDiff
@@ -2532,73 +3660,98 @@ var file_tai_volume_pb_volume_proto_depIdxs = []int32{
 	20, // 7: volume.ListSkillsResponse.skills:type_name -> volume.SkillEntry
 	22, // 8: volume.GitReposResponse.repos:type_name -> volume.GitRepo
 	25, // 9: volume.GitStatusResponse.files:type_name -> volume.GitChangedFile
-	3,  // 10: volume.Volume.SyncPush:input_type -> volume.SyncMessage
-	2,  // 11: volume.Volume.SyncPull:input_type -> volume.SyncManifest
-	10, // 12: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
-	12, // 13: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
-	7,  // 14: volume.Volume.Stat:input_type -> volume.FSRequest
-	7,  // 15: volume.Volume.ListDir:input_type -> volume.FSRequest
-	15, // 16: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
-	16, // 17: volume.Volume.Rename:input_type -> volume.FSRenameRequest
-	7,  // 18: volume.Volume.MkdirAll:input_type -> volume.FSRequest
-	7,  // 19: volume.Volume.Abs:input_type -> volume.FSRequest
-	17, // 20: volume.Volume.Copy:input_type -> volume.FSCopyRequest
-	7,  // 21: volume.Volume.ListSkills:input_type -> volume.FSRequest
-	18, // 22: volume.Volume.Zip:input_type -> volume.ArchiveRequest
-	18, // 23: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
-	18, // 24: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
-	18, // 25: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
-	18, // 26: volume.Volume.Tar:input_type -> volume.ArchiveRequest
-	18, // 27: volume.Volume.Untar:input_type -> volume.ArchiveRequest
-	18, // 28: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
-	18, // 29: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
-	7,  // 30: volume.Volume.GitListRepos:input_type -> volume.FSRequest
-	24, // 31: volume.Volume.GitStatus:input_type -> volume.GitStatusRequest
-	27, // 32: volume.Volume.GitFileDiff:input_type -> volume.GitFileDiffRequest
-	29, // 33: volume.Volume.GitAdd:input_type -> volume.GitAddRequest
-	30, // 34: volume.Volume.GitReset:input_type -> volume.GitResetRequest
-	31, // 35: volume.Volume.GitCommit:input_type -> volume.GitCommitRequest
-	32, // 36: volume.Volume.GitDiscardChanges:input_type -> volume.GitDiscardRequest
-	3,  // 37: volume.Volume.SyncPush:output_type -> volume.SyncMessage
-	3,  // 38: volume.Volume.SyncPull:output_type -> volume.SyncMessage
-	11, // 39: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
-	13, // 40: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
-	1,  // 41: volume.Volume.Stat:output_type -> volume.FileInfo
-	14, // 42: volume.Volume.ListDir:output_type -> volume.FSListResponse
-	8,  // 43: volume.Volume.Remove:output_type -> volume.FSOpResponse
-	8,  // 44: volume.Volume.Rename:output_type -> volume.FSOpResponse
-	8,  // 45: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
-	9,  // 46: volume.Volume.Abs:output_type -> volume.FSAbsResponse
-	6,  // 47: volume.Volume.Copy:output_type -> volume.SyncResult
-	21, // 48: volume.Volume.ListSkills:output_type -> volume.ListSkillsResponse
-	19, // 49: volume.Volume.Zip:output_type -> volume.ArchiveResponse
-	19, // 50: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
-	19, // 51: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
-	19, // 52: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
-	19, // 53: volume.Volume.Tar:output_type -> volume.ArchiveResponse
-	19, // 54: volume.Volume.Untar:output_type -> volume.ArchiveResponse
-	19, // 55: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
-	19, // 56: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
-	23, // 57: volume.Volume.GitListRepos:output_type -> volume.GitReposResponse
-	26, // 58: volume.Volume.GitStatus:output_type -> volume.GitStatusResponse
-	28, // 59: volume.Volume.GitFileDiff:output_type -> volume.GitFileDiffResponse
-	33, // 60: volume.Volume.GitAdd:output_type -> volume.GitOpResponse
-	33, // 61: volume.Volume.GitReset:output_type -> volume.GitOpResponse
-	34, // 62: volume.Volume.GitCommit:output_type -> volume.GitCommitResponse
-	33, // 63: volume.Volume.GitDiscardChanges:output_type -> volume.GitOpResponse
-	37, // [37:64] is the sub-list for method output_type
-	10, // [10:37] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	52, // 10: volume.GitConfigGetResponse.values:type_name -> volume.GitConfigGetResponse.ValuesEntry
+	41, // 11: volume.GitCredentialListResponse.entries:type_name -> volume.GitCredentialEntry
+	46, // 12: volume.GitSSHKeyListResponse.keys:type_name -> volume.GitSSHKeyEntry
+	3,  // 13: volume.Volume.SyncPush:input_type -> volume.SyncMessage
+	2,  // 14: volume.Volume.SyncPull:input_type -> volume.SyncManifest
+	10, // 15: volume.Volume.ReadFile:input_type -> volume.FSReadRequest
+	12, // 16: volume.Volume.WriteFile:input_type -> volume.FSWriteChunk
+	7,  // 17: volume.Volume.Stat:input_type -> volume.FSRequest
+	7,  // 18: volume.Volume.ListDir:input_type -> volume.FSRequest
+	15, // 19: volume.Volume.Remove:input_type -> volume.FSRemoveRequest
+	16, // 20: volume.Volume.Rename:input_type -> volume.FSRenameRequest
+	7,  // 21: volume.Volume.MkdirAll:input_type -> volume.FSRequest
+	7,  // 22: volume.Volume.Abs:input_type -> volume.FSRequest
+	17, // 23: volume.Volume.Copy:input_type -> volume.FSCopyRequest
+	7,  // 24: volume.Volume.ListSkills:input_type -> volume.FSRequest
+	18, // 25: volume.Volume.Zip:input_type -> volume.ArchiveRequest
+	18, // 26: volume.Volume.Unzip:input_type -> volume.ArchiveRequest
+	18, // 27: volume.Volume.Gzip:input_type -> volume.ArchiveRequest
+	18, // 28: volume.Volume.Gunzip:input_type -> volume.ArchiveRequest
+	18, // 29: volume.Volume.Tar:input_type -> volume.ArchiveRequest
+	18, // 30: volume.Volume.Untar:input_type -> volume.ArchiveRequest
+	18, // 31: volume.Volume.Tgz:input_type -> volume.ArchiveRequest
+	18, // 32: volume.Volume.Untgz:input_type -> volume.ArchiveRequest
+	7,  // 33: volume.Volume.GitListRepos:input_type -> volume.FSRequest
+	24, // 34: volume.Volume.GitStatus:input_type -> volume.GitStatusRequest
+	27, // 35: volume.Volume.GitFileDiff:input_type -> volume.GitFileDiffRequest
+	29, // 36: volume.Volume.GitAdd:input_type -> volume.GitAddRequest
+	30, // 37: volume.Volume.GitReset:input_type -> volume.GitResetRequest
+	31, // 38: volume.Volume.GitCommit:input_type -> volume.GitCommitRequest
+	32, // 39: volume.Volume.GitDiscardChanges:input_type -> volume.GitDiscardRequest
+	35, // 40: volume.Volume.GitConfigGet:input_type -> volume.GitConfigGetRequest
+	37, // 41: volume.Volume.GitConfigSet:input_type -> volume.GitConfigSetRequest
+	38, // 42: volume.Volume.GitCredentialSet:input_type -> volume.GitCredentialSetRequest
+	39, // 43: volume.Volume.GitCredentialList:input_type -> volume.GitCredentialListRequest
+	42, // 44: volume.Volume.GitCredentialDelete:input_type -> volume.GitCredentialDeleteRequest
+	43, // 45: volume.Volume.GitSSHKeyImport:input_type -> volume.GitSSHKeyImportRequest
+	44, // 46: volume.Volume.GitSSHKeyList:input_type -> volume.GitSSHKeyListRequest
+	47, // 47: volume.Volume.GitSSHKeyDelete:input_type -> volume.GitSSHKeyDeleteRequest
+	48, // 48: volume.Volume.GitFetch:input_type -> volume.GitFetchRequest
+	49, // 49: volume.Volume.GitPull:input_type -> volume.GitPullRequest
+	51, // 50: volume.Volume.GitPush:input_type -> volume.GitPushRequest
+	3,  // 51: volume.Volume.SyncPush:output_type -> volume.SyncMessage
+	3,  // 52: volume.Volume.SyncPull:output_type -> volume.SyncMessage
+	11, // 53: volume.Volume.ReadFile:output_type -> volume.FSDataChunk
+	13, // 54: volume.Volume.WriteFile:output_type -> volume.FSWriteResponse
+	1,  // 55: volume.Volume.Stat:output_type -> volume.FileInfo
+	14, // 56: volume.Volume.ListDir:output_type -> volume.FSListResponse
+	8,  // 57: volume.Volume.Remove:output_type -> volume.FSOpResponse
+	8,  // 58: volume.Volume.Rename:output_type -> volume.FSOpResponse
+	8,  // 59: volume.Volume.MkdirAll:output_type -> volume.FSOpResponse
+	9,  // 60: volume.Volume.Abs:output_type -> volume.FSAbsResponse
+	6,  // 61: volume.Volume.Copy:output_type -> volume.SyncResult
+	21, // 62: volume.Volume.ListSkills:output_type -> volume.ListSkillsResponse
+	19, // 63: volume.Volume.Zip:output_type -> volume.ArchiveResponse
+	19, // 64: volume.Volume.Unzip:output_type -> volume.ArchiveResponse
+	19, // 65: volume.Volume.Gzip:output_type -> volume.ArchiveResponse
+	19, // 66: volume.Volume.Gunzip:output_type -> volume.ArchiveResponse
+	19, // 67: volume.Volume.Tar:output_type -> volume.ArchiveResponse
+	19, // 68: volume.Volume.Untar:output_type -> volume.ArchiveResponse
+	19, // 69: volume.Volume.Tgz:output_type -> volume.ArchiveResponse
+	19, // 70: volume.Volume.Untgz:output_type -> volume.ArchiveResponse
+	23, // 71: volume.Volume.GitListRepos:output_type -> volume.GitReposResponse
+	26, // 72: volume.Volume.GitStatus:output_type -> volume.GitStatusResponse
+	28, // 73: volume.Volume.GitFileDiff:output_type -> volume.GitFileDiffResponse
+	33, // 74: volume.Volume.GitAdd:output_type -> volume.GitOpResponse
+	33, // 75: volume.Volume.GitReset:output_type -> volume.GitOpResponse
+	34, // 76: volume.Volume.GitCommit:output_type -> volume.GitCommitResponse
+	33, // 77: volume.Volume.GitDiscardChanges:output_type -> volume.GitOpResponse
+	36, // 78: volume.Volume.GitConfigGet:output_type -> volume.GitConfigGetResponse
+	33, // 79: volume.Volume.GitConfigSet:output_type -> volume.GitOpResponse
+	33, // 80: volume.Volume.GitCredentialSet:output_type -> volume.GitOpResponse
+	40, // 81: volume.Volume.GitCredentialList:output_type -> volume.GitCredentialListResponse
+	33, // 82: volume.Volume.GitCredentialDelete:output_type -> volume.GitOpResponse
+	33, // 83: volume.Volume.GitSSHKeyImport:output_type -> volume.GitOpResponse
+	45, // 84: volume.Volume.GitSSHKeyList:output_type -> volume.GitSSHKeyListResponse
+	33, // 85: volume.Volume.GitSSHKeyDelete:output_type -> volume.GitOpResponse
+	33, // 86: volume.Volume.GitFetch:output_type -> volume.GitOpResponse
+	50, // 87: volume.Volume.GitPull:output_type -> volume.GitPullResponse
+	33, // 88: volume.Volume.GitPush:output_type -> volume.GitOpResponse
+	51, // [51:89] is the sub-list for method output_type
+	13, // [13:51] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
-func init() { file_tai_volume_pb_volume_proto_init() }
-func file_tai_volume_pb_volume_proto_init() {
-	if File_tai_volume_pb_volume_proto != nil {
+func init() { file_volume_pb_volume_proto_init() }
+func file_volume_pb_volume_proto_init() {
+	if File_volume_pb_volume_proto != nil {
 		return
 	}
-	file_tai_volume_pb_volume_proto_msgTypes[2].OneofWrappers = []any{
+	file_volume_pb_volume_proto_msgTypes[2].OneofWrappers = []any{
 		(*SyncMessage_Manifest)(nil),
 		(*SyncMessage_Diff)(nil),
 		(*SyncMessage_Chunk)(nil),
@@ -2608,18 +3761,18 @@ func file_tai_volume_pb_volume_proto_init() {
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_volume_pb_volume_proto_rawDesc), len(file_tai_volume_pb_volume_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_volume_pb_volume_proto_rawDesc), len(file_volume_pb_volume_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   34,
+			NumMessages:   52,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_tai_volume_pb_volume_proto_goTypes,
-		DependencyIndexes: file_tai_volume_pb_volume_proto_depIdxs,
-		EnumInfos:         file_tai_volume_pb_volume_proto_enumTypes,
-		MessageInfos:      file_tai_volume_pb_volume_proto_msgTypes,
+		GoTypes:           file_volume_pb_volume_proto_goTypes,
+		DependencyIndexes: file_volume_pb_volume_proto_depIdxs,
+		EnumInfos:         file_volume_pb_volume_proto_enumTypes,
+		MessageInfos:      file_volume_pb_volume_proto_msgTypes,
 	}.Build()
-	File_tai_volume_pb_volume_proto = out.File
-	file_tai_volume_pb_volume_proto_goTypes = nil
-	file_tai_volume_pb_volume_proto_depIdxs = nil
+	File_volume_pb_volume_proto = out.File
+	file_volume_pb_volume_proto_goTypes = nil
+	file_volume_pb_volume_proto_depIdxs = nil
 }

@@ -42,6 +42,21 @@ type Volume interface {
 	GitCommit(ctx context.Context, sessionID, repoPath, message, authorName, authorEmail string, allowEmpty bool) (*GitCommitResult, error)
 	GitDiscardChanges(ctx context.Context, sessionID, repoPath string, files []string) error
 
+	// --- Workspace Git Config ---
+	GitConfigGet(ctx context.Context, sessionID, key string) (map[string]string, error)
+	GitConfigSet(ctx context.Context, sessionID, key, value string) error
+	GitCredentialSet(ctx context.Context, sessionID, host, username, token string) error
+	GitCredentialList(ctx context.Context, sessionID string) ([]GitCredentialEntry, error)
+	GitCredentialDelete(ctx context.Context, sessionID, host string) error
+	GitSSHKeyImport(ctx context.Context, sessionID, name, privateKey, publicKey, host string) error
+	GitSSHKeyList(ctx context.Context, sessionID string) ([]GitSSHKeyEntry, error)
+	GitSSHKeyDelete(ctx context.Context, sessionID, name string) error
+
+	// --- Git Remote Sync ---
+	GitFetch(ctx context.Context, sessionID, repoPath, remote string) error
+	GitPull(ctx context.Context, sessionID, repoPath, remote string, rebase bool) (*GitPullResult, error)
+	GitPush(ctx context.Context, sessionID, repoPath, remote string, force, setUpstream bool) error
+
 	Close() error
 }
 
@@ -110,10 +125,13 @@ func ApplySyncOpts(opts []SyncOption) SyncConfig {
 
 // GitRepo describes a Git repository found within a workspace.
 type GitRepo struct {
-	Path       string `json:"path"`
-	Branch     string `json:"branch"`
-	RemoteURL  string `json:"remote_url"`
-	HasChanges bool   `json:"has_changes"`
+	Path        string `json:"path"`
+	Branch      string `json:"branch"`
+	RemoteURL   string `json:"remote_url"`
+	HasChanges  bool   `json:"has_changes"`
+	Ahead       int    `json:"ahead"`
+	Behind      int    `json:"behind"`
+	HasUpstream bool   `json:"has_upstream"`
 }
 
 // GitChangedFile represents a file with uncommitted changes.
@@ -134,6 +152,10 @@ type GitStatusResult struct {
 	TotalDeletions  int              `json:"total_deletions"`
 	IsDetached      bool             `json:"is_detached"`
 	IsEmpty         bool             `json:"is_empty"`
+	RemoteName      string           `json:"remote_name"`
+	RemoteURL       string           `json:"remote_url"`
+	UpstreamBranch  string           `json:"upstream_branch"`
+	HasUpstream     bool             `json:"has_upstream"`
 }
 
 // GitFileDiffResult contains diff content for a single file.
@@ -151,4 +173,22 @@ type GitFileDiffResult struct {
 type GitCommitResult struct {
 	CommitHash string `json:"commit_hash"`
 	Message    string `json:"message"`
+}
+
+// GitCredentialEntry represents an HTTPS credential (token not exposed).
+type GitCredentialEntry struct {
+	Host     string `json:"host"`
+	Username string `json:"username"`
+}
+
+// GitSSHKeyEntry represents an imported SSH key (private key not exposed).
+type GitSSHKeyEntry struct {
+	Name        string `json:"name"`
+	PublicKey   string `json:"public_key"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+// GitPullResult contains the result of a git pull operation.
+type GitPullResult struct {
+	HasConflicts bool `json:"has_conflicts"`
 }

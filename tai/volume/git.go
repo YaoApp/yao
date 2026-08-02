@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	git "github.com/go-git/go-git/v5"
+	gitconfig "github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/index"
 	"github.com/go-git/go-git/v5/plumbing/object"
@@ -241,11 +242,23 @@ func (l *localStorage) GitListRepos(_ context.Context, sessionID, basePath strin
 				hasChanges = true
 			}
 
+			a, b := countAheadBehind(repo)
+			hasUpstream := false
+			cfg, _ := repo.Config()
+			if cfg != nil {
+				if bc, ok := cfg.Branches[branch]; ok && bc.Remote != "" {
+					hasUpstream = true
+				}
+			}
+
 			repos = append(repos, GitRepo{
-				Path:       relPath,
-				Branch:     branch,
-				RemoteURL:  remoteURL,
-				HasChanges: hasChanges,
+				Path:        relPath,
+				Branch:      branch,
+				RemoteURL:   remoteURL,
+				HasChanges:  hasChanges,
+				Ahead:       a,
+				Behind:      b,
+				HasUpstream: hasUpstream,
 			})
 
 			if d.IsDir() {
@@ -306,13 +319,43 @@ func (l *localStorage) GitStatus(_ context.Context, sessionID, repoPath string) 
 		ahead, behind = countAheadBehind(repo)
 	}
 
+	var remoteName, remoteURLStr, upstreamBranch string
+	var hasUpstream bool
+	cfg, _ := repo.Config()
+	if cfg != nil {
+		if bc, ok := cfg.Branches[branch]; ok && bc.Remote != "" {
+			hasUpstream = true
+			remoteName = bc.Remote
+			upstreamBranch = bc.Merge.Short()
+			if r, rErr := repo.Remote(bc.Remote); rErr == nil {
+				urls := r.Config().URLs
+				if len(urls) > 0 {
+					remoteURLStr = sanitizeRemoteURL(urls[0])
+				}
+			}
+		}
+		if remoteName == "" {
+			if r, rErr := repo.Remote("origin"); rErr == nil {
+				remoteName = "origin"
+				urls := r.Config().URLs
+				if len(urls) > 0 {
+					remoteURLStr = sanitizeRemoteURL(urls[0])
+				}
+			}
+		}
+	}
+
 	return &GitStatusResult{
-		Branch:     branch,
-		Files:      files,
-		Ahead:      ahead,
-		Behind:     behind,
-		IsDetached: isDetached,
-		IsEmpty:    isEmpty,
+		Branch:         branch,
+		Files:          files,
+		Ahead:          ahead,
+		Behind:         behind,
+		IsDetached:     isDetached,
+		IsEmpty:        isEmpty,
+		RemoteName:     remoteName,
+		RemoteURL:      remoteURLStr,
+		UpstreamBranch: upstreamBranch,
+		HasUpstream:    hasUpstream,
 	}, nil
 }
 
@@ -697,6 +740,148 @@ func (l *localStorage) GitDiscardChanges(_ context.Context, sessionID, repoPath 
 			_ = os.Remove(absFile)
 		}
 	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Remote sync operations
+// ---------------------------------------------------------------------------
+
+// remoteURLForName returns the first URL of the named remote, or empty string.
+func remoteURLForName(repo *git.Repository, name string) string {
+	r, err := repo.Remote(name)
+	if err != nil {
+		return ""
+	}
+	urls := r.Config().URLs
+	if len(urls) > 0 {
+		return urls[0]
+	}
+	return ""
+}
+
+func (l *localStorage) GitFetch(ctx context.Context, sessionID, repoPath, remote string) error {
+	repo, _, err := l.openRepo(sessionID, repoPath)
+	if err != nil {
+		return err
+	}
+
+	remoteName := remote
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	auth, err := l.resolveAuth(sessionID, remoteURLForName(repo, remoteName))
+	if err != nil {
+		return fmt.Errorf("resolve auth: %w", err)
+	}
+
+	err = repo.FetchContext(ctx, &git.FetchOptions{
+		RemoteName: remoteName,
+		Auth:       auth,
+	})
+	if err != nil && err != git.NoErrAlreadyUpToDate {
+		return err
+	}
+
+	return nil
+}
+
+func (l *localStorage) GitPull(ctx context.Context, sessionID, repoPath, remote string, rebase bool) (*GitPullResult, error) {
+	if rebase {
+		return nil, fmt.Errorf("rebase not supported via API, use shell git")
+	}
+
+	repo, _, err := l.openRepo(sessionID, repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return nil, fmt.Errorf("worktree: %w", err)
+	}
+
+	remoteName := remote
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	auth, authErr := l.resolveAuth(sessionID, remoteURLForName(repo, remoteName))
+	if authErr != nil {
+		return nil, fmt.Errorf("resolve auth: %w", authErr)
+	}
+
+	pullErr := wt.PullContext(ctx, &git.PullOptions{
+		RemoteName: remoteName,
+		Auth:       auth,
+	})
+
+	switch {
+	case pullErr == nil:
+		return &GitPullResult{}, nil
+
+	case pullErr == git.NoErrAlreadyUpToDate:
+		return &GitPullResult{}, nil
+
+	default:
+		hasConflicts := false
+		if st, sErr := wt.Status(); sErr == nil {
+			for _, fst := range st {
+				if fst.Staging == git.UpdatedButUnmerged || fst.Worktree == git.UpdatedButUnmerged {
+					hasConflicts = true
+					break
+				}
+			}
+		}
+		return &GitPullResult{HasConflicts: hasConflicts}, pullErr
+	}
+}
+
+func (l *localStorage) GitPush(ctx context.Context, sessionID, repoPath, remote string, force, setUpstream bool) error {
+	repo, _, err := l.openRepo(sessionID, repoPath)
+	if err != nil {
+		return err
+	}
+
+	remoteName := remote
+	if remoteName == "" {
+		remoteName = "origin"
+	}
+
+	auth, err := l.resolveAuth(sessionID, remoteURLForName(repo, remoteName))
+	if err != nil {
+		return fmt.Errorf("resolve auth: %w", err)
+	}
+
+	pushErr := repo.PushContext(ctx, &git.PushOptions{
+		RemoteName: remoteName,
+		Auth:       auth,
+		Force:      force,
+	})
+	if pushErr != nil && pushErr != git.NoErrAlreadyUpToDate {
+		return pushErr
+	}
+
+	if setUpstream {
+		ref, hErr := repo.Head()
+		if hErr == nil && ref.Name().IsBranch() {
+			branchName := ref.Name().Short()
+			cfg, cErr := repo.Config()
+			if cErr == nil {
+				if cfg.Branches == nil {
+					cfg.Branches = map[string]*gitconfig.Branch{}
+				}
+				cfg.Branches[branchName] = &gitconfig.Branch{
+					Name:   branchName,
+					Remote: remoteName,
+					Merge:  ref.Name(),
+				}
+				_ = repo.SetConfig(cfg)
+			}
+		}
+	}
+
 	return nil
 }
 

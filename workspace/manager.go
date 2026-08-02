@@ -344,6 +344,109 @@ func (m *Manager) GitDiscardChanges(ctx context.Context, id, repoPath string, fi
 	return vol.GitDiscardChanges(ctx, id, repoPath, files)
 }
 
+// --- Workspace Git Config ---
+
+// GitConfigGet retrieves workspace-level Git config values.
+func (m *Manager) GitConfigGet(ctx context.Context, id, key string) (map[string]string, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitConfigGet(ctx, id, key)
+}
+
+// GitConfigSet sets a workspace-level Git config value.
+func (m *Manager) GitConfigSet(ctx context.Context, id, key, value string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitConfigSet(ctx, id, key, value)
+}
+
+// GitCredentialSet stores an HTTPS credential for the workspace.
+func (m *Manager) GitCredentialSet(ctx context.Context, id, host, username, token string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitCredentialSet(ctx, id, host, username, token)
+}
+
+// GitCredentialList lists HTTPS credentials for the workspace.
+func (m *Manager) GitCredentialList(ctx context.Context, id string) ([]volume.GitCredentialEntry, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitCredentialList(ctx, id)
+}
+
+// GitCredentialDelete removes an HTTPS credential by host.
+func (m *Manager) GitCredentialDelete(ctx context.Context, id, host string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitCredentialDelete(ctx, id, host)
+}
+
+// GitSSHKeyImport imports an SSH key pair for the workspace.
+func (m *Manager) GitSSHKeyImport(ctx context.Context, id, name, privateKey, publicKey, host string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitSSHKeyImport(ctx, id, name, privateKey, publicKey, host)
+}
+
+// GitSSHKeyList lists SSH keys for the workspace.
+func (m *Manager) GitSSHKeyList(ctx context.Context, id string) ([]volume.GitSSHKeyEntry, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitSSHKeyList(ctx, id)
+}
+
+// GitSSHKeyDelete removes an SSH key by name.
+func (m *Manager) GitSSHKeyDelete(ctx context.Context, id, name string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitSSHKeyDelete(ctx, id, name)
+}
+
+// --- Git Remote Sync ---
+
+// GitFetch fetches from a remote in the workspace.
+func (m *Manager) GitFetch(ctx context.Context, id, repoPath, remote string) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitFetch(ctx, id, repoPath, remote)
+}
+
+// GitPull pulls from a remote in the workspace.
+func (m *Manager) GitPull(ctx context.Context, id, repoPath, remote string, rebase bool) (*volume.GitPullResult, error) {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return vol.GitPull(ctx, id, repoPath, remote, rebase)
+}
+
+// GitPush pushes to a remote in the workspace.
+func (m *Manager) GitPush(ctx context.Context, id, repoPath, remote string, force, setUpstream bool) error {
+	_, vol, err := m.resolve(ctx, id)
+	if err != nil {
+		return err
+	}
+	return vol.GitPush(ctx, id, repoPath, remote, force, setUpstream)
+}
+
 // --- internal ---
 
 // resolve finds the workspace and its Volume by scanning all registered nodes.

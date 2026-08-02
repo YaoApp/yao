@@ -136,13 +136,18 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	env := make(map[string]string)
 	workDir := req.Computer.GetWorkDir()
 
-	// Workspace ID
+	// Workspace ID + Git identity
 	workspace := req.Computer.Workplace()
 	if workspace != nil {
 		workspaceID, err := workspace.GetID()
 		if err == nil {
 			env["CTX_WORKSPACE_ID"] = workspaceID
 		}
+
+		wsBase := p.PathJoin(workDir, ".workspace")
+		env["GIT_CONFIG_GLOBAL"] = p.PathJoin(wsBase, "git", "config")
+		env["GIT_SSH_COMMAND"] = fmt.Sprintf("ssh -F %s -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new", p.PathJoin(wsBase, "ssh", "config"))
+		env["XDG_CONFIG_HOME"] = wsBase
 	}
 
 	for k, v := range p.HomeEnv(workDir) {

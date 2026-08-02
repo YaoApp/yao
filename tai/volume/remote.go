@@ -580,10 +580,13 @@ func (r *remoteStorage) GitListRepos(ctx context.Context, sessionID, basePath st
 	repos := make([]GitRepo, 0, len(resp.Repos))
 	for _, rr := range resp.Repos {
 		repos = append(repos, GitRepo{
-			Path:       rr.Path,
-			Branch:     rr.Branch,
-			RemoteURL:  rr.RemoteUrl,
-			HasChanges: rr.HasChanges,
+			Path:        rr.Path,
+			Branch:      rr.Branch,
+			RemoteURL:   rr.RemoteUrl,
+			HasChanges:  rr.HasChanges,
+			Ahead:       int(rr.Ahead),
+			Behind:      int(rr.Behind),
+			HasUpstream: rr.HasUpstream,
 		})
 	}
 	return repos, nil
@@ -615,6 +618,10 @@ func (r *remoteStorage) GitStatus(ctx context.Context, sessionID, repoPath strin
 		TotalDeletions:  int(resp.TotalDeletions),
 		IsDetached:      resp.IsDetached,
 		IsEmpty:         resp.IsEmpty,
+		RemoteName:      resp.RemoteName,
+		RemoteURL:       resp.RemoteUrl,
+		UpstreamBranch:  resp.UpstreamBranch,
+		HasUpstream:     resp.HasUpstream,
 	}, nil
 }
 
@@ -701,6 +708,184 @@ func (r *remoteStorage) GitDiscardChanges(ctx context.Context, sessionID, repoPa
 	}
 	if !resp.Success {
 		return fmt.Errorf("git discard: %s", resp.Message)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Git Config gRPC wrappers
+// ---------------------------------------------------------------------------
+
+func (r *remoteStorage) GitConfigGet(ctx context.Context, sessionID, key string) (map[string]string, error) {
+	resp, err := r.client.GitConfigGet(ctx, &pb.GitConfigGetRequest{
+		SessionId: sessionID,
+		Key:       key,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Values, nil
+}
+
+func (r *remoteStorage) GitConfigSet(ctx context.Context, sessionID, key, value string) error {
+	resp, err := r.client.GitConfigSet(ctx, &pb.GitConfigSetRequest{
+		SessionId: sessionID,
+		Key:       key,
+		Value:     value,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git config set: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitCredentialSet(ctx context.Context, sessionID, host, username, token string) error {
+	resp, err := r.client.GitCredentialSet(ctx, &pb.GitCredentialSetRequest{
+		SessionId: sessionID,
+		Host:      host,
+		Username:  username,
+		Token:     token,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git credential set: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitCredentialList(ctx context.Context, sessionID string) ([]GitCredentialEntry, error) {
+	resp, err := r.client.GitCredentialList(ctx, &pb.GitCredentialListRequest{
+		SessionId: sessionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result []GitCredentialEntry
+	for _, e := range resp.Entries {
+		result = append(result, GitCredentialEntry{
+			Host:     e.Host,
+			Username: e.Username,
+		})
+	}
+	return result, nil
+}
+
+func (r *remoteStorage) GitCredentialDelete(ctx context.Context, sessionID, host string) error {
+	resp, err := r.client.GitCredentialDelete(ctx, &pb.GitCredentialDeleteRequest{
+		SessionId: sessionID,
+		Host:      host,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git credential delete: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitSSHKeyImport(ctx context.Context, sessionID, name, privateKey, publicKey, host string) error {
+	resp, err := r.client.GitSSHKeyImport(ctx, &pb.GitSSHKeyImportRequest{
+		SessionId:  sessionID,
+		Name:       name,
+		PrivateKey: privateKey,
+		PublicKey:  publicKey,
+		Host:       host,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git ssh key import: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitSSHKeyList(ctx context.Context, sessionID string) ([]GitSSHKeyEntry, error) {
+	resp, err := r.client.GitSSHKeyList(ctx, &pb.GitSSHKeyListRequest{
+		SessionId: sessionID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var result []GitSSHKeyEntry
+	for _, k := range resp.Keys {
+		result = append(result, GitSSHKeyEntry{
+			Name:        k.Name,
+			PublicKey:   k.PublicKey,
+			Fingerprint: k.Fingerprint,
+		})
+	}
+	return result, nil
+}
+
+func (r *remoteStorage) GitSSHKeyDelete(ctx context.Context, sessionID, name string) error {
+	resp, err := r.client.GitSSHKeyDelete(ctx, &pb.GitSSHKeyDeleteRequest{
+		SessionId: sessionID,
+		Name:      name,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git ssh key delete: %s", resp.Message)
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Git Remote Sync gRPC wrappers
+// ---------------------------------------------------------------------------
+
+func (r *remoteStorage) GitFetch(ctx context.Context, sessionID, repoPath, remote string) error {
+	resp, err := r.client.GitFetch(ctx, &pb.GitFetchRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		Remote:    remote,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git fetch: %s", resp.Message)
+	}
+	return nil
+}
+
+func (r *remoteStorage) GitPull(ctx context.Context, sessionID, repoPath, remote string, rebase bool) (*GitPullResult, error) {
+	resp, err := r.client.GitPull(ctx, &pb.GitPullRequest{
+		SessionId: sessionID,
+		RepoPath:  repoPath,
+		Remote:    remote,
+		Rebase:    rebase,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Success {
+		return &GitPullResult{HasConflicts: resp.HasConflicts}, fmt.Errorf("git pull: %s", resp.Message)
+	}
+	return &GitPullResult{HasConflicts: resp.HasConflicts}, nil
+}
+
+func (r *remoteStorage) GitPush(ctx context.Context, sessionID, repoPath, remote string, force, setUpstream bool) error {
+	resp, err := r.client.GitPush(ctx, &pb.GitPushRequest{
+		SessionId:   sessionID,
+		RepoPath:    repoPath,
+		Remote:      remote,
+		Force:       force,
+		SetUpstream: setUpstream,
+	})
+	if err != nil {
+		return err
+	}
+	if !resp.Success {
+		return fmt.Errorf("git push: %s", resp.Message)
 	}
 	return nil
 }
