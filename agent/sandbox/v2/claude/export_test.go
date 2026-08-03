@@ -192,6 +192,21 @@ func (f *FakeComputer) ListProcesses(_ context.Context, _ ...infra.ListProcesses
 	return nil, nil, nil
 }
 
+// --- FakeComputerWithWorkplace for testing workspace env injection ---
+
+func NewFakeComputerWithWorkplace(workDir, wsID string) *FakeComputerWP {
+	return &FakeComputerWP{FakeComputer: FakeComputer{WorkDirVal: workDir}, wsID: wsID}
+}
+
+type FakeComputerWP struct {
+	FakeComputer
+	wsID string
+}
+
+func (f *FakeComputerWP) Workplace() workspace.FS {
+	return workspace.New(nil, f.wsID)
+}
+
 // --- Export default constants ---
 
 const ExportDefaultA2OPort = defaultA2OPort

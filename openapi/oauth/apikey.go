@@ -10,7 +10,7 @@ import (
 )
 
 // apiKeyTokenScope defines the scopes granted to API key tokens.
-const apiKeyTokenScope = "experts:all file:all chat:models:read:all tasks:all"
+const apiKeyTokenScope = "experts:all file:all chat:models:read:all tasks:all llm:all"
 
 // apiKeyTokenTTL is the token validity duration (50 minutes, refresh at 45 min).
 const apiKeyTokenTTL = 50 * time.Minute

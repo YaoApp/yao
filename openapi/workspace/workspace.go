@@ -52,6 +52,31 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 	group.POST("/:id/mkdir", handleMkdir)
 	group.POST("/:id/rename", handleRename)
 	group.GET("/:id/preview/*path", handlePreview)
+
+	// Git operations
+	group.GET("/:id/git/repos", handleGitListRepos)
+	group.GET("/:id/git/status", handleGitStatus)
+	group.GET("/:id/git/diff", handleGitFileDiff)
+	group.POST("/:id/git/add", handleGitAdd)
+	group.POST("/:id/git/reset", handleGitReset)
+	group.POST("/:id/git/commit", handleGitCommit)
+	group.POST("/:id/git/discard", handleGitDiscardChanges)
+
+	// Git config & credential management
+	group.GET("/:id/git/config", handleGitConfigGet)
+	group.POST("/:id/git/config", handleGitConfigSet)
+	group.POST("/:id/git/credential", handleGitCredentialSet)
+	group.GET("/:id/git/credentials", handleGitCredentialList)
+	group.DELETE("/:id/git/credential", handleGitCredentialDelete)
+	group.POST("/:id/git/ssh-key", handleGitSSHKeyImport)
+	group.GET("/:id/git/ssh-keys", handleGitSSHKeyList)
+	group.DELETE("/:id/git/ssh-key", handleGitSSHKeyDelete)
+
+	// Git remote sync
+	group.POST("/:id/git/fetch", handleGitFetch)
+	group.POST("/:id/git/pull", handleGitPull)
+	group.POST("/:id/git/push", handleGitPush)
+	group.POST("/:id/git/sync", handleGitSync)
 }
 
 // resolveOwner returns TeamID if present, otherwise UserID.
@@ -538,6 +563,446 @@ func handleRename(c *gin.Context) {
 	}
 
 	c.Status(http.StatusNoContent)
+}
+
+// --- Git request types ---
+
+type gitAddRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+type gitResetRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+type gitCommitRequest struct {
+	RepoPath    string `json:"repo_path" binding:"required"`
+	Message     string `json:"message" binding:"required"`
+	AuthorName  string `json:"author_name,omitempty"`
+	AuthorEmail string `json:"author_email,omitempty"`
+	AllowEmpty  bool   `json:"allow_empty,omitempty"`
+}
+
+type gitDiscardRequest struct {
+	RepoPath string   `json:"repo_path" binding:"required"`
+	Files    []string `json:"files"`
+}
+
+// --- Git handlers ---
+
+func handleGitListRepos(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repos, err := mgr().GitListRepos(context.Background(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, repos)
+}
+
+func handleGitStatus(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repoPath := c.Query("repo_path")
+	if repoPath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo_path required"})
+		return
+	}
+	result, err := mgr().GitStatus(context.Background(), c.Param("id"), repoPath)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitFileDiff(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	repoPath := c.Query("repo_path")
+	filePath := c.Query("file_path")
+	if repoPath == "" || filePath == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "repo_path and file_path required"})
+		return
+	}
+	staged := c.Query("staged") == "true"
+	result, err := mgr().GitFileDiff(context.Background(), c.Param("id"), repoPath, filePath, staged)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitAdd(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitAddRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitAdd(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitReset(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitResetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitReset(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitCommit(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitCommitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := mgr().GitCommit(context.Background(), c.Param("id"), req.RepoPath, req.Message, req.AuthorName, req.AuthorEmail, req.AllowEmpty)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
+}
+
+func handleGitDiscardChanges(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitDiscardRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitDiscardChanges(context.Background(), c.Param("id"), req.RepoPath, req.Files); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+// --- Git Config request types ---
+
+type gitConfigSetRequest struct {
+	Key   string `json:"key" binding:"required"`
+	Value string `json:"value"`
+}
+
+type gitCredentialSetRequest struct {
+	Host     string `json:"host" binding:"required"`
+	Username string `json:"username,omitempty"`
+	Token    string `json:"token" binding:"required"`
+}
+
+type gitSSHKeyImportRequest struct {
+	Name       string `json:"name" binding:"required"`
+	PrivateKey string `json:"private_key" binding:"required"`
+	PublicKey  string `json:"public_key,omitempty"`
+	Host       string `json:"host,omitempty"`
+}
+
+type gitFetchRequest struct {
+	RepoPath string `json:"repo_path" binding:"required"`
+	Remote   string `json:"remote,omitempty"`
+}
+
+type gitPullRequest struct {
+	RepoPath string `json:"repo_path" binding:"required"`
+	Remote   string `json:"remote,omitempty"`
+	Rebase   bool   `json:"rebase,omitempty"`
+}
+
+type gitPushRequest struct {
+	RepoPath    string `json:"repo_path" binding:"required"`
+	Remote      string `json:"remote,omitempty"`
+	Force       bool   `json:"force,omitempty"`
+	SetUpstream bool   `json:"set_upstream,omitempty"`
+}
+
+type gitSyncRequest struct {
+	RepoPath    string `json:"repo_path" binding:"required"`
+	Remote      string `json:"remote,omitempty"`
+	SetUpstream bool   `json:"set_upstream,omitempty"`
+}
+
+// --- Git Config handlers ---
+
+func handleGitConfigGet(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	key := c.Query("key")
+	values, err := mgr().GitConfigGet(context.Background(), c.Param("id"), key)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"values": values})
+}
+
+func handleGitConfigSet(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitConfigSetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitConfigSet(context.Background(), c.Param("id"), req.Key, req.Value); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitCredentialSet(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitCredentialSetRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitCredentialSet(context.Background(), c.Param("id"), req.Host, req.Username, req.Token); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitCredentialList(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	entries, err := mgr().GitCredentialList(context.Background(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, entries)
+}
+
+func handleGitCredentialDelete(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	host := c.Query("host")
+	if host == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "host required"})
+		return
+	}
+	if err := mgr().GitCredentialDelete(context.Background(), c.Param("id"), host); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitSSHKeyImport(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitSSHKeyImportRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitSSHKeyImport(context.Background(), c.Param("id"), req.Name, req.PrivateKey, req.PublicKey, req.Host); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitSSHKeyList(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	keys, err := mgr().GitSSHKeyList(context.Background(), c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, keys)
+}
+
+func handleGitSSHKeyDelete(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	name := c.Query("name")
+	if name == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "name required"})
+		return
+	}
+	if err := mgr().GitSSHKeyDelete(context.Background(), c.Param("id"), name); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+// --- Git Remote Sync handlers ---
+
+func handleGitFetch(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitFetchRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitFetch(context.Background(), c.Param("id"), req.RepoPath, req.Remote); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitPull(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitPullRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	result, err := mgr().GitPull(context.Background(), c.Param("id"), req.RepoPath, req.Remote, req.Rebase)
+	if err != nil {
+		status := http.StatusInternalServerError
+		resp := gin.H{"error": err.Error()}
+		if result != nil {
+			resp["has_conflicts"] = result.HasConflicts
+			if result.HasConflicts {
+				status = http.StatusConflict
+			}
+		}
+		c.JSON(status, resp)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitPush(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitPushRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if err := mgr().GitPush(context.Background(), c.Param("id"), req.RepoPath, req.Remote, req.Force, req.SetUpstream); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
+}
+
+func handleGitSync(c *gin.Context) {
+	_, ok := resolveAndCheckWS(c)
+	if !ok {
+		return
+	}
+	var req gitSyncRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx := context.Background()
+	id := c.Param("id")
+	result := gin.H{"fetched": false, "pulled": false, "pushed": false, "has_conflicts": false}
+
+	fetchErr := mgr().GitFetch(ctx, id, req.RepoPath, req.Remote)
+	if fetchErr != nil {
+		errMsg := fetchErr.Error()
+		isNonFatal := strings.Contains(errMsg, "empty") ||
+			strings.Contains(errMsg, "up-to-date") ||
+			strings.Contains(errMsg, "already up to date")
+		if !isNonFatal {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "fetch: " + errMsg})
+			return
+		}
+	}
+	result["fetched"] = fetchErr == nil
+
+	status, err := mgr().GitStatus(ctx, id, req.RepoPath)
+	if err != nil {
+		response.RespondWithSuccess(c, http.StatusOK, result)
+		return
+	}
+
+	if status.Behind > 0 {
+		pullResult, pullErr := mgr().GitPull(ctx, id, req.RepoPath, req.Remote, false)
+		if pullErr != nil {
+			result["error"] = "pull: " + pullErr.Error()
+			if pullResult != nil && pullResult.HasConflicts {
+				result["has_conflicts"] = true
+			}
+			c.JSON(http.StatusConflict, result)
+			return
+		}
+		result["pulled"] = true
+	}
+
+	setUpstream := req.SetUpstream || !status.HasUpstream
+	if status.Ahead > 0 || setUpstream {
+		if err := mgr().GitPush(ctx, id, req.RepoPath, req.Remote, false, setUpstream); err != nil {
+			result["error"] = "push: " + err.Error()
+			c.JSON(http.StatusInternalServerError, result)
+			return
+		}
+		result["pushed"] = true
+	}
+
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 // handlePreview serves workspace files with correct MIME types for browser rendering.

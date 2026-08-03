@@ -49,6 +49,19 @@ service Volume {
   rpc Untar(ArchiveRequest) returns (ArchiveResponse);
   rpc Tgz(ArchiveRequest) returns (ArchiveResponse);
   rpc Untgz(ArchiveRequest) returns (ArchiveResponse);
+
+  // --- Git ---
+
+  // Read-only
+  rpc GitListRepos(FSRequest) returns (GitReposResponse);
+  rpc GitStatus(GitStatusRequest) returns (GitStatusResponse);
+  rpc GitFileDiff(GitFileDiffRequest) returns (GitFileDiffResponse);
+
+  // Write operations
+  rpc GitAdd(GitAddRequest) returns (GitOpResponse);
+  rpc GitReset(GitResetRequest) returns (GitOpResponse);
+  rpc GitCommit(GitCommitRequest) returns (GitCommitResponse);
+  rpc GitDiscardChanges(GitDiscardRequest) returns (GitOpResponse);
 }
 
 // --- File Metadata ---
@@ -194,4 +207,101 @@ message SkillEntry {
 
 message ListSkillsResponse {
   repeated SkillEntry skills = 1;
+}
+
+// --- Git Messages ---
+
+message GitRepo {
+  string path       = 1;  // relative to workspace root, e.g. "app/backend"
+  string branch     = 2;  // current branch name
+  string remote_url = 3;  // origin remote URL
+  bool has_changes  = 4;  // has uncommitted changes
+}
+
+message GitReposResponse {
+  repeated GitRepo repos = 1;
+}
+
+message GitStatusRequest {
+  string session_id = 1;
+  string repo_path  = 2;  // repo path relative to workspace root
+}
+
+// git status --porcelain format: XY path
+// X = index (staged) status, Y = worktree (unstaged) status
+// A single file can have both staged and unstaged changes (partial staging)
+message GitChangedFile {
+  string path            = 1;  // file path relative to repo root
+  string index_status    = 2;  // staged status: " "/M/A/D/R/C/U
+  string worktree_status = 3;  // unstaged status: " "/M/D/?/U
+  string old_path        = 4;  // only set for Renamed (original path)
+}
+// Note: U = UpdatedButUnmerged (merge conflict)
+
+message GitStatusResponse {
+  string branch                  = 1;
+  repeated GitChangedFile files  = 2;
+  int32 ahead                    = 3;
+  int32 behind                   = 4;
+  int32 total_insertions         = 5;  // staged + unstaged combined
+  int32 total_deletions          = 6;
+  bool is_detached               = 7;  // HEAD detached (checked out to commit), branch = commit hash prefix
+  bool is_empty                  = 8;  // empty repo (no commits)
+}
+
+message GitFileDiffRequest {
+  string session_id = 1;
+  string repo_path  = 2;
+  string file_path  = 3;
+  bool staged       = 4;  // true=staged diff, false=unstaged diff
+}
+
+message GitFileDiffResponse {
+  string original    = 1;  // HEAD content (staged) or index content (unstaged)
+  string modified    = 2;  // index content (staged) or worktree content (unstaged)
+  string language    = 3;  // file language inferred from extension
+  bool is_binary     = 4;
+  bool is_new        = 5;  // new file (no original)
+  bool is_deleted    = 6;  // deleted file (no modified)
+  bool is_too_large  = 7;  // file too large (>5MB), content not returned
+}
+
+// --- Git Write Operation Messages ---
+
+message GitAddRequest {
+  string session_id       = 1;
+  string repo_path        = 2;
+  repeated string files   = 3;  // file paths relative to repo root; empty = add all
+}
+
+message GitResetRequest {
+  string session_id       = 1;
+  string repo_path        = 2;
+  repeated string files   = 3;  // file paths relative to repo root; empty = unstage all
+}
+
+message GitCommitRequest {
+  string session_id  = 1;
+  string repo_path   = 2;
+  string message     = 3;       // required, must not be empty
+  bool allow_empty   = 4;       // allow empty commit (no staged changes)
+  string author_name = 5;       // optional; empty = read from git config, fallback "Yao Workspace"
+  string author_email = 6;      // optional; empty = read from git config, fallback "workspace@yao.run"
+}
+
+message GitDiscardRequest {
+  string session_id       = 1;
+  string repo_path        = 2;
+  repeated string files   = 3;  // file paths relative to repo root; empty = discard all
+}
+
+message GitOpResponse {
+  bool success   = 1;
+  string message = 2;  // error message or operation summary
+}
+
+message GitCommitResponse {
+  bool success      = 1;
+  string commit_hash = 2;  // new commit SHA
+  string message    = 3;
 }

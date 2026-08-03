@@ -105,7 +105,7 @@ func ProcessChatCompletions(p *process.Process) interface{} {
 	for i, m := range messages {
 		interfaceMessages[i] = m
 	}
-	ctxMessages, err := parseMessages(interfaceMessages)
+	ctxMessages, err := ParseMessages(interfaceMessages)
 	if err != nil {
 		return newErrorResponse(fmt.Sprintf("llm.ChatCompletions: invalid messages: %v", err))
 	}
@@ -114,7 +114,7 @@ func ProcessChatCompletions(p *process.Process) interface{} {
 	//     so that providers (especially Anthropic) can type-assert correctly.
 	for i := range ctxMessages {
 		if parts, ok := ctxMessages[i].Content.([]interface{}); ok {
-			ctxMessages[i].Content = normalizeContentParts(parts)
+			ctxMessages[i].Content = NormalizeContentParts(parts)
 		}
 	}
 
@@ -153,7 +153,7 @@ func ProcessChatCompletions(p *process.Process) interface{} {
 
 	// 12. Convert CompletionResponse to OpenAI-compatible format
 	//     { choices: [{ message: { role, content } }], id, model, ... }
-	return toOpenAIFormat(response)
+	return ToOpenAIFormat(response)
 }
 
 // ProcessImageGeneration implements the llm.ImageGeneration Process.
@@ -205,9 +205,9 @@ func ProcessImageGeneration(p *process.Process) interface{} {
 	}
 }
 
-// toOpenAIFormat converts CompletionResponse to OpenAI chat.completions format
+// ToOpenAIFormat converts CompletionResponse to OpenAI chat.completions format
 // for backward compatibility with code that consumed openai.chat.Completions.
-func toOpenAIFormat(resp *agentContext.CompletionResponse) map[string]interface{} {
+func ToOpenAIFormat(resp *agentContext.CompletionResponse) map[string]interface{} {
 	if resp == nil {
 		return map[string]interface{}{
 			"choices": []interface{}{},
@@ -253,11 +253,11 @@ func newErrorResponse(errMsg string) map[string]interface{} {
 	}
 }
 
-// normalizeContentParts converts []interface{} (raw maps from Process args)
+// NormalizeContentParts converts []interface{} (raw maps from Process args)
 // to []agentContext.ContentPart (strongly typed) via JSON round-trip.
 // This is essential for providers (e.g. Anthropic) that type-assert on
 // []ContentPart to apply format-specific conversions (image_url → image).
-func normalizeContentParts(parts []interface{}) []agentContext.ContentPart {
+func NormalizeContentParts(parts []interface{}) []agentContext.ContentPart {
 	raw, err := json.Marshal(parts)
 	if err != nil {
 		return nil

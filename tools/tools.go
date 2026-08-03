@@ -22,6 +22,7 @@ import (
 	"github.com/yaoapp/yao/tools/webfetch"
 	"github.com/yaoapp/yao/tools/websearch"
 	"github.com/yaoapp/yao/tools/workspace"
+	wsconfig "github.com/yaoapp/yao/tools/workspace_config"
 )
 
 //go:embed mcps/web.json
@@ -56,6 +57,9 @@ var mcpKanbanDSL []byte
 
 //go:embed mcps/mobile.json
 var mcpMobileDSL []byte
+
+//go:embed mcps/workspace-config.json
+var mcpWorkspaceConfigDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -117,6 +121,10 @@ func init() {
 		"mobile_info":       mobile.InfoHandler,
 		"mobile_push":       mobile.PushHandler,
 		"mobile_pull":       mobile.PullHandler,
+
+		"workspace_git_config":     wsconfig.GitConfigHandler,
+		"workspace_git_credential": wsconfig.GitCredentialHandler,
+		"workspace_ssh_key":        wsconfig.SSHKeyHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -150,6 +158,8 @@ func init() {
 	registerMCPServer(mcpMobileDSL, "yao-mobile",
 		mobile.ListSchemaJSON, mobile.ExecSchemaJSON, mobile.ScreenshotSchemaJSON,
 		mobile.InfoSchemaJSON, mobile.PushSchemaJSON, mobile.PullSchemaJSON)
+	registerMCPServer(mcpWorkspaceConfigDSL, "yao-workspace-config",
+		wsconfig.GitConfigSchemaJSON, wsconfig.GitCredentialSchemaJSON, wsconfig.SSHKeySchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

@@ -1,0 +1,37 @@
+{
+  "name": "workspace_ssh_key",
+  "description": "Manage workspace SSH keys for Git authentication (import/list/delete)",
+  "process": "tools.workspace_ssh_key",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "workspace_id": {
+        "type": "string",
+        "description": "Workspace ID"
+      },
+      "action": {
+        "type": "string",
+        "enum": ["import", "list", "delete"],
+        "description": "Action: import, list, or delete SSH key"
+      },
+      "name": {
+        "type": "string",
+        "description": "Key name (required for import/delete)"
+      },
+      "private_key": {
+        "type": "string",
+        "description": "PEM-encoded private key content (required for import)"
+      },
+      "public_key": {
+        "type": "string",
+        "description": "Public key in authorized_keys format (optional, derived from private_key if omitted)"
+      },
+      "host": {
+        "type": "string",
+        "description": "Git host to associate with this key (optional, e.g. github.com)"
+      }
+    },
+    "required": ["workspace_id", "action"]
+  },
+  "x-process-args": ["$args.workspace_id", "$args.action", "$args.name", "$args.private_key", "$args.public_key", "$args.host"]
+}

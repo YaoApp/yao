@@ -103,3 +103,76 @@ workspace:workspaces:files:team:
     - DELETE /workspace/:id/files/*path
     - POST /workspace/:id/mkdir
     - POST /workspace/:id/rename
+
+# ============ Git Operations ============
+
+workspace:workspaces:git:all:
+  description: "Git operations in all workspaces"
+  endpoints:
+    - GET /workspace/:id/git/repos
+    - GET /workspace/:id/git/status
+    - GET /workspace/:id/git/diff
+    - POST /workspace/:id/git/add
+    - POST /workspace/:id/git/reset
+    - POST /workspace/:id/git/commit
+    - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync
+
+workspace:workspaces:git:own:
+  owner: true
+  description: "Git operations in own workspaces"
+  endpoints:
+    - GET /workspace/:id/git/repos
+    - GET /workspace/:id/git/status
+    - GET /workspace/:id/git/diff
+    - POST /workspace/:id/git/add
+    - POST /workspace/:id/git/reset
+    - POST /workspace/:id/git/commit
+    - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync
+
+workspace:workspaces:git:team:
+  team: true
+  description: "Git operations in team workspaces"
+  endpoints:
+    - GET /workspace/:id/git/repos
+    - GET /workspace/:id/git/status
+    - GET /workspace/:id/git/diff
+    - POST /workspace/:id/git/add
+    - POST /workspace/:id/git/reset
+    - POST /workspace/:id/git/commit
+    - POST /workspace/:id/git/discard
+    - GET /workspace/:id/git/config
+    - POST /workspace/:id/git/config
+    - POST /workspace/:id/git/credential
+    - GET /workspace/:id/git/credentials
+    - DELETE /workspace/:id/git/credential
+    - POST /workspace/:id/git/ssh-key
+    - GET /workspace/:id/git/ssh-keys
+    - DELETE /workspace/:id/git/ssh-key
+    - POST /workspace/:id/git/fetch
+    - POST /workspace/:id/git/pull
+    - POST /workspace/:id/git/push
+    - POST /workspace/:id/git/sync

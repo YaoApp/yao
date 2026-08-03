@@ -449,6 +449,57 @@ func TestBuildEnv_Anthropic_MultiConnector_Incompatible(t *testing.T) {
 	}
 }
 
+// --- buildEnv: Git identity ---
+
+func TestBuildEnv_GitIdentity_Darwin(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputerWithWorkplace("/workspace", "ws-abc-123")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if env["GIT_CONFIG_GLOBAL"] != "/workspace/.workspace/git/config" {
+		t.Errorf("GIT_CONFIG_GLOBAL = %q", env["GIT_CONFIG_GLOBAL"])
+	}
+	if env["GIT_SSH_COMMAND"] != "ssh -F /workspace/.workspace/ssh/config -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new" {
+		t.Errorf("GIT_SSH_COMMAND = %q", env["GIT_SSH_COMMAND"])
+	}
+	if env["CTX_WORKSPACE_ID"] != "ws-abc-123" {
+		t.Errorf("CTX_WORKSPACE_ID = %q", env["CTX_WORKSPACE_ID"])
+	}
+	if env["XDG_CONFIG_HOME"] != "/workspace/.workspace" {
+		t.Errorf("XDG_CONFIG_HOME = %q", env["XDG_CONFIG_HOME"])
+	}
+}
+
+func TestBuildEnv_GitIdentity_Windows(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputerWithWorkplace(`C:\ws`, "ws-win-456")
+	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
+	env := claude.ExportBuildEnv(req, p)
+	if env["GIT_CONFIG_GLOBAL"] != `C:\ws\.workspace\git\config` {
+		t.Errorf("GIT_CONFIG_GLOBAL = %q", env["GIT_CONFIG_GLOBAL"])
+	}
+	if !strings.Contains(env["GIT_SSH_COMMAND"], `C:\ws\.workspace\ssh\config`) {
+		t.Errorf("GIT_SSH_COMMAND = %q", env["GIT_SSH_COMMAND"])
+	}
+	if env["XDG_CONFIG_HOME"] != `C:\ws\.workspace` {
+		t.Errorf("XDG_CONFIG_HOME = %q", env["XDG_CONFIG_HOME"])
+	}
+}
+
+func TestBuildEnv_NoGitIdentity_WithoutWorkplace(t *testing.T) {
+	req := &types.StreamRequest{Config: &types.SandboxConfig{}}
+	req.Computer = claude.NewFakeComputer("/workspace")
+	env := claude.ExportBuildEnv(req, testPlatform())
+	if _, ok := env["GIT_CONFIG_GLOBAL"]; ok {
+		t.Error("GIT_CONFIG_GLOBAL should not be set without workplace")
+	}
+	if _, ok := env["GIT_SSH_COMMAND"]; ok {
+		t.Error("GIT_SSH_COMMAND should not be set without workplace")
+	}
+	if _, ok := env["XDG_CONFIG_HOME"]; ok {
+		t.Error("XDG_CONFIG_HOME should not be set without workplace")
+	}
+}
+
 // --- buildArgs ---
 
 func TestBuildArgs_Default(t *testing.T) {

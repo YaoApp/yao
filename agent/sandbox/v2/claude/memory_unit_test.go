@@ -19,8 +19,8 @@ func TestBuildEnvironmentContextMD_ContainsWorkspaceID(t *testing.T) {
 	if !strings.Contains(md, "/workspace") {
 		t.Fatal("workDir not found in output")
 	}
-	if !strings.Contains(md, "workspace://ws-abc-123/path/to/file") {
-		t.Fatal("workspace:// link template not found")
+	if !strings.Contains(md, "[path/to/file](workspace://ws-abc-123/path/to/file)") {
+		t.Fatal("workspace:// Markdown link template not found")
 	}
 }
 

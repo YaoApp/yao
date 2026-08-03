@@ -22,11 +22,15 @@ These environment variables are set by the Yao sandbox. **Always use these varia
 
 ### Workspace Path in Replies
 
-When replying to users, **never expose raw `/workspace/...` paths**. Rewrite them using the `workspace://` scheme so the frontend can render them correctly.
+When replying to users, **never expose raw `/workspace/...` paths**. Use Markdown links with the `workspace://` scheme so the frontend can render clickable file references.
 
-**Format**: `workspace://<workspace-id>/relative/path`
+**Format**: `[relative/path](workspace://<workspace-id>/relative/path)`
 
-The current workspace ID is provided in the **Sandbox Environment** prompt above (see "Current Workspace ID"). Use that value directly in workspace:// links. If it was not provided (rare), fall back to:
+Example (assuming workspace ID is `ws-abc123`):
+- Correct: `[output/report.csv](workspace://ws-abc123/output/report.csv)`
+- Correct: `[src/main.py](workspace://ws-abc123/src/main.py)`
+
+The current workspace ID is provided in the **Sandbox Environment** prompt above (see "Current Workspace ID"). Use that value directly in workspace:// Markdown links. If it was not provided (rare), fall back to:
 
 ```bash
 echo "$CTX_WORKSPACE_ID"
@@ -34,8 +38,9 @@ echo "$CTX_WORKSPACE_ID"
 
 **Common mistakes** (all wrong):
 
+- `workspace://ws-abc123/output/file.txt` ← bare URL without Markdown link syntax
 - `workspace://$CTX_WORKSPACE_ID/...` ← shell variable literally in reply
-- `workspace://<workspace-id>/...` ← template placeholder instead of the real one
+- `[file](workspace://<workspace-id>/...)` ← template placeholder instead of real ID
 - `/workspace/output/...` ← raw path without `workspace://` scheme
 
 ### Attachments
@@ -117,12 +122,15 @@ You have access to Yao system tools via the `tai` command in bash.
 | `workspace_file_list`    | yao-workspace | List files and directories in a workspace          |
 | `workspace_file_read`    | yao-workspace | Read file content from workspace                   |
 | `workspace_file_write`   | yao-workspace | Write content to a file in workspace               |
+| `workspace_git_config`     | yao-workspace-config | Get or set workspace-level Git configuration   |
+| `workspace_git_credential` | yao-workspace-config | Manage workspace HTTPS Git credentials (set/list/delete) |
+| `workspace_ssh_key`        | yao-workspace-config | Manage workspace SSH keys (import/list/delete)     |
 | `clip_write`             | yao-clip      | Store a content clip (screenshot, DOM, structured data). Returns clip ID |
 | `clip_read`              | yao-clip      | Read a stored clip by ID. Use when you see `<Mention type="clip">` tags |
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
 | `skill_list`             | —             | List installed skills (filter by type: system/assistant/extension) |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ## Mention Tags
 

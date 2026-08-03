@@ -48,7 +48,7 @@ type: project
 	fmt.Fprintf(&b, "- **Workspace ID**: %s\n", workspaceID)
 	fmt.Fprintf(&b, "- **Working Directory**: %s\n", workDir)
 	b.WriteString(`
-When referencing files for the user, use ` + "`workspace://" + workspaceID + "/path/to/file`" + `.
+When referencing files for the user, use Markdown links: ` + "`[path/to/file](workspace://" + workspaceID + "/path/to/file)`" + `.
 The client renders these as clickable links opening the file in the editor.
 
 ## Accessing Other Workspaces
@@ -83,6 +83,9 @@ Calling convention: ` + "`tai tool <name> '<json_args>'`" + `
 | workspace_file_list | List files in a workspace |
 | workspace_file_read | Read file from workspace |
 | workspace_file_write | Write file to workspace |
+| workspace_git_config | Get or set workspace Git configuration |
+| workspace_git_credential | Manage workspace HTTPS Git credentials |
+| workspace_ssh_key | Manage workspace SSH keys |
 | clip_write | Store a content clip |
 | clip_read | Read a clip by ID |
 | skill_list | List installed skills (filter by type: system/assistant/extension) |

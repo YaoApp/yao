@@ -1,0 +1,29 @@
+{
+  "name": "workspace_git_config",
+  "description": "Get or set workspace-level Git configuration (user.name, user.email, etc.)",
+  "process": "tools.workspace_git_config",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "workspace_id": {
+        "type": "string",
+        "description": "Workspace ID"
+      },
+      "action": {
+        "type": "string",
+        "enum": ["get", "set"],
+        "description": "Action: get (read config) or set (write config)"
+      },
+      "key": {
+        "type": "string",
+        "description": "Config key, e.g. user.name, user.email. Empty returns all."
+      },
+      "value": {
+        "type": "string",
+        "description": "Config value (required for 'set')"
+      }
+    },
+    "required": ["workspace_id", "action"]
+  },
+  "x-process-args": ["$args.workspace_id", "$args.action", "$args.key", "$args.value"]
+}

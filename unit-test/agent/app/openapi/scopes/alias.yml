@@ -44,6 +44,7 @@ client:free:
   - tasks:all
   - otp:all
   - event:all
+  - llm:all
   - messenger:all
   - trace:all
   - sandbox:all
@@ -820,21 +821,26 @@ dsl:write:own:
 
 llm:all:
   - llm:providers:read:all
+  - llm:completions:write:all
 
 llm:all:own:
   - llm:providers:read:all
+  - llm:completions:write:own
 
 llm:all:team:
   - llm:providers:read:all
+  - llm:completions:write:team
 
 llm:manage:team:
   - llm:providers:read:all
+  - llm:completions:write:team
 
 llm:read:team:
   - llm:providers:read:all
 
 llm:write:own:
   - llm:providers:read:all
+  - llm:completions:write:own
 
 # ============ MCP Resources Aliases ============
 
@@ -1012,24 +1018,28 @@ workspace:all:
   - workspace:workspaces:write:all
   - workspace:workspaces:delete:all
   - workspace:workspaces:files:all
+  - workspace:workspaces:git:all
 
 workspace:all:own:
   - workspace:workspaces:read:own
   - workspace:workspaces:write:own
   - workspace:workspaces:delete:own
   - workspace:workspaces:files:own
+  - workspace:workspaces:git:own
 
 workspace:all:team:
   - workspace:workspaces:read:team
   - workspace:workspaces:write:team
   - workspace:workspaces:delete:team
   - workspace:workspaces:files:team
+  - workspace:workspaces:git:team
 
 workspace:manage:team:
   - workspace:workspaces:read:team
   - workspace:workspaces:write:team
   - workspace:workspaces:delete:team
   - workspace:workspaces:files:team
+  - workspace:workspaces:git:team
 
 workspace:read:team:
   - workspace:workspaces:read:team
@@ -1041,6 +1051,7 @@ workspace:write:own:
   - workspace:workspaces:write:own
   - workspace:workspaces:delete:own
   - workspace:workspaces:files:own
+  - workspace:workspaces:git:own
 
 # ============ Nodes Resources Aliases ============
 
