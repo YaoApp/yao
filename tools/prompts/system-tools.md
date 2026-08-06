@@ -43,6 +43,19 @@ echo "$CTX_WORKSPACE_ID"
 - `[file](workspace://<workspace-id>/...)` ← template placeholder instead of real ID
 - `/workspace/output/...` ← raw path without `workspace://` scheme
 
+The `workspace://` scheme also works in image, video, and audio tags — see **Rich Media in Replies** below.
+
+### Rich Media in Replies
+
+You can embed media with `workspace://` or external URLs:
+
+- **Image**: `![alt](workspace://ws-id/screenshot.png)` (prefer Markdown syntax)
+- **Video**: `<video src="workspace://ws-id/demo.mp4" controls></video>`
+- **Audio**: `<audio src="workspace://ws-id/clip.mp3" controls></audio>`
+- **YouTube / Bilibili**: place a bare URL on its own line to auto-embed as a player
+
+Always include `controls` on `<video>` and `<audio>`. Do not put media URLs inside fenced code blocks.
+
 ### Attachments
 
 User-uploaded files are placed in `$WORKDIR/.attachments/{chatID}/`.
