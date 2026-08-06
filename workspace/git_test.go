@@ -43,7 +43,7 @@ func TestGitListRepos(t *testing.T) {
 			require.NoError(t, err)
 			initGitRepo(t, mountPath)
 
-			repos, err := m.GitListRepos(ctx, ws.ID)
+			repos, err := m.GitListRepos(ctx, ws.ID, true)
 			require.NoError(t, err)
 			assert.Len(t, repos, 1)
 			assert.Equal(t, ".", repos[0].Path)
@@ -55,8 +55,35 @@ func TestGitListRepos_NotFound(t *testing.T) {
 	for _, pc := range testPools() {
 		t.Run(pc.Name, func(t *testing.T) {
 			m := setupManagerForPool(t, pc)
-			_, err := m.GitListRepos(context.Background(), "nonexistent-ws")
+			_, err := m.GitListRepos(context.Background(), "nonexistent-ws", true)
 			assert.Error(t, err)
+		})
+	}
+}
+
+func TestGitListRepos_Cache(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			ws := createWorkspace(t, m, pc.Name)
+			ctx := context.Background()
+
+			mountPath, err := m.MountPath(ctx, ws.ID)
+			require.NoError(t, err)
+			initGitRepo(t, mountPath)
+
+			repos1, err := m.GitListRepos(ctx, ws.ID, true)
+			require.NoError(t, err)
+			assert.Len(t, repos1, 1)
+
+			repos2, err := m.GitListRepos(ctx, ws.ID, false)
+			require.NoError(t, err)
+			assert.Len(t, repos2, 1)
+			assert.Equal(t, repos1[0].Path, repos2[0].Path)
+
+			repos3, err := m.GitListRepos(ctx, ws.ID, true)
+			require.NoError(t, err)
+			assert.Len(t, repos3, 1)
 		})
 	}
 }

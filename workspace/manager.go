@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/yaoapp/yao/tai"
@@ -21,7 +22,14 @@ func M() *Manager {
 }
 
 // Manager owns workspace CRUD, file I/O, and node management.
-type Manager struct{}
+type Manager struct {
+	gitRepoCache sync.Map // map[workspaceID]*gitRepoCacheEntry
+}
+
+type gitRepoCacheEntry struct {
+	repos    []volume.GitRepo
+	cachedAt time.Time
+}
 
 // NewManager creates a workspace manager.
 func NewManager() *Manager {
@@ -159,6 +167,7 @@ func (m *Manager) Delete(ctx context.Context, id string, force bool) error {
 	if err := vol.Remove(ctx, id, ".", true); err != nil {
 		return fmt.Errorf("workspace: remove: %w", err)
 	}
+	m.gitRepoCache.Delete(id)
 	return nil
 }
 
@@ -282,12 +291,24 @@ func (m *Manager) MountPath(ctx context.Context, id string) (string, error) {
 // --- Git ---
 
 // GitListRepos lists Git repositories in a workspace.
-func (m *Manager) GitListRepos(ctx context.Context, id string) ([]volume.GitRepo, error) {
+// When refresh is false, returns cached results if available.
+func (m *Manager) GitListRepos(ctx context.Context, id string, refresh bool) ([]volume.GitRepo, error) {
+	if !refresh {
+		if entry, ok := m.gitRepoCache.Load(id); ok {
+			return entry.(*gitRepoCacheEntry).repos, nil
+		}
+	}
+
 	_, vol, err := m.resolve(ctx, id)
 	if err != nil {
 		return nil, err
 	}
-	return vol.GitListRepos(ctx, id, ".")
+	repos, err := vol.GitListRepos(ctx, id, ".")
+	if err != nil {
+		return nil, err
+	}
+	m.gitRepoCache.Store(id, &gitRepoCacheEntry{repos: repos, cachedAt: time.Now()})
+	return repos, nil
 }
 
 // GitStatus returns the status of a Git repository.

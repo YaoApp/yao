@@ -597,7 +597,8 @@ func handleGitListRepos(c *gin.Context) {
 	if !ok {
 		return
 	}
-	repos, err := mgr().GitListRepos(context.Background(), c.Param("id"))
+	refresh := c.Query("refresh") == "true"
+	repos, err := mgr().GitListRepos(context.Background(), c.Param("id"), refresh)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
