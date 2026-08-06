@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
@@ -76,26 +77,12 @@ func enrichProvider(p *llmprovider.Provider) map[string]interface{} {
 	return m
 }
 
-// llmModelsURL builds the models endpoint URL.
-// Trailing slash means the user already specified the path prefix → append "models".
-// No trailing slash → append "/v1/models" (standard OpenAI convention).
-func llmModelsURL(apiURL string) string {
-	if strings.HasSuffix(apiURL, "/") {
-		return apiURL + "models"
-	}
-	return apiURL + "/v1/models"
-}
-
-// llmCompletionURL builds the chat/messages endpoint URL.
-func llmCompletionURL(providerType, apiURL string) string {
-	endpoint := "chat/completions"
+// llmCompletionEndpoint returns the endpoint path for the given provider type.
+func llmCompletionEndpoint(providerType string) string {
 	if providerType == "anthropic" {
-		endpoint = "messages"
+		return "/messages"
 	}
-	if strings.HasSuffix(apiURL, "/") {
-		return apiURL + endpoint
-	}
-	return apiURL + "/v1/" + endpoint
+	return "/chat/completions"
 }
 
 // llmSetAuthHeader sets the appropriate auth header for the provider type.
@@ -111,23 +98,30 @@ func llmSetAuthHeader(req *http.Request, providerType, apiKey string) {
 	}
 }
 
-// llmValidateKey tests connectivity and API key validity using a three-step
+// llmValidateKey tests connectivity and API key validity using a multi-step
 // approach that works across all provider types (OpenAI, Anthropic, and
-// third-party compatible APIs) without incurring any token costs:
+// third-party compatible APIs) without incurring any token costs.
 //
-//  1. POST to real completion endpoint with empty messages (zero cost).
-//     401/403 → invalid key. Other response → connection works, proceed.
-//  2. GET /models to confirm key validity.
-//     200 → key valid. 401/403 → invalid key. 404 → endpoint unsupported,
-//     trust step-1 result. Other → report error.
-//  3. If step-1 returned 404 (model-based routing, e.g. NVIDIA) AND step-2
-//     returned 200, the /models endpoint may be public. Pick the first model
-//     from the response and POST again with that real model + empty messages.
+// Step 1: POST to the completion endpoint with a fake model and empty messages.
+// An HTML response means the URL is wrong (non-API path). Otherwise record
+// the status and always fall through to step 2 — some providers return 401 for
+// the test payload even when the key is valid.
+//
+// Step 2: GET /models. Combined with step-1 status, decide:
+//   - step1=401 + step2=200(JSON) → key valid (step-1 rejected the test payload, not the key)
+//   - step1=401 + step2=401/403   → key truly invalid
+//   - step1=401 + step2=404       → inconclusive, allow save
+//   - step1=404 + step2=404       → URL is wrong (both endpoints missing)
+//   - step1=other + step2=404     → /models unsupported, trust step-1
+//   - step2=200 + step1=404       → step 3 (public /models, re-check with real model)
+//
+// Step 3: Pick the first model from /models and POST again to trigger a real
+// auth check (unchanged from before).
 func llmValidateKey(providerType, apiURL, apiKey string) error {
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	// --- Step 1: POST real endpoint with fake model + empty messages ---
-	postURL := llmCompletionURL(providerType, apiURL)
+	// --- Step 1: POST completion endpoint with fake model + empty messages ---
+	postURL := connector.BuildAPIURL(apiURL, llmCompletionEndpoint(providerType))
 	req, err := http.NewRequest("POST", postURL, strings.NewReader(`{"model":"_","messages":[]}`))
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
@@ -141,21 +135,28 @@ func llmValidateKey(providerType, apiURL, apiKey string) error {
 	}
 	resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		return fmt.Errorf("invalid API key (HTTP %d)", resp.StatusCode)
+	if llmIsHTML(resp) {
+		return fmt.Errorf("URL does not point to a valid API endpoint (received HTML response)")
 	}
 	postStatus := resp.StatusCode
 
 	// --- Step 2: GET /models to confirm key ---
-	req2, err := http.NewRequest("GET", llmModelsURL(apiURL), nil)
+	modelsURL := connector.BuildAPIURL(apiURL, "/models")
+	req2, err := http.NewRequest("GET", modelsURL, nil)
 	if err != nil {
+		if postStatus == http.StatusUnauthorized || postStatus == http.StatusForbidden {
+			return fmt.Errorf("invalid API key (HTTP %d)", postStatus)
+		}
 		return nil
 	}
 	llmSetAuthHeader(req2, providerType, apiKey)
 
 	resp2, err := client.Do(req2)
 	if err != nil {
-		return nil // POST connected, GET network failure is non-fatal
+		if postStatus == http.StatusUnauthorized || postStatus == http.StatusForbidden {
+			return fmt.Errorf("invalid API key (HTTP %d)", postStatus)
+		}
+		return nil
 	}
 
 	modelsStatus := resp2.StatusCode
@@ -165,20 +166,49 @@ func llmValidateKey(providerType, apiURL, apiKey string) error {
 	}
 	resp2.Body.Close()
 
-	if modelsStatus == http.StatusUnauthorized || modelsStatus == http.StatusForbidden {
+	if llmIsHTML(resp2) {
+		return fmt.Errorf("URL does not point to a valid API endpoint (received HTML response)")
+	}
+
+	// --- Combined decision ---
+	postIs401 := postStatus == http.StatusUnauthorized || postStatus == http.StatusForbidden
+	postIs404 := postStatus == http.StatusNotFound
+
+	switch {
+	case modelsStatus == http.StatusUnauthorized || modelsStatus == http.StatusForbidden:
 		return fmt.Errorf("invalid API key (HTTP %d)", modelsStatus)
-	}
-	if modelsStatus == http.StatusNotFound {
+
+	case modelsStatus == http.StatusNotFound:
+		if postIs404 {
+			return fmt.Errorf("URL does not point to a valid API endpoint (both endpoints returned 404)")
+		}
+		if postIs401 {
+			return nil
+		}
 		return nil
-	}
-	if modelsStatus == http.StatusOK {
-		if postStatus == http.StatusNotFound && len(modelsBody) > 0 {
+
+	case modelsStatus == http.StatusOK:
+		if postIs401 {
+			return nil
+		}
+		if postIs404 && len(modelsBody) > 0 {
 			return llmValidateWithModel(client, providerType, apiURL, apiKey, modelsBody)
 		}
 		return nil
-	}
 
-	return fmt.Errorf("server returned HTTP %d", modelsStatus)
+	default:
+		if postIs401 {
+			return fmt.Errorf("invalid API key (HTTP %d)", postStatus)
+		}
+		return fmt.Errorf("server returned HTTP %d", modelsStatus)
+	}
+}
+
+// llmIsHTML checks whether the response Content-Type indicates HTML,
+// which means the URL hit a web page instead of an API endpoint.
+func llmIsHTML(resp *http.Response) bool {
+	ct := resp.Header.Get("Content-Type")
+	return strings.Contains(ct, "text/html")
 }
 
 // llmValidateWithModel is the step-3 fallback for providers whose /models
@@ -195,7 +225,7 @@ func llmValidateWithModel(client *http.Client, providerType, apiURL, apiKey stri
 		return nil
 	}
 
-	postURL := llmCompletionURL(providerType, apiURL)
+	postURL := connector.BuildAPIURL(apiURL, llmCompletionEndpoint(providerType))
 	body := fmt.Sprintf(`{"model":%q,"messages":[]}`, parsed.Data[0].ID)
 	req, err := http.NewRequest("POST", postURL, strings.NewReader(body))
 	if err != nil {
