@@ -156,6 +156,12 @@ You have access to Yao system tools via the `tai` command in bash.
 
 The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-audio`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
+### Asking Questions
+
+When you use **AskUserQuestion** to present interactive questions to the user, you **MUST end your current turn immediately** after the tool call. Do NOT continue with further actions, assumptions, or placeholder answers.
+
+The user will see an interactive form, select their answers, and submit. Their response will arrive as a new user message containing `<Answer>` tags. Resume your work only after receiving and reading the user's actual answers.
+
 ## Mention Tags
 
 User messages may contain `<Mention>` tags referencing experts, workspaces, files, or directories:
