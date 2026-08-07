@@ -7,7 +7,7 @@
     "properties": {
       "image_path": {
         "type": "string",
-        "description": "Reference image to edit. Accepts: URL (http/https), workspace:// URI, or attach:// URI."
+        "description": "Path to the reference image file (local path or URL)."
       },
       "prompt": {
         "type": "string",
@@ -25,9 +25,13 @@
       "model": {
         "type": "string",
         "description": "Model name to use. Overrides the provider's default model. If omitted, the provider's default model is used."
+      },
+      "output": {
+        "type": "string",
+        "description": "Output file path for the edited image."
       }
     },
     "required": ["image_path", "prompt"]
   },
-  "x-process-args": ["$args.image_path", "$args.prompt", "$args.provider", "$args.size", "$args.model"]
+  "x-process-args": ["$args.image_path", "$args.prompt", "$args.provider", "$args.size", "$args.model", "$args.output"]
 }

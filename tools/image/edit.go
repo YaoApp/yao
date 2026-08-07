@@ -1,10 +1,12 @@
 package image
 
 import (
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/yaoapp/gou/process"
@@ -12,6 +14,7 @@ import (
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
+	ws "github.com/yaoapp/yao/workspace"
 )
 
 //go:embed edit_schema.json
@@ -32,6 +35,7 @@ func EditHandler(proc *process.Process) interface{} {
 	provider := proc.ArgsString(2)
 	size := proc.ArgsString(3, "1024x1024")
 	model := proc.ArgsString(4)
+	output := proc.ArgsString(5)
 
 	authInfo := authorized.ProcessAuthInfo(proc)
 	if authInfo == nil {
@@ -72,6 +76,30 @@ func EditHandler(proc *process.Process) interface{} {
 	resp, err := agentLLM.EditImage(conn, imageInput, prompt, options, editFormat)
 	if err != nil {
 		return map[string]interface{}{"error": fmt.Sprintf("image editing failed: %v", err)}
+	}
+
+	if strings.HasPrefix(output, "workspace://") {
+		imgBytes, err := base64.StdEncoding.DecodeString(resp.Image)
+		if err != nil {
+			return map[string]interface{}{"error": fmt.Sprintf("decode edited image: %v", err)}
+		}
+		if len(imgBytes) == 0 {
+			return map[string]interface{}{"error": "edited image is empty"}
+		}
+
+		wsID, relPath := parseWorkspaceURI(output)
+		ext := filepath.Ext(relPath)
+		if ext == "" {
+			relPath += "." + resp.Format
+		}
+		if err := ws.M().WriteFile(context.Background(), wsID, relPath, imgBytes, 0644); err != nil {
+			return map[string]interface{}{"error": fmt.Sprintf("write to workspace: %v", err)}
+		}
+		return map[string]interface{}{
+			"path":   "workspace://" + wsID + "/" + relPath,
+			"format": resp.Format,
+			"size":   len(imgBytes),
+		}
 	}
 
 	return map[string]interface{}{

@@ -1,0 +1,16 @@
+{
+  "name": "audio_providers",
+  "description": "List available audio speech-to-text providers and models.",
+  "process": "tools.audio_providers",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "capability": {
+        "type": "string",
+        "description": "Filter by capability (default: 'audio').",
+        "default": "audio"
+      }
+    }
+  },
+  "x-process-args": ["$args.capability"]
+}

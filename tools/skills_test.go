@@ -12,6 +12,7 @@ func TestSkillsFS_ContainsAllSkills(t *testing.T) {
 		"skills/yao-process/SKILL.md": false,
 		"skills/yao-doc/SKILL.md":     false,
 		"skills/yao-image/SKILL.md":   false,
+		"skills/yao-audio/SKILL.md":   false,
 		"skills/yao-agent/SKILL.md":   false,
 		"skills/yao-board/SKILL.md":   false,
 	}
@@ -45,6 +46,7 @@ func TestSkillsFS_FrontmatterFields(t *testing.T) {
 		{"skills/yao-process/SKILL.md", "yao-process"},
 		{"skills/yao-doc/SKILL.md", "yao-doc"},
 		{"skills/yao-image/SKILL.md", "yao-image"},
+		{"skills/yao-audio/SKILL.md", "yao-audio"},
 		{"skills/yao-agent/SKILL.md", "yao-agent"},
 		{"skills/yao-board/SKILL.md", "yao-board"},
 	}

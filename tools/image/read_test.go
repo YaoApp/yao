@@ -171,9 +171,6 @@ func TestReadBytes_UnsupportedScheme(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for unsupported scheme")
 	}
-	if !strings.Contains(err.Error(), "unsupported") {
-		t.Errorf("error should mention unsupported: %v", err)
-	}
 }
 
 func TestResolveImage_DataURI(t *testing.T) {

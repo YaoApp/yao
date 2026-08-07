@@ -69,6 +69,15 @@ When you need to read, analyze, or describe an image (screenshot, photo, chart, 
 tai tool image_read '{"image_path": "<file_path_or_url>", "prompt": "describe this image"}'
 ```
 
+### Audio Files
+
+When you need to transcribe or recognize speech from audio files, use `audio_transcribe`. Supported formats: mp3, mp4, m4a, wav, webm, mpeg, mpga. Files over 25MB or 10 minutes are automatically split and merged.
+
+```bash
+tai tool audio_transcribe '{"audio_path": "<file_path_or_url>"}'
+tai tool audio_transcribe '{"audio_path": "<file_path_or_url>", "language": "en"}'
+```
+
 ## Skills Directories
 
 Skills are SKILL.md files with instructions and scripts that extend your capabilities.
@@ -119,6 +128,8 @@ You have access to Yao system tools via the `tai` command in bash.
 | `image_generate`   | yao-image           | Generate images from text prompts                   |
 | `image_edit`       | yao-image           | Edit or transform an existing image with a text prompt |
 | `image_providers`  | yao-image           | List available image generation, editing, or vision providers |
+| `audio_transcribe` | yao-audio           | Transcribe audio to text using a speech-to-text model |
+| `audio_providers`  | yao-audio           | List available speech-to-text providers              |
 | `agent_list`       | yao-agent           | List available agents on the host                   |
 | `agent_download`   | yao-agent           | Download smith agent for editing (smith only)       |
 | `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |
@@ -143,7 +154,7 @@ You have access to Yao system tools via the `tai` command in bash.
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
 | `skill_list`             | —             | List installed skills (filter by type: system/assistant/extension) |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-audio`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ## Mention Tags
 

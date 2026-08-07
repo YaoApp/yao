@@ -9,6 +9,7 @@ import (
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/tools/agent"
+	"github.com/yaoapp/yao/tools/audio"
 	toolboard "github.com/yaoapp/yao/tools/board"
 	"github.com/yaoapp/yao/tools/clip"
 	"github.com/yaoapp/yao/tools/docs"
@@ -36,6 +37,9 @@ var mcpDocDSL []byte
 
 //go:embed mcps/image.json
 var mcpImageDSL []byte
+
+//go:embed mcps/audio.json
+var mcpAudioDSL []byte
 
 //go:embed mcps/agent.json
 var mcpAgentDSL []byte
@@ -74,6 +78,8 @@ func init() {
 		"image_generate":    image.GenerateHandler,
 		"image_edit":        image.EditHandler,
 		"image_providers":   image.ProvidersHandler,
+		"audio_transcribe":  audio.TranscribeHandler,
+		"audio_providers":   audio.ProvidersHandler,
 		"agent_list":        agent.ListHandler,
 		"agent_download":    agent.DownloadHandler,
 		"agent_reference":   agent.ReferenceHandler,
@@ -135,6 +141,8 @@ func init() {
 		docs.ListSchemaJSON, docs.InspectSchemaJSON, docs.ValidateSchemaJSON)
 	registerMCPServer(mcpImageDSL, "yao-image",
 		image.ReadSchemaJSON, image.GenerateSchemaJSON, image.EditSchemaJSON, image.ProvidersSchemaJSON)
+	registerMCPServer(mcpAudioDSL, "yao-audio",
+		audio.TranscribeSchemaJSON, audio.ProvidersSchemaJSON)
 	registerMCPServer(mcpAgentDSL, "yao-agent",
 		agent.ListSchemaJSON, agent.DownloadSchemaJSON, agent.ReferenceSchemaJSON,
 		agent.DeploySchemaJSON, agent.ConnectorsSchemaJSON, agent.CallSchemaJSON)

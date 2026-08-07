@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/yaoapp/gou/fs"
+	"github.com/yaoapp/gou/mediaprobe"
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/attachment/local"
@@ -168,10 +169,28 @@ func readFilePathAsBase64(path string, dataURI bool) string {
 	return base64Str
 }
 
+// Browser-standard MIME types that override Go's stdlib incorrect defaults.
+var standardMIME = map[string]string{
+	".m4a":  "audio/mp4",
+	".aac":  "audio/aac",
+	".wav":  "audio/wav",
+	".ogg":  "audio/ogg",
+	".mp3":  "audio/mpeg",
+	".flac": "audio/flac",
+	".opus": "audio/ogg",
+	".webm": "audio/webm",
+	".amr":  "audio/amr",
+	".wma":  "audio/x-ms-wma",
+}
+
 // detectContentType detects the MIME type from file path and content
 func detectContentType(path string, content []byte) string {
-	// First try to get from file extension
-	ext := filepath.Ext(path)
+	ext := strings.ToLower(filepath.Ext(path))
+
+	if m, ok := standardMIME[ext]; ok {
+		return m
+	}
+
 	if ext != "" {
 		mimeType := mime.TypeByExtension(ext)
 		if mimeType != "" {
@@ -179,7 +198,6 @@ func detectContentType(path string, content []byte) string {
 		}
 	}
 
-	// Fallback to detecting from content (first 512 bytes)
 	if len(content) > 0 {
 		detectSize := len(content)
 		if detectSize > 512 {
@@ -189,6 +207,18 @@ func detectContentType(path string, content []byte) string {
 	}
 
 	return ""
+}
+
+// NormalizeContentType corrects known-bad MIME types stored in the database.
+func NormalizeContentType(ct string, filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if m, ok := standardMIME[ext]; ok {
+		return m
+	}
+	if ct == "video/mp4" && (ext == ".m4a" || ext == ".aac") {
+		return "audio/mp4"
+	}
+	return ct
 }
 
 // GetHeader gets the header from the file header and request header
@@ -490,6 +520,7 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 			// Update status to uploaded
 			file.Status = "uploaded"
+			manager.probeMedia(ctx, file)
 
 			// Update only bytes and status for the last chunk
 			err = manager.saveFileToDatabase(ctx, file, file.Path, option)
@@ -580,6 +611,7 @@ func (manager Manager) Upload(ctx context.Context, fileheader *FileHeader, reade
 
 	// Update the file status
 	file.Status = "uploaded"
+	manager.probeMedia(ctx, file)
 
 	// Save file information to database
 	err = manager.saveFileToDatabase(ctx, file, file.Path, option)
@@ -628,6 +660,35 @@ func (manager Manager) compressStoredImageAndGetSize(ctx context.Context, file *
 
 	// Return the compressed size
 	return len(compressed), nil
+}
+
+func (manager Manager) probeMedia(ctx context.Context, file *File) {
+	if !isMediaType(file.ContentType) {
+		return
+	}
+	localPath, _, err := manager.storage.LocalPath(ctx, file.Path)
+	if err != nil {
+		return
+	}
+	info, err := mediaprobe.ProbeFile(localPath)
+	if err != nil {
+		return
+	}
+	if info.Duration > 0 {
+		file.Duration = &info.Duration
+	}
+	if info.Width > 0 {
+		file.Width = &info.Width
+	}
+	if info.Height > 0 {
+		file.Height = &info.Height
+	}
+}
+
+func isMediaType(ct string) bool {
+	return strings.HasPrefix(ct, "audio/") ||
+		strings.HasPrefix(ct, "video/") ||
+		strings.HasPrefix(ct, "image/")
 }
 
 // Download downloads a file
@@ -729,6 +790,7 @@ func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult
 		queryParam.Select = []interface{}{
 			"id", "file_id", "uploader", "content_type", "name", "url", "description",
 			"type", "user_path", "path", "groups", "gzip", "bytes", "status",
+			"duration", "width", "height",
 			"progress", "error", "preset", "public", "share",
 			"created_at", "updated_at", "deleted_at",
 			"__yao_created_by", "__yao_updated_by", "__yao_team_id", "__yao_tenant_id",
@@ -881,6 +943,18 @@ func (manager Manager) List(ctx context.Context, option ListOption) (*ListResult
 		} else {
 			// Fallback to current time if not available
 			file.CreatedAt = int(time.Now().Unix())
+		}
+		if v, ok := record["duration"]; ok && v != nil {
+			d := toFloat64(v)
+			file.Duration = &d
+		}
+		if v, ok := record["width"]; ok && v != nil {
+			w := toInt(v)
+			file.Width = &w
+		}
+		if v, ok := record["height"]; ok && v != nil {
+			h := toInt(v)
+			file.Height = &h
 		}
 
 		files = append(files, file)
@@ -1198,6 +1272,15 @@ func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, stora
 			"bytes":  int64(file.Bytes),
 			"status": file.Status,
 		}
+		if file.Duration != nil {
+			updateData["duration"] = *file.Duration
+		}
+		if file.Width != nil {
+			updateData["width"] = *file.Width
+		}
+		if file.Height != nil {
+			updateData["height"] = *file.Height
+		}
 
 		_, err = m.UpdateWhere(model.QueryParam{
 			Wheres: []model.QueryWhere{
@@ -1244,6 +1327,15 @@ func (manager Manager) saveFileToDatabase(ctx context.Context, file *File, stora
 	if option.YaoTenantID != "" {
 		data["__yao_tenant_id"] = option.YaoTenantID
 	}
+	if file.Duration != nil {
+		data["duration"] = *file.Duration
+	}
+	if file.Width != nil {
+		data["width"] = *file.Width
+	}
+	if file.Height != nil {
+		data["height"] = *file.Height
+	}
 
 	// Create new record
 	_, err = m.Create(data)
@@ -1257,6 +1349,7 @@ func (manager Manager) getFileFromDatabase(ctx context.Context, fileID string) (
 	records, err := m.Get(model.QueryParam{
 		Select: []interface{}{
 			"file_id", "name", "content_type", "status", "user_path", "path", "bytes",
+			"duration", "width", "height",
 			"public", "share", "__yao_created_by", "__yao_team_id", "__yao_tenant_id",
 		},
 		Wheres: []model.QueryWhere{
@@ -1295,6 +1388,19 @@ func (manager Manager) getFileFromDatabase(ctx context.Context, fileID string) (
 
 	if bytes, ok := record["bytes"].(int64); ok {
 		file.Bytes = int(bytes)
+	}
+
+	if v, ok := record["duration"]; ok && v != nil {
+		d := toFloat64(v)
+		file.Duration = &d
+	}
+	if v, ok := record["width"]; ok && v != nil {
+		w := toInt(v)
+		file.Width = &w
+	}
+	if v, ok := record["height"]; ok && v != nil {
+		h := toInt(v)
+		file.Height = &h
 	}
 
 	// Handle permission fields with safe conversion

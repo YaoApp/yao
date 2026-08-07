@@ -21,9 +21,13 @@
       "model": {
         "type": "string",
         "description": "Model name to use. Overrides the provider's default model. If omitted, the provider's default model is used."
+      },
+      "output": {
+        "type": "string",
+        "description": "Output file path for the generated image."
       }
     },
     "required": ["prompt"]
   },
-  "x-process-args": ["$args.prompt", "$args.provider", "$args.size", "$args.model"]
+  "x-process-args": ["$args.prompt", "$args.provider", "$args.size", "$args.model", "$args.output"]
 }
