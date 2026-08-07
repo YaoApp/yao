@@ -2,7 +2,7 @@
 - key: opencode_go
   name: OpenCode Go
   type: openai
-  api_url: https://opencode.ai/zen/go/v1/
+  api_url: https://opencode.ai/zen/go
   require_key: true
   default_models:
     - id: grok-4.5
@@ -76,7 +76,7 @@
 - key: opencode_go_anthropic
   name: OpenCode Go (Anthropic)
   type: anthropic
-  api_url: https://opencode.ai/zen/go/v1/
+  api_url: https://opencode.ai/zen/go
   require_key: true
   default_models:
     - id: minimax-m3
@@ -94,12 +94,6 @@
     - id: minimax-m2.5
       name: MiniMax M2.5
       max_input_tokens: 196608
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
-    - id: qwen3.8-max
-      name: Qwen3.8 Max
-      max_input_tokens: 1000000
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
