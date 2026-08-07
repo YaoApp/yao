@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -1803,4 +1804,97 @@ func TestGetTextAndSaveText(t *testing.T) {
 	if err != nil {
 		t.Logf("Warning: Failed to delete test file: %v", err)
 	}
+}
+
+func TestProbeMediaOnUpload(t *testing.T) {
+	test.Prepare(t, config.Conf)
+	defer test.Clean()
+
+	manager, err := New(ManagerOption{
+		Driver:       "local",
+		MaxSize:      "10M",
+		AllowedTypes: []string{"audio/*", "image/*"},
+		Options:      map[string]interface{}{"path": "/tmp/test_attachments_probe"},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create manager: %v", err)
+	}
+	defer os.RemoveAll("/tmp/test_attachments_probe")
+
+	_, thisFile, _, _ := runtime.Caller(0)
+	testdataDir := filepath.Join(filepath.Dir(thisFile), "..", "integrations", "testdata")
+
+	t.Run("MP3_duration_stored", func(t *testing.T) {
+		mp3Path := filepath.Join(testdataDir, "test.mp3")
+		data, err := os.ReadFile(mp3Path)
+		if err != nil {
+			t.Skipf("Test MP3 not found at %s: %v", mp3Path, err)
+		}
+
+		fh := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "test.mp3",
+				Size:     int64(len(data)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fh.Header.Set("Content-Type", "audio/mpeg")
+
+		file, err := manager.Upload(context.Background(), fh, bytes.NewReader(data), UploadOption{})
+		if err != nil {
+			t.Fatalf("Upload failed: %v", err)
+		}
+
+		info, err := manager.Info(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Info failed: %v", err)
+		}
+
+		if info.Duration == nil {
+			t.Fatal("Expected duration to be set in database, got nil")
+		}
+		if *info.Duration <= 0 {
+			t.Errorf("Expected positive duration, got %f", *info.Duration)
+		}
+		t.Logf("Duration stored correctly: %f seconds", *info.Duration)
+
+		_ = manager.Delete(context.Background(), file.ID)
+	})
+
+	t.Run("PNG_dimensions_stored", func(t *testing.T) {
+		pngPath := filepath.Join(testdataDir, "test.png")
+		data, err := os.ReadFile(pngPath)
+		if err != nil {
+			t.Skipf("Test PNG not found at %s: %v", pngPath, err)
+		}
+
+		fh := &FileHeader{
+			FileHeader: &multipart.FileHeader{
+				Filename: "test.png",
+				Size:     int64(len(data)),
+				Header:   make(map[string][]string),
+			},
+		}
+		fh.Header.Set("Content-Type", "image/png")
+
+		file, err := manager.Upload(context.Background(), fh, bytes.NewReader(data), UploadOption{})
+		if err != nil {
+			t.Fatalf("Upload failed: %v", err)
+		}
+
+		info, err := manager.Info(context.Background(), file.ID)
+		if err != nil {
+			t.Fatalf("Info failed: %v", err)
+		}
+
+		if info.Width == nil || info.Height == nil {
+			t.Fatalf("Expected width/height to be set, got w=%v h=%v", info.Width, info.Height)
+		}
+		if *info.Width <= 0 || *info.Height <= 0 {
+			t.Errorf("Expected positive dimensions, got %dx%d", *info.Width, *info.Height)
+		}
+		t.Logf("Dimensions stored correctly: %dx%d", *info.Width, *info.Height)
+
+		_ = manager.Delete(context.Background(), file.ID)
+	})
 }

@@ -1,0 +1,24 @@
+{
+  "name": "audio_transcribe",
+  "description": "Transcribe audio to text using a speech-to-text model.",
+  "process": "tools.audio_transcribe",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "audio_path": {
+        "type": "string",
+        "description": "Path to the audio file (local path or URL)."
+      },
+      "language": {
+        "type": "string",
+        "description": "Language hint for transcription (e.g., 'en', 'zh'). If omitted, auto-detected."
+      },
+      "provider": {
+        "type": "string",
+        "description": "STT provider connector ID. If omitted, uses the default STT provider."
+      }
+    },
+    "required": ["audio_path"]
+  },
+  "x-process-args": ["$args.audio_path", "$args.language", "$args.provider"]
+}

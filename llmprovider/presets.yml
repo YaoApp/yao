@@ -1,3 +1,121 @@
+# ─── OpenCode Go (OpenAI) ──────────────────────────────
+- key: opencode_go
+  name: OpenCode Go
+  type: openai
+  api_url: https://opencode.ai/zen/go
+  require_key: true
+  default_models:
+    - id: grok-4.5
+      name: Grok 4.5
+      max_input_tokens: 500000
+      max_output_tokens: 32000
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: glm-5.2
+      name: GLM-5.2
+      max_input_tokens: 202752
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: glm-5.1
+      name: GLM-5.1
+      max_input_tokens: 202752
+      max_output_tokens: 65535
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: kimi-k3
+      name: Kimi K3
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: kimi-k2.7-code
+      name: Kimi K2.7 Code
+      max_input_tokens: 262144
+      max_output_tokens: 32768
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: kimi-k2.6
+      name: Kimi K2.6
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: deepseek-v4-pro
+      name: DeepSeek V4 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: deepseek-v4-flash
+      name: DeepSeek V4 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      enabled: true
+    - id: mimo-v2.5
+      name: MiMo V2.5
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: mimo-v2.5-pro
+      name: MiMo V2.5 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: hy3
+      name: Hy3
+      max_input_tokens: 262144
+      max_output_tokens: 262144
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+
+# ─── OpenCode Go (Anthropic) ──────────────────────────
+- key: opencode_go_anthropic
+  name: OpenCode Go (Anthropic)
+  type: anthropic
+  api_url: https://opencode.ai/zen/go
+  require_key: true
+  default_models:
+    - id: minimax-m3
+      name: MiniMax M3
+      max_input_tokens: 1048576
+      max_output_tokens: 512000
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: minimax-m2.7
+      name: MiniMax M2.7
+      max_input_tokens: 196608
+      max_output_tokens: 40960
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: minimax-m2.5
+      name: MiniMax M2.5
+      max_input_tokens: 196608
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: qwen3.7-max
+      name: Qwen3.7 Max
+      max_input_tokens: 1000000
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: qwen3.7-plus
+      name: Qwen3.7 Plus
+      max_input_tokens: 1000000
+      max_output_tokens: 65536
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: true
+    - id: qwen3.6-plus
+      name: Qwen3.6 Plus
+      max_input_tokens: 1000000
+      max_output_tokens: 65536
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+
 # ─── OpenRouter ─────────────────────────────────────────
 - key: openrouter
   name: OpenRouter
@@ -430,6 +548,12 @@
       enabled: false
     - id: gpt-4o
       name: GPT-4o
+      max_input_tokens: 128000
+      max_output_tokens: 16384
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: gpt-4o-mini
+      name: GPT-4o Mini
       max_input_tokens: 128000
       max_output_tokens: 16384
       capabilities: [vision, tool_calls, streaming, json]

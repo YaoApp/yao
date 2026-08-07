@@ -1,11 +1,13 @@
 package file
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/model"
@@ -449,15 +451,18 @@ func content(c *gin.Context) {
 		return
 	}
 
-	// Set headers based on file info
-	c.Header("Content-Type", fileInfo.ContentType)
-	if fileInfo.Filename != "" {
-		c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileInfo.Filename))
-	}
-	c.Header("Content-Length", fmt.Sprintf("%d", len(fileContent)))
+	contentType := attachment.NormalizeContentType(fileInfo.ContentType, fileInfo.Filename)
 
-	// Return file content directly
-	c.Data(http.StatusOK, fileInfo.ContentType, fileContent)
+	if fileInfo.Filename != "" {
+		disposition := "attachment"
+		if c.Query("inline") == "1" {
+			disposition = "inline"
+		}
+		c.Header("Content-Disposition", fmt.Sprintf("%s; filename=\"%s\"", disposition, fileInfo.Filename))
+	}
+
+	c.Header("Content-Type", contentType)
+	http.ServeContent(c.Writer, c.Request, fileInfo.Filename, time.Time{}, bytes.NewReader(fileContent))
 }
 
 // exists checks if a file exists

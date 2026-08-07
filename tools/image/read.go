@@ -10,10 +10,9 @@ import (
 	_ "image/gif"
 	"image/jpeg"
 	_ "image/png"
-	"io"
 	"net/http"
+	"os"
 	"strings"
-	"time"
 
 	"golang.org/x/image/draw"
 	_ "golang.org/x/image/webp"
@@ -25,6 +24,7 @@ import (
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
+	"github.com/yaoapp/yao/tools/webfetch"
 	ws "github.com/yaoapp/yao/workspace"
 )
 
@@ -169,26 +169,16 @@ func readBytes(src string) ([]byte, error) {
 		return decodeDataURI(src)
 
 	default:
-		return nil, fmt.Errorf("unsupported image source: %s", src)
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return nil, fmt.Errorf("read local file %s: %w", src, err)
+		}
+		return data, nil
 	}
 }
 
 func httpGet(rawURL string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", rawURL, nil)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fetch %s: %d", rawURL, resp.StatusCode)
-	}
-	return io.ReadAll(io.LimitReader(resp.Body, 20<<20))
+	return webfetch.DownloadBytes(rawURL, 20<<20)
 }
 
 // resizeImage decodes, resizes (longest edge <= maxSize), re-encodes as JPEG.

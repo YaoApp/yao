@@ -39,15 +39,14 @@ func TestInitGitConfig_CreatesCredentialHelper(t *testing.T) {
 	}
 
 	data, _ := os.ReadFile(filepath.Join(wsBase, "git", "config"))
-	if !strings.Contains(string(data), "[credential]") {
+	content := string(data)
+	if !strings.Contains(content, "[credential]") {
 		t.Error("config should contain [credential]")
 	}
-	if !strings.Contains(string(data), "helper = store") {
-		t.Error("config should contain credential store helper")
+	if strings.Contains(content, "--file=") {
+		t.Error("credential helper should NOT contain --file=")
 	}
-	if strings.Contains(string(data), "--file=") {
-		t.Error("credential helper should NOT contain --file= (causes Windows backslash parse errors)")
-	}
+	assertHelperChain(t, content)
 }
 
 func TestInitGitConfig_Idempotent(t *testing.T) {
@@ -56,11 +55,118 @@ func TestInitGitConfig_Idempotent(t *testing.T) {
 	_ = ensureConfigDirs(wsBase)
 
 	_ = initGitConfig(wsBase)
-	_ = initGitConfig(wsBase)
+	data1, _ := os.ReadFile(filepath.Join(wsBase, "git", "config"))
 
-	data, _ := os.ReadFile(filepath.Join(wsBase, "git", "config"))
-	if strings.Count(string(data), "[credential]") != 1 {
-		t.Errorf("credential section duplicated: %q", data)
+	_ = initGitConfig(wsBase)
+	data2, _ := os.ReadFile(filepath.Join(wsBase, "git", "config"))
+
+	if strings.Count(string(data2), "[credential]") != 1 {
+		t.Errorf("credential section duplicated: %q", data2)
+	}
+	if string(data1) != string(data2) {
+		t.Errorf("second call changed config:\nbefore: %q\nafter:  %q", data1, data2)
+	}
+}
+
+func TestInitGitConfig_UpgradeFormatA(t *testing.T) {
+	base := t.TempDir()
+	wsBase := filepath.Join(base, ".workspace")
+	_ = ensureConfigDirs(wsBase)
+	cfgPath := filepath.Join(wsBase, "git", "config")
+	_ = os.WriteFile(cfgPath, []byte("[credential]\n\thelper = store\n"), 0o600)
+
+	if err := initGitConfig(wsBase); err != nil {
+		t.Fatalf("initGitConfig: %v", err)
+	}
+
+	data, _ := os.ReadFile(cfgPath)
+	assertHelperChain(t, string(data))
+}
+
+func TestInitGitConfig_UpgradeFormatB(t *testing.T) {
+	base := t.TempDir()
+	wsBase := filepath.Join(base, ".workspace")
+	_ = ensureConfigDirs(wsBase)
+	cfgPath := filepath.Join(wsBase, "git", "config")
+	_ = os.WriteFile(cfgPath, []byte("[credential]\n\thelper = store --file=/some/path/credentials\n"), 0o600)
+
+	if err := initGitConfig(wsBase); err != nil {
+		t.Fatalf("initGitConfig: %v", err)
+	}
+
+	data, _ := os.ReadFile(cfgPath)
+	content := string(data)
+	assertHelperChain(t, content)
+	if strings.Contains(content, "--file=") {
+		t.Error("upgraded config should NOT contain --file=")
+	}
+}
+
+func TestInitGitConfig_UpgradeFormatC(t *testing.T) {
+	base := t.TempDir()
+	wsBase := filepath.Join(base, ".workspace")
+	_ = ensureConfigDirs(wsBase)
+	cfgPath := filepath.Join(wsBase, "git", "config")
+	_ = os.WriteFile(cfgPath, []byte("[credential]\n\thelper =\n\thelper = store\n"), 0o600)
+
+	if err := initGitConfig(wsBase); err != nil {
+		t.Fatalf("initGitConfig: %v", err)
+	}
+
+	data, _ := os.ReadFile(cfgPath)
+	assertHelperChain(t, string(data))
+}
+
+func TestInitGitConfig_UpgradePreservesNonHelper(t *testing.T) {
+	base := t.TempDir()
+	wsBase := filepath.Join(base, ".workspace")
+	_ = ensureConfigDirs(wsBase)
+	cfgPath := filepath.Join(wsBase, "git", "config")
+	_ = os.WriteFile(cfgPath, []byte("[user]\n\tname = Test\n[credential]\n\thelper = store\n\tusername = testuser\n"), 0o600)
+
+	if err := initGitConfig(wsBase); err != nil {
+		t.Fatalf("initGitConfig: %v", err)
+	}
+
+	data, _ := os.ReadFile(cfgPath)
+	content := string(data)
+	assertHelperChain(t, content)
+	if !strings.Contains(content, "username = testuser") {
+		t.Errorf("non-helper option should be preserved, got:\n%s", content)
+	}
+	if !strings.Contains(content, "name = Test") {
+		t.Errorf("other sections should be preserved, got:\n%s", content)
+	}
+}
+
+func extractHelpers(content string) []string {
+	var helpers []string
+	for _, line := range strings.Split(content, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "helper") || !strings.Contains(trimmed, "=") {
+			continue
+		}
+		parts := strings.SplitN(trimmed, "=", 2)
+		if len(parts) == 2 {
+			helpers = append(helpers, strings.TrimSpace(parts[1]))
+		}
+	}
+	return helpers
+}
+
+func assertHelperChain(t *testing.T, content string) {
+	t.Helper()
+	expected := credentialHelpers()
+	got := extractHelpers(content)
+	if len(got) != len(expected) {
+		t.Errorf("helper count: got %d %v, want %d %v\nconfig:\n%s",
+			len(got), got, len(expected), expected, content)
+		return
+	}
+	for i := range expected {
+		if got[i] != expected[i] {
+			t.Errorf("helper[%d]: got %q, want %q", i, got[i], expected[i])
+		}
 	}
 }
 

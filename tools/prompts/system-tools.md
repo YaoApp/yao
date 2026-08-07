@@ -43,6 +43,19 @@ echo "$CTX_WORKSPACE_ID"
 - `[file](workspace://<workspace-id>/...)` ← template placeholder instead of real ID
 - `/workspace/output/...` ← raw path without `workspace://` scheme
 
+The `workspace://` scheme also works in image, video, and audio tags — see **Rich Media in Replies** below.
+
+### Rich Media in Replies
+
+You can embed media with `workspace://` or external URLs:
+
+- **Image**: `![alt](workspace://ws-id/screenshot.png)` (prefer Markdown syntax)
+- **Video**: `<video src="workspace://ws-id/demo.mp4" controls></video>`
+- **Audio**: `<audio src="workspace://ws-id/clip.mp3" controls></audio>`
+- **YouTube / Bilibili**: place a bare URL on its own line to auto-embed as a player
+
+Always include `controls` on `<video>` and `<audio>`. Do not put media URLs inside fenced code blocks.
+
 ### Attachments
 
 User-uploaded files are placed in `$WORKDIR/.attachments/{chatID}/`.
@@ -54,6 +67,15 @@ When you need to read, analyze, or describe an image (screenshot, photo, chart, 
 
 ```bash
 tai tool image_read '{"image_path": "<file_path_or_url>", "prompt": "describe this image"}'
+```
+
+### Audio Files
+
+When you need to transcribe or recognize speech from audio files, use `audio_transcribe`. Supported formats: mp3, mp4, m4a, wav, webm, mpeg, mpga. Files over 25MB or 10 minutes are automatically split and merged.
+
+```bash
+tai tool audio_transcribe '{"audio_path": "<file_path_or_url>"}'
+tai tool audio_transcribe '{"audio_path": "<file_path_or_url>", "language": "en"}'
 ```
 
 ## Skills Directories
@@ -106,6 +128,8 @@ You have access to Yao system tools via the `tai` command in bash.
 | `image_generate`   | yao-image           | Generate images from text prompts                   |
 | `image_edit`       | yao-image           | Edit or transform an existing image with a text prompt |
 | `image_providers`  | yao-image           | List available image generation, editing, or vision providers |
+| `audio_transcribe` | yao-audio           | Transcribe audio to text using a speech-to-text model |
+| `audio_providers`  | yao-audio           | List available speech-to-text providers              |
 | `agent_list`       | yao-agent           | List available agents on the host                   |
 | `agent_download`   | yao-agent           | Download smith agent for editing (smith only)       |
 | `agent_reference`  | yao-agent           | Download agent source to .references/ for study     |
@@ -130,7 +154,13 @@ You have access to Yao system tools via the `tai` command in bash.
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
 | `skill_list`             | —             | List installed skills (filter by type: system/assistant/extension) |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-audio`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+
+### Asking Questions
+
+When you use **AskUserQuestion** to present interactive questions to the user, you **MUST end your current turn immediately** after the tool call. Do NOT continue with further actions, assumptions, or placeholder answers.
+
+The user will see an interactive form, select their answers, and submit. Their response will arrive as a new user message containing `<Answer>` tags. Resume your work only after receiving and reading the user's actual answers.
 
 ## Mention Tags
 

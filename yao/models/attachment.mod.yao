@@ -153,6 +153,27 @@
       "index": true
     },
     {
+      "name": "duration",
+      "type": "float",
+      "label": "Duration",
+      "comment": "Media duration in seconds (audio/video)",
+      "nullable": true
+    },
+    {
+      "name": "width",
+      "type": "integer",
+      "label": "Width",
+      "comment": "Media width in pixels (image/video)",
+      "nullable": true
+    },
+    {
+      "name": "height",
+      "type": "integer",
+      "label": "Height",
+      "comment": "Media height in pixels (image/video)",
+      "nullable": true
+    },
+    {
       "name": "progress",
       "type": "string",
       "label": "Progress",

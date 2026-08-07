@@ -7,7 +7,7 @@
     "properties": {
       "image_path": {
         "type": "string",
-        "description": "Path or URI of the image to analyze. Accepts: local file path, URL (http/https), workspace://, attach://, yao://, or data URI."
+        "description": "Path to the image file (local path or URL)."
       },
       "prompt": {
         "type": "string",

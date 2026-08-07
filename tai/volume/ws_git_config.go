@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	gitfmtcfg "github.com/go-git/go-git/v5/plumbing/format/config"
@@ -19,8 +20,10 @@ type credEntry struct {
 	Token    string
 }
 
-// initGitConfig ensures git/config contains a [credential] helper pointing
-// to the workspace credentials file.
+// initGitConfig ensures git/config contains a [credential] section with the
+// correct helper priority chain: reset (clear system helpers) → store
+// (workspace credentials first) → platform fallback (system credential
+// manager as fallback). Upgrades existing configs that use the old format.
 func initGitConfig(wsBase string) error {
 	cfgPath := filepath.Join(wsBase, "git", "config")
 	data, err := os.ReadFile(cfgPath)
@@ -28,17 +31,81 @@ func initGitConfig(wsBase string) error {
 		return err
 	}
 
-	if bytes.Contains(data, []byte("[credential]")) {
-		return nil
+	if !bytes.Contains(data, []byte("[credential]")) {
+		block := credentialBlock()
+		if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
+			block = "\n" + block
+		}
+		return writeSecureFile(cfgPath, append(data, []byte(block)...))
 	}
 
-	block := "[credential]\n\thelper = store\n"
+	return upgradeCredentialSection(cfgPath, data)
+}
 
-	if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
-		block = "\n" + block
+func credentialHelpers() []string {
+	helpers := []string{"", "store"}
+	switch runtime.GOOS {
+	case "windows":
+		helpers = append(helpers, "manager")
+	case "darwin":
+		helpers = append(helpers, "osxkeychain")
+	}
+	return helpers
+}
+
+func credentialBlock() string {
+	block := "[credential]\n"
+	for _, h := range credentialHelpers() {
+		block += "\thelper = " + h + "\n"
+	}
+	return block
+}
+
+func upgradeCredentialSection(cfgPath string, data []byte) error {
+	cfg := gitfmtcfg.New()
+	if err := gitfmtcfg.NewDecoder(bytes.NewReader(data)).Decode(cfg); err != nil {
+		return fmt.Errorf("parse config: %w", err)
 	}
 
-	return writeSecureFile(cfgPath, append(data, []byte(block)...))
+	desired := credentialHelpers()
+	sect := cfg.Section("credential")
+
+	var current []string
+	for _, opt := range sect.Options {
+		if opt.IsKey("helper") {
+			current = append(current, opt.Value)
+		}
+	}
+
+	if len(current) == len(desired) {
+		match := true
+		for i := range current {
+			if current[i] != desired[i] {
+				match = false
+				break
+			}
+		}
+		if match {
+			return nil
+		}
+	}
+
+	var kept gitfmtcfg.Options
+	for _, opt := range sect.Options {
+		if !opt.IsKey("helper") {
+			kept = append(kept, opt)
+		}
+	}
+	for _, h := range desired {
+		kept = append(kept, &gitfmtcfg.Option{Key: "helper", Value: h})
+	}
+	sect.Options = kept
+
+	var buf bytes.Buffer
+	if err := gitfmtcfg.NewEncoder(&buf).Encode(cfg); err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	return writeSecureFile(cfgPath, buf.Bytes())
 }
 
 // readCredentialFile parses a standard .git-credentials file.

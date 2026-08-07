@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,7 +18,7 @@ import (
 )
 
 const (
-	gitMaxScanDepth  = 5
+	gitMaxScanDepth  = 3
 	gitMaxDiffSize   = 5 * 1024 * 1024 // 5 MB
 	gitMaxCommitWalk = 1000
 )
@@ -192,94 +191,94 @@ func (l *localStorage) GitListRepos(_ context.Context, sessionID, basePath strin
 
 	var repos []GitRepo
 
-	_ = filepath.WalkDir(absBase, func(path string, d fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return nil
-		}
-		name := d.Name()
-
-		if name == ".git" {
-			repoDir := filepath.Dir(path)
-			relPath, _ := filepath.Rel(absBase, repoDir)
-			if relPath == "" {
-				relPath = "."
-			}
-
-			repo, err := git.PlainOpen(repoDir)
+	queue := []string{absBase}
+	for depth := 0; depth < gitMaxScanDepth && len(queue) > 0; depth++ {
+		var next []string
+		for _, dir := range queue {
+			entries, err := os.ReadDir(dir)
 			if err != nil {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			wt, err := repo.Worktree()
-			if err != nil {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
+				continue
 			}
 
-			branch, _, _, _ := resolveHead(repo)
+			hasGit := false
+			for _, e := range entries {
+				if e.Name() == ".git" {
+					hasGit = true
+					break
+				}
+			}
 
-			var remoteURL string
-			remotes, rErr := repo.Remotes()
-			if rErr == nil {
-				for _, r := range remotes {
-					if r.Config().Name == "origin" {
-						urls := r.Config().URLs
-						if len(urls) > 0 {
-							remoteURL = urls[0]
+			if hasGit {
+				relPath, _ := filepath.Rel(absBase, dir)
+				if relPath == "" {
+					relPath = "."
+				}
+
+				repo, err := git.PlainOpen(dir)
+				if err != nil {
+					continue
+				}
+				wt, err := repo.Worktree()
+				if err != nil {
+					continue
+				}
+
+				branch, _, _, _ := resolveHead(repo)
+
+				var remoteURL string
+				remotes, rErr := repo.Remotes()
+				if rErr == nil {
+					for _, r := range remotes {
+						if r.Config().Name == "origin" {
+							urls := r.Config().URLs
+							if len(urls) > 0 {
+								remoteURL = urls[0]
+							}
+							break
 						}
-						break
 					}
 				}
-			}
 
-			hasChanges := false
-			st, sErr := wt.Status()
-			if sErr == nil && len(st) > 0 {
-				hasChanges = true
-			}
-
-			a, b := countAheadBehind(repo)
-			hasUpstream := false
-			cfg, _ := repo.Config()
-			if cfg != nil {
-				if bc, ok := cfg.Branches[branch]; ok && bc.Remote != "" {
-					hasUpstream = true
+				hasChanges := false
+				st, sErr := wt.Status()
+				if sErr == nil && len(st) > 0 {
+					hasChanges = true
 				}
+
+				a, b := countAheadBehind(repo)
+				hasUpstream := false
+				cfg, _ := repo.Config()
+				if cfg != nil {
+					if bc, ok := cfg.Branches[branch]; ok && bc.Remote != "" {
+						hasUpstream = true
+					}
+				}
+
+				repos = append(repos, GitRepo{
+					Path:        relPath,
+					Branch:      branch,
+					RemoteURL:   remoteURL,
+					HasChanges:  hasChanges,
+					Ahead:       a,
+					Behind:      b,
+					HasUpstream: hasUpstream,
+				})
+				continue
 			}
 
-			repos = append(repos, GitRepo{
-				Path:        relPath,
-				Branch:      branch,
-				RemoteURL:   remoteURL,
-				HasChanges:  hasChanges,
-				Ahead:       a,
-				Behind:      b,
-				HasUpstream: hasUpstream,
-			})
-
-			if d.IsDir() {
-				return filepath.SkipDir
+			for _, e := range entries {
+				if !e.IsDir() {
+					continue
+				}
+				switch e.Name() {
+				case "node_modules", "vendor", ".cache", "__pycache__", ".venv":
+					continue
+				}
+				next = append(next, filepath.Join(dir, e.Name()))
 			}
-			return nil
 		}
-
-		if d.IsDir() {
-			switch name {
-			case "node_modules", "vendor", ".cache", "__pycache__", ".venv":
-				return filepath.SkipDir
-			}
-			rel, _ := filepath.Rel(absBase, path)
-			if rel != "." && strings.Count(rel, string(filepath.Separator)) >= gitMaxScanDepth {
-				return filepath.SkipDir
-			}
-		}
-
-		return nil
-	})
+		queue = next
+	}
 
 	return repos, nil
 }

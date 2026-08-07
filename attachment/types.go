@@ -59,14 +59,17 @@ type FileManager interface {
 
 // File the file
 type File struct {
-	ID          string `json:"file_id"`
-	UserPath    string `json:"user_path"` // User-specified complete file path
-	Path        string `json:"path"`      // Actual storage path
-	Bytes       int    `json:"bytes"`
-	CreatedAt   int    `json:"created_at"`
-	Filename    string `json:"filename"`
-	ContentType string `json:"content_type"`
-	Status      string `json:"status"` // uploading, uploaded, indexing, indexed, upload_failed, index_failed
+	ID          string   `json:"file_id"`
+	UserPath    string   `json:"user_path"` // User-specified complete file path
+	Path        string   `json:"path"`      // Actual storage path
+	Bytes       int      `json:"bytes"`
+	CreatedAt   int      `json:"created_at"`
+	Filename    string   `json:"filename"`
+	ContentType string   `json:"content_type"`
+	Status      string   `json:"status"` // uploading, uploaded, indexing, indexed, upload_failed, index_failed
+	Duration    *float64 `json:"duration,omitempty"`
+	Width       *int     `json:"width,omitempty"`
+	Height      *int     `json:"height,omitempty"`
 
 	// Permission fields
 	Public       bool   `json:"public,omitempty"` // Whether this attachment is shared across all teams

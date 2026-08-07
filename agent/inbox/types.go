@@ -51,6 +51,7 @@ type AgentMail struct {
 	InboxPinned bool       `json:"inbox_pinned"`
 	HasUnread   bool       `json:"has_unread"`
 	InboxReadAt *time.Time `json:"inbox_read_at,omitempty"`
+	RunStatus   string     `json:"run_status,omitempty"`
 }
 
 // AgentTask minimal task info needed by trigger
