@@ -39,7 +39,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	// Step 1b: Fetch task rows
 	taskQB := capsule.Global.Query()
 	taskQB.Table(tableTask()+" as t").
-		Select("t.chat_id", "t.bookmarked", "t.inbox_pinned", "t.has_unread", "t.inbox_read_at", "t.last_mail_type", "t.updated_at").
+		Select("t.chat_id", "t.bookmarked", "t.inbox_pinned", "t.has_unread", "t.inbox_read_at", "t.last_mail_type", "t.updated_at", "t.run_status").
 		Where("t.__yao_created_by", "=", auth.UserID).
 		Where("t.__yao_team_id", "=", auth.TeamID).
 		WhereNull("t.deleted_at")
@@ -98,6 +98,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		m.InboxPinned = getBool(t, "inbox_pinned")
 		m.HasUnread = getBool(t, "has_unread")
 		m.InboxReadAt = getTime(t, "inbox_read_at")
+		m.RunStatus = getString(t, "run_status")
 		mails = append(mails, m)
 	}
 
