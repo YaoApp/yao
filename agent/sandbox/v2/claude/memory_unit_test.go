@@ -11,7 +11,7 @@ import (
 )
 
 func TestBuildEnvironmentContextMD_ContainsWorkspaceID(t *testing.T) {
-	md := claude.ExportBuildEnvironmentContextMD("ws-abc-123", "/workspace")
+	md := claude.ExportBuildEnvironmentContextMD("ws-abc-123", "/workspace", false)
 
 	if !strings.Contains(md, "ws-abc-123") {
 		t.Fatal("workspace ID not found in output")
@@ -25,7 +25,7 @@ func TestBuildEnvironmentContextMD_ContainsWorkspaceID(t *testing.T) {
 }
 
 func TestBuildEnvironmentContextMD_HasValidFrontmatter(t *testing.T) {
-	md := claude.ExportBuildEnvironmentContextMD("test-id", "/work")
+	md := claude.ExportBuildEnvironmentContextMD("test-id", "/work", false)
 
 	if !strings.HasPrefix(md, "---\n") {
 		t.Fatal("missing opening frontmatter delimiter")
@@ -42,12 +42,24 @@ func TestBuildEnvironmentContextMD_HasValidFrontmatter(t *testing.T) {
 }
 
 func TestBuildEnvironmentContextMD_ContainsToolTable(t *testing.T) {
-	md := claude.ExportBuildEnvironmentContextMD("id", "/w")
+	md := claude.ExportBuildEnvironmentContextMD("id", "/w", false)
 
 	for _, tool := range []string{"web_search", "skill_list", "board_list", "agent_call"} {
 		if !strings.Contains(md, tool) {
 			t.Errorf("tool %q not found in memory content", tool)
 		}
+	}
+}
+
+func TestBuildEnvironmentContextMD_VisionHint(t *testing.T) {
+	withVision := claude.ExportBuildEnvironmentContextMD("id", "/w", true)
+	if !strings.Contains(withVision, "native vision") {
+		t.Error("hasVision=true: should mention native vision")
+	}
+
+	noVision := claude.ExportBuildEnvironmentContextMD("id", "/w", false)
+	if !strings.Contains(noVision, "image_read") {
+		t.Error("hasVision=false: should mention image_read")
 	}
 }
 

@@ -78,6 +78,8 @@ func EditHandler(proc *process.Process) interface{} {
 		return map[string]interface{}{"error": fmt.Sprintf("image editing failed: %v", err)}
 	}
 
+	usedModel := resolveModelName(conn, model)
+
 	if strings.HasPrefix(output, "workspace://") {
 		imgBytes, err := base64.StdEncoding.DecodeString(resp.Image)
 		if err != nil {
@@ -96,16 +98,20 @@ func EditHandler(proc *process.Process) interface{} {
 			return map[string]interface{}{"error": fmt.Sprintf("write to workspace: %v", err)}
 		}
 		return map[string]interface{}{
-			"path":   "workspace://" + wsID + "/" + relPath,
-			"format": resp.Format,
-			"size":   len(imgBytes),
+			"path":       "workspace://" + wsID + "/" + relPath,
+			"format":     resp.Format,
+			"dimensions": size,
+			"model":      usedModel,
+			"provider":   connectorID,
 		}
 	}
 
 	return map[string]interface{}{
-		"image":  resp.Image,
-		"format": resp.Format,
-		"size":   size,
+		"image":      resp.Image,
+		"format":     resp.Format,
+		"dimensions": size,
+		"model":      usedModel,
+		"provider":   connectorID,
 	}
 }
 

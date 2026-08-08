@@ -3,6 +3,7 @@ package image
 import (
 	_ "embed"
 
+	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
@@ -139,4 +140,18 @@ func modelHasCapability(caps []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// resolveModelName returns the user-specified model override if non-empty,
+// otherwise falls back to the model configured in the connector settings.
+func resolveModelName(conn connector.Connector, override string) string {
+	if override != "" {
+		return override
+	}
+	if s := conn.Setting(); s != nil {
+		if m, ok := s["model"].(string); ok && m != "" {
+			return m
+		}
+	}
+	return ""
 }

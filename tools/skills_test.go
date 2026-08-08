@@ -90,3 +90,53 @@ func TestSystemPrompt_NonEmpty(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderSystemPrompt_WithVision(t *testing.T) {
+	result, err := RenderSystemPrompt(true)
+	if err != nil {
+		t.Fatalf("RenderSystemPrompt(true) error: %v", err)
+	}
+	content := string(result)
+	if !strings.Contains(content, "### Image Files") {
+		t.Error("with vision: should contain '### Image Files' section")
+	}
+	if !strings.Contains(content, "native vision") {
+		t.Error("with vision: should mention native vision capability")
+	}
+	if strings.Contains(content, "always use `image_read`") {
+		t.Error("with vision: should NOT contain image_read directive")
+	}
+	if !strings.Contains(content, "### Audio Files") {
+		t.Error("with vision: should still contain '### Audio Files' section")
+	}
+}
+
+func TestRenderSystemPrompt_WithoutVision(t *testing.T) {
+	result, err := RenderSystemPrompt(false)
+	if err != nil {
+		t.Fatalf("RenderSystemPrompt(false) error: %v", err)
+	}
+	content := string(result)
+	if !strings.Contains(content, "### Image Files") {
+		t.Error("without vision: should contain '### Image Files' section")
+	}
+	if !strings.Contains(content, "always use `image_read`") {
+		t.Error("without vision: should contain 'always use image_read' directive")
+	}
+}
+
+func TestRenderSystemPrompt_DefaultFallback(t *testing.T) {
+	result, err := RenderSystemPrompt(false)
+	if err != nil {
+		t.Fatalf("RenderSystemPrompt(false) error: %v", err)
+	}
+	content := string(result)
+	if !strings.Contains(content, "### Image Files") {
+		t.Error("default (false): should include Image Files section as conservative fallback")
+	}
+
+	// SystemPrompt global var uses false → should also contain the section
+	if !strings.Contains(string(SystemPrompt), "### Image Files") {
+		t.Error("SystemPrompt global: should include Image Files section (fallback)")
+	}
+}

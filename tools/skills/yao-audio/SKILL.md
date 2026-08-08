@@ -11,30 +11,19 @@ Use these tools to transcribe audio files to text using speech-to-text models.
 
 Transcribe an audio file to text.
 
-### Local file:
 ```bash
-tai tool audio_transcribe '{"audio_path": "/workspace/meeting.m4a"}'
+tai tool audio_transcribe --audio_path /path/to/meeting.m4a
 ```
 
-### URL:
 ```bash
-tai tool audio_transcribe '{"audio_path": "https://example.com/podcast.mp3", "language": "en"}'
-```
-
-### With a specific STT provider:
-```bash
-tai tool audio_transcribe '{"audio_path": "/path/to/recording.wav", "provider": "llm.my-openai:whisper-1"}'
+tai tool audio_transcribe --audio_path /path/to/recording.wav --language en --provider llm.my-openai:whisper-1
 ```
 
 | Parameter  | Type   | Required | Description                                                       |
 | ---------- | ------ | -------- | ----------------------------------------------------------------- |
-| audio_path | string | yes      | File path or URL to the audio file                                |
+| audio_path | string | yes      | Audio file path. Supported: mp3, m4a, wav, webm, mp4, mpeg, mpga  |
 | language   | string | no       | ISO 639-1 language code (e.g. `en`, `zh`, `ja`). Auto-detected if omitted |
 | provider   | string | no       | STT provider connector ID. If omitted, uses the default STT provider |
-
-Supported formats: mp3, mp4, mpeg, mpga, m4a, wav, webm (Whisper-compatible formats).
-
-Files larger than 25MB are automatically split into chunks and transcribed sequentially. The user does not need to handle splitting manually.
 
 ## audio_providers
 
@@ -42,7 +31,7 @@ List available speech-to-text providers and models.
 
 ### List STT providers (default):
 ```bash
-tai tool audio_providers '{}'
+tai tool audio_providers
 ```
 
 | Parameter  | Type   | Required | Description                          |

@@ -10,12 +10,12 @@ import (
 
 // injectAutoMemory writes environment-context.md and extension-skills.md into
 // the CC auto-memory directory. Best-effort: all errors are silently ignored.
-func injectAutoMemory(ws workspace.FS, assistantID, workDir string) {
+func injectAutoMemory(ws workspace.FS, assistantID, workDir string, hasVision bool) {
 	memDir := ".yao/assistants/" + assistantID + "/memory"
 	_ = ws.MkdirAll(memDir, 0755)
 
 	wsID, _ := ws.GetID()
-	envContent := buildEnvironmentContextMD(wsID, workDir)
+	envContent := buildEnvironmentContextMD(wsID, workDir, hasVision)
 	_ = ws.WriteFile(memDir+"/environment-context.md", []byte(envContent), 0644)
 
 	skills, _ := ws.ListSkills(".yao/skills")
@@ -34,7 +34,7 @@ func injectAutoMemory(ws workspace.FS, assistantID, workDir string) {
 	}
 }
 
-func buildEnvironmentContextMD(workspaceID, workDir string) string {
+func buildEnvironmentContextMD(workspaceID, workDir string, hasVision bool) string {
 	var b strings.Builder
 	b.WriteString(`---
 name: environment-context
@@ -53,14 +53,14 @@ The client renders these as clickable links opening the file in the editor.
 
 ## Accessing Other Workspaces
 
-Use ` + "`tai tool workspace_list '{}'`" + ` to discover available workspaces, then:
-- ` + "`tai tool workspace_file_list '{\"workspace_id\":\"<id>\",\"path\":\"/\"}'`" + `
-- ` + "`tai tool workspace_file_read '{\"workspace_id\":\"<id>\",\"path\":\"/file.txt\"}'`" + `
-- ` + "`tai tool workspace_file_write '{\"workspace_id\":\"<id>\",\"path\":\"/file.txt\",\"content\":\"...\"}'`" + `
+Use ` + "`tai tool workspace_list`" + ` to discover available workspaces, then:
+- ` + "`tai tool workspace_file_list --workspace_id <id> --path /`" + `
+- ` + "`tai tool workspace_file_read --workspace_id <id> --path /file.txt`" + `
+- ` + "`tai tool workspace_file_write --workspace_id <id> --path /file.txt --content \"...\"`" + `
 
 ## tai tool Summary
 
-Calling convention: ` + "`tai tool <name> '<json_args>'`" + `
+Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" + `
 
 | Tool | Description |
 |------|-------------|
@@ -92,6 +92,11 @@ Calling convention: ` + "`tai tool <name> '<json_args>'`" + `
 
 Skills in ` + "`$HOME/.claude/skills/`" + ` are auto-loaded with full parameter docs.
 `)
+	if hasVision {
+		b.WriteString("\n**Image files**: You have native vision. Use the `Read` tool to view images directly.\n")
+	} else {
+		b.WriteString("\n**Image files**: Your model does NOT have vision. Use `tai tool image_read --image_path <path>` to analyze images.\n")
+	}
 	return b.String()
 }
 
