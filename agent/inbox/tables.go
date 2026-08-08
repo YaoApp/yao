@@ -39,3 +39,10 @@ func tableTask() string {
 	}
 	return share.App.Prefix + "agent_task"
 }
+
+func tableAssistant() string {
+	if m, err := model.Get("__yao.agent.assistant"); err == nil && m.MetaData.Table.Name != "" {
+		return m.MetaData.Table.Name
+	}
+	return share.App.Prefix + "agent_assistant"
+}

@@ -8,7 +8,8 @@ type ListQuery struct {
 	Keyword string `json:"keyword,omitempty"` // search title/body
 	ChatID  string `json:"chat_id,omitempty"` // filter by task chat_id
 	Page    int    `json:"page,omitempty"`
-	Size    int    `json:"size,omitempty"` // default 20
+	Size    int    `json:"size,omitempty"`   // default 20
+	Locale  string `json:"locale,omitempty"` // e.g. "zh-cn" for i18n assistant name
 }
 
 // ListResult paginated inbox list response
@@ -47,11 +48,14 @@ type AgentMail struct {
 	CreatedAt   *time.Time `json:"created_at,omitempty"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 	// Task-level fields (merged from task table)
-	Bookmarked  bool       `json:"bookmarked"`
-	InboxPinned bool       `json:"inbox_pinned"`
-	HasUnread   bool       `json:"has_unread"`
-	InboxReadAt *time.Time `json:"inbox_read_at,omitempty"`
-	RunStatus   string     `json:"run_status,omitempty"`
+	Bookmarked    bool       `json:"bookmarked"`
+	InboxPinned   bool       `json:"inbox_pinned"`
+	HasUnread     bool       `json:"has_unread"`
+	InboxReadAt   *time.Time `json:"inbox_read_at,omitempty"`
+	RunStatus     string     `json:"run_status,omitempty"`
+	AssistantName string     `json:"assistant_name,omitempty"`
+	WorkspaceID   string     `json:"workspace_id,omitempty"`
+	WorkspaceName string     `json:"workspace_name,omitempty"`
 }
 
 // AgentTask minimal task info needed by trigger

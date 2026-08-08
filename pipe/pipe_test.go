@@ -15,6 +15,7 @@ import (
 )
 
 func TestRunCli(t *testing.T) {
+	t.Skip("Skip: depends on live LLM API which is unreliable in CI")
 	prepare(t)
 	defer test.Clean()
 	translator, err := Get("cli.translator")
@@ -49,6 +50,7 @@ func TestRunCli(t *testing.T) {
 }
 
 func TestRunWeb(t *testing.T) {
+	t.Skip("Skip: depends on live LLM API which is unreliable in CI")
 	prepare(t)
 	defer test.Clean()
 	translator, err := Get("web.translator")
