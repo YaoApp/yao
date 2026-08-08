@@ -93,7 +93,15 @@ func (e *Executor) RunDelivery(ctx *robottypes.Context, exec *robottypes.Executi
 
 	content := parseDeliveryContent(data)
 	if content == nil {
-		return fmt.Errorf("delivery agent (%s) returned invalid content", agentID)
+		// JSON parsed but summary/body empty — fall back to raw text
+		text := result.GetText()
+		if text == "" {
+			return fmt.Errorf("delivery agent (%s) returned invalid content", agentID)
+		}
+		content = &robottypes.DeliveryContent{
+			Summary: truncateSummary(text, 200),
+			Body:    text,
+		}
 	}
 
 	exec.Delivery = &robottypes.DeliveryResult{

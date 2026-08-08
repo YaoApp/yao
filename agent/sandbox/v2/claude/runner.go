@@ -57,6 +57,13 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 
 	steps := append([]types.PrepareStep{}, req.Config.Prepare...)
 
+	var hasVision bool
+	if lc, ok := req.Connector.(goullm.LLMConnector); ok {
+		if caps := lc.GetCapabilities(); caps != nil {
+			hasVision = caps.HasVision()
+		}
+	}
+
 	if ws := req.Computer.Workplace(); ws != nil {
 		if err := shared.InjectSystemSkills(ws, tools.SkillsFS, ".claude/skills"); err != nil {
 			r.logger.Warn("inject system skills: %v", err)
@@ -64,10 +71,13 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 		if err := shared.InjectAgentDefinitions(ws, tools.AgentsFS, prefix+"/agents"); err != nil {
 			r.logger.Warn("inject agent definitions: %v", err)
 		}
-		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", tools.SystemPrompt); err != nil {
+
+		prompt, _ := tools.RenderSystemPrompt(hasVision)
+
+		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", prompt); err != nil {
 			r.logger.Warn("append CLAUDE.md: %v", err)
 		}
-		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", tools.SystemPrompt); err != nil {
+		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", prompt); err != nil {
 			r.logger.Warn("append AGENTS.md: %v", err)
 		}
 	}
@@ -124,7 +134,13 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 
 	// Inject auto-memory context files (best-effort, errors ignored).
 	if ws := computer.Workplace(); ws != nil && req.AssistantID != "" {
-		injectAutoMemory(ws, req.AssistantID, computer.GetWorkDir())
+		var vision bool
+		if lc, ok := req.Connector.(goullm.LLMConnector); ok {
+			if caps := lc.GetCapabilities(); caps != nil {
+				vision = caps.HasVision()
+			}
+		}
+		injectAutoMemory(ws, req.AssistantID, computer.GetWorkDir(), vision)
 	}
 
 	if req.ChatID != "" {

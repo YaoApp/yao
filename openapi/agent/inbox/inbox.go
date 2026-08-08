@@ -36,6 +36,7 @@ func handleList(c *gin.Context) {
 		Filter:  c.Query("filter"),
 		Keyword: c.Query("keyword"),
 		ChatID:  c.Query("chat_id"),
+		Locale:  c.Query("locale"),
 	}
 	if p, err := strconv.Atoi(c.Query("page")); err == nil && p > 0 {
 		q.Page = p

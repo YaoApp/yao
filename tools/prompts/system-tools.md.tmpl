@@ -60,22 +60,29 @@ Always include `controls` on `<video>` and `<audio>`. Do not put media URLs insi
 
 User-uploaded files are placed in `$WORKDIR/.attachments/{chatID}/`.
 When the user references an attached file, read it from this directory.
+{{if .HasVision}}
 
 ### Image Files
 
-When you need to read, analyze, or describe an image (screenshot, photo, chart, diagram, etc.), **always use `image_read`** instead of trying to read binary files directly. The tool sends the image to a vision model and returns a text description.
+To view an image file on disk, use the `Read` tool with the file path. You have native vision — read the image directly and analyze it yourself.
+{{else}}
+
+### Image Files
+
+Your model does **NOT** have vision capability. When you need to read, analyze, or describe an image file on disk (screenshot, photo, chart, diagram, etc.), **always use `image_read`**. The tool sends the image to a vision model and returns a text description.
 
 ```bash
-tai tool image_read '{"image_path": "<file_path_or_url>", "prompt": "describe this image"}'
+tai tool image_read --image_path /path/to/image.png --prompt "describe this image"
 ```
+{{end}}
 
 ### Audio Files
 
 When you need to transcribe or recognize speech from audio files, use `audio_transcribe`. Supported formats: mp3, mp4, m4a, wav, webm, mpeg, mpga. Files over 25MB or 10 minutes are automatically split and merged.
 
 ```bash
-tai tool audio_transcribe '{"audio_path": "<file_path_or_url>"}'
-tai tool audio_transcribe '{"audio_path": "<file_path_or_url>", "language": "en"}'
+tai tool audio_transcribe --audio_path /path/to/audio.m4a
+tai tool audio_transcribe --audio_path /path/to/audio.m4a --language en
 ```
 
 ## Skills Directories
@@ -113,7 +120,7 @@ Rules:
 
 You have access to Yao system tools via the `tai` command in bash.
 
-**Calling convention**: `tai tool <name> '<json_args>'`
+**Calling convention**: `tai tool <name> --param value [--param2 value2 ...]`
 
 | Tool              | Skill (auto-loaded) | Description                                         |
 | ----------------- | ------------------- | --------------------------------------------------- |

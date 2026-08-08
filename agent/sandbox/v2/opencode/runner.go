@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -53,10 +54,19 @@ func (r *Runner) Prepare(ctx context.Context, req *types.PrepareRequest) error {
 		if err := shared.InjectSystemSkills(ws, tools.SkillsFS, ".claude/skills"); err != nil {
 			log.Warn("[opencode-runner] inject system skills: %v", err)
 		}
-		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", tools.SystemPrompt); err != nil {
+
+		var hasVision bool
+		if lc, ok := req.Connector.(goullm.LLMConnector); ok {
+			if caps := lc.GetCapabilities(); caps != nil {
+				hasVision = caps.HasVision()
+			}
+		}
+		prompt, _ := tools.RenderSystemPrompt(hasVision)
+
+		if err := shared.AppendSystemPrompt(ws, "CLAUDE.md", prompt); err != nil {
 			log.Warn("[opencode-runner] append CLAUDE.md: %v", err)
 		}
-		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", tools.SystemPrompt); err != nil {
+		if err := shared.AppendSystemPrompt(ws, "AGENTS.md", prompt); err != nil {
 			log.Warn("[opencode-runner] append AGENTS.md: %v", err)
 		}
 	}

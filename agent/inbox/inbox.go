@@ -9,6 +9,8 @@ import (
 	"github.com/yaoapp/xun"
 	"github.com/yaoapp/xun/capsule"
 	"github.com/yaoapp/xun/dbal/query"
+	"github.com/yaoapp/yao/agent/i18n"
+	"github.com/yaoapp/yao/workspace"
 )
 
 // List returns a paginated list of inbox items (task-based with latest mail)
@@ -26,6 +28,7 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	// Step 1: Count tasks
 	countQB := capsule.Global.Query()
 	countQB.Table(tableTask()+" as t").
+		LeftJoin(tableChat()+" as c", "t.chat_id", "=", "c.chat_id").
 		Where("t.__yao_created_by", "=", auth.UserID).
 		Where("t.__yao_team_id", "=", auth.TeamID).
 		WhereNull("t.deleted_at")
@@ -39,7 +42,14 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	// Step 1b: Fetch task rows
 	taskQB := capsule.Global.Query()
 	taskQB.Table(tableTask()+" as t").
-		Select("t.chat_id", "t.bookmarked", "t.inbox_pinned", "t.has_unread", "t.inbox_read_at", "t.last_mail_type", "t.updated_at", "t.run_status").
+		Select(
+			"t.chat_id", "t.bookmarked", "t.inbox_pinned", "t.has_unread",
+			"t.inbox_read_at", "t.last_mail_type", "t.updated_at", "t.run_status",
+			"c.assistant_id", "c.last_workspace",
+			"a.name as assistant_name",
+		).
+		LeftJoin(tableChat()+" as c", "t.chat_id", "=", "c.chat_id").
+		LeftJoin(tableAssistant()+" as a", "c.assistant_id", "=", "a.assistant_id").
 		Where("t.__yao_created_by", "=", auth.UserID).
 		Where("t.__yao_team_id", "=", auth.TeamID).
 		WhereNull("t.deleted_at")
@@ -99,10 +109,19 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 		m.HasUnread = getBool(t, "has_unread")
 		m.InboxReadAt = getTime(t, "inbox_read_at")
 		m.RunStatus = getString(t, "run_status")
+		m.AssistantName = getString(t, "assistant_name")
+		if aid := getString(t, "assistant_id"); aid != "" {
+			m.AssistantID = aid
+		}
+		if wsID := getString(t, "last_workspace"); wsID != "" {
+			m.WorkspaceID = wsID
+		}
 		mails = append(mails, m)
 	}
 
 	enrichChatTitles(mails)
+	enrichWorkspaceNames(ctx, mails)
+	translateAssistantNames(mails, q.Locale)
 
 	return &ListResult{
 		Mails: mails,
@@ -328,7 +347,6 @@ func applyTaskFilters(qb query.Query, q *ListQuery) {
 	}
 	if q.Keyword != "" {
 		like := "%" + q.Keyword + "%"
-		qb.LeftJoin(tableChat()+" as c", "c.chat_id", "=", "t.chat_id")
 		qb.Where(func(sub query.Query) {
 			sub.Where("c.title", "like", like).
 				OrWhere("t.summary", "like", like)
@@ -470,4 +488,40 @@ func getTime(row xun.R, key string) *time.Time {
 		}
 	}
 	return nil
+}
+
+func enrichWorkspaceNames(ctx context.Context, mails []*AgentMail) {
+	seen := make(map[string]string)
+	for _, m := range mails {
+		if m.WorkspaceID == "" {
+			continue
+		}
+		if name, ok := seen[m.WorkspaceID]; ok {
+			m.WorkspaceName = name
+			continue
+		}
+		ws, err := workspace.M().Get(ctx, m.WorkspaceID)
+		if err == nil && ws != nil {
+			seen[m.WorkspaceID] = ws.Name
+			m.WorkspaceName = ws.Name
+		} else {
+			seen[m.WorkspaceID] = ""
+		}
+	}
+}
+
+func translateAssistantNames(mails []*AgentMail, locale string) {
+	if locale == "" {
+		return
+	}
+	for _, m := range mails {
+		if m.AssistantName == "" || m.AssistantID == "" {
+			continue
+		}
+		if translated := i18n.Translate(m.AssistantID, locale, m.AssistantName); translated != nil {
+			if s, ok := translated.(string); ok {
+				m.AssistantName = s
+			}
+		}
+	}
 }
