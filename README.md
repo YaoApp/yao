@@ -1,5 +1,7 @@
 # Yao — App Runtime for the AI Era
 
+[![Listed on TakoAPI](https://img.shields.io/badge/Listed%20on-TakoAPI-7c3aed)](https://takoapi.com/agents/yaoapp-yao)
+
 Yao is an open-source runtime for building AI agents and web applications — shipped as a single binary.
 
 ![Mission Control](docs/mission-control.png)
