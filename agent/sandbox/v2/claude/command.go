@@ -276,7 +276,8 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		env["ANTHROPIC_CUSTOM_MODEL_OPTION_SUPPORTED_CAPABILITIES"])
 	logger.Debug("claude-env: MAX_THINKING_TOKENS=%s", env["MAX_THINKING_TOKENS"])
 
-	// Override metadata.user_id with a sanitized value.
+	// Override metadata.user_id with a sanitized value and inject __tai_*
+	// internal metadata for the a2o reasoning store.
 	// Claude CLI sets metadata.user_id to a JSON object that third-party
 	// Anthropic-compatible APIs (e.g. DeepSeek) reject because the value
 	// doesn't match ^[a-zA-Z0-9_-]+$.
@@ -287,7 +288,16 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 		} else if assistantID != "" {
 			uid = hashUserID(assistantID)
 		}
-		env["CLAUDE_CODE_EXTRA_BODY"] = fmt.Sprintf(`{"metadata":{"user_id":"%s"}}`, uid)
+
+		metadata := map[string]string{"user_id": uid}
+		chatID := req.ChatID
+		if chatID != "" && assistantID != "" {
+			metadata["__tai_session_id"] = chatIDToSessionUUID(assistantID, chatID)
+		}
+		metadata["__tai_workspace_home"] = workDir
+
+		metaJSON, _ := json.Marshal(map[string]interface{}{"metadata": metadata})
+		env["CLAUDE_CODE_EXTRA_BODY"] = string(metaJSON)
 	}
 	logger.Debug("claude-env: EXTRA_BODY=%s", env["CLAUDE_CODE_EXTRA_BODY"])
 

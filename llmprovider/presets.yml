@@ -24,10 +24,30 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: kimi-k3
-      name: Kimi K3
+      name: Kimi K3 Max
       max_input_tokens: 1048576
       max_output_tokens: 131072
-      capabilities: [vision, tool_calls, streaming, json]
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "max"
+      enabled: false
+    - id: kimi-k3-high
+      name: Kimi K3 High
+      model: kimi-k3
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "high"
+      enabled: false
+    - id: kimi-k3-low
+      name: Kimi K3 Low
+      model: kimi-k3
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "low"
       enabled: false
     - id: kimi-k2.7-code
       name: Kimi K2.7 Code
@@ -40,19 +60,104 @@
       max_input_tokens: 262142
       max_output_tokens: 262142
       capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: kimi-k2.6-thinking
+      name: Kimi K2.6 Thinking
+      model: kimi-k2.6
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
       enabled: false
     - id: deepseek-v4-pro
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: deepseek-v4-pro-thinking
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: false
+    - id: deepseek-v4-pro-thinking-max
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-pro-thinking-low
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-flash
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
       enabled: true
+    - id: deepseek-v4-flash-thinking
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: deepseek-v4-flash-thinking-max
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-thinking-low
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
     - id: mimo-v2.5
       name: MiMo V2.5
       max_input_tokens: 1048576
@@ -639,15 +744,37 @@
       enabled: false
     - id: deepseek-v4-pro-thinking
       model: deepseek-v4-pro
-      name: DeepSeek V4 Pro Thinking
+      name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         thinking:
           type: enabled
-          budget_tokens: 32000
+        reasoning_effort: "high"
       enabled: true
+    - id: deepseek-v4-pro-thinking-max
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-pro-thinking-low
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
     - id: deepseek-v4-flash
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
@@ -659,14 +786,36 @@
       enabled: true
     - id: deepseek-v4-flash-thinking
       model: deepseek-v4-flash
-      name: DeepSeek V4 Flash Thinking
+      name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         thinking:
           type: enabled
-          budget_tokens: 32000
+        reasoning_effort: "high"
+      enabled: false
+    - id: deepseek-v4-flash-thinking-max
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-thinking-low
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
       enabled: false
 
 # ─── DeepSeek (OpenAI) ──────────────────────────────────
@@ -687,14 +836,37 @@
       enabled: false
     - id: deepseek-v4-pro-thinking
       model: deepseek-v4-pro
-      name: DeepSeek V4 Pro Thinking
+      name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         thinking:
           type: enabled
+        reasoning_effort: "high"
       enabled: true
+    - id: deepseek-v4-pro-thinking-max
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-pro-thinking-low
+      model: deepseek-v4-pro
+      name: DeepSeek V4 Pro Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
     - id: deepseek-v4-flash
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
@@ -706,13 +878,36 @@
       enabled: true
     - id: deepseek-v4-flash-thinking
       model: deepseek-v4-flash
-      name: DeepSeek V4 Flash Thinking
+      name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         thinking:
           type: enabled
+        reasoning_effort: "high"
+      enabled: false
+    - id: deepseek-v4-flash-thinking-max
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-thinking-low
+      model: deepseek-v4-flash
+      name: DeepSeek V4 Flash Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
       enabled: false
 
 # ─── Kimi / Moonshot (International) ────────────────────
