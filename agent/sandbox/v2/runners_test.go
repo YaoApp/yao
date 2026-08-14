@@ -28,6 +28,13 @@ func TestCanonicalRunner(t *testing.T) {
 		{"opencode/cli", "opencode"},
 		{"tai", "tai"},
 		{"TAI", "tai"},
+		{"dsh", "dsh"},
+		{"DSH", "dsh"},
+		{"deepseek", "dsh"},
+		{"DeepSeek", "dsh"},
+		{"dsh/cli", "dsh"},
+		{"pi", "pi"},
+		{"PI", "pi"},
 		{"unknown", "unknown"},
 		{"custom/sub", "custom"},
 	}
@@ -73,10 +80,10 @@ func TestInferRunners_Docker_NoImage(t *testing.T) {
 		Capabilities: taitypes.Capabilities{Docker: true},
 	}
 	runners := sandboxv2.InferRunners(node, "")
-	if len(runners) != 3 {
-		t.Fatalf("docker no image: got %v, want 3 runners", runners)
+	if len(runners) != 5 {
+		t.Fatalf("docker no image: got %v, want 5 runners", runners)
 	}
-	expected := map[string]bool{"tai": true, "claude": true, "opencode": true}
+	expected := map[string]bool{"tai": true, "claude": true, "opencode": true, "dsh": true, "pi": true}
 	for _, r := range runners {
 		if !expected[r] {
 			t.Errorf("unexpected runner %q", r)
@@ -115,10 +122,10 @@ func TestInferRunners_K8s(t *testing.T) {
 		Capabilities: taitypes.Capabilities{K8s: true},
 	}
 	runners := sandboxv2.InferRunners(node, "")
-	if len(runners) != 3 {
-		t.Errorf("k8s: expected 3 runners, got %v", runners)
+	if len(runners) != 5 {
+		t.Errorf("k8s: expected 5 runners, got %v", runners)
 	}
-	for _, expected := range []string{"tai", "claude", "opencode"} {
+	for _, expected := range []string{"tai", "claude", "opencode", "dsh", "pi"} {
 		found := false
 		for _, r := range runners {
 			if r == expected {

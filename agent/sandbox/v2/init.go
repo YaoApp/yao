@@ -2,6 +2,7 @@ package sandboxv2
 
 import (
 	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
+	"github.com/yaoapp/yao/agent/sandbox/v2/dsh"
 	"github.com/yaoapp/yao/agent/sandbox/v2/opencode"
 	tairunner "github.com/yaoapp/yao/agent/sandbox/v2/tai"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
@@ -15,4 +16,6 @@ func init() {
 	Register("opencode/cli", func() types.Runner { return opencode.New() })
 	Register("yaocode", func() types.Runner { return yaocode.New() })
 	Register("tai", func() types.Runner { return tairunner.New() })
+	Register("dsh", func() types.Runner { return dsh.New() })
+	Register("deepseek", func() types.Runner { return dsh.New() })
 }

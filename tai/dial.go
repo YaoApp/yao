@@ -83,7 +83,7 @@ func DialTunnel(taiID string, reg *registry.Registry, opts ...DialOption) (*Conn
 // explicitly configured, so that detected runners can actually execute.
 func defaultHostExecCommands() []string {
 	cmds := []string{"bash", "sh"}
-	for _, name := range []string{"claude", "opencode", "tai"} {
+	for _, name := range []string{"claude", "opencode", "tai", "dsh", "pi"} {
 		if share.Tools != nil && share.Tools.Runners != nil {
 			if info := share.Tools.Runners[name]; info != nil && info.Available {
 				cmds = append(cmds, name)

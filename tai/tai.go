@@ -169,7 +169,7 @@ func localRunners(hasDocker, hasHostExec bool, detected map[string]bool) []strin
 		return nil
 	}
 	runners := []string{"yaocode"}
-	for _, name := range []string{"claude", "opencode", "tai"} {
+	for _, name := range []string{"claude", "opencode", "tai", "dsh", "pi"} {
 		if hasDocker || detected[name] {
 			runners = append(runners, name)
 		}

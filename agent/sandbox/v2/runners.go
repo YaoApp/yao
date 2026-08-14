@@ -10,7 +10,7 @@ import (
 )
 
 // SupportedRunners lists all product-level runner names.
-var SupportedRunners = []string{"yaocode", "tai", "claude", "opencode"}
+var SupportedRunners = []string{"yaocode", "tai", "claude", "opencode", "dsh", "pi"}
 
 // GlobalRunnerFunc is set by agent.Load() to provide the global default runner
 // from agent.yml. This avoids an import cycle between agent and agent/sandbox/v2.
@@ -34,6 +34,10 @@ func canonicalRunner(name string) string {
 		return "opencode"
 	case "tai":
 		return "tai"
+	case "dsh", "deepseek":
+		return "dsh"
+	case "pi":
+		return "pi"
 	default:
 		return strings.ToLower(base)
 	}
@@ -126,12 +130,18 @@ func InferRunners(node taitypes.NodeMeta, image string) []string {
 			if strings.Contains(img, "opencode") {
 				runners = append(runners, "opencode")
 			}
+			if strings.Contains(img, "dsh") || strings.Contains(img, "deepseek") {
+				runners = append(runners, "dsh")
+			}
+			if strings.Contains(img, "pi") {
+				runners = append(runners, "pi")
+			}
 		} else {
 			// No image specified: Docker available means all box-mode runners can work
-			runners = append(runners, "claude", "opencode")
+			runners = append(runners, "claude", "opencode", "dsh", "pi")
 		}
 	} else if node.Capabilities.HostExec {
-		for _, name := range []string{"tai", "claude", "opencode"} {
+		for _, name := range []string{"tai", "claude", "opencode", "dsh", "pi"} {
 			if runnerDetected(name) {
 				runners = append(runners, name)
 			}

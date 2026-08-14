@@ -1,0 +1,7 @@
+{
+  "name": "DSH Oneshot CLI",
+  "description": "V2 sandbox: oneshot lifecycle + DSH (DeepSeek Harness) runner. Host or container.",
+  "connector": "deepseek.v4-flash-think",
+  "uses": { "search": "disabled" },
+  "tags": ["Test", "SandboxV2", "DSH"]
+}

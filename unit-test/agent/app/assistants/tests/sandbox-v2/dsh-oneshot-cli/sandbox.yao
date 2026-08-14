@@ -1,0 +1,15 @@
+{
+  "version": "2.0",
+  "computer": {
+    "mode": "host",
+    "work_dir": "/tmp/yao-dsh-test"
+  },
+  "runner": {
+    "name": "dsh",
+    "mode": "cli",
+    "options": {
+      "max_turns": 20
+    }
+  },
+  "lifecycle": "oneshot"
+}
