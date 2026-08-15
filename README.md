@@ -1,8 +1,8 @@
-# Yao — App Runtime for the AI Era
+# Yao Agents
 
-Yao is an open-source runtime for building AI agents and web applications — shipped as a single binary.
+✨ **All your agents and workspaces in one place, on every device you own. Track tasks on a board, accessible from desktop, mobile, browser, or API. Self-hosted.**
 
-![Mission Control](docs/mission-control.png)
+![How it works](docs/how-it-works.png)
 
 **🏠 Homepage:** [https://yaoagents.com](https://yaoagents.com)
 
@@ -10,62 +10,42 @@ Yao is an open-source runtime for building AI agents and web applications — sh
 
 **🖥️ Yao Desktop:** [https://yaoagents.com/download](https://yaoagents.com/download)
 
----
 
-## How It Works
+⚡⚡⚡ **DeepSeek Harness is now integrated — use it directly in the desktop app or browser, running across your devices.**
 
-Think of Yao Agent as a **cage, not an animal**. What you put inside determines the behavior; the cage keeps it controlled.
-
-Every request flows through the same pipeline:
-
-![Pipeline](docs/pipeline.png)
-
-`Create Hook` runs before the executor — inject context, enforce constraints, route requests.  
-`Next Hook` runs after — validate output, trigger downstream actions, drive multi-step loops.  
-**The AI does the heavy lifting. You define the boundaries.**
-
-### Three Modes
-
-| Mode | Executor | When to use |
-|------|----------|-------------|
-| **LLM** | OpenAI, Anthropic, etc. | Conversational assistants, Q&A, content generation |
-| **CLI Agent** | OpenCode, Claude Code, Codex in a container | Computer use, sandbox isolation, SKILL ecosystem |
-| **Pure Hook** | Your own TypeScript code | Deterministic logic, routing, menu flows — no AI needed |
-
-All three share the same Hook interface. You can mix them freely — route some requests through the LLM, handle others with pure code, all inside a single `Create Hook`.
+*This README was written with DeepSeek Harness in the Yao Agents Android app (beta) and published automatically.*
 
 ---
 
-## Features
+## How it works
 
-### Agent Framework
+Agents run on your own devices. Every machine you add is another place for them to work, all managed from one place.
 
-- **TypeScript Hooks** — `Create` and `Next` hooks intercept every request; built-in V8 engine
-- **Native MCP Support** — Connect tools via process, SSE, or STDIO transport
-- **Memory API** — Four scopes: request-level, session, user, team
-- **Multi-Agent** — Delegate to specialist agents or call agents in parallel
-- **CLI Agent / Sandbox** — Run Claude Code (or other CLI runners) in an isolated container with VNC desktop support
-- **Skills Ecosystem** — Drop reusable capability packs (`SKILL.md`) into any CLI Agent
+## Workspaces
 
-### Full-Stack Runtime
+Every workspace is isolated. Work stays separate, managed across all your computers, and accumulates into documents that become your knowledge base.
 
-Everything in a single executable:
+While working, agents can read what they need from any node.
 
-- **Data Models** — Define database tables and relations in JSON/YAML
-- **REST APIs** — Map routes to model queries or TypeScript processors
-- **SUI Pages** — Component-based web UI with server-side rendering
-- **Chat UI (CUI)** — Built-in conversation interface for agents
-- **TypeScript** — Built-in V8 engine; no Node.js required
-- **Single Binary** — Runs on ARM64/x64; no Python, Node, or containers needed on the host
+## Task Board
 
-### Built-in Search
+Say what you need in a conversation, and it becomes a task on your board.
 
-- **Vector Search** — Embeddings with OpenAI or FastEmbed
-- **Knowledge Graph** — Entity-relationship retrieval
-- **GraphRAG** — Hybrid vector + graph search
+Keep the conversation going, keep it running, and it improves with use, growing into an agent purpose-built for this kind of work.
+
+Connect task agents to your apps, or share them with others.
+
+## Open API
+
+Expert and task agents integrate into your own apps and workflows. They're built on standard APIs, with both SSE and WebSocket support.
+
+Let your agents become part of your business, wherever you need them.
 
 ---
 
-## About the Name
+## Links
 
-Yao (爻, yáo) is the fundamental symbol in the I Ching — the building block of the eight trigrams. Like a binary digit, it has two states. Their combinations describe the patterns of everything.
+- Homepage: https://yaoagents.com
+- Docs: https://yaoagents.com/docs
+- Yao Desktop: https://yaoagents.com/download
+- Discord: https://discord.gg/yao
