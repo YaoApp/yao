@@ -236,6 +236,7 @@ type a2oConnectorConfig struct {
 	Protocol        string                         `json:"protocol,omitempty"`
 	ConnectorID     string                         `json:"connector_id,omitempty"`
 	MaxOutputTokens int                            `json:"max_output_tokens,omitempty"`
+	Vision          bool                           `json:"vision,omitempty"`
 	Options         map[string]interface{}         `json:"options,omitempty"`
 	Routes          map[string]*a2oConnectorConfig `json:"routes,omitempty"`
 }
@@ -255,8 +256,11 @@ func buildSingleA2OConfig(conn connector.Connector) *a2oConnectorConfig {
 		cfg.Model = lc.GetModel()
 		cfg.APIKey = lc.GetKey()
 		cfg.AuthMode = string(lc.GetAuthMode())
-		if caps := lc.GetCapabilities(); caps != nil && caps.MaxOutputTokens > 0 {
-			cfg.MaxOutputTokens = caps.MaxOutputTokens
+		if caps := lc.GetCapabilities(); caps != nil {
+			if caps.MaxOutputTokens > 0 {
+				cfg.MaxOutputTokens = caps.MaxOutputTokens
+			}
+			cfg.Vision = caps.HasVision()
 		}
 	} else {
 		url, _ = settings["host"].(string)
