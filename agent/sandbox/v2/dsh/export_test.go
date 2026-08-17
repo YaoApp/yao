@@ -85,6 +85,12 @@ func ExportBuildEnv(req *types.StreamRequest, p ExportPlatform, workDir, apiKey,
 // ExportExtractToolSummary exposes extractToolSummary.
 var ExportExtractToolSummary = extractToolSummary
 
+// ExportExtractToolSummaryPartial exposes extractToolSummaryPartial.
+var ExportExtractToolSummaryPartial = extractToolSummaryPartial
+
+// ExportExtractSummaryFromObj exposes extractSummaryFromObj.
+var ExportExtractSummaryFromObj = extractSummaryFromObj
+
 // ExportTruncateStr exposes truncateStr.
 var ExportTruncateStr = truncateStr
 
@@ -112,8 +118,13 @@ var ExportIsContextErr = isContextErr
 // --- Stream parser export ---
 
 // ExportNewStreamParser creates a streamParser for black-box testing.
-func ExportNewStreamParser(handler message.StreamFunc) *ExportStreamParser {
-	return &ExportStreamParser{inner: newStreamParser(handler)}
+// Optional promptedSessionID parameter enables session-ID filtering.
+func ExportNewStreamParser(handler message.StreamFunc, promptedSessionID ...string) *ExportStreamParser {
+	sid := ""
+	if len(promptedSessionID) > 0 {
+		sid = promptedSessionID[0]
+	}
+	return &ExportStreamParser{inner: newStreamParser(handler, sid)}
 }
 
 // ExportStreamParser wraps the internal streamParser.

@@ -59,7 +59,7 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 	cleanup := s.watchCancel()
 	defer cleanup()
 
-	parser := newStreamParser(handler)
+	parser := newStreamParser(handler, s.chatID)
 	parseErr := parser.parse(s.ctx, s.exec.Stdout)
 
 	s.logger.Debug("runStream: parse returned completed=%v parseErr=%v", parser.completed, parseErr)

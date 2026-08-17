@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"regexp"
 	"strings"
 	"time"
 
+	gouJSON "github.com/yaoapp/gou/json"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
@@ -23,27 +25,30 @@ import (
 //
 // The same message_id is reused across phases for UI grouping.
 type streamParser struct {
-	handler   message.StreamFunc
-	completed bool
+	handler           message.StreamFunc
+	promptedSessionID string
+	completed         bool
 
-	textActive      bool
-	thinkActive     bool
-	toolIndex       int
-	activeToolID    string
-	executingToolID string
-	toolNames       map[string]string
-	toolMsgIDs      map[string]string
-	toolInputs      map[string]string
-	toolSummaries   map[string]string
+	textActive    bool
+	thinkActive   bool
+	toolIndex     int
+	activeToolID  string
+	toolNames     map[string]string
+	toolMsgIDs    map[string]string
+	toolInputs    map[string]string
+	toolSummaries map[string]string
+	toolFinished  map[string]bool
 }
 
-func newStreamParser(handler message.StreamFunc) *streamParser {
+func newStreamParser(handler message.StreamFunc, promptedSessionID string) *streamParser {
 	return &streamParser{
-		handler:       handler,
-		toolNames:     make(map[string]string),
-		toolMsgIDs:    make(map[string]string),
-		toolInputs:    make(map[string]string),
-		toolSummaries: make(map[string]string),
+		handler:           handler,
+		promptedSessionID: promptedSessionID,
+		toolNames:         make(map[string]string),
+		toolMsgIDs:        make(map[string]string),
+		toolInputs:        make(map[string]string),
+		toolSummaries:     make(map[string]string),
+		toolFinished:      make(map[string]bool),
 	}
 }
 
@@ -94,6 +99,7 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 	// Ensure any active message groups are closed before returning.
 	p.closeTextMessage()
 	p.closeThinkMessage()
+	p.closeOrphanedTools()
 
 	log.Trace("[dsh-parse] stream ended: lines=%d elapsed=%v completed=%v", lineCount, time.Since(startTime).Round(time.Second), p.completed)
 	return nil
@@ -135,8 +141,12 @@ func (p *streamParser) handleSessionStatus(raw json.RawMessage) (stopped bool) {
 		return false
 	}
 	if params.Status == "idle" {
+		if p.promptedSessionID != "" && params.SessionID != p.promptedSessionID {
+			return false
+		}
 		p.closeTextMessage()
 		p.closeThinkMessage()
+		p.closeOrphanedTools()
 		p.completed = true
 	}
 	return false
@@ -145,6 +155,9 @@ func (p *streamParser) handleSessionStatus(raw json.RawMessage) (stopped bool) {
 func (p *streamParser) handleSessionEvent(raw json.RawMessage) (stopped bool) {
 	var params sessionEventParams
 	if err := json.Unmarshal(raw, &params); err != nil {
+		return false
+	}
+	if p.promptedSessionID != "" && params.SessionID != p.promptedSessionID {
 		return false
 	}
 	event := params.Event
@@ -256,6 +269,20 @@ func (p *streamParser) onBlockStart(chunk chunkInner) (stopped bool) {
 		if chunk.Name != "" {
 			p.toolNames[toolID] = chunk.Name
 		}
+		msgID := p.emitMessageStart("execute")
+		p.toolMsgIDs[toolID] = msgID
+		execProps := map[string]any{
+			"tool":    chunk.Name,
+			"tool_id": toolID,
+			"status":  "running",
+			"runner":  "dsh",
+		}
+		injectDSHSemanticType(execProps, chunk.Name)
+		if p.emitExecute(execProps) {
+			p.endMessage()
+			return true
+		}
+		p.endMessage()
 	case "text":
 		p.closeThinkMessage()
 		if !p.textActive {
@@ -278,13 +305,27 @@ func (p *streamParser) onBlockStart(chunk chunkInner) (stopped bool) {
 
 func (p *streamParser) onBlockEnd(chunk chunkInner) (stopped bool) {
 	if p.activeToolID != "" {
-		if input := p.toolInputs[p.activeToolID]; input != "" {
-			name := p.toolNames[p.activeToolID]
+		toolID := p.activeToolID
+		oldSummary := p.toolSummaries[toolID]
+		if input := p.toolInputs[toolID]; input != "" {
+			name := p.toolNames[toolID]
 			if summary := extractToolSummary(name, input); summary != "" {
-				p.toolSummaries[p.activeToolID] = summary
+				p.toolSummaries[toolID] = summary
 			}
 		}
 		p.activeToolID = ""
+
+		// Only emit update if summary actually changed (avoid duplicate with
+		// delta-phase update), or if name became available but no summary was
+		// sent yet.
+		name := p.toolNames[toolID]
+		newSummary := p.toolSummaries[toolID]
+		summaryChanged := newSummary != oldSummary
+		if summaryChanged || (name != "" && oldSummary == "") {
+			if p.emitToolUpdate(toolID) {
+				return true
+			}
+		}
 		return false
 	}
 	if p.textActive {
@@ -302,9 +343,55 @@ func (p *streamParser) onToolCallDelta(chunk chunkInner) (stopped bool) {
 	if p.activeToolID == "" {
 		return false
 	}
+	if chunk.ID != "" && chunk.ID != p.activeToolID {
+		if msgID, ok := p.toolMsgIDs[p.activeToolID]; ok {
+			p.toolMsgIDs[chunk.ID] = msgID
+		}
+	}
+	nameJustSet := false
+	if chunk.Name != "" && p.toolNames[p.activeToolID] == "" {
+		p.toolNames[p.activeToolID] = chunk.Name
+		nameJustSet = true
+	}
+	summaryEmitted := false
 	if chunk.ArgsDelta != "" {
 		existing := p.toolInputs[p.activeToolID]
 		p.toolInputs[p.activeToolID] = existing + chunk.ArgsDelta
+
+		toolName := p.toolNames[p.activeToolID]
+		if s := extractToolSummaryPartial(toolName, p.toolInputs[p.activeToolID]); s != "" {
+			if s != p.toolSummaries[p.activeToolID] {
+				p.toolSummaries[p.activeToolID] = s
+				if p.emitToolUpdate(p.activeToolID) {
+					return true
+				}
+				summaryEmitted = true
+			}
+		}
+	}
+
+	// Emit update as soon as tool name arrives (first delta carries it).
+	// Skip if a summary update already carried the name in this same delta.
+	if nameJustSet && !summaryEmitted {
+		toolID := p.activeToolID
+		name := p.toolNames[toolID]
+		if msgID, ok := p.toolMsgIDs[toolID]; ok {
+			p.beginMessageWithID(msgID, "execute")
+		} else {
+			p.emitMessageStart("execute")
+		}
+		execProps := map[string]any{
+			"tool":    name,
+			"tool_id": toolID,
+			"status":  "running",
+			"runner":  "dsh",
+		}
+		injectDSHSemanticType(execProps, name)
+		if p.emitExecute(execProps) {
+			p.endMessage()
+			return true
+		}
+		p.endMessage()
 	}
 	return false
 }
@@ -358,11 +445,6 @@ func (p *streamParser) handleToolCall(data json.RawMessage) (stopped bool) {
 	p.closeTextMessage()
 	p.closeThinkMessage()
 
-	if p.executingToolID != "" {
-		p.endMessage()
-		p.executingToolID = ""
-	}
-
 	toolID := tc.CallID
 	p.toolNames[toolID] = tc.Name
 	if tc.Arguments != "" {
@@ -377,8 +459,12 @@ func (p *streamParser) handleToolCall(data json.RawMessage) (stopped bool) {
 		}
 	}
 
-	msgID := p.emitMessageStart("execute")
-	p.toolMsgIDs[toolID] = msgID
+	if msgID, ok := p.toolMsgIDs[toolID]; ok {
+		p.beginMessageWithID(msgID, "execute")
+	} else {
+		msgID := p.emitMessageStart("execute")
+		p.toolMsgIDs[toolID] = msgID
+	}
 
 	input := p.toolInputs[toolID]
 	var inputJSON json.RawMessage
@@ -399,7 +485,7 @@ func (p *streamParser) handleToolCall(data json.RawMessage) (stopped bool) {
 		p.endMessage()
 		return true
 	}
-	p.executingToolID = toolID
+	p.endMessage()
 	return false
 }
 
@@ -437,13 +523,10 @@ func (p *streamParser) handleToolResult(data json.RawMessage) (stopped bool) {
 		status = "error"
 	}
 
-	groupAlreadyOpen := p.executingToolID == callID
-	if !groupAlreadyOpen {
-		if msgID, ok := p.toolMsgIDs[callID]; ok {
-			p.beginMessageWithID(msgID, "execute")
-		} else {
-			p.emitMessageStart("execute")
-		}
+	if msgID, ok := p.toolMsgIDs[callID]; ok {
+		p.beginMessageWithID(msgID, "execute")
+	} else {
+		p.emitMessageStart("execute")
 	}
 
 	execProps := map[string]any{
@@ -463,12 +546,12 @@ func (p *streamParser) handleToolResult(data json.RawMessage) (stopped bool) {
 	}
 	injectDSHSemanticType(execProps, p.toolNames[callID])
 	if p.emitExecute(execProps) {
+		p.toolFinished[callID] = true
 		p.endMessage()
-		p.executingToolID = ""
 		return true
 	}
+	p.toolFinished[callID] = true
 	p.endMessage()
-	p.executingToolID = ""
 	return false
 }
 
@@ -566,6 +649,66 @@ func (p *streamParser) closeThinkMessage() {
 	}
 }
 
+func (p *streamParser) closeOrphanedTools() {
+	// Collect msgIDs of already-finished tools to handle aliases
+	// (synthetic block-start ID and real callId both map to same msgID).
+	finishedMsgIDs := make(map[string]bool)
+	for toolID := range p.toolFinished {
+		if msgID, ok := p.toolMsgIDs[toolID]; ok {
+			finishedMsgIDs[msgID] = true
+		}
+	}
+
+	for toolID, msgID := range p.toolMsgIDs {
+		if p.toolFinished[toolID] || finishedMsgIDs[msgID] {
+			continue
+		}
+		p.beginMessageWithID(msgID, "execute")
+		execProps := map[string]any{
+			"tool_id":  toolID,
+			"status":   "error",
+			"is_error": true,
+			"output":   "session ended before tool completed",
+		}
+		if name, ok := p.toolNames[toolID]; ok {
+			execProps["tool"] = name
+		}
+		if summary, ok := p.toolSummaries[toolID]; ok {
+			execProps["summary"] = summary
+		}
+		injectDSHSemanticType(execProps, p.toolNames[toolID])
+		p.emitExecute(execProps)
+		p.endMessage()
+		finishedMsgIDs[msgID] = true
+	}
+}
+
+func (p *streamParser) emitToolUpdate(toolID string) (stopped bool) {
+	name := p.toolNames[toolID]
+	summary := p.toolSummaries[toolID]
+	if msgID, ok := p.toolMsgIDs[toolID]; ok {
+		p.beginMessageWithID(msgID, "execute")
+	} else {
+		p.emitMessageStart("execute")
+	}
+	execProps := map[string]any{
+		"tool":    name,
+		"tool_id": toolID,
+		"status":  "running",
+		"runner":  "dsh",
+	}
+	if summary != "" {
+		execProps["summary"] = summary
+	}
+	injectDSHSemanticType(execProps, name)
+	if p.emitExecute(execProps) {
+		p.endMessage()
+		return true
+	}
+	p.endMessage()
+	return false
+}
+
 func (p *streamParser) emitExecute(props map[string]any) (stopped bool) {
 	data, err := json.Marshal(props)
 	if err != nil {
@@ -603,15 +746,7 @@ func extractToolOutput(content []any) any {
 	return content
 }
 
-func extractToolSummary(toolName, inputJSON string) string {
-	if inputJSON == "" {
-		return ""
-	}
-	var obj map[string]any
-	if err := json.Unmarshal([]byte(inputJSON), &obj); err != nil {
-		return ""
-	}
-
+func extractSummaryFromObj(toolName string, obj map[string]any) string {
 	switch strings.ToLower(toolName) {
 	case "bash":
 		if cmd, ok := obj["command"].(string); ok {
@@ -624,14 +759,77 @@ func extractToolSummary(toolName, inputJSON string) string {
 		if fp, ok := obj["path"].(string); ok {
 			return fp
 		}
+	case "skill":
+		if n, ok := obj["name"].(string); ok {
+			return truncateStr(n, 80)
+		}
+		if d, ok := obj["description"].(string); ok {
+			return truncateStr(d, 80)
+		}
 	}
 
-	for _, key := range []string{"command", "path", "file_path", "url", "query", "description", "prompt", "task"} {
+	for _, key := range []string{"command", "path", "file_path", "url", "query", "description", "prompt", "task", "name"} {
 		if v, ok := obj[key].(string); ok {
 			return truncateStr(v, 80)
 		}
 	}
 	return ""
+}
+
+func extractToolSummary(toolName, inputJSON string) string {
+	if inputJSON == "" {
+		return ""
+	}
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(inputJSON), &obj); err != nil {
+		return ""
+	}
+	return extractSummaryFromObj(toolName, obj)
+}
+
+func extractToolSummaryPartial(toolName, partialInput string) string {
+	if partialInput == "" {
+		return ""
+	}
+	v, err := gouJSON.Parse(partialInput)
+	if err == nil {
+		if obj, ok := v.(map[string]any); ok {
+			return extractSummaryFromObj(toolName, obj)
+		}
+	}
+	return extractSummaryByRegex(toolName, partialInput)
+}
+
+var summaryKeyRe = regexp.MustCompile(`"(file_path|path|command|name|description|url|query|prompt|task)"\s*:\s*"([^"]*)"`)
+
+func extractSummaryByRegex(toolName string, input string) string {
+	matches := summaryKeyRe.FindAllStringSubmatch(input, -1)
+	if len(matches) == 0 {
+		return ""
+	}
+	preferred := preferredKeyForTool(toolName)
+	for _, m := range matches {
+		if m[1] == preferred && m[2] != "" {
+			return truncateStr(m[2], 80)
+		}
+	}
+	if matches[0][2] != "" {
+		return truncateStr(matches[0][2], 80)
+	}
+	return ""
+}
+
+func preferredKeyForTool(toolName string) string {
+	switch strings.ToLower(toolName) {
+	case "bash":
+		return "command"
+	case "write", "read", "edit", "str_replace_editor":
+		return "file_path"
+	case "skill":
+		return "name"
+	default:
+		return ""
+	}
 }
 
 func truncateStr(s string, max int) string {
