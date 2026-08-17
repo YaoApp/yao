@@ -77,23 +77,20 @@ func TestPosix_BuildScript_ContainsHeredoc(t *testing.T) {
 		InputJSONRPC: `{"jsonrpc":"2.0","id":1,"method":"initialize"}`,
 	})
 
-	if stdin != nil {
-		t.Error("POSIX stdin should be nil (uses heredoc)")
+	if stdin == nil {
+		t.Error("POSIX stdin should carry JSON-RPC input")
+	}
+	if !strings.Contains(string(stdin), "initialize") {
+		t.Error("stdin should contain JSON-RPC input")
 	}
 	if !strings.Contains(script, "CORDISEOF") {
 		t.Error("script should contain CORDISEOF heredoc")
 	}
-	if !strings.Contains(script, "INPUTEOF") {
-		t.Error("script should contain INPUTEOF heredoc")
-	}
-	if !strings.Contains(script, "tai dsh --config") {
-		t.Error("script should contain tai dsh command")
+	if !strings.Contains(script, "exec tai dsh --config") {
+		t.Error("script should use exec for stdin passthrough")
 	}
 	if !strings.Contains(script, "test-plugin") {
 		t.Error("script should contain cordis YAML content")
-	}
-	if !strings.Contains(script, "initialize") {
-		t.Error("script should contain JSON-RPC input")
 	}
 }
 
@@ -290,5 +287,31 @@ func TestWindows_BuildScript_SearchesTaiExe(t *testing.T) {
 	}
 	if !strings.Contains(script, ".local\\bin") {
 		t.Error("script should search .local\\bin")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GracefulKillSessionCmd tests
+// ---------------------------------------------------------------------------
+
+func TestPosix_GracefulKillSessionCmd(t *testing.T) {
+	p := dsh.ExportNewPosixPlatform()
+	cmd := p.GracefulKillSessionCmd("dsh-chat123")
+	if len(cmd) != 3 || cmd[0] != "sh" {
+		t.Errorf("GracefulKillSessionCmd = %v", cmd)
+	}
+	if !strings.Contains(cmd[2], "pkill -TERM -f") || !strings.Contains(cmd[2], "dsh-chat123") {
+		t.Errorf("GracefulKillSessionCmd body = %q, want SIGTERM", cmd[2])
+	}
+}
+
+func TestWindows_GracefulKillSessionCmd(t *testing.T) {
+	p := dsh.ExportNewWindowsPlatform("pwsh")
+	cmd := p.GracefulKillSessionCmd("dsh-chat123")
+	if len(cmd) == 0 {
+		t.Fatal("GracefulKillSessionCmd returned empty")
+	}
+	if !strings.Contains(strings.Join(cmd, " "), "dsh-chat123") {
+		t.Error("GracefulKillSessionCmd should reference session name")
 	}
 }

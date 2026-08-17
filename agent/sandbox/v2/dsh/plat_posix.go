@@ -32,9 +32,13 @@ func (p *posixPlatform) KillSessionCmd(sessionName string) []string {
 	return []string{"sh", "-c", fmt.Sprintf("pkill -9 -f '%s' || true", sessionName)}
 }
 
+func (p *posixPlatform) GracefulKillSessionCmd(sessionName string) []string {
+	return []string{"sh", "-c", fmt.Sprintf("pkill -TERM -f '%s' || true", sessionName)}
+}
+
 // BuildScript generates a bash script that:
 // 1. Writes cordis.yml to the config file path
-// 2. Pipes JSON-RPC input into `tai dsh --config <path>`
+// 2. Uses `exec tai dsh` to replace the shell process, inheriting stdin directly
 func (p *posixPlatform) BuildScript(in scriptInput) (string, []byte) {
 	var s strings.Builder
 
@@ -45,9 +49,7 @@ func (p *posixPlatform) BuildScript(in scriptInput) (string, []byte) {
 	s.WriteString("\nCORDISEOF\n")
 	s.WriteString("set +e\n")
 
-	s.WriteString(fmt.Sprintf("cat << 'INPUTEOF' | tai dsh --config %q\n", in.configFile))
-	s.WriteString(in.inputJSONRPC)
-	s.WriteString("\nINPUTEOF")
+	s.WriteString(fmt.Sprintf("exec tai dsh --config %q\n", in.configFile))
 
-	return s.String(), nil
+	return s.String(), []byte(in.inputJSONRPC + "\n")
 }

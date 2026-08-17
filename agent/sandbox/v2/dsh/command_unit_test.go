@@ -18,32 +18,6 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// --- chatIDToSessionUUID ---
-
-func TestChatIDToSessionUUID_Deterministic(t *testing.T) {
-	u1 := dsh.ExportChatIDToSessionUUID("asst-1", "chat-abc")
-	u2 := dsh.ExportChatIDToSessionUUID("asst-1", "chat-abc")
-	if u1 != u2 {
-		t.Error("same inputs should produce same UUID")
-	}
-}
-
-func TestChatIDToSessionUUID_DifferentAssistant(t *testing.T) {
-	u1 := dsh.ExportChatIDToSessionUUID("asst-1", "chat-abc")
-	u2 := dsh.ExportChatIDToSessionUUID("asst-2", "chat-abc")
-	if u1 == u2 {
-		t.Error("different assistantID should produce different UUID")
-	}
-}
-
-func TestChatIDToSessionUUID_DifferentChat(t *testing.T) {
-	u1 := dsh.ExportChatIDToSessionUUID("asst-1", "chat-1")
-	u2 := dsh.ExportChatIDToSessionUUID("asst-1", "chat-2")
-	if u1 == u2 {
-		t.Error("different chatID should produce different UUID")
-	}
-}
-
 // --- extractLastUserMessage ---
 
 func TestExtractLastUserMessage_Simple(t *testing.T) {

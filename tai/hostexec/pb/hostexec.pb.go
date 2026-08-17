@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        v4.25.0
-// source: hostexec/pb/hostexec.proto
+// source: tai/hostexec/pb/hostexec.proto
 
 package pb
 
@@ -51,11 +51,11 @@ func (x ExecOutput_Stream) String() string {
 }
 
 func (ExecOutput_Stream) Descriptor() protoreflect.EnumDescriptor {
-	return file_hostexec_pb_hostexec_proto_enumTypes[0].Descriptor()
+	return file_tai_hostexec_pb_hostexec_proto_enumTypes[0].Descriptor()
 }
 
 func (ExecOutput_Stream) Type() protoreflect.EnumType {
-	return &file_hostexec_pb_hostexec_proto_enumTypes[0]
+	return &file_tai_hostexec_pb_hostexec_proto_enumTypes[0]
 }
 
 func (x ExecOutput_Stream) Number() protoreflect.EnumNumber {
@@ -64,7 +64,7 @@ func (x ExecOutput_Stream) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ExecOutput_Stream.Descriptor instead.
 func (ExecOutput_Stream) EnumDescriptor() ([]byte, []int) {
-	return file_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{2, 0}
+	return file_tai_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{2, 0}
 }
 
 type ExecRequest struct {
@@ -82,7 +82,7 @@ type ExecRequest struct {
 
 func (x *ExecRequest) Reset() {
 	*x = ExecRequest{}
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[0]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *ExecRequest) String() string {
 func (*ExecRequest) ProtoMessage() {}
 
 func (x *ExecRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[0]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *ExecRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecRequest.ProtoReflect.Descriptor instead.
 func (*ExecRequest) Descriptor() ([]byte, []int) {
-	return file_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{0}
+	return file_tai_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *ExecRequest) GetCommand() string {
@@ -173,7 +173,7 @@ type ExecResponse struct {
 
 func (x *ExecResponse) Reset() {
 	*x = ExecResponse{}
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[1]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -185,7 +185,7 @@ func (x *ExecResponse) String() string {
 func (*ExecResponse) ProtoMessage() {}
 
 func (x *ExecResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[1]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -198,7 +198,7 @@ func (x *ExecResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecResponse.ProtoReflect.Descriptor instead.
 func (*ExecResponse) Descriptor() ([]byte, []int) {
-	return file_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{1}
+	return file_tai_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *ExecResponse) GetExitCode() int32 {
@@ -257,7 +257,7 @@ type ExecOutput struct {
 
 func (x *ExecOutput) Reset() {
 	*x = ExecOutput{}
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[2]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -269,7 +269,7 @@ func (x *ExecOutput) String() string {
 func (*ExecOutput) ProtoMessage() {}
 
 func (x *ExecOutput) ProtoReflect() protoreflect.Message {
-	mi := &file_hostexec_pb_hostexec_proto_msgTypes[2]
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -282,7 +282,7 @@ func (x *ExecOutput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExecOutput.ProtoReflect.Descriptor instead.
 func (*ExecOutput) Descriptor() ([]byte, []int) {
-	return file_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{2}
+	return file_tai_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *ExecOutput) GetStream() ExecOutput_Stream {
@@ -320,11 +320,110 @@ func (x *ExecOutput) GetError() string {
 	return ""
 }
 
-var File_hostexec_pb_hostexec_proto protoreflect.FileDescriptor
+// ExecInput is the client-to-server message for ExecStreamBidi.
+type ExecInput struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*ExecInput_Start
+	//	*ExecInput_StdinData
+	//	*ExecInput_StdinEof
+	Payload       isExecInput_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
 
-const file_hostexec_pb_hostexec_proto_rawDesc = "" +
+func (x *ExecInput) Reset() {
+	*x = ExecInput{}
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExecInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExecInput) ProtoMessage() {}
+
+func (x *ExecInput) ProtoReflect() protoreflect.Message {
+	mi := &file_tai_hostexec_pb_hostexec_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExecInput.ProtoReflect.Descriptor instead.
+func (*ExecInput) Descriptor() ([]byte, []int) {
+	return file_tai_hostexec_pb_hostexec_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *ExecInput) GetPayload() isExecInput_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *ExecInput) GetStart() *ExecRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ExecInput_Start); ok {
+			return x.Start
+		}
+	}
+	return nil
+}
+
+func (x *ExecInput) GetStdinData() []byte {
+	if x != nil {
+		if x, ok := x.Payload.(*ExecInput_StdinData); ok {
+			return x.StdinData
+		}
+	}
+	return nil
+}
+
+func (x *ExecInput) GetStdinEof() bool {
+	if x != nil {
+		if x, ok := x.Payload.(*ExecInput_StdinEof); ok {
+			return x.StdinEof
+		}
+	}
+	return false
+}
+
+type isExecInput_Payload interface {
+	isExecInput_Payload()
+}
+
+type ExecInput_Start struct {
+	Start *ExecRequest `protobuf:"bytes,1,opt,name=start,proto3,oneof"` // First message: start the command (carries initial stdin)
+}
+
+type ExecInput_StdinData struct {
+	StdinData []byte `protobuf:"bytes,2,opt,name=stdin_data,json=stdinData,proto3,oneof"` // Subsequent: write to process stdin
+}
+
+type ExecInput_StdinEof struct {
+	StdinEof bool `protobuf:"varint,3,opt,name=stdin_eof,json=stdinEof,proto3,oneof"` // Close process stdin (optional)
+}
+
+func (*ExecInput_Start) isExecInput_Payload() {}
+
+func (*ExecInput_StdinData) isExecInput_Payload() {}
+
+func (*ExecInput_StdinEof) isExecInput_Payload() {}
+
+var File_tai_hostexec_pb_hostexec_proto protoreflect.FileDescriptor
+
+const file_tai_hostexec_pb_hostexec_proto_rawDesc = "" +
 	"\n" +
-	"\x1ahostexec/pb/hostexec.proto\x12\bhostexec\"\xa5\x02\n" +
+	"\x1etai/hostexec/pb/hostexec.proto\x12\bhostexec\"\xa5\x02\n" +
 	"\vExecRequest\x12\x18\n" +
 	"\acommand\x18\x01 \x01(\tR\acommand\x12\x12\n" +
 	"\x04args\x18\x02 \x03(\tR\x04args\x12\x1f\n" +
@@ -357,68 +456,84 @@ const file_hostexec_pb_hostexec_proto_rawDesc = "" +
 	"\n" +
 	"\x06STDOUT\x10\x00\x12\n" +
 	"\n" +
-	"\x06STDERR\x10\x012~\n" +
+	"\x06STDERR\x10\x01\"\x85\x01\n" +
+	"\tExecInput\x12-\n" +
+	"\x05start\x18\x01 \x01(\v2\x15.hostexec.ExecRequestH\x00R\x05start\x12\x1f\n" +
+	"\n" +
+	"stdin_data\x18\x02 \x01(\fH\x00R\tstdinData\x12\x1d\n" +
+	"\tstdin_eof\x18\x03 \x01(\bH\x00R\bstdinEofB\t\n" +
+	"\apayload2\xbf\x01\n" +
 	"\bHostExec\x125\n" +
 	"\x04Exec\x12\x15.hostexec.ExecRequest\x1a\x16.hostexec.ExecResponse\x12;\n" +
 	"\n" +
-	"ExecStream\x12\x15.hostexec.ExecRequest\x1a\x14.hostexec.ExecOutput0\x01B#Z!github.com/yaoapp/tai/hostexec/pbb\x06proto3"
+	"ExecStream\x12\x15.hostexec.ExecRequest\x1a\x14.hostexec.ExecOutput0\x01\x12?\n" +
+	"\x0eExecStreamBidi\x12\x13.hostexec.ExecInput\x1a\x14.hostexec.ExecOutput(\x010\x01B'Z%github.com/yaoapp/yao/tai/hostexec/pbb\x06proto3"
 
 var (
-	file_hostexec_pb_hostexec_proto_rawDescOnce sync.Once
-	file_hostexec_pb_hostexec_proto_rawDescData []byte
+	file_tai_hostexec_pb_hostexec_proto_rawDescOnce sync.Once
+	file_tai_hostexec_pb_hostexec_proto_rawDescData []byte
 )
 
-func file_hostexec_pb_hostexec_proto_rawDescGZIP() []byte {
-	file_hostexec_pb_hostexec_proto_rawDescOnce.Do(func() {
-		file_hostexec_pb_hostexec_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_hostexec_pb_hostexec_proto_rawDesc), len(file_hostexec_pb_hostexec_proto_rawDesc)))
+func file_tai_hostexec_pb_hostexec_proto_rawDescGZIP() []byte {
+	file_tai_hostexec_pb_hostexec_proto_rawDescOnce.Do(func() {
+		file_tai_hostexec_pb_hostexec_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_tai_hostexec_pb_hostexec_proto_rawDesc), len(file_tai_hostexec_pb_hostexec_proto_rawDesc)))
 	})
-	return file_hostexec_pb_hostexec_proto_rawDescData
+	return file_tai_hostexec_pb_hostexec_proto_rawDescData
 }
 
-var file_hostexec_pb_hostexec_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_hostexec_pb_hostexec_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_hostexec_pb_hostexec_proto_goTypes = []any{
+var file_tai_hostexec_pb_hostexec_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_tai_hostexec_pb_hostexec_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_tai_hostexec_pb_hostexec_proto_goTypes = []any{
 	(ExecOutput_Stream)(0), // 0: hostexec.ExecOutput.Stream
 	(*ExecRequest)(nil),    // 1: hostexec.ExecRequest
 	(*ExecResponse)(nil),   // 2: hostexec.ExecResponse
 	(*ExecOutput)(nil),     // 3: hostexec.ExecOutput
-	nil,                    // 4: hostexec.ExecRequest.EnvEntry
+	(*ExecInput)(nil),      // 4: hostexec.ExecInput
+	nil,                    // 5: hostexec.ExecRequest.EnvEntry
 }
-var file_hostexec_pb_hostexec_proto_depIdxs = []int32{
-	4, // 0: hostexec.ExecRequest.env:type_name -> hostexec.ExecRequest.EnvEntry
+var file_tai_hostexec_pb_hostexec_proto_depIdxs = []int32{
+	5, // 0: hostexec.ExecRequest.env:type_name -> hostexec.ExecRequest.EnvEntry
 	0, // 1: hostexec.ExecOutput.stream:type_name -> hostexec.ExecOutput.Stream
-	1, // 2: hostexec.HostExec.Exec:input_type -> hostexec.ExecRequest
-	1, // 3: hostexec.HostExec.ExecStream:input_type -> hostexec.ExecRequest
-	2, // 4: hostexec.HostExec.Exec:output_type -> hostexec.ExecResponse
-	3, // 5: hostexec.HostExec.ExecStream:output_type -> hostexec.ExecOutput
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 2: hostexec.ExecInput.start:type_name -> hostexec.ExecRequest
+	1, // 3: hostexec.HostExec.Exec:input_type -> hostexec.ExecRequest
+	1, // 4: hostexec.HostExec.ExecStream:input_type -> hostexec.ExecRequest
+	4, // 5: hostexec.HostExec.ExecStreamBidi:input_type -> hostexec.ExecInput
+	2, // 6: hostexec.HostExec.Exec:output_type -> hostexec.ExecResponse
+	3, // 7: hostexec.HostExec.ExecStream:output_type -> hostexec.ExecOutput
+	3, // 8: hostexec.HostExec.ExecStreamBidi:output_type -> hostexec.ExecOutput
+	6, // [6:9] is the sub-list for method output_type
+	3, // [3:6] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
-func init() { file_hostexec_pb_hostexec_proto_init() }
-func file_hostexec_pb_hostexec_proto_init() {
-	if File_hostexec_pb_hostexec_proto != nil {
+func init() { file_tai_hostexec_pb_hostexec_proto_init() }
+func file_tai_hostexec_pb_hostexec_proto_init() {
+	if File_tai_hostexec_pb_hostexec_proto != nil {
 		return
+	}
+	file_tai_hostexec_pb_hostexec_proto_msgTypes[3].OneofWrappers = []any{
+		(*ExecInput_Start)(nil),
+		(*ExecInput_StdinData)(nil),
+		(*ExecInput_StdinEof)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_hostexec_pb_hostexec_proto_rawDesc), len(file_hostexec_pb_hostexec_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tai_hostexec_pb_hostexec_proto_rawDesc), len(file_tai_hostexec_pb_hostexec_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_hostexec_pb_hostexec_proto_goTypes,
-		DependencyIndexes: file_hostexec_pb_hostexec_proto_depIdxs,
-		EnumInfos:         file_hostexec_pb_hostexec_proto_enumTypes,
-		MessageInfos:      file_hostexec_pb_hostexec_proto_msgTypes,
+		GoTypes:           file_tai_hostexec_pb_hostexec_proto_goTypes,
+		DependencyIndexes: file_tai_hostexec_pb_hostexec_proto_depIdxs,
+		EnumInfos:         file_tai_hostexec_pb_hostexec_proto_enumTypes,
+		MessageInfos:      file_tai_hostexec_pb_hostexec_proto_msgTypes,
 	}.Build()
-	File_hostexec_pb_hostexec_proto = out.File
-	file_hostexec_pb_hostexec_proto_goTypes = nil
-	file_hostexec_pb_hostexec_proto_depIdxs = nil
+	File_tai_hostexec_pb_hostexec_proto = out.File
+	file_tai_hostexec_pb_hostexec_proto_goTypes = nil
+	file_tai_hostexec_pb_hostexec_proto_depIdxs = nil
 }

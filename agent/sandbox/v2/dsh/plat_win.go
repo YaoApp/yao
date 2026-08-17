@@ -65,6 +65,10 @@ func (w *winPlatform) KillSessionCmd(sessionName string) []string {
 	return w.ShellCmd(script)
 }
 
+func (w *winPlatform) GracefulKillSessionCmd(sessionName string) []string {
+	return w.KillSessionCmd(sessionName)
+}
+
 // BuildScript generates a PowerShell script that:
 // 1. Searches for tai.exe in user .local\bin directories
 // 2. Writes cordis.yml to the config file path

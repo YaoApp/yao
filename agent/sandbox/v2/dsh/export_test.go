@@ -18,6 +18,7 @@ type ExportPlatform interface {
 	ShellCmd(script string) []string
 	KillCmd(pattern string) []string
 	KillSessionCmd(sessionName string) []string
+	GracefulKillSessionCmd(sessionName string) []string
 	BuildScript(input ExportScriptInput) (script string, stdin []byte)
 }
 
@@ -46,6 +47,9 @@ func (w *exportWrapper) PathJoin(parts ...string) string    { return w.p.PathJoi
 func (w *exportWrapper) ShellCmd(s string) []string         { return w.p.ShellCmd(s) }
 func (w *exportWrapper) KillCmd(p string) []string          { return w.p.KillCmd(p) }
 func (w *exportWrapper) KillSessionCmd(s string) []string   { return w.p.KillSessionCmd(s) }
+func (w *exportWrapper) GracefulKillSessionCmd(s string) []string {
+	return w.p.GracefulKillSessionCmd(s)
+}
 func (w *exportWrapper) BuildScript(in ExportScriptInput) (string, []byte) {
 	return w.p.BuildScript(toInternal(in))
 }
@@ -61,9 +65,6 @@ func ExportNewWindowsPlatform(shell string) ExportPlatform {
 }
 
 // --- Pure function exports ---
-
-// ExportChatIDToSessionUUID exposes chatIDToSessionUUID.
-var ExportChatIDToSessionUUID = chatIDToSessionUUID
 
 // ExportExtractLastUserMessage exposes extractLastUserMessage.
 var ExportExtractLastUserMessage = extractLastUserMessage
@@ -92,6 +93,21 @@ var ExportInjectDSHSemanticType = injectDSHSemanticType
 
 // ExportRenderCordisConfig exposes RenderCordisConfig (already public, alias for consistency).
 var ExportRenderCordisConfig = RenderCordisConfig
+
+// ExportBuildCancelRPC exposes session.buildCancelRPC for testing.
+func ExportBuildCancelRPC(chatID string) []byte {
+	s := &session{chatID: chatID}
+	return s.buildCancelRPC()
+}
+
+// ExportBuildShutdownRPC exposes session.buildShutdownRPC for testing.
+func ExportBuildShutdownRPC() []byte {
+	s := &session{}
+	return s.buildShutdownRPC()
+}
+
+// ExportIsContextErr exposes isContextErr for testing.
+var ExportIsContextErr = isContextErr
 
 // --- Stream parser export ---
 

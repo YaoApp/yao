@@ -134,6 +134,7 @@ type execConfig struct {
 	Timeout        time.Duration
 	Stdin          []byte
 	MaxOutputBytes int64
+	KeepStdinOpen  bool
 }
 
 // ExecOption configures an Exec or Stream call on any Computer.
@@ -157,6 +158,10 @@ func WithStdin(data []byte) ExecOption {
 
 func WithMaxOutput(bytes int64) ExecOption {
 	return func(c *execConfig) { c.MaxOutputBytes = bytes }
+}
+
+func WithKeepStdinOpen() ExecOption {
+	return func(c *execConfig) { c.KeepStdinOpen = true }
 }
 
 // ExecResult holds the outcome of a command executed on any Computer.

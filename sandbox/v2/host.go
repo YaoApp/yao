@@ -6,10 +6,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	hepb "github.com/yaoapp/yao/tai/hostexec/pb"
 	sqpb "github.com/yaoapp/yao/tai/systemquery/pb"
 	taiworkspace "github.com/yaoapp/yao/tai/workspace"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Host represents a Tai host machine execution environment.
@@ -119,6 +122,109 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 		o(cfg)
 	}
 
+	if cfg.KeepStdinOpen {
+		return h.streamBidi(ctx, cmd, cfg, he)
+	}
+	return h.streamLegacy(ctx, cmd, cfg, he)
+}
+
+func (h *Host) streamBidi(_ context.Context, cmd []string, cfg *execConfig, he hepb.HostExecClient) (*ExecStream, error) {
+	streamCtx, cancel := context.WithCancel(context.Background())
+
+	bidi, err := he.ExecStreamBidi(streamCtx)
+	if err != nil {
+		cancel()
+		if isUnimplemented(err) {
+			return h.bidiUnavailableFallback(cmd, cfg, he)
+		}
+		return nil, fmt.Errorf("hostexec bidi rpc: %w", err)
+	}
+
+	startReq := &hepb.ExecRequest{
+		Command: cmd[0],
+		Args:    cmd[1:],
+		Stdin:   cfg.Stdin,
+	}
+	if cfg.WorkDir != "" {
+		startReq.WorkingDir = cfg.WorkDir
+	}
+	if cfg.Env != nil {
+		startReq.Env = cfg.Env
+	}
+	if cfg.Timeout > 0 {
+		startReq.TimeoutMs = cfg.Timeout.Milliseconds()
+	}
+	if cfg.MaxOutputBytes > 0 {
+		startReq.MaxOutputBytes = cfg.MaxOutputBytes
+	}
+
+	startMsg := &hepb.ExecInput{Payload: &hepb.ExecInput_Start{Start: startReq}}
+	if err := bidi.Send(startMsg); err != nil {
+		cancel()
+		if isUnimplemented(err) {
+			return h.bidiUnavailableFallback(cmd, cfg, he)
+		}
+		return nil, fmt.Errorf("hostexec bidi send start: %w", err)
+	}
+
+	stdoutR, stdoutW := io.Pipe()
+	stderrR, stderrW := io.Pipe()
+	doneCh := make(chan struct{})
+	var exitCode int
+	var exitErr error
+
+	go func() {
+		defer stdoutW.Close()
+		defer stderrW.Close()
+		defer close(doneCh)
+		for {
+			msg, err := bidi.Recv()
+			if err != nil {
+				exitErr = fmt.Errorf("hostexec bidi recv: %w", err)
+				return
+			}
+			if len(msg.Data) > 0 {
+				switch msg.Stream {
+				case hepb.ExecOutput_STDOUT:
+					stdoutW.Write(msg.Data)
+				case hepb.ExecOutput_STDERR:
+					stderrW.Write(msg.Data)
+				}
+			}
+			if msg.Done {
+				exitCode = int(msg.ExitCode)
+				if msg.Error != "" {
+					exitErr = fmt.Errorf("hostexec: %s", msg.Error)
+				}
+				return
+			}
+		}
+	}()
+
+	stdinWriter := &bidiStdinWriter{bidi: bidi}
+
+	return &ExecStream{
+		Stdout: stdoutR,
+		Stderr: stderrR,
+		Stdin:  stdinWriter,
+		Wait: func() (int, error) {
+			<-doneCh
+			return exitCode, exitErr
+		},
+		Cancel: cancel,
+	}, nil
+}
+
+func (h *Host) bidiUnavailableFallback(cmd []string, cfg *execConfig, he hepb.HostExecClient) (*ExecStream, error) {
+	es, err := h.streamLegacy(context.Background(), cmd, cfg, he)
+	if err != nil {
+		return nil, err
+	}
+	es.Stdin = errStdinWriter{}
+	return es, nil
+}
+
+func (h *Host) streamLegacy(ctx context.Context, cmd []string, cfg *execConfig, he hepb.HostExecClient) (*ExecStream, error) {
 	req := &hepb.ExecRequest{
 		Command: cmd[0],
 		Args:    cmd[1:],
@@ -188,6 +294,46 @@ func (h *Host) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*E
 		},
 		Cancel: cancel,
 	}, nil
+}
+
+type bidiStdinWriter struct {
+	bidi interface {
+		Send(*hepb.ExecInput) error
+	}
+	mu sync.Mutex
+}
+
+func (w *bidiStdinWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	err := w.bidi.Send(&hepb.ExecInput{Payload: &hepb.ExecInput_StdinData{StdinData: p}})
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+func (w *bidiStdinWriter) Close() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.bidi.Send(&hepb.ExecInput{Payload: &hepb.ExecInput_StdinEof{StdinEof: true}})
+}
+
+type errStdinWriter struct{}
+
+var errStdinUnavailable = fmt.Errorf("stdin unavailable: bidi not supported by remote tai")
+
+func (errStdinWriter) Write([]byte) (int, error) { return 0, errStdinUnavailable }
+func (errStdinWriter) Close() error              { return nil }
+
+func isUnimplemented(err error) bool {
+	if err == nil {
+		return false
+	}
+	if s, ok := status.FromError(err); ok {
+		return s.Code() == codes.Unimplemented
+	}
+	return false
 }
 
 // VNC returns the VNC WebSocket URL for the Tai host machine.
