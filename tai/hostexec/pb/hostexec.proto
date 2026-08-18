@@ -10,6 +10,10 @@ service HostExec {
 
   // ExecStream runs a command and streams stdout/stderr in real time.
   rpc ExecStream(ExecRequest) returns (stream ExecOutput);
+
+  // ExecStreamBidi runs a command with bidirectional streaming.
+  // Supports runtime stdin writes for graceful cancellation via JSON-RPC.
+  rpc ExecStreamBidi(stream ExecInput) returns (stream ExecOutput);
 }
 
 message ExecRequest {
@@ -43,4 +47,13 @@ message ExecOutput {
   bool  done      = 3;
   int32 exit_code = 4;
   string error    = 5;
+}
+
+// ExecInput is the client-to-server message for ExecStreamBidi.
+message ExecInput {
+  oneof payload {
+    ExecRequest start      = 1; // First message: start the command (carries initial stdin)
+    bytes       stdin_data = 2; // Subsequent: write to process stdin
+    bool        stdin_eof  = 3; // Close process stdin (optional)
+  }
 }

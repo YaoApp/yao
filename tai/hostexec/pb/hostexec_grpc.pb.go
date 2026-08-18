@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.6.1
 // - protoc             v4.25.0
-// source: hostexec/pb/hostexec.proto
+// source: tai/hostexec/pb/hostexec.proto
 
 package pb
 
@@ -19,8 +19,9 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	HostExec_Exec_FullMethodName       = "/hostexec.HostExec/Exec"
-	HostExec_ExecStream_FullMethodName = "/hostexec.HostExec/ExecStream"
+	HostExec_Exec_FullMethodName           = "/hostexec.HostExec/Exec"
+	HostExec_ExecStream_FullMethodName     = "/hostexec.HostExec/ExecStream"
+	HostExec_ExecStreamBidi_FullMethodName = "/hostexec.HostExec/ExecStreamBidi"
 )
 
 // HostExecClient is the client API for HostExec service.
@@ -34,6 +35,9 @@ type HostExecClient interface {
 	Exec(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (*ExecResponse, error)
 	// ExecStream runs a command and streams stdout/stderr in real time.
 	ExecStream(ctx context.Context, in *ExecRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[ExecOutput], error)
+	// ExecStreamBidi runs a command with bidirectional streaming.
+	// Supports runtime stdin writes for graceful cancellation via JSON-RPC.
+	ExecStreamBidi(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ExecInput, ExecOutput], error)
 }
 
 type hostExecClient struct {
@@ -73,6 +77,19 @@ func (c *hostExecClient) ExecStream(ctx context.Context, in *ExecRequest, opts .
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type HostExec_ExecStreamClient = grpc.ServerStreamingClient[ExecOutput]
 
+func (c *hostExecClient) ExecStreamBidi(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ExecInput, ExecOutput], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &HostExec_ServiceDesc.Streams[1], HostExec_ExecStreamBidi_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ExecInput, ExecOutput]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type HostExec_ExecStreamBidiClient = grpc.BidiStreamingClient[ExecInput, ExecOutput]
+
 // HostExecServer is the server API for HostExec service.
 // All implementations must embed UnimplementedHostExecServer
 // for forward compatibility.
@@ -84,6 +101,9 @@ type HostExecServer interface {
 	Exec(context.Context, *ExecRequest) (*ExecResponse, error)
 	// ExecStream runs a command and streams stdout/stderr in real time.
 	ExecStream(*ExecRequest, grpc.ServerStreamingServer[ExecOutput]) error
+	// ExecStreamBidi runs a command with bidirectional streaming.
+	// Supports runtime stdin writes for graceful cancellation via JSON-RPC.
+	ExecStreamBidi(grpc.BidiStreamingServer[ExecInput, ExecOutput]) error
 	mustEmbedUnimplementedHostExecServer()
 }
 
@@ -99,6 +119,9 @@ func (UnimplementedHostExecServer) Exec(context.Context, *ExecRequest) (*ExecRes
 }
 func (UnimplementedHostExecServer) ExecStream(*ExecRequest, grpc.ServerStreamingServer[ExecOutput]) error {
 	return status.Error(codes.Unimplemented, "method ExecStream not implemented")
+}
+func (UnimplementedHostExecServer) ExecStreamBidi(grpc.BidiStreamingServer[ExecInput, ExecOutput]) error {
+	return status.Error(codes.Unimplemented, "method ExecStreamBidi not implemented")
 }
 func (UnimplementedHostExecServer) mustEmbedUnimplementedHostExecServer() {}
 func (UnimplementedHostExecServer) testEmbeddedByValue()                  {}
@@ -150,6 +173,13 @@ func _HostExec_ExecStream_Handler(srv interface{}, stream grpc.ServerStream) err
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type HostExec_ExecStreamServer = grpc.ServerStreamingServer[ExecOutput]
 
+func _HostExec_ExecStreamBidi_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(HostExecServer).ExecStreamBidi(&grpc.GenericServerStream[ExecInput, ExecOutput]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type HostExec_ExecStreamBidiServer = grpc.BidiStreamingServer[ExecInput, ExecOutput]
+
 // HostExec_ServiceDesc is the grpc.ServiceDesc for HostExec service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -168,6 +198,12 @@ var HostExec_ServiceDesc = grpc.ServiceDesc{
 			Handler:       _HostExec_ExecStream_Handler,
 			ServerStreams: true,
 		},
+		{
+			StreamName:    "ExecStreamBidi",
+			Handler:       _HostExec_ExecStreamBidi_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
 	},
-	Metadata: "hostexec/pb/hostexec.proto",
+	Metadata: "tai/hostexec/pb/hostexec.proto",
 }

@@ -14,6 +14,7 @@ type platform interface {
 	ShellCmd(script string) []string
 	KillCmd(pattern string) []string
 	KillSessionCmd(sessionName string) []string
+	GracefulKillSessionCmd(sessionName string) []string
 	BuildScript(input scriptInput) (script string, stdin []byte)
 }
 

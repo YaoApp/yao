@@ -370,7 +370,7 @@ func buildMCPConfig(servers []types.MCPServer) map[string]any {
 	if len(result) == 0 {
 		result["yao"] = map[string]any{
 			"type":        "local",
-			"command":     []string{"tai", "mcp"},
+			"command":     []string{"tai", "mcp", "yao"},
 			"enabled":     true,
 			"environment": map[string]string{"YAO_TOKEN": "{env:YAO_TOKEN}"},
 		}

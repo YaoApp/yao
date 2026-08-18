@@ -266,14 +266,28 @@ func (ast *Assistant) FlushBuffer(ctx *agentcontext.Context, finalStatus string,
 	ctx.CloseSafeWriter()
 }
 
-// convertBufferedMessages converts BufferedMessage slice to store Message slice
+// convertBufferedMessages converts BufferedMessage slice to store Message slice.
+// Deduplicates by messageID, keeping the last (most complete) entry — this
+// prevents unique-index conflicts when the same tool emits multiple terminal
+// statuses (e.g. cleanup "error" after a normal "completed").
 func (ast *Assistant) convertBufferedMessages(buffered []*agentcontext.BufferedMessage) []*storetypes.Message {
 	if len(buffered) == 0 {
 		return nil
 	}
 
-	messages := make([]*storetypes.Message, len(buffered))
-	for i, msg := range buffered {
+	seen := make(map[string]int, len(buffered))
+	deduped := make([]*agentcontext.BufferedMessage, 0, len(buffered))
+	for _, msg := range buffered {
+		if idx, ok := seen[msg.MessageID]; ok {
+			deduped[idx] = msg
+		} else {
+			seen[msg.MessageID] = len(deduped)
+			deduped = append(deduped, msg)
+		}
+	}
+
+	messages := make([]*storetypes.Message, len(deduped))
+	for i, msg := range deduped {
 		messages[i] = &storetypes.Message{
 			MessageID:   msg.MessageID,
 			ChatID:      msg.ChatID,

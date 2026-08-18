@@ -137,10 +137,11 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		}
 	}
 
-	sess, err := startSession(ctx, computer, p, cmd, chatID, r.logger)
+	sess, err := startSession(ctx, computer, p, cmd, cmd.sessionID, r.logger)
 	if err != nil {
 		return err
 	}
+	defer sess.exec.Cancel()
 
 	completed, streamErr := sess.runStream(handler)
 	r.lastCompleted = completed

@@ -204,6 +204,10 @@ func (b *Box) Stream(ctx context.Context, cmd []string, opts ...ExecOption) (*Ex
 		return nil, err
 	}
 
+	if len(cfg.Stdin) > 0 && handle.Stdin != nil {
+		handle.Stdin.Write(cfg.Stdin)
+	}
+
 	return &ExecStream{
 		Stdout: io.NopCloser(handle.Stdout),
 		Stderr: io.NopCloser(handle.Stderr),

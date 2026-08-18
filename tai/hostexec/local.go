@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	pb "github.com/yaoapp/yao/tai/hostexec/pb"
@@ -170,6 +171,168 @@ func (c *LocalClient) ExecStream(ctx context.Context, req *pb.ExecRequest, _ ...
 
 	return &localStream{ctx: ctx, ch: ch}, nil
 }
+
+// ExecStreamBidi opens a bidirectional stream supporting runtime stdin writes.
+func (c *LocalClient) ExecStreamBidi(ctx context.Context, _ ...grpc.CallOption) (grpc.BidiStreamingClient[pb.ExecInput, pb.ExecOutput], error) {
+	return &localBidiStream{
+		ctx:   ctx,
+		outCh: make(chan *pb.ExecOutput, 64),
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// localBidiStream — in-process bidirectional stream adapter
+// ---------------------------------------------------------------------------
+
+type localBidiStream struct {
+	ctx       context.Context
+	outCh     chan *pb.ExecOutput
+	stdinPipe io.WriteCloser
+	cmd       *exec.Cmd
+	started   bool
+	mu        sync.Mutex
+}
+
+func (s *localBidiStream) Send(msg *pb.ExecInput) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	switch p := msg.Payload.(type) {
+	case *pb.ExecInput_Start:
+		if s.started {
+			return fmt.Errorf("already started")
+		}
+		req := p.Start
+		s.cmd = exec.CommandContext(s.ctx, req.Command, req.Args...)
+		if req.WorkingDir != "" {
+			s.cmd.Dir = req.WorkingDir
+		}
+		if len(req.Env) > 0 {
+			env := os.Environ()
+			for k, v := range req.Env {
+				env = append(env, k+"="+v)
+			}
+			s.cmd.Env = env
+		}
+
+		stdinPipe, err := s.cmd.StdinPipe()
+		if err != nil {
+			s.sendDone(err)
+			return nil
+		}
+		s.stdinPipe = stdinPipe
+
+		if len(req.Stdin) > 0 {
+			stdinPipe.Write(req.Stdin)
+		}
+
+		stdoutPipe, err := s.cmd.StdoutPipe()
+		if err != nil {
+			s.sendDone(err)
+			return nil
+		}
+		stderrPipe, err := s.cmd.StderrPipe()
+		if err != nil {
+			s.sendDone(err)
+			return nil
+		}
+
+		if err := s.cmd.Start(); err != nil {
+			s.sendDone(err)
+			return nil
+		}
+		s.started = true
+
+		go func() {
+			var wg sync.WaitGroup
+			wg.Add(2)
+			go func() {
+				defer wg.Done()
+				s.pipeToOutCh(stdoutPipe, pb.ExecOutput_STDOUT)
+			}()
+			go func() {
+				defer wg.Done()
+				s.pipeToOutCh(stderrPipe, pb.ExecOutput_STDERR)
+			}()
+			wg.Wait()
+
+			waitErr := s.cmd.Wait()
+			final := &pb.ExecOutput{Done: true}
+			if waitErr != nil {
+				if exitErr, ok := waitErr.(*exec.ExitError); ok {
+					final.ExitCode = int32(exitErr.ExitCode())
+				} else {
+					final.Error = waitErr.Error()
+					final.ExitCode = -1
+				}
+			}
+			s.outCh <- final
+			close(s.outCh)
+		}()
+		return nil
+
+	case *pb.ExecInput_StdinData:
+		if s.stdinPipe == nil {
+			return fmt.Errorf("not started")
+		}
+		_, err := s.stdinPipe.Write(p.StdinData)
+		return err
+
+	case *pb.ExecInput_StdinEof:
+		if s.stdinPipe != nil {
+			return s.stdinPipe.Close()
+		}
+		return nil
+	}
+	return nil
+}
+
+func (s *localBidiStream) sendDone(err error) {
+	s.outCh <- &pb.ExecOutput{Done: true, Error: err.Error(), ExitCode: -1}
+	close(s.outCh)
+}
+
+func (s *localBidiStream) pipeToOutCh(pipe io.ReadCloser, st pb.ExecOutput_Stream) {
+	buf := make([]byte, 32*1024)
+	for {
+		n, readErr := pipe.Read(buf)
+		if n > 0 {
+			data := make([]byte, n)
+			copy(data, buf[:n])
+			s.outCh <- &pb.ExecOutput{Stream: st, Data: data}
+		}
+		if readErr != nil {
+			return
+		}
+	}
+}
+
+func (s *localBidiStream) Recv() (*pb.ExecOutput, error) {
+	select {
+	case <-s.ctx.Done():
+		return nil, s.ctx.Err()
+	case msg, ok := <-s.outCh:
+		if !ok {
+			return nil, io.EOF
+		}
+		return msg, nil
+	}
+}
+
+func (s *localBidiStream) CloseSend() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.stdinPipe != nil {
+		return s.stdinPipe.Close()
+	}
+	return nil
+}
+
+func (s *localBidiStream) Header() (metadata.MD, error) { return nil, nil }
+func (s *localBidiStream) Trailer() metadata.MD         { return nil }
+func (s *localBidiStream) Context() context.Context     { return s.ctx }
+func (s *localBidiStream) SendMsg(any) error            { return nil }
+func (s *localBidiStream) RecvMsg(any) error            { return nil }
 
 // ---------------------------------------------------------------------------
 // Policy checks (identical to Tai hostexec/server.go)

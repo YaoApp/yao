@@ -19,17 +19,12 @@ func hashUserID(raw string) string {
 	return hex.EncodeToString(h[:8])
 }
 
-var dshSessionNS = uuid.MustParse("d5e8a9b2-3c4f-4a1e-8b7d-6f2e1c0a9d3b")
-
-func chatIDToSessionUUID(assistantID, chatID string) string {
-	return uuid.NewSHA1(dshSessionNS, []byte(assistantID+":"+chatID)).String()
-}
-
 type command struct {
-	shell   []string
-	env     map[string]string
-	stdin   []byte
-	workDir string
+	shell     []string
+	env       map[string]string
+	stdin     []byte
+	workDir   string
+	sessionID string
 }
 
 func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, error) {
@@ -81,11 +76,11 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 	// Build system prompt
 	systemPrompt := buildSystemPrompt(req, workDir)
 
-	// Deterministic session UUID derived from chat ID. The yaoapp stream plugin
-	// uses this to resume persisted sessions across process invocations.
-	sessionUUID := uuid.New().String()
-	if req.ChatID != "" {
-		sessionUUID = chatIDToSessionUUID(req.AssistantID, req.ChatID)
+	// Use chatID directly as DSH session ID — same chat shares session across
+	// assistant switches (as long as runner is DSH).
+	sessionID := req.ChatID
+	if sessionID == "" {
+		sessionID = uuid.New().String()
 	}
 
 	// Build JSON-RPC input
@@ -95,7 +90,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 	}
 
 	lastMsg := extractLastUserMessage(req.Messages)
-	promptMsg, err := buildSessionPromptMsg(sessionUUID, lastMsg)
+	promptMsg, err := buildSessionPromptMsg(sessionID, lastMsg)
 	if err != nil {
 		return command{}, err
 	}
@@ -116,10 +111,11 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 	})
 
 	return command{
-		shell:   p.ShellCmd(script),
-		env:     env,
-		stdin:   stdin,
-		workDir: workDir,
+		shell:     p.ShellCmd(script),
+		env:       env,
+		stdin:     stdin,
+		workDir:   workDir,
+		sessionID: sessionID,
 	}, nil
 }
 
