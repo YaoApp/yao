@@ -356,6 +356,534 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
 
+# ─── 超算互联网 Token Plan (OpenAI) ─────────────────────
+- key: scnet_token_plan
+  name: 超算互联网 Token Plan
+  locale: zh-cn
+  type: openai
+  api_url: https://api.scnet.cn/api/llm/v1/
+  require_key: true
+  default_models:
+    - id: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking-max
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking-low
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: DeepSeek-V4-Flash-thinking
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: DeepSeek-V4-Flash-thinking-max
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Flash-thinking-low
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: GLM-5.2
+      name: GLM-5.2
+      max_input_tokens: 202752
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K3
+      name: Kimi K3 Max
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "max"
+      enabled: false
+    - id: Kimi-K3-high
+      model: Kimi-K3
+      name: Kimi K3 High
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "high"
+      enabled: false
+    - id: Kimi-K3-low
+      model: Kimi-K3
+      name: Kimi K3 Low
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "low"
+      enabled: false
+    - id: Kimi-K2.7-Code
+      name: Kimi K2.7 Code
+      max_input_tokens: 262144
+      max_output_tokens: 32768
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K2.6
+      name: Kimi K2.6
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: Kimi-K2.6-thinking
+      model: Kimi-K2.6
+      name: Kimi K2.6 Thinking
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+      enabled: false
+    - id: MiniMax-M3
+      name: MiniMax M3
+      max_input_tokens: 1048576
+      max_output_tokens: 512000
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.7
+      name: MiniMax M2.7
+      max_input_tokens: 196608
+      max_output_tokens: 40960
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.5
+      name: MiniMax M2.5
+      max_input_tokens: 196608
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiMo-V2.5-Pro
+      name: MiMo V2.5 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+
+# ─── 超算互联网 Token Plan (Anthropic) ──────────────────
+- key: scnet_token_plan_anthropic
+  name: 超算互联网 Token Plan (Anthropic)
+  locale: zh-cn
+  type: anthropic
+  api_url: https://api.scnet.cn/api/llm/anthropic
+  require_key: true
+  default_models:
+    - id: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking-max
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Pro-thinking-low
+      model: DeepSeek-V4-Pro
+      name: DeepSeek V4 Pro Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: DeepSeek-V4-Flash-thinking
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: DeepSeek-V4-Flash-thinking-max
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Flash-thinking-low
+      model: DeepSeek-V4-Flash
+      name: DeepSeek V4 Flash Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: GLM-5.2
+      name: GLM-5.2
+      max_input_tokens: 202752
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K3
+      name: Kimi K3 Max
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "max"
+      enabled: false
+    - id: Kimi-K3-high
+      model: Kimi-K3
+      name: Kimi K3 High
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "high"
+      enabled: false
+    - id: Kimi-K3-low
+      model: Kimi-K3
+      name: Kimi K3 Low
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "low"
+      enabled: false
+    - id: Kimi-K2.7-Code
+      name: Kimi K2.7 Code
+      max_input_tokens: 262144
+      max_output_tokens: 32768
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K2.6
+      name: Kimi K2.6
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: Kimi-K2.6-thinking
+      model: Kimi-K2.6
+      name: Kimi K2.6 Thinking
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+      enabled: false
+    - id: MiniMax-M3
+      name: MiniMax M3
+      max_input_tokens: 1048576
+      max_output_tokens: 512000
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.7
+      name: MiniMax M2.7
+      max_input_tokens: 196608
+      max_output_tokens: 40960
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.5
+      name: MiniMax M2.5
+      max_input_tokens: 196608
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiMo-V2.5-Pro
+      name: MiMo V2.5 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+
+# ─── 超算互联网 (OpenAI) ────────────────────────────────
+- key: scnet
+  name: 超算互联网
+  locale: zh-cn
+  type: openai
+  api_url: https://api.scnet.cn/api/llm/v1/
+  require_key: true
+  default_models:
+    - id: DeepSeek-V4-Pro-0813
+      name: DeepSeek V4 Pro 0813
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: DeepSeek-V4-Pro-0813-thinking
+      model: DeepSeek-V4-Pro-0813
+      name: DeepSeek V4 Pro 0813 Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: false
+    - id: DeepSeek-V4-Pro-0813-thinking-max
+      model: DeepSeek-V4-Pro-0813
+      name: DeepSeek V4 Pro 0813 Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Pro-0813-thinking-low
+      model: DeepSeek-V4-Pro-0813
+      name: DeepSeek V4 Pro 0813 Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: DeepSeek-V4-Flash-0731
+      name: DeepSeek V4 Flash 0731
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: DeepSeek-V4-Flash-0731-thinking
+      model: DeepSeek-V4-Flash-0731
+      name: DeepSeek V4 Flash 0731 Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: DeepSeek-V4-Flash-0731-thinking-max
+      model: DeepSeek-V4-Flash-0731
+      name: DeepSeek V4 Flash 0731 Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: DeepSeek-V4-Flash-0731-thinking-low
+      model: DeepSeek-V4-Flash-0731
+      name: DeepSeek V4 Flash 0731 Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: GLM-5.2
+      name: GLM-5.2
+      max_input_tokens: 202752
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K3
+      name: Kimi K3 Max
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "max"
+      enabled: false
+    - id: Kimi-K3-high
+      model: Kimi-K3
+      name: Kimi K3 High
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "high"
+      enabled: false
+    - id: Kimi-K3-low
+      model: Kimi-K3
+      name: Kimi K3 Low
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        reasoning_effort: "low"
+      enabled: false
+    - id: Kimi-K2.7-Code
+      name: Kimi K2.7 Code
+      max_input_tokens: 262144
+      max_output_tokens: 32768
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: Kimi-K2.6
+      name: Kimi K2.6
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: false
+    - id: Kimi-K2.6-thinking
+      model: Kimi-K2.6
+      name: Kimi K2.6 Thinking
+      max_input_tokens: 262142
+      max_output_tokens: 262142
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+      enabled: false
+    - id: MiniMax-M3
+      name: MiniMax M3
+      max_input_tokens: 1048576
+      max_output_tokens: 512000
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.7
+      name: MiniMax M2.7
+      max_input_tokens: 196608
+      max_output_tokens: 40960
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiniMax-M2.5
+      name: MiniMax M2.5
+      max_input_tokens: 196608
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: MiMo-V2.5-Pro
+      name: MiMo V2.5 Pro
+      max_input_tokens: 1048576
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: Qwen3.8-max
+      name: Qwen3.8 Max
+      max_input_tokens: 1000000
+      max_output_tokens: 131072
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+
 # ─── Anthropic ──────────────────────────────────────────
 - key: anthropic
   name: Anthropic
