@@ -61,6 +61,61 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 	// Connector stores thinking as {"type": "enabled"|"disabled", "budget_tokens": N}.
 	thinking, reasoningEffort := extractThinkingConfig(req.Connector)
 
+	// Collect all models on the same endpoint (primary + roles) for the DSH catalog.
+	// DSH only recognizes capabilities declared in the catalog; uncatalogued models
+	// are forced text-only regardless of actual support.
+	var models []ModelConfig
+	seen := map[string]bool{}
+
+	if lc, ok := req.Connector.(goullm.LLMConnector); ok {
+		modalities := []string{"text"}
+		if caps := lc.GetCapabilities(); caps != nil && caps.HasVision() {
+			modalities = []string{"text", "image"}
+		}
+		models = append(models, ModelConfig{ID: model, InputModalities: modalities})
+		seen[model] = true
+	} else if req.Connector != nil {
+		models = append(models, ModelConfig{ID: model, InputModalities: []string{"text"}})
+		seen[model] = true
+	}
+
+	for _, c := range req.Roles {
+		if c == nil {
+			continue
+		}
+		lc, ok := c.(goullm.LLMConnector)
+		if !ok {
+			continue
+		}
+		roleModel := lc.GetModel()
+		if roleModel == "" || seen[roleModel] {
+			continue
+		}
+		roleURL := normalizeDSHBaseURL(lc.GetURL())
+		if roleURL != baseURL {
+			continue
+		}
+		modalities := []string{"text"}
+		if caps := lc.GetCapabilities(); caps != nil && caps.HasVision() {
+			modalities = []string{"text", "image"}
+		}
+		models = append(models, ModelConfig{ID: roleModel, InputModalities: modalities})
+		seen[roleModel] = true
+	}
+
+	vision := false
+	for _, m := range models {
+		for _, mod := range m.InputModalities {
+			if mod == "image" {
+				vision = true
+				break
+			}
+		}
+		if vision {
+			break
+		}
+	}
+
 	// Render cordis.yml
 	cordisYAML, err := RenderCordisConfig(&ConnectorConfig{
 		BaseURL:         baseURL,
@@ -68,6 +123,8 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 		ReasoningEffort: reasoningEffort,
 		MaxTokens:       maxTokens,
 		IsWindows:       p.OS() == "windows",
+		Models:          models,
+		Vision:          vision,
 	})
 	if err != nil {
 		return command{}, fmt.Errorf("render cordis config: %w", err)

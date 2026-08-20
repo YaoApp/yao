@@ -345,6 +345,74 @@ func TestRenderCordisConfig_NoBaseURL(t *testing.T) {
 	}
 }
 
+func TestRenderCordisConfig_WithModelsTextOnly(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		Models: []dsh.ModelConfig{
+			{ID: "deepseek-chat", InputModalities: []string{"text"}},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !containsAll(s, "models:", "id: deepseek-chat", "inputModalities: [text]") {
+		t.Errorf("config should render models section, got: %s", s)
+	}
+	if containsAny(s, "dsh-attachment-local") {
+		t.Error("text-only models should not load attachment-local")
+	}
+}
+
+func TestRenderCordisConfig_WithVision(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		Models: []dsh.ModelConfig{
+			{ID: "deepseek-v4-flash", InputModalities: []string{"text", "image"}},
+		},
+		Vision: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !containsAll(s, "models:", "id: deepseek-v4-flash", "inputModalities: [text, image]") {
+		t.Errorf("config should render vision model, got: %s", s)
+	}
+	if !containsAll(s, "dsh-attachment-local") {
+		t.Error("vision=true should load attachment-local plugin")
+	}
+}
+
+func TestRenderCordisConfig_MultipleModels(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		Models: []dsh.ModelConfig{
+			{ID: "deepseek-chat", InputModalities: []string{"text"}},
+			{ID: "deepseek-v4-flash", InputModalities: []string{"text", "image"}},
+		},
+		Vision: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !containsAll(s, "id: deepseek-chat", "id: deepseek-v4-flash") {
+		t.Errorf("config should contain both models, got: %s", s)
+	}
+	if !containsAll(s, "dsh-attachment-local") {
+		t.Error("should load attachment-local when vision=true")
+	}
+}
+
+func TestRenderCordisConfig_NoModels(t *testing.T) {
+	data, _ := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{})
+	s := string(data)
+	if containsAny(s, "models:", "inputModalities:") {
+		t.Error("empty Models should not render models section")
+	}
+	if containsAny(s, "dsh-attachment-local") {
+		t.Error("empty config should not load attachment-local")
+	}
+}
+
 // --- helpers ---
 
 func containsAll(s string, subs ...string) bool {
