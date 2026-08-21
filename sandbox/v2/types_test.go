@@ -145,4 +145,7 @@ func TestDefaultTimeouts(t *testing.T) {
 	if sandbox.DefaultOneShotMaxAge != 8*time.Hour {
 		t.Errorf("DefaultOneShotMaxAge: got %v", sandbox.DefaultOneShotMaxAge)
 	}
+	if sandbox.DefaultLifetimeGrace != 5*time.Minute {
+		t.Errorf("DefaultLifetimeGrace: got %v", sandbox.DefaultLifetimeGrace)
+	}
 }

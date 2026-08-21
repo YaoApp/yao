@@ -54,12 +54,22 @@ func (w *sandboxWatcher) Check(ctx context.Context) []monitor.Alert {
 			if lifetime := b.maxLifetime(); lifetime > 0 {
 				age := time.Since(b.createdAt)
 				if age > lifetime {
-					alerts = append(alerts, monitor.Alert{
-						Level:   monitor.Warn,
-						Target:  "box:" + b.id,
-						Message: fmt.Sprintf("lifetime expired (%s), removing", lifetime),
-						Action:  func(ctx context.Context) { mgr.Remove(ctx, b.id) },
-					})
+					idle := time.Since(b.idleSince())
+					if idle < DefaultLifetimeGrace {
+						alerts = append(alerts, monitor.Alert{
+							Level:  monitor.Info,
+							Target: "box:" + b.id,
+							Message: fmt.Sprintf("lifetime expired but recently active (idle=%s < grace=%s), deferring removal",
+								idle.Round(time.Second), DefaultLifetimeGrace),
+						})
+					} else {
+						alerts = append(alerts, monitor.Alert{
+							Level:   monitor.Warn,
+							Target:  "box:" + b.id,
+							Message: fmt.Sprintf("lifetime expired (%s, idle=%s), removing", lifetime, idle.Round(time.Second)),
+							Action:  func(ctx context.Context) { mgr.Remove(ctx, b.id) },
+						})
+					}
 				} else {
 					alerts = append(alerts, monitor.Alert{
 						Level:  monitor.Trace,

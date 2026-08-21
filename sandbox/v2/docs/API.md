@@ -59,7 +59,7 @@ type LifecyclePolicy string
 const (
     OneShot     LifecyclePolicy = "oneshot"     // removed after first Exec
     Session     LifecyclePolicy = "session"     // removed after idle timeout
-    LongRunning LifecyclePolicy = "longrunning" // stopped after idle, removed after max lifetime
+    LongRunning LifecyclePolicy = "longrunning" // stopped after idle, removed after max lifetime (with 5min grace if recently active)
     Persistent  LifecyclePolicy = "persistent"  // never auto-cleaned
 )
 ```
