@@ -260,14 +260,14 @@ func TestWindows_BuildScript_NoPipeInput(t *testing.T) {
 func TestWindows_BuildScript_PreservesSingleQuotes(t *testing.T) {
 	p := dsh.ExportNewWindowsPlatform("pwsh")
 	script, _ := p.BuildScript(dsh.ExportScriptInput{
-		CordisYAML:   "  name: '@yaoapp/dsh-sdk-jsonrpc-stream'",
+		CordisYAML:   "  name: '@deepseek-ai/dsh-yaoapp-jsonrpc-stream'",
 		ConfigFile:   `C:\ws\cordis.yml`,
 		InputJSONRPC: "{}",
 	})
-	if !strings.Contains(script, "'@yaoapp/dsh-sdk-jsonrpc-stream'") {
+	if !strings.Contains(script, "'@deepseek-ai/dsh-yaoapp-jsonrpc-stream'") {
 		t.Error("here-string content must preserve single quotes verbatim")
 	}
-	if strings.Contains(script, "''@yaoapp/dsh-sdk-jsonrpc-stream''") {
+	if strings.Contains(script, "''@deepseek-ai/dsh-yaoapp-jsonrpc-stream''") {
 		t.Error("single quotes must not be doubled inside a PowerShell here-string")
 	}
 }

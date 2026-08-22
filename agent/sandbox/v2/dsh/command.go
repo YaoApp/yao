@@ -10,6 +10,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	goullm "github.com/yaoapp/gou/llm"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
@@ -27,7 +28,7 @@ type command struct {
 	sessionID string
 }
 
-func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, error) {
+func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *shared.MessageParts) (command, error) {
 	computer := req.Computer
 	workDir := computer.GetWorkDir()
 
@@ -146,8 +147,14 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform) (command, er
 		return command{}, err
 	}
 
-	lastMsg := extractLastUserMessage(req.Messages)
-	promptMsg, err := buildSessionPromptMsg(sessionID, lastMsg)
+	var promptMsg string
+	if msgParts != nil && len(msgParts.ImageBlocks) > 0 {
+		blocks := buildContentBlocks(msgParts)
+		promptMsg, err = buildSessionPromptMsgFromBlocks(sessionID, blocks)
+	} else {
+		lastMsg := extractLastUserMessage(req.Messages)
+		promptMsg, err = buildSessionPromptMsg(sessionID, lastMsg)
+	}
 	if err != nil {
 		return command{}, err
 	}
@@ -409,4 +416,24 @@ func connectorHasVision(c connector.Connector) bool {
 		return false
 	}
 	return caps.HasVision()
+}
+
+// buildContentBlocks creates mixed text+image content blocks from MessageParts.
+func buildContentBlocks(parts *shared.MessageParts) []contentBlock {
+	var blocks []contentBlock
+	for _, text := range parts.TextParts {
+		if text == "" {
+			continue
+		}
+		blocks = append(blocks, contentBlock{Type: "text", Text: text})
+	}
+	for _, img := range parts.ImageBlocks {
+		blocks = append(blocks, contentBlock{
+			Type:      "image",
+			MediaType: img.MediaType,
+			Data:      img.Data,
+			Name:      img.Filename,
+		})
+	}
+	return blocks
 }

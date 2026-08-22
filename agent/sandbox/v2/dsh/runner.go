@@ -107,18 +107,21 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	}
 
 	// Process attachments (aligned with Claude Runner)
+	var msgParts *shared.MessageParts
 	if req.ChatID != "" {
 		if ws := computer.Workplace(); ws != nil {
-			processed, _, err := shared.PrepareAttachments(ctx, req.Messages, req.ChatID, ws)
+			vision := shared.HasVision(req.Connector)
+			processed, mp, err := shared.ExtractMessageParts(ctx, req.Messages, req.ChatID, ws, vision)
 			if err != nil {
-				r.logger.Warn("prepareAttachments: %v", err)
+				r.logger.Warn("extractMessageParts: %v", err)
 			} else {
 				req.Messages = processed
+				msgParts = mp
 			}
 		}
 	}
 
-	cmd, err := r.buildCommand(req, p)
+	cmd, err := r.buildCommand(req, p, msgParts)
 	if err != nil {
 		return fmt.Errorf("buildCommand: %w", err)
 	}
@@ -135,6 +138,14 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		} else {
 			r.logger.Debug("  %s=(set, len=%d)", k, len(v))
 		}
+	}
+
+	if msgParts != nil && len(msgParts.ImageBlocks) > 0 {
+		totalBytes := 0
+		for _, img := range msgParts.ImageBlocks {
+			totalBytes += len(img.Data)
+		}
+		r.logger.Info("vision input: images=%d totalBase64=%d bytes", len(msgParts.ImageBlocks), totalBytes)
 	}
 
 	sess, err := startSession(ctx, computer, p, cmd, cmd.sessionID, r.logger)

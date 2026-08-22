@@ -9,6 +9,7 @@ import (
 
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/dsh"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
@@ -265,7 +266,7 @@ func TestRenderCordisConfig_Default(t *testing.T) {
 	if len(s) == 0 {
 		t.Fatal("empty config")
 	}
-	if !containsAll(s, "dsh-sdk-jsonrpc-stream", "dsh-llm-deepseek", "dsh-bash-local", "dsh-fs-local") {
+	if !containsAll(s, "dsh-yaoapp-jsonrpc-stream", "dsh-llm-deepseek", "dsh-bash-local", "dsh-fs-local") {
 		t.Errorf("config missing expected plugins: %s", s)
 	}
 	if !containsAll(s, "session-persistence-jsonl", "session-checkpoint-policy") {
@@ -435,4 +436,57 @@ func containsAny(s string, subs ...string) bool {
 
 func contains(s, sub string) bool {
 	return len(s) > 0 && len(sub) > 0 && strings.Contains(s, sub)
+}
+
+func TestBuildContentBlocks_TextOnly(t *testing.T) {
+	parts := &shared.MessageParts{
+		TextParts: []string{"hello world"},
+	}
+	blocks := dsh.ExportBuildContentBlocks(parts)
+	if len(blocks) != 1 {
+		t.Fatalf("expected 1 block, got %d", len(blocks))
+	}
+}
+
+func TestBuildContentBlocks_WithImages(t *testing.T) {
+	parts := &shared.MessageParts{
+		TextParts:   []string{"describe this"},
+		ImageBlocks: []shared.ImageBlock{{MediaType: "image/png", Data: "AAAA", Filename: "test.png"}},
+	}
+	blocks := dsh.ExportBuildContentBlocks(parts)
+	if len(blocks) != 2 {
+		t.Fatalf("expected 2 blocks (text+image), got %d", len(blocks))
+	}
+}
+
+func TestBuildContentBlocks_SkipEmptyText(t *testing.T) {
+	parts := &shared.MessageParts{
+		TextParts:   []string{"", "hello"},
+		ImageBlocks: []shared.ImageBlock{{MediaType: "image/jpeg", Data: "AAAA", Filename: ""}},
+	}
+	blocks := dsh.ExportBuildContentBlocks(parts)
+	if len(blocks) != 2 {
+		t.Fatalf("expected 2 blocks (non-empty text+image), got %d", len(blocks))
+	}
+}
+
+func TestBuildSessionPromptMsgFromBlocks_JSON(t *testing.T) {
+	parts := &shared.MessageParts{
+		TextParts:   []string{"what is in this image?"},
+		ImageBlocks: []shared.ImageBlock{{MediaType: "image/png", Data: "AAAA", Filename: "img.png"}},
+	}
+	blocks := dsh.ExportBuildContentBlocks(parts)
+	msg, err := dsh.ExportBuildSessionPromptMsgFromBlocks("test-session-id", blocks)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !contains(msg, `"sessionId":"test-session-id"`) {
+		t.Errorf("missing sessionId in output: %s", msg)
+	}
+	if !contains(msg, `"mediaType":"image/png"`) {
+		t.Errorf("missing mediaType in output: %s", msg)
+	}
+	if !contains(msg, `"data":"AAAA"`) {
+		t.Errorf("missing data in output: %s", msg)
+	}
 }

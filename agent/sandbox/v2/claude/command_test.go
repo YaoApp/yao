@@ -14,6 +14,7 @@ import (
 	"github.com/yaoapp/xun/dbal/schema"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/claude"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/tai/registry"
@@ -784,5 +785,43 @@ func TestResolveAllRoleConnectors_DualProtoKept(t *testing.T) {
 	result := claude.ExportResolveAllRoleConnectors(req)
 	if _, ok := result["heavy"]; !ok {
 		t.Error("dual-protocol connector (openai+anthropic) should be kept with role key")
+	}
+}
+
+func TestBuildVisionMessageJSONL(t *testing.T) {
+	parts := &shared.MessageParts{
+		TextParts:   []string{"what is in this image?"},
+		ImageBlocks: []shared.ImageBlock{{MediaType: "image/png", Data: "AAAA", Filename: "test.png"}},
+	}
+	result := claude.ExportBuildVisionMessageJSONL(parts)
+	if result == "" {
+		t.Fatal("expected non-empty JSONL")
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal([]byte(result), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+	if parsed["type"] != "user" {
+		t.Errorf("expected type=user, got %v", parsed["type"])
+	}
+	msg, _ := parsed["message"].(map[string]any)
+	if msg == nil {
+		t.Fatal("expected message field")
+	}
+	content, _ := msg["content"].([]any)
+	if len(content) != 2 {
+		t.Fatalf("expected 2 content blocks (text+image), got %d", len(content))
+	}
+	textBlock, _ := content[0].(map[string]any)
+	if textBlock["type"] != "text" {
+		t.Errorf("first block should be text, got %v", textBlock["type"])
+	}
+	imgBlock, _ := content[1].(map[string]any)
+	if imgBlock["type"] != "image" {
+		t.Errorf("second block should be image, got %v", imgBlock["type"])
+	}
+	source, _ := imgBlock["source"].(map[string]any)
+	if source["media_type"] != "image/png" {
+		t.Errorf("expected media_type=image/png, got %v", source["media_type"])
 	}
 }

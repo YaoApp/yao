@@ -115,6 +115,12 @@ func ExportBuildShutdownRPC() []byte {
 // ExportIsContextErr exposes isContextErr for testing.
 var ExportIsContextErr = isContextErr
 
+// ExportBuildContentBlocks exposes buildContentBlocks for testing.
+var ExportBuildContentBlocks = buildContentBlocks
+
+// ExportBuildSessionPromptMsgFromBlocks exposes buildSessionPromptMsgFromBlocks for testing.
+var ExportBuildSessionPromptMsgFromBlocks = buildSessionPromptMsgFromBlocks
+
 // --- Stream parser export ---
 
 // ExportNewStreamParser creates a streamParser for black-box testing.
