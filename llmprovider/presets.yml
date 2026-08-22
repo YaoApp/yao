@@ -158,6 +158,48 @@
           type: enabled
         reasoning_effort: "low"
       enabled: false
+    - id: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking-max
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-vision-exp-thinking-low
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
     - id: mimo-v2.5
       name: MiMo V2.5
       max_input_tokens: 1048576
@@ -1345,6 +1387,48 @@
           type: enabled
         reasoning_effort: "low"
       enabled: false
+    - id: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking-max
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-vision-exp-thinking-low
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
 
 # ─── DeepSeek (OpenAI) ──────────────────────────────────
 - key: deepseek
@@ -1432,6 +1516,48 @@
       max_input_tokens: 1048576
       max_output_tokens: 384000
       capabilities: [tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "low"
+      enabled: false
+    - id: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json]
+      options:
+        thinking:
+          type: disabled
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking High
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "high"
+      enabled: true
+    - id: deepseek-v4-flash-vision-exp-thinking-max
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Max
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      options:
+        thinking:
+          type: enabled
+        reasoning_effort: "max"
+      enabled: false
+    - id: deepseek-v4-flash-vision-exp-thinking-low
+      model: deepseek-v4-flash-vision-exp
+      name: DeepSeek V4 Flash Vision Exp Thinking Low
+      max_input_tokens: 1048576
+      max_output_tokens: 384000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
       options:
         thinking:
           type: enabled
