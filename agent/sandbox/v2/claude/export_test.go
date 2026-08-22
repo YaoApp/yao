@@ -111,6 +111,9 @@ var ExportBuildMCPAllowedTools = buildMCPAllowedTools
 // ExportBuildLastUserMessageJSONL exposes buildLastUserMessageJSONL.
 var ExportBuildLastUserMessageJSONL = buildLastUserMessageJSONL
 
+// ExportBuildVisionMessageJSONL exposes buildVisionMessageJSONL.
+var ExportBuildVisionMessageJSONL = buildVisionMessageJSONL
+
 // ExportIsStandardAnthropicModel exposes isStandardAnthropicModel.
 var ExportIsStandardAnthropicModel = isStandardAnthropicModel
 

@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/gou/store"
 	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
+	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
@@ -57,13 +58,14 @@ func markChatSession(storeKey, sessionUUID string, ttl time.Duration) {
 }
 
 type command struct {
-	shell   []string
-	env     map[string]string
-	stdin   []byte
-	workDir string
+	shell    []string
+	env      map[string]string
+	stdin    []byte
+	workDir  string
+	inputLen int
 }
 
-func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p platform) command {
+func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p platform, msgParts *shared.MessageParts) command {
 	computer := req.Computer
 	workDir := computer.GetWorkDir()
 	assistantID := req.AssistantID
@@ -79,7 +81,13 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 
 	env := buildEnv(req, p)
 	args := buildArgs(req, r, p, isContinuation, assistantID, chatID)
-	inputJSONL := buildLastUserMessageJSONL(req.Messages)
+
+	var inputJSONL string
+	if msgParts != nil && len(msgParts.ImageBlocks) > 0 {
+		inputJSONL = buildVisionMessageJSONL(msgParts)
+	} else {
+		inputJSONL = buildLastUserMessageJSONL(req.Messages)
+	}
 
 	var workspaceID string
 	if ws := req.Computer.Workplace(); ws != nil {
@@ -125,10 +133,11 @@ func (r *Runner) buildCommand(ctx context.Context, req *types.StreamRequest, p p
 	})
 
 	return command{
-		shell:   p.ShellCmd(script),
-		env:     env,
-		stdin:   stdin,
-		workDir: workDir,
+		shell:    p.ShellCmd(script),
+		env:      env,
+		stdin:    stdin,
+		workDir:  workDir,
+		inputLen: len(inputJSONL),
 	}
 }
 
@@ -650,6 +659,37 @@ func buildLastUserMessageJSONL(messages []agentContext.Message) string {
 		}
 	}
 	return ""
+}
+
+// buildVisionMessageJSONL constructs a multimodal JSONL user message with
+// text and base64 image blocks in Anthropic's content format.
+func buildVisionMessageJSONL(parts *shared.MessageParts) string {
+	var blocks []any
+	for _, text := range parts.TextParts {
+		if text == "" {
+			continue
+		}
+		blocks = append(blocks, map[string]any{"type": "text", "text": text})
+	}
+	for _, img := range parts.ImageBlocks {
+		blocks = append(blocks, map[string]any{
+			"type": "image",
+			"source": map[string]any{
+				"type":       "base64",
+				"media_type": img.MediaType,
+				"data":       img.Data,
+			},
+		})
+	}
+	msg := map[string]any{
+		"type": "user",
+		"message": map[string]any{
+			"role":    "user",
+			"content": blocks,
+		},
+	}
+	data, _ := json.Marshal(msg)
+	return string(data)
 }
 
 // claudeRoleEnvMap maps abstract Yao model roles to Claude CLI environment

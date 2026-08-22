@@ -22,8 +22,11 @@ type initializeParams struct {
 }
 
 type contentBlock struct {
-	Type string `json:"type"`
-	Text string `json:"text"`
+	Type      string `json:"type"`
+	Text      string `json:"text"`
+	MediaType string `json:"mediaType,omitempty"`
+	Data      string `json:"data,omitempty"`
+	Name      string `json:"name,omitempty"`
 }
 
 type sessionPromptParams struct {
@@ -62,6 +65,24 @@ func buildSessionPromptMsg(sessionID, userMessage string) (string, error) {
 			ContentBlocks: []contentBlock{
 				{Type: "text", Text: userMessage},
 			},
+		},
+	}
+	b, err := json.Marshal(msg)
+	if err != nil {
+		return "", fmt.Errorf("marshal session/prompt: %w", err)
+	}
+	return string(b), nil
+}
+
+// buildSessionPromptMsgFromBlocks constructs a session/prompt with mixed content blocks.
+func buildSessionPromptMsgFromBlocks(sessionID string, blocks []contentBlock) (string, error) {
+	msg := jsonRPCRequest{
+		JSONRPC: "2.0",
+		ID:      2,
+		Method:  "session/prompt",
+		Params: sessionPromptParams{
+			SessionID:     sessionID,
+			ContentBlocks: blocks,
 		},
 	}
 	b, err := json.Marshal(msg)

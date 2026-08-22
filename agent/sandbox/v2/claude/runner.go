@@ -143,17 +143,20 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		injectAutoMemory(ws, req.AssistantID, computer.GetWorkDir(), vision)
 	}
 
+	var msgParts *shared.MessageParts
 	if req.ChatID != "" {
 		if ws := computer.Workplace(); ws != nil {
-			processed, err := prepareAttachments(ctx, req.Messages, req.ChatID, ws)
+			vision := shared.HasVision(req.Connector)
+			processed, mp, err := shared.ExtractMessageParts(ctx, req.Messages, req.ChatID, ws, vision)
 			if err != nil {
-				return fmt.Errorf("prepareAttachments: %w", err)
+				return fmt.Errorf("extractMessageParts: %w", err)
 			}
 			req.Messages = processed
+			msgParts = mp
 		}
 	}
 
-	cmd := r.buildCommand(ctx, req, p)
+	cmd := r.buildCommand(ctx, req, p, msgParts)
 
 	r.logger = req.Logger
 	if r.logger == nil {
@@ -164,7 +167,7 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 	r.lastChatID = chatID
 	assistantID := req.AssistantID
 
-	log.Trace("[claude-runner] Stream started: assistantID=%s chatID=%s promptLen=%d", assistantID, chatID, len(cmd.shell))
+	log.Trace("[claude-runner] Stream started: assistantID=%s chatID=%s inputLen=%d", assistantID, chatID, cmd.inputLen)
 	r.logger.Debug("env vars passed to session (%d total):", len(cmd.env))
 	for k, v := range cmd.env {
 		if strings.HasPrefix(k, "CTX_") || k == "CLAUDE_CONFIG_DIR" || k == "HOME" || k == "WORKDIR" {
@@ -172,6 +175,14 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		} else {
 			r.logger.Debug("  %s=(set, len=%d)", k, len(v))
 		}
+	}
+
+	if msgParts != nil && len(msgParts.ImageBlocks) > 0 {
+		totalBytes := 0
+		for _, img := range msgParts.ImageBlocks {
+			totalBytes += len(img.Data)
+		}
+		r.logger.Info("vision input: images=%d totalBase64=%d bytes", len(msgParts.ImageBlocks), totalBytes)
 	}
 
 	sess, err := startSession(ctx, computer, p, cmd, chatID, r.logger)

@@ -31,8 +31,12 @@ func startSession(ctx context.Context, computer infra.Computer, p platform, cmd 
 		opts = append(opts, infra.WithStdin(cmd.stdin))
 	}
 
-	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s stdinLen=%d chatID=%s",
-		cmd.shell, cmd.workDir, p.OS(), len(cmd.stdin), chatID)
+	shellName := "unknown"
+	if len(cmd.shell) > 0 {
+		shellName = cmd.shell[0]
+	}
+	logger.Info("claude session starting: cmd=%s workDir=%s platform=%s inputLen=%d chatID=%s",
+		shellName, cmd.workDir, p.OS(), cmd.inputLen, chatID)
 
 	execStream, err := computer.Stream(ctx, cmd.shell, opts...)
 	if err != nil {

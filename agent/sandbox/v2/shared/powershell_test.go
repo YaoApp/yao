@@ -46,13 +46,13 @@ func TestPsWriteFileUTF8_ContainsHereString(t *testing.T) {
 
 func TestPsWriteFileUTF8_PreservesSingleQuotes(t *testing.T) {
 	var b strings.Builder
-	shared.PsWriteFileUTF8(&b, `C:\ws\config.yml`, "  name: '@yaoapp/dsh-sdk-jsonrpc-stream'")
+	shared.PsWriteFileUTF8(&b, `C:\ws\config.yml`, "  name: '@deepseek-ai/dsh-yaoapp-jsonrpc-stream'")
 	out := b.String()
 
-	if !strings.Contains(out, "'@yaoapp/dsh-sdk-jsonrpc-stream'") {
+	if !strings.Contains(out, "'@deepseek-ai/dsh-yaoapp-jsonrpc-stream'") {
 		t.Error("here-string content must preserve single quotes verbatim")
 	}
-	if strings.Contains(out, "''@yaoapp/dsh-sdk-jsonrpc-stream''") {
+	if strings.Contains(out, "''@deepseek-ai/dsh-yaoapp-jsonrpc-stream''") {
 		t.Error("single quotes must not be doubled inside a here-string")
 	}
 }
