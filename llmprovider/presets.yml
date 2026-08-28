@@ -398,6 +398,67 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
 
+# ─── OrcaRouter ─────────────────────────────────────────
+- key: orcarouter
+  name: OrcaRouter
+  type: openai
+  api_url: https://api.orcarouter.ai/v1
+  require_key: true
+  default_models:
+    - id: orcarouter-auto
+      model: orcarouter/auto
+      name: Auto (Smart Route)
+      capabilities: [vision, tool_calls, streaming, json]
+      enabled: true
+    - id: orcarouter-fusion
+      model: orcarouter/fusion
+      name: Fusion
+      max_input_tokens: 1000000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      enabled: false
+    - id: orcarouter-fusion-flash
+      model: orcarouter/fusion-flash
+      name: Fusion Flash
+      max_input_tokens: 200000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      enabled: false
+    - id: orcarouter-fusion-mini
+      model: orcarouter/fusion-mini
+      name: Fusion Mini
+      max_input_tokens: 1000000
+      capabilities: [tool_calls, streaming, json, reasoning]
+      enabled: false
+    - id: anthropic-claude-sonnet-4.6
+      model: anthropic/claude-sonnet-4.6
+      name: Claude Sonnet 4.6
+      max_input_tokens: 1000000
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      enabled: false
+    - id: deepseek-deepseek-v4-flash
+      model: deepseek/deepseek-v4-flash
+      name: DeepSeek V4 Flash
+      max_input_tokens: 1048576
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: google-gemini-3.1-pro-preview
+      model: google/gemini-3.1-pro-preview
+      name: Gemini 3.1 Pro
+      max_input_tokens: 1048576
+      capabilities: [vision, tool_calls, streaming, json, reasoning]
+      enabled: false
+    - id: qwen-qwen3.7-max
+      model: qwen/qwen3.7-max
+      name: Qwen3.7 Max
+      max_input_tokens: 1000000
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+    - id: z-ai-glm-5.2
+      model: z-ai/glm-5.2
+      name: GLM-5.2
+      max_input_tokens: 1000000
+      capabilities: [tool_calls, streaming, json]
+      enabled: false
+
 # ─── 超算互联网 Token Plan (OpenAI) ─────────────────────
 - key: scnet_token_plan
   name: 超算互联网 Token Plan
