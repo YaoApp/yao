@@ -70,6 +70,12 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 	for {
 		line, skipped, err := shared.ReadJSONLine(reader)
 		if err == io.EOF {
+			if ctx.Err() != nil {
+				p.closeTextMessage()
+				p.closeThinkMessage()
+				p.closeOrphanedTools()
+				return ctx.Err()
+			}
 			break
 		}
 		if err != nil {
