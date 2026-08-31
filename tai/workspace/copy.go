@@ -89,12 +89,13 @@ func (w *workspaceFS) pushSingleFile(ctx context.Context, hostPath, dstPath stri
 
 // pullSingleFile reads a workspace file and writes it to hostPath.
 func (w *workspaceFS) pullSingleFile(ctx context.Context, srcPath, hostPath string) error {
-	data, perm, err := w.vol.ReadFile(ctx, w.session, srcPath)
+	data, info, err := w.vol.ReadFile(ctx, w.session, srcPath)
 	if err != nil {
 		return err
 	}
-	if perm == 0 {
-		perm = 0o644
+	perm := os.FileMode(0o644)
+	if info != nil && info.Mode != 0 {
+		perm = info.Mode
 	}
 	if err := os.MkdirAll(filepath.Dir(hostPath), 0o755); err != nil {
 		return err

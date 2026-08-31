@@ -33,17 +33,17 @@ func NewRemote(conn *grpc.ClientConn) Volume {
 	}
 }
 
-func (r *remoteStorage) ReadFile(ctx context.Context, sessionID, path string) ([]byte, os.FileMode, error) {
+func (r *remoteStorage) ReadFile(ctx context.Context, sessionID, path string) ([]byte, *FileInfo, error) {
 	stream, err := r.client.ReadFile(ctx, &pb.FSReadRequest{
 		SessionId: sessionID,
 		Path:      path,
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 
 	var buf bytes.Buffer
-	var mode os.FileMode
+	fi := &FileInfo{Path: path}
 	first := true
 	for {
 		chunk, err := stream.Recv()
@@ -51,15 +51,17 @@ func (r *remoteStorage) ReadFile(ctx context.Context, sessionID, path string) ([
 			break
 		}
 		if err != nil {
-			return nil, 0, err
+			return nil, nil, err
 		}
 		buf.Write(chunk.Data)
 		if first {
-			mode = os.FileMode(chunk.Mode)
+			fi.Mode = os.FileMode(chunk.Mode)
+			fi.Size = chunk.Size
+			fi.Mtime = time.Unix(0, chunk.Mtime)
 			first = false
 		}
 	}
-	return buf.Bytes(), mode, nil
+	return buf.Bytes(), fi, nil
 }
 
 func (r *remoteStorage) WriteFile(ctx context.Context, sessionID, path string, data []byte, perm os.FileMode) error {

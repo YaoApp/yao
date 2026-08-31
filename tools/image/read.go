@@ -144,7 +144,8 @@ func readBytes(src string) ([]byte, error) {
 		if idx < 0 {
 			return nil, fmt.Errorf("invalid workspace URI: %s", src)
 		}
-		return ws.M().ReadFile(context.Background(), rest[:idx], rest[idx+1:])
+		data, _, err := ws.M().ReadFile(context.Background(), rest[:idx], rest[idx+1:])
+		return data, err
 
 	case strings.HasPrefix(src, "attach://"):
 		rest := strings.TrimPrefix(src, "attach://")

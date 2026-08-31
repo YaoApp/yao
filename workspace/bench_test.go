@@ -41,7 +41,7 @@ func BenchmarkReadFile(b *testing.B) {
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				data, err := m.ReadFile(ctx, ws.ID, "bench.txt")
+				data, _, err := m.ReadFile(ctx, ws.ID, "bench.txt")
 				if err != nil {
 					b.Fatalf("ReadFile: %v", err)
 				}
@@ -68,7 +68,7 @@ func BenchmarkReadWriteCycle(b *testing.B) {
 				if err := m.WriteFile(ctx, ws.ID, name, payload, 0644); err != nil {
 					b.Fatalf("WriteFile: %v", err)
 				}
-				data, err := m.ReadFile(ctx, ws.ID, name)
+				data, _, err := m.ReadFile(ctx, ws.ID, name)
 				if err != nil {
 					b.Fatalf("ReadFile: %v", err)
 				}

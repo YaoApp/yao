@@ -194,13 +194,12 @@ func (m *Manager) FS(ctx context.Context, id string) (taiworkspace.FS, error) {
 }
 
 // ReadFile reads a file from the workspace.
-func (m *Manager) ReadFile(ctx context.Context, id string, path string) ([]byte, error) {
+func (m *Manager) ReadFile(ctx context.Context, id string, path string) ([]byte, *volume.FileInfo, error) {
 	_, vol, err := m.resolve(ctx, id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	data, _, err := vol.ReadFile(ctx, id, path)
-	return data, err
+	return vol.ReadFile(ctx, id, path)
 }
 
 // WriteFile writes a file to the workspace.

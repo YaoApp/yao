@@ -159,7 +159,7 @@ func resolveWorkspaceFile(c *gin.Context, authInfo *types.AuthorizedInfo, fileUR
 		return nil, fmt.Errorf("no permission to access workspace %q", wsID)
 	}
 
-	data, err := m.ReadFile(context.Background(), wsID, filePath)
+	data, _, err := m.ReadFile(context.Background(), wsID, filePath)
 	if err != nil {
 		return nil, fmt.Errorf("workspace file read failed: %w", err)
 	}

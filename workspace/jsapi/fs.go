@@ -36,7 +36,7 @@ func NewFSObject(v8ctx *v8go.Context, workspaceID string) (*v8go.Value, error) {
 		if len(args) < 1 {
 			return throwError(info, "ReadFile requires a path")
 		}
-		data, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
+		data, _, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
 		if err != nil {
 			return throwError(info, err.Error())
 		}
@@ -156,7 +156,7 @@ func NewFSObject(v8ctx *v8go.Context, workspaceID string) (*v8go.Value, error) {
 		if len(args) < 1 {
 			return throwError(info, "ReadFileBase64 requires a path")
 		}
-		data, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
+		data, _, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
 		if err != nil {
 			return throwError(info, err.Error())
 		}
@@ -188,7 +188,7 @@ func NewFSObject(v8ctx *v8go.Context, workspaceID string) (*v8go.Value, error) {
 		if len(args) < 1 {
 			return throwError(info, "ReadFileBuffer requires a path")
 		}
-		data, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
+		data, _, err := workspace.M().ReadFile(ctx, wsID, args[0].String())
 		if err != nil {
 			return throwError(info, err.Error())
 		}

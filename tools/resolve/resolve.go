@@ -24,7 +24,7 @@ func ToLocalPath(ctx context.Context, src string) (string, func(), error) {
 		if wsID == "" || relPath == "" {
 			return "", noop, fmt.Errorf("invalid workspace URI: %s", src)
 		}
-		data, err := ws.M().ReadFile(ctx, wsID, relPath)
+		data, _, err := ws.M().ReadFile(ctx, wsID, relPath)
 		if err != nil {
 			return "", noop, err
 		}
