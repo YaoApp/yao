@@ -72,13 +72,24 @@ func (b *posixBase) ListDirCmd(dir string) []string {
 	return []string{"ls", dir}
 }
 
+// posixArgSizeThreshold is the inputJSONL size above which the payload is
+// delivered via process stdin instead of a bash heredoc.  This avoids the
+// Linux MAX_ARG_STRLEN limit (128 KB per exec argument).  The 100 KB value
+// leaves headroom for the rest of the bash -c argument (system-prompt
+// heredoc, args, xauth setup).
+const posixArgSizeThreshold = 100 * 1024
+
 // buildBashScript is the shared bash script builder for macOS/Linux.
 //
 // When a system prompt is present, the script uses `set -e` to ensure that
 // any failure in directory creation or prompt file writing aborts the entire
 // script before Claude CLI is launched. This prevents silent fallback to
 // running without a system prompt.
-func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
+//
+// When inputJSONL exceeds posixArgSizeThreshold the payload is returned as
+// the second value (stdin bytes) instead of being embedded in a heredoc,
+// matching the Windows delivery path.
+func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) (string, []byte) {
 	var s strings.Builder
 
 	if xauthCmd != "" {
@@ -95,6 +106,14 @@ func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
 		in.args = append(in.args, "--append-system-prompt-file", in.promptFile)
 	}
 
+	if len(in.inputJSONL) > posixArgSizeThreshold {
+		s.WriteString("claude -p")
+		for _, arg := range in.args {
+			s.WriteString(fmt.Sprintf(" %q", arg))
+		}
+		return s.String(), []byte(in.inputJSONL + "\n")
+	}
+
 	s.WriteString("cat << 'INPUTEOF' | claude -p")
 	for _, arg := range in.args {
 		s.WriteString(fmt.Sprintf(" %q", arg))
@@ -103,7 +122,7 @@ func (b *posixBase) buildBashScript(in scriptInput, xauthCmd string) string {
 	s.WriteString(in.inputJSONL)
 	s.WriteString("\nINPUTEOF")
 
-	return s.String()
+	return s.String(), nil
 }
 
 // resolvePlatform creates the appropriate platform implementation based on

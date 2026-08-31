@@ -74,6 +74,9 @@ func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
 		}
 		if err != nil {
 			if ctx.Err() != nil {
+				p.closeTextMessage()
+				p.closeThinkMessage()
+				p.closeOrphanedTools()
 				return ctx.Err()
 			}
 			return err
@@ -582,8 +585,9 @@ func (p *streamParser) handleTurnEnd(data json.RawMessage) (stopped bool) {
 
 	// Surface DSH errors with full detail from the reason payload
 	if kind, ok := te.Reason["kind"].(string); ok && kind != "completed" && kind != "stop" {
+		errMsg := formatTurnError(te.Reason)
+		log.Warn("[dsh-parse] turn ended with error: kind=%s msg=%s", kind, errMsg)
 		if p.handler != nil {
-			errMsg := formatTurnError(te.Reason)
 			p.handler(message.ChunkError, []byte(errMsg))
 		}
 	}
@@ -844,13 +848,23 @@ func truncateStr(s string, max int) string {
 func formatTurnError(reason map[string]any) string {
 	kind, _ := reason["kind"].(string)
 	msg, _ := reason["message"].(string)
-	errType, _ := reason["error"].(string)
 	if msg != "" {
 		return msg
 	}
-	if errType != "" {
-		return errType
+
+	if errStr, ok := reason["error"].(string); ok && errStr != "" {
+		return errStr
 	}
+
+	if errMap, ok := reason["error"].(map[string]any); ok {
+		if errMsg, ok := errMap["message"].(string); ok && errMsg != "" {
+			return errMsg
+		}
+		if errCode, ok := errMap["code"].(string); ok && errCode != "" {
+			return errCode
+		}
+	}
+
 	detail, _ := json.Marshal(reason)
 	return fmt.Sprintf("DSH turn ended: %s (%s)", kind, string(detail))
 }

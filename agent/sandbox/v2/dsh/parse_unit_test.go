@@ -1990,3 +1990,110 @@ func TestParse_IncrementalSummaryDuringDelta(t *testing.T) {
 		t.Errorf("summary first appeared at group %d, expected <= 2 (delta/block-end phase)", firstSummaryIdx)
 	}
 }
+
+func TestFormatTurnError_TopLevelMessage(t *testing.T) {
+	reason := map[string]any{"kind": "error", "message": "rate limited"}
+	got := dsh.ExportFormatTurnError(reason)
+	if got != "rate limited" {
+		t.Errorf("got %q, want %q", got, "rate limited")
+	}
+}
+
+func TestFormatTurnError_StringError(t *testing.T) {
+	reason := map[string]any{"kind": "error", "error": "InternalError"}
+	got := dsh.ExportFormatTurnError(reason)
+	if got != "InternalError" {
+		t.Errorf("got %q, want %q", got, "InternalError")
+	}
+}
+
+func TestFormatTurnError_NestedErrorMessage(t *testing.T) {
+	reason := map[string]any{
+		"kind": "error",
+		"error": map[string]any{
+			"code":    "STREAM_CLOSED",
+			"message": "SSE stream ended without [DONE]",
+		},
+	}
+	got := dsh.ExportFormatTurnError(reason)
+	if got != "SSE stream ended without [DONE]" {
+		t.Errorf("got %q, want %q", got, "SSE stream ended without [DONE]")
+	}
+}
+
+func TestFormatTurnError_NestedErrorCodeOnly(t *testing.T) {
+	reason := map[string]any{
+		"kind": "error",
+		"error": map[string]any{
+			"code": "TIMEOUT",
+		},
+	}
+	got := dsh.ExportFormatTurnError(reason)
+	if got != "TIMEOUT" {
+		t.Errorf("got %q, want %q", got, "TIMEOUT")
+	}
+}
+
+func TestFormatTurnError_UnknownFallback(t *testing.T) {
+	reason := map[string]any{"kind": "error", "error": 42}
+	got := dsh.ExportFormatTurnError(reason)
+	if !strings.Contains(got, "DSH turn ended: error") {
+		t.Errorf("got %q, want JSON fallback", got)
+	}
+}
+
+func TestParse_ContextCancel_Cleanup(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"assistant/chunk","seq":1,"time":1000,"data":{"turn":1,"step":1,"chunk":{"type":"text-delta","text":"hello"}}}}}
+`
+	var events []recordedEvent
+	p := dsh.ExportNewStreamParser(mockStreamFunc(&events))
+	ctx, cancel := context.WithCancel(context.Background())
+
+	r, w := io.Pipe()
+	go func() {
+		w.Write([]byte(ndjson))
+		cancel()
+		w.Close()
+	}()
+	err := p.Parse(ctx, r)
+	if err == nil || err != context.Canceled {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+
+	var hasMessageEnd bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMessageEnd {
+			hasMessageEnd = true
+			break
+		}
+	}
+	if !hasMessageEnd {
+		t.Error("cancel path should emit ChunkMessageEnd to close the active text message")
+	}
+}
+
+func TestParse_TurnEndError_EmitsChunkError(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"turn/end","seq":1,"time":1000,"data":{"turn":1,"reason":{"kind":"error","error":{"code":"STREAM_CLOSED","message":"SSE stream ended without [DONE]"}}}}}}
+{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+`
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete (idle reached)")
+	}
+
+	var errorMsg string
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkError {
+			errorMsg = string(ev.data)
+			break
+		}
+	}
+	if errorMsg == "" {
+		t.Fatal("expected ChunkError event for turn/end with kind=error")
+	}
+	if errorMsg != "SSE stream ended without [DONE]" {
+		t.Errorf("error message = %q, want nested message extraction", errorMsg)
+	}
+}
