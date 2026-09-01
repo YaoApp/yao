@@ -3,7 +3,11 @@
 package claude_test
 
 import (
+	"bytes"
+	"fmt"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -238,6 +242,87 @@ func TestDarwin_BuildScript(t *testing.T) {
 	}
 }
 
+func TestLinux_BuildScript_LargePayload(t *testing.T) {
+	largeJSONL := strings.Repeat("x", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose", "--input-format", "stream-json"},
+		InputJSONL: largeJSONL,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for large payload")
+	}
+	if string(stdin) != largeJSONL+"\n" {
+		t.Errorf("stdin should be payload + newline, got len=%d", len(stdin))
+	}
+	if strings.Contains(script, "INPUTEOF") {
+		t.Error("script should not contain INPUTEOF heredoc for large payload")
+	}
+	if !strings.Contains(script, "claude -p") {
+		t.Error("script should contain claude -p")
+	}
+	if !strings.Contains(script, "--verbose") {
+		t.Error("script should contain args")
+	}
+}
+
+func TestLinux_BuildScript_LargePayload_WithPrompt(t *testing.T) {
+	largeJSONL := strings.Repeat("x", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:         []string{"--verbose"},
+		SystemPrompt: "You are a helpful assistant.",
+		InputJSONL:   largeJSONL,
+		WorkDir:      "/workspace",
+		PromptFile:   "/workspace/.yao/assistants/test-id/system-prompt.txt",
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for large payload")
+	}
+	if !strings.Contains(script, "PROMPTEOF") {
+		t.Error("system prompt heredoc should still be in script")
+	}
+	if strings.Contains(script, "INPUTEOF") {
+		t.Error("input heredoc should not be in script for large payload")
+	}
+	if !strings.Contains(script, "--append-system-prompt-file") {
+		t.Error("system prompt arg should be present")
+	}
+}
+
+func TestDarwin_BuildScript_LargePayload(t *testing.T) {
+	largeJSONL := strings.Repeat("x", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewDarwinPlatform("/workspace", "bash", "/tmp")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose"},
+		InputJSONL: largeJSONL,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for large payload on Darwin")
+	}
+	if strings.Contains(script, "INPUTEOF") {
+		t.Error("script should not contain INPUTEOF heredoc")
+	}
+}
+
+func TestLinux_BuildScript_AtThreshold(t *testing.T) {
+	exactJSONL := strings.Repeat("x", claude.ExportPosixArgSizeThreshold)
+	p := claude.ExportNewLinuxPlatform("/workspace", "bash", "/tmp", false, "")
+	_, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--verbose"},
+		InputJSONL: exactJSONL,
+		WorkDir:    "/workspace",
+		PromptFile: "/workspace/.yao/.system-prompt.txt",
+	})
+	if stdin != nil {
+		t.Error("payload at exactly the threshold should use heredoc, stdin should be nil")
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Windows
 // ---------------------------------------------------------------------------
@@ -421,5 +506,167 @@ func TestWindows_XauthoritySetup(t *testing.T) {
 	p := claude.ExportNewWindowsPlatform(`C:\ws`, "pwsh", "")
 	if got := p.XauthoritySetup(`C:\ws`); got != "" {
 		t.Errorf("XauthoritySetup should be empty on Windows, got %q", got)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// stdin delivery integration tests — verify bash -c actually pipes data
+// ---------------------------------------------------------------------------
+
+func writeFakeClaude(t *testing.T, dir, captureFile string) {
+	t.Helper()
+	script := fmt.Sprintf("#!/bin/bash\ncat > %q\n", captureFile)
+	path := filepath.Join(dir, "claude")
+	if err := os.WriteFile(path, []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func runBashScript(t *testing.T, script string, stdin []byte, fakeBinDir string) []byte {
+	t.Helper()
+	cmd := exec.Command("bash", "-c", script)
+	cmd.Env = append(os.Environ(), "PATH="+fakeBinDir+":"+os.Getenv("PATH"))
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("bash -c failed: %v\noutput: %s\nscript:\n%s", err, out, script)
+	}
+	return out
+}
+
+func TestLinux_LargePayload_StdinDelivery(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Fatal("bash is required but not found in PATH")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+	writeFakeClaude(t, tmpDir, captureFile)
+
+	payload := strings.Repeat("A", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewLinuxPlatform(tmpDir, "bash", tmpDir, false, "")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--input-format", "stream-json"},
+		InputJSONL: payload,
+		WorkDir:    tmpDir,
+		PromptFile: filepath.Join(tmpDir, ".system-prompt.txt"),
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for large payload")
+	}
+
+	runBashScript(t, script, stdin, tmpDir)
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
+	}
+}
+
+func TestLinux_LargePayload_WithPrompt_StdinDelivery(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Fatal("bash is required but not found in PATH")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+	writeFakeClaude(t, tmpDir, captureFile)
+
+	payload := strings.Repeat("B", claude.ExportPosixArgSizeThreshold+1)
+	promptFile := filepath.Join(tmpDir, ".yao", "assistants", "test", "system-prompt.txt")
+	p := claude.ExportNewLinuxPlatform(tmpDir, "bash", tmpDir, false, "")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:         []string{"--input-format", "stream-json"},
+		SystemPrompt: "You are a helpful assistant.",
+		InputJSONL:   payload,
+		WorkDir:      tmpDir,
+		PromptFile:   promptFile,
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil")
+	}
+
+	runBashScript(t, script, stdin, tmpDir)
+
+	promptContent, err := os.ReadFile(promptFile)
+	if err != nil {
+		t.Fatalf("prompt file not written: %v", err)
+	}
+	if string(promptContent) != "You are a helpful assistant.\n" {
+		t.Errorf("prompt content = %q", string(promptContent))
+	}
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
+	}
+}
+
+func TestLinux_SmallPayload_HeredocDelivery(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Fatal("bash is required but not found in PATH")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+	writeFakeClaude(t, tmpDir, captureFile)
+
+	payload := `{"type":"user","message":{"role":"user","content":"hello"}}`
+	p := claude.ExportNewLinuxPlatform(tmpDir, "bash", tmpDir, false, "")
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--input-format", "stream-json"},
+		InputJSONL: payload,
+		WorkDir:    tmpDir,
+		PromptFile: filepath.Join(tmpDir, ".system-prompt.txt"),
+	})
+	if stdin != nil {
+		t.Fatal("stdin should be nil for small payload (heredoc path)")
+	}
+
+	runBashScript(t, script, nil, tmpDir)
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	want := payload + "\n"
+	if string(captured) != want {
+		t.Errorf("captured = %q, want %q", string(captured), want)
+	}
+}
+
+func TestDarwin_LargePayload_StdinDelivery(t *testing.T) {
+	if _, err := exec.LookPath("bash"); err != nil {
+		t.Fatal("bash is required but not found in PATH")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+	writeFakeClaude(t, tmpDir, captureFile)
+
+	payload := strings.Repeat("C", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewDarwinPlatform(tmpDir, "bash", tmpDir)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--input-format", "stream-json"},
+		InputJSONL: payload,
+		WorkDir:    tmpDir,
+		PromptFile: filepath.Join(tmpDir, ".system-prompt.txt"),
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for large payload on Darwin")
+	}
+
+	runBashScript(t, script, stdin, tmpDir)
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
 	}
 }

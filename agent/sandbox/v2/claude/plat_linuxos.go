@@ -36,5 +36,5 @@ func (p *linuxPlatform) EnvPromptNote() string {
 }
 
 func (p *linuxPlatform) BuildScript(in scriptInput) (string, []byte) {
-	return p.buildBashScript(in, p.XauthoritySetup(in.workDir)), nil
+	return p.buildBashScript(in, p.XauthoritySetup(in.workDir))
 }

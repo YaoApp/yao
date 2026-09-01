@@ -1,6 +1,7 @@
 package workspace
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/kun/log"
@@ -450,7 +452,7 @@ func handleReadFile(c *gin.Context) {
 
 	log.Trace("[workspace] handleReadFile id=%s path=%q", c.Param("id"), path)
 
-	data, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
+	data, info, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
 	if err != nil {
 		log.Trace("[workspace] ReadFile error: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -473,7 +475,14 @@ func handleReadFile(c *gin.Context) {
 		mimeType = "application/octet-stream"
 	}
 	log.Trace("[workspace] serving ext=%q mime=%q size=%d", ext, mimeType, len(data))
-	c.Data(http.StatusOK, mimeType, data)
+
+	modTime := time.Time{}
+	if info != nil {
+		modTime = info.Mtime
+	}
+	c.Header("Content-Type", mimeType)
+	c.Header("Cache-Control", "no-cache")
+	http.ServeContent(c.Writer, c.Request, path, modTime, bytes.NewReader(data))
 }
 
 func handleWriteFile(c *gin.Context) {
@@ -1021,7 +1030,7 @@ func handlePreview(c *gin.Context) {
 		path = path[1:]
 	}
 
-	data, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
+	data, info, err := mgr().ReadFile(context.Background(), c.Param("id"), path)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "file not found: " + path})
 		return
@@ -1038,6 +1047,12 @@ func handlePreview(c *gin.Context) {
 		mimeType = http.DetectContentType(data)
 	}
 
+	modTime := time.Time{}
+	if info != nil {
+		modTime = info.Mtime
+	}
+	c.Header("Content-Type", mimeType)
 	c.Header("X-Content-Type-Options", "nosniff")
-	c.Data(http.StatusOK, mimeType, data)
+	c.Header("Cache-Control", "no-cache")
+	http.ServeContent(c.Writer, c.Request, path, modTime, bytes.NewReader(data))
 }

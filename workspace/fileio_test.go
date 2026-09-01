@@ -21,7 +21,7 @@ func TestReadWriteFile(t *testing.T) {
 			err := m.WriteFile(ctx, ws.ID, "hello.txt", []byte("hello world"), 0644)
 			require.NoError(t, err)
 
-			data, err := m.ReadFile(ctx, ws.ID, "hello.txt")
+			data, _, err := m.ReadFile(ctx, ws.ID, "hello.txt")
 			require.NoError(t, err)
 			assert.Equal(t, "hello world", string(data))
 		})
@@ -38,7 +38,7 @@ func TestWriteFile_NestedPath(t *testing.T) {
 			err := m.WriteFile(ctx, ws.ID, "src/main.go", []byte("package main"), 0644)
 			require.NoError(t, err)
 
-			data, err := m.ReadFile(ctx, ws.ID, "src/main.go")
+			data, _, err := m.ReadFile(ctx, ws.ID, "src/main.go")
 			require.NoError(t, err)
 			assert.Equal(t, "package main", string(data))
 		})
@@ -79,7 +79,7 @@ func TestRemoveFile(t *testing.T) {
 			err := m.Remove(ctx, ws.ID, "tmp.txt")
 			require.NoError(t, err)
 
-			_, err = m.ReadFile(ctx, ws.ID, "tmp.txt")
+			_, _, err = m.ReadFile(ctx, ws.ID, "tmp.txt")
 			assert.Error(t, err)
 		})
 	}
@@ -117,7 +117,7 @@ func TestFS_WriteFile(t *testing.T) {
 			err = wfs.WriteFile("from-fs.txt", []byte("written via fs"), 0644)
 			require.NoError(t, err)
 
-			data, err := m.ReadFile(ctx, ws.ID, "from-fs.txt")
+			data, _, err := m.ReadFile(ctx, ws.ID, "from-fs.txt")
 			require.NoError(t, err)
 			assert.Equal(t, "written via fs", string(data))
 		})
@@ -241,11 +241,11 @@ func TestManagerRename(t *testing.T) {
 			require.NoError(t, m.WriteFile(ctx, ws.ID, "old.txt", []byte("rename me"), 0644))
 			require.NoError(t, m.Rename(ctx, ws.ID, "old.txt", "new.txt"))
 
-			data, err := m.ReadFile(ctx, ws.ID, "new.txt")
+			data, _, err := m.ReadFile(ctx, ws.ID, "new.txt")
 			require.NoError(t, err)
 			assert.Equal(t, "rename me", string(data))
 
-			_, err = m.ReadFile(ctx, ws.ID, "old.txt")
+			_, _, err = m.ReadFile(ctx, ws.ID, "old.txt")
 			assert.Error(t, err)
 		})
 	}
@@ -271,7 +271,7 @@ func TestManagerMkdirAll(t *testing.T) {
 			require.NoError(t, m.MkdirAll(ctx, ws.ID, "a/b/c"))
 			require.NoError(t, m.WriteFile(ctx, ws.ID, "a/b/c/test.txt", []byte("deep"), 0644))
 
-			data, err := m.ReadFile(ctx, ws.ID, "a/b/c/test.txt")
+			data, _, err := m.ReadFile(ctx, ws.ID, "a/b/c/test.txt")
 			require.NoError(t, err)
 			assert.Equal(t, "deep", string(data))
 		})

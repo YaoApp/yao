@@ -19,15 +19,15 @@ func TestLocalVolume(t *testing.T) {
 		if err := vol.WriteFile(ctx, sid, "greeting.txt", data, 0o644); err != nil {
 			t.Fatalf("WriteFile: %v", err)
 		}
-		got, mode, err := vol.ReadFile(ctx, sid, "greeting.txt")
+		got, info, err := vol.ReadFile(ctx, sid, "greeting.txt")
 		if err != nil {
 			t.Fatalf("ReadFile: %v", err)
 		}
 		if string(got) != "hello world" {
 			t.Errorf("got %q, want %q", got, "hello world")
 		}
-		if mode&0o644 != 0o644 {
-			t.Errorf("mode %v does not contain 0644", mode)
+		if info.Mode&0o644 != 0o644 {
+			t.Errorf("mode %v does not contain 0644", info.Mode)
 		}
 	})
 

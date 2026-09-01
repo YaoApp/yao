@@ -63,14 +63,14 @@ func TestRemoteVolume(t *testing.T) {
 		if err := vol.WriteFile(ctx, sid, "test.txt", data, 0o644); err != nil {
 			t.Fatalf("WriteFile: %v", err)
 		}
-		got, mode, err := vol.ReadFile(ctx, sid, "test.txt")
+		got, info, err := vol.ReadFile(ctx, sid, "test.txt")
 		if err != nil {
 			t.Fatalf("ReadFile: %v", err)
 		}
 		if string(got) != "remote test content" {
 			t.Errorf("got %q", got)
 		}
-		if mode == 0 {
+		if info.Mode == 0 {
 			t.Error("mode should be nonzero")
 		}
 	})

@@ -36,20 +36,25 @@ func (l *localStorage) abs(sessionID, path string) (string, error) {
 	return resolved, nil
 }
 
-func (l *localStorage) ReadFile(_ context.Context, sessionID, path string) ([]byte, os.FileMode, error) {
+func (l *localStorage) ReadFile(_ context.Context, sessionID, path string) ([]byte, *FileInfo, error) {
 	abs, err := l.abs(sessionID, path)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	data, err := os.ReadFile(abs)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
-	return data, info.Mode(), nil
+	return data, &FileInfo{
+		Path:  path,
+		Size:  info.Size(),
+		Mtime: info.ModTime(),
+		Mode:  info.Mode(),
+	}, nil
 }
 
 func (l *localStorage) WriteFile(_ context.Context, sessionID, path string, data []byte, perm os.FileMode) error {

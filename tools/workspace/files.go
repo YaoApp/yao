@@ -88,7 +88,7 @@ func FileReadHandler(proc *process.Process) interface{} {
 	}
 
 	m := ws.M()
-	data, err := m.ReadFile(proc.Context, id, path)
+	data, _, err := m.ReadFile(proc.Context, id, path)
 	if err != nil {
 		return map[string]any{"error": err.Error()}
 	}

@@ -24,7 +24,7 @@ func ExtractTaskMetadata(chatID string, userMessage string, auth *process.Author
 			return
 		}
 
-		lightConn, err := llmprovider.Global.GetRoleModelBy("light", auth)
+		lightConn, _, err := llm.ResolveConnector("use::light", auth)
 		if err != nil || lightConn == nil {
 			return
 		}

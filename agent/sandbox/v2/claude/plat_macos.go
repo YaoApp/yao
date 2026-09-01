@@ -13,5 +13,5 @@ func (p *darwinPlatform) EnvPromptNote() string {
 }
 
 func (p *darwinPlatform) BuildScript(in scriptInput) (string, []byte) {
-	return p.buildBashScript(in, ""), nil
+	return p.buildBashScript(in, "")
 }

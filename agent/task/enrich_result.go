@@ -72,7 +72,7 @@ func enrichTaskResult(chatID string, auth *process.AuthorizedInfo, isFirstRun bo
 		return
 	}
 
-	lightConn, err := llmprovider.Global.GetRoleModelBy("light", auth)
+	lightConn, _, err := llm.ResolveConnector("use::light", auth)
 	if err != nil || lightConn == nil {
 		reason := "light model unavailable"
 		if err != nil {

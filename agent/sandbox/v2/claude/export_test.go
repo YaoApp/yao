@@ -214,6 +214,9 @@ func (f *FakeComputerWP) Workplace() workspace.FS {
 
 const ExportDefaultA2OPort = defaultA2OPort
 
+// ExportPosixArgSizeThreshold exposes posixArgSizeThreshold.
+const ExportPosixArgSizeThreshold = posixArgSizeThreshold
+
 // ExportBuildLastUserJSONL wraps buildLastUserMessageJSONL for typed Message input.
 func ExportBuildLastUserJSONL(msgs []agentContext.Message) string {
 	return buildLastUserMessageJSONL(msgs)

@@ -10,7 +10,7 @@ import (
 // Volume provides filesystem IO, directory synchronization, and archive operations.
 // Remote connects to Tai gRPC :19100; Local operates directly on disk.
 type Volume interface {
-	ReadFile(ctx context.Context, sessionID, path string) ([]byte, os.FileMode, error)
+	ReadFile(ctx context.Context, sessionID, path string) ([]byte, *FileInfo, error)
 	WriteFile(ctx context.Context, sessionID, path string, data []byte, perm os.FileMode) error
 	Stat(ctx context.Context, sessionID, path string) (*FileInfo, error)
 	ListDir(ctx context.Context, sessionID, path string) ([]FileInfo, error)

@@ -94,6 +94,9 @@ var ExportExtractSummaryFromObj = extractSummaryFromObj
 // ExportTruncateStr exposes truncateStr.
 var ExportTruncateStr = truncateStr
 
+// ExportFormatTurnError exposes formatTurnError.
+var ExportFormatTurnError = formatTurnError
+
 // ExportInjectDSHSemanticType exposes injectDSHSemanticType.
 var ExportInjectDSHSemanticType = injectDSHSemanticType
 
