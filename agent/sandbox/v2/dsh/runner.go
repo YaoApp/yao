@@ -148,7 +148,7 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		r.logger.Info("vision input: images=%d totalBase64=%d bytes", len(msgParts.ImageBlocks), totalBytes)
 	}
 
-	sess, err := startSession(ctx, computer, p, cmd, cmd.sessionID, r.logger)
+	sess, err := startSession(ctx, computer, p, cmd, cmd.sessionID, r.logger, req.Locale, req.PrepareLoadingMsgID)
 	if err != nil {
 		return err
 	}

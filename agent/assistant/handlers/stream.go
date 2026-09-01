@@ -55,6 +55,9 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 		case message.ChunkExecute:
 			return state.handleExecute(data)
 
+		case message.ChunkLoading:
+			return state.handleLoading(data)
+
 		case message.ChunkMetadata:
 			return state.handleMetadata(data)
 
@@ -389,6 +392,21 @@ func (s *streamState) handleExecute(data []byte) int {
 		return 0
 	}
 
+	return 0
+}
+
+// handleLoading forwards a pre-built loading message to the CUI.
+// parse.go constructs the complete message.Message (with message_id, type, props, delta);
+// this handler is a transparent pass-through in the standard chunk pipeline.
+func (s *streamState) handleLoading(data []byte) int {
+	if len(data) == 0 {
+		return 0
+	}
+	var msg message.Message
+	if err := jsoniter.Unmarshal(data, &msg); err != nil {
+		return 0
+	}
+	s.ctx.Send(&msg)
 	return 0
 }
 

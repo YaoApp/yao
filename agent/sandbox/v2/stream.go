@@ -83,6 +83,7 @@ func ExecuteSandboxStream(
 			},
 		}
 		ctx.Send(waitMsg)
+		req.StreamReq.PrepareLoadingMsgID = req.LoadingMsgID
 	}
 
 	var textContent []byte

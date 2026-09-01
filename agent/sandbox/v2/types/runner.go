@@ -49,16 +49,17 @@ type PrepareRequest struct {
 
 // StreamRequest carries everything needed by Runner.Stream.
 type StreamRequest struct {
-	Computer     infra.Computer
-	Config       *SandboxConfig
-	Connector    connector.Connector
-	Roles        map[string]connector.Connector // pre-resolved role matrix from llmprovider
-	AssistantID  string                         // the assistant's own ID (e.g. "yao/postman")
-	Messages     []agentContext.Message
-	SystemPrompt string
-	ChatID       string
-	Token        *SandboxToken               // current user's sandbox token for MCP callbacks
-	Logger       *agentContext.RequestLogger // request-scoped logger propagated from agent context
-	UserExplicit bool                        // true when the user explicitly selected the primary connector
-	Locale       string                      // user locale (e.g. "zh-cn", "en-us") for i18n in MCP tools
+	Computer            infra.Computer
+	Config              *SandboxConfig
+	Connector           connector.Connector
+	Roles               map[string]connector.Connector // pre-resolved role matrix from llmprovider
+	AssistantID         string                         // the assistant's own ID (e.g. "yao/postman")
+	Messages            []agentContext.Message
+	SystemPrompt        string
+	ChatID              string
+	Token               *SandboxToken               // current user's sandbox token for MCP callbacks
+	Logger              *agentContext.RequestLogger // request-scoped logger propagated from agent context
+	UserExplicit        bool                        // true when the user explicitly selected the primary connector
+	Locale              string                      // user locale (e.g. "zh-cn", "en-us") for i18n in MCP tools
+	PrepareLoadingMsgID string                      // prepare-phase loading message ID for DSH status updates
 }
