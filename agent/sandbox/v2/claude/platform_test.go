@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -537,6 +538,9 @@ func runBashScript(t *testing.T, script string, stdin []byte, fakeBinDir string)
 }
 
 func TestLinux_LargePayload_StdinDelivery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX bash-execution test; Windows equivalent is TestWindows_LargePayload_StdinDelivery")
+	}
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatal("bash is required but not found in PATH")
 	}
@@ -568,6 +572,9 @@ func TestLinux_LargePayload_StdinDelivery(t *testing.T) {
 }
 
 func TestLinux_LargePayload_WithPrompt_StdinDelivery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX bash-execution test; Windows equivalent is TestWindows_LargePayload_WithPrompt_PwshDelivery")
+	}
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatal("bash is required but not found in PATH")
 	}
@@ -609,6 +616,9 @@ func TestLinux_LargePayload_WithPrompt_StdinDelivery(t *testing.T) {
 }
 
 func TestLinux_SmallPayload_HeredocDelivery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX bash-execution test; Windows equivalent is TestWindows_SmallPayload_PwshDelivery")
+	}
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatal("bash is required but not found in PATH")
 	}
@@ -641,6 +651,9 @@ func TestLinux_SmallPayload_HeredocDelivery(t *testing.T) {
 }
 
 func TestDarwin_LargePayload_StdinDelivery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("POSIX bash-execution test; no Darwin equivalent needed on Windows")
+	}
 	if _, err := exec.LookPath("bash"); err != nil {
 		t.Fatal("bash is required but not found in PATH")
 	}
@@ -668,5 +681,143 @@ func TestDarwin_LargePayload_StdinDelivery(t *testing.T) {
 	}
 	if string(captured) != payload+"\n" {
 		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
+	}
+}
+
+// --- Windows PowerShell execution tests ---
+// These tests verify the same payload/prompt delivery logic using the
+// windowsPlatform implementation and a real pwsh invocation. They are the
+// Windows counterparts of the TestLinux_*_Delivery tests above.
+//
+// Instead of creating a fake claude binary, we replace "claude -p" in the
+// generated script with an inline capture command. This avoids the fragile
+// Go → pwsh → cmd.exe → pwsh stdin chain and keeps the test single-process.
+
+// runPwshScript executes a PowerShell script with optional stdin.
+func runPwshScript(t *testing.T, script string, stdin []byte) {
+	t.Helper()
+	cmd := exec.Command("pwsh", "-NoProfile", "-Command", script)
+	if stdin != nil {
+		cmd.Stdin = bytes.NewReader(stdin)
+	}
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("pwsh failed: %v\noutput: %s\nscript:\n%s", err, out, script)
+	}
+}
+
+// injectStdinCapture replaces the "claude -p ..." invocation in a generated
+// PowerShell script with an inline command that reads all of stdin and
+// writes it verbatim to captureFile. The trailing args after "claude -p"
+// are commented out.
+func injectStdinCapture(script, captureFile string) string {
+	escaped := strings.ReplaceAll(captureFile, "'", "''")
+	capture := fmt.Sprintf(
+		"$__d = [Console]::In.ReadToEnd(); [IO.File]::WriteAllText('%s', $__d, [System.Text.UTF8Encoding]::new($false)) #",
+		escaped,
+	)
+	return strings.Replace(script, "claude -p", capture, 1)
+}
+
+func TestWindows_LargePayload_StdinDelivery(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+
+	payload := strings.Repeat("A", claude.ExportPosixArgSizeThreshold+1)
+	p := claude.ExportNewWindowsPlatform(tmpDir, "pwsh", tmpDir)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--input-format", "stream-json"},
+		InputJSONL: payload,
+		WorkDir:    tmpDir,
+		PromptFile: filepath.Join(tmpDir, ".system-prompt.txt"),
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for Windows")
+	}
+
+	runPwshScript(t, injectStdinCapture(script, captureFile), stdin)
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
+	}
+}
+
+func TestWindows_LargePayload_WithPrompt_PwshDelivery(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+
+	payload := strings.Repeat("B", claude.ExportPosixArgSizeThreshold+1)
+	promptFile := filepath.Join(tmpDir, ".yao", "assistants", "test", "system-prompt.txt")
+	p := claude.ExportNewWindowsPlatform(tmpDir, "pwsh", tmpDir)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:         []string{"--input-format", "stream-json"},
+		SystemPrompt: "You are a helpful assistant.",
+		InputJSONL:   payload,
+		WorkDir:      tmpDir,
+		PromptFile:   promptFile,
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for Windows")
+	}
+
+	runPwshScript(t, injectStdinCapture(script, captureFile), stdin)
+
+	promptContent, err := os.ReadFile(promptFile)
+	if err != nil {
+		t.Fatalf("prompt file not written: %v", err)
+	}
+	// PowerShell here-string @'...'@ does not append a trailing newline
+	// (unlike bash heredoc), so the file content is the bare prompt text.
+	trimmed := strings.TrimRight(string(promptContent), "\r\n")
+	if trimmed != "You are a helpful assistant." {
+		t.Errorf("prompt content = %q", string(promptContent))
+	}
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured len=%d, want %d", len(captured), len(payload)+1)
+	}
+}
+
+func TestWindows_SmallPayload_PwshDelivery(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows-only test")
+	}
+	tmpDir := t.TempDir()
+	captureFile := filepath.Join(tmpDir, "stdin-capture.txt")
+
+	payload := `{"type":"user","message":{"role":"user","content":"hello"}}`
+	p := claude.ExportNewWindowsPlatform(tmpDir, "pwsh", tmpDir)
+	script, stdin := p.BuildScript(claude.ExportScriptInput{
+		Args:       []string{"--input-format", "stream-json"},
+		InputJSONL: payload,
+		WorkDir:    tmpDir,
+		PromptFile: filepath.Join(tmpDir, ".system-prompt.txt"),
+	})
+	if stdin == nil {
+		t.Fatal("stdin should be non-nil for Windows (always stdin delivery)")
+	}
+
+	runPwshScript(t, injectStdinCapture(script, captureFile), stdin)
+
+	captured, err := os.ReadFile(captureFile)
+	if err != nil {
+		t.Fatalf("capture file not created: %v", err)
+	}
+	if string(captured) != payload+"\n" {
+		t.Errorf("captured = %q, want %q", string(captured), payload+"\n")
 	}
 }
