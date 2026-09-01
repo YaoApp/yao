@@ -59,6 +59,7 @@ const (
 	GrantTypeRefreshToken      = "refresh_token"
 	GrantTypeDeviceCode        = "urn:ietf:params:oauth:grant-type:device_code"
 	GrantTypeTokenExchange     = "urn:ietf:params:oauth:grant-type:token-exchange"
+	GrantTypeJWTBearer         = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 )
 
 // OAuth 2.1 Response Types

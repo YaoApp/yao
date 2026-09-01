@@ -82,6 +82,9 @@ type FeatureFlags struct {
 	MTLSEnabled         bool `json:"mtls_enabled"`
 	DPoPEnabled         bool `json:"dpop_enabled"`
 
+	// JWT Bearer grant (RFC 7523) — exchange a signed JWT for a fresh access token
+	JWTBearerEnabled bool `json:"jwt_bearer_enabled"`
+
 	// Experimental features
 	JWTIntrospectionEnabled bool `json:"jwt_introspection_enabled"`
 	TokenRevocationEnabled  bool `json:"token_revocation_enabled"`
@@ -269,6 +272,7 @@ func setConfigDefaults(config *Config) error {
 	config.Features.RefreshTokenRotationEnabled = true
 	config.Features.DeviceFlowEnabled = true
 	config.Features.DynamicClientRegistrationEnabled = true
+	config.Features.JWTBearerEnabled = true
 
 	return nil
 }
