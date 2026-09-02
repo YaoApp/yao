@@ -1,6 +1,6 @@
 {
   "name": "image_edit",
-  "description": "Edit or transform an existing image based on a text prompt. Use for image-to-image generation, style transfer, background replacement, or any modification that requires a reference image.",
+  "description": "Edit or transform an existing image based on a text prompt. Supports mask-based editing, transparent backgrounds, and multiple output formats (png, jpeg, webp). Use for image-to-image generation, style transfer, background replacement, or any modification that requires a reference image.",
   "process": "tools.image_edit",
   "inputSchema": {
     "type": "object",
@@ -29,9 +29,36 @@
       "output": {
         "type": "string",
         "description": "Output file path for the edited image."
+      },
+      "mask": {
+        "type": "string",
+        "description": "Path to a mask image defining the edit region. Transparent or semi-transparent areas in the mask indicate where edits should be applied. Accepts local path, URL, workspace://, or attach:// URI."
+      },
+      "background": {
+        "type": "string",
+        "enum": ["transparent", "opaque", "auto"],
+        "description": "Background handling. Use 'transparent' for PNG/WebP images with no background. Default: auto (provider decides)."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["png", "jpeg", "webp"],
+        "description": "Output image format. Default: png."
+      },
+      "output_compression": {
+        "type": "integer",
+        "description": "Compression level 0-100 for jpeg/webp output. Higher means better quality. Default: 100."
+      },
+      "quality": {
+        "type": "string",
+        "enum": ["low", "medium", "high", "auto"],
+        "description": "Image quality level. Higher quality takes longer to generate. Default: auto."
+      },
+      "extra": {
+        "type": "object",
+        "description": "Additional provider-specific parameters as a JSON object. These are passed directly to the provider API. Common keys: moderation (auto|low), input_fidelity (high|low). Use for parameters not covered by the standard fields above."
       }
     },
     "required": ["image_path", "prompt"]
   },
-  "x-process-args": ["$args.image_path", "$args.prompt", "$args.provider", "$args.dimensions", "$args.model", "$args.output"]
+  "x-process-args": ["$args.image_path", "$args.prompt", "$args.provider", "$args.dimensions", "$args.model", "$args.output", ":arguments"]
 }

@@ -50,6 +50,16 @@ tai tool image_generate --prompt "A serene mountain landscape at sunset" --outpu
 tai tool image_generate --prompt "A futuristic city skyline" --provider llm.my-openai --model gpt-image-1 --dimensions 1792x1024 --output output/city.png
 ```
 
+### Transparent background (for icons, stickers, product shots):
+```bash
+tai tool image_generate --prompt "A cute fox mascot" --background transparent --output_format png --output fox.png
+```
+
+### WebP output with quality control:
+```bash
+tai tool image_generate --prompt "A landscape painting" --output_format webp --quality high --output painting.webp
+```
+
 | Parameter | Type   | Required | Description                                                       |
 | --------- | ------ | -------- | ----------------------------------------------------------------- |
 | prompt     | string | yes      | Text description of the image to generate                         |
@@ -57,6 +67,11 @@ tai tool image_generate --prompt "A futuristic city skyline" --provider llm.my-o
 | provider   | string | no       | Provider connector ID (use `image_providers` to list). Auto-selects if omitted |
 | dimensions | string | no       | Image dimensions (default: 1024x1024). Common: 1024x1024, 1024x1792, 1792x1024 |
 | model      | string | no       | Model name to use. Overrides the provider's default model         |
+| background | string | no       | `transparent`, `opaque`, or `auto`. Use `transparent` for PNG/WebP with no background |
+| output_format | string | no    | `png`, `jpeg`, or `webp`. Default: png                            |
+| output_compression | integer | no | Compression level 0-100 for jpeg/webp. Higher = better quality. Default: 100 |
+| quality    | string | no       | `low`, `medium`, `high`, or `auto`. Higher takes longer. Default: auto |
+| extra      | JSON   | no       | Provider-specific parameters as a JSON object (e.g. `--extra '{"moderation":"low"}'`) |
 
 If `output` is omitted, the image is saved to a default path in the working directory.
 
@@ -79,6 +94,16 @@ tai tool image_edit --image_path https://example.com/photo.jpg --prompt "Make it
 tai tool image_edit --image_path /path/to/original.png --prompt "Remove the person in the foreground" --provider llm.my-openai --model gpt-image-1 --dimensions 1024x1024 --output result.png
 ```
 
+### With mask (edit only the masked region):
+```bash
+tai tool image_edit --image_path /path/to/photo.png --mask /path/to/mask.png --prompt "Replace with a garden" --output edited.png
+```
+
+### Transparent background edit:
+```bash
+tai tool image_edit --image_path /path/to/product.png --prompt "Remove background" --background transparent --output_format png --output cutout.png
+```
+
 | Parameter  | Type   | Required | Description                                                       |
 | ---------- | ------ | -------- | ----------------------------------------------------------------- |
 | image_path | string | yes      | Reference image file path or URL                                  |
@@ -87,6 +112,12 @@ tai tool image_edit --image_path /path/to/original.png --prompt "Remove the pers
 | provider   | string | no       | Provider connector ID (use `image_providers` with `capability=image_editing`). Auto-selects if omitted |
 | dimensions | string | no       | Output dimensions (default: 1024x1024). Common: 1024x1024, 1024x1792, 1792x1024 |
 | model      | string | no       | Model name to use. Overrides the provider's default model         |
+| mask       | string | no       | Mask image path/URL. Transparent areas in the mask define the editable region |
+| background | string | no       | `transparent`, `opaque`, or `auto`. Use `transparent` for PNG/WebP with no background |
+| output_format | string | no    | `png`, `jpeg`, or `webp`. Default: png                            |
+| output_compression | integer | no | Compression level 0-100 for jpeg/webp. Higher = better quality. Default: 100 |
+| quality    | string | no       | `low`, `medium`, `high`, or `auto`. Higher takes longer. Default: auto |
+| extra      | JSON   | no       | Provider-specific parameters as a JSON object (e.g. `--extra '{"input_fidelity":"high"}'`) |
 
 If `output` is omitted, the image is saved to a default path in the working directory.
 
@@ -117,4 +148,8 @@ Returns a list of providers with their available models and connector IDs that c
 
 ## Constraints
 
-Only use the parameters listed above for each tool. Do not pass unsupported parameters (such as `quality`, `style`, `n`, `response_format`, etc.) — they will be ignored or cause errors.
+Use only the parameters listed above for each tool. The supported first-class parameters are: `prompt`, `output`, `provider`, `dimensions`, `model`, `background`, `output_format`, `output_compression`, `quality`, `mask` (edit only), and `extra`.
+
+Do **not** pass `n`, `style`, or `response_format` — they are unsupported and will be ignored or cause errors.
+
+For provider-specific parameters not covered above (e.g. `moderation`, `input_fidelity`), pass them through the `extra` JSON object.

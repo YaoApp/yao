@@ -9,4 +9,6 @@ var (
 	ExportExtractTextContent    = extractTextContent
 	ExportReadBytes             = readBytes
 	ExportResolveImage          = resolveImage
+	ExportExtractExtra          = extractExtra
+	ExportExtractIntArg         = extractIntArg
 )

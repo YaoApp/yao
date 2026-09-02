@@ -58,7 +58,8 @@ func GenerateImage(conn connector.Connector, prompt string, options map[string]i
 		return nil, fmt.Errorf("image generation failed (status %d, url %s): %s", resp.Status, url, errMsg)
 	}
 
-	return extractImageFromResponse(resp.Data)
+	requestedFormat, _ := options["output_format"].(string)
+	return extractImageFromResponse(resp.Data, requestedFormat)
 }
 
 func resolveConnSettings(conn connector.Connector) (host, key string, authMode goullm.AuthMode) {
@@ -95,6 +96,8 @@ func setImageAuthHeaders(req *gouhttp.Request, authMode goullm.AuthMode, key str
 // editFormat determines the API protocol: "multipart" for form-data POST /images/edits (OpenAI),
 // "json" for JSON POST /images/generations with image field (Seedream).
 // Empty editFormat defaults to "multipart" (the standard OpenAI protocol).
+// options may include: size, model, mask, background, output_format, output_compression,
+// quality, and provider-specific extra fields.
 func EditImage(conn connector.Connector, imageInput string, prompt string, options map[string]interface{}, editFormat string) (*ImageGenResponse, error) {
 	host, key, authMode := resolveConnSettings(conn)
 	if host == "" {
@@ -104,26 +107,35 @@ func EditImage(conn connector.Connector, imageInput string, prompt string, optio
 		return nil, fmt.Errorf("API key is not set")
 	}
 
-	model := ""
-	if lc, ok := conn.(goullm.LLMConnector); ok {
-		model = lc.GetModel()
+	if options == nil {
+		options = map[string]interface{}{}
 	}
-	if m, ok := options["model"].(string); ok && m != "" {
-		model = m
+	if _, ok := options["model"]; !ok {
+		if lc, ok := conn.(goullm.LLMConnector); ok {
+			if m := lc.GetModel(); m != "" {
+				options["model"] = m
+			}
+		}
 	}
-	size, _ := options["size"].(string)
-	if size == "" {
-		size = "1024x1024"
+	if _, ok := options["size"]; !ok {
+		options["size"] = "1024x1024"
 	}
 
 	if editFormat == "json" {
-		return editImageJSON(host, key, authMode, imageInput, prompt, model, size)
+		return editImageJSON(host, key, authMode, imageInput, prompt, options)
 	}
-	return editImageMultipart(host, key, authMode, imageInput, prompt, model, size)
+	return editImageMultipart(host, key, authMode, imageInput, prompt, options)
+}
+
+// multipartKnownKeys lists options keys handled explicitly by editImageMultipart
+// as form fields or file uploads, so they are skipped in the generic extra loop.
+var multipartKnownKeys = map[string]bool{
+	"model": true, "size": true, "mask": true,
+	"background": true, "quality": true, "output_format": true, "output_compression": true,
 }
 
 // editImageMultipart sends multipart/form-data POST to /images/edits (OpenAI style).
-func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, prompt, model, size string) (*ImageGenResponse, error) {
+func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, prompt string, options map[string]interface{}) (*ImageGenResponse, error) {
 	imageBytes, err := resolveImageBytes(imageInput)
 	if err != nil {
 		return nil, fmt.Errorf("resolve image: %w", err)
@@ -132,27 +144,32 @@ func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, 
 	var body bytes.Buffer
 	writer := multipart.NewWriter(&body)
 
-	mimeType := http.DetectContentType(imageBytes)
-	if !strings.HasPrefix(mimeType, "image/") {
-		mimeType = "image/png"
+	if err := writeImagePart(writer, "image", imageBytes); err != nil {
+		return nil, err
 	}
-	h := make(textproto.MIMEHeader)
-	h.Set("Content-Disposition", `form-data; name="image"; filename="image"`)
-	h.Set("Content-Type", mimeType)
-	part, err := writer.CreatePart(h)
-	if err != nil {
-		return nil, fmt.Errorf("create form file: %w", err)
-	}
-	if _, err := part.Write(imageBytes); err != nil {
-		return nil, fmt.Errorf("write image data: %w", err)
+
+	if maskInput, _ := options["mask"].(string); maskInput != "" {
+		maskBytes, err := resolveImageBytes(maskInput)
+		if err != nil {
+			return nil, fmt.Errorf("resolve mask: %w", err)
+		}
+		if err := writeImagePart(writer, "mask", maskBytes); err != nil {
+			return nil, err
+		}
 	}
 
 	writer.WriteField("prompt", prompt)
-	if model != "" {
-		writer.WriteField("model", model)
-	}
-	if size != "" {
-		writer.WriteField("size", size)
+	writeOptionalField(writer, options, "model")
+	writeOptionalField(writer, options, "size")
+	writeOptionalField(writer, options, "background")
+	writeOptionalField(writer, options, "quality")
+	writeOptionalField(writer, options, "output_format")
+	writeOptionalField(writer, options, "output_compression")
+
+	for k, v := range options {
+		if !multipartKnownKeys[k] {
+			writer.WriteField(k, fmt.Sprint(v))
+		}
 	}
 	writer.Close()
 
@@ -184,18 +201,18 @@ func editImageMultipart(host, key string, authMode goullm.AuthMode, imageInput, 
 	if err := json.Unmarshal(respBody, &data); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
-	return extractImageFromResponse(data)
+	requestedFormat, _ := options["output_format"].(string)
+	return extractImageFromResponse(data, requestedFormat)
 }
 
 // editImageJSON sends JSON POST to /images/generations with image field (Seedream style).
-func editImageJSON(host, key string, authMode goullm.AuthMode, imageInput, prompt, model, size string) (*ImageGenResponse, error) {
+func editImageJSON(host, key string, authMode goullm.AuthMode, imageInput, prompt string, options map[string]interface{}) (*ImageGenResponse, error) {
 	payload := map[string]interface{}{
 		"prompt": prompt,
 		"image":  imageInput,
-		"size":   size,
 	}
-	if model != "" {
-		payload["model"] = model
+	for k, v := range options {
+		payload[k] = v
 	}
 
 	url := connector.BuildAPIURL(host, "/images/generations")
@@ -208,7 +225,39 @@ func editImageJSON(host, key string, authMode goullm.AuthMode, imageInput, promp
 		errMsg := extractAPIError(resp.Data)
 		return nil, fmt.Errorf("image edit failed (status %d, url %s): %s", resp.Status, url, errMsg)
 	}
-	return extractImageFromResponse(resp.Data)
+	requestedFormat, _ := options["output_format"].(string)
+	return extractImageFromResponse(resp.Data, requestedFormat)
+}
+
+// writeImagePart writes a binary image as a multipart file field.
+func writeImagePart(writer *multipart.Writer, fieldName string, data []byte) error {
+	mimeType := http.DetectContentType(data)
+	if !strings.HasPrefix(mimeType, "image/") {
+		mimeType = "image/png"
+	}
+	h := make(textproto.MIMEHeader)
+	h.Set("Content-Disposition", fmt.Sprintf(`form-data; name="%s"; filename="%s"`, fieldName, fieldName))
+	h.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(h)
+	if err != nil {
+		return fmt.Errorf("create %s form part: %w", fieldName, err)
+	}
+	if _, err := part.Write(data); err != nil {
+		return fmt.Errorf("write %s data: %w", fieldName, err)
+	}
+	return nil
+}
+
+// writeOptionalField writes a form field from options if the value is a non-empty string or number.
+func writeOptionalField(writer *multipart.Writer, options map[string]interface{}, key string) {
+	v := options[key]
+	if v == nil {
+		return
+	}
+	s := fmt.Sprint(v)
+	if s != "" {
+		writer.WriteField(key, s)
+	}
 }
 
 // resolveImageBytes converts an image input (data URI, URL, or raw base64) into raw bytes.
@@ -249,7 +298,10 @@ func setHTTPAuthHeader(req *http.Request, authMode goullm.AuthMode, key string) 
 	}
 }
 
-func extractImageFromResponse(data interface{}) (*ImageGenResponse, error) {
+// extractImageFromResponse parses the API response and returns the first image.
+// requestedFormat overrides the format for b64_json responses (empty defaults to "png").
+// For URL responses the format is inferred from Content-Type.
+func extractImageFromResponse(data interface{}, requestedFormat string) (*ImageGenResponse, error) {
 	raw, err := json.Marshal(data)
 	if err != nil {
 		return nil, fmt.Errorf("marshal response: %w", err)
@@ -271,7 +323,11 @@ func extractImageFromResponse(data interface{}) (*ImageGenResponse, error) {
 	item := parsed.Data[0]
 
 	if item.B64JSON != nil && *item.B64JSON != "" {
-		return &ImageGenResponse{Image: *item.B64JSON, Format: "png"}, nil
+		format := requestedFormat
+		if format == "" {
+			format = "png"
+		}
+		return &ImageGenResponse{Image: *item.B64JSON, Format: format}, nil
 	}
 
 	if item.URL != nil && *item.URL != "" {
