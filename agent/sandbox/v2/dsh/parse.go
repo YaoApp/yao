@@ -12,6 +12,7 @@ import (
 
 	gouJSON "github.com/yaoapp/gou/json"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 )
@@ -27,6 +28,7 @@ import (
 type streamParser struct {
 	handler           message.StreamFunc
 	promptedSessionID string
+	locale            string
 	completed         bool
 
 	textActive    bool
@@ -38,21 +40,29 @@ type streamParser struct {
 	toolInputs    map[string]string
 	toolSummaries map[string]string
 	toolFinished  map[string]bool
+
+	prepareLoadingMsgID string
+	contentStarted      bool
+	activeLoadingID     string
+	loadingSeq          int
 }
 
-func newStreamParser(handler message.StreamFunc, promptedSessionID string) *streamParser {
+func newStreamParser(handler message.StreamFunc, promptedSessionID string, locale string, prepareLoadingMsgID string) *streamParser {
 	return &streamParser{
-		handler:           handler,
-		promptedSessionID: promptedSessionID,
-		toolNames:         make(map[string]string),
-		toolMsgIDs:        make(map[string]string),
-		toolInputs:        make(map[string]string),
-		toolSummaries:     make(map[string]string),
-		toolFinished:      make(map[string]bool),
+		handler:             handler,
+		promptedSessionID:   promptedSessionID,
+		locale:              locale,
+		prepareLoadingMsgID: prepareLoadingMsgID,
+		toolNames:           make(map[string]string),
+		toolMsgIDs:          make(map[string]string),
+		toolInputs:          make(map[string]string),
+		toolSummaries:       make(map[string]string),
+		toolFinished:        make(map[string]bool),
 	}
 }
 
 func (p *streamParser) parse(ctx context.Context, stdout io.ReadCloser) error {
+	defer p.closeActiveLoading()
 	doneParsing := make(chan struct{})
 	defer close(doneParsing)
 	go func() {
@@ -180,6 +190,46 @@ func (p *streamParser) handleSessionEvent(raw json.RawMessage) (stopped bool) {
 		return p.handleToolResult(event.Data)
 	case "turn/end":
 		return p.handleTurnEnd(event.Data)
+
+	// compaction
+	case "compaction/start":
+		return p.handleCompactionStart(event.Data)
+	case "compaction/end":
+		return p.handleCompactionEnd(event.Data)
+
+	// llm retry
+	case "llm/retry":
+		return p.handleLLMRetry(event.Data)
+	case "llm/retry-started":
+		return p.handleLLMRetryStarted(event.Data)
+
+	// plan mode
+	case "plan/mode":
+		return p.handlePlanMode(event.Data)
+
+	// subagent / workflow
+	case "subagent/descriptor":
+		return p.handleSubagentDescriptor(event.Data)
+	case "tool-workflow/run-start":
+		return p.handleWorkflowRunStart(event.Data)
+	case "tool-workflow/run-end":
+		return p.handleWorkflowRunEnd(event.Data)
+	case "tool-workflow/agent-start":
+		return p.handleWorkflowAgentStart(event.Data)
+	case "tool-workflow/agent-end":
+		return p.handleWorkflowAgentEnd(event.Data)
+
+	// lifecycle metadata
+	case "turn/start":
+		return p.handleTurnStart(event.Data)
+	case "step/start":
+		return p.handleStepStart(event.Data)
+	case "step/end":
+		return p.handleStepEnd(event.Data)
+	case "approval/asked":
+		return p.handleApprovalAsked(event.Data)
+	case "approval/decided":
+		return p.handleApprovalDecided(event.Data)
 	}
 	return false
 }
@@ -238,6 +288,8 @@ func (p *streamParser) onTextDelta(text string) (stopped bool) {
 	if text == "" {
 		return false
 	}
+	p.closeActiveLoading()
+	p.contentStarted = true
 	p.closeThinkMessage()
 	if !p.textActive {
 		if p.beginMessage("text") {
@@ -254,6 +306,8 @@ func (p *streamParser) onReasoningDelta(text string) (stopped bool) {
 	if text == "" {
 		return false
 	}
+	p.closeActiveLoading()
+	p.contentStarted = true
 	p.closeTextMessage()
 	if !p.thinkActive {
 		if p.beginMessage("thinking") {
@@ -267,6 +321,8 @@ func (p *streamParser) onReasoningDelta(text string) (stopped bool) {
 func (p *streamParser) onBlockStart(chunk chunkInner) (stopped bool) {
 	switch chunk.BlockType {
 	case "tool-call":
+		p.closeActiveLoading()
+		p.contentStarted = true
 		p.closeTextMessage()
 		p.closeThinkMessage()
 		toolID := chunk.ID
@@ -293,6 +349,8 @@ func (p *streamParser) onBlockStart(chunk chunkInner) (stopped bool) {
 		}
 		p.endMessage()
 	case "text":
+		p.closeActiveLoading()
+		p.contentStarted = true
 		p.closeThinkMessage()
 		if !p.textActive {
 			if p.beginMessage("text") {
@@ -301,6 +359,8 @@ func (p *streamParser) onBlockStart(chunk chunkInner) (stopped bool) {
 			p.textActive = true
 		}
 	case "reasoning":
+		p.closeActiveLoading()
+		p.contentStarted = true
 		p.closeTextMessage()
 		if !p.thinkActive {
 			if p.beginMessage("thinking") {
@@ -451,6 +511,8 @@ func (p *streamParser) handleToolCall(data json.RawMessage) (stopped bool) {
 	if err := json.Unmarshal(data, &tc); err != nil {
 		return false
 	}
+	p.closeActiveLoading()
+	p.contentStarted = true
 	p.closeTextMessage()
 	p.closeThinkMessage()
 
@@ -884,4 +946,233 @@ func injectDSHSemanticType(props map[string]any, toolName string) {
 	case "ask-user":
 		props["semantic_type"] = message.TypeQuestion
 	}
+}
+
+// --- loading status helpers ---
+
+func (p *streamParser) emitLoading(text string) {
+	var msg *message.Message
+
+	if !p.contentStarted && p.prepareLoadingMsgID != "" {
+		msg = &message.Message{
+			MessageID:   p.prepareLoadingMsgID,
+			Delta:       true,
+			DeltaAction: message.DeltaReplace,
+			Type:        message.TypeLoading,
+			Props:       map[string]any{"message": text},
+		}
+	} else if p.activeLoadingID != "" {
+		msg = &message.Message{
+			MessageID:   p.activeLoadingID,
+			Delta:       true,
+			DeltaAction: message.DeltaReplace,
+			Type:        message.TypeLoading,
+			Props:       map[string]any{"message": text},
+		}
+	} else {
+		p.loadingSeq++
+		p.activeLoadingID = fmt.Sprintf("dsh-loading-%d", p.loadingSeq)
+		msg = &message.Message{
+			MessageID: p.activeLoadingID,
+			Type:      message.TypeLoading,
+			Props:     map[string]any{"message": text},
+		}
+	}
+
+	data, _ := json.Marshal(msg)
+	if p.handler != nil {
+		p.handler(message.ChunkLoading, data)
+	}
+}
+
+func (p *streamParser) closeActiveLoading() {
+	if p.activeLoadingID == "" {
+		return
+	}
+	msg := &message.Message{
+		MessageID:   p.activeLoadingID,
+		Delta:       true,
+		DeltaAction: message.DeltaReplace,
+		Type:        message.TypeLoading,
+		Props:       map[string]any{"done": true, "message": ""},
+	}
+	data, _ := json.Marshal(msg)
+	if p.handler != nil {
+		p.handler(message.ChunkLoading, data)
+	}
+	p.activeLoadingID = ""
+}
+
+// --- compaction handlers ---
+
+func (p *streamParser) handleCompactionStart(data json.RawMessage) (stopped bool) {
+	p.emitLoading(i18n.T(p.locale, "dsh.compaction.running"))
+	return false
+}
+
+func (p *streamParser) handleCompactionEnd(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	if d.Error != "" {
+		p.emitLoading(fmt.Sprintf(i18n.T(p.locale, "dsh.compaction.error"), d.Error))
+	} else {
+		p.emitLoading(i18n.T(p.locale, "dsh.compaction.completed"))
+	}
+	return false
+}
+
+// --- llm retry handlers ---
+
+func (p *streamParser) handleLLMRetry(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Mode       string  `json:"mode"`
+		Retry      float64 `json:"retry"`
+		MaxRetries float64 `json:"maxRetries"`
+		DelayMs    float64 `json:"delayMs"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	retry := int(d.Retry)
+	delaySec := int(d.DelayMs / 1000)
+	var msg string
+	if d.Mode == "always" {
+		msg = fmt.Sprintf(i18n.T(p.locale, "dsh.retry.waiting_always"), retry, delaySec)
+	} else {
+		msg = fmt.Sprintf(i18n.T(p.locale, "dsh.retry.waiting"), retry, int(d.MaxRetries), delaySec)
+	}
+	p.emitLoading(msg)
+	return false
+}
+
+func (p *streamParser) handleLLMRetryStarted(data json.RawMessage) (stopped bool) {
+	return false
+}
+
+// --- plan/mode handler ---
+
+func (p *streamParser) handlePlanMode(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Active bool `json:"active"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	if d.Active {
+		p.emitLoading(i18n.T(p.locale, "dsh.plan.enter"))
+	} else {
+		p.emitLoading(i18n.T(p.locale, "dsh.plan.exit"))
+	}
+	return false
+}
+
+// --- subagent/descriptor handler ---
+
+func (p *streamParser) handleSubagentDescriptor(data json.RawMessage) (stopped bool) {
+	var d map[string]any
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	meta := map[string]any{}
+	if mode, ok := d["mode"]; ok {
+		meta["mode"] = mode
+	}
+	if provider, ok := d["provider"]; ok {
+		meta["provider"] = provider
+	}
+	if label, ok := d["label"]; ok {
+		meta["label"] = label
+	}
+	payload, _ := json.Marshal(map[string]any{"subagent": meta})
+	if p.handler != nil {
+		p.handler(message.ChunkMetadata, payload)
+	}
+	return false
+}
+
+// --- tool-workflow handlers ---
+
+func (p *streamParser) handleWorkflowRunStart(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	p.emitLoading(d.Name)
+	return false
+}
+
+func (p *streamParser) handleWorkflowRunEnd(data json.RawMessage) (stopped bool) {
+	return false
+}
+
+func (p *streamParser) handleWorkflowAgentStart(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Label string `json:"label"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	p.emitLoading(d.Label)
+	return false
+}
+
+func (p *streamParser) handleWorkflowAgentEnd(data json.RawMessage) (stopped bool) {
+	return false
+}
+
+// --- lifecycle metadata handlers ---
+
+func (p *streamParser) handleTurnStart(data json.RawMessage) (stopped bool) {
+	p.emitLoading(i18n.T(p.locale, "dsh.turn.processing"))
+	return false
+}
+
+func (p *streamParser) handleStepStart(data json.RawMessage) (stopped bool) {
+	p.emitLoading(i18n.T(p.locale, "dsh.step.thinking"))
+	return false
+}
+
+func (p *streamParser) handleStepEnd(data json.RawMessage) (stopped bool) {
+	var d struct {
+		Turn int `json:"turn"`
+		Step int `json:"step"`
+	}
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	payload, _ := json.Marshal(map[string]any{"step_end": map[string]any{"turn": d.Turn, "step": d.Step}})
+	if p.handler != nil {
+		p.handler(message.ChunkMetadata, payload)
+	}
+	return false
+}
+
+func (p *streamParser) handleApprovalAsked(data json.RawMessage) (stopped bool) {
+	var d map[string]any
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	payload, _ := json.Marshal(map[string]any{"approval_asked": d})
+	if p.handler != nil {
+		p.handler(message.ChunkMetadata, payload)
+	}
+	return false
+}
+
+func (p *streamParser) handleApprovalDecided(data json.RawMessage) (stopped bool) {
+	var d map[string]any
+	if err := json.Unmarshal(data, &d); err != nil {
+		return false
+	}
+	payload, _ := json.Marshal(map[string]any{"approval_decided": d})
+	if p.handler != nil {
+		p.handler(message.ChunkMetadata, payload)
+	}
+	return false
 }

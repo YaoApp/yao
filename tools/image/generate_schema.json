@@ -1,6 +1,6 @@
 {
   "name": "image_generate",
-  "description": "Generate a new image from a text prompt (text-to-image only; for editing an existing image, use image_edit instead).",
+  "description": "Generate a new image from a text prompt. Supports transparent backgrounds (background=transparent) and multiple output formats (png, jpeg, webp). For editing an existing image, use image_edit instead.",
   "process": "tools.image_generate",
   "inputSchema": {
     "type": "object",
@@ -25,9 +25,32 @@
       "output": {
         "type": "string",
         "description": "Output file path for the generated image."
+      },
+      "background": {
+        "type": "string",
+        "enum": ["transparent", "opaque", "auto"],
+        "description": "Background handling. Use 'transparent' for PNG/WebP images with no background. Default: auto (provider decides)."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["png", "jpeg", "webp"],
+        "description": "Output image format. Default: png."
+      },
+      "output_compression": {
+        "type": "integer",
+        "description": "Compression level 0-100 for jpeg/webp output. Higher means better quality. Default: 100."
+      },
+      "quality": {
+        "type": "string",
+        "enum": ["low", "medium", "high", "auto"],
+        "description": "Image quality level. Higher quality takes longer to generate. Default: auto."
+      },
+      "extra": {
+        "type": "object",
+        "description": "Additional provider-specific parameters as a JSON object. These are passed directly to the provider API. Common keys: moderation (auto|low). Use for parameters not covered by the standard fields above."
       }
     },
     "required": ["prompt"]
   },
-  "x-process-args": ["$args.prompt", "$args.provider", "$args.dimensions", "$args.model", "$args.output"]
+  "x-process-args": ["$args.prompt", "$args.provider", "$args.dimensions", "$args.model", "$args.output", ":arguments"]
 }

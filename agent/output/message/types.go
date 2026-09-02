@@ -263,6 +263,7 @@ const (
 	ChunkRefusal  StreamChunkType = "refusal"   // Model refusal
 	ChunkMetadata StreamChunkType = "metadata"  // Metadata (usage, finish_reason, etc.)
 	ChunkExecute  StreamChunkType = "execute"   // Agent execution observation (sandbox CLI agent tool use)
+	ChunkLoading  StreamChunkType = "loading"   // Loading/status update from agent internals
 	ChunkError    StreamChunkType = "error"     // Error chunk
 	ChunkUnknown  StreamChunkType = "unknown"   // Unknown/unrecognized chunk type
 

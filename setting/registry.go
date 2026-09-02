@@ -166,6 +166,42 @@ func (r *Registry) ListNamespaces(scope ScopeID) ([]string, error) {
 	return indexGet(r.store, r.cache, scope)
 }
 
+// GetDirect reads from the persistent store, bypassing all in-process caches.
+// If the store implements store.FreshReader (e.g. xun), its internal cache is
+// also bypassed. Both cache layers are updated with the fresh value on success.
+// Pending async writes are flushed first so same-process writes are visible.
+// Use when cached data may be stale due to cross-process writes.
+func (r *Registry) GetDirect(scope ScopeID, ns string) (map[string]interface{}, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Flush pending async writes so the DB reflects same-process Set calls.
+	r.store.Flush()
+
+	sk := storeKey(scope, ns)
+
+	var val interface{}
+	var ok bool
+	if fr, isFresh := r.store.(store.FreshReader); isFresh {
+		val, ok = fr.GetFresh(sk)
+	} else {
+		val, ok = r.store.Get(sk)
+	}
+	if !ok {
+		return nil, fmt.Errorf("setting %s/%s not found", scopePrefix(scope), ns)
+	}
+
+	m, err := toMap(val)
+	if err != nil {
+		return nil, fmt.Errorf("setting %s/%s: %w", scopePrefix(scope), ns, err)
+	}
+
+	if r.cache != nil {
+		r.cache.Set(sk, m, 0)
+	}
+	return m, nil
+}
+
 // Reload clears the cache and re-populates it from the persistent store.
 func (r *Registry) Reload() error {
 	r.mu.Lock()

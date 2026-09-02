@@ -133,7 +133,16 @@ func ExportNewStreamParser(handler message.StreamFunc, promptedSessionID ...stri
 	if len(promptedSessionID) > 0 {
 		sid = promptedSessionID[0]
 	}
-	return &ExportStreamParser{inner: newStreamParser(handler, sid)}
+	return &ExportStreamParser{inner: newStreamParser(handler, sid, "", "")}
+}
+
+// ExportNewStreamParserWithLoading creates a streamParser with a prepareLoadingMsgID for testing pre-text loading updates.
+func ExportNewStreamParserWithLoading(handler message.StreamFunc, prepareLoadingMsgID string, promptedSessionID ...string) *ExportStreamParser {
+	sid := ""
+	if len(promptedSessionID) > 0 {
+		sid = promptedSessionID[0]
+	}
+	return &ExportStreamParser{inner: newStreamParser(handler, sid, "", prepareLoadingMsgID)}
 }
 
 // ExportStreamParser wraps the internal streamParser.

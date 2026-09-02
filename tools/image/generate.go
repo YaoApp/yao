@@ -28,6 +28,13 @@ func GenerateHandler(proc *process.Process) interface{} {
 	size := proc.ArgsString(2, "1024x1024")
 	model := proc.ArgsString(3)
 	output := proc.ArgsString(4)
+	allArgs := proc.ArgsMap(5)
+
+	background, _ := allArgs["background"].(string)
+	outputFormat, _ := allArgs["output_format"].(string)
+	quality, _ := allArgs["quality"].(string)
+	compression := extractIntArg(allArgs, "output_compression", -1)
+	extra := extractExtra(allArgs)
 
 	authInfo := authorized.ProcessAuthInfo(proc)
 	if authInfo == nil {
@@ -47,16 +54,48 @@ func GenerateHandler(proc *process.Process) interface{} {
 		return map[string]interface{}{"error": fmt.Sprintf("resolve connector: %v", err)}
 	}
 
-	options := map[string]interface{}{"size": size}
+	options := map[string]interface{}{}
+	for k, v := range extra {
+		options[k] = v
+	}
+	options["size"] = size
 	if model != "" {
 		options["model"] = model
 	}
+	if background != "" {
+		options["background"] = background
+	}
+	if outputFormat != "" {
+		options["output_format"] = outputFormat
+	}
+	if compression >= 0 {
+		options["output_compression"] = compression
+	}
+	if quality != "" {
+		options["quality"] = quality
+	}
+
 	resp, err := agentLLM.GenerateImage(conn, prompt, options)
 	if err != nil {
 		return map[string]interface{}{"error": fmt.Sprintf("image generation failed: %v", err)}
 	}
 
 	usedModel := resolveModelName(conn, model)
+	result := map[string]interface{}{
+		"format":     resp.Format,
+		"dimensions": size,
+		"model":      usedModel,
+		"provider":   connectorID,
+	}
+	if background != "" {
+		result["background"] = background
+	}
+	if outputFormat != "" {
+		result["output_format"] = outputFormat
+	}
+	if quality != "" {
+		result["quality"] = quality
+	}
 
 	if strings.HasPrefix(output, "workspace://") {
 		imgBytes, err := base64.StdEncoding.DecodeString(resp.Image)
@@ -75,22 +114,12 @@ func GenerateHandler(proc *process.Process) interface{} {
 		if err := ws.M().WriteFile(context.Background(), wsID, relPath, imgBytes, 0644); err != nil {
 			return map[string]interface{}{"error": fmt.Sprintf("write to workspace: %v", err)}
 		}
-		return map[string]interface{}{
-			"path":       "workspace://" + wsID + "/" + relPath,
-			"format":     resp.Format,
-			"dimensions": size,
-			"model":      usedModel,
-			"provider":   connectorID,
-		}
+		result["path"] = "workspace://" + wsID + "/" + relPath
+		return result
 	}
 
-	return map[string]interface{}{
-		"image":      resp.Image,
-		"format":     resp.Format,
-		"dimensions": size,
-		"model":      usedModel,
-		"provider":   connectorID,
-	}
+	result["image"] = resp.Image
+	return result
 }
 
 func parseWorkspaceURI(uri string) (string, string) {

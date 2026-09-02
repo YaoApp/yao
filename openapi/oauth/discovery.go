@@ -117,6 +117,10 @@ func (s *Service) GetServerMetadata(ctx context.Context) (*types.AuthorizationSe
 		metadata.GrantTypesSupported = append(metadata.GrantTypesSupported, "urn:ietf:params:oauth:grant-type:token-exchange")
 	}
 
+	if s.config.Features.JWTBearerEnabled {
+		metadata.GrantTypesSupported = append(metadata.GrantTypesSupported, types.GrantTypeJWTBearer)
+	}
+
 	if s.config.Features.PushedAuthorizationEnabled {
 		metadata.PushedAuthorizationRequestEndpoint = endpoints["pushed_authorization_request_endpoint"]
 		metadata.RequirePushedAuthorizationRequests = true

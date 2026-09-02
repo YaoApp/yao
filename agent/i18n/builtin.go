@@ -130,6 +130,17 @@ func init() {
 			// Content: content/image/image.go - Image processing messages
 			"content.image.analyzing": "Analyzing image",
 
+			// DSH: sandbox/v2/dsh/parse.go - DSH session event messages
+			"dsh.compaction.running":   "Compacting context...",
+			"dsh.compaction.completed": "Context compacted",
+			"dsh.compaction.error":     "Compaction failed: %s",
+			"dsh.retry.waiting":        "Retrying (%d/%d), waiting %ds...",
+			"dsh.retry.waiting_always": "Retrying (attempt %d), waiting %ds...",
+			"dsh.turn.processing":      "Processing...",
+			"dsh.step.thinking":        "Thinking...",
+			"dsh.plan.enter":           "Entering plan mode",
+			"dsh.plan.exit":            "Exiting plan mode",
+
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "Analyzing PDF page %d/%d",
 
@@ -256,6 +267,17 @@ func init() {
 
 			// Content: content/image/image.go - Image processing messages
 			"content.image.analyzing": "正在分析图片",
+
+			// DSH: sandbox/v2/dsh/parse.go - DSH session event messages
+			"dsh.compaction.running":   "正在压缩上下文...",
+			"dsh.compaction.completed": "上下文已压缩",
+			"dsh.compaction.error":     "上下文压缩失败: %s",
+			"dsh.retry.waiting":        "正在重试 (%d/%d)，等待 %ds...",
+			"dsh.retry.waiting_always": "正在重试 (第%d次)，等待 %ds...",
+			"dsh.turn.processing":      "正在处理...",
+			"dsh.step.thinking":        "正在思考...",
+			"dsh.plan.enter":           "进入计划模式",
+			"dsh.plan.exit":            "退出计划模式",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",
@@ -411,6 +433,17 @@ func init() {
 
 			// Content: content/image/image.go - Image processing messages
 			"content.image.analyzing": "正在分析图片",
+
+			// DSH: sandbox/v2/dsh/parse.go - DSH session event messages
+			"dsh.compaction.running":   "正在压缩上下文...",
+			"dsh.compaction.completed": "上下文已压缩",
+			"dsh.compaction.error":     "上下文压缩失败: %s",
+			"dsh.retry.waiting":        "正在重试 (%d/%d)，等待 %ds...",
+			"dsh.retry.waiting_always": "正在重试 (第%d次)，等待 %ds...",
+			"dsh.turn.processing":      "正在处理...",
+			"dsh.step.thinking":        "正在思考...",
+			"dsh.plan.enter":           "进入计划模式",
+			"dsh.plan.exit":            "退出计划模式",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",

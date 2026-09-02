@@ -15,17 +15,19 @@ import (
 )
 
 type session struct {
-	ctx      context.Context
-	computer infra.Computer
-	plat     platform
-	exec     *infra.ExecStream
-	stderr   strings.Builder
-	stderrMu sync.Mutex
-	logger   *agentContext.RequestLogger
-	chatID   string
+	ctx                 context.Context
+	computer            infra.Computer
+	plat                platform
+	exec                *infra.ExecStream
+	stderr              strings.Builder
+	stderrMu            sync.Mutex
+	logger              *agentContext.RequestLogger
+	chatID              string
+	locale              string
+	prepareLoadingMsgID string
 }
 
-func startSession(ctx context.Context, computer infra.Computer, p platform, cmd command, chatID string, logger *agentContext.RequestLogger) (*session, error) {
+func startSession(ctx context.Context, computer infra.Computer, p platform, cmd command, chatID string, logger *agentContext.RequestLogger, locale string, prepareLoadingMsgID string) (*session, error) {
 	opts := []infra.ExecOption{
 		infra.WithWorkDir(cmd.workDir),
 		infra.WithEnv(cmd.env),
@@ -44,12 +46,14 @@ func startSession(ctx context.Context, computer infra.Computer, p platform, cmd 
 	}
 
 	return &session{
-		ctx:      ctx,
-		computer: computer,
-		plat:     p,
-		exec:     execStream,
-		logger:   logger,
-		chatID:   chatID,
+		ctx:                 ctx,
+		computer:            computer,
+		plat:                p,
+		exec:                execStream,
+		logger:              logger,
+		chatID:              chatID,
+		locale:              locale,
+		prepareLoadingMsgID: prepareLoadingMsgID,
 	}, nil
 }
 
@@ -59,7 +63,7 @@ func (s *session) runStream(handler message.StreamFunc) (completed bool, err err
 	cleanup := s.watchCancel()
 	defer cleanup()
 
-	parser := newStreamParser(handler, s.chatID)
+	parser := newStreamParser(handler, s.chatID, s.locale, s.prepareLoadingMsgID)
 	parseErr := parser.parse(s.ctx, s.exec.Stdout)
 
 	s.logger.Debug("runStream: parse returned completed=%v parseErr=%v", parser.completed, parseErr)

@@ -10,8 +10,9 @@
 
 **🖥️ Yao Desktop:** [https://yaoagents.com/download](https://yaoagents.com/download)
 
+**📱 Android (Beta):** [APK Download](https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk)
 
-⚡⚡⚡ **DeepSeek Harness is now integrated — use it directly in the desktop app or browser, running across your devices.**
+⚡⚡⚡ **DeepSeek Harness is now integrated — use it directly in the desktop app, Android, or browser, running across your devices.**
 
 *This README was written with DeepSeek Harness in the Yao Agents Android app (beta) and published automatically.*
 
@@ -48,4 +49,5 @@ Let your agents become part of your business, wherever you need them.
 - Homepage: https://yaoagents.com
 - Docs: https://yaoagents.com/docs
 - Yao Desktop: https://yaoagents.com/download
+- Android (Beta): https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
 - Discord: https://discord.gg/yao

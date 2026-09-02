@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/openapi/oauth"
@@ -142,6 +143,10 @@ func (openapi *OpenAPI) oauthToken(c *gin.Context) {
 	case types.GrantTypeTokenExchange:
 		// Handle token exchange through OAuth.TokenExchange() - RFC 8693
 		openapi.handleTokenExchangeGrant(c)
+
+	case types.GrantTypeJWTBearer:
+		// Handle JWT Bearer assertion grant - RFC 7523
+		openapi.handleJWTBearerGrant(c)
 
 	default:
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrUnsupportedGrantType)
@@ -323,6 +328,106 @@ func (openapi *OpenAPI) handleTokenExchangeGrant(c *gin.Context) {
 
 	// Return successful token exchange response with security headers
 	response.RespondWithSecureSuccess(c, response.StatusOK, exchangeResponse)
+}
+
+// handleJWTBearerGrant exchanges a signed JWT access token (possibly expired) for a fresh one.
+// The JWT signature must be valid; expiration is allowed up to RefreshTokenLifetime.
+// This reuses the same verification and issuance logic as Guard.TryRefreshToken
+// but operates as an explicit token endpoint grant without cookies or refresh tokens.
+func (openapi *OpenAPI) handleJWTBearerGrant(c *gin.Context) {
+	oauthService, ok := openapi.OAuth.(*oauth.Service)
+	if !ok {
+		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClient)
+		return
+	}
+
+	// Check feature flag
+	if !oauthService.GetConfig().Features.JWTBearerEnabled {
+		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrUnsupportedGrantType)
+		return
+	}
+
+	assertion := c.PostForm("assertion")
+	if assertion == "" {
+		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidRequest)
+		return
+	}
+
+	// Verify JWT signature (allow expired tokens)
+	claims, err := oauthService.VerifyTokenAllowExpired(assertion)
+	if err != nil || claims == nil {
+		response.RespondWithSecureError(c, response.StatusBadRequest, &response.ErrorResponse{
+			Code:             "invalid_grant",
+			ErrorDescription: "Invalid JWT assertion",
+		})
+		return
+	}
+
+	// Reject JWTs expired beyond RefreshTokenLifetime to limit the replay window.
+	// This aligns with Guard's implicit upper bound: once the refresh token expires,
+	// Guard also stops refreshing.
+	if !claims.ExpiresAt.IsZero() && claims.ExpiresAt.Before(time.Now()) {
+		maxAge := oauthService.GetConfig().Token.RefreshTokenLifetime
+		if maxAge <= 0 {
+			maxAge = 24 * time.Hour
+		}
+		deadline := claims.ExpiresAt.Add(maxAge)
+		if time.Now().After(deadline) {
+			response.RespondWithSecureError(c, response.StatusBadRequest, &response.ErrorResponse{
+				Code:             "invalid_grant",
+				ErrorDescription: "JWT assertion expired beyond maximum allowed age",
+			})
+			return
+		}
+	}
+
+	// Derive accessTTL from the original token's iat/exp (same logic as Guard.TryRefreshToken)
+	var accessTTL time.Duration
+	if !claims.IssuedAt.IsZero() && !claims.ExpiresAt.IsZero() {
+		accessTTL = claims.ExpiresAt.Sub(claims.IssuedAt)
+	}
+	if accessTTL <= 0 {
+		accessTTL = oauthService.GetConfig().Token.AccessTokenLifetime
+	}
+	if accessTTL <= 0 {
+		accessTTL = time.Hour
+	}
+
+	// Propagate extra claims (team_id, tenant_id, etc.) — same as Guard.TryRefreshToken
+	extraClaims := claims.Extra
+	if extraClaims == nil {
+		extraClaims = make(map[string]interface{})
+	}
+	if claims.TeamID != "" {
+		extraClaims["team_id"] = claims.TeamID
+	}
+	if claims.TenantID != "" {
+		extraClaims["tenant_id"] = claims.TenantID
+	}
+
+	expiresIn := int(accessTTL.Seconds())
+	newToken, err := oauthService.MakeAccessToken(
+		claims.ClientID,
+		claims.Scope,
+		claims.Subject,
+		expiresIn,
+		extraClaims,
+	)
+	if err != nil {
+		response.RespondWithSecureError(c, response.StatusInternalServerError, &response.ErrorResponse{
+			Code:             "server_error",
+			ErrorDescription: "Failed to issue access token",
+		})
+		return
+	}
+
+	tokenResponse := &types.RefreshTokenResponse{
+		AccessToken: newToken,
+		TokenType:   types.TokenTypeBearer,
+		ExpiresIn:   expiresIn,
+	}
+
+	response.RespondWithSecureSuccess(c, response.StatusOK, tokenResponse)
 }
 
 // oauthRevoke handles token revocation - RFC 7009

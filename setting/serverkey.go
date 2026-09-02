@@ -88,6 +88,13 @@ func CreateServerKey(name string, ttl ...time.Duration) (plainKey, keyID string,
 
 // ValidateServerKey validates a plaintext server key.
 // Returns the key ID if valid, or an error if invalid/revoked.
+//
+// The index lookup uses a cache-first fast path with a database fallback:
+// if the key hash is absent from the cached index, GetDirect bypasses all
+// in-process caches and reads from the persistent store. This handles keys
+// created by a separate CLI process (yao server-key create) without a
+// server restart. The server_keys namespace is always read directly so
+// that revocation and expiry changes are visible immediately.
 func ValidateServerKey(plainKey string) (keyID string, err error) {
 	if Global == nil {
 		return "", fmt.Errorf("setting registry not initialized")
@@ -96,7 +103,14 @@ func ValidateServerKey(plainKey string) (keyID string, err error) {
 	keyHash := HashServerKey(plainKey)
 	scope := ScopeID{Scope: ScopeSystem}
 
+	// Fast path: check cached index
 	index, _ := Global.Get(scope, serverKeyIndexNS)
+
+	// Fallback: hash not in cached index — may be a cross-process write
+	if index == nil || index[keyHash] == nil {
+		index, _ = Global.GetDirect(scope, serverKeyIndexNS)
+	}
+
 	if index == nil {
 		return "", fmt.Errorf("invalid server key")
 	}
@@ -110,7 +124,8 @@ func ValidateServerKey(plainKey string) (keyID string, err error) {
 		return "", fmt.Errorf("invalid server key")
 	}
 
-	keys, _ := Global.Get(scope, serverKeyNS)
+	// Always read server_keys directly so revocation/expiry is up to date
+	keys, _ := Global.GetDirect(scope, serverKeyNS)
 	if keys == nil {
 		return "", fmt.Errorf("invalid server key")
 	}

@@ -57,6 +57,21 @@ func runParserWithSession(t *testing.T, ndjson, sessionID string) ([]recordedEve
 	return events, p.Completed()
 }
 
+func runParserWithLoading(t *testing.T, ndjson, prepareLoadingMsgID string) ([]recordedEvent, bool) {
+	t.Helper()
+	var events []recordedEvent
+	p := dsh.ExportNewStreamParserWithLoading(mockStreamFunc(&events), prepareLoadingMsgID)
+	r, w := io.Pipe()
+	go func() {
+		defer w.Close()
+		w.Write([]byte(ndjson))
+	}()
+	if err := p.Parse(context.Background(), r); err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	return events, p.Completed()
+}
+
 type messageGroup struct {
 	messageID string
 	msgType   string
@@ -89,6 +104,18 @@ func extractExecuteProps(ev recordedEvent) map[string]any {
 	var m map[string]any
 	json.Unmarshal(ev.data, &m)
 	return m
+}
+
+func extractLoadingMessages(events []recordedEvent) []message.Message {
+	var msgs []message.Message
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkLoading {
+			var m message.Message
+			json.Unmarshal(ev.data, &m)
+			msgs = append(msgs, m)
+		}
+	}
+	return msgs
 }
 
 func strDefault(v any) string {
@@ -2095,5 +2122,421 @@ func TestParse_TurnEndError_EmitsChunkError(t *testing.T) {
 	}
 	if errorMsg != "SSE stream ended without [DONE]" {
 		t.Errorf("error message = %q, want nested message extraction", errorMsg)
+	}
+}
+
+// --- DSH session event mapping tests ---
+
+func sessionEvent(sessionID, eventType string, data any) string {
+	d, _ := json.Marshal(data)
+	return `{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"` + sessionID + `","event":{"type":"` + eventType + `","seq":1,"time":1000,"data":` + string(d) + `}}}` + "\n"
+}
+
+func idleStatus(sessionID string) string {
+	return `{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"` + sessionID + `","status":"idle"}}` + "\n"
+}
+
+func initResponse() string {
+	return `{"jsonrpc":"2.0","id":1,"result":{"sessionId":"sess-1"}}` + "\n"
+}
+
+func TestParse_CompactionStartEnd(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-1", "turn": 2}) +
+		sessionEvent("sess-1", "compaction/end", map[string]any{"compactionId": "c-1", "turn": 2}) +
+		idleStatus("sess-1")
+
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 2 {
+		t.Fatalf("expected at least 2 loading messages, got %d", len(loadings))
+	}
+	startMsg := strDefault(loadings[0].Props["message"])
+	if startMsg == "" {
+		t.Error("compaction/start loading message is empty")
+	}
+	endMsg := strDefault(loadings[1].Props["message"])
+	if endMsg == "" {
+		t.Error("compaction/end loading message is empty")
+	}
+}
+
+func TestParse_CompactionError(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-2"}) +
+		sessionEvent("sess-1", "compaction/end", map[string]any{"compactionId": "c-2", "error": "out of tokens"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 2 {
+		t.Fatalf("expected at least 2 loading messages, got %d", len(loadings))
+	}
+	endMsg := strDefault(loadings[1].Props["message"])
+	if !strings.Contains(endMsg, "out of tokens") {
+		t.Errorf("error loading message should contain error text, got %q", endMsg)
+	}
+}
+
+func TestParse_LLMRetryAndStarted(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "llm/retry", map[string]any{
+			"retryId": "r-1", "mode": "normal", "retry": 1, "maxRetries": 3, "delayMs": 2000,
+			"turn": 1, "step": 1, "provider": "deepseek", "policyKey": "default",
+			"failure": map[string]any{"kind": "rate_limit"},
+		}) +
+		sessionEvent("sess-1", "llm/retry-started", map[string]any{"retryId": "r-1", "turn": 1, "step": 1, "retry": 1}) +
+		idleStatus("sess-1")
+
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message for llm/retry")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if !strings.Contains(msg, "1") || !strings.Contains(msg, "3") {
+		t.Errorf("retry message should contain retry count and max: %q", msg)
+	}
+}
+
+func TestParse_LLMRetryAlwaysMode(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "llm/retry", map[string]any{
+			"retryId": "r-2", "mode": "always", "retry": 5, "delayMs": 3000,
+			"turn": 1, "step": 1, "provider": "deepseek", "policyKey": "default",
+			"failure": map[string]any{"kind": "server_error"},
+		}) +
+		sessionEvent("sess-1", "llm/retry-started", map[string]any{"retryId": "r-2", "turn": 1, "step": 1, "retry": 5}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if !strings.Contains(msg, "5") {
+		t.Errorf("always mode message should contain attempt number: %q", msg)
+	}
+}
+
+func TestParse_PlanMode(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "plan/mode", map[string]any{"active": true}) +
+		idleStatus("sess-1")
+
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message for plan/mode")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if msg == "" {
+		t.Error("plan/mode loading message is empty")
+	}
+}
+
+func TestParse_SubagentDescriptor(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "subagent/descriptor", map[string]any{"mode": "headless", "provider": "deepseek-reasoner", "label": "coder"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	var metaPayload map[string]any
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMetadata {
+			json.Unmarshal(ev.data, &metaPayload)
+			if _, ok := metaPayload["subagent"]; ok {
+				break
+			}
+			metaPayload = nil
+		}
+	}
+	if metaPayload == nil {
+		t.Fatal("no subagent metadata found")
+	}
+	sub := metaPayload["subagent"].(map[string]any)
+	if strDefault(sub["mode"]) != "headless" {
+		t.Errorf("mode = %q, want headless", sub["mode"])
+	}
+}
+
+func TestParse_WorkflowRunStartEnd(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "tool-workflow/run-start", map[string]any{"runId": "run-1", "name": "build-project"}) +
+		sessionEvent("sess-1", "tool-workflow/run-end", map[string]any{"runId": "run-1", "stopReason": "completed"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message for workflow/run-start")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if msg != "build-project" {
+		t.Errorf("workflow run loading message = %q, want build-project", msg)
+	}
+}
+
+func TestParse_WorkflowAgentStartEnd(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "tool-workflow/agent-start", map[string]any{"runId": "run-1", "seq": 0, "label": "reviewer"}) +
+		sessionEvent("sess-1", "tool-workflow/agent-end", map[string]any{"runId": "run-1", "seq": 0, "outcome": "completed"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message for workflow/agent-start")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if msg != "reviewer" {
+		t.Errorf("workflow agent loading message = %q, want reviewer", msg)
+	}
+}
+
+func TestParse_TurnStart(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "turn/start", map[string]any{"turn": 3}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading message for turn/start")
+	}
+	msg := strDefault(loadings[0].Props["message"])
+	if msg == "" {
+		t.Error("turn/start loading message is empty")
+	}
+}
+
+func TestParse_StepStartEnd(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "step/start", map[string]any{"turn": 1, "step": 2}) +
+		sessionEvent("sess-1", "step/end", map[string]any{"turn": 1, "step": 2}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Error("step/start loading message not found")
+	}
+
+	var endFound bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMetadata {
+			var m map[string]any
+			json.Unmarshal(ev.data, &m)
+			if _, ok := m["step_end"]; ok {
+				endFound = true
+			}
+		}
+	}
+	if !endFound {
+		t.Error("step/end metadata not found")
+	}
+}
+
+func TestParse_ApprovalAskedDecided(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "approval/asked", map[string]any{"toolName": "bash", "callId": "c-1"}) +
+		sessionEvent("sess-1", "approval/decided", map[string]any{"toolName": "bash", "callId": "c-1", "decision": "allow"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	var askedFound, decidedFound bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkMetadata {
+			var m map[string]any
+			json.Unmarshal(ev.data, &m)
+			if _, ok := m["approval_asked"]; ok {
+				askedFound = true
+			}
+			if _, ok := m["approval_decided"]; ok {
+				decidedFound = true
+			}
+		}
+	}
+	if !askedFound {
+		t.Error("approval/asked metadata not found")
+	}
+	if !decidedFound {
+		t.Error("approval/decided metadata not found")
+	}
+}
+
+func TestParse_CompactionInterruptsText(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "hello"},
+		}) +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-3"}) +
+		sessionEvent("sess-1", "compaction/end", map[string]any{"compactionId": "c-3"}) +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": " world"},
+		}) +
+		idleStatus("sess-1")
+
+	events, completed := runParser(t, ndjson)
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	var hasText, hasLoading bool
+	for _, ev := range events {
+		if ev.chunkType == message.ChunkText {
+			hasText = true
+		}
+		if ev.chunkType == message.ChunkLoading {
+			hasLoading = true
+		}
+	}
+	if !hasText {
+		t.Error("expected text chunks")
+	}
+	if !hasLoading {
+		t.Error("expected loading chunks from compaction")
+	}
+}
+
+// --- Pre-text / Post-text loading phase tests ---
+
+func TestParse_PreTextLoading_UpdatesM1(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "turn/start", map[string]any{"turn": 1}) +
+		sessionEvent("sess-1", "step/start", map[string]any{"turn": 1, "step": 1}) +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "hello"},
+		}) +
+		idleStatus("sess-1")
+
+	events, completed := runParserWithLoading(t, ndjson, "M1")
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 2 {
+		t.Fatalf("expected at least 2 loading messages (turn/start + step/start), got %d", len(loadings))
+	}
+	for i, l := range loadings[:2] {
+		if l.MessageID != "M1" {
+			t.Errorf("loading[%d] message_id = %q, want M1", i, l.MessageID)
+		}
+		if !l.Delta {
+			t.Errorf("loading[%d] delta should be true", i)
+		}
+		if l.DeltaAction != "replace" {
+			t.Errorf("loading[%d] delta_action = %q, want replace", i, l.DeltaAction)
+		}
+	}
+}
+
+func TestParse_PostTextLoading_CreatesNewID(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "hello"},
+		}) +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-1"}) +
+		idleStatus("sess-1")
+
+	events, completed := runParserWithLoading(t, ndjson, "M1")
+	if !completed {
+		t.Fatal("should complete")
+	}
+
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 post-text loading")
+	}
+	last := loadings[len(loadings)-1]
+	if last.MessageID == "M1" {
+		t.Error("post-text loading should NOT use M1, should create new ID")
+	}
+	if last.MessageID == "" {
+		t.Error("post-text loading should have a generated message_id")
+	}
+}
+
+func TestParse_PostTextLoading_ClosedOnTextDelta(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "first"},
+		}) +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-1"}) +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "second"},
+		}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 2 {
+		t.Fatalf("expected at least 2 loading messages (create + close), got %d", len(loadings))
+	}
+	closeMsg := loadings[len(loadings)-1]
+	if closeMsg.Props["done"] != true {
+		t.Error("last loading message should have done=true (closed by text-delta)")
+	}
+}
+
+func TestParse_ReasoningSetsContentStarted(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "reasoning-delta", "text": "let me think"},
+		}) +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-1"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParserWithLoading(t, ndjson, "M1")
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 1 {
+		t.Fatal("expected at least 1 loading for compaction after reasoning")
+	}
+	for _, l := range loadings {
+		if l.MessageID == "M1" {
+			t.Error("loading after reasoning should NOT update M1 — contentStarted should be true")
+		}
+	}
+}
+
+func TestParse_ActiveLoadingClosedOnStreamEnd(t *testing.T) {
+	ndjson := initResponse() +
+		sessionEvent("sess-1", "assistant/chunk", map[string]any{
+			"turn": 1, "step": 1,
+			"chunk": map[string]any{"type": "text-delta", "text": "hello"},
+		}) +
+		sessionEvent("sess-1", "compaction/start", map[string]any{"compactionId": "c-1"}) +
+		idleStatus("sess-1")
+
+	events, _ := runParser(t, ndjson)
+	loadings := extractLoadingMessages(events)
+	if len(loadings) < 2 {
+		t.Fatalf("expected at least 2 loading messages, got %d", len(loadings))
+	}
+	last := loadings[len(loadings)-1]
+	if last.Props["done"] != true {
+		t.Error("last loading should have done=true (defer closeActiveLoading on stream end)")
 	}
 }

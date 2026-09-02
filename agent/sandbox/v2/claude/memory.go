@@ -71,7 +71,8 @@ Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" 
 | doc_list | Search/list process docs |
 | doc_inspect | Get detailed process docs |
 | image_read | Analyze images (vision) |
-| image_generate | Generate images from text |
+| image_generate | Generate images from text (supports background, output_format, quality) |
+| image_edit | Edit images with text prompts (supports mask, background, output_format) |
 | agent_list | List available agents |
 | agent_call | Call another AI expert |
 | secret_list | List secret names |
