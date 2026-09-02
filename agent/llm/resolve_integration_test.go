@@ -157,6 +157,7 @@ func TestCapabilitiesFromMap(t *testing.T) {
 	assert.Equal(t, true, caps.Vision)
 	assert.True(t, caps.Reasoning)
 	assert.True(t, caps.JSON)
+	assert.False(t, caps.OCR)
 
 	defaults := llm.ExportCapabilitiesFromMap(map[string]interface{}{})
 	require.NotNil(t, defaults)
@@ -164,6 +165,15 @@ func TestCapabilitiesFromMap(t *testing.T) {
 	assert.False(t, defaults.ToolCalls)
 	assert.False(t, defaults.Reasoning)
 	assert.True(t, defaults.TemperatureAdjustable)
+	assert.False(t, defaults.OCR)
+
+	ocrCaps := llm.ExportCapabilitiesFromMap(map[string]interface{}{
+		"ocr":    true,
+		"vision": "openai",
+	})
+	require.NotNil(t, ocrCaps)
+	assert.True(t, ocrCaps.OCR)
+	assert.Equal(t, "openai", ocrCaps.Vision)
 }
 
 func TestGetCapabilities(t *testing.T) {
@@ -202,9 +212,92 @@ func TestGetCapabilitiesMap(t *testing.T) {
 	assert.Contains(t, m, "tool_calls")
 	assert.Contains(t, m, "reasoning")
 	assert.Contains(t, m, "json")
+	assert.Contains(t, m, "ocr")
 
 	caps := llm.GetCapabilities(cid)
 	roundTrip := llm.ToMap(caps)
 	assert.NotNil(t, roundTrip)
 	assert.Equal(t, m, roundTrip)
+}
+
+// --- OCR connector tests ---
+
+func TestOCRConnectorLoaded(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	var ocrConn connector.Connector
+	for _, opt := range connector.AIConnectors {
+		if opt.Value == "openai.qwen-vl-ocr" {
+			c, err := connector.Select(opt.Value)
+			require.NoError(t, err)
+			ocrConn = c
+			break
+		}
+	}
+	require.NotNil(t, ocrConn, "qwen-vl-ocr connector must be loaded from test fixtures")
+
+	caps := llm.GetCapabilitiesFromConn(ocrConn)
+	require.NotNil(t, caps)
+	assert.True(t, caps.OCR, "qwen-vl-ocr must have OCR capability")
+	assert.True(t, caps.HasVision(), "qwen-vl-ocr must have vision capability")
+	assert.True(t, caps.Streaming, "qwen-vl-ocr must have streaming capability")
+}
+
+func TestOCRConnectorCapabilitiesMap(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	m := llm.GetCapabilitiesMap("openai.qwen-vl-ocr")
+	require.NotNil(t, m)
+
+	ocrVal, ok := m["ocr"].(bool)
+	assert.True(t, ok, "ocr must be present in capabilities map")
+	assert.True(t, ocrVal, "ocr must be true")
+
+	visVal := m["vision"]
+	assert.NotNil(t, visVal, "vision must be present in capabilities map")
+}
+
+func TestOCRFilterReturnsOCRConnectors(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	var found bool
+	for _, opt := range connector.AIConnectors {
+		c, err := connector.Select(opt.Value)
+		if err != nil {
+			continue
+		}
+
+		caps := llm.ToMap(llm.GetCapabilitiesFromConn(c))
+		if caps == nil {
+			continue
+		}
+
+		ocrVal, ok := caps["ocr"].(bool)
+		if ok && ocrVal {
+			found = true
+			assert.Equal(t, "openai.qwen-vl-ocr", opt.Value)
+			break
+		}
+	}
+	assert.True(t, found, "at least one OCR-capable connector must exist in test fixtures")
+}
+
+func TestNonOCRConnectorsExcluded(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	for _, opt := range connector.AIConnectors {
+		if opt.Value == "openai.qwen-vl-ocr" {
+			continue
+		}
+		c, err := connector.Select(opt.Value)
+		if err != nil {
+			continue
+		}
+		caps := llm.ToMap(llm.GetCapabilitiesFromConn(c))
+		if caps == nil {
+			continue
+		}
+		ocrVal, _ := caps["ocr"].(bool)
+		assert.False(t, ocrVal, "non-OCR connector %s must have ocr=false", opt.Value)
+	}
 }

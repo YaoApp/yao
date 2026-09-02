@@ -74,6 +74,14 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	search.POST("/providers/:key/test", handleSearchProviderTest)
 	search.PUT("/tool-assignment", handleSearchToolAssignment)
 
+	ocrG := group.Group("/ocr")
+	ocrG.Use(restricted)
+	ocrG.GET("", handleOCRGet)
+	ocrG.PUT("/providers/:key", handleOCRProviderUpdate)
+	ocrG.PUT("/providers/:key/toggle", handleOCRProviderToggle)
+	ocrG.POST("/providers/:key/test", handleOCRProviderTest)
+	ocrG.PUT("/tool-assignment", handleOCRToolAssignment)
+
 	smtpG := group.Group("/smtp")
 	smtpG.Use(restricted)
 	smtpG.GET("", handleSmtpGet)

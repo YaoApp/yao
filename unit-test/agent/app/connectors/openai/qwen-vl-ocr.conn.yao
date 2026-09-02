@@ -1,0 +1,14 @@
+{
+  "label": "Qwen VL OCR",
+  "type": "openai",
+  "options": {
+    "model": "qwen-vl-ocr-latest",
+    "host": "$ENV.MOCK_LLM_HOST",
+    "key": "mock-key-not-validated",
+    "capabilities": {
+      "vision": "openai",
+      "ocr": true,
+      "streaming": true
+    }
+  }
+}

@@ -390,6 +390,9 @@ func capabilitiesFromCapabilities(c *goullm.Capabilities) []string {
 	if c.HasImageEditing() {
 		out = append(out, "image_editing")
 	}
+	if c.OCR {
+		out = append(out, "ocr")
+	}
 	return out
 }
 

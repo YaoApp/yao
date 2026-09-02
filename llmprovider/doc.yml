@@ -31,7 +31,7 @@ desc: |
     - id (string): Model identifier (e.g. "gpt-4o", "claude-sonnet-4-20250514").
     - name (string): Human-readable name (e.g. "GPT-4o").
     - capabilities (array of string): Model capabilities.
-      Known values: "vision", "tool_calls", "streaming", "json", "reasoning".
+      Known values: "vision", "tool_calls", "streaming", "json", "reasoning", "image_generation", "image_editing", "ocr".
     - enabled (bool): Whether this model is active.
 
   ProviderOwner structure (Provider.owner):

@@ -151,6 +151,8 @@ func hasFilter(filters []string, name string) bool {
 // - multimodal: bool
 // - embedding: bool
 // - image_generation: bool
+// - image_editing: bool or string
+// - ocr: bool (OCR text extraction model, e.g. Qwen3.5-OCR)
 // - temperature_adjustable: bool
 func matchesFilters(capabilities map[string]interface{}, filters []string) bool {
 	if capabilities == nil {

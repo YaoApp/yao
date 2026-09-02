@@ -37,13 +37,14 @@ func handleSetupStatus(c *gin.Context) {
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))
 	isCN := strings.HasPrefix(locale, "zh")
 
-	checkpoints := make(map[string]Checkpoint, 6)
+	checkpoints := make(map[string]Checkpoint, 7)
 
 	checkpoints["llm_default"] = checkLLMDefault(info, isCN)
 	checkpoints["llm_vision"] = checkLLMVision(info, isCN)
 	checkpoints["sandbox_node"] = checkSandboxNode(info, isCN)
 	checkpoints["sandbox_image"] = checkSandboxImage(info, locale, isCN)
 	checkpoints["search"] = checkSearch(info, isCN)
+	checkpoints["ocr"] = checkOCR(info, isCN)
 	checkpoints["smtp"] = checkSMTP(info, isCN)
 
 	completed := true
@@ -391,6 +392,34 @@ func checkSearch(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 					cp.Status = "pass"
 					return cp
 				}
+			}
+		}
+	}
+
+	return cp
+}
+
+func checkOCR(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
+	cp := Checkpoint{
+		Required: false,
+		Label:    "OCR Provider",
+		Path:     "/settings/ocr",
+		Status:   "fail",
+	}
+	if isCN {
+		cp.Label = "文字识别 (OCR)"
+	}
+
+	if setting.Global == nil {
+		return cp
+	}
+
+	for _, preset := range ocrPresets {
+		saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, ocrProviderNS(preset.Key))
+		if saved != nil {
+			if v, ok := saved["status"].(string); ok && v == "connected" {
+				cp.Status = "pass"
+				return cp
 			}
 		}
 	}

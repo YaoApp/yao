@@ -92,6 +92,9 @@ func capabilitiesFromMap(m map[string]interface{}) *goullm.Capabilities {
 	if v, ok := m["image_editing"]; ok {
 		caps.ImageEditing = v
 	}
+	if v, ok := m["ocr"].(bool); ok {
+		caps.OCR = v
+	}
 	return caps
 }
 

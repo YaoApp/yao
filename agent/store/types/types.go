@@ -422,6 +422,7 @@ const (
 	CapJSON                  ModelCapability = "json"
 	CapMultimodal            ModelCapability = "multimodal"
 	CapTemperatureAdjustable ModelCapability = "temperature_adjustable"
+	CapOCR                   ModelCapability = "ocr"
 )
 
 // ConnectorOptions the connector selection options

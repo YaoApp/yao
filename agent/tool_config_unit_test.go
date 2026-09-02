@@ -17,6 +17,7 @@ func TestToolConfigIsPasswordField(t *testing.T) {
 		want bool
 	}{
 		{"api_key", true},
+		{"secret_key", true},
 		{"zone", false},
 		{"api_url", false},
 		{"", false},
@@ -60,5 +61,22 @@ func TestToolConfigValidationMaps(t *testing.T) {
 	}
 	if providerKeys["cloud"] {
 		t.Error("validProviderKeys should not contain 'cloud'")
+	}
+
+	ocrKeys := agent.ExportValidOCRProviderKeys
+	for _, key := range []string{"paddleocr", "baidu", "google", "azure"} {
+		if !ocrKeys[key] {
+			t.Errorf("validOCRProviderKeys missing %q", key)
+		}
+	}
+	if ocrKeys["cloud"] {
+		t.Error("validOCRProviderKeys should not contain 'cloud'")
+	}
+
+	ocrDefaults := agent.ExportValidOCRDefaults
+	for _, key := range []string{"paddleocr", "baidu", "google", "azure"} {
+		if !ocrDefaults[key] {
+			t.Errorf("validOCRDefaults missing %q", key)
+		}
 	}
 }

@@ -6,3 +6,5 @@ var ExportSyncToolProvider = syncToolProvider
 var ExportValidWebSearchDefaults = validWebSearchDefaults
 var ExportValidWebFetchDefaults = validWebFetchDefaults
 var ExportValidProviderKeys = validProviderKeys
+var ExportValidOCRProviderKeys = validOCRProviderKeys
+var ExportValidOCRDefaults = validOCRDefaults

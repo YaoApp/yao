@@ -492,6 +492,10 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Search Defaults Sync", Error: err})
 	}
 
+	if err := agent.SyncOCRDefaults(); err != nil {
+		warnings = append(warnings, Warning{Widget: "OCR Defaults Sync", Error: err})
+	}
+
 	for name, hook := range LoadHooks {
 		err = hook(cfg)
 		if err != nil {
@@ -772,6 +776,10 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 
 	if err := agent.SyncSearchDefaults(); err != nil {
 		printErr(cfg.Mode, "Search Defaults Sync", err)
+	}
+
+	if err := agent.SyncOCRDefaults(); err != nil {
+		printErr(cfg.Mode, "OCR Defaults Sync", err)
 	}
 
 	// Load OpenAPI

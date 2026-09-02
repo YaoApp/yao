@@ -104,6 +104,7 @@ type SearchProviderField struct {
 	Default     string            `json:"default,omitempty"     yaml:"default"`
 	Placeholder string            `json:"placeholder,omitempty" yaml:"placeholder"`
 	Hint        map[string]string `json:"hint,omitempty"        yaml:"hint"`
+	Optional    bool              `json:"optional,omitempty"    yaml:"optional"`
 }
 
 type SearchProviderPreset struct {
@@ -136,6 +137,44 @@ type SearchPageData struct {
 }
 
 type SearchTestResult struct {
+	Success   bool   `json:"success"`
+	Message   string `json:"message"`
+	LatencyMs int64  `json:"latency_ms,omitempty"`
+}
+
+// ---------------------------------------------------------------------------
+// OCR
+// ---------------------------------------------------------------------------
+
+type OCRProviderPreset struct {
+	Key         string                `json:"key"                    yaml:"key"`
+	Name        string                `json:"name"                   yaml:"name"`
+	Description map[string]string     `json:"description,omitempty"  yaml:"description"`
+	Website     string                `json:"website,omitempty"      yaml:"website"`
+	Tools       []string              `json:"tools"                  yaml:"tools"`
+	ToolLabels  []map[string]string   `json:"tool_labels"            yaml:"tool_labels"`
+	Fields      []SearchProviderField `json:"fields"                 yaml:"fields"`
+	IsCloud     bool                  `json:"is_cloud,omitempty"     yaml:"is_cloud"`
+}
+
+type OCRProviderConfig struct {
+	PresetKey   string            `json:"preset_key"`
+	Enabled     bool              `json:"enabled"`
+	FieldValues map[string]string `json:"field_values"`
+	Status      string            `json:"status"`
+}
+
+type OCRToolAssignment struct {
+	OCRRecognize *string `json:"ocr_recognize"`
+}
+
+type OCRPageData struct {
+	Presets        []OCRProviderPreset `json:"presets"`
+	Providers      []OCRProviderConfig `json:"providers"`
+	ToolAssignment OCRToolAssignment   `json:"tool_assignment"`
+}
+
+type OCRTestResult struct {
 	Success   bool   `json:"success"`
 	Message   string `json:"message"`
 	LatencyMs int64  `json:"latency_ms,omitempty"`
