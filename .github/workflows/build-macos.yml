@@ -22,7 +22,7 @@ jobs:
           node-version: 18
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: Setup Cache
         uses: actions/cache@v4
