@@ -101,7 +101,7 @@ jobs:
           node-version: 18
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@8
 
       - name: Setup Go
         uses: actions/setup-go@v5
