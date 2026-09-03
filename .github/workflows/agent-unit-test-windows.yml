@@ -196,6 +196,8 @@ jobs:
           sed -i 's|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^SERPAPI_API_KEY=.*|SERPAPI_API_KEY=${{ secrets.SERPAPI_API_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^SERPER_API_KEY=.*|SERPER_API_KEY=${{ secrets.SERPER_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^BAIDU_OCR_API_KEY=.*|BAIDU_OCR_API_KEY=${{ secrets.BAIDU_OCR_API_KEY }}|' unit-test/agent/env/agent-test.env
+          sed -i 's|^BAIDU_OCR_SECRET_KEY=.*|BAIDU_OCR_SECRET_KEY=${{ secrets.BAIDU_OCR_SECRET_KEY }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^TELEGRAM_TEST_BOT_TOKEN=.*|TELEGRAM_TEST_BOT_TOKEN=${{ secrets.TELEGRAM_TEST_BOT_TOKEN }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^TELEGRAM_TEST_HOST=.*|TELEGRAM_TEST_HOST=${{ secrets.TELEGRAM_TEST_HOST }}|' unit-test/agent/env/agent-test.env
           sed -i 's|^FEISHU_TEST_APP_ID=.*|FEISHU_TEST_APP_ID=${{ secrets.FEISHU_TEST_APP_ID }}|' unit-test/agent/env/agent-test.env

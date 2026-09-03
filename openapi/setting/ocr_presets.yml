@@ -1,0 +1,105 @@
+# OCR provider presets.
+# Embedded at compile time via go:embed in ocr.go.
+
+# ── Open-Source / Self-hosted ─────────────────────
+- key: paddleocr
+  name: "PaddleOCR"
+  description:
+    zh-CN: "开源 OCR 引擎，自部署，支持 100+ 语言，CPU/GPU 均可运行"
+    en-US: "Open-source OCR engine, self-hosted, 100+ languages, CPU/GPU"
+  website: "https://github.com/PaddlePaddle/PaddleOCR"
+  tools: [ocr_recognize]
+  tool_labels:
+    - { zh-CN: "文字识别", en-US: "Text Recognition" }
+  fields:
+    - key: base_url
+      label: { zh-CN: "服务地址", en-US: "Service URL" }
+      type: text
+      hint:
+        {
+          zh-CN: "PaddleOCR Serving 端点，例如 http://localhost:8080",
+          en-US: "PaddleOCR Serving endpoint, e.g. http://localhost:8080",
+        }
+    - key: api_key
+      label: { zh-CN: "API Key", en-US: "API Key" }
+      type: password
+      optional: true
+      hint:
+        {
+          zh-CN: "服务端认证密钥（选填）",
+          en-US: "Server authentication key (optional)",
+        }
+
+# ── Cloud APIs ────────────────────────────────────
+- key: baidu
+  name: "Baidu OCR"
+  description:
+    zh-CN: "百度智能云文字识别，支持通用文字、高精度识别"
+    en-US: "Baidu Cloud OCR, general and high-accuracy text recognition"
+  website: "https://cloud.baidu.com/product/ocr"
+  tools: [ocr_recognize]
+  tool_labels:
+    - { zh-CN: "文字识别", en-US: "Text Recognition" }
+  fields:
+    - key: api_key
+      label: { zh-CN: "API Key", en-US: "API Key" }
+      type: password
+      hint:
+        {
+          zh-CN: "百度智能云应用的 API Key",
+          en-US: "API Key from Baidu Cloud console",
+        }
+    - key: secret_key
+      label: { zh-CN: "Secret Key", en-US: "Secret Key" }
+      type: password
+      hint:
+        {
+          zh-CN: "百度智能云应用的 Secret Key",
+          en-US: "Secret Key from Baidu Cloud console",
+        }
+
+- key: google
+  name: "Google Cloud Vision"
+  description:
+    zh-CN: "Google 云视觉 OCR，多语言最强，支持 GenAI 自定义提取"
+    en-US: "Google Cloud Vision OCR, best multilingual, GenAI custom extraction"
+  website: "https://cloud.google.com/vision"
+  tools: [ocr_recognize]
+  tool_labels:
+    - { zh-CN: "文字识别", en-US: "Text Recognition" }
+  fields:
+    - key: api_key
+      label: { zh-CN: "API Key", en-US: "API Key" }
+      type: password
+      hint:
+        {
+          zh-CN: "Google Cloud API 密钥",
+          en-US: "Google Cloud API key",
+        }
+
+- key: azure
+  name: "Azure Document Intelligence"
+  description:
+    zh-CN: "Azure 文档智能 OCR，表单/KV 提取强，支持隐藏文本层"
+    en-US: "Azure Document Intelligence OCR, strong form/KV extraction"
+  website: "https://azure.microsoft.com/products/ai-services/ai-document-intelligence"
+  tools: [ocr_recognize]
+  tool_labels:
+    - { zh-CN: "文字识别", en-US: "Text Recognition" }
+  fields:
+    - key: api_key
+      label: { zh-CN: "API Key", en-US: "API Key" }
+      type: password
+      hint:
+        {
+          zh-CN: "Azure 订阅密钥",
+          en-US: "Azure subscription key",
+        }
+    - key: endpoint
+      label: { zh-CN: "Endpoint", en-US: "Endpoint" }
+      type: text
+      hint:
+        {
+          zh-CN: "Azure 资源端点，例如 https://xxx.cognitiveservices.azure.com",
+          en-US: "Azure resource endpoint, e.g. https://xxx.cognitiveservices.azure.com",
+        }

@@ -28,6 +28,14 @@ var validProviderKeys = map[string]bool{
 	"tavily": true, "serper": true, "brightdata": true,
 }
 
+var validOCRProviderKeys = map[string]bool{
+	"paddleocr": true, "baidu": true, "google": true, "azure": true,
+}
+
+var validOCRDefaults = map[string]bool{
+	"paddleocr": true, "baidu": true, "google": true, "azure": true,
+}
+
 // SyncSearchDefaults reads agent/websearch.yml and agent/webfetch.yml,
 // resolves $ENV.XXX references, encrypts sensitive fields, and writes
 // the results into setting.Global at system scope.
@@ -93,22 +101,76 @@ func SyncSearchDefaults() error {
 				log.Printf("[SyncSearchDefaults] unknown provider key %q, skipping", key)
 				continue
 			}
-			syncToolProvider(key, fields)
+			syncToolProvider("search.providers", "SyncSearchDefaults", key, fields)
 		}
 	}
 
 	return nil
 }
 
+// SyncOCRDefaults reads agent/ocr.yml, resolves $ENV.XXX references,
+// encrypts sensitive fields, and writes the results into setting.Global
+// at system scope. Must be called after setting.Init().
+func SyncOCRDefaults() error {
+	if setting.Global == nil {
+		return nil
+	}
+
+	cfg, err := loadToolConfig(filepath.Join("agent", "ocr.yml"))
+	if err != nil {
+		log.Printf("[SyncOCRDefaults] ocr.yml: %v", err)
+	}
+	if cfg == nil {
+		return nil
+	}
+
+	if cfg.Default != "" && !validOCRDefaults[cfg.Default] {
+		log.Printf("[SyncOCRDefaults] ocr.yml: unknown default %q, ignoring", cfg.Default)
+		cfg.Default = ""
+	}
+
+	if cfg.Default != "" {
+		assignment := map[string]interface{}{}
+		if existing, err := setting.Global.Get(setting.ScopeID{Scope: setting.ScopeSystem}, "ocr.tool_assignment"); err == nil {
+			for k, v := range existing {
+				assignment[k] = v
+			}
+		}
+		assignment["ocr_recognize"] = cfg.Default
+		if _, err := setting.Global.Set(setting.ScopeID{Scope: setting.ScopeSystem}, "ocr.tool_assignment", assignment); err != nil {
+			log.Printf("[SyncOCRDefaults] failed to write ocr.tool_assignment: %v", err)
+		}
+	}
+
+	for key, fields := range cfg.Providers {
+		if !validOCRProviderKeys[key] {
+			log.Printf("[SyncOCRDefaults] unknown provider key %q, skipping", key)
+			continue
+		}
+		syncToolProvider("ocr.providers", "SyncOCRDefaults", key, fields)
+	}
+
+	return nil
+}
+
 // syncToolProvider encrypts sensitive fields and writes a single provider
-// entry into setting.Global[system, "search.providers.<key>"].
-func syncToolProvider(presetKey string, fields map[string]string) {
+// entry into setting.Global[system, "<nsPrefix>.<presetKey>"].
+// nsPrefix: e.g. "search.providers" or "ocr.providers"
+// logTag: e.g. "SyncSearchDefaults" or "SyncOCRDefaults"
+func syncToolProvider(nsPrefix, logTag, presetKey string, fields map[string]string) {
 	if setting.Global == nil || len(fields) == 0 {
 		return
 	}
 
-	// Skip providers without a valid api_key (missing or empty after ENV resolution)
-	if fields["api_key"] == "" {
+	// Skip providers where all field values are empty after ENV resolution
+	hasValue := false
+	for _, v := range fields {
+		if v != "" {
+			hasValue = true
+			break
+		}
+	}
+	if !hasValue {
 		return
 	}
 
@@ -127,9 +189,9 @@ func syncToolProvider(presetKey string, fields map[string]string) {
 		"status":       "connected",
 	}
 
-	ns := "search.providers." + presetKey
+	ns := nsPrefix + "." + presetKey
 	if _, err := setting.Global.Set(setting.ScopeID{Scope: setting.ScopeSystem}, ns, data); err != nil {
-		log.Printf("[SyncSearchDefaults] failed to write %s: %v", ns, err)
+		log.Printf("[%s] failed to write %s: %v", logTag, ns, err)
 	}
 }
 
@@ -168,5 +230,5 @@ func loadToolConfig(path string) (*toolProviderConfig, error) {
 }
 
 func isPasswordField(key string) bool {
-	return key == "api_key"
+	return key == "api_key" || key == "secret_key"
 }

@@ -156,12 +156,14 @@ You have access to Yao system tools via the `tai` command in bash.
 | `workspace_git_config`     | yao-workspace-config | Get or set workspace-level Git configuration   |
 | `workspace_git_credential` | yao-workspace-config | Manage workspace HTTPS Git credentials (set/list/delete) |
 | `workspace_ssh_key`        | yao-workspace-config | Manage workspace SSH keys (import/list/delete)     |
+| `ocr_recognize`          | yao-ocr       | Extract text from images/PDFs using OCR (supports VLM-OCR and traditional APIs) |
+| `ocr_providers`          | yao-ocr       | List available OCR providers and their supported types |
 | `clip_write`             | yao-clip      | Store a content clip (screenshot, DOM, structured data). Returns clip ID |
 | `clip_read`              | yao-clip      | Read a stored clip by ID. Use when you see `<Mention type="clip">` tags |
 | `clip_list`              | yao-clip      | List all available clips in the current session     |
 | `skill_list`             | —             | List installed skills (filter by type: system/assistant/extension) |
 
-The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-audio`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
+The system skills (`yao-web`, `yao-process`, `yao-doc`, `yao-image`, `yao-audio`, `yao-agent`, `yao-secret`, `yao-board`, `yao-workspace`, `yao-workspace-config`, `yao-ocr`, `yao-clip`) in `$HOME/.claude/skills/` are **auto-discovered** — they contain detailed parameter docs and workflow guidance. You do not need to manually read them; they are loaded automatically when your task matches their description.
 
 ### Asking Questions
 

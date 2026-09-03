@@ -1,0 +1,9 @@
+{
+  "name": "yao-ocr",
+  "transport": "process",
+  "description": "OCR tools for extracting text from images and documents",
+  "tools": {
+    "ocr_recognize": "tools.ocr_recognize",
+    "ocr_providers": "tools.ocr_providers"
+  }
+}

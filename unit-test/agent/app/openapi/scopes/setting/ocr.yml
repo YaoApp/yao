@@ -1,0 +1,48 @@
+# OCR - Setting Management
+# namespace: setting
+# resource: ocr
+# actions: read, write
+# levels: all, own, team
+
+setting:ocr:read:all:
+  description: "Read OCR configuration"
+  endpoints:
+    - GET /setting/ocr
+
+setting:ocr:read:own:
+  owner: true
+  description: "Read own OCR configuration"
+  endpoints:
+    - GET /setting/ocr
+
+setting:ocr:read:team:
+  team: true
+  description: "Read team OCR configuration"
+  endpoints:
+    - GET /setting/ocr
+
+setting:ocr:write:all:
+  description: "Update OCR configuration"
+  endpoints:
+    - PUT /setting/ocr/providers/:key
+    - PUT /setting/ocr/providers/:key/toggle
+    - POST /setting/ocr/providers/:key/test
+    - PUT /setting/ocr/tool-assignment
+
+setting:ocr:write:own:
+  owner: true
+  description: "Update own OCR configuration"
+  endpoints:
+    - PUT /setting/ocr/providers/:key
+    - PUT /setting/ocr/providers/:key/toggle
+    - POST /setting/ocr/providers/:key/test
+    - PUT /setting/ocr/tool-assignment
+
+setting:ocr:write:team:
+  team: true
+  description: "Update team OCR configuration"
+  endpoints:
+    - PUT /setting/ocr/providers/:key
+    - PUT /setting/ocr/providers/:key/toggle
+    - POST /setting/ocr/providers/:key/test
+    - PUT /setting/ocr/tool-assignment

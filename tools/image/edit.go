@@ -180,7 +180,7 @@ func findFirstImageEditConnector(authInfo *oauthTypes.AuthorizedInfo) string {
 	if llmprovider.Global == nil {
 		return ""
 	}
-	providers, err := listProvidersByCapability("image_editing", authInfo)
+	providers, err := ListProvidersByCapability("image_editing", authInfo)
 	if err != nil || len(providers) == 0 {
 		return ""
 	}
