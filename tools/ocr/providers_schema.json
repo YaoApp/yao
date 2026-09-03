@@ -1,0 +1,10 @@
+{
+  "name": "ocr_providers",
+  "description": "List all available OCR providers. Returns both VLM-OCR models (via LLM connectors with 'ocr' capability) and traditional OCR API providers with their connection status.",
+  "process": "tools.ocr_providers",
+  "inputSchema": {
+    "type": "object",
+    "properties": {}
+  },
+  "x-process-args": []
+}

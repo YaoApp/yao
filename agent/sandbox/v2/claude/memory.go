@@ -73,6 +73,8 @@ Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" 
 | image_read | Analyze images (vision) |
 | image_generate | Generate images from text (supports background, output_format, quality) |
 | image_edit | Edit images with text prompts (supports mask, background, output_format) |
+| ocr_recognize | Extract text from images/PDFs using OCR (supports VLM-OCR and traditional APIs; output: text/json/markdown) |
+| ocr_providers | List available OCR providers (VLM-OCR models and traditional API providers) |
 | agent_list | List available agents |
 | agent_call | Call another AI expert |
 | secret_list | List secret names |

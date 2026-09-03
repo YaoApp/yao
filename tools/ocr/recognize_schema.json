@@ -1,0 +1,54 @@
+{
+  "name": "ocr_recognize",
+  "description": "Extract text from images or PDFs using OCR. Supports multiple providers: VLM-OCR models (via LLM connectors) and traditional OCR APIs (PaddleOCR, Baidu, Google, Azure). Returns plain text by default; use output_format for JSON (with coordinates) or Markdown.",
+  "process": "tools.ocr_recognize",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string",
+        "description": "Image or PDF to recognize. Accepts file path, URL, workspace:// URI, or attach:// URI."
+      },
+      "provider": {
+        "type": "string",
+        "description": "OCR provider to use. Can be an LLM connector ID (for VLM-OCR) or API preset key (paddleocr, baidu, google, azure). If omitted, uses the configured default from Settings."
+      },
+      "output_format": {
+        "type": "string",
+        "enum": ["text", "json", "markdown"],
+        "default": "text",
+        "description": "Output format. 'text': plain extracted text (default). 'json': structured output with text blocks, coordinates, and confidence. 'markdown': formatted Markdown preserving document structure."
+      },
+      "mode": {
+        "type": "string",
+        "enum": ["accurate", "standard"],
+        "default": "accurate",
+        "description": "Recognition mode. 'accurate': highest quality (default). 'standard': faster, lower resource usage."
+      },
+      "language": {
+        "type": "string",
+        "description": "ISO 639-1 language hint (e.g. 'zh', 'en', 'ja'). Helps improve accuracy for the specified language. Auto-detected if omitted."
+      },
+      "type": {
+        "type": "string",
+        "enum": ["general", "table", "handwriting", "invoice", "receipt", "id_card", "bank_card", "license", "vehicle_license", "passport", "license_plate", "document"],
+        "default": "general",
+        "description": "Document category for specialized recognition. If a provider does not support the requested type, it degrades to 'general' with a metadata annotation."
+      },
+      "pages": {
+        "type": "string",
+        "description": "PDF page range, e.g. '1-5' or '1,3,7'. Applies only to PDF input."
+      },
+      "prompt": {
+        "type": "string",
+        "description": "Custom prompt for VLM-OCR models. Appended to the system prompt to guide extraction. Ignored by traditional OCR APIs."
+      },
+      "extra": {
+        "type": "object",
+        "description": "Additional provider-specific parameters as a JSON object. Passed directly to the provider API."
+      }
+    },
+    "required": ["source"]
+  },
+  "x-process-args": ["$args.source", "$args.provider", "$args.type", "$args.output_format", "$args.mode", "$args.language", "$args.prompt", ":arguments"]
+}

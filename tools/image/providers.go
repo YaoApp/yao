@@ -13,13 +13,23 @@ import (
 //go:embed providers_schema.json
 var ProvidersSchemaJSON []byte
 
-type providerResult struct {
+// ProviderResult describes an LLM provider with its available models.
+type ProviderResult struct {
 	Key    string        `json:"key"`
 	Name   string        `json:"name"`
-	Models []modelResult `json:"models"`
+	Models []ModelResult `json:"models"`
 }
 
-type modelResult struct {
+// FirstConnectorID returns the connector ID of the first model, or empty string.
+func (p ProviderResult) FirstConnectorID() string {
+	if len(p.Models) == 0 {
+		return ""
+	}
+	return p.Models[0].ConnectorID
+}
+
+// ModelResult describes a single model within a provider.
+type ModelResult struct {
 	ID          string `json:"id"`
 	Name        string `json:"name"`
 	ConnectorID string `json:"connector_id"`
@@ -38,7 +48,7 @@ func ProvidersHandler(proc *process.Process) interface{} {
 		return map[string]interface{}{"error": "llmprovider registry not initialized"}
 	}
 
-	providers, err := listProvidersByCapability(capability, authInfo)
+	providers, err := ListProvidersByCapability(capability, authInfo)
 	if err != nil {
 		return map[string]interface{}{"error": err.Error()}
 	}
@@ -49,9 +59,9 @@ func ProvidersHandler(proc *process.Process) interface{} {
 	}
 }
 
-// listProvidersByCapability returns providers matching the given capability,
+// ListProvidersByCapability returns providers matching the given capability,
 // filtered by owner scope (builtin always included, dynamic filtered by auth).
-func listProvidersByCapability(capability string, authInfo *oauthTypes.AuthorizedInfo) ([]providerResult, error) {
+func ListProvidersByCapability(capability string, authInfo *oauthTypes.AuthorizedInfo) ([]ProviderResult, error) {
 	enabled := true
 	filter := &llmprovider.ProviderFilter{
 		Capabilities: []string{capability},
@@ -64,7 +74,7 @@ func listProvidersByCapability(capability string, authInfo *oauthTypes.Authorize
 		return nil, err
 	}
 
-	var results []providerResult
+	var results []ProviderResult
 	for _, p := range allProviders {
 		if p.Source == llmprovider.ProviderSourceDynamic && authInfo != nil {
 			if !dynamicOwnerMatch(&p.Owner, authInfo) {
@@ -72,7 +82,7 @@ func listProvidersByCapability(capability string, authInfo *oauthTypes.Authorize
 			}
 		}
 
-		var models []modelResult
+		var models []ModelResult
 		for _, m := range p.Models {
 			if !m.Enabled {
 				continue
@@ -90,7 +100,7 @@ func listProvidersByCapability(capability string, authInfo *oauthTypes.Authorize
 			if name == "" {
 				name = m.ID
 			}
-			models = append(models, modelResult{
+			models = append(models, ModelResult{
 				ID:          m.ID,
 				Name:        name,
 				ConnectorID: cid,
@@ -101,7 +111,7 @@ func listProvidersByCapability(capability string, authInfo *oauthTypes.Authorize
 			continue
 		}
 
-		results = append(results, providerResult{
+		results = append(results, ProviderResult{
 			Key:    p.Key,
 			Name:   p.Name,
 			Models: models,
@@ -116,7 +126,7 @@ func findFirstImageGenConnector(authInfo *oauthTypes.AuthorizedInfo) string {
 	if llmprovider.Global == nil {
 		return ""
 	}
-	providers, err := listProvidersByCapability("image_generation", authInfo)
+	providers, err := ListProvidersByCapability("image_generation", authInfo)
 	if err != nil || len(providers) == 0 {
 		return ""
 	}

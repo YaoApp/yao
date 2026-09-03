@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/tools/image"
 	toolinbox "github.com/yaoapp/yao/tools/inbox"
 	"github.com/yaoapp/yao/tools/mobile"
+	"github.com/yaoapp/yao/tools/ocr"
 	"github.com/yaoapp/yao/tools/proc"
 	"github.com/yaoapp/yao/tools/robot"
 	"github.com/yaoapp/yao/tools/secret"
@@ -62,6 +63,9 @@ var mcpKanbanDSL []byte
 //go:embed mcps/mobile.json
 var mcpMobileDSL []byte
 
+//go:embed mcps/ocr.json
+var mcpOCRDSL []byte
+
 //go:embed mcps/workspace-config.json
 var mcpWorkspaceConfigDSL []byte
 
@@ -80,6 +84,8 @@ func init() {
 		"image_providers":   image.ProvidersHandler,
 		"audio_transcribe":  audio.TranscribeHandler,
 		"audio_providers":   audio.ProvidersHandler,
+		"ocr_recognize":     ocr.RecognizeHandler,
+		"ocr_providers":     ocr.ProvidersHandler,
 		"agent_list":        agent.ListHandler,
 		"agent_download":    agent.DownloadHandler,
 		"agent_reference":   agent.ReferenceHandler,
@@ -166,6 +172,8 @@ func init() {
 	registerMCPServer(mcpMobileDSL, "yao-mobile",
 		mobile.ListSchemaJSON, mobile.ExecSchemaJSON, mobile.ScreenshotSchemaJSON,
 		mobile.InfoSchemaJSON, mobile.PushSchemaJSON, mobile.PullSchemaJSON)
+	registerMCPServer(mcpOCRDSL, "yao-ocr",
+		ocr.RecognizeSchemaJSON, ocr.ProvidersSchemaJSON)
 	registerMCPServer(mcpWorkspaceConfigDSL, "yao-workspace-config",
 		wsconfig.GitConfigSchemaJSON, wsconfig.GitCredentialSchemaJSON, wsconfig.SSHKeySchemaJSON)
 }

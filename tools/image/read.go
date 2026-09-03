@@ -178,6 +178,17 @@ func readBytes(src string) ([]byte, error) {
 	}
 }
 
+// ReadBytes reads raw bytes from a URI or local path and detects the MIME type.
+// Supported schemes: http(s), workspace://, attach://, yao://, data:, local path.
+func ReadBytes(src string) (data []byte, mimeType string, err error) {
+	data, err = readBytes(src)
+	if err != nil {
+		return nil, "", err
+	}
+	mimeType = http.DetectContentType(data)
+	return data, mimeType, nil
+}
+
 func httpGet(rawURL string) ([]byte, error) {
 	return webfetch.DownloadBytes(rawURL, 20<<20)
 }

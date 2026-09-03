@@ -21,7 +21,7 @@ func TestExtractImageFromResponse_B64(t *testing.T) {
 			map[string]interface{}{"b64_json": "iVBORw0KGgoAAAANS..."},
 		},
 	}
-	resp, err := llm.ExportExtractImageFromResponse(data)
+	resp, err := llm.ExportExtractImageFromResponse(data, "")
 	require.NoError(t, err)
 	assert.Equal(t, "iVBORw0KGgoAAAANS...", resp.Image)
 	assert.Equal(t, "png", resp.Format)
@@ -40,7 +40,7 @@ func TestExtractImageFromResponse_URL(t *testing.T) {
 			map[string]interface{}{"b64_json": nil, "url": srv.URL + "/image_0.jpeg"},
 		},
 	}
-	resp, err := llm.ExportExtractImageFromResponse(data)
+	resp, err := llm.ExportExtractImageFromResponse(data, "")
 	require.NoError(t, err)
 	assert.Equal(t, base64.StdEncoding.EncodeToString(fakeImage), resp.Image)
 	assert.Equal(t, "jpeg", resp.Format)
@@ -59,7 +59,7 @@ func TestExtractImageFromResponse_URLPng(t *testing.T) {
 			map[string]interface{}{"url": srv.URL + "/output.png"},
 		},
 	}
-	resp, err := llm.ExportExtractImageFromResponse(data)
+	resp, err := llm.ExportExtractImageFromResponse(data, "")
 	require.NoError(t, err)
 	assert.Equal(t, "png", resp.Format)
 	assert.NotEmpty(t, resp.Image)
@@ -76,19 +76,19 @@ func TestExtractImageFromResponse_URLDownloadFail(t *testing.T) {
 			map[string]interface{}{"url": srv.URL + "/missing.png"},
 		},
 	}
-	_, err := llm.ExportExtractImageFromResponse(data)
+	_, err := llm.ExportExtractImageFromResponse(data, "")
 	assert.Error(t, err)
 }
 
 func TestExtractImageFromResponse_Empty(t *testing.T) {
 	data := map[string]interface{}{"data": []interface{}{}}
-	_, err := llm.ExportExtractImageFromResponse(data)
+	_, err := llm.ExportExtractImageFromResponse(data, "")
 	assert.Error(t, err)
 }
 
 func TestExtractImageFromResponse_NoData(t *testing.T) {
 	data := map[string]interface{}{}
-	_, err := llm.ExportExtractImageFromResponse(data)
+	_, err := llm.ExportExtractImageFromResponse(data, "")
 	assert.Error(t, err)
 }
 
@@ -98,7 +98,7 @@ func TestExtractImageFromResponse_NullBoth(t *testing.T) {
 			map[string]interface{}{"b64_json": nil, "url": nil},
 		},
 	}
-	_, err := llm.ExportExtractImageFromResponse(data)
+	_, err := llm.ExportExtractImageFromResponse(data, "")
 	assert.Error(t, err)
 }
 
