@@ -8,6 +8,7 @@ import (
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,9 +80,11 @@ func TestGenerateAndReplaceCertificates(t *testing.T) {
 	assert.NotEqual(t, oauth.ExportKnownDefaultKeyFingerprint, got,
 		"generated key must NOT match the default fingerprint")
 
-	// Key file permission check (unix only)
-	info, err := os.Stat(keyPath)
-	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0600), info.Mode().Perm(),
-		"private key file must have 0600 permissions")
+	// Key file permission check (unix only; Windows does not support POSIX permissions)
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(keyPath)
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm(),
+			"private key file must have 0600 permissions")
+	}
 }
