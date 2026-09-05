@@ -50,4 +50,4 @@ Let your agents become part of your business, wherever you need them.
 - Docs: https://yaoagents.com/docs
 - Yao Desktop: https://yaoagents.com/download
 - Android (Beta): https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
-- Discord: https://discord.gg/yao
+- Discord: https://discord.com/invite/BkMR2NUsjU
