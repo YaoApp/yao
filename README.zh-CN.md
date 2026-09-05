@@ -52,4 +52,4 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 - 文档：https://yaoagents.com/docs
 - Yao Desktop：https://yaoagents.com/download
 - Android 客户端（公测）：https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
-- Discord：https://discord.gg/yao
+- Discord：https://discord.com/invite/BkMR2NUsjU
