@@ -35,7 +35,7 @@ func TestNewManager(t *testing.T) {
 		require.NotNil(t, provider)
 
 		// Create manager
-		manager := role.NewManager(cache, provider)
+		manager := role.NewManager(cache, provider, nil)
 		assert.NotNil(t, manager)
 
 		t.Log("Successfully created role manager with cache and provider")
@@ -47,7 +47,7 @@ func TestNewManager(t *testing.T) {
 		require.NotNil(t, cache)
 
 		// Create manager with nil provider
-		manager := role.NewManager(cache, nil)
+		manager := role.NewManager(cache, nil, nil)
 		assert.NotNil(t, manager)
 
 		// Should work but will error when trying to get roles
@@ -70,7 +70,7 @@ func TestManagerWithNilCache(t *testing.T) {
 	require.NotNil(t, provider)
 
 	// Create manager with nil cache
-	manager := role.NewManager(nil, provider)
+	manager := role.NewManager(nil, provider, nil)
 	require.NotNil(t, manager)
 
 	ctx := context.Background()
@@ -166,7 +166,7 @@ func TestGetUserRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
 	t.Run("GetRoleForExistingUser", func(t *testing.T) {
@@ -258,7 +258,7 @@ func TestGetMemberRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
 	t.Run("GetRoleForExistingMember", func(t *testing.T) {
@@ -341,7 +341,7 @@ func TestGetScopes(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
 	t.Run("GetScopesForRoleWithPermissions", func(t *testing.T) {
@@ -416,7 +416,7 @@ func TestGetTeamRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
 	t.Run("GetRoleForTeamWithoutRole", func(t *testing.T) {
@@ -463,17 +463,13 @@ func TestGetClientRole(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
-	t.Run("GetClientRoleReturnsDefault", func(t *testing.T) {
-		// Note: Client role retrieval is TODO in the code
-		// It currently returns a default "system:root" role
-		roleID, err := manager.GetClientRole(ctx, "test-client")
+	t.Run("GetClientRole_NilProvider_ReturnsFree", func(t *testing.T) {
+		roleID, err := manager.GetClientRole(ctx, "any-client")
 		assert.NoError(t, err)
-		assert.Equal(t, "system:root", roleID)
-
-		t.Log("Client role returns default system:root (TODO: implement ClientProvider)")
+		assert.Equal(t, "client:free", roleID)
 	})
 }
 
@@ -489,7 +485,7 @@ func TestCacheIntegration(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, provider)
 
-	manager := role.NewManager(cache, provider)
+	manager := role.NewManager(cache, provider, nil)
 	ctx := context.Background()
 
 	t.Run("RoleCachingWorks", func(t *testing.T) {

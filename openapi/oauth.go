@@ -533,6 +533,18 @@ func (openapi *OpenAPI) oauthRegister(c *gin.Context) {
 		return
 	}
 
+	// Filter out client_credentials grant from HTTP DCR requests.
+	// In-process DCR (server self-registration) is not affected.
+	if len(req.GrantTypes) > 0 {
+		filteredGrants := make([]string, 0, len(req.GrantTypes))
+		for _, g := range req.GrantTypes {
+			if g != "client_credentials" {
+				filteredGrants = append(filteredGrants, g)
+			}
+		}
+		req.GrantTypes = filteredGrants
+	}
+
 	res, err := openapi.OAuth.DynamicClientRegistration(c, &req)
 	if err != nil {
 		response.RespondWithSecureError(c, response.StatusBadRequest, response.ErrInvalidClientMetadata)

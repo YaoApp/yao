@@ -7,6 +7,7 @@ import (
 
 // Manager is the role manager
 type Manager struct {
-	cache    store.Store
-	provider types.UserProvider
+	cache          store.Store
+	provider       types.UserProvider
+	clientProvider types.ClientProvider
 }

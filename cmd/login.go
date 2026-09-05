@@ -105,6 +105,8 @@ var loginCmd = &cobra.Command{
 		cred := &Credential{
 			Server:       serverURL,
 			GRPCAddr:     endpoints.GRPCAddr,
+			GRPCTLS:      endpoints.GRPCTLS,
+			GRPCTLSCA:    endpoints.GRPCTLSCA,
 			AccessToken:  tokenResp.AccessToken,
 			RefreshToken: tokenResp.RefreshToken,
 			Scope:        tokenResp.Scope,
@@ -146,6 +148,8 @@ type oauthEndpoints struct {
 	RevocationEndpoint          string `json:"revocation_endpoint"`
 	Dashboard                   string `json:"-"`
 	GRPCAddr                    string `json:"-"`
+	GRPCTLS                     bool   `json:"-"`
+	GRPCTLSCA                   string `json:"-"`
 }
 
 type deviceAuthResponse struct {
@@ -182,6 +186,8 @@ type yaoMetadataResponse struct {
 	OpenAPI   string `json:"openapi"`
 	Dashboard string `json:"dashboard"`
 	GRPC      string `json:"grpc"`
+	GRPCTLS   bool   `json:"grpc_tls"`
+	GRPCTLSCA string `json:"grpc_tls_ca"`
 }
 
 func discoverFromYaoMetadata(serverURL string) (*oauthEndpoints, error) {
@@ -210,6 +216,8 @@ func discoverFromYaoMetadata(serverURL string) (*oauthEndpoints, error) {
 		RevocationEndpoint:          base + "/oauth/revoke",
 		Dashboard:                   meta.Dashboard,
 		GRPCAddr:                    meta.GRPC,
+		GRPCTLS:                     meta.GRPCTLS,
+		GRPCTLSCA:                   meta.GRPCTLSCA,
 	}, nil
 }
 

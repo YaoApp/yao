@@ -4,10 +4,29 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var validIDPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_.\-]{0,127}$`)
+
+// ValidateID checks that a workspace ID is well-formed and safe for use as a
+// filesystem directory name. Empty IDs are accepted (the caller generates one).
+func ValidateID(id string) error {
+	if id == "" {
+		return nil
+	}
+	if !validIDPattern.MatchString(id) {
+		return fmt.Errorf("workspace: invalid ID %q: must match [A-Za-z0-9][A-Za-z0-9_.-]{0,127}", id)
+	}
+	if strings.Contains(id, "..") {
+		return fmt.Errorf("workspace: invalid ID %q: must not contain '..'", id)
+	}
+	return nil
+}
 
 // MountMode controls read-write or read-only access when a workspace is
 // bind-mounted into a container.

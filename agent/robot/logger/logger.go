@@ -47,25 +47,16 @@ func (l *Logger) prefix() string {
 
 func (l *Logger) Trace(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() && !config.Silent {
-		fmt.Printf("%s  → %s %s%s\n", gray, l.prefix(), msg, reset)
-	}
 	kunlog.Trace("%s %s", l.prefix(), msg)
 }
 
 func (l *Logger) Debug(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() && !config.Silent {
-		fmt.Printf("%s  • %s %s%s\n", gray, l.prefix(), msg, reset)
-	}
 	kunlog.Debug("%s %s", l.prefix(), msg)
 }
 
 func (l *Logger) Info(format string, args ...interface{}) {
 	msg := fmt.Sprintf(format, args...)
-	if config.IsDevelopment() && !config.Silent {
-		fmt.Printf("%s  ℹ %s %s%s\n", cyan, l.prefix(), msg, reset)
-	}
 	kunlog.Info("%s %s", l.prefix(), msg)
 }
 

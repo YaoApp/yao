@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/yaoapp/yao/grpc/pb"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
@@ -21,6 +24,8 @@ type Client struct {
 
 // NewFromEnv reads YAO_GRPC_ADDR and token env vars, dials the
 // gRPC server, and returns a connected Client.
+// When YAO_GRPC_TLS is "true", TLS is enabled with InsecureSkipVerify
+// (sandbox containers use self-signed certificates).
 func NewFromEnv() (*Client, error) {
 	addr := os.Getenv("YAO_GRPC_ADDR")
 	if addr == "" {
@@ -32,13 +37,30 @@ func NewFromEnv() (*Client, error) {
 		return nil, err
 	}
 
+	if os.Getenv("YAO_GRPC_TLS") == "true" {
+		return Dial(addr, tm, TLSOption{InsecureSkipVerify: true})
+	}
 	return Dial(addr, tm)
 }
 
+// TLSOption configures gRPC transport-layer TLS.
+type TLSOption struct {
+	CACertPEM          string // CA certificate PEM for self-signed servers; empty uses system roots.
+	InsecureSkipVerify bool   // Skip server certificate verification (sandbox/container use).
+}
+
 // Dial connects to a Yao gRPC server at addr with the given TokenManager.
-func Dial(addr string, tm *TokenManager) (*Client, error) {
+// When a TLSOption is provided, the connection uses TLS; otherwise plaintext.
+func Dial(addr string, tm *TokenManager, tlsOpt ...TLSOption) (*Client, error) {
+	var creds credentials.TransportCredentials
+	if len(tlsOpt) > 0 {
+		creds = buildTLSCredentials(tlsOpt[0])
+	} else {
+		creds = insecure.NewCredentials()
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 	}
 	if tm != nil {
 		opts = append(opts,
@@ -62,6 +84,19 @@ func Dial(addr string, tm *TokenManager) (*Client, error) {
 		svc:   pb.NewYaoClient(conn),
 		token: tm,
 	}, nil
+}
+
+// buildTLSCredentials creates gRPC transport credentials from a TLSOption.
+func buildTLSCredentials(opt TLSOption) credentials.TransportCredentials {
+	tlsCfg := &tls.Config{}
+	if opt.InsecureSkipVerify {
+		tlsCfg.InsecureSkipVerify = true
+	} else if opt.CACertPEM != "" {
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM([]byte(opt.CACertPEM))
+		tlsCfg.RootCAs = pool
+	}
+	return credentials.NewTLS(tlsCfg)
 }
 
 // Close releases the gRPC connection.

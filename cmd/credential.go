@@ -13,6 +13,8 @@ import (
 type Credential struct {
 	Server       string `json:"server"`
 	GRPCAddr     string `json:"grpc_addr,omitempty"`
+	GRPCTLS      bool   `json:"grpc_tls,omitempty"`
+	GRPCTLSCA    string `json:"grpc_tls_ca,omitempty"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	Scope        string `json:"scope,omitempty"`

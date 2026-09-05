@@ -38,6 +38,9 @@ func NewManager() *Manager {
 
 // Create allocates storage on the target node and persists metadata.
 func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Workspace, error) {
+	if err := ValidateID(opts.ID); err != nil {
+		return nil, err
+	}
 	if opts.Node == "" {
 		return nil, ErrNodeMissing
 	}
@@ -81,6 +84,9 @@ func (m *Manager) Create(ctx context.Context, opts CreateOptions) (*Workspace, e
 
 // Get returns a workspace by ID.
 func (m *Manager) Get(ctx context.Context, id string) (*Workspace, error) {
+	if err := ValidateID(id); err != nil {
+		return nil, err
+	}
 	for _, snap := range listNodes() {
 		res, ok := tai.GetResources(snap.TaiID)
 		if !ok {
@@ -160,6 +166,9 @@ func (m *Manager) Update(ctx context.Context, id string, opts UpdateOptions) (*W
 
 // Delete removes workspace storage from the node.
 func (m *Manager) Delete(ctx context.Context, id string, force bool) error {
+	if err := ValidateID(id); err != nil {
+		return err
+	}
 	_, vol, err := m.resolve(ctx, id)
 	if err != nil {
 		return err

@@ -406,7 +406,11 @@ func remoteEval(ctx context.Context, authPath string, opts *eval.Options) int {
 	}
 
 	tm := grpcclient.NewTokenManager(cred.AccessToken, cred.RefreshToken, "")
-	client, err := grpcclient.Dial(cred.GRPCAddr, tm)
+	var dialOpts []grpcclient.TLSOption
+	if cred.GRPCTLS {
+		dialOpts = append(dialOpts, grpcclient.TLSOption{CACertPEM: cred.GRPCTLSCA})
+	}
+	client, err := grpcclient.Dial(cred.GRPCAddr, tm, dialOpts...)
 	if err != nil {
 		color.Red("Error: gRPC connect failed: %s\n", err)
 		return 1
@@ -449,6 +453,8 @@ func remoteEval(ctx context.Context, authPath string, opts *eval.Options) int {
 type evalCredential struct {
 	Server       string `json:"server"`
 	GRPCAddr     string `json:"grpc_addr,omitempty"`
+	GRPCTLS      bool   `json:"grpc_tls,omitempty"`
+	GRPCTLSCA    string `json:"grpc_tls_ca,omitempty"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 }

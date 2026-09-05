@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/registry"
 	taitypes "github.com/yaoapp/yao/tai/types"
+	ws "github.com/yaoapp/yao/workspace"
 )
 
 // AttachManage registers sandbox management CRUD routes on the given group.
@@ -213,7 +214,7 @@ func hostToResponse(s taitypes.NodeMeta) sandboxResponse {
 
 func nodeOwnedBy(snap *taitypes.NodeMeta, authInfo *types.AuthorizedInfo) bool {
 	if authInfo == nil {
-		return true
+		return false
 	}
 	if authInfo.TeamID != "" {
 		return snap.Auth.TeamID == authInfo.TeamID
@@ -232,7 +233,8 @@ func getManager(c *gin.Context) *sandboxv2.Manager {
 // checkBoxOwner verifies the caller owns the sandbox.
 func checkBoxOwner(c *gin.Context, box *sandboxv2.Box, owner string) bool {
 	if owner == "" {
-		return true
+		c.JSON(http.StatusForbidden, gin.H{"error": "identity required to access sandbox"})
+		return false
 	}
 	info := box.ComputerInfo()
 	if info.Owner != "" && info.Owner != owner {
@@ -247,6 +249,10 @@ func checkBoxOwner(c *gin.Context, box *sandboxv2.Box, owner string) bool {
 func handleList(c *gin.Context) {
 	authInfo := authorized.GetInfo(c)
 	owner := resolveOwner(authInfo)
+	if owner == "" {
+		response.RespondWithSuccess(c, http.StatusOK, []sandboxResponse{})
+		return
+	}
 	nodeFilter := c.Query("node_id")
 
 	var result []sandboxResponse
@@ -317,6 +323,13 @@ func handleCreate(c *gin.Context) {
 
 	authInfo := authorized.GetInfo(c)
 	owner := resolveOwner(authInfo)
+
+	if req.WorkspaceID != "" {
+		if err := ws.ValidateID(req.WorkspaceID); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid workspace_id: " + err.Error()})
+			return
+		}
+	}
 
 	opts := sandboxv2.CreateOptions{
 		ID:          req.ID,

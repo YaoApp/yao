@@ -266,6 +266,7 @@ type ClientInfo struct {
 	TokenEndpointAuthMethod string                 `json:"token_endpoint_auth_method,omitempty"`
 	CreatedAt               time.Time              `json:"created_at,omitempty"`
 	UpdatedAt               time.Time              `json:"updated_at,omitempty"`
+	Role                    string                 `json:"role,omitempty"`  // Client role ID for ACL enforcement
 	Extra                   map[string]interface{} `json:"extra,omitempty"` // Extra fields for custom client properties
 }
 
