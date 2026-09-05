@@ -190,6 +190,9 @@ func (acl *ACL) enforce(ctx context.Context, authInfo *types.AuthorizedInfo, req
 	}
 
 	// All checks passed (pure API call - only client check required)
+	if authInfo.Scope == "" {
+		log.Warn("[ACL] Pure API call with empty scope (client_id=%s) — client permissions from Step 1 are the only access control", authInfo.ClientID)
+	}
 	log.Trace("[ACL] Enforcement chain completed successfully: pure API call (client only)")
 	return true, matchedEndpoint, nil
 }

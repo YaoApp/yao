@@ -12,10 +12,11 @@ import (
 var RoleManager *Manager = nil
 
 // NewManager creates a new role manager
-func NewManager(cache store.Store, provider types.UserProvider) *Manager {
+func NewManager(cache store.Store, provider types.UserProvider, clientProvider types.ClientProvider) *Manager {
 	return &Manager{
-		cache:    cache,
-		provider: provider,
+		cache:          cache,
+		provider:       provider,
+		clientProvider: clientProvider,
 	}
 }
 
@@ -144,11 +145,19 @@ func (m *Manager) GetScopes(ctx context.Context, roleID string) ([]string, []str
 // Role Resource - Private Methods
 // ============================================================================
 
-// getClientRole gets the role for a client from database
+// getClientRole gets the role for a client from ClientProvider.
 func (m *Manager) getClientRole(ctx context.Context, clientID string) (string, error) {
-	// TODO: Implement client role retrieval from ClientProvider
-	// For now, return a default role
-	return "system:root", nil
+	if m.clientProvider == nil {
+		return "client:free", nil
+	}
+	client, err := m.clientProvider.GetClientByID(ctx, clientID)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve client role for %s: %w", clientID, err)
+	}
+	if client.Role == "" {
+		return "client:free", nil
+	}
+	return client.Role, nil
 }
 
 // getUserRole gets the role for a user from database

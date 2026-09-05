@@ -16,10 +16,11 @@ var DefaultConfig = Config{
 
 // Config is the configuration for the ACL
 type Config struct {
-	Enabled    bool               `json:"enabled"`
-	PathPrefix string             `json:"path_prefix"` // BaseURL prefix to strip from request paths (e.g., "/v1")
-	Cache      store.Store        `json:"-"`
-	Provider   types.UserProvider `json:"-"`
+	Enabled        bool                 `json:"enabled"`
+	PathPrefix     string               `json:"path_prefix"` // BaseURL prefix to strip from request paths (e.g., "/v1")
+	Cache          store.Store          `json:"-"`
+	Provider       types.UserProvider   `json:"-"`
+	ClientProvider types.ClientProvider `json:"-"`
 }
 
 // ACL is the ACL checker

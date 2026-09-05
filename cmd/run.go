@@ -124,7 +124,11 @@ func runGRPC(cred *Credential, args []string) {
 	}
 
 	tm := grpcclient.NewTokenManager(cred.AccessToken, cred.RefreshToken, "")
-	client, err := grpcclient.Dial(cred.GRPCAddr, tm)
+	var dialOpts []grpcclient.TLSOption
+	if cred.GRPCTLS {
+		dialOpts = append(dialOpts, grpcclient.TLSOption{CACertPEM: cred.GRPCTLSCA})
+	}
+	client, err := grpcclient.Dial(cred.GRPCAddr, tm, dialOpts...)
 	if err != nil {
 		color.Red("  %s %s\n", L("gRPC connect failed:"), err.Error())
 		os.Exit(1)

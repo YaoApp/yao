@@ -39,7 +39,7 @@ func New(config *Config) (Enforcer, error) {
 		log.Info("[ACL] Feature manager loaded successfully")
 
 		// Init Role Manager
-		role.RoleManager = role.NewManager(config.Cache, config.Provider)
+		role.RoleManager = role.NewManager(config.Cache, config.Provider, config.ClientProvider)
 		log.Info("[ACL] Role manager loaded successfully")
 
 		// Log PathPrefix configuration

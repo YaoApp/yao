@@ -76,7 +76,7 @@ func prepareIntegrationTest(t *testing.T) (*FeatureManager, string, string, stri
 	integrationTestCache, _ = store.Get("system")
 
 	// Initialize role manager (cache can be nil, role manager handles it gracefully)
-	role.RoleManager = role.NewManager(integrationTestCache, integrationTestProvider)
+	role.RoleManager = role.NewManager(integrationTestCache, integrationTestProvider, nil)
 
 	// Load features
 	manager, err := LoadFeatures()

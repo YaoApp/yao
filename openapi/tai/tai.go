@@ -15,8 +15,8 @@ import (
 //   - POST /tai/:taiID/webproxy/bindings     — create webproxy binding(s) (OAuth protected)
 //   - DELETE /tai/:taiID/webproxy/bindings/:hostPort — delete webproxy binding (OAuth protected)
 func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
-	group.Any("/tai/:taiID/proxy/*path", handleProxy)
-	group.GET("/tai/:taiID/vnc/*path", handleVNC)
+	group.Any("/tai/:taiID/proxy/*path", oauth.Guard, handleProxy)
+	group.GET("/tai/:taiID/vnc/*path", oauth.Guard, handleVNC)
 
 	group.GET("/tai/:taiID/webproxy/bindings", oauth.Guard, handleListBindings)
 	group.POST("/tai/:taiID/webproxy/bindings", oauth.Guard, handleCreateBindings)

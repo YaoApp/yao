@@ -95,7 +95,8 @@ func resolveOwner(authInfo *types.AuthorizedInfo) string {
 // checkWSOwner verifies the caller owns the workspace.
 func checkWSOwner(c *gin.Context, w *ws.Workspace, owner string) bool {
 	if owner == "" {
-		return true
+		c.JSON(http.StatusForbidden, gin.H{"error": "identity required to access workspace"})
+		return false
 	}
 	if w.Owner != "" && w.Owner != owner {
 		c.JSON(http.StatusForbidden, gin.H{"error": "no permission to access this workspace"})
@@ -166,13 +167,19 @@ func mgr() *ws.Manager {
 
 // resolveAndCheckWS fetches the workspace and verifies owner permission.
 func resolveAndCheckWS(c *gin.Context) (*ws.Workspace, bool) {
+	id := c.Param("id")
+	if err := ws.ValidateID(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return nil, false
+	}
+
 	m := mgr()
 	if m == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "workspace service not available"})
 		return nil, false
 	}
 
-	w, err := m.Get(context.Background(), c.Param("id"))
+	w, err := m.Get(context.Background(), id)
 	if err != nil {
 		if err == ws.ErrNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "workspace not found"})
@@ -200,6 +207,10 @@ func handleList(c *gin.Context) {
 
 	authInfo := authorized.GetInfo(c)
 	owner := resolveOwner(authInfo)
+	if owner == "" {
+		response.RespondWithSuccess(c, http.StatusOK, []workspaceResponse{})
+		return
+	}
 
 	list, err := m.List(context.Background(), ws.ListOptions{
 		Owner: owner,
@@ -339,6 +350,11 @@ func handleCreate(c *gin.Context) {
 
 	var req createRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := ws.ValidateID(req.ID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

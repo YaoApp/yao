@@ -24,7 +24,11 @@ func NewLocal(dataDir string) Volume {
 }
 
 func (l *localStorage) root(sessionID string) string {
-	return filepath.Join(l.dataDir, sessionID)
+	joined := filepath.Join(l.dataDir, sessionID)
+	if rel, err := filepath.Rel(l.dataDir, joined); err != nil || strings.HasPrefix(rel, "..") {
+		return filepath.Join(l.dataDir, "_invalid_")
+	}
+	return joined
 }
 
 func (l *localStorage) abs(sessionID, path string) (string, error) {

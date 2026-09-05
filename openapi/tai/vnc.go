@@ -2,6 +2,7 @@ package tai
 
 import (
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -10,7 +11,18 @@ import (
 )
 
 var wsUpgrader = websocket.Upgrader{
-	CheckOrigin:  func(r *http.Request) bool { return true },
+	CheckOrigin: func(r *http.Request) bool {
+		origin := r.Header.Get("Origin")
+		if origin == "" {
+			return true
+		}
+		originURL, err := url.Parse(origin)
+		if err != nil {
+			return false
+		}
+		return originURL.Host == r.Host ||
+			originURL.Host == r.Header.Get("X-Forwarded-Host")
+	},
 	Subprotocols: []string{"binary"},
 }
 

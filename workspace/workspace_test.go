@@ -65,6 +65,44 @@ func TestCreate_WithLabels(t *testing.T) {
 	}
 }
 
+func TestCreate_InvalidID(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			_, err := m.Create(context.Background(), workspace.CreateOptions{
+				ID:    "../traversal",
+				Name:  "bad",
+				Owner: "user",
+				Node:  pc.Name,
+			})
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid ID")
+		})
+	}
+}
+
+func TestGet_InvalidID(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			_, err := m.Get(context.Background(), "../traversal")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid ID")
+		})
+	}
+}
+
+func TestDelete_InvalidID(t *testing.T) {
+	for _, pc := range testPools() {
+		t.Run(pc.Name, func(t *testing.T) {
+			m := setupManagerForPool(t, pc)
+			err := m.Delete(context.Background(), "../traversal", false)
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid ID")
+		})
+	}
+}
+
 func TestCreate_InvalidNode(t *testing.T) {
 	for _, pc := range testPools() {
 		t.Run(pc.Name, func(t *testing.T) {
