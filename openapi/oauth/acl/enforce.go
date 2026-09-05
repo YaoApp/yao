@@ -217,6 +217,12 @@ func (acl *ACL) enforceClient(ctx context.Context, authInfo *types.AuthorizedInf
 	// Get scopes for client role
 	allowedScopes, restrictedScopes, err := role.RoleManager.GetScopes(ctx, clientRole)
 	if err != nil {
+		// Role not defined in DB — no client-level restriction applied.
+		// Token scope (Step 2) and user/team checks (Step 3) still enforce access control.
+		if strings.Contains(err.Error(), "role not found") {
+			log.Warn("[ACL] Step 1: enforceClient - Client role '%s' not found in DB, skipping client restriction (client_id=%s)", clientRole, authInfo.ClientID)
+			return true, nil, nil
+		}
 		log.Trace("[ACL] Step 1: enforceClient - Failed to get scopes for role %s: %v", clientRole, err)
 		return false, nil, &Error{
 			Type:    ErrorTypeInternal,
