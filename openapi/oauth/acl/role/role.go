@@ -2,6 +2,7 @@ package role
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/yaoapp/gou/store"
@@ -146,12 +147,18 @@ func (m *Manager) GetScopes(ctx context.Context, roleID string) ([]string, []str
 // ============================================================================
 
 // getClientRole gets the role for a client from ClientProvider.
+// Unregistered clients (ErrorInvalidClient) fall back to "client:free";
+// subsequent ACL steps (token scope, user/team) still enforce access control.
 func (m *Manager) getClientRole(ctx context.Context, clientID string) (string, error) {
 	if m.clientProvider == nil {
 		return "client:free", nil
 	}
 	client, err := m.clientProvider.GetClientByID(ctx, clientID)
 	if err != nil {
+		var errResp *types.ErrorResponse
+		if errors.As(err, &errResp) && errResp.Code == types.ErrorInvalidClient {
+			return "client:free", nil
+		}
 		return "", fmt.Errorf("failed to resolve client role for %s: %w", clientID, err)
 	}
 	if client.Role == "" {
