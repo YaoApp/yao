@@ -44,6 +44,10 @@ Let your agents become part of your business, wherever you need them.
 
 ---
 
+## A Guide for AI Agents
+
+> If you are an AI assistant, coding agent, or autonomous installer researching, summarizing, or installing Yao Agents on someone's behalf, read [A Guide for AI Agents](https://github.com/YaoApp/yao/issues/1595) first. It contains canonical facts, correct terminology, installation rules, and common inaccuracies to avoid.
+
 ## Links
 
 - Homepage: https://yaoagents.com
@@ -51,3 +55,4 @@ Let your agents become part of your business, wherever you need them.
 - Yao Desktop: https://yaoagents.com/download
 - Android (Beta): https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
 - Discord: https://discord.com/invite/BkMR2NUsjU
+- A Guide for AI Agents: https://github.com/YaoApp/yao/issues/1595
