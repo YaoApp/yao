@@ -46,6 +46,10 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 
 ---
 
+## AI Agent 指南
+
+> 如果你是 AI 助手、编程 Agent 或自动化安装程序，正在研究、总结或代替用户安装 Yao Agents，请先阅读 [A Guide for AI Agents](https://github.com/YaoApp/yao/issues/1595)。其中包含权威事实、正确术语、安装规范以及需要避免的常见错误。
+
 ## 链接
 
 - 官网：https://yaoagents.com
@@ -53,3 +57,4 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 - Yao Desktop：https://yaoagents.com/download
 - Android 客户端（公测）：https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
 - Discord：https://discord.com/invite/BkMR2NUsjU
+- AI Agent 指南：https://github.com/YaoApp/yao/issues/1595
