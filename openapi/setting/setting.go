@@ -56,6 +56,15 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	cloud.POST("/test", handleCloudTest)
 	cloud.POST("/refresh", handleCloudRefresh)
 
+	tao := group.Group("/tao")
+	tao.Use(restricted)
+	tao.POST("/verify", handleTaoVerify)
+	tao.POST("/setup", handleTaoSetup)
+	tao.GET("/config", handleTaoGet)
+	tao.PUT("/config", handleTaoUpdate)
+	tao.POST("/balance", handleTaoBalance)
+	tao.GET("/signup-gift", handleTaoSignupGift)
+
 	llm := group.Group("/llm")
 	llm.Use(restricted)
 	llm.GET("", handleLLMGet)

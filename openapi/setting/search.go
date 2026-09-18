@@ -77,12 +77,12 @@ func handleSearchGet(c *gin.Context) {
 		}
 
 		if preset.IsCloud {
-			var cloudSaved map[string]interface{}
+			var taoSaved map[string]interface{}
 			if setting.Global != nil {
-				cloudSaved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+				taoSaved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 			}
-			if cloudSaved != nil {
-				if st, ok := cloudSaved["status"].(string); ok && st == "connected" {
+			if taoSaved != nil {
+				if st, ok := taoSaved["status"].(string); ok && st == "connected" {
 					cfg.Enabled = true
 					cfg.Status = "connected"
 				}

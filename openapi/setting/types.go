@@ -83,6 +83,73 @@ type CloudTestResult struct {
 }
 
 // ---------------------------------------------------------------------------
+// Tao Service
+// ---------------------------------------------------------------------------
+
+// TaoConfig is the response for GET /setting/tao/config.
+type TaoConfig struct {
+	BaseURL          string      `json:"base_url"`
+	Key              string      `json:"key"`
+	Status           string      `json:"status"` // "connected" | "unconfigured"
+	Balance          *int64      `json:"balance,omitempty"`
+	BalanceAvailable bool        `json:"balance_available"`
+	Services         TaoServices `json:"services"`
+}
+
+// TaoServices enumerates which Tao capabilities are available for the stored key.
+type TaoServices struct {
+	LLM       bool `json:"llm"`
+	Search    bool `json:"search"`
+	Scrape    bool `json:"scrape"`
+	OCR       bool `json:"ocr"`
+	Image     bool `json:"image"`
+	Audio     bool `json:"audio"`
+	Embedding bool `json:"embedding"`
+}
+
+// TaoVerifyResult is the response for POST /setting/tao/verify.
+type TaoVerifyResult struct {
+	Valid            bool   `json:"valid"`
+	Balance          *int64 `json:"balance,omitempty"`
+	BalanceAvailable bool   `json:"balance_available"`
+	ErrorType        string `json:"error_type,omitempty"` // "invalid_api_key" | "api_key_expired"
+	Message          string `json:"message"`
+}
+
+// TaoSetupResult is the response for POST /setting/tao/setup.
+type TaoSetupResult struct {
+	Success          bool             `json:"success"`
+	Message          string           `json:"message,omitempty"`
+	Balance          *int64           `json:"balance,omitempty"`
+	BalanceAvailable bool             `json:"balance_available"`
+	Configured       *TaoSetupDetails `json:"configured,omitempty"`
+}
+
+// TaoSetupDetails describes what was auto-configured during setup.
+type TaoSetupDetails struct {
+	LLM    *TaoSetupLLM    `json:"llm,omitempty"`
+	Search *TaoSetupSearch `json:"search,omitempty"`
+}
+
+// TaoSetupLLM describes the LLM provider created by Tao setup.
+type TaoSetupLLM struct {
+	ProviderName string            `json:"provider_name"`
+	ModelCount   int               `json:"model_count"`
+	Roles        map[string]string `json:"roles"` // role key → model name
+}
+
+// TaoSetupSearch describes the search tools assigned by Tao setup.
+type TaoSetupSearch struct {
+	ProviderName string   `json:"provider_name"`
+	Tools        []string `json:"tools"`
+}
+
+// TaoSignupGift is the response for GET /setting/tao/signup-gift.
+type TaoSignupGift struct {
+	SignupGift int64 `json:"signup_gift"`
+}
+
+// ---------------------------------------------------------------------------
 // LLM Providers
 // ---------------------------------------------------------------------------
 

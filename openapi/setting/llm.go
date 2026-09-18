@@ -64,7 +64,7 @@ func enrichProvider(p *llmprovider.Provider) map[string]interface{} {
 		if preset := llmprovider.GetPreset(p.PresetKey); preset != nil {
 			m["is_cloud"] = preset.IsCloud
 			m["url_editable"] = preset.URLEditable
-		} else if p.PresetKey == "yaoagents" {
+		} else if p.PresetKey == "taoservice" || p.PresetKey == "yaoagents" {
 			m["is_cloud"] = true
 			m["url_editable"] = false
 		}
@@ -256,16 +256,16 @@ var (
 	cloudModelCacheMu  sync.Mutex
 )
 
-func buildCloudPreset(info *oauthTypes.AuthorizedInfo) {
+func buildTaoPreset(info *oauthTypes.AuthorizedInfo) {
 	var saved map[string]interface{}
 	if setting.Global != nil {
-		saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+		saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 	}
 
-	apiURL := resolveCloudAPIURL(saved)
+	apiURL := resolveTaoAPIURL(saved)
 	preset := llmprovider.ProviderPreset{
-		Key:        "yaoagents",
-		Name:       "Yao Agents",
+		Key:        "taoservice",
+		Name:       "Tao Service",
 		Type:       "openai",
 		APIURL:     apiURL,
 		RequireKey: false,
@@ -290,6 +290,16 @@ func buildCloudPreset(info *oauthTypes.AuthorizedInfo) {
 	}
 
 	llmprovider.RegisterPreset(preset)
+}
+
+// resolveTaoAPIURL returns the Tao API URL from saved config or falls back to well-known defaults.
+func resolveTaoAPIURL(saved map[string]interface{}) string {
+	if saved != nil {
+		if v, ok := saved["base_url"].(string); ok && v != "" {
+			return v
+		}
+	}
+	return resolveTaoBaseURL("en-us")
 }
 
 func resolveCloudAPIURL(saved map[string]interface{}) string {
@@ -549,7 +559,7 @@ func handleLLMGet(c *gin.Context) {
 		roles = make(map[string]interface{})
 	}
 
-	buildCloudPreset(info)
+	buildTaoPreset(info)
 
 	locale := c.Query("locale")
 	var presetList []llmprovider.ProviderPreset
@@ -692,9 +702,9 @@ func handleLLMProviderCreate(c *gin.Context) {
 
 	if presetKey != "" {
 		preset := llmprovider.GetPreset(presetKey)
-		if preset == nil && presetKey == "yaoagents" {
-			buildCloudPreset(info)
-			preset = llmprovider.GetPreset(presetKey)
+		if preset == nil && (presetKey == "taoservice" || presetKey == "yaoagents") {
+			buildTaoPreset(info)
+			preset = llmprovider.GetPreset("taoservice")
 		}
 		if preset == nil {
 			respondError(c, http.StatusBadRequest, fmt.Sprintf("unknown preset: %s", presetKey))
@@ -740,7 +750,7 @@ func handleLLMProviderCreate(c *gin.Context) {
 		if preset.IsCloud && provider.APIKey == "" {
 			var saved map[string]interface{}
 			if setting.Global != nil {
-				saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+				saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 			}
 			if encKey, _ := saved["api_key"].(string); encKey != "" {
 				provider.APIKey = cloudDecrypt(encKey)
