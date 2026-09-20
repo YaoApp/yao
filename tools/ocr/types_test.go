@@ -3,7 +3,11 @@ package ocr
 import "testing"
 
 func TestIsValidType(t *testing.T) {
-	valid := []string{"general", "table", "handwriting", "invoice", "receipt", "id_card", "bank_card", "license", "vehicle_license", "passport", "license_plate", "document"}
+	valid := []string{
+		"general", "table", "handwriting", "invoice", "receipt", "id_card", "bank_card",
+		"license", "vehicle_license", "passport", "license_plate", "document",
+		"general_basic", "accurate_basic", "idcard", "bankcard",
+	}
 	for _, v := range valid {
 		if !isValidType(v) {
 			t.Errorf("expected %q to be valid", v)
@@ -14,6 +18,19 @@ func TestIsValidType(t *testing.T) {
 	for _, v := range invalid {
 		if isValidType(v) {
 			t.Errorf("expected %q to be invalid", v)
+		}
+	}
+}
+
+func TestIsValidOutputFormat(t *testing.T) {
+	for _, v := range []string{"text", "json", "markdown"} {
+		if !isValidOutputFormat(v) {
+			t.Errorf("expected %q to be valid output format", v)
+		}
+	}
+	for _, v := range []string{"", "xml", "csv", "TEXT"} {
+		if isValidOutputFormat(v) {
+			t.Errorf("expected %q to be invalid output format", v)
 		}
 	}
 }

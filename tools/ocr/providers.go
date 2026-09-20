@@ -60,7 +60,28 @@ func listOCRProviders(authInfo *oauthTypes.AuthorizedInfo) []ocrProviderEntry {
 		}
 	}
 
-	// 2. Traditional API providers from OCR settings
+	// 2. Tao OCR provider
+	taoHandler := &TaoHandler{}
+	taoEntry := ocrProviderEntry{
+		ID:             "tao",
+		Type:           "tao",
+		Name:           "Tao Service",
+		Status:         "unconfigured",
+		SupportedTypes: sortedKeys(taoHandler.SupportedTypes()),
+	}
+	if setting.Global != nil {
+		taoSaved, _ := setting.Global.GetMerged(
+			authInfo.GetUserID(), authInfo.GetTeamID(), "tao",
+		)
+		if taoSaved != nil {
+			if st, ok := taoSaved["status"].(string); ok && st == "connected" {
+				taoEntry.Status = "connected"
+			}
+		}
+	}
+	result = append(result, taoEntry)
+
+	// 3. Traditional API providers from OCR settings
 	apiHandlerTypes := map[string]map[string]bool{
 		"paddleocr": paddleSupportedTypes,
 		"baidu":     baiduSupportedTypes,

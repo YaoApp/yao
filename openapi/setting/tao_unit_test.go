@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/yaoapp/yao/llmprovider"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/setting"
 )
@@ -128,10 +129,10 @@ func TestTaoCallVerify_ExpiredKey(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// taoMaskKey
+// maskKey
 // ---------------------------------------------------------------------------
 
-func TestTaoMaskKey(t *testing.T) {
+func TestMaskKey(t *testing.T) {
 	tests := []struct {
 		in   string
 		want string
@@ -142,9 +143,9 @@ func TestTaoMaskKey(t *testing.T) {
 		{"sk-tao-abcdefgh1234", "sk-...1234"},
 	}
 	for _, tc := range tests {
-		got := taoMaskKey(tc.in)
+		got := maskKey(tc.in)
 		if got != tc.want {
-			t.Errorf("taoMaskKey(%q) = %q, want %q", tc.in, got, tc.want)
+			t.Errorf("maskKey(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
@@ -199,10 +200,24 @@ func TestTaoFetchModelDefaults_Success(t *testing.T) {
 		if r.Header.Get("Authorization") != "" {
 			t.Fatal("model-defaults should not send auth header")
 		}
+		// Real Tao API returns mixed format: objects for chat models, strings for audio/embedding
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"data": map[string]string{
-				"default": "deepseek-chat",
-				"heavy":   "deepseek-reasoner",
+			"defaults": map[string]interface{}{
+				"default": map[string]interface{}{
+					"model":            "deepseek-flash",
+					"thinking":         map[string]interface{}{"type": "enabled"},
+					"reasoning_effort": "high",
+				},
+				"heavy": map[string]interface{}{
+					"model":            "deepseek-flash",
+					"reasoning_effort": "max",
+				},
+				"light": map[string]interface{}{
+					"model":    "deepseek-flash",
+					"thinking": map[string]interface{}{"type": "disabled"},
+				},
+				"audio":     "whisper-1",
+				"embedding": "text-embedding-3-small",
 			},
 		})
 	}))
@@ -212,11 +227,34 @@ func TestTaoFetchModelDefaults_Success(t *testing.T) {
 	if roles == nil {
 		t.Fatal("expected non-nil roles")
 	}
-	if roles["default"] != "deepseek-chat" {
-		t.Fatalf("expected default=deepseek-chat, got %s", roles["default"])
+	if roles["default"] == nil || roles["default"].Model != "deepseek-flash" {
+		t.Fatalf("expected default model=deepseek-flash, got %v", roles["default"])
 	}
-	if roles["heavy"] != "deepseek-reasoner" {
-		t.Fatalf("expected heavy=deepseek-reasoner, got %s", roles["heavy"])
+	if roles["heavy"] == nil || roles["heavy"].Model != "deepseek-flash" {
+		t.Fatalf("expected heavy model=deepseek-flash, got %v", roles["heavy"])
+	}
+	if roles["light"] == nil || roles["light"].Model != "deepseek-flash" {
+		t.Fatalf("expected light model=deepseek-flash, got %v", roles["light"])
+	}
+	// String-format roles (audio, embedding) must be parsed correctly
+	if roles["audio"] == nil || roles["audio"].Model != "whisper-1" {
+		t.Fatalf("expected audio model=whisper-1, got %v", roles["audio"])
+	}
+	if roles["embedding"] == nil || roles["embedding"].Model != "text-embedding-3-small" {
+		t.Fatalf("expected embedding model=text-embedding-3-small, got %v", roles["embedding"])
+	}
+	if re, _ := roles["default"].Params["reasoning_effort"].(string); re != "high" {
+		t.Fatalf("expected default reasoning_effort=high, got %s", re)
+	}
+	if re, _ := roles["heavy"].Params["reasoning_effort"].(string); re != "max" {
+		t.Fatalf("expected heavy reasoning_effort=max, got %s", re)
+	}
+	// String-format roles have empty params
+	if len(roles["audio"].Params) != 0 {
+		t.Fatalf("expected audio params to be empty, got %v", roles["audio"].Params)
+	}
+	if len(roles["embedding"].Params) != 0 {
+		t.Fatalf("expected embedding params to be empty, got %v", roles["embedding"].Params)
 	}
 }
 
@@ -225,11 +263,11 @@ func TestTaoFetchModelDefaults_Success(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTaoDetectServices(t *testing.T) {
-	models := []map[string]interface{}{
-		{"id": "deepseek-chat", "mode": "chat", "supports_vision": true},
-		{"id": "whisper-1", "mode": "audio_transcription"},
-		{"id": "text-embedding-3-large", "mode": "embedding"},
-		{"id": "dall-e-3", "mode": "image_generation"},
+	models := []llmprovider.ModelInfo{
+		{ID: "deepseek-chat", Capabilities: []string{"chat", "streaming", "vision"}},
+		{ID: "whisper-1", Capabilities: []string{"audio"}},
+		{ID: "text-embedding-3-large", Capabilities: []string{"embedding"}},
+		{ID: "dall-e-3", Capabilities: []string{"image_generation"}},
 	}
 
 	svc := taoDetectServices(models)
@@ -459,12 +497,12 @@ func TestTaoCallVerify_InvalidResponseJSON(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// taoScope
+// scopeFromAuth
 // ---------------------------------------------------------------------------
 
-func TestTaoScope_User(t *testing.T) {
+func TestScopeFromAuth_User(t *testing.T) {
 	info := &oauthTypes.AuthorizedInfo{UserID: "u1", TeamID: ""}
-	s := taoScope(info)
+	s := scopeFromAuth(info)
 	if s.Scope != setting.ScopeUser {
 		t.Fatalf("expected ScopeUser, got %v", s.Scope)
 	}
@@ -473,9 +511,9 @@ func TestTaoScope_User(t *testing.T) {
 	}
 }
 
-func TestTaoScope_Team(t *testing.T) {
+func TestScopeFromAuth_Team(t *testing.T) {
 	info := &oauthTypes.AuthorizedInfo{UserID: "u1", TeamID: "t1"}
-	s := taoScope(info)
+	s := scopeFromAuth(info)
 	if s.Scope != setting.ScopeTeam {
 		t.Fatalf("expected ScopeTeam, got %v", s.Scope)
 	}

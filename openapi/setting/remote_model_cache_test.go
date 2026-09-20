@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestFetchCloudModels_CachesAfterFirstCall(t *testing.T) {
+func TestFetchRemoteModels_CachesAfterFirstCall(t *testing.T) {
 	var hits int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt64(&hits, 1)
@@ -20,9 +20,9 @@ func TestFetchCloudModels_CachesAfterFirstCall(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	invalidateCloudModelCache()
+	invalidateRemoteModelCache()
 
-	models := fetchCloudModels(srv.URL, "test-key")
+	models := fetchRemoteModels(srv.URL, "test-key")
 	if len(models) == 0 {
 		t.Fatal("expected models from first fetch, got none")
 	}
@@ -30,7 +30,7 @@ func TestFetchCloudModels_CachesAfterFirstCall(t *testing.T) {
 		t.Fatalf("expected 1 HTTP hit after first fetch, got %d", atomic.LoadInt64(&hits))
 	}
 
-	models2 := fetchCloudModels(srv.URL, "test-key")
+	models2 := fetchRemoteModels(srv.URL, "test-key")
 	if len(models2) == 0 {
 		t.Fatal("expected models from cached fetch, got none")
 	}
@@ -39,7 +39,7 @@ func TestFetchCloudModels_CachesAfterFirstCall(t *testing.T) {
 	}
 }
 
-func TestFetchCloudModels_InvalidateForcesRefetch(t *testing.T) {
+func TestFetchRemoteModels_InvalidateForcesRefetch(t *testing.T) {
 	var hits int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt64(&hits, 1)
@@ -51,22 +51,22 @@ func TestFetchCloudModels_InvalidateForcesRefetch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	invalidateCloudModelCache()
+	invalidateRemoteModelCache()
 
-	fetchCloudModels(srv.URL, "test-key")
+	fetchRemoteModels(srv.URL, "test-key")
 	if atomic.LoadInt64(&hits) != 1 {
 		t.Fatalf("expected 1 HTTP hit, got %d", atomic.LoadInt64(&hits))
 	}
 
-	invalidateCloudModelCache()
+	invalidateRemoteModelCache()
 
-	fetchCloudModels(srv.URL, "test-key")
+	fetchRemoteModels(srv.URL, "test-key")
 	if atomic.LoadInt64(&hits) != 2 {
 		t.Fatalf("expected 2 HTTP hits after invalidation, got %d", atomic.LoadInt64(&hits))
 	}
 }
 
-func TestFetchCloudModels_URLChangeForcesRefetch(t *testing.T) {
+func TestFetchRemoteModels_URLChangeForcesRefetch(t *testing.T) {
 	var hits int64
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		atomic.AddInt64(&hits, 1)
@@ -78,14 +78,14 @@ func TestFetchCloudModels_URLChangeForcesRefetch(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	invalidateCloudModelCache()
+	invalidateRemoteModelCache()
 
-	fetchCloudModels(srv.URL, "test-key")
+	fetchRemoteModels(srv.URL, "test-key")
 	if atomic.LoadInt64(&hits) != 1 {
 		t.Fatalf("expected 1 HTTP hit, got %d", atomic.LoadInt64(&hits))
 	}
 
-	fetchCloudModels(srv.URL+"/other", "test-key")
+	fetchRemoteModels(srv.URL+"/other", "test-key")
 	if atomic.LoadInt64(&hits) != 2 {
 		t.Fatalf("expected 2 HTTP hits after URL change, got %d", atomic.LoadInt64(&hits))
 	}

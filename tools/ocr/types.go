@@ -1,7 +1,9 @@
 package ocr
 
 // validOCRTypes enumerates all recognized OCR type values.
+// Includes both internal names and Tao native names.
 var validOCRTypes = map[string]bool{
+	// Internal names
 	"general":         true,
 	"table":           true,
 	"handwriting":     true,
@@ -14,11 +16,28 @@ var validOCRTypes = map[string]bool{
 	"passport":        true,
 	"license_plate":   true,
 	"document":        true,
+	// Tao native names
+	"general_basic":  true,
+	"accurate_basic": true,
+	"idcard":         true,
+	"bankcard":       true,
+}
+
+// validOutputFormats enumerates allowed output_format values.
+var validOutputFormats = map[string]bool{
+	"text":     true,
+	"json":     true,
+	"markdown": true,
 }
 
 // isValidType reports whether the given type value is a recognized OCR type.
 func isValidType(t string) bool {
 	return validOCRTypes[t]
+}
+
+// isValidOutputFormat reports whether the given format is allowed.
+func isValidOutputFormat(f string) bool {
+	return validOutputFormats[f]
 }
 
 // defaultType returns "general" when t is empty, otherwise t unchanged.

@@ -21,9 +21,9 @@ type FetchResponse struct {
 }
 
 type fetchConfig struct {
-	Provider       string // "cloud" / "brightdata" / "" (direct)
+	Provider       string // "tao" / "brightdata" / "" (direct)
 	APIKey         string
-	APIURL         string // cloud mode endpoint
+	APIURL         string // tao mode endpoint
 	BrightdataKey  string
 	BrightdataZone string
 }
@@ -38,8 +38,8 @@ func Handler(proc *process.Process) interface{} {
 	cfg := getConfig(userID, teamID)
 
 	switch cfg.Provider {
-	case "cloud":
-		return cloudFetch(cfg, url, format)
+	case "tao":
+		return taoFetch(cfg, url, format)
 	default:
 		return localFetch(cfg, url, format)
 	}
@@ -64,8 +64,8 @@ func getConfig(userID, teamID string) *fetchConfig {
 	}
 
 	switch cfg.Provider {
-	case "cloud":
-		cfg.APIKey, cfg.APIURL = getCloudConfig(userID, teamID)
+	case "tao":
+		cfg.APIKey, cfg.APIURL = getTaoConfig(userID, teamID)
 	case "brightdata":
 		cfg.BrightdataKey, cfg.BrightdataZone = getBrightdataConfig(userID, teamID)
 	default:
@@ -74,12 +74,12 @@ func getConfig(userID, teamID string) *fetchConfig {
 	return cfg
 }
 
-func getCloudConfig(userID, teamID string) (apiKey, apiURL string) {
+func getTaoConfig(userID, teamID string) (apiKey, apiURL string) {
 	if setting.Global == nil {
 		return
 	}
-	saved, _ := setting.Global.GetMerged(userID, teamID, "cloud")
-	if v, ok := saved["api_url"].(string); ok {
+	saved, _ := setting.Global.GetMerged(userID, teamID, "tao")
+	if v, ok := saved["base_url"].(string); ok {
 		apiURL = v
 	}
 	if v, ok := saved["api_key"].(string); ok {

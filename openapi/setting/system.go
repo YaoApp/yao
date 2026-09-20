@@ -99,7 +99,7 @@ var promotionsYML []byte
 
 type promotionEntry struct {
 	ID   string                     `yaml:"id"`
-	Link string                     `yaml:"link"`
+	Link map[string]string          `yaml:"link"`
 	I18n map[string]promotionLocale `yaml:"i18n"`
 }
 
@@ -166,11 +166,15 @@ func buildPromotions(deployment, locale string) []Promotion {
 		if !ok {
 			loc = e.I18n["en"]
 		}
+		link := e.Link[lang]
+		if link == "" {
+			link = e.Link["en"]
+		}
 		promos = append(promos, Promotion{
 			ID:    e.ID,
 			Title: loc.Title,
 			Desc:  loc.Desc,
-			Link:  e.Link,
+			Link:  link,
 			Label: loc.Label,
 		})
 	}

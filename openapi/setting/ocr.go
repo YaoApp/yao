@@ -90,22 +90,32 @@ func handleOCRGet(c *gin.Context) {
 		}
 
 		if setting.Global != nil {
-			saved, _ := setting.Global.Get(scope, ocrProviderNS(preset.Key))
-			if saved != nil {
-				if v, ok := saved["enabled"].(bool); ok {
-					cfg.Enabled = v
+			if preset.IsCloud {
+				saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
+				if saved != nil {
+					if v, ok := saved["status"].(string); ok && v == "connected" {
+						cfg.Status = "connected"
+						cfg.Enabled = true
+					}
 				}
-				if v, ok := saved["status"].(string); ok && v != "" {
-					cfg.Status = v
-				}
-				pwFields := ocrPasswordFields(&preset)
-				if fv, ok := saved["field_values"].(map[string]interface{}); ok {
-					for k, v := range fv {
-						s, _ := v.(string)
-						if pwFields[k] && s != "" {
-							cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
-						} else {
-							cfg.FieldValues[k] = s
+			} else {
+				saved, _ := setting.Global.Get(scope, ocrProviderNS(preset.Key))
+				if saved != nil {
+					if v, ok := saved["enabled"].(bool); ok {
+						cfg.Enabled = v
+					}
+					if v, ok := saved["status"].(string); ok && v != "" {
+						cfg.Status = v
+					}
+					pwFields := ocrPasswordFields(&preset)
+					if fv, ok := saved["field_values"].(map[string]interface{}); ok {
+						for k, v := range fv {
+							s, _ := v.(string)
+							if pwFields[k] && s != "" {
+								cfg.FieldValues[k] = maskKey(decryptValue(s))
+							} else {
+								cfg.FieldValues[k] = s
+							}
 						}
 					}
 				}
@@ -144,6 +154,11 @@ func handleOCRProviderUpdate(c *gin.Context) {
 	preset := ocrFindPreset(key)
 	if preset == nil {
 		respondError(c, http.StatusBadRequest, fmt.Sprintf("unknown provider: %s", key))
+		return
+	}
+
+	if preset.IsCloud {
+		respondError(c, http.StatusBadRequest, fmt.Sprintf("provider %s is managed by Tao Service and cannot be updated directly", key))
 		return
 	}
 
@@ -193,7 +208,7 @@ func handleOCRProviderUpdate(c *gin.Context) {
 			if v == "" {
 				continue
 			}
-			newFV[k] = cloudEncrypt(v)
+			newFV[k] = encryptValue(v)
 		} else {
 			newFV[k] = v
 		}
@@ -228,7 +243,7 @@ func handleOCRProviderUpdate(c *gin.Context) {
 		for k, v := range fv {
 			s, _ := v.(string)
 			if pwFields[k] && s != "" {
-				cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
+				cfg.FieldValues[k] = maskKey(decryptValue(s))
 			} else {
 				cfg.FieldValues[k] = s
 			}
@@ -251,6 +266,11 @@ func handleOCRProviderToggle(c *gin.Context) {
 	preset := ocrFindPreset(key)
 	if preset == nil {
 		respondError(c, http.StatusBadRequest, fmt.Sprintf("unknown provider: %s", key))
+		return
+	}
+
+	if preset.IsCloud {
+		respondError(c, http.StatusBadRequest, fmt.Sprintf("provider %s is managed by Tao Service and cannot be toggled directly", key))
 		return
 	}
 
@@ -306,7 +326,7 @@ func handleOCRProviderToggle(c *gin.Context) {
 		for k, v := range fv {
 			s, _ := v.(string)
 			if pwFields[k] && s != "" {
-				cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
+				cfg.FieldValues[k] = maskKey(decryptValue(s))
 			} else {
 				cfg.FieldValues[k] = s
 			}
@@ -332,6 +352,11 @@ func handleOCRProviderTest(c *gin.Context) {
 		return
 	}
 
+	if preset.IsCloud {
+		respondError(c, http.StatusBadRequest, fmt.Sprintf("provider %s is managed by Tao Service; use Tao Service settings to verify", key))
+		return
+	}
+
 	var body struct {
 		FieldValues map[string]string `json:"field_values"`
 	}
@@ -351,7 +376,7 @@ func handleOCRProviderTest(c *gin.Context) {
 			if saved != nil {
 				if fv, ok := saved["field_values"].(map[string]interface{}); ok {
 					if v, ok := fv[fieldKey].(string); ok {
-						return cloudDecrypt(v)
+						return decryptValue(v)
 					}
 				}
 			}

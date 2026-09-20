@@ -12,14 +12,13 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
-	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/setting"
+	"github.com/yaoapp/yao/tools/ocr"
 )
 
 const (
 	taoNS       = "tao"
-	taoMaskLen  = 4
 	taoPresetNS = "taoservice"
 )
 
@@ -42,25 +41,6 @@ func resolveTaoBaseURL(locale string) string {
 		return strings.TrimRight(v, "/")
 	}
 	return defaultTaoBaseURLEN
-}
-
-func taoScope(info *oauthTypes.AuthorizedInfo) setting.ScopeID {
-	if info.TeamID != "" {
-		return setting.ScopeID{Scope: setting.ScopeTeam, TeamID: info.TeamID}
-	}
-	return setting.ScopeID{Scope: setting.ScopeUser, UserID: info.UserID}
-}
-
-func taoMaskKey(key string) string {
-	if key == "" {
-		return ""
-	}
-	if len(key) <= taoMaskLen {
-		return strings.Repeat("*", len(key))
-	}
-	prefix := key[:3]
-	suffix := key[len(key)-taoMaskLen:]
-	return prefix + "..." + suffix
 }
 
 // ---------------------------------------------------------------------------
@@ -132,13 +112,13 @@ func handleTaoSetup(c *gin.Context) {
 		return
 	}
 
-	scope := taoScope(info)
+	scope := scopeFromAuth(info)
 	owner := llmOwner(info)
 
 	// Step 2: persist credentials
 	m := map[string]interface{}{
 		"base_url": baseURL,
-		"api_key":  cloudEncrypt(body.Key),
+		"api_key":  encryptValue(body.Key),
 		"status":   "connected",
 		"locale":   locale,
 	}
@@ -147,20 +127,15 @@ func handleTaoSetup(c *gin.Context) {
 		return
 	}
 
-	// Step 3: fetch models
-	models := fetchCloudModels(baseURL, body.Key)
-	modelCount := len(models)
-
-	// Step 4: register preset + create provider
-	var modelInfos []llmprovider.ModelInfo
-	if len(models) > 0 {
-		rawJSON, _ := json.Marshal(models)
-		json.Unmarshal(rawJSON, &modelInfos)
-		for i := range modelInfos {
-			modelInfos[i].Enabled = true
-		}
+	// Step 3: fetch models (returns []ModelInfo, populates remoteReasoningCache)
+	invalidateRemoteModelCache()
+	modelInfos := fetchRemoteModels(baseURL, body.Key)
+	modelCount := len(modelInfos)
+	for i := range modelInfos {
+		modelInfos[i].Enabled = true
 	}
 
+	// Step 4: register preset + create provider
 	llmprovider.RegisterPreset(llmprovider.ProviderPreset{
 		Key:           taoPresetNS,
 		Name:          "Tao Service",
@@ -197,36 +172,53 @@ func handleTaoSetup(c *gin.Context) {
 	}
 
 	// Step 5: fetch model-defaults and assign roles
-	roles := taoFetchModelDefaults(baseURL)
-	if roles == nil {
-		roles = map[string]string{}
-	}
-
-	// Ensure "default" role has a value
-	if _, ok := roles["default"]; !ok && modelCount > 0 {
-		roles["default"] = modelInfos[0].ID
-	}
-
+	roleDefaults := taoFetchModelDefaults(baseURL)
 	roleMap := make(map[string]interface{})
-	for roleName, modelID := range roles {
-		roleMap[roleName] = map[string]interface{}{
-			"provider": provKey,
-			"model":    modelID,
+	rolesForResponse := make(map[string]string)
+
+	if roleDefaults != nil {
+		for roleName, rd := range roleDefaults {
+			reasoning := remoteReasoningCache[rd.Model]
+			connID := resolveConnectorID(rd.Model, rd.Params, reasoning)
+			roleMap[roleName] = map[string]interface{}{
+				"provider": provKey,
+				"model":    connID,
+			}
+			rolesForResponse[roleName] = connID
 		}
+	}
+
+	if _, ok := roleMap["default"]; !ok && modelCount > 0 {
+		roleMap["default"] = map[string]interface{}{
+			"provider": provKey,
+			"model":    modelInfos[0].ID,
+		}
+		rolesForResponse["default"] = modelInfos[0].ID
 	}
 	setting.Global.Set(scope, llmRolesNS, roleMap)
 
-	// Step 6: assign search tools to tao preset
+	// Step 6: assign search + OCR tools to tao preset
 	searchAssign := map[string]interface{}{
 		"web_search": "tao",
 		"web_scrape": "tao",
 	}
 	setting.Global.Set(scope, searchAssignmentNS, searchAssign)
 
-	// Step 7: determine available services from model capabilities
-	services := taoDetectServices(models)
+	ocrAssign := map[string]interface{}{
+		"ocr_recognize": "tao",
+	}
+	setting.Global.Set(scope, ocrAssignmentNS, ocrAssign)
 
-	// Step 8: update stored services
+	// Step 7: pre-fetch OCR types from Tao (populates cache for handler_tao)
+	ocr.FetchTaoOCRTypes(baseURL, body.Key)
+
+	// Step 8: determine available services via API
+	services := taoFetchServices(baseURL)
+	if !services.LLM && modelCount > 0 {
+		services.LLM = true
+	}
+
+	// Step 9: update stored services
 	m["services"] = services
 	setting.Global.Set(scope, taoNS, m)
 
@@ -238,7 +230,7 @@ func handleTaoSetup(c *gin.Context) {
 			LLM: &TaoSetupLLM{
 				ProviderName: "Tao Service",
 				ModelCount:   modelCount,
-				Roles:        roles,
+				Roles:        rolesForResponse,
 			},
 			Search: &TaoSetupSearch{
 				ProviderName: "Tao Service",
@@ -272,7 +264,7 @@ func handleTaoGet(c *gin.Context) {
 		data.BaseURL = v
 	}
 	if v, ok := saved["api_key"].(string); ok && v != "" {
-		data.Key = taoMaskKey(cloudDecrypt(v))
+		data.Key = maskKey(decryptValue(v))
 	}
 	if v, ok := saved["status"].(string); ok && v != "" {
 		data.Status = v
@@ -284,7 +276,7 @@ func handleTaoGet(c *gin.Context) {
 	// Live balance probe with 3s timeout
 	if data.Status == "connected" {
 		if encKey, _ := saved["api_key"].(string); encKey != "" {
-			apiKey := cloudDecrypt(encKey)
+			apiKey := decryptValue(encKey)
 			bal, balAvail := taoFetchBalance(data.BaseURL, apiKey, 3*time.Second)
 			data.Balance = bal
 			data.BalanceAvailable = balAvail
@@ -302,7 +294,7 @@ func handleTaoUpdate(c *gin.Context) {
 	}
 
 	info := authorized.GetInfo(c)
-	scope := taoScope(info)
+	scope := scopeFromAuth(info)
 
 	var body struct {
 		Key string `json:"key"`
@@ -333,7 +325,7 @@ func handleTaoUpdate(c *gin.Context) {
 			return
 		}
 
-		m["api_key"] = cloudEncrypt(body.Key)
+		m["api_key"] = encryptValue(body.Key)
 		m["base_url"] = baseURL
 		m["status"] = "connected"
 	}
@@ -341,6 +333,10 @@ func handleTaoUpdate(c *gin.Context) {
 	if _, err := setting.Global.Set(scope, taoNS, m); err != nil {
 		respondError(c, http.StatusInternalServerError, err.Error())
 		return
+	}
+
+	if body.Key != "" {
+		invalidateRemoteModelCache()
 	}
 
 	// Return updated config
@@ -352,11 +348,12 @@ func handleTaoUpdate(c *gin.Context) {
 		data.BaseURL = v
 	}
 	if v, ok := m["api_key"].(string); ok && v != "" {
-		data.Key = taoMaskKey(cloudDecrypt(v))
+		data.Key = maskKey(decryptValue(v))
 	}
 	if v, ok := m["status"].(string); ok && v != "" {
 		data.Status = v
 	}
+
 	if svc, ok := m["services"].(map[string]interface{}); ok {
 		data.Services = taoServicesFromMap(svc)
 	}
@@ -399,7 +396,7 @@ func handleTaoBalance(c *gin.Context) {
 		baseURL = resolveTaoBaseURL("en-us")
 	}
 
-	apiKey := cloudDecrypt(encKey)
+	apiKey := decryptValue(encKey)
 	bal, balAvail := taoFetchBalance(baseURL, apiKey, 10*time.Second)
 	result := map[string]interface{}{
 		"balance_available": balAvail,
@@ -555,8 +552,14 @@ func taoFetchBalance(baseURL, apiKey string, timeout time.Duration) (*int64, boo
 	return &result.Balance, result.BalanceAvailable
 }
 
-// taoFetchModelDefaults calls GET /v1/model-defaults (no auth) and returns role→model mappings.
-func taoFetchModelDefaults(baseURL string) map[string]string {
+// TaoRoleDefault holds a parsed role default from /v1/model-defaults (object format).
+type TaoRoleDefault struct {
+	Model  string
+	Params map[string]interface{}
+}
+
+// taoFetchModelDefaults calls GET /v1/model-defaults (no auth) and returns role→default mappings.
+func taoFetchModelDefaults(baseURL string) map[string]*TaoRoleDefault {
 	url := strings.TrimRight(baseURL, "/") + "/v1/model-defaults"
 	client := &http.Client{Timeout: 10 * time.Second}
 	req, err := http.NewRequest("GET", url, nil)
@@ -576,33 +579,104 @@ func taoFetchModelDefaults(baseURL string) map[string]string {
 
 	body, _ := io.ReadAll(resp.Body)
 	var result struct {
-		Data map[string]string `json:"data"`
+		Defaults map[string]interface{} `json:"defaults"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
 		return nil
 	}
-	return result.Data
+
+	roles := make(map[string]*TaoRoleDefault, len(result.Defaults))
+	for roleName, v := range result.Defaults {
+		switch val := v.(type) {
+		case string:
+			if val != "" {
+				roles[roleName] = &TaoRoleDefault{Model: val, Params: map[string]interface{}{}}
+			}
+		case map[string]interface{}:
+			rd := &TaoRoleDefault{Params: make(map[string]interface{})}
+			rd.Model, _ = val["model"].(string)
+			for k, pv := range val {
+				if k != "model" {
+					rd.Params[k] = pv
+				}
+			}
+			roles[roleName] = rd
+		}
+	}
+	return roles
+}
+
+// taoFetchServices calls GET /v1/services and maps the result to TaoServices.
+func taoFetchServices(baseURL string) TaoServices {
+	url := strings.TrimRight(baseURL, "/") + "/v1/services"
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return TaoServices{}
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return TaoServices{}
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return TaoServices{}
+	}
+
+	body, _ := io.ReadAll(resp.Body)
+	var result struct {
+		Data []struct {
+			Service string `json:"service"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		return TaoServices{}
+	}
+
+	svc := TaoServices{}
+	for _, item := range result.Data {
+		switch item.Service {
+		case "chat":
+			svc.LLM = true
+		case "search":
+			svc.Search = true
+		case "fetch":
+			svc.Scrape = true
+		case "ocr":
+			svc.OCR = true
+		case "image":
+			svc.Image = true
+		case "audio":
+			svc.Audio = true
+		case "embedding":
+			svc.Embedding = true
+		}
+	}
+	return svc
 }
 
 // taoDetectServices determines available Tao services from the model list.
-func taoDetectServices(models []map[string]interface{}) TaoServices {
+// Deprecated: use taoFetchServices instead.
+func taoDetectServices(models []llmprovider.ModelInfo) TaoServices {
 	svc := TaoServices{
 		LLM:    len(models) > 0,
 		Search: true,
 		Scrape: true,
 	}
 	for _, m := range models {
-		mode, _ := m["mode"].(string)
-		switch mode {
-		case "embedding":
-			svc.Embedding = true
-		case "audio_transcription", "audio_speech":
-			svc.Audio = true
-		case "image_generation":
-			svc.Image = true
-		}
-		if getBool(m, "supports_vision") {
-			svc.OCR = true
+		for _, c := range m.Capabilities {
+			switch c {
+			case "embedding":
+				svc.Embedding = true
+			case "audio":
+				svc.Audio = true
+			case "image_generation":
+				svc.Image = true
+			case "vision":
+				svc.OCR = true
+			}
 		}
 	}
 	return svc

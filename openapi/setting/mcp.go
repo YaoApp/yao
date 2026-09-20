@@ -40,7 +40,7 @@ func mcpMaskToken(token string) string {
 	if token == "" {
 		return ""
 	}
-	plain := cloudDecrypt(token)
+	plain := decryptValue(token)
 	if len(plain) <= mcpMaskPrefixLen {
 		return strings.Repeat("*", len(plain))
 	}
@@ -188,7 +188,7 @@ func handleMCPCreate(c *gin.Context) {
 	}
 
 	if body.AuthorizationToken != "" {
-		client.AuthorizationToken = cloudEncrypt(body.AuthorizationToken)
+		client.AuthorizationToken = encryptValue(body.AuthorizationToken)
 	}
 	if body.Timeout == "" {
 		client.Timeout = "30s"
@@ -296,7 +296,7 @@ func handleMCPUpdate(c *gin.Context) {
 		updated.URL = body.URL
 	}
 	if body.AuthorizationToken != "" {
-		updated.AuthorizationToken = cloudEncrypt(body.AuthorizationToken)
+		updated.AuthorizationToken = encryptValue(body.AuthorizationToken)
 	}
 	if body.Timeout != "" {
 		updated.Timeout = body.Timeout
@@ -307,7 +307,7 @@ func handleMCPUpdate(c *gin.Context) {
 
 	token := body.AuthorizationToken
 	if token == "" && updated.AuthorizationToken != "" {
-		token = cloudDecrypt(updated.AuthorizationToken)
+		token = decryptValue(updated.AuthorizationToken)
 	}
 	probeTransport := updated.Transport
 	probeURL := updated.URL

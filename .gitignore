@@ -113,3 +113,4 @@ workspace/INVESTIGATION-metadata-missing.md
 docs/kanban-inbox/*
 unit-test/agent/mock-llm/mock-llm
 docs/20260713/*
+docs/requirements/*

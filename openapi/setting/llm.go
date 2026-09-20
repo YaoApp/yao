@@ -247,13 +247,14 @@ func llmValidateWithModel(client *http.Client, providerType, apiURL, apiKey stri
 }
 
 // ---------------------------------------------------------------------------
-// Cloud preset helpers
+// Remote model preset helpers
 // ---------------------------------------------------------------------------
 
 var (
-	cloudModelCache    []map[string]interface{}
-	cloudModelCacheURL string
-	cloudModelCacheMu  sync.Mutex
+	remoteModelCache     []llmprovider.ModelInfo
+	remoteModelCacheURL  string
+	remoteReasoningCache map[string]interface{} // modelID → raw reasoning field from Tao API
+	remoteModelCacheMu   sync.Mutex
 )
 
 func buildTaoPreset(info *oauthTypes.AuthorizedInfo) {
@@ -275,16 +276,12 @@ func buildTaoPreset(info *oauthTypes.AuthorizedInfo) {
 	status, _ := saved["status"].(string)
 	if status == "connected" {
 		if encKey, _ := saved["api_key"].(string); encKey != "" {
-			raw := fetchCloudModels(apiURL, cloudDecrypt(encKey))
-			if len(raw) > 0 {
-				rawJSON, _ := json.Marshal(raw)
-				var models []llmprovider.ModelInfo
-				if err := json.Unmarshal(rawJSON, &models); err == nil {
-					for i := range models {
-						models[i].Enabled = true
-					}
-					preset.DefaultModels = models
+			models := fetchRemoteModels(apiURL, decryptValue(encKey))
+			if len(models) > 0 {
+				for i := range models {
+					models[i].Enabled = true
 				}
+				preset.DefaultModels = models
 			}
 		}
 	}
@@ -302,24 +299,14 @@ func resolveTaoAPIURL(saved map[string]interface{}) string {
 	return resolveTaoBaseURL("en-us")
 }
 
-func resolveCloudAPIURL(saved map[string]interface{}) string {
-	if saved != nil {
-		if v, ok := saved["api_url"].(string); ok && v != "" {
-			return v
-		}
-	}
-	def := cloudDefaultRegion()
-	return def.APIURL
-}
-
-func fetchCloudModels(apiURL, apiKey string) []map[string]interface{} {
-	cloudModelCacheMu.Lock()
-	if cloudModelCache != nil && cloudModelCacheURL == apiURL {
-		cached := cloudModelCache
-		cloudModelCacheMu.Unlock()
+func fetchRemoteModels(apiURL, apiKey string) []llmprovider.ModelInfo {
+	remoteModelCacheMu.Lock()
+	if remoteModelCache != nil && remoteModelCacheURL == apiURL {
+		cached := remoteModelCache
+		remoteModelCacheMu.Unlock()
 		return cached
 	}
-	cloudModelCacheMu.Unlock()
+	remoteModelCacheMu.Unlock()
 
 	url := apiURL
 	if strings.HasSuffix(url, "/") {
@@ -357,70 +344,62 @@ func fetchCloudModels(apiURL, apiKey string) []map[string]interface{} {
 		return nil
 	}
 
-	models := make([]map[string]interface{}, 0, len(result.Data))
+	reasoningCache := make(map[string]interface{})
+	remoteModelCacheMu.Lock()
+	remoteReasoningCache = reasoningCache
+	remoteModelCacheMu.Unlock()
+
+	var expanded []llmprovider.ModelInfo
 	for _, item := range result.Data {
-		m := mapCloudModel(item)
-		if m != nil {
-			models = append(models, m)
+		base := mapRemoteModel(item)
+		if base == nil {
+			continue
 		}
+		variants := expandReasoningVariants(base)
+		expanded = append(expanded, variants...)
 	}
 
-	cloudModelCacheMu.Lock()
-	cloudModelCache = models
-	cloudModelCacheURL = apiURL
-	cloudModelCacheMu.Unlock()
+	remoteModelCacheMu.Lock()
+	remoteModelCache = expanded
+	remoteModelCacheURL = apiURL
+	remoteModelCacheMu.Unlock()
 
-	return models
+	return expanded
 }
 
-func invalidateCloudModelCache() {
-	cloudModelCacheMu.Lock()
-	cloudModelCache = nil
-	cloudModelCacheURL = ""
-	cloudModelCacheMu.Unlock()
+func invalidateRemoteModelCache() {
+	remoteModelCacheMu.Lock()
+	remoteModelCache = nil
+	remoteModelCacheURL = ""
+	remoteReasoningCache = nil
+	remoteModelCacheMu.Unlock()
 }
 
-func mapCloudModel(item map[string]interface{}) map[string]interface{} {
+func mapRemoteModel(item map[string]interface{}) map[string]interface{} {
 	id, _ := item["id"].(string)
 	if id == "" {
 		return nil
 	}
 
-	name := id
-	if label, ok := item["label"].(string); ok && label != "" {
-		name = strings.TrimPrefix(label, "Yao Agents / ")
-		name = strings.TrimPrefix(name, "Yao Agents /")
+	// OCR and fetch models are handled by dedicated tool providers, not the LLM provider.
+	if svc, _ := item["service"].(string); svc == "ocr" || svc == "fetch" {
+		return nil
 	}
 
-	caps := make([]string, 0)
-	mode, _ := item["mode"].(string)
-	switch mode {
-	case "embedding":
-		caps = append(caps, "embedding")
-	case "audio_transcription", "audio_speech":
-		caps = append(caps, "audio")
-	case "image_generation":
-		caps = append(caps, "image_generation")
-	default:
-		if getBool(item, "supports_streaming") {
-			caps = append(caps, "streaming")
-		}
-		if getBool(item, "supports_function_calling") {
-			caps = append(caps, "tool_calls")
-		}
-		if getBool(item, "supports_vision") {
-			caps = append(caps, "vision")
-		}
-		if getBool(item, "supports_response_schema") {
-			caps = append(caps, "json")
-		}
-		if getBool(item, "supports_reasoning") {
-			caps = append(caps, "reasoning")
-		}
-		if getBool(item, "supports_audio_input") {
-			caps = append(caps, "audio")
+	name, _ := item["name"].(string)
+	if name == "" {
+		name = id
+	}
+
+	var caps []string
+	if rawCaps, ok := item["capabilities"].([]interface{}); ok {
+		for _, c := range rawCaps {
+			if s, ok := c.(string); ok {
+				caps = append(caps, s)
+			}
 		}
 	}
+	caps = normalizeCapabilities(caps)
 
 	m := map[string]interface{}{
 		"id":           id,
@@ -428,26 +407,51 @@ func mapCloudModel(item map[string]interface{}) map[string]interface{} {
 		"capabilities": caps,
 	}
 
+	if desc, ok := item["description"].(string); ok && desc != "" {
+		m["description"] = desc
+	}
 	if v, ok := getNumber(item, "max_input_tokens"); ok && v > 0 {
 		m["max_input_tokens"] = int(v)
 	}
 	if v, ok := getNumber(item, "max_output_tokens"); ok && v > 0 {
 		m["max_output_tokens"] = int(v)
 	}
-	opts := map[string]interface{}{}
-	if dp, ok := item["params"].(map[string]interface{}); ok {
-		for k, v := range dp {
-			opts[k] = v
+	if r, ok := item["reasoning"]; ok && r != nil {
+		m["reasoning"] = r
+	}
+	return m
+}
+
+// normalizeCapabilities maps upstream capability names to the canonical names the
+// frontend expects (e.g. image_generate → image_generation, audio_transcribe → audio).
+func normalizeCapabilities(caps []string) []string {
+	if len(caps) == 0 {
+		return []string{}
+	}
+	seen := make(map[string]bool, len(caps))
+	out := make([]string, 0, len(caps)+2)
+	for _, c := range caps {
+		if seen[c] {
+			continue
+		}
+		seen[c] = true
+		out = append(out, c)
+
+		var alias string
+		switch c {
+		case "image_generate":
+			alias = "image_generation"
+		case "image_edit":
+			alias = "image_editing"
+		case "audio_transcribe":
+			alias = "audio"
+		}
+		if alias != "" && !seen[alias] {
+			seen[alias] = true
+			out = append(out, alias)
 		}
 	}
-	if at, ok := item["api_type"].(string); ok && at != "" {
-		opts["_connector_type"] = at
-	}
-	if len(opts) > 0 {
-		m["options"] = opts
-	}
-
-	return m
+	return out
 }
 
 func getBool(m map[string]interface{}, key string) bool {
@@ -470,6 +474,383 @@ func getNumber(m map[string]interface{}, key string) (float64, bool) {
 		return f, err == nil
 	}
 	return 0, false
+}
+
+// ---------------------------------------------------------------------------
+// Reasoning expansion — generates one ModelInfo per thinking-intensity config
+// ---------------------------------------------------------------------------
+
+// reasoningSpec holds the parsed reasoning field from a Tao API model.
+type reasoningSpec struct {
+	Switch      *reasoningSwitch
+	Effort      *reasoningEffort
+	Default     map[string]interface{}
+	CanDisable  *bool                    // Tao can_disable: whether thinking can be turned off
+	DisableWith []map[string]interface{} // Tao disable_with: parameter snippets that disable thinking
+}
+
+type reasoningSwitch struct {
+	Param  string
+	Values []interface{}
+}
+
+type reasoningEffort struct {
+	Param  string
+	Values []string
+}
+
+// parseReasoningSpec converts a raw reasoning field (interface{}) into a typed struct.
+func parseReasoningSpec(raw interface{}) *reasoningSpec {
+	m, ok := raw.(map[string]interface{})
+	if !ok || m == nil {
+		return nil
+	}
+
+	spec := &reasoningSpec{}
+
+	if sw, ok := m["switch"].(map[string]interface{}); ok {
+		param, _ := sw["param"].(string)
+		if param != "" {
+			rs := &reasoningSwitch{Param: param}
+			if vals, ok := sw["values"].([]interface{}); ok {
+				rs.Values = vals
+			}
+			spec.Switch = rs
+		}
+	}
+
+	if eff, ok := m["effort"].(map[string]interface{}); ok {
+		param, _ := eff["param"].(string)
+		if param != "" {
+			re := &reasoningEffort{Param: param}
+			if vals, ok := eff["values"].([]interface{}); ok {
+				for _, v := range vals {
+					if s, ok := v.(string); ok {
+						re.Values = append(re.Values, s)
+					}
+				}
+			}
+			spec.Effort = re
+		}
+	}
+
+	if def, ok := m["default"].(map[string]interface{}); ok {
+		spec.Default = def
+	}
+
+	if cd, ok := m["can_disable"].(bool); ok {
+		spec.CanDisable = &cd
+	}
+
+	if dw, ok := m["disable_with"].([]interface{}); ok {
+		for _, item := range dw {
+			if dm, ok := item.(map[string]interface{}); ok {
+				spec.DisableWith = append(spec.DisableWith, dm)
+			}
+		}
+	}
+
+	return spec
+}
+
+// classifySwitchValues separates switch values into disabled and enabled.
+// Returns (disabledVal, enabledVal); either may be nil.
+func classifySwitchValues(sw *reasoningSwitch) (disabled, enabled interface{}) {
+	for _, v := range sw.Values {
+		switch val := v.(type) {
+		case bool:
+			if val {
+				enabled = v
+			} else {
+				disabled = v
+			}
+		case map[string]interface{}:
+			t, _ := val["type"].(string)
+			if t == "disabled" {
+				disabled = v
+			} else {
+				enabled = v
+			}
+		default:
+			enabled = v
+		}
+	}
+	return
+}
+
+// isSwitchDisabled returns true if the switch value represents "disabled".
+func isSwitchDisabled(v interface{}) bool {
+	switch val := v.(type) {
+	case bool:
+		return !val
+	case map[string]interface{}:
+		t, _ := val["type"].(string)
+		return t == "disabled"
+	}
+	return false
+}
+
+// expandReasoningVariants expands a single Tao model into multiple ModelInfo
+// entries, one per thinking-intensity configuration.
+func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.ModelInfo {
+	id, _ := baseModel["id"].(string)
+	if id == "" {
+		return nil
+	}
+
+	spec := parseReasoningSpec(baseModel["reasoning"])
+	baseCaps := toStringSlice(baseModel["capabilities"])
+
+	if spec == nil {
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "")}
+	}
+
+	cacheModelReasoning(id, baseModel["reasoning"])
+
+	hasSwitch := spec.Switch != nil && len(spec.Switch.Values) > 0
+	hasEffort := spec.Effort != nil && len(spec.Effort.Values) > 0
+	var disabledVal, enabledVal interface{}
+	if hasSwitch {
+		disabledVal, enabledVal = classifySwitchValues(spec.Switch)
+	}
+
+	// Determine whether a disabled variant can be generated and its Options.
+	// Priority: CanDisable > classifySwitchValues inference (backward compat).
+	var disableOpts map[string]interface{}
+	canDisable := false
+	if spec.CanDisable != nil {
+		if *spec.CanDisable && len(spec.DisableWith) > 0 {
+			disableOpts = spec.DisableWith[0]
+			canDisable = true
+		} else if *spec.CanDisable && len(spec.DisableWith) == 0 && hasSwitch && disabledVal != nil {
+			disableOpts = map[string]interface{}{spec.Switch.Param: disabledVal}
+			canDisable = true
+		}
+		// can_disable==false → canDisable stays false regardless of switch values
+	} else if hasSwitch && disabledVal != nil {
+		disableOpts = map[string]interface{}{spec.Switch.Param: disabledVal}
+		canDisable = true
+	}
+
+	// Case 1: switch + effort, can disable (e.g. deepseek-flash, qwen3.8-flash, kimi-k3)
+	if hasSwitch && canDisable && hasEffort {
+		variants := make([]llmprovider.ModelInfo, 0, 1+len(spec.Effort.Values))
+		variants = append(variants, buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, ""))
+		for _, effort := range spec.Effort.Values {
+			if effort == "none" {
+				continue
+			}
+			eOpts := map[string]interface{}{spec.Switch.Param: enabledVal, spec.Effort.Param: effort}
+			connID := id + "-thinking-" + effort
+			suffix := "(Thinking: " + capitalizeFirst(effort) + ")"
+			variants = append(variants, buildModelInfo(connID, id, ensureCap(baseCaps, "reasoning"), eOpts, baseModel, false, suffix))
+		}
+		return variants
+	}
+
+	// Case 2: effort only, no switch (always-reasoning, no disable mechanism)
+	if !hasSwitch && hasEffort {
+		defaultEffort := ""
+		if spec.Default != nil && spec.Effort != nil {
+			defaultEffort, _ = spec.Default[spec.Effort.Param].(string)
+		}
+		variants := make([]llmprovider.ModelInfo, 0, len(spec.Effort.Values))
+		for _, effort := range spec.Effort.Values {
+			opts := map[string]interface{}{spec.Effort.Param: effort}
+			thinkingCaps := ensureCap(baseCaps, "reasoning")
+			if effort == defaultEffort {
+				variants = append(variants, buildModelInfo(id, "", thinkingCaps, opts, baseModel, true, ""))
+			} else {
+				connID := id + "-effort-" + effort
+				suffix := "(Effort: " + capitalizeFirst(effort) + ")"
+				variants = append(variants, buildModelInfo(connID, id, thinkingCaps, opts, baseModel, false, suffix))
+			}
+		}
+		return variants
+	}
+
+	// Case 3: switch only (enabled/disabled), no effort, can disable
+	if hasSwitch && enabledVal != nil && canDisable && !hasEffort {
+		opts2 := map[string]interface{}{spec.Switch.Param: enabledVal}
+		return []llmprovider.ModelInfo{
+			buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, ""),
+			buildModelInfo(id+"-thinking", id, ensureCap(baseCaps, "reasoning"), opts2, baseModel, false, "(Thinking)"),
+		}
+	}
+
+	// Case 4: switch with only enabled, or cannot disable (e.g. kimi-k2.7-code)
+	if hasSwitch && enabledVal != nil && !canDisable {
+		opts := map[string]interface{}{spec.Switch.Param: enabledVal}
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), opts, baseModel, true, "")}
+	}
+
+	// Case 5: no switch + no effort but has default params
+	if spec.Default != nil {
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), spec.Default, baseModel, true, "")}
+	}
+
+	return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "")}
+}
+
+// resolveConnectorID maps a role default (model + params) back to the expanded connector ID.
+func resolveConnectorID(modelID string, params map[string]interface{}, reasoning interface{}) string {
+	spec := parseReasoningSpec(reasoning)
+	if spec == nil {
+		return modelID
+	}
+
+	if len(params) == 0 {
+		if spec.Default != nil {
+			params = copyMap(spec.Default)
+		} else {
+			return modelID
+		}
+	}
+
+	hasSwitch := spec.Switch != nil && len(spec.Switch.Values) > 0
+	hasEffort := spec.Effort != nil && len(spec.Effort.Values) > 0
+
+	switchIsDisabled := false
+	if hasSwitch {
+		if switchVal, ok := params[spec.Switch.Param]; ok {
+			switchIsDisabled = isSwitchDisabled(switchVal)
+		} else if spec.Default != nil {
+			if defSwitch, ok := spec.Default[spec.Switch.Param]; ok {
+				switchIsDisabled = isSwitchDisabled(defSwitch)
+			}
+		}
+	}
+
+	if hasSwitch && switchIsDisabled {
+		return modelID
+	}
+
+	effortVal := ""
+	if hasEffort {
+		if ev, ok := params[spec.Effort.Param].(string); ok {
+			effortVal = ev
+		} else if spec.Default != nil {
+			effortVal, _ = spec.Default[spec.Effort.Param].(string)
+		}
+	}
+
+	if hasSwitch && hasEffort && effortVal != "" {
+		if effortVal == "none" {
+			return modelID
+		}
+		return modelID + "-thinking-" + effortVal
+	}
+	if hasSwitch && !hasEffort {
+		return modelID + "-thinking"
+	}
+	if !hasSwitch && hasEffort && effortVal != "" {
+		defaultEffort := ""
+		if spec.Default != nil {
+			defaultEffort, _ = spec.Default[spec.Effort.Param].(string)
+		}
+		if effortVal == defaultEffort {
+			return modelID
+		}
+		return modelID + "-effort-" + effortVal
+	}
+
+	return modelID
+}
+
+// buildModelInfo constructs a ModelInfo from expansion parameters.
+// nameSuffix is appended to the display name to distinguish thinking variants.
+func buildModelInfo(connID, model string, caps []string, opts map[string]interface{}, base map[string]interface{}, enabled bool, nameSuffix string) llmprovider.ModelInfo {
+	name, _ := base["name"].(string)
+	if name == "" {
+		name = connID
+	}
+	if nameSuffix != "" {
+		name = name + " " + nameSuffix
+	}
+	mi := llmprovider.ModelInfo{
+		ID:           connID,
+		Name:         name,
+		Capabilities: caps,
+		Enabled:      enabled,
+		Options:      opts,
+	}
+	if model != "" {
+		mi.Model = model
+	}
+	if v, ok := getNumber(base, "max_input_tokens"); ok && v > 0 {
+		mi.MaxInputTokens = int(v)
+	}
+	if v, ok := getNumber(base, "max_output_tokens"); ok && v > 0 {
+		mi.MaxOutputTokens = int(v)
+	}
+	return mi
+}
+
+// capitalizeFirst returns s with the first letter uppercased.
+func capitalizeFirst(s string) string {
+	if s == "" {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// toStringSlice extracts a string slice from an interface value.
+func toStringSlice(v interface{}) []string {
+	switch val := v.(type) {
+	case []string:
+		return val
+	case []interface{}:
+		out := make([]string, 0, len(val))
+		for _, item := range val {
+			if s, ok := item.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	}
+	return nil
+}
+
+// removeCap returns a copy of caps without the specified capability.
+func removeCap(caps []string, remove string) []string {
+	out := make([]string, 0, len(caps))
+	for _, c := range caps {
+		if c != remove {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// ensureCap returns a copy of caps with the specified capability added if missing.
+func ensureCap(caps []string, add string) []string {
+	for _, c := range caps {
+		if c == add {
+			dst := make([]string, len(caps))
+			copy(dst, caps)
+			return dst
+		}
+	}
+	out := make([]string, len(caps)+1)
+	copy(out, caps)
+	out[len(caps)] = add
+	return out
+}
+
+// cacheModelReasoning stores the raw reasoning spec for later resolveConnectorID lookups.
+func cacheModelReasoning(modelID string, reasoning interface{}) {
+	if reasoning != nil && remoteReasoningCache != nil {
+		remoteReasoningCache[modelID] = reasoning
+	}
+}
+
+// copyMap returns a shallow copy of a map.
+func copyMap(m map[string]interface{}) map[string]interface{} {
+	out := make(map[string]interface{}, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -753,7 +1134,7 @@ func handleLLMProviderCreate(c *gin.Context) {
 				saved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 			}
 			if encKey, _ := saved["api_key"].(string); encKey != "" {
-				provider.APIKey = cloudDecrypt(encKey)
+				provider.APIKey = decryptValue(encKey)
 			}
 		}
 	} else {

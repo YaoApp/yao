@@ -9,6 +9,7 @@ import (
 
 	"github.com/yaoapp/gou/process"
 	agentLLM "github.com/yaoapp/yao/agent/llm"
+	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/authorized"
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/setting"
@@ -42,7 +43,10 @@ func RecognizeHandler(proc *process.Process) interface{} {
 	}
 
 	if ocrType != "" && !isValidType(ocrType) {
-		return map[string]interface{}{"error": fmt.Sprintf("invalid type %q; valid values: general, table, handwriting, invoice, receipt, id_card, bank_card, license, vehicle_license, passport, license_plate, document", ocrType)}
+		return map[string]interface{}{"error": fmt.Sprintf("invalid type %q; valid values: general, table, handwriting, invoice, receipt, id_card, bank_card, license, vehicle_license, passport, license_plate, document, general_basic, accurate_basic, idcard, bankcard", ocrType)}
+	}
+	if !isValidOutputFormat(outputFormat) {
+		return map[string]interface{}{"error": fmt.Sprintf("invalid output_format %q; valid values: text, json, markdown", outputFormat)}
 	}
 	ocrType = defaultType(ocrType)
 
@@ -151,6 +155,18 @@ func resolveProvider(explicit string, authInfo *oauthTypes.AuthorizedInfo) (id s
 		}
 	}
 
+	// Fallback: check Tao OCR service
+	if setting.Global != nil {
+		taoSaved, _ := setting.Global.GetMerged(
+			authInfo.GetUserID(), authInfo.GetTeamID(), "tao",
+		)
+		if taoSaved != nil {
+			if st, ok := taoSaved["status"].(string); ok && st == "connected" {
+				return "tao", "tao", nil
+			}
+		}
+	}
+
 	// Fallback: find first enabled OCR API provider
 	if setting.Global != nil {
 		for _, key := range []string{"paddleocr", "baidu", "google", "azure"} {
@@ -177,10 +193,14 @@ func resolveProvider(explicit string, authInfo *oauthTypes.AuthorizedInfo) (id s
 	return "", "", fmt.Errorf("no OCR provider configured; add one via Settings > OCR or specify the provider parameter")
 }
 
-// classifyProvider identifies whether a provider ID is an LLM connector or traditional API key.
+// classifyProvider identifies whether a provider ID is an LLM connector, Tao, or traditional API key.
 func classifyProvider(id string, authInfo *oauthTypes.AuthorizedInfo) (string, string, error) {
 	if strings.HasPrefix(id, "llm:") {
 		return strings.TrimPrefix(id, "llm:"), "llm", nil
+	}
+
+	if id == "tao" {
+		return "tao", "tao", nil
 	}
 
 	// Check if it's a known OCR preset key
@@ -203,6 +223,14 @@ func classifyProvider(id string, authInfo *oauthTypes.AuthorizedInfo) (string, s
 func selectHandler(providerID, providerType string, authInfo *oauthTypes.AuthorizedInfo) (ProviderHandler, error) {
 	if providerType == "llm" {
 		return &VLMHandler{ConnectorID: providerID, AuthInfo: authInfo}, nil
+	}
+
+	if providerType == "tao" {
+		baseURL, apiKey, err := readTaoCredentials(authInfo)
+		if err != nil {
+			return nil, err
+		}
+		return &TaoHandler{BaseURL: baseURL, APIKey: apiKey}, nil
 	}
 
 	// Traditional API: read credentials from settings
@@ -234,6 +262,32 @@ func selectHandler(providerID, providerType string, authInfo *oauthTypes.Authori
 	default:
 		return nil, fmt.Errorf("unsupported OCR provider: %s", providerID)
 	}
+}
+
+// readTaoCredentials reads the Tao Service base_url and decrypted api_key from settings.
+func readTaoCredentials(authInfo *oauthTypes.AuthorizedInfo) (baseURL, apiKey string, err error) {
+	if setting.Global == nil {
+		return "", "", fmt.Errorf("setting registry not initialized")
+	}
+
+	saved, mergeErr := setting.Global.GetMerged(
+		authInfo.GetUserID(), authInfo.GetTeamID(), "tao",
+	)
+	if mergeErr != nil || saved == nil {
+		return "", "", fmt.Errorf("Tao Service not configured")
+	}
+
+	if v, ok := saved["base_url"].(string); ok && v != "" {
+		baseURL = v
+	}
+	if v, ok := saved["api_key"].(string); ok && v != "" {
+		apiKey = config.DecryptValue(v)
+	}
+
+	if baseURL == "" || apiKey == "" {
+		return "", "", fmt.Errorf("Tao Service base_url or api_key missing")
+	}
+	return baseURL, apiKey, nil
 }
 
 // readOCRCredentials reads decrypted credential values for a traditional OCR provider.

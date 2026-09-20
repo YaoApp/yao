@@ -12,24 +12,29 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestOCRPresetsLoaded(t *testing.T) {
-	if len(ocrPresets) != 4 {
-		t.Fatalf("expected 4 OCR presets, got %d", len(ocrPresets))
+	if len(ocrPresets) != 5 {
+		t.Fatalf("expected 5 OCR presets, got %d", len(ocrPresets))
 	}
 
 	expected := []struct {
 		key       string
+		isCloud   bool
 		fieldKeys []string
 	}{
-		{"paddleocr", []string{"base_url", "api_key"}},
-		{"baidu", []string{"api_key", "secret_key"}},
-		{"google", []string{"api_key"}},
-		{"azure", []string{"api_key", "endpoint"}},
+		{"tao", true, nil},
+		{"paddleocr", false, []string{"base_url", "api_key"}},
+		{"baidu", false, []string{"api_key", "secret_key"}},
+		{"google", false, []string{"api_key"}},
+		{"azure", false, []string{"api_key", "endpoint"}},
 	}
 
 	for i, e := range expected {
 		p := ocrPresets[i]
 		if p.Key != e.key {
 			t.Errorf("preset[%d].Key = %q, want %q", i, p.Key, e.key)
+		}
+		if p.IsCloud != e.isCloud {
+			t.Errorf("preset %q: IsCloud = %v, want %v", e.key, p.IsCloud, e.isCloud)
 		}
 		if len(p.Fields) != len(e.fieldKeys) {
 			t.Errorf("preset %q: %d fields, want %d", e.key, len(p.Fields), len(e.fieldKeys))
@@ -75,6 +80,7 @@ func TestOCRPresetsPasswordFields(t *testing.T) {
 		pwFields  []string
 		txtFields []string
 	}{
+		{"tao", nil, nil},
 		{"paddleocr", []string{"api_key"}, []string{"base_url"}},
 		{"baidu", []string{"api_key", "secret_key"}, nil},
 		{"google", []string{"api_key"}, nil},
@@ -100,13 +106,35 @@ func TestOCRPresetsPasswordFields(t *testing.T) {
 }
 
 func TestOCRFindPreset(t *testing.T) {
-	for _, key := range []string{"paddleocr", "baidu", "google", "azure"} {
+	for _, key := range []string{"tao", "paddleocr", "baidu", "google", "azure"} {
 		if p := ocrFindPreset(key); p == nil {
 			t.Errorf("ocrFindPreset(%q) = nil, want non-nil", key)
 		}
 	}
 	if p := ocrFindPreset("nonexistent"); p != nil {
 		t.Errorf("ocrFindPreset(\"nonexistent\") = %v, want nil", p)
+	}
+}
+
+func TestOCRTaoPresetIsCloud(t *testing.T) {
+	p := ocrFindPreset("tao")
+	if p == nil {
+		t.Fatal("ocrFindPreset(\"tao\") = nil")
+	}
+	if !p.IsCloud {
+		t.Error("tao preset should have IsCloud = true")
+	}
+	if len(p.Fields) != 0 {
+		t.Errorf("tao preset should have 0 fields, got %d", len(p.Fields))
+	}
+	found := false
+	for _, tool := range p.Tools {
+		if tool == "ocr_recognize" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("tao preset missing 'ocr_recognize' in tools")
 	}
 }
 

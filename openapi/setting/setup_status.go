@@ -378,7 +378,7 @@ func checkSearch(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 
 	for _, preset := range searchPresets {
 		if preset.IsCloud {
-			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 			if saved != nil {
 				if v, ok := saved["status"].(string); ok && v == "connected" {
 					cp.Status = "pass"
@@ -415,11 +415,21 @@ func checkOCR(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	}
 
 	for _, preset := range ocrPresets {
-		saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, ocrProviderNS(preset.Key))
-		if saved != nil {
-			if v, ok := saved["status"].(string); ok && v == "connected" {
-				cp.Status = "pass"
-				return cp
+		if preset.IsCloud {
+			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
+			if saved != nil {
+				if v, ok := saved["status"].(string); ok && v == "connected" {
+					cp.Status = "pass"
+					return cp
+				}
+			}
+		} else {
+			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, ocrProviderNS(preset.Key))
+			if saved != nil {
+				if v, ok := saved["status"].(string); ok && v == "connected" {
+					cp.Status = "pass"
+					return cp
+				}
 			}
 		}
 	}
@@ -639,10 +649,10 @@ func checkAssistantSearch(ast *assistant.Assistant, info *oauthTypes.AuthorizedI
 		return cp
 	}
 
-	// Check cloud search
-	cloudSaved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
-	if cloudSaved != nil {
-		if v, ok := cloudSaved["status"].(string); ok && v == "connected" {
+	// Check Tao search
+	taoSaved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
+	if taoSaved != nil {
+		if v, ok := taoSaved["status"].(string); ok && v == "connected" {
 			cp.Status = "pass"
 			return cp
 		}
