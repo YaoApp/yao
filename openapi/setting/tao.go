@@ -174,17 +174,13 @@ func handleTaoSetup(c *gin.Context) {
 	// Step 5: fetch model-defaults and assign roles
 	roleDefaults := taoFetchModelDefaults(baseURL)
 	roleMap := make(map[string]interface{})
-	rolesForResponse := make(map[string]string)
 
-	if roleDefaults != nil {
-		for roleName, rd := range roleDefaults {
-			reasoning := remoteReasoningCache[rd.Model]
-			connID := resolveConnectorID(rd.Model, rd.Params, reasoning)
-			roleMap[roleName] = map[string]interface{}{
-				"provider": provKey,
-				"model":    connID,
-			}
-			rolesForResponse[roleName] = connID
+	for roleName, rd := range roleDefaults {
+		reasoning := remoteReasoningCache[rd.Model]
+		connID := resolveConnectorID(rd.Model, rd.Params, reasoning)
+		roleMap[roleName] = map[string]interface{}{
+			"provider": provKey,
+			"model":    connID,
 		}
 	}
 
@@ -193,20 +189,26 @@ func handleTaoSetup(c *gin.Context) {
 			"provider": provKey,
 			"model":    modelInfos[0].ID,
 		}
-		rolesForResponse["default"] = modelInfos[0].ID
 	}
+
+	// Merge: preserve existing valid role assignments, only fill empty slots
+	existingRoles, _ := setting.Global.Get(scope, llmRolesNS)
+	mergeRoleAssignments(roleMap, existingRoles)
+	rolesForResponse := buildRolesForResponse(roleMap)
 	setting.Global.Set(scope, llmRolesNS, roleMap)
 
-	// Step 6: assign search + OCR tools to tao preset
-	searchAssign := map[string]interface{}{
+	// Step 6: assign search + OCR tools to tao preset (merge: keep existing non-empty values)
+	existingSearch, _ := setting.Global.Get(scope, searchAssignmentNS)
+	searchAssign := mergeToolAssignment(existingSearch, map[string]string{
 		"web_search": "tao",
 		"web_scrape": "tao",
-	}
+	})
 	setting.Global.Set(scope, searchAssignmentNS, searchAssign)
 
-	ocrAssign := map[string]interface{}{
+	existingOCR, _ := setting.Global.Get(scope, ocrAssignmentNS)
+	ocrAssign := mergeToolAssignment(existingOCR, map[string]string{
 		"ocr_recognize": "tao",
-	}
+	})
 	setting.Global.Set(scope, ocrAssignmentNS, ocrAssign)
 
 	// Step 7: pre-fetch OCR types from Tao (populates cache for handler_tao)
@@ -680,6 +682,59 @@ func taoDetectServices(models []llmprovider.ModelInfo) TaoServices {
 		}
 	}
 	return svc
+}
+
+// isValidRoleAssignment checks that a stored role value is a map with
+// non-empty "provider" and "model" strings.
+func isValidRoleAssignment(v interface{}) bool {
+	m, ok := v.(map[string]interface{})
+	if !ok {
+		return false
+	}
+	p, _ := m["provider"].(string)
+	md, _ := m["model"].(string)
+	return p != "" && md != ""
+}
+
+// mergeRoleAssignments merges Tao role defaults with existing user role assignments.
+// Existing valid assignments (non-nil with non-empty provider+model) take precedence
+// over defaults. Invalid existing entries are silently ignored so the Tao default fills in.
+func mergeRoleAssignments(defaults, existing map[string]interface{}) {
+	for k, v := range existing {
+		if isValidRoleAssignment(v) {
+			defaults[k] = v
+		}
+	}
+}
+
+// buildRolesForResponse extracts model IDs from a merged role assignment map.
+// Each entry is expected to be map[string]interface{}{"provider":…, "model":…}.
+func buildRolesForResponse(roleMap map[string]interface{}) map[string]string {
+	result := make(map[string]string, len(roleMap))
+	for roleName, val := range roleMap {
+		if tm, ok := val.(map[string]interface{}); ok {
+			if modelID, _ := tm["model"].(string); modelID != "" {
+				result[roleName] = modelID
+			}
+		}
+	}
+	return result
+}
+
+// mergeToolAssignment copies existing assignment values and fills empty/missing
+// slots from defaults. A slot is "empty" when the key is absent or its value
+// is not a non-empty string.
+func mergeToolAssignment(existing map[string]interface{}, defaults map[string]string) map[string]interface{} {
+	result := make(map[string]interface{})
+	for k, v := range existing {
+		result[k] = v
+	}
+	for k, defVal := range defaults {
+		if v, _ := result[k].(string); v == "" {
+			result[k] = defVal
+		}
+	}
+	return result
 }
 
 // taoServicesFromMap deserializes a services map from the settings store.

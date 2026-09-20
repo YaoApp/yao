@@ -546,3 +546,282 @@ func TestTaoFetchModelDefaults_ConnectionRefused(t *testing.T) {
 		t.Fatalf("expected nil on connection refused, got %v", roles)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// isValidRoleAssignment
+// ---------------------------------------------------------------------------
+
+func TestIsValidRoleAssignment(t *testing.T) {
+	tests := []struct {
+		name string
+		val  interface{}
+		want bool
+	}{
+		{"nil", nil, false},
+		{"string", "hello", false},
+		{"int", 42, false},
+		{"empty map", map[string]interface{}{}, false},
+		{"missing model", map[string]interface{}{"provider": "p1"}, false},
+		{"missing provider", map[string]interface{}{"model": "m1"}, false},
+		{"empty provider", map[string]interface{}{"provider": "", "model": "m1"}, false},
+		{"empty model", map[string]interface{}{"provider": "p1", "model": ""}, false},
+		{"both empty", map[string]interface{}{"provider": "", "model": ""}, false},
+		{"provider non-string", map[string]interface{}{"provider": 123, "model": "m1"}, false},
+		{"model non-string", map[string]interface{}{"provider": "p1", "model": 456}, false},
+		{"valid", map[string]interface{}{"provider": "p1", "model": "m1"}, true},
+		{"valid with extras", map[string]interface{}{"provider": "p1", "model": "m1", "extra": "x"}, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isValidRoleAssignment(tc.val)
+			if got != tc.want {
+				t.Fatalf("isValidRoleAssignment(%v) = %v, want %v", tc.val, got, tc.want)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// mergeRoleAssignments
+// ---------------------------------------------------------------------------
+
+func TestMergeRoleAssignments_NilExisting(t *testing.T) {
+	defaults := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "tao", "model": "deepseek"},
+	}
+	mergeRoleAssignments(defaults, nil)
+	if len(defaults) != 1 {
+		t.Fatalf("expected 1 role, got %d", len(defaults))
+	}
+	m := defaults["default"].(map[string]interface{})
+	if m["model"] != "deepseek" {
+		t.Fatalf("expected model=deepseek, got %v", m["model"])
+	}
+}
+
+func TestMergeRoleAssignments_ExistingOverridesDefaults(t *testing.T) {
+	defaults := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "tao", "model": "deepseek"},
+		"heavy":   map[string]interface{}{"provider": "tao", "model": "deepseek-max"},
+	}
+	existing := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "user:openai", "model": "gpt-4o"},
+	}
+	mergeRoleAssignments(defaults, existing)
+
+	// default should be overridden by existing
+	m := defaults["default"].(map[string]interface{})
+	if m["provider"] != "user:openai" || m["model"] != "gpt-4o" {
+		t.Fatalf("expected user:openai/gpt-4o, got %v/%v", m["provider"], m["model"])
+	}
+	// heavy should remain from defaults
+	h := defaults["heavy"].(map[string]interface{})
+	if h["model"] != "deepseek-max" {
+		t.Fatalf("expected heavy model=deepseek-max, got %v", h["model"])
+	}
+}
+
+func TestMergeRoleAssignments_InvalidExistingIgnored(t *testing.T) {
+	defaults := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "tao", "model": "deepseek"},
+	}
+	existing := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "", "model": ""},          // invalid: empty
+		"light":   map[string]interface{}{},                                     // invalid: no fields
+		"vision":  "some-string",                                                // invalid: not a map
+		"audio":   map[string]interface{}{"provider": "p1", "model": "whisper"}, // valid
+	}
+	mergeRoleAssignments(defaults, existing)
+
+	// default stays as Tao default (existing was invalid)
+	m := defaults["default"].(map[string]interface{})
+	if m["model"] != "deepseek" {
+		t.Fatalf("expected default model=deepseek, got %v", m["model"])
+	}
+	// audio added from existing (valid)
+	a := defaults["audio"].(map[string]interface{})
+	if a["model"] != "whisper" {
+		t.Fatalf("expected audio model=whisper, got %v", a["model"])
+	}
+	// light and vision should NOT appear (invalid)
+	if _, ok := defaults["light"]; ok {
+		t.Fatal("invalid existing 'light' should not be merged")
+	}
+	if _, ok := defaults["vision"]; ok {
+		t.Fatal("invalid existing 'vision' should not be merged")
+	}
+}
+
+func TestMergeRoleAssignments_ExistingAddsNewRoles(t *testing.T) {
+	defaults := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "tao", "model": "deepseek"},
+	}
+	existing := map[string]interface{}{
+		"embedding": map[string]interface{}{"provider": "user:openai", "model": "ada-002"},
+	}
+	mergeRoleAssignments(defaults, existing)
+
+	if len(defaults) != 2 {
+		t.Fatalf("expected 2 roles, got %d", len(defaults))
+	}
+	e := defaults["embedding"].(map[string]interface{})
+	if e["model"] != "ada-002" {
+		t.Fatalf("expected embedding model=ada-002, got %v", e["model"])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// buildRolesForResponse
+// ---------------------------------------------------------------------------
+
+func TestBuildRolesForResponse_Empty(t *testing.T) {
+	result := buildRolesForResponse(nil)
+	if len(result) != 0 {
+		t.Fatalf("expected empty, got %v", result)
+	}
+}
+
+func TestBuildRolesForResponse_ValidEntries(t *testing.T) {
+	roleMap := map[string]interface{}{
+		"default": map[string]interface{}{"provider": "tao", "model": "deepseek"},
+		"heavy":   map[string]interface{}{"provider": "tao", "model": "deepseek-max"},
+	}
+	result := buildRolesForResponse(roleMap)
+	if len(result) != 2 {
+		t.Fatalf("expected 2, got %d", len(result))
+	}
+	if result["default"] != "deepseek" {
+		t.Fatalf("expected default=deepseek, got %s", result["default"])
+	}
+	if result["heavy"] != "deepseek-max" {
+		t.Fatalf("expected heavy=deepseek-max, got %s", result["heavy"])
+	}
+}
+
+func TestBuildRolesForResponse_SkipsInvalid(t *testing.T) {
+	roleMap := map[string]interface{}{
+		"valid":       map[string]interface{}{"provider": "tao", "model": "deepseek"},
+		"no_model":    map[string]interface{}{"provider": "tao"},
+		"empty_model": map[string]interface{}{"provider": "tao", "model": ""},
+		"not_a_map":   "some-string",
+		"nil_val":     nil,
+	}
+	result := buildRolesForResponse(roleMap)
+	if len(result) != 1 {
+		t.Fatalf("expected 1 valid entry, got %d: %v", len(result), result)
+	}
+	if result["valid"] != "deepseek" {
+		t.Fatalf("expected valid=deepseek, got %s", result["valid"])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// mergeToolAssignment
+// ---------------------------------------------------------------------------
+
+func TestMergeToolAssignment_NilExisting(t *testing.T) {
+	result := mergeToolAssignment(nil, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["web_search"] != "tao" || result["web_scrape"] != "tao" {
+		t.Fatalf("expected both tao, got %v", result)
+	}
+}
+
+func TestMergeToolAssignment_ExistingPreserved(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": "serper",
+		"web_scrape": "brightdata",
+	}
+	result := mergeToolAssignment(existing, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["web_search"] != "serper" {
+		t.Fatalf("expected web_search=serper, got %v", result["web_search"])
+	}
+	if result["web_scrape"] != "brightdata" {
+		t.Fatalf("expected web_scrape=brightdata, got %v", result["web_scrape"])
+	}
+}
+
+func TestMergeToolAssignment_EmptySlotsFilled(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": "serper",
+		"web_scrape": "",
+	}
+	result := mergeToolAssignment(existing, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["web_search"] != "serper" {
+		t.Fatalf("expected web_search=serper, got %v", result["web_search"])
+	}
+	if result["web_scrape"] != "tao" {
+		t.Fatalf("expected web_scrape=tao (filled), got %v", result["web_scrape"])
+	}
+}
+
+func TestMergeToolAssignment_MissingKeyFilled(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": "serper",
+	}
+	result := mergeToolAssignment(existing, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["web_search"] != "serper" {
+		t.Fatalf("expected web_search=serper, got %v", result["web_search"])
+	}
+	if result["web_scrape"] != "tao" {
+		t.Fatalf("expected web_scrape=tao (missing key filled), got %v", result["web_scrape"])
+	}
+}
+
+func TestMergeToolAssignment_NonStringTreatedAsEmpty(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": 42,
+		"web_scrape": nil,
+	}
+	result := mergeToolAssignment(existing, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["web_search"] != "tao" {
+		t.Fatalf("expected web_search=tao (int treated as empty), got %v", result["web_search"])
+	}
+	if result["web_scrape"] != "tao" {
+		t.Fatalf("expected web_scrape=tao (nil treated as empty), got %v", result["web_scrape"])
+	}
+}
+
+func TestMergeToolAssignment_ExtraKeysPreserved(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": "serper",
+		"custom_key": "custom_val",
+	}
+	result := mergeToolAssignment(existing, map[string]string{
+		"web_search": "tao",
+		"web_scrape": "tao",
+	})
+	if result["custom_key"] != "custom_val" {
+		t.Fatalf("expected custom_key preserved, got %v", result["custom_key"])
+	}
+	if result["web_scrape"] != "tao" {
+		t.Fatalf("expected web_scrape=tao, got %v", result["web_scrape"])
+	}
+}
+
+func TestMergeToolAssignment_EmptyDefaults(t *testing.T) {
+	existing := map[string]interface{}{
+		"web_search": "serper",
+	}
+	result := mergeToolAssignment(existing, map[string]string{})
+	if result["web_search"] != "serper" {
+		t.Fatalf("expected web_search=serper, got %v", result["web_search"])
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected 1 entry, got %d", len(result))
+	}
+}
