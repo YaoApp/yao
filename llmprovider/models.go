@@ -149,6 +149,15 @@ func (r *Registry) GetEmbeddingModelByUser(userID string) (connector.Connector, 
 func (r *Registry) GetEmbeddingModelByTeam(teamID string) (connector.Connector, error) {
 	return r.GetRoleModelByTeam("embedding", teamID)
 }
+func (r *Registry) GetDecisionModel() (connector.Connector, error) {
+	return r.GetRoleModel("decision")
+}
+func (r *Registry) GetDecisionModelByUser(userID string) (connector.Connector, error) {
+	return r.GetRoleModelByUser("decision", userID)
+}
+func (r *Registry) GetDecisionModelByTeam(teamID string) (connector.Connector, error) {
+	return r.GetRoleModelByTeam("decision", teamID)
+}
 
 // ---------------------------------------------------------------------------
 // Capabilities

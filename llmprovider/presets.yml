@@ -1762,6 +1762,19 @@
         reasoning_effort: "low"
       enabled: false
 
+# ─── TypeSafe AI (Decision) ─────────────────────────────
+- key: typesafe
+  name: TypeSafe AI
+  type: typesafe
+  api_url: https://api.typesafe.ai
+  require_key: true
+  default_models:
+    - id: jev-latest
+      name: Jev (Latest)
+      max_input_tokens: 32000
+      capabilities: [decision]
+      enabled: true
+
 # ─── Kimi / Moonshot (International) ────────────────────
 - key: kimi_intl
   name: Kimi (Moonshot)

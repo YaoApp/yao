@@ -127,7 +127,7 @@ func handleTaoSetup(c *gin.Context) {
 		return
 	}
 
-	// Step 3: fetch models (returns []ModelInfo, populates remoteReasoningCache)
+	// Step 3: fetch models (returns []ModelInfo, populates remoteReasoningCache + remoteModelRawCache)
 	invalidateRemoteModelCache()
 	modelInfos := fetchRemoteModels(baseURL, body.Key)
 	modelCount := len(modelInfos)
@@ -135,7 +135,39 @@ func handleTaoSetup(c *gin.Context) {
 		modelInfos[i].Enabled = true
 	}
 
-	// Step 4: register preset + create provider
+	// Step 3b: fetch available services early (moved from former Step 8)
+	// needed for decision endpoint path before Step 4b
+	services := taoFetchServices(baseURL)
+	if !services.LLM && modelCount > 0 {
+		services.LLM = true
+	}
+
+	// Step 4b: merge decision models into the main provider (same card in CUI).
+	// Decision models use _connector_type override so marshalModelDSL creates
+	// a typesafe connector while the provider itself stays type:"openai".
+	decisionModels := fetchDecisionModels(baseURL, body.Key)
+	var decisionDetails *TaoSetupDecision
+	if len(decisionModels) > 0 {
+		decisionPath := services.DecisionPath
+		if decisionPath == "" {
+			decisionPath = "/v1/decisions"
+		}
+		for i := range decisionModels {
+			if decisionModels[i].Options == nil {
+				decisionModels[i].Options = map[string]interface{}{}
+			}
+			decisionModels[i].Options["endpoint"] = decisionPath
+			decisionModels[i].Options["_connector_type"] = "typesafe"
+		}
+		modelInfos = append(modelInfos, decisionModels...)
+
+		decisionDetails = &TaoSetupDecision{
+			ProviderName: "Tao Service",
+			Model:        decisionModels[0].ID,
+		}
+	}
+
+	// Step 4: register preset + create single unified provider
 	llmprovider.RegisterPreset(llmprovider.ProviderPreset{
 		Key:           taoPresetNS,
 		Name:          "Tao Service",
@@ -191,6 +223,14 @@ func handleTaoSetup(c *gin.Context) {
 		}
 	}
 
+	// Decision role fallback: assign first decision model if not set by model-defaults
+	if _, ok := roleMap["decision"]; !ok && len(decisionModels) > 0 {
+		roleMap["decision"] = map[string]interface{}{
+			"provider": provKey,
+			"model":    decisionModels[0].ID,
+		}
+	}
+
 	// Merge: preserve existing valid role assignments, only fill empty slots
 	existingRoles, _ := setting.Global.Get(scope, llmRolesNS)
 	mergeRoleAssignments(roleMap, existingRoles)
@@ -214,12 +254,7 @@ func handleTaoSetup(c *gin.Context) {
 	// Step 7: pre-fetch OCR types from Tao (populates cache for handler_tao)
 	ocr.FetchTaoOCRTypes(baseURL, body.Key)
 
-	// Step 8: determine available services via API
-	services := taoFetchServices(baseURL)
-	if !services.LLM && modelCount > 0 {
-		services.LLM = true
-	}
-
+	// Step 8: (services already fetched in Step 3b)
 	// Step 9: update stored services
 	m["services"] = services
 	setting.Global.Set(scope, taoNS, m)
@@ -238,6 +273,7 @@ func handleTaoSetup(c *gin.Context) {
 				ProviderName: "Tao Service",
 				Tools:        []string{"web_search", "web_scrape"},
 			},
+			Decision: decisionDetails,
 		},
 	})
 }
@@ -631,6 +667,7 @@ func taoFetchServices(baseURL string) TaoServices {
 	var result struct {
 		Data []struct {
 			Service string `json:"service"`
+			Path    string `json:"path"` // e.g. "/v1/decisions" for decision service
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &result); err != nil {
@@ -654,6 +691,9 @@ func taoFetchServices(baseURL string) TaoServices {
 			svc.Audio = true
 		case "embedding":
 			svc.Embedding = true
+		case "decision":
+			svc.Decision = true
+			svc.DecisionPath = item.Path
 		}
 	}
 	return svc
@@ -747,5 +787,6 @@ func taoServicesFromMap(m map[string]interface{}) TaoServices {
 		Image:     getBool(m, "image"),
 		Audio:     getBool(m, "audio"),
 		Embedding: getBool(m, "embedding"),
+		Decision:  getBool(m, "decision"),
 	}
 }
