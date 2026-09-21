@@ -94,24 +94,25 @@ type ProviderRegisterConfig struct {
 // EntryConfig represents the unified auth entry configuration (login + register)
 // This merges signin and register configurations into a single entry point
 type EntryConfig struct {
-	Title          string            `json:"title,omitempty"`
-	Description    string            `json:"description,omitempty"`
-	Default        bool              `json:"default,omitempty"`
-	SuccessURL     string            `json:"success_url,omitempty"`
-	FailureURL     string            `json:"failure_url,omitempty"`
-	LogoutRedirect string            `json:"logout_redirect,omitempty"` // From signin config
-	ClientID       string            `json:"client_id,omitempty"`       // From signin config
-	ClientSecret   string            `json:"client_secret,omitempty"`   // From signin config (not exposed to frontend)
-	AutoLogin      bool              `json:"auto_login,omitempty"`      // From register config
-	Role           string            `json:"role,omitempty"`            // From register config
-	Type           string            `json:"type,omitempty"`            // From register config - User type id
-	Form           *FormConfig       `json:"form,omitempty"`
-	Token          *TokenConfig      `json:"token,omitempty"`           // From signin config
-	Messenger      *MessengerConfig  `json:"messenger,omitempty"`       // From register config
-	InviteRequired bool              `json:"invite_required,omitempty"` // From register config
-	Invite         *InvitePageConfig `json:"invite,omitempty"`          // Invite code page configuration
-	ThirdParty     *ThirdParty       `json:"third_party,omitempty"`
-	SecureCookie   bool              `json:"secure_cookie"` // Whether secure cookie is enabled (for frontend JWT verification)
+	Title                    string            `json:"title,omitempty"`
+	Description              string            `json:"description,omitempty"`
+	Default                  bool              `json:"default,omitempty"`
+	SuccessURL               string            `json:"success_url,omitempty"`
+	FailureURL               string            `json:"failure_url,omitempty"`
+	LogoutRedirect           string            `json:"logout_redirect,omitempty"` // From signin config
+	ClientID                 string            `json:"client_id,omitempty"`       // From signin config
+	ClientSecret             string            `json:"client_secret,omitempty"`   // From signin config (not exposed to frontend)
+	AutoLogin                bool              `json:"auto_login,omitempty"`      // From register config
+	Role                     string            `json:"role,omitempty"`            // From register config
+	Type                     string            `json:"type,omitempty"`            // From register config - User type id
+	Form                     *FormConfig       `json:"form,omitempty"`
+	Token                    *TokenConfig      `json:"token,omitempty"`                      // From signin config
+	Messenger                *MessengerConfig  `json:"messenger,omitempty"`                  // From register config
+	InviteRequired           bool              `json:"invite_required,omitempty"`            // From register config
+	VerificationCodeRequired *bool             `json:"verification_code_required,omitempty"` // Whether email/SMS verification code is required for registration (default true)
+	Invite                   *InvitePageConfig `json:"invite,omitempty"`                     // Invite code page configuration
+	ThirdParty               *ThirdParty       `json:"third_party,omitempty"`
+	SecureCookie             bool              `json:"secure_cookie"` // Whether secure cookie is enabled (for frontend JWT verification)
 }
 
 // MessengerConfig represents the messenger configuration for user registration

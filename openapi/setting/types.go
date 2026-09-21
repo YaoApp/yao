@@ -55,31 +55,70 @@ type CheckUpdateResult struct {
 }
 
 // ---------------------------------------------------------------------------
-// Cloud Service
+// Tao Service
 // ---------------------------------------------------------------------------
 
-// CloudRegion is a static entry loaded from cloud_presets.yml.
-type CloudRegion struct {
-	Key     string            `json:"key"     yaml:"key"`
-	Label   map[string]string `json:"label"   yaml:"label"`
-	APIURL  string            `json:"api_url" yaml:"api_url"`
-	Default bool              `json:"default,omitempty" yaml:"default"`
+// TaoConfig is the response for GET /setting/tao/config.
+type TaoConfig struct {
+	BaseURL          string      `json:"base_url"`
+	Key              string      `json:"key"`
+	Status           string      `json:"status"` // "connected" | "unconfigured"
+	Balance          *int64      `json:"balance,omitempty"`
+	BalanceAvailable bool        `json:"balance_available"`
+	Services         TaoServices `json:"services"`
 }
 
-// CloudPageData is the response for GET /setting/cloud.
-type CloudPageData struct {
-	Regions []CloudRegion `json:"regions"`
-	Region  string        `json:"region"`
-	APIURL  string        `json:"api_url"`
-	APIKey  string        `json:"api_key"`
-	Status  string        `json:"status"`
+// TaoServices enumerates which Tao capabilities are available for the stored key.
+type TaoServices struct {
+	LLM       bool `json:"llm"`
+	Search    bool `json:"search"`
+	Scrape    bool `json:"scrape"`
+	OCR       bool `json:"ocr"`
+	Image     bool `json:"image"`
+	Audio     bool `json:"audio"`
+	Embedding bool `json:"embedding"`
 }
 
-// CloudTestResult is the response for POST /setting/cloud/test.
-type CloudTestResult struct {
-	Success   bool   `json:"success"`
-	Message   string `json:"message"`
-	LatencyMs int64  `json:"latency_ms,omitempty"`
+// TaoVerifyResult is the response for POST /setting/tao/verify.
+type TaoVerifyResult struct {
+	Valid            bool   `json:"valid"`
+	Balance          *int64 `json:"balance,omitempty"`
+	BalanceAvailable bool   `json:"balance_available"`
+	ErrorType        string `json:"error_type,omitempty"` // "invalid_api_key" | "api_key_expired"
+	Message          string `json:"message"`
+}
+
+// TaoSetupResult is the response for POST /setting/tao/setup.
+type TaoSetupResult struct {
+	Success          bool             `json:"success"`
+	Message          string           `json:"message,omitempty"`
+	Balance          *int64           `json:"balance,omitempty"`
+	BalanceAvailable bool             `json:"balance_available"`
+	Configured       *TaoSetupDetails `json:"configured,omitempty"`
+}
+
+// TaoSetupDetails describes what was auto-configured during setup.
+type TaoSetupDetails struct {
+	LLM    *TaoSetupLLM    `json:"llm,omitempty"`
+	Search *TaoSetupSearch `json:"search,omitempty"`
+}
+
+// TaoSetupLLM describes the LLM provider created by Tao setup.
+type TaoSetupLLM struct {
+	ProviderName string            `json:"provider_name"`
+	ModelCount   int               `json:"model_count"`
+	Roles        map[string]string `json:"roles"` // role key → connector ID
+}
+
+// TaoSetupSearch describes the search tools assigned by Tao setup.
+type TaoSetupSearch struct {
+	ProviderName string   `json:"provider_name"`
+	Tools        []string `json:"tools"`
+}
+
+// TaoSignupGift is the response for GET /setting/tao/signup-gift.
+type TaoSignupGift struct {
+	SignupGift int64 `json:"signup_gift"`
 }
 
 // ---------------------------------------------------------------------------
@@ -266,6 +305,7 @@ type SandboxPageData struct {
 type Checkpoint struct {
 	Status   string `json:"status"`
 	Required bool   `json:"required"`
+	Level    string `json:"level"` // "error" | "warning" | "info"
 	Label    string `json:"label"`
 	Path     string `json:"path"`
 	Detail   string `json:"detail,omitempty"`

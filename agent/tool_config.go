@@ -15,15 +15,15 @@ type toolProviderConfig struct {
 }
 
 var validWebSearchDefaults = map[string]bool{
-	"tavily": true, "serper": true, "cloud": true,
+	"tavily": true, "serper": true, "tao": true,
 }
 
 var validWebFetchDefaults = map[string]bool{
-	"brightdata": true, "cloud": true, "direct": true,
+	"brightdata": true, "tao": true, "direct": true,
 }
 
 // validProviderKeys lists providers that store credentials in search.providers.*.
-// "cloud" is excluded — its credentials live in the cloud namespace.
+// "tao" is excluded — its credentials live in the tao namespace.
 var validProviderKeys = map[string]bool{
 	"tavily": true, "serper": true, "brightdata": true,
 }

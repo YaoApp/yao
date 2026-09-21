@@ -21,10 +21,9 @@ type SearchResult struct {
 }
 
 type searchConfig struct {
-	Provider  string // "tavily" / "serper" / "cloud"
-	APIKey    string
-	APIURL    string // cloud mode endpoint
-	CloudTool string // cloud search tool name, e.g. "serper-search", "tavily-search"
+	Provider string // "tavily" / "serper" / "tao"
+	APIKey   string
+	APIURL   string // tao mode endpoint
 }
 
 // Handler is the tools.web_search process handler.
@@ -42,8 +41,8 @@ func Handler(proc *process.Process) interface{} {
 func Search(query string, limit int, userID, teamID string) []SearchResult {
 	cfg := getConfig(userID, teamID)
 	switch cfg.Provider {
-	case "cloud":
-		return cloudSearch(cfg, query, limit)
+	case "tao":
+		return taoSearch(cfg, query, limit)
 	case "serper":
 		return serperSearch(cfg.APIKey, query, limit)
 	default:
@@ -70,8 +69,8 @@ func getConfig(userID, teamID string) *searchConfig {
 	}
 
 	switch cfg.Provider {
-	case "cloud":
-		cfg.APIKey, cfg.APIURL, cfg.CloudTool = getCloudConfig(userID, teamID)
+	case "tao":
+		cfg.APIKey, cfg.APIURL = getTaoConfig(userID, teamID)
 	case "tavily":
 		cfg.APIKey = getProviderKey(userID, teamID, "tavily")
 		if cfg.APIKey == "" {
@@ -86,19 +85,16 @@ func getConfig(userID, teamID string) *searchConfig {
 	return cfg
 }
 
-func getCloudConfig(userID, teamID string) (apiKey, apiURL, cloudTool string) {
+func getTaoConfig(userID, teamID string) (apiKey, apiURL string) {
 	if setting.Global == nil {
 		return
 	}
-	saved, _ := setting.Global.GetMerged(userID, teamID, "cloud")
-	if v, ok := saved["api_url"].(string); ok {
+	saved, _ := setting.Global.GetMerged(userID, teamID, "tao")
+	if v, ok := saved["base_url"].(string); ok {
 		apiURL = v
 	}
 	if v, ok := saved["api_key"].(string); ok {
 		apiKey = config.DecryptValue(v)
-	}
-	if v, ok := saved["search_tool"].(string); ok && v != "" {
-		cloudTool = v
 	}
 	return
 }

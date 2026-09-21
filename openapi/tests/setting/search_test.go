@@ -43,15 +43,15 @@ func TestSearchGet(t *testing.T) {
 
 	presets, ok := body["presets"].([]interface{})
 	assert.True(t, ok)
-	assert.Equal(t, 5, len(presets), "should have 5 presets: cloud, tavily, serper, brightdata, direct")
+	assert.Equal(t, 5, len(presets), "should have 5 presets: tao, tavily, serper, brightdata, direct")
 
 	providers, ok := body["providers"].([]interface{})
 	assert.True(t, ok)
 	assert.Equal(t, 5, len(providers), "should have 5 provider configs")
 
-	// Cloud provider should be first
+	// Tao provider should be first
 	first, _ := providers[0].(map[string]interface{})
-	assert.Equal(t, "cloud", first["preset_key"])
+	assert.Equal(t, "tao", first["preset_key"])
 }
 
 func TestSearchGetUnauthenticated(t *testing.T) {
@@ -117,7 +117,7 @@ func TestSearchProviderUpdate(t *testing.T) {
 	}
 }
 
-func TestSearchProviderUpdateCloud(t *testing.T) {
+func TestSearchProviderUpdateTao(t *testing.T) {
 	serverURL := testutils.Prepare(t)
 	defer testutils.Clean()
 	initSettingRegistry(t)
@@ -127,7 +127,7 @@ func TestSearchProviderUpdateCloud(t *testing.T) {
 		"field_values": map[string]string{},
 	}
 	raw, _ := json.Marshal(payload)
-	req, err := http.NewRequest("PUT", serverURL+baseURL()+"/setting/search/providers/cloud", bytes.NewReader(raw))
+	req, err := http.NewRequest("PUT", serverURL+baseURL()+"/setting/search/providers/tao", bytes.NewReader(raw))
 	assert.NoError(t, err)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
@@ -135,7 +135,7 @@ func TestSearchProviderUpdateCloud(t *testing.T) {
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)
 	defer resp.Body.Close()
-	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "cloud provider should be rejected")
+	assert.Equal(t, http.StatusBadRequest, resp.StatusCode, "tao provider should be rejected")
 }
 
 func TestSearchProviderToggle(t *testing.T) {
@@ -291,13 +291,13 @@ func TestSearchProviderTest(t *testing.T) {
 	assert.Equal(t, true, body["success"])
 }
 
-func TestSearchProviderTestCloud(t *testing.T) {
+func TestSearchProviderTestTao(t *testing.T) {
 	serverURL := testutils.Prepare(t)
 	defer testutils.Clean()
 	initSettingRegistry(t)
 	token := obtainToken(t, serverURL)
 
-	req, _ := http.NewRequest("POST", serverURL+baseURL()+"/setting/search/providers/cloud/test", nil)
+	req, _ := http.NewRequest("POST", serverURL+baseURL()+"/setting/search/providers/tao/test", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := http.DefaultClient.Do(req)
 	assert.NoError(t, err)

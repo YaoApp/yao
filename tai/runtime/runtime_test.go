@@ -1,15 +1,42 @@
 package runtime
 
 import (
+	"archive/tar"
+	"bytes"
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"io"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	dockertypes "github.com/docker/docker/api/types"
 	corev1 "k8s.io/api/core/v1"
 )
+
+// buildContextFromDockerfile creates a tar archive containing a Dockerfile,
+// suitable for passing to Docker's ImageBuild API.
+func buildContextFromDockerfile(content string) (io.Reader, error) {
+	var buf bytes.Buffer
+	tw := tar.NewWriter(&buf)
+	err := tw.WriteHeader(&tar.Header{
+		Name: "Dockerfile",
+		Size: int64(len(content)),
+		Mode: 0644,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if _, err := tw.Write([]byte(content)); err != nil {
+		return nil, err
+	}
+	if err := tw.Close(); err != nil {
+		return nil, err
+	}
+	return &buf, nil
+}
 
 func taiTestDocker() string {
 	if addr := os.Getenv("TAI_TEST_DOCKER"); addr != "" {
@@ -954,5 +981,522 @@ func TestParseUID(t *testing.T) {
 		if tt.ok && got != tt.want {
 			t.Errorf("parseUID(%q) = %d, want %d", tt.input, got, tt.want)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// image_docker.go tests
+// ---------------------------------------------------------------------------
+
+func TestDockerImage_ExistsAndInspect(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	img := NewDockerImage(DockerCli(sb))
+	ctx := context.Background()
+
+	t.Run("Exists_true", func(t *testing.T) {
+		ok, err := img.Exists(ctx, "alpine:latest")
+		if err != nil {
+			t.Fatalf("Exists: %v", err)
+		}
+		if !ok {
+			t.Fatal("expected alpine:latest to exist")
+		}
+	})
+
+	t.Run("Exists_false", func(t *testing.T) {
+		ok, err := img.Exists(ctx, "nonexistent-image-xyz:99.99.99")
+		if err != nil {
+			t.Fatalf("Exists: %v", err)
+		}
+		if ok {
+			t.Fatal("expected nonexistent image to not exist")
+		}
+	})
+
+	t.Run("Inspect_alpine", func(t *testing.T) {
+		meta, err := img.Inspect(ctx, "alpine:latest")
+		if err != nil {
+			t.Fatalf("Inspect: %v", err)
+		}
+		if meta.OS != "linux" {
+			t.Errorf("OS = %q, want linux", meta.OS)
+		}
+		if meta.Arch == "" {
+			t.Error("Arch should not be empty")
+		}
+		if meta.Shell == "" {
+			t.Error("Shell should not be empty")
+		}
+	})
+
+	t.Run("Inspect_error", func(t *testing.T) {
+		_, err := img.Inspect(ctx, "nonexistent-image-xyz:99.99.99")
+		if err == nil {
+			t.Fatal("expected error for nonexistent image")
+		}
+	})
+
+	t.Run("Inspect_withShellAndEnv", func(t *testing.T) {
+		// Build a temporary test image with SHELL instruction and SHELL env var.
+		cli := DockerCli(sb)
+		dockerfile := `FROM alpine:latest
+SHELL ["/bin/sh", "-c"]
+ENV SHELL=/bin/sh
+`
+		buildCtx, err := buildContextFromDockerfile(dockerfile)
+		if err != nil {
+			t.Fatalf("build context: %v", err)
+		}
+		resp, err := cli.ImageBuild(ctx, buildCtx, dockertypes.ImageBuildOptions{
+			Tags:        []string{"tai-test-shell:latest"},
+			Remove:      true,
+			ForceRemove: true,
+		})
+		if err != nil {
+			t.Fatalf("ImageBuild: %v", err)
+		}
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		t.Cleanup(func() {
+			img.Remove(ctx, "tai-test-shell:latest", true)
+		})
+
+		meta, err := img.Inspect(ctx, "tai-test-shell:latest")
+		if err != nil {
+			t.Fatalf("Inspect: %v", err)
+		}
+		// The image has SHELL ["/bin/sh", "-c"] so Config.Shell[0] = "/bin/sh"
+		if meta.Shell != "/bin/sh" {
+			t.Errorf("Shell = %q, want /bin/sh", meta.Shell)
+		}
+	})
+}
+
+func TestDockerImage_PullAndRemove(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	img := NewDockerImage(DockerCli(sb))
+	ctx := context.Background()
+	ref := "alpine:3.18"
+
+	// Remove first if it exists, ignore error
+	img.Remove(ctx, ref, true)
+
+	t.Run("Pull", func(t *testing.T) {
+		ch, err := img.Pull(ctx, ref, PullOptions{})
+		if err != nil {
+			t.Fatalf("Pull: %v", err)
+		}
+		count := 0
+		for p := range ch {
+			if p.Error != "" {
+				t.Fatalf("pull error: %s", p.Error)
+			}
+			count++
+		}
+		if count == 0 {
+			t.Error("expected at least one progress event")
+		}
+	})
+
+	t.Run("Pull_withAuth_error", func(t *testing.T) {
+		// Pull with dummy auth — Docker Hub rejects fake credentials,
+		// which exercises both encodeAuth and the Pull error path.
+		_, err := img.Pull(ctx, ref, PullOptions{
+			Auth: &RegistryAuth{
+				Username: "testuser",
+				Password: "testpass",
+				Server:   "https://index.docker.io/v1/",
+			},
+		})
+		if err == nil {
+			t.Fatal("expected error for pull with invalid auth")
+		}
+	})
+
+	t.Run("List", func(t *testing.T) {
+		imgs, err := img.List(ctx)
+		if err != nil {
+			t.Fatalf("List: %v", err)
+		}
+		if len(imgs) == 0 {
+			t.Fatal("expected at least one image")
+		}
+		found := false
+		for _, i := range imgs {
+			for _, tag := range i.Tags {
+				if tag == ref {
+					found = true
+				}
+			}
+			if i.ID == "" {
+				t.Error("image ID should not be empty")
+			}
+		}
+		if !found {
+			t.Errorf("expected %s in image list", ref)
+		}
+	})
+
+	t.Run("Remove", func(t *testing.T) {
+		err := img.Remove(ctx, ref, true)
+		if err != nil {
+			t.Fatalf("Remove: %v", err)
+		}
+		ok, _ := img.Exists(ctx, ref)
+		if ok {
+			t.Error("image should not exist after Remove")
+		}
+	})
+
+	t.Run("Remove_nonexistent", func(t *testing.T) {
+		err := img.Remove(ctx, "nonexistent-image-xyz:99.99.99", true)
+		if err == nil {
+			t.Fatal("expected error for removing nonexistent image")
+		}
+	})
+}
+
+func TestDecodePullStream(t *testing.T) {
+	t.Run("normal_events", func(t *testing.T) {
+		events := []dockerPullEvent{
+			{Status: "Pulling fs layer", ID: "abc123"},
+			{Status: "Downloading", ID: "abc123", ProgressDetail: struct {
+				Current int64 `json:"current"`
+				Total   int64 `json:"total"`
+			}{Current: 500, Total: 1000}},
+			{Status: "Pull complete", ID: "abc123"},
+		}
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		for _, ev := range events {
+			enc.Encode(ev)
+		}
+
+		ch := make(chan PullProgress, 32)
+		decodePullStream(&buf, ch)
+		close(ch)
+
+		got := make([]PullProgress, 0)
+		for p := range ch {
+			got = append(got, p)
+		}
+		if len(got) != 3 {
+			t.Fatalf("expected 3 events, got %d", len(got))
+		}
+		if got[0].Status != "Pulling fs layer" || got[0].Layer != "abc123" {
+			t.Errorf("event 0: %+v", got[0])
+		}
+		if got[1].Current != 500 || got[1].Total != 1000 {
+			t.Errorf("event 1 progress: %+v", got[1])
+		}
+	})
+
+	t.Run("error_event", func(t *testing.T) {
+		ev := dockerPullEvent{Status: "Error", Error: "pull access denied"}
+		var buf bytes.Buffer
+		json.NewEncoder(&buf).Encode(ev)
+
+		ch := make(chan PullProgress, 32)
+		decodePullStream(&buf, ch)
+
+		got := <-ch
+		if got.Error != "pull access denied" {
+			t.Errorf("error = %q, want %q", got.Error, "pull access denied")
+		}
+	})
+
+	t.Run("malformed_json", func(t *testing.T) {
+		buf := bytes.NewBufferString("not json\n")
+		ch := make(chan PullProgress, 32)
+		decodePullStream(buf, ch)
+
+		got := <-ch
+		if got.Error == "" {
+			t.Error("expected error for malformed JSON")
+		}
+	})
+
+	t.Run("empty_stream", func(t *testing.T) {
+		buf := bytes.NewBuffer(nil)
+		ch := make(chan PullProgress, 32)
+		decodePullStream(buf, ch)
+
+		// decodePullStream returns without sending anything on empty input.
+		// Channel should have no items.
+		if len(ch) != 0 {
+			t.Error("expected no events for empty stream")
+		}
+	})
+}
+
+func TestEncodeAuth(t *testing.T) {
+	auth := &RegistryAuth{
+		Username: "user",
+		Password: "pass",
+		Server:   "https://registry.example.com",
+	}
+	encoded, err := encodeAuth(auth)
+	if err != nil {
+		t.Fatalf("encodeAuth: %v", err)
+	}
+	if encoded == "" {
+		t.Fatal("expected non-empty encoded string")
+	}
+
+	decoded, err := base64.URLEncoding.DecodeString(encoded)
+	if err != nil {
+		t.Fatalf("base64 decode: %v", err)
+	}
+	var cfg struct {
+		Username      string `json:"username"`
+		Password      string `json:"password"`
+		ServerAddress string `json:"serveraddress"`
+	}
+	if err := json.Unmarshal(decoded, &cfg); err != nil {
+		t.Fatalf("json unmarshal: %v", err)
+	}
+	if cfg.Username != "user" || cfg.Password != "pass" || cfg.ServerAddress != "https://registry.example.com" {
+		t.Errorf("decoded auth: %+v", cfg)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// client_accessor.go tests
+// ---------------------------------------------------------------------------
+
+func TestDockerCli_Local(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	cli := DockerCli(sb)
+	if cli == nil {
+		t.Fatal("expected non-nil Docker client for local runtime")
+	}
+}
+
+func TestDockerCli_DockerSandbox(t *testing.T) {
+	addr := taiTestDocker()
+	sb, err := NewDocker(addr)
+	if err != nil {
+		t.Skipf("Tai Docker proxy not available at %s: %v", addr, err)
+	}
+	defer sb.Close()
+
+	cli := DockerCli(sb)
+	if cli == nil {
+		t.Fatal("expected non-nil Docker client for docker sandbox")
+	}
+}
+
+func TestDockerCli_K8s(t *testing.T) {
+	host := taiTestK8sHost()
+	port := taiTestK8sPort()
+	kubeconfig := taiTestKubeConfig()
+	if host == "" || port == "" || kubeconfig == "" {
+		t.Skip("TAI_TEST_K8S_HOST, TAI_TEST_K8S_PORT, or TAI_TEST_KUBECONFIG not set")
+	}
+
+	addr := host + ":" + port
+	k8s, err := NewK8s(addr, K8sOption{
+		Namespace:  "default",
+		KubeConfig: kubeconfig,
+	})
+	if err != nil {
+		t.Skipf("K8s not available: %v", err)
+	}
+	defer k8s.Close()
+
+	cli := DockerCli(k8s)
+	if cli != nil {
+		t.Fatal("expected nil Docker client for K8s runtime")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// docker_core.go coverage gaps
+// ---------------------------------------------------------------------------
+
+func TestExec_InvalidContainer(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	_, err = sb.Exec(context.Background(), "nonexistent-container-id-12345", []string{"echo", "hi"}, ExecOptions{})
+	if err == nil {
+		t.Fatal("expected error for exec on nonexistent container")
+	}
+}
+
+func TestCreate_InvalidImage(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	_, err = sb.Create(context.Background(), CreateOptions{
+		Name:  "tai-invalid-image-test",
+		Image: "nonexistent-image-xyz:99.99.99",
+		Cmd:   []string{"sleep", "1"},
+	})
+	if err == nil {
+		t.Fatal("expected error for invalid image")
+	}
+}
+
+func TestInspect_InvalidContainer(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	_, err = sb.Inspect(context.Background(), "nonexistent-container-id-12345")
+	if err == nil {
+		t.Fatal("expected error for inspect on nonexistent container")
+	}
+}
+
+func TestList_NoLabels(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	// List without label filter — exercises the len(opts.Labels) == 0 branch
+	result, err := sb.List(context.Background(), ListOptions{All: true})
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	// Should return at least some containers (or zero, both valid)
+	_ = result
+}
+
+func TestExecWithUser(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-exec-user-test",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	// Exec with User and Env to cover those branches in exec()
+	result, err := sb.Exec(ctx, id, []string{"id", "-u"}, ExecOptions{
+		User:    "0",
+		WorkDir: "/tmp",
+		Env:     map[string]string{"TEST_VAR": "hello"},
+	})
+	if err != nil {
+		t.Fatalf("Exec: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("exit code = %d", result.ExitCode)
+	}
+}
+
+func TestExecStream_WithUserAndEnv(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-stream-user-env",
+		Image: "alpine:latest",
+		Cmd:   []string{"sleep", "30"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	if err := sb.Start(ctx, id); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
+
+	stream, err := sb.ExecStream(ctx, id, []string{"echo", "ok"}, ExecOptions{
+		User:    "0",
+		WorkDir: "/tmp",
+		Env:     map[string]string{"X": "1"},
+	})
+	if err != nil {
+		t.Fatalf("ExecStream: %v", err)
+	}
+
+	out, _ := io.ReadAll(stream.Stdout)
+	if string(out) != "ok\n" {
+		t.Errorf("stdout = %q", string(out))
+	}
+	code, _ := stream.Wait()
+	if code != 0 {
+		t.Errorf("exit code = %d", code)
+	}
+}
+
+func TestInspect_StoppedContainer(t *testing.T) {
+	sb, err := NewLocal("")
+	if err != nil {
+		t.Skipf("Docker not available: %v", err)
+	}
+	defer sb.Close()
+
+	ctx := context.Background()
+	id, err := sb.Create(ctx, CreateOptions{
+		Name:  "tai-inspect-stopped",
+		Image: "alpine:latest",
+		Cmd:   []string{"true"},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	defer sb.Remove(ctx, id, true)
+
+	// Inspect a created-but-never-started container — exercises
+	// branches where NetworkSettings may have no networks.
+	info, err := sb.Inspect(ctx, id)
+	if err != nil {
+		t.Fatalf("Inspect: %v", err)
+	}
+	if info.ID != id {
+		t.Errorf("ID mismatch: got %q, want %q", info.ID, id)
+	}
+}
+
+func TestNewDockerInvalidAddr(t *testing.T) {
+	_, err := NewDocker("tcp://192.168.254.254:1")
+	if err == nil {
+		t.Error("expected error for unreachable Tai proxy")
 	}
 }

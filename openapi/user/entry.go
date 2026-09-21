@@ -180,29 +180,37 @@ func GinEntryVerify(c *gin.Context) {
 		return
 	}
 
-	// User doesn't exist: generate OTP and send verification code
+	// User doesn't exist: register flow
 	verifyResp.Status = EntryVerificationStatusRegister
 
-	// Generate OTP first
-	otpID, verificationCode := generateEntryOTP()
-	verifyResp.OtpID = otpID
-	verifyResp.VerificationSent = true
+	// Generate OTP and send verification code only when verification is required
+	if config.isVerificationCodeRequired() {
+		otpID, verificationCode := generateEntryOTP()
+		verifyResp.OtpID = otpID
+		verifyResp.VerificationSent = true
 
-	// Send verification message asynchronously
-	go func() {
-		ctx := context.Background()
-		err := sendVerificationMessage(ctx, config, usernameType, req.Username, verificationCode, locale)
-		if err != nil {
-			log.Error("Failed to send verification code to %s: %v", req.Username, err)
-			return
-		}
-		log.Info("Verification code sent to %s for registration (OTP ID: %s)", req.Username, otpID)
-	}()
+		// Send verification message asynchronously
+		go func() {
+			ctx := context.Background()
+			err := sendVerificationMessage(ctx, config, usernameType, req.Username, verificationCode, locale)
+			if err != nil {
+				log.Error("Failed to send verification code to %s: %v", req.Username, err)
+				return
+			}
+			log.Info("Verification code sent to %s for registration (OTP ID: %s)", req.Username, otpID)
+		}()
+	}
 
 	response.RespondWithSuccess(c, response.StatusOK, verifyResp)
 }
 
 // Helper Functions
+
+// isVerificationCodeRequired returns whether verification code is required for registration.
+// Returns true when VerificationCodeRequired is nil (not set) or true.
+func (c *EntryConfig) isVerificationCodeRequired() bool {
+	return c.VerificationCodeRequired == nil || *c.VerificationCodeRequired
+}
 
 // verifyCaptcha verifies the captcha based on type (image or turnstile)
 func verifyCaptcha(captchaConfig *CaptchaConfig, captchaID, captcha string) error {
@@ -406,18 +414,19 @@ func createPublicEntryConfig(config *EntryConfig) *EntryConfig {
 
 	// Create a new config instance
 	publicConfig := &EntryConfig{
-		Title:          config.Title,
-		Description:    config.Description,
-		Default:        config.Default,
-		SuccessURL:     config.SuccessURL,
-		FailureURL:     config.FailureURL,
-		LogoutRedirect: config.LogoutRedirect,
-		ClientID:       config.ClientID,
-		ClientSecret:   "", // Remove sensitive data
-		AutoLogin:      config.AutoLogin,
-		Role:           config.Role,
-		Type:           config.Type,
-		InviteRequired: config.InviteRequired,
+		Title:                    config.Title,
+		Description:              config.Description,
+		Default:                  config.Default,
+		SuccessURL:               config.SuccessURL,
+		FailureURL:               config.FailureURL,
+		LogoutRedirect:           config.LogoutRedirect,
+		ClientID:                 config.ClientID,
+		ClientSecret:             "", // Remove sensitive data
+		AutoLogin:                config.AutoLogin,
+		Role:                     config.Role,
+		Type:                     config.Type,
+		InviteRequired:           config.InviteRequired,
+		VerificationCodeRequired: config.VerificationCodeRequired,
 	}
 
 	// Deep copy Form config
@@ -603,6 +612,16 @@ func GinSendOTP(c *gin.Context) {
 		return
 	}
 
+	// Reject if verification code is not required for this configuration
+	if !config.isVerificationCodeRequired() {
+		errorResp := &response.ErrorResponse{
+			Code:             response.ErrInvalidRequest.Code,
+			ErrorDescription: "Verification code is not required for this configuration",
+		}
+		response.RespondWithError(c, response.StatusBadRequest, errorResp)
+		return
+	}
+
 	// Generate new OTP
 	otpID, verificationCode := generateEntryOTP()
 
@@ -718,7 +737,7 @@ func GinEntryRegister(c *gin.Context) {
 
 	// Verify verification code (before database queries)
 	// This prevents malicious users from using this endpoint to detect existing users
-	if config.Messenger != nil {
+	if config.isVerificationCodeRequired() && config.Messenger != nil {
 		// Check if messenger is configured for this username type
 		requiresVerification := false
 		if usernameTypeStr == "email" && config.Messenger.Mail != nil {
@@ -801,13 +820,15 @@ func GinEntryRegister(c *gin.Context) {
 	}
 
 	// Set email or mobile
+	// Mark as verified only when verification code was actually required and validated
+	verified := config.isVerificationCodeRequired()
 	switch usernameTypeStr {
 	case "email":
 		userData["email"] = usernameStr
-		userData["email_verified"] = true // Verified via code
+		userData["email_verified"] = verified
 	case "mobile":
 		userData["phone_number"] = usernameStr
-		userData["phone_number_verified"] = true // Verified via code
+		userData["phone_number_verified"] = verified
 	}
 
 	// Determine initial status

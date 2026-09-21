@@ -1,6 +1,19 @@
 # OCR provider presets.
 # Embedded at compile time via go:embed in ocr.go.
 
+# ── Tao Service ──────────────────────────────────
+- key: tao
+  name: Tao Service
+  description:
+    zh-CN: "Tao Service 提供的 OCR 文字识别能力，凭证来自 Tao Service 配置页"
+    en-US: "OCR powered by Tao Service, credentials from Tao Service config"
+  website: "https://yaoagents.com/tao"
+  tools: [ocr_recognize]
+  tool_labels:
+    - { zh-CN: "文字识别", en-US: "Text Recognition" }
+  fields: []
+  is_cloud: true
+
 # ── Open-Source / Self-hosted ─────────────────────
 - key: paddleocr
   name: "PaddleOCR"

@@ -1,12 +1,12 @@
 # Search & Scrape provider presets.
 # Embedded at compile time via go:embed in search.go.
 
-- key: cloud
-  name: Yao Agents
+- key: tao
+  name: Tao Service
   description:
-    zh-CN: "云服务提供的搜索与抓取能力，凭证来自云服务配置页"
-    en-US: "Search & scrape capabilities from cloud service, credentials from cloud config"
-  website: "https://yaoagents.com"
+    zh-CN: "Tao Service 提供的搜索与抓取能力，凭证来自 Tao Service 配置页"
+    en-US: "Search & scrape powered by Tao Service, credentials from Tao Service config"
+  website: "https://yaoagents.com/tao"
   tools: [web_search, web_scrape]
   tool_labels:
     - { zh-CN: "网页搜索", en-US: "Web Search" }

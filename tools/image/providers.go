@@ -2,6 +2,7 @@ package image
 
 import (
 	_ "embed"
+	"strings"
 
 	"github.com/yaoapp/gou/connector"
 	"github.com/yaoapp/gou/process"
@@ -150,6 +151,17 @@ func modelHasCapability(caps []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// splitModelConnector checks if model looks like a connector ID ("providerCID:modelID").
+// When provider is empty and model contains ":", splits the model into provider and
+// clean model name so that the connector ID is resolved correctly.
+func splitModelConnector(provider, model string) (string, string) {
+	if provider == "" && strings.Contains(model, ":") {
+		parts := strings.SplitN(model, ":", 2)
+		return parts[0], parts[1]
+	}
+	return provider, model
 }
 
 // resolveModelName returns the user-specified model override if non-empty,

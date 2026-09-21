@@ -184,7 +184,7 @@ func handleSmtpUpdate(c *gin.Context) {
 	pwd := body.Password
 	if pwd == "" {
 		if v, ok := existing["password"].(string); ok && v != "" {
-			pwd = cloudDecrypt(v)
+			pwd = decryptValue(v)
 		}
 	}
 
@@ -211,7 +211,7 @@ func handleSmtpUpdate(c *gin.Context) {
 	m["from_email"] = body.FromEmail
 
 	if body.Password != "" {
-		m["password"] = cloudEncrypt(body.Password)
+		m["password"] = encryptValue(body.Password)
 	}
 
 	if validated {
@@ -346,7 +346,7 @@ func handleSmtpTest(c *gin.Context) {
 
 	password := ""
 	if v, ok := saved["password"].(string); ok && v != "" {
-		password = cloudDecrypt(v)
+		password = decryptValue(v)
 	}
 
 	fromAddr := cfg.FromEmail
@@ -569,7 +569,7 @@ func smtpLoadConfig(cfg *SmtpConfig, m map[string]interface{}) {
 		cfg.Username = v
 	}
 	if v, ok := m["password"].(string); ok && v != "" {
-		cfg.Password = cloudMaskKey(cloudDecrypt(v))
+		cfg.Password = maskKey(decryptValue(v))
 	}
 	if v, ok := m["from_name"].(string); ok {
 		cfg.FromName = v

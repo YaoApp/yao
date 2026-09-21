@@ -215,13 +215,16 @@ func handleSandboxGet(c *gin.Context) {
 	info := authorized.GetInfo(c)
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))
 
+	// This listing intentionally includes offline Docker nodes so the
+	// management UI can display their status and allow troubleshooting.
+	// CheckSandboxAvailability filters to online-only, which is correct
+	// for checkpoint evaluation but too restrictive here.
 	reg := registry.Global()
 	var snaps []taitypes.NodeMeta
 	if reg != nil {
 		snaps = reg.List()
 	}
 
-	// Filter nodes by ownership
 	var filtered []taitypes.NodeMeta
 	for i := range snaps {
 		s := &snaps[i]
@@ -304,7 +307,7 @@ func handleSandboxGet(c *gin.Context) {
 			regConfig.Username = v
 		}
 		if v, ok := saved["password"].(string); ok && v != "" {
-			regConfig.Password = cloudMaskKey(cloudDecrypt(v))
+			regConfig.Password = maskKey(decryptValue(v))
 		}
 	}
 
@@ -417,7 +420,7 @@ func handleSandboxRegistry(c *gin.Context) {
 		return
 	}
 	info := authorized.GetInfo(c)
-	scope := cloudScope(info)
+	scope := scopeFromAuth(info)
 
 	var body SandboxRegistryConfig
 	if err := c.ShouldBindJSON(&body); err != nil {
@@ -435,7 +438,7 @@ func handleSandboxRegistry(c *gin.Context) {
 		"username":     body.Username,
 	}
 	if body.Password != "" {
-		m["password"] = cloudEncrypt(body.Password)
+		m["password"] = encryptValue(body.Password)
 	} else {
 		existing, _ := setting.Global.Get(scope, sandboxRegistryNS)
 		if v, ok := existing["password"].(string); ok {
@@ -453,7 +456,7 @@ func handleSandboxRegistry(c *gin.Context) {
 		Username:    body.Username,
 	}
 	if v, ok := m["password"].(string); ok && v != "" {
-		result.Password = cloudMaskKey(cloudDecrypt(v))
+		result.Password = maskKey(decryptValue(v))
 	}
 
 	response.RespondWithSuccess(c, http.StatusOK, result)
@@ -493,7 +496,7 @@ func handleSandboxPull(c *gin.Context) {
 				if user != "" {
 					pullOpts.Auth = &runtime.RegistryAuth{
 						Username: user,
-						Password: cloudDecrypt(pass),
+						Password: decryptValue(pass),
 						Server:   regURL,
 					}
 				}
@@ -641,7 +644,7 @@ func handleSandboxPullAll(c *gin.Context) {
 			if user != "" {
 				pullOpts.Auth = &runtime.RegistryAuth{
 					Username: user,
-					Password: cloudDecrypt(pass),
+					Password: decryptValue(pass),
 					Server:   regURL,
 				}
 			}
@@ -746,6 +749,10 @@ func handleSandboxImageDelete(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, friendlyImageError(locale, err.Error()))
 		return
 	}
+
+	// Clear stale pull state so buildNodeImages does not report "downloaded"
+	// from a previous pull after the image has been removed.
+	pullTracker.Delete(nodeID + ":" + imageRef)
 
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
 }

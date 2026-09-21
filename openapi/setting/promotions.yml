@@ -30,7 +30,9 @@ labels:
 # --- Promotions by deployment type ---
 community:
   - id: upgrade-enterprise
-    link: "https://yaoagents.com/enterprise?source=yao-setting"
+    link:
+      zh: "https://yaoagents.cn/enterprise?source=yao-setting"
+      en: "https://yaoagents.com/enterprise?source=yao-setting"
     i18n:
       zh:
         title: "升级到企业版"

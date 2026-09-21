@@ -6,14 +6,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
-func cloudFetch(cfg *fetchConfig, url, format string) *FetchResponse {
+// taoFetch calls the Tao Fetch API.
+// Tao endpoint: POST /v1/fetch
+func taoFetch(cfg *fetchConfig, targetURL, format string) *FetchResponse {
 	if cfg.APIURL == "" || cfg.APIKey == "" {
 		return &FetchResponse{
-			URL:     url,
-			Content: "cloud service not configured",
+			URL:     targetURL,
+			Content: "tao service not configured",
 			Format:  format,
 		}
 	}
@@ -22,16 +25,17 @@ func cloudFetch(cfg *fetchConfig, url, format string) *FetchResponse {
 		format = "markdown"
 	}
 
-	payload, _ := json.Marshal(map[string]string{
-		"url": url,
+	payload, _ := json.Marshal(map[string]interface{}{
+		"url":    targetURL,
+		"format": format,
 	})
 
-	endpoint := cfg.APIURL + "/v1/scrape/" + format
+	endpoint := strings.TrimRight(cfg.APIURL, "/") + "/v1/fetch"
 	req, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return &FetchResponse{
-			URL:     url,
-			Content: fmt.Sprintf("cloud request build failed: %s", err.Error()),
+			URL:     targetURL,
+			Content: fmt.Sprintf("tao fetch request build failed: %s", err.Error()),
 			Format:  format,
 		}
 	}
@@ -42,8 +46,8 @@ func cloudFetch(cfg *fetchConfig, url, format string) *FetchResponse {
 	resp, err := client.Do(req)
 	if err != nil {
 		return &FetchResponse{
-			URL:     url,
-			Content: fmt.Sprintf("cloud request failed: %s", err.Error()),
+			URL:     targetURL,
+			Content: fmt.Sprintf("tao fetch request failed: %s", err.Error()),
 			Format:  format,
 		}
 	}
@@ -52,37 +56,43 @@ func cloudFetch(cfg *fetchConfig, url, format string) *FetchResponse {
 	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBodySize))
 	if err != nil {
 		return &FetchResponse{
-			URL:     url,
-			Content: fmt.Sprintf("cloud read body failed: %s", err.Error()),
+			URL:     targetURL,
+			Content: fmt.Sprintf("tao fetch read body failed: %s", err.Error()),
 			Format:  format,
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
 		return &FetchResponse{
-			URL:     url,
-			Content: fmt.Sprintf("cloud HTTP %d: %s", resp.StatusCode, truncate(string(body), 200)),
+			URL:     targetURL,
+			Content: fmt.Sprintf("tao fetch HTTP %d: %s", resp.StatusCode, truncate(string(body), 200)),
 			Format:  format,
 		}
 	}
 
+	return parseTaoFetchResponse(body, targetURL, format)
+}
+
+// parseTaoFetchResponse handles the Tao fetch response.
+// Tao returns plain text (HTML or Markdown) for fetch; tries JSON first for structured responses.
+func parseTaoFetchResponse(body []byte, targetURL, format string) *FetchResponse {
 	var result struct {
 		Title   string `json:"title"`
 		Content string `json:"content"`
 	}
-	if err := json.Unmarshal(body, &result); err != nil {
+	if json.Unmarshal(body, &result) == nil && result.Content != "" {
 		return &FetchResponse{
-			URL:     url,
-			Title:   "",
-			Content: string(body),
+			URL:     targetURL,
+			Title:   result.Title,
+			Content: result.Content,
 			Format:  format,
 		}
 	}
 
+	// Plain text response (HTML or Markdown)
 	return &FetchResponse{
-		URL:     url,
-		Title:   result.Title,
-		Content: result.Content,
+		URL:     targetURL,
+		Content: string(body),
 		Format:  format,
 	}
 }

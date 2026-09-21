@@ -66,6 +66,18 @@ type YaoMetadata struct {
 
 	// Developer information
 	Developer *share.Developer `json:"developer,omitempty"`
+
+	// Tao Service endpoints for client discovery.
+	// Populated by resolveTaoEndpoints(); ENV overridable for development.
+	Tao *TaoEndpoints `json:"tao,omitempty"`
+}
+
+// TaoEndpoints holds Tao Service API and registration URLs per locale.
+type TaoEndpoints struct {
+	CN         string `json:"cn"`          // Chinese API base URL
+	EN         string `json:"en"`          // International API base URL
+	RegisterCN string `json:"register_cn"` // Chinese registration page
+	RegisterEN string `json:"register_en"` // International registration page
 }
 
 // WebProxyMeta exposes WebProxy configuration for client discovery.
@@ -128,6 +140,9 @@ func (openapi *OpenAPI) yaoMetadata(c *gin.Context) {
 	if share.App.Developer.ID != "" || share.App.Developer.Name != "" {
 		metadata.Developer = &share.App.Developer
 	}
+
+	// Include Tao Service endpoints for client discovery
+	metadata.Tao = resolveTaoEndpoints()
 
 	c.JSON(200, metadata)
 }
@@ -208,3 +223,28 @@ func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {}
 
 // oauthProtectedResourceMetadata returns protected resource metadata - RFC 9728
 func (openapi *OpenAPI) oauthProtectedResourceMetadata(c *gin.Context) {}
+
+const (
+	defaultTaoBaseURLCN = "https://tao-api.yaoagents.cn"
+	defaultTaoBaseURLEN = "https://us.yao.run"
+	defaultTaoRegCN     = "https://yaoagents.cn/tao"
+	defaultTaoRegEN     = "https://yaoagents.com/tao"
+)
+
+// resolveTaoEndpoints builds TaoEndpoints from ENV overrides or hardcoded defaults.
+func resolveTaoEndpoints() *TaoEndpoints {
+	cn := os.Getenv("TAO_BASE_URL_CN")
+	if cn == "" {
+		cn = defaultTaoBaseURLCN
+	}
+	en := os.Getenv("TAO_BASE_URL_EN")
+	if en == "" {
+		en = defaultTaoBaseURLEN
+	}
+	return &TaoEndpoints{
+		CN:         strings.TrimRight(cn, "/"),
+		EN:         strings.TrimRight(en, "/"),
+		RegisterCN: defaultTaoRegCN,
+		RegisterEN: defaultTaoRegEN,
+	}
+}

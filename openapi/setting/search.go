@@ -77,12 +77,12 @@ func handleSearchGet(c *gin.Context) {
 		}
 
 		if preset.IsCloud {
-			var cloudSaved map[string]interface{}
+			var taoSaved map[string]interface{}
 			if setting.Global != nil {
-				cloudSaved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, cloudNS)
+				taoSaved, _ = setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
 			}
-			if cloudSaved != nil {
-				if st, ok := cloudSaved["status"].(string); ok && st == "connected" {
+			if taoSaved != nil {
+				if st, ok := taoSaved["status"].(string); ok && st == "connected" {
 					cfg.Enabled = true
 					cfg.Status = "connected"
 				}
@@ -101,7 +101,7 @@ func handleSearchGet(c *gin.Context) {
 					for k, v := range fv {
 						s, _ := v.(string)
 						if pwFields[k] && s != "" {
-							cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
+							cfg.FieldValues[k] = maskKey(decryptValue(s))
 						} else {
 							cfg.FieldValues[k] = s
 						}
@@ -142,8 +142,8 @@ func handleSearchProviderUpdate(c *gin.Context) {
 	}
 
 	key := c.Param("key")
-	if key == "cloud" {
-		respondError(c, http.StatusBadRequest, "cloud provider is managed by cloud service settings")
+	if key == "tao" {
+		respondError(c, http.StatusBadRequest, "tao provider is managed by tao service settings")
 		return
 	}
 
@@ -199,7 +199,7 @@ func handleSearchProviderUpdate(c *gin.Context) {
 			if v == "" {
 				continue // keep existing
 			}
-			newFV[k] = cloudEncrypt(v)
+			newFV[k] = encryptValue(v)
 		} else {
 			newFV[k] = v
 		}
@@ -234,7 +234,7 @@ func handleSearchProviderUpdate(c *gin.Context) {
 		for k, v := range fv {
 			s, _ := v.(string)
 			if pwFields[k] && s != "" {
-				cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
+				cfg.FieldValues[k] = maskKey(decryptValue(s))
 			} else {
 				cfg.FieldValues[k] = s
 			}
@@ -254,8 +254,8 @@ func handleSearchProviderToggle(c *gin.Context) {
 	}
 
 	key := c.Param("key")
-	if key == "cloud" {
-		respondError(c, http.StatusBadRequest, "cloud provider is managed by cloud service settings")
+	if key == "tao" {
+		respondError(c, http.StatusBadRequest, "tao provider is managed by tao service settings")
 		return
 	}
 
@@ -326,7 +326,7 @@ func handleSearchProviderToggle(c *gin.Context) {
 		for k, v := range fv {
 			s, _ := v.(string)
 			if pwFields[k] && s != "" {
-				cfg.FieldValues[k] = cloudMaskKey(cloudDecrypt(s))
+				cfg.FieldValues[k] = maskKey(decryptValue(s))
 			} else {
 				cfg.FieldValues[k] = s
 			}
@@ -346,8 +346,8 @@ func handleSearchProviderTest(c *gin.Context) {
 	}
 
 	key := c.Param("key")
-	if key == "cloud" {
-		respondError(c, http.StatusBadRequest, "cloud provider status is determined by cloud service configuration")
+	if key == "tao" {
+		respondError(c, http.StatusBadRequest, "tao provider status is determined by tao service configuration")
 		return
 	}
 
@@ -375,7 +375,7 @@ func handleSearchProviderTest(c *gin.Context) {
 		if saved != nil {
 			if fv, ok := saved["field_values"].(map[string]interface{}); ok {
 				if v, ok := fv["api_key"].(string); ok {
-					apiKey = cloudDecrypt(v)
+					apiKey = decryptValue(v)
 				}
 			}
 		}
