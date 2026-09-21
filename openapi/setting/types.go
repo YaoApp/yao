@@ -305,6 +305,7 @@ type SandboxPageData struct {
 type Checkpoint struct {
 	Status   string `json:"status"`
 	Required bool   `json:"required"`
+	Level    string `json:"level"` // "error" | "warning" | "info"
 	Label    string `json:"label"`
 	Path     string `json:"path"`
 	Detail   string `json:"detail,omitempty"`

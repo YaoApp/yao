@@ -21,6 +21,54 @@ import (
 	taitypes "github.com/yaoapp/yao/tai/types"
 )
 
+// SandboxAvailability summarises sandbox capabilities visible to the
+// authenticated user. Computed once per setup-status request, consumed by
+// checkSandboxNode and checkSandboxImage to avoid repeated registry traversals.
+type SandboxAvailability struct {
+	HasNodes      bool   // at least one online node (local or remote)
+	HasDocker     bool   // at least one online node with Docker capability
+	HasHostExec   bool   // at least one online node with HostExec capability
+	HasLocalNode  bool   // local node is registered and online
+	LocalDisabled bool   // local node disabled via config.Conf.DisableLocalNode
+	DockerNodeID  string // TaiID of the first Docker-capable online node
+}
+
+// CheckSandboxAvailability examines the Tai registry once and returns a
+// snapshot of sandbox capabilities visible to the authenticated user.
+func CheckSandboxAvailability(info *oauthTypes.AuthorizedInfo) SandboxAvailability {
+	avail := SandboxAvailability{
+		LocalDisabled: config.Conf.DisableLocalNode,
+	}
+	reg := registry.Global()
+	if reg == nil {
+		return avail
+	}
+
+	for _, snap := range reg.List() {
+		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
+			continue
+		}
+		if snap.Status != "online" {
+			continue
+		}
+
+		avail.HasNodes = true
+		if snap.TaiID == "local" && snap.Mode == "local" {
+			avail.HasLocalNode = true
+		}
+		if snap.Capabilities.Docker {
+			avail.HasDocker = true
+			if avail.DockerNodeID == "" {
+				avail.DockerNodeID = snap.TaiID
+			}
+		}
+		if snap.Capabilities.HostExec {
+			avail.HasHostExec = true
+		}
+	}
+	return avail
+}
+
 // handleSetupStatus aggregates all system-level configuration checkpoints.
 // GET /setting/setup-status
 func handleSetupStatus(c *gin.Context) {
@@ -37,15 +85,22 @@ func handleSetupStatus(c *gin.Context) {
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))
 	isCN := strings.HasPrefix(locale, "zh")
 
-	checkpoints := make(map[string]Checkpoint, 7)
+	checkpoints := make(map[string]Checkpoint, 5)
 
 	checkpoints["llm_default"] = checkLLMDefault(info, isCN)
 	checkpoints["llm_vision"] = checkLLMVision(info, isCN)
-	checkpoints["sandbox_node"] = checkSandboxNode(info, isCN)
-	checkpoints["sandbox_image"] = checkSandboxImage(info, locale, isCN)
 	checkpoints["search"] = checkSearch(info, isCN)
-	checkpoints["ocr"] = checkOCR(info, isCN)
-	checkpoints["smtp"] = checkSMTP(info, isCN)
+
+	// Sandbox checkpoints are conditional: only present when at least one
+	// online node is visible to this user. This avoids showing sandbox
+	// items to users without any Docker/TAI infrastructure.
+	avail := CheckSandboxAvailability(info)
+	if avail.HasNodes {
+		checkpoints["sandbox_node"] = checkSandboxNode(avail, isCN)
+		if avail.HasDocker {
+			checkpoints["sandbox_image"] = checkSandboxImage(avail, locale, isCN)
+		}
+	}
 
 	completed := true
 	for _, cp := range checkpoints {
@@ -177,6 +232,7 @@ func parseRoleTarget(val interface{}) (providerKey, modelID string) {
 func checkLLMDefault(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	cp := Checkpoint{
 		Required: true,
+		Level:    "error",
 		Label:    "Default Model",
 		Path:     "/settings/models",
 		Status:   "fail",
@@ -211,6 +267,7 @@ func checkLLMDefault(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 func checkLLMVision(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	cp := Checkpoint{
 		Required: false,
+		Level:    "info",
 		Label:    "Vision Model",
 		Path:     "/settings/models",
 		Status:   "fail",
@@ -257,9 +314,10 @@ func checkLLMVision(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	return cp
 }
 
-func checkSandboxNode(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
+func checkSandboxNode(avail SandboxAvailability, isCN bool) Checkpoint {
 	cp := Checkpoint{
-		Required: true,
+		Required: false,
+		Level:    "info",
 		Label:    "Sandbox Node",
 		Path:     "/settings/sandbox",
 		Status:   "fail",
@@ -268,27 +326,16 @@ func checkSandboxNode(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 		cp.Label = "沙箱节点"
 	}
 
-	reg := registry.Global()
-	if reg == nil {
-		return cp
+	if avail.HasDocker || avail.HasHostExec {
+		cp.Status = "pass"
 	}
-
-	for _, snap := range reg.List() {
-		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
-			continue
-		}
-		if snap.Status == "online" && (snap.Capabilities.Docker || snap.Capabilities.HostExec) {
-			cp.Status = "pass"
-			return cp
-		}
-	}
-
 	return cp
 }
 
-func checkSandboxImage(info *oauthTypes.AuthorizedInfo, locale string, isCN bool) Checkpoint {
+func checkSandboxImage(avail SandboxAvailability, locale string, isCN bool) Checkpoint {
 	cp := Checkpoint{
-		Required: true,
+		Required: false,
+		Level:    "warning",
 		Label:    "Sandbox Images",
 		Path:     "/settings/sandbox",
 		Status:   "fail",
@@ -308,46 +355,37 @@ func checkSandboxImage(info *oauthTypes.AuthorizedInfo, locale string, isCN bool
 		return cp
 	}
 
-	reg := registry.Global()
-	if reg == nil {
+	if avail.DockerNodeID == "" {
 		cp.Detail = fmt.Sprintf("0/%d", len(needed))
 		return cp
 	}
 
+	res, ok := tai.GetResources(avail.DockerNodeID)
+	if !ok || res.Image == nil {
+		cp.Detail = fmt.Sprintf("0/%d", len(needed))
+		return cp
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	images, err := res.Image.List(ctx)
+	cancel()
+	if err != nil {
+		cp.Detail = fmt.Sprintf("0/%d", len(needed))
+		return cp
+	}
+
+	tagIndex := make(map[string]bool)
+	for _, img := range images {
+		for _, tag := range img.Tags {
+			tagIndex[tag] = true
+		}
+	}
+
 	downloaded := 0
-	for _, snap := range reg.List() {
-		if !taitypes.IsPublicNode(snap.Mode) && !sandboxNodeOwnedBy(&snap, info) {
-			continue
+	for imageRef := range needed {
+		if tagIndex[imageRef] {
+			downloaded++
 		}
-		if snap.Status != "online" || !snap.Capabilities.Docker {
-			continue
-		}
-
-		res, ok := tai.GetResources(snap.TaiID)
-		if !ok || res.Image == nil {
-			continue
-		}
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		images, err := res.Image.List(ctx)
-		cancel()
-		if err != nil {
-			continue
-		}
-
-		tagIndex := make(map[string]bool)
-		for _, img := range images {
-			for _, tag := range img.Tags {
-				tagIndex[tag] = true
-			}
-		}
-
-		for imageRef := range needed {
-			if tagIndex[imageRef] {
-				downloaded++
-			}
-		}
-		break // only check the first usable node
 	}
 
 	if isCN {
@@ -364,6 +402,7 @@ func checkSandboxImage(info *oauthTypes.AuthorizedInfo, locale string, isCN bool
 func checkSearch(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 	cp := Checkpoint{
 		Required: false,
+		Level:    "warning",
 		Label:    "Search Provider",
 		Path:     "/settings/search",
 		Status:   "fail",
@@ -394,75 +433,6 @@ func checkSearch(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
 				}
 			}
 		}
-	}
-
-	return cp
-}
-
-func checkOCR(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
-	cp := Checkpoint{
-		Required: false,
-		Label:    "OCR Provider",
-		Path:     "/settings/ocr",
-		Status:   "fail",
-	}
-	if isCN {
-		cp.Label = "文字识别 (OCR)"
-	}
-
-	if setting.Global == nil {
-		return cp
-	}
-
-	for _, preset := range ocrPresets {
-		if preset.IsCloud {
-			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, taoNS)
-			if saved != nil {
-				if v, ok := saved["status"].(string); ok && v == "connected" {
-					cp.Status = "pass"
-					return cp
-				}
-			}
-		} else {
-			saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, ocrProviderNS(preset.Key))
-			if saved != nil {
-				if v, ok := saved["status"].(string); ok && v == "connected" {
-					cp.Status = "pass"
-					return cp
-				}
-			}
-		}
-	}
-
-	return cp
-}
-
-func checkSMTP(info *oauthTypes.AuthorizedInfo, isCN bool) Checkpoint {
-	cp := Checkpoint{
-		Required: false,
-		Label:    "SMTP Email",
-		Path:     "/settings/smtp",
-		Status:   "fail",
-	}
-	if isCN {
-		cp.Label = "邮件服务"
-	}
-
-	if setting.Global == nil {
-		return cp
-	}
-
-	saved, _ := setting.Global.GetMerged(info.UserID, info.TeamID, smtpNS)
-	if saved == nil {
-		return cp
-	}
-
-	status, _ := saved["status"].(string)
-	if status == "connected" {
-		if enabled, ok := saved["enabled"].(bool); ok && !enabled {
-			return cp
-		}
-		cp.Status = "pass"
 	}
 
 	return cp

@@ -215,13 +215,16 @@ func handleSandboxGet(c *gin.Context) {
 	info := authorized.GetInfo(c)
 	locale := strings.ToLower(c.DefaultQuery("locale", "en-us"))
 
+	// This listing intentionally includes offline Docker nodes so the
+	// management UI can display their status and allow troubleshooting.
+	// CheckSandboxAvailability filters to online-only, which is correct
+	// for checkpoint evaluation but too restrictive here.
 	reg := registry.Global()
 	var snaps []taitypes.NodeMeta
 	if reg != nil {
 		snaps = reg.List()
 	}
 
-	// Filter nodes by ownership
 	var filtered []taitypes.NodeMeta
 	for i := range snaps {
 		s := &snaps[i]
@@ -746,6 +749,10 @@ func handleSandboxImageDelete(c *gin.Context) {
 		respondError(c, http.StatusBadRequest, friendlyImageError(locale, err.Error()))
 		return
 	}
+
+	// Clear stale pull state so buildNodeImages does not report "downloaded"
+	// from a previous pull after the image has been removed.
+	pullTracker.Delete(nodeID + ":" + imageRef)
 
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"success": true})
 }
