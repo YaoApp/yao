@@ -47,18 +47,6 @@
           type: enabled
         reasoning_effort: "low"
       enabled: true
-    - id: glm-5.2
-      name: GLM-5.2
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
-    - id: glm-5.1
-      name: GLM-5.1
-      max_input_tokens: 202752
-      max_output_tokens: 65535
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
     - id: kimi-k3
       name: Kimi K3 Max
       max_input_tokens: 1048576
@@ -210,18 +198,6 @@
       name: Hy3
       max_input_tokens: 262144
       max_output_tokens: 262144
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
-    - id: glm-5.3-flash
-      name: GLM-5.3-Flash
-      max_input_tokens: 1048576
-      max_output_tokens: 131072
-      capabilities: [vision, tool_calls, streaming, json]
-      enabled: false
-    - id: glm-5.3
-      name: GLM-5.3
-      max_input_tokens: 1048576
-      max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: hy4-preview
@@ -514,12 +490,6 @@
           type: enabled
         reasoning_effort: "low"
       enabled: false
-    - id: GLM-5.2
-      name: GLM-5.2
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
     - id: Kimi-K3
       name: Kimi K3 Max
       max_input_tokens: 1048576
@@ -687,12 +657,6 @@
         thinking:
           type: enabled
         reasoning_effort: "low"
-      enabled: false
-    - id: GLM-5.2
-      name: GLM-5.2
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: Kimi-K3
       name: Kimi K3 Max
@@ -862,12 +826,6 @@
           type: enabled
         reasoning_effort: "low"
       enabled: false
-    - id: GLM-5.2
-      name: GLM-5.2
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
     - id: Kimi-K3
       name: Kimi K3 Max
       max_input_tokens: 1048576
@@ -958,18 +916,6 @@
   api_url: https://maas-api.antdigital.com/v1/
   require_key: true
   default_models:
-    - id: glm-5.2
-      name: GLM 5.2
-      max_input_tokens: 1000000
-      max_output_tokens: 128000
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
-    - id: glm-5.1
-      name: GLM 5.1
-      max_input_tokens: 128000
-      max_output_tokens: 200000
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
     - id: kimi-k3
       name: Kimi K3 Max
       max_input_tokens: 1000000
@@ -1871,95 +1817,6 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
 
-# ─── 智谱 GLM (CN) ─────────────────────────────────────
-- key: zhipu_cn
-  name: 智谱 GLM
-  locale: zh-cn
-  type: openai
-  api_url: https://open.bigmodel.cn/api/paas/v4/
-  require_key: true
-  default_models:
-    - id: glm-5
-      name: GLM-5
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: glm-5-thinking
-      model: glm-5
-      name: GLM-5 Thinking
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: true
-    - id: glm-5-turbo
-      name: GLM-5 Turbo
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: glm-5-turbo-thinking
-      model: glm-5-turbo
-      name: GLM-5 Turbo Thinking
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
-    - id: glm-5.1
-      name: GLM-5.1
-      max_input_tokens: 202752
-      max_output_tokens: 65535
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: glm-5.1-thinking
-      model: glm-5.1
-      name: GLM-5.1 Thinking
-      max_input_tokens: 202752
-      max_output_tokens: 65535
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
-    - id: glm-4.7
-      name: GLM-4.7
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: glm-4.7-thinking
-      model: glm-4.7
-      name: GLM-4.7 Thinking
-      max_input_tokens: 202752
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
-    - id: glm-5v-turbo
-      name: GLM-5V Turbo
-      max_input_tokens: 8192
-      max_output_tokens: 4096
-      capabilities: [vision, tool_calls, streaming, json]
-      enabled: false
-    - id: glm-4-flash
-      name: GLM-4 Flash
-      max_input_tokens: 128000
-      max_output_tokens: 8192
-      capabilities: [tool_calls, streaming, json]
-      enabled: false
-
 # ─── Google DeepMind (AI Studio) ────────────────────────
 # thinkingConfig.thinkingBudget: 0 = disabled, 1–32768 = enabled
 - key: google
@@ -2345,24 +2202,6 @@
   api_url: https://api.siliconflow.cn/v1/
   require_key: true
   default_models:
-    - id: Pro-zai-org-GLM-5.1
-      model: Pro/zai-org/GLM-5.1
-      name: GLM-5.1
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: Pro-zai-org-GLM-5.1-thinking
-      model: Pro/zai-org/GLM-5.1
-      name: GLM-5.1 Thinking
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: true
     - id: Pro-moonshotai-Kimi-K2.6
       model: Pro/moonshotai/Kimi-K2.6
       name: Kimi K2.6
@@ -2420,24 +2259,6 @@
       name: Qwen3 Coder 30B Thinking
       max_input_tokens: 131072
       max_output_tokens: 32768
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
-    - id: Pro-zai-org-GLM-4.7
-      model: Pro/zai-org/GLM-4.7
-      name: GLM-4.7
-      max_input_tokens: 204800
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: Pro-zai-org-GLM-4.7-thinking
-      model: Pro/zai-org/GLM-4.7
-      name: GLM-4.7 Thinking
-      max_input_tokens: 204800
-      max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         enable_thinking: true
@@ -2694,14 +2515,6 @@
       options:
         enable_thinking: true
       enabled: false
-    - id: glm-5.1
-      name: GLM-5.1
-      max_input_tokens: 256000
-      max_output_tokens: 131072
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
     - id: kimi-k2.6
       name: Kimi K2.6
       max_input_tokens: 262144
@@ -2846,24 +2659,6 @@
       name: Qwen 3.5 397B Thinking
       max_input_tokens: 262144
       max_output_tokens: 65536
-      capabilities: [tool_calls, streaming, json, reasoning]
-      options:
-        enable_thinking: true
-      enabled: false
-    - id: z-ai-glm-5.1
-      model: z-ai/glm-5.1
-      name: GLM-5.1
-      max_input_tokens: 202752
-      max_output_tokens: 65535
-      capabilities: [tool_calls, streaming, json]
-      options:
-        enable_thinking: false
-      enabled: false
-    - id: z-ai-glm-5.1-thinking
-      model: z-ai/glm-5.1
-      name: GLM-5.1 Thinking
-      max_input_tokens: 202752
-      max_output_tokens: 65535
       capabilities: [tool_calls, streaming, json, reasoning]
       options:
         enable_thinking: true
