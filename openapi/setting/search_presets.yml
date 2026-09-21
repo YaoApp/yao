@@ -69,3 +69,17 @@
   tool_labels:
     - { zh-CN: "网页抓取", en-US: "Web Scrape" }
   fields: []
+
+- key: parallel
+  name: Parallel
+  description:
+    zh-CN: "通过 Search MCP 搜索，无需账户或 API Key。查询发送给 Parallel，免费访问有速率限制。"
+    en-US: "Search MCP without an account or API key. Queries are sent to Parallel; free access is rate limited."
+  website: "https://docs.parallel.ai/integrations/mcp/search-mcp"
+  tools: [web_search]
+  tool_labels:
+    - { zh-CN: "网页搜索", en-US: "Web Search" }
+  fields:
+    - key: api_key
+      label: { zh-CN: "API Key（可选）", en-US: "API Key (optional)" }
+      type: password

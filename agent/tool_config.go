@@ -15,7 +15,7 @@ type toolProviderConfig struct {
 }
 
 var validWebSearchDefaults = map[string]bool{
-	"tavily": true, "serper": true, "tao": true,
+	"tavily": true, "serper": true, "tao": true, "parallel": true,
 }
 
 var validWebFetchDefaults = map[string]bool{
