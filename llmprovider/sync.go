@@ -198,7 +198,7 @@ func marshalModelDSL(p *Provider, m *ModelInfo) ([]byte, error) {
 		opts["capabilities"] = caps
 	}
 
-	reserved := map[string]bool{"host": true, "key": true, "model": true, "capabilities": true, "_connector_type": true}
+	reserved := map[string]bool{"host": true, "key": true, "model": true, "capabilities": true, "_connector_type": true, "endpoint": true}
 	extraBody := map[string]interface{}{}
 	for k, v := range m.Options {
 		if reserved[k] || caps[k] != nil {
@@ -219,6 +219,13 @@ func marshalModelDSL(p *Provider, m *ModelInfo) ([]byte, error) {
 	if name == "" {
 		name = m.ID
 	}
+	// TypeSafe connector needs endpoint in opts directly (not in extra_body)
+	if connType == "typesafe" {
+		if ep, ok := m.Options["endpoint"].(string); ok && ep != "" {
+			opts["endpoint"] = ep
+		}
+	}
+
 	dsl := map[string]interface{}{
 		"type":    connType,
 		"name":    name,

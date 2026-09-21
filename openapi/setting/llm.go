@@ -253,7 +253,8 @@ func llmValidateWithModel(client *http.Client, providerType, apiURL, apiKey stri
 var (
 	remoteModelCache     []llmprovider.ModelInfo
 	remoteModelCacheURL  string
-	remoteReasoningCache map[string]interface{} // modelID → raw reasoning field from Tao API
+	remoteReasoningCache map[string]interface{}   // modelID → raw reasoning field from Tao API
+	remoteModelRawCache  []map[string]interface{} // raw /v1/models items before filtering; used by fetchDecisionModels
 	remoteModelCacheMu   sync.Mutex
 )
 
@@ -276,11 +277,25 @@ func buildTaoPreset(info *oauthTypes.AuthorizedInfo) {
 	status, _ := saved["status"].(string)
 	if status == "connected" {
 		if encKey, _ := saved["api_key"].(string); encKey != "" {
-			models := fetchRemoteModels(apiURL, decryptValue(encKey))
+			apiKey := decryptValue(encKey)
+			models := fetchRemoteModels(apiURL, apiKey)
 			if len(models) > 0 {
 				for i := range models {
 					models[i].Enabled = true
 				}
+
+				// Merge decision models with _connector_type override (same as handleTaoSetup)
+				decModels := fetchDecisionModels(apiURL, apiKey)
+				for i := range decModels {
+					if decModels[i].Options == nil {
+						decModels[i].Options = map[string]interface{}{}
+					}
+					decModels[i].Options["_connector_type"] = "typesafe"
+					decModels[i].Options["endpoint"] = "/v1/decisions"
+					decModels[i].Enabled = true
+				}
+				models = append(models, decModels...)
+
 				preset.DefaultModels = models
 			}
 		}
@@ -347,6 +362,7 @@ func fetchRemoteModels(apiURL, apiKey string) []llmprovider.ModelInfo {
 	reasoningCache := make(map[string]interface{})
 	remoteModelCacheMu.Lock()
 	remoteReasoningCache = reasoningCache
+	remoteModelRawCache = result.Data
 	remoteModelCacheMu.Unlock()
 
 	var expanded []llmprovider.ModelInfo
@@ -372,7 +388,75 @@ func invalidateRemoteModelCache() {
 	remoteModelCache = nil
 	remoteModelCacheURL = ""
 	remoteReasoningCache = nil
+	remoteModelRawCache = nil
 	remoteModelCacheMu.Unlock()
+}
+
+// fetchDecisionModels extracts decision-service models from the raw /v1/models cache.
+// These models are filtered out by mapRemoteModel (they require a typesafe connector,
+// not the openai connector used by the main LLM provider).
+func fetchDecisionModels(apiURL, apiKey string) []llmprovider.ModelInfo {
+	remoteModelCacheMu.Lock()
+	raw := remoteModelRawCache
+	remoteModelCacheMu.Unlock()
+	if raw == nil {
+		return nil
+	}
+
+	var models []llmprovider.ModelInfo
+	for _, item := range raw {
+		svc, _ := item["service"].(string)
+		if svc != "decision" {
+			continue
+		}
+		id, _ := item["id"].(string)
+		if id == "" {
+			continue
+		}
+		name, _ := item["name"].(string)
+		if name == "" {
+			name = id
+		}
+		m := llmprovider.ModelInfo{
+			ID:           id,
+			Name:         name,
+			Capabilities: []string{"decision"},
+			Enabled:      true,
+		}
+		if v, ok := getNumber(item, "max_input_tokens"); ok && v > 0 {
+			m.MaxInputTokens = int(v)
+		}
+		models = append(models, m)
+	}
+	return models
+}
+
+// typesafeValidateKey validates a TypeSafe API key by calling GET /v1/models.
+// TypeSafe's response format differs from OpenAI, so we only check the status code.
+// This bypasses BuildAPIURL which would incorrectly prepend /v1.
+func typesafeValidateKey(apiURL, apiKey string) error {
+	url := strings.TrimRight(apiURL, "/") + "/v1/models"
+	client := &http.Client{Timeout: 10 * time.Second}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("typesafe: create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("typesafe: request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return nil
+	case http.StatusUnauthorized, http.StatusForbidden:
+		return fmt.Errorf("invalid API key (HTTP %d)", resp.StatusCode)
+	default:
+		return fmt.Errorf("unexpected status (HTTP %d)", resp.StatusCode)
+	}
 }
 
 func mapRemoteModel(item map[string]interface{}) map[string]interface{} {
@@ -381,8 +465,8 @@ func mapRemoteModel(item map[string]interface{}) map[string]interface{} {
 		return nil
 	}
 
-	// OCR and fetch models are handled by dedicated tool providers, not the LLM provider.
-	if svc, _ := item["service"].(string); svc == "ocr" || svc == "fetch" {
+	// OCR, fetch, and decision models are handled by dedicated providers, not the LLM provider.
+	if svc, _ := item["service"].(string); svc == "ocr" || svc == "fetch" || svc == "decision" {
 		return nil
 	}
 
@@ -887,7 +971,12 @@ func handleLLMTest(c *gin.Context) {
 	}
 
 	start := time.Now()
-	err := llmValidateKey(input.Type, input.APIURL, input.APIKey)
+	var err error
+	if input.Type == "typesafe" {
+		err = typesafeValidateKey(input.APIURL, input.APIKey)
+	} else {
+		err = llmValidateKey(input.Type, input.APIURL, input.APIKey)
+	}
 	latency := time.Since(start).Milliseconds()
 
 	if err != nil {
@@ -1181,8 +1270,14 @@ func handleLLMProviderCreate(c *gin.Context) {
 	}
 
 	if provider.RequireKey && provider.APIKey != "" && provider.APIURL != "" {
-		if err := llmValidateKey(provider.Type, provider.APIURL, provider.APIKey); err != nil {
-			respondError(c, http.StatusBadRequest, fmt.Sprintf("API key validation failed: %s", err.Error()))
+		var keyErr error
+		if provider.Type == "typesafe" {
+			keyErr = typesafeValidateKey(provider.APIURL, provider.APIKey)
+		} else {
+			keyErr = llmValidateKey(provider.Type, provider.APIURL, provider.APIKey)
+		}
+		if keyErr != nil {
+			respondError(c, http.StatusBadRequest, fmt.Sprintf("API key validation failed: %s", keyErr.Error()))
 			return
 		}
 	}
@@ -1398,7 +1493,11 @@ func handleLLMProviderTest(c *gin.Context) {
 	}
 
 	start := time.Now()
-	err = llmValidateKey(p.Type, p.APIURL, p.APIKey)
+	if p.Type == "typesafe" {
+		err = typesafeValidateKey(p.APIURL, p.APIKey)
+	} else {
+		err = llmValidateKey(p.Type, p.APIURL, p.APIKey)
+	}
 	latency := time.Since(start).Milliseconds()
 
 	var testResult llmprovider.ProviderTestResult

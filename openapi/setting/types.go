@@ -70,13 +70,15 @@ type TaoConfig struct {
 
 // TaoServices enumerates which Tao capabilities are available for the stored key.
 type TaoServices struct {
-	LLM       bool `json:"llm"`
-	Search    bool `json:"search"`
-	Scrape    bool `json:"scrape"`
-	OCR       bool `json:"ocr"`
-	Image     bool `json:"image"`
-	Audio     bool `json:"audio"`
-	Embedding bool `json:"embedding"`
+	LLM          bool   `json:"llm"`
+	Search       bool   `json:"search"`
+	Scrape       bool   `json:"scrape"`
+	OCR          bool   `json:"ocr"`
+	Image        bool   `json:"image"`
+	Audio        bool   `json:"audio"`
+	Embedding    bool   `json:"embedding"`
+	Decision     bool   `json:"decision"` // TypeSafe Jev decision service
+	DecisionPath string `json:"-"`        // internal: endpoint path from /v1/services (e.g. /v1/decisions), not serialized
 }
 
 // TaoVerifyResult is the response for POST /setting/tao/verify.
@@ -99,8 +101,15 @@ type TaoSetupResult struct {
 
 // TaoSetupDetails describes what was auto-configured during setup.
 type TaoSetupDetails struct {
-	LLM    *TaoSetupLLM    `json:"llm,omitempty"`
-	Search *TaoSetupSearch `json:"search,omitempty"`
+	LLM      *TaoSetupLLM      `json:"llm,omitempty"`
+	Search   *TaoSetupSearch   `json:"search,omitempty"`
+	Decision *TaoSetupDecision `json:"decision,omitempty"`
+}
+
+// TaoSetupDecision describes the decision provider created by Tao setup.
+type TaoSetupDecision struct {
+	ProviderName string `json:"provider_name"`
+	Model        string `json:"model"`
 }
 
 // TaoSetupLLM describes the LLM provider created by Tao setup.
