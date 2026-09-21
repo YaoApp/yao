@@ -25,7 +25,7 @@ var validWebFetchDefaults = map[string]bool{
 // validProviderKeys lists providers that store credentials in search.providers.*.
 // "tao" is excluded — its credentials live in the tao namespace.
 var validProviderKeys = map[string]bool{
-	"tavily": true, "serper": true, "brightdata": true,
+	"tavily": true, "serper": true, "brightdata": true, "parallel": true,
 }
 
 var validOCRProviderKeys = map[string]bool{

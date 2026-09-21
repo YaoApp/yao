@@ -45,6 +45,9 @@ func TestParallelSettingsSelection(t *testing.T) {
 	if preset == nil || len(preset.Tools) != 1 || preset.Tools[0] != "web_search" {
 		t.Fatal("Parallel not in native search presets")
 	}
+	if len(preset.Fields) != 1 || preset.Fields[0].Key != "api_key" || !preset.Fields[0].Optional {
+		t.Fatal("Parallel's anonymous preset must advertise an optional API key")
+	}
 	if w := call(handleSearchProviderToggle, `{"enabled":true}`, "parallel"); w.Code != http.StatusOK {
 		t.Fatalf("enable: %d %s", w.Code, w.Body.String())
 	}

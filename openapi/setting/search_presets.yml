@@ -83,3 +83,4 @@
     - key: api_key
       label: { zh-CN: "API Key（可选）", en-US: "API Key (optional)" }
       type: password
+      optional: true

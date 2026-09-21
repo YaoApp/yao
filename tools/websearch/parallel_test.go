@@ -98,6 +98,54 @@ func TestParallelResultErrors(t *testing.T) {
 	}
 }
 
+func TestParallelWarningsAreNotSearchResults(t *testing.T) {
+	for _, text := range []string{
+		`{"results":[{"title":"Go","url":"https://go.dev","excerpts":["Go documentation"]}],"warnings":["Query truncated"]}`,
+		`{"results":[],"warnings":["No matches"]}`,
+	} {
+		results, err := parseParallelResult(&types.CallToolResponse{Content: []types.ToolContent{{Type: types.ToolContentTypeText, Text: text}}}, 1)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) > 1 {
+			t.Errorf("warnings exceeded result limit: %+v", results)
+		}
+		for _, result := range results {
+			if result.URL == "" {
+				t.Errorf("warning became an uncited search result: %+v", result)
+			}
+		}
+	}
+}
+
+func TestParallelExplicitKeyNeverFallsBack(t *testing.T) {
+	requests := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.Header.Get("x-api-key") != "invalid-key" {
+			t.Error("explicit key was dropped")
+		}
+		if r.Header.Get("User-Agent") != "Yao/"+share.VERSION {
+			t.Error("project User-Agent missing on failure")
+		}
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("invalid API key"))
+	}))
+	defer srv.Close()
+	if _, err := parallelSearchAt(srv.URL, "go generics", 1, "invalid-key"); err == nil {
+		t.Fatal("authentication failure was swallowed")
+	}
+	if requests != 1 {
+		t.Fatalf("authentication failure retried: %d requests", requests)
+	}
+	if _, err := parallelSearchAt(srv.URL, "go generics", 1, " "); err == nil {
+		t.Fatal("blank explicit key was accepted")
+	}
+	if requests != 1 {
+		t.Fatal("blank explicit key made a request")
+	}
+}
+
 func TestParallelSelection(t *testing.T) {
 	oldGlobal := setting.Global
 	oldStore := store.Pools["__yao.store"]

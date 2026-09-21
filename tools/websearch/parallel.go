@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -104,7 +105,8 @@ func parseParallelResult(result *types.CallToolResponse, limit int) ([]SearchRes
 		if data.Warnings != nil {
 			warning, err := json.Marshal(data.Warnings)
 			if err == nil && string(warning) != "[]" {
-				items = append(items, SearchResult{Title: "Warning", Content: "Parallel search warnings: " + string(warning)})
+				// Diagnostic warnings must not become cited hits or exceed the limit.
+				log.Printf("Parallel search warnings: %s", warning)
 			}
 		}
 		return items, nil
