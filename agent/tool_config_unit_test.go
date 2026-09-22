@@ -34,7 +34,7 @@ func TestToolConfigValidationMaps(t *testing.T) {
 	testprepare.PrepareUnit(t)
 
 	wsDefaults := agent.ExportValidWebSearchDefaults
-	for _, key := range []string{"tavily", "serper", "cloud"} {
+	for _, key := range []string{"tavily", "serper", "tao"} {
 		if !wsDefaults[key] {
 			t.Errorf("validWebSearchDefaults missing %q", key)
 		}
@@ -44,7 +44,7 @@ func TestToolConfigValidationMaps(t *testing.T) {
 	}
 
 	wfDefaults := agent.ExportValidWebFetchDefaults
-	for _, key := range []string{"brightdata", "cloud", "direct"} {
+	for _, key := range []string{"brightdata", "tao", "direct"} {
 		if !wfDefaults[key] {
 			t.Errorf("validWebFetchDefaults missing %q", key)
 		}
