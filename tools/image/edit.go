@@ -35,7 +35,7 @@ func EditHandler(proc *process.Process) interface{} {
 	provider := proc.ArgsString(2)
 	size := proc.ArgsString(3, "1024x1024")
 	model := proc.ArgsString(4)
-	provider, model = splitModelConnector(provider, model)
+	provider, model = SplitModelConnector(provider, model)
 	output := proc.ArgsString(5)
 	allArgs := proc.ArgsMap(6)
 

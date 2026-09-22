@@ -1,0 +1,16 @@
+{
+  "name": "decision_providers",
+  "description": "List available decision providers and their models.",
+  "process": "tools.decision_providers",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "capability": {
+        "type": "string",
+        "description": "Filter by capability (default: 'decision').",
+        "default": "decision"
+      }
+    }
+  },
+  "x-process-args": ["$args.capability"]
+}

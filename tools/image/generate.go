@@ -27,7 +27,7 @@ func GenerateHandler(proc *process.Process) interface{} {
 	provider := proc.ArgsString(1)
 	size := proc.ArgsString(2, "1024x1024")
 	model := proc.ArgsString(3)
-	provider, model = splitModelConnector(provider, model)
+	provider, model = SplitModelConnector(provider, model)
 	output := proc.ArgsString(4)
 	allArgs := proc.ArgsMap(5)
 
