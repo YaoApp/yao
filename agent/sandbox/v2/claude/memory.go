@@ -91,6 +91,8 @@ Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" 
 | workspace_ssh_key | Manage workspace SSH keys |
 | clip_write | Store a content clip |
 | clip_read | Read a clip by ID |
+| decision_decide | Make structured decisions (classify/score/measure; e.g. Jev) |
+| decision_providers | List available decision providers |
 | skill_list | List installed skills (filter by type: system/assistant/extension) |
 
 Skills in ` + "`$HOME/.claude/skills/`" + ` are auto-loaded with full parameter docs.

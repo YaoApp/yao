@@ -1,0 +1,9 @@
+{
+  "name": "yao-decision",
+  "transport": "process",
+  "description": "Structured decision tools for classification, scoring, and probability estimation",
+  "tools": {
+    "decision_decide": "tools.decision_decide",
+    "decision_providers": "tools.decision_providers"
+  }
+}

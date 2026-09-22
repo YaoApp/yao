@@ -12,6 +12,7 @@ import (
 	"github.com/yaoapp/yao/tools/audio"
 	toolboard "github.com/yaoapp/yao/tools/board"
 	"github.com/yaoapp/yao/tools/clip"
+	"github.com/yaoapp/yao/tools/decision"
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	toolinbox "github.com/yaoapp/yao/tools/inbox"
@@ -65,6 +66,9 @@ var mcpMobileDSL []byte
 
 //go:embed mcps/ocr.json
 var mcpOCRDSL []byte
+
+//go:embed mcps/decision.json
+var mcpDecisionDSL []byte
 
 //go:embed mcps/workspace-config.json
 var mcpWorkspaceConfigDSL []byte
@@ -137,6 +141,9 @@ func init() {
 		"workspace_git_config":     wsconfig.GitConfigHandler,
 		"workspace_git_credential": wsconfig.GitCredentialHandler,
 		"workspace_ssh_key":        wsconfig.SSHKeyHandler,
+
+		"decision_decide":    decision.DecideHandler,
+		"decision_providers": decision.ProvidersHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -174,6 +181,8 @@ func init() {
 		mobile.InfoSchemaJSON, mobile.PushSchemaJSON, mobile.PullSchemaJSON)
 	registerMCPServer(mcpOCRDSL, "yao-ocr",
 		ocr.RecognizeSchemaJSON, ocr.ProvidersSchemaJSON)
+	registerMCPServer(mcpDecisionDSL, "yao-decision",
+		decision.DecideSchemaJSON, decision.ProvidersSchemaJSON)
 	registerMCPServer(mcpWorkspaceConfigDSL, "yao-workspace-config",
 		wsconfig.GitConfigSchemaJSON, wsconfig.GitCredentialSchemaJSON, wsconfig.SSHKeySchemaJSON)
 }

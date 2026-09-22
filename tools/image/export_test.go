@@ -4,7 +4,7 @@ var (
 	ExportModelHasCapability    = modelHasCapability
 	ExportFindFirstImageGenConn = findFirstImageGenConnector
 	ExportResolveModelName      = resolveModelName
-	ExportSplitModelConnector   = splitModelConnector
+	ExportSplitModelConnector   = SplitModelConnector
 	ExportResizeImage           = resizeImage
 	ExportDecodeDataURI         = decodeDataURI
 	ExportExtractTextContent    = extractTextContent

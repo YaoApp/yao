@@ -400,6 +400,9 @@ func capabilitiesFromCapabilities(c *goullm.Capabilities) []string {
 	if c.OCR {
 		out = append(out, "ocr")
 	}
+	if c.Decision {
+		out = append(out, "decision")
+	}
 	return out
 }
 

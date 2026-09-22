@@ -515,6 +515,7 @@ func buildSystemRoles(sys *types.System) map[string]string {
 	add("vision", sys.Vision)
 	add("audio", sys.Audio)
 	add("heavy", sys.Heavy)
+	add("decision", sys.Decision)
 	return roles
 }
 
@@ -528,6 +529,7 @@ func resolveEnvStrings(setting *types.DSL) {
 		setting.System.Vision = helper.EnvString(setting.System.Vision)
 		setting.System.Audio = helper.EnvString(setting.System.Audio)
 		setting.System.Heavy = helper.EnvString(setting.System.Heavy)
+		setting.System.Decision = helper.EnvString(setting.System.Decision)
 		setting.System.Keyword = helper.EnvString(setting.System.Keyword)
 		setting.System.QueryDSL = helper.EnvString(setting.System.QueryDSL)
 		setting.System.Title = helper.EnvString(setting.System.Title)

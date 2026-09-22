@@ -1,0 +1,55 @@
+{
+  "name": "decision_decide",
+  "description": "Make a structured decision using a typed decision model. Supports three question types: 'choice' (classify into one of N options), 'score' (rate on a scale), and 'noul' (estimate a probability 0-1). Uses the system-configured decision provider.",
+  "process": "tools.decision_decide",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "state": {
+        "description": "The context for the decision. Can be a string (e.g. a customer message), an object, or an array of items to evaluate."
+      },
+      "questions": {
+        "type": "object",
+        "description": "A map of question_id to question definition. Each question has: type ('choice'|'score'|'noul'), instructions (string), and criteria (choice: {option: description}, score: [level_labels], noul: omit).",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["choice", "score", "noul"],
+              "description": "Question type: 'choice' for classification, 'score' for rating, 'noul' for probability."
+            },
+            "instructions": {
+              "type": "string",
+              "description": "Natural-language instructions for the decision model."
+            },
+            "criteria": {
+              "description": "Choice: {option: description} map. Score: [level_labels] array. Noul: omit."
+            }
+          },
+          "required": ["type", "instructions"]
+        }
+      },
+      "model": {
+        "type": "string",
+        "description": "Model name override. If omitted, the provider's default model is used."
+      },
+      "provider": {
+        "type": "string",
+        "description": "Provider connector ID (use decision_providers to list available options). If omitted, uses the 'decision' role or the first available decision provider."
+      },
+      "timeout": {
+        "type": "integer",
+        "description": "Timeout in seconds for the decision call. Default: 60.",
+        "default": 60
+      },
+      "states": {
+        "type": "array",
+        "description": "Array of state items for batch decisions. Mutually exclusive with 'state'. Each item is evaluated against the same questions in parallel (max 5 concurrent).",
+        "items": {}
+      }
+    },
+    "required": ["questions"]
+  },
+  "x-process-args": ["$args.state", "$args.questions", "$args.model", "$args.provider", "$args.timeout", ":arguments"]
+}
