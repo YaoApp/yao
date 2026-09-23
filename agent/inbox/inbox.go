@@ -131,6 +131,54 @@ func List(ctx context.Context, auth *process.AuthorizedInfo, q *ListQuery) (*Lis
 	}, nil
 }
 
+// ListByChatID returns all inbox mails for a specific task (chat_id), paginated.
+// Unlike List which returns the latest mail per task, this returns every mail for the given chat.
+func ListByChatID(ctx context.Context, auth *process.AuthorizedInfo, chatID string, page, size int) (*ListResult, error) {
+	if size <= 0 {
+		size = 50
+	}
+	if page <= 0 {
+		page = 1
+	}
+
+	total, err := capsule.Global.Query().Table(tableMail()).
+		Where("chat_id", "=", chatID).
+		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
+		WhereNull("deleted_at").
+		Count()
+	if err != nil {
+		return nil, fmt.Errorf("inbox.ListByChatID count: %w", err)
+	}
+
+	offset := (page - 1) * size
+	rows, err := capsule.Global.Query().Table(tableMail()).
+		Select("*").
+		Where("chat_id", "=", chatID).
+		Where("__yao_created_by", "=", auth.UserID).
+		Where("__yao_team_id", "=", auth.TeamID).
+		WhereNull("deleted_at").
+		OrderBy("created_at", "desc").
+		Offset(offset).Limit(size).Get()
+	if err != nil {
+		return nil, fmt.Errorf("inbox.ListByChatID query: %w", err)
+	}
+
+	mails := make([]*AgentMail, 0, len(rows))
+	for _, row := range rows {
+		mails = append(mails, rowToMail(row))
+	}
+
+	enrichChatTitles(mails)
+
+	return &ListResult{
+		Mails: mails,
+		Total: int64(total),
+		Page:  page,
+		Size:  size,
+	}, nil
+}
+
 // Stats returns unread task-group counts per category for sidebar display
 func Stats(ctx context.Context, auth *process.AuthorizedInfo) (*InboxStats, error) {
 	stats := &InboxStats{}

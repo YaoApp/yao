@@ -10,20 +10,21 @@ type Identity interface {
 // Provider represents a configured LLM provider (one vendor connection with multiple models).
 // Fields align with the frontend ProviderConfig interface.
 type Provider struct {
-	Key         string         `json:"key"`
-	ConnectorID string         `json:"connector_id"`
-	Name        string         `json:"name"`
-	Type        string         `json:"type"`
-	APIURL      string         `json:"api_url"`
-	APIKey      string         `json:"api_key"`
-	Models      []ModelInfo    `json:"models"`
-	Enabled     bool           `json:"enabled"`
-	Status      string         `json:"status"`
-	IsCustom    bool           `json:"is_custom,omitempty"`
-	PresetKey   string         `json:"preset_key,omitempty"`
-	RequireKey  bool           `json:"require_key"`
-	Source      ProviderSource `json:"source"`
-	Owner       ProviderOwner  `json:"owner"`
+	Key           string         `json:"key"`
+	ConnectorID   string         `json:"connector_id"`
+	Name          string         `json:"name"`
+	Type          string         `json:"type"`
+	APIURL        string         `json:"api_url"`
+	APIKey        string         `json:"api_key"`
+	Models        []ModelInfo    `json:"models"`
+	Enabled       bool           `json:"enabled"`
+	Status        string         `json:"status"`
+	IsCustom      bool           `json:"is_custom,omitempty"`
+	PresetKey     string         `json:"preset_key,omitempty"`
+	RequireKey    bool           `json:"require_key"`
+	Source        ProviderSource `json:"source"`
+	Owner         ProviderOwner  `json:"owner"`
+	SchemaVersion int            `json:"schema_version,omitempty"`
 }
 
 // ModelInfo describes a single model within a provider.
@@ -37,6 +38,7 @@ type ModelInfo struct {
 	MaxInputTokens  int                    `json:"max_input_tokens,omitempty" yaml:"max_input_tokens,omitempty"`
 	MaxOutputTokens int                    `json:"max_output_tokens,omitempty" yaml:"max_output_tokens,omitempty"`
 	Options         map[string]interface{} `json:"options,omitempty" yaml:"options,omitempty"`
+	Metadata        map[string]interface{} `json:"metadata,omitempty" yaml:"metadata,omitempty"`
 }
 
 // ProviderOwner identifies who owns a provider.

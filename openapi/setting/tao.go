@@ -23,8 +23,8 @@ const (
 )
 
 const (
-	defaultTaoBaseURLCN = "https://tao-api.yaoagents.cn"
-	defaultTaoBaseURLEN = "https://us.yao.run"
+	defaultTaoBaseURLCN = "https://api.yaoagents.cn"
+	defaultTaoBaseURLEN = "https://api.yaoagents.com"
 )
 
 // resolveTaoBaseURL returns the Tao API base URL for the given locale.

@@ -8,6 +8,13 @@ import (
 	goullm "github.com/yaoapp/gou/llm"
 )
 
+// builtinSchemaVersion is monotonically incremented when import logic changes.
+// v1: initial import (implicit, legacy records store 0)
+// v2: extractOptionsFromSetting adds reasoning_effort/thinking/model to ModelInfo.Options
+// v3: metadata — model_name, model_family, reasoning_efforts, reasoning_effort
+// v4: metadata — group_name for ProviderGroup display
+const builtinSchemaVersion = 4
+
 // ScopedKey returns a provider key prefixed with the owner scope.
 // This ensures unique keys per user/team in the store.
 //
@@ -232,6 +239,9 @@ func marshalModelDSL(p *Provider, m *ModelInfo) ([]byte, error) {
 		"label":   name,
 		"options": opts,
 	}
+	if m.Metadata != nil {
+		dsl["metadata"] = m.Metadata
+	}
 
 	if p.PresetKey == "azure" {
 		dsl["auth_mode"] = "api-key"
@@ -263,24 +273,48 @@ func unregisterConnector(p *Provider) error {
 func importFromConnectors(r *Registry) error {
 	for _, opt := range connector.AIConnectors {
 		id := opt.Value
-		if r.store.Has(storeKey(id)) {
-			continue
-		}
-
 		conn, err := connector.Select(id)
 		if err != nil {
 			continue
 		}
 
-		p := providerFromConnector(id, conn)
-		m, err := providerToMap(&p, r.encKey)
-		if err != nil {
+		fresh := providerFromConnector(id, conn)
+		sk := storeKey(id)
+
+		if r.store.Has(sk) {
+			existing, err := storeGet(r.store, r.cache, id, r.encKey)
+			if err != nil || existing == nil {
+				continue
+			}
+			if existing.Source != ProviderSourceBuiltIn {
+				continue
+			}
+			if existing.SchemaVersion >= builtinSchemaVersion {
+				continue
+			}
+
+			// Selective merge: take fresh connector data, preserve user adjustments
+			enabledMap := make(map[string]bool)
+			for _, m := range existing.Models {
+				enabledMap[m.ID] = m.Enabled
+			}
+			for i := range fresh.Models {
+				if enabled, ok := enabledMap[fresh.Models[i].ID]; ok {
+					fresh.Models[i].Enabled = enabled
+				}
+			}
+			fresh.Enabled = existing.Enabled
+			fresh.Status = existing.Status
+
+			if err := storeSet(r.store, r.cache, &fresh, r.encKey); err != nil {
+				continue
+			}
 			continue
 		}
-		sk := storeKey(id)
-		_ = r.store.Set(sk, m, 0)
-		if r.cache != nil {
-			_ = r.cache.Set(sk, m, 0)
+
+		// New connector — normal import
+		if err := storeSet(r.store, r.cache, &fresh, r.encKey); err != nil {
+			continue
 		}
 		_ = indexAdd(r.store, r.cache, id)
 	}
@@ -331,21 +365,24 @@ func providerFromConnector(id string, conn connector.Connector) Provider {
 			Name:         model,
 			Capabilities: caps,
 			Enabled:      true,
+			Options:      extractOptionsFromSetting(setting),
+			Metadata:     conn.GetMetadata(),
 		}}
 	}
 
 	return Provider{
-		Key:         id,
-		ConnectorID: id,
-		Name:        name,
-		Type:        typ,
-		APIURL:      apiURL,
-		APIKey:      apiKey,
-		Models:      models,
-		Enabled:     true,
-		Status:      "connected",
-		Source:      ProviderSourceBuiltIn,
-		Owner:       ProviderOwner{Type: "system"},
+		Key:           id,
+		ConnectorID:   id,
+		Name:          name,
+		Type:          typ,
+		APIURL:        apiURL,
+		APIKey:        apiKey,
+		Models:        models,
+		Enabled:       true,
+		Status:        "connected",
+		Source:        ProviderSourceBuiltIn,
+		Owner:         ProviderOwner{Type: "system"},
+		SchemaVersion: builtinSchemaVersion,
 	}
 }
 
@@ -419,6 +456,33 @@ func connectorType(conn connector.Connector) string {
 	default:
 		return "custom"
 	}
+}
+
+// extractOptionsFromSetting extracts model options (reasoning_effort, thinking)
+// from a connector's Setting() map for builtin connectors.
+// openai.Setting() merges ExtraBody entries to the top level, so reasoning_effort
+// is read directly from setting, not from a nested "extra_body" key.
+func extractOptionsFromSetting(setting map[string]interface{}) map[string]interface{} {
+	if setting == nil {
+		return nil
+	}
+
+	opts := make(map[string]interface{})
+
+	// reasoning_effort is at the top level (merged from ExtraBody by openai.Setting)
+	if effort, ok := setting["reasoning_effort"].(string); ok {
+		opts["reasoning_effort"] = effort
+	}
+
+	// thinking config (e.g., {"type": "enabled", "budget_tokens": 8192})
+	if thinking, ok := setting["thinking"]; ok {
+		opts["thinking"] = thinking
+	}
+
+	if len(opts) == 0 {
+		return nil
+	}
+	return opts
 }
 
 func capabilitiesFromSetting(setting map[string]interface{}) []string {

@@ -12,6 +12,7 @@ agent:inbox:read:all:
     - GET /agent/inbox
     - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
+    - GET /agent/inbox/chat/:chat_id/mails
 
 agent:inbox:read:own:
   owner: true
@@ -20,6 +21,7 @@ agent:inbox:read:own:
     - GET /agent/inbox
     - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
+    - GET /agent/inbox/chat/:chat_id/mails
 
 agent:inbox:read:team:
   team: true
@@ -28,6 +30,7 @@ agent:inbox:read:team:
     - GET /agent/inbox
     - GET /agent/inbox/stats
     - GET /agent/inbox/unread-count
+    - GET /agent/inbox/chat/:chat_id/mails
 
 # ============ Write Permissions ============
 

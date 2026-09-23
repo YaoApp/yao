@@ -112,6 +112,7 @@ func (f *fakeConn) ID() string                            { return f.id }
 func (f *fakeConn) Is(t int) bool                         { return f.typ == t }
 func (f *fakeConn) Setting() map[string]interface{}       { return f.settings }
 func (f *fakeConn) GetMetaInfo() gouTypes.MetaInfo        { return gouTypes.MetaInfo{} }
+func (f *fakeConn) GetMetadata() map[string]interface{}   { return nil }
 
 // NewFakeOpenAI creates a fake OpenAI connector for tests.
 func NewFakeOpenAI(id, host, model, key string) connector.Connector {

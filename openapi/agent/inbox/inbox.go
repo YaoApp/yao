@@ -27,6 +27,7 @@ func Attach(group *gin.RouterGroup, oauth oauthtypes.OAuth) {
 	group.PUT("/pin/:chat_id", handlePin)
 	group.PUT("/unpin/:chat_id", handleUnpin)
 
+	group.GET("/chat/:chat_id/mails", handleListByChatID)
 	group.DELETE("/chat/:chat_id", handleDeleteByChat)
 }
 
@@ -135,6 +136,19 @@ func handleUnpin(c *gin.Context) {
 		return
 	}
 	response.RespondWithSuccess(c, http.StatusOK, gin.H{"status": "ok"})
+}
+
+func handleListByChatID(c *gin.Context) {
+	auth := toProcessAuth(authorized.GetInfo(c))
+	chatID := c.Param("chat_id")
+	page, _ := strconv.Atoi(c.Query("page"))
+	size, _ := strconv.Atoi(c.Query("size"))
+	result, err := inboxsvc.ListByChatID(c.Request.Context(), auth, chatID, page, size)
+	if err != nil {
+		respondError(c, http.StatusInternalServerError, err)
+		return
+	}
+	response.RespondWithSuccess(c, http.StatusOK, result)
 }
 
 func handleDeleteByChat(c *gin.Context) {

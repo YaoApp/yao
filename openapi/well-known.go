@@ -225,8 +225,8 @@ func (openapi *OpenAPI) oauthOpenIDConfiguration(c *gin.Context) {}
 func (openapi *OpenAPI) oauthProtectedResourceMetadata(c *gin.Context) {}
 
 const (
-	defaultTaoBaseURLCN = "https://tao-api.yaoagents.cn"
-	defaultTaoBaseURLEN = "https://us.yao.run"
+	defaultTaoBaseURLCN = "https://api.yaoagents.cn"
+	defaultTaoBaseURLEN = "https://api.yaoagents.com"
 	defaultTaoRegCN     = "https://yaoagents.cn/tao"
 	defaultTaoRegEN     = "https://yaoagents.com/tao"
 )
