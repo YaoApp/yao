@@ -37,6 +37,7 @@ func (f *fakeConnector) ID() string                            { return f.id }
 func (f *fakeConnector) Is(t int) bool                         { return f.typ == t }
 func (f *fakeConnector) Setting() map[string]interface{}       { return f.settings }
 func (f *fakeConnector) GetMetaInfo() gouTypes.MetaInfo        { return gouTypes.MetaInfo{} }
+func (f *fakeConnector) GetMetadata() map[string]interface{}   { return nil }
 
 func newOpenAIConnector(id, host, model, key string) *fakeConnector {
 	return &fakeConnector{

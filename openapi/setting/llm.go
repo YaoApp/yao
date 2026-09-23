@@ -686,7 +686,7 @@ func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.Mod
 	baseCaps := toStringSlice(baseModel["capabilities"])
 
 	if spec == nil {
-		return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "")}
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "", "none")}
 	}
 
 	cacheModelReasoning(id, baseModel["reasoning"])
@@ -719,7 +719,7 @@ func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.Mod
 	// Case 1: switch + effort, can disable (e.g. deepseek-flash, qwen3.8-flash, kimi-k3)
 	if hasSwitch && canDisable && hasEffort {
 		variants := make([]llmprovider.ModelInfo, 0, 1+len(spec.Effort.Values))
-		variants = append(variants, buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, ""))
+		variants = append(variants, buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, "", "none"))
 		for _, effort := range spec.Effort.Values {
 			if effort == "none" {
 				continue
@@ -727,7 +727,7 @@ func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.Mod
 			eOpts := map[string]interface{}{spec.Switch.Param: enabledVal, spec.Effort.Param: effort}
 			connID := id + "-thinking-" + effort
 			suffix := "(Thinking: " + capitalizeFirst(effort) + ")"
-			variants = append(variants, buildModelInfo(connID, id, ensureCap(baseCaps, "reasoning"), eOpts, baseModel, false, suffix))
+			variants = append(variants, buildModelInfo(connID, id, ensureCap(baseCaps, "reasoning"), eOpts, baseModel, false, suffix, effort))
 		}
 		return variants
 	}
@@ -743,11 +743,11 @@ func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.Mod
 			opts := map[string]interface{}{spec.Effort.Param: effort}
 			thinkingCaps := ensureCap(baseCaps, "reasoning")
 			if effort == defaultEffort {
-				variants = append(variants, buildModelInfo(id, "", thinkingCaps, opts, baseModel, true, ""))
+				variants = append(variants, buildModelInfo(id, "", thinkingCaps, opts, baseModel, true, "", effort))
 			} else {
 				connID := id + "-effort-" + effort
 				suffix := "(Effort: " + capitalizeFirst(effort) + ")"
-				variants = append(variants, buildModelInfo(connID, id, thinkingCaps, opts, baseModel, false, suffix))
+				variants = append(variants, buildModelInfo(connID, id, thinkingCaps, opts, baseModel, false, suffix, effort))
 			}
 		}
 		return variants
@@ -757,23 +757,23 @@ func expandReasoningVariants(baseModel map[string]interface{}) []llmprovider.Mod
 	if hasSwitch && enabledVal != nil && canDisable && !hasEffort {
 		opts2 := map[string]interface{}{spec.Switch.Param: enabledVal}
 		return []llmprovider.ModelInfo{
-			buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, ""),
-			buildModelInfo(id+"-thinking", id, ensureCap(baseCaps, "reasoning"), opts2, baseModel, false, "(Thinking)"),
+			buildModelInfo(id, "", removeCap(baseCaps, "reasoning"), disableOpts, baseModel, true, "", "none"),
+			buildModelInfo(id+"-thinking", id, ensureCap(baseCaps, "reasoning"), opts2, baseModel, false, "(Thinking)", "thinking"),
 		}
 	}
 
 	// Case 4: switch with only enabled, or cannot disable (e.g. kimi-k2.7-code)
 	if hasSwitch && enabledVal != nil && !canDisable {
 		opts := map[string]interface{}{spec.Switch.Param: enabledVal}
-		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), opts, baseModel, true, "")}
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), opts, baseModel, true, "", "thinking")}
 	}
 
 	// Case 5: no switch + no effort but has default params
 	if spec.Default != nil {
-		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), spec.Default, baseModel, true, "")}
+		return []llmprovider.ModelInfo{buildModelInfo(id, "", ensureCap(baseCaps, "reasoning"), spec.Default, baseModel, true, "", "none")}
 	}
 
-	return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "")}
+	return []llmprovider.ModelInfo{buildModelInfo(id, "", baseCaps, nil, baseModel, true, "", "none")}
 }
 
 // resolveConnectorID maps a role default (model + params) back to the expanded connector ID.
@@ -843,20 +843,33 @@ func resolveConnectorID(modelID string, params map[string]interface{}, reasoning
 
 // buildModelInfo constructs a ModelInfo from expansion parameters.
 // nameSuffix is appended to the display name to distinguish thinking variants.
-func buildModelInfo(connID, model string, caps []string, opts map[string]interface{}, base map[string]interface{}, enabled bool, nameSuffix string) llmprovider.ModelInfo {
-	name, _ := base["name"].(string)
-	if name == "" {
-		name = connID
+// reasoningEffort is the effort level for this variant (e.g. "none", "low", "high").
+func buildModelInfo(connID, model string, caps []string, opts map[string]interface{}, base map[string]interface{}, enabled bool, nameSuffix string, reasoningEffort string) llmprovider.ModelInfo {
+	baseName, _ := base["name"].(string)
+	if baseName == "" {
+		baseName = connID
 	}
+	displayName := baseName
 	if nameSuffix != "" {
-		name = name + " " + nameSuffix
+		displayName = baseName + " " + nameSuffix
 	}
+
+	family := connID
+	if model != "" {
+		family = model
+	}
+
 	mi := llmprovider.ModelInfo{
 		ID:           connID,
-		Name:         name,
+		Name:         displayName,
 		Capabilities: caps,
 		Enabled:      enabled,
 		Options:      opts,
+		Metadata: map[string]interface{}{
+			"model_name":       baseName,
+			"model_family":     family,
+			"reasoning_effort": reasoningEffort,
+		},
 	}
 	if model != "" {
 		mi.Model = model

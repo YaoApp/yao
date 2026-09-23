@@ -6,6 +6,11 @@
   require_key: true
   default_models:
     - id: deepseek-flash
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4.1 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -15,6 +20,11 @@
           type: disabled
       enabled: true
     - id: deepseek-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking High
       max_input_tokens: 1048576
@@ -26,6 +36,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: deepseek-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Max
       max_input_tokens: 1048576
@@ -37,6 +52,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Low
       max_input_tokens: 1048576
@@ -48,6 +68,11 @@
         reasoning_effort: "low"
       enabled: true
     - id: kimi-k3
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "max"
       name: Kimi K3 Max
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -56,6 +81,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: kimi-k3-high
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "high"
       name: Kimi K3 High
       model: kimi-k3
       max_input_tokens: 1048576
@@ -65,6 +95,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: kimi-k3-low
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "low"
       name: Kimi K3 Low
       model: kimi-k3
       max_input_tokens: 1048576
@@ -74,12 +109,22 @@
         reasoning_effort: "low"
       enabled: false
     - id: kimi-k2.7-code
+      metadata:
+        model_name: "Kimi K2.7 Code"
+        model_family: "kimi-k2.7-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2.7 Code
       max_input_tokens: 262144
       max_output_tokens: 32768
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -89,6 +134,11 @@
           type: disabled
       enabled: false
     - id: kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       name: Kimi K2.6 Thinking
       model: kimi-k2.6
       max_input_tokens: 262142
@@ -99,6 +149,11 @@
           type: enabled
       enabled: false
     - id: deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -108,6 +163,11 @@
           type: disabled
       enabled: false
     - id: deepseek-v4-pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
@@ -119,6 +179,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: deepseek-v4-pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1048576
@@ -130,6 +195,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1048576
@@ -141,6 +211,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -150,6 +225,11 @@
           type: disabled
       enabled: true
     - id: deepseek-v4-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
@@ -161,6 +241,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-v4-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1048576
@@ -172,6 +257,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1048576
@@ -183,30 +273,55 @@
         reasoning_effort: "low"
       enabled: false
     - id: mimo-v2.5
+      metadata:
+        model_name: "MiMo V2.5"
+        model_family: "mimo-v2.5"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiMo V2.5
       max_input_tokens: 1048576
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: mimo-v2.5-pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: hy3
+      metadata:
+        model_name: "Hy3"
+        model_family: "hy3"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Hy3
       max_input_tokens: 262144
       max_output_tokens: 262144
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: hy4-preview
+      metadata:
+        model_name: "Hy4 Preview"
+        model_family: "hy4-preview"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Hy4 Preview
       max_input_tokens: 960000
       max_output_tokens: 64000
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: longcat-2.0
+      metadata:
+        model_name: "LongCat 2.0"
+        model_family: "longcat-2.0"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: LongCat 2.0
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -221,42 +336,77 @@
   require_key: true
   default_models:
     - id: minimax-m3
+      metadata:
+        model_name: "MiniMax M3"
+        model_family: "minimax-m3"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax M3
       max_input_tokens: 1048576
       max_output_tokens: 512000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: minimax-m2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: minimax-m2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: qwen3.8-flash
+      metadata:
+        model_name: "Qwen3.8 Flash"
+        model_family: "qwen-qwen3.8-flash"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen3.8 Flash
       max_input_tokens: 1000000
       max_output_tokens: 128000
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: qwen3.7-max
+      metadata:
+        model_name: "Qwen3.7 Max"
+        model_family: "qwen-qwen3.7-max"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen3.7 Max
       max_input_tokens: 1000000
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: qwen3.7-plus
+      metadata:
+        model_name: "Qwen3.7 Plus"
+        model_family: "qwen-qwen3.7-plus"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen3.7 Plus
       max_input_tokens: 1000000
       max_output_tokens: 65536
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: qwen3.6-plus
+      metadata:
+        model_name: "Qwen3.6 Plus"
+        model_family: "qwen-qwen3.6-plus"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen3.6 Plus
       max_input_tokens: 1000000
       max_output_tokens: 65536
@@ -271,18 +421,33 @@
   require_key: true
   default_models:
     - id: openrouter-auto
+      metadata:
+        model_name: "Auto (Smart Route)"
+        model_family: "openrouter-auto"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: openrouter/auto
       name: Auto (Smart Route)
       max_input_tokens: 2000000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: openrouter-pareto-code
+      metadata:
+        model_name: "Pareto Code"
+        model_family: "openrouter-pareto-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: openrouter/pareto-code
       name: Pareto Code
       max_input_tokens: 200000
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: openrouter-owl-alpha
+      metadata:
+        model_name: "Owl Alpha"
+        model_family: "openrouter-owl-alpha"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: openrouter/owl-alpha
       name: Owl Alpha
       max_input_tokens: 1048576
@@ -290,6 +455,11 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: anthropic-claude-sonnet-4.6
+      metadata:
+        model_name: "Claude Sonnet 4.6"
+        model_family: "claude-sonnet-4.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: anthropic/claude-sonnet-4.6
       name: Claude Sonnet 4.6
       max_input_tokens: 1000000
@@ -301,6 +471,11 @@
           budget_tokens: 32000
       enabled: false
     - id: google-gemini-3-flash-preview
+      metadata:
+        model_name: "Gemini 3 Flash"
+        model_family: "google-gemini-3-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: google/gemini-3-flash-preview
       name: Gemini 3 Flash
       max_input_tokens: 1048576
@@ -311,6 +486,11 @@
           thinkingBudget: 32768
       enabled: false
     - id: moonshotai-kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: moonshotai/kimi-k2.6
       name: Kimi K2.6
       max_input_tokens: 262142
@@ -321,6 +501,11 @@
           enabled: false
       enabled: false
     - id: moonshotai-kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: moonshotai/kimi-k2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -331,6 +516,11 @@
           enabled: true
       enabled: false
     - id: deepseek-deepseek-v3.2
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: deepseek/deepseek-v3.2
       name: DeepSeek V3.2
       max_input_tokens: 131072
@@ -341,6 +531,11 @@
           enabled: false
       enabled: false
     - id: deepseek-deepseek-v3.2-thinking
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: deepseek/deepseek-v3.2
       name: DeepSeek V3.2 Thinking
       max_input_tokens: 131072
@@ -351,6 +546,11 @@
           enabled: true
       enabled: false
     - id: tencent-hy3-preview
+      metadata:
+        model_name: "混元 3 Preview"
+        model_family: "hunyuan-3-preview"
+        reasoning_efforts: ["none", "high"]
+        reasoning_effort: "none"
       model: tencent/hy3-preview:free
       name: Hunyuan 3 Preview (Free)
       max_input_tokens: 262144
@@ -361,6 +561,11 @@
           level: disabled
       enabled: false
     - id: tencent-hy3-preview-reasoning-high
+      metadata:
+        model_name: "混元 3 Preview"
+        model_family: "hunyuan-3-preview"
+        reasoning_efforts: ["none", "high"]
+        reasoning_effort: "high"
       model: tencent/hy3-preview:free
       name: Hunyuan 3 Preview Reasoning (Free)
       max_input_tokens: 262144
@@ -371,6 +576,11 @@
           level: high
       enabled: false
     - id: xiaomi-mimo-v2.5-pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: xiaomi/mimo-v2.5-pro
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
@@ -381,6 +591,11 @@
           enabled: false
       enabled: false
     - id: xiaomi-mimo-v2.5-pro-thinking
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: xiaomi/mimo-v2.5-pro
       name: MiMo V2.5 Pro Thinking
       max_input_tokens: 1048576
@@ -391,6 +606,11 @@
           enabled: true
       enabled: false
     - id: inclusionai-ling-2.6-1t
+      metadata:
+        model_name: "Ling 2.6 1T"
+        model_family: "inclusionai-ling-2.6"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: inclusionai/ling-2.6-1t:free
       name: Ling 2.6 1T (Free)
       max_input_tokens: 262144
@@ -407,6 +627,11 @@
   require_key: true
   default_models:
     - id: DeepSeek-V4-Pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -416,6 +641,11 @@
           type: disabled
       enabled: false
     - id: DeepSeek-V4-Pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
@@ -427,6 +657,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: DeepSeek-V4-Pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1048576
@@ -438,6 +673,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1048576
@@ -449,6 +689,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: DeepSeek-V4-Flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -458,6 +703,11 @@
           type: disabled
       enabled: true
     - id: DeepSeek-V4-Flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
@@ -469,6 +719,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: DeepSeek-V4-Flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1048576
@@ -480,6 +735,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1048576
@@ -491,6 +751,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K3
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "max"
       name: Kimi K3 Max
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -499,6 +764,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: Kimi-K3-high
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "high"
       model: Kimi-K3
       name: Kimi K3 High
       max_input_tokens: 1048576
@@ -508,6 +778,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: Kimi-K3-low
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "low"
       model: Kimi-K3
       name: Kimi K3 Low
       max_input_tokens: 1048576
@@ -517,12 +792,22 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K2.7-Code
+      metadata:
+        model_name: "Kimi K2.7 Code"
+        model_family: "kimi-k2.7-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2.7 Code
       max_input_tokens: 262144
       max_output_tokens: 32768
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: Kimi-K2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -532,6 +817,11 @@
           type: disabled
       enabled: false
     - id: Kimi-K2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Kimi-K2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -542,24 +832,44 @@
           type: enabled
       enabled: false
     - id: MiniMax-M3
+      metadata:
+        model_name: "MiniMax M3"
+        model_family: "minimax-m3"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax M3
       max_input_tokens: 1048576
       max_output_tokens: 512000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiMo-V2.5-Pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -575,6 +885,11 @@
   require_key: true
   default_models:
     - id: DeepSeek-V4-Pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -584,6 +899,11 @@
           type: disabled
       enabled: false
     - id: DeepSeek-V4-Pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
@@ -595,6 +915,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: DeepSeek-V4-Pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1048576
@@ -606,6 +931,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1048576
@@ -617,6 +947,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: DeepSeek-V4-Flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -626,6 +961,11 @@
           type: disabled
       enabled: true
     - id: DeepSeek-V4-Flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
@@ -637,6 +977,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: DeepSeek-V4-Flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1048576
@@ -648,6 +993,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1048576
@@ -659,6 +1009,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K3
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "max"
       name: Kimi K3 Max
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -667,6 +1022,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: Kimi-K3-high
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "high"
       model: Kimi-K3
       name: Kimi K3 High
       max_input_tokens: 1048576
@@ -676,6 +1036,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: Kimi-K3-low
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "low"
       model: Kimi-K3
       name: Kimi K3 Low
       max_input_tokens: 1048576
@@ -685,12 +1050,22 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K2.7-Code
+      metadata:
+        model_name: "Kimi K2.7 Code"
+        model_family: "kimi-k2.7-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2.7 Code
       max_input_tokens: 262144
       max_output_tokens: 32768
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: Kimi-K2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -700,6 +1075,11 @@
           type: disabled
       enabled: false
     - id: Kimi-K2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Kimi-K2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -710,24 +1090,44 @@
           type: enabled
       enabled: false
     - id: MiniMax-M3
+      metadata:
+        model_name: "MiniMax M3"
+        model_family: "minimax-m3"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax M3
       max_input_tokens: 1048576
       max_output_tokens: 512000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiMo-V2.5-Pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -743,6 +1143,11 @@
   require_key: true
   default_models:
     - id: DeepSeek-V4-Pro-0813
+      metadata:
+        model_name: "DeepSeek V4 Pro 0813"
+        model_family: "deepseek-v4-pro-0813"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro 0813
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -752,6 +1157,11 @@
           type: disabled
       enabled: false
     - id: DeepSeek-V4-Pro-0813-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro 0813"
+        model_family: "deepseek-v4-pro-0813"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Pro-0813
       name: DeepSeek V4 Pro 0813 Thinking High
       max_input_tokens: 1048576
@@ -763,6 +1173,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: DeepSeek-V4-Pro-0813-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro 0813"
+        model_family: "deepseek-v4-pro-0813"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Pro-0813
       name: DeepSeek V4 Pro 0813 Thinking Max
       max_input_tokens: 1048576
@@ -774,6 +1189,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Pro-0813-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro 0813"
+        model_family: "deepseek-v4-pro-0813"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Pro-0813
       name: DeepSeek V4 Pro 0813 Thinking Low
       max_input_tokens: 1048576
@@ -785,6 +1205,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: DeepSeek-V4-Flash-0731
+      metadata:
+        model_name: "DeepSeek V4 Flash 0731"
+        model_family: "deepseek-v4-flash-0731"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash 0731
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -794,6 +1219,11 @@
           type: disabled
       enabled: true
     - id: DeepSeek-V4-Flash-0731-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash 0731"
+        model_family: "deepseek-v4-flash-0731"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: DeepSeek-V4-Flash-0731
       name: DeepSeek V4 Flash 0731 Thinking High
       max_input_tokens: 1048576
@@ -805,6 +1235,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: DeepSeek-V4-Flash-0731-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash 0731"
+        model_family: "deepseek-v4-flash-0731"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: DeepSeek-V4-Flash-0731
       name: DeepSeek V4 Flash 0731 Thinking Max
       max_input_tokens: 1048576
@@ -816,6 +1251,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: DeepSeek-V4-Flash-0731-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash 0731"
+        model_family: "deepseek-v4-flash-0731"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: DeepSeek-V4-Flash-0731
       name: DeepSeek V4 Flash 0731 Thinking Low
       max_input_tokens: 1048576
@@ -827,6 +1267,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K3
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "max"
       name: Kimi K3 Max
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -835,6 +1280,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: Kimi-K3-high
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "high"
       model: Kimi-K3
       name: Kimi K3 High
       max_input_tokens: 1048576
@@ -844,6 +1294,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: Kimi-K3-low
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "low"
       model: Kimi-K3
       name: Kimi K3 Low
       max_input_tokens: 1048576
@@ -853,12 +1308,22 @@
         reasoning_effort: "low"
       enabled: false
     - id: Kimi-K2.7-Code
+      metadata:
+        model_name: "Kimi K2.7 Code"
+        model_family: "kimi-k2.7-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2.7 Code
       max_input_tokens: 262144
       max_output_tokens: 32768
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: Kimi-K2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -868,6 +1333,11 @@
           type: disabled
       enabled: false
     - id: Kimi-K2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Kimi-K2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -878,30 +1348,55 @@
           type: enabled
       enabled: false
     - id: MiniMax-M3
+      metadata:
+        model_name: "MiniMax M3"
+        model_family: "minimax-m3"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax M3
       max_input_tokens: 1048576
       max_output_tokens: 512000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiMo-V2.5-Pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: Qwen3.8-max
+      metadata:
+        model_name: "Qwen3.8 Max"
+        model_family: "qwen-qwen3.8-max"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen3.8 Max
       max_input_tokens: 1000000
       max_output_tokens: 131072
@@ -917,6 +1412,11 @@
   require_key: true
   default_models:
     - id: kimi-k3
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "max"
       name: Kimi K3 Max
       max_input_tokens: 1000000
       max_output_tokens: 1000000
@@ -925,6 +1425,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: kimi-k3-high
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "high"
       model: kimi-k3
       name: Kimi K3 High
       max_input_tokens: 1000000
@@ -934,6 +1439,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: kimi-k3-low
+      metadata:
+        model_name: "Kimi K3"
+        model_family: "kimi-k3"
+        reasoning_efforts: ["low", "high", "max"]
+        reasoning_effort: "low"
       model: kimi-k3
       name: Kimi K3 Low
       max_input_tokens: 1000000
@@ -943,12 +1453,22 @@
         reasoning_effort: "low"
       enabled: false
     - id: kimi-k2.7-code
+      metadata:
+        model_name: "Kimi K2.7 Code"
+        model_family: "kimi-k2.7-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2.7 Code
       max_input_tokens: 256000
       max_output_tokens: 16000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262000
       max_output_tokens: 262000
@@ -958,6 +1478,11 @@
           type: disabled
       enabled: false
     - id: kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: kimi-k2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262000
@@ -968,6 +1493,11 @@
           type: enabled
       enabled: false
     - id: deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1000000
       max_output_tokens: 384000
@@ -977,6 +1507,11 @@
           type: disabled
       enabled: false
     - id: deepseek-v4-pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1000000
@@ -988,6 +1523,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: deepseek-v4-pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1000000
@@ -999,6 +1539,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1000000
@@ -1010,6 +1555,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1000000
       max_output_tokens: 384000
@@ -1019,6 +1569,11 @@
           type: disabled
       enabled: true
     - id: deepseek-v4-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1000000
@@ -1030,6 +1585,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-v4-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1000000
@@ -1041,6 +1601,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1000000
@@ -1052,6 +1617,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: qwen-vl-ocr-latest
+      metadata:
+        model_name: "Qwen VL OCR"
+        model_family: "qwen-vl-ocr"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Qwen VL OCR
       max_input_tokens: 38000
       max_output_tokens: 8000
@@ -1066,12 +1636,22 @@
   require_key: true
   default_models:
     - id: claude-opus-4-7
+      metadata:
+        model_name: "Claude Opus 4.7"
+        model_family: "claude-opus-4.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Claude Opus 4.7
       max_input_tokens: 1000000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: claude-opus-4-7-thinking
+      metadata:
+        model_name: "Claude Opus 4.7"
+        model_family: "claude-opus-4.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: claude-opus-4-7
       name: Claude Opus 4.7 Thinking
       max_input_tokens: 1000000
@@ -1083,12 +1663,22 @@
           budget_tokens: 32000
       enabled: false
     - id: claude-sonnet-4-6
+      metadata:
+        model_name: "Claude Sonnet 4.6"
+        model_family: "claude-sonnet-4.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Claude Sonnet 4.6
       max_input_tokens: 1000000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: claude-sonnet-4-6-thinking
+      metadata:
+        model_name: "Claude Sonnet 4.6"
+        model_family: "claude-sonnet-4.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: claude-sonnet-4-6
       name: Claude Sonnet 4.6 Thinking
       max_input_tokens: 1000000
@@ -1100,12 +1690,22 @@
           budget_tokens: 32000
       enabled: false
     - id: claude-haiku-4-5-20251001
+      metadata:
+        model_name: "Claude Haiku 4.5"
+        model_family: "claude-haiku-4.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Claude Haiku 4.5
       max_input_tokens: 200000
       max_output_tokens: 64000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: claude-haiku-4-5-thinking
+      metadata:
+        model_name: "Claude Haiku 4.5"
+        model_family: "claude-haiku-4.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: claude-haiku-4-5-20251001
       name: Claude Haiku 4.5 Thinking
       max_input_tokens: 200000
@@ -1128,12 +1728,22 @@
   default_models:
     # --- GPT-5.5 ---
     - id: gpt-5.5
+      metadata:
+        model_name: "GPT-5.5"
+        model_family: "openai-gpt-5.5"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "none"
       name: GPT-5.5
       max_input_tokens: 1050000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: gpt-5.5-reasoning-low
+      metadata:
+        model_name: "GPT-5.5"
+        model_family: "openai-gpt-5.5"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "low"
       model: gpt-5.5
       name: GPT-5.5 Reasoning (Low)
       max_input_tokens: 1050000
@@ -1143,6 +1753,11 @@
         reasoning_effort: low
       enabled: false
     - id: gpt-5.5-reasoning-medium
+      metadata:
+        model_name: "GPT-5.5"
+        model_family: "openai-gpt-5.5"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "medium"
       model: gpt-5.5
       name: GPT-5.5 Reasoning (Medium)
       max_input_tokens: 1050000
@@ -1152,6 +1767,11 @@
         reasoning_effort: medium
       enabled: false
     - id: gpt-5.5-reasoning-high
+      metadata:
+        model_name: "GPT-5.5"
+        model_family: "openai-gpt-5.5"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "high"
       model: gpt-5.5
       name: GPT-5.5 Reasoning (High)
       max_input_tokens: 1050000
@@ -1162,12 +1782,22 @@
       enabled: false
     # --- GPT-5.4 ---
     - id: gpt-5.4
+      metadata:
+        model_name: "GPT-5.4"
+        model_family: "openai-gpt-5.4"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "none"
       name: GPT-5.4
       max_input_tokens: 1050000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: gpt-5.4-reasoning-low
+      metadata:
+        model_name: "GPT-5.4"
+        model_family: "openai-gpt-5.4"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "low"
       model: gpt-5.4
       name: GPT-5.4 Reasoning (Low)
       max_input_tokens: 1050000
@@ -1177,6 +1807,11 @@
         reasoning_effort: low
       enabled: false
     - id: gpt-5.4-reasoning-medium
+      metadata:
+        model_name: "GPT-5.4"
+        model_family: "openai-gpt-5.4"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "medium"
       model: gpt-5.4
       name: GPT-5.4 Reasoning (Medium)
       max_input_tokens: 1050000
@@ -1186,6 +1821,11 @@
         reasoning_effort: medium
       enabled: false
     - id: gpt-5.4-reasoning-high
+      metadata:
+        model_name: "GPT-5.4"
+        model_family: "openai-gpt-5.4"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "high"
       model: gpt-5.4
       name: GPT-5.4 Reasoning (High)
       max_input_tokens: 1050000
@@ -1196,12 +1836,22 @@
       enabled: false
     # --- GPT-5.4 Mini ---
     - id: gpt-5.4-mini
+      metadata:
+        model_name: "GPT-5.4 Mini"
+        model_family: "openai-gpt-5.4-mini"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "none"
       name: GPT-5.4 Mini
       max_input_tokens: 400000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: true
     - id: gpt-5.4-mini-reasoning-low
+      metadata:
+        model_name: "GPT-5.4 Mini"
+        model_family: "openai-gpt-5.4-mini"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "low"
       model: gpt-5.4-mini
       name: GPT-5.4 Mini Reasoning (Low)
       max_input_tokens: 400000
@@ -1211,6 +1861,11 @@
         reasoning_effort: low
       enabled: false
     - id: gpt-5.4-mini-reasoning-medium
+      metadata:
+        model_name: "GPT-5.4 Mini"
+        model_family: "openai-gpt-5.4-mini"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "medium"
       model: gpt-5.4-mini
       name: GPT-5.4 Mini Reasoning (Medium)
       max_input_tokens: 400000
@@ -1220,6 +1875,11 @@
         reasoning_effort: medium
       enabled: false
     - id: gpt-5.4-mini-reasoning-high
+      metadata:
+        model_name: "GPT-5.4 Mini"
+        model_family: "openai-gpt-5.4-mini"
+        reasoning_efforts: ["none", "low", "medium", "high"]
+        reasoning_effort: "high"
       model: gpt-5.4-mini
       name: GPT-5.4 Mini Reasoning (High)
       max_input_tokens: 400000
@@ -1230,6 +1890,11 @@
       enabled: false
     # --- GPT-5.4 Nano (no thinking) ---
     - id: gpt-5.4-nano
+      metadata:
+        model_name: "GPT-5.4 Nano"
+        model_family: "openai-gpt-5.4-nano"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: GPT-5.4 Nano
       max_input_tokens: 400000
       max_output_tokens: 128000
@@ -1237,12 +1902,22 @@
       enabled: false
     # --- GPT-5.3 Codex ---
     - id: gpt-5.3-codex
+      metadata:
+        model_name: "GPT-5.3 Codex"
+        model_family: "openai-gpt-5.3-codex"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "none"
       name: GPT-5.3 Codex
       max_input_tokens: 400000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: gpt-5.3-codex-reasoning-medium
+      metadata:
+        model_name: "GPT-5.3 Codex"
+        model_family: "openai-gpt-5.3-codex"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "medium"
       model: gpt-5.3-codex
       name: GPT-5.3 Codex Reasoning (Medium)
       max_input_tokens: 400000
@@ -1252,6 +1927,11 @@
         reasoning_effort: medium
       enabled: false
     - id: gpt-5.3-codex-reasoning-high
+      metadata:
+        model_name: "GPT-5.3 Codex"
+        model_family: "openai-gpt-5.3-codex"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "high"
       model: gpt-5.3-codex
       name: GPT-5.3 Codex Reasoning (High)
       max_input_tokens: 400000
@@ -1262,12 +1942,22 @@
       enabled: false
     # --- GPT-5 ---
     - id: gpt-5
+      metadata:
+        model_name: "GPT-5"
+        model_family: "openai-gpt-5"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "none"
       name: GPT-5
       max_input_tokens: 400000
       max_output_tokens: 128000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: gpt-5-reasoning-medium
+      metadata:
+        model_name: "GPT-5"
+        model_family: "openai-gpt-5"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "medium"
       model: gpt-5
       name: GPT-5 Reasoning (Medium)
       max_input_tokens: 400000
@@ -1277,6 +1967,11 @@
         reasoning_effort: medium
       enabled: false
     - id: gpt-5-reasoning-high
+      metadata:
+        model_name: "GPT-5"
+        model_family: "openai-gpt-5"
+        reasoning_efforts: ["none", "medium", "high"]
+        reasoning_effort: "high"
       model: gpt-5
       name: GPT-5 Reasoning (High)
       max_input_tokens: 400000
@@ -1287,6 +1982,11 @@
       enabled: false
     # --- GPT-5 Mini (no thinking) ---
     - id: gpt-5-mini
+      metadata:
+        model_name: "GPT-5 Mini"
+        model_family: "openai-gpt-5-mini"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: GPT-5 Mini
       max_input_tokens: 400000
       max_output_tokens: 128000
@@ -1294,6 +1994,11 @@
       enabled: false
     # --- o4-mini (native reasoning, reasoning_effort: low|medium|high) ---
     - id: o4-mini-low
+      metadata:
+        model_name: "o4-mini"
+        model_family: "openai-o4-mini"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "low"
       model: o4-mini
       name: o4-mini (Low)
       max_input_tokens: 200000
@@ -1303,6 +2008,11 @@
         reasoning_effort: low
       enabled: false
     - id: o4-mini
+      metadata:
+        model_name: "o4-mini"
+        model_family: "openai-o4-mini"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "medium"
       name: o4-mini (Medium)
       max_input_tokens: 200000
       max_output_tokens: 100000
@@ -1311,6 +2021,11 @@
         reasoning_effort: medium
       enabled: false
     - id: o4-mini-high
+      metadata:
+        model_name: "o4-mini"
+        model_family: "openai-o4-mini"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "high"
       model: o4-mini
       name: o4-mini (High)
       max_input_tokens: 200000
@@ -1321,6 +2036,11 @@
       enabled: false
     # --- o3 (native reasoning, reasoning_effort: low|medium|high) ---
     - id: o3-low
+      metadata:
+        model_name: "o3"
+        model_family: "openai-o3"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "low"
       model: o3
       name: o3 (Low)
       max_input_tokens: 200000
@@ -1330,6 +2050,11 @@
         reasoning_effort: low
       enabled: false
     - id: o3
+      metadata:
+        model_name: "o3"
+        model_family: "openai-o3"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "medium"
       name: o3 (Medium)
       max_input_tokens: 200000
       max_output_tokens: 100000
@@ -1338,6 +2063,11 @@
         reasoning_effort: medium
       enabled: false
     - id: o3-high
+      metadata:
+        model_name: "o3"
+        model_family: "openai-o3"
+        reasoning_efforts: ["low", "medium", "high"]
+        reasoning_effort: "high"
       model: o3
       name: o3 (High)
       max_input_tokens: 200000
@@ -1348,18 +2078,33 @@
       enabled: false
     # --- Legacy ---
     - id: gpt-4.1
+      metadata:
+        model_name: "GPT-4.1"
+        model_family: "openai-gpt-4.1"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: GPT-4.1
       max_input_tokens: 1047576
       max_output_tokens: 32000
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: gpt-4o
+      metadata:
+        model_name: "GPT-4o"
+        model_family: "openai-gpt-4o"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: GPT-4o
       max_input_tokens: 128000
       max_output_tokens: 16384
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: gpt-4o-mini
+      metadata:
+        model_name: "GPT-4o Mini"
+        model_family: "openai-gpt-4o-mini"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: GPT-4o Mini
       max_input_tokens: 128000
       max_output_tokens: 16384
@@ -1448,6 +2193,11 @@
   require_key: true
   default_models:
     - id: deepseek-flash
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4.1 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1457,6 +2207,11 @@
           type: disabled
       enabled: true
     - id: deepseek-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking High
       max_input_tokens: 1048576
@@ -1468,6 +2223,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Max
       max_input_tokens: 1048576
@@ -1479,6 +2239,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Low
       max_input_tokens: 1048576
@@ -1490,6 +2255,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1499,6 +2269,11 @@
           type: disabled
       enabled: false
     - id: deepseek-v4-pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
@@ -1510,6 +2285,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-v4-pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1048576
@@ -1521,6 +2301,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1048576
@@ -1532,6 +2317,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1541,6 +2331,11 @@
           type: disabled
       enabled: true
     - id: deepseek-v4-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
@@ -1552,6 +2347,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: deepseek-v4-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1048576
@@ -1563,6 +2363,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1048576
@@ -1582,6 +2387,11 @@
   require_key: true
   default_models:
     - id: deepseek-flash
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4.1 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1591,6 +2401,11 @@
           type: disabled
       enabled: true
     - id: deepseek-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking High
       max_input_tokens: 1048576
@@ -1602,6 +2417,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Max
       max_input_tokens: 1048576
@@ -1613,6 +2433,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4.1 Flash"
+        model_family: "deepseek-v4.1-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-flash
       name: DeepSeek V4.1 Flash Thinking Low
       max_input_tokens: 1048576
@@ -1624,6 +2449,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1633,6 +2463,11 @@
           type: disabled
       enabled: false
     - id: deepseek-v4-pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking High
       max_input_tokens: 1048576
@@ -1644,6 +2479,11 @@
         reasoning_effort: "high"
       enabled: true
     - id: deepseek-v4-pro-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Max
       max_input_tokens: 1048576
@@ -1655,6 +2495,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-pro-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking Low
       max_input_tokens: 1048576
@@ -1666,6 +2511,11 @@
         reasoning_effort: "low"
       enabled: false
     - id: deepseek-v4-flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 1048576
       max_output_tokens: 384000
@@ -1675,6 +2525,11 @@
           type: disabled
       enabled: true
     - id: deepseek-v4-flash-thinking
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "high"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking High
       max_input_tokens: 1048576
@@ -1686,6 +2541,11 @@
         reasoning_effort: "high"
       enabled: false
     - id: deepseek-v4-flash-thinking-max
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "max"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Max
       max_input_tokens: 1048576
@@ -1697,6 +2557,11 @@
         reasoning_effort: "max"
       enabled: false
     - id: deepseek-v4-flash-thinking-low
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "low"
       model: deepseek-v4-flash
       name: DeepSeek V4 Flash Thinking Low
       max_input_tokens: 1048576
@@ -1729,6 +2594,11 @@
   require_key: true
   default_models:
     - id: kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -1737,6 +2607,11 @@
         enable_thinking: false
       enabled: false
     - id: kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: kimi-k2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -1746,6 +2621,11 @@
         enable_thinking: true
       enabled: true
     - id: kimi-k2.5
+      metadata:
+        model_name: "Kimi K2.5"
+        model_family: "kimi-k2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.5
       max_input_tokens: 262144
       max_output_tokens: 65535
@@ -1754,6 +2634,11 @@
         enable_thinking: false
       enabled: false
     - id: kimi-k2.5-thinking
+      metadata:
+        model_name: "Kimi K2.5"
+        model_family: "kimi-k2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: kimi-k2.5
       name: Kimi K2.5 Thinking
       max_input_tokens: 262144
@@ -1763,6 +2648,11 @@
         enable_thinking: true
       enabled: false
     - id: moonshot-v1-128k
+      metadata:
+        model_name: "Moonshot V1"
+        model_family: "moonshot-v1"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Moonshot V1 128K
       max_input_tokens: 128000
       max_output_tokens: 8192
@@ -1778,6 +2668,11 @@
   require_key: true
   default_models:
     - id: kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Kimi K2.6
       max_input_tokens: 262142
       max_output_tokens: 262142
@@ -1786,6 +2681,11 @@
         enable_thinking: false
       enabled: false
     - id: kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: kimi-k2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -1795,6 +2695,11 @@
         enable_thinking: true
       enabled: true
     - id: kimi-k2-thinking
+      metadata:
+        model_name: "Kimi K2 Thinking"
+        model_family: "kimi-k2-thinking"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: Kimi K2 Thinking
       max_input_tokens: 262144
       max_output_tokens: 32768
@@ -1803,6 +2708,11 @@
         enable_thinking: true
       enabled: false
     - id: kimi-k2-thinking-turbo
+      metadata:
+        model_name: "Kimi K2 Thinking Turbo"
+        model_family: "kimi-k2-thinking-turbo"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: Kimi K2 Thinking Turbo
       max_input_tokens: 262144
       max_output_tokens: 32768
@@ -1811,6 +2721,11 @@
         enable_thinking: true
       enabled: false
     - id: kimi-k2-turbo-preview
+      metadata:
+        model_name: "Kimi K2 Turbo"
+        model_family: "kimi-k2-turbo"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: Kimi K2 Turbo
       max_input_tokens: 262144
       max_output_tokens: 32768
@@ -1826,6 +2741,11 @@
   require_key: true
   default_models:
     - id: gemini-3.1-pro-preview
+      metadata:
+        model_name: "Gemini 3.1 Pro"
+        model_family: "google-gemini-3.1-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: models/gemini-3.1-pro-preview
       name: Gemini 3.1 Pro
       max_input_tokens: 1048576
@@ -1836,6 +2756,11 @@
           thinkingBudget: 0
       enabled: false
     - id: gemini-3.1-pro-thinking
+      metadata:
+        model_name: "Gemini 3.1 Pro"
+        model_family: "google-gemini-3.1-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: models/gemini-3.1-pro-preview
       name: Gemini 3.1 Pro Thinking
       max_input_tokens: 1048576
@@ -1846,6 +2771,11 @@
           thinkingBudget: 32768
       enabled: true
     - id: gemini-3-pro-preview
+      metadata:
+        model_name: "Gemini 3 Pro"
+        model_family: "google-gemini-3-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: models/gemini-3-pro-preview
       name: Gemini 3 Pro
       max_input_tokens: 1048576
@@ -1856,6 +2786,11 @@
           thinkingBudget: 0
       enabled: false
     - id: gemini-3-pro-thinking
+      metadata:
+        model_name: "Gemini 3 Pro"
+        model_family: "google-gemini-3-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: models/gemini-3-pro-preview
       name: Gemini 3 Pro Thinking
       max_input_tokens: 1048576
@@ -1866,6 +2801,11 @@
           thinkingBudget: 32768
       enabled: false
     - id: gemini-3-flash-preview
+      metadata:
+        model_name: "Gemini 3 Flash"
+        model_family: "google-gemini-3-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: models/gemini-3-flash-preview
       name: Gemini 3 Flash
       max_input_tokens: 1048576
@@ -1876,6 +2816,11 @@
           thinkingBudget: 0
       enabled: false
     - id: gemini-3-flash-thinking
+      metadata:
+        model_name: "Gemini 3 Flash"
+        model_family: "google-gemini-3-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: models/gemini-3-flash-preview
       name: Gemini 3 Flash Thinking
       max_input_tokens: 1048576
@@ -1886,6 +2831,11 @@
           thinkingBudget: 32768
       enabled: false
     - id: gemini-2.5-pro
+      metadata:
+        model_name: "Gemini 2.5 Pro"
+        model_family: "google-gemini-2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: models/gemini-2.5-pro
       name: Gemini 2.5 Pro
       max_input_tokens: 1048576
@@ -1896,6 +2846,11 @@
           thinkingBudget: 0
       enabled: false
     - id: gemini-2.5-pro-thinking
+      metadata:
+        model_name: "Gemini 2.5 Pro"
+        model_family: "google-gemini-2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: models/gemini-2.5-pro
       name: Gemini 2.5 Pro Thinking
       max_input_tokens: 1048576
@@ -1906,6 +2861,11 @@
           thinkingBudget: 32768
       enabled: false
     - id: gemini-2.5-flash
+      metadata:
+        model_name: "Gemini 2.5 Flash"
+        model_family: "google-gemini-2.5-flash"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: models/gemini-2.5-flash
       name: Gemini 2.5 Flash
       max_input_tokens: 1048576
@@ -1916,6 +2876,11 @@
           thinkingBudget: 0
       enabled: false
     - id: gemini-2.5-flash-lite
+      metadata:
+        model_name: "Gemini 2.5 Flash Lite"
+        model_family: "google-gemini-2.5-flash-lite"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       model: models/gemini-2.5-flash-lite
       name: Gemini 2.5 Flash Lite
       max_input_tokens: 1048576
@@ -1949,6 +2914,11 @@
   require_key: true
   default_models:
     - id: grok-4.3
+      metadata:
+        model_name: "Grok 4.3"
+        model_family: "xai-grok-4.3"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Grok 4.3
       max_input_tokens: 1000000
       max_output_tokens: 32000
@@ -1958,6 +2928,11 @@
           enabled: false
       enabled: false
     - id: grok-4.3-thinking
+      metadata:
+        model_name: "Grok 4.3"
+        model_family: "xai-grok-4.3"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: grok-4.3
       name: Grok 4.3 Thinking
       max_input_tokens: 1000000
@@ -1968,6 +2943,11 @@
           enabled: true
       enabled: true
     - id: grok-4-1-fast-reasoning
+      metadata:
+        model_name: "Grok 4.1 Fast"
+        model_family: "xai-grok-4.1-fast"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       name: Grok 4.1 Fast Reasoning
       max_input_tokens: 2000000
       max_output_tokens: 30000
@@ -1977,6 +2957,11 @@
           enabled: true
       enabled: false
     - id: grok-4-1-fast-non-reasoning
+      metadata:
+        model_name: "Grok 4.1 Fast"
+        model_family: "xai-grok-4.1-fast"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Grok 4.1 Fast
       max_input_tokens: 2000000
       max_output_tokens: 30000
@@ -1986,6 +2971,11 @@
           enabled: false
       enabled: false
     - id: grok-3-mini-low
+      metadata:
+        model_name: "Grok 3 Mini"
+        model_family: "xai-grok-3-mini"
+        reasoning_efforts: ["low", "high"]
+        reasoning_effort: "low"
       model: grok-3-mini
       name: Grok 3 Mini (Low)
       max_input_tokens: 131072
@@ -1995,6 +2985,11 @@
         reasoning_effort: low
       enabled: false
     - id: grok-3-mini-high
+      metadata:
+        model_name: "Grok 3 Mini"
+        model_family: "xai-grok-3-mini"
+        reasoning_efforts: ["low", "high"]
+        reasoning_effort: "high"
       model: grok-3-mini
       name: Grok 3 Mini (High)
       max_input_tokens: 131072
@@ -2025,6 +3020,11 @@
   require_key: true
   default_models:
     - id: MiniMax-M2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
@@ -2033,6 +3033,11 @@
         enable_thinking: false
       enabled: false
     - id: MiniMax-M2.7-thinking
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: MiniMax-M2.7
       name: MiniMax M2.7 Thinking
       max_input_tokens: 196608
@@ -2042,6 +3047,11 @@
         enable_thinking: true
       enabled: true
     - id: MiniMax-M2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
@@ -2050,12 +3060,22 @@
         enable_thinking: false
       enabled: false
     - id: MiniMax-Text-01
+      metadata:
+        model_name: "MiniMax Text-01"
+        model_family: "minimax-text-01"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax Text-01 (1M)
       max_input_tokens: 1000000
       max_output_tokens: 32768
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: MiniMax-M2.1
+      metadata:
+        model_name: "MiniMax M2.1"
+        model_family: "minimax-m2.1"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiniMax M2.1
       max_input_tokens: 196608
       max_output_tokens: 196608
@@ -2071,6 +3091,11 @@
   require_key: true
   default_models:
     - id: MiniMax-M2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
@@ -2079,6 +3104,11 @@
         enable_thinking: false
       enabled: false
     - id: MiniMax-M2.7-thinking
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: MiniMax-M2.7
       name: MiniMax M2.7 Thinking
       max_input_tokens: 196608
@@ -2088,6 +3118,11 @@
         enable_thinking: true
       enabled: true
     - id: MiniMax-M2.5
+      metadata:
+        model_name: "MiniMax M2.5"
+        model_family: "minimax-m2.5"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiniMax M2.5
       max_input_tokens: 196608
       max_output_tokens: 131072
@@ -2105,6 +3140,11 @@
   require_key: true
   default_models:
     - id: mimo-v2.5-pro
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: MiMo V2.5 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -2113,6 +3153,11 @@
         enable_thinking: false
       enabled: false
     - id: mimo-v2.5-pro-thinking
+      metadata:
+        model_name: "MiMo V2.5 Pro"
+        model_family: "mimo-v2.5-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: mimo-v2.5-pro
       name: MiMo V2.5 Pro Thinking
       max_input_tokens: 1048576
@@ -2122,6 +3167,11 @@
         enable_thinking: true
       enabled: true
     - id: mimo-v2-pro
+      metadata:
+        model_name: "MiMo V2 Pro"
+        model_family: "mimo-v2-pro"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: MiMo V2 Pro
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -2130,6 +3180,11 @@
         enable_thinking: true
       enabled: false
     - id: mimo-v2.5
+      metadata:
+        model_name: "MiMo V2.5"
+        model_family: "mimo-v2.5"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: MiMo V2.5
       max_input_tokens: 1048576
       max_output_tokens: 131072
@@ -2138,6 +3193,11 @@
         enable_thinking: true
       enabled: false
     - id: mimo-v2-omni
+      metadata:
+        model_name: "MiMo V2 Omni"
+        model_family: "mimo-v2-omni"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: MiMo V2 Omni
       max_input_tokens: 131072
       max_output_tokens: 32768
@@ -2146,6 +3206,11 @@
         enable_thinking: true
       enabled: false
     - id: mimo-v2-flash
+      metadata:
+        model_name: "MiMo V2 Flash"
+        model_family: "mimo-v2-flash"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: MiMo V2 Flash
       max_input_tokens: 131072
       max_output_tokens: 32768
@@ -2161,6 +3226,11 @@
   require_key: true
   default_models:
     - id: step-3.5-flash
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: Step 3.5 Flash
       max_input_tokens: 262144
       max_output_tokens: 65536
@@ -2169,6 +3239,11 @@
         enable_thinking: false
       enabled: false
     - id: step-3.5-flash-thinking
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: step-3.5-flash
       name: Step 3.5 Flash Thinking
       max_input_tokens: 262144
@@ -2178,6 +3253,11 @@
         enable_thinking: true
       enabled: true
     - id: step-2x-large
+      metadata:
+        model_name: "Step 2X Large"
+        model_family: "stepfun-step-2x-large"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: Step 2X Large
       max_input_tokens: 262144
       max_output_tokens: 65536
@@ -2186,6 +3266,11 @@
         enable_thinking: true
       enabled: false
     - id: step-3
+      metadata:
+        model_name: "Step 3"
+        model_family: "stepfun-step-3"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: Step 3
       max_input_tokens: 262144
       max_output_tokens: 65536
@@ -2203,6 +3288,11 @@
   require_key: true
   default_models:
     - id: Pro-moonshotai-Kimi-K2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: Pro/moonshotai/Kimi-K2.6
       name: Kimi K2.6
       max_input_tokens: 262144
@@ -2212,6 +3302,11 @@
         enable_thinking: false
       enabled: false
     - id: Pro-moonshotai-Kimi-K2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Pro/moonshotai/Kimi-K2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262144
@@ -2221,6 +3316,11 @@
         enable_thinking: true
       enabled: false
     - id: deepseek-ai-DeepSeek-V4-Flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       model: deepseek-ai/DeepSeek-V4-Flash
       name: DeepSeek V4 Flash
       max_input_tokens: 131072
@@ -2228,6 +3328,11 @@
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: Qwen-Qwen3.5-397B-A17B
+      metadata:
+        model_name: "Qwen 3.5 397B"
+        model_family: "qwen-qwen3.5-397b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: Qwen/Qwen3.5-397B-A17B
       name: Qwen 3.5 397B
       max_input_tokens: 131072
@@ -2237,6 +3342,11 @@
         enable_thinking: false
       enabled: false
     - id: Qwen-Qwen3.5-397B-A17B-thinking
+      metadata:
+        model_name: "Qwen 3.5 397B"
+        model_family: "qwen-qwen3.5-397b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Qwen/Qwen3.5-397B-A17B
       name: Qwen 3.5 397B Thinking
       max_input_tokens: 131072
@@ -2246,6 +3356,11 @@
         enable_thinking: true
       enabled: false
     - id: Qwen-Qwen3-Coder-30B-A3B-Instruct
+      metadata:
+        model_name: "Qwen3 Coder 30B"
+        model_family: "qwen-qwen3-coder-30b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: Qwen/Qwen3-Coder-30B-A3B-Instruct
       name: Qwen3 Coder 30B
       max_input_tokens: 131072
@@ -2255,6 +3370,11 @@
         enable_thinking: false
       enabled: false
     - id: Qwen-Qwen3-Coder-30B-A3B-Instruct-thinking
+      metadata:
+        model_name: "Qwen3 Coder 30B"
+        model_family: "qwen-qwen3-coder-30b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Qwen/Qwen3-Coder-30B-A3B-Instruct
       name: Qwen3 Coder 30B Thinking
       max_input_tokens: 131072
@@ -2264,6 +3384,11 @@
         enable_thinking: true
       enabled: false
     - id: Pro-moonshotai-Kimi-K2-Thinking
+      metadata:
+        model_name: "Kimi K2 Thinking"
+        model_family: "kimi-k2-thinking"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       model: Pro/moonshotai/Kimi-K2-Thinking
       name: Kimi K2 Thinking
       max_input_tokens: 262144
@@ -2273,6 +3398,11 @@
         enable_thinking: true
       enabled: false
     - id: Pro-deepseek-ai-DeepSeek-V3.2
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: Pro/deepseek-ai/DeepSeek-V3.2
       name: DeepSeek V3.2
       max_input_tokens: 131072
@@ -2282,6 +3412,11 @@
         enable_thinking: false
       enabled: false
     - id: Pro-deepseek-ai-DeepSeek-V3.2-thinking
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Pro/deepseek-ai/DeepSeek-V3.2
       name: DeepSeek V3.2 Thinking
       max_input_tokens: 131072
@@ -2291,6 +3426,11 @@
         enable_thinking: true
       enabled: false
     - id: Qwen-Qwen3-235B-A22B
+      metadata:
+        model_name: "Qwen3 235B"
+        model_family: "qwen-qwen3-235b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: Qwen/Qwen3-235B-A22B
       name: Qwen3 235B
       max_input_tokens: 131072
@@ -2300,6 +3440,11 @@
         enable_thinking: false
       enabled: false
     - id: Qwen-Qwen3-235B-A22B-thinking
+      metadata:
+        model_name: "Qwen3 235B"
+        model_family: "qwen-qwen3-235b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: Qwen/Qwen3-235B-A22B
       name: Qwen3 235B Thinking
       max_input_tokens: 131072
@@ -2309,6 +3454,11 @@
         enable_thinking: true
       enabled: false
     - id: tencent-Hunyuan-A13B-Instruct
+      metadata:
+        model_name: "混元 A13B"
+        model_family: "hunyuan-a13b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: tencent/Hunyuan-A13B-Instruct
       name: 混元 A13B
       max_input_tokens: 256000
@@ -2318,6 +3468,11 @@
         enable_thinking: false
       enabled: false
     - id: tencent-Hunyuan-A13B-Instruct-thinking
+      metadata:
+        model_name: "混元 A13B"
+        model_family: "hunyuan-a13b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: tencent/Hunyuan-A13B-Instruct
       name: 混元 A13B Thinking
       max_input_tokens: 256000
@@ -2327,6 +3482,11 @@
         enable_thinking: true
       enabled: false
     - id: stepfun-ai-Step-3.5-Flash
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: stepfun-ai/Step-3.5-Flash
       name: Step 3.5 Flash
       max_input_tokens: 262144
@@ -2336,6 +3496,11 @@
         enable_thinking: false
       enabled: false
     - id: stepfun-ai-Step-3.5-Flash-thinking
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: stepfun-ai/Step-3.5-Flash
       name: Step 3.5 Flash Thinking
       max_input_tokens: 262144
@@ -2380,6 +3545,11 @@
   url_editable: true
   default_models:
     - id: doubao-seed-2-0-pro-260215
+      metadata:
+        model_name: "豆包 Seed 2.0 Pro"
+        model_family: "volcengine-doubao-seed-2.0-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       name: 豆包 Seed 2.0 Pro
       max_input_tokens: 256000
       max_output_tokens: 64000
@@ -2389,6 +3559,11 @@
           type: disabled
       enabled: false
     - id: doubao-seed-2-0-pro-thinking
+      metadata:
+        model_name: "豆包 Seed 2.0 Pro"
+        model_family: "volcengine-doubao-seed-2.0-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: doubao-seed-2-0-pro-260215
       name: 豆包 Seed 2.0 Pro Thinking
       max_input_tokens: 256000
@@ -2399,6 +3574,11 @@
           type: enabled
       enabled: true
     - id: doubao-seed-1-6-thinking-250715
+      metadata:
+        model_name: "豆包 Seed 1.6 Thinking"
+        model_family: "volcengine-doubao-seed-1.6-thinking"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: 豆包 Seed 1.6 Thinking
       max_input_tokens: 256000
       max_output_tokens: 16000
@@ -2408,24 +3588,44 @@
           type: enabled
       enabled: false
     - id: doubao-seed-1-6-vision-250815
+      metadata:
+        model_name: "豆包 Seed 1.6 Vision"
+        model_family: "volcengine-doubao-seed-1.6-vision"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: 豆包 Seed 1.6 Vision
       max_input_tokens: 256000
       max_output_tokens: 32768
       capabilities: [vision, tool_calls, streaming, json]
       enabled: false
     - id: doubao-seed-2-0-code-preview-260215
+      metadata:
+        model_name: "豆包 Seed 2.0 Code"
+        model_family: "volcengine-doubao-seed-2.0-code"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: 豆包 Seed 2.0 Code
       max_input_tokens: 256000
       max_output_tokens: 64000
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: doubao-pro-256k
+      metadata:
+        model_name: "豆包 Pro"
+        model_family: "volcengine-doubao-pro"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: 豆包 Pro 256K
       max_input_tokens: 256000
       max_output_tokens: 16000
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: kimi-k2-thinking-251104
+      metadata:
+        model_name: "Kimi K2 Thinking"
+        model_family: "kimi-k2-thinking"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: Kimi K2 Thinking
       max_input_tokens: 262144
       max_output_tokens: 32768
@@ -2435,6 +3635,11 @@
           type: enabled
       enabled: false
     - id: deepseek-v3-2-251201
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       name: DeepSeek V3.2
       max_input_tokens: 131072
       max_output_tokens: 8192
@@ -2479,6 +3684,11 @@
   require_key: true
   default_models:
     - id: hy3-preview
+      metadata:
+        model_name: "混元 3 Preview"
+        model_family: "hunyuan-3-preview"
+        reasoning_efforts: ["none", "low", "high"]
+        reasoning_effort: "none"
       name: 混元 3 Preview
       max_input_tokens: 262144
       max_output_tokens: 262144
@@ -2488,6 +3698,11 @@
           level: disabled
       enabled: false
     - id: hy3-preview-reasoning-low
+      metadata:
+        model_name: "混元 3 Preview"
+        model_family: "hunyuan-3-preview"
+        reasoning_efforts: ["none", "low", "high"]
+        reasoning_effort: "low"
       model: hy3-preview
       name: 混元 3 Preview Reasoning (Low)
       max_input_tokens: 262144
@@ -2498,6 +3713,11 @@
           level: low
       enabled: false
     - id: hy3-preview-reasoning-high
+      metadata:
+        model_name: "混元 3 Preview"
+        model_family: "hunyuan-3-preview"
+        reasoning_efforts: ["none", "low", "high"]
+        reasoning_effort: "high"
       model: hy3-preview
       name: 混元 3 Preview Reasoning (High)
       max_input_tokens: 262144
@@ -2508,6 +3728,11 @@
           level: high
       enabled: true
     - id: deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["thinking"]
+        reasoning_effort: "thinking"
       name: DeepSeek V4 Pro
       max_input_tokens: 131072
       max_output_tokens: 32768
@@ -2516,6 +3741,11 @@
         enable_thinking: true
       enabled: false
     - id: kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       name: Kimi K2.6
       max_input_tokens: 262144
       max_output_tokens: 32768
@@ -2524,12 +3754,22 @@
         enable_thinking: true
       enabled: false
     - id: deepseek-v4-flash
+      metadata:
+        model_name: "DeepSeek V4 Flash"
+        model_family: "deepseek-v4-flash"
+        reasoning_efforts: ["none", "low", "high", "max"]
+        reasoning_effort: "none"
       name: DeepSeek V4 Flash
       max_input_tokens: 131072
       max_output_tokens: 8192
       capabilities: [tool_calls, streaming, json]
       enabled: false
     - id: minimax-m2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       name: MiniMax M2.7
       max_input_tokens: 196608
       max_output_tokens: 40960
@@ -2538,6 +3778,11 @@
         enable_thinking: true
       enabled: false
     - id: hunyuan-turbos-latest
+      metadata:
+        model_name: "混元 Turbo S"
+        model_family: "hunyuan-turbo-s"
+        reasoning_efforts: ["none"]
+        reasoning_effort: "none"
       name: 混元 Turbo S
       max_input_tokens: 128000
       max_output_tokens: 8192
@@ -2552,6 +3797,11 @@
   require_key: true
   default_models:
     - id: nvidia-nemotron-3-super-120b-a12b
+      metadata:
+        model_name: "Nemotron 3 Super 120B"
+        model_family: "nvidia-nemotron-3-super-120b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: nvidia/nemotron-3-super-120b-a12b
       name: Nemotron 3 Super 120B
       max_input_tokens: 262144
@@ -2562,6 +3812,11 @@
           enabled: false
       enabled: false
     - id: nvidia-nemotron-3-super-120b-a12b-thinking
+      metadata:
+        model_name: "Nemotron 3 Super 120B"
+        model_family: "nvidia-nemotron-3-super-120b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: nvidia/nemotron-3-super-120b-a12b
       name: Nemotron 3 Super 120B Thinking
       max_input_tokens: 262144
@@ -2572,6 +3827,11 @@
           enabled: true
       enabled: true
     - id: deepseek-ai-deepseek-v4-pro
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: deepseek-ai/deepseek-v4-pro
       name: DeepSeek V4 Pro
       max_input_tokens: 1048576
@@ -2581,6 +3841,11 @@
         enable_thinking: false
       enabled: false
     - id: deepseek-ai-deepseek-v4-pro-thinking
+      metadata:
+        model_name: "DeepSeek V4 Pro"
+        model_family: "deepseek-v4-pro"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: deepseek-ai/deepseek-v4-pro
       name: DeepSeek V4 Pro Thinking
       max_input_tokens: 1048576
@@ -2590,6 +3855,11 @@
         enable_thinking: true
       enabled: false
     - id: moonshotai-kimi-k2.6
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: moonshotai/kimi-k2.6
       name: Kimi K2.6
       max_input_tokens: 262142
@@ -2599,6 +3869,11 @@
         enable_thinking: false
       enabled: false
     - id: moonshotai-kimi-k2.6-thinking
+      metadata:
+        model_name: "Kimi K2.6"
+        model_family: "kimi-k2.6"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: moonshotai/kimi-k2.6
       name: Kimi K2.6 Thinking
       max_input_tokens: 262142
@@ -2608,6 +3883,11 @@
         enable_thinking: true
       enabled: false
     - id: qwen-qwen3-coder-480b-a35b-instruct
+      metadata:
+        model_name: "Qwen3 Coder 480B"
+        model_family: "qwen-qwen3-coder-480b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: qwen/qwen3-coder-480b-a35b-instruct
       name: Qwen3 Coder 480B
       max_input_tokens: 131072
@@ -2617,6 +3897,11 @@
         enable_thinking: false
       enabled: false
     - id: qwen-qwen3-coder-480b-a35b-instruct-thinking
+      metadata:
+        model_name: "Qwen3 Coder 480B"
+        model_family: "qwen-qwen3-coder-480b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: qwen/qwen3-coder-480b-a35b-instruct
       name: Qwen3 Coder 480B Thinking
       max_input_tokens: 131072
@@ -2626,6 +3911,11 @@
         enable_thinking: true
       enabled: false
     - id: nvidia-nemotron-3-nano-30b-a3b
+      metadata:
+        model_name: "Nemotron 3 Nano 30B"
+        model_family: "nvidia-nemotron-3-nano-30b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: nvidia/nemotron-3-nano-30b-a3b
       name: Nemotron 3 Nano 30B
       max_input_tokens: 262144
@@ -2636,6 +3926,11 @@
           enabled: false
       enabled: false
     - id: nvidia-nemotron-3-nano-30b-a3b-thinking
+      metadata:
+        model_name: "Nemotron 3 Nano 30B"
+        model_family: "nvidia-nemotron-3-nano-30b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: nvidia/nemotron-3-nano-30b-a3b
       name: Nemotron 3 Nano 30B Thinking
       max_input_tokens: 262144
@@ -2646,6 +3941,11 @@
           enabled: true
       enabled: false
     - id: qwen-qwen3.5-397b-a17b
+      metadata:
+        model_name: "Qwen 3.5 397B"
+        model_family: "qwen-qwen3.5-397b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: qwen/qwen3.5-397b-a17b
       name: Qwen 3.5 397B
       max_input_tokens: 262144
@@ -2655,6 +3955,11 @@
         enable_thinking: false
       enabled: false
     - id: qwen-qwen3.5-397b-a17b-thinking
+      metadata:
+        model_name: "Qwen 3.5 397B"
+        model_family: "qwen-qwen3.5-397b"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: qwen/qwen3.5-397b-a17b
       name: Qwen 3.5 397B Thinking
       max_input_tokens: 262144
@@ -2664,6 +3969,11 @@
         enable_thinking: true
       enabled: false
     - id: deepseek-ai-deepseek-v3.2
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: deepseek-ai/deepseek-v3.2
       name: DeepSeek V3.2
       max_input_tokens: 131072
@@ -2673,6 +3983,11 @@
         enable_thinking: false
       enabled: false
     - id: deepseek-ai-deepseek-v3.2-thinking
+      metadata:
+        model_name: "DeepSeek V3.2"
+        model_family: "deepseek-v3.2"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: deepseek-ai/deepseek-v3.2
       name: DeepSeek V3.2 Thinking
       max_input_tokens: 131072
@@ -2682,6 +3997,11 @@
         enable_thinking: true
       enabled: false
     - id: minimaxai-minimax-m2.7
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: minimaxai/minimax-m2.7
       name: MiniMax M2.7
       max_input_tokens: 196608
@@ -2691,6 +4011,11 @@
         enable_thinking: false
       enabled: false
     - id: minimaxai-minimax-m2.7-thinking
+      metadata:
+        model_name: "MiniMax M2.7"
+        model_family: "minimax-m2.7"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: minimaxai/minimax-m2.7
       name: MiniMax M2.7 Thinking
       max_input_tokens: 196608
@@ -2700,6 +4025,11 @@
         enable_thinking: true
       enabled: false
     - id: stepfun-ai-step-3.5-flash
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "none"
       model: stepfun-ai/step-3.5-flash
       name: Step 3.5 Flash
       max_input_tokens: 262144
@@ -2709,6 +4039,11 @@
         enable_thinking: false
       enabled: false
     - id: stepfun-ai-step-3.5-flash-thinking
+      metadata:
+        model_name: "Step 3.5 Flash"
+        model_family: "stepfun-step-3.5-flash"
+        reasoning_efforts: ["none", "thinking"]
+        reasoning_effort: "thinking"
       model: stepfun-ai/step-3.5-flash
       name: Step 3.5 Flash Thinking
       max_input_tokens: 262144
