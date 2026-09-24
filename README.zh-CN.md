@@ -14,7 +14,7 @@
 
 ⚡⚡⚡ **DeepSeek Harness 已集成 — 在桌面端、Android 或浏览器中直接使用，跨设备运行。** [了解更多 →](https://yaoagents.cn/blog/zh-cn/2026/release/deepseek-harness)
 
-🧠 Jev 是 TypeSafe AI 的 System One 模型：它不写文本，而是返回带置信度的结构化决策。现已通过 Tao 集成到 Yao Agents 中。[了解更多 →](https://yaoagents.cn/blog/zh-cn/2026/release/jev)
+🧠 Jev 是 TypeSafe AI 的 System One 模型：它不写文本，而是返回带置信度的结构化决策。已集成到 Yao Agents。[了解更多 →](https://yaoagents.cn/blog/zh-cn/2026/release/jev)
 
 [English](README.md)
 
