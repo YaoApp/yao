@@ -281,3 +281,21 @@ citation:
   custom_prompt: |
     When citing sources, use the format [N] where N is the reference number.
 ```
+
+### Parallel Search MCP
+
+In Settings → Search & Scrape, enable Parallel and assign it to Web Search.
+Leave the optional API key empty for anonymous access, or enter your Parallel key
+for authenticated access. Tavily remains the default when no provider is assigned.
+Parallel is also accepted as the `default` in `agent/websearch.yml`.
+
+Normal `tools.web_search` calls and built-in agent web searches use the assignment.
+The adapter connects to `https://search.parallel.ai/mcp` through the existing
+Streamable HTTP MCP client, discovers `web_search`, and maps titles, URLs and
+excerpts into Yao search results. The requested result limit is applied locally.
+Provider errors remain errors; an explicit key is never retried anonymously.
+
+Queries and the search objective are sent to Parallel. Requests include the
+project-wide `Yao/<version>` User-Agent for aggregate project usage measurement;
+it contains no user or installation identifiers. Anonymous access is rate limited.
+See [Parallel's Search MCP documentation](https://docs.parallel.ai/integrations/mcp/search-mcp).
