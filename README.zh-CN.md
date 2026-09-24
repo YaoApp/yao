@@ -4,17 +4,17 @@
 
 ![工作原理](docs/how-it-works.png)
 
-**🏠 官网：** [https://yaoagents.com](https://yaoagents.com)
+**🏠 官网：** [https://yaoagents.cn](https://yaoagents.cn)
 
-**📚 文档：** [https://yaoagents.com/docs](https://yaoagents.com/docs)
+**📚 文档：** [https://yaoagents.cn/docs](https://yaoagents.cn/docs)
 
-**🖥️ Yao Desktop：** [https://yaoagents.com/download](https://yaoagents.com/download)
+**🖥️ Yao Desktop：** [https://yaoagents.cn/download](https://yaoagents.cn/download)
 
-**📱 Android 客户端（公测）：** [APK 下载](https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk)
+**📱 Android 客户端（公测）：** [https://yaoagents.cn/download/yaoagents](https://yaoagents.cn/download/yaoagents)
 
-⚡⚡⚡ **DeepSeek Harness 已集成 — 在桌面端、Android 或浏览器中直接使用，跨设备运行。**
+⚡⚡⚡ **DeepSeek Harness 已集成 — 在桌面端、Android 或浏览器中直接使用，跨设备运行。** [了解更多 →](https://yaoagents.cn/blog/zh-cn/2026/release/deepseek-harness)
 
-*本 README 由 Yao Agents Android 应用（公测版）中的 DeepSeek Harness 撰写并自动发布。*
+🧠 Jev 是 TypeSafe AI 的 System One 模型：它不写文本，而是返回带置信度的结构化决策。已集成到 Yao Agents。[了解更多 →](https://yaoagents.cn/blog/zh-cn/2026/release/jev)
 
 [English](README.md)
 
@@ -30,6 +30,8 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 
 工作过程中，Agent 可以从任意节点读取所需信息。
 
+![工作区](https://cdn.yaoagents.cn/assets/en/workspace/01-workspace-index-en-dark.png)
+
 ## 任务看板
 
 在对话中说出你的需求，它就会变成看板上的一个任务。
@@ -38,11 +40,15 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 
 将任务 Agent 接入你的应用，或分享给其他人。
 
+![任务看板](https://cdn.yaoagents.cn/assets/en/kanban/09-kanban-daily-en-dark.png)
+
 ## 开放 API
 
 专家 Agent 和任务 Agent 可以集成到你自己的应用和工作流中。基于标准 API 构建，支持 SSE 和 WebSocket。
 
 让你的 Agent 成为业务的一部分，无论你在哪里需要它们。
+
+![开放 API](https://cdn.yaoagents.cn/assets/en/openapi/01-openapi-task-en-dark.png)
 
 ---
 
@@ -52,9 +58,9 @@ Agent 运行在你自己的设备上。每添加一台机器，就多一个它�
 
 ## 链接
 
-- 官网：https://yaoagents.com
-- 文档：https://yaoagents.com/docs
-- Yao Desktop：https://yaoagents.com/download
-- Android 客户端（公测）：https://get.yaoapps.com/yaoagents/cui-android/0.6.37/cui-android-0.6.37.apk
+- 官网：https://yaoagents.cn
+- 文档：https://yaoagents.cn/docs
+- Yao Desktop：https://yaoagents.cn/download
+- Android 客户端（公测）：https://yaoagents.cn/download/yaoagents
 - Discord：https://discord.com/invite/BkMR2NUsjU
 - AI Agent 指南：https://github.com/YaoApp/yao/issues/1595
