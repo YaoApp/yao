@@ -58,19 +58,14 @@ func watchFromDB(chatID string, opts *WatchOpts) (*WatchStream, error) {
 			return
 		}
 
-		filter := storetypes.MessageFilter{}
-		if opts.Limit > 0 {
-			filter.Limit = opts.Limit
-		} else {
-			filter.Limit = 100
-		}
-		if opts.BeforeID > 0 {
-			filter.BeforeID = opts.BeforeID
+		limit := opts.Limit
+		if limit <= 0 {
+			limit = 100
 		}
 
-		messages, err := chatStore.GetMessages(chatID, filter)
+		messages, err := chatStore.GetRecentMessages(chatID, limit, opts.BeforeID)
 		if err != nil {
-			fmt.Printf("  • [task.watchFromDB] GetMessages ERROR chatID=%s err=%v\n", chatID, err)
+			fmt.Printf("  • [task.watchFromDB] GetRecentMessages ERROR chatID=%s err=%v\n", chatID, err)
 			sendReadComplete(ch, doneCh, false, nil, nil, 0)
 			return
 		}
@@ -85,7 +80,7 @@ func watchFromDB(chatID string, opts *WatchOpts) (*WatchStream, error) {
 			assistants = InfoByIDsFn(assistantIDs, opts.Locale)
 		}
 
-		hasMore := len(messages) >= filter.Limit
+		hasMore := len(messages) >= limit
 		firstID := messages[0].ID
 
 		sendReadComplete(ch, doneCh, hasMore, messages, assistants, firstID)

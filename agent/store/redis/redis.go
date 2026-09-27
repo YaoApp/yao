@@ -60,6 +60,12 @@ func (r *Redis) GetMessages(chatID string, filter types.MessageFilter) ([]*types
 	return nil, nil
 }
 
+// GetRecentMessages retrieves the N most recent messages for a chat
+func (r *Redis) GetRecentMessages(chatID string, limit int, beforeID int64) ([]*types.Message, error) {
+	// TODO: implement
+	return nil, nil
+}
+
 // UpdateMessage updates a single message
 func (r *Redis) UpdateMessage(messageID string, updates map[string]interface{}) error {
 	// TODO: implement

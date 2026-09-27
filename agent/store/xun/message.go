@@ -202,6 +202,81 @@ func (store *Xun) GetMessages(chatID string, filter types.MessageFilter) ([]*typ
 	return messages, nil
 }
 
+// GetRecentMessages retrieves the N most recent messages for a chat.
+// It uses a two-step query to avoid loading large fields (e.g. props JSON)
+// into the sort buffer, preventing MySQL Error 1038 on chats with large messages.
+// Step 1: query only id column with ORDER BY (lightweight sort).
+// Step 2: fetch specified columns by primary key lookup (no sort needed).
+func (store *Xun) GetRecentMessages(chatID string, limit int, beforeID int64) ([]*types.Message, error) {
+	if chatID == "" {
+		return nil, fmt.Errorf("chat_id is required")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+
+	// Step 1: query only IDs (sort on 8-byte integers, not full rows with large props)
+	idQb := store.newQueryMessage().
+		Select("id").
+		Where("chat_id", chatID).
+		WhereNull("deleted_at")
+	if beforeID > 0 {
+		idQb.Where("id", "<", beforeID)
+	}
+	idQb.OrderBy("id", "desc").Limit(limit)
+
+	idRows, err := idQb.Get()
+	if err != nil {
+		return nil, fmt.Errorf("query message ids: %w", err)
+	}
+	if len(idRows) == 0 {
+		return nil, nil
+	}
+
+	ids := make([]interface{}, 0, len(idRows))
+	for _, row := range idRows {
+		data := row.ToMap()
+		if v := data["id"]; v != nil {
+			ids = append(ids, v)
+		}
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
+
+	// Step 2: fetch full rows by PK lookup with specified columns (no filesort)
+	rowQb := store.newQueryMessage().
+		Select(
+			"id", "message_id", "chat_id", "request_id",
+			"role", "type", "props",
+			"block_id", "thread_id", "assistant_id",
+			"connector", "mode", "sequence", "metadata",
+			"created_at", "updated_at",
+		).
+		WhereIn("id", ids).
+		OrderBy("id", "asc")
+
+	rows, err := rowQb.Get()
+	if err != nil {
+		return nil, fmt.Errorf("query messages by ids: %w", err)
+	}
+
+	messages := make([]*types.Message, 0, len(rows))
+	for _, row := range rows {
+		data := row.ToMap()
+		if data == nil || data["message_id"] == nil {
+			continue
+		}
+		msg, err := store.rowToMessage(data)
+		if err != nil {
+			continue
+		}
+		messages = append(messages, msg)
+	}
+
+	return messages, nil
+}
+
 // UpdateMessage updates a single message
 func (store *Xun) UpdateMessage(messageID string, updates map[string]interface{}) error {
 	if messageID == "" {

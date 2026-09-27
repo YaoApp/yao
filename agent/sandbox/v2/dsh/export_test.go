@@ -69,9 +69,6 @@ func ExportNewWindowsPlatform(shell string) ExportPlatform {
 // ExportExtractLastUserMessage exposes extractLastUserMessage.
 var ExportExtractLastUserMessage = extractLastUserMessage
 
-// ExportConnectorSetting exposes connectorSetting.
-var ExportConnectorSetting = connectorSetting
-
 // ExportBuildSystemPrompt exposes buildSystemPrompt.
 func ExportBuildSystemPrompt(req *types.StreamRequest, workDir string) string {
 	return buildSystemPrompt(req, workDir)
@@ -103,39 +100,14 @@ var ExportInjectDSHSemanticType = injectDSHSemanticType
 // ExportRenderCordisConfig exposes RenderCordisConfig (already public, alias for consistency).
 var ExportRenderCordisConfig = RenderCordisConfig
 
-// ExportExtractReasoningInfo exposes extractReasoningInfo for testing.
-var ExportExtractReasoningInfo = extractReasoningInfo
+// ExportNormalizeBaseURL exposes normalizeBaseURL for testing.
+var ExportNormalizeBaseURL = normalizeBaseURL
 
-// ExportToPiAiThinking exposes toPiAiThinking for testing.
-var ExportToPiAiThinking = toPiAiThinking
+// ExportHasVisionInput exposes hasVisionInput for testing.
+var ExportHasVisionInput = hasVisionInput
 
-// ExportNormalizePiAiReasoning exposes normalizePiAiReasoning for testing.
-var ExportNormalizePiAiReasoning = normalizePiAiReasoning
-
-// ExportNormalizePiAiBaseURL exposes normalizePiAiBaseURL for testing.
-var ExportNormalizePiAiBaseURL = normalizePiAiBaseURL
-
-// ExportNormalizeAnthropicBaseURL exposes normalizeAnthropicBaseURL for testing.
-var ExportNormalizeAnthropicBaseURL = normalizeAnthropicBaseURL
-
-// ExportConnectorThinkingFormat exposes connectorThinkingFormat for testing.
-var ExportConnectorThinkingFormat = connectorThinkingFormat
-
-// ExportNonAnthropicThinkingFormat exposes nonAnthropicThinkingFormat for testing.
-var ExportNonAnthropicThinkingFormat = nonAnthropicThinkingFormat
-
-// ExportReasoningInfo is the exported type alias for reasoningInfo.
-type ExportReasoningInfo = reasoningInfo
-
-// NewExportReasoningInfo creates a reasoningInfo for black-box testing.
-func NewExportReasoningInfo(effort string, budgetTokens int, thinkingType string, hasReasoning bool) ExportReasoningInfo {
-	return reasoningInfo{
-		effort:       effort,
-		budgetTokens: budgetTokens,
-		thinkingType: thinkingType,
-		hasReasoning: hasReasoning,
-	}
-}
+// ExportProfileToPiAiRoute exposes profileToPiAiRoute for testing.
+var ExportProfileToPiAiRoute = profileToPiAiRoute
 
 // ExportBuildCancelRPC exposes session.buildCancelRPC for testing.
 func ExportBuildCancelRPC(chatID string) []byte {
