@@ -791,3 +791,251 @@ func TestAdoption_MultiAgent_WithSubTools(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Thinking block tests
+// ---------------------------------------------------------------------------
+
+const thinkingBlockJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_think","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"Let me think"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":" about this."}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"text","text":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"text_delta","text":"Here is my answer."}}}
+{"type":"assistant","message":{"id":"msg_think","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"Let me think about this."},{"type":"text","text":"Here is my answer."}],"model":"claude-sonnet-4-20250514","stop_reason":"end_turn","usage":{"input_tokens":10,"output_tokens":30}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":30}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"result","result":"Here is my answer.","is_error":false}
+`
+
+func TestParseThinkingBlock(t *testing.T) {
+	events := runParser(t, thinkingBlockJSONL)
+	groups := extractMessageGroups(events)
+
+	var thinkGroup *messageGroup
+	for i := range groups {
+		if strings.Contains(groups[i].messageID, "thinking") {
+			thinkGroup = &groups[i]
+			break
+		}
+	}
+	if thinkGroup == nil {
+		t.Fatal("expected a thinking message group")
+	}
+
+	var thinkText string
+	for _, ev := range thinkGroup.events {
+		if ev.chunkType == message.ChunkThinking {
+			thinkText += string(ev.data)
+		}
+	}
+	if thinkText != "Let me think about this." {
+		t.Errorf("thinking text = %q, want %q", thinkText, "Let me think about this.")
+	}
+
+	// Verify text message group exists (streaming + handleAssistant both emit text)
+	hasText := false
+	for _, g := range groups {
+		if strings.Contains(g.messageID, "text") {
+			hasText = true
+			var bodyText string
+			for _, ev := range g.events {
+				if ev.chunkType == message.ChunkText {
+					bodyText += string(ev.data)
+				}
+			}
+			if !strings.Contains(bodyText, "Here is my answer.") {
+				t.Errorf("body text = %q, want to contain %q", bodyText, "Here is my answer.")
+			}
+			break
+		}
+	}
+	if !hasText {
+		t.Fatal("expected a text message group")
+	}
+}
+
+const thinkingThenToolJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_tt","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"I should run a command."}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"tool_use","id":"toolu_after_think","name":"Bash"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"input_json_delta","partial_json":"{\"command\":\"echo hi\"}"}}}
+{"type":"assistant","message":{"id":"msg_tt","type":"message","role":"assistant","content":[{"type":"thinking","thinking":"I should run a command."},{"type":"tool_use","id":"toolu_after_think","name":"Bash","input":{"command":"echo hi"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":1}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"user","message":{"id":"msg_u_tt","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_after_think","content":"hi"}]}}
+{"type":"result","result":"","is_error":false}
+`
+
+func TestParseThinkingThenToolUse(t *testing.T) {
+	events := runParser(t, thinkingThenToolJSONL)
+	groups := extractMessageGroups(events)
+
+	var hasThink, hasTool bool
+	for _, g := range groups {
+		if strings.Contains(g.messageID, "thinking") {
+			hasThink = true
+			var text string
+			for _, ev := range g.events {
+				if ev.chunkType == message.ChunkThinking {
+					text += string(ev.data)
+				}
+			}
+			if text != "I should run a command." {
+				t.Errorf("thinking = %q, want %q", text, "I should run a command.")
+			}
+		}
+		if strings.Contains(g.messageID, "exec") {
+			hasTool = true
+			// Check that at least one ChunkExecute carries tool=Bash.
+			// closeStreamingTool emits a summary-only delta without the tool field.
+			foundBash := false
+			for _, ev := range g.events {
+				if ev.chunkType == message.ChunkExecute {
+					props := extractExecuteProps(ev)
+					if strDefault(props["tool"]) == "Bash" {
+						foundBash = true
+					}
+				}
+			}
+			if !foundBash {
+				t.Error("expected at least one ChunkExecute with tool=Bash")
+			}
+		}
+	}
+	if !hasThink {
+		t.Error("expected thinking group")
+	}
+	if !hasTool {
+		t.Error("expected execute group")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Claude diff extraction tests
+// ---------------------------------------------------------------------------
+
+const writeToolWithGitDiffJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_wd","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_write1","name":"Write"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"file_path\":\"test.py\",\"content\":\"print('hi')\\n\"}"}}}
+{"type":"assistant","message":{"id":"msg_wd","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_write1","name":"Write","input":{"file_path":"test.py","content":"print('hi')\n"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"user","message":{"id":"msg_u_wd","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_write1","content":{"filePath":"test.py","structuredPatch":[{"oldStart":1,"oldLines":0,"newStart":1,"newLines":1}],"gitDiff":{"filename":"test.py","status":"created","additions":1,"deletions":0,"patch":"--- /dev/null\n+++ b/test.py\n@@ -0,0 +1 @@\n+print('hi')"}}}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestParseToolResult_WithGitDiff(t *testing.T) {
+	events := runParser(t, writeToolWithGitDiffJSONL)
+
+	foundPatches := false
+	for _, ev := range events {
+		if ev.chunkType != message.ChunkExecute {
+			continue
+		}
+		props := extractExecuteProps(ev)
+		if strDefault(props["status"]) != "completed" {
+			continue
+		}
+		fp, ok := props["file_patches"]
+		if !ok {
+			continue
+		}
+		foundPatches = true
+		arr, ok := fp.([]any)
+		if !ok {
+			t.Fatalf("file_patches is not array: %T", fp)
+		}
+		if len(arr) != 1 {
+			t.Fatalf("expected 1 patch, got %d", len(arr))
+		}
+		entry, _ := arr[0].(map[string]any)
+		if entry["path"] != "test.py" {
+			t.Errorf("path = %v, want test.py", entry["path"])
+		}
+		if entry["status"] != "created" {
+			t.Errorf("status = %v, want created", entry["status"])
+		}
+		if entry["additions"] != float64(1) {
+			t.Errorf("additions = %v, want 1", entry["additions"])
+		}
+	}
+	if !foundPatches {
+		t.Error("expected file_patches in completed Write tool_result")
+	}
+}
+
+const editToolNoGitDiffJSONL = `{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_ed","type":"message","role":"assistant","content":[],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":1}}}}
+{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_edit1","name":"Edit"}}}
+{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"file_path\":\"src/app.py\",\"old_string\":\"print('hello')\\n\",\"new_string\":\"print('world')\\nprint('done')\\n\"}"}}}
+{"type":"assistant","message":{"id":"msg_ed","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_edit1","name":"Edit","input":{"file_path":"src/app.py","old_string":"print('hello')\n","new_string":"print('world')\nprint('done')\n"}}],"model":"claude-sonnet-4-20250514","stop_reason":null,"usage":{"input_tokens":10,"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"content_block_stop","index":0}}
+{"type":"stream_event","event":{"type":"message_delta","delta":{"stop_reason":"end_turn"},"usage":{"output_tokens":20}}}
+{"type":"stream_event","event":{"type":"message_stop"}}
+{"type":"user","message":{"id":"msg_u_ed","type":"message","role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_edit1","content":"Edit applied successfully."}]}}
+{"type":"result","result":"done","is_error":false}
+`
+
+func TestParseEditTool_DiffFromInput(t *testing.T) {
+	events := runParser(t, editToolNoGitDiffJSONL)
+
+	foundPatches := false
+	for _, ev := range events {
+		if ev.chunkType != message.ChunkExecute {
+			continue
+		}
+		props := extractExecuteProps(ev)
+		if strDefault(props["status"]) != "completed" {
+			continue
+		}
+		fp, ok := props["file_patches"]
+		if !ok {
+			continue
+		}
+		foundPatches = true
+		arr, ok := fp.([]any)
+		if !ok {
+			t.Fatalf("file_patches is not array: %T", fp)
+		}
+		if len(arr) != 1 {
+			t.Fatalf("expected 1 patch, got %d", len(arr))
+		}
+		entry, _ := arr[0].(map[string]any)
+		if entry["path"] != "src/app.py" {
+			t.Errorf("path = %v, want src/app.py", entry["path"])
+		}
+		if entry["status"] != "modified" {
+			t.Errorf("status = %v, want modified", entry["status"])
+		}
+		adds := int(entry["additions"].(float64))
+		dels := int(entry["deletions"].(float64))
+		if adds != 2 || dels != 1 {
+			t.Errorf("additions=%d deletions=%d, want 2/1", adds, dels)
+		}
+		patch, _ := entry["patch"].(string)
+		if !strings.Contains(patch, "+print('world')") {
+			t.Errorf("patch should contain +print('world'), got:\n%s", patch)
+		}
+	}
+	if !foundPatches {
+		t.Error("expected file_patches computed from Edit input (old_string/new_string)")
+	}
+}
+
+func TestParseToolResult_NoGitDiff(t *testing.T) {
+	events := runParser(t, singleToolCallJSONL)
+	for _, ev := range events {
+		if ev.chunkType != message.ChunkExecute {
+			continue
+		}
+		props := extractExecuteProps(ev)
+		if _, has := props["file_patches"]; has {
+			t.Error("Bash tool_result should not have file_patches")
+		}
+	}
+}

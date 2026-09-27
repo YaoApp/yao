@@ -103,6 +103,40 @@ var ExportInjectDSHSemanticType = injectDSHSemanticType
 // ExportRenderCordisConfig exposes RenderCordisConfig (already public, alias for consistency).
 var ExportRenderCordisConfig = RenderCordisConfig
 
+// ExportExtractReasoningInfo exposes extractReasoningInfo for testing.
+var ExportExtractReasoningInfo = extractReasoningInfo
+
+// ExportToPiAiThinking exposes toPiAiThinking for testing.
+var ExportToPiAiThinking = toPiAiThinking
+
+// ExportNormalizePiAiReasoning exposes normalizePiAiReasoning for testing.
+var ExportNormalizePiAiReasoning = normalizePiAiReasoning
+
+// ExportNormalizePiAiBaseURL exposes normalizePiAiBaseURL for testing.
+var ExportNormalizePiAiBaseURL = normalizePiAiBaseURL
+
+// ExportNormalizeAnthropicBaseURL exposes normalizeAnthropicBaseURL for testing.
+var ExportNormalizeAnthropicBaseURL = normalizeAnthropicBaseURL
+
+// ExportConnectorThinkingFormat exposes connectorThinkingFormat for testing.
+var ExportConnectorThinkingFormat = connectorThinkingFormat
+
+// ExportNonAnthropicThinkingFormat exposes nonAnthropicThinkingFormat for testing.
+var ExportNonAnthropicThinkingFormat = nonAnthropicThinkingFormat
+
+// ExportReasoningInfo is the exported type alias for reasoningInfo.
+type ExportReasoningInfo = reasoningInfo
+
+// NewExportReasoningInfo creates a reasoningInfo for black-box testing.
+func NewExportReasoningInfo(effort string, budgetTokens int, thinkingType string, hasReasoning bool) ExportReasoningInfo {
+	return reasoningInfo{
+		effort:       effort,
+		budgetTokens: budgetTokens,
+		thinkingType: thinkingType,
+		hasReasoning: hasReasoning,
+	}
+}
+
 // ExportBuildCancelRPC exposes session.buildCancelRPC for testing.
 func ExportBuildCancelRPC(chatID string) []byte {
 	s := &session{chatID: chatID}
@@ -196,3 +230,9 @@ func (f *FakeComputer) ListPorts(_ context.Context) ([]*infra.PortInfo, error) {
 func (f *FakeComputer) ListProcesses(_ context.Context, _ ...infra.ListProcessesOption) ([]*infra.ProcessInfo, *infra.SystemLoad, error) {
 	return nil, nil, nil
 }
+
+// ExportComputeFilePatches exposes computeFilePatches for testing.
+var ExportComputeFilePatches = computeFilePatches
+
+// ExportCountDiffLines exposes countDiffLines for testing.
+var ExportCountDiffLines = countDiffLines

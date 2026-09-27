@@ -99,29 +99,22 @@ func GinTeamGet(c *gin.Context) {
 		return
 	}
 
-	// Get user provider instance
-	provider, err := getUserProvider()
-	if err != nil {
-		log.Error("Failed to get user provider: %v", err)
-		errorResp := &response.ErrorResponse{
-			Code:             response.ErrServerError.Code,
-			ErrorDescription: "Failed to initialize user provider",
-		}
-		response.RespondWithError(c, response.StatusInternalServerError, errorResp)
-		return
-	}
-
-	// Get team details
-	teamData, err := provider.GetTeamDetail(c.Request.Context(), teamID)
+	// Get team details with membership check
+	teamData, err := teamGet(c.Request.Context(), authInfo.UserID, teamID)
 	if err != nil {
 		log.Error("Failed to get team details: %v", err)
-		// Check if it's a "team not found" error
-		if err.Error() == "team not found" {
+		if strings.Contains(err.Error(), "not found") {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrInvalidRequest.Code,
 				ErrorDescription: "Team not found",
 			}
 			response.RespondWithError(c, response.StatusNotFound, errorResp)
+		} else if strings.Contains(err.Error(), "not a member") {
+			errorResp := &response.ErrorResponse{
+				Code:             response.ErrAccessDenied.Code,
+				ErrorDescription: "Access denied: you are not a member of this team",
+			}
+			response.RespondWithError(c, response.StatusForbidden, errorResp)
 		} else {
 			errorResp := &response.ErrorResponse{
 				Code:             response.ErrServerError.Code,
@@ -131,17 +124,6 @@ func GinTeamGet(c *gin.Context) {
 		}
 		return
 	}
-
-	// // Check if user owns this team
-	// ownerID := utils.ToString(teamData["owner_id"])
-	// if ownerID != authInfo.UserID {
-	// 	errorResp := &response.ErrorResponse{
-	// 		Code:             response.ErrAccessDenied.Code,
-	// 		ErrorDescription: "Access denied: you don't own this team",
-	// 	}
-	// 	response.RespondWithError(c, response.StatusForbidden, errorResp)
-	// 	return
-	// }
 
 	// Convert to response format
 	team := mapToTeamDetailResponse(teamData)

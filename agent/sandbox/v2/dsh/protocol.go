@@ -35,14 +35,15 @@ type sessionPromptParams struct {
 }
 
 // buildInitializeMsg constructs the JSON-RPC initialize request.
-func buildInitializeMsg(cwd, model string, maxTokens int) (string, error) {
+// provider selects the registered LLM adapter (e.g. "deepseek-official" or a pi-ai route).
+func buildInitializeMsg(cwd, provider, model string, maxTokens int) (string, error) {
 	msg := jsonRPCRequest{
 		JSONRPC: "2.0",
 		ID:      1,
 		Method:  "initialize",
 		Params: initializeParams{
 			CWD:      cwd,
-			Provider: "deepseek-official",
+			Provider: provider,
 			Model:    model,
 			MaxToks:  maxTokens,
 		},

@@ -34,7 +34,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 	computer := req.Computer
 	workDir := computer.GetWorkDir()
 
-	// Resolve connector settings
+	// Resolve primary connector settings
 	apiKey := ""
 	baseURL := ""
 	model := "deepseek-chat"
@@ -57,32 +57,54 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 		}
 	}
 
-	// DSH appends /chat/completions to baseURL; strip protocol-specific suffixes
-	baseURL = normalizeDSHBaseURL(baseURL)
+	// Detect connector type and select wire protocol.
+	// Anthropic connectors → anthropic-messages.
+	// OpenAI/unknown connectors → openai-completions (pi-ai detectCompat handles wire details).
+	isAnthropic := req.Connector != nil && req.Connector.Is(connector.ANTHROPIC)
 
-	// Extract thinking configuration from nested connector setting map.
-	// Connector stores thinking as {"type": "enabled"|"disabled", "budget_tokens": N}.
-	thinking, reasoningEffort := extractThinkingConfig(req.Connector)
-
-	// Collect all models on the same endpoint (primary + roles) for the DSH catalog.
-	// DSH only recognizes capabilities declared in the catalog; uncatalogued models
-	// are forced text-only regardless of actual support.
-	var models []ModelConfig
-	seen := map[string]bool{}
-
-	if lc, ok := req.Connector.(goullm.LLMConnector); ok {
-		modalities := []string{"text"}
-		if caps := lc.GetCapabilities(); caps != nil && caps.HasVision() {
-			modalities = []string{"text", "image"}
-		}
-		models = append(models, ModelConfig{ID: model, InputModalities: modalities})
-		seen[model] = true
-	} else if req.Connector != nil {
-		models = append(models, ModelConfig{ID: model, InputModalities: []string{"text"}})
-		seen[model] = true
+	var primaryAPI string
+	var primaryBaseURL string
+	if isAnthropic {
+		primaryAPI = "anthropic-messages"
+		primaryBaseURL = normalizeAnthropicBaseURL(baseURL)
+	} else {
+		primaryAPI = "openai-completions"
+		primaryBaseURL = normalizePiAiBaseURL(baseURL)
 	}
 
-	for _, c := range req.Roles {
+	primaryProvider := "yao-primary"
+	cfg := &ConnectorConfig{
+		IsWindows: p.OS() == "windows",
+	}
+
+	primaryInfo := extractReasoningInfo(req.Connector)
+
+	reasoning, budgetTokens := toPiAiThinking(primaryInfo)
+
+	// Reasoning-capable models default to "high" when no explicit level is set,
+	// so pi-ai declares model.reasoning=true and the Off toggle works.
+	if primaryInfo.hasReasoning && reasoning == "" {
+		reasoning = "high"
+	}
+
+	input := []string{"text"}
+	if connectorHasVision(req.Connector) {
+		input = []string{"text", "image"}
+	}
+	cfg.PiAiRoutes = append(cfg.PiAiRoutes, PiAiRoute{
+		Name:            "yao-primary",
+		API:             primaryAPI,
+		BaseURL:         primaryBaseURL,
+		APIKeyEnv:       "DSH_KEY_PRIMARY",
+		Models:          []PiAiModelConfig{{ID: model, Input: input, Reasoning: primaryInfo.hasReasoning || reasoning != ""}},
+		Reasoning:       reasoning,
+		BudgetTokens:    budgetTokens,
+		NoDeveloperRole: !isAnthropic,
+		ThinkingFormat:  nonAnthropicThinkingFormat(isAnthropic, req.Connector),
+	})
+
+	// Build pi-ai routes for all roles (each role gets its own route)
+	for roleName, c := range req.Roles {
 		if c == nil {
 			continue
 		}
@@ -91,44 +113,68 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 			continue
 		}
 		roleModel := lc.GetModel()
-		if roleModel == "" || seen[roleModel] {
+		if roleModel == "" {
 			continue
 		}
-		roleURL := normalizeDSHBaseURL(lc.GetURL())
-		if roleURL != baseURL {
+
+		// Skip "default" role — already handled as primary
+		if roleName == "default" {
 			continue
 		}
-		modalities := []string{"text"}
+
+		roleInfo := extractReasoningInfo(c)
+		roleReasoning, roleBudgetTokens := toPiAiThinking(roleInfo)
+		input := []string{"text"}
 		if caps := lc.GetCapabilities(); caps != nil && caps.HasVision() {
-			modalities = []string{"text", "image"}
+			input = []string{"text", "image"}
 		}
-		models = append(models, ModelConfig{ID: roleModel, InputModalities: modalities})
-		seen[roleModel] = true
+
+		// Select wire protocol based on connector type
+		roleIsAnthropic := c.Is(connector.ANTHROPIC)
+		var api string
+		var roleBaseURL string
+		if roleIsAnthropic {
+			api = "anthropic-messages"
+			roleBaseURL = normalizeAnthropicBaseURL(lc.GetURL())
+		} else {
+			api = "openai-completions"
+			roleBaseURL = normalizePiAiBaseURL(lc.GetURL())
+		}
+
+		if roleInfo.hasReasoning && roleReasoning == "" {
+			roleReasoning = "high"
+		}
+
+		envKey := "DSH_KEY_" + strings.ToUpper(roleName)
+		routeName := "yao-" + roleName
+
+		cfg.PiAiRoutes = append(cfg.PiAiRoutes, PiAiRoute{
+			Name:            routeName,
+			API:             api,
+			BaseURL:         roleBaseURL,
+			APIKeyEnv:       envKey,
+			Models:          []PiAiModelConfig{{ID: roleModel, Input: input, Reasoning: roleInfo.hasReasoning || roleReasoning != ""}},
+			Reasoning:       roleReasoning,
+			BudgetTokens:    roleBudgetTokens,
+			NoDeveloperRole: !roleIsAnthropic,
+			ThinkingFormat:  nonAnthropicThinkingFormat(roleIsAnthropic, c),
+		})
 	}
 
-	vision := false
-	for _, m := range models {
-		for _, mod := range m.InputModalities {
-			if mod == "image" {
+	// Determine vision from all models (primary + roles)
+	vision := connectorHasVision(req.Connector)
+	if !vision {
+		for _, c := range req.Roles {
+			if connectorHasVision(c) {
 				vision = true
 				break
 			}
 		}
-		if vision {
-			break
-		}
 	}
+	cfg.Vision = vision
 
 	// Render cordis.yml
-	cordisYAML, err := RenderCordisConfig(&ConnectorConfig{
-		BaseURL:         baseURL,
-		Thinking:        thinking,
-		ReasoningEffort: reasoningEffort,
-		MaxTokens:       maxTokens,
-		IsWindows:       p.OS() == "windows",
-		Models:          models,
-		Vision:          vision,
-	})
+	cordisYAML, err := RenderCordisConfig(cfg)
 	if err != nil {
 		return command{}, fmt.Errorf("render cordis config: %w", err)
 	}
@@ -154,7 +200,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 	}
 
 	// Build JSON-RPC input
-	initMsg, err := buildInitializeMsg(workDir, model, maxTokens)
+	initMsg, err := buildInitializeMsg(workDir, primaryProvider, model, maxTokens)
 	if err != nil {
 		return command{}, err
 	}
@@ -212,10 +258,22 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 func buildEnv(req *types.StreamRequest, p platform, workDir, apiKey, baseURL, systemPrompt string) map[string]string {
 	env := make(map[string]string)
 
-	// DSH-specific
+	// DSH-specific — DEEPSEEK_API_KEY always set for backward compatibility
 	env["DEEPSEEK_API_KEY"] = apiKey
 	if baseURL != "" {
 		env["DEEPSEEK_BASE_URL"] = baseURL
+	}
+
+	// Per-role API keys for pi-ai routes
+	env["DSH_KEY_PRIMARY"] = apiKey
+	for roleName, c := range req.Roles {
+		if c == nil || roleName == "default" {
+			continue
+		}
+		if lc, ok := c.(goullm.LLMConnector); ok {
+			envName := "DSH_KEY_" + strings.ToUpper(roleName)
+			env[envName] = lc.GetKey()
+		}
 	}
 	env["DSH_CWD"] = workDir
 	env["DSH_SESSION_ROOT"] = p.PathJoin(workDir, ".yao", "dsh", "sessions")
@@ -348,73 +406,137 @@ func connectorSetting(c connector.Connector, key string) string {
 	return ""
 }
 
-// extractThinkingConfig reads the nested thinking map from connector settings
-// and maps Yao connector values to DSH-compatible values.
+// reasoningInfo holds extracted thinking/reasoning configuration from a connector.
+// Populated by extractReasoningInfo using a three-level priority chain.
+type reasoningInfo struct {
+	effort       string // "none"/"thinking"/"low"/"medium"/"high"/"max"/"xhigh"/""
+	budgetTokens int    // from Setting()["thinking"]["budget_tokens"]
+	thinkingType string // from Setting()["thinking"]["type"]: "enabled"/"disabled"/"adaptive"/""
+	hasReasoning bool   // from GetCapabilities().Reasoning
+}
+
+// extractReasoningInfo reads thinking/reasoning configuration from a connector
+// using a three-level priority chain:
+//  1. Setting()["reasoning_effort"] — llmprovider path via ExtraBody promotion
+//  2. GetMetadata()["reasoning_effort"] — metadata backup (same source, independent path)
+//  3. Setting()["thinking"] — legacy .conn.yao compatibility
 //
-// DSH llm-deepseek accepts:
-//   - thinking: "enabled" | "disabled"
-//   - reasoningEffort: "off" | "high" | "max"
-//
-// Yao connectors may set reasoning_effort to "low" or "medium", which DSH
-// does not support; both map to "high" (DeepSeek API maps them server-side).
-// When thinking is disabled, reasoningEffort must be "off".
-func extractThinkingConfig(c connector.Connector) (string, string) {
+// "none" is a definitive value meaning "reasoning disabled", not an absence
+// indicator. When priority 1 or 2 returns "none", no further fallback occurs.
+func extractReasoningInfo(c connector.Connector) reasoningInfo {
 	if c == nil {
-		return "", ""
-	}
-	settings := c.Setting()
-	if settings == nil {
-		return "", ""
+		return reasoningInfo{}
 	}
 
-	thinkingType := ""
-	if thinking, ok := settings["thinking"].(map[string]interface{}); ok {
-		if t, ok := thinking["type"].(string); ok {
-			thinkingType = t
+	info := reasoningInfo{}
+
+	// budgetTokens always from Setting()["thinking"]["budget_tokens"]
+	settings := c.Setting()
+	if settings != nil {
+		if thinking, ok := settings["thinking"].(map[string]interface{}); ok {
+			if t, ok := thinking["type"].(string); ok {
+				info.thinkingType = t
+			}
+			if bt, ok := thinking["budget_tokens"].(float64); ok {
+				info.budgetTokens = int(bt)
+			} else if bt, ok := thinking["budget_tokens"].(int); ok {
+				info.budgetTokens = bt
+			}
 		}
 	}
 
-	if thinkingType == "disabled" {
-		return "disabled", "off"
+	// hasReasoning from capabilities
+	if lc, ok := c.(goullm.LLMConnector); ok {
+		if caps := lc.GetCapabilities(); caps != nil {
+			info.hasReasoning = caps.Reasoning
+		}
 	}
 
-	reasoningEffort := ""
-	if v, ok := settings["reasoning_effort"].(string); ok {
-		reasoningEffort = normalizeDSHReasoningEffort(v)
+	// Priority 1: Setting()["reasoning_effort"]
+	if settings != nil {
+		if v, ok := settings["reasoning_effort"].(string); ok && v != "" {
+			info.effort = v
+			return info
+		}
 	}
 
-	return thinkingType, reasoningEffort
+	// Priority 2: GetMetadata()["reasoning_effort"]
+	if meta := c.GetMetadata(); meta != nil {
+		if v, ok := meta["reasoning_effort"].(string); ok && v != "" {
+			info.effort = v
+			return info
+		}
+	}
+
+	// Priority 3: Setting()["thinking"] — legacy fallback, effort stays ""
+	return info
 }
 
-// normalizeDSHReasoningEffort maps Yao reasoning_effort values to the
-// DSH llm-deepseek vocabulary: "off", "low", "high", "max".
-// Connector values outside that set are mapped to the nearest equivalent.
-func normalizeDSHReasoningEffort(v string) string {
+// toPiAiThinking converts reasoningInfo to dsh-llm-pi-ai config values.
+// Returns (reasoning, budgetTokens) for the cordis.yml template.
+// Pi-ai vocabulary: "off"|"minimal"|"low"|"medium"|"high"|"xhigh"|"max",
+// or empty string to omit (let pi-ai decide from its model catalog).
+func toPiAiThinking(info reasoningInfo) (string, int) {
+	// Effort has value (priority 1/2 matched)
+	if info.effort != "" {
+		switch info.effort {
+		case "none":
+			return "off", 0
+		case "thinking":
+			return "high", info.budgetTokens
+		default:
+			return normalizePiAiReasoning(info.effort), info.budgetTokens
+		}
+	}
+
+	// Effort empty — fallback to legacy priority 3
+	switch info.thinkingType {
+	case "disabled":
+		return "off", 0
+	case "enabled", "adaptive":
+		return "high", info.budgetTokens
+	}
+	if info.hasReasoning {
+		return "high", 0
+	}
+	return "", 0 // omit — no preference, let pi-ai decide from model catalog
+}
+
+// normalizePiAiReasoning maps a reasoning_effort string to a valid pi-ai
+// ModelThinkingLevel. "off"/"none" explicitly disable reasoning; empty string
+// omits the field (pi-ai decides from its model catalog).
+func normalizePiAiReasoning(v string) string {
 	switch v {
 	case "off", "none":
 		return "off"
-	case "low", "medium":
+	case "":
+		return ""
+	case "low":
 		return "low"
+	case "medium":
+		return "medium"
 	case "high":
 		return "high"
+	case "xhigh":
+		return "xhigh"
 	case "max":
 		return "max"
 	default:
-		return ""
+		return "high"
 	}
 }
 
-// normalizeDSHBaseURL converts a Yao connector base URL to the format DSH expects.
-// DSH appends /chat/completions directly, so the URL needs the /v1 prefix that
-// standard OpenAI-compatible endpoints require. Yao's GetURL() returns the base
-// without /v1; Anthropic-style suffixes are replaced.
-func normalizeDSHBaseURL(u string) string {
-	u = strings.TrimSuffix(u, "/")
-	u = strings.TrimSuffix(u, "/anthropic")
-	if !strings.HasSuffix(u, "/v1") {
-		u += "/v1"
-	}
-	return u
+// normalizePiAiBaseURL builds the pi-ai base URL from a connector host using
+// the same convention as gou/connector.BuildAPIURL: trailing "/" means the user
+// specified a full base path; otherwise "/v1" is appended automatically.
+func normalizePiAiBaseURL(u string) string {
+	return connector.BuildAPIURL(u, "")
+}
+
+// normalizeAnthropicBaseURL trims trailing slashes for Anthropic-protocol routes.
+// pi-ai's anthropic-messages API type appends the correct path itself.
+func normalizeAnthropicBaseURL(u string) string {
+	return strings.TrimSuffix(u, "/")
 }
 
 func connectorHasVision(c connector.Connector) bool {
@@ -430,6 +552,43 @@ func connectorHasVision(c connector.Connector) bool {
 		return false
 	}
 	return caps.HasVision()
+}
+
+// nonAnthropicThinkingFormat returns connectorThinkingFormat for non-Anthropic
+// routes. Anthropic routes use pi-ai's native anthropic-messages thinking
+// handling; thinkingFormat (an openai-completions compat field) does not apply.
+func nonAnthropicThinkingFormat(isAnthropic bool, c connector.Connector) string {
+	if isAnthropic {
+		return ""
+	}
+	return connectorThinkingFormat(c)
+}
+
+// connectorThinkingFormat reads the thinking wire format from a connector.
+// Returns a format string (e.g. "deepseek") for pi-ai's compat.thinkingFormat,
+// or "" to let pi-ai detect the format from the endpoint URL.
+//
+// Detection:
+//  1. metadata["thinking_format"] — explicit declaration
+//  2. settings["thinking"]["type"] present — connector speaks the thinking.type
+//     wire protocol (used by DeepSeek, Moonshot, and compatible providers)
+func connectorThinkingFormat(c connector.Connector) string {
+	if c == nil {
+		return ""
+	}
+	if meta := c.GetMetadata(); meta != nil {
+		if v, ok := meta["thinking_format"].(string); ok && v != "" {
+			return v
+		}
+	}
+	if settings := c.Setting(); settings != nil {
+		if thinking, ok := settings["thinking"].(map[string]interface{}); ok {
+			if _, hasType := thinking["type"]; hasType {
+				return "deepseek"
+			}
+		}
+	}
+	return ""
 }
 
 // buildContentBlocks creates mixed text+image content blocks from MessageParts.
