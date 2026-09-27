@@ -127,21 +127,23 @@ func Create(ctx context.Context, auth *process.AuthorizedInfo, req *CreateReq) (
 		return nil, fmt.Errorf("board.Create: %w", err)
 	}
 
-	// Create default column
-	colID := uuid.New().String()
-	err = capsule.Global.Query().Table(tableBoardColumn()).Insert(map[string]interface{}{
-		"column_id":        colID,
-		"board_id":         boardID,
-		"name":             "To Do",
-		"position":         1,
-		"collapsed":        false,
-		"__yao_created_by": auth.UserID,
-		"__yao_team_id":    auth.TeamID,
-		"created_at":       now,
-		"updated_at":       now,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("board.Create default column: %w", err)
+	// Create default column unless explicitly skipped
+	if !req.SkipDefaultColumn {
+		colID := uuid.New().String()
+		err = capsule.Global.Query().Table(tableBoardColumn()).Insert(map[string]interface{}{
+			"column_id":        colID,
+			"board_id":         boardID,
+			"name":             "To Do",
+			"position":         1,
+			"collapsed":        false,
+			"__yao_created_by": auth.UserID,
+			"__yao_team_id":    auth.TeamID,
+			"created_at":       now,
+			"updated_at":       now,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("board.Create default column: %w", err)
+		}
 	}
 
 	return Get(ctx, auth, boardID)

@@ -39,9 +39,10 @@ type Column struct {
 
 // CreateReq for creating a new board
 type CreateReq struct {
-	Name  string `json:"name"`
-	Icon  string `json:"icon,omitempty"`
-	Color string `json:"color,omitempty"`
+	Name              string `json:"name"`
+	Icon              string `json:"icon,omitempty"`
+	Color             string `json:"color,omitempty"`
+	SkipDefaultColumn bool   `json:"skip_default_column,omitempty"`
 }
 
 // UpdateReq for updating a board
