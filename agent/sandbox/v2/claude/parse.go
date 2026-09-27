@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/pmezard/go-difflib/difflib"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/output/message"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
@@ -31,6 +33,7 @@ type streamParser struct {
 	completed bool
 
 	textActive   bool
+	thinkActive  bool
 	toolIndex    int
 	activeToolID string                // tool currently receiving content_block_delta
 	tools        map[string]*toolState // tool_id -> buffered tool state
@@ -200,6 +203,13 @@ func (p *streamParser) closeTextMessage() {
 	}
 }
 
+func (p *streamParser) closeThinkMessage() {
+	if p.thinkActive {
+		p.endMessage()
+		p.thinkActive = false
+	}
+}
+
 // closeStreamingTool closes the currently streaming tool's message group,
 // flushing accumulated input and emitting message_end. The tool remains
 // in p.tools so handleUser can later reuse its msgID for the completed phase.
@@ -251,6 +261,7 @@ func (p *streamParser) resumeStreamingTool(toolID string) {
 
 func (p *streamParser) ensureTextMessage() (stopped bool) {
 	if !p.textActive {
+		p.closeThinkMessage()
 		_, stopped = p.beginMessage("text")
 		if stopped {
 			return true
@@ -295,6 +306,9 @@ func extractSummary(toolName string, inputJSON string) string {
 
 	switch strings.ToLower(toolName) {
 	case "bash", "execute":
+		if desc, ok := obj["description"].(string); ok && desc != "" {
+			return truncate(desc, 80)
+		}
 		if cmd, ok := obj["command"].(string); ok {
 			return truncate(cmd, 80)
 		}
@@ -312,7 +326,7 @@ func extractSummary(toolName string, inputJSON string) string {
 		}
 	}
 
-	for _, key := range []string{"path", "file_path", "command", "url", "query", "description", "prompt", "task", "instructions", "message"} {
+	for _, key := range []string{"description", "path", "file_path", "command", "url", "query", "prompt", "task", "instructions", "message"} {
 		if v, ok := obj[key].(string); ok {
 			return truncate(v, 80)
 		}
@@ -363,11 +377,25 @@ func (p *streamParser) onContentBlockStart(event map[string]any) (stopped bool) 
 		return false
 	}
 	blockType, _ := cb["type"].(string)
+
+	if blockType == "thinking" {
+		p.closeTextMessage()
+		p.closeStreamingTool()
+		if !p.thinkActive {
+			if _, stopped := p.beginMessage("thinking"); stopped {
+				return true
+			}
+			p.thinkActive = true
+		}
+		return false
+	}
+
 	if blockType != "tool_use" {
 		return false
 	}
 
 	p.closeTextMessage()
+	p.closeThinkMessage()
 
 	toolName, _ := cb["name"].(string)
 	toolID, _ := cb["id"].(string)
@@ -433,6 +461,19 @@ func (p *streamParser) onContentBlockDelta(event map[string]any) (stopped bool) 
 			return true
 		}
 		return p.emitText(text)
+
+	case "thinking_delta":
+		text, _ := delta["thinking"].(string)
+		if text == "" {
+			return false
+		}
+		if !p.thinkActive {
+			if _, stopped := p.beginMessage("thinking"); stopped {
+				return true
+			}
+			p.thinkActive = true
+		}
+		return p.handler != nil && p.handler(message.ChunkThinking, []byte(text)) != 0
 
 	case "input_json_delta":
 		t := p.activeTool()
@@ -518,6 +559,7 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 			}
 
 			p.closeTextMessage()
+			p.closeThinkMessage()
 			p.closeStreamingTool()
 
 			toolName, _ := ci["name"].(string)
@@ -611,6 +653,7 @@ func (p *streamParser) handleAssistant(msg map[string]any) (stopped bool) {
 	}
 
 	p.closeTextMessage()
+	p.closeThinkMessage()
 	return false
 }
 
@@ -652,6 +695,7 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		}
 
 		p.closeTextMessage()
+		p.closeThinkMessage()
 
 		content := ci["content"]
 		isError, _ := ci["is_error"].(bool)
@@ -677,6 +721,15 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 		}
 		if summary, ok := p.toolSummaries[toolUseID]; ok {
 			execProps["summary"] = summary
+		}
+		if toolName == "Write" || toolName == "Edit" || toolName == "MultiEdit" {
+			patches := extractFilePatches(content)
+			if len(patches) == 0 {
+				patches = computeFilePatchFromInput(toolName, p.toolInputs[toolUseID])
+			}
+			if len(patches) > 0 {
+				execProps["file_patches"] = patches
+			}
 		}
 		p.injectParentToolID(execProps)
 		injectSemanticType(execProps, toolName)
@@ -711,6 +764,8 @@ func (p *streamParser) handleUser(msg map[string]any) (stopped bool) {
 func (p *streamParser) handleResult(msg map[string]any) error {
 	isError, _ := msg["is_error"].(bool)
 	if isError {
+		p.closeTextMessage()
+		p.closeThinkMessage()
 		if result, ok := msg["result"].(string); ok {
 			if p.handler != nil {
 				p.handler(message.ChunkError, []byte(result))
@@ -720,6 +775,7 @@ func (p *streamParser) handleResult(msg map[string]any) error {
 	}
 
 	p.closeTextMessage()
+	p.closeThinkMessage()
 
 	if p.handler != nil {
 		p.emitMetadata(map[string]any{
@@ -792,6 +848,152 @@ func injectSemanticType(props map[string]any, toolName string) {
 			props[k] = v
 		}
 	}
+}
+
+// extractFilePatches extracts FilePatch data from Claude Code tool_result content.
+// Content may be a single map or an array of items; each item may contain a "gitDiff" field.
+func extractFilePatches(content any) []*message.FilePatch {
+	switch v := content.(type) {
+	case map[string]any:
+		if fp := extractFilePatchFromMap(v); fp != nil {
+			return []*message.FilePatch{fp}
+		}
+	case []any:
+		var patches []*message.FilePatch
+		for _, item := range v {
+			if m, ok := item.(map[string]any); ok {
+				if fp := extractFilePatchFromMap(m); fp != nil {
+					patches = append(patches, fp)
+				}
+			}
+		}
+		return patches
+	}
+	return nil
+}
+
+// extractFilePatchFromMap extracts a single FilePatch from a content map containing gitDiff.
+func extractFilePatchFromMap(m map[string]any) *message.FilePatch {
+	gitDiff, ok := m["gitDiff"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	filename, _ := gitDiff["filename"].(string)
+	patchText, _ := gitDiff["patch"].(string)
+	if filename == "" || patchText == "" {
+		return nil
+	}
+	status, _ := gitDiff["status"].(string)
+	if status == "" {
+		status = "modified"
+	}
+	adds, _ := gitDiff["additions"].(float64)
+	dels, _ := gitDiff["deletions"].(float64)
+	return &message.FilePatch{
+		Path:      filename,
+		Status:    status,
+		Patch:     patchText,
+		Additions: int(adds),
+		Deletions: int(dels),
+	}
+}
+
+// computeFilePatchFromInput builds FilePatch from tool input when tool_result
+// content lacks gitDiff (CLI stream-json mode). Edit tools provide old_string/new_string;
+// Write tools provide content for newly created files.
+func computeFilePatchFromInput(toolName, inputJSON string) []*message.FilePatch {
+	if inputJSON == "" {
+		return nil
+	}
+	var input map[string]any
+	if err := json.Unmarshal([]byte(inputJSON), &input); err != nil {
+		return nil
+	}
+
+	filePath, _ := input["file_path"].(string)
+	if filePath == "" {
+		return nil
+	}
+	fileName := filepath.Base(filePath)
+
+	switch toolName {
+	case "Edit":
+		oldStr, _ := input["old_string"].(string)
+		newStr, _ := input["new_string"].(string)
+		if oldStr == "" && newStr == "" {
+			return nil
+		}
+		oldLines := splitLines(oldStr)
+		newLines := splitLines(newStr)
+		patch, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+			A:        oldLines,
+			B:        newLines,
+			FromFile: "a/" + fileName,
+			ToFile:   "b/" + fileName,
+			Context:  3,
+		})
+		if err != nil || patch == "" {
+			return nil
+		}
+		adds, dels := countDiffLines(patch)
+		return []*message.FilePatch{{
+			Path:      filePath,
+			Status:    "modified",
+			Patch:     patch,
+			Additions: adds,
+			Deletions: dels,
+		}}
+
+	case "Write":
+		content, _ := input["content"].(string)
+		if content == "" {
+			return nil
+		}
+		lineCount := strings.Count(content, "\n")
+		if !strings.HasSuffix(content, "\n") {
+			lineCount++
+		}
+		return []*message.FilePatch{{
+			Path:      filePath,
+			Status:    "created",
+			Patch:     "",
+			Additions: lineCount,
+			Deletions: 0,
+		}}
+	}
+	return nil
+}
+
+// splitLines splits text into lines for go-difflib.
+func splitLines(s string) []string {
+	if s == "" {
+		return []string{}
+	}
+	lines := strings.SplitAfter(s, "\n")
+	if lines[len(lines)-1] == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
+// countDiffLines counts added/deleted lines in a unified diff string.
+func countDiffLines(patch string) (adds, dels int) {
+	for _, line := range strings.Split(patch, "\n") {
+		if len(line) == 0 {
+			continue
+		}
+		switch line[0] {
+		case '+':
+			if !strings.HasPrefix(line, "+++") {
+				adds++
+			}
+		case '-':
+			if !strings.HasPrefix(line, "---") {
+				dels++
+			}
+		}
+	}
+	return
 }
 
 // injectParentToolID annotates execute props with the parent Agent's tool_use_id

@@ -36,6 +36,7 @@ require (
 	github.com/open-dingtalk/dingtalk-stream-sdk-go v0.9.1
 	github.com/pierrec/lz4/v4 v4.1.25
 	github.com/pkoukk/tiktoken-go v0.1.7
+	github.com/pmezard/go-difflib v1.0.0
 	github.com/pquerna/otp v1.5.0
 	github.com/shirou/gopsutil/v4 v4.26.5
 	github.com/spf13/cast v1.9.2
@@ -181,7 +182,6 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/pjbgf/sha1cd v0.6.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/qdrant/go-client v1.14.0 // indirect
 	github.com/redis/go-redis/v9 v9.17.2 // indirect

@@ -463,6 +463,20 @@ func TestExtractToolSummary_Bash(t *testing.T) {
 	}
 }
 
+func TestExtractToolSummary_BashWithDescription(t *testing.T) {
+	got := dsh.ExportExtractToolSummary("bash", `{"command":"cd /workspace && cat config.json; python3 -c \"import sys\"","description":"Check workspace config and python libs"}`)
+	if got != "Check workspace config and python libs" {
+		t.Errorf("got %q, want description over command", got)
+	}
+}
+
+func TestExtractToolSummary_BashEmptyDescription(t *testing.T) {
+	got := dsh.ExportExtractToolSummary("bash", `{"command":"npm install","description":""}`)
+	if got != "npm install" {
+		t.Errorf("got %q, want command when description is empty", got)
+	}
+}
+
 func TestExtractToolSummary_Write(t *testing.T) {
 	got := dsh.ExportExtractToolSummary("write", `{"file_path":"/workspace/main.go"}`)
 	if got != "/workspace/main.go" {
@@ -2538,5 +2552,121 @@ func TestParse_ActiveLoadingClosedOnStreamEnd(t *testing.T) {
 	last := loadings[len(loadings)-1]
 	if last.Props["done"] != true {
 		t.Error("last loading should have done=true (defer closeActiveLoading on stream end)")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// FilePatch / computeFilePatches tests
+// ---------------------------------------------------------------------------
+
+func TestComputeFilePatches_ModifiedFile(t *testing.T) {
+	meta := json.RawMessage(`{"diffs":[{"path":"src/main.go","oldText":"package main\n\nfunc main() {\n}\n","newText":"package main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"hello\")\n}\n"}]}`)
+	patches := dsh.ExportComputeFilePatches(meta)
+	if len(patches) != 1 {
+		t.Fatalf("expected 1 patch, got %d", len(patches))
+	}
+	fp := patches[0]
+	if fp.Path != "src/main.go" {
+		t.Errorf("path = %q, want %q", fp.Path, "src/main.go")
+	}
+	if fp.Status != "modified" {
+		t.Errorf("status = %q, want %q", fp.Status, "modified")
+	}
+	if fp.Additions == 0 {
+		t.Error("expected additions > 0")
+	}
+	if !strings.Contains(fp.Patch, "+import \"fmt\"") {
+		t.Errorf("patch should contain added import line, got:\n%s", fp.Patch)
+	}
+}
+
+func TestComputeFilePatches_NewFile(t *testing.T) {
+	meta := json.RawMessage(`{"diffs":[{"path":"new.txt","oldText":null,"newText":"hello\nworld\n"}]}`)
+	patches := dsh.ExportComputeFilePatches(meta)
+	if len(patches) != 1 {
+		t.Fatalf("expected 1 patch, got %d", len(patches))
+	}
+	fp := patches[0]
+	if fp.Status != "created" {
+		t.Errorf("status = %q, want %q", fp.Status, "created")
+	}
+	if fp.Additions != 2 {
+		t.Errorf("additions = %d, want 2", fp.Additions)
+	}
+	if fp.Deletions != 0 {
+		t.Errorf("deletions = %d, want 0", fp.Deletions)
+	}
+}
+
+func TestComputeFilePatches_EmptyDiffs(t *testing.T) {
+	for _, meta := range []json.RawMessage{
+		json.RawMessage(`{"diffs":[]}`),
+		json.RawMessage(`{}`),
+		json.RawMessage(`invalid`),
+	} {
+		patches := dsh.ExportComputeFilePatches(meta)
+		if len(patches) != 0 {
+			t.Errorf("expected nil/empty patches for %s, got %d", string(meta), len(patches))
+		}
+	}
+}
+
+func TestCountDiffLines(t *testing.T) {
+	patch := `--- a/file.go
++++ b/file.go
+@@ -1,3 +1,4 @@
+ package main
++import "fmt"
+ func main() {
+-	// old
++	fmt.Println("hi")
+ }
+`
+	adds, dels := dsh.ExportCountDiffLines(patch)
+	if adds != 2 {
+		t.Errorf("adds = %d, want 2", adds)
+	}
+	if dels != 1 {
+		t.Errorf("dels = %d, want 1", dels)
+	}
+}
+
+func TestHandleToolResult_WithMetaDiffs(t *testing.T) {
+	ndjson := `{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/call","seq":1,"time":1000,"data":{"turn":1,"step":1,"callId":"call_1","name":"file_edit","arguments":"{\"path\":\"test.txt\"}"}}}}
+{"jsonrpc":"2.0","method":"session.event","params":{"sessionId":"sess-1","event":{"type":"tool/result","seq":2,"time":1001,"data":{"turn":1,"step":1,"message":{"source":{"callId":"call_1"},"content":[{"content":[{"type":"text","text":"ok"}]}]},"meta":{"diffs":[{"path":"test.txt","oldText":"aaa\n","newText":"bbb\n"}]}}}}}
+{"jsonrpc":"2.0","method":"session.status","params":{"sessionId":"sess-1","status":"idle"}}
+`
+	events, _ := runParser(t, ndjson)
+
+	foundPatches := false
+	for _, ev := range events {
+		if ev.chunkType != message.ChunkExecute {
+			continue
+		}
+		var props map[string]any
+		json.Unmarshal(ev.data, &props)
+		if props["status"] != "completed" {
+			continue
+		}
+		if fp, ok := props["file_patches"]; ok {
+			foundPatches = true
+			arr, ok := fp.([]any)
+			if !ok {
+				t.Fatalf("file_patches is not an array: %T", fp)
+			}
+			if len(arr) != 1 {
+				t.Fatalf("expected 1 file_patch, got %d", len(arr))
+			}
+			entry, _ := arr[0].(map[string]any)
+			if entry["path"] != "test.txt" {
+				t.Errorf("path = %v, want test.txt", entry["path"])
+			}
+			if entry["status"] != "modified" {
+				t.Errorf("status = %v, want modified", entry["status"])
+			}
+		}
+	}
+	if !foundPatches {
+		t.Error("expected file_patches in completed tool_result execute event")
 	}
 }

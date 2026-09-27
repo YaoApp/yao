@@ -230,3 +230,9 @@ func (f *FakeComputer) ListPorts(_ context.Context) ([]*infra.PortInfo, error) {
 func (f *FakeComputer) ListProcesses(_ context.Context, _ ...infra.ListProcessesOption) ([]*infra.ProcessInfo, *infra.SystemLoad, error) {
 	return nil, nil, nil
 }
+
+// ExportComputeFilePatches exposes computeFilePatches for testing.
+var ExportComputeFilePatches = computeFilePatches
+
+// ExportCountDiffLines exposes countDiffLines for testing.
+var ExportCountDiffLines = countDiffLines

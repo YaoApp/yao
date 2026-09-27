@@ -239,8 +239,20 @@ type ExecuteProps struct {
 	IsError  bool `json:"is_error,omitempty"`  // Whether the tool execution failed
 	ExitCode *int `json:"exit_code,omitempty"` // Process exit code (Bash-type tools)
 
-	Runner   string                 `json:"runner,omitempty"`   // Runner identifier (e.g., "claude-cli", "codex-cli")
-	Metadata map[string]interface{} `json:"metadata,omitempty"` // Extensible metadata per runner
+	Runner      string                 `json:"runner,omitempty"`       // Runner identifier (e.g., "claude-cli", "codex-cli")
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`     // Extensible metadata per runner
+	FilePatches []*FilePatch           `json:"file_patches,omitempty"` // Inline diff data for write/edit tools
+}
+
+// FilePatch represents a single file change for inline diff display in the
+// Execute message. This is message-level display data pushed with the stream,
+// unrelated to workspace-level rollback (which uses shadow git snapshots).
+type FilePatch struct {
+	Path      string `json:"path"`      // File path relative to workspace
+	Status    string `json:"status"`    // "created" | "modified"
+	Patch     string `json:"patch"`     // Unified diff text
+	Additions int    `json:"additions"` // Number of added lines
+	Deletions int    `json:"deletions"` // Number of deleted lines
 }
 
 // Delta action constants for incremental updates

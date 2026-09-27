@@ -499,6 +499,7 @@ type toolResultData struct {
 	Turn    int             `json:"turn"`
 	Step    int             `json:"step"`
 	Message json.RawMessage `json:"message"`
+	Meta    json.RawMessage `json:"meta,omitempty"`
 }
 
 type toolResultMessage struct {
@@ -614,6 +615,11 @@ func (p *streamParser) handleToolResult(data json.RawMessage) (stopped bool) {
 	}
 	if summary, ok := p.toolSummaries[callID]; ok {
 		execProps["summary"] = summary
+	}
+	if len(tr.Meta) > 0 {
+		if patches := computeFilePatches(tr.Meta); len(patches) > 0 {
+			execProps["file_patches"] = patches
+		}
 	}
 	injectDSHSemanticType(execProps, p.toolNames[callID])
 	if p.emitExecute(execProps) {
@@ -821,6 +827,9 @@ func extractToolOutput(content []any) any {
 func extractSummaryFromObj(toolName string, obj map[string]any) string {
 	switch strings.ToLower(toolName) {
 	case "bash":
+		if desc, ok := obj["description"].(string); ok && desc != "" {
+			return truncateStr(desc, 80)
+		}
 		if cmd, ok := obj["command"].(string); ok {
 			return truncateStr(cmd, 80)
 		}
@@ -840,7 +849,7 @@ func extractSummaryFromObj(toolName string, obj map[string]any) string {
 		}
 	}
 
-	for _, key := range []string{"command", "path", "file_path", "url", "query", "description", "prompt", "task", "name"} {
+	for _, key := range []string{"description", "command", "path", "file_path", "url", "query", "prompt", "task", "name"} {
 		if v, ok := obj[key].(string); ok {
 			return truncateStr(v, 80)
 		}
@@ -872,7 +881,7 @@ func extractToolSummaryPartial(toolName, partialInput string) string {
 	return extractSummaryByRegex(toolName, partialInput)
 }
 
-var summaryKeyRe = regexp.MustCompile(`"(file_path|path|command|name|description|url|query|prompt|task)"\s*:\s*"([^"]*)"`)
+var summaryKeyRe = regexp.MustCompile(`"(description|file_path|path|command|name|url|query|prompt|task)"\s*:\s*"([^"]*)"`)
 
 func extractSummaryByRegex(toolName string, input string) string {
 	matches := summaryKeyRe.FindAllStringSubmatch(input, -1)
@@ -894,7 +903,7 @@ func extractSummaryByRegex(toolName string, input string) string {
 func preferredKeyForTool(toolName string) string {
 	switch strings.ToLower(toolName) {
 	case "bash":
-		return "command"
+		return "description"
 	case "write", "read", "edit", "str_replace_editor":
 		return "file_path"
 	case "skill":
