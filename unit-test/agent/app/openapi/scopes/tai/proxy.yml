@@ -1,0 +1,40 @@
+# Proxy - Tai HTTP Proxy Forward
+# namespace: tai
+# resource: proxy
+# actions: read
+# levels: all, own, team
+
+# Note: Proxy paths have variable depth, so we use a wildcard prefix.
+# The ACL wildcard matcher does literal prefix comparison (no :param support),
+# so we use /tai/ prefix which covers all tai proxy paths.
+
+# ============ Proxy Forward ============
+
+tai:proxy:read:all:
+  description: "Access all Tai proxy forward"
+  endpoints:
+    - GET /tai/:taiID/proxy/:rest
+    - POST /tai/:taiID/proxy/:rest
+    - PUT /tai/:taiID/proxy/:rest
+    - DELETE /tai/:taiID/proxy/:rest
+    - PATCH /tai/:taiID/proxy/:rest
+
+tai:proxy:read:own:
+  owner: true
+  description: "Access own Tai proxy forward"
+  endpoints:
+    - GET /tai/:taiID/proxy/:rest
+    - POST /tai/:taiID/proxy/:rest
+    - PUT /tai/:taiID/proxy/:rest
+    - DELETE /tai/:taiID/proxy/:rest
+    - PATCH /tai/:taiID/proxy/:rest
+
+tai:proxy:read:team:
+  team: true
+  description: "Access team Tai proxy forward"
+  endpoints:
+    - GET /tai/:taiID/proxy/:rest
+    - POST /tai/:taiID/proxy/:rest
+    - PUT /tai/:taiID/proxy/:rest
+    - DELETE /tai/:taiID/proxy/:rest
+    - PATCH /tai/:taiID/proxy/:rest

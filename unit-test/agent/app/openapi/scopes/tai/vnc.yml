@@ -1,0 +1,24 @@
+# VNC - Tai VNC WebSocket Forward
+# namespace: tai
+# resource: vnc
+# actions: read
+# levels: all, own, team
+
+# ============ Read VNC (WebSocket Forward) ============
+
+tai:vnc:read:all:
+  description: "Access all Tai VNC sessions"
+  endpoints:
+    - GET /tai/:taiID/vnc/:containerID/ws
+
+tai:vnc:read:own:
+  owner: true
+  description: "Access own Tai VNC sessions"
+  endpoints:
+    - GET /tai/:taiID/vnc/:containerID/ws
+
+tai:vnc:read:team:
+  team: true
+  description: "Access team Tai VNC sessions"
+  endpoints:
+    - GET /tai/:taiID/vnc/:containerID/ws
