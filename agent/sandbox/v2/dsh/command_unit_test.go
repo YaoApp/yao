@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yaoapp/gou/connector"
+	goullm "github.com/yaoapp/gou/llm"
 	gouTypes "github.com/yaoapp/gou/types"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/xun/dbal/schema"
@@ -15,11 +17,11 @@ import (
 	"github.com/yaoapp/yao/agent/sandbox/v2/dsh"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/unit-test/agent/testprepare"
 )
 
-// --- fakeConnForThinking implements connector.Connector for connectorThinkingFormat tests ---
-
+// fakeConnForThinking implements connector.Connector for test cases.
 type fakeConnForThinking struct {
 	settings map[string]interface{}
 	metadata map[string]interface{}
@@ -34,6 +36,33 @@ func (f *fakeConnForThinking) Is(int) bool                           { return fa
 func (f *fakeConnForThinking) Setting() map[string]interface{}       { return f.settings }
 func (f *fakeConnForThinking) GetMetaInfo() gouTypes.MetaInfo        { return gouTypes.MetaInfo{} }
 func (f *fakeConnForThinking) GetMetadata() map[string]interface{}   { return f.metadata }
+
+// fakeLLMConn implements both connector.Connector and goullm.LLMConnector.
+type fakeLLMConn struct {
+	typ      int
+	key      string
+	url      string
+	model    string
+	settings map[string]interface{}
+	metadata map[string]interface{}
+	caps     *goullm.Capabilities
+}
+
+func (m *fakeLLMConn) Register(string, string, []byte) error            { return nil }
+func (m *fakeLLMConn) Query() (query.Query, error)                      { return nil, nil }
+func (m *fakeLLMConn) Schema() (schema.Schema, error)                   { return nil, nil }
+func (m *fakeLLMConn) Close() error                                     { return nil }
+func (m *fakeLLMConn) ID() string                                       { return "mock" }
+func (m *fakeLLMConn) Is(t int) bool                                    { return m.typ == t }
+func (m *fakeLLMConn) Setting() map[string]interface{}                  { return m.settings }
+func (m *fakeLLMConn) GetMetaInfo() gouTypes.MetaInfo                   { return gouTypes.MetaInfo{} }
+func (m *fakeLLMConn) GetMetadata() map[string]interface{}              { return m.metadata }
+func (m *fakeLLMConn) GetAuthMode() goullm.AuthMode                     { return goullm.AuthBearer }
+func (m *fakeLLMConn) GetURL() string                                   { return m.url }
+func (m *fakeLLMConn) GetKey() string                                   { return m.key }
+func (m *fakeLLMConn) GetModel() string                                 { return m.model }
+func (m *fakeLLMConn) GetSupportedParams() map[string]*goullm.ParamSpec { return nil }
+func (m *fakeLLMConn) GetCapabilities() *goullm.Capabilities            { return m.caps }
 
 func TestMain(m *testing.M) {
 	testprepare.MustLoadEnv()
@@ -90,14 +119,6 @@ func TestExtractLastUserMessage_NilContent(t *testing.T) {
 	msgs := []agentContext.Message{{Role: "user", Content: nil}}
 	got := dsh.ExportExtractLastUserMessage(msgs)
 	if got != "<nil>" {
-		t.Errorf("got %q", got)
-	}
-}
-
-// --- connectorSetting ---
-
-func TestConnectorSetting_Nil(t *testing.T) {
-	if got := dsh.ExportConnectorSetting(nil, "key"); got != "" {
 		t.Errorf("got %q", got)
 	}
 }
@@ -309,7 +330,13 @@ func TestRenderCordisConfig_PiAiOnly(t *testing.T) {
 			API:       "openai-completions",
 			BaseURL:   "https://api.openai.com/v1",
 			APIKeyEnv: "DSH_KEY_PRIMARY",
-			Models:    []dsh.PiAiModelConfig{{ID: "gpt-5.5", Input: []string{"text"}, Reasoning: true}},
+			Models: []dsh.PiAiModelConfig{{
+				ID:               "gpt-5.5",
+				Input:            []string{"text"},
+				ContextWindow:    1050000,
+				MaxTokens:        128000,
+				ReasoningEfforts: map[string]string{"off": "none", "low": "low", "medium": "medium", "high": "high"},
+			}},
 			Reasoning: "high",
 		}},
 	})
@@ -321,7 +348,8 @@ func TestRenderCordisConfig_PiAiOnly(t *testing.T) {
 		t.Error("should not render deepseek block")
 	}
 	if !containsAll(s, "dsh-llm-pi-ai", "yao-primary:", "openai-completions",
-		"https://api.openai.com/v1", "DSH_KEY_PRIMARY", "gpt-5.5", "reasoning: high") {
+		"https://api.openai.com/v1", "DSH_KEY_PRIMARY", "gpt-5.5", "reasoning: high",
+		"contextWindow: 1050000", "maxTokens: 128000") {
 		t.Errorf("pi-ai route not rendered correctly, got:\n%s", s)
 	}
 }
@@ -333,7 +361,11 @@ func TestRenderCordisConfig_PiAiWithReasoning(t *testing.T) {
 			API:       "openai-completions",
 			BaseURL:   "https://api.yaoagents.com/v1",
 			APIKeyEnv: "DSH_KEY_PRIMARY",
-			Models:    []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text", "image"}, Reasoning: true}},
+			Models: []dsh.PiAiModelConfig{{
+				ID:               "deepseek-flash",
+				Input:            []string{"text", "image"},
+				ReasoningEfforts: map[string]string{"off": "none", "low": "low", "high": "high", "max": "max"},
+			}},
 			Reasoning: "max",
 		}},
 		Vision: true,
@@ -342,7 +374,7 @@ func TestRenderCordisConfig_PiAiWithReasoning(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := string(data)
-	if !containsAll(s, "reasoningEfforts:", "off: none", "low: low", "medium: medium", "high: high", "max: max") {
+	if !containsAll(s, "reasoningEfforts:", "off: none", "low: low", "high: high", "max: max") {
 		t.Errorf("reasoning model should render reasoningEfforts block, got:\n%s", s)
 	}
 	if !containsAll(s, "reasoning: max") {
@@ -357,7 +389,7 @@ func TestRenderCordisConfig_PiAiNoReasoning(t *testing.T) {
 			API:       "openai-completions",
 			BaseURL:   "https://api.example.com/v1",
 			APIKeyEnv: "DSH_KEY_PRIMARY",
-			Models:    []dsh.PiAiModelConfig{{ID: "some-model", Input: []string{"text"}, Reasoning: false}},
+			Models:    []dsh.PiAiModelConfig{{ID: "some-model", Input: []string{"text"}}},
 		}},
 	})
 	if err != nil {
@@ -391,11 +423,15 @@ func TestRenderCordisConfig_PiAiReasoningOmitted(t *testing.T) {
 func TestRenderCordisConfig_PiAiWithBudget(t *testing.T) {
 	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
 		PiAiRoutes: []dsh.PiAiRoute{{
-			Name:         "yao-primary",
-			API:          "openai-completions",
-			BaseURL:      "https://proxy.example.com/v1",
-			APIKeyEnv:    "DSH_KEY_PRIMARY",
-			Models:       []dsh.PiAiModelConfig{{ID: "deepseek-chat", Input: []string{"text", "image"}, Reasoning: true}},
+			Name:      "yao-primary",
+			API:       "openai-completions",
+			BaseURL:   "https://proxy.example.com/v1",
+			APIKeyEnv: "DSH_KEY_PRIMARY",
+			Models: []dsh.PiAiModelConfig{{
+				ID:               "deepseek-chat",
+				Input:            []string{"text", "image"},
+				ReasoningEfforts: map[string]string{"off": "none", "high": "high", "max": "max"},
+			}},
 			Reasoning:    "high",
 			BudgetTokens: 32000,
 		}},
@@ -418,7 +454,12 @@ func TestRenderCordisConfig_MultipleRoutes(t *testing.T) {
 				API:       "openai-completions",
 				BaseURL:   "https://api.yaoagents.com/v1",
 				APIKeyEnv: "DSH_KEY_PRIMARY",
-				Models:    []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}, Reasoning: true}},
+				Models: []dsh.PiAiModelConfig{{
+					ID:               "deepseek-flash",
+					Input:            []string{"text"},
+					ContextWindow:    1048576,
+					ReasoningEfforts: map[string]string{"off": "none", "high": "high", "max": "max"},
+				}},
 				Reasoning: "high",
 			},
 			{
@@ -426,7 +467,13 @@ func TestRenderCordisConfig_MultipleRoutes(t *testing.T) {
 				API:       "openai-completions",
 				BaseURL:   "https://api.yaoagents.com/v1",
 				APIKeyEnv: "DSH_KEY_HEAVY",
-				Models:    []dsh.PiAiModelConfig{{ID: "deepseek-chat", Input: []string{"text"}, Reasoning: true}},
+				Models: []dsh.PiAiModelConfig{{
+					ID:               "deepseek-chat",
+					Input:            []string{"text"},
+					ContextWindow:    1048576,
+					MaxTokens:        384000,
+					ReasoningEfforts: map[string]string{"off": "none", "high": "high", "max": "max"},
+				}},
 				Reasoning: "max",
 			},
 		},
@@ -436,7 +483,7 @@ func TestRenderCordisConfig_MultipleRoutes(t *testing.T) {
 	}
 	s := string(data)
 	if !containsAll(s, "yao-primary:", "yao-heavy:", "deepseek-flash", "deepseek-chat",
-		"reasoning: high", "reasoning: max") {
+		"reasoning: high", "reasoning: max", "contextWindow: 1048576") {
 		t.Errorf("multiple routes not rendered correctly, got:\n%s", s)
 	}
 }
@@ -448,7 +495,7 @@ func TestRenderCordisConfig_WithVision(t *testing.T) {
 			API:             "openai-completions",
 			BaseURL:         "https://api.yaoagents.com/v1",
 			APIKeyEnv:       "DSH_KEY_PRIMARY",
-			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text", "image"}, Reasoning: true}},
+			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text", "image"}}},
 			Reasoning:       "high",
 			NoDeveloperRole: true,
 		}},
@@ -470,7 +517,7 @@ func TestRenderCordisConfig_NoDeveloperRoleCompat(t *testing.T) {
 			API:             "openai-completions",
 			BaseURL:         "https://api.deepseek.com/v1",
 			APIKeyEnv:       "DSH_KEY_PRIMARY",
-			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}, Reasoning: true}},
+			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}}},
 			Reasoning:       "high",
 			NoDeveloperRole: true,
 		}},
@@ -494,7 +541,7 @@ func TestRenderCordisConfig_ThinkingFormat(t *testing.T) {
 			API:             "openai-completions",
 			BaseURL:         "https://api.yaoagents.com/v1",
 			APIKeyEnv:       "DSH_KEY_PRIMARY",
-			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}, Reasoning: true}},
+			Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}}},
 			Reasoning:       "high",
 			NoDeveloperRole: true,
 			ThinkingFormat:  "deepseek",
@@ -516,7 +563,7 @@ func TestRenderCordisConfig_ThinkingFormat_WithoutNoDeveloperRole(t *testing.T) 
 			API:            "anthropic-messages",
 			BaseURL:        "https://api.anthropic.com",
 			APIKeyEnv:      "DSH_KEY_PRIMARY",
-			Models:         []dsh.PiAiModelConfig{{ID: "claude-sonnet-4", Input: []string{"text"}, Reasoning: true}},
+			Models:         []dsh.PiAiModelConfig{{ID: "claude-sonnet-4", Input: []string{"text"}}},
 			Reasoning:      "high",
 			ThinkingFormat: "some-format",
 		}},
@@ -533,123 +580,120 @@ func TestRenderCordisConfig_ThinkingFormat_WithoutNoDeveloperRole(t *testing.T) 
 	}
 }
 
-// --- connectorThinkingFormat matrix ---
+// --- normalizeBaseURL ---
 
-func TestConnectorThinkingFormat(t *testing.T) {
+func TestNormalizeBaseURL(t *testing.T) {
 	cases := []struct {
-		name     string
-		settings map[string]interface{}
-		metadata map[string]interface{}
-		want     string
+		name    string
+		api     string
+		baseURL string
+		want    string
 	}{
-		{
-			name: "nil_connector",
-			want: "",
-		},
-		{
-			name:     "no_metadata_no_thinking_settings",
-			settings: map[string]interface{}{"host": "example.com"},
-			want:     "",
-		},
-		{
-			name:     "metadata_declares_deepseek",
-			metadata: map[string]interface{}{"thinking_format": "deepseek"},
-			want:     "deepseek",
-		},
-		{
-			name:     "metadata_overrides_settings",
-			metadata: map[string]interface{}{"thinking_format": "other-format"},
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-			want:     "other-format",
-		},
-		{
-			name:     "settings_thinking_type_enabled",
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-			want:     "deepseek",
-		},
-		{
-			name:     "settings_thinking_type_disabled",
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "disabled"}},
-			want:     "deepseek",
-		},
-		{
-			name:     "empty_metadata_falls_through_to_settings",
-			metadata: map[string]interface{}{},
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-			want:     "deepseek",
-		},
-		{
-			name:     "thinking_map_without_type_key",
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"budget_tokens": 32000}},
-			want:     "",
-		},
-		{
-			name:     "metadata_empty_string_falls_through",
-			metadata: map[string]interface{}{"thinking_format": ""},
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-			want:     "deepseek",
-		},
-		{
-			name:     "metadata_non_string_ignored",
-			metadata: map[string]interface{}{"thinking_format": 123},
-			settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-			want:     "deepseek",
-		},
-		{
-			name:     "settings_thinking_not_a_map",
-			settings: map[string]interface{}{"thinking": "enabled"},
-			want:     "",
-		},
+		{"openai_no_trailing_slash", "openai-completions", "https://api.deepseek.com", "https://api.deepseek.com/v1"},
+		{"openai_with_custom_path", "openai-completions", "https://ark.cn-beijing.volces.com/api/v3/", "https://ark.cn-beijing.volces.com/api/v3"},
+		{"anthropic_no_trailing_slash", "anthropic-messages", "https://api.anthropic.com", "https://api.anthropic.com"},
+		{"anthropic_trailing_slash", "anthropic-messages", "https://api.deepseek.com/anthropic/", "https://api.deepseek.com/anthropic"},
 	}
-
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if c.settings == nil && c.metadata == nil && c.name == "nil_connector" {
-				if got := dsh.ExportConnectorThinkingFormat(nil); got != c.want {
-					t.Errorf("connectorThinkingFormat(nil) = %q, want %q", got, c.want)
-				}
-				return
-			}
-			conn := &fakeConnForThinking{settings: c.settings, metadata: c.metadata}
-			if got := dsh.ExportConnectorThinkingFormat(conn); got != c.want {
-				t.Errorf("connectorThinkingFormat() = %q, want %q", got, c.want)
+			if got := dsh.ExportNormalizeBaseURL(c.api, c.baseURL); got != c.want {
+				t.Errorf("normalizeBaseURL(%q, %q) = %q, want %q", c.api, c.baseURL, got, c.want)
 			}
 		})
 	}
 }
 
-func TestNonAnthropicThinkingFormat(t *testing.T) {
-	connWithThinking := &fakeConnForThinking{
-		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
-	}
-	connWithoutThinking := &fakeConnForThinking{
-		settings: map[string]interface{}{"host": "example.com"},
-	}
+// --- hasVisionInput ---
 
-	cases := []struct {
-		name        string
-		isAnthropic bool
-		conn        *fakeConnForThinking
-		want        string
-	}{
-		{"openai_with_thinking", false, connWithThinking, "deepseek"},
-		{"openai_without_thinking", false, connWithoutThinking, ""},
-		{"anthropic_with_thinking", true, connWithThinking, ""},
-		{"anthropic_without_thinking", true, connWithoutThinking, ""},
-		{"nil_connector", false, nil, ""},
+func TestHasVisionInput(t *testing.T) {
+	if dsh.ExportHasVisionInput([]string{"text"}) {
+		t.Error("text-only should not be vision")
 	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			var got string
-			if c.conn == nil {
-				got = dsh.ExportNonAnthropicThinkingFormat(c.isAnthropic, nil)
-			} else {
-				got = dsh.ExportNonAnthropicThinkingFormat(c.isAnthropic, c.conn)
-			}
-			if got != c.want {
-				t.Errorf("nonAnthropicThinkingFormat(anthropic=%v) = %q, want %q", c.isAnthropic, got, c.want)
-			}
-		})
+	if !dsh.ExportHasVisionInput([]string{"text", "image"}) {
+		t.Error("text+image should be vision")
+	}
+	if dsh.ExportHasVisionInput(nil) {
+		t.Error("nil should not be vision")
+	}
+}
+
+func TestRenderCordisConfig_DisableReasoning(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		PiAiRoutes: []dsh.PiAiRoute{{
+			Name:      "yao-primary",
+			API:       "openai-completions",
+			BaseURL:   "https://api.example.com/v1",
+			APIKeyEnv: "DSH_KEY_PRIMARY",
+			Models: []dsh.PiAiModelConfig{{
+				ID:               "text-only-model",
+				Input:            []string{"text"},
+				DisableReasoning: true,
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !containsAll(s, "reasoningEfforts: false") {
+		t.Errorf("DisableReasoning should render 'reasoningEfforts: false', got:\n%s", s)
+	}
+	if containsAny(s, "off:", "low:", "high:", "max:") {
+		t.Errorf("DisableReasoning should not render effort map, got:\n%s", s)
+	}
+}
+
+func TestRenderCordisConfig_ContextWindowAndMaxTokens(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		PiAiRoutes: []dsh.PiAiRoute{{
+			Name:      "yao-primary",
+			API:       "openai-completions",
+			BaseURL:   "https://api.example.com/v1",
+			APIKeyEnv: "DSH_KEY_PRIMARY",
+			Models: []dsh.PiAiModelConfig{{
+				ID:            "some-model",
+				Input:         []string{"text"},
+				ContextWindow: 196608,
+				MaxTokens:     32000,
+			}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !containsAll(s, "contextWindow: 196608", "maxTokens: 32000") {
+		t.Errorf("contextWindow and maxTokens should be rendered, got:\n%s", s)
+	}
+}
+
+func TestRenderCordisConfig_ZeroContextWindow(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		PiAiRoutes: []dsh.PiAiRoute{{
+			Name:      "yao-primary",
+			API:       "openai-completions",
+			BaseURL:   "https://api.example.com/v1",
+			APIKeyEnv: "DSH_KEY_PRIMARY",
+			Models:    []dsh.PiAiModelConfig{{ID: "some-model", Input: []string{"text"}}},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if containsAny(s, "contextWindow:") {
+		t.Errorf("zero contextWindow should not be rendered, got:\n%s", s)
+	}
+	// Extract the model entry block (from model ID to next "- id:" or end of providers section).
+	// The template-level maxTokensAsSuccess and compaction maxTokens are unrelated.
+	start := strings.Index(s, "some-model")
+	end := strings.Index(s[start:], "\n\n")
+	if end < 0 {
+		end = len(s) - start
+	}
+	modelBlock := s[start : start+end]
+	if containsAny(modelBlock, "maxTokens:") {
+		t.Errorf("zero maxTokens should not be rendered in model block, got:\n%s", modelBlock)
 	}
 }
 
@@ -683,7 +727,13 @@ func TestRenderCordisConfig_AnthropicRoute(t *testing.T) {
 			API:       "anthropic-messages",
 			BaseURL:   "https://api.anthropic.com",
 			APIKeyEnv: "DSH_KEY_PRIMARY",
-			Models:    []dsh.PiAiModelConfig{{ID: "claude-sonnet-4", Input: []string{"text", "image"}, Reasoning: true}},
+			Models: []dsh.PiAiModelConfig{{
+				ID:               "claude-sonnet-4",
+				Input:            []string{"text", "image"},
+				ContextWindow:    1000000,
+				MaxTokens:        64000,
+				ReasoningEfforts: map[string]string{"off": "none", "high": "high"},
+			}},
 			Reasoning: "high",
 		}},
 		Vision: true,
@@ -708,7 +758,7 @@ func TestRenderCordisConfig_MixedRoutes(t *testing.T) {
 				API:             "openai-completions",
 				BaseURL:         "https://api.deepseek.com/v1",
 				APIKeyEnv:       "DSH_KEY_PRIMARY",
-				Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}, Reasoning: true}},
+				Models:          []dsh.PiAiModelConfig{{ID: "deepseek-flash", Input: []string{"text"}}},
 				Reasoning:       "high",
 				NoDeveloperRole: true,
 			},
@@ -717,7 +767,7 @@ func TestRenderCordisConfig_MixedRoutes(t *testing.T) {
 				API:       "anthropic-messages",
 				BaseURL:   "https://api.anthropic.com",
 				APIKeyEnv: "DSH_KEY_HEAVY",
-				Models:    []dsh.PiAiModelConfig{{ID: "claude-sonnet-4", Input: []string{"text", "image"}, Reasoning: true}},
+				Models:    []dsh.PiAiModelConfig{{ID: "claude-sonnet-4", Input: []string{"text", "image"}}},
 				Reasoning: "high",
 			},
 		},
@@ -736,105 +786,83 @@ func TestRenderCordisConfig_MixedRoutes(t *testing.T) {
 	}
 }
 
-// --- Thinking/Reasoning mapping ---
+// --- profileToPiAiRoute ---
 
-func TestNormalizePiAiReasoning(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"off", "off"}, {"none", "off"},
-		{"", ""},
-		{"low", "low"}, {"medium", "medium"}, {"high", "high"},
-		{"xhigh", "xhigh"}, {"max", "max"},
-		{"unknown", "high"},
+func TestProfileToPiAiRoute(t *testing.T) {
+	p := llmprovider.ConnectorProfile{
+		APIKey:           "sk-test",
+		BaseURL:          "https://api.deepseek.com",
+		API:              "openai-completions",
+		Model:            "deepseek-flash",
+		Input:            []string{"text", "image"},
+		ContextWindow:    1048576,
+		MaxTokens:        384000,
+		Reasoning:        "high",
+		ReasoningEfforts: map[string]string{"off": "none", "high": "high", "max": "max"},
+		BudgetTokens:     0,
+		ThinkingFormat:   "deepseek",
+		NoDeveloperRole:  true,
 	}
-	for _, c := range cases {
-		if got := dsh.ExportNormalizePiAiReasoning(c.in); got != c.want {
-			t.Errorf("normalizePiAiReasoning(%q) = %q, want %q", c.in, got, c.want)
-		}
+	route := dsh.ExportProfileToPiAiRoute(p, "yao-primary", "DSH_KEY_PRIMARY")
+	if route.Name != "yao-primary" {
+		t.Errorf("Name = %q", route.Name)
+	}
+	if route.API != "openai-completions" {
+		t.Errorf("API = %q", route.API)
+	}
+	// normalizeBaseURL appends /v1 for openai-completions
+	if route.BaseURL != "https://api.deepseek.com/v1" {
+		t.Errorf("BaseURL = %q", route.BaseURL)
+	}
+	if route.APIKeyEnv != "DSH_KEY_PRIMARY" {
+		t.Errorf("APIKeyEnv = %q", route.APIKeyEnv)
+	}
+	if route.Reasoning != "high" {
+		t.Errorf("Reasoning = %q", route.Reasoning)
+	}
+	if route.ThinkingFormat != "deepseek" {
+		t.Errorf("ThinkingFormat = %q", route.ThinkingFormat)
+	}
+	if !route.NoDeveloperRole {
+		t.Error("NoDeveloperRole should be true")
+	}
+	if len(route.Models) != 1 {
+		t.Fatalf("Models len = %d", len(route.Models))
+	}
+	m := route.Models[0]
+	if m.ID != "deepseek-flash" {
+		t.Errorf("Model.ID = %q", m.ID)
+	}
+	if m.ContextWindow != 1048576 {
+		t.Errorf("Model.ContextWindow = %d", m.ContextWindow)
+	}
+	if m.MaxTokens != 384000 {
+		t.Errorf("Model.MaxTokens = %d", m.MaxTokens)
+	}
+	if m.ReasoningEfforts["off"] != "none" || m.ReasoningEfforts["high"] != "high" || m.ReasoningEfforts["max"] != "max" {
+		t.Errorf("Model.ReasoningEfforts = %v", m.ReasoningEfforts)
 	}
 }
 
-func TestToPiAiThinking_EffortValues(t *testing.T) {
-	cases := []struct {
-		effort        string
-		budgetTokens  int
-		wantReasoning string
-		wantBudget    int
-	}{
-		{"none", 0, "off", 0},
-		{"thinking", 32000, "high", 32000},
-		{"thinking", 0, "high", 0},
-		{"low", 0, "low", 0},
-		{"medium", 0, "medium", 0},
-		{"high", 0, "high", 0},
-		{"xhigh", 0, "xhigh", 0},
-		{"max", 0, "max", 0},
+func TestProfileToPiAiRoute_Anthropic(t *testing.T) {
+	p := llmprovider.ConnectorProfile{
+		APIKey:        "sk-ant",
+		BaseURL:       "https://api.anthropic.com/",
+		API:           "anthropic-messages",
+		Model:         "claude-sonnet-4",
+		Input:         []string{"text", "image"},
+		ContextWindow: 1000000,
+		MaxTokens:     64000,
+		Reasoning:     "high",
+		BudgetTokens:  10000,
 	}
-	for _, c := range cases {
-		info := dsh.NewExportReasoningInfo(c.effort, c.budgetTokens, "", false)
-		reasoning, budget := dsh.ExportToPiAiThinking(info)
-		if reasoning != c.wantReasoning || budget != c.wantBudget {
-			t.Errorf("toPiAiThinking(effort=%q, budget=%d) = (%q, %d), want (%q, %d)",
-				c.effort, c.budgetTokens, reasoning, budget, c.wantReasoning, c.wantBudget)
-		}
+	route := dsh.ExportProfileToPiAiRoute(p, "yao-primary", "DSH_KEY_PRIMARY")
+	// normalizeBaseURL trims trailing / for anthropic-messages
+	if route.BaseURL != "https://api.anthropic.com" {
+		t.Errorf("BaseURL = %q", route.BaseURL)
 	}
-}
-
-func TestToPiAiThinking_LegacyFallback(t *testing.T) {
-	info := dsh.NewExportReasoningInfo("", 0, "disabled", false)
-	reasoning, budget := dsh.ExportToPiAiThinking(info)
-	if reasoning != "off" || budget != 0 {
-		t.Errorf("disabled fallback = (%q, %d)", reasoning, budget)
-	}
-
-	info = dsh.NewExportReasoningInfo("", 16000, "enabled", false)
-	reasoning, budget = dsh.ExportToPiAiThinking(info)
-	if reasoning != "high" || budget != 16000 {
-		t.Errorf("enabled fallback = (%q, %d)", reasoning, budget)
-	}
-
-	info = dsh.NewExportReasoningInfo("", 0, "", true)
-	reasoning, budget = dsh.ExportToPiAiThinking(info)
-	if reasoning != "high" || budget != 0 {
-		t.Errorf("capabilities fallback = (%q, %d)", reasoning, budget)
-	}
-
-	info = dsh.NewExportReasoningInfo("", 0, "", false)
-	reasoning, budget = dsh.ExportToPiAiThinking(info)
-	if reasoning != "" || budget != 0 {
-		t.Errorf("empty fallback = (%q, %d)", reasoning, budget)
-	}
-}
-
-func TestNormalizePiAiBaseURL(t *testing.T) {
-	cases := []struct{ in, want string }{
-		// No trailing "/" → append /v1 (same as BuildAPIURL convention)
-		{"https://api.deepseek.com", "https://api.deepseek.com/v1"},
-		{"https://api.yaoagents.com", "https://api.yaoagents.com/v1"},
-		{"https://api.moonshot.cn", "https://api.moonshot.cn/v1"},
-		{"http://127.0.0.1:8080", "http://127.0.0.1:8080/v1"},
-		// Trailing "/" → user-specified base path, strip / only
-		{"https://ark.cn-beijing.volces.com/api/v3/", "https://ark.cn-beijing.volces.com/api/v3"},
-		{"https://api.yaoagents.com/v1/", "https://api.yaoagents.com/v1"},
-		{"https://maas.example.com/api/", "https://maas.example.com/api"},
-	}
-	for _, c := range cases {
-		if got := dsh.ExportNormalizePiAiBaseURL(c.in); got != c.want {
-			t.Errorf("normalizePiAiBaseURL(%q) = %q, want %q", c.in, got, c.want)
-		}
-	}
-}
-
-func TestNormalizeAnthropicBaseURL(t *testing.T) {
-	cases := []struct{ in, want string }{
-		{"https://api.anthropic.com", "https://api.anthropic.com"},
-		{"https://api.anthropic.com/", "https://api.anthropic.com"},
-		{"https://api.yaoagents.com/anthropic", "https://api.yaoagents.com/anthropic"},
-		{"https://api.yaoagents.com/anthropic/", "https://api.yaoagents.com/anthropic"},
-	}
-	for _, c := range cases {
-		if got := dsh.ExportNormalizeAnthropicBaseURL(c.in); got != c.want {
-			t.Errorf("normalizeAnthropicBaseURL(%q) = %q, want %q", c.in, got, c.want)
-		}
+	if route.BudgetTokens != 10000 {
+		t.Errorf("BudgetTokens = %d", route.BudgetTokens)
 	}
 }
 
@@ -912,5 +940,410 @@ func TestBuildSessionPromptMsgFromBlocks_JSON(t *testing.T) {
 	}
 	if !contains(msg, `"data":"AAAA"`) {
 		t.Errorf("missing data in output: %s", msg)
+	}
+}
+
+// --- ExtractProfile ---
+
+func TestExtractProfile_Nil(t *testing.T) {
+	p := llmprovider.ExtractProfile(nil)
+	if p.APIKey != "" || p.BaseURL != "" || p.Model != "" {
+		t.Errorf("nil connector: key=%q url=%q model=%q", p.APIKey, p.BaseURL, p.Model)
+	}
+	if len(p.Input) != 1 || p.Input[0] != "text" {
+		t.Errorf("nil connector Input = %v", p.Input)
+	}
+}
+
+func TestExtractProfile_Connection(t *testing.T) {
+	c := &fakeLLMConn{
+		typ:   connector.OPENAI,
+		key:   "sk-test",
+		url:   "https://api.deepseek.com",
+		model: "deepseek-flash",
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.APIKey != "sk-test" {
+		t.Errorf("APIKey = %q", p.APIKey)
+	}
+	if p.BaseURL != "https://api.deepseek.com" {
+		t.Errorf("BaseURL = %q", p.BaseURL)
+	}
+	if p.Model != "deepseek-flash" {
+		t.Errorf("Model = %q", p.Model)
+	}
+}
+
+func TestExtractProfile_PlainConnectorFallback(t *testing.T) {
+	c := &fakeConnForThinking{
+		settings: map[string]interface{}{
+			"key":   "sk-plain",
+			"host":  "https://example.com",
+			"model": "test-model",
+		},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.APIKey != "sk-plain" {
+		t.Errorf("APIKey = %q", p.APIKey)
+	}
+	if p.BaseURL != "https://example.com" {
+		t.Errorf("BaseURL = %q", p.BaseURL)
+	}
+	if p.Model != "test-model" {
+		t.Errorf("Model = %q", p.Model)
+	}
+}
+
+func TestExtractProfile_ContextWindowAndMaxTokens(t *testing.T) {
+	c := &fakeLLMConn{
+		caps: &goullm.Capabilities{
+			MaxInputTokens:  1048576,
+			MaxOutputTokens: 384000,
+		},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.ContextWindow != 1048576 {
+		t.Errorf("ContextWindow = %d", p.ContextWindow)
+	}
+	if p.MaxTokens != 384000 {
+		t.Errorf("MaxTokens = %d", p.MaxTokens)
+	}
+}
+
+func TestExtractProfile_NoCaps(t *testing.T) {
+	c := &fakeLLMConn{}
+	p := llmprovider.ExtractProfile(c)
+	if p.ContextWindow != 0 || p.MaxTokens != 0 {
+		t.Errorf("no caps: context=%d max=%d", p.ContextWindow, p.MaxTokens)
+	}
+}
+
+func TestExtractProfile_Vision(t *testing.T) {
+	c := &fakeLLMConn{caps: &goullm.Capabilities{Vision: true}}
+	p := llmprovider.ExtractProfile(c)
+	if len(p.Input) != 2 || p.Input[1] != "image" {
+		t.Errorf("vision Input = %v", p.Input)
+	}
+}
+
+func TestExtractProfile_API_Anthropic(t *testing.T) {
+	c := &fakeLLMConn{typ: connector.ANTHROPIC}
+	p := llmprovider.ExtractProfile(c)
+	if p.API != llmprovider.APIAnthropicMessages {
+		t.Errorf("API = %q", p.API)
+	}
+	if p.NoDeveloperRole {
+		t.Error("Anthropic NoDeveloperRole should be false")
+	}
+}
+
+func TestExtractProfile_API_OpenAI(t *testing.T) {
+	c := &fakeLLMConn{typ: connector.OPENAI}
+	p := llmprovider.ExtractProfile(c)
+	if p.API != llmprovider.APIOpenAICompletions {
+		t.Errorf("API = %q", p.API)
+	}
+	if !p.NoDeveloperRole {
+		t.Error("OpenAI NoDeveloperRole should be true")
+	}
+}
+
+func TestExtractProfile_API_ProtocolsOverride(t *testing.T) {
+	c := &fakeLLMConn{
+		typ: connector.OPENAI,
+		settings: map[string]interface{}{
+			"protocols": []interface{}{"openai", "anthropic"},
+		},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.API != llmprovider.APIAnthropicMessages {
+		t.Errorf("protocols should override to anthropic-messages, got %q", p.API)
+	}
+}
+
+func TestExtractProfile_Reasoning_SettingPriority(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"reasoning_effort": "low"},
+		metadata: map[string]interface{}{"reasoning_effort": "high"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "low" {
+		t.Errorf("Setting should take priority, Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_MetadataFallback(t *testing.T) {
+	c := &fakeLLMConn{
+		metadata: map[string]interface{}{"reasoning_effort": "max"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "max" {
+		t.Errorf("Reasoning = %q, want max", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_NoneTranslation(t *testing.T) {
+	c := &fakeLLMConn{settings: map[string]interface{}{"reasoning_effort": "none"}}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "off" {
+		t.Errorf("none→off, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_ThinkingTranslation(t *testing.T) {
+	c := &fakeLLMConn{metadata: map[string]interface{}{"reasoning_effort": "thinking"}}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("thinking→high, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_UnknownValueDefaultsHigh(t *testing.T) {
+	c := &fakeLLMConn{settings: map[string]interface{}{"reasoning_effort": "adaptive"}}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("unknown value 'adaptive' should default to high, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_ThinkingTypeDisabled(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "disabled"}},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "off" {
+		t.Errorf("disabled fallback→off, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_ThinkingTypeEnabled(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("enabled fallback→high, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_HasReasoningFallback(t *testing.T) {
+	c := &fakeLLMConn{caps: &goullm.Capabilities{Reasoning: true}}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("hasReasoning fallback→high, got Reasoning=%q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_Reasoning_NoPreference(t *testing.T) {
+	c := &fakeLLMConn{}
+	p := llmprovider.ExtractProfile(c)
+	// No reasoning info at all → pure non-reasoning model
+	if p.Reasoning != "off" {
+		t.Errorf("no info→off, got Reasoning=%q", p.Reasoning)
+	}
+	if !p.DisableReasoning {
+		t.Error("no info→DisableReasoning=true")
+	}
+}
+
+func TestExtractProfile_BudgetTokens(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{
+			"thinking": map[string]interface{}{"type": "enabled", "budget_tokens": float64(10000)},
+		},
+		metadata: map[string]interface{}{"reasoning_effort": "thinking"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.BudgetTokens != 10000 {
+		t.Errorf("BudgetTokens = %d", p.BudgetTokens)
+	}
+}
+
+func TestExtractProfile_ThinkingFormat_MetadataDeclared(t *testing.T) {
+	c := &fakeLLMConn{metadata: map[string]interface{}{"thinking_format": "deepseek"}}
+	p := llmprovider.ExtractProfile(c)
+	if p.ThinkingFormat != "deepseek" {
+		t.Errorf("ThinkingFormat = %q", p.ThinkingFormat)
+	}
+}
+
+func TestExtractProfile_ThinkingFormat_ClearedForAnthropic(t *testing.T) {
+	c := &fakeLLMConn{
+		typ:      connector.ANTHROPIC,
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.ThinkingFormat != "" {
+		t.Errorf("ThinkingFormat should be cleared for anthropic, got %q", p.ThinkingFormat)
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_DeepSeek(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "disabled"}, "reasoning_effort": "none"},
+		metadata: map[string]interface{}{"reasoning_efforts": []interface{}{"none", "low", "high", "max"}, "reasoning_effort": "none"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "off" {
+		t.Errorf("Reasoning = %q, want off", p.Reasoning)
+	}
+	// deepseek dialect: off wire="" (YAML null), plus one non-off for PI validation
+	expected := map[string]string{"off": "", "high": "high"}
+	if len(p.ReasoningEfforts) != len(expected) {
+		t.Fatalf("ReasoningEfforts = %v, want %v", p.ReasoningEfforts, expected)
+	}
+	for k, v := range expected {
+		if p.ReasoningEfforts[k] != v {
+			t.Errorf("ReasoningEfforts[%q] = %q, want %q", k, p.ReasoningEfforts[k], v)
+		}
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_Claude(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
+		metadata: map[string]interface{}{"reasoning_efforts": []interface{}{"none", "thinking"}, "reasoning_effort": "thinking"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("Reasoning = %q, want high", p.Reasoning)
+	}
+	if len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
+		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_NoneOnly(t *testing.T) {
+	c := &fakeLLMConn{
+		metadata: map[string]interface{}{"reasoning_efforts": []interface{}{"none"}},
+	}
+	p := llmprovider.ExtractProfile(c)
+	// No reasoning_effort set → p.Reasoning="" → falls through to inferReasoningEfforts
+	if p.ReasoningEfforts != nil {
+		t.Errorf("ReasoningEfforts should be nil for none-only, got %v", p.ReasoningEfforts)
+	}
+	if !p.DisableReasoning {
+		t.Error("DisableReasoning should be true")
+	}
+	if p.Reasoning != "off" {
+		t.Errorf("Reasoning should be off, got %q", p.Reasoning)
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_NilMetadata(t *testing.T) {
+	c := &fakeLLMConn{}
+	p := llmprovider.ExtractProfile(c)
+	// No metadata, no reasoning hints → pure non-reasoning
+	if p.ReasoningEfforts != nil {
+		t.Errorf("ReasoningEfforts should be nil, got %v", p.ReasoningEfforts)
+	}
+	if !p.DisableReasoning {
+		t.Error("DisableReasoning should be true")
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_ThinkingOnly(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"thinking": map[string]interface{}{"type": "enabled"}},
+		metadata: map[string]interface{}{"reasoning_efforts": []interface{}{"thinking"}, "reasoning_effort": "thinking"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.DisableReasoning {
+		t.Error("thinking variant should NOT disable reasoning")
+	}
+	if p.ReasoningEfforts == nil || len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
+		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
+	}
+}
+
+func TestExtractProfile_ReasoningEfforts_NoNone(t *testing.T) {
+	c := &fakeLLMConn{
+		metadata: map[string]interface{}{"reasoning_efforts": []interface{}{"low", "high", "max"}, "reasoning_effort": "high"},
+	}
+	p := llmprovider.ExtractProfile(c)
+	// Active variant at high: only {high:high}
+	if _, ok := p.ReasoningEfforts["off"]; ok {
+		t.Error("active variant should not have off entry")
+	}
+	if len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
+		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
+	}
+}
+
+func TestExtractProfile_Protocols(t *testing.T) {
+	c := &fakeLLMConn{
+		settings: map[string]interface{}{"protocols": []interface{}{"openai", "anthropic"}},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if len(p.Protocols) != 2 || p.Protocols[0] != "openai" || p.Protocols[1] != "anthropic" {
+		t.Errorf("Protocols = %v", p.Protocols)
+	}
+}
+
+// --- Full model scenarios ---
+
+func TestExtractProfile_DeepSeekV4FlashThinking(t *testing.T) {
+	c := &fakeLLMConn{
+		typ:   connector.OPENAI,
+		key:   "sk-ds",
+		url:   "https://api.deepseek.com",
+		model: "deepseek-v4-flash",
+		settings: map[string]interface{}{
+			"thinking": map[string]interface{}{"type": "enabled"},
+		},
+		metadata: map[string]interface{}{
+			"reasoning_effort":  "high",
+			"reasoning_efforts": []interface{}{"none", "low", "high", "max"},
+			"thinking_format":   "deepseek",
+		},
+		caps: &goullm.Capabilities{Reasoning: true, MaxInputTokens: 1048576, MaxOutputTokens: 384000},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.Reasoning != "high" {
+		t.Errorf("Reasoning = %q", p.Reasoning)
+	}
+	if p.ContextWindow != 1048576 || p.MaxTokens != 384000 {
+		t.Errorf("context=%d max=%d", p.ContextWindow, p.MaxTokens)
+	}
+	if p.ThinkingFormat != "deepseek" {
+		t.Errorf("ThinkingFormat = %q", p.ThinkingFormat)
+	}
+	// Active variant at high: only {high:high}
+	if len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
+		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
+	}
+}
+
+func TestExtractProfile_ClaudeWithBudget(t *testing.T) {
+	c := &fakeLLMConn{
+		typ:   connector.ANTHROPIC,
+		key:   "sk-ant",
+		url:   "https://api.anthropic.com",
+		model: "claude-sonnet-4-20250514",
+		settings: map[string]interface{}{
+			"thinking": map[string]interface{}{"type": "enabled", "budget_tokens": float64(10000)},
+		},
+		metadata: map[string]interface{}{
+			"reasoning_effort":  "thinking",
+			"reasoning_efforts": []interface{}{"none", "thinking"},
+		},
+		caps: &goullm.Capabilities{Reasoning: true, Vision: true, MaxInputTokens: 1000000, MaxOutputTokens: 64000},
+	}
+	p := llmprovider.ExtractProfile(c)
+	if p.API != llmprovider.APIAnthropicMessages {
+		t.Errorf("API = %q", p.API)
+	}
+	if p.BudgetTokens != 10000 {
+		t.Errorf("BudgetTokens = %d", p.BudgetTokens)
+	}
+	if p.ThinkingFormat != "" {
+		t.Errorf("ThinkingFormat should be cleared, got %q", p.ThinkingFormat)
+	}
+	if p.ContextWindow != 1000000 {
+		t.Errorf("ContextWindow = %d", p.ContextWindow)
+	}
+	// Active variant at high: only {high:high}
+	if len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
+		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
 	}
 }

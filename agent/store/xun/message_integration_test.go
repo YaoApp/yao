@@ -597,6 +597,155 @@ func TestMessageCompleteWorkflow(t *testing.T) {
 	})
 }
 
+func TestGetRecentMessages(t *testing.T) {
+	testprepare.PrepareSandbox(t)
+
+	store, err := xun.NewXun(types.Setting{Connector: "default"})
+	require.NoError(t, err)
+
+	chat := &types.Chat{AssistantID: "test_assistant"}
+	err = store.CreateChat(chat)
+	require.NoError(t, err)
+	t.Cleanup(func() { store.DeleteChat(chat.ChatID) })
+
+	for i := 1; i <= 10; i++ {
+		err := store.SaveMessages(chat.ChatID, []*types.Message{
+			{Role: "user", Type: "text", Props: map[string]interface{}{"i": i}, Sequence: i},
+		})
+		require.NoError(t, err)
+	}
+
+	t.Run("GetAllRecent", func(t *testing.T) {
+		msgs, err := store.GetRecentMessages(chat.ChatID, 100, 0)
+		require.NoError(t, err)
+		assert.Equal(t, 10, len(msgs))
+		// Chronological order (oldest first)
+		for i := 1; i < len(msgs); i++ {
+			assert.Less(t, msgs[i-1].ID, msgs[i].ID)
+		}
+	})
+
+	t.Run("LimitReturnsLatest", func(t *testing.T) {
+		msgs, err := store.GetRecentMessages(chat.ChatID, 3, 0)
+		require.NoError(t, err)
+		assert.Equal(t, 3, len(msgs))
+		// Should be the 3 most recent, in chronological order
+		assert.Equal(t, 8, msgs[0].Sequence)
+		assert.Equal(t, 9, msgs[1].Sequence)
+		assert.Equal(t, 10, msgs[2].Sequence)
+	})
+
+	t.Run("BeforeIDPagination", func(t *testing.T) {
+		// First page: latest 3
+		page1, err := store.GetRecentMessages(chat.ChatID, 3, 0)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(page1))
+
+		// Second page: 3 before the first message of page1
+		page2, err := store.GetRecentMessages(chat.ChatID, 3, page1[0].ID)
+		require.NoError(t, err)
+		require.Equal(t, 3, len(page2))
+
+		// page2 IDs should all be less than page1[0].ID
+		for _, msg := range page2 {
+			assert.Less(t, msg.ID, page1[0].ID)
+		}
+		// page2 should also be in chronological order
+		for i := 1; i < len(page2); i++ {
+			assert.Less(t, page2[i-1].ID, page2[i].ID)
+		}
+	})
+
+	t.Run("DefaultLimitWhenZero", func(t *testing.T) {
+		msgs, err := store.GetRecentMessages(chat.ChatID, 0, 0)
+		require.NoError(t, err)
+		assert.Equal(t, 10, len(msgs))
+	})
+
+	t.Run("EmptyChatReturnsNil", func(t *testing.T) {
+		emptyChat := &types.Chat{AssistantID: "test_assistant"}
+		err := store.CreateChat(emptyChat)
+		require.NoError(t, err)
+		t.Cleanup(func() { store.DeleteChat(emptyChat.ChatID) })
+
+		msgs, err := store.GetRecentMessages(emptyChat.ChatID, 10, 0)
+		require.NoError(t, err)
+		assert.Nil(t, msgs)
+	})
+
+	t.Run("EmptyChatIDReturnsError", func(t *testing.T) {
+		_, err := store.GetRecentMessages("", 10, 0)
+		assert.Error(t, err)
+	})
+
+	t.Run("AllFieldsPopulated", func(t *testing.T) {
+		fieldChat := &types.Chat{AssistantID: "test_assistant"}
+		err := store.CreateChat(fieldChat)
+		require.NoError(t, err)
+		t.Cleanup(func() { store.DeleteChat(fieldChat.ChatID) })
+
+		err = store.SaveMessages(fieldChat.ChatID, []*types.Message{
+			{
+				Role:        "assistant",
+				Type:        "tool_call",
+				Props:       map[string]interface{}{"name": "get_weather"},
+				Sequence:    1,
+				RequestID:   "req_recent",
+				BlockID:     "B1",
+				ThreadID:    "T1",
+				AssistantID: "weather_bot",
+				Connector:   "openai",
+				Mode:        "task",
+				Metadata:    map[string]interface{}{"tool_call_id": "call_123"},
+			},
+		})
+		require.NoError(t, err)
+
+		msgs, err := store.GetRecentMessages(fieldChat.ChatID, 10, 0)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(msgs))
+
+		msg := msgs[0]
+		assert.Greater(t, msg.ID, int64(0))
+		assert.NotEmpty(t, msg.MessageID)
+		assert.Equal(t, fieldChat.ChatID, msg.ChatID)
+		assert.Equal(t, "req_recent", msg.RequestID)
+		assert.Equal(t, "assistant", msg.Role)
+		assert.Equal(t, "tool_call", msg.Type)
+		assert.Equal(t, "get_weather", msg.Props["name"])
+		assert.Equal(t, "B1", msg.BlockID)
+		assert.Equal(t, "T1", msg.ThreadID)
+		assert.Equal(t, "weather_bot", msg.AssistantID)
+		assert.Equal(t, "openai", msg.Connector)
+		assert.Equal(t, "task", msg.Mode)
+		assert.Equal(t, 1, msg.Sequence)
+		require.NotNil(t, msg.Metadata)
+		assert.Equal(t, "call_123", msg.Metadata["tool_call_id"])
+	})
+
+	t.Run("SoftDeletedExcluded", func(t *testing.T) {
+		delChat := &types.Chat{AssistantID: "test_assistant"}
+		err := store.CreateChat(delChat)
+		require.NoError(t, err)
+		t.Cleanup(func() { store.DeleteChat(delChat.ChatID) })
+
+		msgID := fmt.Sprintf("msg_del_recent_%d", time.Now().UnixNano())
+		err = store.SaveMessages(delChat.ChatID, []*types.Message{
+			{MessageID: msgID, Role: "user", Type: "text", Props: map[string]interface{}{"content": "will delete"}, Sequence: 1},
+			{Role: "user", Type: "text", Props: map[string]interface{}{"content": "keep"}, Sequence: 2},
+		})
+		require.NoError(t, err)
+
+		err = store.DeleteMessages(delChat.ChatID, []string{msgID})
+		require.NoError(t, err)
+
+		msgs, err := store.GetRecentMessages(delChat.ChatID, 10, 0)
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(msgs))
+		assert.Equal(t, "keep", msgs[0].Props["content"])
+	})
+}
+
 func TestConcurrentMessages(t *testing.T) {
 	testprepare.PrepareSandbox(t)
 

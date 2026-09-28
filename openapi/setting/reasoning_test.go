@@ -971,7 +971,7 @@ func TestBuildModelInfo_Basic(t *testing.T) {
 		"max_input_tokens":  1000.0,
 		"max_output_tokens": 500.0,
 	}
-	mi := buildModelInfo("conn-1", "base-model", []string{"chat"}, map[string]interface{}{"key": "val"}, base, true, "", "none")
+	mi := buildModelInfo("conn-1", "base-model", []string{"chat"}, map[string]interface{}{"key": "val"}, base, true, "", "none", nil)
 	if mi.ID != "conn-1" {
 		t.Fatalf("ID = %s", mi.ID)
 	}
@@ -991,21 +991,21 @@ func TestBuildModelInfo_Basic(t *testing.T) {
 
 func TestBuildModelInfo_WithSuffix(t *testing.T) {
 	base := map[string]interface{}{"name": "Model X"}
-	mi := buildModelInfo("x-thinking-high", "x", nil, nil, base, false, "(Thinking: High)", "high")
+	mi := buildModelInfo("x-thinking-high", "x", nil, nil, base, false, "(Thinking: High)", "high", []string{"none", "low", "high"})
 	if mi.Name != "Model X (Thinking: High)" {
 		t.Fatalf("name = %q, want 'Model X (Thinking: High)'", mi.Name)
 	}
 }
 
 func TestBuildModelInfo_EmptyModel(t *testing.T) {
-	mi := buildModelInfo("conn-2", "", []string{"chat"}, nil, map[string]interface{}{"name": "X"}, false, "", "none")
+	mi := buildModelInfo("conn-2", "", []string{"chat"}, nil, map[string]interface{}{"name": "X"}, false, "", "none", nil)
 	if mi.Model != "" {
 		t.Fatalf("expected empty Model, got %s", mi.Model)
 	}
 }
 
 func TestBuildModelInfo_NameFallback(t *testing.T) {
-	mi := buildModelInfo("conn-3", "", nil, nil, map[string]interface{}{}, true, "", "none")
+	mi := buildModelInfo("conn-3", "", nil, nil, map[string]interface{}{}, true, "", "none", nil)
 	if mi.Name != "conn-3" {
 		t.Fatalf("name should fallback to connID, got %s", mi.Name)
 	}

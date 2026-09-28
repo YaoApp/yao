@@ -57,6 +57,14 @@ type ChatStore interface {
 	// Returns: Potential error
 	UpdateMessage(messageID string, updates map[string]interface{}) error
 
+	// GetRecentMessages retrieves the N most recent messages for a chat.
+	// It avoids loading large fields during sort to prevent sort buffer overflow.
+	// chatID: Chat ID
+	// limit: Maximum number of messages to return
+	// beforeID: Cursor for pagination (0 = latest); returns messages with id < beforeID
+	// Returns: Messages in chronological order (oldest first) and potential error
+	GetRecentMessages(chatID string, limit int, beforeID int64) ([]*Message, error)
+
 	// DeleteMessages deletes specific messages from a chat
 	// chatID: Chat ID
 	// messageIDs: List of message IDs to delete
