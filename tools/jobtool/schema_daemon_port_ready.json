@@ -1,0 +1,12 @@
+{
+  "name": "yao_daemon_port_ready",
+  "description": "Daemon port ready event — port detected and listening",
+  "process": "tools.yao_daemon_port_ready",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Daemon port ready metadata from tai Monitor" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

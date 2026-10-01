@@ -16,6 +16,7 @@ import (
 	"github.com/yaoapp/yao/tools/docs"
 	"github.com/yaoapp/yao/tools/image"
 	toolinbox "github.com/yaoapp/yao/tools/inbox"
+	"github.com/yaoapp/yao/tools/jobtool"
 	"github.com/yaoapp/yao/tools/mobile"
 	"github.com/yaoapp/yao/tools/ocr"
 	"github.com/yaoapp/yao/tools/proc"
@@ -72,6 +73,12 @@ var mcpDecisionDSL []byte
 
 //go:embed mcps/workspace-config.json
 var mcpWorkspaceConfigDSL []byte
+
+//go:embed mcps/job.json
+var mcpJobDSL []byte
+
+//go:embed mcps/daemon.json
+var mcpDaemonDSL []byte
 
 func init() {
 	process.RegisterGroup("tools", map[string]process.Handler{
@@ -144,6 +151,21 @@ func init() {
 
 		"decision_decide":    decision.DecideHandler,
 		"decision_providers": decision.ProvidersHandler,
+
+		"yao_job_start":   jobtool.JobStartHandler,
+		"yao_job_list":    jobtool.JobListHandler,
+		"yao_job_get":     jobtool.JobGetHandler,
+		"yao_job_output":  jobtool.JobOutputHandler,
+		"yao_job_wait":    jobtool.JobWaitHandler,
+		"yao_job_stop":    jobtool.JobStopHandler,
+		"yao_job_settled": jobtool.JobSettledHandler,
+
+		"yao_daemon_start":      jobtool.DaemonStartHandler,
+		"yao_daemon_list":       jobtool.DaemonListHandler,
+		"yao_daemon_status":     jobtool.DaemonStatusHandler,
+		"yao_daemon_stop":       jobtool.DaemonStopHandler,
+		"yao_daemon_restart":    jobtool.DaemonRestartHandler,
+		"yao_daemon_port_ready": jobtool.DaemonPortReadyHandler,
 	})
 
 	registerMCPServer(mcpWebDSL, "yao-web",
@@ -185,6 +207,13 @@ func init() {
 		decision.DecideSchemaJSON, decision.ProvidersSchemaJSON)
 	registerMCPServer(mcpWorkspaceConfigDSL, "yao-workspace-config",
 		wsconfig.GitConfigSchemaJSON, wsconfig.GitCredentialSchemaJSON, wsconfig.SSHKeySchemaJSON)
+	registerMCPServer(mcpJobDSL, "yao-job",
+		jobtool.JobStartSchemaJSON, jobtool.JobListSchemaJSON, jobtool.JobGetSchemaJSON,
+		jobtool.JobOutputSchemaJSON, jobtool.JobWaitSchemaJSON, jobtool.JobStopSchemaJSON,
+		jobtool.JobSettledSchemaJSON)
+	registerMCPServer(mcpDaemonDSL, "yao-daemon",
+		jobtool.DaemonStartSchemaJSON, jobtool.DaemonListSchemaJSON, jobtool.DaemonStatusSchemaJSON,
+		jobtool.DaemonStopSchemaJSON, jobtool.DaemonRestartSchemaJSON, jobtool.DaemonPortReadySchemaJSON)
 }
 
 func registerMCPServer(dsl []byte, id string, schemas ...[]byte) {

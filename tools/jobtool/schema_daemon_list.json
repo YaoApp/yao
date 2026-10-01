@@ -1,0 +1,12 @@
+{
+  "name": "yao_daemon_list",
+  "description": "List daemon processes",
+  "process": "tools.yao_daemon_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Daemon list data from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

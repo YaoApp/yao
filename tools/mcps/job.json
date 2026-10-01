@@ -1,0 +1,14 @@
+{
+  "name": "yao-job",
+  "transport": "process",
+  "description": "Background job management — start, monitor, wait, stop long-running commands",
+  "tools": {
+    "yao_job_start": "tools.yao_job_start",
+    "yao_job_list": "tools.yao_job_list",
+    "yao_job_get": "tools.yao_job_get",
+    "yao_job_output": "tools.yao_job_output",
+    "yao_job_wait": "tools.yao_job_wait",
+    "yao_job_stop": "tools.yao_job_stop",
+    "yao_job_settled": "tools.yao_job_settled"
+  }
+}

@@ -47,4 +47,5 @@ func Attach(group *gin.RouterGroup, oauth types.OAuth) {
 
 	// Inbox routes - Mail notifications CRUD
 	inbox.Attach(group.Group("/inbox"), oauth)
+
 }

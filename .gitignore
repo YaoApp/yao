@@ -114,3 +114,4 @@ docs/kanban-inbox/*
 unit-test/agent/mock-llm/mock-llm
 docs/20260713/*
 docs/requirements/*
+tai/docs/job-event-bridge.md

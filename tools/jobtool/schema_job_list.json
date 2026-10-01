@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_list",
+  "description": "List background jobs",
+  "process": "tools.yao_job_list",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job list data from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

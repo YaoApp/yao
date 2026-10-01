@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_output",
+  "description": "Read job process output",
+  "process": "tools.yao_job_output",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job output data from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

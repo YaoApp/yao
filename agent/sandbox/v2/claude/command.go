@@ -180,6 +180,9 @@ func buildEnv(req *types.StreamRequest, p platform) map[string]string {
 	}
 	env["WORKDIR"] = workDir
 
+	if req.ChatID != "" {
+		env["CTX_CHAT_ID"] = req.ChatID
+	}
 	if req.Locale != "" {
 		env["CTX_LOCALE"] = req.Locale
 	}

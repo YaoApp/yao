@@ -1,0 +1,12 @@
+{
+  "name": "yao_daemon_stop",
+  "description": "Stop a daemon",
+  "process": "tools.yao_daemon_stop",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Daemon stop result from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

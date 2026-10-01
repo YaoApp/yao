@@ -43,6 +43,8 @@ func handleEventWS(c *gin.Context) {
 			return m["__yao_team_id"] == auth.TeamID
 		case strings.HasPrefix(ev.Type, "mail."):
 			return m["__yao_created_by"] == auth.UserID
+		case strings.HasPrefix(ev.Type, "job."):
+			return m["__yao_session_id"] == auth.SessionID
 		default:
 			return false
 		}

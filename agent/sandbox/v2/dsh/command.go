@@ -208,6 +208,9 @@ func buildEnv(req *types.StreamRequest, p platform, workDir, apiKey, baseURL, sy
 	if req.AssistantID != "" {
 		env["CTX_ASSISTANT_ID"] = req.AssistantID
 	}
+	if req.ChatID != "" {
+		env["CTX_CHAT_ID"] = req.ChatID
+	}
 	if req.Locale != "" {
 		env["CTX_LOCALE"] = req.Locale
 	}
@@ -267,8 +270,26 @@ func buildSystemPrompt(req *types.StreamRequest, workDir string) string {
 	}
 
 	parts = append(parts, buildSandboxEnvPrompt(workDir))
+	parts = append(parts, buildBackgroundJobsPrompt())
 
 	return strings.Join(parts, "\n\n")
+}
+
+func buildBackgroundJobsPrompt() string {
+	return `## Background Jobs & Daemons
+
+You have access to background job and daemon management tools:
+
+**Jobs** (finite tasks): yao_job_start, yao_job_list, yao_job_get, yao_job_output, yao_job_wait, yao_job_stop
+**Daemons** (long-running services): yao_daemon_start, yao_daemon_list, yao_daemon_status, yao_daemon_stop, yao_daemon_restart
+
+Rules:
+- Use background=true for long-running commands; foreground (default) blocks until completion
+- Always provide a description when starting jobs/daemons
+- Check job output with yao_job_output to monitor progress
+- Use yao_job_wait to block until a background job completes
+- Daemons run indefinitely; use yao_daemon_stop to terminate
+- When you receive a <BackgroundJobReceipt>, review the job result and take appropriate action`
 }
 
 func buildSandboxEnvPrompt(workDir string) string {

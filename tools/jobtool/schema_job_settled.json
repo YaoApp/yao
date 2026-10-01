@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_settled",
+  "description": "Job settled event — process exited and finalized",
+  "process": "tools.yao_job_settled",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Settled job metadata from tai Monitor" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}
