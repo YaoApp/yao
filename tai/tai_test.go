@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/tai/volume"
 )
@@ -56,6 +57,56 @@ func TestMergedPortsAll(t *testing.T) {
 	p := mergedPorts(Ports{GRPC: 1, HTTP: 2, VNC: 3, Docker: 4, K8s: 5})
 	if p.GRPC != 1 || p.HTTP != 2 || p.VNC != 3 || p.Docker != 4 || p.K8s != 5 {
 		t.Errorf("unexpected ports: %+v", p)
+	}
+}
+
+func TestLocalDockerHost(t *testing.T) {
+	original := share.Tools
+	t.Cleanup(func() { share.Tools = original })
+
+	tests := []struct {
+		name  string
+		tools *share.ExtTools
+		want  string
+	}{
+		{name: "tools not inspected"},
+		{name: "docker not inspected", tools: &share.ExtTools{}},
+		{
+			name:  "unavailable docker",
+			tools: &share.ExtTools{Docker: &share.DockerInfo{Host: "unix:///tmp/docker.sock"}},
+		},
+		{
+			name: "OrbStack context",
+			tools: &share.ExtTools{Docker: &share.DockerInfo{
+				Available: true,
+				Host:      "unix:///Users/alice/.orbstack/run/docker.sock",
+			}},
+			want: "unix:///Users/alice/.orbstack/run/docker.sock",
+		},
+		{
+			name: "remote TCP context",
+			tools: &share.ExtTools{Docker: &share.DockerInfo{
+				Available: true,
+				Host:      "tcp://docker.example.test:2376",
+			}},
+			want: "tcp://docker.example.test:2376",
+		},
+		{
+			name: "unsupported SSH context",
+			tools: &share.ExtTools{Docker: &share.DockerInfo{
+				Available: true,
+				Host:      "ssh://docker.example.test",
+			}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			share.Tools = test.tools
+			if got := localDockerHost(); got != test.want {
+				t.Fatalf("localDockerHost() = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 

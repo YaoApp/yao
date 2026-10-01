@@ -2,6 +2,7 @@ package tai
 
 import (
 	"io"
+	"strings"
 
 	yaoconfig "github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/share"
@@ -76,6 +77,20 @@ func intOr(v, fallback int) int {
 	return fallback
 }
 
+func localDockerHost() string {
+	if share.Tools == nil || share.Tools.Docker == nil || !share.Tools.Docker.Available {
+		return ""
+	}
+
+	host := strings.TrimSpace(share.Tools.Docker.Host)
+	for _, prefix := range []string{"unix://", "npipe://", "tcp://", "http://", "https://"} {
+		if strings.HasPrefix(host, prefix) {
+			return host
+		}
+	}
+	return ""
+}
+
 // RegisterLocal probes the local environment and registers the current host
 // as the "local" node. Capabilities are set based on actual availability:
 // Docker is probed, HostExec is controlled by YAO_HOST_EXEC env var.
@@ -95,7 +110,7 @@ func RegisterLocal(opts ...Option) bool {
 		o.apply(cfg)
 	}
 
-	res, err := DialLocal("", cfg.dataDir, cfg.volume)
+	res, err := DialLocal(localDockerHost(), cfg.dataDir, cfg.volume)
 	if err != nil {
 		return false
 	}
