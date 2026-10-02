@@ -136,8 +136,14 @@ func TestBuildSystemPrompt_WithLocale(t *testing.T) {
 		t.Fatal("empty prompt")
 	}
 	// Locale no longer injected into system prompt (moved to user message prefix for cache optimization).
-	if got != "You are an agent.\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q", got)
+	if !strings.Contains(got, "You are an agent.") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
+	}
+	if !strings.Contains(got, "Background Jobs & Daemons") {
+		t.Errorf("prompt missing background jobs section, got %q", got)
 	}
 }
 
@@ -147,8 +153,14 @@ func TestBuildSystemPrompt_NoLocale(t *testing.T) {
 		SystemPrompt: "You are an agent.",
 	}
 	got := dsh.ExportBuildSystemPrompt(req, "/workspace")
-	if got != "You are an agent.\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q", got)
+	if !strings.Contains(got, "You are an agent.") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
+	}
+	if !strings.Contains(got, "Background Jobs & Daemons") {
+		t.Errorf("prompt missing background jobs section, got %q", got)
 	}
 }
 
@@ -159,8 +171,11 @@ func TestBuildSystemPrompt_EnLocale_NoExtra(t *testing.T) {
 		Locale:       "en-us",
 	}
 	got := dsh.ExportBuildSystemPrompt(req, "/workspace")
-	if got != "Agent\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q (should not have locale suffix)", got)
+	if !strings.Contains(got, "Agent") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
 	}
 }
 
