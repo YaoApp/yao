@@ -93,7 +93,6 @@ var startCmd = &cobra.Command{
 		// test mode — blocked in production
 		if startTestMode {
 			if config.Conf.Mode == "production" {
-				fmt.Println(color.RedString("⚠️  --test-mode is ignored in production mode"))
 				config.Conf.TestMode = false
 			} else {
 				config.Conf.TestMode = true
@@ -291,7 +290,9 @@ var startCmd = &cobra.Command{
 			fmt.Printf("\n")
 		}
 
-		if config.Conf.TestMode {
+		if startTestMode && config.Conf.Mode == "production" {
+			fmt.Println(color.RedString("\n⚠️  --test-mode is ignored in production mode"))
+		} else if config.Conf.TestMode {
 			fmt.Println(color.RedString("\n---------------------------------"))
 			fmt.Println(color.RedString("⚠️  Test Mode"))
 			fmt.Println(color.RedString("---------------------------------"))
