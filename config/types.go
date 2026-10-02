@@ -43,6 +43,7 @@ type Config struct {
 	WebProxy             WebProxyConfig `json:"webproxy,omitempty"`
 	DisableSystemSetting bool           `json:"disable_system_setting,omitempty" env:"YAO_DISABLE_SYSTEM_SETTING" envDefault:"false"` // Disable system setting UI for managed deployments
 	DisableLocalNode     bool           `json:"disable_local_node,omitempty" env:"YAO_DISABLE_LOCAL_NODE" envDefault:"false"`         // Disable local Tai node registration
+	TestMode             bool           `json:"test_mode,omitempty" env:"YAO_TEST_MODE" envDefault:"false"`                           // Enable test mode with public token endpoints
 }
 
 // WebProxyConfig controls the dynamic HTTP proxy for container web services.

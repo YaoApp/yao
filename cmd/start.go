@@ -41,6 +41,7 @@ import (
 
 var startDebug = false
 var startDisableWatching = false
+var startTestMode = false
 
 var startCmd = &cobra.Command{
 	Use:   "start",
@@ -87,6 +88,16 @@ var startCmd = &cobra.Command{
 		// force debug
 		if startDebug {
 			config.Development()
+		}
+
+		// test mode — blocked in production
+		if startTestMode {
+			if config.Conf.Mode == "production" {
+				fmt.Println(color.RedString("⚠️  --test-mode is ignored in production mode"))
+				config.Conf.TestMode = false
+			} else {
+				config.Conf.TestMode = true
+			}
 		}
 
 		// load the application engine
@@ -278,6 +289,23 @@ var startCmd = &cobra.Command{
 				fmt.Println(color.YellowString("[%s] %s", warning.Widget, warning.Error))
 			}
 			fmt.Printf("\n")
+		}
+
+		if config.Conf.TestMode {
+			fmt.Println(color.RedString("\n---------------------------------"))
+			fmt.Println(color.RedString("⚠️  Test Mode"))
+			fmt.Println(color.RedString("---------------------------------"))
+			fmt.Println(color.RedString("WARNING: All test endpoints are public (no authentication required)."))
+			fmt.Println(color.RedString("DO NOT enable in production environments.\n"))
+			testBase := fmt.Sprintf("http://%s:%d%s/test", "127.0.0.1", config.Conf.Port, apiRoot)
+			fmt.Println(color.WhiteString("POST"), color.GreenString(" %s/login/web", testBase), color.WhiteString("    Issue secure cookies (web login)"))
+			fmt.Println(color.WhiteString("POST"), color.GreenString(" %s/login/token", testBase), color.WhiteString("  Issue JSON tokens (mobile/client)"))
+			fmt.Println(color.WhiteString("POST"), color.GreenString(" %s/server-key", testBase), color.WhiteString("  Create a server key"))
+			fmt.Println(color.WhiteString("GET "), color.GreenString(" %s/users", testBase), color.WhiteString("       List users"))
+			fmt.Println(color.WhiteString("GET "), color.GreenString(" %s/teams", testBase), color.WhiteString("       List teams"))
+			fmt.Println(color.WhiteString("GET "), color.GreenString(" %s/otp?code=", testBase), color.WhiteString("    Query OTP payload by code"))
+			fmt.Println(color.WhiteString("GET "), color.GreenString(" %s/captcha?id=", testBase), color.WhiteString(" Query captcha answer by id"))
+			fmt.Println("")
 		}
 
 		fmt.Println(color.GreenString(L("Server is up and running...")))
@@ -647,4 +675,5 @@ func portOccupied(host string, port int) (bool, string) {
 func init() {
 	startCmd.PersistentFlags().BoolVarP(&startDebug, "debug", "", false, L("Development mode"))
 	startCmd.PersistentFlags().BoolVarP(&startDisableWatching, "disable-watching", "", false, L("Disable watching"))
+	startCmd.PersistentFlags().BoolVarP(&startTestMode, "test-mode", "", false, "Enable test mode with public token endpoints")
 }
