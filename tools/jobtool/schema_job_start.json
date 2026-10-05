@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_start",
+  "description": "Start a background job or foreground command",
+  "process": "tools.yao_job_start",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job metadata from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

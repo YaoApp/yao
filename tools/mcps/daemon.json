@@ -1,0 +1,13 @@
+{
+  "name": "yao-daemon",
+  "transport": "process",
+  "description": "Daemon process management — start, monitor, stop, restart long-running services",
+  "tools": {
+    "yao_daemon_start": "tools.yao_daemon_start",
+    "yao_daemon_list": "tools.yao_daemon_list",
+    "yao_daemon_status": "tools.yao_daemon_status",
+    "yao_daemon_stop": "tools.yao_daemon_stop",
+    "yao_daemon_restart": "tools.yao_daemon_restart",
+    "yao_daemon_port_ready": "tools.yao_daemon_port_ready"
+  }
+}

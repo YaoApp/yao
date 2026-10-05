@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_get",
+  "description": "Get job details",
+  "process": "tools.yao_job_get",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job metadata from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

@@ -8,15 +8,18 @@ import (
 
 func TestSkillsFS_ContainsAllSkills(t *testing.T) {
 	expected := map[string]bool{
-		"skills/yao-web/SKILL.md":      false,
-		"skills/yao-process/SKILL.md":  false,
-		"skills/yao-doc/SKILL.md":      false,
-		"skills/yao-image/SKILL.md":    false,
-		"skills/yao-audio/SKILL.md":    false,
-		"skills/yao-agent/SKILL.md":    false,
-		"skills/yao-board/SKILL.md":    false,
-		"skills/yao-ocr/SKILL.md":      false,
-		"skills/yao-decision/SKILL.md": false,
+		"skills/yao-web/SKILL.md":              false,
+		"skills/yao-process/SKILL.md":          false,
+		"skills/yao-doc/SKILL.md":              false,
+		"skills/yao-image/SKILL.md":            false,
+		"skills/yao-audio/SKILL.md":            false,
+		"skills/yao-agent/SKILL.md":            false,
+		"skills/yao-board/SKILL.md":            false,
+		"skills/yao-ocr/SKILL.md":              false,
+		"skills/yao-decision/SKILL.md":         false,
+		"skills/yao-job/SKILL.md":              false,
+		"skills/yao-daemon/SKILL.md":           false,
+		"skills/yao-workspace-config/SKILL.md": false,
 	}
 
 	err := fs.WalkDir(SkillsFS, "skills", func(path string, d fs.DirEntry, err error) error {
@@ -53,6 +56,9 @@ func TestSkillsFS_FrontmatterFields(t *testing.T) {
 		{"skills/yao-board/SKILL.md", "yao-board"},
 		{"skills/yao-ocr/SKILL.md", "yao-ocr"},
 		{"skills/yao-decision/SKILL.md", "yao-decision"},
+		{"skills/yao-job/SKILL.md", "yao-job"},
+		{"skills/yao-daemon/SKILL.md", "yao-daemon"},
+		{"skills/yao-workspace-config/SKILL.md", "yao-workspace-config"},
 	}
 
 	for _, s := range skills {

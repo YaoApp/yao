@@ -66,17 +66,12 @@ Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" 
 |------|-------------|
 | web_search | Search the web for real-time info |
 | web_fetch | Fetch and read a web page |
-| process_call | Execute a Yao Process |
-| process_allowed | Check allowed processes |
-| doc_list | Search/list process docs |
-| doc_inspect | Get detailed process docs |
 | image_read | Analyze images (vision) |
 | image_generate | Generate images from text (supports background, output_format, quality) |
 | image_edit | Edit images with text prompts (supports mask, background, output_format) |
 | ocr_recognize | Extract text from images/PDFs using OCR (supports VLM-OCR and traditional APIs; output: text/json/markdown) |
 | ocr_providers | List available OCR providers (VLM-OCR models and traditional API providers) |
 | agent_list | List available agents |
-| agent_call | Call another AI expert |
 | secret_list | List secret names |
 | secret_read | Read a secret value |
 | board_list | List kanban boards |
@@ -93,6 +88,15 @@ Calling convention: ` + "`tai tool <name> --param value [--param2 value2 ...]`" 
 | clip_read | Read a clip by ID |
 | decision_decide | Make structured decisions (classify/score/measure; e.g. Jev) |
 | decision_providers | List available decision providers |
+| yao_job_start | Start a command (foreground or background) |
+| yao_job_list | List jobs (filter by status) |
+| yao_job_output | Read process output (job or daemon) |
+| yao_job_stop | Kill a running job |
+| yao_daemon_start | Start a long-running service |
+| yao_daemon_list | List daemons |
+| yao_daemon_status | Get daemon details (port, URL) |
+| yao_daemon_stop | Stop a running daemon |
+| yao_daemon_restart | Restart a daemon |
 | skill_list | List installed skills (filter by type: system/assistant/extension) |
 
 Skills in ` + "`$HOME/.claude/skills/`" + ` are auto-loaded with full parameter docs.

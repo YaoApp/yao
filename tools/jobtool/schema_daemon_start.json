@@ -1,0 +1,12 @@
+{
+  "name": "yao_daemon_start",
+  "description": "Start a daemon process",
+  "process": "tools.yao_daemon_start",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Daemon metadata from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

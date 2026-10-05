@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_stop",
+  "description": "Stop a running job",
+  "process": "tools.yao_job_stop",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job stop result from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

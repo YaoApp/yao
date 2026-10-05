@@ -116,12 +116,13 @@ func DialLocal(addr string, dataDir string, vol volume.Volume) (*ConnResources, 
 		if len(allowed) == 0 && !yaoconfig.Conf.HostExec.FullAccess {
 			allowed = defaultHostExecCommands()
 		}
-		res.HostExec = hostexec.NewLocalClient(dataDir, hostexec.Policy{
+		hePolicy := hostexec.Policy{
 			FullAccess:      yaoconfig.Conf.HostExec.FullAccess,
 			AllowedCommands: allowed,
 			AllowedDirs:     yaoconfig.Conf.HostExec.AllowedDirs,
 			DeniedDirs:      yaoconfig.Conf.HostExec.DeniedDirs,
-		})
+		}
+		res.HostExec = hostexec.NewLocalClient(dataDir, hePolicy)
 	}
 
 	if vol != nil {

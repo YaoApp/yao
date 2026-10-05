@@ -31,6 +31,7 @@ import (
 	openAPISetting "github.com/yaoapp/yao/openapi/setting"
 	openapiTai "github.com/yaoapp/yao/openapi/tai"
 	"github.com/yaoapp/yao/openapi/team"
+	"github.com/yaoapp/yao/openapi/testmode"
 	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
@@ -202,6 +203,12 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// Setting handlers (unified /setting/* endpoints)
 	openAPISetting.Attach(group.Group("/setting"), openapi.OAuth)
+
+	// Test mode endpoints (public, no OAuth guard)
+	// Blocked unconditionally in production mode regardless of TestMode flag.
+	if config.Conf.TestMode && config.Conf.Mode != "production" {
+		testmode.Attach(group.Group("/test"))
+	}
 
 	// Custom handlers (Defined by developer)
 

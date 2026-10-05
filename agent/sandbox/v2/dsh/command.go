@@ -77,6 +77,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 		}
 	}
 	cfg.Vision = vision
+	cfg.MaxInstructionBytes = resolveMaxInstructionBytes(primary.ContextWindow)
 
 	// Render cordis.yml
 	cordisYAML, err := RenderCordisConfig(cfg)
@@ -208,6 +209,9 @@ func buildEnv(req *types.StreamRequest, p platform, workDir, apiKey, baseURL, sy
 	if req.AssistantID != "" {
 		env["CTX_ASSISTANT_ID"] = req.AssistantID
 	}
+	if req.ChatID != "" {
+		env["CTX_CHAT_ID"] = req.ChatID
+	}
 	if req.Locale != "" {
 		env["CTX_LOCALE"] = req.Locale
 	}
@@ -269,6 +273,19 @@ func buildSystemPrompt(req *types.StreamRequest, workDir string) string {
 	parts = append(parts, buildSandboxEnvPrompt(workDir))
 
 	return strings.Join(parts, "\n\n")
+}
+
+// resolveMaxInstructionBytes computes the dsh-agent-instructions maxBytes
+// budget based on the model's context window. DSH official presets use 65536
+// (64KB) as the standard baseline; we scale up for larger context models
+// and use the official value as the floor.
+func resolveMaxInstructionBytes(contextWindow int) int {
+	switch {
+	case contextWindow >= 500_000:
+		return 131072 // 128KB — 1M context models (DeepSeek, Gemini)
+	default:
+		return 65536 // 64KB — DSH official preset baseline
+	}
 }
 
 func buildSandboxEnvPrompt(workDir string) string {

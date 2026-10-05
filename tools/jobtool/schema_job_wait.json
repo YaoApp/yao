@@ -1,0 +1,12 @@
+{
+  "name": "yao_job_wait",
+  "description": "Wait for a background job to finish",
+  "process": "tools.yao_job_wait",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Job wait result from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}

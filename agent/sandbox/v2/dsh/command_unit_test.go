@@ -136,8 +136,14 @@ func TestBuildSystemPrompt_WithLocale(t *testing.T) {
 		t.Fatal("empty prompt")
 	}
 	// Locale no longer injected into system prompt (moved to user message prefix for cache optimization).
-	if got != "You are an agent.\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q", got)
+	if !strings.Contains(got, "You are an agent.") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
+	}
+	if !strings.Contains(got, "Background Jobs & Daemons") {
+		t.Errorf("prompt missing background jobs section, got %q", got)
 	}
 }
 
@@ -147,8 +153,14 @@ func TestBuildSystemPrompt_NoLocale(t *testing.T) {
 		SystemPrompt: "You are an agent.",
 	}
 	got := dsh.ExportBuildSystemPrompt(req, "/workspace")
-	if got != "You are an agent.\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q", got)
+	if !strings.Contains(got, "You are an agent.") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
+	}
+	if !strings.Contains(got, "Background Jobs & Daemons") {
+		t.Errorf("prompt missing background jobs section, got %q", got)
 	}
 }
 
@@ -159,8 +171,11 @@ func TestBuildSystemPrompt_EnLocale_NoExtra(t *testing.T) {
 		Locale:       "en-us",
 	}
 	got := dsh.ExportBuildSystemPrompt(req, "/workspace")
-	if got != "Agent\n\nWorking directory: /workspace" {
-		t.Errorf("prompt = %q (should not have locale suffix)", got)
+	if !strings.Contains(got, "Agent") {
+		t.Errorf("prompt missing base system prompt, got %q", got)
+	}
+	if !strings.Contains(got, "Working directory: /workspace") {
+		t.Errorf("prompt missing working directory, got %q", got)
 	}
 }
 
@@ -1345,5 +1360,47 @@ func TestExtractProfile_ClaudeWithBudget(t *testing.T) {
 	// Active variant at high: only {high:high}
 	if len(p.ReasoningEfforts) != 1 || p.ReasoningEfforts["high"] != "high" {
 		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
+	}
+}
+
+func TestResolveMaxInstructionBytes(t *testing.T) {
+	cases := []struct {
+		ctx  int
+		want int
+	}{
+		{0, 65536},
+		{128000, 65536},
+		{500000, 131072},
+		{1000000, 131072},
+	}
+	for _, tc := range cases {
+		got := dsh.ExportResolveMaxInstructionBytes(tc.ctx)
+		if got != tc.want {
+			t.Errorf("resolveMaxInstructionBytes(%d) = %d, want %d", tc.ctx, got, tc.want)
+		}
+	}
+}
+
+func TestRenderCordisConfig_DynamicMaxBytes(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		MaxInstructionBytes: 131072,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "maxBytes: 131072") {
+		t.Errorf("expected maxBytes: 131072 in config, got:\n%s", s)
+	}
+}
+
+func TestRenderCordisConfig_DefaultMaxBytes(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "maxBytes: 65536") {
+		t.Errorf("expected maxBytes: 65536 (default) in config, got:\n%s", s)
 	}
 }

@@ -1,0 +1,12 @@
+{
+  "name": "yao_daemon_status",
+  "description": "Get daemon status",
+  "process": "tools.yao_daemon_status",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "data": { "type": "object", "description": "Daemon status data from tai" }
+    }
+  },
+  "x-process-args": [":arguments"]
+}
