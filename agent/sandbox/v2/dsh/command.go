@@ -77,6 +77,7 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 		}
 	}
 	cfg.Vision = vision
+	cfg.MaxInstructionBytes = resolveMaxInstructionBytes(primary.ContextWindow)
 
 	// Render cordis.yml
 	cordisYAML, err := RenderCordisConfig(cfg)
@@ -270,26 +271,21 @@ func buildSystemPrompt(req *types.StreamRequest, workDir string) string {
 	}
 
 	parts = append(parts, buildSandboxEnvPrompt(workDir))
-	parts = append(parts, buildBackgroundJobsPrompt())
 
 	return strings.Join(parts, "\n\n")
 }
 
-func buildBackgroundJobsPrompt() string {
-	return `## Background Jobs & Daemons
-
-You have access to background job and daemon management tools:
-
-**Jobs** (finite tasks): yao_job_start, yao_job_list, yao_job_get, yao_job_output, yao_job_wait, yao_job_stop
-**Daemons** (long-running services): yao_daemon_start, yao_daemon_list, yao_daemon_status, yao_daemon_stop, yao_daemon_restart
-
-Rules:
-- Use background=true for long-running commands; foreground (default) blocks until completion
-- Always provide a description when starting jobs/daemons
-- Check job output with yao_job_output to monitor progress
-- Use yao_job_wait to block until a background job completes
-- Daemons run indefinitely; use yao_daemon_stop to terminate
-- When you receive a <BackgroundJobReceipt>, review the job result and take appropriate action`
+// resolveMaxInstructionBytes computes the dsh-agent-instructions maxBytes
+// budget based on the model's context window. DSH official presets use 65536
+// (64KB) as the standard baseline; we scale up for larger context models
+// and use the official value as the floor.
+func resolveMaxInstructionBytes(contextWindow int) int {
+	switch {
+	case contextWindow >= 500_000:
+		return 131072 // 128KB — 1M context models (DeepSeek, Gemini)
+	default:
+		return 65536 // 64KB — DSH official preset baseline
+	}
 }
 
 func buildSandboxEnvPrompt(workDir string) string {

@@ -208,3 +208,6 @@ var ExportComputeFilePatches = computeFilePatches
 
 // ExportCountDiffLines exposes countDiffLines for testing.
 var ExportCountDiffLines = countDiffLines
+
+// ExportResolveMaxInstructionBytes exposes resolveMaxInstructionBytes for testing.
+var ExportResolveMaxInstructionBytes = resolveMaxInstructionBytes

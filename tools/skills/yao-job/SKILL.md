@@ -1,6 +1,6 @@
 ---
 name: yao-job
-description: Background job management — start, monitor, wait, stop long-running commands
+description: "Background job management — start, monitor, wait, stop long-running commands. ALWAYS invoke this skill when the user asks to run background tasks, check job status, read job output, or manage long-running commands."
 ---
 
 # Background Jobs

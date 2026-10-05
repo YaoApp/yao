@@ -1,6 +1,6 @@
 ---
 name: yao-daemon
-description: Daemon process management — start, monitor, restart, stop long-running services
+description: "Daemon process management — start, monitor, restart, stop long-running services. ALWAYS invoke this skill when the user asks to start, check, restart, or stop background services, dev servers, or daemon processes."
 ---
 
 # Daemon Management

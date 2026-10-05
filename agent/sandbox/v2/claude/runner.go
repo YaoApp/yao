@@ -143,6 +143,14 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		injectAutoMemory(ws, req.AssistantID, computer.GetWorkDir(), vision)
 	}
 
+	// Inject per-chat memory into AGENTS.md and CLAUDE.md (best-effort).
+	if req.ChatID != "" {
+		if ws := computer.Workplace(); ws != nil {
+			_ = shared.InjectChatMemory(ws, req.ChatID, "AGENTS.md")
+			_ = shared.InjectChatMemory(ws, req.ChatID, "CLAUDE.md")
+		}
+	}
+
 	var msgParts *shared.MessageParts
 	if req.ChatID != "" {
 		if ws := computer.Workplace(); ws != nil {

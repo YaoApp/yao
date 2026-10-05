@@ -3,7 +3,7 @@ package jobtool
 import (
 	_ "embed"
 	"encoding/json"
-	"fmt"
+	"log"
 
 	"github.com/yaoapp/gou/process"
 )
@@ -47,11 +47,11 @@ var DaemonRestartSchemaJSON []byte
 //go:embed schema_daemon_port_ready.json
 var DaemonPortReadySchemaJSON []byte
 
-// stubLog prints the received tool call to stdout and returns the args as-is.
+// stubLog logs the received tool call and returns the args as-is.
 func stubLog(name string, proc *process.Process) interface{} {
 	args := proc.ArgsMap(0)
 	data, _ := json.Marshal(args)
-	fmt.Printf("[jobtool] received tool=%s args=%s\n", name, string(data))
+	log.Printf("[jobtool] received tool=%s args=%s\n", name, string(data))
 	return args
 }
 

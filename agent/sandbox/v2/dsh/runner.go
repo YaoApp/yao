@@ -121,6 +121,15 @@ func (r *Runner) Stream(ctx context.Context, req *types.StreamRequest, handler m
 		}
 	}
 
+	// Inject per-chat memory/instruction/preference (best-effort).
+	if req.ChatID != "" {
+		if ws := computer.Workplace(); ws != nil {
+			if err := shared.InjectChatMemory(ws, req.ChatID, "AGENTS.md"); err != nil {
+				r.logger.Warn("inject chat memory: %v", err)
+			}
+		}
+	}
+
 	cmd, err := r.buildCommand(req, p, msgParts)
 	if err != nil {
 		return fmt.Errorf("buildCommand: %w", err)

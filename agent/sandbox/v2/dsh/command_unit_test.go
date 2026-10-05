@@ -1362,3 +1362,45 @@ func TestExtractProfile_ClaudeWithBudget(t *testing.T) {
 		t.Errorf("ReasoningEfforts = %v, want {high:high}", p.ReasoningEfforts)
 	}
 }
+
+func TestResolveMaxInstructionBytes(t *testing.T) {
+	cases := []struct {
+		ctx  int
+		want int
+	}{
+		{0, 65536},
+		{128000, 65536},
+		{500000, 131072},
+		{1000000, 131072},
+	}
+	for _, tc := range cases {
+		got := dsh.ExportResolveMaxInstructionBytes(tc.ctx)
+		if got != tc.want {
+			t.Errorf("resolveMaxInstructionBytes(%d) = %d, want %d", tc.ctx, got, tc.want)
+		}
+	}
+}
+
+func TestRenderCordisConfig_DynamicMaxBytes(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{
+		MaxInstructionBytes: 131072,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "maxBytes: 131072") {
+		t.Errorf("expected maxBytes: 131072 in config, got:\n%s", s)
+	}
+}
+
+func TestRenderCordisConfig_DefaultMaxBytes(t *testing.T) {
+	data, err := dsh.ExportRenderCordisConfig(&dsh.ConnectorConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	if !strings.Contains(s, "maxBytes: 65536") {
+		t.Errorf("expected maxBytes: 65536 (default) in config, got:\n%s", s)
+	}
+}

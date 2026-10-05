@@ -177,6 +177,113 @@ func TestAppendSystemPrompt_UpdatesPreservesUserContent(t *testing.T) {
 	}
 }
 
+// --- InjectChatMemory tests ---
+
+func TestInjectChatMemory_EmptyChatID(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+	if err := shared.InjectChatMemory(ws, "", "AGENTS.md"); err != nil {
+		t.Fatalf("expected nil for empty chatID, got: %v", err)
+	}
+}
+
+func TestInjectChatMemory_NoFilesExist(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+	if err := shared.InjectChatMemory(ws, "chat-123", "AGENTS.md"); err != nil {
+		t.Fatalf("expected nil when no memory files exist, got: %v", err)
+	}
+}
+
+func TestInjectChatMemory_InjectsAllThreeFiles(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+
+	chatDir := filepath.Join(dir, ".yao", "chat-abc")
+	if err := os.MkdirAll(chatDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	os.WriteFile(filepath.Join(chatDir, "INSTRUCTION.md"), []byte("Be concise."), 0644)
+	os.WriteFile(filepath.Join(chatDir, "PREFERENCE.md"), []byte("Use tabs."), 0644)
+	os.WriteFile(filepath.Join(chatDir, "MEMORY.md"), []byte("Built feature X."), 0644)
+
+	if err := shared.InjectChatMemory(ws, "chat-abc", "AGENTS.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	got := string(data)
+	assertContains(t, got, shared.ExportChatMemoryMarker)
+	assertContains(t, got, "INSTRUCTION.md")
+	assertContains(t, got, "Be concise.")
+	assertContains(t, got, "PREFERENCE.md")
+	assertContains(t, got, "Use tabs.")
+	assertContains(t, got, "MEMORY.md")
+	assertContains(t, got, "Built feature X.")
+}
+
+func TestInjectChatMemory_SkipsEmptyFiles(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+
+	chatDir := filepath.Join(dir, ".yao", "chat-empty")
+	os.MkdirAll(chatDir, 0755)
+	os.WriteFile(filepath.Join(chatDir, "MEMORY.md"), []byte("progress note"), 0644)
+	os.WriteFile(filepath.Join(chatDir, "INSTRUCTION.md"), []byte(""), 0644)
+
+	if err := shared.InjectChatMemory(ws, "chat-empty", "AGENTS.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	got := string(data)
+	assertContains(t, got, "progress note")
+	if strings.Contains(got, "INSTRUCTION.md") {
+		t.Error("empty INSTRUCTION.md should be skipped")
+	}
+}
+
+func TestInjectChatMemory_Idempotent(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+
+	chatDir := filepath.Join(dir, ".yao", "chat-idem")
+	os.MkdirAll(chatDir, 0755)
+	os.WriteFile(filepath.Join(chatDir, "MEMORY.md"), []byte("fact A"), 0644)
+
+	shared.InjectChatMemory(ws, "chat-idem", "AGENTS.md")
+	first, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+
+	shared.InjectChatMemory(ws, "chat-idem", "AGENTS.md")
+	second, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+
+	if string(first) != string(second) {
+		t.Error("InjectChatMemory is not idempotent")
+	}
+}
+
+func TestInjectChatMemory_CoexistsWithSystemPrompt(t *testing.T) {
+	dir := t.TempDir()
+	ws := newDirFS(dir)
+
+	shared.AppendSystemPrompt(ws, "AGENTS.md", []byte("## System Tools\n"))
+
+	chatDir := filepath.Join(dir, ".yao", "chat-coexist")
+	os.MkdirAll(chatDir, 0755)
+	os.WriteFile(filepath.Join(chatDir, "MEMORY.md"), []byte("user note"), 0644)
+
+	if err := shared.InjectChatMemory(ws, "chat-coexist", "AGENTS.md"); err != nil {
+		t.Fatal(err)
+	}
+
+	data, _ := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	got := string(data)
+	assertContains(t, got, shared.ExportSystemToolsMarker)
+	assertContains(t, got, shared.ExportChatMemoryMarker)
+	assertContains(t, got, "System Tools")
+	assertContains(t, got, "user note")
+}
+
 // --- Tests for attachments.go pure functions ---
 
 func TestExtensionFromContentType(t *testing.T) {

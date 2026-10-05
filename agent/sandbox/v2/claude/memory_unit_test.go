@@ -44,7 +44,7 @@ func TestBuildEnvironmentContextMD_HasValidFrontmatter(t *testing.T) {
 func TestBuildEnvironmentContextMD_ContainsToolTable(t *testing.T) {
 	md := claude.ExportBuildEnvironmentContextMD("id", "/w", false)
 
-	for _, tool := range []string{"web_search", "skill_list", "board_list", "agent_call"} {
+	for _, tool := range []string{"web_search", "skill_list", "board_list", "yao_job_start"} {
 		if !strings.Contains(md, tool) {
 			t.Errorf("tool %q not found in memory content", tool)
 		}
