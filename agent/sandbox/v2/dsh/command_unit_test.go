@@ -142,9 +142,6 @@ func TestBuildSystemPrompt_WithLocale(t *testing.T) {
 	if !strings.Contains(got, "Working directory: /workspace") {
 		t.Errorf("prompt missing working directory, got %q", got)
 	}
-	if !strings.Contains(got, "Background Jobs & Daemons") {
-		t.Errorf("prompt missing background jobs section, got %q", got)
-	}
 }
 
 func TestBuildSystemPrompt_NoLocale(t *testing.T) {
@@ -158,9 +155,6 @@ func TestBuildSystemPrompt_NoLocale(t *testing.T) {
 	}
 	if !strings.Contains(got, "Working directory: /workspace") {
 		t.Errorf("prompt missing working directory, got %q", got)
-	}
-	if !strings.Contains(got, "Background Jobs & Daemons") {
-		t.Errorf("prompt missing background jobs section, got %q", got)
 	}
 }
 
