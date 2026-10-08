@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -95,8 +96,7 @@ func handleLoginWeb(c *gin.Context) {
 
 	loginResp, err := doLogin(userID, req.TeamID)
 	if err != nil {
-		log.Error("[TestMode] login/web failed: %s", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
+		respondLoginError(c, "login/web", err)
 		return
 	}
 
@@ -132,8 +132,7 @@ func handleLoginToken(c *gin.Context) {
 
 	loginResp, err := doLogin(userID, req.TeamID)
 	if err != nil {
-		log.Error("[TestMode] login/token failed: %s", err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
+		respondLoginError(c, "login/token", err)
 		return
 	}
 
@@ -350,7 +349,9 @@ type createUserRequest struct {
 	Password    string `json:"password" binding:"required"`
 	Name        string `json:"name,omitempty"`
 	PhoneNumber string `json:"phone_number,omitempty"`
-	Status      string `json:"status,omitempty"` // default: "active"
+	Status      string `json:"status,omitempty"`  // default: "active"
+	RoleID      string `json:"role_id,omitempty"` // default: entry config Role
+	TypeID      string `json:"type_id,omitempty"` // default: entry config Type
 }
 
 // handleCreateUser creates a test user via the user provider.
@@ -376,12 +377,32 @@ func handleCreateUser(c *gin.Context) {
 		return
 	}
 
+	// Resolve role_id and type_id: use request values or fall back to entry config
+	roleID := req.RoleID
+	typeID := req.TypeID
+	if roleID == "" || typeID == "" {
+		if entryConfig := user.GetEntryConfig(""); entryConfig != nil {
+			if roleID == "" {
+				roleID = entryConfig.Role
+			}
+			if typeID == "" {
+				typeID = entryConfig.Type
+			}
+		}
+	}
+
 	ctx := c.Request.Context()
 
 	userData := maps.MapStrAny{
 		"email":    utils.NormalizeEmail(req.Email),
 		"password": req.Password,
 		"status":   status,
+	}
+	if roleID != "" {
+		userData["role_id"] = roleID
+	}
+	if typeID != "" {
+		userData["type_id"] = typeID
 	}
 	if req.Name != "" {
 		userData["name"] = req.Name
@@ -536,7 +557,7 @@ func handleCreateInvite(c *gin.Context) {
 	}
 	c.ShouldBindJSON(&req)
 	if req.ExpiresIn > 0 {
-		expiresAt = time.Now().UTC().Add(time.Duration(req.ExpiresIn) * time.Second).Format(time.RFC3339)
+		expiresAt = time.Now().Add(time.Duration(req.ExpiresIn) * time.Second).Format("2006-01-02 15:04:05")
 	}
 
 	codeData := maps.MapStrAny{
@@ -674,6 +695,25 @@ func resolveUserID(ctx context.Context, input string) (string, error) {
 
 	// Treat as user_id directly
 	return input, nil
+}
+
+// respondLoginError sends a structured error for login failures.
+// Returns 403 with reason for status errors (locked, disabled, etc.),
+// 500 for other failures.
+func respondLoginError(c *gin.Context, source string, err error) {
+	var statusErr *user.LoginStatusError
+	if errors.As(err, &statusErr) {
+		log.Warn("[TestMode] %s rejected: %s", source, statusErr.Status)
+		resp := gin.H{
+			"error":             "access_denied",
+			"error_description": statusErr.Message,
+			"reason":            statusErr.Status,
+		}
+		c.JSON(http.StatusForbidden, resp)
+		return
+	}
+	log.Error("[TestMode] %s failed: %s", source, err.Error())
+	c.JSON(http.StatusInternalServerError, gin.H{"error": "login failed"})
 }
 
 // doLogin calls the standard login flow.

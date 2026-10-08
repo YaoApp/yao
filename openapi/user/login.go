@@ -259,8 +259,9 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// User needs to verify invitation code, generate temporary token
 		var inviteExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}
@@ -292,8 +293,9 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// Sign temporary access token for MFA
 		var mfaExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}
@@ -348,8 +350,9 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// Sign temporary access token for Team Selection
 		var teamSelectionExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me and AuthSource state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}
