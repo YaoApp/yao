@@ -13,6 +13,7 @@ import (
 	oauthTypes "github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/response"
 	"github.com/yaoapp/yao/setting"
+	"github.com/yaoapp/yao/tools/websearch"
 	"gopkg.in/yaml.v3"
 )
 
@@ -381,7 +382,7 @@ func handleSearchProviderTest(c *gin.Context) {
 		}
 	}
 
-	if apiKey == "" {
+	if apiKey == "" && key != "parallel" {
 		response.RespondWithSuccess(c, http.StatusOK, SearchTestResult{
 			Success: false,
 			Message: "API key is required",
@@ -408,6 +409,8 @@ func handleSearchProviderTest(c *gin.Context) {
 	}
 
 	switch key {
+	case "parallel":
+		_, testErr = websearch.SearchParallel("Yao agent framework", 1, apiKey)
 	case "tavily":
 		testErr = searchTestTavily(apiKey)
 	case "serper":
