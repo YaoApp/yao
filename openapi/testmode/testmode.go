@@ -2,6 +2,8 @@ package testmode
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -12,20 +14,38 @@ import (
 	"github.com/yaoapp/gou/model"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
+	"github.com/yaoapp/kun/maps"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
 	userdefs "github.com/yaoapp/yao/openapi/oauth/providers/user"
+	"github.com/yaoapp/yao/openapi/oauth/types"
 	"github.com/yaoapp/yao/openapi/otp"
 	"github.com/yaoapp/yao/openapi/user"
 	"github.com/yaoapp/yao/openapi/utils"
 	"github.com/yaoapp/yao/setting"
+	utilsotp "github.com/yaoapp/yao/utils/otp"
 )
+
+// validUserStatuses lists all accepted values for user status endpoints.
+var validUserStatuses = map[string]bool{
+	types.UserStatusPending:         true,
+	types.UserStatusActive:          true,
+	types.UserStatusDisabled:        true,
+	types.UserStatusSuspended:       true,
+	types.UserStatusLocked:          true,
+	types.UserStatusPasswordExpired: true,
+	types.UserStatusEmailUnverified: true,
+	types.UserStatusArchived:        true,
+	"pending_invite":                true,
+}
 
 // Attach registers test mode endpoints on the given router group.
 // These endpoints are public (no OAuth guard) and should only be
 // registered when config.Conf.TestMode is true.
 func Attach(group *gin.RouterGroup) {
 	group.Use(testModeHeader)
+
+	// Existing endpoints
 	group.POST("/login/web", handleLoginWeb)
 	group.POST("/login/token", handleLoginToken)
 	group.POST("/server-key", handleServerKey)
@@ -33,6 +53,14 @@ func Attach(group *gin.RouterGroup) {
 	group.GET("/teams", handleListTeams)
 	group.GET("/otp", handleOTP)
 	group.GET("/captcha", handleCaptcha)
+
+	// New endpoints
+	group.POST("/users", handleCreateUser)
+	group.DELETE("/users/:id", handleDeleteUser)
+	group.POST("/users/:id/status", handleUpdateUserStatus)
+	group.POST("/invite", handleCreateInvite)
+	group.POST("/oauth/device/approve", handleDeviceApprove)
+	group.POST("/entry/error", handleEntryError)
 }
 
 // testModeHeader adds X-Test-Mode header to all responses.
@@ -40,6 +68,8 @@ func testModeHeader(c *gin.Context) {
 	c.Header("X-Test-Mode", "true")
 	c.Next()
 }
+
+// ===================== Login endpoints =====================
 
 // loginRequest is the request body for login endpoints.
 type loginRequest struct {
@@ -120,6 +150,8 @@ func handleLoginToken(c *gin.Context) {
 	})
 }
 
+// ===================== Server key endpoint =====================
+
 // serverKeyRequest is the request body for server key creation.
 type serverKeyRequest struct {
 	Name string `json:"name,omitempty"`
@@ -171,6 +203,8 @@ func handleServerKey(c *gin.Context) {
 
 	c.JSON(http.StatusOK, resp)
 }
+
+// ===================== List endpoints =====================
 
 // handleListUsers returns a paginated list of users.
 func handleListUsers(c *gin.Context) {
@@ -245,35 +279,46 @@ func handleListTeams(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": teams})
 }
 
-// handleOTP verifies an existing OTP code and returns its payload.
-// Query params: code (required)
+// ===================== OTP & Captcha query endpoints =====================
+
+// handleOTP queries OTP by entry otp_id or by magic-link code.
+// Query params: id (entry OTP) or code (magic-link OTP); id takes priority.
 func handleOTP(c *gin.Context) {
-	code := c.Query("code")
-	if code == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "code query parameter is required"})
+	// Entry OTP: utils/otp in-memory store, keyed by UUID otp_id
+	if id := c.Query("id"); id != "" {
+		code := utilsotp.Get(id)
+		if code == "" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "OTP not found or expired"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"id": id, "code": code})
 		return
 	}
 
-	if otp.OTP == nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP service not initialized"})
+	// Magic-link OTP: openapi/otp persistent store, keyed by code
+	if code := c.Query("code"); code != "" {
+		if otp.OTP == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "OTP service not initialized"})
+			return
+		}
+		payload, err := otp.OTP.Verify(code)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "OTP code not found or expired"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"code":      code,
+			"user_id":   payload.UserID,
+			"team_id":   payload.TeamID,
+			"member_id": payload.MemberID,
+			"redirect":  payload.Redirect,
+			"scope":     payload.Scope,
+			"consume":   payload.Consume,
+		})
 		return
 	}
 
-	payload, err := otp.OTP.Verify(code)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "OTP code not found or expired"})
-		return
-	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"code":      code,
-		"user_id":   payload.UserID,
-		"team_id":   payload.TeamID,
-		"member_id": payload.MemberID,
-		"redirect":  payload.Redirect,
-		"scope":     payload.Scope,
-		"consume":   payload.Consume,
-	})
+	c.JSON(http.StatusBadRequest, gin.H{"error": "id or code query parameter is required"})
 }
 
 // handleCaptcha returns the answer for an existing captcha by ID.
@@ -296,6 +341,298 @@ func handleCaptcha(c *gin.Context) {
 		"answer": answer,
 	})
 }
+
+// ===================== User CRUD endpoints =====================
+
+// createUserRequest is the request body for creating a test user.
+type createUserRequest struct {
+	Email       string `json:"email" binding:"required"`
+	Password    string `json:"password" binding:"required"`
+	Name        string `json:"name,omitempty"`
+	PhoneNumber string `json:"phone_number,omitempty"`
+	Status      string `json:"status,omitempty"` // default: "active"
+}
+
+// handleCreateUser creates a test user via the user provider.
+func handleCreateUser(c *gin.Context) {
+	var req createUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user provider not available"})
+		return
+	}
+
+	status := req.Status
+	if status == "" {
+		status = types.UserStatusActive
+	}
+	if !validUserStatuses[status] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid status %q", status)})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	userData := maps.MapStrAny{
+		"email":    utils.NormalizeEmail(req.Email),
+		"password": req.Password,
+		"status":   status,
+	}
+	if req.Name != "" {
+		userData["name"] = req.Name
+	}
+	if req.PhoneNumber != "" {
+		userData["phone_number"] = req.PhoneNumber
+	}
+
+	log.Info("[TestMode] create user email=%s status=%s remote=%s", req.Email, status, c.Request.RemoteAddr)
+
+	userID, err := userProvider.CreateUser(ctx, userData)
+	if err != nil {
+		log.Error("[TestMode] create user failed: %s", err.Error())
+		c.JSON(http.StatusConflict, gin.H{"error": "failed to create user"})
+		return
+	}
+
+	// Return the created user
+	u, err := userProvider.GetUser(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"user_id": userID})
+		return
+	}
+
+	c.JSON(http.StatusOK, u)
+}
+
+// handleDeleteUser deletes a test user.
+// Query params: force=true for hard delete (permanent), default is soft delete.
+func handleDeleteUser(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user id is required"})
+		return
+	}
+
+	force := c.Query("force") == "true"
+
+	if force {
+		log.Info("[TestMode] hard delete user user_id=%s remote=%s", userID, c.Request.RemoteAddr)
+		m := model.Select("__yao.user")
+		affected, err := m.DestroyWhere(model.QueryParam{
+			Wheres: []model.QueryWhere{
+				{Column: "user_id", Value: userID},
+			},
+			Limit: 1,
+		})
+		if err != nil {
+			log.Error("[TestMode] hard delete user failed: %s", err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete user"})
+			return
+		}
+		if affected == 0 {
+			c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"deleted": true, "user_id": userID, "hard": true})
+		return
+	}
+
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user provider not available"})
+		return
+	}
+
+	log.Info("[TestMode] delete user user_id=%s remote=%s", userID, c.Request.RemoteAddr)
+
+	if err := userProvider.DeleteUser(c.Request.Context(), userID); err != nil {
+		log.Error("[TestMode] delete user failed: %s", err.Error())
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"deleted": true, "user_id": userID})
+}
+
+// ===================== User status endpoint =====================
+
+// updateStatusRequest is the request body for updating user status.
+type updateStatusRequest struct {
+	Status string `json:"status" binding:"required"`
+}
+
+// handleUpdateUserStatus updates a user's status.
+func handleUpdateUserStatus(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user id is required"})
+		return
+	}
+
+	var req updateStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	if !validUserStatuses[req.Status] {
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid status %q", req.Status)})
+		return
+	}
+
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user provider not available"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	log.Info("[TestMode] update status user_id=%s status=%s remote=%s", userID, req.Status, c.Request.RemoteAddr)
+
+	if err := userProvider.UpdateUserStatus(ctx, userID, req.Status); err != nil {
+		log.Error("[TestMode] update status failed: %s", err.Error())
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	u, err := userProvider.GetUser(ctx, userID)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{"user_id": userID, "status": req.Status})
+		return
+	}
+
+	c.JSON(http.StatusOK, u)
+}
+
+// ===================== Invitation code endpoint =====================
+
+// handleCreateInvite creates a usable invitation code.
+func handleCreateInvite(c *gin.Context) {
+	userProvider, err := oauth.OAuth.GetUserProvider()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "user provider not available"})
+		return
+	}
+
+	// Generate a random invitation code
+	b := make([]byte, 12)
+	if _, err := rand.Read(b); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate code"})
+		return
+	}
+	code := "test-" + hex.EncodeToString(b)
+
+	ctx := c.Request.Context()
+
+	var expiresAt string
+	var req struct {
+		ExpiresIn int `json:"expires_in,omitempty"` // seconds
+	}
+	c.ShouldBindJSON(&req)
+	if req.ExpiresIn > 0 {
+		expiresAt = time.Now().UTC().Add(time.Duration(req.ExpiresIn) * time.Second).Format(time.RFC3339)
+	}
+
+	codeData := maps.MapStrAny{
+		"code":         code,
+		"status":       "active",
+		"is_published": true,
+		"code_type":    "official",
+		"source":       "test-mode",
+		"description":  "Test mode invitation code",
+	}
+	if expiresAt != "" {
+		codeData["expires_at"] = expiresAt
+	}
+
+	log.Info("[TestMode] create invite code=%s remote=%s", code, c.Request.RemoteAddr)
+
+	_, err = userProvider.CreateInvitationCodes(ctx, []maps.MapStrAny{codeData})
+	if err != nil {
+		log.Error("[TestMode] create invite failed: %s", err.Error())
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create invitation code"})
+		return
+	}
+
+	resp := gin.H{"code": code}
+	if expiresAt != "" {
+		resp["expires_at"] = expiresAt
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+// ===================== Device code approval endpoint =====================
+
+// deviceApproveRequest is the request body for device code approval.
+type deviceApproveRequest struct {
+	UserCode string `json:"user_code" binding:"required"`
+	User     string `json:"user" binding:"required"` // email, phone, or user_id
+}
+
+// handleDeviceApprove approves a pending device authorization code.
+func handleDeviceApprove(c *gin.Context) {
+	var req deviceApproveRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	userID, err := resolveUserID(c.Request.Context(), req.User)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "user not found"})
+		return
+	}
+
+	if oauth.OAuth == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "OAuth service not available"})
+		return
+	}
+
+	log.Info("[TestMode] device/approve user_code=%s user_id=%s remote=%s", req.UserCode, userID, c.Request.RemoteAddr)
+
+	if err := oauth.OAuth.AuthorizeDevice(c.Request.Context(), req.UserCode, userID); err != nil {
+		log.Error("[TestMode] device/approve failed: %s", err.Error())
+		c.JSON(http.StatusBadRequest, gin.H{"error": "failed to approve device code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"approved": true, "user_code": req.UserCode})
+}
+
+// ===================== Entry error echo endpoint =====================
+
+// handleEntryError echoes back the given error as an HTTP response.
+// CUI tests call this endpoint to verify client-side error handling UI
+// without modifying production entry handlers.
+func handleEntryError(c *gin.Context) {
+	var req struct {
+		StatusCode       int    `json:"status_code" binding:"required"`
+		Error            string `json:"error" binding:"required"`
+		ErrorDescription string `json:"error_description,omitempty"`
+		Reason           string `json:"reason,omitempty"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		return
+	}
+
+	resp := gin.H{"error": req.Error}
+	if req.ErrorDescription != "" {
+		resp["error_description"] = req.ErrorDescription
+	}
+	if req.Reason != "" {
+		resp["reason"] = req.Reason
+	}
+	c.JSON(req.StatusCode, resp)
+}
+
+// ===================== Shared helpers =====================
 
 // resolveUserID resolves an email, phone number, or user_id to a user_id.
 func resolveUserID(ctx context.Context, input string) (string, error) {

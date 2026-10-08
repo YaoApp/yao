@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -1045,6 +1046,10 @@ func GinEntryLogin(c *gin.Context) {
 		errorResp := &response.ErrorResponse{
 			Code:             response.ErrAccessDenied.Code,
 			ErrorDescription: err.Error(),
+		}
+		var statusErr *LoginStatusError
+		if errors.As(err, &statusErr) {
+			errorResp.Reason = statusErr.Status
 		}
 		response.RespondWithError(c, response.StatusForbidden, errorResp)
 		return
