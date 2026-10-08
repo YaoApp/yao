@@ -23,6 +23,15 @@ import (
 	"github.com/yaoapp/yao/utils/captcha"
 )
 
+// LoginStatusError is returned by LoginByUserID when a non-active account status blocks login.
+// Callers can use errors.As to extract the Status field for machine-readable error handling.
+type LoginStatusError struct {
+	Status  string // user status that caused the rejection (e.g. "locked", "disabled")
+	Message string // human-readable description
+}
+
+func (e *LoginStatusError) Error() string { return e.Message }
+
 // kbCollectionCreating tracks collections currently being created to avoid duplicate creation
 var kbCollectionCreating sync.Map
 
@@ -233,25 +242,26 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	status, _ := user["status"].(string)
 	switch status {
 	case "pending":
-		return nil, fmt.Errorf("account is pending activation. Please contact administrator")
+		return nil, &LoginStatusError{Status: "pending", Message: "account is pending activation. Please contact administrator"}
 	case "email_unverified":
-		return nil, fmt.Errorf("email is not verified. Please verify your email address")
+		return nil, &LoginStatusError{Status: "email_unverified", Message: "email is not verified. Please verify your email address"}
 	case "disabled":
-		return nil, fmt.Errorf("account is disabled. Please contact administrator")
+		return nil, &LoginStatusError{Status: "disabled", Message: "account is disabled. Please contact administrator"}
 	case "suspended":
-		return nil, fmt.Errorf("account is suspended. Please contact administrator")
+		return nil, &LoginStatusError{Status: "suspended", Message: "account is suspended. Please contact administrator"}
 	case "locked":
-		return nil, fmt.Errorf("account is locked. Please contact administrator")
+		return nil, &LoginStatusError{Status: "locked", Message: "account is locked. Please contact administrator"}
 	case "archived":
-		return nil, fmt.Errorf("account is archived. Please contact administrator")
+		return nil, &LoginStatusError{Status: "archived", Message: "account is archived. Please contact administrator"}
 	case "password_expired":
-		return nil, fmt.Errorf("password has expired. Please reset your password")
+		return nil, &LoginStatusError{Status: "password_expired", Message: "password has expired. Please reset your password"}
 	case "pending_invite":
 		// User needs to verify invitation code, generate temporary token
 		var inviteExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}
@@ -272,7 +282,7 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 	case "active":
 		// Continue with normal login flow
 	default:
-		return nil, fmt.Errorf("account status is invalid: %s", status)
+		return nil, &LoginStatusError{Status: status, Message: fmt.Sprintf("account status is invalid: %s", status)}
 	}
 
 	// Get MFA enabled status from user data
@@ -283,8 +293,9 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// Sign temporary access token for MFA
 		var mfaExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}
@@ -339,8 +350,9 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		// Sign temporary access token for Team Selection
 		var teamSelectionExpire int = 10 * 60 // 10 minutes
 
-		// Prepare extra claims to preserve Remember Me and AuthSource state
-		extraClaims := make(map[string]interface{})
+		extraClaims := map[string]interface{}{
+			"user_id": userid,
+		}
 		if loginCtx != nil && loginCtx.RememberMe {
 			extraClaims["remember_me"] = true
 		}

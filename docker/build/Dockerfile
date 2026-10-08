@@ -35,8 +35,8 @@ RUN wget https://golang.org/dl/go1.25.0.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go1.25.0.linux-amd64.tar.gz && \
     rm go1.25.0.linux-amd64.tar.gz
 
-# Install Node.js 18.x
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+# Install Node.js 22.x
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs 
 
 RUN npm install -g pnpm
