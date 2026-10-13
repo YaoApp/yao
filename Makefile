@@ -34,8 +34,6 @@ TESTFOLDER_WORKSPACE := $(shell $(GO) list ./workspace/...)
 TESTFOLDER_GRPC := $(shell $(GO) list ./grpc/...)
 TESTTAGS ?= ""
 
-# TESTWIDGETS := $(shell $(GO) list ./widgets/...)
-
 # Unit Test (all tests)
 .PHONY: unit-test
 unit-test:

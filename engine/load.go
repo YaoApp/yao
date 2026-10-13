@@ -15,6 +15,7 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/ffmpeg"
 	"github.com/yaoapp/gou/pdf"
+	gouPlugin "github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent"
@@ -55,8 +56,6 @@ import (
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/webproxy"
 	"github.com/yaoapp/yao/task"
-	"github.com/yaoapp/yao/widget"
-	"github.com/yaoapp/yao/widgets"
 
 	_ "github.com/yaoapp/yao/trace" // register trace handler/listener via init()
 )
@@ -334,12 +333,15 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 
 	// Load WASM Application (experimental)
 
-	// Load build-in widgets (table / form / chart / ...)
-	err = loadStep("Widgets", func() error {
-		return widgets.Load(cfg)
+	// Load App (yao.app.* processes and API routes)
+	err = loadStep("App", func() error {
+		if err := AppLoad(cfg); err != nil {
+			return err
+		}
+		return AppExport()
 	}, callback)
 	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widgets", Error: err})
+		warnings = append(warnings, Warning{Widget: "App", Error: err})
 	}
 
 	// Load Importers
@@ -379,22 +381,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "AIGC", Error: err})
-	}
-
-	// Load Custom Widget
-	err = loadStep("Widget", func() error {
-		return widget.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
-	}
-
-	// Load Custom Widget Instances
-	err = loadStep("Widget Instances", func() error {
-		return widget.LoadInstances()
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
 	}
 
 	// Load SUI
@@ -557,6 +543,17 @@ func Unload() (err error) {
 	job.StopHealthChecker()
 	job.StopDataCleaner()
 
+	// Stop Messenger (mail receivers hold IMAP idle goroutines)
+	if svc, ok := messenger.Instance.(*messenger.Service); ok && svc != nil {
+		svc.StopMailReceivers()
+		if closeErr := svc.Close(); closeErr != nil {
+			log.Printf("[Messenger] Warning: close error: %v", closeErr)
+		}
+	}
+
+	// Kill plugin processes (gRPC connections)
+	gouPlugin.KillAll()
+
 	// Close DB
 	err = share.DBClose()
 
@@ -580,8 +577,6 @@ func Unload() (err error) {
 	// importers
 	// tasks
 	// schedules
-	// widgets
-	// custom widget
 
 	return err
 }
@@ -675,10 +670,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 
 	// Load WASM Application (experimental)
 
-	// Load build-in widgets (table / form / chart / ...)
-	err = widgets.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Widgets", err)
+	// Load App (yao.app.* processes and API routes)
+	if err = AppLoad(cfg); err != nil {
+		printErr(cfg.Mode, "App", err)
+	}
+	if err = AppExport(); err != nil {
+		printErr(cfg.Mode, "App", err)
 	}
 
 	// Load Apis
@@ -697,12 +694,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = schedule.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "Schedule", err)
-	}
-
-	// Load Custom Widget
-	err = widget.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Widget", err)
 	}
 
 	// Load AIGC

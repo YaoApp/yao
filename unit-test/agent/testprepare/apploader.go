@@ -24,6 +24,7 @@ import (
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/config"
 	yaoconnector "github.com/yaoapp/yao/connector"
+	"github.com/yaoapp/yao/engine"
 	"github.com/yaoapp/yao/event"
 	"github.com/yaoapp/yao/fs"
 	yaogrpc "github.com/yaoapp/yao/grpc"
@@ -42,7 +43,6 @@ import (
 	yaostore "github.com/yaoapp/yao/store"
 	"github.com/yaoapp/yao/tai/registry"
 	"github.com/yaoapp/yao/utils"
-	widgetsapp "github.com/yaoapp/yao/widgets/app"
 
 	_ "github.com/yaoapp/yao/agent/assistant"
 	_ "github.com/yaoapp/yao/grpc/auth"
@@ -84,7 +84,7 @@ func TestGRPCPort() int { return testGRPCPort }
 // 13. event.Start
 // 14. attachment.Load (ignored on error)
 // 15. mcp.Load (ignored on error)
-// 16. widgetsapp.Load (fills app.Setting for setup.Initialize)
+// 16. engine.AppLoad + AppExport (fills share.App fields for setup.Initialize)
 // 17. kb.Load
 // 18. agent.Load
 // 19. caller/llm SetJSAPIFactory
@@ -194,9 +194,12 @@ func loadApp(t *testing.T) {
 		t.Logf("apploader: mcp.Load: %v", err)
 	}
 
-	// 16. Load widgets/app DSL into widgetsapp.Setting (needed by setup.Initialize -> makeSetup)
-	if err := widgetsapp.Load(cfg); err != nil {
-		t.Logf("apploader: widgets/app.Load: %v", err)
+	// 16. Load App (yao.app.* processes and API routes, needed by setup.Initialize -> makeSetup)
+	if err := engine.AppLoad(cfg); err != nil {
+		t.Logf("apploader: engine.AppLoad: %v", err)
+	}
+	if err := engine.AppExport(); err != nil {
+		t.Logf("apploader: engine.AppExport: %v", err)
 	}
 
 	// 17. Load Knowledge Base (non-fatal: assistants/* may not declare KB)

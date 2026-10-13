@@ -14,7 +14,15 @@ func init() {
 	LoadFrom(rootLib)
 }
 
+func skipIfNoLibs(t *testing.T) {
+	t.Helper()
+	if len(Libs) == 0 {
+		t.Skip("shared libs not loaded (tests/libs/ not found)")
+	}
+}
+
 func TestColumn(t *testing.T) {
+	skipIfNoLibs(t)
 	content := `{ "@": "column.Image", "in": ["LOGO", ":logo", 40] }`
 	column := Column{}
 	jsoniter.Unmarshal([]byte(content), &column)
@@ -27,6 +35,7 @@ func TestColumn(t *testing.T) {
 }
 
 func TestColumnInIsNil(t *testing.T) {
+	skipIfNoLibs(t)
 	content := `{ "@": "column.创建时间" }`
 	column := Column{}
 	jsoniter.Unmarshal([]byte(content), &column)
@@ -35,6 +44,7 @@ func TestColumnInIsNil(t *testing.T) {
 }
 
 func TestFilter(t *testing.T) {
+	skipIfNoLibs(t)
 	content := `{ "@": "filter.关键词", "in": ["where.name.match"] }`
 	filter := Filter{}
 	jsoniter.Unmarshal([]byte(content), &filter)
@@ -42,6 +52,7 @@ func TestFilter(t *testing.T) {
 }
 
 func TestRender(t *testing.T) {
+	skipIfNoLibs(t)
 	content := `{ "@": "render.Image", "in": [":image", 40, 60] }`
 	render := Render{}
 	jsoniter.Unmarshal([]byte(content), &render)
@@ -51,6 +62,7 @@ func TestRender(t *testing.T) {
 }
 
 func TestPage(t *testing.T) {
+	skipIfNoLibs(t)
 	content := `{ "@": "pages.static.Page", "in": ["id"] }`
 	page := Page{}
 	jsoniter.Unmarshal([]byte(content), &page)
@@ -58,8 +70,15 @@ func TestPage(t *testing.T) {
 }
 
 func TestAPI(t *testing.T) {
+	Libs["apis.table.Search"] = map[string]interface{}{
+		"process": "models.table.Search",
+		"default": []interface{}{nil, nil, "{{$in.0}}"},
+	}
+	defer delete(Libs, "apis.table.Search")
+
 	content := `{ "@": "apis.table.Search", "in": [10] }`
 	api := API{}
-	jsoniter.Unmarshal([]byte(content), &api)
+	err := jsoniter.Unmarshal([]byte(content), &api)
+	assert.Nil(t, err)
 	assert.Equal(t, []interface{}{nil, nil, float64(10)}, api.Default)
 }

@@ -1,11 +1,10 @@
-package app
+package engine
 
 import (
 	"context"
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -26,100 +25,49 @@ import (
 	kbtypes "github.com/yaoapp/yao/kb/types"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
-	"github.com/yaoapp/yao/widgets/login"
 )
 
-//
-// API:
-//   GET   /api/__yao/app/setting 			-> Default process: yao.app.Xgen
-//   POST  /api/__yao/app/setting 			-> Default process: yao.app.Xgen  {"sid":"xxx", "lang":"zh-hk", "time": "2022-10-10 22:00:10"}
-//   GET   /api/__yao/app/menu  			-> Default process: yao.app.Menu
-//   POST  /api/__yao/app/check  			-> Default process: yao.app.Check
-//   POST  /api/__yao/app/setup  			-> Default process: yao.app.Setup   {"sid":"xxxx", ...}
-//   POST  /api/__yao/app/service/:name  	-> Default process: yao.app.Service {"method":"Bar", "args":["hello", "world"]}
-//
-// Process:
-// 	 yao.app.Setting Return the App DSL
-// 	 yao.app.Xgen Return the Xgen setting ( merge app & login )
-//   yao.app.Menu Return the menu list
-//
-
-// Setting the application setting
-var Setting *DSL
-var regExcp = regexp.MustCompile(`^Exception\|([0-9]+):(.+)$`)
-
-// LoadAndExport load app
-func LoadAndExport(cfg config.Config) error {
-	err := Load(cfg)
-	if err != nil {
+// AppLoad prepares share.App for serving: sets Lang default, AdminRoot, and icon URLs.
+func AppLoad(cfg config.Config) error {
+	if share.App.Lang == "" {
+		share.App.Lang = cfg.Lang
+	}
+	if err := appReplaceAdminRoot(); err != nil {
 		return err
 	}
-	return Export()
-}
-
-// Load the app DSL
-func Load(cfg config.Config) error {
-
-	file, err := getAppFile()
-	if err != nil {
-		return err
-	}
-
-	data, err := application.App.Read(file)
-	if err != nil {
-		return err
-	}
-
-	if data == nil {
-		return fmt.Errorf("app.yao not found")
-	}
-
-	dsl := &DSL{Optional: OptionalDSL{}, Lang: cfg.Lang}
-	err = application.Parse(file, data, dsl)
-	if err != nil {
-		return err
-	}
-
-	// Replace Admin Root
-	err = dsl.replaceAdminRoot()
-	if err != nil {
-		return err
-	}
-
-	// Load icons
-	dsl.icons(cfg)
-
-	Setting = dsl
+	appSetIcons()
 	return nil
 }
 
-func getAppFile() (string, error) {
-
-	file := filepath.Join(string(os.PathSeparator), "app.yao")
-	if has, _ := application.App.Exists(file); has {
-		return file, nil
-	}
-
-	file = filepath.Join(string(os.PathSeparator), "app.jsonc")
-	if has, _ := application.App.Exists(file); has {
-		return file, nil
-	}
-
-	file = filepath.Join(string(os.PathSeparator), "app.json")
-	if has, _ := application.App.Exists(file); has {
-		return file, nil
-	}
-
-	return "", fmt.Errorf("app.yao not found")
+// AppExport registers yao.app.* processes and API routes.
+func AppExport() error {
+	appExportProcess()
+	return appExportAPI()
 }
 
-// exportAPI export login api
-func exportAPI() error {
-
-	if Setting == nil {
-		return fmt.Errorf("the app does not init")
+func appReplaceAdminRoot() error {
+	if share.App.AdminRoot == "" {
+		share.App.AdminRoot = "yao"
 	}
+	root := strings.TrimPrefix(share.App.AdminRoot, "/")
+	root = strings.TrimSuffix(root, "/")
+	return data.ReplaceCUI("__yao_admin_root", root)
+}
 
+func appSetIcons() {
+	apiBase := appGetAPIBase()
+	share.App.Favicon = fmt.Sprintf("%s/__yao/app/icons/app.ico", apiBase)
+	share.App.Logo = fmt.Sprintf("%s/__yao/app/icons/app.png", apiBase)
+}
+
+func appGetAPIBase() string {
+	if openapi.Server != nil && openapi.Server.Config != nil && openapi.Server.Config.BaseURL != "" {
+		return openapi.Server.Config.BaseURL
+	}
+	return "/api"
+}
+
+func appExportAPI() error {
 	http := api.HTTP{
 		Name:        "Widget App API",
 		Description: "Widget App API",
@@ -129,68 +77,60 @@ func exportAPI() error {
 		Paths:       []api.Path{},
 	}
 
-	process := "yao.app.Xgen"
-	if Setting.Setting != "" {
-		process = Setting.Setting
+	settingProcess := "yao.app.Xgen"
+	if share.App.Setting != "" {
+		settingProcess = share.App.Setting
 	}
 
-	path := api.Path{
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "App Setting",
 		Description: "App Setting",
 		Guard:       "-",
 		Path:        "/setting",
 		Method:      "GET",
-		Process:     process,
+		Process:     settingProcess,
 		In:          []interface{}{},
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	// POST
-	path = api.Path{
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "App Setting",
 		Description: "App Setting",
 		Guard:       "-",
 		Path:        "/setting",
 		Method:      "POST",
-		Process:     process,
+		Process:     settingProcess,
 		In:          []interface{}{":payload"},
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	process = "yao.app.Menu"
-	args := []interface{}{}
-	if Setting.Menu.Args != nil {
-		args = Setting.Menu.Args
+	menuArgs := []interface{}{}
+	if share.App.Menu.Args != nil {
+		menuArgs = share.App.Menu.Args
 	}
-
-	args = append(args, "$query.locale")
-	path = api.Path{
+	menuArgs = append(menuArgs, "$query.locale")
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "App Menu",
 		Description: "App Menu",
 		Path:        "/menu",
 		Method:      "GET",
-		Process:     process,
-		In:          args,
+		Process:     "yao.app.Menu",
+		In:          menuArgs,
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	process = "yao.app.Icons"
-	path = api.Path{
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "App Icons",
 		Description: "App Icons",
 		Path:        "/icons/:name",
 		Guard:       "-",
 		Method:      "GET",
-		Process:     process,
+		Process:     "yao.app.Icons",
 		In:          []interface{}{"$param.name"},
 		Out:         api.Out{Status: 200},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	path = api.Path{
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "Setup",
 		Description: "Setup",
 		Path:        "/setup",
@@ -199,10 +139,9 @@ func exportAPI() error {
 		Process:     "yao.app.Setup",
 		In:          []interface{}{":payload"},
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	path = api.Path{
+	http.Paths = append(http.Paths, api.Path{
 		Label:       "Check",
 		Description: "Check",
 		Path:        "/check",
@@ -211,49 +150,39 @@ func exportAPI() error {
 		Process:     "yao.app.Check",
 		In:          []interface{}{":payload"},
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	path = api.Path{
-		Label:       "Serivce",
-		Description: "Serivce",
+	http.Paths = append(http.Paths, api.Path{
+		Label:       "Service",
+		Description: "Service",
 		Path:        "/service/:name",
 		Guard:       "bearer-jwt",
 		Method:      "POST",
 		Process:     "yao.app.Service",
 		In:          []interface{}{"$param.name", ":payload"},
 		Out:         api.Out{Status: 200, Type: "application/json"},
-	}
-	http.Paths = append(http.Paths, path)
+	})
 
-	// api source
 	source, err := jsoniter.Marshal(http)
 	if err != nil {
 		return err
 	}
 
-	// load apis
 	_, err = api.LoadSource("<widget.app>.yao", source, "widgets.app")
 	return err
 }
 
-// Export export login api
-func Export() error {
-	exportProcess()
-	return exportAPI()
+func appExportProcess() {
+	process.Register("yao.app.setting", processAppSetting)
+	process.Register("yao.app.xgen", processAppXgen)
+	process.Register("yao.app.menu", processAppMenu)
+	process.Register("yao.app.icons", processAppIcons)
+	process.Register("yao.app.setup", processAppSetup)
+	process.Register("yao.app.check", processAppCheck)
+	process.Register("yao.app.service", processAppService)
 }
 
-func exportProcess() {
-	process.Register("yao.app.setting", processSetting)
-	process.Register("yao.app.xgen", processXgen)
-	process.Register("yao.app.menu", processMenu)
-	process.Register("yao.app.icons", processIcons)
-	process.Register("yao.app.setup", processSetup)
-	process.Register("yao.app.check", processCheck)
-	process.Register("yao.app.service", processService)
-}
-
-func processService(process *process.Process) interface{} {
+func processAppService(process *process.Process) interface{} {
 	process.ValidateArgNums(2)
 	service := fmt.Sprintf("__yao_service.%s", process.ArgsString(0))
 	payload := process.ArgsMap(1)
@@ -271,11 +200,7 @@ func processService(process *process.Process) interface{} {
 		args = v
 	}
 
-	//
 	// Forward: Agent confirm Command
-	// @file   agent/command/request.go
-	// @method func (req *Request) confirm(args []interface{}, cb func(msg *message.JSON) int)
-	//
 	if service == "__yao_service.__agent" && method == "ExecCommand" {
 		if len(args) < 4 {
 			exception.New("args is required (%v)", 400, args).Throw()
@@ -316,12 +241,12 @@ func processService(process *process.Process) interface{} {
 }
 
 func forwardAgentExecCommand(p *process.Process, name string, args ...interface{}) interface{} {
-	new, err := process.Of(name, args...)
+	newProc, err := process.Of(name, args...)
 	if err != nil {
 		exception.New(err.Error(), 400).Throw()
 	}
 
-	res, err := new.WithGlobal(p.Global).WithSID(p.Sid).Exec()
+	res, err := newProc.WithGlobal(p.Global).WithSID(p.Sid).Exec()
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -329,7 +254,7 @@ func forwardAgentExecCommand(p *process.Process, name string, args ...interface{
 	return res
 }
 
-func processCheck(process *process.Process) interface{} {
+func processAppCheck(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	payload := process.ArgsMap(0)
 	time.Sleep(3 * time.Second)
@@ -340,7 +265,7 @@ func processCheck(process *process.Process) interface{} {
 	return nil
 }
 
-func processSetup(process *process.Process) interface{} {
+func processAppSetup(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	payload := process.ArgsMap(0)
 	time.Sleep(3 * time.Second)
@@ -358,11 +283,11 @@ func processSetup(process *process.Process) interface{} {
 	}
 
 	root := "yao"
-	if Setting.AdminRoot != "" {
-		root = Setting.AdminRoot
+	if share.App.AdminRoot != "" {
+		root = share.App.AdminRoot
 	}
 
-	setting, err := i18n.Trans(lang, []string{"app.app"}, Setting)
+	setting, err := i18n.Trans(lang, []string{"app.app"}, &share.App)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
@@ -374,7 +299,7 @@ func processSetup(process *process.Process) interface{} {
 	}
 }
 
-func processIcons(process *process.Process) interface{} {
+func processAppIcons(process *process.Process) interface{} {
 	process.ValidateArgNums(1)
 	name := process.ArgsString(0)
 	file := filepath.Join("icons", name)
@@ -385,13 +310,12 @@ func processIcons(process *process.Process) interface{} {
 	return string(content)
 }
 
-func processMenu(p *process.Process) interface{} {
-
-	if Setting.Menu.Process == "" {
+func processAppMenu(p *process.Process) interface{} {
+	if share.App.Menu.Process == "" {
 		exception.New("menu.process is required", 400).Throw()
 	}
 
-	handle, err := process.Of(Setting.Menu.Process, p.Args...)
+	handle, err := process.Of(share.App.Menu.Process, p.Args...)
 	if err != nil {
 		exception.New(err.Error(), 400).Throw()
 	}
@@ -409,18 +333,12 @@ func processMenu(p *process.Process) interface{} {
 	return handle.Value()
 }
 
-func processSetting(process *process.Process) interface{} {
-	if Setting == nil {
-		exception.New("the app does not init", 500).Throw()
-		return nil
-	}
-
+func processAppSetting(process *process.Process) interface{} {
 	sid := process.Sid
 	if sid == "" {
 		sid = session.ID()
 	}
 
-	// Set User ENV
 	if process.NumOfArgs() > 0 {
 		payload := process.ArgsMap(0, map[string]interface{}{
 			"now":  time.Now().Unix(),
@@ -436,27 +354,22 @@ func processSetting(process *process.Process) interface{} {
 		session.Global().ID(sid).Set("__yao_lang", lang)
 	}
 
-	setting, err := i18n.Trans(session.Lang(process, config.Conf.Lang), []string{"app.app"}, Setting)
+	setting, err := i18n.Trans(session.Lang(process, config.Conf.Lang), []string{"app.app"}, &share.App)
 	if err != nil {
 		exception.New(err.Error(), 500).Throw()
 	}
 
-	setting.(*DSL).Sid = sid
-	return *setting.(*DSL)
+	result := setting.(*share.AppInfo)
+	result.Sid = sid
+	return *result
 }
 
-func processXgen(process *process.Process) interface{} {
-
-	if Setting == nil {
-		exception.New("the app does not init", 500).Throw()
-	}
-
+func processAppXgen(process *process.Process) interface{} {
 	sid := process.Sid
 	if sid == "" {
 		sid = session.ID()
 	}
 
-	// Set User ENV
 	lang := config.Conf.Lang
 	if process.NumOfArgs() > 0 {
 		payload := process.ArgsMap(0, map[string]interface{}{
@@ -477,96 +390,20 @@ func processXgen(process *process.Process) interface{} {
 		mode = "production"
 	}
 
+	// CUI 1.0 compatibility: empty login entry
 	xgenLogin := map[string]map[string]interface{}{
 		"entry": {"admin": "/x/Welcome"},
 	}
 
-	if admin, has := login.Logins["admin"]; has {
-		layout := map[string]interface{}{}
-		if admin.Layout.Site != "" {
-			layout["site"] = admin.Layout.Site
-		}
-
-		if admin.Layout.Slogan != "" {
-			layout["slogan"] = admin.Layout.Slogan
-		}
-
-		if admin.Layout.Cover != "" {
-			layout["cover"] = admin.Layout.Cover
-		}
-
-		// Translate
-		newLayout, err := i18n.Trans(session.Lang(process, config.Conf.Lang), []string{"login.admin"}, layout)
-		if err != nil {
-			log.Error("[Login] Xgen i18n.Trans login.admin %s", err.Error())
-		}
-
-		if new, ok := newLayout.(map[string]interface{}); ok {
-			layout = new
-		}
-
-		apiBase := getAPIBase()
-		xgenLogin["entry"]["admin"] = admin.Layout.Entry
-		xgenLogin["admin"] = map[string]interface{}{
-			"captcha": fmt.Sprintf("%s/__yao/login/admin/captcha?type=digit", apiBase),
-			"login":   fmt.Sprintf("%s/__yao/login/admin", apiBase),
-			"layout":  layout,
-		}
-
-		if len(admin.ThirdPartyLogin) > 0 {
-			xgenLogin["admin"]["thirdPartyLogin"] = admin.ThirdPartyLogin
-		}
-
-	}
-
-	if user, has := login.Logins["user"]; has {
-		layout := map[string]interface{}{}
-		if user.Layout.Site != "" {
-			layout["site"] = user.Layout.Site
-		}
-
-		if user.Layout.Slogan != "" {
-			layout["slogan"] = user.Layout.Slogan
-		}
-
-		if user.Layout.Cover != "" {
-			layout["cover"] = user.Layout.Cover
-		}
-
-		// Translate
-		newLayout, err := i18n.Trans(session.Lang(process, config.Conf.Lang), []string{"login.user"}, layout)
-		if err != nil {
-			log.Error("[Login] Xgen %s", err.Error())
-		}
-
-		if new, ok := newLayout.(map[string]interface{}); ok {
-			layout = new
-		}
-		apiBase := getAPIBase()
-		xgenLogin["entry"]["user"] = user.Layout.Entry
-		xgenLogin["user"] = map[string]interface{}{
-			"captcha": fmt.Sprintf("%s/__yao/login/user/captcha?type=digit", apiBase),
-			"login":   fmt.Sprintf("%s/__yao/login/user", apiBase),
-			"layout":  layout,
-		}
-
-		if len(user.ThirdPartyLogin) > 0 {
-			xgenLogin["user"]["thirdPartyLogin"] = user.ThirdPartyLogin
-		}
-	}
-
 	// The default assistant
 	agentConfig := map[string]interface{}{}
-	agent := agent.GetAgent()
-	if agent != nil {
-
-		// Add Uses Settings
-		if agent.Uses != nil {
-			agentConfig["uses"] = agent.Uses
+	ag := agent.GetAgent()
+	if ag != nil {
+		if ag.Uses != nil {
+			agentConfig["uses"] = ag.Uses
 		}
 
-		// Add Default Assistant Settings ( Will be removed later )
-		if ast, ok := agent.Assistant.(*assistant.Assistant); ok {
+		if ast, ok := ag.Assistant.(*assistant.Assistant); ok {
 			agentConfig["default"] = map[string]interface{}{
 				"assistant_id":         ast.ID,
 				"assistant_name":       ast.Name,
@@ -575,9 +412,6 @@ func processXgen(process *process.Process) interface{} {
 				"placeholder":          ast.GetPlaceholder(lang),
 			}
 		}
-
-		// Available connectors Removed later, It not be used yet, use the openapi instead.
-		// agentConfig["connectors"] = connector.AIConnectors
 	}
 
 	// External tools availability (safe subset for frontend)
@@ -637,20 +471,17 @@ func processXgen(process *process.Process) interface{} {
 	kbConfig := map[string]interface{}{}
 	if kb.Instance != nil {
 		if knowledgebase, ok := kb.Instance.(*kb.KnowledgeBase); ok && knowledgebase.Config != nil {
-			// Use the current language setting for provider selection
 			currentLang := lang
 			if currentLang == "" {
-				currentLang = "en" // Default to English
+				currentLang = "en"
 			}
 
-			// Helper function to extract provider IDs from multi-language providers
 			extractProviderIDs := func(providerMap map[string][]*kbtypes.Provider) []string {
 				ids := []string{}
 				if providerMap == nil {
 					return ids
 				}
 
-				// Try current language first
 				if providers, exists := providerMap[currentLang]; exists {
 					for _, provider := range providers {
 						ids = append(ids, provider.ID)
@@ -658,7 +489,6 @@ func processXgen(process *process.Process) interface{} {
 					return ids
 				}
 
-				// Fallback to English
 				if currentLang != "en" {
 					if providers, exists := providerMap["en"]; exists {
 						for _, provider := range providers {
@@ -668,12 +498,11 @@ func processXgen(process *process.Process) interface{} {
 					}
 				}
 
-				// If no providers found for current language or English, return all available
 				for _, providers := range providerMap {
 					for _, provider := range providers {
 						ids = append(ids, provider.ID)
 					}
-					break // Just take the first available language
+					break
 				}
 
 				return ids
@@ -707,16 +536,16 @@ func processXgen(process *process.Process) interface{} {
 				"votes":       votes,
 				"weights":     weights,
 				"scores":      scores,
-				"uploader":    knowledgebase.Config.Uploader, // Default: "__yao.attachment"
+				"uploader":    knowledgebase.Config.Uploader,
 			}
 		}
 	}
 
 	xgenSetting := map[string]interface{}{
-		"name":        Setting.Name,
-		"description": Setting.Description,
+		"name":        share.App.Name,
+		"description": share.App.Description,
 		"developer":   share.App.Developer,
-		"version":     Setting.Version,
+		"version":     share.App.Version,
 		"yao": map[string]interface{}{
 			"version":   share.VERSION,
 			"prversion": share.PRVERSION,
@@ -725,12 +554,12 @@ func processXgen(process *process.Process) interface{} {
 			"version":   share.CUI,
 			"prversion": share.PRCUI,
 		},
-		"theme":     Setting.Theme,
-		"lang":      Setting.Lang,
+		"theme":     share.App.Theme,
+		"lang":      share.App.Lang,
 		"mode":      mode,
 		"apiPrefix": "__yao",
-		"token":     Setting.Token,
-		"optional":  Setting.Optional,
+		"token":     share.App.Token,
+		"optional":  share.App.Optional,
 		"login":     xgenLogin,
 		"agent":     agentConfig,
 		"tools":     toolsConfig,
@@ -738,20 +567,17 @@ func processXgen(process *process.Process) interface{} {
 		"kb":        kbConfig,
 	}
 
-	// Set logo and favicon with dynamic API base
-	apiBase := getAPIBase()
-	if Setting.Logo != "" {
-		// Replace /api/ prefix with current API base if needed
-		logo := Setting.Logo
+	apiBase := appGetAPIBase()
+	if share.App.Logo != "" {
+		logo := share.App.Logo
 		if strings.HasPrefix(logo, "/api/") {
 			logo = apiBase + strings.TrimPrefix(logo, "/api")
 		}
 		xgenSetting["logo"] = logo
 	}
 
-	if Setting.Favicon != "" {
-		// Replace /api/ prefix with current API base if needed
-		favicon := Setting.Favicon
+	if share.App.Favicon != "" {
+		favicon := share.App.Favicon
 		if strings.HasPrefix(favicon, "/api/") {
 			favicon = apiBase + strings.TrimPrefix(favicon, "/api")
 		}
@@ -765,71 +591,4 @@ func processXgen(process *process.Process) interface{} {
 
 	setting.(map[string]interface{})["sid"] = sid
 	return setting.(map[string]interface{})
-}
-
-// replaceAdminRoot
-func (dsl *DSL) replaceAdminRoot() error {
-
-	if dsl.AdminRoot == "" {
-		dsl.AdminRoot = "yao"
-	}
-
-	root := strings.TrimPrefix(dsl.AdminRoot, "/")
-	root = strings.TrimSuffix(root, "/")
-	// err := data.ReplaceXGen("/__yao_admin_root/", fmt.Sprintf("/%s/", root))
-	// if err != nil {
-	// 	return err
-	// }
-
-	return data.ReplaceCUI("__yao_admin_root", root)
-}
-
-// icons
-func (dsl *DSL) icons(cfg config.Config) {
-	apiBase := getAPIBase()
-	dsl.Favicon = fmt.Sprintf("%s/__yao/app/icons/app.ico", apiBase)
-	dsl.Logo = fmt.Sprintf("%s/__yao/app/icons/app.png", apiBase)
-	log.Trace("CFG %v", cfg.Root)
-}
-
-// getAPIBase returns the API base path based on OpenAPI mode
-func getAPIBase() string {
-	if openapi.Server != nil && openapi.Server.Config != nil && openapi.Server.Config.BaseURL != "" {
-		return openapi.Server.Config.BaseURL
-	}
-	return "/api"
-}
-
-// Permissions get the permission blacklist
-// {"<widget>.<ID>":[<id...>]}
-func Permissions(process *process.Process, widget string, id string) map[string]bool {
-	permissions := map[string]bool{}
-	sessionData, _ := session.Global().ID(process.Sid).Get("__permissions")
-	data, ok := sessionData.(map[string]interface{})
-	if !ok && sessionData != nil {
-		log.Error("[Permissions] session data should be a map, but got %#v", sessionData)
-		return permissions
-	}
-
-	switch values := data[fmt.Sprintf("%s.%s", widget, id)].(type) {
-	case []interface{}:
-		for _, value := range values {
-			permissions[fmt.Sprintf("%v", value)] = true
-		}
-
-	case []string:
-		for _, value := range values {
-			permissions[value] = true
-		}
-
-	case map[string]interface{}:
-		for key := range values {
-			permissions[key] = true
-		}
-
-	case map[string]bool:
-		permissions = values
-	}
-
-	return permissions
 }

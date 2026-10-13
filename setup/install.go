@@ -10,7 +10,7 @@ import (
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
-	"github.com/yaoapp/yao/widgets/app"
+	"github.com/yaoapp/yao/share"
 )
 
 // Install the app to the root directory
@@ -101,9 +101,9 @@ func makeMigrate() error {
 
 func makeSetup(cfg config.Config) error {
 
-	if app.Setting != nil && app.Setting.Setup != "" {
+	if share.App.Setup != "" {
 
-		p, err := process.Of(app.Setting.Setup, cfg)
+		p, err := process.Of(share.App.Setup, cfg)
 		if err != nil {
 			return err
 		}
