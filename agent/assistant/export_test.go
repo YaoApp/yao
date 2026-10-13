@@ -17,10 +17,6 @@ var ExportFindOverlapIndex = (*Assistant).findOverlapIndex
 var ExportMessagesMatch = (*Assistant).messagesMatch
 var ExportGetHistorySize = getHistorySize
 
-// chat.go
-var ExportSanitizeCollectionID = sanitizeCollectionID
-var ExportMergeChatMetadata = mergeChatMetadata
-
 // permission.go
 var ExportCheckPermissions = (*Assistant).checkPermissions
 

@@ -5,7 +5,7 @@ import (
 )
 
 // RunLearning executes P5: Learning phase
-// Extracts learnings and saves to knowledge base
+// Extracts learnings and saves to store
 //
 // Input:
 //   - Execution summary (all phases)

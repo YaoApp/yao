@@ -29,7 +29,6 @@ import (
 	"github.com/yaoapp/yao/fs"
 	yaogrpc "github.com/yaoapp/yao/grpc"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/llmprovider"
 	yaomcp "github.com/yaoapp/yao/mcp"
 	yaomodel "github.com/yaoapp/yao/model"
@@ -85,8 +84,7 @@ func TestGRPCPort() int { return testGRPCPort }
 // 14. attachment.Load (ignored on error)
 // 15. mcp.Load (ignored on error)
 // 16. engine.AppLoad + AppExport (fills share.App fields for setup.Initialize)
-// 17. kb.Load
-// 18. agent.Load
+// 17. agent.Load
 // 19. caller/llm SetJSAPIFactory
 // 20. llmprovider.Init
 // 21. setting.Init
@@ -200,11 +198,6 @@ func loadApp(t *testing.T) {
 	}
 	if err := engine.AppExport(); err != nil {
 		t.Logf("apploader: engine.AppExport: %v", err)
-	}
-
-	// 17. Load Knowledge Base (non-fatal: assistants/* may not declare KB)
-	if _, err := kb.Load(cfg); err != nil {
-		t.Logf("apploader: kb.Load: %v", err)
 	}
 
 	// 18. Load Agent stack (critical: required for caller/llm factories)

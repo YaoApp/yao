@@ -169,10 +169,6 @@ func TestCreateAssistant(t *testing.T) {
 					},
 				},
 			},
-			"kb": map[string]interface{}{
-				"collections": []string{"collection1", "collection2"},
-				"enabled":     true,
-			},
 			"mcp": map[string]interface{}{
 				"servers": []map[string]interface{}{
 					{

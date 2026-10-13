@@ -11,22 +11,16 @@ func New() *Store {
 	return &Store{}
 }
 
-// SaveLearning saves learning entries to private KB
+// SaveLearning saves learning entries
 // Stub: returns nil (will be implemented in Phase 9)
 func (s *Store) SaveLearning(ctx *types.Context, memberID string, entries []types.LearningEntry) error {
 	return nil
 }
 
-// GetHistory retrieves learning history from private KB
+// GetHistory retrieves learning history
 // Stub: returns empty slice (will be implemented in Phase 9)
 func (s *Store) GetHistory(ctx *types.Context, memberID string, limit int) ([]types.LearningEntry, error) {
 	return []types.LearningEntry{}, nil
-}
-
-// SearchKB searches knowledge base collections
-// Stub: returns empty slice (will be implemented in Phase 4+)
-func (s *Store) SearchKB(ctx *types.Context, collections []string, query string) ([]interface{}, error) {
-	return []interface{}{}, nil
 }
 
 // QueryDB queries database models

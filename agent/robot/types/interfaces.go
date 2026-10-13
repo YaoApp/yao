@@ -74,10 +74,9 @@ type Dedup interface {
 	Mark(memberID string, trigger TriggerType, window time.Duration)
 }
 
-// Store - data storage operations (KB, DB)
+// Store - data storage operations (DB)
 type Store interface {
 	SaveLearning(ctx *Context, memberID string, entries []LearningEntry) error
 	GetHistory(ctx *Context, memberID string, limit int) ([]LearningEntry, error)
-	SearchKB(ctx *Context, collections []string, query string) ([]interface{}, error)
 	QueryDB(ctx *Context, models []string, query interface{}) ([]interface{}, error)
 }

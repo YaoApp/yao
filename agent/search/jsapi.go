@@ -6,7 +6,7 @@ import (
 )
 
 // JSAPI implements context.SearchAPI interface
-// Provides ctx.search.Web(), ctx.search.KB(), ctx.search.DB(), ctx.search.All(), ctx.search.Any(), ctx.search.Race()
+// Provides ctx.search.Web(), ctx.search.DB(), ctx.search.All(), ctx.search.Any(), ctx.search.Race()
 type JSAPI struct {
 	ctx      *context.Context
 	searcher *Searcher
@@ -32,19 +32,6 @@ func (api *JSAPI) Web(query string, opts map[string]interface{}) interface{} {
 	return result
 }
 
-// KB executes knowledge base search
-// Options:
-//   - collections: []string - collection IDs
-//   - threshold: float64 - similarity threshold (0-1)
-//   - limit: int - max results
-//   - graph: bool - enable graph association
-//   - rerank: map[string]interface{} - rerank options
-func (api *JSAPI) KB(query string, opts map[string]interface{}) interface{} {
-	req := api.buildRequest(types.SearchTypeKB, query, opts)
-	result, _ := api.searcher.Search(api.ctx, req)
-	return result
-}
-
 // DB executes database search
 // Options:
 //   - models: []string - model IDs
@@ -61,7 +48,7 @@ func (api *JSAPI) DB(query string, opts map[string]interface{}) interface{} {
 
 // All executes all searches and waits for all to complete (like Promise.all)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (api *JSAPI) All(requests []interface{}) []interface{} {
@@ -72,7 +59,7 @@ func (api *JSAPI) All(requests []interface{}) []interface{} {
 
 // Any returns as soon as any search succeeds with results (like Promise.any)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (api *JSAPI) Any(requests []interface{}) []interface{} {
@@ -83,7 +70,7 @@ func (api *JSAPI) Any(requests []interface{}) []interface{} {
 
 // Race returns as soon as any search completes (like Promise.race)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (api *JSAPI) Race(requests []interface{}) []interface{} {
@@ -118,19 +105,6 @@ func (api *JSAPI) buildRequest(searchType types.SearchType, query string, opts m
 		}
 		if timeRange, ok := opts["time_range"].(string); ok {
 			req.TimeRange = timeRange
-		}
-	}
-
-	// KB-specific options
-	if searchType == types.SearchTypeKB {
-		if collections, ok := opts["collections"].([]interface{}); ok {
-			req.Collections = toStringSlice(collections)
-		}
-		if threshold, ok := opts["threshold"].(float64); ok {
-			req.Threshold = threshold
-		}
-		if graph, ok := opts["graph"].(bool); ok {
-			req.Graph = graph
 		}
 	}
 

@@ -117,12 +117,6 @@ func Load(cfg config.Config) error {
 		return err
 	}
 
-	// Initialize KB Configuration
-	err = initKBConfig()
-	if err != nil {
-		return err
-	}
-
 	// Initialize Search Configuration
 	err = initSearchConfig()
 	if err != nil {
@@ -235,10 +229,6 @@ func initAssistant() error {
 		assistant.SetGlobalPrompts(agentDSL.GlobalPrompts)
 	}
 
-	if agentDSL.KB != nil {
-		assistant.SetGlobalKBSetting(agentDSL.KB)
-	}
-
 	if agentDSL.Search != nil {
 		assistant.SetGlobalSearchConfig(agentDSL.Search)
 	}
@@ -279,29 +269,6 @@ func initAssistant() error {
 	}
 
 	agentDSL.Assistant = defaultAssistant
-	return nil
-}
-
-// initKBConfig initialize the knowledge base configuration from agent/kb.yml
-func initKBConfig() error {
-	path := filepath.Join("agent", "kb.yml")
-	if exists, _ := application.App.Exists(path); !exists {
-		return nil // KB config is optional
-	}
-
-	// Read the KB configuration
-	bytes, err := application.App.Read(path)
-	if err != nil {
-		return err
-	}
-
-	var kbSetting store.KBSetting
-	err = application.Parse("kb.yml", bytes, &kbSetting)
-	if err != nil {
-		return err
-	}
-
-	agentDSL.KB = &kbSetting
 	return nil
 }
 
@@ -356,23 +323,6 @@ func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
 			}
 			if override.Web.MaxResults > 0 {
 				result.Web.MaxResults = override.Web.MaxResults
-			}
-		}
-	}
-
-	// Merge KB config
-	if override.KB != nil {
-		if result.KB == nil {
-			result.KB = override.KB
-		} else {
-			if len(override.KB.Collections) > 0 {
-				result.KB.Collections = override.KB.Collections
-			}
-			if override.KB.Threshold > 0 {
-				result.KB.Threshold = override.KB.Threshold
-			}
-			if override.KB.Graph {
-				result.KB.Graph = override.KB.Graph
 			}
 		}
 	}

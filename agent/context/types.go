@@ -284,7 +284,7 @@ type Context struct {
 // Used by Create hook to specify fine-grained search behavior
 type SearchIntent struct {
 	NeedSearch  bool     `json:"need_search"`            // Whether search is needed
-	SearchTypes []string `json:"search_types,omitempty"` // Types of search to perform: "web", "kb", "db"
+	SearchTypes []string `json:"search_types,omitempty"` // Types of search to perform: "web", "db"
 	Confidence  float64  `json:"confidence,omitempty"`   // Confidence level (0-1)
 	Reason      string   `json:"reason,omitempty"`       // Reason for the decision
 }
@@ -627,12 +627,10 @@ type DataSourceType string
 
 // Data source type constants
 const (
-	DataSourceModel        DataSourceType = "model"         // Data model
-	DataSourceKBCollection DataSourceType = "kb_collection" // Knowledge base collection
-	DataSourceKBDocument   DataSourceType = "kb_document"   // Knowledge base document/file
-	DataSourceTable        DataSourceType = "table"         // Database table
-	DataSourceAPI          DataSourceType = "api"           // API endpoint
-	DataSourceMCPResource  DataSourceType = "mcp_resource"  // MCP (Model Context Protocol) resource
+	DataSourceModel       DataSourceType = "model"        // Data model
+	DataSourceTable       DataSourceType = "table"        // Database table
+	DataSourceAPI         DataSourceType = "api"          // API endpoint
+	DataSourceMCPResource DataSourceType = "mcp_resource" // MCP (Model Context Protocol) resource
 )
 
 // DataSource represents a single data source reference
@@ -645,7 +643,7 @@ type DataSource struct {
 }
 
 // DataContent represents data source references in the message
-// Used to reference data models, knowledge base collections, KB documents, etc.
+// Used to reference data models, etc.
 type DataContent struct {
 	Sources []DataSource `json:"sources"` // Required: array of data source references
 }

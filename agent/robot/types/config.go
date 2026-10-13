@@ -11,9 +11,7 @@ type Config struct {
 	Clock         *Clock               `json:"clock,omitempty"`
 	Identity      *Identity            `json:"identity"`
 	Quota         *Quota               `json:"quota,omitempty"`
-	KB            *KB                  `json:"kb,omitempty"`    // shared knowledge base (same as assistant)
-	DB            *DB                  `json:"db,omitempty"`    // shared database (same as assistant)
-	Learn         *Learn               `json:"learn,omitempty"` // learning config for private KB
+	DB            *DB                  `json:"db,omitempty"` // shared database (same as assistant)
 	Resources     *Resources           `json:"resources,omitempty"`
 	Delivery      *DeliveryPreferences `json:"delivery,omitempty"` // delivery preferences (see robot.go)
 	Events        []Event              `json:"events,omitempty"`
@@ -229,26 +227,11 @@ func (q *Quota) GetPriority() int {
 	return q.Priority
 }
 
-// KB - knowledge base config (same as assistant, from store/types)
-// Shared KB collections accessible by this robot
-type KB struct {
-	Collections []string               `json:"collections,omitempty"` // KB collection IDs
-	Options     map[string]interface{} `json:"options,omitempty"`
-}
-
 // DB - database config (same as assistant, from store/types)
 // Shared database models accessible by this robot
 type DB struct {
 	Models  []string               `json:"models,omitempty"` // database model names
 	Options map[string]interface{} `json:"options,omitempty"`
-}
-
-// Learn - learning config for robot's private KB
-// Private KB is auto-created: robot_{team_id}_{member_id}_kb
-type Learn struct {
-	On    bool     `json:"on"`
-	Types []string `json:"types,omitempty"` // execution, feedback, insight
-	Keep  int      `json:"keep,omitempty"`  // days, 0 = forever
 }
 
 // Resources - available agents and tools

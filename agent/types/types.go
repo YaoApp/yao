@@ -28,7 +28,6 @@ type DSL struct {
 
 	// Global External Settings
 	// ===============================
-	KB     *store.KBSetting    `json:"kb,omitempty" yaml:"kb,omitempty"`         // The knowledge base configuration loaded from agent/kb.yml
 	Search *searchTypes.Config `json:"search,omitempty" yaml:"search,omitempty"` // The search configuration loaded from agent/search.yao
 
 	// Internal

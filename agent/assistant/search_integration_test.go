@@ -34,14 +34,14 @@ func TestParseSearchField(t *testing.T) {
 	t.Run("MapWithNeedSearchAndTypes", func(t *testing.T) {
 		input := map[string]any{
 			"need_search":  true,
-			"search_types": []any{"web", "kb"},
+			"search_types": []any{"web", "db"},
 			"confidence":   0.9,
 			"reason":       "user asked about current events",
 		}
 		result := assistant.ExportParseSearchField(input)
 		require.NotNil(t, result)
 		assert.True(t, result.NeedSearch)
-		assert.Equal(t, []string{"web", "kb"}, result.SearchTypes)
+		assert.Equal(t, []string{"web", "db"}, result.SearchTypes)
 		assert.InDelta(t, 0.9, result.Confidence, 0.01)
 		assert.Equal(t, "user asked about current events", result.Reason)
 	})

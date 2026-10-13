@@ -66,7 +66,7 @@ const (
 	// Content types
 	TypeText     = "text"      // Plain text or Markdown content
 	TypeThinking = "thinking"  // Reasoning/thinking process (e.g., o1 models)
-	TypeLoading  = "loading"   // Loading/processing indicator (preprocessing, knowledge base search, etc.)
+	TypeLoading  = "loading"   // Loading/processing indicator (preprocessing, search, etc.)
 	TypeToolCall = "tool_call" // LLM tool/function call
 	TypeError    = "error"     // Error message
 
@@ -139,7 +139,7 @@ type ThinkingProps struct {
 // Type: "loading"
 // Props: {"message": string}
 type LoadingProps struct {
-	Message string `json:"message"` // Loading message (e.g., "Searching knowledge base...")
+	Message string `json:"message"` // Loading message (e.g., "Searching...")
 }
 
 // ToolCallProps defines the standard structure for tool_call messages
@@ -406,7 +406,7 @@ type EventBlockStartData struct {
 	BlockID   string                 `json:"block_id"`        // Block ID (B1, B2, B3...)
 	Type      string                 `json:"type"`            // Block type: "llm" | "mcp" | "agent" | "tool" | "mixed"
 	Timestamp int64                  `json:"timestamp"`       // Unix timestamp when block started
-	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Searching knowledge base", "Calling weather API")
+	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Calling weather API")
 	Extra     map[string]interface{} `json:"extra,omitempty"` // Additional metadata
 }
 

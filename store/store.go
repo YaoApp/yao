@@ -24,8 +24,6 @@ var systemStores = map[string]string{
 	"__yao.agent.memory.chat":    "yao/stores/agent/memory/chat.xun.yao",    // for agent chat-level memory
 	"__yao.agent.memory.context": "yao/stores/agent/memory/context.xun.yao", // for agent context-level memory
 	"__yao.agent.cache":          "yao/stores/agent/cache.lru.yao",          // for agent cache store
-	"__yao.kb.store":             "yao/stores/kb/store.xun.yao",             // for knowledge base store
-	"__yao.kb.cache":             "yao/stores/kb/cache.lru.yao",             // for knowledge base cache store
 }
 
 // replaceVars replaces template variables in the JSON string

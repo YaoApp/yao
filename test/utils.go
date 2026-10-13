@@ -221,8 +221,6 @@ var testSystemModels = map[string]string{
 	"__yao.job":                "yao/models/job/job.mod.yao",
 	"__yao.job.execution":      "yao/models/job/execution.mod.yao",
 	"__yao.job.log":            "yao/models/job/log.mod.yao",
-	"__yao.kb.collection":      "yao/models/kb/collection.mod.yao",
-	"__yao.kb.document":        "yao/models/kb/document.mod.yao",
 	"__yao.team":               "yao/models/team.mod.yao",
 	"__yao.member":             "yao/models/member.mod.yao",
 	"__yao.user":               "yao/models/user.mod.yao",
@@ -242,8 +240,6 @@ var testSystemStores = map[string]string{
 	"__yao.agent.memory.chat":    "yao/stores/agent/memory/chat.xun.yao",
 	"__yao.agent.memory.context": "yao/stores/agent/memory/context.xun.yao",
 	"__yao.agent.cache":          "yao/stores/agent/cache.lru.yao",
-	"__yao.kb.store":             "yao/stores/kb/store.xun.yao",
-	"__yao.kb.cache":             "yao/stores/kb/cache.lru.yao",
 }
 
 func loadSystemStores(t *testing.T, cfg config.Config) error {

@@ -21,8 +21,6 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/i18n"
-	"github.com/yaoapp/yao/kb"
-	kbtypes "github.com/yaoapp/yao/kb/types"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/share"
 )
@@ -467,79 +465,7 @@ func processAppXgen(process *process.Process) interface{} {
 		}
 	}
 
-	// Knowledge Base Settings
 	kbConfig := map[string]interface{}{}
-	if kb.Instance != nil {
-		if knowledgebase, ok := kb.Instance.(*kb.KnowledgeBase); ok && knowledgebase.Config != nil {
-			currentLang := lang
-			if currentLang == "" {
-				currentLang = "en"
-			}
-
-			extractProviderIDs := func(providerMap map[string][]*kbtypes.Provider) []string {
-				ids := []string{}
-				if providerMap == nil {
-					return ids
-				}
-
-				if providers, exists := providerMap[currentLang]; exists {
-					for _, provider := range providers {
-						ids = append(ids, provider.ID)
-					}
-					return ids
-				}
-
-				if currentLang != "en" {
-					if providers, exists := providerMap["en"]; exists {
-						for _, provider := range providers {
-							ids = append(ids, provider.ID)
-						}
-						return ids
-					}
-				}
-
-				for _, providers := range providerMap {
-					for _, provider := range providers {
-						ids = append(ids, provider.ID)
-					}
-					break
-				}
-
-				return ids
-			}
-
-			var chunkings, embeddings, converters, extractions, fetchers []string
-			var searchers, rerankers, votes, weights, scores []string
-
-			if knowledgebase.Providers != nil {
-				chunkings = extractProviderIDs(knowledgebase.Providers.Chunkings)
-				embeddings = extractProviderIDs(knowledgebase.Providers.Embeddings)
-				converters = extractProviderIDs(knowledgebase.Providers.Converters)
-				extractions = extractProviderIDs(knowledgebase.Providers.Extractions)
-				fetchers = extractProviderIDs(knowledgebase.Providers.Fetchers)
-				searchers = extractProviderIDs(knowledgebase.Providers.Searchers)
-				rerankers = extractProviderIDs(knowledgebase.Providers.Rerankers)
-				votes = extractProviderIDs(knowledgebase.Providers.Votes)
-				weights = extractProviderIDs(knowledgebase.Providers.Weights)
-				scores = extractProviderIDs(knowledgebase.Providers.Scores)
-			}
-
-			kbConfig = map[string]interface{}{
-				"features":    knowledgebase.Config.Features,
-				"chunkings":   chunkings,
-				"embeddings":  embeddings,
-				"converters":  converters,
-				"extractions": extractions,
-				"fetchers":    fetchers,
-				"searchers":   searchers,
-				"rerankers":   rerankers,
-				"votes":       votes,
-				"weights":     weights,
-				"scores":      scores,
-				"uploader":    knowledgebase.Config.Uploader,
-			}
-		}
-	}
 
 	xgenSetting := map[string]interface{}{
 		"name":        share.App.Name,

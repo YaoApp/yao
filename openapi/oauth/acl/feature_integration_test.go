@@ -241,8 +241,8 @@ func TestFeaturesForUser_Integration(t *testing.T) {
 		// It's in user/team/settings.yml but not included in team:manage alias
 		// If owner:free role had access to all user/* features, we would see it
 
-		// Should NOT include kb features
-		assert.False(t, userFeatures["collections:create"], "should not have kb features in user domain")
+		// Should NOT include features from other domains
+		assert.False(t, userFeatures["collections:create"], "should not have features from other domains")
 
 		// Query specific subdomain
 		profileFeatures, err := manager.FeaturesForUserByDomain(ctx, userID, "user/profile")
@@ -287,14 +287,8 @@ func TestFeaturesForTeamUser_Integration(t *testing.T) {
 		// Note: team:settings:view and team:members:list are NOT in team:admin role
 		// because they're not included in the aliases that team:admin has
 
-		// Should NOT include kb features
-		assert.False(t, userFeatures["collections:create"], "should not have kb features in user domain")
-
-		// Query kb domain
-		kbFeatures, err := manager.FeaturesForTeamUserByDomain(ctx, teamID, memberUserID, "kb")
-		require.NoError(t, err)
-		assert.True(t, kbFeatures["collections:create"], "should have collections:create in kb domain")
-		assert.False(t, kbFeatures["profile:read"], "should not have user features in kb domain")
+		// Should NOT include features from other domains
+		assert.False(t, userFeatures["collections:create"], "should not have features from other domains")
 	})
 }
 
@@ -370,14 +364,8 @@ func TestGetFeaturesFromGinContext_Integration(t *testing.T) {
 		assert.True(t, userFeatures["profile:read"], "should have profile:read")
 		assert.True(t, userFeatures["team:edit"], "should have team:edit")
 
-		// Should NOT include kb features
-		assert.False(t, userFeatures["collections:create"], "should not have kb features in user domain")
-
-		// Call GetFeaturesByDomain with "kb" domain
-		kbFeatures, err := GetFeaturesByDomain(c, "kb")
-		require.NoError(t, err)
-		assert.True(t, kbFeatures["collections:create"], "should have collections:create in kb domain")
-		assert.False(t, kbFeatures["profile:read"], "should not have user features in kb domain")
+		// Should NOT include features from other domains
+		assert.False(t, userFeatures["collections:create"], "should not have features from other domains")
 	})
 
 	// Test GetFeatures for team member (with team_id)
@@ -410,7 +398,7 @@ func TestGetFeaturesFromGinContext_Integration(t *testing.T) {
 		assert.True(t, userFeatures["profile:read"], "should have profile:read")
 		assert.True(t, userFeatures["team:edit"], "should have team:edit")
 
-		// Should NOT include kb features
-		assert.False(t, userFeatures["collections:create"], "should not have kb features in user domain")
+		// Should NOT include features from other domains
+		assert.False(t, userFeatures["collections:create"], "should not have features from other domains")
 	})
 }

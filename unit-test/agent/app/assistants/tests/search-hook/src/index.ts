@@ -19,7 +19,7 @@ function Create(ctx: agent.Context, messages: agent.Message[]): agent.Create {
       return {
         search: {
           need_search: true,
-          types: ["web", "kb"],
+          types: ["web"],
         },
       };
 

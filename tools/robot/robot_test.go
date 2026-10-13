@@ -327,7 +327,6 @@ func TestToolRobotConfigWhitelist(t *testing.T) {
 		"executor": {"mode": "sandbox", "max_duration": "30m"},
 		"default_locale": "zh",
 		"integrations": {"telegram": {"enabled": true, "bot_token": "STOLEN"}},
-		"kb": {"collections": ["secret-kb"]},
 		"db": {"models": ["admin_table"]},
 		"learn": {"on": true},
 		"resources": {"agents": ["internal-agent"]},
@@ -378,7 +377,6 @@ func TestToolRobotConfigWhitelist(t *testing.T) {
 
 	for _, forbidden := range []string{
 		"integrations", "telegram", "bot_token", "STOLEN",
-		"secret-kb", "collections",
 		"admin_table", `"models"`,
 		`"learn"`, `"on":true`,
 		"internal-agent", `"resources"`,
@@ -479,7 +477,7 @@ func TestUpdateRequestWithRobotConfig(t *testing.T) {
 	input := `{
 		"robot_config": {
 			"clock": {"mode": "interval", "every": "1h"},
-			"kb": {"collections": ["stolen-data"]}
+			"integrations": {"telegram": {"enabled": true, "bot_token": "STOLEN"}}
 		}
 	}`
 
@@ -500,8 +498,8 @@ func TestUpdateRequestWithRobotConfig(t *testing.T) {
 
 	buf, _ := json.Marshal(req)
 	s := string(buf)
-	if contains(s, "kb") || contains(s, "stolen-data") {
-		t.Error("SECURITY: kb leaked through nested robot_config in update")
+	if contains(s, "STOLEN") || contains(s, "bot_token") {
+		t.Error("SECURITY: integrations leaked through nested robot_config in update")
 	}
 }
 

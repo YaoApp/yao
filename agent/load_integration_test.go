@@ -49,45 +49,11 @@ func TestLoad(t *testing.T) {
 		assert.Contains(t, dsl.GlobalPrompts[0].Content, "$SYS.")
 	})
 
-	t.Run("LoadKBConfig", func(t *testing.T) {
-		require.NotNil(t, dsl.KB)
-		require.NotNil(t, dsl.KB.Chat)
-
-		assert.Equal(t, "__yao.openai", dsl.KB.Chat.EmbeddingProviderID)
-		assert.Equal(t, "text-embedding-3-small", dsl.KB.Chat.EmbeddingOptionID)
-		assert.Equal(t, "zh-CN", dsl.KB.Chat.Locale)
-
-		assert.NotNil(t, dsl.KB.Chat.Config)
-		assert.Equal(t, "hnsw", dsl.KB.Chat.Config.IndexType.String())
-		assert.Equal(t, "cosine", dsl.KB.Chat.Config.Distance.String())
-
-		assert.NotNil(t, dsl.KB.Chat.Metadata)
-		assert.Equal(t, "chat_session", dsl.KB.Chat.Metadata["category"])
-		assert.Equal(t, true, dsl.KB.Chat.Metadata["auto_created"])
-
-		assert.NotNil(t, dsl.KB.Chat.DocumentDefaults)
-		assert.NotNil(t, dsl.KB.Chat.DocumentDefaults.Chunking)
-		assert.Equal(t, "__yao.structured", dsl.KB.Chat.DocumentDefaults.Chunking.ProviderID)
-		assert.Equal(t, "standard", dsl.KB.Chat.DocumentDefaults.Chunking.OptionID)
-
-		assert.NotNil(t, dsl.KB.Chat.DocumentDefaults.Extraction)
-		assert.Equal(t, "__yao.openai", dsl.KB.Chat.DocumentDefaults.Extraction.ProviderID)
-		assert.Equal(t, "gpt-4o-mini", dsl.KB.Chat.DocumentDefaults.Extraction.OptionID)
-
-		assert.NotNil(t, dsl.KB.Chat.DocumentDefaults.Converter)
-		assert.Equal(t, "__yao.utf8", dsl.KB.Chat.DocumentDefaults.Converter.ProviderID)
-		assert.Equal(t, "standard-text", dsl.KB.Chat.DocumentDefaults.Converter.OptionID)
-	})
-
 	t.Run("LoadSearchConfig", func(t *testing.T) {
 		require.NotNil(t, dsl.Search)
 		require.NotNil(t, dsl.Search.Web)
 		assert.Equal(t, "tavily", dsl.Search.Web.Provider)
 		assert.Equal(t, 10, dsl.Search.Web.MaxResults)
-
-		assert.NotNil(t, dsl.Search.KB)
-		assert.Equal(t, 0.7, dsl.Search.KB.Threshold)
-		assert.False(t, dsl.Search.KB.Graph)
 
 		assert.NotNil(t, dsl.Search.DB)
 		assert.Equal(t, 20, dsl.Search.DB.MaxResults)

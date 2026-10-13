@@ -540,44 +540,6 @@ func TestUpdateAssistant(t *testing.T) {
 		t.Logf("Successfully updated assistant share permissions: %s", assistantID)
 	})
 
-	t.Run("UpdateAssistantKnowledgeBase", func(t *testing.T) {
-		// Create a test assistant
-		assistantID := createTestAssistant("KB Update Test")
-		defer func() {
-			deleteReq, _ := http.NewRequest("DELETE", serverURL+baseURL+"/agent/assistants/"+assistantID, nil)
-			deleteReq.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
-			resp, _ := http.DefaultClient.Do(deleteReq)
-			if resp != nil {
-				resp.Body.Close()
-			}
-		}()
-
-		// Update kb settings
-		updateData := map[string]interface{}{
-			"kb": map[string]interface{}{
-				"collections": []string{"test-collection-1", "test-collection-2"},
-				"enabled":     true,
-				"threshold":   0.8,
-			},
-		}
-
-		jsonData, err := json.Marshal(updateData)
-		assert.NoError(t, err)
-
-		req, err := http.NewRequest("PUT", serverURL+baseURL+"/agent/assistants/"+assistantID, bytes.NewBuffer(jsonData))
-		assert.NoError(t, err)
-		req.Header.Set("Authorization", "Bearer "+tokenInfo.AccessToken)
-		req.Header.Set("Content-Type", "application/json")
-
-		resp, err := http.DefaultClient.Do(req)
-		assert.NoError(t, err)
-		assert.NotNil(t, resp)
-		defer resp.Body.Close()
-
-		assert.Equal(t, http.StatusOK, resp.StatusCode, "Should successfully update kb settings")
-		t.Logf("Successfully updated assistant kb settings: %s", assistantID)
-	})
-
 	t.Run("UpdateAssistantMCP", func(t *testing.T) {
 		// Create a test assistant
 		assistantID := createTestAssistant("MCP Update Test")
@@ -722,10 +684,6 @@ func TestUpdateAssistant(t *testing.T) {
 				},
 			},
 			// Note: tools field removed - now handled by MCP
-			"kb": map[string]interface{}{
-				"collections": []string{"updated-collection"},
-				"enabled":     true,
-			},
 			"mcp": map[string]interface{}{
 				"servers": []map[string]interface{}{
 					{

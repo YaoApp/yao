@@ -43,11 +43,6 @@ func TestLoadPathFullFields(t *testing.T) {
 	require.NotNil(t, ast.ConnectorOptions.Optional)
 	assert.True(t, *ast.ConnectorOptions.Optional)
 
-	// KB
-	require.NotNil(t, ast.KB)
-	require.NotNil(t, ast.KB.Collections)
-	assert.Contains(t, ast.KB.Collections, "test-collection")
-
 	// MCP
 	require.NotNil(t, ast.MCP)
 	assert.Greater(t, len(ast.MCP.Servers), 0)

@@ -161,7 +161,6 @@ func (ast *Assistant) Map() map[string]interface{} {
 		"prompt_presets":         ast.PromptPresets,
 		"disable_global_prompts": ast.DisableGlobalPrompts,
 		"source":                 ast.Source,
-		"kb":                     ast.KB,
 		"db":                     ast.DB,
 		"mcp":                    ast.MCP,
 		"workflow":               ast.Workflow,
@@ -257,21 +256,6 @@ func (ast *Assistant) Clone() *Assistant {
 
 	// Copy default_mode (simple string)
 	clone.DefaultMode = ast.DefaultMode
-
-	// Deep copy KB
-	if ast.KB != nil {
-		clone.KB = &store.KnowledgeBase{}
-		if ast.KB.Collections != nil {
-			clone.KB.Collections = make([]string, len(ast.KB.Collections))
-			copy(clone.KB.Collections, ast.KB.Collections)
-		}
-		if ast.KB.Options != nil {
-			clone.KB.Options = make(map[string]interface{})
-			for k, v := range ast.KB.Options {
-				clone.KB.Options[k] = v
-			}
-		}
-	}
 
 	// Deep copy DB
 	if ast.DB != nil {
@@ -423,16 +407,6 @@ func (ast *Assistant) Clone() *Assistant {
 				Provider:   ast.Search.Web.Provider,
 				APIKeyEnv:  ast.Search.Web.APIKeyEnv,
 				MaxResults: ast.Search.Web.MaxResults,
-			}
-		}
-		if ast.Search.KB != nil {
-			clone.Search.KB = &searchTypes.KBConfig{
-				Threshold: ast.Search.KB.Threshold,
-				Graph:     ast.Search.KB.Graph,
-			}
-			if ast.Search.KB.Collections != nil {
-				clone.Search.KB.Collections = make([]string, len(ast.Search.KB.Collections))
-				copy(clone.Search.KB.Collections, ast.Search.KB.Collections)
 			}
 		}
 		if ast.Search.DB != nil {
@@ -626,15 +600,6 @@ func (ast *Assistant) Update(data map[string]interface{}) error {
 			return err
 		}
 		ast.PromptPresets = presets
-	}
-
-	// KB
-	if v, has := data["kb"]; has {
-		kb, err := store.ToKnowledgeBase(v)
-		if err != nil {
-			return err
-		}
-		ast.KB = kb
 	}
 
 	// DB

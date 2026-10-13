@@ -89,40 +89,6 @@ func TestEnsureChatSkipHistory(t *testing.T) {
 	assert.Error(t, err, "chat should not exist when Skip.History is true")
 }
 
-func TestGetChatKBID(t *testing.T) {
-	t.Run("WithTeamAndUser", func(t *testing.T) {
-		result := assistant.GetChatKBID("team123", "user456")
-		assert.Equal(t, "chat_team123_user456", result)
-	})
-
-	t.Run("OnlyUser", func(t *testing.T) {
-		result := assistant.GetChatKBID("", "user456")
-		assert.Equal(t, "chat_user_user456", result)
-	})
-
-	t.Run("SpecialCharacters", func(t *testing.T) {
-		result := assistant.GetChatKBID("team-abc", "user@xyz")
-		assert.Equal(t, "chat_team_abc_user_xyz", result)
-	})
-}
-
-func TestSanitizeCollectionID(t *testing.T) {
-	t.Run("NormalID", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("abc123_XYZ")
-		assert.Equal(t, "abc123_XYZ", result)
-	})
-
-	t.Run("SpecialChars", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("hello-world@test.com")
-		assert.Equal(t, "hello_world_test_com", result)
-	})
-
-	t.Run("EmptyString", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("")
-		assert.Equal(t, "", result)
-	})
-}
-
 func TestInitBuffer(t *testing.T) {
 	testprepare.PrepareSandbox(t)
 

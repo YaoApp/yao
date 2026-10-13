@@ -129,7 +129,7 @@ func (f *InputFormatter) FormatRobotIdentity(robot *robottypes.Robot) string {
 	return sb.String()
 }
 
-// FormatAvailableResources formats available resources (agents, MCP tools, KB, DB) as user message content
+// FormatAvailableResources formats available resources (agents, MCP tools, DB) as user message content
 // Used by P0 (Inspiration) and P1 (Goals) to inform the agent what tools are available
 // This is critical for generating achievable goals - without knowing available tools,
 // the agent might generate goals that cannot be accomplished
@@ -301,20 +301,6 @@ func (f *InputFormatter) FormatAvailableResourcesWithLocale(robot *robottypes.Ro
 			}
 			sb.WriteString("\n")
 		}
-	}
-
-	// Available Knowledge Base
-	if robot.Config.KB != nil && len(robot.Config.KB.Collections) > 0 {
-		if !hasContent {
-			sb.WriteString("## Available Resources\n\n")
-			hasContent = true
-		}
-		sb.WriteString("### Knowledge Base\n")
-		sb.WriteString("You have access to these knowledge collections:\n")
-		for _, collection := range robot.Config.KB.Collections {
-			sb.WriteString(fmt.Sprintf("- %s\n", collection))
-		}
-		sb.WriteString("\n")
 	}
 
 	// Available Database Models

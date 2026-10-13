@@ -40,8 +40,6 @@ var systemModels = map[string]string{
 	"__yao.job":                "yao/models/job/job.mod.yao",
 	"__yao.job.execution":      "yao/models/job/execution.mod.yao",
 	"__yao.job.log":            "yao/models/job/log.mod.yao",
-	"__yao.kb.collection":      "yao/models/kb/collection.mod.yao",
-	"__yao.kb.document":        "yao/models/kb/document.mod.yao",
 	"__yao.team":               "yao/models/team.mod.yao",
 	"__yao.member":             "yao/models/member.mod.yao",
 	"__yao.user":               "yao/models/user.mod.yao",

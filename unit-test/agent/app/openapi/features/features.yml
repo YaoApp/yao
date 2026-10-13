@@ -49,9 +49,7 @@ team:owner:
 team:admin:
   - profile:manage
   - team:member:manage
-  - collections:create
 
 # Team Member - Standard team member with basic features
 team:member:
   - profile:manage
-  - collections:create

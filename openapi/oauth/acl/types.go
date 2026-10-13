@@ -115,26 +115,26 @@ type ScopeManager struct {
 // PathMatcher stores path rules by priority
 type PathMatcher struct {
 	// Exact match paths (highest priority)
-	// key: full path (e.g. "/kb/collections")
+	// key: full path (e.g. "/agent/assistants")
 	// value: endpoint info
 	exactPaths map[string]*EndpointInfo
 
 	// Parameter paths (medium priority)
 	// Grouped by segment count, supports :param placeholder
-	// key: path pattern (e.g. "/kb/collections/:collectionID")
+	// key: path pattern (e.g. "/agent/assistants/:assistantID")
 	// value: endpoint info
 	paramPaths map[string]*EndpointInfo
 
 	// Wildcard paths (lowest priority)
 	// Sorted by prefix length (longer first)
-	// e.g. ["/kb/collections/*", "/kb/*"]
+	// e.g. ["/agent/assistants/*", "/agent/*"]
 	wildcardPaths []*WildcardPath
 }
 
 // WildcardPath represents a wildcard path rule
 type WildcardPath struct {
-	Pattern  string        // Original pattern (e.g. "/kb/*")
-	Prefix   string        // Match prefix (e.g. "/kb/")
+	Pattern  string        // Original pattern (e.g. "/agent/*")
+	Prefix   string        // Match prefix (e.g. "/agent/")
 	Endpoint *EndpointInfo // Endpoint info
 }
 

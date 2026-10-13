@@ -46,10 +46,10 @@ func TestNewThinkingMessage(t *testing.T) {
 }
 
 func TestNewLoadingMessage(t *testing.T) {
-	msg := output.NewLoadingMessage("Searching knowledge base...")
+	msg := output.NewLoadingMessage("Searching...")
 	require.NotNil(t, msg)
 	assert.Equal(t, message.TypeLoading, msg.Type)
-	assert.Equal(t, "Searching knowledge base...", msg.Props["message"])
+	assert.Equal(t, "Searching...", msg.Props["message"])
 }
 
 func TestNewToolCallMessage(t *testing.T) {

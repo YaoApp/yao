@@ -13,10 +13,6 @@ type SearchAPI interface {
 	// Returns *types.Result or error information
 	Web(query string, opts map[string]interface{}) interface{}
 
-	// KB executes knowledge base search
-	// Returns *types.Result or error information
-	KB(query string, opts map[string]interface{}) interface{}
-
 	// DB executes database search
 	// Returns *types.Result or error information
 	DB(query string, opts map[string]interface{}) interface{}
@@ -50,7 +46,6 @@ func (ctx *Context) newSearchObject(iso *v8go.Isolate) *v8go.ObjectTemplate {
 
 	// Single search methods
 	searchObj.Set("Web", ctx.searchWebMethod(iso))
-	searchObj.Set("KB", ctx.searchKBMethod(iso))
 	searchObj.Set("DB", ctx.searchDBMethod(iso))
 
 	// Parallel search methods - inspired by JavaScript Promise
@@ -103,60 +98,6 @@ func (ctx *Context) searchWebMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 
 		// Execute search
 		result := searchAPI.Web(query, opts)
-
-		// Convert result to JS value
-		jsVal, err := bridge.JsValue(v8ctx, result)
-		if err != nil {
-			return bridge.JsException(v8ctx, "failed to convert result: "+err.Error())
-		}
-
-		return jsVal
-	})
-}
-
-// searchKBMethod implements ctx.search.KB(query, options?)
-// Options:
-//   - collections: string[] - collection IDs
-//   - threshold: number - similarity threshold (0-1)
-//   - limit: number - max results
-//   - graph: boolean - enable graph association
-//   - rerank: { top_n: number } - rerank options
-func (ctx *Context) searchKBMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
-	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
-		v8ctx := info.Context()
-		args := info.Args()
-
-		// Validate arguments
-		if len(args) < 1 {
-			return bridge.JsException(v8ctx, "KB requires query parameter")
-		}
-
-		// Get query string
-		if !args[0].IsString() {
-			return bridge.JsException(v8ctx, "query must be a string")
-		}
-		query := args[0].String()
-
-		// Parse options (optional)
-		var opts map[string]interface{}
-		if len(args) >= 2 && !args[1].IsUndefined() && !args[1].IsNull() {
-			goVal, err := bridge.GoValue(args[1], v8ctx)
-			if err != nil {
-				return bridge.JsException(v8ctx, "invalid options: "+err.Error())
-			}
-			if optsMap, ok := goVal.(map[string]interface{}); ok {
-				opts = optsMap
-			}
-		}
-
-		// Get search API
-		searchAPI := ctx.Search()
-		if searchAPI == nil {
-			return bridge.JsException(v8ctx, "search API not available")
-		}
-
-		// Execute search
-		result := searchAPI.KB(query, opts)
 
 		// Convert result to JS value
 		jsVal, err := bridge.JsValue(v8ctx, result)
@@ -226,7 +167,7 @@ func (ctx *Context) searchDBMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 // searchAllMethod implements ctx.search.All(requests)
 // Waits for all searches to complete (like Promise.all)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (ctx *Context) searchAllMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
@@ -272,7 +213,7 @@ func (ctx *Context) searchAllMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 // searchAnyMethod implements ctx.search.Any(requests)
 // Returns when any search succeeds with results (like Promise.any)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (ctx *Context) searchAnyMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
@@ -318,7 +259,7 @@ func (ctx *Context) searchAnyMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {
 // searchRaceMethod implements ctx.search.Race(requests)
 // Returns when any search completes (like Promise.race)
 // Each request should have:
-//   - type: string - "web", "kb", or "db"
+//   - type: string - "web" or "db"
 //   - query: string - search query
 //   - ... other type-specific options
 func (ctx *Context) searchRaceMethod(iso *v8go.Isolate) *v8go.FunctionTemplate {

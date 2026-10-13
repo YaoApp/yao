@@ -160,7 +160,7 @@ func TestTaoACL_NoScopeCannotAccess(t *testing.T) {
 	defer testutils.Clean()
 	initSettingRegistry(t)
 
-	noSettingToken := obtainRestrictedToken(t, serverURL, "kb:collections:read:all")
+	noSettingToken := obtainRestrictedToken(t, serverURL, "file:files:read:all")
 
 	req, _ := http.NewRequest("GET", serverURL+baseURL()+"/setting/tao/config", nil)
 	req.Header.Set("Authorization", "Bearer "+noSettingToken)

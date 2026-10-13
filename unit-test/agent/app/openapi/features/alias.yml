@@ -20,11 +20,6 @@ team:member:manage:
   - team:member:robot:create
   - team:member:robot:edit
 
-# ============ Knowledge Base Feature Aliases ============
-
-kb:manage:
-  - collections:create
-
 # ============ Combined Feature Bundles ============
 
 # Basic user features (read and edit profile)
@@ -35,4 +30,3 @@ user:basic:
 user:all:
   - profile:manage
   - team:manage
-  - collections:create

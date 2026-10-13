@@ -124,7 +124,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Now ctx.Capabilities is set, so output adapters can use it
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
-	// Initialize chat, prepare kb collection (optional) etc.
+	// Initialize chat
 	// Use async version to not block the main flow
 	ast.InitializeConversationAsync(ctx, opts)
 

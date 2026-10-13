@@ -91,7 +91,7 @@ func parseSearchField(search any) *SearchIntent {
 		if v {
 			return &SearchIntent{
 				NeedSearch:  true,
-				SearchTypes: []string{"web"}, // TODO: 恢复 KB/DB 搜索时改回 []string{"web", "kb", "db"}
+				SearchTypes: []string{"web"}, // Only web search available for hook-triggered search
 				Confidence:  1.0,
 				Reason:      "enabled by hook",
 			}
@@ -255,7 +255,7 @@ func parseSearchIntent(intentData map[string]interface{}) *SearchIntent {
 			if typeStr, ok := t.(string); ok {
 				// Validate type
 				typeStr = strings.ToLower(typeStr)
-				if typeStr == "web" || typeStr == "kb" || typeStr == "db" {
+				if typeStr == "web" || typeStr == "db" {
 					intent.SearchTypes = append(intent.SearchTypes, typeStr)
 				}
 			}
@@ -832,36 +832,6 @@ func (ast *Assistant) buildSearchRequests(ctx *context.Context, query string, co
 		})
 	}
 
-	// KB search - check if KB is configured and allowed by intent
-	if ast.KB != nil && len(ast.KB.Collections) > 0 && isTypeAllowed("kb") {
-		limit := 10
-		threshold := 0.7
-		if config != nil && config.KB != nil {
-			if config.KB.Threshold > 0 {
-				threshold = config.KB.Threshold
-			}
-		}
-
-		// Filter collections by authorization (Collection-level permission check)
-		allowedCollections := FilterKBCollectionsByAuth(ctx, ast.KB.Collections)
-		if len(allowedCollections) == 0 {
-			ctx.Logger.Info("No accessible KB collections after auth filter")
-		} else {
-			// Build KB request
-			kbReq := &searchTypes.Request{
-				Type:        searchTypes.SearchTypeKB,
-				Query:       query, // KB uses original query for semantic search
-				Source:      searchTypes.SourceAuto,
-				Limit:       limit,
-				Collections: allowedCollections,
-				Threshold:   threshold,
-				Graph:       config != nil && config.KB != nil && config.KB.Graph,
-			}
-
-			requests = append(requests, kbReq)
-		}
-	}
-
 	// DB search - check if DB is configured and allowed by intent
 	if ast.DB != nil && len(ast.DB.Models) > 0 && isTypeAllowed("db") {
 		limit := 20
@@ -1087,7 +1057,7 @@ type SearchExecutionResult struct {
 	Results    []*searchTypes.Result         // Raw search results (for extracting DSL, etc.)
 	Duration   int64                         // Search duration in ms
 	Error      error                         // Error if failed
-	SearchType string                        // "auto", "web", "kb", "db"
+	SearchType string                        // "auto", "web", "db"
 }
 
 // keywordsToQuery converts keywords with weights to a search query string
@@ -1245,13 +1215,6 @@ func (ast *Assistant) configToMap(config *searchTypes.Config) map[string]any {
 		}
 	}
 
-	if config.KB != nil {
-		result["kb"] = map[string]any{
-			"threshold": config.KB.Threshold,
-			"graph":     config.KB.Graph,
-		}
-	}
-
 	if config.DB != nil {
 		result["db"] = map[string]any{
 			"max_results": config.DB.MaxResults,
@@ -1290,11 +1253,6 @@ func (ast *Assistant) getSearchProviderInfo(config *searchTypes.Config, uses *se
 		parts = append(parts, "web:"+webMode)
 	} else {
 		parts = append(parts, "web:agent:"+webMode)
-	}
-
-	// KB search
-	if config != nil && config.KB != nil && len(config.KB.Collections) > 0 {
-		parts = append(parts, "kb")
 	}
 
 	// DB search

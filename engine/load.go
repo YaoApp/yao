@@ -31,7 +31,6 @@ import (
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/job"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/mcpclient"
@@ -373,15 +372,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "MCP", Error: err})
 	}
 
-	// Load Knowledge Base
-	err = loadStep("Knowledge Base", func() error {
-		_, err := kb.Load(cfg)
-		return err
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
-	}
-
 	// Load Agent
 	err = loadStep("Agent", func() error {
 		return agent.Load(cfg)
@@ -658,13 +648,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 	err = mcp.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "MCP", err)
-	}
-
-	// Load Knowledge Base
-	_, err = kb.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Knowledge Base", err)
-
 	}
 
 	// Load Agent

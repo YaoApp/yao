@@ -90,10 +90,10 @@ func TestMarshalJSONFields(t *testing.T) {
 		data := make(map[string]interface{})
 		var p *testStruct
 		err := xun.MarshalJSONFieldsForTest(data, map[string]interface{}{
-			"kb": p,
+			"config": p,
 		})
 		require.NoError(t, err)
-		_, exists := data["kb"]
+		_, exists := data["config"]
 		assert.False(t, exists, "typed nil pointer should be skipped")
 	})
 
@@ -149,10 +149,10 @@ func TestMarshalJSONFields(t *testing.T) {
 	t.Run("MarshalPointerToStruct", func(t *testing.T) {
 		data := make(map[string]interface{})
 		err := xun.MarshalJSONFieldsForTest(data, map[string]interface{}{
-			"kb": &testStruct{Name: "test"},
+			"config": &testStruct{Name: "test"},
 		})
 		require.NoError(t, err)
-		assert.Equal(t, `{"Name":"test"}`, data["kb"])
+		assert.Equal(t, `{"Name":"test"}`, data["config"])
 	})
 
 	t.Run("MixedNilAndNonNil", func(t *testing.T) {

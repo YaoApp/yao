@@ -452,7 +452,7 @@ func TestLLMACL_NoScopeCannotAccess(t *testing.T) {
 	initSettingRegistry(t)
 	initLLMRegistry(t)
 
-	noSettingToken := obtainRestrictedToken(t, serverURL, "kb:collections:read:all")
+	noSettingToken := obtainRestrictedToken(t, serverURL, "file:files:read:all")
 
 	resp := llmGet(t, llmURL(serverURL, ""), noSettingToken)
 	defer resp.Body.Close()

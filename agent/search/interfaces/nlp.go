@@ -20,5 +20,5 @@ type QueryDSLGenerator interface {
 	Generate(query string, models []*model.Model) (*gou.QueryDSL, error)
 }
 
-// Note: Embedding is handled by KB collection's own config (embedding provider + model),
-// not defined here. See KB handler for details.
+// Note: Embedding is handled by the vector store's own config (provider + model),
+// not defined here.

@@ -25,44 +25,6 @@ func ExtractSandboxVersion(v any) string {
 	return ""
 }
 
-// ToKnowledgeBase converts various types to KnowledgeBase
-func ToKnowledgeBase(v interface{}) (*KnowledgeBase, error) {
-	if v == nil {
-		return nil, nil
-	}
-
-	switch kb := v.(type) {
-	case *KnowledgeBase:
-		return kb, nil
-
-	case KnowledgeBase:
-		return &kb, nil
-
-	case []string:
-		return &KnowledgeBase{Collections: kb}, nil
-
-	case []interface{}:
-		var collections []string
-		for _, item := range kb {
-			collections = append(collections, cast.ToString(item))
-		}
-		return &KnowledgeBase{Collections: collections}, nil
-
-	default:
-		raw, err := jsoniter.Marshal(kb)
-		if err != nil {
-			return nil, fmt.Errorf("kb format error: %s", err.Error())
-		}
-
-		var knowledgeBase KnowledgeBase
-		err = jsoniter.Unmarshal(raw, &knowledgeBase)
-		if err != nil {
-			return nil, fmt.Errorf("kb format error: %s", err.Error())
-		}
-		return &knowledgeBase, nil
-	}
-}
-
 // ToDatabase converts various types to Database
 func ToDatabase(v interface{}) (*Database, error) {
 	if v == nil {
@@ -416,14 +378,6 @@ func ToAssistantModel(v interface{}) (*AssistantModel, error) {
 			if err := jsoniter.Unmarshal(raw, &co); err == nil {
 				model.ConnectorOptions = &co
 			}
-		}
-	}
-
-	// KB
-	if kb, ok := data["kb"]; ok && kb != nil {
-		kbConverted, err := ToKnowledgeBase(kb)
-		if err == nil {
-			model.KB = kbConverted
 		}
 	}
 

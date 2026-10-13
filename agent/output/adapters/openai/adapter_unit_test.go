@@ -177,7 +177,7 @@ func TestAdapt_LoadingMessage(t *testing.T) {
 	msg := &message.Message{
 		Type: message.TypeLoading,
 		Props: map[string]interface{}{
-			"message": "Searching knowledge base...",
+			"message": "Searching...",
 		},
 	}
 
@@ -194,7 +194,7 @@ func TestAdapt_LoadingMessage(t *testing.T) {
 
 	delta, ok := choices[0]["delta"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, "Searching knowledge base...", delta["reasoning_content"])
+	assert.Equal(t, "Searching...", delta["reasoning_content"])
 }
 
 func TestAdapt_ToolCallMessage(t *testing.T) {
