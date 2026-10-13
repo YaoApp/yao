@@ -4,7 +4,7 @@ package types
 // Used to build LLM context from search results
 type Reference struct {
 	ID      string                 `json:"id"`      // Unique citation ID: "ref_001", "ref_002"
-	Type    SearchType             `json:"type"`    // Data type: "web", "kb", "db"
+	Type    SearchType             `json:"type"`    // Data type: "web", "db"
 	Source  SourceType             `json:"source"`  // Origin: "user", "hook", "auto"
 	Weight  float64                `json:"weight"`  // Relevance weight (1.0=highest, 0.6=lowest)
 	Score   float64                `json:"score"`   // Relevance score (0-1)

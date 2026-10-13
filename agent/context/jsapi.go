@@ -7,7 +7,6 @@ import (
 	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
-	traceJsapi "github.com/yaoapp/yao/trace/jsapi"
 	"rogchap.com/v8go"
 )
 
@@ -98,13 +97,6 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 		return nil, err
 	}
 
-	// Set trace object (property, not method)
-	// If trace is not initialized, use no-op object
-	traceObj := ctx.createTraceObject(v8ctx)
-	if traceObj != nil {
-		obj.Set("trace", traceObj)
-	}
-
 	// Set complex objects (maps, arrays) after instance creation using bridge
 	// Client object
 	clientData := map[string]interface{}{
@@ -175,31 +167,11 @@ func (ctx *Context) NewObject(v8ctx *v8go.Context) (*v8go.Value, error) {
 
 // objectRelease releases the Go object from the global bridge registry
 // It retrieves the goValueID from internal field (index 0) and releases the Go object
-// Also releases associated Trace object if present
 func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.FunctionTemplate {
 	return v8go.NewFunctionTemplate(iso, func(info *v8go.FunctionCallbackInfo) *v8go.Value {
 		// Get the context object (this)
 		thisObj, err := info.This().AsObject()
 		if err == nil {
-			// NOTE: We do NOT automatically release Trace object here
-			//
-			// Rationale:
-			// 1. Each Hook execution creates a new V8 script context (scriptCtx)
-			// 2. The agent Context (ctx) is passed to the Hook as a parameter
-			// 3. When scriptCtx.Close() is called (via defer), V8 cleanup triggers ctx.__release()
-			// 4. If we release Trace here, it gets released after EVERY Hook execution
-			// 5. This causes "context canceled" errors in subsequent operations
-			//
-			// Trace lifecycle:
-			// - Trace is created when agent.Stream() starts (in Context.Trace())
-			// - Trace should persist across ALL Hook executions (Create, Next, Done)
-			// - Trace is released when agent Context.Release() is called (after agent.Stream() completes)
-			//
-			// Memory management:
-			// - If JS code explicitly calls trace.Release(), it will work (trace/jsapi/trace.go:traceGoRelease)
-			// - If not explicitly called, Context.Release() will clean it up (context/context.go:Release)
-			// - This is the correct lifecycle: one Context -> one Trace -> multiple Hook executions
-
 			// Release Context Go object from bridge registry
 			if thisObj.InternalFieldCount() > 0 {
 				// Get goValueID from internal field (index 0)
@@ -213,34 +185,6 @@ func (ctx *Context) objectRelease(iso *v8go.Isolate, goValueID string) *v8go.Fun
 
 		return v8go.Undefined(info.Context().Isolate())
 	})
-}
-
-// createTraceObject creates a Trace object instance
-// Returns a no-op Trace object if trace is not initialized
-func (ctx *Context) createTraceObject(v8ctx *v8go.Context) *v8go.Value {
-	// Try to get trace manager
-	manager, err := ctx.Trace()
-	if err != nil || manager == nil {
-		// Return no-op trace object if initialization fails
-		noOpTrace, _ := traceJsapi.NewNoOpTraceObject(v8ctx)
-		return noOpTrace
-	}
-
-	// Get trace ID
-	traceID := ""
-	if ctx.Stack != nil {
-		traceID = ctx.Stack.TraceID
-	}
-
-	// Create JavaScript Trace object
-	traceObj, err := traceJsapi.NewTraceObject(v8ctx, traceID, manager)
-	if err != nil {
-		// Return no-op trace object if creation fails
-		noOpTrace, _ := traceJsapi.NewNoOpTraceObject(v8ctx)
-		return noOpTrace
-	}
-
-	return traceObj
 }
 
 // sendMethod implements ctx.Send(message, blockId?)

@@ -17,7 +17,7 @@ func newReleaseTestContext() *agentctx.Context {
 	ctx := agentctx.New(stdContext.Background(), nil, "test-chat-id")
 	ctx.AssistantID = "test-assistant-id"
 	ctx.Referer = agentctx.RefererAPI
-	stack, _, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
+	stack, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
 	ctx.Stack = stack
 	return ctx
 }

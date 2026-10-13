@@ -95,9 +95,9 @@ func TestGetReferences(t *testing.T) {
 
 	// Create second search with more references
 	refs2 := []storetypes.Reference{
-		{Index: 3, Type: "kb", Title: "Internal Doc", Snippet: "Internal documentation snippet", Content: "Full content 3"},
+		{Index: 3, Type: "db", Title: "Internal Doc", Snippet: "Internal documentation snippet", Content: "Full content 3"},
 	}
-	createTestSearch(t, requestID, chatID, "internal docs", "kb", refs2)
+	createTestSearch(t, requestID, chatID, "internal docs", "db", refs2)
 
 	t.Run("GetAllReferences", func(t *testing.T) {
 		req, err := http.NewRequest("GET", serverURL+baseURL+"/chat/references/"+requestID, nil)
@@ -131,7 +131,7 @@ func TestGetReferences(t *testing.T) {
 		// Check third reference (from second search)
 		ref3 := references[2].(map[string]interface{})
 		assert.Equal(t, float64(3), ref3["index"])
-		assert.Equal(t, "kb", ref3["type"])
+		assert.Equal(t, "db", ref3["type"])
 		assert.Equal(t, "Internal Doc", ref3["title"])
 
 		t.Logf("Successfully retrieved %d references", len(references))
@@ -198,7 +198,7 @@ func TestGetReference(t *testing.T) {
 	// Create test search with references
 	refs := []storetypes.Reference{
 		{Index: 1, Type: "web", Title: "First Reference", URL: "https://example.com/1", Snippet: "First snippet", Content: "First content"},
-		{Index: 2, Type: "kb", Title: "Second Reference", Snippet: "Second snippet", Content: "Second content"},
+		{Index: 2, Type: "db", Title: "Second Reference", Snippet: "Second snippet", Content: "Second content"},
 		{Index: 3, Type: "db", Title: "Third Reference", Snippet: "Third snippet", Content: "Third content"},
 	}
 	createTestSearch(t, requestID, chatID, "test query", "web", refs)
@@ -221,7 +221,7 @@ func TestGetReference(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, float64(2), ref["index"])
-		assert.Equal(t, "kb", ref["type"])
+		assert.Equal(t, "db", ref["type"])
 		assert.Equal(t, "Second Reference", ref["title"])
 		assert.Equal(t, "Second snippet", ref["snippet"])
 		assert.Equal(t, "Second content", ref["content"])
@@ -352,12 +352,12 @@ func TestGetReferences_MultipleSearches(t *testing.T) {
 	}
 	createTestSearch(t, requestID, chatID, "web search query", "web", refs1)
 
-	// Create second search (kb)
+	// Create second search (db extra)
 	refs2 := []storetypes.Reference{
-		{Index: 3, Type: "kb", Title: "KB Result 1"},
-		{Index: 4, Type: "kb", Title: "KB Result 2"},
+		{Index: 3, Type: "db", Title: "DB Result 1"},
+		{Index: 4, Type: "db", Title: "DB Result 2"},
 	}
-	createTestSearch(t, requestID, chatID, "kb search query", "kb", refs2)
+	createTestSearch(t, requestID, chatID, "db search query", "db", refs2)
 
 	// Create third search (db)
 	refs3 := []storetypes.Reference{
@@ -397,10 +397,9 @@ func TestGetReferences_MultipleSearches(t *testing.T) {
 		}
 
 		assert.Equal(t, 2, types["web"])
-		assert.Equal(t, 2, types["kb"])
-		assert.Equal(t, 1, types["db"])
+		assert.Equal(t, 3, types["db"])
 
-		t.Logf("Successfully aggregated references: web=%d, kb=%d, db=%d", types["web"], types["kb"], types["db"])
+		t.Logf("Successfully aggregated references: web=%d, db=%d", types["web"], types["db"])
 	})
 
 	t.Run("GetSpecificReference", func(t *testing.T) {
@@ -421,8 +420,8 @@ func TestGetReferences_MultipleSearches(t *testing.T) {
 		assert.NoError(t, err)
 
 		assert.Equal(t, float64(4), ref["index"])
-		assert.Equal(t, "kb", ref["type"])
-		assert.Equal(t, "KB Result 2", ref["title"])
+		assert.Equal(t, "db", ref["type"])
+		assert.Equal(t, "DB Result 2", ref["title"])
 
 		t.Log("Successfully retrieved specific reference from aggregated searches")
 	})

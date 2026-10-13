@@ -14,7 +14,7 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/gou/fs/system"
 	"github.com/yaoapp/kun/log"
-	"github.com/yaoapp/yao/widgets/app"
+	"github.com/yaoapp/yao/share"
 )
 
 const (
@@ -171,7 +171,7 @@ func (pkg *Package) Validate() error {
 }
 
 // Unpack a package to current dir
-func (pkg *Package) Unpack(dest string) (*app.DSL, error) {
+func (pkg *Package) Unpack(dest string) (*share.AppInfo, error) {
 
 	dest, err := filepath.Abs(dest)
 	if err != nil {
@@ -220,7 +220,7 @@ func (pkg *Package) Unpack(dest string) (*app.DSL, error) {
 		return nil, err
 	}
 
-	var setting app.DSL
+	var setting share.AppInfo
 	err = jsoniter.Unmarshal(data, &setting)
 	if err != nil {
 		return nil, err

@@ -1,18 +1,14 @@
 package assistant
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	agentcontext "github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/i18n"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
 )
 
 // InitializeConversation prepares conversation context (synchronous)
-// KB collection is now initialized when user logs in (see openapi/user/login.go)
 func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options ...*agentcontext.Options) error {
 	// Reserved for future conversation initialization logic
 	return nil
@@ -21,72 +17,6 @@ func (ast *Assistant) InitializeConversation(ctx *agentcontext.Context, options 
 // InitializeConversationAsync prepares conversation context asynchronously
 func (ast *Assistant) InitializeConversationAsync(ctx *agentcontext.Context, options ...*agentcontext.Options) {
 	go ast.InitializeConversation(ctx, options...)
-}
-
-// GetChatKBID returns the KB collection ID for a chat session
-// Same team + user always returns the same ID (deterministic)
-// Format: chat_{team}_{user} or chat_user_{user} if no team
-func GetChatKBID(teamID, userID string) string {
-	// Sanitize IDs: replace invalid chars with underscores
-	cleanTeamID := sanitizeCollectionID(teamID)
-	cleanUserID := sanitizeCollectionID(userID)
-
-	if cleanTeamID != "" {
-		return fmt.Sprintf("chat_%s_%s", cleanTeamID, cleanUserID)
-	}
-	return fmt.Sprintf("chat_user_%s", cleanUserID)
-}
-
-// sanitizeCollectionID replaces invalid characters with underscores
-// Collection IDs only allow: a-z, A-Z, 0-9, and underscore
-func sanitizeCollectionID(id string) string {
-	if id == "" {
-		return ""
-	}
-
-	// Replace any character that is not alphanumeric or underscore with underscore
-	result := make([]byte, len(id))
-	for i := 0; i < len(id); i++ {
-		c := id[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' {
-			result[i] = c
-		} else {
-			result[i] = '_'
-		}
-	}
-	return string(result)
-}
-
-// mergeChatMetadata merges default metadata with chat context information
-func mergeChatMetadata(defaultMetadata map[string]interface{}, ctx *agentcontext.Context) map[string]interface{} {
-	metadata := make(map[string]interface{})
-
-	// Copy default metadata
-	for k, v := range defaultMetadata {
-		metadata[k] = v
-	}
-
-	// Add chat-specific metadata (only for internal tracking, not displayed)
-	metadata["chat_id"] = ctx.ChatID
-	metadata["team_id"] = ctx.Authorized.TeamID
-	metadata["user_id"] = ctx.Authorized.UserID
-
-	// Get locale from context, default to zh-CN if not set
-	locale := ctx.Locale
-	if locale == "" {
-		locale = "zh-CN"
-	}
-	locale = strings.ToLower(locale)
-
-	// Use i18n for name and description (fixed, not showing user/team IDs)
-	if _, exists := metadata["name"]; !exists {
-		metadata["name"] = i18n.T(locale, "kb.chat.name")
-	}
-	if _, exists := metadata["description"]; !exists {
-		metadata["description"] = i18n.T(locale, "kb.chat.description")
-	}
-
-	return metadata
 }
 
 // =============================================================================

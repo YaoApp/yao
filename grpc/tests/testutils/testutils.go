@@ -24,7 +24,6 @@ import (
 	yaogrpc "github.com/yaoapp/yao/grpc"
 	_ "github.com/yaoapp/yao/grpc/auth"
 	"github.com/yaoapp/yao/grpc/pb"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/service"
@@ -55,11 +54,6 @@ func Prepare(t *testing.T) *grpc.ClientConn {
 		if _, err := openapi.Load(config.Conf); err != nil {
 			t.Fatalf("failed to load OpenAPI server: %v", err)
 		}
-	}
-
-	// Load KB (required for agent KB features).
-	if _, err := kb.Load(config.Conf); err != nil {
-		t.Logf("warning: failed to load KB: %v", err)
 	}
 
 	// Load agent DSL (required for AgentStream handler).

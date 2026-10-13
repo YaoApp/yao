@@ -88,6 +88,21 @@ type AppInfo struct {
 	Developer    Developer              `json:"developer,omitempty"`
 	AfterLoad    string                 `json:"afterLoad,omitempty"`    // Process executed after the app is loaded
 	AfterMigrate string                 `json:"afterMigrate,omitempty"` // Process executed after the app is migrated
+	Theme        string                 `json:"theme,omitempty"`
+	Lang         string                 `json:"lang,omitempty"`
+	Sid          string                 `json:"sid,omitempty"`
+	Logo         string                 `json:"logo,omitempty"`
+	Favicon      string                 `json:"favicon,omitempty"`
+	Menu         AppMenu                `json:"menu,omitempty"`
+	Token        map[string]interface{} `json:"token,omitempty"`
+	Setup        string                 `json:"setup,omitempty"`
+	Setting      string                 `json:"setting,omitempty"` // Custom setting process name
+}
+
+// AppMenu 应用菜单配置
+type AppMenu struct {
+	Process string        `json:"process,omitempty"`
+	Args    []interface{} `json:"args,omitempty"`
 }
 
 // Developer The developer informations

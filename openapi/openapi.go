@@ -17,7 +17,6 @@ import (
 	"github.com/yaoapp/yao/openapi/hello"
 	openintegrations "github.com/yaoapp/yao/openapi/integrations"
 	"github.com/yaoapp/yao/openapi/job"
-	"github.com/yaoapp/yao/openapi/kb"
 	"github.com/yaoapp/yao/openapi/llm"
 	"github.com/yaoapp/yao/openapi/mcp"
 	"github.com/yaoapp/yao/openapi/messenger"
@@ -32,7 +31,6 @@ import (
 	openapiTai "github.com/yaoapp/yao/openapi/tai"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/testmode"
-	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
 )
@@ -137,9 +135,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 	// File handlers
 	file.Attach(group.Group("/file"), openapi.OAuth)
 
-	// Knowledge Base handlers
-	kb.Attach(group.Group("/kb"), openapi.OAuth)
-
 	// Job Management handlers
 	job.Attach(group.Group("/job"), openapi.OAuth)
 
@@ -175,9 +170,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// MCP Server handlers
 	mcp.Attach(group.Group("/mcp"), openapi.OAuth)
-
-	// Trace handlers
-	openapiTrace.Attach(group.Group("/trace"), openapi.OAuth)
 
 	// App handlers (menu, etc.)
 	app.Attach(group.Group("/app"), openapi.OAuth)

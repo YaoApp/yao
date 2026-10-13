@@ -21,7 +21,7 @@ func TestEnsureChatCreate(t *testing.T) {
 
 	chatID := "test-ensure-chat-create-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", nil)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", nil)
 
 	err = ast.EnsureChat(ctx)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestEnsureChatExisting(t *testing.T) {
 
 	chatID := "test-ensure-chat-existing-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", nil)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", nil)
 
 	// Create chat the first time
 	err = ast.EnsureChat(ctx)
@@ -76,7 +76,7 @@ func TestEnsureChatSkipHistory(t *testing.T) {
 	opts := &agentContext.Options{
 		Skip: &agentContext.Skip{History: true},
 	}
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", opts)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", opts)
 
 	err = ast.EnsureChat(ctx)
 	require.NoError(t, err)
@@ -89,40 +89,6 @@ func TestEnsureChatSkipHistory(t *testing.T) {
 	assert.Error(t, err, "chat should not exist when Skip.History is true")
 }
 
-func TestGetChatKBID(t *testing.T) {
-	t.Run("WithTeamAndUser", func(t *testing.T) {
-		result := assistant.GetChatKBID("team123", "user456")
-		assert.Equal(t, "chat_team123_user456", result)
-	})
-
-	t.Run("OnlyUser", func(t *testing.T) {
-		result := assistant.GetChatKBID("", "user456")
-		assert.Equal(t, "chat_user_user456", result)
-	})
-
-	t.Run("SpecialCharacters", func(t *testing.T) {
-		result := assistant.GetChatKBID("team-abc", "user@xyz")
-		assert.Equal(t, "chat_team_abc_user_xyz", result)
-	})
-}
-
-func TestSanitizeCollectionID(t *testing.T) {
-	t.Run("NormalID", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("abc123_XYZ")
-		assert.Equal(t, "abc123_XYZ", result)
-	})
-
-	t.Run("SpecialChars", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("hello-world@test.com")
-		assert.Equal(t, "hello_world_test_com", result)
-	})
-
-	t.Run("EmptyString", func(t *testing.T) {
-		result := assistant.ExportSanitizeCollectionID("")
-		assert.Equal(t, "", result)
-	})
-}
-
 func TestInitBuffer(t *testing.T) {
 	testprepare.PrepareSandbox(t)
 
@@ -133,7 +99,7 @@ func TestInitBuffer(t *testing.T) {
 	ctx := newTestContext(chatID, "tests.history-basic")
 
 	// Create root stack context
-	ctx.Stack = agentContext.NewStack("", "tests.history-basic", "api", nil)
+	ctx.Stack = agentContext.NewStack("tests.history-basic", "api", nil)
 
 	// Buffer should be nil initially
 	assert.Nil(t, ctx.Buffer)
@@ -153,7 +119,7 @@ func TestBufferUserInput(t *testing.T) {
 
 	chatID := "test-buffer-user-input-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", "tests.history-basic", "api", nil)
+	ctx.Stack = agentContext.NewStack("tests.history-basic", "api", nil)
 
 	// Initialize buffer
 	ast.InitBuffer(ctx)

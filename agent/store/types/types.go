@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	graphragtypes "github.com/yaoapp/gou/graphrag/types"
 	"github.com/yaoapp/xun/dbal/query"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
@@ -238,40 +237,6 @@ type Prompt struct {
 	Name    string `json:"name,omitempty"`
 }
 
-// KBSetting Knowledge Base configuration for agent (from agent/kb.yml)
-type KBSetting struct {
-	Chat *ChatKBSetting `json:"chat,omitempty" yaml:"chat,omitempty"` // Chat session KB settings
-}
-
-// ChatKBSetting represents KB settings for chat sessions
-type ChatKBSetting struct {
-	EmbeddingProviderID string                                 `json:"embedding_provider_id" yaml:"embedding_provider_id"`             // Embedding provider ID
-	EmbeddingOptionID   string                                 `json:"embedding_option_id" yaml:"embedding_option_id"`                 // Embedding option ID
-	Locale              string                                 `json:"locale,omitempty" yaml:"locale,omitempty"`                       // Locale for content processing
-	Config              *graphragtypes.CreateCollectionOptions `json:"config,omitempty" yaml:"config,omitempty"`                       // Vector index configuration
-	Metadata            map[string]interface{}                 `json:"metadata,omitempty" yaml:"metadata,omitempty"`                   // Collection metadata defaults
-	DocumentDefaults    *DocumentDefaults                      `json:"document_defaults,omitempty" yaml:"document_defaults,omitempty"` // Document processing defaults
-}
-
-// DocumentDefaults represents default settings for document processing
-type DocumentDefaults struct {
-	Chunking   *ProviderOption `json:"chunking,omitempty" yaml:"chunking,omitempty"`     // Chunking provider configuration
-	Extraction *ProviderOption `json:"extraction,omitempty" yaml:"extraction,omitempty"` // Extraction provider configuration
-	Converter  *ProviderOption `json:"converter,omitempty" yaml:"converter,omitempty"`   // Converter provider configuration
-}
-
-// ProviderOption represents a provider and option ID pair
-type ProviderOption struct {
-	ProviderID string `json:"provider_id" yaml:"provider_id"` // Provider ID
-	OptionID   string `json:"option_id" yaml:"option_id"`     // Option ID within the provider
-}
-
-// KnowledgeBase the knowledge base configuration
-type KnowledgeBase struct {
-	Collections []string               `json:"collections,omitempty"` // Knowledge base collection IDs
-	Options     map[string]interface{} `json:"options,omitempty"`     // Additional options for knowledge base
-}
-
 // Database the database configuration
 type Database struct {
 	Models  []string               `json:"models,omitempty"`  // Database models
@@ -458,7 +423,6 @@ type AssistantModel struct {
 	Prompts              []Prompt                     `json:"prompts,omitempty"`                // AI Prompts (default prompts)
 	PromptPresets        map[string][]Prompt          `json:"prompt_presets,omitempty"`         // Prompt presets organized by mode (e.g., "chat", "task", etc.)
 	DisableGlobalPrompts bool                         `json:"disable_global_prompts,omitempty"` // Whether to disable global prompts, default is false
-	KB                   *KnowledgeBase               `json:"kb,omitempty"`                     // Knowledge base configuration
 	DB                   *Database                    `json:"db,omitempty"`                     // Database configuration
 	MCP                  *MCPServers                  `json:"mcp,omitempty"`                    // MCP servers configuration
 	Workflow             *Workflow                    `json:"workflow,omitempty"`               // Workflow configuration

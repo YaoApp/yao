@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	agentcontext "github.com/yaoapp/yao/agent/context"
 	storetypes "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/trace/types"
 )
 
 // =============================================================================
@@ -32,11 +31,11 @@ func getHistorySize(opts *agentcontext.Options) int {
 	return defaultHistorySize
 }
 
-// WithHistory merges the input messages with chat history and traces it
+// WithHistory merges the input messages with chat history
 // Returns HistoryResult containing:
 // - InputMessages: cleaned input (overlap removed)
 // - FullMessages: history + clean input merged
-func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontext.Message, agentNode types.Node, options ...*agentcontext.Options) (*HistoryResult, error) {
+func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontext.Message, options ...*agentcontext.Options) (*HistoryResult, error) {
 
 	// Get options
 	var opts *agentcontext.Options
@@ -50,7 +49,6 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 			InputMessages: input,
 			FullMessages:  input,
 		}
-		ast.traceAgentHistory(ctx, agentNode, result.FullMessages)
 		return result, nil
 	}
 
@@ -66,7 +64,6 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 			InputMessages: input,
 			FullMessages:  input,
 		}
-		ast.traceAgentHistory(ctx, agentNode, result.FullMessages)
 		return result, nil
 	}
 
@@ -77,7 +74,6 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 			InputMessages: input,
 			FullMessages:  input,
 		}
-		ast.traceAgentHistory(ctx, agentNode, result.FullMessages)
 		return result, nil
 	}
 
@@ -104,9 +100,6 @@ func (ast *Assistant) WithHistory(ctx *agentcontext.Context, input []agentcontex
 		InputMessages: cleanInput,
 		FullMessages:  fullMessages,
 	}
-
-	// Log the chat history
-	ast.traceAgentHistory(ctx, agentNode, result.FullMessages)
 
 	return result, nil
 }

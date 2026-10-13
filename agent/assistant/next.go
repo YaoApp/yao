@@ -25,7 +25,6 @@ func (ast *Assistant) processNextResponse(npc *NextProcessContext) (*agentContex
 		return &agentContext.Response{
 			ContextID:   npc.Context.ID,
 			RequestID:   npc.Context.RequestID(),
-			TraceID:     npc.Context.TraceID(),
 			ChatID:      npc.Context.ChatID,
 			AssistantID: ast.ID,
 			Create:      npc.CreateResponse,
@@ -77,7 +76,6 @@ func (ast *Assistant) buildStandardResponse(npc *NextProcessContext) *agentConte
 	return &agentContext.Response{
 		ContextID:   npc.Context.ID,
 		RequestID:   npc.Context.RequestID(),
-		TraceID:     npc.Context.TraceID(),
 		ChatID:      npc.Context.ChatID,
 		AssistantID: ast.ID,
 		Create:      npc.CreateResponse,

@@ -19,7 +19,7 @@ func newMCPTestContext() *agentctx.Context {
 	ctx.AssistantID = "test-assistant-id"
 	ctx.Locale = "en"
 	ctx.Referer = agentctx.RefererAPI
-	stack, _, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
+	stack, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
 	ctx.Stack = stack
 	return ctx
 }
@@ -260,33 +260,6 @@ func TestMCPGetPrompt(t *testing.T) {
 
 	assert.Equal(t, float64(1), result["count"], "should have 1 message")
 	assert.Equal(t, true, result["has_messages"], "should have messages")
-}
-
-func TestMCPJsApiWithTrace(t *testing.T) {
-	testprepare.PrepareSandbox(t)
-
-	ctx := newMCPTestContext()
-
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(ctx) {
-			const trace = ctx.trace
-			
-			const result = ctx.mcp.CallTool("echo", "ping", { count: 5 })
-			
-			return {
-				has_trace: !!trace,
-				has_result: result !== undefined && result !== null,
-				ping_message: result?.message
-			}
-		}`, ctx)
-	require.NoError(t, err, "Call failed")
-
-	result, ok := res.(map[string]interface{})
-	require.True(t, ok, "Expected map result, got %T", res)
-
-	assert.Equal(t, true, result["has_trace"], "should have trace")
-	assert.Equal(t, true, result["has_result"], "should have result")
-	assert.Equal(t, "pong", result["ping_message"], "should have ping response")
 }
 
 func TestMCP_All_V8(t *testing.T) {

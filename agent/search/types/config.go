@@ -3,7 +3,6 @@ package types
 // Config represents the complete search configuration
 type Config struct {
 	Web      *WebConfig      `json:"web,omitempty" yaml:"web,omitempty"`
-	KB       *KBConfig       `json:"kb,omitempty" yaml:"kb,omitempty"`
 	DB       *DBConfig       `json:"db,omitempty" yaml:"db,omitempty"`
 	Keyword  *KeywordConfig  `json:"keyword,omitempty" yaml:"keyword,omitempty"`
 	QueryDSL *QueryDSLConfig `json:"querydsl,omitempty" yaml:"querydsl,omitempty"`
@@ -21,13 +20,6 @@ type WebConfig struct {
 	APIKeyEnv  string `json:"api_key_env,omitempty" yaml:"api_key_env,omitempty"` // Environment variable for API key
 	MaxResults int    `json:"max_results,omitempty" yaml:"max_results,omitempty"` // Max results (default: 10)
 	Engine     string `json:"engine,omitempty" yaml:"engine,omitempty"`           // Search engine for SerpAPI: "google", "bing", "baidu", "yandex", etc. (default: "google")
-}
-
-// KBConfig for knowledge base search settings
-type KBConfig struct {
-	Collections []string `json:"collections,omitempty" yaml:"collections,omitempty"` // Default collections
-	Threshold   float64  `json:"threshold,omitempty" yaml:"threshold,omitempty"`     // Similarity threshold (default: 0.7)
-	Graph       bool     `json:"graph,omitempty" yaml:"graph,omitempty"`             // Enable GraphRAG (default: false)
 }
 
 // DBConfig for database search settings

@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Writer implements the message.Writer interface for CUI clients
 type Writer struct {
 	Writer  http.ResponseWriter
-	Trace   traceTypes.Manager
 	Locale  string
 	adapter *Adapter
 }
@@ -23,7 +20,6 @@ type Writer struct {
 func NewWriter(options message.Options) (*Writer, error) {
 	return &Writer{
 		Writer:  options.Writer,
-		Trace:   options.Trace,
 		Locale:  options.Locale,
 		adapter: NewAdapter(),
 	}, nil
@@ -34,21 +30,12 @@ func (w *Writer) Write(msg *message.Message) error {
 	// CUI adapter passes messages through as-is
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.adapt_error"), map[string]any{ // "CUI Writer: Failed to adapt message"
-				"error":        err.Error(),
-				"message_type": msg.Type,
-			})
-		}
 		return err
 	}
 
 	// Send each chunk
 	for _, chunk := range chunks {
 		if err := w.sendChunk(chunk); err != nil {
-			if w.Trace != nil {
-				w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.chunk_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send chunk"
-			}
 			return err
 		}
 	}
@@ -63,12 +50,6 @@ func (w *Writer) WriteGroup(group *message.Group) error {
 
 	// Send the group
 	if err := w.sendChunk(group); err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.group_error"), map[string]any{ // "CUI Writer: Failed to send message group"
-				"error":    err.Error(),
-				"group_id": group.ID,
-			})
-		}
 		return err
 	}
 
@@ -94,17 +75,7 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Convert chunk to JSON
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.marshal_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to marshal chunk"
-		}
 		return err
-	}
-
-	// Log outgoing data to trace for debugging
-	if w.Trace != nil {
-		w.Trace.Debug("CUI Writer: Sending chunk to client", map[string]any{
-			"data": string(data),
-		})
 	}
 
 	// Format as SSE (Server-Sent Events) format: "data: {json}\n\n"
@@ -115,9 +86,6 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Send via context's writer
 	// The context knows how to send data based on the connection type (SSE, WebSocket, etc.)
 	if err := w.sendData(sseData); err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.cui.writer.send_error"), map[string]any{"error": err.Error()}) // "CUI Writer: Failed to send data to client"
-		}
 		return err
 	}
 

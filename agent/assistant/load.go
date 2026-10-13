@@ -27,7 +27,6 @@ var storeSetting *store.Setting = nil            // store setting from agent.yml
 var defaultConnector string = ""                 // default connector
 var globalUses *context.Uses = nil               // global uses configuration from agent.yml
 var globalPrompts []store.Prompt = nil           // global prompts from agent/prompts.yml
-var globalKBSetting *store.KBSetting = nil       // global KB setting from agent/kb.yml
 var globalSearchConfig *searchTypes.Config = nil // global search config from agent/search.yml
 
 // LoadBuiltIn load the built-in assistants
@@ -177,16 +176,6 @@ func GetGlobalPrompts(ctx map[string]string) []store.Prompt {
 		return nil
 	}
 	return store.Prompts(globalPrompts).Parse(ctx)
-}
-
-// SetGlobalKBSetting set the global KB setting from agent/kb.yml
-func SetGlobalKBSetting(kbSetting *store.KBSetting) {
-	globalKBSetting = kbSetting
-}
-
-// GetGlobalKBSetting returns the global KB setting
-func GetGlobalKBSetting() *store.KBSetting {
-	return globalKBSetting
 }
 
 // SetGlobalSearchConfig set the global search config from agent/search.yml
@@ -671,7 +660,7 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	}
 
 	// Search configuration (from package.yao search block)
-	// This contains search options like web.max_results, kb.threshold, citation.format, etc.
+	// This contains search options like web.max_results, citation.format, etc.
 	// Merge hierarchy: global config < assistant config
 	switch v := data["search"].(type) {
 
@@ -740,15 +729,6 @@ func loadMap(data map[string]interface{}) (*Assistant, error) {
 	// source (hook script code) - store the source code
 	if source, ok := data["source"].(string); ok {
 		assistant.Source = source
-	}
-
-	// kb
-	if kb, has := data["kb"]; has {
-		knowledgeBase, err := store.ToKnowledgeBase(kb)
-		if err != nil {
-			return nil, err
-		}
-		assistant.KB = knowledgeBase
 	}
 
 	// db
@@ -977,25 +957,6 @@ func mergeSearchConfig(base, override *searchTypes.Config) *searchTypes.Config {
 				merged.MaxResults = override.Web.MaxResults
 			}
 			result.Web = &merged
-		}
-	}
-
-	// Merge KB config
-	if override.KB != nil {
-		if result.KB == nil {
-			result.KB = override.KB
-		} else {
-			merged := *result.KB
-			if len(override.KB.Collections) > 0 {
-				merged.Collections = override.KB.Collections
-			}
-			if override.KB.Threshold > 0 {
-				merged.Threshold = override.KB.Threshold
-			}
-			if override.KB.Graph {
-				merged.Graph = override.KB.Graph
-			}
-			result.KB = &merged
 		}
 	}
 

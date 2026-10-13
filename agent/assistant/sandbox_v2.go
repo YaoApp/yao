@@ -20,7 +20,6 @@ import (
 	"github.com/yaoapp/yao/llmprovider"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/setting"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 	"github.com/yaoapp/yao/workspace"
 )
 
@@ -283,7 +282,6 @@ func (ast *Assistant) buildMCPServers() []sandboxTypes.MCPServer {
 // sandboxV2StreamParams groups arguments for executeSandboxV2Stream.
 type sandboxV2StreamParams struct {
 	Messages     []context.Message
-	AgentNode    traceTypes.Node
 	Handler      message.StreamFunc
 	Runner       sandboxTypes.Runner
 	Computer     infraV2.Computer
@@ -298,7 +296,6 @@ type sandboxV2StreamParams struct {
 func (ast *Assistant) executeSandboxV2Stream(
 	ctx *context.Context, p *sandboxV2StreamParams,
 ) (*context.CompletionResponse, error) {
-	_ = p.AgentNode
 
 	cfg := p.Config
 	manager := infraV2.M()

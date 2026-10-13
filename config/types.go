@@ -36,7 +36,6 @@ type Config struct {
 	AllowFrom            []string       `json:"allowfrom,omitempty" envSeparator:"|" env:"YAO_ALLOW_FROM"`                         // Domain list the separator is |
 	Session              Session        `json:"session,omitempty"`                                                                 // Session Config
 	Runtime              Runtime        `json:"runtime,omitempty"`                                                                 // Runtime config
-	Trace                Trace          `json:"trace,omitempty"`                                                                   // Trace config
 	Registry             string         `json:"registry,omitempty" env:"YAO_REGISTRY" envDefault:"https://registry.yaoagents.com"` // The package registry server URL
 	GRPC                 GRPCConfig     `json:"grpc,omitempty"`
 	HostExec             HostExecConfig `json:"host_exec,omitempty"`
@@ -114,12 +113,4 @@ type HostExecConfig struct {
 	AllowedCommands []string `json:"allowed_commands,omitempty" env:"YAO_HOST_EXEC_ALLOWED_COMMANDS" envSeparator:","` // Allowed commands (comma-separated)
 	AllowedDirs     []string `json:"allowed_dirs,omitempty" env:"YAO_HOST_EXEC_ALLOWED_DIRS" envSeparator:","`         // Allowed working directories
 	DeniedDirs      []string `json:"denied_dirs,omitempty" env:"YAO_HOST_EXEC_DENIED_DIRS" envSeparator:","`           // Denied directories (higher priority)
-}
-
-// Trace config
-type Trace struct {
-	Driver string `json:"driver,omitempty" env:"YAO_TRACE_DRIVER"` // The trace driver. local (development) | store (production)
-	Path   string `json:"path,omitempty" env:"YAO_TRACE_PATH"`     // The local file path for trace storage
-	Store  string `json:"store,omitempty" env:"YAO_TRACE_STORE"`   // The store ID when driver is "store"
-	Prefix string `json:"prefix,omitempty" env:"YAO_TRACE_PREFIX"` // The prefix for trace storage keys
 }

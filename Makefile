@@ -16,12 +16,10 @@ WIN_CXX = clang++ --target=x86_64-pc-windows-msvc -fuse-ld=lld -fno-exceptions
 # ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
 TESTFOLDER := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|registry|agent/sandbox/v2' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
 # Sandbox setting tests (openapi/tests/setting/sandbox_test.go) require Docker + Tai — skipped in CI, run locally only
-# Core tests (exclude AI-related: agent, aigc, openai, KB, sandbox, registry, grpc, and integrations which require external services)
-TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|kb|sandbox|integrations|registry|tai|grpc' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
-# Agent tests (agent, aigc) - exclude agent/search/handlers/web (requires external API keys), robot packages (tested in robot job), and agent/sandbox/v2 (WIP, has its own job)
-TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... ./aigc/... | grep -vE 'agent/search/handlers/web|agent/robot/|agent/sandbox/v2')
-# KB tests (kb)
-TESTFOLDER_KB := $(shell $(GO) list ./kb/...)
+# Core tests (exclude AI-related: agent, openai, sandbox, registry, grpc, and integrations which require external services)
+TESTFOLDER_CORE := $(shell $(GO) list ./... | grep -vE 'examples|openai|aigc|neo|twilio|share*|agent|sandbox|integrations|registry|tai|grpc' | awk '!/\/tests\// || /openapi\/tests/' | grep -vE 'openapi/tests/(nodes|sandbox|workspace)')
+# Agent tests - exclude agent/search/handlers/web (requires external API keys), robot packages (tested in robot job), and agent/sandbox/v2 (WIP, has its own job)
+TESTFOLDER_AGENT := $(shell $(GO) list ./agent/... | grep -vE 'agent/search/handlers/web|agent/robot/|agent/sandbox/v2')
 # Robot tests (agent/robot/... packages, excluding events/integrations which require Telegram etc.)
 TESTFOLDER_ROBOT := $(shell $(GO) list ./agent/robot/... | grep -vE 'agent/robot/events')
 # Sandbox tests (requires Docker) — excludes sandbox/v2 (has its own job)
@@ -33,8 +31,6 @@ TESTFOLDER_WORKSPACE := $(shell $(GO) list ./workspace/...)
 # gRPC tests
 TESTFOLDER_GRPC := $(shell $(GO) list ./grpc/...)
 TESTTAGS ?= ""
-
-# TESTWIDGETS := $(shell $(GO) list ./widgets/...)
 
 # Unit Test (all tests)
 .PHONY: unit-test
@@ -109,44 +105,12 @@ unit-test-core-windows:
 		-skip='TestMemoryLeak|TestIsolateDisposal|TestLeak_|TestScenario_|TestSandbox' \
 		$(TESTFOLDER_CORE)
 
-# Agent Unit Test (agent, aigc) - excludes robot packages (tested in unit-test-robot) and TestE2E*
+# Agent Unit Test - excludes robot packages (tested in unit-test-robot) and TestE2E*
 .PHONY: unit-test-agent
 unit-test-agent:
 	echo "mode: count" > coverage.out
 	for d in $(TESTFOLDER_AGENT); do \
 		$(GO) test -tags $(TESTTAGS) -v -timeout=50m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestE2E' $$d > tmp.out; \
-		cat tmp.out; \
-		if grep -q "^--- FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^FAIL" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "^panic:" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "build failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "setup failed" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		elif grep -q "runtime error" tmp.out; then \
-			rm tmp.out; \
-			exit 1; \
-		fi; \
-		if [ -f profile.out ]; then \
-			cat profile.out | grep -v "mode:" >> coverage.out; \
-			rm profile.out; \
-		fi; \
-	done
-
-# KB Unit Test (kb)
-.PHONY: unit-test-kb
-unit-test-kb:
-	echo "mode: count" > coverage.out
-	for d in $(TESTFOLDER_KB); do \
-		$(GO) test -tags $(TESTTAGS) -v -timeout=20m -covermode=count -coverprofile=profile.out -coverpkg=$$(echo $$d | sed "s/\/test$$//g") -skip='TestMemoryLeak|TestIsolateDisposal|TestSearchCleanup' $$d > tmp.out; \
 		cat tmp.out; \
 		if grep -q "^--- FAIL" tmp.out; then \
 			rm tmp.out; \

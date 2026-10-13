@@ -22,7 +22,6 @@ var AssistantAllowedFields = map[string]bool{
 	"disable_global_prompts": true,
 	"capabilities":           true,
 	"workflow":               true,
-	"kb":                     true,
 	"db":                     true,
 	"mcp":                    true,
 	"sandbox":                true,
@@ -68,7 +67,6 @@ var AssistantDefaultFields = []string{
 	"automated",
 	"mentionable",
 	"sandbox",      // Sandbox configuration presence (lightweight)
-	"kb",           // Knowledge base configuration (lightweight)
 	"db",           // Database configuration (lightweight)
 	"mcp",          // MCP servers configuration (lightweight)
 	"dependencies", // Dependencies on other MCP Clients (lightweight)
@@ -100,7 +98,6 @@ var AssistantFullFields = []string{
 	"prompt_presets",
 	"disable_global_prompts",
 	"workflow",
-	"kb",
 	"db",
 	"mcp",
 	"sandbox",

@@ -5,7 +5,6 @@ import (
 
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/search/handlers/db"
-	"github.com/yaoapp/yao/agent/search/handlers/kb"
 	"github.com/yaoapp/yao/agent/search/handlers/web"
 	"github.com/yaoapp/yao/agent/search/interfaces"
 	"github.com/yaoapp/yao/agent/search/rerank"
@@ -45,7 +44,6 @@ func New(cfg *types.Config, uses *Uses) *Searcher {
 		config: cfg,
 		handlers: map[types.SearchType]interfaces.Handler{
 			types.SearchTypeWeb: web.NewHandler(uses.Web, cfg.Web),
-			types.SearchTypeKB:  kb.NewHandler(cfg.KB),
 			types.SearchTypeDB:  db.NewHandler(uses.QueryDSL, cfg.DB),
 		},
 		reranker: rerank.NewReranker(uses.Rerank, cfg.Rerank),

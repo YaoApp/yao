@@ -297,9 +297,6 @@ func (api *JSAPI) parseCallOptions(opts map[string]interface{}) *CallOptions {
 		if history, ok := skip["history"].(bool); ok {
 			callOpts.Skip.History = history
 		}
-		if trace, ok := skip["trace"].(bool); ok {
-			callOpts.Skip.Trace = trace
-		}
 		if output, ok := skip["output"].(bool); ok {
 			callOpts.Skip.Output = output
 		}

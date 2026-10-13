@@ -180,7 +180,6 @@ func GenerateTestCases(agentID string, targetInfo *TargetAgentInfo, params map[s
 	opts := &context.Options{
 		Skip: &context.Skip{
 			History: true,
-			Trace:   true,
 			Output:  true,
 		},
 		Metadata: map[string]interface{}{
@@ -373,9 +372,6 @@ func mapToCaseOptions(m map[string]interface{}) *CaseOptions {
 		opts.Skip = &CaseSkipOptions{}
 		if history, ok := skip["history"].(bool); ok {
 			opts.Skip.History = history
-		}
-		if trace, ok := skip["trace"].(bool); ok {
-			opts.Skip.Trace = trace
 		}
 		if output, ok := skip["output"].(bool); ok {
 			opts.Skip.Output = output

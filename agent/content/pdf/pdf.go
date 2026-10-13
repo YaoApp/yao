@@ -15,7 +15,6 @@ import (
 	"github.com/yaoapp/yao/agent/output/message"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	"github.com/yaoapp/yao/attachment"
-	kbTypes "github.com/yaoapp/yao/kb/types"
 )
 
 // PDF handles PDF content
@@ -312,31 +311,12 @@ func (h *PDF) saveToCache(ctx *agentContext.Context, url string, text string) er
 	return manager.SaveText(ctx.Context, fileID, text)
 }
 
-// getPDFProcessor creates a PDF processor using global KB config
+// getPDFProcessor creates a PDF processor using default config
 func (h *PDF) getPDFProcessor() (*goupdf.PDF, error) {
-	globalPDF := kbTypes.GetGlobalPDF()
-
 	opts := goupdf.Options{
-		ConvertTool: goupdf.ToolPdftoppm, // default
+		ConvertTool: goupdf.ToolPdftoppm,
 		ToolPath:    "",
 	}
-
-	if globalPDF != nil {
-		if globalPDF.ConvertTool != "" {
-			switch globalPDF.ConvertTool {
-			case "pdftoppm":
-				opts.ConvertTool = goupdf.ToolPdftoppm
-			case "mutool":
-				opts.ConvertTool = goupdf.ToolMutool
-			case "imagemagick", "convert":
-				opts.ConvertTool = goupdf.ToolImageMagick
-			}
-		}
-		if globalPDF.ToolPath != "" {
-			opts.ToolPath = globalPDF.ToolPath
-		}
-	}
-
 	return goupdf.New(opts), nil
 }
 

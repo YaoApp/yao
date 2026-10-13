@@ -10,7 +10,7 @@ import (
 // DefaultCitationPrompt is the default prompt for citation instructions
 const DefaultCitationPrompt = `You have access to reference data in <references> tags. Each <ref> has:
 - id: Citation identifier (integer)
-- type: Data type (web/kb/db)
+- type: Data type (web/db)
 - weight: Relevance weight (1.0=highest priority, 0.6=lowest)
 - source: Origin (user=user-provided, hook=assistant-searched, auto=auto-searched)
 

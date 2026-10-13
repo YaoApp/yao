@@ -81,11 +81,10 @@ func TestFeatures_OwnerPro(t *testing.T) {
 	features := manager.Features("owner:pro")
 	assert.NotEmpty(t, features, "owner:pro should have features")
 
-	// user:full includes profile:manage, team:manage, kb:manage
+	// user:full includes profile:manage, team:manage
 	assert.True(t, features["profile:read"], "should have profile:read")
 	assert.True(t, features["profile:edit"], "should have profile:edit")
 	assert.True(t, features["team:edit"], "should have team:edit")
-	assert.True(t, features["collections:create"], "should have collections:create from kb:manage")
 }
 
 func TestFeaturesByDomain_User(t *testing.T) {
@@ -110,8 +109,8 @@ func TestFeaturesByDomain_User(t *testing.T) {
 	assert.True(t, features["team:members:list"], "should have team:members:list from user/team/members")
 	assert.True(t, features["team:members:add"], "should have team:members:add from user/team/members")
 
-	// Should NOT include kb features
-	assert.False(t, features["collections:create"], "should not have kb features")
+	// Should NOT include features from other domains
+	assert.False(t, features["collections:create"], "should not have features from other domains")
 }
 
 func TestFeaturesByDomain_UserTeam(t *testing.T) {
@@ -153,68 +152,6 @@ func TestFeaturesByDomain_UserProfile(t *testing.T) {
 	assert.False(t, features["team:settings:view"], "should not have team:settings:view")
 }
 
-func TestFeaturesByDomain_KB(t *testing.T) {
-	manager := setupFeatureTest(t)
-
-	// Query "kb" domain - should include all kb/* files
-	features := manager.FeaturesByDomain("system:root", "kb")
-	assert.NotEmpty(t, features, "kb domain should have features")
-
-	// Should include features from kb/collections.yml
-	assert.True(t, features["collections:create"], "should have collections:create")
-
-	// Should include features from kb/collections/document.yml
-	assert.True(t, features["document:create"], "should have document:create")
-	assert.True(t, features["document:edit"], "should have document:edit")
-	assert.True(t, features["document:delete"], "should have document:delete")
-
-	// Should include features from kb/collections/advanced/meta.yml (deep nested)
-	assert.True(t, features["meta:edit"], "should have meta:edit from kb/collections/advanced/meta")
-	assert.True(t, features["meta:view"], "should have meta:view from kb/collections/advanced/meta")
-	assert.True(t, features["meta:export"], "should have meta:export from kb/collections/advanced/meta")
-
-	// Should NOT include user features
-	assert.False(t, features["profile:read"], "should not have user features")
-}
-
-func TestFeaturesByDomain_KBCollections(t *testing.T) {
-	manager := setupFeatureTest(t)
-
-	// Query "kb/collections" domain - should include kb/collections.yml and kb/collections/* files
-	features := manager.FeaturesByDomain("system:root", "kb/collections")
-	assert.NotEmpty(t, features, "kb/collections domain should have features")
-
-	// Should include features from kb/collections.yml (exact match)
-	assert.True(t, features["collections:create"], "should have collections:create from kb/collections")
-
-	// Should include features from kb/collections/document.yml (nested)
-	assert.True(t, features["document:create"], "should have document:create")
-	assert.True(t, features["document:edit"], "should have document:edit")
-
-	// Should include features from kb/collections/advanced/meta.yml (deep nested)
-	assert.True(t, features["meta:edit"], "should have meta:edit")
-	assert.True(t, features["meta:view"], "should have meta:view")
-}
-
-func TestFeaturesByDomain_KBCollectionsAdvanced(t *testing.T) {
-	manager := setupFeatureTest(t)
-
-	// Query "kb/collections/advanced" domain - should include kb/collections/advanced/* files
-	features := manager.FeaturesByDomain("system:root", "kb/collections/advanced")
-	assert.NotEmpty(t, features, "kb/collections/advanced domain should have features")
-
-	// Should include features from kb/collections/advanced/meta.yml
-	assert.True(t, features["meta:edit"], "should have meta:edit")
-	assert.True(t, features["meta:view"], "should have meta:view")
-	assert.True(t, features["meta:export"], "should have meta:export")
-
-	// Should NOT include kb/collections.yml features
-	assert.False(t, features["collections:create"], "should not have collections:create")
-
-	// Should NOT include kb/collections/document.yml features
-	assert.False(t, features["document:create"], "should not have document:create")
-}
-
 func TestDomainFeatures(t *testing.T) {
 	manager := setupFeatureTest(t)
 
@@ -241,9 +178,6 @@ func TestDomains(t *testing.T) {
 		"user/team",
 		"user/team/settings",
 		"user/team/members",
-		"kb/collections",
-		"kb/collections/document",
-		"kb/collections/advanced/meta",
 	}
 
 	domainMap := make(map[string]bool)
@@ -268,11 +202,6 @@ func TestDefinition(t *testing.T) {
 	def = manager.Definition("team:settings:view")
 	assert.NotNil(t, def, "should find team:settings:view definition")
 	assert.Equal(t, "View team settings", def.Description, "description should match")
-
-	// Test deep nested feature
-	def = manager.Definition("meta:edit")
-	assert.NotNil(t, def, "should find meta:edit definition")
-	assert.Equal(t, "Edit document metadata", def.Description, "description should match")
 
 	// Test non-existent feature
 	def = manager.Definition("nonexistent:feature")
@@ -300,7 +229,7 @@ func TestAliasExpansion(t *testing.T) {
 func TestNestedAliasExpansion(t *testing.T) {
 	manager := setupFeatureTest(t)
 
-	// Test nested alias: user:full -> profile:manage, team:manage, kb:manage
+	// Test nested alias: user:full -> profile:manage, team:manage
 	features := manager.Features("owner:pro")
 
 	// Should expand all nested aliases
@@ -308,7 +237,6 @@ func TestNestedAliasExpansion(t *testing.T) {
 	assert.True(t, features["profile:edit"], "should have profile:edit from profile:manage")
 	assert.True(t, features["team:edit"], "should have team:edit from team:manage")
 	assert.True(t, features["team:member:invite"], "should have team:member:invite from team:manage")
-	assert.True(t, features["collections:create"], "should have collections:create from kb:manage")
 }
 
 func TestEmptyRole(t *testing.T) {

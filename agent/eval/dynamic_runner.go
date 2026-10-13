@@ -278,7 +278,6 @@ func (r *DynamicRunner) callSimulator(simAST *assistant.Assistant, tc *Case, inp
 	opts := &context.Options{
 		Skip: &context.Skip{
 			History: true,
-			Trace:   true,
 			Output:  true,
 		},
 		Metadata: map[string]interface{}{

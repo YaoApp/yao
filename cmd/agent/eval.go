@@ -24,7 +24,6 @@ import (
 	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/engine"
 	grpcclient "github.com/yaoapp/yao/grpc/client"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/share"
 )
 
@@ -237,10 +236,6 @@ func runEval(cmd *cobra.Command, args []string) {
 
 	if _, err := engine.Load(cfg, engine.LoadOption{Action: "agent-eval"}); err != nil {
 		color.Red("Engine: %s\n", err)
-		os.Exit(1)
-	}
-	if _, err := kb.Load(cfg); err != nil {
-		color.Red("KB: %s\n", err)
 		os.Exit(1)
 	}
 	if err := agent.Load(cfg); err != nil {

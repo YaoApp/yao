@@ -105,102 +105,6 @@ func TestToDatabase(t *testing.T) {
 	})
 }
 
-func TestToKnowledgeBase(t *testing.T) {
-	t.Run("NilInput", func(t *testing.T) {
-		result, err := types.ToKnowledgeBase(nil)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if result != nil {
-			t.Errorf("Expected nil result, got: %v", result)
-		}
-	})
-
-	t.Run("KnowledgeBasePointer", func(t *testing.T) {
-		kb := &types.KnowledgeBase{Collections: []string{"col1", "col2"}}
-		result, err := types.ToKnowledgeBase(kb)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if result != kb {
-			t.Errorf("Expected same pointer")
-		}
-	})
-
-	t.Run("KnowledgeBaseValue", func(t *testing.T) {
-		kb := types.KnowledgeBase{Collections: []string{"col1", "col2"}}
-		result, err := types.ToKnowledgeBase(kb)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Collections) != 2 {
-			t.Errorf("Expected 2 collections, got %d", len(result.Collections))
-		}
-	})
-
-	t.Run("StringSlice", func(t *testing.T) {
-		collections := []string{"col1", "col2", "col3"}
-		result, err := types.ToKnowledgeBase(collections)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Collections) != 3 {
-			t.Errorf("Expected 3 collections, got %d", len(result.Collections))
-		}
-		if result.Collections[0] != "col1" {
-			t.Errorf("Expected 'col1', got '%s'", result.Collections[0])
-		}
-	})
-
-	t.Run("InterfaceSlice", func(t *testing.T) {
-		collections := []interface{}{"col1", "col2", 123}
-		result, err := types.ToKnowledgeBase(collections)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Collections) != 3 {
-			t.Errorf("Expected 3 collections, got %d", len(result.Collections))
-		}
-		if result.Collections[2] != "123" {
-			t.Errorf("Expected '123', got '%s'", result.Collections[2])
-		}
-	})
-
-	t.Run("MapInput", func(t *testing.T) {
-		data := map[string]interface{}{
-			"collections": []string{"col1", "col2"},
-		}
-		result, err := types.ToKnowledgeBase(data)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if len(result.Collections) != 2 {
-			t.Errorf("Expected 2 collections, got %d", len(result.Collections))
-		}
-	})
-
-	t.Run("InvalidInput", func(t *testing.T) {
-		invalidData := make(chan int)
-		_, err := types.ToKnowledgeBase(invalidData)
-		if err == nil {
-			t.Error("Expected error for invalid input")
-		}
-	})
-
-	t.Run("InvalidJSONUnmarshal", func(t *testing.T) {
-		data := map[string]interface{}{
-			"invalid_field": "should cause unmarshal to fail gracefully",
-		}
-		result, err := types.ToKnowledgeBase(data)
-		if err != nil {
-			t.Errorf("Expected no error, got: %v", err)
-		}
-		if result == nil {
-			t.Error("Expected non-nil result")
-		}
-	})
-}
-
 func TestToMCPServers(t *testing.T) {
 	t.Run("NilInput", func(t *testing.T) {
 		result, err := types.ToMCPServers(nil)
@@ -544,9 +448,6 @@ func TestToAssistantModel(t *testing.T) {
 			},
 			"disable_global_prompts": true,
 			"source":                 "function hook() { return 'test'; }",
-			"kb": map[string]interface{}{
-				"collections": []string{"col1"},
-			},
 			"db": map[string]interface{}{
 				"models": []string{"model1"},
 			},
@@ -677,9 +578,6 @@ func TestToAssistantModel(t *testing.T) {
 		if !result.DisableGlobalPrompts {
 			t.Error("Expected DisableGlobalPrompts to be true")
 		}
-		if result.KB == nil {
-			t.Error("Expected KB to be set")
-		}
 		if result.DB == nil {
 			t.Error("Expected DB to be set")
 		}
@@ -741,7 +639,6 @@ func TestToAssistantModel(t *testing.T) {
 			"default_mode": "",
 			"options":      nil,
 			"prompts":      nil,
-			"kb":           nil,
 			"db":           nil,
 			"mcp":          nil,
 			"workflow":     nil,

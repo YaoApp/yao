@@ -25,10 +25,6 @@
       "auto_inject_prompt": true
     }
   },
-  "kb": {
-    "collections": ["test-collection"],
-    "options": { "threshold": 0.8 }
-  },
   "mcp": {
     "servers": [
       { "server_id": "echo" }

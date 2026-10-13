@@ -14,7 +14,7 @@ var (
 		"id": true, "assistant_id": true, "type": true, "name": true, "avatar": true,
 		"connector": true, "description": true, "capabilities": true, "path": true, "sort": true,
 		"built_in": true, "placeholder": true, "options": true, "prompts": true,
-		"workflow": true, "sandbox": true, "kb": true, "mcp": true, "tools": true, "tags": true,
+		"workflow": true, "sandbox": true, "mcp": true, "tools": true, "tags": true,
 		"readonly": true, "public": true, "share": true, "locales": true,
 		"automated": true, "mentionable": true,
 		"created_at": true, "updated_at": true, "deleted_at": true,

@@ -15,11 +15,11 @@ import (
 	"github.com/yaoapp/gou/application"
 	"github.com/yaoapp/gou/ffmpeg"
 	"github.com/yaoapp/gou/pdf"
+	gouPlugin "github.com/yaoapp/gou/plugin"
 	"github.com/yaoapp/gou/process"
 	"github.com/yaoapp/kun/exception"
 	"github.com/yaoapp/yao/agent"
 	robotapi "github.com/yaoapp/yao/agent/robot/api"
-	"github.com/yaoapp/yao/aigc"
 	"github.com/yaoapp/yao/api"
 	"github.com/yaoapp/yao/attachment"
 	"github.com/yaoapp/yao/cert"
@@ -28,11 +28,9 @@ import (
 	"github.com/yaoapp/yao/connector"
 	"github.com/yaoapp/yao/data"
 	"github.com/yaoapp/yao/event"
-	"github.com/yaoapp/yao/flow"
 	"github.com/yaoapp/yao/fs"
 	"github.com/yaoapp/yao/i18n"
 	"github.com/yaoapp/yao/job"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/llmprovider"
 	"github.com/yaoapp/yao/mcp"
 	"github.com/yaoapp/yao/mcpclient"
@@ -41,7 +39,6 @@ import (
 	"github.com/yaoapp/yao/monitor"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/pack"
-	"github.com/yaoapp/yao/pipe"
 	"github.com/yaoapp/yao/plugin"
 	"github.com/yaoapp/yao/query"
 	"github.com/yaoapp/yao/runtime"
@@ -55,10 +52,6 @@ import (
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/webproxy"
 	"github.com/yaoapp/yao/task"
-	"github.com/yaoapp/yao/widget"
-	"github.com/yaoapp/yao/widgets"
-
-	_ "github.com/yaoapp/yao/trace" // register trace handler/listener via init()
 )
 
 // LoadHooks used to load custom widgets/processes
@@ -276,14 +269,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Model", Error: err})
 	}
 
-	// Load Data flows
-	err = loadStep("Flow", func() error {
-		return flow.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Flow", Error: err})
-	}
-
 	// Load Stores
 	err = loadStep("Store", func() error {
 		return store.Load(cfg)
@@ -334,20 +319,16 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 
 	// Load WASM Application (experimental)
 
-	// Load build-in widgets (table / form / chart / ...)
-	err = loadStep("Widgets", func() error {
-		return widgets.Load(cfg)
+	// Load App (yao.app.* processes and API routes)
+	err = loadStep("App", func() error {
+		if err := AppLoad(cfg); err != nil {
+			return err
+		}
+		return AppExport()
 	}, callback)
 	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widgets", Error: err})
+		warnings = append(warnings, Warning{Widget: "App", Error: err})
 	}
-
-	// Load Importers
-	// err = importer.Load(cfg)
-	// if err != nil {
-	// 	// printErr(cfg.Mode, "Plugin", err)
-	// 	warnings = append(warnings, Warning{Widget: "Plugin", Error: err})
-	// }
 
 	// Load Apis
 	err = loadStep("API", func() error {
@@ -373,30 +354,6 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "Schedule", Error: err})
 	}
 
-	// Load AIGC
-	err = loadStep("AIGC", func() error {
-		return aigc.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "AIGC", Error: err})
-	}
-
-	// Load Custom Widget
-	err = loadStep("Widget", func() error {
-		return widget.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
-	}
-
-	// Load Custom Widget Instances
-	err = loadStep("Widget Instances", func() error {
-		return widget.LoadInstances()
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Widget", Error: err})
-	}
-
 	// Load SUI
 	err = loadStep("SUI", func() error {
 		return sui.Load(cfg)
@@ -405,29 +362,12 @@ func Load(cfg config.Config, options LoadOption, progressCallback ...func(string
 		warnings = append(warnings, Warning{Widget: "SUI", Error: err})
 	}
 
-	// Load Pipe
-	err = loadStep("Pipe", func() error {
-		return pipe.Load(cfg)
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Pipe", Error: err})
-	}
-
 	// Load MCP Clients
 	err = loadStep("MCP", func() error {
 		return mcp.Load(cfg)
 	}, callback)
 	if err != nil {
 		warnings = append(warnings, Warning{Widget: "MCP", Error: err})
-	}
-
-	// Load Knowledge Base
-	err = loadStep("Knowledge Base", func() error {
-		_, err := kb.Load(cfg)
-		return err
-	}, callback)
-	if err != nil {
-		warnings = append(warnings, Warning{Widget: "Knowledge Base", Error: err})
 	}
 
 	// Load Agent
@@ -557,6 +497,17 @@ func Unload() (err error) {
 	job.StopHealthChecker()
 	job.StopDataCleaner()
 
+	// Stop Messenger (mail receivers hold IMAP idle goroutines)
+	if svc, ok := messenger.Instance.(*messenger.Service); ok && svc != nil {
+		svc.StopMailReceivers()
+		if closeErr := svc.Close(); closeErr != nil {
+			log.Printf("[Messenger] Warning: close error: %v", closeErr)
+		}
+	}
+
+	// Kill plugin processes (gRPC connections)
+	gouPlugin.KillAll()
+
 	// Close DB
 	err = share.DBClose()
 
@@ -569,7 +520,6 @@ func Unload() (err error) {
 	// Recycle
 	// api
 	// models
-	// flows
 	// stores
 	// scripts
 	// connectors
@@ -577,11 +527,8 @@ func Unload() (err error) {
 	// i18n
 	// certs
 	// plugins
-	// importers
 	// tasks
 	// schedules
-	// widgets
-	// custom widget
 
 	return err
 }
@@ -643,12 +590,6 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		printErr(cfg.Mode, "Model", err)
 	}
 
-	// Load Data flows
-	err = flow.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Flow", err)
-	}
-
 	// Load Stores
 	err = store.Load(cfg)
 	if err != nil {
@@ -675,10 +616,12 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 
 	// Load WASM Application (experimental)
 
-	// Load build-in widgets (table / form / chart / ...)
-	err = widgets.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Widgets", err)
+	// Load App (yao.app.* processes and API routes)
+	if err = AppLoad(cfg); err != nil {
+		printErr(cfg.Mode, "App", err)
+	}
+	if err = AppExport(); err != nil {
+		printErr(cfg.Mode, "App", err)
 	}
 
 	// Load Apis
@@ -699,29 +642,10 @@ func Reload(cfg config.Config, options LoadOption) (err error) {
 		printErr(cfg.Mode, "Schedule", err)
 	}
 
-	// Load Custom Widget
-	err = widget.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Widget", err)
-	}
-
-	// Load AIGC
-	err = aigc.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "AIGC", err)
-	}
-
 	// Load MCP Clients
 	err = mcp.Load(cfg)
 	if err != nil {
 		printErr(cfg.Mode, "MCP", err)
-	}
-
-	// Load Knowledge Base
-	_, err = kb.Load(cfg)
-	if err != nil {
-		printErr(cfg.Mode, "Knowledge Base", err)
-
 	}
 
 	// Load Agent

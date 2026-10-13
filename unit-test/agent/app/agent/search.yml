@@ -2,10 +2,6 @@ web:
   provider: tavily
   max_results: 10
 
-kb:
-  threshold: 0.7
-  graph: false
-
 db:
   max_results: 20
 

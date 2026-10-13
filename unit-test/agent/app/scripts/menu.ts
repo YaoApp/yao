@@ -519,7 +519,6 @@ function Reset(reimport: boolean = false): void {
     "items_assistants",
     "items_mission_control",
     "items_api_keys",
-    "items_kb",
     "setting_profile",
     // Legacy menu_ids (for cleanup)
     "setting_main",

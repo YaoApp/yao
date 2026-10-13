@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/yao/agent"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/openapi"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/types"
@@ -43,39 +42,11 @@ func RegisterTestCollection(collectionID string) {
 	testCollections = append(testCollections, collectionID)
 }
 
-// CleanupTestCollections removes all registered test collections
+// CleanupTestCollections removes all registered test collections (no-op after KB removal)
 func CleanupTestCollections(t *testing.T) {
 	testCollectionsMutex.Lock()
-	collectionsToClean := make([]string, len(testCollections))
-	copy(collectionsToClean, testCollections)
-	testCollections = nil // Clear the list
+	testCollections = nil
 	testCollectionsMutex.Unlock()
-
-	if len(collectionsToClean) == 0 {
-		return
-	}
-
-	// Check if KB instance is available
-	if kb.Instance == nil {
-		t.Logf("Warning: KB instance not available, cannot cleanup %d test collections", len(collectionsToClean))
-		return
-	}
-
-	ctx := context.Background()
-	cleanedCount := 0
-	for _, collectionID := range collectionsToClean {
-		removed, err := kb.Instance.RemoveCollection(ctx, collectionID)
-		if err != nil {
-			t.Logf("Warning: Failed to cleanup test collection %s: %v", collectionID, err)
-		} else if removed {
-			cleanedCount++
-			t.Logf("Cleaned up test collection: %s", collectionID)
-		}
-	}
-
-	if cleanedCount > 0 {
-		t.Logf("Successfully cleaned up %d/%d test collections", cleanedCount, len(collectionsToClean))
-	}
 }
 
 // Prepare initializes the OpenAPI test environment and starts a mock HTTP server.
@@ -158,14 +129,6 @@ func Prepare(t *testing.T) string {
 	err := agent.Load(config.Conf)
 	if err != nil {
 		t.Fatalf("Failed to load Neo: %v", err)
-	}
-
-	// Step 1.5: Initialize Knowledge Base (must be done before OpenAPI load)
-	_, err = kb.Load(config.Conf)
-	if err != nil {
-		// KB loading failure is not fatal for tests, just log it
-		t.Logf("Warning: Failed to load Knowledge Base: %v", err)
-		t.Logf("Some KB-related tests may not work properly")
 	}
 
 	// Step 2: Initialize OpenAPI server and make it available globally (only if not already initialized)
@@ -266,26 +229,11 @@ func Clean() {
 	}
 	testMutex.Unlock()
 
-	// Step 3: Clean up GraphRag test collections (only when cleaning global state)
+	// Step 3: Clean up test collections (no-op after KB removal)
 	if shouldCleanGlobalState {
-		// Create a dummy test object for logging (since Clean doesn't receive *testing.T)
-		// Note: This is a limitation, but we can still attempt cleanup
-		ctx := context.Background()
 		testCollectionsMutex.Lock()
-		collectionsToClean := make([]string, len(testCollections))
-		copy(collectionsToClean, testCollections)
-		testCollections = nil // Clear the list
+		testCollections = nil
 		testCollectionsMutex.Unlock()
-
-		if len(collectionsToClean) > 0 && kb.Instance != nil {
-			for _, collectionID := range collectionsToClean {
-				_, err := kb.Instance.RemoveCollection(ctx, collectionID)
-				if err != nil {
-					// Can't use t.Logf here, but errors will be visible in test output
-					_ = err
-				}
-			}
-		}
 	}
 
 	// Step 4: Clean up base test environment

@@ -305,52 +305,6 @@ func testAllFieldsFunction(info *v8go.FunctionCallbackInfo) *v8go.Value {
 	return jsVal
 }
 
-func TestJsValueTrace(t *testing.T) {
-	t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
-	testprepare.PrepareSandbox(t)
-
-	cxt := agentctx.New(stdContext.Background(), nil, "test-chat-id")
-	cxt.AssistantID = "test-assistant-id"
-	cxt.Stack = &agentctx.Stack{
-		TraceID: "test-trace-id",
-	}
-
-	res, err := v8.Call(v8.CallOptions{}, `
-		function test(cxt) {
-			const trace = cxt.trace
-			
-			if (!trace) {
-				throw new Error("Trace returned null or undefined")
-			}
-			
-			if (typeof trace.Add !== 'function') {
-				throw new Error("trace.Add is not a function")
-			}
-			if (typeof trace.Info !== 'function') {
-				throw new Error("trace.Info is not a function")
-			}
-			
-			const node = trace.Add({ type: "test", content: "Test from context" }, { label: "Test Node" })
-			trace.Info("Testing trace from context")
-			node.Info("Node info message")
-			node.Complete({ result: "success" })
-			
-			return {
-				trace_id: trace.id,
-				node_id: node.id,
-				success: true
-			}
-		}`, cxt)
-	require.NoError(t, err, "Call failed")
-
-	result, ok := res.(map[string]interface{})
-	require.True(t, ok, "Expected map result, got %T", res)
-
-	assert.Equal(t, "test-trace-id", result["trace_id"], "trace_id should match")
-	assert.NotEmpty(t, result["node_id"], "node_id should not be empty")
-	assert.Equal(t, true, result["success"], "operation should succeed")
-}
-
 func TestJsValueAuthorizedAndMetadata(t *testing.T) {
 	testprepare.PrepareSandbox(t)
 

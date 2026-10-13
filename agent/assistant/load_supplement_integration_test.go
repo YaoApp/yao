@@ -228,7 +228,6 @@ func TestMap(t *testing.T) {
 	assert.Equal(t, ast.Tags, m["tags"])
 	assert.Equal(t, ast.Options, m["options"])
 	assert.Equal(t, ast.Prompts, m["prompts"])
-	assert.Equal(t, ast.KB, m["kb"])
 	assert.Equal(t, ast.MCP, m["mcp"])
 	assert.Equal(t, ast.Workflow, m["workflow"])
 	assert.Equal(t, ast.Placeholder, m["placeholder"])
@@ -1353,11 +1352,6 @@ func TestLoadStoreWithSearchConfig(t *testing.T) {
 					Provider:   "tavily",
 					MaxResults: 15,
 				},
-				KB: &searchTypes.KBConfig{
-					Collections: []string{"docs", "faq"},
-					Threshold:   0.8,
-					Graph:       true,
-				},
 				DB: &searchTypes.DBConfig{
 					Models:     []string{"user", "product"},
 					MaxResults: 50,
@@ -1422,11 +1416,6 @@ func TestLoadStoreWithSearchConfig(t *testing.T) {
 	require.NotNil(t, loaded.Search.Web)
 	assert.Equal(t, "tavily", loaded.Search.Web.Provider)
 	assert.Equal(t, 15, loaded.Search.Web.MaxResults)
-
-	require.NotNil(t, loaded.Search.KB)
-	assert.Equal(t, []string{"docs", "faq"}, loaded.Search.KB.Collections)
-	assert.Equal(t, 0.8, loaded.Search.KB.Threshold)
-	assert.True(t, loaded.Search.KB.Graph)
 
 	require.NotNil(t, loaded.Search.DB)
 	assert.Equal(t, []string{"user", "product"}, loaded.Search.DB.Models)
@@ -1504,7 +1493,6 @@ func TestLoadStoreWithPartialSearchConfig(t *testing.T) {
 	require.NotNil(t, loaded.Search.Web)
 	assert.Equal(t, "serper", loaded.Search.Web.Provider)
 
-	assert.Nil(t, loaded.Search.KB)
 	assert.Nil(t, loaded.Search.DB)
 	assert.Nil(t, loaded.Search.Keyword)
 	assert.Nil(t, loaded.Search.QueryDSL)

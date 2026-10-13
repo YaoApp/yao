@@ -5,21 +5,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/yaoapp/yao/trace"
 )
 
-// NewStack creates a new root stack with the given trace ID and assistant ID
-func NewStack(traceID, assistantID, referer string, opts *Options) *Stack {
-	if traceID == "" {
-		traceID = uuid.New().String()
-	}
+// NewStack creates a new root stack
+func NewStack(assistantID, referer string, opts *Options) *Stack {
 
 	stackID := uuid.New().String()
 	now := time.Now().UnixMilli()
 
 	return &Stack{
 		ID:          stackID,
-		TraceID:     traceID,
 		AssistantID: assistantID,
 		Referer:     referer,
 		Depth:       0,
@@ -43,7 +38,6 @@ func (s *Stack) NewChildStack(assistantID, referer string, opts *Options) *Stack
 
 	return &Stack{
 		ID:          stackID,
-		TraceID:     s.TraceID, // Inherit trace ID
 		AssistantID: assistantID,
 		Referer:     referer,
 		Depth:       s.Depth + 1,
@@ -69,7 +63,6 @@ func NewChildStackFromForkParent(parent *ForkParentInfo, assistantID, referer st
 
 	return &Stack{
 		ID:          stackID,
-		TraceID:     parent.TraceID, // Inherit trace ID from parent
 		AssistantID: assistantID,
 		Referer:     referer,
 		Depth:       parent.Depth + 1,
@@ -148,15 +141,14 @@ func (s *Stack) String() string {
 		status = fmt.Sprintf("%s (%dms)", s.Status, *s.DurationMs)
 	}
 
-	return fmt.Sprintf("Stack[ID=%s, TraceID=%s, Assistant=%s, Depth=%d, Status=%s]",
-		s.ID[:8], s.TraceID[:8], s.AssistantID, s.Depth, status)
+	return fmt.Sprintf("Stack[ID=%s, Assistant=%s, Depth=%d, Status=%s]",
+		s.ID[:8], s.AssistantID, s.Depth, status)
 }
 
 // Clone creates a deep copy of the stack
 func (s *Stack) Clone() *Stack {
 	clone := &Stack{
 		ID:          s.ID,
-		TraceID:     s.TraceID,
 		AssistantID: s.AssistantID,
 		Referer:     s.Referer,
 		Depth:       s.Depth,
@@ -183,24 +175,21 @@ func (s *Stack) Clone() *Stack {
 	return clone
 }
 
-// EnterStack initializes or creates a child stack and returns it along with trace ID and completion function
+// EnterStack initializes or creates a child stack and returns it along with a completion function
 // This is a helper function to manage stack context for nested calls
-// The stack will be automatically saved to ctx.Stacks for trace logging
 //
 // Returns:
 //   - *Stack: current stack
-//   - string: trace ID (generated for root, inherited for children)
 //   - func(): completion function to be deferred
 //
 // Usage:
 //
-//	stack, traceID, done := context.EnterStack(ctx, assistantID, opts)
+//	stack, done := context.EnterStack(ctx, assistantID, opts)
 //	defer done()
 //	// ... your code here ...
-func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string, func()) {
+func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, func()) {
 	var stack *Stack
 	var parentStack *Stack
-	var traceID string
 
 	// Get referer from ctx (request source)
 	referer := ctx.Referer
@@ -215,21 +204,16 @@ func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string
 		if ctx.ForkParent != nil {
 			// Create child stack using ForkParent info
 			// This is for forked contexts (ctx.agent.Call) to have proper ThreadID
-			traceID = ctx.ForkParent.TraceID
 			stack = NewChildStackFromForkParent(ctx.ForkParent, assistantID, referer, opts)
 			ctx.Stack = stack
 		} else {
 			// Create root stack for this assistant call (entry point)
-			// Generate a new trace ID for root
-			traceID = trace.GenTraceID()
-			stack = NewStack(traceID, assistantID, referer, opts)
+			stack = NewStack(assistantID, referer, opts)
 			ctx.Stack = stack
 		}
 	} else {
 		// Create child stack for nested agent call (delegate)
-		// Inherit trace ID from parent
 		parentStack = ctx.Stack
-		traceID = parentStack.TraceID
 		stack = ctx.Stack.NewChildStack(assistantID, referer, opts)
 		ctx.Stack = stack
 	}
@@ -239,7 +223,7 @@ func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string
 		stack.Status = StackStatusRunning
 	}
 
-	// Save stack to collection for trace logging
+	// Save stack to collection
 	ctx.Stacks[stack.ID] = stack
 
 	// Return completion function
@@ -255,7 +239,7 @@ func EnterStack(ctx *Context, assistantID string, opts *Options) (*Stack, string
 		}
 	}
 
-	return stack, traceID, done
+	return stack, done
 }
 
 // GetAllStacks returns all stacks collected during the request
@@ -281,23 +265,7 @@ func (ctx *Context) GetStackByID(id string) *Stack {
 	return ctx.Stacks[id]
 }
 
-// GetStacksByTraceID returns all stacks with the given trace ID
-// This is useful for getting the complete call tree for a trace
-func (ctx *Context) GetStacksByTraceID(traceID string) []*Stack {
-	if ctx.Stacks == nil {
-		return nil
-	}
-
-	stacks := make([]*Stack, 0)
-	for _, s := range ctx.Stacks {
-		if s.TraceID == traceID {
-			stacks = append(stacks, s)
-		}
-	}
-	return stacks
-}
-
-// GetRootStack returns the root stack (depth = 0) of current trace
+// GetRootStack returns the root stack (depth = 0)
 func (ctx *Context) GetRootStack() *Stack {
 	if ctx.Stacks == nil {
 		return nil

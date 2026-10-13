@@ -6,7 +6,7 @@
 # ================================================
 # Wildcard patterns must match the exact number of parts in the scope.
 # Common scope formats:
-#   - 3 parts: namespace:resource:action (e.g., kb:collections:read)
+#   - 3 parts: namespace:resource:action (e.g., agent:assistants:read)
 #   - 4 parts: namespace:resource:action:level (e.g., sui:run:execute:all)
 #   - 5 parts: namespace:resource:action:level:sublevel (e.g., user:members:write:own:profile)
 
@@ -37,7 +37,6 @@ client:free:
   - app:all
   - user:all
   - file:all
-  - kb:all
   - job:all
   - agent:all
   - chat:all
@@ -46,7 +45,6 @@ client:free:
   - event:all
   - llm:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -60,7 +58,6 @@ client:pro:
   - app:all
   - user:all
   - file:all
-  - kb:all
   - job:all
   - agent:all
   - chat:all
@@ -71,7 +68,6 @@ client:pro:
   - llm:all
   - mcp:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -85,7 +81,6 @@ client:ent:
   - app:all
   - user:all
   - file:all
-  - kb:all
   - job:all
   - agent:all
   - chat:all
@@ -96,7 +91,6 @@ client:ent:
   - llm:all
   - mcp:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -122,7 +116,6 @@ user:free:
   - app:all:own
   - user:all:own
   - file:all:own
-  - kb:all:own
   - job:all:own
   - agent:read:own
   - chat:all:own
@@ -132,7 +125,6 @@ user:free:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -146,7 +138,6 @@ user:pro:
   - app:all:own
   - user:all:own
   - file:all:own
-  - kb:all:own
   - job:all:own
   - agent:all:own
   - chat:all:own
@@ -157,7 +148,6 @@ user:pro:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -171,7 +161,6 @@ user:ent:
   - app:all:own
   - user:all:own
   - file:all:own
-  - kb:all:own
   - job:all:own
   - agent:all:own
   - chat:all:own
@@ -182,7 +171,6 @@ user:ent:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -204,7 +192,6 @@ team:owner:
   - app:all:team
   - user:all:team
   - file:all:team
-  - kb:all:team
   - job:all:team
   - agent:all:team
   - chat:all:team
@@ -215,7 +202,6 @@ team:owner:
   - llm:all:team
   - mcp:all:team
   - messenger:all:team
-  - trace:all:team
   - sandbox:all:team
   - computer:all:team
   - workspace:all:team
@@ -229,7 +215,6 @@ team:admin:
   - app:all:team
   - user:manage:team
   - file:manage:team
-  - kb:manage:team
   - job:manage:team
   - agent:manage:team
   - chat:manage:team
@@ -240,7 +225,6 @@ team:admin:
   - llm:manage:team
   - mcp:manage:team
   - messenger:all:team
-  - trace:read:team
   - sandbox:all:team
   - computer:all:team
   - workspace:manage:team
@@ -257,9 +241,6 @@ team:member:
   - user:members:write:own:profile
   - file:read:team
   - file:write:own
-  - kb:read:team
-  - kb:write:own
-  - kb:delete:own
   - job:read:team
   - job:write:own
   - agent:read:team
@@ -276,8 +257,6 @@ team:member:
   - mcp:write:own
   - messenger:read:team
   - messenger:write:own
-  - trace:read:team
-  - trace:read:own
   - sandbox:read:own
   - sandbox:write:own
   - computer:read:own
@@ -421,120 +400,6 @@ file:read:team:
 
 file:write:own:
   - file:files:write:own
-
-# ============ Knowledge Base Aliases ============
-
-kb:all:
-  - kb:collections:read:all
-  - kb:collections:write:all
-  - kb:collections:delete:all
-  - kb:documents:read:all
-  - kb:documents:write:all
-  - kb:documents:delete:all
-  - kb:segments:read:all
-  - kb:segments:write:all
-  - kb:segments:delete:all
-  - kb:graphs:read:all
-  - kb:graphs:write:all
-  - kb:votes:read:all
-  - kb:votes:write:all
-  - kb:votes:delete:all
-  - kb:hits:read:all
-  - kb:hits:write:all
-  - kb:hits:delete:all
-  - kb:search:execute:all
-  - kb:backups:execute:all
-  - kb:providers:read:all
-
-kb:all:own:
-  - kb:collections:read:own
-  - kb:collections:write:own
-  - kb:collections:delete:own
-  - kb:documents:read:own
-  - kb:documents:write:own
-  - kb:documents:delete:own
-  - kb:segments:read:own
-  - kb:segments:write:own
-  - kb:segments:delete:own
-  - kb:graphs:read:own
-  - kb:graphs:write:own
-  - kb:votes:read:own
-  - kb:votes:write:own
-  - kb:votes:delete:own
-  - kb:hits:read:own
-  - kb:hits:write:own
-  - kb:hits:delete:own
-  - kb:search:execute:own
-  - kb:backups:execute:own
-  - kb:providers:read:all
-
-kb:all:team:
-  - kb:collections:read:team
-  - kb:collections:write:team
-  - kb:collections:delete:team
-  - kb:documents:read:team
-  - kb:documents:write:team
-  - kb:documents:delete:team
-  - kb:segments:read:team
-  - kb:segments:write:team
-  - kb:segments:delete:team
-  - kb:graphs:read:team
-  - kb:graphs:write:team
-  - kb:votes:read:team
-  - kb:votes:write:team
-  - kb:votes:delete:team
-  - kb:hits:read:team
-  - kb:hits:write:team
-  - kb:hits:delete:team
-  - kb:search:execute:team
-  - kb:backups:execute:team
-  - kb:providers:read:all
-
-kb:manage:team:
-  - kb:collections:read:team
-  - kb:collections:write:team
-  - kb:collections:delete:team
-  - kb:documents:read:team
-  - kb:documents:write:team
-  - kb:documents:delete:team
-  - kb:segments:read:team
-  - kb:segments:write:team
-  - kb:segments:delete:team
-  - kb:graphs:read:team
-  - kb:graphs:write:team
-  - kb:votes:read:team
-  - kb:votes:write:team
-  - kb:votes:delete:team
-  - kb:hits:read:team
-  - kb:hits:write:team
-  - kb:hits:delete:team
-  - kb:search:execute:team
-  - kb:providers:read:all
-
-kb:read:team:
-  - kb:collections:read:team
-  - kb:documents:read:team
-  - kb:segments:read:team
-  - kb:graphs:read:team
-  - kb:votes:read:team
-  - kb:hits:read:team
-  - kb:search:execute:team
-  - kb:providers:read:all
-
-kb:write:own:
-  - kb:collections:write:own
-  - kb:documents:write:own
-  - kb:segments:write:own
-  - kb:graphs:write:own
-  - kb:votes:write:own
-  - kb:hits:write:own
-
-kb:delete:own:
-  - kb:collections:delete:own
-  - kb:documents:delete:own
-  - kb:segments:delete:own
-  - kb:votes:delete:own
-  - kb:hits:delete:own
 
 # ============ Job Resources Aliases ============
 
@@ -892,23 +757,6 @@ messenger:read:team:
 messenger:write:own:
   - messenger:providers:read:all
   - messenger:channels:read:all
-
-# ============ Trace Resources Aliases ============
-
-trace:all:
-  - trace:traces:read:all
-
-trace:all:own:
-  - trace:traces:read:own
-
-trace:all:team:
-  - trace:traces:read:team
-
-trace:read:team:
-  - trace:traces:read:team
-
-trace:read:own:
-  - trace:traces:read:own
 
 # ============ OTP Resources Aliases ============
 

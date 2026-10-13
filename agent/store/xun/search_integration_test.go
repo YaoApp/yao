@@ -130,7 +130,7 @@ func TestSaveSearch(t *testing.T) {
 			RequestID: requestID,
 			ChatID:    chat.ChatID,
 			Query:     "Who is the CEO of Apple?",
-			Source:    "kb",
+			Source:    "db",
 			Entities: []types.Entity{
 				{Name: "Apple", Type: "Organization"},
 				{Name: "Tim Cook", Type: "Person"},
@@ -298,7 +298,7 @@ func TestGetReference(t *testing.T) {
 		References: []types.Reference{
 			{Index: 1, Type: "web", Title: "Reference 1", URL: "https://example.com/1"},
 			{Index: 2, Type: "web", Title: "Reference 2", URL: "https://example.com/2"},
-			{Index: 3, Type: "kb", Title: "Reference 3", Content: "KB content"},
+			{Index: 3, Type: "db", Title: "Reference 3", Content: "DB content"},
 		},
 		Duration: 100,
 	}
@@ -316,8 +316,8 @@ func TestGetReference(t *testing.T) {
 	t.Run("GetReferenceByIndex", func(t *testing.T) {
 		ref, err := store.GetReference(requestID, 3)
 		require.NoError(t, err)
-		assert.Equal(t, "kb", ref.Type)
-		assert.Equal(t, "KB content", ref.Content)
+		assert.Equal(t, "db", ref.Type)
+		assert.Equal(t, "DB content", ref.Content)
 	})
 
 	t.Run("GetNonExistentReference", func(t *testing.T) {
@@ -401,7 +401,7 @@ func TestSearchCompleteWorkflow(t *testing.T) {
 			References: []types.Reference{
 				{Index: 1, Type: "web", Title: "Effective Go", URL: "https://go.dev/doc/effective_go"},
 				{Index: 2, Type: "web", Title: "Go Proverbs", URL: "https://go-proverbs.github.io/"},
-				{Index: 3, Type: "kb", Title: "Internal Go Guide", Content: "Our team's Go coding standards..."},
+				{Index: 3, Type: "db", Title: "Internal Go Guide", Content: "Our team's Go coding standards..."},
 			},
 			XML:      `<references><ref index="1">...</ref></references>`,
 			Prompt:   "When citing, use [1], [2], [3] format.",

@@ -59,7 +59,6 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "Assistant is processing",
-			"output.view_trace":   "View process",
 
 			// Common status messages
 			"common.status.processing": "Processing",
@@ -94,10 +93,6 @@ func init() {
 			"mcp.list_samples.description": "List samples for '%s' from MCP client '%s'",
 			"mcp.get_sample.label":         "MCP: Get Sample",
 			"mcp.get_sample.description":   "Get sample #%d for '%s' from MCP client '%s'",
-
-			// KB: Chat collection
-			"kb.chat.name":        "Chat Knowledge Base",
-			"kb.chat.description": "Auto-created knowledge base collection for chat sessions",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
 			"sandbox.preparing":        "Getting things ready...",
@@ -162,14 +157,6 @@ func init() {
 			"search.keyword.done":    "Analysis complete",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "Search",
-			"search.trace.description":     "Search the web and knowledge base for relevant information",
-			"search.trace.web.label":       "Web Search",
-			"search.trace.web.description": "Searching the web",
-			"search.trace.kb.label":        "KB Search",
-			"search.trace.kb.description":  "Searching knowledge base",
-			"search.trace.db.label":        "DB Search",
-			"search.trace.db.description":  "Searching database",
 		},
 	}
 
@@ -225,17 +212,12 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "智能体正在处理",
-			"output.view_trace":   "查看处理详情",
 
 			// Common status messages
 			"common.status.processing": "处理中",
 			"common.status.completed":  "已完成",
 			"common.status.failed":     "失败",
 			"common.status.retrying":   "重试中",
-
-			// KB: Chat collection
-			"kb.chat.name":        "聊天知识库",
-			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
 			"sandbox.preparing":        "正在准备...",
@@ -300,14 +282,6 @@ func init() {
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "搜索",
-			"search.trace.description":     "搜索网络和知识库获取相关信息",
-			"search.trace.web.label":       "网页搜索",
-			"search.trace.web.description": "搜索网页获取相关信息",
-			"search.trace.kb.label":        "知识库搜索",
-			"search.trace.kb.description":  "搜索知识库获取相关信息",
-			"search.trace.db.label":        "数据库搜索",
-			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 
@@ -363,7 +337,6 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "智能体正在处理",
-			"output.view_trace":   "查看处理详情",
 
 			// Common status messages
 			"common.status.processing": "处理中",
@@ -398,10 +371,6 @@ func init() {
 			"mcp.list_samples.description": "从 MCP 客户端 '%s' 列出 '%s' 的示例",
 			"mcp.get_sample.label":         "MCP: 获取示例",
 			"mcp.get_sample.description":   "从 MCP 客户端 '%s' 获取 '%s' 的第 %d 个示例",
-
-			// KB: Chat collection
-			"kb.chat.name":        "聊天知识库",
-			"kb.chat.description": "自动为聊天会话创建的知识库集合",
 
 			// Sandbox: assistant/sandbox.go - Sandbox status messages
 			"sandbox.preparing":        "正在准备...",
@@ -466,14 +435,6 @@ func init() {
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "搜索",
-			"search.trace.description":     "搜索网络和知识库获取相关信息",
-			"search.trace.web.label":       "网页搜索",
-			"search.trace.web.description": "搜索网页获取相关信息",
-			"search.trace.kb.label":        "知识库搜索",
-			"search.trace.kb.description":  "搜索知识库获取相关信息",
-			"search.trace.db.label":        "数据库搜索",
-			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 }

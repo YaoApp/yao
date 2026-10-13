@@ -8,10 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/yao/agent/memory"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/yaoapp/yao/config"
 	"github.com/yaoapp/yao/openapi/oauth/types"
-	"github.com/yaoapp/yao/trace"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Global context registry for interrupt management
@@ -69,25 +66,6 @@ func (ctx *Context) Release() {
 		}
 		ctx.Interrupt.Stop()
 		ctx.Interrupt = nil
-	}
-
-	// Complete and release trace if exists.
-	// Only the root context (non-forked) owns the trace lifecycle.
-	// Forked contexts share the same trace manager but must not release it.
-	if ctx.trace != nil && ctx.Stack != nil && ctx.Stack.TraceID != "" {
-		if ctx.ForkParent == nil {
-			if ctx.Logger != nil {
-				ctx.Logger.Cleanup("Trace: " + ctx.Stack.TraceID)
-			}
-			if ctx.Context != nil && ctx.Context.Err() != nil {
-				trace.MarkCancelled(ctx.Stack.TraceID, ctx.Context.Err().Error())
-				trace.Release(ctx.Stack.TraceID)
-			} else {
-				ctx.trace.MarkComplete()
-				trace.Release(ctx.Stack.TraceID)
-			}
-		}
-		ctx.trace = nil
 	}
 
 	// Clear context-level memory only (request-scoped temporary data)
@@ -210,7 +188,6 @@ func (ctx *Context) Fork() *Context {
 		// Don't inherit these - they are request-specific
 		Buffer:    nil, // Buffer belongs to root context
 		Interrupt: nil, // Interrupt controller belongs to root context
-		trace:     nil, // Trace will be inherited via TraceID in Stack
 	}
 
 	// Set ForkParent info if parent has a Stack
@@ -218,7 +195,6 @@ func (ctx *Context) Fork() *Context {
 	if ctx.Stack != nil {
 		child.ForkParent = &ForkParentInfo{
 			StackID: ctx.Stack.ID,
-			TraceID: ctx.Stack.TraceID,
 			Depth:   ctx.Stack.Depth,
 			Path:    append([]string{}, ctx.Stack.Path...), // Copy path slice
 		}
@@ -237,81 +213,6 @@ func (ctx *Context) Fork() *Context {
 // 	_, err := ctx.Writer.Write(data)
 // 	return err
 // }
-
-// Trace returns the trace manager for this context, lazily initialized on first call
-// Uses the TraceID from ctx.Stack if available, or generates a new one
-func (ctx *Context) Trace() (traceTypes.Manager, error) {
-	// Return trace if already initialized
-	if ctx.trace != nil {
-		return ctx.trace, nil
-	}
-
-	// Get TraceID from Stack or generate new one
-	var traceID string
-	if ctx.Stack != nil && ctx.Stack.TraceID != "" {
-		traceID = ctx.Stack.TraceID
-
-		// Try to load existing trace first
-		manager, err := trace.Load(traceID)
-		if err == nil {
-			// Found in registry, reuse it
-			ctx.trace = manager
-			return manager, nil
-		}
-	}
-
-	// Get trace configuration from global config
-	cfg := config.Conf
-
-	// Prepare driver options
-	var driverOptions []any
-	var driverType string
-
-	switch cfg.Trace.Driver {
-	case "none":
-		return nil, nil
-
-	case "store":
-		driverType = trace.Store
-		if cfg.Trace.Store == "" {
-			return nil, fmt.Errorf("trace store ID not configured")
-		}
-		driverOptions = []any{cfg.Trace.Store, cfg.Trace.Prefix}
-
-	case "local", "":
-		driverType = trace.Local
-		driverOptions = []any{cfg.Trace.Path}
-
-	default:
-		return nil, fmt.Errorf("unsupported trace driver: %s", cfg.Trace.Driver)
-	}
-
-	// Prepare trace options
-	traceOption := &traceTypes.TraceOption{ID: traceID, AutoArchive: config.Conf.Mode == "production"}
-
-	// Set trace options from authorized information
-	if ctx.Authorized != nil {
-		traceOption.CreatedBy = ctx.Authorized.UserID
-		traceOption.TeamID = ctx.Authorized.TeamID
-		traceOption.TenantID = ctx.Authorized.TenantID
-	}
-
-	// Create trace using trace.New (handles registry)
-	createdTraceID, manager, err := trace.New(ctx.Context, driverType, traceOption, driverOptions...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create trace: %w", err)
-	}
-
-	// Update Stack with the created TraceID if needed
-	if ctx.Stack != nil && ctx.Stack.TraceID == "" {
-		ctx.Stack.TraceID = createdTraceID
-	}
-
-	// Store for future calls
-	ctx.trace = manager
-
-	return manager, nil
-}
 
 // Map the context to a map
 func (ctx *Context) Map() map[string]interface{} {
@@ -422,14 +323,6 @@ func generateContextID() string {
 // RequestID returns a unique request ID using NanoID
 func (ctx *Context) RequestID() string {
 	return ctx.ID
-}
-
-// TraceID returns the trace ID for the context
-func (ctx *Context) TraceID() string {
-	if ctx.Stack != nil {
-		return ctx.Stack.TraceID
-	}
-	return ""
 }
 
 // getMessageMetadata retrieves metadata for a message by ID

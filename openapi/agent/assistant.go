@@ -632,7 +632,7 @@ func GetAssistantInfo(c *gin.Context) {
 }
 
 // checkAssistantPermission checks if the user has permission to access the assistant
-// Similar logic to checkCollectionPermission in openapi/kb/collection.go
+// Similar logic to checkCollectionPermission
 // readable: true for read permission, false for write permission
 func checkAssistantPermission(authInfo *types.AuthorizedInfo, assistantID string, readable ...bool) (bool, error) {
 	// No auth info, allow access

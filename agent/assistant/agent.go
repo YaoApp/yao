@@ -60,7 +60,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	ctx.MergeMetadata(opts.Metadata)
 
 	// Initialize stack and auto-handle completion/failure/restore
-	_, _, done := context.EnterStack(ctx, ast.ID, opts)
+	_, done := context.EnterStack(ctx, ast.ID, opts)
 	defer done()
 
 	// Auto-skip history for forked Agent-to-Agent calls (ctx.agent.Call/All/Any/Race)
@@ -124,7 +124,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Now ctx.Capabilities is set, so output adapters can use it
 	ast.sendAgentStreamStart(ctx, streamHandler, streamStartTime)
 
-	// Initialize chat, prepare kb collection (optional) etc.
+	// Initialize chat
 	// Use async version to not block the main flow
 	ast.InitializeConversationAsync(ctx, opts)
 
@@ -133,16 +133,12 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 	// Ensure chat session exists
 	ast.EnsureChat(ctx)
 
-	// Initialize agent trace node
-	agentNode := ast.initAgentTraceNode(ctx, inputMessages)
-
 	// ================================================
 	// Get Full Messages with chat history
 	// ================================================
 	ctx.Logger.Phase("History")
-	historyResult, err := ast.WithHistory(ctx, inputMessages, agentNode, opts)
+	historyResult, err := ast.WithHistory(ctx, inputMessages, opts)
 	if err != nil {
-		ast.traceAgentFail(agentNode, err)
 		ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 		return nil, err
 	}
@@ -169,7 +165,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		var err error
 		v2Init, err = ast.initSandboxV2(ctx, opts)
 		if err != nil {
-			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
@@ -227,7 +222,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
@@ -239,7 +233,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		})
 
 		// Log the create response
-		ast.traceCreateHook(agentNode, createResponse)
 		ctx.Logger.HookComplete("Create")
 
 		// Check if Create hook wants to delegate to another agent
@@ -253,7 +246,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			if err != nil {
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
-				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
@@ -262,11 +254,7 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// (delegated agent handles its own stream events, but root needs to close)
 			if ctx.Stack != nil && ctx.Stack.IsRoot() {
 				ast.sendAgentStreamEnd(ctx, streamHandler, streamStartTime, "completed", nil, nil)
-				if err := ctx.CloseOutput(); err != nil {
-					if trace, _ := ctx.Trace(); trace != nil {
-						trace.Error(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.close_error"), map[string]any{"error": err.Error()})
-					}
-				}
+				_ = ctx.CloseOutput()
 			}
 
 			// Return delegated response directly (skip LLM call and Next hook)
@@ -292,7 +280,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
@@ -319,7 +306,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			// V2 Sandbox execution path — all runners (yaocode/tai/claude/opencode)
 			completionResponse, err = ast.executeSandboxV2Stream(ctx, &sandboxV2StreamParams{
 				Messages:     completionMessages,
-				AgentNode:    agentNode,
 				Handler:      streamHandler,
 				Runner:       v2Init.Runner,
 				Computer:     v2Init.Computer,
@@ -330,12 +316,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			})
 		} else {
 			// Direct LLM execution path
-			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, agentNode, streamHandler, opts)
+			completionResponse, err = ast.executeLLMStream(ctx, completionMessages, completionOptions, streamHandler, opts)
 		}
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			// Send error stream_end for root stack
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
@@ -425,7 +410,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
 				ctx.Logger.Error("Tool calls failed: %v", err)
-				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
@@ -436,7 +420,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
 				ctx.Logger.Error("Tool calls failed: %v", err)
-				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
@@ -458,12 +441,11 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 
 			// Retry LLM call (streaming to keep user informed)
 			ctx.Logger.Debug("Retrying LLM for tool call correction (attempt %d/%d)", attempt+1, maxToolRetries-1)
-			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, agentNode, streamHandler, opts)
+			currentResponse, err = ast.executeLLMForToolRetry(ctx, retryMessages, completionOptions, streamHandler, opts)
 			if err != nil {
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
 				ctx.Logger.Error("LLM retry failed: %v", err)
-				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
@@ -474,7 +456,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				finalStatus = context.ResumeStatusFailed
 				finalError = err
 				ctx.Logger.Error("LLM did not return tool calls: %v", err)
-				ast.traceAgentFail(agentNode, err)
 				ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 				return nil, err
 			}
@@ -518,7 +499,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
@@ -543,7 +523,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		if err != nil {
 			finalStatus = context.ResumeStatusFailed
 			finalError = err
-			ast.traceAgentFail(agentNode, err)
 			ast.sendStreamEndOnError(ctx, streamHandler, streamStartTime, err)
 			return nil, err
 		}
@@ -556,7 +535,6 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 			CompletionResponse: completionResponse,
 			ToolCallResponses:  toolCallResponses,
 			FullMessages:       fullMessages,
-			AgentNode:          agentNode,
 			StreamHandler:      streamHandler,
 			CreateResponse:     createResponse,
 			Opts:               opts,
@@ -596,41 +574,15 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 		})
 	}
 
-	// Create completion node to report final output
-	ast.traceAgentCompletion(ctx, createResponse, nextResponse, completionResponse, finalResponse)
-
 	// Only close output and send stream_end if this is the root call (entry point)
 	// Nested calls (from MCP, hooks, etc.) should not close the output or send stream_end
 	// Note: Flush is already handled by the stream handler (handleStreamEnd)
 	if ctx.Stack != nil && ctx.Stack.IsRoot() {
-		// Log closing output for root call
-		if trace, _ := ctx.Trace(); trace != nil {
-			trace.Debug("Agent: Closing output (root call)", map[string]any{
-				"stack_id":     ctx.Stack.ID,
-				"depth":        ctx.Stack.Depth,
-				"assistant_id": ctx.Stack.AssistantID,
-			})
-		}
-
 		// Send ChunkStreamEnd (agent-level stream completion)
 		ast.sendAgentStreamEnd(ctx, streamHandler, streamStartTime, "completed", nil, completionResponse)
 
 		// Close the output writer to send [DONE] marker
-		if err := ctx.CloseOutput(); err != nil {
-			if trace, _ := ctx.Trace(); trace != nil {
-				trace.Error(i18n.Tr(ast.ID, ctx.Locale, "assistant.agent.stream.close_error"), map[string]any{"error": err.Error()}) // "Failed to close output"
-			}
-		}
-	} else {
-		// Log skipping close for nested call
-		if trace, _ := ctx.Trace(); trace != nil && ctx.Stack != nil {
-			trace.Debug("Agent: Skipping output close (nested call)", map[string]any{
-				"stack_id":     ctx.Stack.ID,
-				"depth":        ctx.Stack.Depth,
-				"parent_id":    ctx.Stack.ParentID,
-				"assistant_id": ctx.Stack.AssistantID,
-			})
-		}
+		_ = ctx.CloseOutput()
 	}
 
 	// Return finalResponse which could be:
@@ -712,7 +664,6 @@ func (ast *Assistant) sendAgentStreamStart(ctx *context.Context, handler message
 	startData := message.EventStreamStartData{
 		ContextID: ctx.ID,
 		ChatID:    ctx.ChatID,
-		TraceID:   ctx.TraceID(),
 		RequestID: ctx.RequestID(),
 		Timestamp: startTime.UnixMilli(),
 		Assistant: ast.Info(ctx.Locale),
@@ -736,7 +687,6 @@ func (ast *Assistant) sendAgentStreamEnd(ctx *context.Context, handler message.S
 		Timestamp:  time.Now().UnixMilli(),
 		DurationMs: time.Since(startTime).Milliseconds(),
 		Status:     status,
-		TraceID:    ctx.TraceID(),
 		Metadata:   ctx.Metadata,
 	}
 

@@ -17,7 +17,6 @@ import (
 	"github.com/yaoapp/yao/agent/caller"
 	"github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/config"
-	"github.com/yaoapp/yao/kb"
 	"github.com/yaoapp/yao/test"
 
 	_ "github.com/yaoapp/yao/agent/assistant"
@@ -114,9 +113,6 @@ func RequireE2EKeys(t *testing.T) {
 func loadAgentStack(t *testing.T) {
 	t.Helper()
 
-	if _, err := kb.Load(config.Conf); err != nil {
-		t.Fatal(fmt.Errorf("load KB: %w", err))
-	}
 	if err := agent.Load(config.Conf); err != nil {
 		t.Fatal(fmt.Errorf("load agent: %w", err))
 	}

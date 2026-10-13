@@ -13,7 +13,6 @@ import (
 	goullm "github.com/yaoapp/gou/llm"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/llm/adapters"
 	"github.com/yaoapp/yao/agent/llm/providers/base"
 	"github.com/yaoapp/yao/agent/output/message"
@@ -68,12 +67,6 @@ func buildAdapters(cap *goullm.Capabilities) []adapters.CapabilityAdapter {
 
 // Stream stream completion from Anthropic API
 func (p *Provider) Stream(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler message.StreamFunc) (*context.CompletionResponse, error) {
-	trace, _ := ctx.Trace()
-	if trace != nil {
-		trace.Debug("Anthropic Stream: Starting stream request", map[string]any{
-			"message_count": len(messages),
-		})
-	}
 
 	maxRetries := 3
 	var lastErr error
@@ -104,14 +97,6 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 
 		if attempt > 0 {
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
-			if trace != nil {
-				trace.Warn("Anthropic stream request failed, retrying", map[string]any{
-					"backoff":     backoff.String(),
-					"attempt":     attempt + 1,
-					"max_retries": maxRetries,
-					"error":       lastErr.Error(),
-				})
-			}
 
 			timer := time.NewTimer(backoff)
 			interruptTicker := time.NewTicker(100 * time.Millisecond)
@@ -138,9 +123,6 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 
 		response, err := p.streamWithRetry(ctx, currentMessages, options, handler)
 		if err == nil {
-			if trace != nil && goCtx.Err() == nil {
-				trace.Debug("Anthropic Stream: Request completed successfully")
-			}
 			return response, nil
 		}
 		lastErr = err
@@ -160,7 +142,6 @@ func (p *Provider) Stream(ctx *context.Context, messages []context.Message, opti
 // streamWithRetry performs a single streaming request to Anthropic API
 func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions, handler message.StreamFunc) (*context.CompletionResponse, error) {
 	streamStartTime := time.Now()
-	trace, _ := ctx.Trace()
 
 	goCtx := ctx.Context
 	if goCtx == nil {
@@ -210,12 +191,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 	// Build URL: host/v1/messages
 	url := buildAPIURL(host, "/messages")
-
-	if trace != nil {
-		trace.Debug("Anthropic Stream: Sending request", map[string]any{
-			"url": url,
-		})
-	}
 
 	// Create HTTP request with auth headers
 	req := http.New(url).
@@ -459,14 +434,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	}
 
 	// Log request
-	if trace != nil {
-		if requestBodyJSON, marshalErr := jsoniter.Marshal(requestBody); marshalErr == nil {
-			trace.Debug("Anthropic Stream Request", map[string]any{
-				"url":  url,
-				"body": string(requestBodyJSON),
-			})
-		}
-	}
 
 	// Error buffer for non-SSE error responses
 	var errorBuffer strings.Builder
@@ -508,9 +475,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 	// Check for captured error response
 	if errorDetected && errorBuffer.Len() > 0 {
 		errorJSON := errorBuffer.String()
-		if trace != nil {
-			trace.Error(i18n.T(ctx.Locale, "llm.anthropic.stream.api_error"), map[string]any{"response": errorJSON})
-		}
 
 		var apiErr APIError
 		if parseErr := jsoniter.UnmarshalFromString(errorJSON, &apiErr); parseErr == nil && apiErr.Error.Message != "" {
@@ -586,7 +550,6 @@ func (p *Provider) streamWithRetry(ctx *context.Context, messages []context.Mess
 
 // Post non-streaming completion request to Anthropic API
 func (p *Provider) Post(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
-	trace, _ := ctx.Trace()
 
 	maxRetries := 3
 	var lastErr error
@@ -611,13 +574,6 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 
 		if attempt > 0 {
 			backoff := time.Duration(1<<uint(attempt-1)) * time.Second
-			if trace != nil {
-				trace.Warn("Anthropic post request failed, retrying", map[string]any{
-					"backoff": backoff.String(),
-					"attempt": attempt + 1,
-					"error":   lastErr.Error(),
-				})
-			}
 			timer := time.NewTimer(backoff)
 			select {
 			case <-timer.C:
@@ -643,7 +599,6 @@ func (p *Provider) Post(ctx *context.Context, messages []context.Message, option
 
 // postWithRetry performs a single POST request to Anthropic API
 func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Message, options *context.CompletionOptions) (*context.CompletionResponse, error) {
-	trace, _ := ctx.Trace()
 
 	// Preprocess through adapters
 	processedMessages := messages
@@ -688,9 +643,6 @@ func (p *Provider) postWithRetry(ctx *context.Context, messages []context.Messag
 		errorMsg := resp.Message
 		if resp.Data != nil {
 			if respJSON, err := jsoniter.Marshal(resp.Data); err == nil {
-				if trace != nil {
-					trace.Error(i18n.T(ctx.Locale, "llm.anthropic.post.api_error"), map[string]any{"response": string(respJSON)})
-				}
 				// Try to extract error message
 				var apiErr APIError
 				if err := jsoniter.Unmarshal(respJSON, &apiErr); err == nil && apiErr.Error.Message != "" {

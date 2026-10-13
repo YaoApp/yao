@@ -7,26 +7,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/yao/helper"
 	"github.com/yaoapp/yao/openapi/oauth"
-
-	"github.com/yaoapp/yao/widgets/chart"
-	"github.com/yaoapp/yao/widgets/dashboard"
-	"github.com/yaoapp/yao/widgets/form"
-	"github.com/yaoapp/yao/widgets/list"
-	"github.com/yaoapp/yao/widgets/table"
 )
 
 // Guards middlewares for traditional JWT mode
 var Guards = map[string]gin.HandlerFunc{
-	"bearer-jwt":       guardBearerJWT,   // Bearer JWT
-	"query-jwt":        guardQueryJWT,    // Get JWT Token from query string  "__tk"
-	"cross-origin":     guardCrossOrigin, // Cross-Origin Resource Sharing
-	"cookie-trace":     guardCookieTrace, // Set sid cookie
-	"cookie-jwt":       guardCookieJWT,   // Get JWT Token from cookie "__tk"
-	"widget-table":     table.Guard,      // Widget Table Guard
-	"widget-list":      list.Guard,       // Widget List Guard
-	"widget-form":      form.Guard,       // Widget Form Guard
-	"widget-chart":     chart.Guard,      // Widget Chart Guard
-	"widget-dashboard": dashboard.Guard,  // Widget Dashboard Guard
+	"bearer-jwt":   guardBearerJWT,   // Bearer JWT
+	"query-jwt":    guardQueryJWT,    // Get JWT Token from query string  "__tk"
+	"cross-origin": guardCrossOrigin, // Cross-Origin Resource Sharing
+	"cookie-trace": guardCookieTrace, // Set sid cookie
+	"cookie-jwt":   guardCookieJWT,   // Get JWT Token from cookie "__tk"
 }
 
 // OpenAPIGuards returns middlewares for OpenAPI OAuth mode
@@ -34,16 +23,11 @@ var Guards = map[string]gin.HandlerFunc{
 // This is a function because oauth.OAuth is initialized at runtime
 func OpenAPIGuards() map[string]gin.HandlerFunc {
 	return map[string]gin.HandlerFunc{
-		"bearer-jwt":       oauth.OAuth.Guard, // JWT -> OAuth
-		"query-jwt":        oauth.OAuth.Guard, // JWT -> OAuth
-		"cookie-jwt":       oauth.OAuth.Guard, // JWT -> OAuth
-		"cookie-trace":     oauth.OAuth.Guard, // Session -> OAuth (OAuth manages sessions)
-		"cross-origin":     guardCrossOrigin,  // CORS remains unchanged
-		"widget-table":     table.Guard,       // Widget Guard remains unchanged
-		"widget-list":      list.Guard,        // Widget List Guard
-		"widget-form":      form.Guard,        // Widget Form Guard
-		"widget-chart":     chart.Guard,       // Widget Chart Guard
-		"widget-dashboard": dashboard.Guard,   // Widget Dashboard Guard
+		"bearer-jwt":   oauth.OAuth.Guard, // JWT -> OAuth
+		"query-jwt":    oauth.OAuth.Guard, // JWT -> OAuth
+		"cookie-jwt":   oauth.OAuth.Guard, // JWT -> OAuth
+		"cookie-trace": oauth.OAuth.Guard, // Session -> OAuth (OAuth manages sessions)
+		"cross-origin": guardCrossOrigin,  // CORS remains unchanged
 	}
 }
 

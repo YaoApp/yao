@@ -10,7 +10,6 @@ type SearchType string
 // SearchType constants
 const (
 	SearchTypeWeb SearchType = "web" // Web/Internet search
-	SearchTypeKB  SearchType = "kb"  // Knowledge base vector search
 	SearchTypeDB  SearchType = "db"  // Database search (Yao Model/QueryDSL)
 )
 
@@ -39,19 +38,13 @@ const (
 type Request struct {
 	// Common fields
 	Query  string     `json:"query"`           // Search query (natural language)
-	Type   SearchType `json:"type"`            // Search type: "web", "kb", or "db"
+	Type   SearchType `json:"type"`            // Search type: "web" or "db"
 	Limit  int        `json:"limit,omitempty"` // Max results (default: 10)
 	Source SourceType `json:"source"`          // Source of this request (user/hook/auto)
 
 	// Web search specific
 	Sites     []string `json:"sites,omitempty"`      // Restrict to specific sites
 	TimeRange string   `json:"time_range,omitempty"` // "day", "week", "month", "year"
-
-	// Knowledge base specific
-	Collections []string               `json:"collections,omitempty"` // KB collection IDs
-	Threshold   float64                `json:"threshold,omitempty"`   // Similarity threshold (0-1)
-	Graph       bool                   `json:"graph,omitempty"`       // Enable graph association
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`    // Metadata filter for KB search
 
 	// Database search specific
 	Models   []string     `json:"models,omitempty"`   // Model IDs (e.g., "user", "agents.mybot.product")
@@ -80,9 +73,6 @@ type Result struct {
 	Duration int64         `json:"duration_ms"`     // Search duration in ms
 	Error    string        `json:"error,omitempty"` // Error message if failed
 
-	// Graph associations (KB only, if enabled)
-	GraphNodes []*GraphNode `json:"graph_nodes,omitempty"`
-
 	// DB specific
 	DSL map[string]interface{} `json:"dsl,omitempty"` // Generated QueryDSL (DB only)
 }
@@ -103,10 +93,6 @@ type ResultItem struct {
 	Content string     `json:"content"`         // Main content/snippet
 	URL     string     `json:"url,omitempty"`   // Source URL
 
-	// KB specific
-	DocumentID string `json:"document_id,omitempty"` // Source document ID
-	Collection string `json:"collection,omitempty"`  // Collection name
-
 	// DB specific
 	Model    string                 `json:"model,omitempty"`     // Model ID
 	RecordID interface{}            `json:"record_id,omitempty"` // Record primary key
@@ -120,7 +106,6 @@ type ResultItem struct {
 type ProcessedQuery struct {
 	Type     SearchType    `json:"type"`
 	Keywords []string      `json:"keywords,omitempty"` // For web search
-	Vector   []float32     `json:"vector,omitempty"`   // For KB search
 	DSL      *gou.QueryDSL `json:"dsl,omitempty"`      // For DB search, uses GOU QueryDSL
 }
 

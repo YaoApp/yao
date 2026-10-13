@@ -19,9 +19,8 @@ func newTestMCPContext() *agentctx.Context {
 	ctx.Locale = "en"
 	ctx.Referer = agentctx.RefererAPI
 
-	stack, traceID, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
+	stack, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
 	ctx.Stack = stack
-	_ = traceID
 	return ctx
 }
 
@@ -259,25 +258,4 @@ func TestGetSample(t *testing.T) {
 		require.NotNil(t, result)
 		assert.NotEmpty(t, result.Name)
 	})
-}
-
-func TestMCPWithTrace(t *testing.T) {
-	t.Skip("Trace disabled by default (driver=none), feature moving to coding agent")
-	testprepare.PrepareSandbox(t)
-
-	ctx := newTestMCPContext()
-
-	trace, err := ctx.Trace()
-	require.NoError(t, err)
-	require.NotNil(t, trace)
-
-	result, err := ctx.CallTool("echo", "ping", map[string]interface{}{
-		"count": 5,
-	})
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	nodes, err := trace.GetAllNodes()
-	require.NoError(t, err)
-	assert.NotEmpty(t, nodes)
 }

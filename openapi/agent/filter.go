@@ -132,7 +132,7 @@ func AuthQueryFilter(c *gin.Context, authInfo *types.AuthorizedInfo) func(query.
 }
 
 // FilterBuiltInFields filters sensitive fields for built-in assistants in a list
-// For built-in assistants, code-level fields (prompts, prompt_presets, workflow, kb, mcp, options, source) should be cleared
+// For built-in assistants, code-level fields (prompts, prompt_presets, workflow, mcp, options, source) should be cleared
 func FilterBuiltInFields(assistants []*agenttypes.AssistantModel) {
 	if assistants == nil {
 		return
@@ -144,7 +144,7 @@ func FilterBuiltInFields(assistants []*agenttypes.AssistantModel) {
 }
 
 // FilterBuiltInAssistant filters sensitive fields for a single built-in assistant
-// For built-in assistants, code-level fields (prompts, prompt_presets, workflow, kb, mcp, options, source) should be cleared
+// For built-in assistants, code-level fields (prompts, prompt_presets, workflow, mcp, options, source) should be cleared
 // This function can be used for both single assistant and list of assistants
 func FilterBuiltInAssistant(assistant *agenttypes.AssistantModel) {
 	if assistant == nil {
@@ -157,7 +157,6 @@ func FilterBuiltInAssistant(assistant *agenttypes.AssistantModel) {
 		assistant.PromptPresets = nil
 		assistant.Workflow = nil
 		assistant.Sandbox = nil
-		assistant.KB = nil
 		assistant.MCP = nil
 		assistant.Options = nil
 		assistant.Source = ""

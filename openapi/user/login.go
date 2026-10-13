@@ -5,16 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/yaoapp/gou/session"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/kun/maps"
-	"github.com/yaoapp/yao/agent/assistant"
-	"github.com/yaoapp/yao/kb"
-	kbapi "github.com/yaoapp/yao/kb/api"
 	"github.com/yaoapp/yao/openapi/oauth"
 	"github.com/yaoapp/yao/openapi/oauth/providers/user"
 	oauthtypes "github.com/yaoapp/yao/openapi/oauth/types"
@@ -31,9 +27,6 @@ type LoginStatusError struct {
 }
 
 func (e *LoginStatusError) Error() string { return e.Message }
-
-// kbCollectionCreating tracks collections currently being created to avoid duplicate creation
-var kbCollectionCreating sync.Map
 
 // registerUserWithTeam creates a new user and automatically creates a default team.
 // If team creation fails, the user is rolled back (deleted) to ensure data consistency.
@@ -395,13 +388,6 @@ func LoginByUserID(userid string, loginCtx *LoginContext) (*LoginResponse, error
 		return nil, err
 	}
 
-	// Initialize KB collection asynchronously after successful login
-	locale := ""
-	if loginCtx != nil {
-		locale = loginCtx.Locale
-	}
-	go prepareUserKBCollection(userid, "", locale)
-
 	return resp, nil
 }
 
@@ -451,13 +437,6 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 			return nil, err
 		}
 
-		// Initialize KB collection asynchronously after successful login
-		locale := ""
-		if loginCtx != nil {
-			locale = loginCtx.Locale
-		}
-		go prepareUserKBCollection(userid, "", locale)
-
 		return resp, nil
 	}
 
@@ -497,13 +476,6 @@ func LoginByTeamID(userid string, teamID string, loginCtx *LoginContext) (*Login
 	if err != nil {
 		return nil, err
 	}
-
-	// Initialize KB collection asynchronously after successful login
-	locale := ""
-	if loginCtx != nil {
-		locale = loginCtx.Locale
-	}
-	go prepareUserKBCollection(userid, teamID, locale)
 
 	return resp, nil
 }
@@ -566,11 +538,6 @@ func LoginWithOptions(userid string, teamID string, loginCtx *LoginContext, opts
 		if err != nil {
 			return nil, err
 		}
-		locale := ""
-		if loginCtx != nil {
-			locale = loginCtx.Locale
-		}
-		go prepareUserKBCollection(userid, "", locale)
 		return resp, nil
 	}
 
@@ -607,12 +574,6 @@ func LoginWithOptions(userid string, teamID string, loginCtx *LoginContext, opts
 	if err != nil {
 		return nil, err
 	}
-
-	locale := ""
-	if loginCtx != nil {
-		locale = loginCtx.Locale
-	}
-	go prepareUserKBCollection(userid, teamID, locale)
 
 	return resp, nil
 }
@@ -871,104 +832,6 @@ func issueTokens(ctx context.Context, params *IssueTokensParams) (*LoginResponse
 		Scope:                 strings.Join(params.Scopes, " "),
 		Status:                LoginStatusSuccess,
 	}, nil
-}
-
-// prepareUserKBCollection prepares KB collection for user (called asynchronously after login)
-func prepareUserKBCollection(userID, teamID, locale string) {
-	defer func() {
-		if r := recover(); r != nil {
-			log.Warn("prepareUserKBCollection recovered from panic: %v", r)
-		}
-	}()
-
-	// Get global KB setting
-	kbSetting := assistant.GetGlobalKBSetting()
-	if kbSetting == nil || kbSetting.Chat == nil {
-		return // No KB configuration for chat, skip
-	}
-
-	// Check if KB API is initialized
-	if kb.API == nil {
-		log.Warn("KB API not initialized, skipping KB collection preparation")
-		return
-	}
-
-	chatKB := kbSetting.Chat
-
-	// Get KB collection ID for this user
-	// Same team + user always produces the same ID (idempotent)
-	collectionID := assistant.GetChatKBID(teamID, userID)
-
-	// Check if this collection is currently being created by another goroutine
-	if _, isCreating := kbCollectionCreating.LoadOrStore(collectionID, true); isCreating {
-		return
-	}
-	// Ensure cleanup even if panic occurs
-	defer kbCollectionCreating.Delete(collectionID)
-
-	// Check if collection already exists
-	ctx := context.Background()
-	existsResult, err := kb.API.CollectionExists(ctx, collectionID)
-	if err != nil {
-		// If check fails, log and continue to create (let create handle conflicts)
-		log.Warn("failed to check collection existence: %v, will attempt to create", err)
-	} else if existsResult != nil && existsResult.Exists {
-		// Collection exists, no need to create
-		return
-	}
-
-	// Build metadata
-	metadata := make(map[string]interface{})
-	for k, v := range chatKB.Metadata {
-		metadata[k] = v
-	}
-	metadata["team_id"] = teamID
-	metadata["user_id"] = userID
-
-	// Ensure name and description are set (required fields)
-	// Use user's locale from login context to determine language
-	isZh := strings.HasPrefix(strings.ToLower(locale), "zh")
-	if _, exists := metadata["name"]; !exists {
-		if isZh {
-			metadata["name"] = "对话知识库"
-		} else {
-			metadata["name"] = "Chat Knowledge Base"
-		}
-	}
-	if _, exists := metadata["description"]; !exists {
-		if isZh {
-			metadata["description"] = "用户对话知识库"
-		} else {
-			metadata["description"] = "User chat knowledge base"
-		}
-	}
-
-	// Build auth scope (use __yao_ prefix for permission fields)
-	// Only set __yao_created_by for create operations (consistent with WithCreateScope)
-	authScope := make(map[string]interface{})
-	if teamID != "" {
-		authScope["__yao_team_id"] = teamID
-	}
-	authScope["__yao_created_by"] = userID
-
-	// Create new collection for this user
-	createParams := &kbapi.CreateCollectionParams{
-		ID:                  collectionID,
-		EmbeddingProviderID: chatKB.EmbeddingProviderID,
-		EmbeddingOptionID:   chatKB.EmbeddingOptionID,
-		Locale:              chatKB.Locale,
-		Config:              chatKB.Config,
-		Metadata:            metadata,
-		AuthScope:           authScope,
-	}
-
-	_, err = kb.API.CreateCollection(ctx, createParams)
-	if err != nil {
-		log.Warn("failed to create KB collection for user %s: %v", userID, err)
-		return
-	}
-
-	log.Info("Created KB collection: %s for team=%s, user=%s", collectionID, teamID, userID)
 }
 
 // generateSessionID generates a session ID

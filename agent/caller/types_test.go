@@ -37,7 +37,6 @@ func TestCallOptions_ToContextOptions_Full(t *testing.T) {
 		},
 		Skip: &context.Skip{
 			History: true,
-			Trace:   true,
 			Output:  false,
 		},
 	}
@@ -49,7 +48,6 @@ func TestCallOptions_ToContextOptions_Full(t *testing.T) {
 	assert.Equal(t, "value", ctxOpts.Metadata["key"])
 	require.NotNil(t, ctxOpts.Skip)
 	assert.True(t, ctxOpts.Skip.History)
-	assert.True(t, ctxOpts.Skip.Trace)
 	assert.False(t, ctxOpts.Skip.Output)
 }
 

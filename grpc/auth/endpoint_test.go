@@ -34,9 +34,9 @@ func TestVirtualEndpoint_ShellStream(t *testing.T) {
 }
 
 func TestVirtualEndpoint_API(t *testing.T) {
-	method, path := auth.VirtualEndpoint("/yao.Yao/API", &pb.APIRequest{Method: "GET", Path: "/kb/collections"})
+	method, path := auth.VirtualEndpoint("/yao.Yao/API", &pb.APIRequest{Method: "GET", Path: "/api/agents"})
 	assert.Equal(t, "GET", method)
-	assert.Equal(t, "/kb/collections", path)
+	assert.Equal(t, "/api/agents", path)
 }
 
 func TestVirtualEndpoint_MCPListTools(t *testing.T) {

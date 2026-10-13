@@ -190,7 +190,6 @@ func TestListAssistants(t *testing.T) {
 					prompts := assistant["prompts"]
 					workflow := assistant["workflow"]
 					tools := assistant["tools"]
-					kb := assistant["kb"]
 					mcp := assistant["mcp"]
 					options := assistant["options"]
 
@@ -203,9 +202,6 @@ func TestListAssistants(t *testing.T) {
 					}
 					if tools != nil {
 						t.Logf("Warning: Built-in assistant has non-nil tools field: %v", tools)
-					}
-					if kb != nil {
-						t.Logf("Warning: Built-in assistant has non-nil kb field: %v", kb)
 					}
 					if mcp != nil {
 						t.Logf("Warning: Built-in assistant has non-nil mcp field: %v", mcp)
@@ -1355,7 +1351,6 @@ func TestGetAssistant(t *testing.T) {
 			prompts := builtInAssistant["prompts"]
 			workflow := builtInAssistant["workflow"]
 			tools := builtInAssistant["tools"]
-			kb := builtInAssistant["kb"]
 			mcp := builtInAssistant["mcp"]
 			options := builtInAssistant["options"]
 
@@ -1363,7 +1358,6 @@ func TestGetAssistant(t *testing.T) {
 			assert.Nil(t, prompts, "Built-in assistant should not expose prompts")
 			assert.Nil(t, workflow, "Built-in assistant should not expose workflow")
 			assert.Nil(t, tools, "Built-in assistant should not expose tools")
-			assert.Nil(t, kb, "Built-in assistant should not expose kb")
 			assert.Nil(t, mcp, "Built-in assistant should not expose mcp")
 			assert.Nil(t, options, "Built-in assistant should not expose options")
 

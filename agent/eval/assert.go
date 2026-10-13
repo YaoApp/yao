@@ -592,7 +592,6 @@ func (a *Asserter) assertAgent(assertion *Assertion, output, input interface{}) 
 	opts := &context.Options{
 		Skip: &context.Skip{
 			History: true,
-			Trace:   true,
 			Output:  true,
 		},
 		Metadata: map[string]interface{}{

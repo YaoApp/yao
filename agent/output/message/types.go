@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/yaoapp/gou/llm"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Options are the options for the writer
@@ -12,7 +11,6 @@ type Options struct {
 	BaseURL      string
 	Accept       string
 	Writer       http.ResponseWriter
-	Trace        traceTypes.Manager
 	Capabilities *llm.Capabilities
 	Locale       string
 }
@@ -45,9 +43,8 @@ type Message struct {
 
 // Metadata represents message metadata
 type Metadata struct {
-	Timestamp int64  `json:"timestamp,omitempty"` // Timestamp in nanoseconds
-	Sequence  int    `json:"sequence,omitempty"`  // Sequence number (for ordering)
-	TraceID   string `json:"trace_id,omitempty"`  // Trace ID (for debugging)
+	Timestamp int64 `json:"timestamp,omitempty"` // Timestamp in nanoseconds
+	Sequence  int   `json:"sequence,omitempty"`  // Sequence number (for ordering)
 }
 
 // Group represents a semantically complete group of messages
@@ -66,7 +63,7 @@ const (
 	// Content types
 	TypeText     = "text"      // Plain text or Markdown content
 	TypeThinking = "thinking"  // Reasoning/thinking process (e.g., o1 models)
-	TypeLoading  = "loading"   // Loading/processing indicator (preprocessing, knowledge base search, etc.)
+	TypeLoading  = "loading"   // Loading/processing indicator (preprocessing, search, etc.)
 	TypeToolCall = "tool_call" // LLM tool/function call
 	TypeError    = "error"     // Error message
 
@@ -139,7 +136,7 @@ type ThinkingProps struct {
 // Type: "loading"
 // Props: {"message": string}
 type LoadingProps struct {
-	Message string `json:"message"` // Loading message (e.g., "Searching knowledge base...")
+	Message string `json:"message"` // Loading message (e.g., "Searching...")
 }
 
 // ToolCallProps defines the standard structure for tool_call messages
@@ -344,7 +341,6 @@ type EventStreamStartData struct {
 	RequestID string                 `json:"request_id"`          // Unique identifier for this request
 	Timestamp int64                  `json:"timestamp"`           // Unix timestamp when stream started
 	ChatID    string                 `json:"chat_id"`             // Chat ID being used (e.g., "chat-123")
-	TraceID   string                 `json:"trace_id"`            // Trace ID being used (e.g., "trace-123")
 	Assistant *AssistantInfo         `json:"assistant,omitempty"` // Assistant information
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`  // Metadata to pass to the page for CUI context
 }
@@ -354,7 +350,6 @@ type EventStreamStartData struct {
 type EventStreamEndData struct {
 	RequestID  string                 `json:"request_id"`         // Corresponding request ID
 	ContextID  string                 `json:"context_id"`         // Context ID for the response
-	TraceID    string                 `json:"trace_id"`           // Trace ID being used (e.g., "trace-123")
 	Timestamp  int64                  `json:"timestamp"`          // Unix timestamp when stream ended
 	DurationMs int64                  `json:"duration_ms"`        // Total duration in milliseconds
 	Status     string                 `json:"status"`             // "completed" | "error" | "cancelled"
@@ -406,7 +401,7 @@ type EventBlockStartData struct {
 	BlockID   string                 `json:"block_id"`        // Block ID (B1, B2, B3...)
 	Type      string                 `json:"type"`            // Block type: "llm" | "mcp" | "agent" | "tool" | "mixed"
 	Timestamp int64                  `json:"timestamp"`       // Unix timestamp when block started
-	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Searching knowledge base", "Calling weather API")
+	Label     string                 `json:"label,omitempty"` // Human-readable label (e.g., "Calling weather API")
 	Extra     map[string]interface{} `json:"extra,omitempty"` // Additional metadata
 }
 

@@ -598,23 +598,6 @@ func TestInputFormatterFormatAvailableResourcesUnit(t *testing.T) {
 		assert.Contains(t, result, "all tools available")
 	})
 
-	t.Run("handles_kb_collections", func(t *testing.T) {
-		robot := &types.Robot{
-			MemberID: "test",
-			Config: &types.Config{
-				KB: &types.KB{
-					Collections: []string{"sales-policies", "products"},
-				},
-			},
-		}
-
-		result := formatter.FormatAvailableResources(robot)
-
-		assert.Contains(t, result, "### Knowledge Base")
-		assert.Contains(t, result, "sales-policies")
-		assert.Contains(t, result, "products")
-	})
-
 	t.Run("handles_db_models", func(t *testing.T) {
 		robot := &types.Robot{
 			MemberID: "test",

@@ -85,7 +85,6 @@ func TestE2ELLMStream(t *testing.T) {
 	assert.NotEmpty(t, response.AssistantID, "response.AssistantID should not be empty")
 	assert.NotEmpty(t, response.ChatID, "response.ChatID should not be empty")
 	assert.NotEmpty(t, response.ContextID, "response.ContextID should not be empty")
-	assert.NotEmpty(t, response.TraceID, "response.TraceID should not be empty")
 }
 
 func TestE2EHookLLMStream(t *testing.T) {
@@ -109,7 +108,6 @@ func TestE2EHookLLMStream(t *testing.T) {
 	assert.NotEmpty(t, response.AssistantID)
 	assert.NotEmpty(t, response.ChatID)
 	assert.NotEmpty(t, response.ContextID)
-	assert.NotEmpty(t, response.TraceID)
 }
 
 func TestE2ESandboxStream(t *testing.T) {

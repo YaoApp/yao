@@ -11,12 +11,6 @@ var SystemDefaults = &types.Config{
 		MaxResults: 10,
 	},
 
-	// KB search defaults
-	KB: &types.KBConfig{
-		Threshold: 0.7,
-		Graph:     false,
-	},
-
 	// DB search defaults
 	DB: &types.DBConfig{
 		MaxResults: 20,
