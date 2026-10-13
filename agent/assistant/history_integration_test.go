@@ -234,7 +234,7 @@ func TestWithHistorySkip(t *testing.T) {
 		Skip: &agentContext.Skip{History: true},
 	}
 
-	result, err := ast.WithHistory(ctx, input, nil, opts)
+	result, err := ast.WithHistory(ctx, input, opts)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
