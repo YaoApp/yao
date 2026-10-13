@@ -37,7 +37,6 @@ func TestCallOptions_ToContextOptions_Full(t *testing.T) {
 		},
 		Skip: &context.Skip{
 			History: true,
-			Trace:   true,
 			Output:  false,
 		},
 	}

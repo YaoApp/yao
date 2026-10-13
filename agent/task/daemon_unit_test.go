@@ -199,7 +199,7 @@ func TestDaemonContext_Broadcast_WithExistingMetadata(t *testing.T) {
 	dc.Broadcast(&message.Message{
 		Type:     "text",
 		Props:    map[string]interface{}{"content": "pre-meta"},
-		Metadata: &message.Metadata{TraceID: "trace-123"},
+		Metadata: &message.Metadata{},
 	})
 
 	for {

@@ -74,7 +74,6 @@ func TestNewHeadlessContext_ForceSkipOverrides(t *testing.T) {
 		Skip: &agentContext.Skip{
 			Output:  false,
 			History: false,
-			Trace:   true,
 		},
 		Messages: []map[string]interface{}{
 			{"role": "user", "content": "test"},
