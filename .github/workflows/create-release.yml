@@ -18,8 +18,13 @@ jobs:
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
+          PREV_TAG=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1 --json tagName -q '.[0].tagName' || echo "")
+          NOTES_FLAG="--generate-notes"
+          if [ -n "$PREV_TAG" ]; then
+            NOTES_FLAG="--generate-notes --notes-start-tag $PREV_TAG"
+          fi
           gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "Yao v${VERSION}" \
-            --generate-notes \
+            $NOTES_FLAG \
             --draft
