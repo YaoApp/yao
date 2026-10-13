@@ -1,13 +1,13 @@
 package share
 
 // VERSION Yao App Engine Version
-const VERSION = "1.0.0"
+const VERSION = "2.0.0"
 
 // PRVERSION Yao App Engine PR Commit
 const PRVERSION = "DEV"
 
 // CUI Version
-const CUI = "1.0.0"
+const CUI = "2.0.0"
 
 // PRCUI CUI PR Commit
 const PRCUI = "DEV"
