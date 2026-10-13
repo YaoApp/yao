@@ -52,8 +52,6 @@ import (
 	"github.com/yaoapp/yao/tai"
 	"github.com/yaoapp/yao/tai/webproxy"
 	"github.com/yaoapp/yao/task"
-
-	_ "github.com/yaoapp/yao/trace" // register trace handler/listener via init()
 )
 
 // LoadHooks used to load custom widgets/processes

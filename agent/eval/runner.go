@@ -758,7 +758,6 @@ func buildContextOptions(tc *Case, runnerOpts *Options) *context.Options {
 
 		// Skip options from test case
 		if tc.Options.Skip != nil {
-			opts.Skip.Trace = tc.Options.Skip.Trace
 			opts.Skip.Output = tc.Options.Skip.Output
 			opts.Skip.Keyword = tc.Options.Skip.Keyword
 			opts.Skip.Search = tc.Options.Skip.Search

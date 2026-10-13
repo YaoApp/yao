@@ -87,7 +87,6 @@ func TestNewHeadlessContext_ForceSkipOverrides(t *testing.T) {
 	require.NotNil(t, opts.Skip)
 	assert.True(t, opts.Skip.Output, "Skip.Output must be forced true regardless of request")
 	assert.True(t, opts.Skip.History, "Skip.History must be forced true regardless of request")
-	assert.True(t, opts.Skip.Trace, "Skip.Trace should preserve caller's setting")
 }
 
 func TestNewHeadlessContext_WithMetadata(t *testing.T) {

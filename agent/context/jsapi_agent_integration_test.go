@@ -85,8 +85,7 @@ func TestAgent_Call_WithOptions_V8(t *testing.T) {
 					[{ role: "user", content: "Hi there!" }],
 					{
 						skip: {
-							history: true,
-							trace: true
+							history: true
 						}
 					}
 				);

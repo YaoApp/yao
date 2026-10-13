@@ -271,7 +271,6 @@ package jsapi
 // 			metadata.Sequence = int(sequence)
 // 		}
 // 		if traceID, ok := metadataMap["trace_id"].(string); ok {
-// 			metadata.TraceID = traceID
 // 		}
 // 		msg.Metadata = metadata
 // 	}
@@ -371,7 +370,6 @@ package jsapi
 // 					metadata.Sequence = int(sequence)
 // 				}
 // 				if traceID, ok := metadataMap["trace_id"].(string); ok {
-// 					metadata.TraceID = traceID
 // 				}
 // 				msg.Metadata = metadata
 // 			}
@@ -392,7 +390,6 @@ package jsapi
 // 			metadata.Sequence = int(sequence)
 // 		}
 // 		if traceID, ok := metadataMap["trace_id"].(string); ok {
-// 			metadata.TraceID = traceID
 // 		}
 // 		group.Metadata = metadata
 // 	}

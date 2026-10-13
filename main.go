@@ -13,7 +13,6 @@ import (
 	_ "github.com/yaoapp/yao/seed"
 	_ "github.com/yaoapp/yao/sitemap"
 	_ "github.com/yaoapp/yao/tools"
-	_ "github.com/yaoapp/yao/trace/jsapi"
 
 	"github.com/yaoapp/yao/cmd"
 	"github.com/yaoapp/yao/utils"

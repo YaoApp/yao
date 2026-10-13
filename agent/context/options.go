@@ -59,9 +59,6 @@ func OptionsFromMap(m map[string]interface{}) *Options {
 		if history, ok := skipMap["history"].(bool); ok {
 			skip.History = history
 		}
-		if trace, ok := skipMap["trace"].(bool); ok {
-			skip.Trace = trace
-		}
 		if output, ok := skipMap["output"].(bool); ok {
 			skip.Output = output
 		}

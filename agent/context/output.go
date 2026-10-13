@@ -562,11 +562,9 @@ func (ctx *Context) getOutput() (*output.Output, error) {
 		}
 	}
 
-	trace, _ := ctx.Trace()
 	var options message.Options = message.Options{
 		BaseURL: "/",
 		Writer:  writer,
-		Trace:   trace,
 		Locale:  ctx.Locale,
 		Accept:  string(ctx.Accept),
 	}

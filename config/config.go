@@ -155,30 +155,6 @@ func LoadWithRoot(root string) Config {
 		}
 	}
 
-	// Trace Driver - default to "none" (disabled)
-	// Use YAO_TRACE_DRIVER=local or YAO_TRACE_DRIVER=store to enable
-	if cfg.Trace.Driver == "" {
-		cfg.Trace.Driver = "none"
-	}
-
-	// Trace Path - default to same directory as log file when using local driver
-	if cfg.Trace.Driver == "local" {
-		if cfg.Trace.Path == "" {
-			// Use the log file directory
-			logDir := cfg.GetLogDir()
-			cfg.Trace.Path = filepath.Join(logDir, "traces")
-		}
-
-		if !filepath.IsAbs(cfg.Trace.Path) {
-			cfg.Trace.Path = filepath.Join(cfg.Root, cfg.Trace.Path)
-		}
-	}
-
-	// Trace Prefix - default prefix for store driver
-	if cfg.Trace.Driver == "store" && cfg.Trace.Prefix == "" {
-		cfg.Trace.Prefix = "trace:"
-	}
-
 	return cfg
 }
 

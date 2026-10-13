@@ -13,7 +13,6 @@ import (
 	"github.com/yaoapp/yao/agent/search/nlp/keyword"
 	searchTypes "github.com/yaoapp/yao/agent/search/types"
 	storeTypes "github.com/yaoapp/yao/agent/store/types"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // shouldAutoSearch determines if auto search should be executed
@@ -501,9 +500,6 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	// === Output: Send loading message ===
 	loadingID := ast.sendSearchLoading(ctx)
 
-	// === Trace: Create search trace node ===
-	searchNode := ast.createSearchTrace(ctx, query, requests)
-
 	// Execute searches in parallel
 	// Build provider info for logging
 	providerInfo := ast.getSearchProviderInfo(searchConfig, searchUses)
@@ -519,9 +515,6 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 
 		// === Output: Send failed message ===
 		ast.sendSearchDone(ctx, loadingID, 0, true)
-
-		// === Trace: Mark as failed ===
-		ast.completeSearchTrace(searchNode, 0, err)
 
 		// === Storage: Save failed search ===
 		ast.saveSearch(ctx, &SearchExecutionResult{
@@ -548,9 +541,6 @@ func (ast *Assistant) executeAutoSearch(ctx *context.Context, messages []context
 	// === Output: Send result message, then done ===
 	ast.sendSearchResult(ctx, loadingID, resultCount)
 	ast.sendSearchDone(ctx, loadingID, resultCount, false)
-
-	// === Trace: Mark as completed ===
-	ast.completeSearchTrace(searchNode, resultCount, nil)
 
 	// === Storage: Save successful search ===
 	ast.saveSearch(ctx, &SearchExecutionResult{
@@ -705,72 +695,6 @@ func (ast *Assistant) sendSearchDone(ctx *context.Context, loadingID string, cou
 	if err := ctx.Send(msg); err != nil {
 		ctx.Logger.Warn("Failed to send search done message: %v", err)
 	}
-}
-
-// ============================================================================
-// Trace: Search Node
-// ============================================================================
-
-// createSearchTrace creates a trace node for search operation
-func (ast *Assistant) createSearchTrace(ctx *context.Context, query string, requests []*searchTypes.Request) traceTypes.Node {
-	trace, _ := ctx.Trace()
-	if trace == nil {
-		return nil
-	}
-
-	// Build search types list
-	var searchTypes []string
-	for _, req := range requests {
-		searchTypes = append(searchTypes, string(req.Type))
-	}
-
-	input := map[string]any{
-		"query": query,
-		"types": searchTypes,
-	}
-
-	node, err := trace.Add(input, traceTypes.TraceNodeOption{
-		Label:       i18n.T(ctx.Locale, "search.trace.label"),
-		Type:        "search",
-		Icon:        "search",
-		Description: i18n.T(ctx.Locale, "search.trace.description"),
-	})
-
-	if err != nil {
-		ctx.Logger.Warn("Failed to create search trace node: %v", err)
-		return nil
-	}
-
-	// Log search start
-	node.Info("Starting search", map[string]any{
-		"query": query,
-		"types": searchTypes,
-	})
-
-	return node
-}
-
-// completeSearchTrace marks the search trace node as completed or failed
-func (ast *Assistant) completeSearchTrace(node traceTypes.Node, resultCount int, err error) {
-	if node == nil {
-		return
-	}
-
-	if err != nil {
-		node.Warn("Search failed", map[string]any{"error": err.Error()})
-		node.Fail(err)
-		return
-	}
-
-	// Log completion
-	node.Info("Search completed", map[string]any{
-		"result_count": resultCount,
-	})
-
-	// Complete with output
-	node.Complete(map[string]any{
-		"result_count": resultCount,
-	})
 }
 
 // buildSearchRequestsOptions contains options for building search requests

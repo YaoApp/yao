@@ -45,7 +45,6 @@ client:free:
   - event:all
   - llm:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -69,7 +68,6 @@ client:pro:
   - llm:all
   - mcp:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -93,7 +91,6 @@ client:ent:
   - llm:all
   - mcp:all
   - messenger:all
-  - trace:all
   - sandbox:all
   - computer:all
   - workspace:all
@@ -128,7 +125,6 @@ user:free:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -152,7 +148,6 @@ user:pro:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -176,7 +171,6 @@ user:ent:
   - llm:all:own
   - mcp:all:own
   - messenger:all:own
-  - trace:all:own
   - sandbox:all:own
   - computer:all:own
   - workspace:all:own
@@ -208,7 +202,6 @@ team:owner:
   - llm:all:team
   - mcp:all:team
   - messenger:all:team
-  - trace:all:team
   - sandbox:all:team
   - computer:all:team
   - workspace:all:team
@@ -232,7 +225,6 @@ team:admin:
   - llm:manage:team
   - mcp:manage:team
   - messenger:all:team
-  - trace:read:team
   - sandbox:all:team
   - computer:all:team
   - workspace:manage:team
@@ -265,8 +257,6 @@ team:member:
   - mcp:write:own
   - messenger:read:team
   - messenger:write:own
-  - trace:read:team
-  - trace:read:own
   - sandbox:read:own
   - sandbox:write:own
   - computer:read:own
@@ -767,23 +757,6 @@ messenger:read:team:
 messenger:write:own:
   - messenger:providers:read:all
   - messenger:channels:read:all
-
-# ============ Trace Resources Aliases ============
-
-trace:all:
-  - trace:traces:read:all
-
-trace:all:own:
-  - trace:traces:read:own
-
-trace:all:team:
-  - trace:traces:read:team
-
-trace:read:team:
-  - trace:traces:read:team
-
-trace:read:own:
-  - trace:traces:read:own
 
 # ============ OTP Resources Aliases ============
 

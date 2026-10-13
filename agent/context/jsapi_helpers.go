@@ -88,9 +88,6 @@ func parseMessage(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Message, e
 		if sequence, ok := metadataMap["sequence"].(float64); ok {
 			metadata.Sequence = int(sequence)
 		}
-		if traceID, ok := metadataMap["trace_id"].(string); ok {
-			metadata.TraceID = traceID
-		}
 		msg.Metadata = metadata
 	}
 
@@ -187,9 +184,6 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 				if sequence, ok := metadataMap["sequence"].(float64); ok {
 					metadata.Sequence = int(sequence)
 				}
-				if traceID, ok := metadataMap["trace_id"].(string); ok {
-					metadata.TraceID = traceID
-				}
 				msg.Metadata = metadata
 			}
 
@@ -207,9 +201,6 @@ func parseGroup(v8ctx *v8go.Context, jsValue *v8go.Value) (*message.Group, error
 		}
 		if sequence, ok := metadataMap["sequence"].(float64); ok {
 			metadata.Sequence = int(sequence)
-		}
-		if traceID, ok := metadataMap["trace_id"].(string); ok {
-			metadata.TraceID = traceID
 		}
 		group.Metadata = metadata
 	}

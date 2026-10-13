@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
-	"github.com/yaoapp/yao/trace/types"
 )
 
 // ToolLoopParams holds all parameters needed by executeToolLoop.
@@ -17,7 +16,6 @@ type ToolLoopParams struct {
 	CompletionResponse *context.CompletionResponse
 	ToolCallResponses  []context.ToolCallResponse
 	FullMessages       []context.Message
-	AgentNode          types.Node
 	StreamHandler      message.StreamFunc
 	CreateResponse     *context.HookCreateResponse
 	Opts               *context.Options
@@ -53,7 +51,7 @@ func (ast *Assistant) executeToolLoop(
 		})
 
 		// Call LLM with tool results included
-		newCompletion, err := ast.executeLLMStream(ctx, loopMessages, params.CompletionOptions, params.AgentNode, params.StreamHandler, params.Opts)
+		newCompletion, err := ast.executeLLMStream(ctx, loopMessages, params.CompletionOptions, params.StreamHandler, params.Opts)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("tool loop LLM call failed (turn %d): %w", turn+1, err)
 		}

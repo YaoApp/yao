@@ -7,7 +7,6 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/yaoapp/kun/log"
 	"github.com/yaoapp/yao/agent/context"
-	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output"
 	"github.com/yaoapp/yao/agent/output/message"
 )
@@ -30,10 +29,6 @@ func DefaultStreamHandler(ctx *context.Context) message.StreamFunc {
 	}
 
 	return func(chunkType message.StreamChunkType, data []byte) int {
-		trace, _ := ctx.Trace()
-		if trace != nil {
-			trace.Info(i18n.T(ctx.Locale, "llm.handlers.stream.info"), map[string]any{"data": string(data)})
-		}
 
 		// Handle different chunk types
 		switch chunkType {

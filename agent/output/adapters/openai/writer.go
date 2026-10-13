@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/yaoapp/yao/agent/i18n"
 	"github.com/yaoapp/yao/agent/output/message"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Writer implements the message.Writer interface for OpenAI-compatible clients
 type Writer struct {
 	Writer     http.ResponseWriter
-	Trace      traceTypes.Manager
 	Locale     string
 	adapter    *Adapter
 	firstChunk bool // Track if this is the first chunk to add role
@@ -65,12 +62,6 @@ func (w *Writer) Write(msg *message.Message) error {
 	// Convert message to OpenAI format using adapter
 	chunks, err := w.adapter.Adapt(msg)
 	if err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.adapt_error"), map[string]any{ // "OpenAI Writer: Failed to adapt message"
-				"error":        err.Error(),
-				"message_type": msg.Type,
-			})
-		}
 		return err
 	}
 
@@ -89,9 +80,6 @@ func (w *Writer) Write(msg *message.Message) error {
 		}
 
 		if err := w.sendChunk(chunk); err != nil {
-			if w.Trace != nil {
-				w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.chunk_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send chunk"
-			}
 			return err
 		}
 	}
@@ -105,13 +93,6 @@ func (w *Writer) WriteGroup(group *message.Group) error {
 	// Just send each message individually
 	for _, msg := range group.Messages {
 		if err := w.Write(msg); err != nil {
-			if w.Trace != nil {
-				w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.group_error"), map[string]any{ // "OpenAI Writer: Failed to write message in group"
-					"error":        err.Error(),
-					"group_id":     group.ID,
-					"message_type": msg.Type,
-				})
-			}
 			return err
 		}
 	}
@@ -155,9 +136,6 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	// Convert chunk to JSON
 	data, err := json.Marshal(chunk)
 	if err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.marshal_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to marshal chunk"
-		}
 		return err
 	}
 
@@ -166,17 +144,9 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 	sseData = append(sseData, []byte("\n\n")...)
 
 	// Log outgoing data to trace for debugging
-	if w.Trace != nil {
-		w.Trace.Debug("OpenAI Writer: Sending chunk to client", map[string]any{
-			"data": string(data),
-		})
-	}
 
 	// Send via context's writer
 	if err := w.sendData(sseData); err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.send_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send data to client"
-		}
 		return err
 	}
 
@@ -190,16 +160,10 @@ func (w *Writer) sendChunk(chunk interface{}) error {
 // sendDone sends the final [DONE] message
 func (w *Writer) sendDone() error {
 	// Log completion to trace
-	if w.Trace != nil {
-		w.Trace.Debug("OpenAI Writer: Sending [DONE] to client")
-	}
 
 	// OpenAI SSE format uses "data: [DONE]\n\n" to signal completion
 	doneData := []byte("data: [DONE]\n\n")
 	if err := w.sendData(doneData); err != nil {
-		if w.Trace != nil {
-			w.Trace.Error(i18n.T(w.Locale, "output.openai.writer.done_error"), map[string]any{"error": err.Error()}) // "OpenAI Writer: Failed to send [DONE] to client"
-		}
 		return err
 	}
 

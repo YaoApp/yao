@@ -47,7 +47,6 @@ import (
 	_ "github.com/yaoapp/yao/grpc/auth"
 	_ "github.com/yaoapp/yao/helper"
 	_ "github.com/yaoapp/yao/seed" // registers seeds.import process
-	_ "github.com/yaoapp/yao/trace"
 )
 
 var testGRPCPort int

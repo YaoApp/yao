@@ -31,7 +31,6 @@ import (
 	openapiTai "github.com/yaoapp/yao/openapi/tai"
 	"github.com/yaoapp/yao/openapi/team"
 	"github.com/yaoapp/yao/openapi/testmode"
-	openapiTrace "github.com/yaoapp/yao/openapi/trace"
 	"github.com/yaoapp/yao/openapi/user"
 	openapiWorkspace "github.com/yaoapp/yao/openapi/workspace"
 )
@@ -171,9 +170,6 @@ func (openapi *OpenAPI) Attach(router *gin.Engine) {
 
 	// MCP Server handlers
 	mcp.Attach(group.Group("/mcp"), openapi.OAuth)
-
-	// Trace handlers
-	openapiTrace.Attach(group.Group("/trace"), openapi.OAuth)
 
 	// App handlers (menu, etc.)
 	app.Attach(group.Group("/app"), openapi.OAuth)

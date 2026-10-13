@@ -59,7 +59,6 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "Assistant is processing",
-			"output.view_trace":   "View process",
 
 			// Common status messages
 			"common.status.processing": "Processing",
@@ -158,12 +157,6 @@ func init() {
 			"search.keyword.done":    "Analysis complete",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "Search",
-			"search.trace.description":     "Search the web for relevant information",
-			"search.trace.web.label":       "Web Search",
-			"search.trace.web.description": "Searching the web",
-			"search.trace.db.label":        "DB Search",
-			"search.trace.db.description":  "Searching database",
 		},
 	}
 
@@ -219,7 +212,6 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "智能体正在处理",
-			"output.view_trace":   "查看处理详情",
 
 			// Common status messages
 			"common.status.processing": "处理中",
@@ -290,12 +282,6 @@ func init() {
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "搜索",
-			"search.trace.description":     "搜索网络获取相关信息",
-			"search.trace.web.label":       "网页搜索",
-			"search.trace.web.description": "搜索网页获取相关信息",
-			"search.trace.db.label":        "数据库搜索",
-			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 
@@ -351,7 +337,6 @@ func init() {
 
 			// Output: Stream event messages
 			"output.stream_start": "智能体正在处理",
-			"output.view_trace":   "查看处理详情",
 
 			// Common status messages
 			"common.status.processing": "处理中",
@@ -450,12 +435,6 @@ func init() {
 			"search.keyword.done":    "分析完成",
 
 			// Search: assistant/search.go - Trace labels
-			"search.trace.label":           "搜索",
-			"search.trace.description":     "搜索网络获取相关信息",
-			"search.trace.web.label":       "网页搜索",
-			"search.trace.web.description": "搜索网页获取相关信息",
-			"search.trace.db.label":        "数据库搜索",
-			"search.trace.db.description":  "搜索数据库获取相关信息",
 		},
 	}
 }

@@ -21,7 +21,7 @@ func TestEnsureChatCreate(t *testing.T) {
 
 	chatID := "test-ensure-chat-create-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", nil)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", nil)
 
 	err = ast.EnsureChat(ctx)
 	require.NoError(t, err)
@@ -44,7 +44,7 @@ func TestEnsureChatExisting(t *testing.T) {
 
 	chatID := "test-ensure-chat-existing-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", nil)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", nil)
 
 	// Create chat the first time
 	err = ast.EnsureChat(ctx)
@@ -76,7 +76,7 @@ func TestEnsureChatSkipHistory(t *testing.T) {
 	opts := &agentContext.Options{
 		Skip: &agentContext.Skip{History: true},
 	}
-	ctx.Stack = agentContext.NewStack("", ast.ID, "api", opts)
+	ctx.Stack = agentContext.NewStack(ast.ID, "api", opts)
 
 	err = ast.EnsureChat(ctx)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestInitBuffer(t *testing.T) {
 	ctx := newTestContext(chatID, "tests.history-basic")
 
 	// Create root stack context
-	ctx.Stack = agentContext.NewStack("", "tests.history-basic", "api", nil)
+	ctx.Stack = agentContext.NewStack("tests.history-basic", "api", nil)
 
 	// Buffer should be nil initially
 	assert.Nil(t, ctx.Buffer)
@@ -119,7 +119,7 @@ func TestBufferUserInput(t *testing.T) {
 
 	chatID := "test-buffer-user-input-" + uuid.New().String()
 	ctx := newTestContext(chatID, "tests.history-basic")
-	ctx.Stack = agentContext.NewStack("", "tests.history-basic", "api", nil)
+	ctx.Stack = agentContext.NewStack("tests.history-basic", "api", nil)
 
 	// Initialize buffer
 	ast.InitBuffer(ctx)

@@ -22,7 +22,7 @@ func newStressTestContext(chatID string) *agentctx.Context {
 	ctx := agentctx.New(stdContext.Background(), nil, chatID)
 	ctx.AssistantID = "test-assistant"
 	ctx.Referer = agentctx.RefererAPI
-	stack, _, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
+	stack, _ := agentctx.EnterStack(ctx, "test-assistant", &agentctx.Options{})
 	ctx.Stack = stack
 	return ctx
 }

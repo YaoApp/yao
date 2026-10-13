@@ -209,7 +209,6 @@ func TestDaemonContext_Broadcast_WithExistingMetadata(t *testing.T) {
 				continue
 			}
 			assert.Equal(t, "text", msg.Type)
-			assert.Equal(t, "trace-123", msg.Metadata.TraceID)
 			assert.Equal(t, 1, msg.Metadata.Sequence)
 			return
 		case <-time.After(time.Second):

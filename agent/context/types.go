@@ -13,7 +13,6 @@ import (
 	"github.com/yaoapp/yao/openapi/oauth/types"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/tai/workspace"
-	traceTypes "github.com/yaoapp/yao/trace/types"
 )
 
 // Accept the accept of the request, it will be used to identify the accept of the request.
@@ -199,7 +198,6 @@ type AssistantInfo struct {
 // Skip configuration for what to skip in this request
 type Skip struct {
 	History        bool `json:"history"`         // Skip saving chat history (for internal calls like title/prompt generation)
-	Trace          bool `json:"trace"`           // Skip trace logging
 	Output         bool `json:"output"`          // Skip output to client (for internal A2A calls that only need response data)
 	Keyword        bool `json:"keyword"`         // Skip keyword extraction for web search (use raw query directly)
 	Search         bool `json:"search"`          // Skip auto search (for internal calls like needsearch intent detection)
@@ -236,7 +234,7 @@ type Context struct {
 	Memory      *memory.Memory       `json:"-"`  // Agent memory with four spaces: User, Team, Chat, Context
 	Cache       store.Store          `json:"-"`  // Cache store, it will be used to store the message cache, default is "__yao.agent.cache"
 	Stack       *Stack               `json:"-"`  // Stack, current active stack of the request
-	Stacks      map[string]*Stack    `json:"-"`  // Stacks, all stacks in this request (for trace logging)
+	Stacks      map[string]*Stack    `json:"-"`  // Stacks, all stacks in this request
 	Writer      Writer               `json:"-"`  // Writer, it will be used to write response data to the client
 	IDGenerator *message.IDGenerator `json:"-"`  // ID generator for this context (chunk, message, block, thread IDs)
 	Logger      *RequestLogger       `json:"-"`  // Request-scoped async logger
@@ -250,7 +248,6 @@ type Context struct {
 	Buffer *ChatBuffer `json:"-"` // Chat buffer for batch saving at end of Stream()
 
 	// Internal
-	trace           traceTypes.Manager    `json:"-"` // Trace manager, lazy initialized on first access
 	messageMetadata *messageMetadataStore `json:"-"` // Thread-safe message metadata store for delta operations
 	computer        infraV2.Computer      `json:"-"` // V2 sandbox computer (set by assistant when V2 sandbox is configured)
 	workspace       workspace.FS          `json:"-"` // V2 workspace FS (derived from computer.Workplace())
@@ -298,8 +295,8 @@ type Options struct {
 	// Writer, use to write response data to the client (override the default writer)
 	Writer Writer `json:"writer,omitempty"` // Writer, use to write response data to the client
 
-	// Skip configuration (history, trace, etc.), nil means don't skip anything
-	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, trace, etc.), nil means don't skip anything
+	// Skip configuration (history, etc.), nil means don't skip anything
+	Skip *Skip `json:"skip,omitempty"` // Skip configuration (history, etc.), nil means don't skip anything
 
 	// Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
 	Connector string `json:"connector,omitempty"` // Connector, use to select the connector of the LLM Model, Default is Assistant.Connector
@@ -356,7 +353,6 @@ type OnMessageFunc func(msg *message.Message) int
 // without sharing the actual Stack reference (which would cause race conditions in parallel calls)
 type ForkParentInfo struct {
 	StackID string   // Parent stack ID (used as ParentID for child stack)
-	TraceID string   // Parent trace ID (inherited by child stack)
 	Depth   int      // Parent depth (child depth = parent depth + 1)
 	Path    []string // Parent path (child path = parent path + child ID)
 }
@@ -365,8 +361,7 @@ type ForkParentInfo struct {
 // Uses a flat structure to avoid circular references and memory overhead
 type Stack struct {
 	// Identity
-	ID      string `json:"id"`       // Unique stack node ID, used to identify this specific call
-	TraceID string `json:"trace_id"` // Shared trace ID for entire call tree, inherited from root
+	ID string `json:"id"` // Unique stack node ID, used to identify this specific call
 
 	// Options
 	Options *Options `json:"options,omitempty"` // Options for the call
@@ -398,7 +393,6 @@ type Stack struct {
 type Response struct {
 	RequestID   string              `json:"request_id"`           // Request ID for the response
 	ContextID   string              `json:"context_id"`           // Context ID for the response
-	TraceID     string              `json:"trace_id"`             // Trace ID for the response
 	ChatID      string              `json:"chat_id"`              // Chat ID for the response
 	AssistantID string              `json:"assistant_id"`         // Assistant ID for the response
 	Create      *HookCreateResponse `json:"create,omitempty"`     // Create response from the create hook
@@ -693,7 +687,7 @@ type CompletionRequest struct {
 	// CUI Context information
 	Route    string                 `json:"route,omitempty"`    // Optional: route of the request for CUI context
 	Metadata map[string]interface{} `json:"metadata,omitempty"` // Optional: metadata to pass to the page for CUI context
-	Skip     *Skip                  `json:"skip,omitempty"`     // Optional: skip configuration (history, trace, etc.)
+	Skip     *Skip                  `json:"skip,omitempty"`     // Optional: skip configuration (history, etc.)
 }
 
 // AudioConfig represents the audio output configuration for models that support audio

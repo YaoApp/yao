@@ -193,8 +193,6 @@ import (
 	"github.com/yaoapp/yao/runtime"
 	"github.com/yaoapp/yao/share"
 	"github.com/yaoapp/yao/utils"
-
-	_ "github.com/yaoapp/yao/trace" // register trace event handler via init()
 )
 
 var testServer *http.Server = nil

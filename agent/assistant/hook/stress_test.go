@@ -123,7 +123,7 @@ func TestRealWorldMCPScenarios(t *testing.T) {
 	t.Run("FullWorkflow", func(t *testing.T) {
 		ctx := newRealWorldContext("test-full-workflow", "tests.realworld")
 
-		stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+		stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 		defer done()
 		ctx.Stack = stack
 
@@ -166,7 +166,7 @@ func TestRealWorldTraceIntensive(t *testing.T) {
 	require.NotNil(t, agent.HookScript)
 
 	ctx := newRealWorldContext("test-trace-intensive", "tests.realworld")
-	stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+	stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 	defer done()
 	ctx.Stack = stack
 
@@ -241,7 +241,7 @@ func TestRealWorldStressMCP(t *testing.T) {
 		scenario := scenarios[i%len(scenarios)]
 		ctx := newRealWorldContext(fmt.Sprintf("stress-mcp-%d", i), "tests.realworld")
 
-		stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+		stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 		ctx.Stack = stack
 
 		messages := []agentContext.Message{
@@ -312,7 +312,7 @@ func TestRealWorldStressFullWorkflow(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		ctx := newRealWorldContext(fmt.Sprintf("stress-workflow-%d", i), "tests.realworld")
 
-		stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+		stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 		ctx.Stack = stack
 
 		messages := []agentContext.Message{
@@ -393,7 +393,7 @@ func TestRealWorldStressConcurrent(t *testing.T) {
 					"tests.realworld",
 				)
 
-				stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+				stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 				ctx.Stack = stack
 
 				messages := []agentContext.Message{
@@ -495,7 +495,7 @@ func TestRealWorldStressResourceHeavy(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		ctx := newRealWorldContext(fmt.Sprintf("stress-heavy-%d", i), "tests.realworld")
 
-		stack, _, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
+		stack, done := agentContext.EnterStack(ctx, "tests.realworld", &agentContext.Options{})
 		ctx.Stack = stack
 
 		messages := []agentContext.Message{
@@ -653,11 +653,6 @@ func TestGoroutineLeakByComponent(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			ctx := newLeakTestContext(fmt.Sprintf("test-%d", i), "tests.create")
-
-			trace, err := ctx.Trace()
-			if err == nil && trace != nil {
-				_ = trace
-			}
 
 			ctx.Release()
 		}

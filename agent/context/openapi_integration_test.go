@@ -751,14 +751,12 @@ func TestGetSkip_FromBody(t *testing.T) {
 	completionReq := &agentctx.CompletionRequest{
 		Skip: &agentctx.Skip{
 			History: true,
-			Trace:   false,
 		},
 	}
 
 	skip := agentctx.GetSkip(c, completionReq)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History)
-	assert.False(t, skip.Trace)
 }
 
 func TestGetSkip_FromQueryParams(t *testing.T) {
@@ -766,7 +764,7 @@ func TestGetSkip_FromQueryParams(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 
-	req := httptest.NewRequest("GET", "/chat/completions?skip_history=true&skip_trace=false", nil)
+	req := httptest.NewRequest("GET", "/chat/completions?skip_history=true", nil)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
@@ -774,7 +772,6 @@ func TestGetSkip_FromQueryParams(t *testing.T) {
 	skip := agentctx.GetSkip(c, nil)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History)
-	assert.False(t, skip.Trace)
 }
 
 func TestGetSkip_FromQueryParams_ShortForm(t *testing.T) {
@@ -782,7 +779,7 @@ func TestGetSkip_FromQueryParams_ShortForm(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 
-	req := httptest.NewRequest("GET", "/chat/completions?skip_history=1&skip_trace=1", nil)
+	req := httptest.NewRequest("GET", "/chat/completions?skip_history=1", nil)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
@@ -790,7 +787,6 @@ func TestGetSkip_FromQueryParams_ShortForm(t *testing.T) {
 	skip := agentctx.GetSkip(c, nil)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History)
-	assert.True(t, skip.Trace)
 }
 
 func TestGetSkip_Priority(t *testing.T) {
@@ -798,7 +794,7 @@ func TestGetSkip_Priority(t *testing.T) {
 
 	gin.SetMode(gin.TestMode)
 
-	req := httptest.NewRequest("POST", "/chat/completions?skip_history=false&skip_trace=false", nil)
+	req := httptest.NewRequest("POST", "/chat/completions?skip_history=false", nil)
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
 	c.Request = req
@@ -806,14 +802,12 @@ func TestGetSkip_Priority(t *testing.T) {
 	completionReq := &agentctx.CompletionRequest{
 		Skip: &agentctx.Skip{
 			History: true,
-			Trace:   true,
 		},
 	}
 
 	skip := agentctx.GetSkip(c, completionReq)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History, "Body should take priority")
-	assert.True(t, skip.Trace, "Body should take priority")
 }
 
 func TestGetSkip_Nil(t *testing.T) {
@@ -843,7 +837,6 @@ func TestGetSkip_OnlyHistorySet(t *testing.T) {
 	skip := agentctx.GetSkip(c, nil)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History)
-	assert.False(t, skip.Trace)
 }
 
 func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
@@ -874,12 +867,10 @@ func TestGetSkip_FromBodyViaParseRequest(t *testing.T) {
 
 	require.NotNil(t, completionReq.Skip)
 	assert.True(t, completionReq.Skip.History)
-	assert.False(t, completionReq.Skip.Trace)
 
 	skip := agentctx.GetSkip(c, completionReq)
 	require.NotNil(t, skip)
 	assert.True(t, skip.History)
-	assert.False(t, skip.Trace)
 }
 
 // ==================== GetMode ====================

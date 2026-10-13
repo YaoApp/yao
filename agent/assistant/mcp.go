@@ -11,7 +11,6 @@ import (
 	mcpTypes "github.com/yaoapp/gou/mcp/types"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	storeTypes "github.com/yaoapp/yao/agent/store/types"
-	"github.com/yaoapp/yao/trace/types"
 )
 
 const (
@@ -216,9 +215,9 @@ func (ast *Assistant) buildMCPTools(ctx *agentContext.Context, createResponse *a
 }
 
 // ToolCallResult represents the result of a tool call execution
-// executeToolCalls executes tool calls with intelligent strategy and trace logging:
-// - Single tool: use CallTool, single trace node
-// - Multiple tools: use CallToolsParallel with parallel trace nodes, fallback to sequential on certain errors
+// executeToolCalls executes tool calls with intelligent strategy:
+// - Single tool: use CallTool
+// - Multiple tools: use CallToolsParallel, fallback to sequential on certain errors
 // Returns (results, hasErrors)
 func (ast *Assistant) executeToolCalls(ctx *agentContext.Context, toolCalls []agentContext.ToolCall, attempt int) ([]ToolCallResult, bool) {
 	if len(toolCalls) == 0 {
@@ -236,11 +235,9 @@ func (ast *Assistant) executeToolCalls(ctx *agentContext.Context, toolCalls []ag
 	return ast.executeMultipleToolCallsParallel(ctx, toolCalls)
 }
 
-// executeSingleToolCall executes a single tool call with trace logging
+// executeSingleToolCall executes a single tool call
 func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall agentContext.ToolCall) ([]ToolCallResult, bool) {
 	ctx.Logger.ToolStart(toolCall.Function.Name)
-
-	trace, _ := ctx.Trace()
 
 	// Use the agent context for cancellation and timeout control
 	mcpCtx := ctx.Context
@@ -291,25 +288,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		toolDescription = fmt.Sprintf("MCP tool '%s'", toolName)
 	}
 
-	// Add trace node for this tool call
-	var toolNode types.Node
-	if trace != nil {
-		toolNode, _ = trace.Add(
-			map[string]any{
-				"tool_call_id": toolCall.ID,
-				"server":       serverID,
-				"tool":         toolName,
-				"arguments":    toolCall.Function.Arguments,
-			},
-			types.TraceNodeOption{
-				Label:       toolDescription,
-				Type:        "mcp_tool",
-				Icon:        "build",
-				Description: fmt.Sprintf("Calling '%s' on server '%s'", toolName, serverID),
-			},
-		)
-	}
-
 	// Parse arguments with repair support for better tolerance
 	var args map[string]interface{}
 	if toolCall.Function.Arguments != "" {
@@ -320,9 +298,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 			result.IsRetryableError = true // Argument parsing error is retryable by LLM
 			ctx.Logger.Error("Failed to parse arguments: %v", err)
 			ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-			if toolNode != nil {
-				toolNode.Fail(result.Error)
-			}
 			return []ToolCallResult{result}, true
 		}
 
@@ -335,9 +310,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 			result.IsRetryableError = true // Type error is retryable by LLM
 			ctx.Logger.Error("Arguments must be an object, got %T", parsed)
 			ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-			if toolNode != nil {
-				toolNode.Fail(result.Error)
-			}
 			return []ToolCallResult{result}, true
 		}
 
@@ -349,9 +321,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 				result.IsRetryableError = true // Validation error is retryable by LLM
 				ctx.Logger.Error("Argument validation failed: %v", err)
 				ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-				if toolNode != nil {
-					toolNode.Fail(result.Error)
-				}
 				return []ToolCallResult{result}, true
 			}
 		}
@@ -369,9 +338,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		result.IsRetryableError = isRetryableToolError(err)
 		ctx.Logger.Error("Tool call failed: %v (retryable: %v)", err, result.IsRetryableError)
 		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-		if toolNode != nil {
-			toolNode.Fail(result.Error)
-		}
 		return []ToolCallResult{result}, true
 	}
 
@@ -383,9 +349,6 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		result.IsRetryableError = false
 		ctx.Logger.Error("Failed to serialize result: %v", err)
 		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-		if toolNode != nil {
-			toolNode.Fail(result.Error)
-		}
 		return []ToolCallResult{result}, true
 	}
 
@@ -397,26 +360,16 @@ func (ast *Assistant) executeSingleToolCall(ctx *agentContext.Context, toolCall 
 		result.IsRetryableError = isRetryableToolError(result.Error)
 		ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolCall.Function.Name, result.Content, result.IsRetryableError)
 		ctx.Logger.ToolComplete(toolCall.Function.Name, false)
-		if toolNode != nil {
-			toolNode.Fail(result.Error)
-		}
 		return []ToolCallResult{result}, true
 	}
 
 	ctx.Logger.ToolComplete(toolCall.Function.Name, true)
 
-	if toolNode != nil {
-		toolNode.Complete(map[string]any{
-			"result": callResult,
-		})
-	}
-
 	return []ToolCallResult{result}, false
 }
 
-// executeMultipleToolCallsParallel executes multiple tool calls in parallel with trace logging
+// executeMultipleToolCallsParallel executes multiple tool calls in parallel
 func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
-	trace, _ := ctx.Trace()
 
 	// Use the agent context for cancellation and timeout control
 	mcpCtx := ctx.Context
@@ -457,15 +410,15 @@ func (ast *Assistant) executeMultipleToolCallsParallel(ctx *agentContext.Context
 		}
 
 		// Try parallel execution
-		serverResults, serverHasErrors := ast.executeServerToolsParallelWithTrace(
-			mcpCtx, ctx, trace, client, serverID, calls,
+		serverResults, serverHasErrors := ast.executeServerToolsParallel(
+			mcpCtx, ctx, client, serverID, calls,
 		)
 
 		// If parallel execution failed with retryable error, try sequential
 		if serverHasErrors && ast.shouldRetrySequential(serverResults) {
 			ctx.Logger.Warn("Parallel execution had parameter errors for server '%s', retrying sequentially", serverID)
-			serverResults, serverHasErrors = ast.executeServerToolsSequentialWithTrace(
-				mcpCtx, ctx, trace, client, serverID, calls,
+			serverResults, serverHasErrors = ast.executeServerToolsSequential(
+				mcpCtx, ctx, client, serverID, calls,
 			)
 		}
 
@@ -547,10 +500,8 @@ func (ast *Assistant) shouldRetrySequential(results []ToolCallResult) bool {
 	return hasRetryable
 }
 
-// executeServerToolsParallelWithTrace executes tools for a single server in parallel with trace
-func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context, ctx *agentContext.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
-	// Prepare parallel trace inputs
-	var parallelInputs []types.TraceParallelInput
+// executeServerToolsParallel executes tools for a single server in parallel
+func (ast *Assistant) executeServerToolsParallel(mcpCtx context.Context, ctx *agentContext.Context, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
 	mcpCalls := make([]mcpTypes.ToolCall, 0, len(toolCalls))
 	orderedCalls := make([]agentContext.ToolCall, 0, len(toolCalls))
 
@@ -575,31 +526,6 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 		orderedCalls = append(orderedCalls, tc)
 		ctx.Logger.ToolStart(tc.Function.Name)
 
-		// Add trace input for this tool
-		parallelInputs = append(parallelInputs, types.TraceParallelInput{
-			Input: map[string]any{
-				"tool_call_id": tc.ID,
-				"server":       serverID,
-				"tool":         toolName,
-				"arguments":    tc.Function.Arguments,
-			},
-			Option: types.TraceNodeOption{
-				Label:       fmt.Sprintf("Tool: %s", toolName),
-				Type:        "mcp_tool",
-				Icon:        "build",
-				Description: fmt.Sprintf("Calling MCP tool '%s' on server '%s'", toolName, serverID),
-			},
-		})
-	}
-
-	// Create parallel trace nodes
-	var toolNodes []types.Node
-	if trace != nil && len(parallelInputs) > 0 {
-		var err error
-		toolNodes, err = trace.Parallel(parallelInputs)
-		if err != nil {
-			ctx.Logger.Debug("trace.Parallel() failed: %v", err)
-		}
 	}
 
 	// Call tools in parallel with agent context as extra argument
@@ -609,14 +535,6 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	mcpResponse, err := client.CallToolsParallel(mcpCtx, mcpCalls, ctx)
 	if err != nil {
 		ctx.Logger.Error("Parallel call failed: %v", err)
-		for i, node := range toolNodes {
-			if node != nil {
-				node.Fail(err)
-			}
-			if i < len(orderedCalls) {
-				ctx.Logger.ToolComplete(orderedCalls[i].Function.Name, false)
-			}
-		}
 		return nil, true
 	}
 
@@ -627,10 +545,6 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	for i, mcpResult := range mcpResponse.Results {
 		toolName := mcpCalls[i].Name
 		originalCall := orderedCalls[i]
-		var toolNode types.Node
-		if i < len(toolNodes) {
-			toolNode = toolNodes[i]
-		}
 
 		result := ToolCallResult{
 			ToolCallID: originalCall.ID,
@@ -645,9 +559,6 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 			result.IsRetryableError = false // Serialization error is not retryable
 			hasErrors = true
 			ctx.Logger.ToolComplete(originalCall.Function.Name, false)
-			if toolNode != nil {
-				toolNode.Fail(result.Error)
-			}
 		} else {
 			result.Content = string(contentBytes)
 
@@ -658,16 +569,8 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 				hasErrors = true
 				ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolName, result.Content, result.IsRetryableError)
 				ctx.Logger.ToolComplete(originalCall.Function.Name, false)
-				if toolNode != nil {
-					toolNode.Fail(result.Error)
-				}
 			} else {
 				ctx.Logger.ToolComplete(originalCall.Function.Name, true)
-				if toolNode != nil {
-					toolNode.Complete(map[string]any{
-						"result": mcpResult.Content,
-					})
-				}
 			}
 		}
 
@@ -677,8 +580,8 @@ func (ast *Assistant) executeServerToolsParallelWithTrace(mcpCtx context.Context
 	return results, hasErrors
 }
 
-// executeServerToolsSequentialWithTrace executes tools for a single server sequentially with trace
-func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Context, ctx *agentContext.Context, trace types.Manager, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
+// executeServerToolsSequential executes tools for a single server sequentially
+func (ast *Assistant) executeServerToolsSequential(mcpCtx context.Context, ctx *agentContext.Context, client mcp.Client, serverID string, toolCalls []agentContext.ToolCall) ([]ToolCallResult, bool) {
 	results := make([]ToolCallResult, 0, len(toolCalls))
 	hasErrors := false
 
@@ -712,25 +615,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 			}
 		}
 
-		// Add trace node for this tool call
-		var toolNode types.Node
-		if trace != nil {
-			toolNode, _ = trace.Add(
-				map[string]any{
-					"tool_call_id": tc.ID,
-					"server":       serverID,
-					"tool":         toolName,
-					"arguments":    tc.Function.Arguments,
-				},
-				types.TraceNodeOption{
-					Label:       fmt.Sprintf("Tool: %s (sequential retry)", toolName),
-					Type:        "mcp_tool",
-					Icon:        "build",
-					Description: fmt.Sprintf("Retrying MCP tool '%s' on server '%s' sequentially", toolName, serverID),
-				},
-			)
-		}
-
 		// Parse arguments with repair support
 		var args map[string]interface{}
 		if tc.Function.Arguments != "" {
@@ -746,9 +630,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 				results = append(results, result)
 				hasErrors = true
 				ctx.Logger.ToolComplete(tc.Function.Name, false)
-				if toolNode != nil {
-					toolNode.Fail(err)
-				}
 				continue
 			}
 
@@ -767,9 +648,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 				results = append(results, result)
 				hasErrors = true
 				ctx.Logger.ToolComplete(tc.Function.Name, false)
-				if toolNode != nil {
-					toolNode.Fail(err)
-				}
 				continue
 			}
 
@@ -786,9 +664,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 					results = append(results, result)
 					hasErrors = true
 					ctx.Logger.ToolComplete(tc.Function.Name, false)
-					if toolNode != nil {
-						toolNode.Fail(err)
-					}
 					continue
 				}
 			}
@@ -810,9 +685,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 			hasErrors = true
 			ctx.Logger.Error("Tool call failed: %s - %v (retryable: %v)", toolName, err, result.IsRetryableError)
 			ctx.Logger.ToolComplete(tc.Function.Name, false)
-			if toolNode != nil {
-				toolNode.Fail(err)
-			}
 		} else {
 			// Serialize the Content field only ([]ToolContent)
 			contentBytes, err := jsoniter.Marshal(mcpResult.Content)
@@ -822,9 +694,6 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 				result.IsRetryableError = false
 				hasErrors = true
 				ctx.Logger.ToolComplete(tc.Function.Name, false)
-				if toolNode != nil {
-					toolNode.Fail(err)
-				}
 			} else {
 				result.Content = string(contentBytes)
 
@@ -835,16 +704,8 @@ func (ast *Assistant) executeServerToolsSequentialWithTrace(mcpCtx context.Conte
 					hasErrors = true
 					ctx.Logger.Error("Tool call failed: %s - %s (retryable: %v)", toolName, result.Content, result.IsRetryableError)
 					ctx.Logger.ToolComplete(tc.Function.Name, false)
-					if toolNode != nil {
-						toolNode.Fail(result.Error)
-					}
 				} else {
 					ctx.Logger.ToolComplete(tc.Function.Name, true)
-					if toolNode != nil {
-						toolNode.Complete(map[string]any{
-							"result": mcpResult.Content,
-						})
-					}
 				}
 			}
 		}

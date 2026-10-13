@@ -49,7 +49,6 @@ func TestCallOptions_ToContextOptions_Full(t *testing.T) {
 	assert.Equal(t, "value", ctxOpts.Metadata["key"])
 	require.NotNil(t, ctxOpts.Skip)
 	assert.True(t, ctxOpts.Skip.History)
-	assert.True(t, ctxOpts.Skip.Trace)
 	assert.False(t, ctxOpts.Skip.Output)
 }
 
