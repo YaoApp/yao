@@ -136,6 +136,17 @@ func init() {
 			"dsh.plan.enter":           "Entering plan mode",
 			"dsh.plan.exit":            "Exiting plan mode",
 
+			// Tai: sandbox/v2/tai/parse.go - Tai session event messages
+			"tai.agent.starting":         "Starting agent...",
+			"tai.turn.processing":        "Processing...",
+			"tai.message.thinking":       "Thinking...",
+			"tai.compaction.running":     "Compacting context...",
+			"tai.compaction.aborted":     "Compaction aborted",
+			"tai.compaction.error":       "Compaction failed: %s",
+			"tai.retry.waiting":          "Retrying (%d/%d), waiting %ds...",
+			"tai.summarization.retrying": "Summarizing (%d/%d)...",
+			"tai.summarization.running":  "Summarizing...",
+
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "Analyzing PDF page %d/%d",
 
@@ -260,6 +271,17 @@ func init() {
 			"dsh.step.thinking":        "正在思考...",
 			"dsh.plan.enter":           "进入计划模式",
 			"dsh.plan.exit":            "退出计划模式",
+
+			// Tai: sandbox/v2/tai/parse.go
+			"tai.agent.starting":         "正在启动...",
+			"tai.turn.processing":        "正在处理...",
+			"tai.message.thinking":       "正在思考...",
+			"tai.compaction.running":     "正在压缩上下文...",
+			"tai.compaction.aborted":     "上下文压缩已中止",
+			"tai.compaction.error":       "上下文压缩失败: %s",
+			"tai.retry.waiting":          "正在重试 (%d/%d)，等待 %ds...",
+			"tai.summarization.retrying": "正在总结 (%d/%d)...",
+			"tai.summarization.running":  "正在总结...",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",
@@ -413,6 +435,17 @@ func init() {
 			"dsh.step.thinking":        "正在思考...",
 			"dsh.plan.enter":           "进入计划模式",
 			"dsh.plan.exit":            "退出计划模式",
+
+			// Tai: sandbox/v2/tai/parse.go
+			"tai.agent.starting":         "正在启动...",
+			"tai.turn.processing":        "正在处理...",
+			"tai.message.thinking":       "正在思考...",
+			"tai.compaction.running":     "正在压缩上下文...",
+			"tai.compaction.aborted":     "上下文压缩已中止",
+			"tai.compaction.error":       "上下文压缩失败: %s",
+			"tai.retry.waiting":          "正在重试 (%d/%d)，等待 %ds...",
+			"tai.summarization.retrying": "正在总结 (%d/%d)...",
+			"tai.summarization.running":  "正在总结...",
 
 			// Content: content/pdf/pdf.go - PDF processing messages
 			"content.pdf.analyzing_page": "正在分析 PDF 第 %d/%d 页",
