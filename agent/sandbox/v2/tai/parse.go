@@ -921,7 +921,7 @@ func extractResultContent(raw json.RawMessage) any {
 // special UI rendering, mirroring DSH's injectDSHSemanticType.
 func injectTaiSemanticType(props map[string]any, toolName string) {
 	switch strings.ToLower(toolName) {
-	case "task", "subagent":
+	case "task", "subagent", "subagent_run", "subagent_list", "subagent_create":
 		props["semantic_type"] = message.TypeAgent
 	case "todo_write", "todo":
 		props["semantic_type"] = message.TypeTodo

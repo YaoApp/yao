@@ -50,6 +50,24 @@ func extractToolSummary(toolName string, inputJSON string) string {
 		if d, ok := obj["description"].(string); ok {
 			return truncateStr(d, 80)
 		}
+	case "subagent_run":
+		name, _ := obj["name"].(string)
+		desc, _ := obj["description"].(string)
+		if name != "" && desc != "" {
+			return truncateStr(name+": "+desc, 80)
+		}
+		if desc != "" {
+			return truncateStr(desc, 80)
+		}
+	case "subagent_create":
+		name, _ := obj["name"].(string)
+		desc, _ := obj["description"].(string)
+		if name != "" && desc != "" {
+			return truncateStr("Create "+name+": "+desc, 80)
+		}
+		if name != "" {
+			return truncateStr("Create "+name, 80)
+		}
 	}
 
 	for _, key := range []string{"description", "path", "file_path", "command", "url", "query", "prompt", "task", "name"} {

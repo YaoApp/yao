@@ -629,3 +629,64 @@ func TestTruncateStr(t *testing.T) {
 		t.Fatal("short string should not be truncated")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Subagent summary + semantic_type tests
+// ---------------------------------------------------------------------------
+
+func TestExtractToolSummary_SubagentRun(t *testing.T) {
+	got := tai.ExportExtractToolSummary("subagent_run", `{"name":"doc-researcher","prompt":"summarize","description":"Summarize docs"}`)
+	if got != "doc-researcher: Summarize docs" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestExtractToolSummary_SubagentCreate(t *testing.T) {
+	got := tai.ExportExtractToolSummary("subagent_create", `{"name":"reviewer","description":"Code reviewer"}`)
+	if got != "Create reviewer: Code reviewer" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestExtractToolSummary_SubagentList(t *testing.T) {
+	// subagent_list has no special branch; the fallback should return empty for no known keys.
+	got := tai.ExportExtractToolSummary("subagent_list", `{}`)
+	if got != "" {
+		t.Fatalf("got %q, want empty", got)
+	}
+}
+
+func TestInjectTaiSemanticType_SubagentRun(t *testing.T) {
+	var datas []json.RawMessage
+	handler := func(_ message.StreamChunkType, data []byte) int {
+		datas = append(datas, json.RawMessage(data))
+		return 0
+	}
+
+	parser := tai.NewExportStreamParser(handler)
+	parser.Dispatch(map[string]any{
+		"type":    "tool_start",
+		"tool":    "subagent_run",
+		"tool_id": "tc_1",
+		"args":    `{"name":"test","prompt":"hello","description":"Test task"}`,
+	})
+
+	// Find the ChunkExecute and verify semantic_type.
+	found := false
+	for _, data := range datas {
+		if data == nil {
+			continue
+		}
+		var props map[string]any
+		if err := json.Unmarshal(data, &props); err != nil {
+			continue
+		}
+		if st, ok := props["semantic_type"].(string); ok && st == string(message.TypeAgent) {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("subagent_run should have semantic_type=agent")
+	}
+}
