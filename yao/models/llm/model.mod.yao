@@ -1,0 +1,318 @@
+{
+  "name": "LLM Model",
+  "label": "LLM Model",
+  "description": "LLM model configuration under a provider",
+  "tags": ["llm", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "llm_model", "comment": "LLM model table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "provider_ref",
+      "type": "integer",
+      "label": "Provider Ref",
+      "comment": "Owning provider auto-increment ID",
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "model_id",
+      "type": "string",
+      "label": "Model ID",
+      "comment": "API model identifier (e.g. gpt-4o)",
+      "length": 128,
+      "nullable": false
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Display name",
+      "length": 256,
+      "nullable": false
+    },
+    {
+      "name": "type",
+      "type": "string",
+      "label": "Type",
+      "comment": "Model type discriminant (chat/image/decision)",
+      "length": 16,
+      "default": "chat"
+    },
+    {
+      "name": "model_api",
+      "type": "string",
+      "label": "Model API",
+      "comment": "Model-level wire protocol override (ImageAPI/DecisionAPI)",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "family",
+      "type": "string",
+      "label": "Family",
+      "comment": "Model family (e.g. gpt-4o, claude-opus)",
+      "length": 128,
+      "nullable": true,
+      "index": true
+    },
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "label": "Enabled",
+      "comment": "Whether this model is active",
+      "default": true,
+      "index": true
+    },
+    {
+      "name": "context_window",
+      "type": "integer",
+      "label": "Context Window",
+      "comment": "Context window size in tokens",
+      "default": 0
+    },
+    {
+      "name": "max_output_tokens",
+      "type": "integer",
+      "label": "Max Output Tokens",
+      "comment": "Maximum output tokens",
+      "default": 0
+    },
+    {
+      "name": "supports_images",
+      "type": "boolean",
+      "label": "Supports Images",
+      "comment": "Whether the model accepts image input",
+      "default": false
+    },
+    {
+      "name": "supports_tool_use",
+      "type": "boolean",
+      "label": "Supports Tool Use",
+      "comment": "Whether the model supports tool calling",
+      "default": false
+    },
+    {
+      "name": "reasoning",
+      "type": "boolean",
+      "label": "Reasoning",
+      "comment": "Whether this is a reasoning model",
+      "default": false
+    },
+    {
+      "name": "audio",
+      "type": "boolean",
+      "label": "Audio",
+      "comment": "Audio understanding (multimodal audio I/O)",
+      "default": false
+    },
+    {
+      "name": "stt",
+      "type": "boolean",
+      "label": "STT",
+      "comment": "Speech-to-text (Whisper-class)",
+      "default": false
+    },
+    {
+      "name": "streaming",
+      "type": "boolean",
+      "label": "Streaming",
+      "comment": "Whether the model supports streaming output",
+      "default": true
+    },
+    {
+      "name": "json_mode",
+      "type": "boolean",
+      "label": "JSON Mode",
+      "comment": "Whether the model supports JSON output mode",
+      "default": false
+    },
+    {
+      "name": "embedding",
+      "type": "boolean",
+      "label": "Embedding",
+      "comment": "Whether this is an embedding model",
+      "default": false
+    },
+    {
+      "name": "image_generation",
+      "type": "boolean",
+      "label": "Image Generation",
+      "comment": "Whether this model generates images",
+      "default": false
+    },
+    {
+      "name": "image_editing",
+      "type": "string",
+      "label": "Image Editing",
+      "comment": "Image editing protocol (multipart/json/empty)",
+      "length": 16,
+      "nullable": true
+    },
+    {
+      "name": "ocr",
+      "type": "boolean",
+      "label": "OCR",
+      "comment": "Whether this model supports OCR text extraction",
+      "default": false
+    },
+    {
+      "name": "temperature_adjustable",
+      "type": "boolean",
+      "label": "Temperature Adjustable",
+      "comment": "Whether temperature is adjustable (reasoning models usually not)",
+      "default": true
+    },
+    {
+      "name": "max_thinking",
+      "type": "string",
+      "label": "Max Thinking",
+      "comment": "Maximum thinking level (off/minimal/low/medium/high/xhigh/max)",
+      "length": 16,
+      "nullable": true
+    },
+    {
+      "name": "input",
+      "type": "json",
+      "label": "Input",
+      "comment": "Input modalities [\"text\"] or [\"text\",\"image\"]",
+      "nullable": true
+    },
+    {
+      "name": "output",
+      "type": "json",
+      "label": "Output",
+      "comment": "Output modalities [\"image\"] or [\"image\",\"text\"]",
+      "nullable": true
+    },
+    {
+      "name": "thinking_level_map",
+      "type": "json",
+      "label": "Thinking Level Map",
+      "comment": "Thinking level to wire-value mapping (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "sampling_params",
+      "type": "json",
+      "label": "Sampling Params",
+      "comment": "Default sampling parameters (temperature, top_p, ...)",
+      "nullable": true
+    },
+    {
+      "name": "sampling_params_by_level",
+      "type": "json",
+      "label": "Sampling Params By Level",
+      "comment": "Per-thinking-level sampling overrides (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "capabilities",
+      "type": "json",
+      "label": "Capabilities",
+      "comment": "Capability tags list [\"vision\",\"tool_calls\",...]",
+      "nullable": true
+    },
+    {
+      "name": "compat",
+      "type": "json",
+      "label": "Compat",
+      "comment": "Model-level OpenAICompat override (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "input_cost_per_1m",
+      "type": "float",
+      "label": "Input Cost Per 1M",
+      "comment": "USD per 1M input tokens",
+      "default": 0
+    },
+    {
+      "name": "output_cost_per_1m",
+      "type": "float",
+      "label": "Output Cost Per 1M",
+      "comment": "USD per 1M output tokens",
+      "default": 0
+    },
+    {
+      "name": "cache_read_cost_per_1m",
+      "type": "float",
+      "label": "Cache Read Cost Per 1M",
+      "comment": "USD per 1M cache-read tokens",
+      "default": 0
+    },
+    {
+      "name": "cache_write_cost_per_1m",
+      "type": "float",
+      "label": "Cache Write Cost Per 1M",
+      "comment": "USD per 1M cache-write tokens",
+      "default": 0
+    },
+    {
+      "name": "cost_tiers",
+      "type": "json",
+      "label": "Cost Tiers",
+      "comment": "Volume-based pricing tiers (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "input_limits",
+      "type": "json",
+      "label": "Input Limits",
+      "comment": "Request and image input limits (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "prompt_cache",
+      "type": "json",
+      "label": "Prompt Cache",
+      "comment": "Cache lifetime in seconds per retention tier (JSON)",
+      "nullable": true
+    },
+    {
+      "name": "lab",
+      "type": "string",
+      "label": "Lab",
+      "comment": "Experimental model marker",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "priority",
+      "type": "integer",
+      "label": "Priority",
+      "comment": "Sort priority (lower first)",
+      "default": 0
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Extension metadata",
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "uk_models_provider_model",
+      "columns": ["provider_ref", "model_id"],
+      "type": "unique",
+      "comment": "One model_id per provider"
+    },
+    {
+      "name": "idx_models_enabled",
+      "columns": ["provider_ref", "enabled"],
+      "type": "index",
+      "comment": "Enabled models per provider lookup"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

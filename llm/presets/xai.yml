@@ -1,0 +1,135 @@
+provider_id: xai
+
+models:
+  - model_id: grok-4.3
+    name: Grok 4.3
+    api: openai-responses
+    base_url: "https://api.x.ai/v1"
+    context_window: 1000000
+    max_output_tokens: 30000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 2.5
+        output: 5
+        cache_read: 0.4
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_long_cache_retention: false
+  - model_id: grok-4.5
+    name: Grok 4.5
+    api: openai-responses
+    base_url: "https://api.x.ai/v1"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.3
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 0.6
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_long_cache_retention: false
+  - model_id: grok-4.6
+    name: Grok 4.6
+    api: openai-responses
+    base_url: "https://api.x.ai/v1"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_long_cache_retention: false
+  - model_id: grok-4.7
+    name: Grok 4.7
+    api: openai-responses
+    base_url: "https://api.x.ai/v1"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 200000
+        input: 4
+        output: 12
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_long_cache_retention: false

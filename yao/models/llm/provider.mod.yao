@@ -1,0 +1,164 @@
+{
+  "name": "LLM Provider",
+  "label": "LLM Provider",
+  "description": "LLM service provider connection configuration",
+  "tags": ["llm", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "llm_provider", "comment": "LLM provider table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "label": "Name",
+      "comment": "Display name",
+      "length": 256,
+      "nullable": false
+    },
+    {
+      "name": "provider_id",
+      "type": "string",
+      "label": "Provider ID",
+      "comment": "Vendor identity (openai, anthropic, deepseek, ...)",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "api",
+      "type": "string",
+      "label": "API",
+      "comment": "Wire protocol (openai-completions, anthropic-messages, ...)",
+      "length": 64,
+      "nullable": false,
+      "default": "openai-completions",
+      "index": true
+    },
+    {
+      "name": "protocols",
+      "type": "json",
+      "label": "Protocols",
+      "comment": "Multi-protocol gateway list (LiteLLM)",
+      "nullable": true
+    },
+    {
+      "name": "base_url",
+      "type": "string",
+      "label": "Base URL",
+      "comment": "API endpoint URL",
+      "length": 512,
+      "nullable": true
+    },
+    {
+      "name": "api_key",
+      "type": "text",
+      "label": "API Key",
+      "comment": "Encrypted API key",
+      "nullable": true,
+      "crypt": "AES"
+    },
+    {
+      "name": "headers",
+      "type": "json",
+      "label": "Headers",
+      "comment": "Extra request headers (map[string]string)",
+      "nullable": true
+    },
+    {
+      "name": "compat",
+      "type": "json",
+      "label": "Compat",
+      "comment": "Compatibility config (OpenAICompat JSON)",
+      "nullable": true
+    },
+    {
+      "name": "enabled",
+      "type": "boolean",
+      "label": "Enabled",
+      "comment": "Whether this provider is active",
+      "default": true,
+      "index": true
+    },
+    {
+      "name": "status",
+      "type": "string",
+      "label": "Status",
+      "comment": "Connection status (connected/disconnected/unconfigured)",
+      "length": 32,
+      "nullable": false,
+      "default": "unconfigured"
+    },
+    {
+      "name": "preset_key",
+      "type": "string",
+      "label": "Preset Key",
+      "comment": "Preset template identifier",
+      "length": 64,
+      "nullable": true
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "label": "Scope",
+      "comment": "Configuration scope (system/team/user)",
+      "length": 16,
+      "nullable": false,
+      "default": "system",
+      "index": true
+    },
+    {
+      "name": "team_id",
+      "type": "string",
+      "label": "Team ID",
+      "comment": "Team identifier for team-scoped providers",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User identifier for user-scoped providers",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "priority",
+      "type": "integer",
+      "label": "Priority",
+      "comment": "Sort priority (lower first)",
+      "default": 0,
+      "index": true
+    },
+    {
+      "name": "metadata",
+      "type": "json",
+      "label": "Metadata",
+      "comment": "Extension metadata",
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "uk_providers_scope",
+      "columns": ["provider_id", "scope", "team_id", "user_id"],
+      "type": "unique",
+      "comment": "One provider_id per scope level"
+    },
+    {
+      "name": "idx_providers_scope_lookup",
+      "columns": ["scope", "team_id", "user_id"],
+      "type": "index",
+      "comment": "Scope-based provider lookup"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

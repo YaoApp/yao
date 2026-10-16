@@ -11,9 +11,11 @@ import (
 	"github.com/google/uuid"
 	"github.com/yaoapp/gou/connector"
 	goullm "github.com/yaoapp/gou/llm"
+	"github.com/yaoapp/kun/log"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/sandbox/v2/shared"
 	"github.com/yaoapp/yao/agent/sandbox/v2/types"
+	yaollm "github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
@@ -35,8 +37,8 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 	computer := req.Computer
 	workDir := computer.GetWorkDir()
 
-	// Extract primary connector profile (connector vocab → pi-ai vocab)
-	primary := llmprovider.ExtractProfile(req.Connector)
+	// Extract primary profile: prefer DB-backed LLMRef, fall back to legacy connector.
+	primary := extractPrimaryProfile(req)
 	if primary.Model == "" {
 		primary.Model = "deepseek-chat"
 	}
@@ -45,21 +47,54 @@ func (r *Runner) buildCommand(req *types.StreamRequest, p platform, msgParts *sh
 		IsWindows: p.OS() == "windows",
 	}
 
-	cfg.PiAiRoutes = append(cfg.PiAiRoutes, profileToPiAiRoute(primary, "yao-primary", "DSH_KEY_PRIMARY"))
+	// Primary route: use ToPiAiRoute when LLMRef is available (zero-translation path),
+	// otherwise convert from the legacy ConnectorProfile.
+	if req.LLM != nil && req.LLM.Provider != nil && req.LLM.Model != nil {
+		cfg.PiAiRoutes = append(cfg.PiAiRoutes,
+			yaollm.ToPiAiRoute(req.LLM.Provider, req.LLM.Model, "yao-primary", "DSH_KEY_PRIMARY"))
+	} else {
+		log.Warn("[DSH] Primary route using legacy connector fallback; migrate to yao/llm provider for direct DB path")
+		cfg.PiAiRoutes = append(cfg.PiAiRoutes, profileToPiAiRoute(primary, "yao-primary", "DSH_KEY_PRIMARY"))
+	}
 
 	// Build pi-ai routes for all roles (each role gets its own route)
 	for roleName, c := range req.Roles {
 		if c == nil || roleName == "default" {
 			continue
 		}
+		envKey := "DSH_KEY_" + strings.ToUpper(roleName)
+		routeName := "yao-" + roleName
+
+		// Prefer DB-backed role LLMRef
+		if req.RoleLLMs != nil {
+			if ref, ok := req.RoleLLMs[roleName]; ok && ref != nil && ref.Provider != nil && ref.Model != nil {
+				cfg.PiAiRoutes = append(cfg.PiAiRoutes,
+					yaollm.ToPiAiRoute(ref.Provider, ref.Model, routeName, envKey))
+				continue
+			}
+		}
 		role := llmprovider.ExtractProfile(c)
 		if role.Model == "" {
 			continue
 		}
-
-		envKey := "DSH_KEY_" + strings.ToUpper(roleName)
-		routeName := "yao-" + roleName
+		log.Warn("[DSH] Role %s using legacy connector fallback", roleName)
 		cfg.PiAiRoutes = append(cfg.PiAiRoutes, profileToPiAiRoute(role, routeName, envKey))
+	}
+
+	// Also add routes for DB-backed roles that have no legacy connector counterpart.
+	if req.RoleLLMs != nil {
+		for roleName, ref := range req.RoleLLMs {
+			if roleName == "default" || ref == nil || ref.Provider == nil || ref.Model == nil {
+				continue
+			}
+			if _, hasLegacy := req.Roles[roleName]; hasLegacy {
+				continue
+			}
+			envKey := "DSH_KEY_" + strings.ToUpper(roleName)
+			routeName := "yao-" + roleName
+			cfg.PiAiRoutes = append(cfg.PiAiRoutes,
+				yaollm.ToPiAiRoute(ref.Provider, ref.Model, routeName, envKey))
+		}
 	}
 
 	// Determine vision from all models (primary + roles)
@@ -178,9 +213,28 @@ func buildEnv(req *types.StreamRequest, p platform, workDir, apiKey, baseURL, sy
 		if c == nil || roleName == "default" {
 			continue
 		}
+		envName := "DSH_KEY_" + strings.ToUpper(roleName)
+		// Prefer DB-backed role LLMRef for API key
+		if req.RoleLLMs != nil {
+			if ref, ok := req.RoleLLMs[roleName]; ok && ref != nil && ref.Provider != nil {
+				env[envName] = ref.Provider.APIKey
+				continue
+			}
+		}
 		if lc, ok := c.(goullm.LLMConnector); ok {
-			envName := "DSH_KEY_" + strings.ToUpper(roleName)
 			env[envName] = lc.GetKey()
+		}
+	}
+	// DB-backed roles without legacy connector counterpart
+	if req.RoleLLMs != nil {
+		for roleName, ref := range req.RoleLLMs {
+			if roleName == "default" || ref == nil || ref.Provider == nil {
+				continue
+			}
+			if _, hasLegacy := req.Roles[roleName]; hasLegacy {
+				continue
+			}
+			env["DSH_KEY_"+strings.ToUpper(roleName)] = ref.Provider.APIKey
 		}
 	}
 	env["DSH_CWD"] = workDir
@@ -390,4 +444,14 @@ func buildContentBlocks(parts *shared.MessageParts) []contentBlock {
 		})
 	}
 	return blocks
+}
+
+// extractPrimaryProfile returns a ConnectorProfile for the primary model.
+// Prefers the DB-backed LLMRef when available; falls back to the legacy
+// connector extraction path.
+func extractPrimaryProfile(req *types.StreamRequest) llmprovider.ConnectorProfile {
+	if req.LLM != nil && req.LLM.Provider != nil && req.LLM.Model != nil {
+		return yaollm.ToConnectorProfile(req.LLM.Provider, req.LLM.Model)
+	}
+	return llmprovider.ExtractProfile(req.Connector)
 }

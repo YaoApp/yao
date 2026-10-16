@@ -1,0 +1,9 @@
+provider_id: typesafe
+
+decision_models:
+  - model_id: jev-latest
+    name: Jev
+    model_api: typesafe-system-one
+    base_url: "https://api.typesafe.ai/v1/"
+    input: [text]
+    context_window: 64000

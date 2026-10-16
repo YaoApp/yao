@@ -1,0 +1,100 @@
+provider_id: kimi-coding
+
+models:
+  - model_id: k3
+    name: Kimi K3
+    api: anthropic-messages
+    base_url: "https://api.kimi.com/coding"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: k3-256k
+    name: Kimi K3-256K
+    api: anthropic-messages
+    base_url: "https://api.kimi.com/coding"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: kimi-for-coding
+    name: kimi-for-coding
+    api: anthropic-messages
+    base_url: "https://api.kimi.com/coding"
+    context_window: 1048576
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.19
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: kimi-for-coding-highspeed
+    name: Kimi For Coding HighSpeed
+    api: anthropic-messages
+    base_url: "https://api.kimi.com/coding"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.9
+    output_cost_per_1m: 8
+    cache_read_cost_per_1m: 0.38
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:

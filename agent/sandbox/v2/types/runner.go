@@ -6,6 +6,7 @@ import (
 	"github.com/yaoapp/gou/connector"
 	agentContext "github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/output/message"
+	"github.com/yaoapp/yao/llm"
 	infra "github.com/yaoapp/yao/sandbox/v2"
 )
 
@@ -33,12 +34,21 @@ type MCPServer struct {
 // paths against it.
 type RunStepsFunc func(ctx context.Context, steps []PrepareStep, computer infra.Computer, assistantID, configHash, assistantDir string) error
 
+// LLMRef bundles a resolved Provider and Model from yao/llm. When non-nil,
+// runners prefer it over extracting config from the legacy Connector.
+type LLMRef struct {
+	Provider *llm.Provider
+	Model    *llm.Model
+}
+
 // PrepareRequest carries everything needed by Runner.Prepare.
 type PrepareRequest struct {
 	Computer     infra.Computer
 	Config       *SandboxConfig
 	Connector    connector.Connector
 	Roles        map[string]connector.Connector // pre-resolved role matrix from llmprovider
+	LLM          *LLMRef                        // new DB-backed primary; nil ⇒ use Connector
+	RoleLLMs     map[string]*LLMRef             // new DB-backed roles; nil entries ⇒ use Roles[k]
 	AssistantID  string                         // the assistant's own ID (e.g. "yao/postman")
 	SkillsDir    string
 	AssistantDir string // absolute host path to the assistant source directory
@@ -53,6 +63,8 @@ type StreamRequest struct {
 	Config              *SandboxConfig
 	Connector           connector.Connector
 	Roles               map[string]connector.Connector // pre-resolved role matrix from llmprovider
+	LLM                 *LLMRef                        // new DB-backed primary; nil ⇒ use Connector
+	RoleLLMs            map[string]*LLMRef             // new DB-backed roles; nil entries ⇒ use Roles[k]
 	AssistantID         string                         // the assistant's own ID (e.g. "yao/postman")
 	Messages            []agentContext.Message
 	SystemPrompt        string

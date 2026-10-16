@@ -1,0 +1,280 @@
+provider_id: openai-codex
+
+models:
+  - model_id: gpt-5.3-codex-spark
+    name: GPT-5.3 Codex Spark
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 128000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+    input_cost_per_1m: 1.75
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.175
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.5
+    name: GPT-5.5
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 10
+        output: 45
+        cache_read: 1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-luna
+    name: GPT-5.6 Luna
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.02
+    cache_write_cost_per_1m: 0.25
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.4
+        output: 1.8
+        cache_read: 0.04
+        cache_write: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-sol
+    name: GPT-5.6 Sol
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 8
+        output: 30
+        cache_read: 0.8
+        cache_write: 10
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-5.6-terra
+    name: GPT-5.6 Terra
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      minimal: low
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 18
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-astra
+    name: GPT-6 Astra
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 20
+        output: 75
+        cache_read: 2
+        cache_write: 25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-luna
+    name: GPT-6 Luna
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.125
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 0.2
+        output: 0.75
+        cache_read: 0.02
+        cache_write: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6-sol
+    name: GPT-6 Sol
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.4
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true
+  - model_id: gpt-6.1-sol
+    name: GPT-6.1 Sol
+    api: openai-codex-responses
+    base_url: "https://chatgpt.com/backend-api"
+    context_window: 272000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: low
+      low: low
+      medium: medium
+      high: high
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 2.5
+    cost_tiers:
+      - input_tokens_above: 272000
+        input: 4
+        output: 15
+        cache_read: 0.2
+        cache_write: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_openai_grammar_tools: true

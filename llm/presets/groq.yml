@@ -1,0 +1,142 @@
+provider_id: groq
+
+models:
+  - model_id: llama-3.1-8b-instant
+    name: Llama 3.1 8B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 131072
+    capabilities: [text]
+    input_cost_per_1m: 0.05
+    output_cost_per_1m: 0.08
+    compat:
+      supports_strict_mode: true
+  - model_id: llama-3.3-70b-versatile
+    name: Llama 3.3 70B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 32768
+    capabilities: [text]
+    input_cost_per_1m: 0.59
+    output_cost_per_1m: 0.79
+    compat:
+      supports_strict_mode: true
+  - model_id: openai/gpt-oss-120b
+    name: GPT OSS 120B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.075
+    compat:
+      supports_strict_mode: true
+  - model_id: openai/gpt-oss-20b
+    name: GPT OSS 20B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.0375
+    compat:
+      supports_strict_mode: true
+  - model_id: openai/gpt-oss-safeguard-20b
+    name: Safety GPT OSS 20B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.3
+    compat:
+      supports_strict_mode: true
+  - model_id: qwen/qwen3.6-27b
+    name: Qwen3.6 27B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131072
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: default
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 3
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true
+  - model_id: qwen/qwen3.8-27b
+    name: Qwen3.8 27B
+    api: openai-completions
+    base_url: "https://api.groq.com/openai/v1"
+    context_window: 131042
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.8
+    output_cost_per_1m: 4
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_strict_mode: true

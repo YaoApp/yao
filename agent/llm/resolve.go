@@ -1,94 +1,54 @@
 package llm
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/yaoapp/gou/connector"
-	goullm "github.com/yaoapp/gou/llm"
+	yaollm "github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 )
 
 // RolePrefix marks a Connector field value as a role reference (e.g. "use::light").
 const RolePrefix = "use::"
 
-// ResolveConnector resolves an LLM connector using a unified priority chain.
+// ResolveProviderModel resolves a connector/role reference to a Provider+Model
+// pair from the new yao/llm DB. Returns nil,nil when the new registry has
+// no matching data (callers should then try ResolveConnector).
 //
-// connectorID may be:
-//   - explicit connector ID (e.g. "openai.gpt-4o") — resolved directly
-//   - role reference with prefix (e.g. "use::light") — resolved via llmprovider roles
-//   - empty string — falls back to the "default" role
-//
-// Priority for role-based resolution:
-//  1. GetRoleBy(role, identity) — user/team scoped setting
-//  2. GetRole(role) — system-level default for that role
-//  3. GetRoleBy("default", identity) — fallback to "default" role (user/team)
-//  4. GetRole("default") — fallback to "default" role (system)
-//  5. error — caller decides whether to apply legacy fallback
-func ResolveConnector(connectorID string, identity llmprovider.Identity) (connector.Connector, *goullm.Capabilities, error) {
+// connectorID semantics match ResolveConnector: "use::role", explicit ID, or empty.
+func ResolveProviderModel(connectorID string, identity llmprovider.Identity) (*yaollm.Provider, *yaollm.Model) {
+	if yaollm.Global == nil {
+		return nil, nil
+	}
 
-	// Parse use:: prefix to extract role
 	role := ""
 	if strings.HasPrefix(connectorID, RolePrefix) {
 		role = strings.TrimPrefix(connectorID, RolePrefix)
-		connectorID = ""
-	}
-
-	// Explicit connector ID takes highest priority
-	if connectorID != "" {
-		return selectWithCapabilities(connectorID)
-	}
-
-	// Empty connector with no role → treat as "default"
-	if role == "" {
+	} else if connectorID == "" {
 		role = "default"
 	}
 
-	if llmprovider.Global == nil {
-		return nil, nil, fmt.Errorf("llmprovider not initialized and no explicit connector specified")
+	// Explicit connector ID: try to find matching provider+model
+	if role == "" && connectorID != "" {
+		return resolveByConnectorID(connectorID)
 	}
 
-	// Resolve by the specified role (e.g. "light", "vision")
+	teamID, userID := extractIDs(identity)
+
+	// Try the specified role first, then fall back to "default"
 	if role != "default" {
-		if identity != nil {
-			if cid, err := llmprovider.Global.GetRoleBy(role, identity); err == nil && cid != "" {
-				if conn, caps, err := selectWithCapabilities(cid); err == nil {
-					return conn, caps, nil
-				}
-			}
-		}
-		if cid, err := llmprovider.Global.GetRole(role); err == nil && cid != "" {
-			if conn, caps, err := selectWithCapabilities(cid); err == nil {
-				return conn, caps, nil
-			}
+		if p, m, err := yaollm.Global.ResolveRoleModel(role, teamID, userID); err == nil {
+			return p, m
 		}
 	}
-
-	// Fallback to "default" role
-	if identity != nil {
-		if cid, err := llmprovider.Global.GetRoleBy("default", identity); err == nil && cid != "" {
-			if conn, caps, err := selectWithCapabilities(cid); err == nil {
-				return conn, caps, nil
-			}
-		}
+	if p, m, err := yaollm.Global.ResolveRoleModel("default", teamID, userID); err == nil {
+		return p, m
 	}
-	if cid, err := llmprovider.Global.GetRole("default"); err == nil && cid != "" {
-		if conn, caps, err := selectWithCapabilities(cid); err == nil {
-			return conn, caps, nil
-		}
-	}
-
-	return nil, nil, fmt.Errorf("no connector resolved for role %q", role)
+	return nil, nil
 }
 
-func selectWithCapabilities(connectorID string) (connector.Connector, *goullm.Capabilities, error) {
-	conn, err := connector.Select(connectorID)
-	if err != nil && llmprovider.Global != nil {
-		conn, err = llmprovider.Global.GetModel(connectorID)
+func extractIDs(identity llmprovider.Identity) (string, string) {
+	if identity == nil {
+		return "", ""
 	}
-	if err != nil {
-		return nil, nil, err
-	}
-	caps := GetCapabilitiesFromConn(conn)
-	return conn, caps, nil
+	return identity.GetTeamID(), identity.GetUserID()
 }

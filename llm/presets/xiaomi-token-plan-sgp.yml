@@ -1,0 +1,72 @@
+provider_id: xiaomi-token-plan-sgp
+
+models:
+  - model_id: mimo-v2.5
+    name: MiMo-V2.5
+    api: openai-completions
+    base_url: "https://token-plan-sgp.xiaomimimo.com/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true
+  - model_id: mimo-v2.5-pro
+    name: MiMo-V2.5-Pro
+    api: openai-completions
+    base_url: "https://token-plan-sgp.xiaomimimo.com/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    compat:
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true
+  - model_id: mimo-v2.6-flash
+    name: MiMo-V2.6-Flash
+    api: openai-completions
+    base_url: "https://token-plan-sgp.xiaomimimo.com/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true
+  - model_id: mimo-v2.6-pro
+    name: MiMo-V2.6-Pro
+    api: openai-completions
+    base_url: "https://token-plan-sgp.xiaomimimo.com/v1"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      supports_strict_mode: true

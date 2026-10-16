@@ -313,6 +313,8 @@ func (ast *Assistant) Stream(ctx *context.Context, inputMessages []context.Messa
 				LoadingMsgID: v2Init.LoadingMsgID,
 				Options:      opts,
 				Roles:        v2Init.Roles,
+				PrimaryLLM:   v2Init.PrimaryLLM,
+				RoleLLMs:     v2Init.RoleLLMs,
 			})
 		} else {
 			// Direct LLM execution path

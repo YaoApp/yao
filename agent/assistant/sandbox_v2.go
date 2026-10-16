@@ -12,11 +12,13 @@ import (
 	agentconfig "github.com/yaoapp/yao/agent/config"
 	"github.com/yaoapp/yao/agent/context"
 	"github.com/yaoapp/yao/agent/i18n"
+	agentllm "github.com/yaoapp/yao/agent/llm"
 	"github.com/yaoapp/yao/agent/output/message"
 	sandboxv2 "github.com/yaoapp/yao/agent/sandbox/v2"
 	sandboxTypes "github.com/yaoapp/yao/agent/sandbox/v2/types"
 	store "github.com/yaoapp/yao/agent/store/types"
 	"github.com/yaoapp/yao/config"
+	yaollm "github.com/yaoapp/yao/llm"
 	"github.com/yaoapp/yao/llmprovider"
 	infraV2 "github.com/yaoapp/yao/sandbox/v2"
 	"github.com/yaoapp/yao/setting"
@@ -36,6 +38,8 @@ type sandboxV2InitResult struct {
 	Cleanup      func()
 	LoadingMsgID string
 	Roles        map[string]connector.Connector
+	PrimaryLLM   *sandboxTypes.LLMRef
+	RoleLLMs     map[string]*sandboxTypes.LLMRef
 }
 
 // initSandboxV2 initializes the V2 sandbox: loads user settings, selects a
@@ -118,6 +122,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 
 		conn, _, _ := ast.GetConnector(ctx, opts)
 		roles := resolveRoles(conn, ctx.Authorized)
+		primaryLLM, roleLLMs := ast.resolveLLMRefs(ctx, opts)
 
 		assistantDir, skillsDir := ast.resolveAssistantDirs()
 		mcpServers := ast.buildMCPServers()
@@ -127,6 +132,8 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 			Config:       cfg,
 			Connector:    conn,
 			Roles:        roles,
+			LLM:          primaryLLM,
+			RoleLLMs:     roleLLMs,
 			AssistantID:  ast.ID,
 			SkillsDir:    skillsDir,
 			AssistantDir: assistantDir,
@@ -144,6 +151,8 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 			Cleanup:      func() {},
 			LoadingMsgID: loadingMsgID,
 			Roles:        roles,
+			PrimaryLLM:   primaryLLM,
+			RoleLLMs:     roleLLMs,
 		}, nil
 	}
 
@@ -154,6 +163,7 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		return nil, fmt.Errorf("get connector: %w", err)
 	}
 	roles := resolveRoles(conn, ctx.Authorized)
+	primaryLLM, roleLLMs := ast.resolveLLMRefs(ctx, opts)
 	cfg.DisplayName = buildBoxDisplayName(ctx, ast.ID, ast.Name)
 
 	// 6. Image pre-check + pull (box mode only).
@@ -217,6 +227,8 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		Config:       cfg,
 		Connector:    conn,
 		Roles:        roles,
+		LLM:          primaryLLM,
+		RoleLLMs:     roleLLMs,
 		AssistantID:  ast.ID,
 		SkillsDir:    skillsDir,
 		AssistantDir: assistantDir,
@@ -247,6 +259,8 @@ func (ast *Assistant) initSandboxV2(ctx *context.Context, opts *context.Options)
 		Cleanup:      cleanup,
 		LoadingMsgID: loadingMsgID,
 		Roles:        roles,
+		PrimaryLLM:   primaryLLM,
+		RoleLLMs:     roleLLMs,
 	}, nil
 }
 
@@ -289,6 +303,8 @@ type sandboxV2StreamParams struct {
 	LoadingMsgID string
 	Options      *context.Options
 	Roles        map[string]connector.Connector
+	PrimaryLLM   *sandboxTypes.LLMRef
+	RoleLLMs     map[string]*sandboxTypes.LLMRef
 }
 
 // executeSandboxV2Stream calls the V2 Runner.Stream and wraps it in the
@@ -347,6 +363,8 @@ func (ast *Assistant) executeSandboxV2Stream(
 		Config:       cfg,
 		Connector:    conn,
 		Roles:        p.Roles,
+		LLM:          p.PrimaryLLM,
+		RoleLLMs:     p.RoleLLMs,
 		AssistantID:  ast.ID,
 		Messages:     p.Messages,
 		SystemPrompt: systemPrompt,
@@ -388,6 +406,46 @@ func resolveRoles(conn connector.Connector, identity llmprovider.Identity) map[s
 		}
 	}
 	return roles
+}
+
+// resolveRoleLLMs resolves roles from the new yao/llm DB-backed system.
+// Returns nil when the new registry is not available.
+func resolveRoleLLMs(identity llmprovider.Identity) map[string]*sandboxTypes.LLMRef {
+	if yaollm.Global == nil || identity == nil {
+		return nil
+	}
+	teamID := identity.GetTeamID()
+	userID := identity.GetUserID()
+	refs := make(map[string]*sandboxTypes.LLMRef)
+	for _, role := range []string{"heavy", "light", "vision"} {
+		if p, m, err := yaollm.Global.ResolveRoleModel(role, teamID, userID); err == nil {
+			refs[role] = &sandboxTypes.LLMRef{Provider: p, Model: m}
+		}
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+	return refs
+}
+
+// resolveLLMRefs resolves the primary provider+model and role matrix from the
+// new yao/llm DB. Returns nil values when the new registry has no data.
+func (ast *Assistant) resolveLLMRefs(ctx *context.Context, opts ...*context.Options) (*sandboxTypes.LLMRef, map[string]*sandboxTypes.LLMRef) {
+	cid := ast.Connector
+	if len(opts) > 0 && opts[0] != nil && opts[0].Connector != "" {
+		cid = opts[0].Connector
+	}
+	var identity llmprovider.Identity
+	if ctx != nil && ctx.Authorized != nil {
+		identity = ctx.Authorized
+	}
+	p, m := agentllm.ResolveProviderModel(cid, identity)
+	var primary *sandboxTypes.LLMRef
+	if p != nil && m != nil {
+		primary = &sandboxTypes.LLMRef{Provider: p, Model: m}
+	}
+	roleLLMs := resolveRoleLLMs(identity)
+	return primary, roleLLMs
 }
 
 // initStandaloneWorkspace loads the workspace FS into context when no sandbox

@@ -1,0 +1,77 @@
+{
+  "name": "LLM Role Binding",
+  "label": "LLM Role Binding",
+  "description": "Maps a role to a provider+model with three-level scope override",
+  "tags": ["llm", "system"],
+  "builtin": true,
+  "readonly": true,
+  "sort": 9999,
+  "table": { "name": "llm_role_binding", "comment": "LLM role binding table" },
+  "columns": [
+    {
+      "name": "id",
+      "type": "ID",
+      "label": "ID",
+      "comment": "Auto-increment primary key"
+    },
+    {
+      "name": "role",
+      "type": "string",
+      "label": "Role",
+      "comment": "Role name (default/heavy/light/vision/audio/embedding/decision)",
+      "length": 64,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "provider_ref",
+      "type": "integer",
+      "label": "Provider Ref",
+      "comment": "Provider auto-increment ID",
+      "nullable": false
+    },
+    {
+      "name": "model_id",
+      "type": "string",
+      "label": "Model ID",
+      "comment": "Model model_id (matches llm_model.model_id)",
+      "length": 128,
+      "nullable": false
+    },
+    {
+      "name": "scope",
+      "type": "string",
+      "label": "Scope",
+      "comment": "Configuration scope (system/team/user)",
+      "length": 16,
+      "nullable": false,
+      "index": true
+    },
+    {
+      "name": "team_id",
+      "type": "string",
+      "label": "Team ID",
+      "comment": "Team identifier for team-scoped bindings",
+      "length": 128,
+      "nullable": true
+    },
+    {
+      "name": "user_id",
+      "type": "string",
+      "label": "User ID",
+      "comment": "User identifier for user-scoped bindings",
+      "length": 128,
+      "nullable": true
+    }
+  ],
+  "relations": {},
+  "indexes": [
+    {
+      "name": "uk_role_scope",
+      "columns": ["role", "scope", "team_id", "user_id"],
+      "type": "unique",
+      "comment": "One binding per role per scope level"
+    }
+  ],
+  "option": { "timestamps": true, "soft_deletes": false }
+}

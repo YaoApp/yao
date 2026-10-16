@@ -1,0 +1,558 @@
+provider_id: google
+
+models:
+  - model_id: deep-research-max-preview-04-2026
+    name: Deep Research Max Preview (Apr-21-2026)
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: deep-research-preview-04-2026
+    name: Deep Research Preview (Apr-21-2026)
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-2.5-computer-use-preview-10-2025
+    name: Gemini 2.5 Computer Use Preview 10-2025
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 128000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-2.5-flash
+    name: Gemini 2.5 Flash
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-2.5-flash-lite
+    name: Gemini 2.5 Flash-Lite
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.01
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-2.5-pro
+    name: Gemini 2.5 Pro
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3-flash-preview
+    name: Gemini 3 Flash Preview
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 3
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-flash-lite
+    name: Gemini 3.1 Flash Lite
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-flash-lite-image
+    name: Nano Banana 2 Lite
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 65536
+    max_output_tokens: 4096
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 30
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-flash-lite-preview
+    name: Gemini 3.1 Flash Lite Preview
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-flash-live-preview
+    name: Gemini 3.1 Flash Live Preview
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 4.5
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-pro-preview
+    name: Gemini 3.1 Pro Preview
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.1-pro-preview-customtools
+    name: Gemini 3.1 Pro Preview Custom Tools
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.5-flash
+    name: Gemini 3.5 Flash
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 9
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.5-flash-lite
+    name: Gemini 3.5 Flash Lite
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.6-flash
+    name: Gemini 3.6 Flash
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.7-flash
+    name: Gemini 3.7 Flash
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-3.8-flash
+    name: Gemini 3.8 Flash
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-flash-latest
+    name: Gemini Flash Latest
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 9
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemini-flash-lite-latest
+    name: Gemini Flash-Lite Latest
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 1048576
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: minimal
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemma-4-26b-a4b-it
+    name: Gemma 4 26B A4B IT
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: MINIMAL
+      low: null
+      medium: null
+      high: HIGH
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+  - model_id: gemma-4-31b-it
+    name: Gemma 4 31B IT
+    api: google-generative-ai
+    base_url: "https://generativelanguage.googleapis.com/v1beta"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: MINIMAL
+      low: null
+      medium: null
+      high: HIGH
+    input_limits:
+      max_request_bytes: 20971520
+      images:
+        max_per_request: 3600
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80

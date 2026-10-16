@@ -1,0 +1,448 @@
+provider_id: cloudflare-workers-ai
+
+models:
+  - model_id: "@cf/deepseek-ai/deepseek-v4-flash-0731"
+    name: DeepSeek V4 Flash 0731
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      max: max
+    input_cost_per_1m: 0.44
+    output_cost_per_1m: 1.32
+    cache_read_cost_per_1m: 0.014
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/deepseek-ai/deepseek-v4-pro-0813"
+    name: DeepSeek V4 Pro 0813
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      max: max
+    input_cost_per_1m: 1.32
+    output_cost_per_1m: 3.96
+    cache_read_cost_per_1m: 0.044
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      requires_reasoning_content_on_assistant_messages: true
+      thinking_format: deepseek
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/google/gemma-4-26b-a4b-it"
+    name: Gemma 4 26B A4B IT
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 256000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/ibm-granite/granite-4.0-h-micro"
+    name: Granite 4.0 H Micro
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 131000
+    max_output_tokens: 131000
+    capabilities: [text]
+    input_cost_per_1m: 0.017
+    output_cost_per_1m: 0.112
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    name: Llama 3.3 70B Instruct fp8 Fast
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 24000
+    max_output_tokens: 24000
+    capabilities: [text]
+    input_cost_per_1m: 0.293
+    output_cost_per_1m: 2.253
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/meta/llama-4-scout-17b-16e-instruct"
+    name: Llama 4 Scout 17B 16E Instruct
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 131000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 0.27
+    output_cost_per_1m: 0.85
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/mistralai/mistral-small-3.1-24b-instruct"
+    name: Mistral Small 3.1 24B Instruct
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 128000
+    max_output_tokens: 128000
+    capabilities: [text]
+    input_cost_per_1m: 0.351
+    output_cost_per_1m: 0.555
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/moonshotai/kimi-k2.6"
+    name: Kimi K2.6
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 262144
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.16
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/moonshotai/kimi-k2.7-code"
+    name: Kimi K2.7 Code
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.19
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/nvidia/nemotron-3-120b-a12b"
+    name: Nemotron 3 Super 120B
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/openai/gpt-oss-120b"
+    name: GPT OSS 120B
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.35
+    output_cost_per_1m: 0.75
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/openai/gpt-oss-20b"
+    name: GPT OSS 20B
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 128000
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: high
+      xhigh: null
+      max: null
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.3
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/qwen/qwen3-30b-a3b-fp8"
+    name: Qwen3 30B A3b fp8
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 32768
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.0509
+    output_cost_per_1m: 0.335
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/qwen/qwen3.8-27b"
+    name: Qwen3.8 27B
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: medium
+      high: null
+      xhigh: xhigh
+      max: null
+    input_cost_per_1m: 0.45
+    output_cost_per_1m: 3.2
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/zai-org/glm-4.7-flash"
+    name: GLM-4.7-Flash
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.0605
+    output_cost_per_1m: 0.4
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/zai-org/glm-5.2"
+    name: Glm 5.2
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 262144
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: none
+      minimal: null
+      low: null
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/zai-org/glm-5.3"
+    name: Glm 5.3
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+  - model_id: "@cf/zai-org/glm-5.3-flash"
+    name: Glm 5.3 Flash
+    api: openai-completions
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: low
+      medium: null
+      high: high
+      xhigh: null
+      max: max
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+      supports_developer_role: false
+      supports_store: false
+      send_session_affinity_headers: true
+      supports_strict_mode: true
+      supports_long_cache_retention: false
+
+decision_models:
+  - model_id: "@cf/cloudflare/clef"
+    name: Clef
+    model_api: cloudflare-workers-ai-system-one
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai"
+    input: [text]
+    context_window: 65536
+    input_cost_per_1m: 0.24
+  - model_id: "@cf/cloudflare/clef-flash"
+    name: Clef Flash
+    model_api: cloudflare-workers-ai-system-one
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai"
+    input: [text]
+    context_window: 65536
+    input_cost_per_1m: 0.09
+  - model_id: typesafe/jev
+    name: Jev
+    model_api: cloudflare-workers-ai-system-one
+    base_url: "https://api.cloudflare.com/client/v4/accounts/{CLOUDFLARE_ACCOUNT_ID}/ai"
+    input: [text]
+    context_window: 32000

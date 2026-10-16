@@ -35,13 +35,38 @@ func Attach(group *gin.RouterGroup, oauth oauthTypes.OAuth) {
 	// Create providers group with OAuth guard
 	group.Use(oauth.Guard)
 
-	// LLM Providers endpoints
+	// LLM Providers endpoints (1.x — connector-based)
 	group.GET("/providers", listProviders)      // GET /providers - List all LLM providers
 	group.GET("/model-groups", listModelGroups) // GET /model-groups - Grouped models with effort levels
 
 	// OpenAI-compatible endpoints
 	group.POST("/chat/completions", handleChatCompletions) // POST /chat/completions - LLM proxy
 	group.GET("/models", handleListModels)                 // GET /models - List available models
+
+	// --- 2.0 DB-backed CRUD routes ---
+
+	// Provider CRUD
+	v2 := group.Group("/v2")
+	v2.GET("/providers", handleListProvidersV2)
+	v2.POST("/providers", handleCreateProvider)
+	v2.GET("/providers/:id", handleGetProvider)
+	v2.PUT("/providers/:id", handleUpdateProvider)
+	v2.DELETE("/providers/:id", handleDeleteProvider)
+
+	// Model CRUD (under provider)
+	v2.GET("/providers/:id/models", handleListModelsV2)
+	v2.POST("/providers/:id/models", handleCreateModel)
+	v2.GET("/providers/:id/models/:model_id", handleGetModelV2)
+	v2.PUT("/providers/:id/models/:model_id", handleUpdateModel)
+	v2.DELETE("/providers/:id/models/:model_id", handleDeleteModel)
+
+	// Role bindings
+	v2.GET("/roles", handleGetRoles)
+	v2.PUT("/roles", handleSetRoles)
+
+	// Aggregate queries
+	v2.GET("/models", handleListAllModels)
+	v2.GET("/resolve/:role", handleResolveRole)
 }
 
 // listProviders lists all available LLM providers (built-in + user-defined).

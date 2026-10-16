@@ -1,0 +1,4316 @@
+provider_id: vercel-ai-gateway
+
+models:
+  - model_id: alibaba/qwen-3-14b
+    name: Qwen3-14B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 40960
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.12
+    output_cost_per_1m: 0.24
+    compat:
+  - model_id: alibaba/qwen-3-235b
+    name: Qwen3 235B A22B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 0.88
+    compat:
+  - model_id: alibaba/qwen-3-30b
+    name: Qwen3-30B-A3B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 40960
+    max_output_tokens: 16384
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.12
+    output_cost_per_1m: 0.5
+    compat:
+  - model_id: alibaba/qwen-3-32b
+    name: Qwen 3 32B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.16
+    output_cost_per_1m: 0.64
+    compat:
+  - model_id: alibaba/qwen-3.6-max-preview
+    name: Qwen 3.6 Max Preview
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 240000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.3
+    output_cost_per_1m: 7.8
+    cache_read_cost_per_1m: 0.13
+    cache_write_cost_per_1m: 1.625
+    compat:
+  - model_id: alibaba/qwen3-235b-a22b-thinking
+    name: Qwen3 VL 235B A22B Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 4
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3-coder
+    name: Qwen3 Coder 480B A35B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 7.5
+    cache_read_cost_per_1m: 0.3
+    compat:
+  - model_id: alibaba/qwen3-coder-30b-a3b
+    name: Qwen 3 Coder 30B A3B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+  - model_id: alibaba/qwen3-coder-next
+    name: Qwen3 Coder Next
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    capabilities: [text]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.2
+    compat:
+  - model_id: alibaba/qwen3-coder-plus
+    name: Qwen3 Coder Plus
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65536
+    capabilities: [text]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.2
+    compat:
+  - model_id: alibaba/qwen3-max
+    name: Qwen3 Max
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 32768
+    capabilities: [text]
+    input_cost_per_1m: 1.2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.24
+    compat:
+  - model_id: alibaba/qwen3-max-preview
+    name: Qwen3 Max Preview
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 32768
+    capabilities: [text]
+    input_cost_per_1m: 1.2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.24
+    compat:
+  - model_id: alibaba/qwen3-max-thinking
+    name: Qwen 3 Max Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.24
+    compat:
+  - model_id: alibaba/qwen3-next-80b-a3b-instruct
+    name: Qwen3 Next 80B A3B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262114
+    max_output_tokens: 262114
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 1.2
+    compat:
+  - model_id: alibaba/qwen3-next-80b-a3b-thinking
+    name: Qwen3 Next 80B A3B Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 1.2
+    compat:
+  - model_id: alibaba/qwen3-vl-235b-a22b-instruct
+    name: Qwen3 VL 235B A22B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 129024
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 1.6
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3-vl-instruct
+    name: Qwen3 VL 235B A22B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 129024
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 1.6
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3-vl-thinking
+    name: Qwen3 VL 235B A22B Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 4
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.5-flash
+    name: Qwen 3.5 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.5-plus
+    name: Qwen 3.5 Plus
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.04
+    cache_write_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.6-27b
+    name: Qwen 3.6 27B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 3.6
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.6-plus
+    name: Qwen 3.6 Plus
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 3
+    cache_read_cost_per_1m: 0.05
+    cache_write_cost_per_1m: 0.625
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.7-flash
+    name: Qwen 3.7 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 991000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.03
+    output_cost_per_1m: 0.13
+    cache_read_cost_per_1m: 0.006
+    cache_write_cost_per_1m: 0.038
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.7-max
+    name: Qwen 3.7 Max
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 991000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 7.5
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 3.125
+    compat:
+  - model_id: alibaba/qwen3.7-plus
+    name: Qwen 3.7 Plus
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 1.6
+    cache_read_cost_per_1m: 0.08
+    cache_write_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-2.4t-a95b
+    name: Qwen3.8 2.4T A95B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-27b
+    name: Qwen3.8 27B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 3
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 0.625
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-flash
+    name: Qwen 3.8 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 991000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.47
+    cache_read_cost_per_1m: 0.016
+    cache_write_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-max
+    name: Qwen 3.8 Max
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-max-0902
+    name: Qwen3.8 Max 0902
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 991000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-max-prime
+    name: Qwen 3.8 Max Prime
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 4
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: alibaba/qwen3.8-omni-flash
+    name: Qwen 3.8 Omni Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.47
+    cache_read_cost_per_1m: 0.016
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: amazon/nova-2-lite
+    name: Nova 2 Lite
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: amazon/nova-lite
+    name: Nova Lite
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 300000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.24
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: amazon/nova-micro
+    name: Nova Micro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.035
+    output_cost_per_1m: 0.14
+    compat:
+  - model_id: amazon/nova-pro
+    name: Nova Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 300000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.8
+    output_cost_per_1m: 3.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-3-haiku
+    name: Claude 3 Haiku
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 4096
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1.25
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-fable-5
+    name: Claude Fable 5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-fable-5.1
+    name: Claude Fable 5.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 0.25
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-haiku-4.5
+    name: Claude Haiku 4.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 5
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 1.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4
+    name: Claude Opus 4
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 15
+    output_cost_per_1m: 75
+    cache_read_cost_per_1m: 1.5
+    cache_write_cost_per_1m: 18.75
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4.5
+    name: Claude Opus 4.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4.6
+    name: Claude Opus 4.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4.7
+    name: Claude Opus 4.7
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4.8
+    name: Claude Opus 4.8
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-4.8-fast
+    name: Claude Opus 4.8 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-5
+    name: Claude Opus 5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 5
+    output_cost_per_1m: 25
+    cache_read_cost_per_1m: 0.5
+    cache_write_cost_per_1m: 6.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-5-fast
+    name: Claude Opus 5 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-5.5
+    name: Claude Opus 5.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-opus-5.5-fast
+    name: Claude Opus 5.5 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 8
+    output_cost_per_1m: 40
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 10
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-sonnet-4
+    name: Claude Sonnet 4
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-sonnet-4.5
+    name: Claude Sonnet 4.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-sonnet-4.6
+    name: Claude Sonnet 4.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      max: max
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    cache_write_cost_per_1m: 3.75
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-sonnet-5
+    name: Claude Sonnet 5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: anthropic/claude-sonnet-5.5
+    name: Claude Sonnet 5.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+      max: max
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: arcee-ai/trinity-large-thinking
+    name: Trinity Large Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262100
+    max_output_tokens: 80000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 0.9
+    compat:
+  - model_id: bytedance/seed-1.6
+    name: Seed 1.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: bytedance/seed-1.8
+    name: Bytedance Seed 1.8
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: bytedance/seed-2.1-turbo
+    name: Seed 2.1 Turbo
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: cohere/command-a
+    name: Command A
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 8000
+    capabilities: [text]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 10
+    compat:
+  - model_id: deepseek/deepseek-r1
+    name: DeepSeek-R1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.35
+    output_cost_per_1m: 5.4
+    compat:
+  - model_id: deepseek/deepseek-v3.1
+    name: DeepSeek V3.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 163840
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 0.95
+    cache_read_cost_per_1m: 0.13
+    compat:
+  - model_id: deepseek/deepseek-v3.1-terminus
+    name: DeepSeek V3.1 Terminus
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.27
+    output_cost_per_1m: 1
+    cache_read_cost_per_1m: 0.135
+    compat:
+  - model_id: deepseek/deepseek-v3.2
+    name: DeepSeek V3.2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8000
+    capabilities: [text]
+    input_cost_per_1m: 0.62
+    output_cost_per_1m: 1.85
+    compat:
+  - model_id: deepseek/deepseek-v3.2-thinking
+    name: DeepSeek V3.2 Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8000
+    capabilities: [text]
+    input_cost_per_1m: 0.62
+    output_cost_per_1m: 1.85
+    compat:
+  - model_id: deepseek/deepseek-v4-flash
+    name: DeepSeek V4 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.13
+    output_cost_per_1m: 0.26
+    cache_read_cost_per_1m: 0.028
+    compat:
+  - model_id: deepseek/deepseek-v4-flash-0731
+    name: DeepSeek V4 Flash 0731
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.076
+    output_cost_per_1m: 0.153
+    cache_read_cost_per_1m: 0.014
+    compat:
+  - model_id: deepseek/deepseek-v4-flash-vision-exp
+    name: DeepSeek V4 Flash Vision Exp
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2156
+    output_cost_per_1m: 0.6468
+    cache_read_cost_per_1m: 0.0068
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: deepseek/deepseek-v4-pro
+    name: DeepSeek V4 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.66
+    output_cost_per_1m: 1.98
+    cache_read_cost_per_1m: 0.022
+    compat:
+  - model_id: deepseek/deepseek-v4-pro-0813
+    name: DeepSeek V4 Pro 0813
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 384000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.66
+    output_cost_per_1m: 1.98
+    cache_read_cost_per_1m: 0.066
+    compat:
+  - model_id: deepseek/deepseek-v4.1-flash
+    name: DeepSeek V4.1 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.007
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: deepseek/deepseek-v4.1-flash-fast
+    name: DeepSeek V4.1 Flash Fast
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.006
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: fireworks/ember-1
+    name: Ember-1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-2.5-flash
+    name: Gemini 2.5 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-2.5-flash-lite
+    name: Gemini 2.5 Flash Lite
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.01
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-2.5-pro
+    name: Gemini 2.5 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3-flash
+    name: Gemini 3 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 3
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.1-flash-lite
+    name: Gemini 3.1 Flash Lite
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.1-pro-preview
+    name: Gemini 3.1 Pro Preview
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.5-flash
+    name: Gemini 3.5 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 9
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.5-flash-lite
+    name: Gemini 3.5 Flash Lite
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.6-flash
+    name: Gemini 3.6 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.7-flash
+    name: Gemini 3.7 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemini-3.8-flash
+    name: Gemini 3.8 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65535
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 3.75
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemma-4-26b-a4b-it
+    name: Google Gemma 4 26B A4B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: google/gemma-4-31b-it
+    name: Gemma 4 31B IT
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.14
+    output_cost_per_1m: 0.4
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: inception/mercury-2
+    name: Mercury 2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 0.75
+    cache_read_cost_per_1m: 0.025
+    compat:
+  - model_id: inception/mercury-2.5
+    name: Mercury 2.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 260000
+    max_output_tokens: 65536
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.15
+    cache_read_cost_per_1m: 0.004
+    compat:
+  - model_id: inception/mercury-coder-small
+    name: Mercury Coder Small Beta
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 32000
+    max_output_tokens: 16384
+    capabilities: [text]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1
+    compat:
+  - model_id: inclusionai/ling-3.0-flash
+    name: Ling 3.0 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.021
+    output_cost_per_1m: 0.063
+    cache_read_cost_per_1m: 0.0042
+    compat:
+  - model_id: inclusionai/ling-3.0-flash-fin
+    name: Ling 3.0 Flash Fin
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.22
+    cache_read_cost_per_1m: 0.015
+    compat:
+  - model_id: inclusionai/ling-3.0-flash-sante
+    name: Ling 3.0 Flash Sante
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.22
+    cache_read_cost_per_1m: 0.015
+    compat:
+  - model_id: inclusionai/ling-3.0-flash-vl
+    name: Ling 3.0 Flash VL
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.075
+    output_cost_per_1m: 0.22
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: inclusionai/ling-3.1-flash
+    name: Ling 3.1 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text]
+    compat:
+  - model_id: inclusionai/ling-3.1-flash-free
+    name: Ling 3.1 Flash (Free)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text]
+    compat:
+  - model_id: interfaze/interfaze-beta
+    name: Interfaze Beta
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 3.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meituan/longcat-2.5-preview
+    name: LongCat 2.5 Preview
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.006
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/llama-3.1-70b
+    name: Llama 3.1 70B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+    compat:
+  - model_id: meta/llama-3.1-8b
+    name: Llama 3.1 8B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.22
+    output_cost_per_1m: 0.22
+    compat:
+  - model_id: meta/llama-3.3-70b
+    name: Llama 3.3 70B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text]
+    input_cost_per_1m: 0.72
+    output_cost_per_1m: 0.72
+    compat:
+  - model_id: meta/llama-4-maverick
+    name: Llama 4 Maverick 17B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.24
+    output_cost_per_1m: 0.97
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/llama-4-scout
+    name: Llama 4 Scout 17B Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities: [text, image]
+    input_cost_per_1m: 0.17
+    output_cost_per_1m: 0.66
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-glimmer-30b
+    name: Muse Glimmer 30B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.35
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.04
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-spark-1.1
+    name: Muse Spark 1.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 4.25
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-spark-1.2
+    name: Muse Spark 1.2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 4.25
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-spark-1.2-contributor
+    name: Muse Spark 1.2 Contributor
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.002
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-spark-1.3
+    name: Muse Spark 1.3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 4.25
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: meta/muse-spark-1.3-contributor
+    name: Muse Spark 1.3 Contributor
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 1048576
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.002
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: minimax/minimax-m2
+    name: MiniMax M2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 205000
+    max_output_tokens: 205000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.1
+    name: MiniMax M2.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.1-lightning
+    name: MiniMax M2.1 Lightning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.5
+    name: MiniMax M2.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.5-highspeed
+    name: MiniMax M2.5 High Speed
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.03
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.7
+    name: MiniMax M2.7
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m2.7-highspeed
+    name: MiniMax M2.7 High Speed
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 204800
+    max_output_tokens: 131100
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.06
+    cache_write_cost_per_1m: 0.375
+    compat:
+  - model_id: minimax/minimax-m3
+    name: MiniMax M3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 512000
+    max_output_tokens: 512000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.06
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/codestral
+    name: Mistral Codestral
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 4000
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 0.9
+    cache_read_cost_per_1m: 0.03
+    compat:
+  - model_id: mistral/ministral-14b
+    name: Ministral 14B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 256000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.02
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/ministral-3b
+    name: Ministral 3B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 4000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.1
+    cache_read_cost_per_1m: 0.01
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/ministral-8b
+    name: Ministral 8B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 4000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.15
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/mistral-large-3
+    name: Mistral Large 3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 256000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/mistral-medium-3.5
+    name: Mistral Medium Latest
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 7.5
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mistral/mistral-nemo
+    name: Mistral Nemo 12B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 60288
+    max_output_tokens: 16000
+    capabilities: [text]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 0.17
+    compat:
+  - model_id: mistral/mistral-small
+    name: Mistral Small
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 4000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.015
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: mixedbread/toast-1
+    name: Toast 1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131000
+    max_output_tokens: 4000
+    capabilities: [text]
+    input_cost_per_1m: 0.3
+    output_cost_per_1m: 0.72
+    cache_read_cost_per_1m: 0.036
+    compat:
+  - model_id: moonshotai/kimi-k2
+    name: Kimi K2 Instruct
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    capabilities: [text]
+    input_cost_per_1m: 0.57
+    output_cost_per_1m: 2.3
+    compat:
+  - model_id: moonshotai/kimi-k2-thinking
+    name: Kimi K2 Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 216144
+    max_output_tokens: 216144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.47
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.141
+    compat:
+  - model_id: moonshotai/kimi-k2.5
+    name: Kimi K2.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: moonshotai/kimi-k2.6
+    name: Kimi K2.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262000
+    max_output_tokens: 262000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.16
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: moonshotai/kimi-k2.7-code
+    name: Kimi K2.7 Code
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.19
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: moonshotai/kimi-k2.7-code-highspeed
+    name: Kimi K2.7 Code High Speed
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.9
+    output_cost_per_1m: 8
+    cache_read_cost_per_1m: 0.38
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: moonshotai/kimi-k3
+    name: Kimi K3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: moonshotai/kimi-k3-fast
+    name: Kimi K3 Fast
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 4.5
+    output_cost_per_1m: 22.5
+    cache_read_cost_per_1m: 0.45
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: nvidia/nemotron-3-nano-30b-a3b
+    name: Nemotron 3 Nano 30B A3B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.05
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.025
+    compat:
+  - model_id: nvidia/nemotron-3-super-120b-a12b
+    name: NVIDIA Nemotron 3 Super 120B A12B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.65
+    compat:
+  - model_id: nvidia/nemotron-3-ultra-550b-a55b
+    name: Nemotron 3 Ultra
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 65000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.12
+    compat:
+  - model_id: nvidia/nemotron-3.5-lightning
+    name: Nemotron 3.5 Lightning 30B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.05
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.01
+    compat:
+  - model_id: nvidia/nemotron-nano-12b-v2-vl
+    name: Nvidia Nemotron Nano 12B V2 VL
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.6
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: nvidia/nemotron-nano-9b-v2
+    name: Nvidia Nemotron Nano 9B V2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.23
+    compat:
+  - model_id: openai/gpt-3.5-turbo
+    name: GPT-3.5 Turbo
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 16385
+    max_output_tokens: 4096
+    capabilities: [text]
+    input_cost_per_1m: 0.5
+    output_cost_per_1m: 1.5
+    compat:
+  - model_id: openai/gpt-4-turbo
+    name: GPT-4 Turbo
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 4096
+    capabilities: [text, image]
+    input_cost_per_1m: 10
+    output_cost_per_1m: 30
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1
+    name: GPT-4.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 8
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1-fast
+    name: GPT-4.1 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 3.5
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.875
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1-mini
+    name: GPT-4.1 mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 1.6
+    cache_read_cost_per_1m: 0.1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1-mini-fast
+    name: GPT-4.1 mini (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 0.7
+    output_cost_per_1m: 2.8
+    cache_read_cost_per_1m: 0.175
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1-nano
+    name: GPT-4.1 nano
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4.1-nano-fast
+    name: GPT-4.1 nano (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1047576
+    max_output_tokens: 32768
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.8
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4o
+    name: GPT-4o
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 1.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4o-fast
+    name: GPT-4o (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 4.25
+    output_cost_per_1m: 17
+    cache_read_cost_per_1m: 2.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4o-mini
+    name: GPT-4o mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-4o-mini-fast
+    name: GPT-4o mini (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16384
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 1
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5
+    name: GPT-5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-codex
+    name: GPT-5-Codex
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.13
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-fast
+    name: GPT-5 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-mini
+    name: GPT-5 mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.025
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-mini-fast
+    name: GPT-5 mini (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.45
+    output_cost_per_1m: 3.6
+    cache_read_cost_per_1m: 0.045
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-nano
+    name: GPT-5 nano
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.05
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.005
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5-pro
+    name: GPT-5 pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 272000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 15
+    output_cost_per_1m: 120
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.1-codex
+    name: GPT-5.1-Codex
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.13
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.1-codex-max
+    name: GPT 5.1 Codex Max
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.1-codex-mini
+    name: GPT 5.1 Codex Mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.25
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.1-thinking
+    name: GPT 5.1 Thinking
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.1-thinking-fast
+    name: GPT 5.1 Thinking (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.2
+    name: GPT 5.2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 1.75
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.175
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.2-codex
+    name: GPT 5.2 Codex
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 1.75
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.175
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.2-fast
+    name: GPT 5.2 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 3.5
+    output_cost_per_1m: 28
+    cache_read_cost_per_1m: 0.35
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.2-pro
+    name: GPT 5.2 
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 21
+    output_cost_per_1m: 168
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.3-codex
+    name: GPT 5.3 Codex
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 1.75
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.175
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.3-codex-fast
+    name: GPT 5.3 Codex (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 3.5
+    output_cost_per_1m: 28
+    cache_read_cost_per_1m: 0.35
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4
+    name: GPT 5.4
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2.5
+    output_cost_per_1m: 15
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4-fast
+    name: GPT 5.4 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4-mini
+    name: GPT 5.4 Mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.75
+    output_cost_per_1m: 4.5
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4-mini-fast
+    name: GPT 5.4 Mini (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 1.5
+    output_cost_per_1m: 9
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4-nano
+    name: GPT 5.4 Nano
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 400000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.25
+    cache_read_cost_per_1m: 0.02
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.4-pro
+    name: GPT 5.4 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 30
+    output_cost_per_1m: 180
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.5
+    name: GPT 5.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.5-fast
+    name: GPT 5.5 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 12.5
+    output_cost_per_1m: 75
+    cache_read_cost_per_1m: 1.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.5-pro
+    name: GPT 5.5 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      off: null
+      minimal: null
+      low: null
+      xhigh: xhigh
+    input_cost_per_1m: 30
+    output_cost_per_1m: 180
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-luna
+    name: GPT 5.6 Luna
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.02
+    cache_write_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-luna-fast
+    name: GPT 5.6 Luna (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.4
+    output_cost_per_1m: 2.4
+    cache_read_cost_per_1m: 0.04
+    cache_write_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-sol
+    name: GPT 5.6 Sol
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-sol-fast
+    name: GPT 5.6 Sol (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 8
+    output_cost_per_1m: 40
+    cache_read_cost_per_1m: 0.8
+    cache_write_cost_per_1m: 10
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-terra
+    name: GPT 5.6 Terra
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 12
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-5.6-terra-fast
+    name: GPT 5.6 Terra (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4
+    output_cost_per_1m: 24
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-astra
+    name: GPT-6 Astra
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 10
+    output_cost_per_1m: 50
+    cache_read_cost_per_1m: 1
+    cache_write_cost_per_1m: 12.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-astra-fast
+    name: GPT-6 Astra (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 20
+    output_cost_per_1m: 100
+    cache_read_cost_per_1m: 2
+    cache_write_cost_per_1m: 25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-luna
+    name: GPT-6 Luna
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.01
+    cache_write_cost_per_1m: 0.125
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-luna-fast
+    name: GPT-6 Luna (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1
+    cache_read_cost_per_1m: 0.02
+    cache_write_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-sol
+    name: GPT-6 Sol
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6-sol-fast
+    name: GPT-6 Sol (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6.1-sol
+    name: GPT-6.1 Sol
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 2
+    output_cost_per_1m: 10
+    cache_read_cost_per_1m: 0.1
+    cache_write_cost_per_1m: 2.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-6.1-sol-fast
+    name: GPT-6.1 Sol (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    thinking_level_map:
+      xhigh: xhigh
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.2
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/gpt-oss-120b
+    name: GPT OSS 120B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.1
+    compat:
+  - model_id: openai/gpt-oss-20b
+    name: GPT OSS 20B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 8192
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.03
+    output_cost_per_1m: 0.14
+    compat:
+  - model_id: openai/gpt-oss-safeguard-120b
+    name: GPT OSS Safeguard 120B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.6
+    compat:
+  - model_id: openai/gpt-oss-safeguard-20b
+    name: GPT OSS Safeguard 20B
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 16000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.2
+    compat:
+  - model_id: openai/o1
+    name: o1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 15
+    output_cost_per_1m: 60
+    cache_read_cost_per_1m: 7.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/o3
+    name: o3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 8
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/o3-fast
+    name: o3 (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 3.5
+    output_cost_per_1m: 14
+    cache_read_cost_per_1m: 0.875
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/o3-mini
+    name: o3-mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.55
+    compat:
+  - model_id: openai/o3-pro
+    name: o3 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 20
+    output_cost_per_1m: 80
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/o4-mini
+    name: o4-mini
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.1
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.275
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: openai/o4-mini-fast
+    name: o4-mini (Fast)
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 100000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 8
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: poolside/laguna-s-2.1
+    name: Laguna S 2.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.1
+    output_cost_per_1m: 0.2
+    cache_read_cost_per_1m: 0.01
+    compat:
+  - model_id: poolside/laguna-s-2.1-free
+    name: Laguna S 2.1 Free
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 32768
+    reasoning: true
+    capabilities: [text]
+    compat:
+  - model_id: quiverai/arrow-2
+    name: Arrow 2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 4
+    output_cost_per_1m: 20
+    cache_read_cost_per_1m: 0.4
+    cache_write_cost_per_1m: 5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: quiverai/arrow-2-telos
+    name: Arrow 2 Telos
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 131072
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 6
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.6
+    cache_write_cost_per_1m: 7.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: sakana/fugu-max
+    name: Fugu Max
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.25
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: sakana/fugu-ultra
+    name: Fugu Ultra
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: sakana/fugu-ultra-v2
+    name: Fugu Ultra v2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 5
+    output_cost_per_1m: 30
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: sakana/namazu
+    name: Sakana Namazu
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.95
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.15
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.1-fast-non-reasoning
+    name: Grok 4.1 Fast Non-Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.1-fast-reasoning
+    name: Grok 4.1 Fast Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.05
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-multi-agent
+    name: Grok 4.20 Multi-Agent
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-multi-agent-beta
+    name: Grok 4.20 Multi Agent Beta
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-non-reasoning
+    name: Grok 4.20 Non-Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-non-reasoning-beta
+    name: Grok 4.20 Beta Non-Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-reasoning
+    name: Grok 4.20 Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.20-reasoning-beta
+    name: Grok 4.20 Beta Reasoning
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 2000000
+    max_output_tokens: 2000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.3
+    name: Grok 4.3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.25
+    output_cost_per_1m: 2.5
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.5
+    name: Grok 4.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.3
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.6
+    name: Grok 4.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-4.7
+    name: Grok 4.7
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 500000
+    max_output_tokens: 500000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 2
+    output_cost_per_1m: 6
+    cache_read_cost_per_1m: 0.5
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: spacexai/grok-build-0.1
+    name: Grok Build 0.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 2
+    cache_read_cost_per_1m: 0.2
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: stepfun/step-3.5-flash
+    name: StepFun 3.5 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262114
+    max_output_tokens: 262114
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.09
+    output_cost_per_1m: 0.3
+    cache_read_cost_per_1m: 0.02
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: stepfun/step-3.7-flash
+    name: Step 3.7 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.15
+    cache_read_cost_per_1m: 0.04
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: tencent/hy3
+    name: Hy3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 262144
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.14
+    output_cost_per_1m: 0.58
+    cache_read_cost_per_1m: 0.035
+    compat:
+  - model_id: tencent/hy4-preview
+    name: Tencent Hy4 Preview
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1024000
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.834
+    output_cost_per_1m: 2.501
+    cache_read_cost_per_1m: 0.042
+    compat:
+  - model_id: thinkingmachines/inkling
+    name: Inkling
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 256000
+    max_output_tokens: 256000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 4.05
+    cache_read_cost_per_1m: 0.17
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: thinkingmachines/inkling-small
+    name: Inkling Small
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.45
+    output_cost_per_1m: 1.2
+    cache_read_cost_per_1m: 0.1
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: xiaomi/mimo-v2.5
+    name: MiMo M2.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 131100
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.14
+    output_cost_per_1m: 0.28
+    cache_read_cost_per_1m: 0.0028
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: xiaomi/mimo-v2.5-pro
+    name: MiMo V2.5 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1050000
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.435
+    output_cost_per_1m: 0.87
+    cache_read_cost_per_1m: 0.0036
+    compat:
+  - model_id: xiaomi/mimo-v2.6-flash
+    name: MiMo V2.6 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.04
+    output_cost_per_1m: 1.28
+    cache_read_cost_per_1m: 0.04
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: xiaomi/mimo-v2.6-pro
+    name: MiMo V2.6 Pro
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.435
+    output_cost_per_1m: 0.87
+    cache_read_cost_per_1m: 0.0036
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: xiaomi/mimo-v2.6-pro-ultraspeed
+    name: MiMo V2.6 Pro UltraSpeed
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 4.35
+    output_cost_per_1m: 8.7
+    cache_read_cost_per_1m: 0.036
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: zai/glm-4.5
+    name: GLM 4.5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 96000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.2
+    cache_read_cost_per_1m: 0.11
+    compat:
+  - model_id: zai/glm-4.5-air
+    name: GLM 4.5 Air
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 128000
+    max_output_tokens: 96000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.2
+    output_cost_per_1m: 1.1
+    cache_read_cost_per_1m: 0.03
+    compat:
+  - model_id: zai/glm-4.5v
+    name: GLM 4.5V
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 66000
+    max_output_tokens: 16000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 1.8
+    cache_read_cost_per_1m: 0.11
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: zai/glm-4.6
+    name: GLM 4.6
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 96000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.2
+    cache_read_cost_per_1m: 0.11
+    compat:
+  - model_id: zai/glm-4.7
+    name: GLM 4.7
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 120000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.6
+    output_cost_per_1m: 2.2
+    compat:
+  - model_id: zai/glm-4.7-flash
+    name: GLM 4.7 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.07
+    output_cost_per_1m: 0.4
+    compat:
+  - model_id: zai/glm-4.7-flashx
+    name: GLM 4.7 FlashX
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.06
+    output_cost_per_1m: 0.4
+    cache_read_cost_per_1m: 0.01
+    compat:
+  - model_id: zai/glm-5
+    name: GLM 5
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 202800
+    max_output_tokens: 131100
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1
+    output_cost_per_1m: 3.2
+    compat:
+  - model_id: zai/glm-5-turbo
+    name: GLM 5 Turbo
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 202800
+    max_output_tokens: 131100
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.2
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.24
+    compat:
+  - model_id: zai/glm-5.1
+    name: GLM 5.1
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 202800
+    max_output_tokens: 64000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.26
+    compat:
+  - model_id: zai/glm-5.2
+    name: GLM 5.2
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 0.8
+    output_cost_per_1m: 2.55
+    cache_read_cost_per_1m: 0.16
+    compat:
+  - model_id: zai/glm-5.2-fast
+    name: GLM 5.2 Fast
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2.8
+    output_cost_per_1m: 8.8
+    cache_read_cost_per_1m: 0.56
+    compat:
+  - model_id: zai/glm-5.3
+    name: GLM 5.3
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 1000000
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 1.4
+    output_cost_per_1m: 4.4
+    cache_read_cost_per_1m: 0.14
+    compat:
+  - model_id: zai/glm-5.3-fast
+    name: GLM 5.3 Fast
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1048576
+    max_output_tokens: 262144
+    reasoning: true
+    capabilities: [text]
+    input_cost_per_1m: 2.1
+    output_cost_per_1m: 6.6
+    cache_read_cost_per_1m: 0.21
+    compat:
+  - model_id: zai/glm-5.3-flash
+    name: GLM 5.3 Flash
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.15
+    output_cost_per_1m: 0.5
+    cache_read_cost_per_1m: 0.03
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: zai/glm-5.3-flashx
+    name: GLM 5.3 FlashX
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 1000000
+    max_output_tokens: 131072
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 0.37
+    output_cost_per_1m: 1.25
+    cache_read_cost_per_1m: 0.075
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+  - model_id: zai/glm-5v-turbo
+    name: GLM 5V Turbo
+    api: anthropic-messages
+    base_url: "https://ai-gateway.vercel.sh"
+    context_window: 200000
+    max_output_tokens: 128000
+    reasoning: true
+    capabilities: [text, image]
+    input_cost_per_1m: 1.2
+    output_cost_per_1m: 4
+    cache_read_cost_per_1m: 0.24
+    input_limits:
+      images:
+        resize:
+          max_width: 2000
+          max_height: 2000
+          max_bytes: 4718592
+          jpeg_quality: 80
+    compat:
+
+decision_models:
+  - model_id: convaiinnovations/laya
+    name: Laya
+    model_api: typesafe-system-one
+    base_url: "https://ai-gateway.vercel.sh/typesafe/v1"
+    input: [text]
+    context_window: 8192
+  - model_id: convaiinnovations/laya-free
+    name: Laya (Free)
+    model_api: typesafe-system-one
+    base_url: "https://ai-gateway.vercel.sh/typesafe/v1"
+    input: [text]
+    context_window: 8192
+  - model_id: liquid/d1
+    name: Liquid d1
+    model_api: typesafe-system-one
+    base_url: "https://ai-gateway.vercel.sh/typesafe/v1"
+    input: [text]
+    context_window: 65536
+    input_cost_per_1m: 0.04
+  - model_id: typesafe-ai/jev
+    name: Jev
+    model_api: typesafe-system-one
+    base_url: "https://ai-gateway.vercel.sh/typesafe/v1"
+    input: [text]
+    context_window: 32000
+    input_cost_per_1m: 0.042
